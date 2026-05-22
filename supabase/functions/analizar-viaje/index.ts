@@ -303,6 +303,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. Todo en MXN.`;
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 8000,
+        temperature: 0,
         system: SYSTEM_PROMPT,
         tools: [TOOL_SCHEMA],
         tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
