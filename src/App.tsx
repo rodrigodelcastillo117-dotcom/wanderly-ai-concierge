@@ -11,6 +11,7 @@ import Onboarding from "./pages/Onboarding";
 import DashboardHome from "./pages/DashboardHome";
 import PlanTrip from "./pages/PlanTrip";
 import TripDetail from "./pages/TripDetail";
+import EditTrip from "./pages/EditTrip";
 import Trips from "./pages/Trips";
 import Profile from "./pages/Profile";
 import Discover from "./pages/Discover";
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/dashboard/planear" element={<ProtectedRoute><PlanTrip /></ProtectedRoute>} />
             <Route path="/dashboard/viajes" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
+            <Route path="/dashboard/viajes/:id/editar" element={<ProtectedRoute><EditTrip /></ProtectedRoute>} />
             <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

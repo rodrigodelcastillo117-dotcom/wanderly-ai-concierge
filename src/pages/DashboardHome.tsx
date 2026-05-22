@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, Plus, Sparkles, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,27 +151,36 @@ const DashboardHome = () => {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {trips.map((t) => (
-                <Link
+                <div
                   key={t.id}
-                  to={`/dashboard/viajes/${t.id}`}
-                  className="glass-card rounded-2xl p-6 hover:gold-border transition-all duration-300 group"
+                  className="relative glass-card rounded-2xl p-6 hover:gold-border transition-all duration-300 group"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1">{t.pais_destino}</p>
-                      <h3 className="font-display text-2xl group-hover:text-primary transition">{t.destino}</h3>
-                    </div>
-                    {t.match_score && (
-                      <div className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary">
-                        {t.match_score}%
+                  <Link
+                    to={`/dashboard/viajes/${t.id}/editar`}
+                    aria-label="Editar viaje"
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute top-3 right-3 z-10 p-2 rounded-full bg-surface/60 hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Link>
+                  <Link to={`/dashboard/viajes/${t.id}`} className="block">
+                    <div className="flex items-start justify-between mb-4 pr-8">
+                      <div>
+                        <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1">{t.pais_destino}</p>
+                        <h3 className="font-display text-2xl group-hover:text-primary transition">{t.destino}</h3>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>{new Date(t.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "short" })} · {t.num_viajeros} {t.num_viajeros === 1 ? "viajero" : "viajeros"}</span>
-                    <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")} MXN</span>
-                  </div>
-                </Link>
+                      {t.match_score && (
+                        <div className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary">
+                          {t.match_score}%
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{new Date(t.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "short" })} · {t.num_viajeros} {t.num_viajeros === 1 ? "viajero" : "viajeros"}</span>
+                      <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")} MXN</span>
+                    </div>
+                  </Link>
+                </div>
               ))}
             </div>
           )}
