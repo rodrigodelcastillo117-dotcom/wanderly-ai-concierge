@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -27,14 +28,23 @@ const Trips = () => {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {trips.map((t) => (
-              <Link key={t.id} to={`/dashboard/viajes/${t.id}`} className="glass-card rounded-2xl p-6 hover:gold-border transition group">
-                <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1">{t.pais_destino}</p>
-                <h3 className="font-display text-2xl mb-3 group-hover:text-primary transition">{t.destino}</h3>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{new Date(t.fecha_salida).toLocaleDateString("es-MX")}</span>
-                  <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")}</span>
-                </div>
-              </Link>
+              <div key={t.id} className="relative glass-card rounded-2xl p-6 hover:gold-border transition group">
+                <Link
+                  to={`/dashboard/viajes/${t.id}/editar`}
+                  aria-label="Editar viaje"
+                  className="absolute top-3 right-3 z-10 p-2 rounded-full bg-surface/60 hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Link>
+                <Link to={`/dashboard/viajes/${t.id}`} className="block">
+                  <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{t.pais_destino}</p>
+                  <h3 className="font-display text-2xl mb-3 group-hover:text-primary transition">{t.destino}</h3>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>{new Date(t.fecha_salida).toLocaleDateString("es-MX")}</span>
+                    <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")}</span>
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
         )}
