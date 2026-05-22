@@ -253,7 +253,7 @@ VIAJE SOLICITADO
 - Viajeros: ${body.num_viajeros}
 - Presupuesto objetivo (MXN): ${body.presupuesto_objetivo ?? "sin presupuesto fijo"}
 
-Como aún no hay APIs externas conectadas, usa estimaciones realistas basadas en rangos de mercado conocidos para 2025-2026. Sé específico con nombres reales (hoteles, restaurantes, barrios). Todos los precios en MXN. Todas las narrativas en español. Llama a la herramienta "entregar_analisis_viaje" con el resultado.`;
+Investiga precios reales con web_search ANTES de generar la cotización. Mínimo 4-6 búsquedas (vuelos, hoteles principales, actividades, tipos de cambio). NO uses estimaciones genéricas. Cuando tengas los datos, llama a "entregar_analisis_viaje" con cifras realistas en MXN. Todas las narrativas en español de México.`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -264,10 +264,16 @@ Como aún no hay APIs externas conectadas, usa estimaciones realistas basadas en
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 8000,
+        max_tokens: 12000,
         system: SYSTEM_PROMPT,
-        tools: [TOOL_SCHEMA],
-        tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: 8,
+          },
+          TOOL_SCHEMA,
+        ],
         messages: [{ role: "user", content: userPrompt }],
       }),
     });
@@ -282,9 +288,11 @@ Como aún no hay APIs externas conectadas, usa estimaciones realistas basadas en
     }
 
     const claudeData = await claudeRes.json();
-    const toolUse = (claudeData.content ?? []).find((b: any) => b.type === "tool_use");
+    const toolUse = (claudeData.content ?? []).find(
+      (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje"
+    );
     if (!toolUse?.input) {
-      console.error("No tool_use en respuesta:", JSON.stringify(claudeData));
+      console.error("No tool_use en respuesta:", JSON.stringify(claudeData).slice(0, 2000));
       return new Response(JSON.stringify({ error: "Respuesta inválida de IA" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -292,6 +300,7 @@ Como aún no hay APIs externas conectadas, usa estimaciones realistas basadas en
     }
 
     const a = toolUse.input;
+
 
     // Guardar trip
     const { data: trip, error: insertErr } = await supabase
