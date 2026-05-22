@@ -24,7 +24,18 @@ interface AnalisisRequest {
 
 const SYSTEM_PROMPT = `Eres un consultor de viajes premium con 20 años de experiencia, tono sofisticado, cálido y específico, como un concierge personal. Siempre respondes en español de México y todos los precios en pesos mexicanos (MXN). Tu trabajo es generar un análisis completo y realista de un viaje, basado en el perfil del cliente.
 
-CRÍTICO: Debes responder SIEMPRE usando la herramienta "entregar_analisis_viaje". Nunca respondas en texto libre. Sé específico con nombres reales de hoteles, restaurantes, calles, barrios. Los precios deben ser realistas para el mercado actual (2025-2026).`;
+PROCESO OBLIGATORIO — INVESTIGACIÓN ANTES DE COTIZAR:
+1. USA la herramienta web_search varias veces (mínimo 4-6 búsquedas) ANTES de generar la cotización. Sin búsquedas, tus precios serán inventados y eso es inaceptable.
+2. Busca precios reales para las fechas exactas del viaje:
+   - Vuelos: busca "vuelos [origen] a [destino] [mes año] precio MXN" o consulta Google Flights / Aeroméxico / Kayak.
+   - Hoteles: busca hoteles específicos en Booking.com / Hotels.com para las fechas exactas.
+   - Cruceros: busca en Celestyal, Vacations To Go, Royal Caribbean según el destino.
+   - Tours y actividades: GetYourGuide, Viator, Civitatis.
+3. Si el tipo de cambio MXN/USD o MXN/EUR es relevante, búscalo (ronda 18-19 MXN/USD, 20-21 MXN/EUR en 2026).
+4. Cita en "analisis_narrativo" qué fuentes consultaste (ej: "según Google Flights y Booking…").
+5. PRECIOS REALISTAS: un vuelo CDMX-Europa redondo en económica suele estar entre $18,000 y $28,000 MXN por persona, NO cientos de miles. Hoteles 3-4★ en Europa $1,800-$4,500 MXN/noche. Cruceros mediterráneos 4 noches $15,000-$45,000 MXN/persona. Si tu cotización se aleja mucho de estos rangos sin razón fuerte, REVISA.
+
+CRÍTICO: Responde SIEMPRE usando la herramienta "entregar_analisis_viaje" al final. Nunca en texto libre. Sé específico con nombres reales de hoteles, vuelos (con número de vuelo cuando sea posible), restaurantes, calles, barrios.`;
 
 const TOOL_SCHEMA = {
   name: "entregar_analisis_viaje",
@@ -242,7 +253,7 @@ VIAJE SOLICITADO
 - Viajeros: ${body.num_viajeros}
 - Presupuesto objetivo (MXN): ${body.presupuesto_objetivo ?? "sin presupuesto fijo"}
 
-Como aún no hay APIs externas conectadas, usa estimaciones realistas basadas en rangos de mercado conocidos para 2025-2026. Sé específico con nombres reales (hoteles, restaurantes, barrios). Todos los precios en MXN. Todas las narrativas en español. Llama a la herramienta "entregar_analisis_viaje" con el resultado.`;
+Investiga precios reales con web_search ANTES de generar la cotización. Mínimo 4-6 búsquedas (vuelos, hoteles principales, actividades, tipos de cambio). NO uses estimaciones genéricas. Cuando tengas los datos, llama a "entregar_analisis_viaje" con cifras realistas en MXN. Todas las narrativas en español de México.`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -253,10 +264,16 @@ Como aún no hay APIs externas conectadas, usa estimaciones realistas basadas en
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 8000,
+        max_tokens: 12000,
         system: SYSTEM_PROMPT,
-        tools: [TOOL_SCHEMA],
-        tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: 8,
+          },
+          TOOL_SCHEMA,
+        ],
         messages: [{ role: "user", content: userPrompt }],
       }),
     });
@@ -271,9 +288,11 @@ Como aún no hay APIs externas conectadas, usa estimaciones realistas basadas en
     }
 
     const claudeData = await claudeRes.json();
-    const toolUse = (claudeData.content ?? []).find((b: any) => b.type === "tool_use");
+    const toolUse = (claudeData.content ?? []).find(
+      (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje"
+    );
     if (!toolUse?.input) {
-      console.error("No tool_use en respuesta:", JSON.stringify(claudeData));
+      console.error("No tool_use en respuesta:", JSON.stringify(claudeData).slice(0, 2000));
       return new Response(JSON.stringify({ error: "Respuesta inválida de IA" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -281,6 +300,7 @@ Como aún no hay APIs externas conectadas, usa estimaciones realistas basadas en
     }
 
     const a = toolUse.input;
+
 
     // Guardar trip
     const { data: trip, error: insertErr } = await supabase
