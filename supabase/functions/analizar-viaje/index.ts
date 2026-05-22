@@ -25,13 +25,16 @@ interface AnalisisRequest {
 
 const SYSTEM_PROMPT = `Eres un consultor de viajes premium con 20 años de experiencia, tono sofisticado, cálido y específico, como un concierge personal. Siempre respondes en español de México y todos los precios en pesos mexicanos (MXN).
 
-REGLAS:
-1. USA EXCLUSIVAMENTE los precios y datos reales que aparecen en la sección "INVESTIGACIÓN DE PRECIOS REALES" del prompt. Esos datos vienen de búsquedas web en vivo (Booking, Google Flights, Aeroméxico, Celestyal, GetYourGuide, etc.). NO inventes precios.
-2. Convierte siempre a MXN. Tipo de cambio: 1 USD ≈ 18.5 MXN, 1 EUR ≈ 21 MXN.
-3. Nombres reales de hoteles, aerolíneas, restaurantes y barrios.
-4. total_estimado = suma coherente del desglose para el GRUPO COMPLETO (multiplica por num_viajeros en vuelos/comida/tours; hospedaje es por habitación).
-5. En analisis_narrativo menciona explícitamente que las cotizaciones se basan en datos reales y cita 2-3 fuentes (ej: "tarifas verificadas en Aeroméxico y Booking.com").
-6. Responde SIEMPRE llamando a la herramienta "entregar_analisis_viaje". Nunca texto libre.`;
+REGLAS ESTRICTAS DE PRECIOS:
+1. PROHIBIDO inventar, redondear hacia abajo o "ajustar" precios. Cada cifra que pongas DEBE aparecer textualmente (o ser conversión directa USD→MXN / EUR→MXN) en la sección "INVESTIGACIÓN DE PRECIOS REALES".
+2. Si Perplexity te da un rango (ej: "$25,000-$32,000"), usa el PUNTO MEDIO, nunca el extremo bajo.
+3. Tipo de cambio fijo: 1 USD = 18.5 MXN, 1 EUR = 21 MXN. Convierte siempre.
+4. Para vuelos con varios segmentos (ej: CDMX→París→Madrid→Atenas), cada tier (ahorro/equilibrio/premium) debe representar el COSTO TOTAL DE TODOS LOS SEGMENTOS por persona, no un solo tramo. Si Perplexity desglosa por tramo, SUMA los tramos antes de poner el precio.
+5. Si una opción "equilibrio" o "premium" sale más barata que "ahorro", está mal: revisa y corrige.
+6. Nombres reales de hoteles, aerolíneas, restaurantes y barrios — los que aparezcan en la investigación.
+7. total_estimado = suma coherente del desglose para el GRUPO COMPLETO (multiplica por num_viajeros en vuelos/comida/tours; hospedaje es por habitación × noches).
+8. En analisis_narrativo cita explícitamente 2-3 fuentes reales de la lista de FUENTES CITADAS.
+9. Responde SIEMPRE llamando a la herramienta "entregar_analisis_viaje". Nunca texto libre.`;
 
 const TOOL_SCHEMA = {
   name: "entregar_analisis_viaje",
@@ -145,35 +148,33 @@ const TOOL_SCHEMA = {
 };
 
 async function investigarConPerplexity(body: AnalisisRequest, dias: number): Promise<{ texto: string; citations: string[] }> {
-  const query = `Investiga precios REALES y actuales (2026) para este viaje en pesos mexicanos (MXN). Sé específico con nombres, fechas y cifras concretas.
+  const query = `Investiga precios REALES y actuales para este viaje. Devuelve CIFRAS PUNTUALES en MXN (no rangos vagos). Si el destino implica varios países/ciudades, desglosa TODOS los vuelos necesarios.
 
 Origen: ${body.ciudad_origen}
 Destino: ${body.destino}
 Fechas: ${body.fecha_salida} al ${body.fecha_regreso} (${dias} días)
 Viajeros: ${body.num_viajeros}
 
-Necesito que busques y reportes:
+FORMATO OBLIGATORIO: Para cada ítem reporta "Aerolínea/Hotel X: $XX,XXX MXN" con cifra única (si el sitio da rango, usa el punto medio). Incluye link de fuente entre paréntesis.
 
-1. VUELOS REDONDOS ${body.ciudad_origen} -> ${body.destino} para esas fechas exactas:
-   - Opción económica (mejor precio): aerolínea, escalas, duración, precio por persona en MXN.
-   - Opción equilibrio (directo o 1 escala buena): aerolínea, precio MXN.
-   - Opción premium (premium economy o business): precio MXN.
-   Fuentes: Google Flights, Aeroméxico, Skyscanner, Kayak.
+1. VUELOS — Identifica TODOS los segmentos necesarios entre ${body.ciudad_origen} y ${body.destino} (incluyendo si hay que volar entre ciudades intermedias o llegar a puerto de crucero). Para CADA segmento, da 3 opciones:
+   - AHORRO: aerolínea real, escalas, duración, precio MXN por persona (tarifa más económica disponible esas fechas)
+   - EQUILIBRIO: directo o 1 escala buena, precio MXN
+   - PREMIUM: premium economy o business, precio MXN
+   Luego suma el TOTAL del viaje aéreo por persona para cada tier.
+   Fuentes: Google Flights, Skyscanner, Kayak, Aeroméxico, sitios de aerolíneas.
 
-2. HOSPEDAJE para ${dias} noches en ${body.destino} (habitación doble, fechas exactas):
-   - 3 opciones con nombres reales (3-4-5 estrellas o boutique según destino).
-   - Precio por noche en MXN, barrio, rating.
-   Fuentes: Booking.com, Hotels.com, Expedia.
+2. HOSPEDAJE — ${dias} noches totales (desglosa por ciudad si aplica). 3 opciones con NOMBRE REAL del hotel (3★, 4★ boutique, 5★), barrio, rating, precio MXN por noche habitación doble en esas fechas exactas. Fuentes: Booking.com, Hotels.com.
 
-3. Si el destino incluye crucero: nombre real del crucero, naviera, itinerario, precio por persona MXN (interior y balcón). Fuentes: Celestyal, MSC, Royal Caribbean, Vacations To Go.
+3. CRUCERO (si aplica): nombre real, naviera, itinerario, precio MXN por persona interior y balcón. Fuentes: Celestyal, MSC, Royal Caribbean.
 
-4. TOURS y actividades principales del destino: 4-6 experiencias con nombres reales y precios MXN por persona. Fuentes: GetYourGuide, Viator, Civitatis.
+4. TOURS: 4-6 experiencias reales con nombre, duración y precio MXN por persona. Fuentes: GetYourGuide, Viator, Civitatis.
 
-5. COMIDA: 5-6 restaurantes reales bien valorados del destino (no genéricos) con rango de precio y tipo de cocina.
+5. COMIDA: 5-6 restaurantes reales bien valorados con rango ($/$$/$$$) y cocina.
 
-6. TRANSPORTE LOCAL: metro/tren/transfers, precio total estimado MXN.
+6. TRANSPORTE LOCAL: metro/tren/transfers, total MXN estimado para ${body.num_viajeros} personas.
 
-Devuelve datos concretos con cifras, no rangos vagos. Tipo de cambio actual USD/MXN y EUR/MXN.`;
+Tipo de cambio actual USD→MXN y EUR→MXN. Sé exhaustivo con cifras puntuales.`;
 
   const res = await fetch("https://api.perplexity.ai/chat/completions", {
     method: "POST",
@@ -302,6 +303,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. Todo en MXN.`;
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 8000,
+        temperature: 0,
         system: SYSTEM_PROMPT,
         tools: [TOOL_SCHEMA],
         tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
