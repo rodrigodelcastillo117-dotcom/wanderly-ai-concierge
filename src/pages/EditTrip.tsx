@@ -123,6 +123,39 @@ const EditTrip = () => {
     );
   }
 
+  if (reanalyzing) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+          <motion.div
+            animate={{ scale: [1, 1.1, 1], opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 2.4, repeat: Infinity }}
+            className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center mb-8 gold-glow"
+          >
+            <Sparkles className="w-7 h-7 text-primary-foreground" />
+          </motion.div>
+          <h2 className="font-display text-3xl md:text-5xl mb-6">
+            Re-analizando tu viaje a <span className="gold-text italic">{destino}</span>
+          </h2>
+          <p className="text-muted-foreground text-lg max-w-md">
+            Esto puede tardar hasta un minuto. Estamos curando vuelos, hospedaje, restaurantes e itinerario con IA.
+          </p>
+          <div className="mt-12 flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.2 }}
+                className="w-2 h-2 rounded-full bg-primary"
+              />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+
   return (
     <DashboardLayout>
       <div className="p-6 md:p-10 max-w-2xl">
