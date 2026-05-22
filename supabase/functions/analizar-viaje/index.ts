@@ -23,13 +23,63 @@ interface AnalisisRequest {
   presupuesto_objetivo?: number | null;
 }
 
+const TIER_ORDER = ["ahorro", "equilibrio", "premium"];
+
+function normalizarVuelos(vuelos: any[]): any[] {
+  if (!Array.isArray(vuelos)) return [];
+
+  const agrupados = new Map<string, any>();
+  for (const vuelo of vuelos) {
+    const tier = TIER_ORDER.includes(vuelo?.tier) ? vuelo.tier : "equilibrio";
+    const precio = Number(vuelo?.precio_por_persona) || 0;
+    const existente = agrupados.get(tier);
+
+    if (!existente) {
+      agrupados.set(tier, {
+        ...vuelo,
+        tier,
+        precio_por_persona: precio,
+        _segmentos: [vuelo],
+      });
+      continue;
+    }
+
+    existente.precio_por_persona += precio;
+    existente._segmentos.push(vuelo);
+  }
+
+  return TIER_ORDER
+    .map((tier) => agrupados.get(tier))
+    .filter(Boolean)
+    .map((vuelo) => {
+      const segmentos = vuelo._segmentos ?? [];
+      const aerolineas = [...new Set(segmentos.map((s: any) => s?.aerolinea).filter(Boolean))];
+      const notasSegmentos = segmentos
+        .map((s: any) => `${s?.aerolinea ?? "Vuelo"}: $${Math.round(Number(s?.precio_por_persona) || 0).toLocaleString("es-MX")} MXN`)
+        .join(" + ");
+
+      const normalizado = {
+        ...vuelo,
+        aerolinea: segmentos.length > 1 ? aerolineas.join(" + ") : vuelo.aerolinea,
+        duracion: segmentos.length > 1 ? "Ruta completa, varios segmentos" : vuelo.duracion,
+        escalas: segmentos.length > 1 ? `${segmentos.length} segmentos sumados` : vuelo.escalas,
+        precio_por_persona: Math.round(vuelo.precio_por_persona),
+        notas: segmentos.length > 1
+          ? `Total por persona sumando todos los tramos: ${notasSegmentos}`
+          : vuelo.notas,
+      };
+      delete normalizado._segmentos;
+      return normalizado;
+    });
+}
+
 const SYSTEM_PROMPT = `Eres un consultor de viajes premium con 20 años de experiencia, tono sofisticado, cálido y específico, como un concierge personal. Siempre respondes en español de México y todos los precios en pesos mexicanos (MXN).
 
 REGLAS ESTRICTAS DE PRECIOS:
 1. PROHIBIDO inventar, redondear hacia abajo o "ajustar" precios. Cada cifra que pongas DEBE aparecer textualmente (o ser conversión directa USD→MXN / EUR→MXN) en la sección "INVESTIGACIÓN DE PRECIOS REALES".
 2. Si Perplexity te da un rango (ej: "$25,000-$32,000"), usa el PUNTO MEDIO, nunca el extremo bajo.
 3. Tipo de cambio fijo: 1 USD = 18.5 MXN, 1 EUR = 21 MXN. Convierte siempre.
-4. Para vuelos con varios segmentos (ej: CDMX→París→Madrid→Atenas), cada tier (ahorro/equilibrio/premium) debe representar el COSTO TOTAL DE TODOS LOS SEGMENTOS por persona, no un solo tramo. Si Perplexity desglosa por tramo, SUMA los tramos antes de poner el precio.
+4. Para vuelos con varios segmentos (ej: CDMX→París→Madrid→Atenas), entrega SOLO 3 filas de vuelos: ahorro, equilibrio y premium. Cada fila debe representar el COSTO TOTAL DE TODOS LOS SEGMENTOS por persona, no un solo tramo. Si Perplexity desglosa por tramo, SUMA los tramos antes de poner el precio.
 5. Si una opción "equilibrio" o "premium" sale más barata que "ahorro", está mal: revisa y corrige.
 6. Nombres reales de hoteles, aerolíneas, restaurantes y barrios — los que aparezcan en la investigación.
 7. total_estimado = suma coherente del desglose para el GRUPO COMPLETO (multiplica por num_viajeros en vuelos/comida/tours; hospedaje es por habitación × noches).
@@ -59,6 +109,9 @@ const TOOL_SCHEMA = {
       },
       vuelos: {
         type: "array",
+        minItems: 3,
+        maxItems: 3,
+        description: "Exactamente 3 opciones: ahorro, equilibrio y premium. Cada precio_por_persona es la ruta aérea completa por persona, sumando todos los segmentos del viaje.",
         items: {
           type: "object",
           properties: {
