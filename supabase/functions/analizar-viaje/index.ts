@@ -214,7 +214,7 @@ FORMATO OBLIGATORIO: Para cada ítem reporta "Aerolínea/Hotel X: $XX,XXX MXN" c
    - AHORRO: aerolínea real, escalas, duración, precio MXN por persona (tarifa más económica disponible esas fechas)
    - EQUILIBRIO: directo o 1 escala buena, precio MXN
    - PREMIUM: premium economy o business, precio MXN
-   Luego suma el TOTAL del viaje aéreo por persona para cada tier.
+   Luego entrega una tabla final "TOTALES AÉREOS POR PERSONA" con EXACTAMENTE 3 totales comparables: AHORRO = suma de todos los segmentos ahorro, EQUILIBRIO = suma de todos los segmentos equilibrio, PREMIUM = suma de todos los segmentos premium. No mezcles segmentos individuales con totales.
    Fuentes: Google Flights, Skyscanner, Kayak, Aeroméxico, sitios de aerolíneas.
 
 2. HOSPEDAJE — ${dias} noches totales (desglosa por ciudad si aplica). 3 opciones con NOMBRE REAL del hotel (3★, 4★ boutique, 5★), barrio, rating, precio MXN por noche habitación doble en esas fechas exactas. Fuentes: Booking.com, Hotels.com.
@@ -344,7 +344,7 @@ FUENTES CITADAS:
 ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 ==========================================
 
-Llama a "entregar_analisis_viaje" usando estos precios reales. Todo en MXN.`;
+Llama a "entregar_analisis_viaje" usando estos precios reales. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona debe ser el TOTAL de la ruta aérea completa por persona, no un tramo suelto. Todo en MXN.`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -384,6 +384,13 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. Todo en MXN.`;
     }
 
     const a = toolUse.input;
+    a.vuelos = normalizarVuelos(a.vuelos);
+    const vueloEquilibrio = a.vuelos.find((v: any) => v.tier === "equilibrio") ?? a.vuelos[0];
+    const vuelosGrupo = Math.round((Number(vueloEquilibrio?.precio_por_persona) || Number(a.desglose_presupuesto?.vuelos) || 0) * body.num_viajeros);
+    if (vuelosGrupo > 0) {
+      a.desglose_presupuesto = { ...a.desglose_presupuesto, vuelos: vuelosGrupo };
+      a.total_estimado = Object.values(a.desglose_presupuesto).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
+    }
 
     const { data: trip, error: insertErr } = await supabase
       .from("trips")
