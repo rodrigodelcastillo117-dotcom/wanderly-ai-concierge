@@ -283,16 +283,10 @@ Investiga precios reales con web_search ANTES de generar la cotización. Mínimo
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 12000,
+        max_tokens: 8000,
         system: SYSTEM_PROMPT,
-        tools: [
-          {
-            type: "web_search_20250305",
-            name: "web_search",
-            max_uses: 8,
-          },
-          TOOL_SCHEMA,
-        ],
+        tools: [TOOL_SCHEMA],
+        tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
         messages: [{ role: "user", content: userPrompt }],
       }),
     });
