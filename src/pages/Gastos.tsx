@@ -93,15 +93,37 @@ export const Gastos = () => {
   return (
     <DashboardLayout>
       <div className="p-6 md:p-10 max-w-5xl">
-        <div className="flex items-end justify-between mb-8 flex-wrap gap-4">
+        <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
           <div>
             <h1 className="font-display text-4xl md:text-5xl mb-2">Gastos</h1>
-            <p className="text-muted-foreground">Registra y categoriza cada gasto de tu viaje.</p>
+            <p className="text-muted-foreground">Registra, categoriza y analiza cada gasto de tu viaje.</p>
           </div>
-          <Button onClick={() => setOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="w-4 h-4" /> Nuevo gasto
-          </Button>
+          {tab === "lista" && (
+            <Button onClick={() => setOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Plus className="w-4 h-4" /> Nuevo gasto
+            </Button>
+          )}
         </div>
+
+        <div className="inline-flex p-1 rounded-full border border-border bg-surface mb-8">
+          <button
+            onClick={() => setTab("lista")}
+            className={`px-5 py-2 rounded-full text-sm transition flex items-center gap-2 ${tab === "lista" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Receipt className="w-4 h-4" /> Lista
+          </button>
+          <button
+            onClick={() => setTab("smart")}
+            className={`px-5 py-2 rounded-full text-sm transition flex items-center gap-2 ${tab === "smart" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <PieChart className="w-4 h-4" /> Smart Spend
+          </button>
+        </div>
+
+        {tab === "smart" ? (
+          <SmartSpendPanel />
+        ) : (
+        <>
 
         <div className="glass-card rounded-2xl p-6 mb-6 flex items-center justify-between">
           <div>
