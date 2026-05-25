@@ -69,12 +69,24 @@ const DARK_STYLE = [
 const PIN_GOLD = "#C9A961";
 const PIN_CREAM = "#F5F1EA";
 
-function getCityKey(name?: string | null): keyof typeof POIS_BY_CITY {
-  if (!name) return "paris";
-  const n = name.toLowerCase();
-  if (n.includes("tok")) return "tokyo";
-  if (n.includes("méxico") || n.includes("mexico") || n.includes("cdmx")) return "cdmx";
-  return "paris";
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+
+function nearestCityKey(loc: { lat: number; lng: number }): keyof typeof POIS_BY_CITY {
+  let best: keyof typeof POIS_BY_CITY = "cdmx";
+  let bestD = Infinity;
+  (Object.keys(POIS_BY_CITY) as (keyof typeof POIS_BY_CITY)[]).forEach((k) => {
+    const d = haversineKm(loc, POIS_BY_CITY[k].center);
+    if (d < bestD) { bestD = d; best = k; }
+  });
+  return best;
 }
 
 const Cercanos = () => {
@@ -82,13 +94,19 @@ const Cercanos = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapObj = useRef<any>(null);
   const markers = useRef<Map<string, any>>(new Map());
+  const userMarker = useRef<any>(null);
   const [mapReady, setMapReady] = useState(false);
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [favorited, setFavorited] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Poi | null>(null);
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
-  const cityKey = getCityKey(activeTrip?.destino);
+  const cityKey = useMemo<keyof typeof POIS_BY_CITY>(
+    () => (userLoc ? nearestCityKey(userLoc) : "cdmx"),
+    [userLoc]
+  );
   const city = useMemo(() => POIS_BY_CITY[cityKey], [cityKey]);
 
   // Cargar viaje activo + visitas previas
@@ -129,61 +147,109 @@ const Cercanos = () => {
     document.head.appendChild(s);
   }, []);
 
-  // Inicializar mapa cuando script + ciudad listos
+  // Pedir ubicación del usuario en tiempo real
   useEffect(() => {
-    if (!mapReady || !mapRef.current || !city) return;
+    if (!("geolocation" in navigator)) {
+      setGeoError("Tu navegador no soporta geolocalización.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => {
+        setGeoError(err.message);
+        toast.error("No pudimos acceder a tu ubicación. Activa el permiso en tu navegador.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }, []);
+
+  // Inicializar mapa cuando script + ubicación listos
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const center = userLoc ?? city.center;
     if (!mapObj.current) {
       mapObj.current = new window.google.maps.Map(mapRef.current, {
-        center: city.center,
-        zoom: 13,
-        minZoom: 11,
-        maxZoom: 17,
+        center,
+        zoom: 14,
+        minZoom: 3,
+        maxZoom: 18,
         styles: DARK_STYLE,
         disableDefaultUI: true,
         zoomControl: true,
         gestureHandling: "greedy",
       });
-      // Forzar re-render correcto cuando el contenedor termina de medirse
       setTimeout(() => {
         if (!mapObj.current) return;
         window.google.maps.event.trigger(mapObj.current, "resize");
-        mapObj.current.setCenter(city.center);
+        mapObj.current.setCenter(center);
       }, 100);
+    } else {
+      mapObj.current.setCenter(center);
     }
 
-    // Limpiar markers anteriores
+    // Marker del usuario (azul cian, distintivo)
+    if (userLoc) {
+      if (userMarker.current) userMarker.current.setMap(null);
+      userMarker.current = new window.google.maps.Marker({
+        position: userLoc,
+        map: mapObj.current,
+        title: "Tu ubicación",
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: "#4A90E2",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 3,
+        },
+        zIndex: 999,
+      });
+    }
+
+    // Limpiar markers POI anteriores
     markers.current.forEach((m) => m.setMap(null));
     markers.current.clear();
 
     const bounds = new window.google.maps.LatLngBounds();
-    city.pois.forEach((p) => {
-      const isVisited = visited.has(p.id);
-      const marker = new window.google.maps.Marker({
-        position: { lat: p.lat, lng: p.lng },
-        map: mapObj.current,
-        title: p.name,
-        icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: isVisited ? PIN_GOLD : PIN_CREAM,
-          fillOpacity: 1,
-          strokeColor: PIN_GOLD,
-          strokeWeight: 2,
-        },
-      });
-      marker.addListener("click", () => {
-        setSelected(p);
-        logInsight("viewed", "destination", p.name, { city: cityKey });
-      });
-      markers.current.set(p.id, marker);
-      bounds.extend({ lat: p.lat, lng: p.lng });
-    });
+    if (userLoc) bounds.extend(userLoc);
 
-    // Ajustar el mapa para que TODOS los pines queden visibles, con padding
-    if (city.pois.length > 0) {
-      mapObj.current.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+    // Solo mostrar POIs curados si el usuario está razonablemente cerca (<200km)
+    const cityDist = userLoc ? haversineKm(userLoc, city.center) : 0;
+    const showPois = !userLoc || cityDist < 200;
+
+    if (showPois) {
+      city.pois.forEach((p) => {
+        const isVisited = visited.has(p.id);
+        const marker = new window.google.maps.Marker({
+          position: { lat: p.lat, lng: p.lng },
+          map: mapObj.current,
+          title: p.name,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: isVisited ? PIN_GOLD : PIN_CREAM,
+            fillOpacity: 1,
+            strokeColor: PIN_GOLD,
+            strokeWeight: 2,
+          },
+        });
+        marker.addListener("click", () => {
+          setSelected(p);
+          logInsight("viewed", "destination", p.name, { city: cityKey });
+        });
+        markers.current.set(p.id, marker);
+        bounds.extend({ lat: p.lat, lng: p.lng });
+      });
     }
-  }, [mapReady, city, visited, cityKey]);
+
+    if ((showPois && city.pois.length > 0) || userLoc) {
+      mapObj.current.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+      // Si solo hay un punto (usuario sin POIs cercanos), forzar zoom razonable
+      if (!showPois) {
+        setTimeout(() => mapObj.current?.setZoom(14), 150);
+      }
+    }
+  }, [mapReady, city, visited, cityKey, userLoc]);
 
 
   const toggleFav = (p: Poi) => {
@@ -229,7 +295,11 @@ const Cercanos = () => {
           <div>
             <h1 className="font-display text-4xl md:text-5xl mb-2">Cercanos</h1>
             <p className="text-muted-foreground">
-              {activeTrip ? <>Explorando <span className="text-primary">{activeTrip.destino}</span> — recomendaciones curadas por el AI.</> : "Recomendaciones para tu próximo destino."}
+              {userLoc
+                ? <>Mostrando lugares cerca de <span className="text-primary">tu ubicación actual</span>.</>
+                : geoError
+                  ? "Activa la ubicación para ver lugares cerca de ti."
+                  : "Detectando tu ubicación…"}
             </p>
           </div>
           {activeTrip && (
