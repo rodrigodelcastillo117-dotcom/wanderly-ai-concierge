@@ -211,6 +211,33 @@ const TripDetail = () => {
               />
             </div>
 
+            {/* Selector de noches */}
+            {selHospedaje >= 0 && noches > 1 && (
+              <div className="mt-5 glass-card rounded-xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-medium">¿Cuántas noches en este hospedaje?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Tu viaje son {noches} noches. Ajusta si solo te quedas algunas (ej. el resto con un amigo).
+                    </p>
+                  </div>
+                  <span className="font-display text-2xl gold-text">{nochesEfectivas}<span className="text-sm text-muted-foreground"> / {noches}</span></span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={noches}
+                  value={nochesEfectivas}
+                  onChange={(e) => setNochesHospedaje(Number(e.target.value))}
+                  className="w-full accent-primary"
+                />
+                {nochesEfectivas < noches && (
+                  <p className="text-xs text-primary mt-2">
+                    Las otras {noches - nochesEfectivas} noche{noches - nochesEfectivas === 1 ? "" : "s"} no suman al hospedaje.
+                  </p>
+                )}
+              </div>
+            )}
           </Section>
         )}
 
