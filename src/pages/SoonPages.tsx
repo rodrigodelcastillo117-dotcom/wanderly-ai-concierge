@@ -13,9 +13,5 @@ export const SoonPage = ({ title, description }: { title: string; description: s
   </DashboardLayout>
 );
 
-export const Cercanos = () => <SoonPage title="Cercanos" description="Descubre destinos y experiencias cerca de ti." />;
-export const Favoritos = () => <SoonPage title="Favoritos" description="Tus destinos y viajes guardados." />;
-export const SmartSpend = () => <SoonPage title="Smart Spend" description="Análisis inteligente de tus gastos de viaje." />;
-export const Gastos = () => <SoonPage title="Gastos" description="Registra y categoriza tus gastos en cada viaje." />;
 export const Concierge = () => <SoonPage title="AI Concierge" description="Tu asistente personal para planear, reservar y optimizar." />;
 export const Pro = () => <SoonPage title="IATOS PRO" description="Desbloquea experiencias exclusivas y beneficios únicos." />;
