@@ -47,7 +47,7 @@ const Auth = () => {
         if (error) {
           toast.error(error.includes("already") ? "Ya existe una cuenta con este correo" : error);
         } else {
-          toast.success("¡Bienvenido a Wanderly!");
+          toast.success("¡Bienvenido a IATOS AI!");
         }
       } else {
         const { error } = await signIn(email, password);

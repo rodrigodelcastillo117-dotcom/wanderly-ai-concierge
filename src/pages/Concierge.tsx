@@ -210,7 +210,7 @@ const Concierge = () => {
               <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
                 <Crown className="w-3 h-3" /> IATOS · Concierge Pro
               </p>
-              <h1 className="font-display text-2xl md:text-3xl leading-tight">Wanderly te escucha</h1>
+              <h1 className="font-display text-2xl md:text-3xl leading-tight">IATOS AI te escucha</h1>
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
                   {trip?.destino ?? "Sin viaje activo"}{trip?.pais_destino ? `, ${trip.pais_destino}` : ""}

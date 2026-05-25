@@ -59,7 +59,7 @@ const PromocionesActivas = () => {
           <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Tiempo real</p>
           <h3 className="font-display text-2xl md:text-3xl mb-2">Promociones cazadas para ti</h3>
           <p className="text-muted-foreground text-sm">
-            Wanderly investiga ahora mismo qué descuentos, upgrades y perks puedes activar con las tarjetas, aerolíneas y hoteles de tu Bóveda.
+            IATOS AI investiga ahora mismo qué descuentos, upgrades y perks puedes activar con las tarjetas, aerolíneas y hoteles de tu Bóveda.
           </p>
         </div>
         <Button

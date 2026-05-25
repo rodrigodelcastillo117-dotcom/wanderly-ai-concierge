@@ -282,7 +282,7 @@ const Cercanos = () => {
       scale: 10, fillColor: PIN_GOLD, fillOpacity: 1, strokeColor: PIN_GOLD, strokeWeight: 2,
     });
     await logInsight("planned", "destination", p.name, { visited: true });
-    toast.success("¡Visita registrada! Wanderly está aprendiendo de tus gustos.");
+    toast.success("¡Visita registrada! IATOS AI está aprendiendo de tus gustos.");
     setSelected(null);
   };
 
