@@ -67,15 +67,9 @@ const Concierge = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const recRef = useRef<any>(null);
 
-  // PRO gating with allowlist (rodelcast, Carlo) + MOBILE ONLY
+  // PRO gating with allowlist (rodelcast, Carlo)
   useEffect(() => {
     if (!user) return;
-    // Desktop block: Concierge Pro solo se accede desde mobile
-    if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-      toast.message("Concierge Pro está disponible solo desde la app móvil.");
-      navigate("/dashboard", { replace: true });
-      return;
-    }
     (async () => {
       const { data: profile } = await supabase
         .from("profiles")

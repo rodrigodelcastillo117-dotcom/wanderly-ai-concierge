@@ -11,6 +11,7 @@ const links = [
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
+  { to: "/dashboard/concierge", icon: Mail, label: "Concierge Pro" },
 ];
 
 const mobileNav = [
