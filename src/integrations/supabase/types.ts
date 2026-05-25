@@ -128,6 +128,7 @@ export type Database = {
           alergias_restricciones: string[] | null
           completado: boolean | null
           created_at: string
+          descripcion_personal: string | null
           destinos_pendientes: string[] | null
           destinos_visitados: string[] | null
           duracion_viaje_ideal: string | null
@@ -135,8 +136,10 @@ export type Database = {
           id: string
           idiomas_hablados: string[] | null
           intereses: string[] | null
+          llegada_estilo: string[] | null
           movilidad_especial: boolean | null
           notas_adicionales: string | null
+          perfil_ia: Json | null
           preferencias_comida: string[] | null
           presupuesto_rango: string | null
           ritmo_viaje: string | null
@@ -149,6 +152,7 @@ export type Database = {
           alergias_restricciones?: string[] | null
           completado?: boolean | null
           created_at?: string
+          descripcion_personal?: string | null
           destinos_pendientes?: string[] | null
           destinos_visitados?: string[] | null
           duracion_viaje_ideal?: string | null
@@ -156,8 +160,10 @@ export type Database = {
           id?: string
           idiomas_hablados?: string[] | null
           intereses?: string[] | null
+          llegada_estilo?: string[] | null
           movilidad_especial?: boolean | null
           notas_adicionales?: string | null
+          perfil_ia?: Json | null
           preferencias_comida?: string[] | null
           presupuesto_rango?: string | null
           ritmo_viaje?: string | null
@@ -170,6 +176,7 @@ export type Database = {
           alergias_restricciones?: string[] | null
           completado?: boolean | null
           created_at?: string
+          descripcion_personal?: string | null
           destinos_pendientes?: string[] | null
           destinos_visitados?: string[] | null
           duracion_viaje_ideal?: string | null
@@ -177,8 +184,10 @@ export type Database = {
           id?: string
           idiomas_hablados?: string[] | null
           intereses?: string[] | null
+          llegada_estilo?: string[] | null
           movilidad_especial?: boolean | null
           notas_adicionales?: string | null
+          perfil_ia?: Json | null
           preferencias_comida?: string[] | null
           presupuesto_rango?: string | null
           ritmo_viaje?: string | null
