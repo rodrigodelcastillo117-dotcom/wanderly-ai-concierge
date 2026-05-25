@@ -18,7 +18,7 @@ import Discover from "./pages/Discover";
 import { Concierge, Pro } from "./pages/SoonPages";
 import Cercanos from "./pages/Cercanos";
 import Favoritos from "./pages/Favoritos";
-import SmartSpend from "./pages/SmartSpend";
+import { Navigate } from "react-router-dom";
 import Gastos from "./pages/Gastos";
 import NotFound from "./pages/NotFound.tsx";
 
