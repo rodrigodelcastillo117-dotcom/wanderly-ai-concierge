@@ -115,6 +115,46 @@ const Concierge = () => {
     return () => clearInterval(id);
   }, [allowed]);
 
+  // Real-time geolocation + weather (Open-Meteo, no key). Refresh on tick.
+  useEffect(() => {
+    if (!allowed) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const [wRes, gRes] = await Promise.all([
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`),
+            fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=es`),
+          ]);
+          const w = await wRes.json();
+          const g = await gRes.json();
+          setWeather({
+            temp: Math.round(w?.current?.temperature_2m ?? 0),
+            place: g?.city || g?.locality || g?.principalSubdivision || "Tu ubicación",
+          });
+        } catch {/* noop */}
+      },
+      () => {/* permission denied — silent */},
+      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },
+    );
+  }, [allowed, refreshTick]);
+
+  // Realtime in-app notifications
+  useEffect(() => {
+    if (!user || !allowed) return;
+    const ch = supabase
+      .channel(`notif-${user.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}`,
+      }, (payload: any) => {
+        const n = payload.new;
+        toast.success(n.title, { description: n.body });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user, allowed]);
+
   // Autoscroll
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
