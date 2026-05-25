@@ -146,14 +146,14 @@ const DashboardHome = () => {
           }}
           className="flex items-center gap-3 flex-wrap"
         >
-          <h1 className="font-display text-3xl md:text-5xl whitespace-nowrap">{name}.</h1>
+          <h1 className="font-display text-xl md:text-3xl whitespace-nowrap">{name}.</h1>
           <input
             type="text"
             value={concierge}
             onChange={(e) => setConcierge(e.target.value)}
             placeholder="Platicame tu viaje…"
             aria-label="Platicame tu viaje"
-            className="flex-1 min-w-[240px] bg-transparent border-0 border-b border-primary/30 focus:border-primary outline-none font-display italic text-3xl md:text-5xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
+            className="flex-1 min-w-[240px] bg-transparent border-0 border-b border-primary/30 focus:border-primary outline-none font-display italic text-xl md:text-3xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
           />
           <Button
             type="submit"
