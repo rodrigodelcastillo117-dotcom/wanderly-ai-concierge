@@ -133,77 +133,39 @@ const DashboardHome = () => {
           </div>
         </header>
 
-        {/* Saludo + buscador fusionado: el placeholder ES "Platicame tu viaje" */}
-        <section className="space-y-4">
-          <motion.h1
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="font-display text-3xl md:text-5xl"
+        {/* Saludo + buscador en un mismo renglón */}
+        <motion.form
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const q = concierge.trim();
+            if (q.length < 5) return;
+            navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
+          }}
+          className="flex items-center gap-3 flex-wrap"
+        >
+          <h1 className="font-display text-3xl md:text-5xl whitespace-nowrap">{name}.</h1>
+          <input
+            type="text"
+            value={concierge}
+            onChange={(e) => setConcierge(e.target.value)}
+            placeholder="Platicame tu viaje…"
+            aria-label="Platicame tu viaje"
+            className="flex-1 min-w-[240px] bg-transparent border-0 border-b border-primary/30 focus:border-primary outline-none font-display italic text-3xl md:text-5xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
+          />
+          <Button
+            type="submit"
+            disabled={concierge.trim().length < 5}
+            className="h-12 px-5 bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40"
           >
-            {name}.
-          </motion.h1>
+            <Sparkles className="w-4 h-4 mr-2" />
+            Analizar viaje
+          </Button>
+        </motion.form>
 
-          <motion.form
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.05 }}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const q = concierge.trim();
-              if (q.length < 5) return;
-              navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
-            }}
-            className="relative rounded-3xl border border-primary/25 bg-surface/40 backdrop-blur p-5 md:p-6 gold-border"
-          >
-            <div className="flex items-start gap-4">
-              <div className="hidden sm:flex w-12 h-12 mt-1 rounded-full border border-primary/40 items-center justify-center flex-shrink-0">
-                <Sparkles className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <textarea
-                  value={concierge}
-                  onChange={(e) => setConcierge(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      (e.target as HTMLTextAreaElement).form?.requestSubmit();
-                    }
-                  }}
-                  rows={2}
-                  placeholder="Platicame tu viaje…"
-                  className="w-full min-h-[72px] resize-none bg-transparent border-0 outline-none font-display italic text-2xl md:text-4xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground"
-                  aria-label="Platicame tu viaje"
-                />
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {[
-                    "Fin de semana en Tulum para 2",
-                    "Europa 15 días, ~$150k MXN",
-                    "Bali en septiembre, luna de miel",
-                    "Tokio 10 días, gastronomía y templos",
-                  ].map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setConcierge(s)}
-                      className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 transition"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Button
-                type="submit"
-                disabled={concierge.trim().length < 5}
-                className="self-start h-12 px-5 bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Analizar viaje
-              </Button>
-            </div>
-          </motion.form>
-        </section>
+
 
         {/* Hero CTA secundario (planeación guiada paso a paso) */}
         <motion.div
