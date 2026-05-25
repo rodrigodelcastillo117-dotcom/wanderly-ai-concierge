@@ -28,6 +28,7 @@ export const Gastos = () => {
   const [items, setItems] = useState<Expense[]>([]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<"lista" | "smart">("lista");
   const [form, setForm] = useState({
     amount: "",
     currency: "MXN",
