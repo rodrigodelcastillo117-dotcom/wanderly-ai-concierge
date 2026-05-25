@@ -326,7 +326,7 @@ const TripDetail = () => {
         {computedTotal > 0 && (
           <Section icon={Compass} title="Desglose de presupuesto">
             <EditableBudget
-              key={`${selVuelo}-${selHospedaje}-${Array.from(selTours).sort().join(",")}`}
+              key={`${selVuelo}-${selHospedaje}-${nochesEfectivas}-${Array.from(selTours).sort().join(",")}`}
               tripId={trip.id}
               initialDesglose={computedDesglose}
               initialTotal={computedTotal}
