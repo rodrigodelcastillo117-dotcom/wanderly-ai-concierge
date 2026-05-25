@@ -302,6 +302,15 @@ Deno.serve(async (req) => {
       .from("travel_profiles").select("*").eq("user_id", user.id).maybeSingle();
     const { data: profile } = await supabase
       .from("profiles").select("full_name, ciudad_origen").eq("id", user.id).maybeSingle();
+    const { data: vault } = await supabase
+      .from("user_vault_benefits").select("*").eq("user_id", user.id).maybeSingle();
+
+    const vaultLines: string[] = [];
+    if (vault?.credit_cards?.length) vaultLines.push("- Tarjetas: " + vault.credit_cards.map((c: any) => `${c.bank} ${c.card_tier}${c.perks_enabled?.length ? ` [${c.perks_enabled.join(", ")}]` : ""}`).join("; "));
+    if (vault?.airline_alliances?.length) vaultLines.push("- Aerolíneas: " + vault.airline_alliances.map((a: any) => `${a.airline} ${a.alliance_name} (${a.tier_status})`).join("; "));
+    if (vault?.hotel_loyalty?.length) vaultLines.push("- Hoteles: " + vault.hotel_loyalty.map((h: any) => `${h.chain_name} (${h.status_tier})`).join("; "));
+    if (vault?.car_rentals?.length) vaultLines.push("- Renta autos: " + vault.car_rentals.map((r: any) => `${r.company_name} (${r.preferred_car_type})`).join("; "));
+    const vaultDesc = vaultLines.join("\n") || "Sin programas de lealtad registrados.";
 
     const dias = Math.max(1, Math.round(
       (new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / (1000 * 60 * 60 * 24)
