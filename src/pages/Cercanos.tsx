@@ -147,61 +147,109 @@ const Cercanos = () => {
     document.head.appendChild(s);
   }, []);
 
-  // Inicializar mapa cuando script + ciudad listos
+  // Pedir ubicación del usuario en tiempo real
   useEffect(() => {
-    if (!mapReady || !mapRef.current || !city) return;
+    if (!("geolocation" in navigator)) {
+      setGeoError("Tu navegador no soporta geolocalización.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => {
+        setGeoError(err.message);
+        toast.error("No pudimos acceder a tu ubicación. Activa el permiso en tu navegador.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }, []);
+
+  // Inicializar mapa cuando script + ubicación listos
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const center = userLoc ?? city.center;
     if (!mapObj.current) {
       mapObj.current = new window.google.maps.Map(mapRef.current, {
-        center: city.center,
-        zoom: 13,
-        minZoom: 11,
-        maxZoom: 17,
+        center,
+        zoom: 14,
+        minZoom: 3,
+        maxZoom: 18,
         styles: DARK_STYLE,
         disableDefaultUI: true,
         zoomControl: true,
         gestureHandling: "greedy",
       });
-      // Forzar re-render correcto cuando el contenedor termina de medirse
       setTimeout(() => {
         if (!mapObj.current) return;
         window.google.maps.event.trigger(mapObj.current, "resize");
-        mapObj.current.setCenter(city.center);
+        mapObj.current.setCenter(center);
       }, 100);
+    } else {
+      mapObj.current.setCenter(center);
     }
 
-    // Limpiar markers anteriores
+    // Marker del usuario (azul cian, distintivo)
+    if (userLoc) {
+      if (userMarker.current) userMarker.current.setMap(null);
+      userMarker.current = new window.google.maps.Marker({
+        position: userLoc,
+        map: mapObj.current,
+        title: "Tu ubicación",
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: "#4A90E2",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 3,
+        },
+        zIndex: 999,
+      });
+    }
+
+    // Limpiar markers POI anteriores
     markers.current.forEach((m) => m.setMap(null));
     markers.current.clear();
 
     const bounds = new window.google.maps.LatLngBounds();
-    city.pois.forEach((p) => {
-      const isVisited = visited.has(p.id);
-      const marker = new window.google.maps.Marker({
-        position: { lat: p.lat, lng: p.lng },
-        map: mapObj.current,
-        title: p.name,
-        icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: isVisited ? PIN_GOLD : PIN_CREAM,
-          fillOpacity: 1,
-          strokeColor: PIN_GOLD,
-          strokeWeight: 2,
-        },
-      });
-      marker.addListener("click", () => {
-        setSelected(p);
-        logInsight("viewed", "destination", p.name, { city: cityKey });
-      });
-      markers.current.set(p.id, marker);
-      bounds.extend({ lat: p.lat, lng: p.lng });
-    });
+    if (userLoc) bounds.extend(userLoc);
 
-    // Ajustar el mapa para que TODOS los pines queden visibles, con padding
-    if (city.pois.length > 0) {
-      mapObj.current.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+    // Solo mostrar POIs curados si el usuario está razonablemente cerca (<200km)
+    const cityDist = userLoc ? haversineKm(userLoc, city.center) : 0;
+    const showPois = !userLoc || cityDist < 200;
+
+    if (showPois) {
+      city.pois.forEach((p) => {
+        const isVisited = visited.has(p.id);
+        const marker = new window.google.maps.Marker({
+          position: { lat: p.lat, lng: p.lng },
+          map: mapObj.current,
+          title: p.name,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: isVisited ? PIN_GOLD : PIN_CREAM,
+            fillOpacity: 1,
+            strokeColor: PIN_GOLD,
+            strokeWeight: 2,
+          },
+        });
+        marker.addListener("click", () => {
+          setSelected(p);
+          logInsight("viewed", "destination", p.name, { city: cityKey });
+        });
+        markers.current.set(p.id, marker);
+        bounds.extend({ lat: p.lat, lng: p.lng });
+      });
     }
-  }, [mapReady, city, visited, cityKey]);
+
+    if ((showPois && city.pois.length > 0) || userLoc) {
+      mapObj.current.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+      // Si solo hay un punto (usuario sin POIs cercanos), forzar zoom razonable
+      if (!showPois) {
+        setTimeout(() => mapObj.current?.setZoom(14), 150);
+      }
+    }
+  }, [mapReady, city, visited, cityKey, userLoc]);
 
 
   const toggleFav = (p: Poi) => {
