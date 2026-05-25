@@ -14,35 +14,130 @@ export type Database = {
   }
   public: {
     Tables: {
+      behavioral_insights: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          target_label: string | null
+          target_type: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_label?: string | null
+          target_type?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_label?: string | null
+          target_type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          currency: string
+          description: string | null
+          expense_date: string
+          id: string
+          receipt_url: string | null
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          receipt_url?: string | null
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          receipt_url?: string | null
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          avatar_url: string | null
           ciudad_origen: string | null
           created_at: string
+          currency_preference: string | null
           email: string | null
           fecha_nacimiento: string | null
           full_name: string | null
           id: string
+          loyalty_programs: Json | null
+          nationality: string | null
           pais_origen: string | null
+          tier: string | null
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           ciudad_origen?: string | null
           created_at?: string
+          currency_preference?: string | null
           email?: string | null
           fecha_nacimiento?: string | null
           full_name?: string | null
           id: string
+          loyalty_programs?: Json | null
+          nationality?: string | null
           pais_origen?: string | null
+          tier?: string | null
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           ciudad_origen?: string | null
           created_at?: string
+          currency_preference?: string | null
           email?: string | null
           fecha_nacimiento?: string | null
           full_name?: string | null
           id?: string
+          loyalty_programs?: Json | null
+          nationality?: string | null
           pais_origen?: string | null
+          tier?: string | null
           updated_at?: string
         }
         Relationships: []
