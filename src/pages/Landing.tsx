@@ -189,7 +189,7 @@ const Landing = () => {
           className="max-w-md mx-auto glass-card gold-border rounded-3xl p-10 premium-shadow"
         >
           <div className="text-center mb-8">
-            <p className="text-sm tracking-[0.2em] uppercase text-primary mb-3">Wanderly Premium</p>
+            <p className="text-sm tracking-[0.2em] uppercase text-primary mb-3">IATOS AI Premium</p>
             <div className="flex items-baseline justify-center gap-2">
               <span className="font-display text-6xl">$99</span>
               <span className="text-muted-foreground">MXN / mes</span>
@@ -230,9 +230,9 @@ const Landing = () => {
             <div className="w-7 h-7 rounded-full bg-gradient-gold flex items-center justify-center">
               <Compass className="w-3.5 h-3.5 text-primary-foreground" />
             </div>
-            <span className="font-display text-lg">Wanderly</span>
+            <span className="font-display text-lg">IATOS AI</span>
           </div>
-          <p className="text-sm text-muted-foreground">© 2026 Wanderly. Diseñado en CDMX.</p>
+          <p className="text-sm text-muted-foreground">© 2026 IATOS AI. Diseñado en CDMX.</p>
         </div>
       </footer>
     </div>

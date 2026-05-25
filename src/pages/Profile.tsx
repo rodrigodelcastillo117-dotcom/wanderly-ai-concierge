@@ -23,7 +23,7 @@ const Profile = () => {
           <div className="mb-6">
             <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Premium</p>
             <h2 className="font-display text-3xl md:text-4xl mb-2">Bóveda de Beneficios</h2>
-            <p className="text-muted-foreground">Guarda tus tarjetas, alianzas y programas de lealtad. Wanderly los usará para encontrarte tarifas y privilegios que otros no ven.</p>
+            <p className="text-muted-foreground">Guarda tus tarjetas, alianzas y programas de lealtad. IATOS AI los usará para encontrarte tarifas y privilegios que otros no ven.</p>
           </div>
           <BenefitsVault />
         </section>

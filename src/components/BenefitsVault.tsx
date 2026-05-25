@@ -29,7 +29,7 @@ const SEAT_PREFS = ["Ventana", "Pasillo", "Exit row", "Sin preferencia"];
 const HOTEL_TIERS = ["Member", "Silver", "Gold", "Platinum", "Diamond", "Ambassador"];
 const CAR_TYPES = ["Compacto", "Sedán", "SUV", "Eléctrico", "Lujo", "Convertible"];
 
-const AI_HINT = "La IA de Wanderly usará estos datos para aplicar descuentos automáticos, maletas gratis y accesos VIP en tus cotizaciones en tiempo real.";
+const AI_HINT = "La IA de IATOS AI usará estos datos para aplicar descuentos automáticos, maletas gratis y accesos VIP en tus cotizaciones en tiempo real.";
 
 const sectionMeta = {
   credit_cards: { icon: CreditCard, title: "Finanzas", subtitle: "Tarjetas de crédito y débito" },
