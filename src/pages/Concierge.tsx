@@ -432,7 +432,46 @@ const MessageBubble = ({ msg }: { msg: Msg }) => {
   );
 };
 
+type CardStatus = "idle" | "loading" | "confirmed" | "error";
+
+const useConciergeAction = () => {
+  const [status, setStatus] = useState<CardStatus>("idle");
+  const run = async (payload: { type: string; title: string; payload?: any }) => {
+    setStatus("loading");
+    try {
+      const { data, error } = await supabase.functions.invoke("concierge-action", {
+        body: payload,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setStatus("confirmed");
+      toast.success("Solicitud enviada", { description: payload.title });
+    } catch (e: any) {
+      setStatus("error");
+      toast.error(e?.message ?? "No pudimos procesar la solicitud");
+    }
+  };
+  return { status, run };
+};
+
+const ActionButton = ({
+  status, label, onClick, className = "",
+}: { status: CardStatus; label: string; onClick: () => void; className?: string }) => (
+  <Button
+    onClick={onClick}
+    disabled={status === "loading" || status === "confirmed"}
+    className={`bg-gradient-gold text-primary-foreground hover:opacity-90 ${className}`}
+  >
+    {status === "loading" && "Procesando…"}
+    {status === "confirmed" && "✓ Confirmado"}
+    {status === "idle" && label}
+    {status === "error" && "Reintentar"}
+  </Button>
+);
+
 const RichCard = ({ card }: { card: Card }) => {
+  const { status, run } = useConciergeAction();
+
   if (card.type === "alert") {
     return (
       <motion.div
@@ -448,7 +487,12 @@ const RichCard = ({ card }: { card: Card }) => {
             <p className="font-display text-base mb-1">{card.title}</p>
             <p className="text-sm text-muted-foreground mb-3">{card.body}</p>
             {card.cta_label && (
-              <Button size="sm" className="bg-gradient-gold text-primary-foreground hover:opacity-90">{card.cta_label}</Button>
+              <ActionButton
+                status={status}
+                label={card.cta_label}
+                onClick={() => run({ type: "alert", title: card.title, payload: { body: card.body } })}
+                className="h-9 px-3 text-sm"
+              />
             )}
           </div>
         </div>
@@ -471,9 +515,12 @@ const RichCard = ({ card }: { card: Card }) => {
           <h4 className="font-display text-lg leading-tight">{card.title}</h4>
           {card.subtitle && <p className="text-sm text-muted-foreground mb-1">{card.subtitle}</p>}
           {card.meta && <p className="text-xs text-primary mb-3">{card.meta}</p>}
-          <Button className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
-            {card.cta_label}
-          </Button>
+          <ActionButton
+            status={status}
+            label={card.cta_label}
+            onClick={() => run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta, rating: card.rating } })}
+            className="w-full gold-glow"
+          />
         </div>
       </div>
     );
@@ -492,9 +539,12 @@ const RichCard = ({ card }: { card: Card }) => {
           </div>
         </div>
         {card.meta && <p className="text-xs text-muted-foreground mb-3">{card.meta}</p>}
-        <Button size="sm" className="bg-gradient-gold text-primary-foreground hover:opacity-90 w-full">
-          {card.cta_label}
-        </Button>
+        <ActionButton
+          status={status}
+          label={card.cta_label}
+          onClick={() => run({ type: "transport", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })}
+          className="w-full h-9 text-sm"
+        />
       </div>
     );
   }
@@ -531,7 +581,12 @@ const RichCard = ({ card }: { card: Card }) => {
             <h4 className="font-display text-base">{card.title}</h4>
           </div>
           <p className="text-xs text-muted-foreground mb-3">{card.status}</p>
-          <Button className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90">{card.cta_label}</Button>
+          <ActionButton
+            status={status}
+            label={card.cta_label}
+            onClick={() => run({ type: "pickup", title: card.title, payload: { from: card.from, to: card.to, status: card.status } })}
+            className="w-full"
+          />
         </div>
       </div>
     );
@@ -556,9 +611,12 @@ const RichCard = ({ card }: { card: Card }) => {
             <span className="text-xs text-muted-foreground">Costo adicional</span>
             <span className="font-display text-2xl text-primary">+${card.price_usd.toLocaleString()} USD</span>
           </div>
-          <Button className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
-            {card.cta_label}
-          </Button>
+          <ActionButton
+            status={status}
+            label={card.cta_label}
+            onClick={() => run({ type: "jet", title: card.title, payload: { route: card.route, fbo: card.fbo, price_usd: card.price_usd } })}
+            className="w-full gold-glow"
+          />
         </div>
       </div>
     );
