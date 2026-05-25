@@ -15,7 +15,11 @@ import EditTrip from "./pages/EditTrip";
 import Trips from "./pages/Trips";
 import Profile from "./pages/Profile";
 import Discover from "./pages/Discover";
-import { Cercanos, Favoritos, SmartSpend, Gastos, Concierge, Pro } from "./pages/SoonPages";
+import { Concierge, Pro } from "./pages/SoonPages";
+import Cercanos from "./pages/Cercanos";
+import Favoritos from "./pages/Favoritos";
+import SmartSpend from "./pages/SmartSpend";
+import Gastos from "./pages/Gastos";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();

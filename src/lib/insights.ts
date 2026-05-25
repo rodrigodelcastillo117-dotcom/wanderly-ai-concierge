@@ -12,13 +12,13 @@ export async function logInsight(
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase.from("behavioral_insights").insert({
+    await supabase.from("behavioral_insights").insert([{
       user_id: user.id,
       action,
       target_type,
       target_label,
-      metadata,
-    });
+      metadata: metadata as any,
+    }]);
   } catch (e) {
     // silent — telemetry should never break UX
     console.warn("logInsight failed", e);
