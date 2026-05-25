@@ -38,7 +38,7 @@ const Discover = () => {
               className="cursor-pointer group"
             >
               <div className="relative aspect-[4/5] rounded-2xl overflow-hidden mb-3">
-                <img src={d.img} alt={d.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <DestinationVideo query={`${d.name} ${d.country} travel`} fallbackImage={d.img} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-overlay" />
                 <div className="absolute top-4 left-4 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium">
                   {d.score}% match
