@@ -42,25 +42,26 @@ const TripDetail = () => {
   const viajeros = trip?.num_viajeros ?? 1;
   const baseDesglose = trip?.desglose_presupuesto ?? {};
 
-  // Recalcular desglose en base a selecciones
+  // Recalcular desglose en base a selecciones (-1 = "ya lo tengo / no aplica")
   const computedDesglose = useMemo(() => {
     if (!trip) return {};
-    const vuelo = trip.vuelos_json?.[selVuelo];
-    const hosp = trip.hospedaje_json?.[selHospedaje];
+    const vuelo = selVuelo >= 0 ? trip.vuelos_json?.[selVuelo] : null;
+    const hosp = selHospedaje >= 0 ? trip.hospedaje_json?.[selHospedaje] : null;
     const toursSum = (trip.tours_json ?? []).reduce(
       (s: number, t: any, i: number) =>
         selTours.has(i) ? s + Number(t.precio_por_persona ?? 0) * viajeros : s,
       0,
     );
     return {
-      vuelos: vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
-      hospedaje: hosp ? Number(hosp.precio_por_noche ?? 0) * noches : Number(baseDesglose.hospedaje ?? 0),
+      vuelos: selVuelo === -1 ? 0 : vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
+      hospedaje: selHospedaje === -1 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * noches : Number(baseDesglose.hospedaje ?? 0),
       comida: Number(baseDesglose.comida ?? 0),
       tours: toursSum || Number(baseDesglose.tours ?? 0),
       transporte_local: Number(baseDesglose.transporte_local ?? 0),
       extras: Number(baseDesglose.extras ?? 0),
     };
   }, [trip, selVuelo, selHospedaje, selTours, viajeros, noches]);
+
 
   const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
 
