@@ -205,6 +205,8 @@ export const Gastos = () => {
             </div>
           ))}
         </div>
+        </>
+        )}
       </div>
     </DashboardLayout>
   );
