@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
@@ -42,25 +42,26 @@ const TripDetail = () => {
   const viajeros = trip?.num_viajeros ?? 1;
   const baseDesglose = trip?.desglose_presupuesto ?? {};
 
-  // Recalcular desglose en base a selecciones
+  // Recalcular desglose en base a selecciones (-1 = "ya lo tengo / no aplica")
   const computedDesglose = useMemo(() => {
     if (!trip) return {};
-    const vuelo = trip.vuelos_json?.[selVuelo];
-    const hosp = trip.hospedaje_json?.[selHospedaje];
+    const vuelo = selVuelo >= 0 ? trip.vuelos_json?.[selVuelo] : null;
+    const hosp = selHospedaje >= 0 ? trip.hospedaje_json?.[selHospedaje] : null;
     const toursSum = (trip.tours_json ?? []).reduce(
       (s: number, t: any, i: number) =>
         selTours.has(i) ? s + Number(t.precio_por_persona ?? 0) * viajeros : s,
       0,
     );
     return {
-      vuelos: vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
-      hospedaje: hosp ? Number(hosp.precio_por_noche ?? 0) * noches : Number(baseDesglose.hospedaje ?? 0),
+      vuelos: selVuelo === -1 ? 0 : vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
+      hospedaje: selHospedaje === -1 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * noches : Number(baseDesglose.hospedaje ?? 0),
       comida: Number(baseDesglose.comida ?? 0),
       tours: toursSum || Number(baseDesglose.tours ?? 0),
       transporte_local: Number(baseDesglose.transporte_local ?? 0),
       extras: Number(baseDesglose.extras ?? 0),
     };
   }, [trip, selVuelo, selHospedaje, selTours, viajeros, noches]);
+
 
   const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
 
@@ -164,7 +165,14 @@ const TripDetail = () => {
                   </div>
                 );
               })}
+              <SkipCard
+                active={selVuelo === -1}
+                onClick={() => setSelVuelo(-1)}
+                title="Ya tengo vuelo"
+                subtitle="O viajo por mi cuenta"
+              />
             </div>
+
           </Section>
         )}
 
@@ -189,7 +197,14 @@ const TripDetail = () => {
                   </div>
                 );
               })}
+              <SkipCard
+                active={selHospedaje === -1}
+                onClick={() => setSelHospedaje(-1)}
+                title="Ya tengo dónde quedarme"
+                subtitle="Casa de un amigo, familia, Airbnb propio…"
+              />
             </div>
+
           </Section>
         )}
 
@@ -295,6 +310,23 @@ const SelectedBadge = () => (
     <Check className="w-3.5 h-3.5" />
   </div>
 );
+
+const SkipCard = ({ active, onClick, title, subtitle }: { active: boolean; onClick: () => void; title: string; subtitle: string }) => (
+  <div
+    onClick={onClick}
+    className={`rounded-xl p-6 border-2 border-dashed cursor-pointer transition flex flex-col items-center justify-center text-center min-h-[160px] ${
+      active ? "border-primary bg-primary/5" : "border-border/40 hover:border-primary/50 hover:bg-surface/40"
+    }`}
+  >
+    <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${active ? "bg-primary text-primary-foreground" : "bg-surface text-muted-foreground"}`}>
+      {active ? <Check className="w-5 h-5" /> : <X className="w-5 h-5" />}
+    </div>
+    <p className="font-medium text-sm mb-1">{title}</p>
+    <p className="text-xs text-muted-foreground">{subtitle}</p>
+    <p className="text-[11px] text-primary mt-2">No suma al presupuesto</p>
+  </div>
+);
+
 
 const Section = ({ icon: Icon, title, hint, children }: any) => (
   <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
