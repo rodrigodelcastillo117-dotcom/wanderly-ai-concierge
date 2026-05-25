@@ -165,7 +165,14 @@ const TripDetail = () => {
                   </div>
                 );
               })}
+              <SkipCard
+                active={selVuelo === -1}
+                onClick={() => setSelVuelo(-1)}
+                title="Ya tengo vuelo"
+                subtitle="O viajo por mi cuenta"
+              />
             </div>
+
           </Section>
         )}
 
