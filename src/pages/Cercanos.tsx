@@ -183,10 +183,8 @@ const Cercanos = () => {
     if (city.pois.length > 0) {
       mapObj.current.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
     }
-
-      markers.current.set(p.id, marker);
-    });
   }, [mapReady, city, visited, cityKey]);
+
 
   const toggleFav = (p: Poi) => {
     const isFav = favorited.has(p.id);
