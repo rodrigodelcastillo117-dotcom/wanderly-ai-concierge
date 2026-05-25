@@ -64,6 +64,7 @@ const Concierge = () => {
   const [trip, setTrip] = useState<any>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [weather, setWeather] = useState<{ temp: number; place: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recRef = useRef<any>(null);
 
