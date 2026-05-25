@@ -177,7 +177,7 @@ const DashboardHome = () => {
           className="relative rounded-3xl overflow-hidden premium-shadow group cursor-pointer"
           onClick={() => navigate("/dashboard/planear")}
         >
-          <img src={santorini} alt="Planea tu próximo viaje" className="w-full h-56 md:h-64 object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+          <DestinationVideo query="travel landscape cinematic" fallbackImage={santorini} alt="Planea tu próximo viaje" className="w-full h-56 md:h-64 object-cover group-hover:scale-105 transition-transform duration-700" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-9">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-xs mb-3 self-start border border-white/10">
