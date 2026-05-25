@@ -133,15 +133,15 @@ const DashboardHome = () => {
           </div>
         </header>
 
-        {/* Greeting + buscador conversacional */}
-        <section className="space-y-5">
+        {/* Saludo + buscador fusionado: el placeholder ES "Platicame tu viaje" */}
+        <section className="space-y-4">
           <motion.h1
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="font-display text-3xl md:text-5xl"
           >
-            {name}. <span className="italic text-primary/90">Platicame tu viaje</span>
+            {name}.
           </motion.h1>
 
           <motion.form
@@ -154,50 +154,53 @@ const DashboardHome = () => {
               if (q.length < 5) return;
               navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
             }}
-            className="relative rounded-3xl border border-primary/25 bg-surface/40 backdrop-blur p-2 pl-5 gold-border"
+            className="relative rounded-3xl border border-primary/25 bg-surface/40 backdrop-blur p-5 md:p-6 gold-border"
           >
-            <div className="flex items-start gap-3">
-              <div className="hidden sm:flex w-10 h-10 mt-2 rounded-full border border-primary/40 items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4 text-primary" />
+            <div className="flex items-start gap-4">
+              <div className="hidden sm:flex w-12 h-12 mt-1 rounded-full border border-primary/40 items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5 text-primary" />
               </div>
-              <textarea
-                value={concierge}
-                onChange={(e) => setConcierge(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    (e.target as HTMLTextAreaElement).form?.requestSubmit();
-                  }
-                }}
-                rows={2}
-                placeholder="Ej: 'Quiero ir a Tokio con mi pareja en julio, 10 días, presupuesto ~$80,000 MXN, nos gusta la gastronomía y los templos.'"
-                className="flex-1 min-h-[64px] resize-none bg-transparent border-0 outline-none text-base md:text-lg placeholder:text-muted-foreground/70 py-3 pr-2"
-              />
+              <div className="flex-1 min-w-0">
+                <textarea
+                  value={concierge}
+                  onChange={(e) => setConcierge(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      (e.target as HTMLTextAreaElement).form?.requestSubmit();
+                    }
+                  }}
+                  rows={2}
+                  placeholder="Platicame tu viaje…"
+                  className="w-full min-h-[72px] resize-none bg-transparent border-0 outline-none font-display italic text-2xl md:text-4xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground"
+                  aria-label="Platicame tu viaje"
+                />
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {[
+                    "Fin de semana en Tulum para 2",
+                    "Europa 15 días, ~$150k MXN",
+                    "Bali en septiembre, luna de miel",
+                    "Tokio 10 días, gastronomía y templos",
+                  ].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setConcierge(s)}
+                      className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 transition"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Button
                 type="submit"
                 disabled={concierge.trim().length < 5}
-                className="self-end h-12 px-5 bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40"
+                className="self-start h-12 px-5 bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Analizar viaje
               </Button>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-3 pl-1">
-              {[
-                "Fin de semana en Tulum para 2",
-                "Europa 15 días, ~$150k MXN",
-                "Bali en septiembre, luna de miel",
-                "Escapada a Nueva York en 4 días",
-              ].map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setConcierge(s)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 transition"
-                >
-                  {s}
-                </button>
-              ))}
             </div>
           </motion.form>
         </section>
