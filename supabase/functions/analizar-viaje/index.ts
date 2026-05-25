@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
 
     // PASO 1: Perplexity investiga precios reales
     console.log("Investigando precios con Perplexity...");
-    const investigacion = await investigarConPerplexity(body, dias);
+    const investigacion = await investigarConPerplexity(body, dias, vaultDesc);
     console.log("Perplexity OK, citations:", investigacion.citations.length);
 
     // PASO 2: Claude estructura el análisis usando los datos reales
