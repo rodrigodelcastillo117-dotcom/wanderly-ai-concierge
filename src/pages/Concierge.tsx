@@ -64,6 +64,7 @@ const Concierge = () => {
   const [trip, setTrip] = useState<any>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [weather, setWeather] = useState<{ temp: number; place: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recRef = useRef<any>(null);
 
@@ -113,6 +114,46 @@ const Concierge = () => {
     const id = setInterval(() => setRefreshTick(t => t + 1), 60_000);
     return () => clearInterval(id);
   }, [allowed]);
+
+  // Real-time geolocation + weather (Open-Meteo, no key). Refresh on tick.
+  useEffect(() => {
+    if (!allowed) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const [wRes, gRes] = await Promise.all([
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`),
+            fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=es`),
+          ]);
+          const w = await wRes.json();
+          const g = await gRes.json();
+          setWeather({
+            temp: Math.round(w?.current?.temperature_2m ?? 0),
+            place: g?.city || g?.locality || g?.principalSubdivision || "Tu ubicación",
+          });
+        } catch {/* noop */}
+      },
+      () => {/* permission denied — silent */},
+      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },
+    );
+  }, [allowed, refreshTick]);
+
+  // Realtime in-app notifications
+  useEffect(() => {
+    if (!user || !allowed) return;
+    const ch = supabase
+      .channel(`notif-${user.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}`,
+      }, (payload: any) => {
+        const n = payload.new;
+        toast.success(n.title, { description: n.body });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user, allowed]);
 
   // Autoscroll
   useEffect(() => {
@@ -215,7 +256,10 @@ const Concierge = () => {
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
                   {trip?.destino ?? "Sin viaje activo"}{trip?.pais_destino ? `, ${trip.pais_destino}` : ""}
                 </span>
-                <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5 text-primary" /> 16°C</span>
+                <span className="flex items-center gap-1.5">
+                  <Cloud className="w-3.5 h-3.5 text-primary" />
+                  {weather ? `${weather.place} · ${weather.temp}°C` : "Detectando ubicación…"}
+                </span>
                 <span className="hidden sm:inline">|</span>
                 <span>{localTimeContext}</span>
                 <span className="hidden sm:inline">|</span>
@@ -388,7 +432,46 @@ const MessageBubble = ({ msg }: { msg: Msg }) => {
   );
 };
 
+type CardStatus = "idle" | "loading" | "confirmed" | "error";
+
+const useConciergeAction = () => {
+  const [status, setStatus] = useState<CardStatus>("idle");
+  const run = async (payload: { type: string; title: string; payload?: any }) => {
+    setStatus("loading");
+    try {
+      const { data, error } = await supabase.functions.invoke("concierge-action", {
+        body: payload,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setStatus("confirmed");
+      toast.success("Solicitud enviada", { description: payload.title });
+    } catch (e: any) {
+      setStatus("error");
+      toast.error(e?.message ?? "No pudimos procesar la solicitud");
+    }
+  };
+  return { status, run };
+};
+
+const ActionButton = ({
+  status, label, onClick, className = "",
+}: { status: CardStatus; label: string; onClick: () => void; className?: string }) => (
+  <Button
+    onClick={onClick}
+    disabled={status === "loading" || status === "confirmed"}
+    className={`bg-gradient-gold text-primary-foreground hover:opacity-90 ${className}`}
+  >
+    {status === "loading" && "Procesando…"}
+    {status === "confirmed" && "✓ Confirmado"}
+    {status === "idle" && label}
+    {status === "error" && "Reintentar"}
+  </Button>
+);
+
 const RichCard = ({ card }: { card: Card }) => {
+  const { status, run } = useConciergeAction();
+
   if (card.type === "alert") {
     return (
       <motion.div
@@ -404,7 +487,12 @@ const RichCard = ({ card }: { card: Card }) => {
             <p className="font-display text-base mb-1">{card.title}</p>
             <p className="text-sm text-muted-foreground mb-3">{card.body}</p>
             {card.cta_label && (
-              <Button size="sm" className="bg-gradient-gold text-primary-foreground hover:opacity-90">{card.cta_label}</Button>
+              <ActionButton
+                status={status}
+                label={card.cta_label}
+                onClick={() => run({ type: "alert", title: card.title, payload: { body: card.body } })}
+                className="h-9 px-3 text-sm"
+              />
             )}
           </div>
         </div>
@@ -427,9 +515,12 @@ const RichCard = ({ card }: { card: Card }) => {
           <h4 className="font-display text-lg leading-tight">{card.title}</h4>
           {card.subtitle && <p className="text-sm text-muted-foreground mb-1">{card.subtitle}</p>}
           {card.meta && <p className="text-xs text-primary mb-3">{card.meta}</p>}
-          <Button className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
-            {card.cta_label}
-          </Button>
+          <ActionButton
+            status={status}
+            label={card.cta_label}
+            onClick={() => run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta, rating: card.rating } })}
+            className="w-full gold-glow"
+          />
         </div>
       </div>
     );
@@ -448,9 +539,12 @@ const RichCard = ({ card }: { card: Card }) => {
           </div>
         </div>
         {card.meta && <p className="text-xs text-muted-foreground mb-3">{card.meta}</p>}
-        <Button size="sm" className="bg-gradient-gold text-primary-foreground hover:opacity-90 w-full">
-          {card.cta_label}
-        </Button>
+        <ActionButton
+          status={status}
+          label={card.cta_label}
+          onClick={() => run({ type: "transport", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })}
+          className="w-full h-9 text-sm"
+        />
       </div>
     );
   }
@@ -487,7 +581,12 @@ const RichCard = ({ card }: { card: Card }) => {
             <h4 className="font-display text-base">{card.title}</h4>
           </div>
           <p className="text-xs text-muted-foreground mb-3">{card.status}</p>
-          <Button className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90">{card.cta_label}</Button>
+          <ActionButton
+            status={status}
+            label={card.cta_label}
+            onClick={() => run({ type: "pickup", title: card.title, payload: { from: card.from, to: card.to, status: card.status } })}
+            className="w-full"
+          />
         </div>
       </div>
     );
@@ -512,9 +611,12 @@ const RichCard = ({ card }: { card: Card }) => {
             <span className="text-xs text-muted-foreground">Costo adicional</span>
             <span className="font-display text-2xl text-primary">+${card.price_usd.toLocaleString()} USD</span>
           </div>
-          <Button className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
-            {card.cta_label}
-          </Button>
+          <ActionButton
+            status={status}
+            label={card.cta_label}
+            onClick={() => run({ type: "jet", title: card.title, payload: { route: card.route, fbo: card.fbo, price_usd: card.price_usd } })}
+            className="w-full gold-glow"
+          />
         </div>
       </div>
     );
