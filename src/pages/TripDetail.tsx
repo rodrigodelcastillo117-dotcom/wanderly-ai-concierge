@@ -1,14 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { EditableBudget } from "@/components/EditableBudget";
 import santorini from "@/assets/hero-santorini.jpg";
-
-
 
 const fmtMXN = (n: number) =>
   `$${Number(n).toLocaleString("es-MX", { maximumFractionDigits: 0 })} MXN`;
@@ -19,14 +17,50 @@ const TripDetail = () => {
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Selecciones del usuario
+  const [selVuelo, setSelVuelo] = useState<number>(0);
+  const [selHospedaje, setSelHospedaje] = useState<number>(0);
+  const [selTours, setSelTours] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     if (!id) return;
     (async () => {
       const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
       setTrip(data);
+      // Por defecto seleccionar todas las experiencias
+      if (data?.tours_json?.length) {
+        setSelTours(new Set(data.tours_json.map((_: any, i: number) => i)));
+      }
       setLoading(false);
     })();
   }, [id]);
+
+  const dias = trip?.itinerario_json?.length ?? 0;
+  const noches = Math.max(1, dias - 1);
+  const viajeros = trip?.num_viajeros ?? 1;
+  const baseDesglose = trip?.desglose_presupuesto ?? {};
+
+  // Recalcular desglose en base a selecciones
+  const computedDesglose = useMemo(() => {
+    if (!trip) return {};
+    const vuelo = trip.vuelos_json?.[selVuelo];
+    const hosp = trip.hospedaje_json?.[selHospedaje];
+    const toursSum = (trip.tours_json ?? []).reduce(
+      (s: number, t: any, i: number) =>
+        selTours.has(i) ? s + Number(t.precio_por_persona ?? 0) * viajeros : s,
+      0,
+    );
+    return {
+      vuelos: vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
+      hospedaje: hosp ? Number(hosp.precio_por_noche ?? 0) * noches : Number(baseDesglose.hospedaje ?? 0),
+      comida: Number(baseDesglose.comida ?? 0),
+      tours: toursSum || Number(baseDesglose.tours ?? 0),
+      transporte_local: Number(baseDesglose.transporte_local ?? 0),
+      extras: Number(baseDesglose.extras ?? 0),
+    };
+  }, [trip, selVuelo, selHospedaje, selTours, viajeros, noches]);
+
+  const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
 
   if (loading) {
     return (
@@ -51,20 +85,16 @@ const TripDetail = () => {
     );
   }
 
-  const dias = trip.itinerario_json?.length ?? 0;
-  const desglose = trip.desglose_presupuesto ?? {};
-  const total = Number(trip.total_estimado ?? 0);
+  const toggleTour = (i: number) => {
+    setSelTours((prev) => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
+  };
 
-  const desgloseItems = [
-    { label: "Vuelos", v: desglose.vuelos, color: "hsl(var(--primary))" },
-    { label: "Hospedaje", v: desglose.hospedaje, color: "hsl(41 60% 70%)" },
-    { label: "Comida", v: desglose.comida, color: "hsl(28 50% 55%)" },
-    { label: "Tours", v: desglose.tours, color: "hsl(35 40% 45%)" },
-    { label: "Transporte", v: desglose.transporte_local, color: "hsl(25 30% 35%)" },
-    { label: "Extras", v: desglose.extras, color: "hsl(40 20% 50%)" },
-  ].filter((x) => x.v);
-
-  const desgloseTotal = desgloseItems.reduce((s, i) => s + Number(i.v ?? 0), 0) || 1;
+  const selectedClass = (active: boolean) =>
+    `cursor-pointer transition relative ${active ? "gold-border ring-1 ring-primary/50" : "hover:gold-border"}`;
 
   return (
     <DashboardLayout>
@@ -88,7 +118,7 @@ const TripDetail = () => {
           <h1 className="font-display text-5xl md:text-7xl leading-none mb-4">{trip.destino}</h1>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {new Date(trip.fecha_salida).toLocaleDateString("es-MX")} – {new Date(trip.fecha_regreso).toLocaleDateString("es-MX")}</span>
-            <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {trip.num_viajeros} {trip.num_viajeros === 1 ? "viajero" : "viajeros"}</span>
+            <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {viajeros} {viajeros === 1 ? "viajero" : "viajeros"}</span>
             <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Desde {trip.ciudad_origen}</span>
           </div>
         </div>
@@ -99,8 +129,10 @@ const TripDetail = () => {
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <div className="glass-card rounded-2xl p-8 md:p-10 mb-8">
             <p className="text-xs tracking-[0.2em] uppercase text-primary mb-2">Inversión total estimada</p>
-            <p className="font-display text-5xl md:text-6xl gold-text mb-4">{fmtMXN(total)}</p>
-            <p className="text-sm text-muted-foreground">Para {trip.num_viajeros} {trip.num_viajeros === 1 ? "persona" : "personas"} · {dias} días</p>
+            <p className="font-display text-5xl md:text-6xl gold-text mb-4">{fmtMXN(computedTotal)}</p>
+            <p className="text-sm text-muted-foreground">
+              Para {viajeros} {viajeros === 1 ? "persona" : "personas"} · {dias} días · basado en tus selecciones
+            </p>
           </div>
           {trip.analisis_ai && (
             <div className="prose prose-invert max-w-none">
@@ -109,51 +141,52 @@ const TripDetail = () => {
           )}
         </motion.section>
 
-        {/* Desglose */}
-        {desgloseItems.length > 0 && (
-          <Section icon={Compass} title="Desglose de presupuesto">
-            <EditableBudget
-              tripId={trip.id}
-              initialDesglose={desglose}
-              initialTotal={total}
-              onChange={(newTotal, newDesglose) => {
-                setTrip((t: any) => ({ ...t, total_estimado: newTotal, desglose_presupuesto: newDesglose }));
-              }}
-            />
-          </Section>
-        )}
-
-
         {/* Vuelos */}
         {trip.vuelos_json?.length > 0 && (
-          <Section icon={Plane} title="Vuelos sugeridos">
+          <Section icon={Plane} title="Vuelos sugeridos" hint="Selecciona uno">
             <div className="grid md:grid-cols-3 gap-4">
-              {trip.vuelos_json.map((v: any, i: number) => (
-                <div key={i} className="glass-card rounded-xl p-6 hover:gold-border transition">
-                  <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{v.tier}</p>
-                  <p className="font-display text-xl mb-1">{v.aerolinea}</p>
-                  <p className="text-sm text-muted-foreground mb-4">{v.duracion} · {v.escalas}</p>
-                  <p className="font-medium text-lg">{fmtMXN(v.precio_por_persona)}<span className="text-xs text-muted-foreground ml-1">/ persona</span></p>
-                  {v.notas && <p className="text-xs text-muted-foreground mt-3">{v.notas}</p>}
-                </div>
-              ))}
+              {trip.vuelos_json.map((v: any, i: number) => {
+                const active = selVuelo === i;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setSelVuelo(i)}
+                    className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}
+                  >
+                    {active && <SelectedBadge />}
+                    <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{v.tier}</p>
+                    <p className="font-display text-xl mb-1">{v.aerolinea}</p>
+                    <p className="text-sm text-muted-foreground mb-4">{v.duracion} · {v.escalas}</p>
+                    <p className="font-medium text-lg">{fmtMXN(v.precio_por_persona)}<span className="text-xs text-muted-foreground ml-1">/ persona</span></p>
+                    {v.notas && <p className="text-xs text-muted-foreground mt-3">{v.notas}</p>}
+                  </div>
+                );
+              })}
             </div>
           </Section>
         )}
 
         {/* Hospedaje */}
         {trip.hospedaje_json?.length > 0 && (
-          <Section icon={Hotel} title="Hospedaje curado">
+          <Section icon={Hotel} title="Hospedaje" hint="Selecciona uno">
             <div className="grid md:grid-cols-3 gap-4">
-              {trip.hospedaje_json.map((h: any, i: number) => (
-                <div key={i} className="glass-card rounded-xl p-6">
-                  <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{h.tipo}</p>
-                  <p className="font-display text-xl mb-1">{h.nombre}</p>
-                  <p className="text-sm text-muted-foreground mb-3">{h.barrio} · ★ {h.rating}</p>
-                  <p className="font-medium mb-3">{fmtMXN(h.precio_por_noche)}<span className="text-xs text-muted-foreground ml-1">/ noche</span></p>
-                  <p className="text-xs text-muted-foreground italic">{h.por_que}</p>
-                </div>
-              ))}
+              {trip.hospedaje_json.map((h: any, i: number) => {
+                const active = selHospedaje === i;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setSelHospedaje(i)}
+                    className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}
+                  >
+                    {active && <SelectedBadge />}
+                    <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{h.tipo}</p>
+                    <p className="font-display text-xl mb-1">{h.nombre}</p>
+                    <p className="text-sm text-muted-foreground mb-3">{h.barrio} · ★ {h.rating}</p>
+                    <p className="font-medium mb-3">{fmtMXN(h.precio_por_noche)}<span className="text-xs text-muted-foreground ml-1">/ noche</span></p>
+                    <p className="text-xs text-muted-foreground italic">{h.por_que}</p>
+                  </div>
+                );
+              })}
             </div>
           </Section>
         )}
@@ -169,7 +202,6 @@ const TripDetail = () => {
                       <span className="font-display text-2xl gold-text w-10">{String(d.dia).padStart(2, "0")}</span>
                       <span className="font-medium">{d.titulo}</span>
                     </div>
-                    {d.costo_aprox_dia && <span className="text-sm text-muted-foreground">{fmtMXN(d.costo_aprox_dia)}</span>}
                   </summary>
                   <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-3 text-sm">
                     <div><span className="text-primary text-xs tracking-wider uppercase">Mañana</span><p className="mt-1 text-muted-foreground">{d.mañana}</p></div>
@@ -178,6 +210,32 @@ const TripDetail = () => {
                   </div>
                 </details>
               ))}
+            </div>
+          </Section>
+        )}
+
+        {/* Tours / Experiencias */}
+        {trip.tours_json?.length > 0 && (
+          <Section icon={Compass} title="Experiencias" hint="Selecciona las que quieras">
+            <div className="grid sm:grid-cols-2 gap-4">
+              {trip.tours_json.map((t: any, i: number) => {
+                const active = selTours.has(i);
+                return (
+                  <div
+                    key={i}
+                    onClick={() => toggleTour(i)}
+                    className={`glass-card rounded-xl p-5 ${selectedClass(active)}`}
+                  >
+                    {active && <SelectedBadge />}
+                    <div className="flex items-start justify-between mb-2 pr-8">
+                      <p className="font-medium">{t.nombre}</p>
+                      <span className="text-xs text-primary whitespace-nowrap">{fmtMXN(t.precio_por_persona)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">{t.duracion}</p>
+                    <p className="text-sm text-muted-foreground italic">{t.por_que}</p>
+                  </div>
+                );
+              })}
             </div>
           </Section>
         )}
@@ -200,24 +258,6 @@ const TripDetail = () => {
           </Section>
         )}
 
-        {/* Tours */}
-        {trip.tours_json?.length > 0 && (
-          <Section icon={Compass} title="Experiencias">
-            <div className="grid sm:grid-cols-2 gap-4">
-              {trip.tours_json.map((t: any, i: number) => (
-                <div key={i} className="glass-card rounded-xl p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <p className="font-medium">{t.nombre}</p>
-                    <span className="text-xs text-primary">{fmtMXN(t.precio_por_persona)}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">{t.duracion}</p>
-                  <p className="text-sm text-muted-foreground italic">{t.por_que}</p>
-                </div>
-              ))}
-            </div>
-          </Section>
-        )}
-
         {/* Tips */}
         {trip.tips_personalizados?.length > 0 && (
           <Section icon={Lightbulb} title="Tips de tu concierge">
@@ -231,16 +271,37 @@ const TripDetail = () => {
             </div>
           </Section>
         )}
+
+        {/* Desglose AL FINAL, calculado en base a selecciones */}
+        {computedTotal > 0 && (
+          <Section icon={Compass} title="Desglose de presupuesto">
+            <EditableBudget
+              key={`${selVuelo}-${selHospedaje}-${Array.from(selTours).sort().join(",")}`}
+              tripId={trip.id}
+              initialDesglose={computedDesglose}
+              initialTotal={computedTotal}
+            />
+          </Section>
+        )}
       </div>
     </DashboardLayout>
   );
 };
 
-const Section = ({ icon: Icon, title, children }: any) => (
+const SelectedBadge = () => (
+  <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+    <Check className="w-3.5 h-3.5" />
+  </div>
+);
+
+const Section = ({ icon: Icon, title, hint, children }: any) => (
   <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
-    <div className="flex items-center gap-3 mb-5">
-      <Icon className="w-5 h-5 text-primary" />
-      <h2 className="font-display text-3xl">{title}</h2>
+    <div className="flex items-center justify-between gap-3 mb-5">
+      <div className="flex items-center gap-3">
+        <Icon className="w-5 h-5 text-primary" />
+        <h2 className="font-display text-3xl">{title}</h2>
+      </div>
+      {hint && <span className="text-xs text-muted-foreground italic">{hint}</span>}
     </div>
     {children}
   </motion.section>
