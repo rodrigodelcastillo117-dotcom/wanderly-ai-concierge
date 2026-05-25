@@ -373,6 +373,56 @@ export type Database = {
         }
         Relationships: []
       }
+      user_visits: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          lat: number | null
+          lng: number | null
+          notes: string | null
+          place_id: string | null
+          place_name: string
+          trip_id: string | null
+          user_id: string
+          visited_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          notes?: string | null
+          place_id?: string | null
+          place_name: string
+          trip_id?: string | null
+          user_id: string
+          visited_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          notes?: string | null
+          place_id?: string | null
+          place_name?: string
+          trip_id?: string | null
+          user_id?: string
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_visits_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
