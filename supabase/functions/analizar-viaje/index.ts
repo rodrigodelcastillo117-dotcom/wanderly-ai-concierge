@@ -230,6 +230,8 @@ FORMATO OBLIGATORIO: Para cada ítem reporta "Aerolínea/Hotel X: $XX,XXX MXN" c
 
 6. TRANSPORTE LOCAL: metro/tren/transfers, total MXN estimado para ${body.num_viajeros} personas.
 
+7. PROMOCIONES APLICABLES: Lista 3-5 promos REALES vigentes que el usuario pueda activar con su bóveda (ej: "Amex Platinum: 15% off Hilton via Fine Hotels & Resorts", "Star Alliance Gold: maleta extra gratis"). Incluye URL fuente.
+
 Tipo de cambio actual USD→MXN y EUR→MXN. Sé exhaustivo con cifras puntuales.`;
 
   const res = await fetch("https://api.perplexity.ai/chat/completions", {
