@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { BackButton } from "@/components/BackButton";
 
 const links = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
@@ -15,7 +16,7 @@ const links = [
 const mobileNav = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
   { to: "/dashboard/perfil", icon: User, label: "Perfil" },
-  { to: "/dashboard/concierge", icon: Mail, label: "Concierge" },
+  { to: "/dashboard/concierge", icon: Mail, label: "Concierge Pro" },
   { to: "/dashboard/planear", icon: Plus, label: "Nuevo", primary: true },
   { to: "/dashboard/descubre", icon: Globe, label: "Descubre" },
   { to: "/dashboard/cercanos", icon: Users, label: "Cercanos" },
@@ -115,7 +116,10 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </aside>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 overflow-x-hidden pb-24 md:pb-0">{children}</main>
+      <main className="flex-1 min-w-0 overflow-x-hidden pb-24 md:pb-0 relative">
+        <BackButton />
+        {children}
+      </main>
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border/40 bg-background/95 backdrop-blur-lg">
