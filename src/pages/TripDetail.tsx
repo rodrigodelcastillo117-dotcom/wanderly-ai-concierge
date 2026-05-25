@@ -43,6 +43,8 @@ const TripDetail = () => {
   const viajeros = trip?.num_viajeros ?? 1;
   const baseDesglose = trip?.desglose_presupuesto ?? {};
 
+  const nochesEfectivas = nochesHospedaje ?? noches;
+
   // Recalcular desglose en base a selecciones (-1 = "ya lo tengo / no aplica")
   const computedDesglose = useMemo(() => {
     if (!trip) return {};
@@ -53,15 +55,18 @@ const TripDetail = () => {
         selTours.has(i) ? s + Number(t.precio_por_persona ?? 0) * viajeros : s,
       0,
     );
+    // Comida y transporte se prorratean a los días realmente "fuera"
+    // Si tiene hospedaje propio parte del viaje, asumimos que sigue gastando en comida/transporte todos los días
+    const factorDias = dias > 0 ? dias / Math.max(1, dias) : 1;
     return {
       vuelos: selVuelo === -1 ? 0 : vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
-      hospedaje: selHospedaje === -1 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * noches : Number(baseDesglose.hospedaje ?? 0),
-      comida: Number(baseDesglose.comida ?? 0),
+      hospedaje: selHospedaje === -1 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * nochesEfectivas : Number(baseDesglose.hospedaje ?? 0),
+      comida: Number(baseDesglose.comida ?? 0) * factorDias,
       tours: toursSum || Number(baseDesglose.tours ?? 0),
-      transporte_local: Number(baseDesglose.transporte_local ?? 0),
+      transporte_local: Number(baseDesglose.transporte_local ?? 0) * factorDias,
       extras: Number(baseDesglose.extras ?? 0),
     };
-  }, [trip, selVuelo, selHospedaje, selTours, viajeros, noches]);
+  }, [trip, selVuelo, selHospedaje, selTours, viajeros, nochesEfectivas, dias]);
 
 
   const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
