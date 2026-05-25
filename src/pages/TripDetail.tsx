@@ -197,7 +197,14 @@ const TripDetail = () => {
                   </div>
                 );
               })}
+              <SkipCard
+                active={selHospedaje === -1}
+                onClick={() => setSelHospedaje(-1)}
+                title="Ya tengo dónde quedarme"
+                subtitle="Casa de un amigo, familia, Airbnb propio…"
+              />
             </div>
+
           </Section>
         )}
 
