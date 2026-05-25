@@ -43,7 +43,7 @@ const App = () => (
             <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
             <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
             <Route path="/dashboard/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />
-            <Route path="/dashboard/smart-spend" element={<ProtectedRoute><SmartSpend /></ProtectedRoute>} />
+            <Route path="/dashboard/smart-spend" element={<Navigate to="/dashboard/gastos" replace />} />
             <Route path="/dashboard/gastos" element={<ProtectedRoute><Gastos /></ProtectedRoute>} />
             <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
             <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
