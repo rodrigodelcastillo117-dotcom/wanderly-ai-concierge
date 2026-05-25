@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_user_preferences: {
+        Row: {
+          actividades_tarde: string[] | null
+          companeros_viaje: string | null
+          completado: boolean | null
+          created_at: string
+          deal_breakers: string[] | null
+          estilo_comida: string[] | null
+          hospedaje_preferencias: string[] | null
+          id: string
+          mejor_viaje_descripcion: string | null
+          nivel_planificacion: string | null
+          nivel_presupuesto: string | null
+          perfil_ia: Json | null
+          proposito_viaje: string | null
+          restricciones_alimentarias: string[] | null
+          ritmo_viaje: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actividades_tarde?: string[] | null
+          companeros_viaje?: string | null
+          completado?: boolean | null
+          created_at?: string
+          deal_breakers?: string[] | null
+          estilo_comida?: string[] | null
+          hospedaje_preferencias?: string[] | null
+          id?: string
+          mejor_viaje_descripcion?: string | null
+          nivel_planificacion?: string | null
+          nivel_presupuesto?: string | null
+          perfil_ia?: Json | null
+          proposito_viaje?: string | null
+          restricciones_alimentarias?: string[] | null
+          ritmo_viaje?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actividades_tarde?: string[] | null
+          companeros_viaje?: string | null
+          completado?: boolean | null
+          created_at?: string
+          deal_breakers?: string[] | null
+          estilo_comida?: string[] | null
+          hospedaje_preferencias?: string[] | null
+          id?: string
+          mejor_viaje_descripcion?: string | null
+          nivel_planificacion?: string | null
+          nivel_presupuesto?: string | null
+          perfil_ia?: Json | null
+          proposito_viaje?: string | null
+          restricciones_alimentarias?: string[] | null
+          ritmo_viaje?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       behavioral_insights: {
         Row: {
           action: string
@@ -370,6 +430,39 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vuelos_json?: Json | null
+        }
+        Relationships: []
+      }
+      user_vault_benefits: {
+        Row: {
+          airline_alliances: Json
+          car_rentals: Json
+          created_at: string
+          credit_cards: Json
+          hotel_loyalty: Json
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          airline_alliances?: Json
+          car_rentals?: Json
+          created_at?: string
+          credit_cards?: Json
+          hotel_loyalty?: Json
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          airline_alliances?: Json
+          car_rentals?: Json
+          created_at?: string
+          credit_cards?: Json
+          hotel_loyalty?: Json
+          id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
