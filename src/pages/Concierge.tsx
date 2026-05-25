@@ -258,22 +258,8 @@ const Concierge = () => {
 
         {/* SMART CHIPS + INPUT */}
         <div className="px-4 md:px-8 pb-6 pt-3 border-t border-border bg-background/80 backdrop-blur">
-          {/* God Mode */}
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-              {QUICK_CHIPS.map((c) => (
-                <button
-                  key={c.label}
-                  onClick={() => sendText(c.label)}
-                  disabled={sending}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition"
-                >
-                  <c.icon className="w-3.5 h-3.5 text-primary" />
-                  {c.label}
-                </button>
-              ))}
-            </div>
-
+          {/* God Mode toggle on its own row */}
+          <div className="flex items-center justify-end mb-2">
             <button
               onClick={() => setGodMode(g => !g)}
               className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full border transition text-xs ${
@@ -285,6 +271,23 @@ const Concierge = () => {
               <Crown className={`w-3.5 h-3.5 ${godMode ? "animate-pulse" : ""}`} />
               God Mode <span className="hidden sm:inline">· Caza-Reservas VIP</span>
             </button>
+          </div>
+
+          {/* Quick chips — full-width horizontal scroll, no visible scrollbar */}
+          <div
+            className="flex items-center gap-2 overflow-x-auto pb-2 mb-2 -mx-4 md:-mx-8 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {QUICK_CHIPS.map((c) => (
+              <button
+                key={c.label}
+                onClick={() => sendText(c.label)}
+                disabled={sending}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition"
+              >
+                <c.icon className="w-3.5 h-3.5 text-primary" />
+                {c.label}
+              </button>
+            ))}
           </div>
 
           <div className="flex items-end gap-2 rounded-2xl border border-primary/30 bg-card p-2 focus-within:border-primary transition">
