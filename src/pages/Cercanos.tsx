@@ -295,7 +295,11 @@ const Cercanos = () => {
           <div>
             <h1 className="font-display text-4xl md:text-5xl mb-2">Cercanos</h1>
             <p className="text-muted-foreground">
-              {activeTrip ? <>Explorando <span className="text-primary">{activeTrip.destino}</span> — recomendaciones curadas por el AI.</> : "Recomendaciones para tu próximo destino."}
+              {userLoc
+                ? <>Mostrando lugares cerca de <span className="text-primary">tu ubicación actual</span>.</>
+                : geoError
+                  ? "Activa la ubicación para ver lugares cerca de ti."
+                  : "Detectando tu ubicación…"}
             </p>
           </div>
           {activeTrip && (
