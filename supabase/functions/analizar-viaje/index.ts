@@ -343,6 +343,9 @@ CLIENTE
 - Idiomas: ${(travelProfile?.idiomas_hablados ?? []).join(", ") || "español"}
 - Notas: ${travelProfile?.notas_adicionales ?? "ninguna"}
 
+BÓVEDA DE BENEFICIOS (aplica descuentos y perks reales en la cotización; menciona explícitamente en tips_personalizados cómo activar cada beneficio):
+${vaultDesc}
+
 VIAJE
 - Destino: ${body.destino}
 - Fechas: ${body.fecha_salida} al ${body.fecha_regreso} (${dias} días)
