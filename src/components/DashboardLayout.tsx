@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Home, Map, MapPin, Heart, PieChart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -9,7 +9,6 @@ const links = [
   { to: "/dashboard/viajes", icon: Map, label: "Mis viajes" },
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
-  { to: "/dashboard/smart-spend", icon: PieChart, label: "Smart Spend" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
 ];
 
