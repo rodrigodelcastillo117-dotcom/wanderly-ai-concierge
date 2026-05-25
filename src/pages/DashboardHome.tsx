@@ -133,38 +133,98 @@ const DashboardHome = () => {
           </div>
         </header>
 
-        {/* Greeting */}
-        <motion.h1
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="font-display text-4xl md:text-5xl"
-        >
-          {name}. <span className="italic text-primary/90">Platicame tu viaje</span>
-        </motion.h1>
+        {/* Greeting + buscador conversacional */}
+        <section className="space-y-5">
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="font-display text-3xl md:text-5xl"
+          >
+            {name}. <span className="italic text-primary/90">Platicame tu viaje</span>
+          </motion.h1>
 
-        {/* Hero CTA */}
+          <motion.form
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.05 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = concierge.trim();
+              if (q.length < 5) return;
+              navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
+            }}
+            className="relative rounded-3xl border border-primary/25 bg-surface/40 backdrop-blur p-2 pl-5 gold-border"
+          >
+            <div className="flex items-start gap-3">
+              <div className="hidden sm:flex w-10 h-10 mt-2 rounded-full border border-primary/40 items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+              <textarea
+                value={concierge}
+                onChange={(e) => setConcierge(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    (e.target as HTMLTextAreaElement).form?.requestSubmit();
+                  }
+                }}
+                rows={2}
+                placeholder="Ej: 'Quiero ir a Tokio con mi pareja en julio, 10 días, presupuesto ~$80,000 MXN, nos gusta la gastronomía y los templos.'"
+                className="flex-1 min-h-[64px] resize-none bg-transparent border-0 outline-none text-base md:text-lg placeholder:text-muted-foreground/70 py-3 pr-2"
+              />
+              <Button
+                type="submit"
+                disabled={concierge.trim().length < 5}
+                className="self-end h-12 px-5 bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Analizar viaje
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3 pl-1">
+              {[
+                "Fin de semana en Tulum para 2",
+                "Europa 15 días, ~$150k MXN",
+                "Bali en septiembre, luna de miel",
+                "Escapada a Nueva York en 4 días",
+              ].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setConcierge(s)}
+                  className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 transition"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </motion.form>
+        </section>
+
+        {/* Hero CTA secundario (planeación guiada paso a paso) */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.05 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
           className="relative rounded-3xl overflow-hidden premium-shadow group cursor-pointer"
           onClick={() => navigate("/dashboard/planear")}
         >
-          <img src={santorini} alt="Planea tu próximo viaje" className="w-full h-64 md:h-72 object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+          <img src={santorini} alt="Planea tu próximo viaje" className="w-full h-56 md:h-64 object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-          <div className="absolute inset-0 flex flex-col justify-end p-7 md:p-10">
+          <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-9">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-xs mb-3 self-start border border-white/10">
               <Sparkles className="w-3 h-3 text-primary" />
-              <span>IA personalizada</span>
+              <span>Planeación guiada</span>
             </div>
-            <h2 className="font-display text-3xl md:text-5xl mb-4 leading-tight">Planea un nuevo viaje</h2>
-            <Button className="bg-gradient-gold text-primary-foreground hover:opacity-90 self-start gold-glow">
+            <h2 className="font-display text-2xl md:text-4xl mb-3 leading-tight">¿Prefieres paso a paso?</h2>
+            <Button className="bg-white/10 backdrop-blur border border-white/20 text-foreground hover:bg-white/20 self-start">
               <Plus className="w-4 h-4 mr-2" />
-              Empezar análisis
+              Planeación guiada
             </Button>
           </div>
         </motion.div>
+
 
         {/* Curado para ti */}
         <section>
