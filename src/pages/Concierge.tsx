@@ -189,6 +189,17 @@ const Concierge = () => {
     rec.start();
   };
 
+  if (allowed === null) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[60vh] text-muted-foreground text-sm">
+          Verificando acceso a Concierge Pro…
+        </div>
+      </DashboardLayout>
+    );
+  }
+  if (!allowed) return null;
+
   return (
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
@@ -196,7 +207,9 @@ const Concierge = () => {
         <div className="px-4 md:px-8 pt-6 pb-3 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
-              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1">Ultra-Luxury Concierge</p>
+              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
+                <Crown className="w-3 h-3" /> IATOS · Concierge Pro
+              </p>
               <h1 className="font-display text-2xl md:text-3xl leading-tight">Wanderly te escucha</h1>
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
@@ -205,6 +218,14 @@ const Concierge = () => {
                 <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5 text-primary" /> 16°C</span>
                 <span className="hidden sm:inline">|</span>
                 <span>{localTimeContext}</span>
+                <span className="hidden sm:inline">|</span>
+                <button
+                  onClick={() => setRefreshTick(t => t + 1)}
+                  className="flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary transition"
+                  title={`Actualizado ${lastRefresh.toLocaleTimeString()}`}
+                >
+                  <RefreshCw className="w-3 h-3" /> Auto-refresh 60s
+                </button>
               </div>
             </div>
 
