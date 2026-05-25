@@ -136,19 +136,26 @@ const Cercanos = () => {
       mapObj.current = new window.google.maps.Map(mapRef.current, {
         center: city.center,
         zoom: 13,
+        minZoom: 11,
+        maxZoom: 17,
         styles: DARK_STYLE,
         disableDefaultUI: true,
         zoomControl: true,
         gestureHandling: "greedy",
       });
-    } else {
-      mapObj.current.setCenter(city.center);
+      // Forzar re-render correcto cuando el contenedor termina de medirse
+      setTimeout(() => {
+        if (!mapObj.current) return;
+        window.google.maps.event.trigger(mapObj.current, "resize");
+        mapObj.current.setCenter(city.center);
+      }, 100);
     }
 
     // Limpiar markers anteriores
     markers.current.forEach((m) => m.setMap(null));
     markers.current.clear();
 
+    const bounds = new window.google.maps.LatLngBounds();
     city.pois.forEach((p) => {
       const isVisited = visited.has(p.id);
       const marker = new window.google.maps.Marker({
@@ -169,8 +176,15 @@ const Cercanos = () => {
         logInsight("viewed", "destination", p.name, { city: cityKey });
       });
       markers.current.set(p.id, marker);
+      bounds.extend({ lat: p.lat, lng: p.lng });
     });
+
+    // Ajustar el mapa para que TODOS los pines queden visibles, con padding
+    if (city.pois.length > 0) {
+      mapObj.current.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+    }
   }, [mapReady, city, visited, cityKey]);
+
 
   const toggleFav = (p: Poi) => {
     const isFav = favorited.has(p.id);
