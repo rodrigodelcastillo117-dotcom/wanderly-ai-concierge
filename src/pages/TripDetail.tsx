@@ -112,26 +112,17 @@ const TripDetail = () => {
         {/* Desglose */}
         {desgloseItems.length > 0 && (
           <Section icon={Compass} title="Desglose de presupuesto">
-            <div className="glass-card rounded-2xl p-6 md:p-8">
-              <div className="flex h-3 rounded-full overflow-hidden mb-6">
-                {desgloseItems.map((it) => (
-                  <div key={it.label} style={{ width: `${(Number(it.v) / desgloseTotal) * 100}%`, background: it.color }} />
-                ))}
-              </div>
-              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {desgloseItems.map((it) => (
-                  <div key={it.label} className="flex items-center gap-3">
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: it.color }} />
-                    <div className="flex-1 flex justify-between">
-                      <span className="text-sm text-muted-foreground">{it.label}</span>
-                      <span className="text-sm font-medium">{fmtMXN(Number(it.v))}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <EditableBudget
+              tripId={trip.id}
+              initialDesglose={desglose}
+              initialTotal={total}
+              onChange={(newTotal, newDesglose) => {
+                setTrip((t: any) => ({ ...t, total_estimado: newTotal, desglose_presupuesto: newDesglose }));
+              }}
+            />
           </Section>
         )}
+
 
         {/* Vuelos */}
         {trip.vuelos_json?.length > 0 && (
