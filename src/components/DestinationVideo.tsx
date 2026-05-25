@@ -28,19 +28,15 @@ export const DestinationVideo = ({ query, fallbackImage, alt, className }: Desti
     const existing = inflight.get(query);
     const p =
       existing ??
-      supabase.functions
-        .invoke("buscar-video", { body: null, method: "GET" as any })
-        // fallback using fetch with query string since invoke uses POST
-        .then(() => null)
-        .catch(() => null)
-        .then(async () => {
-          const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/buscar-video?q=${encodeURIComponent(query)}`;
-          const res = await fetch(url, {
-            headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-          });
-          if (!res.ok) return { url: null, poster: null };
-          return (await res.json()) as { url: string | null; poster: string | null };
+      (async () => {
+        const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/buscar-video?q=${encodeURIComponent(query)}`;
+        const res = await fetch(url, {
+          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
         });
+        if (!res.ok) return { url: null, poster: null };
+        return (await res.json()) as { url: string | null; poster: string | null };
+      })();
+
 
     inflight.set(query, p);
     p.then((result) => {
