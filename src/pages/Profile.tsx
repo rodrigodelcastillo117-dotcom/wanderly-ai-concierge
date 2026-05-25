@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import BenefitsVault from "@/components/BenefitsVault";
+import PromocionesActivas from "@/components/PromocionesActivas";
 import { Sparkles } from "lucide-react";
 
 const Profile = () => {
