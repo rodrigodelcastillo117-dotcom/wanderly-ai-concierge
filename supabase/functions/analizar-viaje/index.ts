@@ -200,8 +200,11 @@ const TOOL_SCHEMA = {
   },
 };
 
-async function investigarConPerplexity(body: AnalisisRequest, dias: number): Promise<{ texto: string; citations: string[] }> {
-  const query = `Investiga precios REALES y actuales para este viaje. Devuelve CIFRAS PUNTUALES en MXN (no rangos vagos). Si el destino implica varios países/ciudades, desglosa TODOS los vuelos necesarios.
+async function investigarConPerplexity(body: AnalisisRequest, dias: number, vaultDesc: string): Promise<{ texto: string; citations: string[] }> {
+  const query = `Investiga precios REALES y actuales para este viaje, y BUSCA ACTIVAMENTE promociones vigentes asociadas a los programas de lealtad del usuario. Devuelve CIFRAS PUNTUALES en MXN (no rangos vagos).
+
+BÓVEDA DE BENEFICIOS DEL USUARIO (úsala para encontrar descuentos):
+${vaultDesc}
 
 Origen: ${body.ciudad_origen}
 Destino: ${body.destino}
