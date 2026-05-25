@@ -211,34 +211,6 @@ const Onboarding = () => {
       ),
     },
     {
-      title: "Normalmente viajas...",
-      canNext: () => !!a.acompanantes_tipico,
-      render: () => (
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { id: "solo", label: "Solo" },
-            { id: "pareja", label: "En pareja" },
-            { id: "amigos", label: "Con amigos" },
-            { id: "familia", label: "En familia" },
-          ].map((d) => {
-            const sel = a.acompanantes_tipico === d.id;
-            return (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => setA({ ...a, acompanantes_tipico: d.id })}
-                className={`p-5 rounded-xl border text-left transition-all duration-300 ${
-                  sel ? "border-primary bg-primary/10 gold-glow" : "border-border bg-surface hover:border-primary/40"
-                }`}
-              >
-                <div className="font-medium">{d.label}</div>
-              </button>
-            );
-          })}
-        </div>
-      ),
-    },
-    {
       title: "Idiomas que hablas",
       canNext: () => a.idiomas_hablados.length > 0,
       render: () => (
