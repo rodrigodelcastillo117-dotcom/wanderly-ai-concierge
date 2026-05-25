@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, Send, Phone, Sparkles, Cloud, MapPin, Utensils, Car, Siren,
-  Plane, Luggage, Star, AlertTriangle, X, Crown
+  Plane, Luggage, Star, AlertTriangle, X, Crown, RefreshCw
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +49,8 @@ declare global {
 
 const Concierge = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [allowed, setAllowed] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<Msg[]>([{
     id: "welcome", role: "assistant", ts: Date.now(),
     text: "Bienvenido. Estoy listo para anticiparme a cualquier capricho o emergencia de tu viaje.",
@@ -59,20 +62,57 @@ const Concierge = () => {
   const [listening, setListening] = useState(false);
   const [showFixer, setShowFixer] = useState(false);
   const [trip, setTrip] = useState<any>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
   const recRef = useRef<any>(null);
 
-  // Load active trip for header
+  // PRO gating with allowlist (rodelcast, Carlo)
   useEffect(() => {
     if (!user) return;
+    (async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("tier, full_name, email")
+        .eq("id", user.id)
+        .maybeSingle();
+      const name = (profile?.full_name ?? "").toLowerCase();
+      const email = (profile?.email ?? user.email ?? "").toLowerCase();
+      const allowlisted =
+        name.includes("rodelcast") || name.includes("carlo") ||
+        email.includes("rodelcast") || email.includes("carlo");
+      const isPro = profile?.tier === "pro";
+      if (isPro || allowlisted) {
+        setAllowed(true);
+      } else {
+        setAllowed(false);
+        toast.error("Concierge Pro está disponible solo para miembros IATOS Pro.");
+        navigate("/dashboard/pro", { replace: true });
+      }
+    })();
+  }, [user, navigate]);
+
+  // Load active trip for header — auto-refresh every minute
+  useEffect(() => {
+    if (!user || !allowed) return;
     supabase.from("trips")
       .select("destino, pais_destino, fecha_salida, fecha_regreso")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
-      .then(({ data }) => setTrip(data));
-  }, [user]);
+      .then(({ data }) => {
+        setTrip(data);
+        setLastRefresh(new Date());
+      });
+  }, [user, allowed, refreshTick]);
+
+  // Auto-refresh tick every 60s
+  useEffect(() => {
+    if (!allowed) return;
+    const id = setInterval(() => setRefreshTick(t => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, [allowed]);
 
   // Autoscroll
   useEffect(() => {
