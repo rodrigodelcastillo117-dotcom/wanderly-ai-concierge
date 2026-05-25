@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import BenefitsVault from "@/components/BenefitsVault";
+import PromocionesActivas from "@/components/PromocionesActivas";
 import { Sparkles } from "lucide-react";
 
 const Profile = () => {
@@ -25,6 +26,10 @@ const Profile = () => {
             <p className="text-muted-foreground">Guarda tus tarjetas, alianzas y programas de lealtad. Wanderly los usará para encontrarte tarifas y privilegios que otros no ven.</p>
           </div>
           <BenefitsVault />
+        </section>
+
+        <section>
+          <PromocionesActivas />
         </section>
       </div>
     </DashboardLayout>

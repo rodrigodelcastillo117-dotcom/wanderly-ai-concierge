@@ -200,8 +200,11 @@ const TOOL_SCHEMA = {
   },
 };
 
-async function investigarConPerplexity(body: AnalisisRequest, dias: number): Promise<{ texto: string; citations: string[] }> {
-  const query = `Investiga precios REALES y actuales para este viaje. Devuelve CIFRAS PUNTUALES en MXN (no rangos vagos). Si el destino implica varios países/ciudades, desglosa TODOS los vuelos necesarios.
+async function investigarConPerplexity(body: AnalisisRequest, dias: number, vaultDesc: string): Promise<{ texto: string; citations: string[] }> {
+  const query = `Investiga precios REALES y actuales para este viaje, y BUSCA ACTIVAMENTE promociones vigentes asociadas a los programas de lealtad del usuario. Devuelve CIFRAS PUNTUALES en MXN (no rangos vagos).
+
+BÓVEDA DE BENEFICIOS DEL USUARIO (úsala para encontrar descuentos):
+${vaultDesc}
 
 Origen: ${body.ciudad_origen}
 Destino: ${body.destino}
@@ -226,6 +229,8 @@ FORMATO OBLIGATORIO: Para cada ítem reporta "Aerolínea/Hotel X: $XX,XXX MXN" c
 5. COMIDA: 5-6 restaurantes reales bien valorados con rango ($/$$/$$$) y cocina.
 
 6. TRANSPORTE LOCAL: metro/tren/transfers, total MXN estimado para ${body.num_viajeros} personas.
+
+7. PROMOCIONES APLICABLES: Lista 3-5 promos REALES vigentes que el usuario pueda activar con su bóveda (ej: "Amex Platinum: 15% off Hilton via Fine Hotels & Resorts", "Star Alliance Gold: maleta extra gratis"). Incluye URL fuente.
 
 Tipo de cambio actual USD→MXN y EUR→MXN. Sé exhaustivo con cifras puntuales.`;
 
@@ -302,6 +307,15 @@ Deno.serve(async (req) => {
       .from("travel_profiles").select("*").eq("user_id", user.id).maybeSingle();
     const { data: profile } = await supabase
       .from("profiles").select("full_name, ciudad_origen").eq("id", user.id).maybeSingle();
+    const { data: vault } = await supabase
+      .from("user_vault_benefits").select("*").eq("user_id", user.id).maybeSingle();
+
+    const vaultLines: string[] = [];
+    if (vault?.credit_cards?.length) vaultLines.push("- Tarjetas: " + vault.credit_cards.map((c: any) => `${c.bank} ${c.card_tier}${c.perks_enabled?.length ? ` [${c.perks_enabled.join(", ")}]` : ""}`).join("; "));
+    if (vault?.airline_alliances?.length) vaultLines.push("- Aerolíneas: " + vault.airline_alliances.map((a: any) => `${a.airline} ${a.alliance_name} (${a.tier_status})`).join("; "));
+    if (vault?.hotel_loyalty?.length) vaultLines.push("- Hoteles: " + vault.hotel_loyalty.map((h: any) => `${h.chain_name} (${h.status_tier})`).join("; "));
+    if (vault?.car_rentals?.length) vaultLines.push("- Renta autos: " + vault.car_rentals.map((r: any) => `${r.company_name} (${r.preferred_car_type})`).join("; "));
+    const vaultDesc = vaultLines.join("\n") || "Sin programas de lealtad registrados.";
 
     const dias = Math.max(1, Math.round(
       (new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / (1000 * 60 * 60 * 24)
@@ -309,7 +323,7 @@ Deno.serve(async (req) => {
 
     // PASO 1: Perplexity investiga precios reales
     console.log("Investigando precios con Perplexity...");
-    const investigacion = await investigarConPerplexity(body, dias);
+    const investigacion = await investigarConPerplexity(body, dias, vaultDesc);
     console.log("Perplexity OK, citations:", investigacion.citations.length);
 
     // PASO 2: Claude estructura el análisis usando los datos reales
@@ -328,6 +342,9 @@ CLIENTE
 - Acompañantes: ${travelProfile?.acompanantes_tipico ?? "no especificado"}
 - Idiomas: ${(travelProfile?.idiomas_hablados ?? []).join(", ") || "español"}
 - Notas: ${travelProfile?.notas_adicionales ?? "ninguna"}
+
+BÓVEDA DE BENEFICIOS (aplica descuentos y perks reales en la cotización; menciona explícitamente en tips_personalizados cómo activar cada beneficio):
+${vaultDesc}
 
 VIAJE
 - Destino: ${body.destino}
