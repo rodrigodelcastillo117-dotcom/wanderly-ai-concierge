@@ -216,7 +216,7 @@ const DashboardHome = () => {
                 className="cursor-pointer group"
               >
                 <div className="relative aspect-square rounded-2xl overflow-hidden mb-3">
-                  <img src={d.img} alt={d.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <DestinationVideo query={`${d.name} ${d.country} travel`} fallbackImage={d.img} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                   <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-[11px] font-medium">
                     {d.score}% match
