@@ -27,6 +27,10 @@ const Profile = () => {
           </div>
           <BenefitsVault />
         </section>
+
+        <section>
+          <PromocionesActivas />
+        </section>
       </div>
     </DashboardLayout>
   );
