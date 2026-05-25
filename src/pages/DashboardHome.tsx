@@ -256,7 +256,7 @@ const DashboardHome = () => {
                   return (
                     <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-4 p-2 -mx-2 rounded-xl hover:bg-surface/60 transition">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-surface flex-shrink-0">
-                        <img src={santorini} alt={t.destino} className="w-full h-full object-cover" />
+                        <DestinationVideo query={`${t.destino} ${t.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={t.destino} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{t.destino}, {t.pais_destino}</p>
