@@ -30,6 +30,7 @@ const PlanTrip = () => {
   const [numViajeros, setNumViajeros] = useState(2);
   const [presupuesto, setPresupuesto] = useState<number | null>(null);
   const [analizando, setAnalizando] = useState(false);
+  const [interpretando, setInterpretando] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(0);
 
   useEffect(() => {
@@ -50,20 +51,18 @@ const PlanTrip = () => {
     return () => clearInterval(i);
   }, [analizando]);
 
-  const analizar = async () => {
-    if (!destino || !fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+  const runAnalisis = async (args: {
+    destino: string;
+    ciudad_origen: string;
+    fecha_salida: string;
+    fecha_regreso: string;
+    num_viajeros: number;
+    presupuesto_objetivo?: number | null;
+  }) => {
+    setDestino(args.destino);
     setAnalizando(true);
     try {
-      const { data, error } = await supabase.functions.invoke("analizar-viaje", {
-        body: {
-          destino,
-          ciudad_origen: ciudadOrigen,
-          fecha_salida: fechaSalida,
-          fecha_regreso: fechaRegreso,
-          num_viajeros: numViajeros,
-          presupuesto_objetivo: presupuesto,
-        },
-      });
+      const { data, error } = await supabase.functions.invoke("analizar-viaje", { body: args });
       if (error) throw error;
       if (!data?.trip?.id) throw new Error("Sin resultado");
       navigate(`/dashboard/viajes/${data.trip.id}`);
@@ -73,6 +72,86 @@ const PlanTrip = () => {
       setAnalizando(false);
     }
   };
+
+  const analizar = () => {
+    if (!destino || !fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+    return runAnalisis({
+      destino,
+      ciudad_origen: ciudadOrigen,
+      fecha_salida: fechaSalida,
+      fecha_regreso: fechaRegreso,
+      num_viajeros: numViajeros,
+      presupuesto_objetivo: presupuesto,
+    });
+  };
+
+  // Flujo de búsqueda en lenguaje natural: ?q=... viene del Inicio
+  useEffect(() => {
+    const q = params.get("q");
+    if (!q || !user) return;
+    let cancelled = false;
+    (async () => {
+      setInterpretando(true);
+      try {
+        // Trae ciudad_origen del perfil para fallback
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("ciudad_origen")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const { data, error } = await supabase.functions.invoke("parsear-viaje", {
+          body: { prompt: q },
+        });
+        if (cancelled) return;
+        if (error) throw error;
+
+        const origen = data?.ciudad_origen || prof?.ciudad_origen || "Ciudad de México";
+        const hoy = new Date();
+        const defaultSalida = new Date(hoy.getTime() + 30 * 86400000).toISOString().slice(0, 10);
+        const defaultRegreso = new Date(hoy.getTime() + 37 * 86400000).toISOString().slice(0, 10);
+
+        setInterpretando(false);
+        await runAnalisis({
+          destino: data?.destino || q.slice(0, 60),
+          ciudad_origen: origen,
+          fecha_salida: data?.fecha_salida || defaultSalida,
+          fecha_regreso: data?.fecha_regreso || defaultRegreso,
+          num_viajeros: Number(data?.num_viajeros) || 2,
+          presupuesto_objetivo: data?.presupuesto_objetivo ?? null,
+        });
+      } catch (e: any) {
+        if (cancelled) return;
+        console.error(e);
+        toast.error("No pudimos interpretar tu solicitud. Llena el formulario.");
+        setInterpretando(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  if (interpretando) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            className="w-14 h-14 rounded-full border-2 border-primary/30 border-t-primary mb-8"
+          />
+          <h2 className="font-display text-3xl md:text-4xl mb-3">Interpretando tu viaje</h2>
+          <p className="text-muted-foreground max-w-md">
+            Leyendo tu descripción, identificando destino, fechas y viajeros…
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+
 
   if (analizando) {
     return (
