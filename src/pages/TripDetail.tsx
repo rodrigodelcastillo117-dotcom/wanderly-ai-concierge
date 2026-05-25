@@ -20,6 +20,7 @@ const TripDetail = () => {
   // Selecciones del usuario
   const [selVuelo, setSelVuelo] = useState<number>(0);
   const [selHospedaje, setSelHospedaje] = useState<number>(0);
+  const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -42,6 +43,8 @@ const TripDetail = () => {
   const viajeros = trip?.num_viajeros ?? 1;
   const baseDesglose = trip?.desglose_presupuesto ?? {};
 
+  const nochesEfectivas = nochesHospedaje ?? noches;
+
   // Recalcular desglose en base a selecciones (-1 = "ya lo tengo / no aplica")
   const computedDesglose = useMemo(() => {
     if (!trip) return {};
@@ -52,15 +55,18 @@ const TripDetail = () => {
         selTours.has(i) ? s + Number(t.precio_por_persona ?? 0) * viajeros : s,
       0,
     );
+    // Comida y transporte se prorratean a los días realmente "fuera"
+    // Si tiene hospedaje propio parte del viaje, asumimos que sigue gastando en comida/transporte todos los días
+    const factorDias = dias > 0 ? dias / Math.max(1, dias) : 1;
     return {
       vuelos: selVuelo === -1 ? 0 : vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
-      hospedaje: selHospedaje === -1 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * noches : Number(baseDesglose.hospedaje ?? 0),
-      comida: Number(baseDesglose.comida ?? 0),
+      hospedaje: selHospedaje === -1 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * nochesEfectivas : Number(baseDesglose.hospedaje ?? 0),
+      comida: Number(baseDesglose.comida ?? 0) * factorDias,
       tours: toursSum || Number(baseDesglose.tours ?? 0),
-      transporte_local: Number(baseDesglose.transporte_local ?? 0),
+      transporte_local: Number(baseDesglose.transporte_local ?? 0) * factorDias,
       extras: Number(baseDesglose.extras ?? 0),
     };
-  }, [trip, selVuelo, selHospedaje, selTours, viajeros, noches]);
+  }, [trip, selVuelo, selHospedaje, selTours, viajeros, nochesEfectivas, dias]);
 
 
   const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
@@ -205,6 +211,33 @@ const TripDetail = () => {
               />
             </div>
 
+            {/* Selector de noches */}
+            {selHospedaje >= 0 && noches > 1 && (
+              <div className="mt-5 glass-card rounded-xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-medium">¿Cuántas noches en este hospedaje?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Tu viaje son {noches} noches. Ajusta si solo te quedas algunas (ej. el resto con un amigo).
+                    </p>
+                  </div>
+                  <span className="font-display text-2xl gold-text">{nochesEfectivas}<span className="text-sm text-muted-foreground"> / {noches}</span></span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={noches}
+                  value={nochesEfectivas}
+                  onChange={(e) => setNochesHospedaje(Number(e.target.value))}
+                  className="w-full accent-primary"
+                />
+                {nochesEfectivas < noches && (
+                  <p className="text-xs text-primary mt-2">
+                    Las otras {noches - nochesEfectivas} noche{noches - nochesEfectivas === 1 ? "" : "s"} no suman al hospedaje.
+                  </p>
+                )}
+              </div>
+            )}
           </Section>
         )}
 
@@ -293,7 +326,7 @@ const TripDetail = () => {
         {computedTotal > 0 && (
           <Section icon={Compass} title="Desglose de presupuesto">
             <EditableBudget
-              key={`${selVuelo}-${selHospedaje}-${Array.from(selTours).sort().join(",")}`}
+              key={`${selVuelo}-${selHospedaje}-${nochesEfectivas}-${Array.from(selTours).sort().join(",")}`}
               tripId={trip.id}
               initialDesglose={computedDesglose}
               initialTotal={computedTotal}
