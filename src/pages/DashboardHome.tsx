@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { DestinationVideo } from "@/components/DestinationVideo";
+
 import kyoto from "@/assets/destination-kyoto.jpg";
 import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
@@ -175,7 +177,7 @@ const DashboardHome = () => {
           className="relative rounded-3xl overflow-hidden premium-shadow group cursor-pointer"
           onClick={() => navigate("/dashboard/planear")}
         >
-          <img src={santorini} alt="Planea tu próximo viaje" className="w-full h-56 md:h-64 object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+          <DestinationVideo query="travel landscape cinematic" fallbackImage={santorini} alt="Planea tu próximo viaje" className="w-full h-56 md:h-64 object-cover group-hover:scale-105 transition-transform duration-700" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-9">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-xs mb-3 self-start border border-white/10">
@@ -214,7 +216,7 @@ const DashboardHome = () => {
                 className="cursor-pointer group"
               >
                 <div className="relative aspect-square rounded-2xl overflow-hidden mb-3">
-                  <img src={d.img} alt={d.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <DestinationVideo query={`${d.name} ${d.country} travel`} fallbackImage={d.img} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                   <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-[11px] font-medium">
                     {d.score}% match
@@ -254,7 +256,7 @@ const DashboardHome = () => {
                   return (
                     <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-4 p-2 -mx-2 rounded-xl hover:bg-surface/60 transition">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-surface flex-shrink-0">
-                        <img src={santorini} alt={t.destino} className="w-full h-full object-cover" />
+                        <DestinationVideo query={`${t.destino} ${t.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={t.destino} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{t.destino}, {t.pais_destino}</p>
@@ -357,7 +359,7 @@ const DashboardHome = () => {
               </Link>
             </div>
             <div className="relative rounded-xl overflow-hidden aspect-[16/9] group cursor-pointer" onClick={() => navigate("/dashboard/descubre")}>
-              <img src={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+              <DestinationVideo query="romantic beach sunset travel" fallbackImage={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
               <button className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center hover:bg-black/70" aria-label="Siguiente">
                 <ChevronRight className="w-4 h-4" />

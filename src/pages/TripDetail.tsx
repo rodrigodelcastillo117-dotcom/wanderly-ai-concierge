@@ -4,7 +4,9 @@ import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { DestinationVideo } from "@/components/DestinationVideo";
 import santorini from "@/assets/hero-santorini.jpg";
+
 
 const fmtMXN = (n: number) =>
   `$${Number(n).toLocaleString("es-MX", { maximumFractionDigits: 0 })} MXN`;
@@ -66,7 +68,7 @@ const TripDetail = () => {
     <DashboardLayout>
       {/* HERO */}
       <div className="relative h-[60vh] min-h-[420px] overflow-hidden">
-        <img src={trip.cover_image_url ?? santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+        <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={trip.cover_image_url ?? santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-overlay" />
         <button
           onClick={() => navigate("/dashboard")}
