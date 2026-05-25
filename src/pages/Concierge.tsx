@@ -256,7 +256,10 @@ const Concierge = () => {
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
                   {trip?.destino ?? "Sin viaje activo"}{trip?.pais_destino ? `, ${trip.pais_destino}` : ""}
                 </span>
-                <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5 text-primary" /> 16°C</span>
+                <span className="flex items-center gap-1.5">
+                  <Cloud className="w-3.5 h-3.5 text-primary" />
+                  {weather ? `${weather.place} · ${weather.temp}°C` : "Detectando ubicación…"}
+                </span>
                 <span className="hidden sm:inline">|</span>
                 <span>{localTimeContext}</span>
                 <span className="hidden sm:inline">|</span>
