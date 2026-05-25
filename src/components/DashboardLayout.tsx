@@ -25,14 +25,14 @@ const mobileNav = [
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<{ full_name?: string | null; avatar_url?: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name?: string | null } | null>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, avatar_url")
+        .select("full_name")
         .eq("id", user.id)
         .maybeSingle();
       setProfile(data);
@@ -98,11 +98,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           className="flex items-center gap-3 px-5 py-4 border-t border-border/40 hover:bg-surface/60 transition"
         >
           <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium">
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt={firstName} className="w-full h-full object-cover rounded-full" />
-            ) : (
-              initial
-            )}
+            {initial}
           </div>
           <div className="flex-1 text-left min-w-0">
             <p className="text-sm font-medium truncate">{firstName}</p>
