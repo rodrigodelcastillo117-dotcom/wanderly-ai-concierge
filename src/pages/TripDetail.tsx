@@ -68,7 +68,7 @@ const TripDetail = () => {
     <DashboardLayout>
       {/* HERO */}
       <div className="relative h-[60vh] min-h-[420px] overflow-hidden">
-        <img src={trip.cover_image_url ?? santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+        <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={trip.cover_image_url ?? santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-overlay" />
         <button
           onClick={() => navigate("/dashboard")}
