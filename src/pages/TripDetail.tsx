@@ -5,7 +5,9 @@ import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Li
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
+import { EditableBudget } from "@/components/EditableBudget";
 import santorini from "@/assets/hero-santorini.jpg";
+
 
 
 const fmtMXN = (n: number) =>
