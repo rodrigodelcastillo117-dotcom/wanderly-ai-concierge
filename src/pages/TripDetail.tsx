@@ -20,6 +20,7 @@ const TripDetail = () => {
   // Selecciones del usuario
   const [selVuelo, setSelVuelo] = useState<number>(0);
   const [selHospedaje, setSelHospedaje] = useState<number>(0);
+  const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
 
   useEffect(() => {
