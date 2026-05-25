@@ -1,6 +1,8 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { DestinationVideo } from "@/components/DestinationVideo";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+
 import kyoto from "@/assets/destination-kyoto.jpg";
 import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
