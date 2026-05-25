@@ -15,6 +15,7 @@ import EditTrip from "./pages/EditTrip";
 import Trips from "./pages/Trips";
 import Profile from "./pages/Profile";
 import Discover from "./pages/Discover";
+import { Cercanos, Favoritos, SmartSpend, Gastos, Concierge, Pro } from "./pages/SoonPages";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -36,7 +37,14 @@ const App = () => (
             <Route path="/dashboard/viajes/:id" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id/editar" element={<ProtectedRoute><EditTrip /></ProtectedRoute>} />
             <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
+            <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
+            <Route path="/dashboard/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />
+            <Route path="/dashboard/smart-spend" element={<ProtectedRoute><SmartSpend /></ProtectedRoute>} />
+            <Route path="/dashboard/gastos" element={<ProtectedRoute><Gastos /></ProtectedRoute>} />
+            <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
+            <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

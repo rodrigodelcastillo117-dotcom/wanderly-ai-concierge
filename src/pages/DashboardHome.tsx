@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Plus, Sparkles, Pencil } from "lucide-react";
+import { ArrowRight, Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -14,12 +15,12 @@ import tulum from "@/assets/destination-tulum.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
 
 const MOCK_RECOS = [
-  { name: "Kioto", country: "Japón", img: kyoto, score: 97, desc: "Templos en niebla, ryokans tradicionales y kaiseki estacional." },
-  { name: "Bora Bora", country: "Polinesia", img: bora, score: 94, desc: "Bungalows sobre laguna turquesa con vista al Monte Otemanu." },
-  { name: "Marrakech", country: "Marruecos", img: marrakech, score: 91, desc: "Riads escondidos, tagines bajo lámparas y desierto del Sahara." },
-  { name: "Patagonia", country: "Chile", img: patagonia, score: 89, desc: "Torres del Paine, glaciares vivos y lodges al borde del fin del mundo." },
-  { name: "Tulum", country: "México", img: tulum, score: 88, desc: "Playa caribeña, cenotes místicos y eco-resorts entre la jungla." },
-  { name: "Santorini", country: "Grecia", img: santorini, score: 86, desc: "Caldera al atardecer, vinos volcánicos y arquitectura cicládica." },
+  { name: "Bali", country: "Indonesia", img: kyoto, score: 97 },
+  { name: "Maldivas", country: "Maldivas", img: bora, score: 94 },
+  { name: "Marrakech", country: "Marruecos", img: marrakech, score: 91 },
+  { name: "Islandia", country: "Islandia", img: patagonia, score: 89 },
+  { name: "Tulum", country: "México", img: tulum, score: 88 },
+  { name: "Santorini", country: "Grecia", img: santorini, score: 86 },
 ];
 
 const greeting = () => {
@@ -29,11 +30,50 @@ const greeting = () => {
   return "Buenas noches";
 };
 
+// Donut chart for Smart Spend
+const SpendDonut = () => {
+  const segments = [
+    { label: "Alojamiento", pct: 42, color: "hsl(41 47% 59%)" },
+    { label: "Gastronomía", pct: 28, color: "hsl(41 60% 70%)" },
+    { label: "Experiencias", pct: 18, color: "hsl(36 30% 60%)" },
+    { label: "Transporte", pct: 7, color: "hsl(0 0% 35%)" },
+    { label: "Otros", pct: 5, color: "hsl(0 0% 25%)" },
+  ];
+  const radius = 42;
+  const C = 2 * Math.PI * radius;
+  let offset = 0;
+  return (
+    <svg viewBox="0 0 120 120" className="w-32 h-32 -rotate-90">
+      <circle cx="60" cy="60" r={radius} fill="none" stroke="hsl(0 0% 14%)" strokeWidth="14" />
+      {segments.map((s) => {
+        const len = (s.pct / 100) * C;
+        const el = (
+          <circle
+            key={s.label}
+            cx="60"
+            cy="60"
+            r={radius}
+            fill="none"
+            stroke={s.color}
+            strokeWidth="14"
+            strokeDasharray={`${len} ${C - len}`}
+            strokeDashoffset={-offset}
+          />
+        );
+        offset += len;
+        return el;
+      })}
+    </svg>
+  );
+};
+
 const DashboardHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [trips, setTrips] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [concierge, setConcierge] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -50,45 +90,75 @@ const DashboardHome = () => {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(6);
+        .limit(2);
       setTrips(t ?? []);
     })();
   }, [user]);
 
+  const toggleFav = (name: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  };
+
+  const today = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const now = new Date().toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true });
+
+  const spendCats = [
+    { label: "Alojamiento", pct: 42, color: "hsl(41 47% 59%)" },
+    { label: "Gastronomía", pct: 28, color: "hsl(41 60% 70%)" },
+    { label: "Experiencias", pct: 18, color: "hsl(36 30% 60%)" },
+    { label: "Transporte", pct: 7, color: "hsl(0 0% 45%)" },
+    { label: "Otros", pct: 5, color: "hsl(0 0% 35%)" },
+  ];
+
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 space-y-12">
-        {/* Header */}
-        <motion.header
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="flex items-end justify-between flex-wrap gap-4"
-        >
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">{greeting()},</p>
-            <h1 className="font-display text-4xl md:text-5xl">
-              {name}. <span className="text-muted-foreground italic">¿A dónde soñamos hoy?</span>
-            </h1>
+      <div className="p-6 md:p-10 space-y-10">
+        {/* Top bar */}
+        <header className="flex items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground capitalize">
+            {today} <span className="mx-2 opacity-50">|</span> {now}
+          </p>
+          <div className="flex items-center gap-2">
+            <button className="relative p-2 rounded-full hover:bg-surface transition" aria-label="Notificaciones">
+              <Bell className="w-5 h-5 text-muted-foreground" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
+            </button>
+            <button onClick={() => navigate("/dashboard/perfil")} className="p-2 rounded-full hover:bg-surface transition" aria-label="Ajustes">
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </button>
           </div>
-        </motion.header>
+        </header>
+
+        {/* Greeting */}
+        <motion.h1
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="font-display text-4xl md:text-5xl"
+        >
+          {name}. <span className="italic text-primary/90">Platicame tu viaje</span>
+        </motion.h1>
 
         {/* Hero CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
+          transition={{ duration: 0.6, delay: 0.05 }}
           className="relative rounded-3xl overflow-hidden premium-shadow group cursor-pointer"
           onClick={() => navigate("/dashboard/planear")}
         >
-          <img src={santorini} alt="Planea tu próximo viaje" className="w-full h-72 md:h-80 object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" width={1920} height={800} />
-          <div className="absolute inset-0 bg-gradient-overlay" />
-          <div className="absolute inset-0 flex flex-col justify-end p-8 md:p-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card text-xs mb-4 self-start">
+          <img src={santorini} alt="Planea tu próximo viaje" className="w-full h-64 md:h-72 object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+          <div className="absolute inset-0 flex flex-col justify-end p-7 md:p-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-xs mb-3 self-start border border-white/10">
               <Sparkles className="w-3 h-3 text-primary" />
               <span>IA personalizada</span>
             </div>
-            <h2 className="font-display text-3xl md:text-5xl mb-4 max-w-xl leading-tight">Planea un nuevo viaje</h2>
+            <h2 className="font-display text-3xl md:text-5xl mb-4 leading-tight">Planea un nuevo viaje</h2>
             <Button className="bg-gradient-gold text-primary-foreground hover:opacity-90 self-start gold-glow">
               <Plus className="w-4 h-4 mr-2" />
               Empezar análisis
@@ -96,95 +166,189 @@ const DashboardHome = () => {
           </div>
         </motion.div>
 
-        {/* Para ti */}
+        {/* Curado para ti */}
         <section>
-          <div className="flex items-end justify-between mb-6">
+          <div className="flex items-end justify-between mb-5">
             <div>
-              <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">Curado para ti</p>
-              <h2 className="font-display text-3xl">Destinos que matchean tu perfil</h2>
+              <p className="text-primary text-xs tracking-[0.25em] uppercase mb-1.5">Curado para ti</p>
+              <h2 className="font-display text-2xl md:text-3xl">Destinos que matchean tu perfil</h2>
             </div>
+            <Link to="/dashboard/descubre" className="text-sm text-primary/80 hover:text-primary transition flex items-center gap-1 whitespace-nowrap">
+              Ver todos <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-          <div className="flex gap-5 overflow-x-auto pb-4 scroll-fade-x snap-x snap-mandatory">
-            {MOCK_RECOS.map((d, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {MOCK_RECOS.slice(0, 4).map((d, i) => (
               <motion.div
                 key={d.name}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: i * 0.05 }}
-                whileHover={{ y: -4 }}
+                transition={{ duration: 0.4, delay: i * 0.05 }}
+                whileHover={{ y: -3 }}
                 onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}`)}
-                className="snap-start flex-shrink-0 w-72 cursor-pointer group"
+                className="cursor-pointer group"
               >
-                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-4">
-                  <img src={d.img} alt={d.name} loading="lazy" width={1024} height={1280} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                  <div className="absolute inset-0 bg-gradient-overlay opacity-80" />
-                  <div className="absolute top-4 left-4 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium">
+                <div className="relative aspect-square rounded-2xl overflow-hidden mb-3">
+                  <img src={d.img} alt={d.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-[11px] font-medium">
                     {d.score}% match
                   </div>
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1">{d.country}</p>
-                    <h3 className="font-display text-2xl">{d.name}</h3>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleFav(d.name); }}
+                    aria-label="Favorito"
+                    className="absolute bottom-3 right-3 p-1.5 rounded-full bg-black/50 backdrop-blur hover:bg-black/70 transition"
+                  >
+                    <Heart className={`w-4 h-4 ${favorites.has(d.name) ? "fill-primary text-primary" : "text-white"}`} />
+                  </button>
+                  <div className="absolute bottom-3 left-3">
+                    <p className="text-sm text-white/95 font-medium">{d.name}, {d.country}</p>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground line-clamp-2 px-1">{d.desc}</p>
               </motion.div>
             ))}
           </div>
         </section>
 
-        {/* Tus viajes */}
-        <section>
-          <div className="flex items-end justify-between mb-6">
-            <h2 className="font-display text-3xl">Tus viajes</h2>
-            <Link to="/dashboard/viajes" className="text-sm text-muted-foreground hover:text-primary transition flex items-center gap-1">
-              Ver todos <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          {trips.length === 0 ? (
-            <div className="glass-card rounded-2xl p-12 text-center">
-              <p className="text-muted-foreground mb-4">Aún no has planeado ningún viaje.</p>
-              <Button onClick={() => navigate("/dashboard/planear")} className="bg-gradient-gold text-primary-foreground hover:opacity-90">
-                <Plus className="w-4 h-4 mr-2" />
-                Planea tu primero
-              </Button>
+        {/* Two-column: Próximos viajes + Smart Spend */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Próximos viajes */}
+          <section className="glass-card rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-primary text-xs tracking-[0.25em] uppercase">Mis próximos viajes</p>
+              <Link to="/dashboard/viajes" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1">
+                Ver todos <ChevronRight className="w-3 h-3" />
+              </Link>
             </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {trips.map((t) => (
-                <div
-                  key={t.id}
-                  className="relative glass-card rounded-2xl p-6 hover:gold-border transition-all duration-300 group"
-                >
-                  <Link
-                    to={`/dashboard/viajes/${t.id}/editar`}
-                    aria-label="Editar viaje"
-                    onClick={(e) => e.stopPropagation()}
-                    className="absolute top-3 right-3 z-10 p-2 rounded-full bg-surface/60 hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Link>
-                  <Link to={`/dashboard/viajes/${t.id}`} className="block">
-                    <div className="flex items-start justify-between mb-4 pr-8">
-                      <div>
-                        <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1">{t.pais_destino}</p>
-                        <h3 className="font-display text-2xl group-hover:text-primary transition">{t.destino}</h3>
+            {trips.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">Aún no tienes viajes planeados.</p>
+            ) : (
+              <div className="space-y-3 mb-4">
+                {trips.map((t) => {
+                  const days = Math.max(0, Math.ceil((new Date(t.fecha_salida).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                  return (
+                    <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-4 p-2 -mx-2 rounded-xl hover:bg-surface/60 transition">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-surface flex-shrink-0">
+                        <img src={santorini} alt={t.destino} className="w-full h-full object-cover" />
                       </div>
-                      {t.match_score && (
-                        <div className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary">
-                          {t.match_score}%
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>{new Date(t.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "short" })} · {t.num_viajeros} {t.num_viajeros === 1 ? "viajero" : "viajeros"}</span>
-                      <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")} MXN</span>
-                    </div>
-                  </Link>
-                </div>
-              ))}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{t.destino}, {t.pais_destino}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(t.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                      <span className="text-xs px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap">
+                        En {days} días
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+            <Button
+              onClick={() => navigate("/dashboard/planear")}
+              className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Crear nuevo viaje
+            </Button>
+          </section>
+
+          {/* Smart Spend */}
+          <section className="glass-card rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-primary text-xs tracking-[0.25em] uppercase">Smart Spend</p>
+              <Link to="/dashboard/smart-spend" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1">
+                Ver reportes <ChevronRight className="w-3 h-3" />
+              </Link>
             </div>
-          )}
-        </section>
+            <p className="text-xs text-muted-foreground mb-1">Este mes has gastado</p>
+            <p className="font-display text-4xl mb-1">$2,540 <span className="text-base text-muted-foreground">USD</span></p>
+            <p className="text-xs text-primary mb-4">+12% vs mayo</p>
+            <div className="flex items-center gap-5">
+              <SpendDonut />
+              <ul className="flex-1 space-y-1.5 text-sm">
+                {spendCats.map((c) => (
+                  <li key={c.label} className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
+                      {c.label}
+                    </span>
+                    <span className="text-foreground">{c.pct}%</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Button
+              onClick={() => navigate("/dashboard/smart-spend")}
+              className="w-full mt-5 bg-gradient-gold text-primary-foreground hover:opacity-90"
+            >
+              Ver detalles y análisis
+            </Button>
+          </section>
+        </div>
+
+        {/* AI Concierge + Inspiración */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          <section className="glass-card rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-primary text-xs tracking-[0.25em] uppercase">AI Concierge</p>
+              <Link to="/dashboard/concierge" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1">
+                Ver historial <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full border border-primary/40 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium mb-1">¿En qué puedo ayudarte hoy?</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Puedo ayudarte a planear, reservar, descubrir y optimizar cada detalle de tu viaje.
+                </p>
+              </div>
+            </div>
+            <form
+              onSubmit={(e) => { e.preventDefault(); if (concierge.trim()) navigate(`/dashboard/planear?q=${encodeURIComponent(concierge)}`); }}
+              className="relative"
+            >
+              <Input
+                value={concierge}
+                onChange={(e) => setConcierge(e.target.value)}
+                placeholder="Escribe tu solicitud..."
+                className="pr-12 bg-surface/60 border-border/60"
+              />
+              <button type="submit" aria-label="Enviar" className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-primary/10 text-primary transition">
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </section>
+
+          <section className="glass-card rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-primary text-xs tracking-[0.25em] uppercase">Inspiración para ti</p>
+              <Link to="/dashboard/descubre" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1">
+                Ver más <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="relative rounded-xl overflow-hidden aspect-[16/9] group cursor-pointer" onClick={() => navigate("/dashboard/descubre")}>
+              <img src={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <button className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center hover:bg-black/70" aria-label="Siguiente">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <div className="absolute bottom-4 left-4 right-4">
+                <h3 className="font-display text-xl mb-1">Escapadas románticas</h3>
+                <p className="text-xs text-white/80">Destinos perfectos para conectar</p>
+              </div>
+            </div>
+            <div className="flex justify-center gap-1.5 mt-3">
+              <span className="w-6 h-1 rounded-full bg-primary" />
+              <span className="w-1 h-1 rounded-full bg-muted" />
+              <span className="w-1 h-1 rounded-full bg-muted" />
+            </div>
+          </section>
+        </div>
       </div>
     </DashboardLayout>
   );
