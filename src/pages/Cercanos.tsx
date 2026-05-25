@@ -69,12 +69,24 @@ const DARK_STYLE = [
 const PIN_GOLD = "#C9A961";
 const PIN_CREAM = "#F5F1EA";
 
-function getCityKey(name?: string | null): keyof typeof POIS_BY_CITY {
-  if (!name) return "paris";
-  const n = name.toLowerCase();
-  if (n.includes("tok")) return "tokyo";
-  if (n.includes("méxico") || n.includes("mexico") || n.includes("cdmx")) return "cdmx";
-  return "paris";
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+
+function nearestCityKey(loc: { lat: number; lng: number }): keyof typeof POIS_BY_CITY {
+  let best: keyof typeof POIS_BY_CITY = "cdmx";
+  let bestD = Infinity;
+  (Object.keys(POIS_BY_CITY) as (keyof typeof POIS_BY_CITY)[]).forEach((k) => {
+    const d = haversineKm(loc, POIS_BY_CITY[k].center);
+    if (d < bestD) { bestD = d; best = k; }
+  });
+  return best;
 }
 
 const Cercanos = () => {
@@ -82,13 +94,19 @@ const Cercanos = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapObj = useRef<any>(null);
   const markers = useRef<Map<string, any>>(new Map());
+  const userMarker = useRef<any>(null);
   const [mapReady, setMapReady] = useState(false);
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [favorited, setFavorited] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Poi | null>(null);
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
-  const cityKey = getCityKey(activeTrip?.destino);
+  const cityKey = useMemo<keyof typeof POIS_BY_CITY>(
+    () => (userLoc ? nearestCityKey(userLoc) : "cdmx"),
+    [userLoc]
+  );
   const city = useMemo(() => POIS_BY_CITY[cityKey], [cityKey]);
 
   // Cargar viaje activo + visitas previas
