@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, Send, Phone, Sparkles, Cloud, MapPin, Utensils, Car, Siren,
-  Plane, Luggage, Star, AlertTriangle, X, Crown
+  Plane, Luggage, Star, AlertTriangle, X, Crown, RefreshCw
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +49,8 @@ declare global {
 
 const Concierge = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [allowed, setAllowed] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<Msg[]>([{
     id: "welcome", role: "assistant", ts: Date.now(),
     text: "Bienvenido. Estoy listo para anticiparme a cualquier capricho o emergencia de tu viaje.",
@@ -59,20 +62,57 @@ const Concierge = () => {
   const [listening, setListening] = useState(false);
   const [showFixer, setShowFixer] = useState(false);
   const [trip, setTrip] = useState<any>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
   const recRef = useRef<any>(null);
 
-  // Load active trip for header
+  // PRO gating with allowlist (rodelcast, Carlo)
   useEffect(() => {
     if (!user) return;
+    (async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("tier, full_name, email")
+        .eq("id", user.id)
+        .maybeSingle();
+      const name = (profile?.full_name ?? "").toLowerCase();
+      const email = (profile?.email ?? user.email ?? "").toLowerCase();
+      const allowlisted =
+        name.includes("rodelcast") || name.includes("carlo") ||
+        email.includes("rodelcast") || email.includes("carlo");
+      const isPro = profile?.tier === "pro";
+      if (isPro || allowlisted) {
+        setAllowed(true);
+      } else {
+        setAllowed(false);
+        toast.error("Concierge Pro está disponible solo para miembros IATOS Pro.");
+        navigate("/dashboard/pro", { replace: true });
+      }
+    })();
+  }, [user, navigate]);
+
+  // Load active trip for header — auto-refresh every minute
+  useEffect(() => {
+    if (!user || !allowed) return;
     supabase.from("trips")
       .select("destino, pais_destino, fecha_salida, fecha_regreso")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
-      .then(({ data }) => setTrip(data));
-  }, [user]);
+      .then(({ data }) => {
+        setTrip(data);
+        setLastRefresh(new Date());
+      });
+  }, [user, allowed, refreshTick]);
+
+  // Auto-refresh tick every 60s
+  useEffect(() => {
+    if (!allowed) return;
+    const id = setInterval(() => setRefreshTick(t => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, [allowed]);
 
   // Autoscroll
   useEffect(() => {
@@ -149,6 +189,17 @@ const Concierge = () => {
     rec.start();
   };
 
+  if (allowed === null) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[60vh] text-muted-foreground text-sm">
+          Verificando acceso a Concierge Pro…
+        </div>
+      </DashboardLayout>
+    );
+  }
+  if (!allowed) return null;
+
   return (
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
@@ -156,7 +207,9 @@ const Concierge = () => {
         <div className="px-4 md:px-8 pt-6 pb-3 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
-              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1">Ultra-Luxury Concierge</p>
+              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
+                <Crown className="w-3 h-3" /> IATOS · Concierge Pro
+              </p>
               <h1 className="font-display text-2xl md:text-3xl leading-tight">Wanderly te escucha</h1>
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
@@ -165,6 +218,14 @@ const Concierge = () => {
                 <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5 text-primary" /> 16°C</span>
                 <span className="hidden sm:inline">|</span>
                 <span>{localTimeContext}</span>
+                <span className="hidden sm:inline">|</span>
+                <button
+                  onClick={() => setRefreshTick(t => t + 1)}
+                  className="flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary transition"
+                  title={`Actualizado ${lastRefresh.toLocaleTimeString()}`}
+                >
+                  <RefreshCw className="w-3 h-3" /> Auto-refresh 60s
+                </button>
               </div>
             </div>
 
