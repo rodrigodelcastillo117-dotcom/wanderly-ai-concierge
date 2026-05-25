@@ -359,7 +359,7 @@ const DashboardHome = () => {
               </Link>
             </div>
             <div className="relative rounded-xl overflow-hidden aspect-[16/9] group cursor-pointer" onClick={() => navigate("/dashboard/descubre")}>
-              <img src={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+              <DestinationVideo query="romantic beach sunset travel" fallbackImage={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
               <button className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center hover:bg-black/70" aria-label="Siguiente">
                 <ChevronRight className="w-4 h-4" />
