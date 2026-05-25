@@ -311,6 +311,23 @@ const SelectedBadge = () => (
   </div>
 );
 
+const SkipCard = ({ active, onClick, title, subtitle }: { active: boolean; onClick: () => void; title: string; subtitle: string }) => (
+  <div
+    onClick={onClick}
+    className={`rounded-xl p-6 border-2 border-dashed cursor-pointer transition flex flex-col items-center justify-center text-center min-h-[160px] ${
+      active ? "border-primary bg-primary/5" : "border-border/40 hover:border-primary/50 hover:bg-surface/40"
+    }`}
+  >
+    <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${active ? "bg-primary text-primary-foreground" : "bg-surface text-muted-foreground"}`}>
+      {active ? <Check className="w-5 h-5" /> : <X className="w-5 h-5" />}
+    </div>
+    <p className="font-medium text-sm mb-1">{title}</p>
+    <p className="text-xs text-muted-foreground">{subtitle}</p>
+    <p className="text-[11px] text-primary mt-2">No suma al presupuesto</p>
+  </div>
+);
+
+
 const Section = ({ icon: Icon, title, hint, children }: any) => (
   <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
     <div className="flex items-center justify-between gap-3 mb-5">
