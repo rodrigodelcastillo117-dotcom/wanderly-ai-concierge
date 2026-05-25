@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Compass, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Compass, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,34 +13,22 @@ type Answers = {
   ciudad_origen: string;
   estilo_viaje: string[];
   presupuesto_rango: string;
-  ritmo_viaje: string;
+  llegada_estilo: string[];
   preferencias_comida: string[];
-  alergias_restricciones: string[];
-  intereses: string[];
-  tipo_alojamiento_preferido: string[];
-  duracion_viaje_ideal: string;
   acompanantes_tipico: string;
-  destinos_visitados: string[];
-  destinos_pendientes: string[];
   idiomas_hablados: string[];
-  notas_adicionales: string;
+  descripcion_personal: string;
 };
 
 const initial: Answers = {
   ciudad_origen: "",
   estilo_viaje: [],
   presupuesto_rango: "",
-  ritmo_viaje: "",
+  llegada_estilo: [],
   preferencias_comida: [],
-  alergias_restricciones: [],
-  intereses: [],
-  tipo_alojamiento_preferido: [],
-  duracion_viaje_ideal: "",
   acompanantes_tipico: "",
-  destinos_visitados: [],
-  destinos_pendientes: [],
   idiomas_hablados: [],
-  notas_adicionales: "",
+  descripcion_personal: "",
 };
 
 const ESTILOS = [
@@ -56,9 +43,18 @@ const ESTILOS = [
   { id: "mochilero", label: "Mochilero", emoji: "🎒" },
 ];
 
+const LLEGADA = [
+  { id: "explorar_caminando", label: "Salgo a explorar caminando" },
+  { id: "comer_local", label: "Busco un lugar local para comer" },
+  { id: "descansar", label: "Descanso y me aclimato" },
+  { id: "planear", label: "Planeo el itinerario completo" },
+  { id: "fluir", label: "Me dejo llevar sin plan" },
+  { id: "fotos", label: "Salgo a tomar fotos" },
+  { id: "vida_nocturna", label: "Busco la vida nocturna" },
+  { id: "naturaleza", label: "Busco naturaleza / aire libre" },
+];
+
 const COMIDAS = ["Local", "Gourmet", "Street food", "Vegetariano", "Vegano", "Sin gluten", "Mariscos"];
-const INTERESES = ["Arte", "Historia", "Música", "Deportes", "Naturaleza", "Vida nocturna", "Arquitectura", "Fotografía"];
-const ALOJAMIENTOS = ["Hotel boutique", "Resort", "Airbnb", "Hostel", "Glamping"];
 const IDIOMAS = ["Español", "Inglés", "Francés", "Italiano", "Portugués", "Alemán", "Japonés", "Mandarín"];
 
 const Onboarding = () => {
@@ -68,27 +64,21 @@ const Onboarding = () => {
   const [a, setA] = useState<Answers>(initial);
   const [saving, setSaving] = useState(false);
 
-  // Pre-cargar nombre y datos previos si existen
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data } = await supabase.from("travel_profiles").select("*").eq("user_id", user.id).maybeSingle();
-      if (data) {
+      const { data: prof } = await supabase.from("profiles").select("ciudad_origen").eq("id", user.id).maybeSingle();
+      if (data || prof) {
         setA({
-          ciudad_origen: "",
-          estilo_viaje: data.estilo_viaje ?? [],
-          presupuesto_rango: data.presupuesto_rango ?? "",
-          ritmo_viaje: data.ritmo_viaje ?? "",
-          preferencias_comida: data.preferencias_comida ?? [],
-          alergias_restricciones: data.alergias_restricciones ?? [],
-          intereses: data.intereses ?? [],
-          tipo_alojamiento_preferido: data.tipo_alojamiento_preferido ?? [],
-          duracion_viaje_ideal: data.duracion_viaje_ideal ?? "",
-          acompanantes_tipico: data.acompanantes_tipico ?? "",
-          destinos_visitados: data.destinos_visitados ?? [],
-          destinos_pendientes: data.destinos_pendientes ?? [],
-          idiomas_hablados: data.idiomas_hablados ?? [],
-          notas_adicionales: data.notas_adicionales ?? "",
+          ciudad_origen: prof?.ciudad_origen ?? "",
+          estilo_viaje: data?.estilo_viaje ?? [],
+          presupuesto_rango: data?.presupuesto_rango ?? "",
+          llegada_estilo: (data as any)?.llegada_estilo ?? [],
+          preferencias_comida: data?.preferencias_comida ?? [],
+          acompanantes_tipico: data?.acompanantes_tipico ?? "",
+          idiomas_hablados: data?.idiomas_hablados ?? [],
+          descripcion_personal: (data as any)?.descripcion_personal ?? "",
         });
       }
     })();
@@ -173,26 +163,23 @@ const Onboarding = () => {
       ),
     },
     {
-      title: "¿Ritmo de viaje?",
-      canNext: () => !!a.ritmo_viaje,
+      title: "Al llegar a un nuevo destino, ¿qué haces primero?",
+      subtitle: "Esto nos dice mucho de tu personalidad viajera.",
+      canNext: () => a.llegada_estilo.length > 0,
       render: () => (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { id: "relajado", label: "Relajado" },
-            { id: "equilibrado", label: "Equilibrado" },
-            { id: "intenso", label: "Intenso" },
-          ].map((r) => {
-            const sel = a.ritmo_viaje === r.id;
+        <div className="flex flex-wrap gap-2">
+          {LLEGADA.map((c) => {
+            const sel = a.llegada_estilo.includes(c.id);
             return (
               <button
-                key={r.id}
+                key={c.id}
                 type="button"
-                onClick={() => setA({ ...a, ritmo_viaje: r.id })}
-                className={`p-5 rounded-xl border transition-all duration-300 ${
-                  sel ? "border-primary bg-primary/10 gold-glow" : "border-border bg-surface hover:border-primary/40"
+                onClick={() => toggle("llegada_estilo", c.id)}
+                className={`px-5 py-3 rounded-full border transition-all duration-300 ${
+                  sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:border-primary/40"
                 }`}
               >
-                <div className="font-medium">{r.label}</div>
+                {c.label}
               </button>
             );
           })}
@@ -217,80 +204,6 @@ const Onboarding = () => {
                 }`}
               >
                 {c}
-              </button>
-            );
-          })}
-        </div>
-      ),
-    },
-    {
-      title: "¿Qué te apasiona descubrir?",
-      canNext: () => a.intereses.length > 0,
-      render: () => (
-        <div className="flex flex-wrap gap-2">
-          {INTERESES.map((c) => {
-            const sel = a.intereses.includes(c);
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => toggle("intereses", c)}
-                className={`px-5 py-3 rounded-full border transition-all duration-300 ${
-                  sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:border-primary/40"
-                }`}
-              >
-                {c}
-              </button>
-            );
-          })}
-        </div>
-      ),
-    },
-    {
-      title: "¿Dónde te gusta dormir?",
-      canNext: () => a.tipo_alojamiento_preferido.length > 0,
-      render: () => (
-        <div className="flex flex-wrap gap-2">
-          {ALOJAMIENTOS.map((c) => {
-            const sel = a.tipo_alojamiento_preferido.includes(c);
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => toggle("tipo_alojamiento_preferido", c)}
-                className={`px-5 py-3 rounded-full border transition-all duration-300 ${
-                  sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:border-primary/40"
-                }`}
-              >
-                {c}
-              </button>
-            );
-          })}
-        </div>
-      ),
-    },
-    {
-      title: "Duración típica de tus viajes",
-      canNext: () => !!a.duracion_viaje_ideal,
-      render: () => (
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { id: "fin_semana", label: "Fin de semana" },
-            { id: "1_semana", label: "1 semana" },
-            { id: "2_semanas", label: "2 semanas" },
-            { id: "mas", label: "Más de 2 semanas" },
-          ].map((d) => {
-            const sel = a.duracion_viaje_ideal === d.id;
-            return (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => setA({ ...a, duracion_viaje_ideal: d.id })}
-                className={`p-5 rounded-xl border text-left transition-all duration-300 ${
-                  sel ? "border-primary bg-primary/10 gold-glow" : "border-border bg-surface hover:border-primary/40"
-                }`}
-              >
-                <div className="font-medium">{d.label}</div>
               </button>
             );
           })}
@@ -349,16 +262,22 @@ const Onboarding = () => {
       ),
     },
     {
-      title: "¿Algo más que debamos saber?",
-      subtitle: "Alergias, restricciones, manías. Lo que sea, opcional.",
-      canNext: () => true,
+      title: "Descríbete como viajero",
+      subtitle: "Cuéntanos en tus palabras cómo viajas. La IA auditará tu descripción para entenderte mejor.",
+      canNext: () => a.descripcion_personal.trim().length >= 10,
       render: () => (
-        <Textarea
-          placeholder="Soy alérgico al maní, prefiero hoteles con gimnasio, no me gusta madrugar..."
-          value={a.notas_adicionales}
-          onChange={(e) => setA({ ...a, notas_adicionales: e.target.value })}
-          className="min-h-[140px] bg-input border-border resize-none"
-        />
+        <div className="space-y-3">
+          <Textarea
+            placeholder="Ejemplo: Me encanta perderme caminando por barrios poco turísticos, probar la comida más local posible, evito multitudes, suelo madrugar para fotos y prefiero alojamientos con carácter sobre cadenas hoteleras..."
+            value={a.descripcion_personal}
+            onChange={(e) => setA({ ...a, descripcion_personal: e.target.value })}
+            className="min-h-[180px] bg-input border-border resize-none"
+          />
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3 text-primary" />
+            La IA extraerá rasgos, motivaciones y cosas a evitar para personalizar cada recomendación.
+          </p>
+        </div>
       ),
     },
   ];
@@ -369,56 +288,66 @@ const Onboarding = () => {
   const next = async () => {
     if (step < steps.length - 1) {
       setStep(step + 1);
-    } else {
-      // Guardar
-      if (!user) return;
-      setSaving(true);
+      return;
+    }
+    if (!user) return;
+    setSaving(true);
+    try {
+      let perfil_ia: any = null;
       try {
-        // Guardar ciudad de origen también en profiles
-        await supabase.from("profiles").update({ ciudad_origen: a.ciudad_origen }).eq("id", user.id);
-        const { error } = await supabase
-          .from("travel_profiles")
-          .upsert(
-            {
-              user_id: user.id,
+        const { data: audit } = await supabase.functions.invoke("auditar-perfil", {
+          body: {
+            descripcion: a.descripcion_personal,
+            contexto: {
               estilo_viaje: a.estilo_viaje,
               presupuesto_rango: a.presupuesto_rango,
-              ritmo_viaje: a.ritmo_viaje,
+              llegada_estilo: a.llegada_estilo,
               preferencias_comida: a.preferencias_comida,
-              alergias_restricciones: a.alergias_restricciones,
-              intereses: a.intereses,
-              tipo_alojamiento_preferido: a.tipo_alojamiento_preferido,
-              duracion_viaje_ideal: a.duracion_viaje_ideal,
               acompanantes_tipico: a.acompanantes_tipico,
-              destinos_visitados: a.destinos_visitados,
-              destinos_pendientes: a.destinos_pendientes,
               idiomas_hablados: a.idiomas_hablados,
-              notas_adicionales: a.notas_adicionales,
-              completado: true,
             },
-            { onConflict: "user_id" }
-          );
-        if (error) throw error;
-        toast.success("¡Tu perfil de viajero está listo!");
-        navigate("/dashboard");
-      } catch (e: any) {
-        toast.error(e?.message ?? "No se pudo guardar tu perfil");
-      } finally {
-        setSaving(false);
+          },
+        });
+        perfil_ia = audit?.perfil ?? null;
+      } catch (e) {
+        console.warn("auditar-perfil falló, continuamos sin perfil_ia", e);
       }
+
+      await supabase.from("profiles").update({ ciudad_origen: a.ciudad_origen }).eq("id", user.id);
+      const { error } = await supabase.from("travel_profiles").upsert(
+        {
+          user_id: user.id,
+          estilo_viaje: a.estilo_viaje,
+          presupuesto_rango: a.presupuesto_rango,
+          llegada_estilo: a.llegada_estilo,
+          preferencias_comida: a.preferencias_comida,
+          acompanantes_tipico: a.acompanantes_tipico,
+          idiomas_hablados: a.idiomas_hablados,
+          descripcion_personal: a.descripcion_personal,
+          perfil_ia,
+          completado: true,
+        } as any,
+        { onConflict: "user_id" }
+      );
+      if (error) throw error;
+      toast.success("¡Tu perfil de viajero está listo!");
+      navigate("/dashboard");
+    } catch (e: any) {
+      toast.error(e?.message ?? "No se pudo guardar tu perfil");
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Top bar */}
       <header className="border-b border-border/40">
         <div className="container mx-auto py-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-gradient-gold flex items-center justify-center">
               <Compass className="w-3.5 h-3.5 text-primary-foreground" />
             </div>
-            <span className="font-display text-lg">Wanderly</span>
+            <span className="font-display text-lg">IATOS</span>
           </div>
           <span className="text-xs text-muted-foreground tracking-wider uppercase">
             Paso {step + 1} de {steps.length}
@@ -434,7 +363,6 @@ const Onboarding = () => {
         </div>
       </header>
 
-      {/* Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-2xl">
           <AnimatePresence mode="wait">
@@ -468,7 +396,7 @@ const Onboarding = () => {
               disabled={!current.canNext() || saving}
               className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-12 px-8"
             >
-              {saving ? "Guardando..." : step === steps.length - 1 ? "Construir mi perfil" : "Continuar"}
+              {saving ? "Auditando con IA..." : step === steps.length - 1 ? "Construir mi perfil" : "Continuar"}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
