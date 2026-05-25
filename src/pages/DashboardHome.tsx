@@ -165,7 +165,7 @@ const DashboardHome = () => {
           </Button>
         </motion.form>
 
-        </section>
+
 
         {/* Hero CTA secundario (planeación guiada paso a paso) */}
         <motion.div
