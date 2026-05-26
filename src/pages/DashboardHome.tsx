@@ -583,6 +583,9 @@ const DashboardHome = () => {
               {[
                 { icon: Plane, label: "Vuelos", sub: "En vivo", to: "/dashboard/vuelos" },
                 { icon: Hotel, label: "Hoteles", sub: "Reales", to: "/dashboard/hoteles" },
+                { icon: Car, label: "Autos", sub: "Renta", to: "/dashboard/autos" },
+                { icon: Wifi, label: "eSIM", sub: "Datos", to: "/dashboard/esim" },
+                { icon: Compass, label: "Tours", sub: "Experiencias", to: "/dashboard/actividades" },
                 { icon: Shield, label: "Seguros", sub: "Viaje", to: "/dashboard/seguros" },
                 { icon: Gift, label: "Beneficios", sub: "PRO", to: "/dashboard/beneficios" },
                 { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar" },
