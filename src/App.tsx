@@ -25,6 +25,8 @@ import { Navigate } from "react-router-dom";
 import Gastos from "./pages/Gastos";
 import NotFound from "./pages/NotFound.tsx";
 import LiveTrip from "./pages/LiveTrip";
+import TripMap from "./pages/TripMap";
+import TripPacking from "./pages/TripPacking";
 
 const queryClient = new QueryClient();
 
