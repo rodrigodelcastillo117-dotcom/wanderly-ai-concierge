@@ -4,6 +4,7 @@ import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
+import iatosLogo from "@/assets/iatos-logo.png";
 
 const links = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
