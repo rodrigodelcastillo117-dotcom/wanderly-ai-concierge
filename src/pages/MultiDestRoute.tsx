@@ -165,25 +165,49 @@ const MultiDestRoute = () => {
       const logistics = data.logistics;
       const USD_MXN = 17;
 
-      // Aplanar per_destination → vuelos_json / hospedaje_json / restaurantes_json / tours_json
-      // para que TripDetail renderice la UI rica (3 opciones por ciudad, etc.)
-      const flightsTiers = ["ahorro", "equilibrio", "premium"];
-      const vuelos_json = (logistics.flights ?? []).map((f: any, i: number) => ({
-        tier: f.tier || flightsTiers[i] || "equilibrio",
-        aerolinea: f.airline_suggested || "Por confirmar",
-        duracion: f.duration || "",
-        escalas: f.stops || "Directo",
-        precio_por_persona: Math.round(Number(f.price_per_person_usd ?? 0) * USD_MXN),
-        notas: f.notes ? `${f.from} → ${f.to} · ${f.notes}` : `${f.from} → ${f.to}`,
-      }));
+      // Aplanar per_destination → vuelos_json (incluye vuelos + trenes + buses + roadtrips por ciudad),
+      // hospedaje_json / restaurantes_json / tours_json para que TripDetail los agrupe por ciudad.
+      const vuelos_json: any[] = [];
+
+      // Vuelos internacionales (origen ↔ primera/última) primero, marcados con su ciudad destino
+      (logistics.flights ?? []).forEach((f: any, i: number) => {
+        const ciudad = f.to && validStops.includes(f.to) ? f.to : validStops[i === 0 ? 0 : validStops.length - 1];
+        vuelos_json.push({
+          tier: f.tier || "equilibrio",
+          mode: "vuelo",
+          aerolinea: f.airline_suggested || "Por confirmar",
+          duracion: f.duration || "",
+          escalas: f.stops || "Directo",
+          precio_por_persona: Math.round(Number(f.price_per_person_usd ?? 0) * USD_MXN),
+          notas: f.notes ? `${f.from} → ${f.to} · ${f.notes}` : `${f.from} → ${f.to}`,
+          ciudad,
+          from: f.from,
+          to: f.to,
+        });
+      });
 
       const hospedaje_json: any[] = [];
       const restaurantes_json: any[] = [];
       const tours_json: any[] = [];
       (logistics.per_destination ?? []).forEach((pd: any) => {
+        // Arrival options para esta ciudad → entran a vuelos_json tagueados
+        (pd.arrival_options ?? []).forEach((opt: any) => {
+          vuelos_json.push({
+            tier: opt.tier || "equilibrio",
+            mode: opt.mode || "vuelo",
+            aerolinea: opt.provider || (opt.mode === "tren" ? "Tren de alta velocidad" : opt.mode),
+            duracion: opt.duration || "",
+            escalas: opt.scenic ? "Ruta escénica" : (opt.mode === "vuelo" ? "Directo" : opt.mode),
+            precio_por_persona: Math.round(Number(opt.price_per_person_usd ?? 0) * USD_MXN),
+            notas: opt.notes ? `${opt.from} → ${pd.city} · ${opt.notes}` : `${opt.from} → ${pd.city}`,
+            ciudad: pd.city,
+            from: opt.from,
+            to: pd.city,
+          });
+        });
         (pd.hospedaje ?? []).forEach((h: any) => {
           hospedaje_json.push({
-            tipo: `${pd.city} · ${h.tipo || h.tier || "Hospedaje"}`,
+            tipo: h.tipo || h.tier || "Hospedaje",
             nombre: h.nombre,
             barrio: h.barrio || pd.city,
             rating: h.rating ?? 4.5,
@@ -195,7 +219,7 @@ const MultiDestRoute = () => {
         });
         (pd.restaurantes ?? []).forEach((r: any) => {
           restaurantes_json.push({
-            nombre: `${r.nombre} · ${pd.city}`,
+            nombre: r.nombre,
             cocina: r.cocina,
             rango_precio: r.rango_precio || "$$",
             por_que: r.por_que || "",
@@ -204,7 +228,7 @@ const MultiDestRoute = () => {
         });
         (pd.experiencias ?? []).forEach((t: any) => {
           tours_json.push({
-            nombre: `${t.nombre} · ${pd.city}`,
+            nombre: t.nombre,
             duracion: t.duracion || "",
             precio_por_persona: Math.round(Number(t.price_per_person_usd ?? 0) * USD_MXN),
             por_que: t.por_que || "",
