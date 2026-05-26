@@ -80,6 +80,8 @@ const MultiDestRoute = () => {
   const [prefs, setPrefs] = useState<RoutePrefs>(DEFAULT_PREFS);
 
   const [configOpen, setConfigOpen] = useState(false);
+  const [smartPrompt, setSmartPrompt] = useState("");
+  const [analyzingPrefs, setAnalyzingPrefs] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<null | {
     logistics: any;
