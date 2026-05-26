@@ -7,6 +7,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { EditableBudget } from "@/components/EditableBudget";
 import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
+import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import santorini from "@/assets/hero-santorini.jpg";
 
 const fmtMXN = (n: number) =>
@@ -24,19 +25,20 @@ const TripDetail = () => {
   const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
+  const loadTrip = async () => {
     if (!id) return;
-    (async () => {
-      const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
-      setTrip(data);
-      // Por defecto seleccionar todas las experiencias
-      const tours = (data as any)?.tours_json;
-      if (Array.isArray(tours) && tours.length) {
-        setSelTours(new Set(tours.map((_: any, i: number) => i)));
-      }
+    const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
+    setTrip(data);
+    const tours = (data as any)?.tours_json;
+    if (Array.isArray(tours) && tours.length) {
+      setSelTours(new Set(tours.map((_: any, i: number) => i)));
+    }
+    setLoading(false);
+  };
 
-      setLoading(false);
-    })();
+  useEffect(() => {
+    loadTrip();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // itinerario_json puede ser array (single) o objeto { multi, days, logistics, destinations } (multi)
@@ -129,6 +131,9 @@ const TripDetail = () => {
         >
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>
+        <div className="absolute top-6 right-6">
+          <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
+        </div>
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 max-w-5xl">
           {trip.match_score && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium mb-4">
