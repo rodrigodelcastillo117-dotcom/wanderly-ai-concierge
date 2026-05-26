@@ -176,12 +176,8 @@ const TripDetail = () => {
       <div className="relative h-[60vh] min-h-[420px] overflow-hidden">
         <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={trip.cover_image_url ?? santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-overlay" />
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="absolute top-6 left-6 inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm hover:gold-border transition"
-        >
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
+
+
         <div className="absolute top-6 right-6 flex items-center gap-2">
           <button
             onClick={handleDownloadPdf}
