@@ -209,37 +209,37 @@ export default function Social() {
           </TabsContent>
 
           {/* CONECTAR */}
-          <TabsContent value="conectar" className="mt-6 space-y-6">
-            <div className="glass-card rounded-3xl p-8 border border-primary/20 text-center">
-              <p className="text-xs text-primary tracking-[0.3em] uppercase mb-3">Tu código de invitación</p>
-              <p className="font-display text-5xl md:text-6xl tracking-[0.4em] gold-text mb-6 select-all">
+          <TabsContent value="conectar" className="mt-4 md:mt-6 space-y-4 md:space-y-6">
+            <div className="glass-card rounded-3xl p-6 md:p-8 border border-primary/20 text-center">
+              <p className="text-[10px] md:text-xs text-primary tracking-[0.2em] md:tracking-[0.3em] uppercase mb-2 md:mb-3">Tu código de invitación</p>
+              <p className="font-display text-3xl sm:text-5xl md:text-6xl tracking-[0.3em] md:tracking-[0.4em] gold-text mb-4 md:mb-6 select-all">
                 {myCode || "—"}
               </p>
-              <div className="flex flex-wrap justify-center gap-3">
+              <div className="flex flex-wrap justify-center gap-2 md:gap-3">
                 <Button onClick={() => copy(myCode, "Código")} disabled={!myCode}
-                  className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
-                  <Copy className="w-4 h-4 mr-2" /> Copiar mi código
+                  className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow text-xs md:text-sm">
+                  <Copy className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" /> Copiar
                 </Button>
                 <Button variant="outline" onClick={() => copy(shareLink, "Link")} disabled={!shareLink}
-                  className="border-primary/30 text-primary hover:bg-primary/10">
-                  <Share2 className="w-4 h-4 mr-2" /> Compartir link
+                  className="border-primary/30 text-primary hover:bg-primary/10 text-xs md:text-sm">
+                  <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" /> Compartir
                 </Button>
               </div>
             </div>
 
-            <div className="glass-card rounded-3xl p-8 border border-white/[0.04]">
-              <p className="font-display text-2xl mb-4">Conecta con un amigo</p>
-              <p className="text-sm text-muted-foreground mb-4">Pega su código de 8 caracteres.</p>
-              <div className="flex flex-col sm:flex-row gap-3">
+            <div className="glass-card rounded-3xl p-6 md:p-8 border border-white/[0.04]">
+              <p className="font-display text-xl md:text-2xl mb-3 md:mb-4">Conecta con un amigo</p>
+              <p className="text-xs md:text-sm text-muted-foreground mb-3 md:mb-4">Pega su código de 8 caracteres.</p>
+              <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
                 <Input
                   value={codeInput}
                   onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
                   placeholder="EJ. A3K9PQ7M"
                   maxLength={8}
-                  className="tracking-[0.3em] text-center font-mono uppercase bg-background/40"
+                  className="tracking-[0.2em] md:tracking-[0.3em] text-center font-mono uppercase bg-background/40 text-sm md:text-base h-10 md:h-11"
                 />
                 <Button onClick={handleConnect} disabled={connecting || !codeInput.trim()}
-                  className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
+                  className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-10 md:h-11 text-sm md:text-base">
                   {connecting ? "Conectando…" : "Conectar"}
                 </Button>
               </div>
