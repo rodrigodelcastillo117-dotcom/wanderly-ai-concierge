@@ -21,6 +21,9 @@ export type Database = {
           completado: boolean | null
           created_at: string
           deal_breakers: string[] | null
+          dna_signal: Json | null
+          dna_updated_at: string | null
+          dna_version: number | null
           estilo_comida: string[] | null
           hospedaje_preferencias: string[] | null
           id: string
@@ -31,8 +34,10 @@ export type Database = {
           proposito_viaje: string | null
           restricciones_alimentarias: string[] | null
           ritmo_viaje: string | null
+          trip_count: number | null
           updated_at: string
           user_id: string
+          visit_count: number | null
         }
         Insert: {
           actividades_tarde?: string[] | null
@@ -40,6 +45,9 @@ export type Database = {
           completado?: boolean | null
           created_at?: string
           deal_breakers?: string[] | null
+          dna_signal?: Json | null
+          dna_updated_at?: string | null
+          dna_version?: number | null
           estilo_comida?: string[] | null
           hospedaje_preferencias?: string[] | null
           id?: string
@@ -50,8 +58,10 @@ export type Database = {
           proposito_viaje?: string | null
           restricciones_alimentarias?: string[] | null
           ritmo_viaje?: string | null
+          trip_count?: number | null
           updated_at?: string
           user_id: string
+          visit_count?: number | null
         }
         Update: {
           actividades_tarde?: string[] | null
@@ -59,6 +69,9 @@ export type Database = {
           completado?: boolean | null
           created_at?: string
           deal_breakers?: string[] | null
+          dna_signal?: Json | null
+          dna_updated_at?: string | null
+          dna_version?: number | null
           estilo_comida?: string[] | null
           hospedaje_preferencias?: string[] | null
           id?: string
@@ -69,8 +82,10 @@ export type Database = {
           proposito_viaje?: string | null
           restricciones_alimentarias?: string[] | null
           ritmo_viaje?: string | null
+          trip_count?: number | null
           updated_at?: string
           user_id?: string
+          visit_count?: number | null
         }
         Relationships: []
       }
@@ -587,10 +602,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_autonomy: {
+        Row: {
+          dna_version: number | null
+          nivel: string | null
+          trip_count: number | null
+          user_id: string | null
+          visit_count: number | null
+        }
+        Insert: {
+          dna_version?: number | null
+          nivel?: never
+          trip_count?: number | null
+          user_id?: string | null
+          visit_count?: number | null
+        }
+        Update: {
+          dna_version?: number | null
+          nivel?: never
+          trip_count?: number | null
+          user_id?: string | null
+          visit_count?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      ensure_ai_prefs: { Args: { p_user: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
