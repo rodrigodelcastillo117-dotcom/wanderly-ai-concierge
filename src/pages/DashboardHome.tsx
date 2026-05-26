@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Gift } from "lucide-react";
+import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Gift, Car, Wifi, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -583,6 +583,9 @@ const DashboardHome = () => {
               {[
                 { icon: Plane, label: "Vuelos", sub: "En vivo", to: "/dashboard/vuelos" },
                 { icon: Hotel, label: "Hoteles", sub: "Reales", to: "/dashboard/hoteles" },
+                { icon: Car, label: "Autos", sub: "Renta", to: "/dashboard/autos" },
+                { icon: Wifi, label: "eSIM", sub: "Datos", to: "/dashboard/esim" },
+                { icon: Compass, label: "Tours", sub: "Experiencias", to: "/dashboard/actividades" },
                 { icon: Shield, label: "Seguros", sub: "Viaje", to: "/dashboard/seguros" },
                 { icon: Gift, label: "Beneficios", sub: "PRO", to: "/dashboard/beneficios" },
                 { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar" },

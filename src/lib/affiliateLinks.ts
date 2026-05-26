@@ -73,3 +73,48 @@ export function uberLink(pickupLat?: number, pickupLng?: number, dropoffName?: s
   }
   return `https://m.uber.com/ul/?${p.toString()}`;
 }
+
+export function discoverCarsLink(city: string, pickup: string, ret: string) {
+  // Discover Cars usa búsqueda con texto libre
+  const p = new URLSearchParams({
+    pickup_location: city,
+    pickup_date: pickup,
+    return_date: ret,
+  });
+  return `https://www.discovercars.com/?${p.toString()}`;
+}
+
+export function rentalcarsLink(city: string, pickup: string, ret: string) {
+  const p = new URLSearchParams({
+    city,
+    puDay: pickup.slice(8, 10),
+    puMonth: pickup.slice(5, 7),
+    puYear: pickup.slice(0, 4),
+    doDay: ret.slice(8, 10),
+    doMonth: ret.slice(5, 7),
+    doYear: ret.slice(0, 4),
+  });
+  return `https://www.rentalcars.com/SearchResults.do?${p.toString()}`;
+}
+
+export function kayakCarsLink(city: string, pickup: string, ret: string) {
+  return `https://www.kayak.com/cars/${encodeURIComponent(city)}/${pickup}/${ret}`;
+}
+
+export function airaloLink(country?: string) {
+  // Airalo no expone búsqueda directa por país en URL — landing global
+  return country
+    ? `https://www.airalo.com/${encodeURIComponent(country.toLowerCase().replace(/\s+/g, "-"))}-esim`
+    : `https://www.airalo.com/`;
+}
+
+export function holaflyLink(country?: string) {
+  return country
+    ? `https://esim.holafly.com/esim-${encodeURIComponent(country.toLowerCase().replace(/\s+/g, "-"))}/`
+    : `https://esim.holafly.com/`;
+}
+
+export function heymondoLink() {
+  return "https://www.heymondo.com/?utm_source=iatos";
+}
+

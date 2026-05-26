@@ -37,6 +37,9 @@ import TripFlights from "./pages/TripFlights";
 import TripHotels from "./pages/TripHotels";
 import Insurance from "./pages/Insurance";
 import Benefits from "./pages/Benefits";
+import TripCars from "./pages/TripCars";
+import TripESIM from "./pages/TripESIM";
+import TripActivities from "./pages/TripActivities";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +73,9 @@ const App = () => (
             <Route path="/dashboard/hoteles" element={<ProtectedRoute><TripHotels /></ProtectedRoute>} />
             <Route path="/dashboard/seguros" element={<ProtectedRoute><Insurance /></ProtectedRoute>} />
             <Route path="/dashboard/beneficios" element={<ProtectedRoute><Benefits /></ProtectedRoute>} />
+            <Route path="/dashboard/autos" element={<ProtectedRoute><TripCars /></ProtectedRoute>} />
+            <Route path="/dashboard/esim" element={<ProtectedRoute><TripESIM /></ProtectedRoute>} />
+            <Route path="/dashboard/actividades" element={<ProtectedRoute><TripActivities /></ProtectedRoute>} />
             <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
             <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
             <Route path="/dashboard/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />
