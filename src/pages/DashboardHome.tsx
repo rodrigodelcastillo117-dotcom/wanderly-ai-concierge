@@ -418,7 +418,7 @@ const DashboardHome = () => {
 
 
         {/* MIS PRÓXIMOS VIAJES + SMART SPEND */}
-        <div className="grid lg:grid-cols-2 gap-5 min-w-0">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 min-w-0 w-full max-w-full">
           {/* Próximos viajes */}
           <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0">
 
@@ -513,7 +513,7 @@ const DashboardHome = () => {
         </div>
 
         {/* AI CONCIERGE + INSPIRACIÓN */}
-        <div className="grid lg:grid-cols-2 gap-5 min-w-0 w-full max-w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 min-w-0 w-full max-w-full">
           <section className="glass-card rounded-3xl p-3.5 md:p-7 overflow-hidden min-w-0 w-full max-w-full">
 
             <div className="flex items-center justify-between gap-2 mb-4">
