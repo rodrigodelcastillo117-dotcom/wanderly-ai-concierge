@@ -2,7 +2,7 @@
 // Modo actual: ENABLED=false → estima con IA (Gemini) usando conocimiento de
 // Google Flights, Kayak, Skyscanner, Booking y precios históricos por mes/día.
 // Cuando se reactive (ENABLED=true) vuelve a SerpApi en vivo sin cambios.
-const ENABLED = false;
+const ENABLED = true;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
