@@ -464,7 +464,7 @@ const DashboardHome = () => {
 
 
           {/* Smart Spend */}
-          <section className="glass-card rounded-3xl p-4 md:p-7 relative overflow-hidden">
+          <section className="glass-card rounded-3xl p-4 md:p-7 relative overflow-hidden min-w-0">
             <div aria-hidden className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative">
               <div className="flex items-center justify-between gap-2 mb-2">
