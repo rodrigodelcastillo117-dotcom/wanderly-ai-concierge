@@ -208,18 +208,19 @@ const TripDetail = () => {
                 {trip.vuelos_json.map((v: any, i: number) => {
                   const active = selVuelo === i;
                   return (
-                    <div
+                    <ExpandableItemCard
                       key={i}
-                      onClick={() => setSelVuelo(i)}
-                      className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}
+                      imageQuery={`${v.aerolinea} airplane airline`}
+                      eyebrow={v.tier}
+                      title={v.aerolinea}
+                      subtitle={`${v.duracion} · ${v.escalas}`}
+                      price={`${fmtMXN(v.precio_por_persona)} / persona`}
+                      active={active}
+                      selectable
+                      onToggle={() => setSelVuelo(i)}
                     >
-                      {active && <SelectedBadge />}
-                      <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{v.tier}</p>
-                      <p className="font-display text-xl mb-1">{v.aerolinea}</p>
-                      <p className="text-sm text-muted-foreground mb-4">{v.duracion} · {v.escalas}</p>
-                      <p className="font-medium text-lg">{fmtMXN(v.precio_por_persona)}<span className="text-xs text-muted-foreground ml-1">/ persona</span></p>
-                      {v.notas && <p className="text-xs text-muted-foreground mt-3">{v.notas}</p>}
-                    </div>
+                      {v.notas && <p>{v.notas}</p>}
+                    </ExpandableItemCard>
                   );
                 })}
                 <SkipCard
