@@ -483,7 +483,7 @@ const DashboardHome = () => {
                   <><span className={spendDeltaPct >= 0 ? "text-primary" : "text-emerald-400"}>{spendDeltaPct >= 0 ? "+" : ""}{spendDeltaPct}%</span> vs mes anterior · USD</>
                 ) : spendUsd > 0 ? "USD · primer mes con gastos" : "Aún sin gastos registrados · USD"}
               </p>
-              <div className="flex items-center gap-5">
+              <div className="flex items-center gap-5 min-w-0">
                 <SpendDonut segments={spendCats.length ? spendCats : [{ label: "Sin datos", pct: 0, color: "hsl(0 0% 25%)" }]} />
                 <ul className="flex-1 space-y-2 text-sm">
                   {spendCats.length === 0 && (
