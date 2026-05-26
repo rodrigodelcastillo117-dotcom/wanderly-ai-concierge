@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
+import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+
 
 import kyoto from "@/assets/destination-kyoto.jpg";
 import bora from "@/assets/destination-bora.jpg";
@@ -16,14 +18,8 @@ import patagonia from "@/assets/destination-patagonia.jpg";
 import tulum from "@/assets/destination-tulum.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
 
-const MOCK_RECOS = [
-  { name: "Bali", country: "Indonesia", img: kyoto, score: 97 },
-  { name: "Maldivas", country: "Maldivas", img: bora, score: 94 },
-  { name: "Marrakech", country: "Marruecos", img: marrakech, score: 91 },
-  { name: "Islandia", country: "Islandia", img: patagonia, score: 89 },
-  { name: "Tulum", country: "México", img: tulum, score: 88 },
-  { name: "Santorini", country: "Grecia", img: santorini, score: 86 },
-];
+
+
 
 // Donut chart for Smart Spend (renders empty ring when there's no data)
 const SpendDonut = ({ segments }: { segments: { label: string; pct: number; color: string }[] }) => {
@@ -74,7 +70,9 @@ const HERO_REELS = [
 const DashboardHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { recos: aiRecos, loading: recosLoading } = useAIRecommendations();
   const [name, setName] = useState("");
+
   const [trips, setTrips] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [concierge, setConcierge] = useState("");
@@ -309,7 +307,9 @@ const DashboardHome = () => {
         <section>
           <div className="flex items-end justify-between mb-6">
             <div>
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2">Curado para ti</p>
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2 flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3" /> Curado por IATOS AI para ti
+              </p>
               <h2 className="font-display text-2xl md:text-3xl">Destinos que matchean tu perfil</h2>
             </div>
             <Link to="/dashboard/descubre" className="text-xs text-primary/80 hover:text-primary transition flex items-center gap-1 whitespace-nowrap tracking-wide">
@@ -317,38 +317,48 @@ const DashboardHome = () => {
             </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-            {MOCK_RECOS.slice(0, 4).map((d, i) => (
-              <motion.div
-                key={d.name}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: i * 0.05 }}
-                whileHover={{ y: -4 }}
-                onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}`)}
-                className="cursor-pointer group"
-              >
-                <div className="relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-white/[0.05]">
-                  <DestinationVideo query={`${d.name} ${d.country} travel cinematic`} fallbackImage={d.img} alt={d.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-primary/30 text-primary text-[10px] font-medium tracking-wider">
-                    {d.score}% MATCH
+            {(recosLoading && !aiRecos)
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="aspect-[4/5] rounded-3xl bg-surface/40 animate-pulse" />
+                ))
+              : (aiRecos ?? []).slice(0, 4).map((d, i) => (
+                <motion.div
+                  key={`${d.name}-${i}`}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: i * 0.05 }}
+                  whileHover={{ y: -4 }}
+                  onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}`)}
+                  className="cursor-pointer group"
+                >
+                  <div className="relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-white/[0.05]">
+                    <DestinationVideo query={d.image_query} fallbackImage={santorini} alt={d.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-primary/30 text-primary text-[10px] font-medium tracking-wider">
+                      {d.score}% MATCH
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleFav(d.name); }}
+                      aria-label="Favorito"
+                      className="absolute top-3 right-3 p-2 rounded-full bg-black/55 backdrop-blur-md hover:bg-black/75 transition"
+                    >
+                      <Heart className={`w-3.5 h-3.5 ${favorites.has(d.name) ? "fill-primary text-primary" : "text-white/90"}`} />
+                    </button>
+                    <div className="absolute bottom-3 left-3 right-3">
+                      <p className="font-display text-base md:text-lg text-white/95 leading-tight">{d.name}</p>
+                      <p className="text-[11px] text-white/60 tracking-wide">{d.country}</p>
+                      {d.reason && (
+                        <p className="text-[10px] text-white/55 leading-snug mt-1 line-clamp-2 italic hidden md:block">
+                          {d.reason}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleFav(d.name); }}
-                    aria-label="Favorito"
-                    className="absolute top-3 right-3 p-2 rounded-full bg-black/55 backdrop-blur-md hover:bg-black/75 transition"
-                  >
-                    <Heart className={`w-3.5 h-3.5 ${favorites.has(d.name) ? "fill-primary text-primary" : "text-white/90"}`} />
-                  </button>
-                  <div className="absolute bottom-3 left-3 right-3">
-                    <p className="font-display text-base md:text-lg text-white/95 leading-tight">{d.name}</p>
-                    <p className="text-[11px] text-white/60 tracking-wide">{d.country}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))}
           </div>
         </section>
+
 
         {/* MIS PRÓXIMOS VIAJES + SMART SPEND */}
         <div className="grid lg:grid-cols-2 gap-5">
