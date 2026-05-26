@@ -70,6 +70,7 @@ interface CityCollapsibleProps {
   open?: boolean;
   onToggle?: () => void;
   count?: number;
+  wrapperRef?: (el: HTMLDivElement | null) => void;
   children: ReactNode;
 }
 
@@ -81,6 +82,7 @@ export const CityCollapsible = ({
   open: openProp,
   onToggle,
   count,
+  wrapperRef,
   children,
 }: CityCollapsibleProps) => {
   const [openLocal, setOpenLocal] = useState(defaultOpen);
@@ -93,7 +95,7 @@ export const CityCollapsible = ({
   const img = useCityImage(imageQuery || `${city} landmark travel`);
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-border/60 bg-card">
+    <div ref={wrapperRef} className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24">
       <button
         type="button"
         onClick={toggle}
