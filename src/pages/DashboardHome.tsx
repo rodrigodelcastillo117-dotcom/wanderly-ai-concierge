@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight } from "lucide-react";
+import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,13 +24,6 @@ const MOCK_RECOS = [
   { name: "Tulum", country: "México", img: tulum, score: 88 },
   { name: "Santorini", country: "Grecia", img: santorini, score: 86 },
 ];
-
-const greeting = () => {
-  const h = new Date().getHours();
-  if (h < 12) return "Buenos días";
-  if (h < 19) return "Buenas tardes";
-  return "Buenas noches";
-};
 
 // Donut chart for Smart Spend
 const SpendDonut = () => {
@@ -60,6 +53,7 @@ const SpendDonut = () => {
             strokeWidth="14"
             strokeDasharray={`${len} ${C - len}`}
             strokeDashoffset={-offset}
+            strokeLinecap="round"
           />
         );
         offset += len;
@@ -76,6 +70,7 @@ const DashboardHome = () => {
   const [trips, setTrips] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [concierge, setConcierge] = useState("");
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -97,16 +92,23 @@ const DashboardHome = () => {
     })();
   }, [user]);
 
-  const toggleFav = (name: string) => {
+  // Live clock (refresh every minute)
+  useEffect(() => {
+    const id = setInterval(() => setTick((v) => v + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const toggleFav = (n: string) => {
     setFavorites((prev) => {
       const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
+      next.has(n) ? next.delete(n) : next.add(n);
       return next;
     });
   };
 
-  const today = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const now = new Date().toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true });
+  const now = new Date();
+  const today = now.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const time = now.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase().replace(/\./g, "");
 
   const spendCats = [
     { label: "Alojamiento", pct: 42, color: "hsl(41 47% 59%)" },
@@ -118,24 +120,24 @@ const DashboardHome = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 space-y-10">
-        {/* Top bar */}
+      <div className="px-5 md:px-10 py-7 md:py-10 space-y-12 max-w-[1400px] mx-auto">
+        {/* Top header */}
         <header className="flex items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground capitalize">
-            {today} <span className="mx-2 opacity-50">|</span> {now}
+          <p className="text-[11px] md:text-xs text-muted-foreground capitalize tracking-wide">
+            {today} <span className="mx-2 text-primary/40">|</span> <span className="text-foreground/80 normal-case">{time}</span>
           </p>
-          <div className="flex items-center gap-2">
-            <button className="relative p-2 rounded-full hover:bg-surface transition" aria-label="Notificaciones">
-              <Bell className="w-5 h-5 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
+          <div className="flex items-center gap-1.5">
+            <button className="relative p-2.5 rounded-full hover:bg-white/[0.04] transition" aria-label="Notificaciones">
+              <Bell className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.75} />
+              <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(41_47%_59%)]" />
             </button>
-            <button onClick={() => navigate("/dashboard/perfil")} className="p-2 rounded-full hover:bg-surface transition" aria-label="Ajustes">
-              <Settings className="w-5 h-5 text-muted-foreground" />
+            <button onClick={() => navigate("/dashboard/perfil")} className="p-2.5 rounded-full hover:bg-white/[0.04] transition" aria-label="Ajustes">
+              <Settings className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.75} />
             </button>
           </div>
         </header>
 
-        {/* Saludo + buscador en un mismo renglón */}
+        {/* Saludo + búsqueda inline */}
         <motion.form
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -146,105 +148,109 @@ const DashboardHome = () => {
             if (q.length < 5) return;
             navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
           }}
-          className="flex items-center gap-3 flex-wrap"
+          className="space-y-4"
         >
-          <h1 className="font-display text-xl md:text-3xl whitespace-nowrap">{name}.</h1>
-          <input
-            type="text"
-            value={concierge}
-            onChange={(e) => setConcierge(e.target.value)}
-            placeholder="Platicame tu viaje…"
-            aria-label="Platicame tu viaje"
-            className="flex-1 min-w-[240px] bg-transparent border-0 border-b border-primary/30 focus:border-primary outline-none font-display italic text-xl md:text-3xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
-          />
-          <Button
-            type="submit"
-            disabled={concierge.trim().length < 5}
-            className="h-12 px-5 bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40"
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Analizar viaje
-          </Button>
+          <h1 className="font-display text-3xl md:text-5xl leading-[1.05] tracking-tight">
+            <span className="capitalize">{name || "Viajero"}</span>.{" "}
+            <span className="italic gold-text font-light">Platícame</span>{" "}
+            <span className="text-foreground/85">tu viaje</span>
+          </h1>
+          <div className="relative flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl px-4 md:px-5 py-3 focus-within:border-primary/40 transition">
+            <Sparkles className="w-4 h-4 text-primary shrink-0" />
+            <input
+              type="text"
+              value={concierge}
+              onChange={(e) => setConcierge(e.target.value)}
+              placeholder="Cuéntame qué destino, vibra o experiencia tienes en mente…"
+              aria-label="Platícame tu viaje"
+              className="flex-1 bg-transparent border-0 outline-none text-sm md:text-base placeholder:text-muted-foreground/70 text-foreground"
+            />
+            <Button
+              type="submit"
+              disabled={concierge.trim().length < 5}
+              className="h-10 px-4 md:px-5 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40 text-xs md:text-sm tracking-wide"
+            >
+              Analizar
+            </Button>
+          </div>
         </motion.form>
 
-
-
-        {/* CTA único: paso a paso. La detección single vs multi ocurre dentro del flujo. */}
-        <motion.div
+        {/* HERO — cinematic Santorini-style sunset */}
+        <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
         >
           <div
-            className="relative rounded-3xl overflow-hidden premium-shadow group cursor-pointer"
+            className="relative rounded-[28px] overflow-hidden premium-shadow group cursor-pointer ring-1 ring-white/[0.05]"
             onClick={() => navigate("/dashboard/planear")}
           >
             <DestinationVideo
-              query="misty mountain valley cinematic travel"
+              query="santorini sunset cinematic luxury travel aerial"
               fallbackImage={santorini}
               alt="Inicia tu travesía inteligente"
-              className="w-full h-64 md:h-80 object-cover group-hover:scale-105 transition-transform duration-700"
+              className="w-full h-[340px] md:h-[460px] object-cover group-hover:scale-[1.04] transition-transform duration-[1200ms]"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
+
             <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-xs mb-4 self-start border border-primary/30">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md text-[11px] mb-5 self-start border border-primary/25 text-foreground/90 tracking-wider">
                 <Sparkles className="w-3 h-3 text-primary" />
-                <span>Planeación inteligente</span>
+                <span>IA personalizada</span>
               </div>
-              <h2 className="font-display text-3xl md:text-5xl mb-4 leading-tight max-w-2xl">
-                ¿Prefieres paso a paso?
+              <h2 className="font-display text-4xl md:text-6xl leading-[1.02] mb-3 max-w-2xl">
+                Planea un <span className="italic gold-text font-light">nuevo</span> viaje
               </h2>
-              <p className="text-sm md:text-base text-muted-foreground mb-5 max-w-xl">
-                IATOS AI detecta si tu viaje es a un solo destino o una travesía multi-ciudad y arma vuelos, trenes, roadtrips y toda la logística automáticamente.
+              <p className="text-sm md:text-base text-white/70 mb-6 max-w-xl leading-relaxed">
+                IATOS detecta single o multi-destino, arma vuelos, hospedaje y experiencias según tu ADN de viaje.
               </p>
-              <Button className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow self-start h-12 px-6">
-                <Plus className="w-4 h-4 mr-2" />
-                Iniciar travesía inteligente
+              <Button className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow self-start h-12 px-6 rounded-2xl text-sm tracking-wide">
+                <Plus className="w-4 h-4 mr-2" strokeWidth={2.25} />
+                Empezar análisis
               </Button>
             </div>
           </div>
-        </motion.div>
+        </motion.section>
 
-
-
-
-        {/* Curado para ti */}
+        {/* CURADO PARA TI */}
         <section>
-          <div className="flex items-end justify-between mb-5">
+          <div className="flex items-end justify-between mb-6">
             <div>
-              <p className="text-primary text-xs tracking-[0.25em] uppercase mb-1.5">Curado para ti</p>
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2">Curado para ti</p>
               <h2 className="font-display text-2xl md:text-3xl">Destinos que matchean tu perfil</h2>
             </div>
-            <Link to="/dashboard/descubre" className="text-sm text-primary/80 hover:text-primary transition flex items-center gap-1 whitespace-nowrap">
+            <Link to="/dashboard/descubre" className="text-xs text-primary/80 hover:text-primary transition flex items-center gap-1 whitespace-nowrap tracking-wide">
               Ver todos <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {MOCK_RECOS.slice(0, 4).map((d, i) => (
               <motion.div
                 key={d.name}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: i * 0.05 }}
-                whileHover={{ y: -3 }}
+                whileHover={{ y: -4 }}
                 onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}`)}
                 className="cursor-pointer group"
               >
-                <div className="relative aspect-square rounded-2xl overflow-hidden mb-3">
-                  <DestinationVideo query={`${d.name} ${d.country} travel`} fallbackImage={d.img} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-[11px] font-medium">
-                    {d.score}% match
+                <div className="relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-white/[0.05]">
+                  <DestinationVideo query={`${d.name} ${d.country} travel cinematic`} fallbackImage={d.img} alt={d.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-primary/30 text-primary text-[10px] font-medium tracking-wider">
+                    {d.score}% MATCH
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleFav(d.name); }}
                     aria-label="Favorito"
-                    className="absolute bottom-3 right-3 p-1.5 rounded-full bg-black/50 backdrop-blur hover:bg-black/70 transition"
+                    className="absolute top-3 right-3 p-2 rounded-full bg-black/55 backdrop-blur-md hover:bg-black/75 transition"
                   >
-                    <Heart className={`w-4 h-4 ${favorites.has(d.name) ? "fill-primary text-primary" : "text-white"}`} />
+                    <Heart className={`w-3.5 h-3.5 ${favorites.has(d.name) ? "fill-primary text-primary" : "text-white/90"}`} />
                   </button>
-                  <div className="absolute bottom-3 left-3">
-                    <p className="text-sm text-white/95 font-medium">{d.name}, {d.country}</p>
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <p className="font-display text-base md:text-lg text-white/95 leading-tight">{d.name}</p>
+                    <p className="text-[11px] text-white/60 tracking-wide">{d.country}</p>
                   </div>
                 </div>
               </motion.div>
@@ -252,35 +258,35 @@ const DashboardHome = () => {
           </div>
         </section>
 
-        {/* Two-column: Próximos viajes + Smart Spend */}
-        <div className="grid lg:grid-cols-2 gap-6">
+        {/* MIS PRÓXIMOS VIAJES + SMART SPEND */}
+        <div className="grid lg:grid-cols-2 gap-5">
           {/* Próximos viajes */}
-          <section className="glass-card rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-primary text-xs tracking-[0.25em] uppercase">Mis próximos viajes</p>
-              <Link to="/dashboard/viajes" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1">
+          <section className="glass-card rounded-3xl p-6 md:p-7">
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">Mis próximos viajes</p>
+              <Link to="/dashboard/viajes" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
                 Ver todos <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
             {trips.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">Aún no tienes viajes planeados.</p>
+              <p className="text-sm text-muted-foreground py-8 text-center">Aún no tienes viajes planeados.</p>
             ) : (
-              <div className="space-y-3 mb-4">
+              <div className="space-y-2.5 mb-5">
                 {trips.map((t) => {
                   const days = Math.max(0, Math.ceil((new Date(t.fecha_salida).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
                   return (
-                    <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-4 p-2 -mx-2 rounded-xl hover:bg-surface/60 transition">
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-surface flex-shrink-0">
-                        <DestinationVideo query={`${t.destino} ${t.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={t.destino} className="w-full h-full object-cover" />
+                    <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-4 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group">
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-surface flex-shrink-0 ring-1 ring-white/[0.06]">
+                        <DestinationVideo query={`${t.destino} ${t.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={t.destino} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{t.destino}, {t.pais_destino}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(t.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
+                        <p className="font-display text-base truncate">{t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
+                        <p className="text-[11px] text-muted-foreground tracking-wide">
+                          {t.fecha_salida ? new Date(t.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                         </p>
                       </div>
-                      <span className="text-xs px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap">
-                        En {days} días
+                      <span className="text-[10px] px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap tracking-wider">
+                        EN {days}D
                       </span>
                     </Link>
                   );
@@ -289,7 +295,7 @@ const DashboardHome = () => {
             )}
             <Button
               onClick={() => navigate("/dashboard/planear")}
-              className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90"
+              className="w-full h-11 rounded-2xl bg-gradient-gold text-primary-foreground hover:opacity-90 text-sm tracking-wide"
             >
               <Plus className="w-4 h-4 mr-2" />
               Crear nuevo viaje
@@ -297,56 +303,59 @@ const DashboardHome = () => {
           </section>
 
           {/* Smart Spend */}
-          <section className="glass-card rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-primary text-xs tracking-[0.25em] uppercase">Smart Spend</p>
-              <Link to="/dashboard/smart-spend" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1">
-                Ver reportes <ChevronRight className="w-3 h-3" />
-              </Link>
+          <section className="glass-card rounded-3xl p-6 md:p-7 relative overflow-hidden">
+            <div aria-hidden className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/10 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">Smart Spend</p>
+                <Link to="/dashboard/smart-spend" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
+                  Ver reportes <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-1 tracking-wide">Este mes</p>
+              <p className="font-display text-4xl md:text-5xl mb-1 gold-text">$2,540</p>
+              <p className="text-[11px] text-muted-foreground mb-5"><span className="text-primary">+12%</span> vs mayo · USD</p>
+              <div className="flex items-center gap-5">
+                <SpendDonut />
+                <ul className="flex-1 space-y-2 text-sm">
+                  {spendCats.map((c) => (
+                    <li key={c.label} className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-muted-foreground text-xs">
+                        <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
+                        {c.label}
+                      </span>
+                      <span className="text-foreground text-xs">{c.pct}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                onClick={() => navigate("/dashboard/smart-spend")}
+                className="w-full mt-6 h-11 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-foreground hover:bg-white/[0.08] text-sm tracking-wide"
+              >
+                Ver detalles y análisis
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground mb-1">Este mes has gastado</p>
-            <p className="font-display text-4xl mb-1">$2,540 <span className="text-base text-muted-foreground">USD</span></p>
-            <p className="text-xs text-primary mb-4">+12% vs mayo</p>
-            <div className="flex items-center gap-5">
-              <SpendDonut />
-              <ul className="flex-1 space-y-1.5 text-sm">
-                {spendCats.map((c) => (
-                  <li key={c.label} className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-muted-foreground">
-                      <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
-                      {c.label}
-                    </span>
-                    <span className="text-foreground">{c.pct}%</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <Button
-              onClick={() => navigate("/dashboard/smart-spend")}
-              className="w-full mt-5 bg-gradient-gold text-primary-foreground hover:opacity-90"
-            >
-              Ver detalles y análisis
-            </Button>
           </section>
         </div>
 
-        {/* AI Concierge + Inspiración */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          <section className="glass-card rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-primary text-xs tracking-[0.25em] uppercase">AI Concierge</p>
-              <Link to="/dashboard/concierge" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1">
+        {/* AI CONCIERGE + INSPIRACIÓN */}
+        <div className="grid lg:grid-cols-2 gap-5">
+          <section className="glass-card rounded-3xl p-6 md:p-7">
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">AI Concierge</p>
+              <Link to="/dashboard/concierge" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
                 Ver historial <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full border border-primary/40 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4 text-primary" />
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-11 h-11 rounded-full bg-gradient-gold flex items-center justify-center flex-shrink-0 shadow-[0_8px_24px_-6px_hsl(41_47%_59%/0.5)]">
+                <Sparkles className="w-4 h-4 text-primary-foreground" />
               </div>
               <div>
-                <p className="font-medium mb-1">¿En qué puedo ayudarte hoy?</p>
+                <p className="font-display text-lg mb-1">¿En qué puedo ayudarte hoy?</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Puedo ayudarte a planear, reservar, descubrir y optimizar cada detalle de tu viaje.
+                  Planeo, reservo, descubro y optimizo cada detalle de tu viaje.
                 </p>
               </div>
             </div>
@@ -357,34 +366,34 @@ const DashboardHome = () => {
               <Input
                 value={concierge}
                 onChange={(e) => setConcierge(e.target.value)}
-                placeholder="Escribe tu solicitud..."
-                className="pr-12 bg-surface/60 border-border/60"
+                placeholder="Escribe tu solicitud…"
+                className="pr-12 h-12 rounded-2xl bg-white/[0.03] border-white/[0.08] focus-visible:ring-primary/40"
               />
-              <button type="submit" aria-label="Enviar" className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-primary/10 text-primary transition">
+              <button type="submit" aria-label="Enviar" className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-gold flex items-center justify-center text-primary-foreground hover:opacity-90 transition">
                 <Send className="w-4 h-4" />
               </button>
             </form>
           </section>
 
-          <section className="glass-card rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-primary text-xs tracking-[0.25em] uppercase">Inspiración para ti</p>
-              <Link to="/dashboard/descubre" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1">
+          <section className="glass-card rounded-3xl p-6 md:p-7">
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">Inspiración para ti</p>
+              <Link to="/dashboard/descubre" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
                 Ver más <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
-            <div className="relative rounded-xl overflow-hidden aspect-[16/9] group cursor-pointer" onClick={() => navigate("/dashboard/descubre")}>
-              <DestinationVideo query="romantic beach sunset travel" fallbackImage={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-              <button className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center hover:bg-black/70" aria-label="Siguiente">
+            <div className="relative rounded-2xl overflow-hidden aspect-[16/10] group cursor-pointer ring-1 ring-white/[0.05]" onClick={() => navigate("/dashboard/descubre")}>
+              <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+              <button className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center hover:bg-black/75 transition" aria-label="Siguiente">
                 <ChevronRight className="w-4 h-4" />
               </button>
               <div className="absolute bottom-4 left-4 right-4">
-                <h3 className="font-display text-xl mb-1">Escapadas románticas</h3>
-                <p className="text-xs text-white/80">Destinos perfectos para conectar</p>
+                <h3 className="font-display text-2xl mb-1">Escapadas <span className="italic gold-text font-light">románticas</span></h3>
+                <p className="text-[11px] text-white/70 tracking-wide">Destinos perfectos para conectar</p>
               </div>
             </div>
-            <div className="flex justify-center gap-1.5 mt-3">
+            <div className="flex justify-center gap-1.5 mt-4">
               <span className="w-6 h-1 rounded-full bg-primary" />
               <span className="w-1 h-1 rounded-full bg-muted" />
               <span className="w-1 h-1 rounded-full bg-muted" />
