@@ -86,6 +86,10 @@ const DashboardHome = () => {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [concierge, setConcierge] = useState("");
   const [tick, setTick] = useState(0);
+  const [reelIdx, setReelIdx] = useState(0);
+  const [reelFading, setReelFading] = useState(false);
+  const reelTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const REEL_DURATION = 10_000;
 
   useEffect(() => {
     if (!user) return;
