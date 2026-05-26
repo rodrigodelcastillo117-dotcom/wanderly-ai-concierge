@@ -33,6 +33,10 @@ import TripJournal from "./pages/TripJournal";
 import TripSplit from "./pages/TripSplit";
 import Compare from "./pages/Compare";
 import Currency from "./pages/Currency";
+import TripFlights from "./pages/TripFlights";
+import TripHotels from "./pages/TripHotels";
+import Insurance from "./pages/Insurance";
+import Benefits from "./pages/Benefits";
 
 const queryClient = new QueryClient();
 
