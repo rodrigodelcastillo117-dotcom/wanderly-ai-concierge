@@ -120,6 +120,39 @@ const PlanTrip = () => {
           .eq("id", user.id)
           .maybeSingle();
 
+  // Flujo de búsqueda en lenguaje natural: ?q=... viene del Inicio
+  useEffect(() => {
+    const q = params.get("q");
+    if (!q || !user) return;
+    let cancelled = false;
+    (async () => {
+      setInterpretando(true);
+      try {
+        // Trae ciudad_origen del perfil para fallback
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("ciudad_origen")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        // Detección rápida cliente — si parece multi, vamos directo al builder de ruta.
+        const fastIntent = detectRouteIntent(q);
+        if (fastIntent.mode === "multi" && fastIntent.destinations.length >= 2) {
+          const hoy = new Date();
+          const defaultSalida = new Date(hoy.getTime() + 30 * 86400000).toISOString().slice(0, 10);
+          const defaultRegreso = new Date(hoy.getTime() + 37 * 86400000).toISOString().slice(0, 10);
+          const qs = new URLSearchParams({
+            origin: prof?.ciudad_origen || "Ciudad de México",
+            destinos: fastIntent.destinations.join("|"),
+            fecha_salida: defaultSalida,
+            fecha_regreso: defaultRegreso,
+            viajeros: "2",
+            auto: "1",
+          });
+          if (!cancelled) navigate(`/dashboard/ruta?${qs.toString()}`, { replace: true });
+          return;
+        }
+
         const { data, error } = await supabase.functions.invoke("parsear-viaje", {
           body: { prompt: q },
         });
@@ -152,6 +185,7 @@ const PlanTrip = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
 
   if (interpretando) {
     return (
