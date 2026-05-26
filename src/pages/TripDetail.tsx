@@ -190,6 +190,7 @@ const TripDetail = () => {
             <Download className="w-3.5 h-3.5 text-primary" />
             {generatingPdf ? "Generando…" : "Compartir PDF"}
           </button>
+          <InviteFriendDialog tripId={trip.id} isOwner={user?.id === trip.user_id} />
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
         </div>
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 max-w-5xl">
