@@ -295,9 +295,12 @@ Roadtrips con paradas: ${body.prefs?.roadtripStops === false ? "no" : "sí"}
 Logística de equipaje: ${body.prefs?.luggageLogistics === false ? "no" : "sí"}
 
 ENTREGA un JSON que cumpla el esquema con:
-1. flights: 1-2 vuelos internacionales (origen→primera ciudad, última ciudad→origen). Si los costos varían, incluye tiers.
-2. internal_transport: UN tramo entre CADA par consecutivo de destinos (${body.destinations.length - 1} tramos mínimo). Trenes reales (Italo/Renfe/Shinkansen) cuando aplique. Roadtrips con 2-4 paradas.
-3. per_destination: ${body.destinations.length} entradas — UNA por cada ciudad. Cada una con EXACTAMENTE 3 hospedajes (ahorro/equilibrio/premium) tipos REALES alineados al estilo, 4-6 restaurantes y 4-6 experiencias.
+1. flights: 1-2 vuelos internacionales (origen→primera ciudad, última ciudad→origen) con tiers (ahorro/equilibrio/premium).
+2. internal_transport: UN tramo entre CADA par consecutivo de destinos (${body.destinations.length - 1} tramos mínimo). En Europa <800km PREFIERE TREN (Italo, Frecciarossa, Renfe AVE, SNCF TGV, Eurostar, ÖBB Nightjet) sobre vuelo. Roadtrips con 2-4 paradas. NUNCA omitas el tren cuando sea la opción obvia (ej. Roma↔Florencia↔Venecia DEBE ser tren).
+3. per_destination: ${body.destinations.length} entradas — UNA por cada ciudad. CADA entrada debe tener:
+   - arrival_options: 2-4 maneras de LLEGAR a esa ciudad desde la ciudad/origen anterior. Para Europa <800km SIEMPRE incluye tren de alta velocidad + opción bus o vuelo económico. Marca tier economico/equilibrio/premium.
+   - hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium) con hoteles REALES alineados al estilo
+   - 4-6 restaurantes y 4-6 experiencias
 4. days: ~${nights} días distribuidos lógicamente entre las ciudades (ej. 3 noches Roma, 2 Florencia, 2 Venecia), cada día con ciudad, título, mañana/tarde/noche específicos.
 5. mandatory_costs con currency_buffer_pct=3 sobre el total.
 6. total_estimado_usd coherente con todo lo anterior.
