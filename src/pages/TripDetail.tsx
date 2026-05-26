@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download, Radio, Map as MapIcon, Backpack } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
@@ -240,6 +240,42 @@ const TripDetail = () => {
       </div>
 
       <div className="p-6 md:p-12 max-w-5xl space-y-8">
+        {/* Quick Actions: Live / Mapa / Packing */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-3 gap-3"
+        >
+          <button
+            onClick={() => navigate(`/dashboard/viajes/${id}/live`)}
+            className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all group flex flex-col items-center gap-2"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Radio className="w-5 h-5 text-primary" />
+            </div>
+            <span className="text-xs font-medium">Modo Live</span>
+          </button>
+          <button
+            onClick={() => navigate(`/dashboard/viajes/${id}/mapa`)}
+            className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all group flex flex-col items-center gap-2"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <MapIcon className="w-5 h-5 text-primary" />
+            </div>
+            <span className="text-xs font-medium">Mapa</span>
+          </button>
+          <button
+            onClick={() => navigate(`/dashboard/viajes/${id}/packing`)}
+            className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all group flex flex-col items-center gap-2"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Backpack className="w-5 h-5 text-primary" />
+            </div>
+            <span className="text-xs font-medium">Packing</span>
+          </button>
+        </motion.div>
+
+
         {/* Total + Análisis narrativo */}
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <LiveTripQuote
