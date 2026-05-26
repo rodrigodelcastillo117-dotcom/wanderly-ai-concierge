@@ -13,6 +13,9 @@ const SEPARATORS = [
 
 const STOPWORDS = /^(quiero|me|gustar[íi]a|ir|viajar|visitar|conocer|pasar(?:e|é)?|por|de|a|al|en|hacia|desde|el|la|los|las|un|una|y|o)$/i;
 
+// Palabras que indican que un token es una FRASE conversacional, no una ciudad.
+const PHRASE_WORDS = /\b(viaje|crea(?:me)?|cr[ée]a(?:me)?|haz(?:me)?|planea(?:me)?|arma(?:me)?|necesito|quiero|busco|d[íi]as?|noches?|semanas?|meses?|roadtrip|road\s*trip|completo|todo|junto|familia|pareja|novi[oa]|amigos?|solo|sola|hijos?|presupuesto|barato|caro|lujoso|premium|aventura|relax|playa|monta[ñn]a|norte|sur|este|oeste|centro|regi[óo]n|zona|por\s+el|por\s+la)\b/i;
+
 const cleanCity = (raw: string): string => {
   return raw
     .replace(/[.;:!?¡¿"]/g, "")
@@ -24,9 +27,13 @@ const cleanCity = (raw: string): string => {
 const looksLikeCity = (token: string): boolean => {
   const t = cleanCity(token);
   if (!t || t.length < 2) return false;
+  if (t.length > 28) return false; // ciudades reales rara vez >28 chars
   if (STOPWORDS.test(t)) return false;
+  if (PHRASE_WORDS.test(t)) return false;
+  const words = t.split(/\s+/);
+  if (words.length > 3) return false; // ciudad/región máx 3 palabras
   // Una "ciudad" suele empezar con mayúscula o ser una palabra de >=3 letras sin ser stopword
-  return /^[A-ZÁÉÍÓÚÑ]/.test(t) || t.split(/\s+/).every((w) => w.length >= 3);
+  return /^[A-ZÁÉÍÓÚÑ]/.test(t) || words.every((w) => w.length >= 3);
 };
 
 export type RouteIntent =
@@ -43,10 +50,16 @@ export const detectRouteIntent = (input: string): RouteIntent => {
   const text = input.trim();
   if (!text) return { mode: "single", destinations: [""] as [string] };
 
+  // Si la entrada es claramente conversacional (frase larga con verbos/sentimientos)
+  // NO intentamos detectar multi heurísticamente; dejamos que el AI parsee.
+  if (text.split(/\s+/).length > 8 || PHRASE_WORDS.test(text)) {
+    return { mode: "single", destinations: [text] as [string] };
+  }
+
   // 1) Conectores explícitos (→, "luego", "después")
   for (const re of SEPARATORS) {
     if (re.test(text)) {
-      const parts = text.split(re).map(cleanCity).filter(Boolean);
+      const parts = text.split(re).map(cleanCity).filter(looksLikeCity);
       if (parts.length >= 2) return { mode: "multi", destinations: dedupe(parts) };
     }
   }
@@ -61,22 +74,16 @@ export const detectRouteIntent = (input: string): RouteIntent => {
   }
 
   // 3) Lista por comas / "y" / "+" / "/" — case-insensitive
-  // Cubre "Roma venecia y florencia", "tokio, kioto y osaka", "París + Roma"
   const cleaned = text.replace(/^.*?(?:ir|viajar|visitar|conocer|pasar(?:e|é)?)\s+(?:a|al|en|por)\s+/i, "");
   const flexible = cleaned
     .split(/\s*,\s*|\s+y\s+|\s*\+\s*|\s*\/\s*/i)
     .map(cleanCity)
-    .filter(Boolean)
-    .filter((t) => !STOPWORDS.test(t));
+    .filter(looksLikeCity);
   if (flexible.length >= 2) return { mode: "multi", destinations: dedupe(flexible) };
 
   // 4) 2-4 tokens "ciudad ciudad ciudad" sin conectores
-  const bare = cleaned.split(/\s+/).map(cleanCity).filter(Boolean);
-  if (
-    bare.length >= 2 &&
-    bare.length <= 4 &&
-    bare.every((w) => /^[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}$/.test(w) && !STOPWORDS.test(w))
-  ) {
+  const bare = cleaned.split(/\s+/).map(cleanCity).filter(looksLikeCity);
+  if (bare.length >= 2 && bare.length <= 4) {
     return { mode: "multi", destinations: dedupe(bare) };
   }
 

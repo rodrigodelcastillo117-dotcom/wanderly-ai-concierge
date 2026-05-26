@@ -152,6 +152,22 @@ const PlanTrip = () => {
         const defaultSalida = new Date(hoy.getTime() + 30 * 86400000).toISOString().slice(0, 10);
         const defaultRegreso = new Date(hoy.getTime() + 37 * 86400000).toISOString().slice(0, 10);
 
+        // Si la IA detectó multi-destino (>=2 ciudades reales), redirigir al builder de ruta.
+        const aiDestinations: string[] = Array.isArray(data?.destinations) ? data.destinations.filter(Boolean) : [];
+        if (data?.is_multi && aiDestinations.length >= 2) {
+          const qs = new URLSearchParams({
+            origin: origen,
+            destinos: aiDestinations.join("|"),
+            fecha_salida: data?.fecha_salida || defaultSalida,
+            fecha_regreso: data?.fecha_regreso || defaultRegreso,
+            viajeros: String(Number(data?.num_viajeros) || 2),
+            auto: "1",
+          });
+          if (data?.presupuesto_objetivo) qs.set("presupuesto", String(data.presupuesto_objetivo));
+          if (!cancelled) navigate(`/dashboard/ruta?${qs.toString()}`, { replace: true });
+          return;
+        }
+
         setInterpretando(false);
         await runAnalisis({
           destino: data?.destino || q.slice(0, 60),

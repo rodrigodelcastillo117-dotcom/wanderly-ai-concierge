@@ -59,11 +59,12 @@ const MultiDestRoute = () => {
   const fechaRegreso = params.get("fecha_regreso") ?? "";
   const viajeros = Number(params.get("viajeros") ?? "2");
   const presupuesto = params.get("presupuesto");
-  const autoStart = params.get("auto") === "1" && seedDestinos.length >= 2;
+  const autoStart = params.get("auto") === "1" && seedDestinos.length >= 1;
 
   const [origin, setOrigin] = useState(seedOrigin);
   const [stops, setStops] = useState<string[]>(seedDestinos.length ? seedDestinos : ["", ""]);
   const [draft, setDraft] = useState("");
+  const [resolvingPrompt, setResolvingPrompt] = useState(false);
 
   const [tripsCount, setTripsCount] = useState<number | null>(null);
   const [confidence, setConfidence] = useState<number>(0);
@@ -98,17 +99,59 @@ const MultiDestRoute = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Autostart cuando venimos con destinos pre-cargados y user listo
+  // Detecta si los stops actuales parecen frases conversacionales (no ciudades reales)
+  const stopsLookLikePhrases = useMemo(() => {
+    return stops.some((s) => {
+      const t = s.trim();
+      if (!t) return false;
+      if (t.split(/\s+/).length > 3) return true;
+      return /\b(viaje|crea|haz|planea|roadtrip|d[íi]as?|completo|novi[oa]|pareja|familia|norte|sur|este|oeste|regi[óo]n)\b/i.test(t);
+    });
+  }, [stops]);
+
+  // Si los destinos vienen como frase, llama al AI para extraer ciudades reales.
   useEffect(() => {
-    if (!autoStart || !user || tripsCount === null || generated || generating) return;
-    // Veterano → directo. Novato → modal.
+    if (!autoStart || !user || resolvingPrompt) return;
+    if (!stopsLookLikePhrases) return;
+    let cancelled = false;
+    (async () => {
+      setResolvingPrompt(true);
+      try {
+        const prompt = `${origin ? `Salgo de ${origin}. ` : ""}${stops.filter(Boolean).join(". ")}. Fechas: ${fechaSalida || "flexible"} a ${fechaRegreso || "flexible"}. Viajeros: ${viajeros}.`;
+        const { data, error } = await supabase.functions.invoke("parsear-viaje", { body: { prompt } });
+        if (error) throw error;
+        const cities: string[] = Array.isArray(data?.destinations) && data.destinations.length
+          ? data.destinations
+          : [];
+        if (!cancelled && cities.length >= 1) {
+          setStops(cities);
+          toast.success(`IATOS AI detectó ${cities.length} ciudades a visitar`);
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) toast.error("No pudimos interpretar el destino. Edita las ciudades manualmente.");
+      } finally {
+        if (!cancelled) setResolvingPrompt(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, user, stopsLookLikePhrases]);
+
+  // Autostart cuando venimos con destinos pre-cargados, ya resueltos, y user listo
+  useEffect(() => {
+    if (!autoStart || !user || tripsCount === null || generated || generating || resolvingPrompt) return;
+    if (stopsLookLikePhrases) return; // espera a que se resuelvan
+    if (stops.filter(Boolean).length < 2) return;
     if (isVeteran) {
       void generateRoute(DEFAULT_PREFS, true);
     } else {
       setConfigOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, user, tripsCount, isVeteran]);
+  }, [autoStart, user, tripsCount, isVeteran, resolvingPrompt, stopsLookLikePhrases, stops]);
 
   const addStop = () => {
     const v = draft.trim();
