@@ -13,6 +13,7 @@ import PlanTrip from "./pages/PlanTrip";
 import TripDetail from "./pages/TripDetail";
 import EditTrip from "./pages/EditTrip";
 import Trips from "./pages/Trips";
+import MultiDestRoute from "./pages/MultiDestRoute";
 import Profile from "./pages/Profile";
 import Discover from "./pages/Discover";
 import { Pro } from "./pages/SoonPages";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardHome /></ProtectedRoute>} />
             <Route path="/dashboard/planear" element={<ProtectedRoute><PlanTrip /></ProtectedRoute>} />
+            <Route path="/dashboard/ruta" element={<ProtectedRoute><MultiDestRoute /></ProtectedRoute>} />
             <Route path="/dashboard/viajes" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id/editar" element={<ProtectedRoute><EditTrip /></ProtectedRoute>} />
