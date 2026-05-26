@@ -345,37 +345,171 @@ const MultiDestRoute = () => {
                 </motion.div>
               )}
 
-              <div className="rounded-3xl border border-border bg-card overflow-hidden">
-                {generated.itinerary.map((leg, i) => (
-                  <div key={i} className="p-5 md:p-6 border-b border-border last:border-0">
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                      <span className="font-mono text-primary">{String(i + 1).padStart(2, "0")}</span>
-                      <span>{leg.from}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                      <span className="text-foreground font-medium">{leg.to}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border inline-flex items-center gap-1.5">
-                        <Train className="w-3 h-3 text-primary" /> {leg.mode}
-                      </span>
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border">
-                        {leg.duration}
-                      </span>
-                      {leg.luggage && (
-                        <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary inline-flex items-center gap-1.5">
-                          <Luggage className="w-3 h-3" /> {leg.luggage}
-                        </span>
-                      )}
-                    </div>
-                    {leg.stopovers?.length > 0 && (
-                      <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                        <Car className="w-3 h-3" />
-                        Paradas sugeridas: {leg.stopovers.join(" · ")}
+              {/* Vuelos */}
+              {generated.logistics.flights?.length > 0 && (
+                <div className="rounded-3xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 md:px-6 py-3 border-b border-border flex items-center gap-2 text-sm">
+                    <Plane className="w-4 h-4 text-primary" />
+                    <span className="text-primary tracking-[0.25em] uppercase text-xs">Vuelos</span>
+                  </div>
+                  {generated.logistics.flights.map((f: any, i: number) => (
+                    <div key={i} className="p-5 md:p-6 border-b border-border last:border-0">
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
+                        <span className="font-mono text-primary">{String(i + 1).padStart(2, "0")}</span>
+                        <span>{f.from}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span className="text-foreground font-medium">{f.to}</span>
                       </div>
+                      <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                        {f.airline_suggested && (
+                          <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{f.airline_suggested}</span>
+                        )}
+                        {f.duration && (
+                          <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{f.duration}</span>
+                        )}
+                        {f.stops && (
+                          <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{f.stops}</span>
+                        )}
+                        {f.price_per_person_usd != null && (
+                          <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary">
+                            ${Math.round(f.price_per_person_usd)} USD / persona
+                          </span>
+                        )}
+                      </div>
+                      {f.notes && <p className="text-xs text-muted-foreground mt-2">{f.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Transporte interno */}
+              {generated.logistics.internal_transport?.length > 0 && (
+                <div className="rounded-3xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 md:px-6 py-3 border-b border-border flex items-center gap-2 text-sm">
+                    <Train className="w-4 h-4 text-primary" />
+                    <span className="text-primary tracking-[0.25em] uppercase text-xs">Transporte interno</span>
+                  </div>
+                  {generated.logistics.internal_transport.map((leg: any, i: number) => {
+                    const Icon = leg.mode === "tren" ? Train
+                      : leg.mode === "roadtrip" ? Car
+                      : leg.mode === "vuelo_interno" ? Plane
+                      : Mountain;
+                    return (
+                      <div key={i} className="p-5 md:p-6 border-b border-border last:border-0">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
+                          <span className="font-mono text-primary">{String(i + 1).padStart(2, "0")}</span>
+                          <span>{leg.from}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span className="text-foreground font-medium">{leg.to}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                          <span className="px-2.5 py-1 rounded-full bg-surface border border-border inline-flex items-center gap-1.5">
+                            <Icon className="w-3 h-3 text-primary" />
+                            {leg.provider || leg.mode}
+                            {leg.scenic ? " · escénico" : ""}
+                          </span>
+                          {leg.duration && (
+                            <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{leg.duration}</span>
+                          )}
+                          {leg.price_per_person_usd != null && (
+                            <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary">
+                              ${Math.round(leg.price_per_person_usd)} USD / persona
+                            </span>
+                          )}
+                          {leg.luggage_note && (
+                            <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary inline-flex items-center gap-1.5">
+                              <Luggage className="w-3 h-3" /> {leg.luggage_note}
+                            </span>
+                          )}
+                        </div>
+                        {leg.suggested_stops?.length > 0 && (
+                          <div className="mt-3 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Car className="w-3 h-3" /> Paradas sugeridas:
+                            </div>
+                            <ul className="pl-5 list-disc space-y-0.5">
+                              {leg.suggested_stops.map((s: any, j: number) => (
+                                <li key={j}>
+                                  <span className="text-foreground">{s.name}</span>
+                                  {s.why ? ` — ${s.why}` : ""}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Transporte local */}
+              {generated.logistics.local_transport_tips?.length > 0 && (
+                <div className="rounded-3xl border border-border bg-card p-5 md:p-6">
+                  <div className="flex items-center gap-2 text-xs text-primary tracking-[0.25em] uppercase mb-3">
+                    <MapPin className="w-3.5 h-3.5" /> Transporte local
+                  </div>
+                  <ul className="space-y-2 text-sm">
+                    {generated.logistics.local_transport_tips.map((t: any, i: number) => (
+                      <li key={i} className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-foreground">{t.city}</p>
+                          <p className="text-xs text-muted-foreground">{t.recommendation}</p>
+                        </div>
+                        {t.est_daily_usd != null && (
+                          <span className="text-xs text-primary whitespace-nowrap">
+                            ~${Math.round(t.est_daily_usd)} USD / día
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Costos obligatorios */}
+              {generated.logistics.mandatory_costs && (
+                <div className="rounded-3xl border border-primary/30 bg-card p-5 md:p-6">
+                  <div className="flex items-center gap-2 text-xs text-primary tracking-[0.25em] uppercase mb-3">
+                    <Receipt className="w-3.5 h-3.5" /> Costos obligatorios
+                  </div>
+                  <ul className="text-sm space-y-1.5 text-muted-foreground">
+                    <li className="flex justify-between"><span>City taxes</span><span className="text-foreground">${Math.round(generated.logistics.mandatory_costs.city_taxes_usd || 0)} USD</span></li>
+                    <li className="flex justify-between"><span>Visados</span><span className="text-foreground">${Math.round(generated.logistics.mandatory_costs.visa_fees_usd || 0)} USD</span></li>
+                    <li className="flex justify-between">
+                      <span>Buffer cambiario ({generated.logistics.mandatory_costs.currency_buffer_pct ?? 3}%)</span>
+                      <span className="text-foreground">${Math.round(generated.logistics.mandatory_costs.currency_buffer_usd || 0)} USD</span>
+                    </li>
+                  </ul>
+                  {generated.logistics.mandatory_costs.notes && (
+                    <p className="text-xs text-muted-foreground mt-3">{generated.logistics.mandatory_costs.notes}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Total + CTA al detalle */}
+              {generated.logistics.total_estimado_usd != null && (
+                <div className="rounded-3xl border border-border bg-card p-6 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs tracking-[0.25em] uppercase text-primary mb-1">Total estimado</p>
+                    <p className="font-display text-3xl md:text-4xl gold-text">
+                      ${Math.round(generated.logistics.total_estimado_usd).toLocaleString("en-US")} USD
+                    </p>
+                    {generated.logistics.resumen && (
+                      <p className="text-xs text-muted-foreground mt-2 max-w-md">{generated.logistics.resumen}</p>
                     )}
                   </div>
-                ))}
-              </div>
+                  {generated.tripId && (
+                    <Button
+                      onClick={() => navigate(`/dashboard/viajes/${generated.tripId}`)}
+                      className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow"
+                    >
+                      Ver viaje completo <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  )}
+                </div>
+              )}
+
             </motion.section>
           )}
         </AnimatePresence>
