@@ -417,6 +417,10 @@ const TripDetail = () => {
                   )}
                 </div>
               </CityCollapsible>
+              {isMulti && cityIdx < allCities.length - 1 && (
+                <FlightConnector from={city} to={allCities[cityIdx + 1]} />
+              )}
+              </div>
             );
           })}
         </div>
