@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin } from "lucide-react";
+import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -581,6 +581,10 @@ const DashboardHome = () => {
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-none md:grid md:grid-cols-4 md:overflow-visible">
               {[
+                { icon: Plane, label: "Vuelos", sub: "En vivo", to: "/dashboard/vuelos" },
+                { icon: Hotel, label: "Hoteles", sub: "Reales", to: "/dashboard/hoteles" },
+                { icon: Shield, label: "Seguros", sub: "Viaje", to: "/dashboard/seguros" },
+                { icon: Gift, label: "Beneficios", sub: "PRO", to: "/dashboard/beneficios" },
                 { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar" },
                 { icon: ArrowLeftRight, label: "Conversor", sub: "Moneda", to: "/dashboard/convertidor" },
                 { icon: Crown, label: "Concierge", sub: "IA 24/7", to: "/dashboard/concierge" },

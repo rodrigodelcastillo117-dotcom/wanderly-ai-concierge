@@ -33,6 +33,10 @@ import TripJournal from "./pages/TripJournal";
 import TripSplit from "./pages/TripSplit";
 import Compare from "./pages/Compare";
 import Currency from "./pages/Currency";
+import TripFlights from "./pages/TripFlights";
+import TripHotels from "./pages/TripHotels";
+import Insurance from "./pages/Insurance";
+import Benefits from "./pages/Benefits";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +66,10 @@ const App = () => (
             <Route path="/dashboard/viajes/:id/split" element={<ProtectedRoute><TripSplit /></ProtectedRoute>} />
             <Route path="/dashboard/comparar" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
             <Route path="/dashboard/convertidor" element={<ProtectedRoute><Currency /></ProtectedRoute>} />
+            <Route path="/dashboard/vuelos" element={<ProtectedRoute><TripFlights /></ProtectedRoute>} />
+            <Route path="/dashboard/hoteles" element={<ProtectedRoute><TripHotels /></ProtectedRoute>} />
+            <Route path="/dashboard/seguros" element={<ProtectedRoute><Insurance /></ProtectedRoute>} />
+            <Route path="/dashboard/beneficios" element={<ProtectedRoute><Benefits /></ProtectedRoute>} />
             <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
             <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
             <Route path="/dashboard/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />

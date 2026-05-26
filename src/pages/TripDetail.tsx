@@ -374,6 +374,16 @@ const TripDetail = () => {
                               onToggle={() => setSelVuelo(i)}
                             >
                               {v.notas && <p>{v.notas}</p>}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const u = `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "Mexico City")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida}&return=${trip.fecha_regreso}&travelers=${trip.viajeros ?? 1}&auto=1`;
+                                  window.location.href = u;
+                                }}
+                                className="mt-2 text-xs px-3 py-1.5 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition"
+                              >
+                                Buscar vuelos reales y reservar →
+                              </button>
                             </ExpandableItemCard>
                           );
                         })}
