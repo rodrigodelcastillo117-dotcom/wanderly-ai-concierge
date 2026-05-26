@@ -418,9 +418,10 @@ const DashboardHome = () => {
 
 
         {/* MIS PRÓXIMOS VIAJES + SMART SPEND */}
-        <div className="grid lg:grid-cols-2 gap-5">
+        <div className="grid lg:grid-cols-2 gap-5 min-w-0">
           {/* Próximos viajes */}
-          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0">
+
             <div className="flex items-center justify-between gap-2 mb-5">
               <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Mis próximos viajes</p>
               <Link to="/dashboard/viajes" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
