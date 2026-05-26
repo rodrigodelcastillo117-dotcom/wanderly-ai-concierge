@@ -185,7 +185,15 @@ const TripDetail = () => {
         >
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>
-        <div className="absolute top-6 right-6">
+        <div className="absolute top-6 right-6 flex items-center gap-2">
+          <button
+            onClick={handleDownloadPdf}
+            disabled={generatingPdf}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5 text-primary" />
+            {generatingPdf ? "Generando…" : "Compartir PDF"}
+          </button>
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
         </div>
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 max-w-5xl">
