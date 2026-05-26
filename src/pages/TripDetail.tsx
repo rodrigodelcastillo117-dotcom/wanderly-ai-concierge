@@ -520,4 +520,109 @@ const Section = ({ icon: Icon, title, hint, children }: any) => (
   </motion.section>
 );
 
+const MODE_ICON: Record<string, any> = {
+  vuelo: Plane,
+  tren: Train,
+  roadtrip: Car,
+  bus: Bus,
+  ferry: Ship,
+  vuelo_interno: Plane,
+};
+
+const MODE_LABEL: Record<string, string> = {
+  vuelo: "Vuelo",
+  tren: "Tren",
+  roadtrip: "Roadtrip",
+  bus: "Bus",
+  ferry: "Ferry",
+  vuelo_interno: "Vuelo interno",
+};
+
+const ArrivalOptionCard = ({ option, active, onClick }: { option: any; active: boolean; onClick: () => void }) => {
+  const Icon = MODE_ICON[option.mode] || Plane;
+  const modeLabel = MODE_LABEL[option.mode] || "Transporte";
+  return (
+    <div
+      onClick={onClick}
+      className={`relative rounded-xl p-5 cursor-pointer transition border ${
+        active ? "border-primary ring-1 ring-primary/40 bg-primary/5" : "border-border/60 bg-surface/40 hover:border-primary/50"
+      }`}
+    >
+      {active && (
+        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+          <Check className="w-3.5 h-3.5" />
+        </div>
+      )}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center">
+          <Icon className="w-4 h-4 text-primary" />
+        </div>
+        <div>
+          <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{modeLabel}{option.tier ? ` · ${option.tier}` : ""}</p>
+          <p className="font-medium text-sm">{option.aerolinea || option.provider}</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs mb-2">
+        {option.from && (
+          <span className="inline-flex items-center gap-1 text-muted-foreground">
+            {option.from} <ArrowRight className="w-3 h-3" /> {option.to || option.ciudad}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2 mb-3 text-xs">
+        {option.duracion && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{option.duracion}</span>}
+        {option.escalas && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{option.escalas}</span>}
+      </div>
+      {option.precio_por_persona > 0 && (
+        <p className="font-medium text-base">
+          {fmtMXN(option.precio_por_persona)}
+          <span className="text-xs text-muted-foreground ml-1">/ persona</span>
+        </p>
+      )}
+      {option.notas && <p className="text-xs text-muted-foreground mt-2 italic">{option.notas}</p>}
+    </div>
+  );
+};
+
+const HotelCard = ({ hotel, city, active, onClick }: { hotel: any; city: string; active: boolean; onClick: () => void }) => {
+  const img = useCityImage(`${hotel.nombre} ${city} hotel`);
+  return (
+    <div
+      onClick={onClick}
+      className={`relative rounded-xl overflow-hidden cursor-pointer transition border ${
+        active ? "border-primary ring-1 ring-primary/40" : "border-border/60 hover:border-primary/50"
+      }`}
+    >
+      <div className="relative h-32 w-full overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: img
+              ? `url(${img})`
+              : "linear-gradient(135deg, hsl(var(--surface)), hsl(var(--card)))",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
+        {active && (
+          <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+            <Check className="w-3.5 h-3.5" />
+          </div>
+        )}
+        <p className="absolute top-3 left-3 text-[10px] tracking-[0.2em] uppercase text-primary bg-background/70 backdrop-blur-sm px-2 py-0.5 rounded-full border border-primary/30">
+          {hotel.tier || hotel.tipo}
+        </p>
+      </div>
+      <div className="p-5 bg-card">
+        <p className="font-display text-lg mb-1 leading-tight">{hotel.nombre}</p>
+        <p className="text-xs text-muted-foreground mb-2">{hotel.barrio} · ★ {hotel.rating}</p>
+        <p className="font-medium text-sm mb-2">
+          {fmtMXN(hotel.precio_por_noche)}
+          <span className="text-xs text-muted-foreground ml-1">/ noche</span>
+        </p>
+        <p className="text-xs text-muted-foreground italic line-clamp-3">{hotel.por_que}</p>
+      </div>
+    </div>
+  );
+};
+
 export default TripDetail;
