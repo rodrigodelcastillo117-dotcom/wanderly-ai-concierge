@@ -33,43 +33,54 @@ export type RouteIntent =
   | { mode: "single"; destinations: [string] }
   | { mode: "multi"; destinations: string[] };
 
+const titleCase = (s: string) =>
+  s.split(/\s+/).map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w)).join(" ");
+
+const dedupe = (arr: string[]) =>
+  Array.from(new Set(arr.map((s) => s.trim().toLowerCase()))).map(titleCase).filter(Boolean);
+
 export const detectRouteIntent = (input: string): RouteIntent => {
   const text = input.trim();
   if (!text) return { mode: "single", destinations: [""] as [string] };
 
-  // 1) Intentar separar por conectores explícitos
+  // 1) Conectores explícitos (→, "luego", "después")
   for (const re of SEPARATORS) {
     if (re.test(text)) {
       const parts = text.split(re).map(cleanCity).filter(Boolean);
-      const cities = parts.filter(looksLikeCity);
-      if (cities.length >= 2) {
-        return { mode: "multi", destinations: dedupe(cities) };
-      }
+      if (parts.length >= 2) return { mode: "multi", destinations: dedupe(parts) };
     }
   }
 
-  // 2) Patrón "de X a Y" / "X a Y a Z" sin conectores fuertes
+  // 2) "de X a Y a Z"
   const fromTo = text.match(
     /(?:de|desde)?\s*([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ\s]+?)\s+a\s+([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ\s]+?)(?:\s+a\s+([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ\s]+?))?(?:[\s,.!?]|$)/,
   );
   if (fromTo) {
     const cities = [fromTo[1], fromTo[2], fromTo[3]].filter(Boolean).map(cleanCity).filter(looksLikeCity);
-    if (cities.length >= 2) {
-      return { mode: "multi", destinations: dedupe(cities) };
-    }
+    if (cities.length >= 2) return { mode: "multi", destinations: dedupe(cities) };
   }
 
-  // 3) Lista por comas con varios tokens capitalizados (>=2 ciudades)
-  if (text.includes(",")) {
-    const parts = text.split(/\s*,\s*/).map(cleanCity).filter(looksLikeCity);
-    if (parts.length >= 2) {
-      return { mode: "multi", destinations: dedupe(parts) };
-    }
+  // 3) Lista por comas / "y" / "+" / "/" — case-insensitive
+  // Cubre "Roma venecia y florencia", "tokio, kioto y osaka", "París + Roma"
+  const cleaned = text.replace(/^.*?(?:ir|viajar|visitar|conocer|pasar(?:e|é)?)\s+(?:a|al|en|por)\s+/i, "");
+  const flexible = cleaned
+    .split(/\s*,\s*|\s+y\s+|\s*\+\s*|\s*\/\s*/i)
+    .map(cleanCity)
+    .filter(Boolean)
+    .filter((t) => !STOPWORDS.test(t));
+  if (flexible.length >= 2) return { mode: "multi", destinations: dedupe(flexible) };
+
+  // 4) 2-4 tokens "ciudad ciudad ciudad" sin conectores
+  const bare = cleaned.split(/\s+/).map(cleanCity).filter(Boolean);
+  if (
+    bare.length >= 2 &&
+    bare.length <= 4 &&
+    bare.every((w) => /^[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}$/.test(w) && !STOPWORDS.test(w))
+  ) {
+    return { mode: "multi", destinations: dedupe(bare) };
   }
 
-  // Default: single destino. Limpiamos prefijos comunes.
-  const single = cleanCity(text.replace(/^.*?(?:ir|viajar|visitar|conocer)\s+(?:a|al|en)\s+/i, ""));
+  // Default: single
+  const single = cleanCity(cleaned);
   return { mode: "single", destinations: [single || text] as [string] };
 };
-
-const dedupe = (arr: string[]) => Array.from(new Set(arr.map((s) => s.trim()))).filter(Boolean);
