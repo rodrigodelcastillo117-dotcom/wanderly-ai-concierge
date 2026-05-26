@@ -324,7 +324,7 @@ const DashboardHome = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: i * 0.05 }}
                   whileHover={{ y: -4 }}
-                  onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}`)}
+                  onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}${d.country ? `&pais=${encodeURIComponent(d.country)}` : ""}&autoCheapest=1`)}
                   className="cursor-pointer group"
                 >
                   <div className="relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-white/[0.05]">
