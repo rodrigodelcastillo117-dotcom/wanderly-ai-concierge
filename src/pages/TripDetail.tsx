@@ -9,6 +9,7 @@ import { EditableBudget } from "@/components/EditableBudget";
 import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
 import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
+import { LiveTripQuote } from "@/components/LiveTripQuote";
 import santorini from "@/assets/hero-santorini.jpg";
 
 const fmtMXN = (n: number) =>
