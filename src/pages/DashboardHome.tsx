@@ -117,6 +117,22 @@ const DashboardHome = () => {
     return () => clearInterval(id);
   }, []);
 
+  // Hero reel carousel — rotates every 10s with crossfade
+  useEffect(() => {
+    const rotate = () => {
+      setReelFading(true);
+      setTimeout(() => {
+        setReelIdx((i) => (i + 1) % HERO_REELS.length);
+        setReelFading(false);
+      }, 600);
+    };
+    rotate(); // start immediately so first change is at 10s
+    reelTimer.current = setInterval(rotate, REEL_DURATION);
+    return () => {
+      if (reelTimer.current) clearInterval(reelTimer.current);
+    };
+  }, []);
+
   const toggleFav = (n: string) => {
     setFavorites((prev) => {
       const next = new Set(prev);
