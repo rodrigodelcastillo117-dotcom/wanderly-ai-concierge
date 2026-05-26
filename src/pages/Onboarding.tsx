@@ -303,12 +303,7 @@ const Onboarding = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border/40">
         <div className="container mx-auto py-5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-gradient-gold flex items-center justify-center">
-              <Compass className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-lg">IATOS</span>
-          </div>
+          <img src={iatosLogo} alt="IATOS" className="h-8 w-auto object-contain" />
           <span className="text-xs text-muted-foreground tracking-wider uppercase">
             Paso {step + 1} de {steps.length}
           </span>
