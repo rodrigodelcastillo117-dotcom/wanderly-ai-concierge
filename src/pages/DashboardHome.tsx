@@ -186,6 +186,22 @@ const DashboardHome = () => {
   const today = now.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const time = now.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase().replace(/\./g, "");
 
+  // Viaje activo: hoy entre fecha_salida y fecha_regreso
+  const activeTrip = trips.find((t) => {
+    if (!t.fecha_salida || !t.fecha_regreso) return false;
+    const s = new Date(t.fecha_salida + "T00:00:00").getTime();
+    const e = new Date(t.fecha_regreso + "T23:59:59").getTime();
+    const n = Date.now();
+    return n >= s && n <= e;
+  });
+  const upcomingTrip = !activeTrip ? trips.find((t) => {
+    if (!t.fecha_salida) return false;
+    const s = new Date(t.fecha_salida + "T00:00:00").getTime();
+    return s > Date.now() && s - Date.now() < 7 * 86400000;
+  }) : null;
+
+
+
 
   return (
     <DashboardLayout>
