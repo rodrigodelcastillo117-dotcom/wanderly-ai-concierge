@@ -621,6 +621,33 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_collaborators: {
+        Row: {
+          created_at: string
+          id: string
+          invited_by: string
+          role: string
+          trip_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invited_by: string
+          role?: string
+          trip_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invited_by?: string
+          role?: string
+          trip_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trips: {
         Row: {
           analisis_ai: string | null
@@ -902,6 +929,22 @@ export type Database = {
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
       ensure_ai_prefs: { Args: { p_user: string }; Returns: undefined }
       gen_invite_code: { Args: never; Returns: string }
+      has_trip_access: {
+        Args: { p_trip: string; p_user: string }
+        Returns: boolean
+      }
+      invitar_amigo_viaje: {
+        Args: { p_friend_id: string; p_trip_id: string }
+        Returns: Json
+      }
+      is_trip_collaborator: {
+        Args: { p_trip: string; p_user: string }
+        Returns: boolean
+      }
+      is_trip_owner: {
+        Args: { p_trip: string; p_user: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
