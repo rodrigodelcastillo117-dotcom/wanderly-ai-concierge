@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Perfil
+    // Perfil — combinamos travel_profiles (onboarding rico) + ai_user_preferences + profiles
     let perfilLine = "Usuario sin perfil — equilibrio premium.";
     try {
       const authHeader = req.headers.get("Authorization") ?? "";
@@ -265,11 +265,40 @@ Deno.serve(async (req) => {
         );
         const { data: { user } } = await supa.auth.getUser(token);
         if (user) {
-          const { data: prefs } = await supa
-            .from("ai_user_preferences").select("*").eq("user_id", user.id).maybeSingle();
-          if (prefs) {
-            perfilLine = `Perfil: ritmo=${prefs.ritmo_viaje ?? "—"} | presupuesto=${prefs.nivel_presupuesto ?? "—"} | comida=${(prefs.estilo_comida ?? []).join(",") || "—"} | restricciones=${(prefs.restricciones_alimentarias ?? []).join(",") || "ninguna"} | hospedaje=${(prefs.hospedaje_preferencias ?? []).join(",") || "—"} | actividades=${(prefs.actividades_tarde ?? []).join(",") || "—"} | compañeros=${prefs.companeros_viaje ?? "—"}`;
-          }
+          const [{ data: prefs }, { data: tp }, { data: prof }] = await Promise.all([
+            supa.from("ai_user_preferences").select("*").eq("user_id", user.id).maybeSingle(),
+            supa.from("travel_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+            supa.from("profiles").select("full_name, ciudad_origen, nationality").eq("id", user.id).maybeSingle(),
+          ]);
+          // merge: travel_profiles tiene la data más rica del onboarding
+          const estilos = (tp?.estilo_viaje ?? []).join(", ");
+          const intereses = (tp?.intereses ?? []).join(", ");
+          const presupuesto = tp?.presupuesto_rango ?? prefs?.nivel_presupuesto ?? "no especificado";
+          const ritmo = tp?.ritmo_viaje ?? prefs?.ritmo_viaje ?? "equilibrado";
+          const comida = [...(tp?.preferencias_comida ?? []), ...(prefs?.estilo_comida ?? [])].join(", ") || "abierto";
+          const aloj = [...(tp?.tipo_alojamiento_preferido ?? []), ...(prefs?.hospedaje_preferencias ?? [])].join(", ") || "flexible";
+          const alergias = [...(tp?.alergias_restricciones ?? []), ...(prefs?.restricciones_alimentarias ?? [])].join(", ") || "ninguna";
+          const acomp = tp?.acompanantes_tipico ?? prefs?.companeros_viaje ?? "no especificado";
+          const actividades = (prefs?.actividades_tarde ?? []).join(", ") || "varias";
+          const idiomas = (tp?.idiomas_hablados ?? []).join(", ") || "español";
+          const notas = tp?.notas_adicionales ?? "";
+          const visitados = (tp?.destinos_visitados ?? []).slice(0, 6).join(", ");
+          const pendientes = (tp?.destinos_pendientes ?? []).slice(0, 6).join(", ");
+          const nombre = prof?.full_name?.split(" ")[0] ?? "viajero";
+
+          perfilLine = `PERFIL DEL VIAJERO (úsalo para personalizar TODO: hoteles, restaurantes, experiencias y narrativa):
+- Nombre: ${nombre} · Origen: ${prof?.ciudad_origen ?? "—"} · Nacionalidad: ${prof?.nationality ?? "—"}
+- Estilos preferidos: ${estilos || "no especificado"}
+- Presupuesto: ${presupuesto} · Ritmo: ${ritmo}
+- Intereses: ${intereses || "varios"}
+- Comida: ${comida} · Restricciones: ${alergias}
+- Alojamiento preferido: ${aloj}
+- Acompañantes: ${acomp} · Idiomas: ${idiomas}
+- Actividades favoritas: ${actividades}
+${visitados ? `- Ya visitó: ${visitados} (NO repitas patrones obvios)` : ""}
+${pendientes ? `- Lugares en su lista: ${pendientes}` : ""}
+${notas ? `- Notas personales: ${notas}` : ""}
+INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil. Hoteles que matcheen el estilo (boutique vs resort vs airbnb), restaurantes alineados al gusto culinario, experiencias que respeten ritmo y acompañantes. Evita recomendaciones genéricas.`;
         }
       }
     } catch (e) {
