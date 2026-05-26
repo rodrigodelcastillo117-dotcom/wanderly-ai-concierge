@@ -9,6 +9,7 @@ import { EditableBudget } from "@/components/EditableBudget";
 import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
 import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
+import { LiveTripQuote } from "@/components/LiveTripQuote";
 import santorini from "@/assets/hero-santorini.jpg";
 
 const fmtMXN = (n: number) =>
@@ -154,13 +155,15 @@ const TripDetail = () => {
       <div className="p-6 md:p-12 max-w-5xl space-y-12">
         {/* Total + Análisis narrativo */}
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <div className="glass-card rounded-2xl p-8 md:p-10 mb-8">
-            <p className="text-xs tracking-[0.2em] uppercase text-primary mb-2">Inversión total estimada</p>
-            <p className="font-display text-5xl md:text-6xl gold-text mb-4">{fmtMXN(computedTotal)}</p>
-            <p className="text-sm text-muted-foreground">
-              Para {viajeros} {viajeros === 1 ? "persona" : "personas"} · {dias} días · basado en tus selecciones
-            </p>
-          </div>
+          <LiveTripQuote
+            origin={trip.ciudad_origen}
+            destination={isMulti ? destinationsMulti[0] : trip.destino}
+            depart={trip.fecha_salida}
+            return_date={trip.fecha_regreso}
+            nights={noches}
+            travelers={viajeros}
+            fallbackMxn={computedTotal}
+          />
           {trip.analisis_ai && (
             <div className="prose prose-invert max-w-none">
               <p className="text-lg leading-relaxed text-foreground/90 whitespace-pre-line">{trip.analisis_ai}</p>
