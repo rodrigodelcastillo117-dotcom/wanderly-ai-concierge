@@ -402,12 +402,7 @@ const TripDetail = () => {
               <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
             </summary>
             <div className="px-5 pb-5 pt-1 border-t border-border/40">
-              <EditableBudget
-                key={`${selVuelo}-${selHospedaje}-${nochesEfectivas}-${Array.from(selTours).sort().join(",")}`}
-                tripId={trip.id}
-                initialDesglose={computedDesglose}
-                initialTotal={computedTotal}
-              />
+              <ReadonlyBudget desglose={computedDesglose} total={computedTotal} />
             </div>
           </details>
         )}
