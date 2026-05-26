@@ -172,36 +172,36 @@ export default function Social() {
           </TabsList>
 
           {/* AMIGOS */}
-          <TabsContent value="amigos" className="mt-6 space-y-3">
+          <TabsContent value="amigos" className="mt-4 md:mt-6 space-y-3">
             {loadingAmigos ? (
               [...Array(3)].map((_, i) => (
                 <div key={i} className="h-20 rounded-2xl bg-card/40 border border-white/[0.04] animate-pulse" />
               ))
             ) : amigos.length === 0 ? (
-              <div className="glass-card rounded-3xl p-12 text-center border border-primary/10">
+              <div className="glass-card rounded-3xl p-8 md:p-12 text-center border border-primary/10">
                 <Sparkles className="w-10 h-10 text-primary mx-auto mb-4 opacity-70" />
-                <p className="font-display text-2xl mb-2">Aún no conectas con nadie</p>
-                <p className="text-muted-foreground text-sm">Invita a tu primer compañero de viaje desde la pestaña "Conectar".</p>
+                <p className="font-display text-xl md:text-2xl mb-2">Aún no conectas con nadie</p>
+                <p className="text-muted-foreground text-sm">Invita a tu primer compañero de viaje desde "Conectar".</p>
               </div>
             ) : (
               amigos.map((a) => (
                 <div key={a.amigo_id}
-                  className="glass-card rounded-2xl p-4 flex items-center gap-4 border border-white/[0.04] hover:border-primary/20 transition">
-                  <div className="w-12 h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shrink-0 overflow-hidden">
+                  className="glass-card rounded-2xl p-3 md:p-4 flex items-center gap-3 md:gap-4 border border-white/[0.04] hover:border-primary/20 transition">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shrink-0 overflow-hidden text-sm md:text-base">
                     {a.avatar_url
                       ? <img src={a.avatar_url} alt="" className="w-full h-full object-cover" />
                       : (a.full_name?.[0] ?? "?").toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{a.full_name ?? a.username ?? "Viajero"}</p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="font-medium text-sm md:text-base truncate">{a.full_name ?? a.username ?? "Viajero"}</p>
+                    <p className="text-[11px] md:text-xs text-muted-foreground truncate">
                       {a.compat?.detalles?.[0] ?? (a.compat ? "Sin coincidencias aún" : "Calculando compatibilidad…")}
                     </p>
                   </div>
-                  {a.compat && <CompatRing score={a.compat.score} />}
-                  <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10"
+                  {a.compat && <div className="hidden sm:block"><CompatRing score={a.compat.score} /></div>}
+                  <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10 text-xs md:text-sm px-2 md:px-3"
                     onClick={() => setPerfilOpen(a)}>
-                    Ver perfil
+                    Ver
                   </Button>
                 </div>
               ))
