@@ -15,15 +15,14 @@ const links = [
   { to: "/dashboard/concierge", icon: Mail, label: "AI Concierge" },
 ];
 
-// Mobile bottom nav — icons only, centered gold (+)
+// Mobile bottom nav — 2 left + centered (+) + 2 right, with labels
 const mobileLeft = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
   { to: "/dashboard/perfil", icon: User, label: "Perfil" },
-  { to: "/dashboard/concierge", icon: Mail, label: "Mensajes" },
 ];
 const mobileRight = [
   { to: "/dashboard/descubre", icon: Globe, label: "Descubre" },
-  { to: "/dashboard/cercanos", icon: Users, label: "Comunidad" },
+  { to: "/dashboard/cercanos", icon: Users, label: "Cercanos" },
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
