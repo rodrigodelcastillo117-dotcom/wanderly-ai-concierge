@@ -193,37 +193,111 @@ const TripDetail = () => {
           </Section>
         )}
 
-        {/* Hospedaje */}
-        {trip.hospedaje_json?.length > 0 && (
-          <Section icon={Hotel} title="Hospedaje" hint="Selecciona uno">
-            <div className="grid md:grid-cols-3 gap-4">
-              {trip.hospedaje_json.map((h: any, i: number) => {
-                const active = selHospedaje === i;
+        {/* Transporte interno (solo multi-destino) */}
+        {isMulti && logistics?.internal_transport?.length > 0 && (
+          <Section icon={Train} title="Transporte entre ciudades" hint="Cómo te mueves de una a otra">
+            <div className="space-y-3">
+              {logistics.internal_transport.map((leg: any, i: number) => {
+                const Icon = leg.mode === "tren" ? Train : leg.mode === "roadtrip" ? Car : leg.mode === "vuelo_interno" ? Plane : Mountain;
                 return (
-                  <div
-                    key={i}
-                    onClick={() => setSelHospedaje(i)}
-                    className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}
-                  >
-                    {active && <SelectedBadge />}
-                    <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{h.tipo}</p>
-                    <p className="font-display text-xl mb-1">{h.nombre}</p>
-                    <p className="text-sm text-muted-foreground mb-3">{h.barrio} · ★ {h.rating}</p>
-                    <p className="font-medium mb-3">{fmtMXN(h.precio_por_noche)}<span className="text-xs text-muted-foreground ml-1">/ noche</span></p>
-                    <p className="text-xs text-muted-foreground italic">{h.por_que}</p>
+                  <div key={i} className="glass-card rounded-xl p-5">
+                    <div className="flex items-center gap-3 text-sm mb-2">
+                      <span className="font-mono text-primary text-xs">{String(i + 1).padStart(2, "0")}</span>
+                      <span className="text-muted-foreground">{leg.from}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="font-medium">{leg.to}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                      <span className="px-2.5 py-1 rounded-full bg-surface border border-border inline-flex items-center gap-1.5">
+                        <Icon className="w-3 h-3 text-primary" />
+                        {leg.provider || leg.mode}{leg.scenic ? " · escénico" : ""}
+                      </span>
+                      {leg.duration && <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{leg.duration}</span>}
+                      {leg.price_per_person_usd != null && (
+                        <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary">
+                          ~${Math.round(leg.price_per_person_usd)} USD / persona
+                        </span>
+                      )}
+                    </div>
+                    {leg.suggested_stops?.length > 0 && (
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        <span className="text-primary">Paradas sugeridas: </span>
+                        {leg.suggested_stops.map((s: any, j: number) => (
+                          <span key={j}>{j > 0 ? " · " : ""}{s.name}{s.why ? ` (${s.why})` : ""}</span>
+                        ))}
+                      </div>
+                    )}
+                    {leg.luggage_note && (
+                      <p className="text-xs text-muted-foreground mt-2 italic">🧳 {leg.luggage_note}</p>
+                    )}
                   </div>
                 );
               })}
-              <SkipCard
-                active={selHospedaje === -1}
-                onClick={() => setSelHospedaje(-1)}
-                title="Ya tengo dónde quedarme"
-                subtitle="Casa de un amigo, familia, Airbnb propio…"
-              />
             </div>
+            {logistics.local_transport_tips?.length > 0 && (
+              <div className="grid sm:grid-cols-2 gap-3 mt-4">
+                {logistics.local_transport_tips.map((t: any, i: number) => (
+                  <div key={i} className="glass-card rounded-xl p-4 text-sm">
+                    <p className="text-primary text-xs tracking-wider uppercase mb-1">{t.city}</p>
+                    <p className="text-foreground/90">{t.recommendation}</p>
+                    {t.est_daily_usd != null && (
+                      <p className="text-xs text-muted-foreground mt-1">~${Math.round(t.est_daily_usd)} USD / día</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
 
-            {/* Selector de noches */}
-            {selHospedaje >= 0 && noches > 1 && (
+        {/* Hospedaje */}
+        {trip.hospedaje_json?.length > 0 && (
+          <Section icon={Hotel} title="Hospedaje" hint={isMulti ? "3 opciones por ciudad" : "Selecciona uno"}>
+            {isMulti ? (
+              <div className="space-y-8">
+                {groupByCity(trip.hospedaje_json, destinationsMulti).map(([city, items]) => (
+                  <div key={city}>
+                    <p className="text-primary text-xs tracking-[0.25em] uppercase mb-3">{city}</p>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      {items.map((h: any) => {
+                        const i = trip.hospedaje_json.indexOf(h);
+                        const active = selHospedaje === i;
+                        return (
+                          <div key={i} onClick={() => setSelHospedaje(i)} className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}>
+                            {active && <SelectedBadge />}
+                            <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{h.tier || h.tipo}</p>
+                            <p className="font-display text-xl mb-1">{h.nombre}</p>
+                            <p className="text-sm text-muted-foreground mb-3">{h.barrio} · ★ {h.rating}</p>
+                            <p className="font-medium mb-3">{fmtMXN(h.precio_por_noche)}<span className="text-xs text-muted-foreground ml-1">/ noche</span></p>
+                            <p className="text-xs text-muted-foreground italic">{h.por_que}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-3 gap-4">
+                {trip.hospedaje_json.map((h: any, i: number) => {
+                  const active = selHospedaje === i;
+                  return (
+                    <div key={i} onClick={() => setSelHospedaje(i)} className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}>
+                      {active && <SelectedBadge />}
+                      <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{h.tipo}</p>
+                      <p className="font-display text-xl mb-1">{h.nombre}</p>
+                      <p className="text-sm text-muted-foreground mb-3">{h.barrio} · ★ {h.rating}</p>
+                      <p className="font-medium mb-3">{fmtMXN(h.precio_por_noche)}<span className="text-xs text-muted-foreground ml-1">/ noche</span></p>
+                      <p className="text-xs text-muted-foreground italic">{h.por_que}</p>
+                    </div>
+                  );
+                })}
+                <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)} title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, familia, Airbnb propio…" />
+              </div>
+            )}
+
+            {/* Selector de noches (solo single) */}
+            {!isMulti && selHospedaje >= 0 && noches > 1 && (
               <div className="mt-5 glass-card rounded-xl p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div>
@@ -242,30 +316,28 @@ const TripDetail = () => {
                   onChange={(e) => setNochesHospedaje(Number(e.target.value))}
                   className="w-full accent-primary"
                 />
-                {nochesEfectivas < noches && (
-                  <p className="text-xs text-primary mt-2">
-                    Las otras {noches - nochesEfectivas} noche{noches - nochesEfectivas === 1 ? "" : "s"} no suman al hospedaje.
-                  </p>
-                )}
               </div>
             )}
           </Section>
         )}
 
         {/* Itinerario */}
-        {trip.itinerario_json?.length > 0 && (
+        {itinDays.length > 0 && (
           <Section icon={Calendar} title="Itinerario día por día">
             <div className="space-y-3">
-              {trip.itinerario_json.map((d: any) => (
+              {itinDays.map((d: any) => (
                 <details key={d.dia} className="glass-card rounded-xl group">
                   <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
                     <div className="flex items-center gap-4">
                       <span className="font-display text-2xl gold-text w-10">{String(d.dia).padStart(2, "0")}</span>
-                      <span className="font-medium">{d.titulo}</span>
+                      <div>
+                        {d.ciudad && <p className="text-[10px] tracking-widest uppercase text-primary">{d.ciudad}</p>}
+                        <span className="font-medium">{d.titulo}</span>
+                      </div>
                     </div>
                   </summary>
                   <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-3 text-sm">
-                    <div><span className="text-primary text-xs tracking-wider uppercase">Mañana</span><p className="mt-1 text-muted-foreground">{d.mañana}</p></div>
+                    <div><span className="text-primary text-xs tracking-wider uppercase">Mañana</span><p className="mt-1 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
                     <div><span className="text-primary text-xs tracking-wider uppercase">Tarde</span><p className="mt-1 text-muted-foreground">{d.tarde}</p></div>
                     <div><span className="text-primary text-xs tracking-wider uppercase">Noche</span><p className="mt-1 text-muted-foreground">{d.noche}</p></div>
                   </div>
@@ -277,45 +349,90 @@ const TripDetail = () => {
 
         {/* Tours / Experiencias */}
         {trip.tours_json?.length > 0 && (
-          <Section icon={Compass} title="Experiencias" hint="Selecciona las que quieras">
-            <div className="grid sm:grid-cols-2 gap-4">
-              {trip.tours_json.map((t: any, i: number) => {
-                const active = selTours.has(i);
-                return (
-                  <div
-                    key={i}
-                    onClick={() => toggleTour(i)}
-                    className={`glass-card rounded-xl p-5 ${selectedClass(active)}`}
-                  >
-                    {active && <SelectedBadge />}
-                    <div className="flex items-start justify-between mb-2 pr-8">
-                      <p className="font-medium">{t.nombre}</p>
-                      <span className="text-xs text-primary whitespace-nowrap">{fmtMXN(t.precio_por_persona)}</span>
+          <Section icon={Compass} title="Experiencias" hint={isMulti ? "Por ciudad — selecciona las que quieras" : "Selecciona las que quieras"}>
+            {isMulti ? (
+              <div className="space-y-8">
+                {groupByCity(trip.tours_json, destinationsMulti).map(([city, items]) => (
+                  <div key={city}>
+                    <p className="text-primary text-xs tracking-[0.25em] uppercase mb-3">{city}</p>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {items.map((t: any) => {
+                        const i = trip.tours_json.indexOf(t);
+                        const active = selTours.has(i);
+                        return (
+                          <div key={i} onClick={() => toggleTour(i)} className={`glass-card rounded-xl p-5 ${selectedClass(active)}`}>
+                            {active && <SelectedBadge />}
+                            <div className="flex items-start justify-between mb-2 pr-8">
+                              <p className="font-medium">{t.nombre}</p>
+                              {t.precio_por_persona > 0 && <span className="text-xs text-primary whitespace-nowrap">{fmtMXN(t.precio_por_persona)}</span>}
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-2">{t.duracion}</p>
+                            <p className="text-sm text-muted-foreground italic">{t.por_que}</p>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">{t.duracion}</p>
-                    <p className="text-sm text-muted-foreground italic">{t.por_que}</p>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {trip.tours_json.map((t: any, i: number) => {
+                  const active = selTours.has(i);
+                  return (
+                    <div key={i} onClick={() => toggleTour(i)} className={`glass-card rounded-xl p-5 ${selectedClass(active)}`}>
+                      {active && <SelectedBadge />}
+                      <div className="flex items-start justify-between mb-2 pr-8">
+                        <p className="font-medium">{t.nombre}</p>
+                        <span className="text-xs text-primary whitespace-nowrap">{fmtMXN(t.precio_por_persona)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-2">{t.duracion}</p>
+                      <p className="text-sm text-muted-foreground italic">{t.por_que}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Section>
         )}
 
         {/* Restaurantes */}
         {trip.restaurantes_json?.length > 0 && (
-          <Section icon={Utensils} title="Mesa reservada">
-            <div className="grid sm:grid-cols-2 gap-4">
-              {trip.restaurantes_json.map((r: any, i: number) => (
-                <div key={i} className="glass-card rounded-xl p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <p className="font-medium">{r.nombre}</p>
-                    <span className="text-xs text-primary">{r.rango_precio}</span>
+          <Section icon={Utensils} title="Mesa reservada" hint={isMulti ? "Por ciudad" : undefined}>
+            {isMulti ? (
+              <div className="space-y-8">
+                {groupByCity(trip.restaurantes_json, destinationsMulti).map(([city, items]) => (
+                  <div key={city}>
+                    <p className="text-primary text-xs tracking-[0.25em] uppercase mb-3">{city}</p>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {items.map((r: any, i: number) => (
+                        <div key={i} className="glass-card rounded-xl p-5">
+                          <div className="flex items-start justify-between mb-2">
+                            <p className="font-medium">{r.nombre.replace(` · ${city}`, "")}</p>
+                            <span className="text-xs text-primary">{r.rango_precio}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-2">{r.cocina}</p>
+                          <p className="text-sm text-muted-foreground italic">{r.por_que}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">{r.cocina}</p>
-                  <p className="text-sm text-muted-foreground italic">{r.por_que}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {trip.restaurantes_json.map((r: any, i: number) => (
+                  <div key={i} className="glass-card rounded-xl p-5">
+                    <div className="flex items-start justify-between mb-2">
+                      <p className="font-medium">{r.nombre}</p>
+                      <span className="text-xs text-primary">{r.rango_precio}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">{r.cocina}</p>
+                    <p className="text-sm text-muted-foreground italic">{r.por_que}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
         )}
 
