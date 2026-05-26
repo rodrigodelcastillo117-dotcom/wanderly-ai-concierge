@@ -135,10 +135,21 @@ export const CityCollapsible = ({
         </div>
       </button>
 
-      {/* Mount-stable content: hidden via CSS so siblings & children keep their state */}
-      <div hidden={!open}>
+      {/* Smooth animated expand/collapse — children stay mounted to preserve state */}
+      <motion.div
+        initial={false}
+        animate={{
+          height: open ? "auto" : 0,
+          opacity: open ? 1 : 0,
+        }}
+        transition={{
+          height: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+          opacity: { duration: open ? 0.45 : 0.25, ease: "easeOut", delay: open ? 0.1 : 0 },
+        }}
+        style={{ overflow: "hidden", willChange: "height, opacity" }}
+      >
         <div className="p-5 md:p-6 border-t border-border/60">{children}</div>
-      </div>
+      </motion.div>
     </div>
   );
 };
