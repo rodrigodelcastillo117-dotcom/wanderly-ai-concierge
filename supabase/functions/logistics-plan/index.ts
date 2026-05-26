@@ -1,12 +1,8 @@
-// Edge function: logistics-plan
-// Genera la logística COMPLETA de un viaje multi-destino:
-// - vuelos internacionales (origen ↔ destinos)
-// - transporte interno (trenes, roadtrips con paradas, ferries, vuelos internos)
-// - 3 opciones de hospedaje POR CIUDAD personalizadas al estilo del usuario
-// - 4-6 restaurantes POR CIUDAD según preferencias gastronómicas
-// - 4-6 experiencias/tours POR CIUDAD según intereses
-// - itinerario día por día distribuido entre ciudades
-// - costos obligatorios (city taxes, visas, buffer cambiario 3%)
+// Edge function: logistics-plan (PARALLEL VERSION)
+// Genera la logística de un viaje multi-destino en paralelo:
+// - 1 llamada para vuelos internacionales + transporte interno + itinerario día por día
+// - N llamadas en paralelo (una por ciudad) para hospedaje + restaurantes + experiencias + arrival_options
+// Esto evita el timeout de 150s al no pedir el JSON gigante en una sola llamada.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -28,26 +24,39 @@ interface Body {
   };
 }
 
-const SYSTEM = `Eres un consultor de viajes de lujo (IATOS) que diseña travesías multi-destino completas.
-Devuelves SIEMPRE un JSON estricto siguiendo el esquema indicado, con datos REALISTAS y específicos:
-- Aerolíneas, operadores de tren y hoteles deben ser REALES (Italo, Renfe AVE, Shinkansen, Eurostar, ÖBB Nightjet, Aman, Belmond, Soho House, etc.)
-- Precios en USD por persona, coherentes con el mercado actual
-- Personaliza hospedaje, restaurantes y experiencias al perfil del usuario (estilo, presupuesto, gastronomía, intereses)
-- 3 opciones de hospedaje POR CIUDAD: una ahorro, una equilibrio, una premium — todas alineadas al estilo del usuario
-- 4-6 restaurantes POR CIUDAD que matcheen estilo_comida + restricciones
-- 4-6 experiencias POR CIUDAD que matcheen actividades_tarde + intereses
-- Itinerario día por día distribuyendo las noches entre ciudades de manera lógica
+const MODEL = "google/gemini-2.5-flash";
+const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-REGLA CRÍTICA DE TRANSPORTE ENTRE CIUDADES (arrival_options):
-- Para CADA ciudad de destino debes proponer entre 2 y 4 maneras DISTINTAS de llegar desde el punto anterior (origen para la primera ciudad, ciudad anterior para las siguientes).
-- En EUROPA y rutas cortas (<800km) SIEMPRE incluye al menos UNA opción de tren de alta velocidad (Italo/Frecciarossa Roma-Florencia-Venecia 1h30-2h ~$40-90; Renfe AVE Madrid-Barcelona 2h30 ~$60-120; SNCF TGV; Eurostar; ÖBB Nightjet) — frecuentemente es MÁS BARATO y rápido que volar.
-- En Japón usa Shinkansen JR Pass.
-- Cuando exista, también ofrece opción bus low-cost (FlixBus) como tier económico.
-- Solo recomienda vuelo interno si la distancia >800km O si no hay tren directo razonable.
-- Marca tier: economico | equilibrio | premium. Marca scenic:true cuando la ruta sea panorámica.`;
+async function callAI(apiKey: string, system: string, user: string, toolName: string, schema: any) {
+  const res = await fetch(AI_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      tools: [{ type: "function", function: { name: toolName, description: "Emite resultado", parameters: schema } }],
+      tool_choice: { type: "function", function: { name: toolName } },
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`AI ${res.status}: ${t}`);
+  }
+  const json = await res.json();
+  const argsStr = json?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  if (!argsStr) throw new Error("AI no devolvió tool_call");
+  return JSON.parse(argsStr);
+}
 
+// ───── Schemas pequeños ─────
 
-const schema = {
+const globalSchema = {
   type: "object",
   properties: {
     flights: {
@@ -55,7 +64,7 @@ const schema = {
       items: {
         type: "object",
         properties: {
-          tier: { type: "string", description: "ahorro | equilibrio | premium" },
+          tier: { type: "string" },
           from: { type: "string" },
           to: { type: "string" },
           airline_suggested: { type: "string" },
@@ -74,106 +83,18 @@ const schema = {
         properties: {
           from: { type: "string" },
           to: { type: "string" },
-          mode: { type: "string", description: "tren | roadtrip | bus | ferry | vuelo_interno" },
+          mode: { type: "string" },
           provider: { type: "string" },
           duration: { type: "string" },
           price_per_person_usd: { type: "number" },
           scenic: { type: "boolean" },
-          suggested_stops: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: { name: { type: "string" }, why: { type: "string" } },
-              required: ["name"],
-            },
-          },
           luggage_note: { type: "string" },
         },
         required: ["from", "to", "mode", "duration", "price_per_person_usd"],
       },
     },
-    per_destination: {
-      type: "array",
-      description: "Una entrada por cada ciudad de destino, con 3 hospedajes, restaurantes y experiencias",
-      items: {
-        type: "object",
-        properties: {
-          city: { type: "string" },
-          nights: { type: "number", description: "Noches sugeridas en esta ciudad" },
-          arrival_options: {
-            type: "array",
-            minItems: 2,
-            maxItems: 4,
-            description:
-              "2-4 maneras de LLEGAR a esta ciudad desde el punto anterior. Incluye SIEMPRE tren si la ruta es europea <800km.",
-            items: {
-              type: "object",
-              properties: {
-                from: { type: "string", description: "Ciudad/punto de origen del tramo" },
-                mode: { type: "string", description: "vuelo | tren | roadtrip | bus | ferry" },
-                tier: { type: "string", description: "economico | equilibrio | premium" },
-                provider: { type: "string", description: "Aerolínea/operador real (Italo, Renfe AVE, Iberia, FlixBus…)" },
-                duration: { type: "string" },
-                price_per_person_usd: { type: "number" },
-                scenic: { type: "boolean" },
-                notes: { type: "string" },
-              },
-              required: ["from", "mode", "duration", "price_per_person_usd"],
-            },
-          },
-          hospedaje: {
-            type: "array",
-            minItems: 3,
-            maxItems: 3,
-            items: {
-              type: "object",
-              properties: {
-                tier: { type: "string", description: "ahorro | equilibrio | premium" },
-                tipo: { type: "string", description: "Boutique, Hotel 5★, B&B, Apart-hotel…" },
-                nombre: { type: "string" },
-                barrio: { type: "string" },
-                rating: { type: "number" },
-                price_per_night_usd: { type: "number" },
-                por_que: { type: "string", description: "Por qué matchea el estilo del usuario" },
-              },
-              required: ["tier", "nombre", "price_per_night_usd"],
-            },
-          },
-          restaurantes: {
-            type: "array",
-            minItems: 4,
-            items: {
-              type: "object",
-              properties: {
-                nombre: { type: "string" },
-                cocina: { type: "string" },
-                rango_precio: { type: "string", description: "$, $$, $$$, $$$$" },
-                por_que: { type: "string" },
-              },
-              required: ["nombre", "cocina"],
-            },
-          },
-          experiencias: {
-            type: "array",
-            minItems: 4,
-            items: {
-              type: "object",
-              properties: {
-                nombre: { type: "string" },
-                duracion: { type: "string" },
-                price_per_person_usd: { type: "number" },
-                por_que: { type: "string" },
-              },
-              required: ["nombre"],
-            },
-          },
-        },
-        required: ["city", "nights", "arrival_options", "hospedaje", "restaurantes", "experiencias"],
-      },
-    },
     days: {
       type: "array",
-      description: "Itinerario día por día. Cada día indica en qué ciudad está y plan mañana/tarde/noche.",
       items: {
         type: "object",
         properties: {
@@ -185,18 +106,6 @@ const schema = {
           noche: { type: "string" },
         },
         required: ["dia", "ciudad", "titulo"],
-      },
-    },
-    local_transport_tips: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          city: { type: "string" },
-          recommendation: { type: "string" },
-          est_daily_usd: { type: "number" },
-        },
-        required: ["city", "recommendation"],
       },
     },
     mandatory_costs: {
@@ -213,8 +122,95 @@ const schema = {
     total_estimado_usd: { type: "number" },
     resumen: { type: "string" },
   },
-  required: ["flights", "internal_transport", "per_destination", "days", "mandatory_costs", "total_estimado_usd"],
+  required: ["flights", "internal_transport", "days", "mandatory_costs", "total_estimado_usd"],
 };
+
+const citySchema = {
+  type: "object",
+  properties: {
+    city: { type: "string" },
+    nights: { type: "number" },
+    arrival_options: {
+      type: "array",
+      minItems: 2,
+      maxItems: 3,
+      items: {
+        type: "object",
+        properties: {
+          from: { type: "string" },
+          mode: { type: "string" },
+          tier: { type: "string" },
+          provider: { type: "string" },
+          duration: { type: "string" },
+          price_per_person_usd: { type: "number" },
+          scenic: { type: "boolean" },
+          notes: { type: "string" },
+        },
+        required: ["from", "mode", "duration", "price_per_person_usd"],
+      },
+    },
+    hospedaje: {
+      type: "array",
+      minItems: 3,
+      maxItems: 3,
+      items: {
+        type: "object",
+        properties: {
+          tier: { type: "string" },
+          tipo: { type: "string" },
+          nombre: { type: "string" },
+          barrio: { type: "string" },
+          rating: { type: "number" },
+          price_per_night_usd: { type: "number" },
+          por_que: { type: "string" },
+        },
+        required: ["tier", "nombre", "price_per_night_usd"],
+      },
+    },
+    restaurantes: {
+      type: "array",
+      minItems: 4,
+      maxItems: 5,
+      items: {
+        type: "object",
+        properties: {
+          nombre: { type: "string" },
+          cocina: { type: "string" },
+          rango_precio: { type: "string" },
+          por_que: { type: "string" },
+        },
+        required: ["nombre", "cocina"],
+      },
+    },
+    experiencias: {
+      type: "array",
+      minItems: 4,
+      maxItems: 5,
+      items: {
+        type: "object",
+        properties: {
+          nombre: { type: "string" },
+          duracion: { type: "string" },
+          price_per_person_usd: { type: "number" },
+          por_que: { type: "string" },
+        },
+        required: ["nombre"],
+      },
+    },
+  },
+  required: ["city", "nights", "arrival_options", "hospedaje", "restaurantes", "experiencias"],
+};
+
+const GLOBAL_SYSTEM = `Eres IATOS, consultor de viajes de lujo. Devuelves JSON estricto.
+Aerolíneas/operadores REALES (Iberia, Air France, Italo, Renfe AVE, Eurostar, Ferries Blue Star, etc).
+Precios USD por persona realistas. En Europa <800km prefiere TREN/FERRY sobre vuelo.`;
+
+const CITY_SYSTEM = `Eres IATOS, consultor de viajes de lujo. Para UNA ciudad devuelves JSON con:
+- 2-3 arrival_options desde el punto anterior (incluye tren/ferry real cuando aplique)
+- EXACTAMENTE 3 hospedajes (ahorro/equilibrio/premium) con hoteles REALES
+- 4-5 restaurantes reales que matcheen el estilo del usuario
+- 4-5 experiencias/tours reales
+Precios USD por persona realistas.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -236,8 +232,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Recuperar perfil del usuario para personalizar
-    let perfilLine = "Usuario sin perfil configurado — usa equilibrio premium.";
+    // Perfil
+    let perfilLine = "Usuario sin perfil — equilibrio premium.";
     try {
       const authHeader = req.headers.get("Authorization") ?? "";
       const token = authHeader.replace(/^Bearer\s+/i, "");
@@ -250,127 +246,75 @@ Deno.serve(async (req) => {
         const { data: { user } } = await supa.auth.getUser(token);
         if (user) {
           const { data: prefs } = await supa
-            .from("ai_user_preferences")
-            .select("*")
-            .eq("user_id", user.id)
-            .maybeSingle();
+            .from("ai_user_preferences").select("*").eq("user_id", user.id).maybeSingle();
           if (prefs) {
-            perfilLine = `Perfil del usuario:
-- Ritmo: ${prefs.ritmo_viaje ?? "—"}
-- Presupuesto: ${prefs.nivel_presupuesto ?? "—"}
-- Estilo de comida: ${(prefs.estilo_comida ?? []).join(", ") || "—"}
-- Restricciones alimentarias: ${(prefs.restricciones_alimentarias ?? []).join(", ") || "ninguna"}
-- Hospedaje preferido: ${(prefs.hospedaje_preferencias ?? []).join(", ") || "—"}
-- Actividades de tarde: ${(prefs.actividades_tarde ?? []).join(", ") || "—"}
-- Deal-breakers: ${(prefs.deal_breakers ?? []).join(", ") || "ninguno"}
-- Compañeros: ${prefs.companeros_viaje ?? "—"}
-- Propósito: ${prefs.proposito_viaje ?? "—"}`;
+            perfilLine = `Perfil: ritmo=${prefs.ritmo_viaje ?? "—"} | presupuesto=${prefs.nivel_presupuesto ?? "—"} | comida=${(prefs.estilo_comida ?? []).join(",") || "—"} | restricciones=${(prefs.restricciones_alimentarias ?? []).join(",") || "ninguna"} | hospedaje=${(prefs.hospedaje_preferencias ?? []).join(",") || "—"} | actividades=${(prefs.actividades_tarde ?? []).join(",") || "—"} | compañeros=${prefs.companeros_viaje ?? "—"}`;
           }
         }
       }
     } catch (e) {
-      console.warn("No se pudo cargar perfil:", e);
+      console.warn("perfil:", e);
     }
 
-    const nights =
-      body.fecha_salida && body.fecha_regreso
-        ? Math.max(
-            1,
-            Math.round(
-              (new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) /
-                86400000,
-            ),
-          )
-        : Math.max(body.destinations.length * 3, 6);
+    const nights = body.fecha_salida && body.fecha_regreso
+      ? Math.max(1, Math.round((new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / 86400000))
+      : Math.max(body.destinations.length * 3, 6);
 
-    const userPrompt = `
-${perfilLine}
+    const viajeros = body.num_viajeros ?? 2;
+    const fechas = `${body.fecha_salida ?? "flexible"} a ${body.fecha_regreso ?? "flexible"}`;
+    const cityList = body.destinations.join(" → ");
+
+    // ───── Llamada GLOBAL (vuelos + transporte + días + costos) ─────
+    const globalPrompt = `${perfilLine}
 
 Origen: ${body.origin}
-Destinos en orden: ${body.destinations.join(" → ")}
-Viajeros: ${body.num_viajeros ?? 2}
-Fechas: ${body.fecha_salida ?? "flexible"} a ${body.fecha_regreso ?? "flexible"} (~${nights} noches totales)
-Preferencia de conexión: ${body.prefs?.connection ?? "smart"}
-Roadtrips con paradas: ${body.prefs?.roadtripStops === false ? "no" : "sí"}
-Logística de equipaje: ${body.prefs?.luggageLogistics === false ? "no" : "sí"}
+Destinos en orden: ${cityList}
+Viajeros: ${viajeros} | Fechas: ${fechas} (~${nights} noches)
+Preferencia conexión: ${body.prefs?.connection ?? "smart"}
 
-ENTREGA un JSON que cumpla el esquema con:
-1. flights: 1-2 vuelos internacionales (origen→primera ciudad, última ciudad→origen) con tiers (ahorro/equilibrio/premium).
-2. internal_transport: UN tramo entre CADA par consecutivo de destinos (${body.destinations.length - 1} tramos mínimo). En Europa <800km PREFIERE TREN (Italo, Frecciarossa, Renfe AVE, SNCF TGV, Eurostar, ÖBB Nightjet) sobre vuelo. Roadtrips con 2-4 paradas. NUNCA omitas el tren cuando sea la opción obvia (ej. Roma↔Florencia↔Venecia DEBE ser tren).
-3. per_destination: ${body.destinations.length} entradas — UNA por cada ciudad. CADA entrada debe tener:
-   - arrival_options: 2-4 maneras de LLEGAR a esa ciudad desde la ciudad/origen anterior. Para Europa <800km SIEMPRE incluye tren de alta velocidad + opción bus o vuelo económico. Marca tier economico/equilibrio/premium.
-   - hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium) con hoteles REALES alineados al estilo
-   - 4-6 restaurantes y 4-6 experiencias
-4. days: ~${nights} días distribuidos lógicamente entre las ciudades (ej. 3 noches Roma, 2 Florencia, 2 Venecia), cada día con ciudad, título, mañana/tarde/noche específicos.
-5. mandatory_costs con currency_buffer_pct=3 sobre el total.
-6. total_estimado_usd coherente con todo lo anterior.
-`.trim();
+Entrega JSON con:
+1. flights: 1-2 vuelos internacionales (origen→primera y última→origen) con tier ahorro/equilibrio/premium.
+2. internal_transport: UN tramo por cada par consecutivo (${body.destinations.length - 1} tramos). Europa <800km usa TREN. Inter-islas griegas usa FERRY (Blue Star, SeaJets).
+3. days: ${nights} días distribuidos lógicamente entre las ciudades, cada uno con ciudad/título/mañana/tarde/noche específicos.
+4. mandatory_costs con currency_buffer_pct=3.
+5. total_estimado_usd y resumen breve.`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "emit_logistics",
-              description: "Emite la logística y curaduría completa del viaje multi-destino",
-              parameters: schema,
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "emit_logistics" } },
-      }),
+    // ───── Llamadas POR CIUDAD en paralelo ─────
+    const cityPromises = body.destinations.map((city, i) => {
+      const prevPoint = i === 0 ? body.origin : body.destinations[i - 1];
+      const cityNights = Math.max(1, Math.round(nights / body.destinations.length));
+      const cityPrompt = `${perfilLine}
+
+Ciudad: ${city}
+Punto anterior: ${prevPoint}
+Viajeros: ${viajeros} | Noches sugeridas: ${cityNights}
+Ruta completa del viaje (contexto): ${body.origin} → ${cityList}
+
+Entrega JSON con:
+- city: "${city}"
+- nights: ${cityNights}
+- arrival_options: 2-3 maneras de LLEGAR desde ${prevPoint}. Si es Europa <800km incluye tren real (Italo/Renfe AVE/SNCF/Eurostar). Si son islas griegas incluye ferry real (Blue Star, SeaJets) y vuelo Aegean/Sky Express.
+- hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium) con hoteles REALES de ${city} alineados al estilo del usuario.
+- restaurantes: 4-5 reales en ${city} que matcheen el estilo de comida del usuario.
+- experiencias: 4-5 tours/experiencias reales en ${city}.`;
+      return callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema)
+        .catch((e) => {
+          console.error(`city ${city} failed:`, e.message);
+          return {
+            city, nights: cityNights,
+            arrival_options: [], hospedaje: [], restaurantes: [], experiencias: [],
+          };
+        });
     });
 
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      if (aiRes.status === 429) {
-        return new Response(JSON.stringify({ error: "rate_limit" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "credits_exhausted" }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ error: `AI gateway: ${errText}` }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const globalPromise = callAI(apiKey, GLOBAL_SYSTEM, globalPrompt, "emit_global", globalSchema);
 
-    const aiJson = await aiRes.json();
-    const toolCall = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
-    const argsStr = toolCall?.function?.arguments;
-    if (!argsStr) {
-      return new Response(JSON.stringify({ error: "AI no devolvió tool_call" }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const [globalData, ...cityData] = await Promise.all([globalPromise, ...cityPromises]);
 
-    let logistics: any;
-    try {
-      logistics = JSON.parse(argsStr);
-    } catch {
-      return new Response(JSON.stringify({ error: "AI devolvió JSON inválido" }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const logistics = {
+      ...globalData,
+      per_destination: cityData,
+    };
 
     return new Response(JSON.stringify({ logistics }), {
       status: 200,
@@ -378,6 +322,7 @@ ENTREGA un JSON que cumpla el esquema con:
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown";
+    console.error("logistics-plan error:", msg);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
