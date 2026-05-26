@@ -131,6 +131,9 @@ const TripDetail = () => {
         >
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>
+        <div className="absolute top-6 right-6">
+          <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
+        </div>
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 max-w-5xl">
           {trip.match_score && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium mb-4">
