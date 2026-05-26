@@ -24,7 +24,7 @@ interface Body {
   };
 }
 
-const MODEL = "google/gemini-2.5-flash";
+const MODEL = "google/gemini-2.5-pro";
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 async function callAI(apiKey: string, system: string, user: string, toolName: string, schema: any) {
