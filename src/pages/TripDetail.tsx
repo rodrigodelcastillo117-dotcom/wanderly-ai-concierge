@@ -10,6 +10,8 @@ import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
 import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
+import { InviteFriendDialog } from "@/components/InviteFriendDialog";
+import { useAuth } from "@/contexts/AuthContext";
 import { generateTripPDF } from "@/lib/tripPdf";
 import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
