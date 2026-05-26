@@ -6,11 +6,14 @@ import {
   Plane, Luggage, Star, AlertTriangle, X, Crown, RefreshCw
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ConciergeActions } from "@/components/ConciergeActions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+
+type LiveAction = "transport" | "dining" | "emergency" | null;
 
 type Card =
   | { type: "restaurant"; title: string; subtitle?: string; image_prompt?: string; rating?: number; cta_label: string; cta_action?: string; meta?: string }
