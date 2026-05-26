@@ -22,6 +22,7 @@ const fmtMXN = (n: number) =>
 const TripDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
