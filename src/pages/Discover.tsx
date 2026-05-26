@@ -80,7 +80,7 @@ const Discover = () => {
         )}
 
         {loading && !recos && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="aspect-[4/5] rounded-2xl bg-surface/50 animate-pulse" />
             ))}
@@ -88,7 +88,7 @@ const Discover = () => {
         )}
 
         {recos && recos.length > 0 && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
             {recos.map((d, i) => {
               const isSaved = saved.has(d.name);
               return (
