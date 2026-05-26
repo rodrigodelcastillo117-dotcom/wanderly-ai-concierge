@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight } from "lucide-react";
@@ -63,6 +63,21 @@ const SpendDonut = () => {
   );
 };
 
+const HERO_REELS = [
+  { query: "santorini sunset cinematic luxury travel aerial", fallback: santorini, label: "Santorini" },
+  { query: "kyoto japan cherry blossom cinematic travel aerial", fallback: kyoto, label: "Kyoto" },
+  { query: "maldives overwater villa turquoise ocean cinematic", fallback: bora, label: "Maldivas" },
+  { query: "marrakech morocco medina sunset cinematic travel", fallback: marrakech, label: "Marrakech" },
+  { query: "patagonia argentina mountains cinematic aerial", fallback: patagonia, label: "Patagonia" },
+  { query: "tulum mexico beach cenote cinematic travel", fallback: tulum, label: "Tulum" },
+  { query: "dubai skyline fountain night cinematic luxury", fallback: santorini, label: "Dubai" },
+  { query: "bali rice terraces temple cinematic aerial", fallback: kyoto, label: "Bali" },
+  { query: "amalfi coast italy sunset cliff cinematic", fallback: bora, label: "Amalfi" },
+  { query: "iceland northern lights waterfall cinematic", fallback: patagonia, label: "Islandia" },
+  { query: "capetown south africa table mountain cinematic", fallback: marrakech, label: "Ciudad del Cabo" },
+  { query: "tokyo japan neon shibuya night cinematic", fallback: kyoto, label: "Tokio" },
+];
+
 const DashboardHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -71,6 +86,10 @@ const DashboardHome = () => {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [concierge, setConcierge] = useState("");
   const [tick, setTick] = useState(0);
+  const [reelIdx, setReelIdx] = useState(0);
+  const [reelFading, setReelFading] = useState(false);
+  const reelTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const REEL_DURATION = 10_000;
 
   useEffect(() => {
     if (!user) return;
@@ -96,6 +115,22 @@ const DashboardHome = () => {
   useEffect(() => {
     const id = setInterval(() => setTick((v) => v + 1), 60_000);
     return () => clearInterval(id);
+  }, []);
+
+  // Hero reel carousel — rotates every 10s with crossfade
+  useEffect(() => {
+    const rotate = () => {
+      setReelFading(true);
+      setTimeout(() => {
+        setReelIdx((i) => (i + 1) % HERO_REELS.length);
+        setReelFading(false);
+      }, 600);
+    };
+    rotate(); // start immediately so first change is at 10s
+    reelTimer.current = setInterval(rotate, REEL_DURATION);
+    return () => {
+      if (reelTimer.current) clearInterval(reelTimer.current);
+    };
   }, []);
 
   const toggleFav = (n: string) => {
@@ -186,12 +221,32 @@ const DashboardHome = () => {
             className="relative rounded-[28px] overflow-hidden premium-shadow group cursor-pointer ring-1 ring-white/[0.05]"
             onClick={() => navigate("/dashboard/planear")}
           >
-            <DestinationVideo
-              query="santorini sunset cinematic luxury travel aerial"
-              fallbackImage={santorini}
-              alt="Inicia tu travesía inteligente"
-              className="w-full h-[340px] md:h-[460px] object-cover group-hover:scale-[1.04] transition-transform duration-[1200ms]"
-            />
+            <div
+              className={`w-full h-[340px] md:h-[460px] transition-opacity duration-[600ms] ease-out ${reelFading ? "opacity-0" : "opacity-100"}`}
+            >
+              <DestinationVideo
+                query={HERO_REELS[reelIdx].query}
+                fallbackImage={HERO_REELS[reelIdx].fallback}
+                alt={`Inicia tu travesía en ${HERO_REELS[reelIdx].label}`}
+                className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-[1200ms]"
+              />
+            </div>
+            {/* Destination label */}
+            <div className={`absolute top-5 left-5 md:top-7 md:left-7 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[11px] text-white/90 tracking-wider transition-opacity duration-[600ms] ${reelFading ? "opacity-0" : "opacity-100"}`}>
+              <span className="text-primary mr-1.5">&#9679;</span>
+              {HERO_REELS[reelIdx].label}
+            </div>
+            {/* Reel progress dots */}
+            <div className="absolute top-5 right-5 md:top-7 md:right-7 flex items-center gap-1.5">
+              {HERO_REELS.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => { e.stopPropagation(); setReelFading(true); setTimeout(() => { setReelIdx(i); setReelFading(false); }, 600); }}
+                  className={`h-1 rounded-full transition-all duration-300 ${i === reelIdx ? "w-5 bg-primary" : "w-1.5 bg-white/30 hover:bg-white/50"}`}
+                  aria-label={`Reel ${i + 1}`}
+                />
+              ))}
+            </div>
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
 
