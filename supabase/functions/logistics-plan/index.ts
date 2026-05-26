@@ -100,6 +100,27 @@ const schema = {
         properties: {
           city: { type: "string" },
           nights: { type: "number", description: "Noches sugeridas en esta ciudad" },
+          arrival_options: {
+            type: "array",
+            minItems: 2,
+            maxItems: 4,
+            description:
+              "2-4 maneras de LLEGAR a esta ciudad desde el punto anterior. Incluye SIEMPRE tren si la ruta es europea <800km.",
+            items: {
+              type: "object",
+              properties: {
+                from: { type: "string", description: "Ciudad/punto de origen del tramo" },
+                mode: { type: "string", description: "vuelo | tren | roadtrip | bus | ferry" },
+                tier: { type: "string", description: "economico | equilibrio | premium" },
+                provider: { type: "string", description: "Aerolínea/operador real (Italo, Renfe AVE, Iberia, FlixBus…)" },
+                duration: { type: "string" },
+                price_per_person_usd: { type: "number" },
+                scenic: { type: "boolean" },
+                notes: { type: "string" },
+              },
+              required: ["from", "mode", "duration", "price_per_person_usd"],
+            },
+          },
           hospedaje: {
             type: "array",
             minItems: 3,
@@ -147,7 +168,7 @@ const schema = {
             },
           },
         },
-        required: ["city", "nights", "hospedaje", "restaurantes", "experiencias"],
+        required: ["city", "nights", "arrival_options", "hospedaje", "restaurantes", "experiencias"],
       },
     },
     days: {
