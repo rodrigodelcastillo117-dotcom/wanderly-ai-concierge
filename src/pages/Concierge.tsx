@@ -6,11 +6,14 @@ import {
   Plane, Luggage, Star, AlertTriangle, X, Crown, RefreshCw
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ConciergeActions } from "@/components/ConciergeActions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+
+type LiveAction = "transport" | "dining" | "emergency" | null;
 
 type Card =
   | { type: "restaurant"; title: string; subtitle?: string; image_prompt?: string; rating?: number; cta_label: string; cta_action?: string; meta?: string }
@@ -27,20 +30,13 @@ type Msg = {
   ts: number;
 };
 
-const QUICK_CHIPS = [
-  { icon: Utensils, label: "Reservar cena cerca" },
-  { icon: Car, label: "Pedir transporte" },
+const QUICK_CHIPS: Array<{ icon: any; label: string; action?: LiveAction }> = [
+  { icon: Utensils, label: "Cena cerca", action: "dining" },
+  { icon: Car, label: "Pedir transporte", action: "transport" },
+  { icon: Siren, label: "Emergencia local", action: "emergency" },
   { icon: Plane, label: "¿Mi vuelo va a tiempo?" },
   { icon: Luggage, label: "Equipaje Invisible" },
-  { icon: Siren, label: "Emergencia local" },
 ];
-
-const PROACTIVE_ALERT: Card = {
-  type: "alert",
-  title: "Tu vuelo se retrasó 45 min",
-  body: "Avisé al hotel para proteger tu reservación. Tienes acceso al Centurion Lounge con tu AMEX Platinum mientras esperas.",
-  cta_label: "Ver detalles",
-};
 
 // SpeechRecognition typing
 declare global {
@@ -53,9 +49,9 @@ const Concierge = () => {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<Msg[]>([{
     id: "welcome", role: "assistant", ts: Date.now(),
-    text: "Bienvenido. Estoy listo para anticiparme a cualquier capricho o emergencia de tu viaje.",
-    cards: [PROACTIVE_ALERT],
+    text: "Bienvenido. Estoy listo para anticiparme a cualquier capricho o emergencia de tu viaje. Usa los botones rápidos abajo para acciones reales en vivo, o escríbeme cualquier petición.",
   }]);
+  const [liveAction, setLiveAction] = useState<LiveAction>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [godMode, setGodMode] = useState(false);
@@ -322,7 +318,7 @@ const Concierge = () => {
             {QUICK_CHIPS.map((c) => (
               <button
                 key={c.label}
-                onClick={() => sendText(c.label)}
+                onClick={() => c.action ? setLiveAction(c.action) : sendText(c.label)}
                 disabled={sending}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition"
               >
@@ -398,6 +394,8 @@ const Concierge = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <ConciergeActions open={!!liveAction} kind={liveAction} onClose={() => setLiveAction(null)} />
       </div>
     </DashboardLayout>
   );
