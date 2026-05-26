@@ -6,9 +6,10 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 type Person = { id: string; name: string };
-type Expense = { id: string; payerId: string; amount: number; description: string; date: string };
+type Expense = { id: string; payer_id: string; amount: number; description: string; created_at: string };
 
 const TripSplit = () => {
   const { id } = useParams();
@@ -21,41 +22,62 @@ const TripSplit = () => {
   const [desc, setDesc] = useState("");
   const [payer, setPayer] = useState("");
 
-  const pKey = `iatos:split:people:${id}`;
-  const eKey = `iatos:split:exp:${id}`;
-
   useEffect(() => {
+    if (!id) return;
     (async () => {
-      const { data } = await supabase.from("trips").select("*").eq("id", id).single();
-      setTrip(data);
+      const [{ data: t }, { data: ps }, { data: ex }] = await Promise.all([
+        supabase.from("trips").select("*").eq("id", id).maybeSingle(),
+        supabase.from("trip_split_people").select("*").eq("trip_id", id).order("created_at"),
+        supabase.from("trip_split_expenses").select("*").eq("trip_id", id).order("created_at", { ascending: false }),
+      ]);
+      setTrip(t);
+      setPeople((ps as Person[]) || []);
+      setExpenses((ex as Expense[]) || []);
     })();
-    try { setPeople(JSON.parse(localStorage.getItem(pKey) || "[]")); } catch {}
-    try { setExpenses(JSON.parse(localStorage.getItem(eKey) || "[]")); } catch {}
   }, [id]);
 
-  const savePeople = (l: Person[]) => { setPeople(l); localStorage.setItem(pKey, JSON.stringify(l)); };
-  const saveExp = (l: Expense[]) => { setExpenses(l); localStorage.setItem(eKey, JSON.stringify(l)); };
-
-  const addPerson = () => {
-    if (!newName.trim()) return;
-    savePeople([...people, { id: crypto.randomUUID(), name: newName.trim() }]);
+  const addPerson = async () => {
+    const n = newName.trim();
+    if (!n || !id) return;
     setNewName("");
+    const { data, error } = await supabase.from("trip_split_people").insert({ trip_id: id, name: n }).select().single();
+    if (!error && data) setPeople(prev => [...prev, data as Person]);
+    else toast.error("No se pudo agregar");
   };
 
-  const addExp = () => {
+  const removePerson = async (pid: string) => {
+    setPeople(prev => prev.filter(p => p.id !== pid));
+    await supabase.from("trip_split_people").delete().eq("id", pid);
+    // Refresh expenses (cascade may have deleted some)
+    const { data: ex } = await supabase.from("trip_split_expenses").select("*").eq("trip_id", id!).order("created_at", { ascending: false });
+    setExpenses((ex as Expense[]) || []);
+  };
+
+  const addExp = async () => {
     const a = parseFloat(amount);
-    if (!a || !payer || !desc.trim()) return;
-    saveExp([{ id: crypto.randomUUID(), payerId: payer, amount: a, description: desc, date: new Date().toISOString() }, ...expenses]);
-    setAmount(""); setDesc("");
+    if (!a || !payer || !desc.trim() || !id) return;
+    const { data, error } = await supabase
+      .from("trip_split_expenses")
+      .insert({ trip_id: id, payer_id: payer, amount: a, description: desc.trim() })
+      .select().single();
+    if (!error && data) {
+      setExpenses(prev => [data as Expense, ...prev]);
+      setAmount(""); setDesc("");
+    } else toast.error("No se pudo guardar");
+  };
+
+  const removeExp = async (eid: string) => {
+    setExpenses(prev => prev.filter(x => x.id !== eid));
+    await supabase.from("trip_split_expenses").delete().eq("id", eid);
   };
 
   const balances = useMemo(() => {
     if (people.length === 0) return {} as Record<string, number>;
-    const total = expenses.reduce((s, e) => s + e.amount, 0);
+    const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
     const share = total / people.length;
     const paid: Record<string, number> = {};
     people.forEach(p => paid[p.id] = 0);
-    expenses.forEach(e => { paid[e.payerId] = (paid[e.payerId] || 0) + e.amount; });
+    expenses.forEach(e => { paid[e.payer_id] = (paid[e.payer_id] || 0) + Number(e.amount); });
     const out: Record<string, number> = {};
     people.forEach(p => out[p.id] = (paid[p.id] || 0) - share);
     return out;
@@ -79,38 +101,38 @@ const TripSplit = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      <div className="p-4 sm:p-6 md:p-10 max-w-3xl mx-auto">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-6">
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>
         <div className="mb-6 flex items-center gap-3">
           <Users className="w-7 h-7 text-primary" />
-          <div>
+          <div className="min-w-0">
             <p className="text-primary text-xs tracking-[0.2em] uppercase">Gastos compartidos</p>
-            <h1 className="font-display text-3xl">{trip?.destino}</h1>
+            <h1 className="font-display text-2xl sm:text-3xl truncate">{trip?.destino}</h1>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-5 mb-6">
+        <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6">
           <h2 className="font-medium mb-3">Personas</h2>
           <div className="flex gap-2 mb-3">
             <Input placeholder="Nombre" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && addPerson()} />
-            <Button onClick={addPerson}><Plus className="w-4 h-4" /></Button>
+            <Button onClick={addPerson} className="shrink-0"><Plus className="w-4 h-4" /></Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {people.map(p => (
               <span key={p.id} className="px-3 py-1.5 rounded-full bg-primary/10 text-sm flex items-center gap-2">
                 {p.name}
-                <button onClick={() => savePeople(people.filter(x => x.id !== p.id))}><Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" /></button>
+                <button onClick={() => removePerson(p.id)}><Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" /></button>
               </span>
             ))}
           </div>
         </div>
 
         {people.length > 0 && (
-          <div className="glass-card rounded-2xl p-5 mb-6">
+          <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6">
             <h2 className="font-medium mb-3">Agregar gasto</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
               <Input placeholder="Descripción" value={desc} onChange={e => setDesc(e.target.value)} />
               <Input type="number" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} />
             </div>
@@ -124,7 +146,7 @@ const TripSplit = () => {
 
         {expenses.length > 0 && (
           <>
-            <div className="glass-card rounded-2xl p-5 mb-6">
+            <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6">
               <h2 className="font-medium mb-3">Balances</h2>
               {people.map(p => {
                 const b = balances[p.id] || 0;
@@ -140,7 +162,7 @@ const TripSplit = () => {
             </div>
 
             {settlements.length > 0 && (
-              <div className="glass-card rounded-2xl p-5 mb-6 border-primary/30">
+              <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6 border-primary/30">
                 <h2 className="font-medium mb-3 text-primary">Cómo saldar</h2>
                 {settlements.map((s, i) => (
                   <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-1.5 text-sm">
@@ -150,19 +172,19 @@ const TripSplit = () => {
               </div>
             )}
 
-            <div className="glass-card rounded-2xl p-5">
+            <div className="glass-card rounded-2xl p-4 sm:p-5">
               <h2 className="font-medium mb-3">Gastos</h2>
               {expenses.map(e => {
-                const p = people.find(x => x.id === e.payerId);
+                const p = people.find(x => x.id === e.payer_id);
                 return (
                   <div key={e.id} className="flex justify-between items-center py-2 border-b border-border/30 last:border-0">
-                    <div>
-                      <div className="text-sm">{e.description}</div>
+                    <div className="min-w-0">
+                      <div className="text-sm truncate">{e.description}</div>
                       <div className="text-xs text-muted-foreground">Pagó {p?.name || "?"}</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">${e.amount.toFixed(2)}</span>
-                      <button onClick={() => saveExp(expenses.filter(x => x.id !== e.id))}><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" /></button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-medium">${Number(e.amount).toFixed(2)}</span>
+                      <button onClick={() => removeExp(e.id)}><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" /></button>
                     </div>
                   </div>
                 );
