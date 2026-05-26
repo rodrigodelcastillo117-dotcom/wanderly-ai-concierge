@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
 import { OriginPicker } from "@/components/OriginPicker";
+import { TripBuildPreview } from "@/components/TripBuildPreview";
 
 
 const LOADING_MESSAGES = [
@@ -344,46 +345,59 @@ const PlanTrip = () => {
             {step > 0 ? "Atrás" : "Volver"}
           </button>
         </header>
-        <main className="flex-1 flex items-center justify-center px-6 py-10">
-          <div className="w-full max-w-xl">
-            <AnimatePresence mode="wait">
-              <motion.div key={step} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }}>
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-6">
-                  <Icon className="w-5 h-5 text-primary" />
-                </div>
-                <h2 className="font-display text-3xl md:text-5xl mb-3">{current.title}</h2>
-                <p className="text-muted-foreground mb-10">{current.sub}</p>
-                <div className="mb-12">{current.render()}</div>
-              </motion.div>
-            </AnimatePresence>
+        <main className="flex-1 px-6 py-10">
+          <div className="w-full max-w-6xl mx-auto grid lg:grid-cols-[1fr_360px] gap-10 items-start">
+            <div className="w-full max-w-xl mx-auto lg:mx-0">
+              <AnimatePresence mode="wait">
+                <motion.div key={step} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }}>
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-6">
+                    <Icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <h2 className="font-display text-3xl md:text-5xl mb-3">{current.title}</h2>
+                  <p className="text-muted-foreground mb-10">{current.sub}</p>
+                  <div className="mb-12">{current.render()}</div>
+                </motion.div>
+              </AnimatePresence>
 
-            <Button
-              onClick={() => (step === stepsConfig.length - 1 ? analizar() : setStep(step + 1))}
-              disabled={!current.canNext()}
-              className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-14"
-            >
-              {step === stepsConfig.length - 1 ? (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generar análisis
-                </>
-              ) : (
-                <>
-                  Continuar
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </Button>
+              <Button
+                onClick={() => (step === stepsConfig.length - 1 ? analizar() : setStep(step + 1))}
+                disabled={!current.canNext()}
+                className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-14"
+              >
+                {step === stepsConfig.length - 1 ? (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generar análisis
+                  </>
+                ) : (
+                  <>
+                    Continuar
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </Button>
 
-            <div className="flex justify-center gap-2 mt-8">
-              {stepsConfig.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-1 rounded-full transition-all duration-500 ${
-                    i === step ? "w-8 bg-primary" : "w-2 bg-border"
-                  }`}
-                />
-              ))}
+              <div className="flex justify-center gap-2 mt-8">
+                {stepsConfig.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1 rounded-full transition-all duration-500 ${
+                      i === step ? "w-8 bg-primary" : "w-2 bg-border"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="lg:sticky lg:top-10">
+              <TripBuildPreview
+                origin={ciudadOrigen}
+                destinoRaw={destino}
+                fechaSalida={fechaSalida}
+                fechaRegreso={fechaRegreso}
+                viajeros={numViajeros}
+                presupuesto={presupuesto}
+              />
             </div>
           </div>
         </main>
