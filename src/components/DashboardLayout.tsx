@@ -145,12 +145,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <img src={iatosLogo} alt="IATOS" className="h-7 w-auto object-contain" />
           </Link>
           <div className="flex items-center gap-2">
-            <button
-              aria-label="Notificaciones"
-              className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition relative"
-            >
-              <Bell className="w-[18px] h-[18px]" strokeWidth={1.75} />
-            </button>
+            <NotificationBell />
+
             <button
               onClick={() => navigate("/dashboard/perfil")}
               aria-label="Mi perfil"
