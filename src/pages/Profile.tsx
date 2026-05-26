@@ -33,6 +33,17 @@ const Profile = () => {
         <section>
           <PromocionesActivas />
         </section>
+
+        <section className="pt-6 border-t border-white/[0.06] flex justify-center">
+          <Button
+            variant="outline"
+            onClick={async () => { await signOut(); navigate("/"); }}
+            className="rounded-full border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/[0.04] gap-2 px-6"
+          >
+            <LogOut className="w-4 h-4" />
+            Cerrar sesión
+          </Button>
+        </section>
       </div>
     </DashboardLayout>
   );
