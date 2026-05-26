@@ -257,14 +257,15 @@ const DashboardHome = () => {
                 className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-[1200ms]"
               />
             </div>
-            {/* Destination label — hidden on mobile to avoid overlap with content badge */}
-            <div className={`hidden md:flex absolute top-5 left-5 md:top-7 md:left-7 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[11px] text-white/90 tracking-wider items-center transition-opacity duration-[600ms] ${reelFading ? "opacity-0" : "opacity-100"}`}>
+            {/* Destination label — top-right on mobile (next to dots), top-left on desktop */}
+            <div className={`absolute top-5 right-5 md:top-7 md:right-auto md:left-7 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[11px] text-white/90 tracking-wider flex items-center transition-opacity duration-[600ms] z-10 ${reelFading ? "opacity-0" : "opacity-100"}`}>
               <span className="text-primary mr-1.5">&#9679;</span>
               {HERO_REELS[reelIdx].label}
             </div>
 
-            {/* Reel progress dots */}
-            <div className="absolute top-5 right-5 md:top-7 md:right-7 flex items-center gap-1.5">
+
+            {/* Reel progress dots — bottom-center on mobile, top-right on desktop */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 md:bottom-auto md:left-auto md:translate-x-0 md:top-7 md:right-7 flex items-center gap-1.5 z-10">
               {HERO_REELS.map((_, i) => (
                 <button
                   key={i}
@@ -274,6 +275,7 @@ const DashboardHome = () => {
                 />
               ))}
             </div>
+
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
 
