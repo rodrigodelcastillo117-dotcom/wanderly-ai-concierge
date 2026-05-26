@@ -76,7 +76,9 @@ const HERO_REELS = [
 const DashboardHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { recos: aiRecos, loading: recosLoading } = useAIRecommendations();
   const [name, setName] = useState("");
+
   const [trips, setTrips] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [concierge, setConcierge] = useState("");
