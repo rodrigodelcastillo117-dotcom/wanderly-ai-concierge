@@ -4,6 +4,7 @@ import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
+import iatosLogo from "@/assets/iatos-logo.png";
 
 const links = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
@@ -41,11 +42,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-border/40 bg-surface/30 backdrop-blur-sm">
         {/* Brand */}
-        <Link to="/dashboard" className="flex flex-col items-center gap-2 px-6 pt-8 pb-6 border-b border-border/40">
-          <div className="relative w-14 h-14 rounded-full border border-primary/40 flex items-center justify-center">
-            <Crown className="w-6 h-6 text-primary" />
-          </div>
-          <span className="font-display text-2xl tracking-[0.35em] text-foreground">IATOS</span>
+        <Link to="/dashboard" className="flex items-center justify-center px-6 pt-8 pb-6 border-b border-border/40">
+          <img src={iatosLogo} alt="IATOS — AI que evoluciona con cada viaje" className="w-full max-w-[180px] h-auto object-contain" />
         </Link>
 
         {/* Nav */}

@@ -6,6 +6,7 @@ import heroImg from "@/assets/hero-santorini.jpg";
 import kyoto from "@/assets/destination-kyoto.jpg";
 import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
+import iatosLogo from "@/assets/iatos-logo.png";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -15,12 +16,7 @@ const Landing = () => {
       {/* NAV */}
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/60 border-b border-border/40">
         <div className="container mx-auto flex items-center justify-between py-4">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full border border-primary/40 flex items-center justify-center">
-              <Compass className="w-4 h-4 text-primary" />
-            </div>
-            <span className="font-display text-xl tracking-[0.3em]">IATOS</span>
-          </div>
+          <img src={iatosLogo} alt="IATOS" className="h-9 md:h-10 w-auto object-contain" />
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={() => navigate("/auth")}>Iniciar sesión</Button>
             <Button onClick={() => navigate("/auth?mode=signup")} className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
@@ -226,12 +222,7 @@ const Landing = () => {
       {/* FOOTER */}
       <footer className="border-t border-border/40 py-12">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-gradient-gold flex items-center justify-center">
-              <Compass className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-lg">IATOS AI</span>
-          </div>
+          <img src={iatosLogo} alt="IATOS AI" className="h-8 w-auto object-contain" />
           <p className="text-sm text-muted-foreground">© 2026 IATOS AI. Diseñado en CDMX.</p>
         </div>
       </footer>
