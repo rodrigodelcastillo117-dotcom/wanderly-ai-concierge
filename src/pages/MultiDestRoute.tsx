@@ -189,6 +189,51 @@ const MultiDestRoute = () => {
     }
   };
 
+  const analyzeSmartPrompt = async () => {
+    const text = smartPrompt.trim();
+    if (!text) {
+      toast.error("Escribe qué te acomoda para que la IA lo analice");
+      return;
+    }
+    setAnalyzingPrefs(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analizar-preferencias-ruta", {
+        body: {
+          prompt: text,
+          contexto: {
+            origin,
+            destinos: validStops,
+            fecha_salida: fechaSalida || undefined,
+            fecha_regreso: fechaRegreso || undefined,
+            viajeros,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setPrefs((p) => ({
+        ...p,
+        connection: data.connection ?? p.connection,
+        roadtripStops: typeof data.roadtripStops === "boolean" ? data.roadtripStops : p.roadtripStops,
+        luggageLogistics: typeof data.luggageLogistics === "boolean" ? data.luggageLogistics : p.luggageLogistics,
+        aiNotes: text,
+        themes: data.themes ?? [],
+        avoid: data.avoid ?? [],
+        pace: data.pace,
+        transportPreference: data.transport_preference,
+        budgetStyle: data.budget_style,
+        summary: data.summary,
+      }));
+      toast.success("IATOS AI entendió tus preferencias");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "No pude analizar tus preferencias");
+    } finally {
+      setAnalyzingPrefs(false);
+    }
+  };
+
   const generateRoute = async (p: RoutePrefs, autonomous: boolean) => {
     setConfigOpen(false);
     setGenerating(true);
