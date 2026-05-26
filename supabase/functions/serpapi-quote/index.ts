@@ -123,6 +123,11 @@ async function serpHotels(key: string, city: string, checkin: string, checkout: 
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!ENABLED) {
+    return new Response(JSON.stringify({ disabled: true, message: "SerpApi integration is temporarily disabled." }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   try {
     const serpKey = Deno.env.get("SERPAPI_PRIVATE_KEY");
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
