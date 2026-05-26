@@ -651,6 +651,150 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_journal_entries: {
+        Row: {
+          author_id: string
+          created_at: string
+          id: string
+          photo_url: string | null
+          text: string
+          trip_id: string
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          id?: string
+          photo_url?: string | null
+          text: string
+          trip_id: string
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          id?: string
+          photo_url?: string | null
+          text?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_journal_entries_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_packing_items: {
+        Row: {
+          category: string
+          created_at: string
+          done: boolean
+          id: string
+          sort_order: number
+          text: string
+          trip_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          sort_order?: number
+          text: string
+          trip_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          sort_order?: number
+          text?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_packing_items_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_split_expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          payer_id: string
+          trip_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          payer_id: string
+          trip_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          payer_id?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_split_expenses_payer_id_fkey"
+            columns: ["payer_id"]
+            isOneToOne: false
+            referencedRelation: "trip_split_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_split_expenses_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_split_people: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          trip_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          trip_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_split_people_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trips: {
         Row: {
           analisis_ai: string | null
