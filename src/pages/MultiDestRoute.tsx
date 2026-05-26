@@ -736,7 +736,73 @@ const MultiDestRoute = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-2">
+          <div className="space-y-6 py-2 max-h-[60vh] overflow-y-auto pr-1">
+            {/* Smart prompt — IA analiza preferencias en lenguaje natural */}
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <Wand2 className="w-4 h-4 mt-0.5 text-primary" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Cuéntale a IATOS AI qué te acomoda</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    En tus palabras: ritmo, comida, ambiente, lo que evitas, presupuesto, transporte preferido… La IA lo traduce en tu configuración ideal.
+                  </p>
+                </div>
+              </div>
+              <Textarea
+                value={smartPrompt}
+                onChange={(e) => setSmartPrompt(e.target.value)}
+                placeholder="Ej. Viajamos en pareja, queremos ritmo relajado, mucha gastronomía local y vinos, evitar madrugar y tours grupales. Preferimos tren antes que vuelos cortos. Presupuesto medio-alto."
+                rows={4}
+                className="bg-surface border-border resize-none text-sm"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] text-muted-foreground">
+                  Opcional. Si lo dejas vacío, usa las opciones de abajo.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={analyzeSmartPrompt}
+                  disabled={analyzingPrefs || !smartPrompt.trim()}
+                  className="border-primary/40 text-primary hover:bg-primary/10"
+                >
+                  {analyzingPrefs ? (
+                    <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Analizando…</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Analizar con IA</>
+                  )}
+                </Button>
+              </div>
+
+              {prefs.summary && (
+                <div className="rounded-lg border border-primary/30 bg-background/40 p-3 space-y-2">
+                  <p className="text-xs text-foreground leading-relaxed">{prefs.summary}</p>
+                  {(prefs.themes?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {prefs.themes!.slice(0, 8).map((t) => (
+                        <Badge key={t} variant="secondary" className="text-[10px] py-0 px-2">{t}</Badge>
+                      ))}
+                    </div>
+                  )}
+                  {(prefs.avoid?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      <span className="text-[10px] text-muted-foreground">Evitar:</span>
+                      {prefs.avoid!.slice(0, 6).map((t) => (
+                        <Badge key={t} variant="outline" className="text-[10px] py-0 px-2 border-destructive/40 text-destructive">{t}</Badge>
+                      ))}
+                    </div>
+                  )}
+                  {(prefs.pace || prefs.transportPreference || prefs.budgetStyle) && (
+                    <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                      {prefs.pace && <span>Ritmo: <b className="text-foreground">{prefs.pace}</b></span>}
+                      {prefs.transportPreference && <span>Transporte: <b className="text-foreground">{prefs.transportPreference}</b></span>}
+                      {prefs.budgetStyle && <span>Presupuesto: <b className="text-foreground">{prefs.budgetStyle}</b></span>}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Estilo de Conexión */}
             <div>
               <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Estilo de conexión</p>
