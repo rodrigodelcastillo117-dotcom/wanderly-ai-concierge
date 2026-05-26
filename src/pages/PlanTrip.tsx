@@ -49,6 +49,38 @@ const PlanTrip = () => {
       });
   }, [user]);
 
+  // Auto-cheapest: si llega ?destino=X&autoCheapest=1, prellena fechas heurísticas
+  // (martes a martes, ~60 días fuera — ventana históricamente más barata) y dispara análisis.
+  const autoFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoFiredRef.current) return;
+    if (params.get("autoCheapest") !== "1") return;
+    if (!destino || !ciudadOrigen) return;
+
+    // Próximo martes ~60 días a futuro (martes/miércoles suelen ser los más baratos)
+    const out = new Date();
+    out.setDate(out.getDate() + 60);
+    while (out.getDay() !== 2) out.setDate(out.getDate() + 1);
+    const ret = new Date(out);
+    ret.setDate(ret.getDate() + 7);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const fs = fmt(out);
+    const fr = fmt(ret);
+    setFechaSalida(fs);
+    setFechaRegreso(fr);
+    autoFiredRef.current = true;
+    runAnalisis({
+      destino,
+      ciudad_origen: ciudadOrigen,
+      fecha_salida: fs,
+      fecha_regreso: fr,
+      num_viajeros: 2,
+      presupuesto_objetivo: null,
+    });
+  }, [destino, ciudadOrigen, params]);
+
+
+
   useEffect(() => {
     if (!analizando) return;
     const i = setInterval(() => setLoadingMsg((m) => (m + 1) % LOADING_MESSAGES.length), 2400);
