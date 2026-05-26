@@ -101,12 +101,12 @@ const Compare = () => {
                   <div key={i} className="bg-card p-3 font-display text-lg">{r.destino}</div>
                 ))}
                 {fields.map(f => (
-                  <>
-                    <div key={`l-${f.key}`} className="bg-card p-3 text-sm font-medium text-primary">{f.label}</div>
+                  <Fragment key={f.key}>
+                    <div className="bg-card p-3 text-sm font-medium text-primary">{f.label}</div>
                     {rows.map((r, i) => (
                       <div key={`${f.key}-${i}`} className="bg-card p-3 text-sm">{r[f.key]}</div>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </div>
             </div>
