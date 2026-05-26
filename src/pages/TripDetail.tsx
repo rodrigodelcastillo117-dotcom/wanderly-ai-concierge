@@ -240,39 +240,32 @@ const TripDetail = () => {
       </div>
 
       <div className="p-6 md:p-12 max-w-5xl space-y-8">
-        {/* Quick Actions: Live / Mapa / Packing */}
+        {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-3 gap-3"
+          className="grid grid-cols-3 md:grid-cols-7 gap-3"
         >
-          <button
-            onClick={() => navigate(`/dashboard/viajes/${id}/live`)}
-            className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all group flex flex-col items-center gap-2"
-          >
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Radio className="w-5 h-5 text-primary" />
-            </div>
-            <span className="text-xs font-medium">Modo Live</span>
-          </button>
-          <button
-            onClick={() => navigate(`/dashboard/viajes/${id}/mapa`)}
-            className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all group flex flex-col items-center gap-2"
-          >
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <MapIcon className="w-5 h-5 text-primary" />
-            </div>
-            <span className="text-xs font-medium">Mapa</span>
-          </button>
-          <button
-            onClick={() => navigate(`/dashboard/viajes/${id}/packing`)}
-            className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all group flex flex-col items-center gap-2"
-          >
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Backpack className="w-5 h-5 text-primary" />
-            </div>
-            <span className="text-xs font-medium">Packing</span>
-          </button>
+          {[
+            { icon: Radio, label: "Live", to: `/dashboard/viajes/${id}/live` },
+            { icon: MapIcon, label: "Mapa", to: `/dashboard/viajes/${id}/mapa` },
+            { icon: Backpack, label: "Packing", to: `/dashboard/viajes/${id}/packing` },
+            { icon: Cloud, label: "Clima", to: `/dashboard/viajes/${id}/clima` },
+            { icon: Languages, label: "Traductor", to: `/dashboard/viajes/${id}/traductor` },
+            { icon: BookHeart, label: "Diario", to: `/dashboard/viajes/${id}/diario` },
+            { icon: Wallet, label: "Split", to: `/dashboard/viajes/${id}/split` },
+          ].map(({ icon: Icon, label, to }) => (
+            <button
+              key={label}
+              onClick={() => navigate(to)}
+              className="glass-card rounded-2xl p-3 hover:border-primary/60 transition-all group flex flex-col items-center gap-2"
+            >
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Icon className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-xs font-medium">{label}</span>
+            </button>
+          ))}
         </motion.div>
 
 
