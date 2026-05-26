@@ -189,7 +189,7 @@ const DashboardHome = () => {
 
   return (
     <DashboardLayout>
-      <div className="px-5 md:px-10 py-7 md:py-10 space-y-12 max-w-[1400px] mx-auto">
+      <div className="px-4 md:px-10 py-7 md:py-10 space-y-10 md:space-y-12 max-w-[1400px] mx-auto overflow-x-hidden">
         {/* Top header */}
         <header className="hidden md:flex items-center justify-between gap-4">
           <p className="text-[11px] md:text-xs text-muted-foreground capitalize tracking-wide">
