@@ -186,6 +186,22 @@ const DashboardHome = () => {
   const today = now.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const time = now.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase().replace(/\./g, "");
 
+  // Viaje activo: hoy entre fecha_salida y fecha_regreso
+  const activeTrip = trips.find((t) => {
+    if (!t.fecha_salida || !t.fecha_regreso) return false;
+    const s = new Date(t.fecha_salida + "T00:00:00").getTime();
+    const e = new Date(t.fecha_regreso + "T23:59:59").getTime();
+    const n = Date.now();
+    return n >= s && n <= e;
+  });
+  const upcomingTrip = !activeTrip ? trips.find((t) => {
+    if (!t.fecha_salida) return false;
+    const s = new Date(t.fecha_salida + "T00:00:00").getTime();
+    return s > Date.now() && s - Date.now() < 7 * 86400000;
+  }) : null;
+
+
+
 
   return (
     <DashboardLayout>
@@ -235,6 +251,48 @@ const DashboardHome = () => {
             </div>
           </div>
         </motion.form>
+
+        {/* Modo Viaje Activo */}
+        {activeTrip && (
+          <motion.button
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            onClick={() => navigate(`/dashboard/viajes/${activeTrip.id}/live`)}
+            className="w-full text-left relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-xl p-5 md:p-6 group hover:border-primary/50 transition"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.18),transparent_60%)]" />
+            <div className="relative flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary/25 flex items-center justify-center shrink-0">
+                <Sparkles className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-primary font-bold">En vivo</div>
+                <div className="text-lg md:text-2xl font-serif mt-0.5 truncate">{activeTrip.destino}</div>
+                <div className="text-xs text-foreground/70">Tu viaje está en curso · abre el Modo Viaje</div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-primary shrink-0" />
+            </div>
+          </motion.button>
+        )}
+        {!activeTrip && upcomingTrip && (
+          <motion.button
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            onClick={() => navigate(`/dashboard/viajes/${upcomingTrip.id}/live`)}
+            className="w-full text-left rounded-3xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-4 md:p-5 hover:border-primary/30 transition group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-primary/80 font-semibold">Próximo viaje</div>
+                <div className="text-base md:text-lg font-serif truncate">{upcomingTrip.destino}</div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-foreground/40" />
+            </div>
+          </motion.button>
+        )}
+
+
 
 
         {/* HERO — cinematic Santorini-style sunset */}
