@@ -9,6 +9,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OriginPicker } from "@/components/OriginPicker";
+import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -304,7 +305,7 @@ const MultiDestRoute = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-4xl mx-auto space-y-8">
+      <div className="p-6 md:p-10 max-w-6xl mx-auto space-y-8">
         <header className="space-y-2">
           <p className="text-primary text-xs tracking-[0.25em] uppercase">Ruta multi-destino</p>
           <h1 className="font-display text-3xl md:text-5xl">Diseña tu próxima travesía.</h1>
@@ -312,6 +313,9 @@ const MultiDestRoute = () => {
             Encadena 2 o más destinos. IATOS AI optimiza conexiones, paradas y logística.
           </p>
         </header>
+
+        <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
+          <div className="space-y-8 min-w-0">
 
         {/* Stops builder */}
         <section className="rounded-3xl border border-border bg-card p-6 md:p-8 space-y-5 premium-shadow">
@@ -608,6 +612,19 @@ const MultiDestRoute = () => {
             </motion.section>
           )}
         </AnimatePresence>
+          </div>
+
+          <div className="lg:sticky lg:top-10">
+            <TripBuildPreview
+              origin={origin}
+              destinations={validStops}
+              fechaSalida={fechaSalida}
+              fechaRegreso={fechaRegreso}
+              viajeros={viajeros}
+              presupuesto={presupuesto ? Number(presupuesto) : null}
+            />
+          </div>
+        </div>
       </div>
 
       {/* PHASE 1 — Configuración modal */}
