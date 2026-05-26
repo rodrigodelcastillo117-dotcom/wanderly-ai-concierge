@@ -31,6 +31,8 @@ import TripWeather from "./pages/TripWeather";
 import TripTranslator from "./pages/TripTranslator";
 import TripJournal from "./pages/TripJournal";
 import TripSplit from "./pages/TripSplit";
+import Compare from "./pages/Compare";
+import Currency from "./pages/Currency";
 
 const queryClient = new QueryClient();
 
