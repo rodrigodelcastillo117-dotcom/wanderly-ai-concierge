@@ -89,6 +89,36 @@ export type Database = {
         }
         Relationships: []
       }
+      badges: {
+        Row: {
+          categoria: string | null
+          descripcion: string | null
+          icono: string | null
+          id: string
+          meta_tipo: string | null
+          meta_valor: number | null
+          nombre: string
+        }
+        Insert: {
+          categoria?: string | null
+          descripcion?: string | null
+          icono?: string | null
+          id: string
+          meta_tipo?: string | null
+          meta_valor?: number | null
+          nombre: string
+        }
+        Update: {
+          categoria?: string | null
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          meta_tipo?: string | null
+          meta_valor?: number | null
+          nombre?: string
+        }
+        Relationships: []
+      }
       behavioral_insights: {
         Row: {
           action: string
@@ -253,6 +283,33 @@ export type Database = {
           },
         ]
       }
+      friendships: {
+        Row: {
+          addressee_id: string
+          created_at: string | null
+          id: string
+          requester_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          addressee_id: string
+          created_at?: string | null
+          id?: string
+          requester_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          addressee_id?: string
+          created_at?: string | null
+          id?: string
+          requester_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       historical_flight_prices: {
         Row: {
           avg_price_usd: number
@@ -285,6 +342,47 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      missions: {
+        Row: {
+          descripcion: string | null
+          icono: string | null
+          id: string
+          meta_tipo: string | null
+          meta_valor: number
+          recompensa_badge_id: string | null
+          titulo: string
+          vigente: boolean | null
+        }
+        Insert: {
+          descripcion?: string | null
+          icono?: string | null
+          id: string
+          meta_tipo?: string | null
+          meta_valor: number
+          recompensa_badge_id?: string | null
+          titulo: string
+          vigente?: boolean | null
+        }
+        Update: {
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          meta_tipo?: string | null
+          meta_valor?: number
+          recompensa_badge_id?: string | null
+          titulo?: string
+          vigente?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missions_recompensa_badge_id_fkey"
+            columns: ["recompensa_badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -329,11 +427,13 @@ export type Database = {
           fecha_nacimiento: string | null
           full_name: string | null
           id: string
+          invite_code: string | null
           loyalty_programs: Json | null
           nationality: string | null
           pais_origen: string | null
           tier: string | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -344,11 +444,13 @@ export type Database = {
           fecha_nacimiento?: string | null
           full_name?: string | null
           id: string
+          invite_code?: string | null
           loyalty_programs?: Json | null
           nationality?: string | null
           pais_origen?: string | null
           tier?: string | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -359,11 +461,13 @@ export type Database = {
           fecha_nacimiento?: string | null
           full_name?: string | null
           id?: string
+          invite_code?: string | null
           loyalty_programs?: Json | null
           nationality?: string | null
           pais_origen?: string | null
           tier?: string | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -598,6 +702,73 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          badge_id: string
+          id: string
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          id?: string
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          id?: string
+          unlocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_missions: {
+        Row: {
+          completada: boolean | null
+          completed_at: string | null
+          id: string
+          mission_id: string
+          progreso: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completada?: boolean | null
+          completed_at?: string | null
+          id?: string
+          mission_id: string
+          progreso?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completada?: boolean | null
+          completed_at?: string | null
+          id?: string
+          mission_id?: string
+          progreso?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_missions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_vault_benefits: {
         Row: {
           airline_alliances: Json
@@ -683,6 +854,24 @@ export type Database = {
       }
     }
     Views: {
+      mis_amigos: {
+        Row: {
+          amigo_id: string | null
+          created_at: string | null
+          status: string | null
+        }
+        Insert: {
+          amigo_id?: never
+          created_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          amigo_id?: never
+          created_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       user_autonomy: {
         Row: {
           dna_version: number | null
@@ -709,6 +898,8 @@ export type Database = {
       }
     }
     Functions: {
+      agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
+      compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
       ensure_ai_prefs: { Args: { p_user: string }; Returns: undefined }
     }
     Enums: {
