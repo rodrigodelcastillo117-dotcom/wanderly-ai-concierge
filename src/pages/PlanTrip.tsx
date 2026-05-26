@@ -352,15 +352,18 @@ const PlanTrip = () => {
   return (
     <DashboardLayout>
       <div className="min-h-screen flex flex-col">
-        <header className="px-6 md:px-10 py-6">
-          <button
-            onClick={() => (step > 0 ? setStep(step - 1) : navigate("/dashboard"))}
-            className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {step > 0 ? "Atrás" : "Volver"}
-          </button>
-        </header>
+        {step > 0 && (
+          <header className="px-6 md:px-10 py-6">
+            <button
+              onClick={() => setStep(step - 1)}
+              className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Atrás
+            </button>
+          </header>
+        )}
+
         <main className="flex-1 px-6 py-10">
           <div className="w-full max-w-6xl mx-auto grid lg:grid-cols-[1fr_360px] gap-10 items-start">
             <div className="w-full max-w-xl mx-auto lg:mx-0">
