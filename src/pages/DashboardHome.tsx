@@ -196,10 +196,6 @@ const DashboardHome = () => {
             {today} <span className="mx-2 text-primary/40">|</span> <span className="text-foreground/80 normal-case">{time}</span>
           </p>
           <div className="flex items-center gap-1.5">
-            <button className="relative p-2.5 rounded-full hover:bg-white/[0.04] transition" aria-label="Notificaciones">
-              <Bell className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.75} />
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(41_47%_59%)]" />
-            </button>
             <button onClick={() => navigate("/dashboard/perfil")} className="p-2.5 rounded-full hover:bg-white/[0.04] transition" aria-label="Ajustes">
               <Settings className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.75} />
             </button>
