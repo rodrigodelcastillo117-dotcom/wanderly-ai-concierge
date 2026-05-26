@@ -288,14 +288,19 @@ const TripDetail = () => {
                 {trip.hospedaje_json.map((h: any, i: number) => {
                   const active = selHospedaje === i;
                   return (
-                    <div key={i} onClick={() => setSelHospedaje(i)} className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}>
-                      {active && <SelectedBadge />}
-                      <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{h.tipo}</p>
-                      <p className="font-display text-xl mb-1">{h.nombre}</p>
-                      <p className="text-sm text-muted-foreground mb-3">{h.barrio} · ★ {h.rating}</p>
-                      <p className="font-medium mb-3">{fmtMXN(h.precio_por_noche)}<span className="text-xs text-muted-foreground ml-1">/ noche</span></p>
-                      <p className="text-xs text-muted-foreground italic">{h.por_que}</p>
-                    </div>
+                    <ExpandableItemCard
+                      key={i}
+                      imageQuery={`${h.nombre} ${trip.destino} hotel`}
+                      eyebrow={h.tier || h.tipo}
+                      title={h.nombre}
+                      subtitle={`${h.barrio} · ★ ${h.rating}`}
+                      price={`${fmtMXN(h.precio_por_noche)} / noche`}
+                      active={active}
+                      selectable
+                      onToggle={() => setSelHospedaje(i)}
+                    >
+                      <p className="italic">{h.por_que}</p>
+                    </ExpandableItemCard>
                   );
                 })}
                 <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)} title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, familia, Airbnb propio…" />
