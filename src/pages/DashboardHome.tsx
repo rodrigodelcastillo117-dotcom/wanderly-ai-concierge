@@ -487,13 +487,14 @@ const DashboardHome = () => {
             </form>
           </section>
 
-          <section className="glass-card rounded-3xl p-6 md:p-7">
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">Inspiración para ti</p>
-              <Link to="/dashboard/descubre" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 mb-6">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Inspiración para ti</p>
+              <Link to="/dashboard/descubre" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                 Ver más <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
+
             <div className="relative rounded-2xl overflow-hidden aspect-[16/10] group cursor-pointer ring-1 ring-white/[0.05]" onClick={() => navigate("/dashboard/descubre")}>
               <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
