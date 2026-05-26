@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, MapPin, Plus, X, Sparkles, Train, Mountain, Wallet,
-  Car, Luggage, Settings2, Route as RouteIcon, Loader2,
+  Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
 
 type ConnStyle = "tiempo" | "paisaje" | "smart";
 
@@ -44,9 +45,22 @@ const CONNECTION_OPTIONS: {
 const MultiDestRoute = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
 
-  const [origin, setOrigin] = useState("");
-  const [stops, setStops] = useState<string[]>(["", ""]);
+  // Seeds desde la URL (cuando llega desde PlanTrip por detección automática)
+  const seedDestinos = useMemo(
+    () => (params.get("destinos") ?? "").split("|").map((s) => s.trim()).filter(Boolean),
+    [params],
+  );
+  const seedOrigin = params.get("origin") ?? "";
+  const fechaSalida = params.get("fecha_salida") ?? "";
+  const fechaRegreso = params.get("fecha_regreso") ?? "";
+  const viajeros = Number(params.get("viajeros") ?? "2");
+  const presupuesto = params.get("presupuesto");
+  const autoStart = params.get("auto") === "1" && seedDestinos.length >= 2;
+
+  const [origin, setOrigin] = useState(seedOrigin);
+  const [stops, setStops] = useState<string[]>(seedDestinos.length ? seedDestinos : ["", ""]);
   const [draft, setDraft] = useState("");
 
   const [tripsCount, setTripsCount] = useState<number | null>(null);
@@ -55,7 +69,11 @@ const MultiDestRoute = () => {
 
   const [configOpen, setConfigOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState<null | { itinerary: any[]; autonomous: boolean }>(null);
+  const [generated, setGenerated] = useState<null | {
+    logistics: any;
+    autonomous: boolean;
+    tripId?: string;
+  }>(null);
 
   // Veteran when trips_count >= 3 OR strong behavioral signal
   const isVeteran = useMemo(() => {
@@ -78,6 +96,18 @@ const MultiDestRoute = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Autostart cuando venimos con destinos pre-cargados y user listo
+  useEffect(() => {
+    if (!autoStart || !user || tripsCount === null || generated || generating) return;
+    // Veterano → directo. Novato → modal.
+    if (isVeteran) {
+      void generateRoute(DEFAULT_PREFS, true);
+    } else {
+      setConfigOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, user, tripsCount, isVeteran]);
+
   const addStop = () => {
     const v = draft.trim();
     if (!v) return;
@@ -97,10 +127,8 @@ const MultiDestRoute = () => {
       return;
     }
     if (isVeteran) {
-      // PHASE 2 — God Mode: skip modal, auto-generate
       generateRoute(DEFAULT_PREFS, true);
     } else {
-      // PHASE 1 — Manual control
       setConfigOpen(true);
     }
   };
@@ -109,39 +137,62 @@ const MultiDestRoute = () => {
     setConfigOpen(false);
     setGenerating(true);
     try {
-      // Telemetry — drives the AI confidence over time
+      // Telemetría
       if (user) {
         await supabase.from("behavioral_insights").insert([{
           user_id: user.id,
           action: "planned",
-          target_type: "destination",
+          target_type: "multi_destination",
           target_label: validStops.join(" → "),
-          metadata: { multi_dest: true, autonomous, prefs: p as any, origin } as any,
+          metadata: { autonomous, prefs: p as any, origin } as any,
         }]);
       }
 
-      // Build a simulated optimized itinerary client-side so the UX feels real.
-      // (When connected to the multi-leg engine, swap this for an edge-function call.)
-      await new Promise((r) => setTimeout(r, 1400));
+      // Logística real via edge function
+      const { data, error } = await supabase.functions.invoke("logistics-plan", {
+        body: {
+          origin,
+          destinations: validStops,
+          fecha_salida: fechaSalida || undefined,
+          fecha_regreso: fechaRegreso || undefined,
+          num_viajeros: viajeros,
+          prefs: p,
+        },
+      });
+      if (error) throw error;
+      if (!data?.logistics) throw new Error("La IA no devolvió logística");
 
-      const legs = [origin, ...validStops].map((city, i, arr) => {
-        if (i === arr.length - 1) return null;
-        const next = arr[i + 1];
-        const mode =
-          p.connection === "tiempo" ? "Tren bala / vuelo directo"
-          : p.connection === "paisaje" ? "Ruta escénica"
-          : "Mejor costo-beneficio";
-        return {
-          from: city,
-          to: next,
-          mode,
-          duration: p.connection === "tiempo" ? "2h 40m" : p.connection === "paisaje" ? "5h 10m" : "3h 30m",
-          stopovers: p.roadtripStops ? ["Mirador panorámico", "Pueblo mágico cercano"] : [],
-          luggage: p.luggageLogistics ? "Luggage storage reservado en estación" : null,
-        };
-      }).filter(Boolean) as any[];
+      const logistics = data.logistics;
 
-      setGenerated({ itinerary: legs, autonomous });
+      // Persistir como trip
+      let tripId: string | undefined;
+      if (user) {
+        const { data: trip, error: tErr } = await supabase
+          .from("trips")
+          .insert({
+            user_id: user.id,
+            destino: validStops.join(" → "),
+            pais_destino: validStops[validStops.length - 1],
+            ciudad_origen: origin,
+            fecha_salida: fechaSalida || null,
+            fecha_regreso: fechaRegreso || null,
+            num_viajeros: viajeros,
+            presupuesto_objetivo: presupuesto ? Number(presupuesto) : null,
+            total_estimado: logistics.total_estimado_usd
+              ? Math.round(Number(logistics.total_estimado_usd) * 17) // USD → MXN aprox
+              : null,
+            moneda: "MXN",
+            status: "listo",
+            itinerario_json: { multi: true, logistics, destinations: validStops },
+          })
+          .select("id")
+          .single();
+        if (tErr) console.error(tErr);
+        else tripId = trip?.id;
+      }
+
+      setGenerated({ logistics, autonomous, tripId });
+      toast.success("Travesía multi-destino generada");
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "No pudimos generar la ruta");
@@ -149,6 +200,7 @@ const MultiDestRoute = () => {
       setGenerating(false);
     }
   };
+
 
   return (
     <DashboardLayout>
@@ -293,37 +345,171 @@ const MultiDestRoute = () => {
                 </motion.div>
               )}
 
-              <div className="rounded-3xl border border-border bg-card overflow-hidden">
-                {generated.itinerary.map((leg, i) => (
-                  <div key={i} className="p-5 md:p-6 border-b border-border last:border-0">
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                      <span className="font-mono text-primary">{String(i + 1).padStart(2, "0")}</span>
-                      <span>{leg.from}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                      <span className="text-foreground font-medium">{leg.to}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border inline-flex items-center gap-1.5">
-                        <Train className="w-3 h-3 text-primary" /> {leg.mode}
-                      </span>
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border">
-                        {leg.duration}
-                      </span>
-                      {leg.luggage && (
-                        <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary inline-flex items-center gap-1.5">
-                          <Luggage className="w-3 h-3" /> {leg.luggage}
-                        </span>
-                      )}
-                    </div>
-                    {leg.stopovers?.length > 0 && (
-                      <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                        <Car className="w-3 h-3" />
-                        Paradas sugeridas: {leg.stopovers.join(" · ")}
+              {/* Vuelos */}
+              {generated.logistics.flights?.length > 0 && (
+                <div className="rounded-3xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 md:px-6 py-3 border-b border-border flex items-center gap-2 text-sm">
+                    <Plane className="w-4 h-4 text-primary" />
+                    <span className="text-primary tracking-[0.25em] uppercase text-xs">Vuelos</span>
+                  </div>
+                  {generated.logistics.flights.map((f: any, i: number) => (
+                    <div key={i} className="p-5 md:p-6 border-b border-border last:border-0">
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
+                        <span className="font-mono text-primary">{String(i + 1).padStart(2, "0")}</span>
+                        <span>{f.from}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span className="text-foreground font-medium">{f.to}</span>
                       </div>
+                      <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                        {f.airline_suggested && (
+                          <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{f.airline_suggested}</span>
+                        )}
+                        {f.duration && (
+                          <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{f.duration}</span>
+                        )}
+                        {f.stops && (
+                          <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{f.stops}</span>
+                        )}
+                        {f.price_per_person_usd != null && (
+                          <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary">
+                            ${Math.round(f.price_per_person_usd)} USD / persona
+                          </span>
+                        )}
+                      </div>
+                      {f.notes && <p className="text-xs text-muted-foreground mt-2">{f.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Transporte interno */}
+              {generated.logistics.internal_transport?.length > 0 && (
+                <div className="rounded-3xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 md:px-6 py-3 border-b border-border flex items-center gap-2 text-sm">
+                    <Train className="w-4 h-4 text-primary" />
+                    <span className="text-primary tracking-[0.25em] uppercase text-xs">Transporte interno</span>
+                  </div>
+                  {generated.logistics.internal_transport.map((leg: any, i: number) => {
+                    const Icon = leg.mode === "tren" ? Train
+                      : leg.mode === "roadtrip" ? Car
+                      : leg.mode === "vuelo_interno" ? Plane
+                      : Mountain;
+                    return (
+                      <div key={i} className="p-5 md:p-6 border-b border-border last:border-0">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
+                          <span className="font-mono text-primary">{String(i + 1).padStart(2, "0")}</span>
+                          <span>{leg.from}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span className="text-foreground font-medium">{leg.to}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                          <span className="px-2.5 py-1 rounded-full bg-surface border border-border inline-flex items-center gap-1.5">
+                            <Icon className="w-3 h-3 text-primary" />
+                            {leg.provider || leg.mode}
+                            {leg.scenic ? " · escénico" : ""}
+                          </span>
+                          {leg.duration && (
+                            <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{leg.duration}</span>
+                          )}
+                          {leg.price_per_person_usd != null && (
+                            <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary">
+                              ${Math.round(leg.price_per_person_usd)} USD / persona
+                            </span>
+                          )}
+                          {leg.luggage_note && (
+                            <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary inline-flex items-center gap-1.5">
+                              <Luggage className="w-3 h-3" /> {leg.luggage_note}
+                            </span>
+                          )}
+                        </div>
+                        {leg.suggested_stops?.length > 0 && (
+                          <div className="mt-3 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Car className="w-3 h-3" /> Paradas sugeridas:
+                            </div>
+                            <ul className="pl-5 list-disc space-y-0.5">
+                              {leg.suggested_stops.map((s: any, j: number) => (
+                                <li key={j}>
+                                  <span className="text-foreground">{s.name}</span>
+                                  {s.why ? ` — ${s.why}` : ""}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Transporte local */}
+              {generated.logistics.local_transport_tips?.length > 0 && (
+                <div className="rounded-3xl border border-border bg-card p-5 md:p-6">
+                  <div className="flex items-center gap-2 text-xs text-primary tracking-[0.25em] uppercase mb-3">
+                    <MapPin className="w-3.5 h-3.5" /> Transporte local
+                  </div>
+                  <ul className="space-y-2 text-sm">
+                    {generated.logistics.local_transport_tips.map((t: any, i: number) => (
+                      <li key={i} className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-foreground">{t.city}</p>
+                          <p className="text-xs text-muted-foreground">{t.recommendation}</p>
+                        </div>
+                        {t.est_daily_usd != null && (
+                          <span className="text-xs text-primary whitespace-nowrap">
+                            ~${Math.round(t.est_daily_usd)} USD / día
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Costos obligatorios */}
+              {generated.logistics.mandatory_costs && (
+                <div className="rounded-3xl border border-primary/30 bg-card p-5 md:p-6">
+                  <div className="flex items-center gap-2 text-xs text-primary tracking-[0.25em] uppercase mb-3">
+                    <Receipt className="w-3.5 h-3.5" /> Costos obligatorios
+                  </div>
+                  <ul className="text-sm space-y-1.5 text-muted-foreground">
+                    <li className="flex justify-between"><span>City taxes</span><span className="text-foreground">${Math.round(generated.logistics.mandatory_costs.city_taxes_usd || 0)} USD</span></li>
+                    <li className="flex justify-between"><span>Visados</span><span className="text-foreground">${Math.round(generated.logistics.mandatory_costs.visa_fees_usd || 0)} USD</span></li>
+                    <li className="flex justify-between">
+                      <span>Buffer cambiario ({generated.logistics.mandatory_costs.currency_buffer_pct ?? 3}%)</span>
+                      <span className="text-foreground">${Math.round(generated.logistics.mandatory_costs.currency_buffer_usd || 0)} USD</span>
+                    </li>
+                  </ul>
+                  {generated.logistics.mandatory_costs.notes && (
+                    <p className="text-xs text-muted-foreground mt-3">{generated.logistics.mandatory_costs.notes}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Total + CTA al detalle */}
+              {generated.logistics.total_estimado_usd != null && (
+                <div className="rounded-3xl border border-border bg-card p-6 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs tracking-[0.25em] uppercase text-primary mb-1">Total estimado</p>
+                    <p className="font-display text-3xl md:text-4xl gold-text">
+                      ${Math.round(generated.logistics.total_estimado_usd).toLocaleString("en-US")} USD
+                    </p>
+                    {generated.logistics.resumen && (
+                      <p className="text-xs text-muted-foreground mt-2 max-w-md">{generated.logistics.resumen}</p>
                     )}
                   </div>
-                ))}
-              </div>
+                  {generated.tripId && (
+                    <Button
+                      onClick={() => navigate(`/dashboard/viajes/${generated.tripId}`)}
+                      className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow"
+                    >
+                      Ver viaje completo <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  )}
+                </div>
+              )}
+
             </motion.section>
           )}
         </AnimatePresence>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles, Route as RouteIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -9,6 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { detectRouteIntent } from "@/lib/detectRouteIntent";
+
 
 const LOADING_MESSAGES = [
   "Buscando vuelos óptimos…",
@@ -75,6 +77,23 @@ const PlanTrip = () => {
 
   const analizar = () => {
     if (!destino || !fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+
+    // Detección single vs multi al confirmar.
+    const intent = detectRouteIntent(destino);
+    if (intent.mode === "multi" && intent.destinations.length >= 2) {
+      const qs = new URLSearchParams({
+        origin: ciudadOrigen,
+        destinos: intent.destinations.join("|"),
+        fecha_salida: fechaSalida,
+        fecha_regreso: fechaRegreso,
+        viajeros: String(numViajeros),
+        auto: "1",
+      });
+      if (presupuesto != null) qs.set("presupuesto", String(presupuesto));
+      navigate(`/dashboard/ruta?${qs.toString()}`);
+      return;
+    }
+
     return runAnalisis({
       destino,
       ciudad_origen: ciudadOrigen,
@@ -84,6 +103,8 @@ const PlanTrip = () => {
       presupuesto_objetivo: presupuesto,
     });
   };
+
+
 
   // Flujo de búsqueda en lenguaje natural: ?q=... viene del Inicio
   useEffect(() => {
@@ -99,6 +120,24 @@ const PlanTrip = () => {
           .select("ciudad_origen")
           .eq("id", user.id)
           .maybeSingle();
+
+        // Detección rápida cliente — si parece multi, vamos directo al builder de ruta.
+        const fastIntent = detectRouteIntent(q);
+        if (fastIntent.mode === "multi" && fastIntent.destinations.length >= 2) {
+          const hoy = new Date();
+          const defaultSalida = new Date(hoy.getTime() + 30 * 86400000).toISOString().slice(0, 10);
+          const defaultRegreso = new Date(hoy.getTime() + 37 * 86400000).toISOString().slice(0, 10);
+          const qs = new URLSearchParams({
+            origin: prof?.ciudad_origen || "Ciudad de México",
+            destinos: fastIntent.destinations.join("|"),
+            fecha_salida: defaultSalida,
+            fecha_regreso: defaultRegreso,
+            viajeros: "2",
+            auto: "1",
+          });
+          if (!cancelled) navigate(`/dashboard/ruta?${qs.toString()}`, { replace: true });
+          return;
+        }
 
         const { data, error } = await supabase.functions.invoke("parsear-viaje", {
           body: { prompt: q },
@@ -132,6 +171,7 @@ const PlanTrip = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
 
   if (interpretando) {
     return (
@@ -197,18 +237,37 @@ const PlanTrip = () => {
     {
       icon: MapPin,
       title: "¿A dónde quieres ir?",
-      sub: "Una ciudad, un país, o una vibra: 'una playa tranquila'.",
+      sub: "Un destino ('Tokio') o una travesía ('México → Madrid → París'). IATOS AI detecta el modo.",
       canNext: () => destino.trim().length > 1,
-      render: () => (
-        <Input
-          autoFocus
-          placeholder="París, Tokio, Cartagena…"
-          value={destino}
-          onChange={(e) => setDestino(e.target.value)}
-          className="h-16 text-lg bg-input border-border"
-        />
-      ),
+      render: () => {
+        const intent = detectRouteIntent(destino);
+        const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
+        return (
+          <div className="space-y-3">
+            <Input
+              autoFocus
+              placeholder="París · o · Roma → Florencia → Venecia"
+              value={destino}
+              onChange={(e) => setDestino(e.target.value)}
+              className="h-16 text-lg bg-input border-border"
+            />
+            {destino.trim().length > 1 && (
+              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${
+                isMulti
+                  ? "bg-primary/10 border-primary/40 text-primary"
+                  : "bg-surface border-border text-muted-foreground"
+              }`}>
+                {isMulti ? <RouteIcon className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
+                {isMulti
+                  ? `Travesía multi-destino · ${intent.destinations.length} ciudades`
+                  : "Viaje a un solo destino"}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
+
     {
       icon: Calendar,
       title: "¿Cuándo y con quién?",
