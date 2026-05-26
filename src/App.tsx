@@ -20,6 +20,7 @@ import { Pro } from "./pages/SoonPages";
 import Concierge from "./pages/Concierge";
 import Cercanos from "./pages/Cercanos";
 import Favoritos from "./pages/Favoritos";
+import Social from "./pages/Social";
 import { Navigate } from "react-router-dom";
 import Gastos from "./pages/Gastos";
 import NotFound from "./pages/NotFound.tsx";
