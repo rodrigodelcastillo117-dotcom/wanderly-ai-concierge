@@ -1,8 +1,8 @@
-// serpapi-quote — Real-time pricing via SerpApi (Google Flights + Google Hotels)
-// Input: { origin, destination, depart, return_date, nights, travelers, currency? }
-// Output: { flight, hotel, breakdown, total_usd, total_mxn }
-// Set ENABLED = false to pause SerpApi spending.
-const ENABLED = true;
+// serpapi-quote — Pricing engine
+// Modo actual: ENABLED=false → estima con IA (Gemini) usando conocimiento de
+// Google Flights, Kayak, Skyscanner, Booking y precios históricos por mes/día.
+// Cuando se reactive (ENABLED=true) vuelve a SerpApi en vivo sin cambios.
+const ENABLED = false;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -121,12 +121,94 @@ async function serpHotels(key: string, city: string, checkin: string, checkout: 
   };
 }
 
+async function aiEstimate(apiKey: string, body: Body) {
+  const travelers = Math.max(1, body.travelers ?? 1);
+  const nights = Math.max(1, body.nights ?? 1);
+  const prompt = `Estima precios REALISTAS de viaje para esta ruta usando tu conocimiento de Google Flights, Kayak, Skyscanner, Booking, Expedia y precios históricos por mes/día. NO inventes números bajos: usa rangos reales de mercado.
+
+Ruta: ${body.origin} → ${body.destination}
+Salida: ${body.depart}   Regreso: ${body.return_date}
+Noches: ${nights}   Viajeros: ${travelers}
+
+Devuelve SOLO JSON con esta forma exacta (sin texto extra, sin markdown):
+{
+  "flight": {
+    "price_usd": number,           // total round-trip para TODOS los ${travelers} viajeros, en USD
+    "airline": string,             // aerolínea típica/recomendada en esa ruta
+    "duration": string,            // ej "11h 45m"
+    "stops": number,               // 0 directo, 1 una escala, etc
+    "departure": string,           // IATA origen ej "MEX"
+    "arrival": string              // IATA destino ej "CDG"
+  },
+  "hotel": {
+    "name": string,                // hotel 4-5★ representativo en el destino
+    "rating": number,              // 1-5
+    "hotel_class": number,         // 4 o 5
+    "nightly_usd": number          // tarifa promedio por noche en USD para esas fechas
+  }
+}
+
+Considera temporada (alta/baja) según el mes de ${body.depart}, día de la semana, y patrones históricos. Sé preciso, no optimista.`;
+
+  const r = await fetch(AI_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: "Eres un experto en pricing de viajes. Respondes SOLO JSON válido, sin markdown ni explicaciones." },
+        { role: "user", content: prompt },
+      ],
+    }),
+  });
+  if (!r.ok) throw new Error(`ai ${r.status}`);
+  const j = await r.json();
+  let raw = (j?.choices?.[0]?.message?.content ?? "").trim();
+  raw = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
+  const parsed = JSON.parse(raw);
+  return { flight: parsed.flight ?? null, hotel: parsed.hotel ?? null };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // === MODO ESTIMACIÓN IA (sin gastar SerpApi) ===
   if (!ENABLED) {
-    return new Response(JSON.stringify({ disabled: true, message: "SerpApi integration is temporarily disabled." }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    try {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) throw new Error("LOVABLE_API_KEY missing");
+      const body = (await req.json()) as Body;
+      const travelers = Math.max(1, body.travelers ?? 1);
+      const nights = Math.max(1, body.nights ?? 1);
+      const { flight, hotel } = await aiEstimate(lovableKey, body);
+      const flights_total = flight?.price_usd ?? 0;
+      const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
+      const subtotal = flights_total + hotel_total;
+      const buffer = subtotal * 0.2;
+      const total_usd = Math.round(subtotal + buffer);
+      const total_mxn = Math.round(total_usd * 18.5);
+      return new Response(JSON.stringify({
+        flight: flight ? { ...flight, airline_logo: null } : null,
+        hotel: hotel ? { ...hotel, thumbnail: null, link: null } : null,
+        breakdown: {
+          flights_usd: flights_total,
+          hotel_nightly_usd: hotel?.nightly_usd ?? 0,
+          hotel_total_usd: hotel_total,
+          nights,
+          buffer_usd: Math.round(buffer),
+        },
+        total_usd,
+        total_mxn,
+        source: "ai-estimate",
+        fetched_at: new Date().toISOString(),
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      console.error("ai-estimate error:", msg);
+      return new Response(JSON.stringify({ error: msg }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
   try {
     const serpKey = Deno.env.get("SERPAPI_PRIVATE_KEY");
