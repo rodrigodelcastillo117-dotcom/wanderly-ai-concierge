@@ -138,6 +138,27 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
       {/* Main */}
       <main className="flex-1 min-w-0 overflow-x-hidden pb-28 md:pb-0 relative">
+        {/* Mobile top bar — notifications + profile avatar */}
+        <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
+          <Link to="/dashboard" className="flex items-center">
+            <img src={iatosLogo} alt="IATOS" className="h-7 w-auto object-contain" />
+          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="Notificaciones"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition relative"
+            >
+              <Bell className="w-[18px] h-[18px]" strokeWidth={1.75} />
+            </button>
+            <button
+              onClick={() => navigate("/dashboard/perfil")}
+              aria-label="Mi perfil"
+              className="w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition"
+            >
+              {initial}
+            </button>
+          </div>
+        </div>
         <BackButton />
         {children}
       </main>
