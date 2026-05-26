@@ -53,7 +53,9 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
       className="glass-card rounded-2xl p-8 md:p-10 mb-8"
     >
       <div className="flex items-start justify-between gap-4 mb-3">
-        <p className="text-xs tracking-[0.2em] uppercase text-primary">Inversión total estimada</p>
+        <p className="text-xs tracking-[0.2em] uppercase text-primary">
+          Inversión total · grupo de {travelers} {travelers === 1 ? "persona" : "personas"}
+        </p>
         {q && (
           <span className="text-[10px] tracking-widest uppercase text-muted-foreground inline-flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-primary" /> estimación IA · precios de mercado
@@ -64,13 +66,17 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
         {rounded as any}
       </motion.p>
       {q && (
-        <p className="text-xs text-muted-foreground mb-5">
+        <p className="text-xs text-muted-foreground mb-2">
           ≈ ${q.total_usd.toLocaleString("en-US")} USD · incluye 20% buffer para experiencias diarias
         </p>
       )}
-      <p className="text-sm text-muted-foreground mb-6">
-        Para {travelers} {travelers === 1 ? "persona" : "personas"} · {nights} noches
+      <p className="text-sm text-muted-foreground mb-1">
+        Para <span className="text-foreground font-medium">{travelers} {travelers === 1 ? "persona" : "personas"}</span> · {nights} noches
       </p>
+      <p className="text-[11px] text-muted-foreground/80 mb-6 italic">
+        Precio total del grupo (no por persona) · ≈ {fmtMXN(Math.round((data?.total_mxn ?? fallbackMxn) / Math.max(1, travelers)))} por persona
+      </p>
+
 
       {q && (
         <div className="grid md:grid-cols-2 gap-3">

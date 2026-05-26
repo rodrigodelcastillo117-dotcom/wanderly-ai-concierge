@@ -30,9 +30,25 @@ const TripDetail = () => {
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const toggleCity = (city: string) => {
-    setActiveCity((prev) => (prev === city ? null : city));
+    setActiveCity((prev) => {
+      const next = prev === city ? null : city;
+      if (next) {
+        // Scroll suave al inicio del destino abierto
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            const el = cityRefs.current[next];
+            if (el) {
+              const y = el.getBoundingClientRect().top + window.scrollY - 88;
+              window.scrollTo({ top: y, behavior: "smooth" });
+            }
+          }, 80);
+        });
+      }
+      return next;
+    });
   };
   const cityRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const loadTrip = async () => {
@@ -160,12 +176,8 @@ const TripDetail = () => {
       <div className="relative h-[60vh] min-h-[420px] overflow-hidden">
         <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={trip.cover_image_url ?? santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-overlay" />
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="absolute top-6 left-6 inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm hover:gold-border transition"
-        >
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
+
+
         <div className="absolute top-6 right-6 flex items-center gap-2">
           <button
             onClick={handleDownloadPdf}
