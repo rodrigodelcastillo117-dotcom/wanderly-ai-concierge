@@ -29,12 +29,8 @@ const TripDetail = () => {
   const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
   const toggleCity = (city: string) => {
-    setAutoScroll(false); // user took manual control
     setActiveCity((prev) => (prev === city ? null : city));
-    // Re-enable auto after a short moment so future scrolling works normally
-    window.setTimeout(() => setAutoScroll(true), 1500);
   };
   const cityRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [generatingPdf, setGeneratingPdf] = useState(false);
