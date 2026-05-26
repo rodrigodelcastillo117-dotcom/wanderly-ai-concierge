@@ -159,12 +159,8 @@ const EditTrip = () => {
   return (
     <DashboardLayout>
       <div className="p-6 md:p-10 max-w-2xl">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-2 mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
+
+
 
         <h1 className="font-display text-4xl md:text-5xl mb-2">Editar viaje</h1>
         <p className="text-muted-foreground mb-10">
