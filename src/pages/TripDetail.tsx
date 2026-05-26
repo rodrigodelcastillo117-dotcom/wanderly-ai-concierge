@@ -55,6 +55,46 @@ const TripDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Auto-accordion: open the city whose header is near the top of the viewport
+  useEffect(() => {
+    if (!trip) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (!autoScroll) return;
+        // Find the entry closest to top that is intersecting
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) {
+          const city = (visible[0].target as HTMLElement).dataset.city;
+          if (city && city !== activeCity) setActiveCity(city);
+        }
+      },
+      { rootMargin: "-15% 0px -70% 0px", threshold: 0 },
+    );
+    Object.entries(cityRefs.current).forEach(([city, el]) => {
+      if (el) {
+        el.dataset.city = city;
+        obs.observe(el);
+      }
+    });
+    return () => obs.disconnect();
+  }, [trip, autoScroll, activeCity]);
+
+  const handleDownloadPdf = async () => {
+    if (!trip) return;
+    setGeneratingPdf(true);
+    try {
+      await generateTripPDF(trip, { selVuelo, selHospedaje, nochesEfectivas, selTours }, { desglose: computedDesglose, total: computedTotal });
+      toast.success("PDF descargado");
+    } catch (e: any) {
+      console.error(e);
+      toast.error("No pude generar el PDF", { description: e?.message });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
   // itinerario_json puede ser array (single) o objeto { multi, days, logistics, destinations } (multi)
   const itinObj = trip?.itinerario_json;
   const isMulti = !!(itinObj && !Array.isArray(itinObj) && itinObj.multi);
