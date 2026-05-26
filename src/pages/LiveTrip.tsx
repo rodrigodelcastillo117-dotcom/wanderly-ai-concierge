@@ -90,7 +90,6 @@ const LiveTrip = () => {
   }
 
   const emergency = getEmergency(trip.pais_destino);
-  const mapsQuery = encodeURIComponent(trip.destino);
   const acts: any[] = todayPlan?.actividades ?? todayPlan?.plan ?? [];
 
   return (
