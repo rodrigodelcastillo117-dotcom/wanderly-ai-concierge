@@ -199,18 +199,37 @@ const PlanTrip = () => {
     {
       icon: MapPin,
       title: "¿A dónde quieres ir?",
-      sub: "Una ciudad, un país, o una vibra: 'una playa tranquila'.",
+      sub: "Un destino ('Tokio') o una travesía ('México → Madrid → París'). IATOS AI detecta el modo.",
       canNext: () => destino.trim().length > 1,
-      render: () => (
-        <Input
-          autoFocus
-          placeholder="París, Tokio, Cartagena…"
-          value={destino}
-          onChange={(e) => setDestino(e.target.value)}
-          className="h-16 text-lg bg-input border-border"
-        />
-      ),
+      render: () => {
+        const intent = detectRouteIntent(destino);
+        const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
+        return (
+          <div className="space-y-3">
+            <Input
+              autoFocus
+              placeholder="París · o · Roma → Florencia → Venecia"
+              value={destino}
+              onChange={(e) => setDestino(e.target.value)}
+              className="h-16 text-lg bg-input border-border"
+            />
+            {destino.trim().length > 1 && (
+              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${
+                isMulti
+                  ? "bg-primary/10 border-primary/40 text-primary"
+                  : "bg-surface border-border text-muted-foreground"
+              }`}>
+                {isMulti ? <RouteIcon className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
+                {isMulti
+                  ? `Travesía multi-destino · ${intent.destinations.length} ciudades`
+                  : "Viaje a un solo destino"}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
+
     {
       icon: Calendar,
       title: "¿Cuándo y con quién?",
