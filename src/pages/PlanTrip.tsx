@@ -105,20 +105,6 @@ const PlanTrip = () => {
   };
 
 
-  // Flujo de búsqueda en lenguaje natural: ?q=... viene del Inicio
-  useEffect(() => {
-    const q = params.get("q");
-    if (!q || !user) return;
-    let cancelled = false;
-    (async () => {
-      setInterpretando(true);
-      try {
-        // Trae ciudad_origen del perfil para fallback
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("ciudad_origen")
-          .eq("id", user.id)
-          .maybeSingle();
 
   // Flujo de búsqueda en lenguaje natural: ?q=... viene del Inicio
   useEffect(() => {
