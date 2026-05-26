@@ -1,5 +1,5 @@
 import { useState, ReactNode } from "react";
-import { ChevronDown, Check, ImageOff } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCityImage } from "@/components/CityCollapsible";
 
@@ -52,15 +52,11 @@ export const ExpandableItemCard = ({
           style={{
             backgroundImage: img
               ? `url(${img})`
-              : "linear-gradient(135deg, hsl(var(--surface)), hsl(var(--card)))",
+              : "linear-gradient(135deg, hsl(var(--primary) / 0.25), hsl(var(--surface)))",
           }}
         />
-        {!img && (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
-            <ImageOff className="w-6 h-6" />
-          </div>
-        )}
         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
+
 
         {eyebrow && (
           <span className="absolute top-3 left-3 text-[10px] tracking-[0.2em] uppercase text-primary bg-background/70 backdrop-blur-sm px-2 py-0.5 rounded-full border border-primary/30">

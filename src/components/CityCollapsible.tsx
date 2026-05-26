@@ -51,6 +51,8 @@ interface CityCollapsibleProps {
   subtitle?: string;
   imageQuery?: string;
   defaultOpen?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
   count?: number;
   children: ReactNode;
 }
@@ -60,31 +62,37 @@ export const CityCollapsible = ({
   subtitle,
   imageQuery,
   defaultOpen = false,
+  open: openProp,
+  onToggle,
   count,
   children,
 }: CityCollapsibleProps) => {
-  const [open, setOpen] = useState(defaultOpen);
+  const [openLocal, setOpenLocal] = useState(defaultOpen);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? (openProp as boolean) : openLocal;
+  const toggle = () => {
+    if (isControlled) onToggle?.();
+    else setOpenLocal((o) => !o);
+  };
   const img = useCityImage(imageQuery || `${city} landmark travel`);
 
   return (
     <div className="rounded-2xl overflow-hidden border border-border/60 bg-card">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         className="relative w-full h-32 md:h-36 group text-left overflow-hidden"
       >
-        {/* Background image */}
         <div
           className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
           style={{
             backgroundImage: img
               ? `url(${img})`
-              : "linear-gradient(135deg, hsl(var(--surface)), hsl(var(--card)))",
+              : "linear-gradient(135deg, hsl(var(--primary) / 0.25), hsl(var(--surface)))",
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/55 to-background/25" />
 
-        {/* Content */}
         <div className="relative h-full flex items-center justify-between px-5 md:px-7">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-primary/15 border border-primary/40 flex items-center justify-center backdrop-blur-sm">
@@ -109,19 +117,10 @@ export const CityCollapsible = ({
         </div>
       </button>
 
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="p-5 md:p-6 border-t border-border/60">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Mount-stable content: hidden via CSS so siblings & children keep their state */}
+      <div hidden={!open}>
+        <div className="p-5 md:p-6 border-t border-border/60">{children}</div>
+      </div>
     </div>
   );
 };
