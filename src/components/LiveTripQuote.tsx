@@ -34,9 +34,8 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
   if (loading) {
     return (
       <div className="glass-card rounded-2xl p-8 md:p-10 mb-8 relative overflow-hidden">
-        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
         <p className="text-xs tracking-[0.2em] uppercase text-primary mb-3">Inversión total estimada</p>
-        <div className="h-16 md:h-20 w-2/3 rounded bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 bg-[length:200%_100%] animate-[shimmer_2s_infinite] mb-4" />
+        <div className="h-16 md:h-20 w-2/3 rounded-lg bg-gradient-to-r from-primary/10 via-primary/30 to-primary/10 animate-pulse mb-4" />
         <p className="text-sm text-muted-foreground flex items-center gap-2">
           <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
           Cotizando tarifas y disponibilidad en tiempo real…
