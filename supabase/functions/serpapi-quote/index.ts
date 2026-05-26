@@ -124,39 +124,58 @@ async function serpHotels(key: string, city: string, checkin: string, checkout: 
 async function aiEstimate(apiKey: string, body: Body) {
   const travelers = Math.max(1, body.travelers ?? 1);
   const nights = Math.max(1, body.nights ?? 1);
-  const prompt = `Estima precios REALISTAS de viaje para esta ruta usando tu conocimiento de Google Flights, Kayak, Skyscanner, Booking, Expedia y precios históricos por mes/día. NO inventes números bajos: usa rangos reales de mercado.
+  const month = body.depart ? new Date(body.depart).toLocaleString("en-US", { month: "long" }) : "—";
+
+  const prompt = `Estima precios REALISTAS de mercado. Usa tu conocimiento de Google Flights, Kayak, Skyscanner, Booking, Expedia y precios históricos por mes/día/temporada. Sé PRECISO y CONSERVADOR — los usuarios casi siempre encuentran tarifas más caras de lo esperado. NUNCA devuelvas precios optimistas tipo "ofertón flash".
 
 Ruta: ${body.origin} → ${body.destination}
-Salida: ${body.depart}   Regreso: ${body.return_date}
+Salida: ${body.depart} (${month})   Regreso: ${body.return_date}
 Noches: ${nights}   Viajeros: ${travelers}
 
-Devuelve SOLO JSON con esta forma exacta (sin texto extra, sin markdown):
+REFERENCIAS VUELO round-trip POR PERSONA en clase turista (temporada media):
+- México ↔ Europa occidental (MAD, BCN, CDG, FCO, LHR, AMS): USD 900–1,500
+- México ↔ Europa este/norte/Grecia (ATH, IST, JTR, VIE, BER): USD 1,100–1,800
+- México ↔ Asia (HND, BKK, SIN, HKG, DXB, DPS): USD 1,200–2,100
+- México ↔ EEUU: USD 350–900
+- México ↔ Sudamérica: USD 500–1,000
+- Doméstico México: USD 100–250
+Temporada ALTA (jun-ago, navidad, semana santa): +25-50%. Vuelo directo: +15-30% sobre el con escala.
+
+REFERENCIAS HOTEL por noche en USD:
+- Madrid/Barcelona/Lisboa/Roma 5★: 280-450 | 4★: 150-240
+- París/Londres/Ámsterdam 5★: 450-750 | 4★: 220-350
+- Santorini/Mykonos temporada alta 5★: 500-900 | 4★: 280-450
+- Tokio/Singapur/Hong Kong 5★: 350-600 | 4★: 200-320
+- Dubai/Bangkok/Bali 5★: 250-500 | 4★: 130-250
+- NYC/Miami/LA 5★: 400-700 | 4★: 220-350
+
+Devuelve SOLO JSON válido (sin markdown):
 {
   "flight": {
-    "price_usd": number,           // total round-trip para TODOS los ${travelers} viajeros, en USD
-    "airline": string,             // aerolínea típica/recomendada en esa ruta
-    "duration": string,            // ej "11h 45m"
-    "stops": number,               // 0 directo, 1 una escala, etc
-    "departure": string,           // IATA origen ej "MEX"
-    "arrival": string              // IATA destino ej "CDG"
+    "price_per_person_usd": number,    // round-trip POR PERSONA, clase turista, realista
+    "airline": string,                  // aerolínea principal real (Aeromexico, Iberia, Air France, Lufthansa, Emirates...)
+    "duration": string,                 // ej "11h 45m"
+    "stops": number,                    // 0 directo, 1 escala
+    "departure": string,                // IATA origen
+    "arrival": string                   // IATA destino
   },
   "hotel": {
-    "name": string,                // hotel 4-5★ representativo en el destino
-    "rating": number,              // 1-5
-    "hotel_class": number,         // 4 o 5
-    "nightly_usd": number          // tarifa promedio por noche en USD para esas fechas
+    "name": string,                     // hotel 4-5★ REAL conocido en el destino
+    "rating": number,
+    "hotel_class": number,              // 4 o 5
+    "nightly_usd": number               // tarifa promedio por noche en USD
   }
 }
 
-Considera temporada (alta/baja) según el mes de ${body.depart}, día de la semana, y patrones históricos. Sé preciso, no optimista.`;
+CRITICAL: price_per_person_usd es POR PERSONA, no total. Sé realista, no barato.`;
 
   const r = await fetch(AI_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-2.5-pro",
       messages: [
-        { role: "system", content: "Eres un experto en pricing de viajes. Respondes SOLO JSON válido, sin markdown ni explicaciones." },
+        { role: "system", content: "Eres analista senior de pricing de viajes con 15 años de experiencia. Conoces los precios reales de mercado al detalle. Respondes SOLO JSON válido. NUNCA das precios optimistas." },
         { role: "user", content: prompt },
       ],
     }),
@@ -166,7 +185,19 @@ Considera temporada (alta/baja) según el mes de ${body.depart}, día de la sema
   let raw = (j?.choices?.[0]?.message?.content ?? "").trim();
   raw = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
   const parsed = JSON.parse(raw);
-  return { flight: parsed.flight ?? null, hotel: parsed.hotel ?? null };
+  const f = parsed.flight ?? null;
+  // Normalizar: total para todos los viajeros (compatibilidad)
+  const ppp = Number(f?.price_per_person_usd ?? f?.price_usd ?? 0);
+  const flight = f ? {
+    price_usd: Math.round(ppp * travelers),
+    price_per_person_usd: Math.round(ppp),
+    airline: f.airline,
+    duration: f.duration,
+    stops: f.stops ?? 0,
+    departure: f.departure,
+    arrival: f.arrival,
+  } : null;
+  return { flight, hotel: parsed.hotel ?? null };
 }
 
 Deno.serve(async (req) => {

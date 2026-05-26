@@ -24,7 +24,7 @@ interface Body {
   };
 }
 
-const MODEL = "google/gemini-2.5-flash";
+const MODEL = "google/gemini-2.5-pro";
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 async function callAI(apiKey: string, system: string, user: string, toolName: string, schema: any) {
@@ -201,16 +201,36 @@ const citySchema = {
   required: ["city", "nights", "arrival_options", "hospedaje", "restaurantes", "experiencias"],
 };
 
-const GLOBAL_SYSTEM = `Eres IATOS, consultor de viajes de lujo. Devuelves JSON estricto.
-Aerolíneas/operadores REALES (Iberia, Air France, Italo, Renfe AVE, Eurostar, Ferries Blue Star, etc).
-Precios USD por persona realistas. En Europa <800km prefiere TREN/FERRY sobre vuelo.`;
+const PRICING_REFS = `REFERENCIAS DE MERCADO (USD POR PERSONA, conservadoras y realistas):
+VUELOS round-trip clase turista temporada media:
+- México↔Europa occidental (MAD/BCN/CDG/FCO/LHR/AMS): 900–1,500
+- México↔Grecia/Europa este (ATH/JTR/IST/VIE): 1,100–1,800
+- México↔Asia (HND/BKK/SIN/DXB/DPS): 1,200–2,100
+- México↔EEUU: 350–900 | Sudamérica: 500–1,000 | Doméstico MX: 100–250
+Temporada alta (jun-ago, navidad, semana santa) +25-50%. Vuelo directo +15-30%.
+TRENES (Europa): AVE Madrid-Barcelona 60-130, Italo/Trenitalia Roma-Florencia 30-70, Eurostar Londres-París 90-220, TGV París-Lyon 60-130.
+FERRIES Grecia: Atenas-Santorini Blue Star 50-75, SeaJets rápido 90-140.
+HOSPEDAJE por noche:
+- MAD/BCN/Lisboa/Roma: 5★ 280-450, 4★ 150-240
+- París/Londres/Ámsterdam: 5★ 450-750, 4★ 220-350
+- Santorini/Mykonos temp alta: 5★ 500-900, 4★ 280-450
+- Tokio/Singapur/HK: 5★ 350-600, 4★ 200-320
+- Dubai/Bangkok/Bali: 5★ 250-500, 4★ 130-250
+- NYC/Miami/LA: 5★ 400-700, 4★ 220-350
+EXPERIENCIAS premium: tour guiado 80-180, cena tasting 120-300, day-trip privado 250-600.
+NUNCA precios optimistas. Sé conservador.`;
 
-const CITY_SYSTEM = `Eres IATOS, consultor de viajes de lujo. Para UNA ciudad devuelves JSON con:
+const GLOBAL_SYSTEM = `Eres IATOS, analista senior de pricing de viajes de lujo. Devuelves JSON estricto con precios REALES de mercado.
+Aerolíneas/operadores REALES (Iberia, Air France, Italo, Renfe AVE, Eurostar, Ferries Blue Star, etc).
+En Europa <800km prefiere TREN/FERRY sobre vuelo.
+${PRICING_REFS}`;
+
+const CITY_SYSTEM = `Eres IATOS, analista senior de viajes de lujo. Para UNA ciudad devuelves JSON con:
 - 2-3 arrival_options desde el punto anterior (incluye tren/ferry real cuando aplique)
-- EXACTAMENTE 3 hospedajes (ahorro/equilibrio/premium) con hoteles REALES
+- EXACTAMENTE 3 hospedajes (ahorro/equilibrio/premium) con hoteles REALES y conocidos
 - 4-5 restaurantes reales que matcheen el estilo del usuario
 - 4-5 experiencias/tours reales
-Precios USD por persona realistas.`;
+${PRICING_REFS}`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
