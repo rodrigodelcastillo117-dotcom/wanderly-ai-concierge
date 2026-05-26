@@ -29,12 +29,8 @@ const TripDetail = () => {
   const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
   const toggleCity = (city: string) => {
-    setAutoScroll(false); // user took manual control
     setActiveCity((prev) => (prev === city ? null : city));
-    // Re-enable auto after a short moment so future scrolling works normally
-    window.setTimeout(() => setAutoScroll(true), 1500);
   };
   const cityRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -55,31 +51,16 @@ const TripDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Auto-accordion: open the city whose header is near the top of the viewport
+  // Abrir el primer destino por default al cargar el viaje
   useEffect(() => {
     if (!trip) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (!autoScroll) return;
-        // Find the entry closest to top that is intersecting
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]) {
-          const city = (visible[0].target as HTMLElement).dataset.city;
-          if (city && city !== activeCity) setActiveCity(city);
-        }
-      },
-      { rootMargin: "-15% 0px -70% 0px", threshold: 0 },
-    );
-    Object.entries(cityRefs.current).forEach(([city, el]) => {
-      if (el) {
-        el.dataset.city = city;
-        obs.observe(el);
-      }
-    });
-    return () => obs.disconnect();
-  }, [trip, autoScroll, activeCity]);
+    const itinObj = trip.itinerario_json;
+    const isMultiTrip = !!(itinObj && !Array.isArray(itinObj) && itinObj.multi);
+    const cities = isMultiTrip ? (itinObj.destinations ?? []) : [trip.destino];
+    if (cities.length > 0) {
+      setActiveCity((prev) => prev ?? cities[0]);
+    }
+  }, [trip]);
 
   const handleDownloadPdf = async () => {
     if (!trip) return;
