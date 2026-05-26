@@ -612,6 +612,19 @@ const MultiDestRoute = () => {
             </motion.section>
           )}
         </AnimatePresence>
+          </div>
+
+          <div className="lg:sticky lg:top-10">
+            <TripBuildPreview
+              origin={origin}
+              destinations={validStops}
+              fechaSalida={fechaSalida}
+              fechaRegreso={fechaRegreso}
+              viajeros={viajeros}
+              presupuesto={presupuesto ? Number(presupuesto) : null}
+            />
+          </div>
+        </div>
       </div>
 
       {/* PHASE 1 — Configuración modal */}
