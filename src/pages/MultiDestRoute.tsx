@@ -163,6 +163,65 @@ const MultiDestRoute = () => {
       if (!data?.logistics) throw new Error("La IA no devolvió logística");
 
       const logistics = data.logistics;
+      const USD_MXN = 17;
+
+      // Aplanar per_destination → vuelos_json / hospedaje_json / restaurantes_json / tours_json
+      // para que TripDetail renderice la UI rica (3 opciones por ciudad, etc.)
+      const flightsTiers = ["ahorro", "equilibrio", "premium"];
+      const vuelos_json = (logistics.flights ?? []).map((f: any, i: number) => ({
+        tier: f.tier || flightsTiers[i] || "equilibrio",
+        aerolinea: f.airline_suggested || "Por confirmar",
+        duracion: f.duration || "",
+        escalas: f.stops || "Directo",
+        precio_por_persona: Math.round(Number(f.price_per_person_usd ?? 0) * USD_MXN),
+        notas: f.notes ? `${f.from} → ${f.to} · ${f.notes}` : `${f.from} → ${f.to}`,
+      }));
+
+      const hospedaje_json: any[] = [];
+      const restaurantes_json: any[] = [];
+      const tours_json: any[] = [];
+      (logistics.per_destination ?? []).forEach((pd: any) => {
+        (pd.hospedaje ?? []).forEach((h: any) => {
+          hospedaje_json.push({
+            tipo: `${pd.city} · ${h.tipo || h.tier || "Hospedaje"}`,
+            nombre: h.nombre,
+            barrio: h.barrio || pd.city,
+            rating: h.rating ?? 4.5,
+            precio_por_noche: Math.round(Number(h.price_per_night_usd ?? 0) * USD_MXN),
+            por_que: h.por_que || "",
+            ciudad: pd.city,
+            tier: h.tier,
+          });
+        });
+        (pd.restaurantes ?? []).forEach((r: any) => {
+          restaurantes_json.push({
+            nombre: `${r.nombre} · ${pd.city}`,
+            cocina: r.cocina,
+            rango_precio: r.rango_precio || "$$",
+            por_que: r.por_que || "",
+            ciudad: pd.city,
+          });
+        });
+        (pd.experiencias ?? []).forEach((t: any) => {
+          tours_json.push({
+            nombre: `${t.nombre} · ${pd.city}`,
+            duracion: t.duracion || "",
+            precio_por_persona: Math.round(Number(t.price_per_person_usd ?? 0) * USD_MXN),
+            por_que: t.por_que || "",
+            ciudad: pd.city,
+          });
+        });
+      });
+
+      // itinerario_json: TripDetail espera un array de días.
+      const itinerarioDays = (logistics.days ?? []).map((d: any) => ({
+        dia: d.dia,
+        titulo: d.ciudad ? `${d.ciudad} — ${d.titulo}` : d.titulo,
+        ciudad: d.ciudad,
+        "mañana": d["mañana"] ?? d.manana ?? "",
+        tarde: d.tarde ?? "",
+        noche: d.noche ?? "",
+      }));
 
       // Persistir como trip
       let tripId: string | undefined;
@@ -179,11 +238,23 @@ const MultiDestRoute = () => {
             num_viajeros: viajeros,
             presupuesto_objetivo: presupuesto ? Number(presupuesto) : null,
             total_estimado: logistics.total_estimado_usd
-              ? Math.round(Number(logistics.total_estimado_usd) * 17) // USD → MXN aprox
+              ? Math.round(Number(logistics.total_estimado_usd) * USD_MXN)
               : null,
             moneda: "MXN",
             status: "listo",
-            itinerario_json: { multi: true, logistics, destinations: validStops },
+            analisis_ai: logistics.resumen ?? null,
+            vuelos_json,
+            hospedaje_json,
+            restaurantes_json,
+            tours_json,
+            itinerario_json: {
+              multi: true,
+              destinations: validStops,
+              logistics,
+              days: itinerarioDays,
+            },
+            // Guardamos logistics completa dentro de tips para no perderla
+            tips_personalizados: logistics.resumen ? [logistics.resumen] : null,
           })
           .select("id")
           .single();
@@ -193,6 +264,10 @@ const MultiDestRoute = () => {
 
       setGenerated({ logistics, autonomous, tripId });
       toast.success("Travesía multi-destino generada");
+      if (tripId) {
+        // Llevamos al usuario a la vista detallada con toda la curaduría
+        setTimeout(() => navigate(`/dashboard/viajes/${tripId}`), 400);
+      }
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "No pudimos generar la ruta");
