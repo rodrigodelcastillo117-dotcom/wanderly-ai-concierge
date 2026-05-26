@@ -120,25 +120,45 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
               <p className="text-xs text-muted-foreground text-center py-8 px-4">No tienes notificaciones</p>
             ) : (
               items.map((n) => (
-                <button
+                <div
                   key={n.id}
-                  onClick={() => openNotif(n)}
-                  className={`w-full text-left px-4 py-3 border-b border-white/[0.03] hover:bg-white/[0.03] transition flex gap-3 ${
+                  className={`w-full px-4 py-3 border-b border-white/[0.03] transition ${
                     !n.read ? "bg-primary/[0.04]" : ""
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                    <Plane className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{n.title}</p>
-                    {n.body && <p className="text-[11px] text-muted-foreground line-clamp-2">{n.body}</p>}
-                    <p className="text-[10px] text-muted-foreground/70 mt-1">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: es })}
-                    </p>
-                  </div>
-                  {!n.read && <span className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />}
-                </button>
+                  <button
+                    onClick={() => openNotif(n)}
+                    className="w-full text-left flex gap-3 hover:opacity-90"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                      <Plane className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{n.title}</p>
+                      {n.body && <p className="text-[11px] text-muted-foreground line-clamp-2">{n.body}</p>}
+                      <p className="text-[10px] text-muted-foreground/70 mt-1">
+                        {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: es })}
+                      </p>
+                    </div>
+                    {!n.read && <span className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />}
+                  </button>
+                  {n.type === "trip_invite" && (
+                    <div className="flex gap-2 mt-3 ml-11">
+                      <button
+                        onClick={() => respondInvite(n, true)}
+                        className="flex-1 px-3 py-1.5 rounded-full bg-gradient-gold text-primary-foreground text-[11px] font-medium tracking-wide hover:opacity-90 transition"
+                      >
+                        Aceptar viaje
+                      </button>
+                      <button
+                        onClick={() => respondInvite(n, false)}
+                        className="flex-1 px-3 py-1.5 rounded-full border border-white/10 text-muted-foreground text-[11px] hover:text-foreground hover:bg-white/[0.04] transition"
+                      >
+                        Rechazar
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))
             )}
           </div>
