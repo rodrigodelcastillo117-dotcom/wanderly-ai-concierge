@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, MapPin, Calendar, Cloud, Phone, Languages, Crown,
-  Navigation, Clock, Utensils, Hotel, Plane, Activity, AlertCircle, Sparkles
+  Navigation, Clock, Utensils, Hotel, Plane, Activity, AlertCircle, Sparkles, Luggage
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
