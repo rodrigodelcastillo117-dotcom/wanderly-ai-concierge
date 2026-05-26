@@ -56,7 +56,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
         <p className="text-xs tracking-[0.2em] uppercase text-primary">Inversión total estimada</p>
         {q && (
           <span className="text-[10px] tracking-widest uppercase text-muted-foreground inline-flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-primary" /> live · SerpApi
+            <Sparkles className="w-3 h-3 text-primary" /> estimación IA · precios de mercado
           </span>
         )}
       </div>
