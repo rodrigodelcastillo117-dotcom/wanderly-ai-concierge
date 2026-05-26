@@ -49,9 +49,9 @@ const Concierge = () => {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<Msg[]>([{
     id: "welcome", role: "assistant", ts: Date.now(),
-    text: "Bienvenido. Estoy listo para anticiparme a cualquier capricho o emergencia de tu viaje.",
-    cards: [PROACTIVE_ALERT],
+    text: "Bienvenido. Estoy listo para anticiparme a cualquier capricho o emergencia de tu viaje. Usa los botones rápidos abajo para acciones reales en vivo, o escríbeme cualquier petición.",
   }]);
+  const [liveAction, setLiveAction] = useState<LiveAction>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [godMode, setGodMode] = useState(false);
