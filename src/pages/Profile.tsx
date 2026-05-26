@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import BenefitsVault from "@/components/BenefitsVault";
 import PromocionesActivas from "@/components/PromocionesActivas";
-import { Sparkles } from "lucide-react";
+import { Sparkles, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Profile = () => {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   return (
     <DashboardLayout>
       <div className="p-6 md:p-10 max-w-4xl space-y-12">
@@ -30,6 +32,17 @@ const Profile = () => {
 
         <section>
           <PromocionesActivas />
+        </section>
+
+        <section className="pt-6 border-t border-white/[0.06] flex justify-center">
+          <Button
+            variant="outline"
+            onClick={async () => { await signOut(); navigate("/"); }}
+            className="rounded-full border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/[0.04] gap-2 px-6"
+          >
+            <LogOut className="w-4 h-4" />
+            Cerrar sesión
+          </Button>
         </section>
       </div>
     </DashboardLayout>
