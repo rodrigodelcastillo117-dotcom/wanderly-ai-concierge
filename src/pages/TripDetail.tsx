@@ -26,6 +26,13 @@ const TripDetail = () => {
   const [selHospedaje, setSelHospedaje] = useState<number>(0);
   const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
+  const [openCities, setOpenCities] = useState<Set<string>>(new Set());
+  const toggleCity = (city: string) =>
+    setOpenCities((prev) => {
+      const next = new Set(prev);
+      next.has(city) ? next.delete(city) : next.add(city);
+      return next;
+    });
 
   const loadTrip = async () => {
     if (!id) return;
