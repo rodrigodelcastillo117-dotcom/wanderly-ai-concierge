@@ -9,8 +9,8 @@ export function googleFlightsLink(origin: string, destination: string, depart: s
 }
 
 export function skyscannerLink(originIata: string, destIata: string, depart: string, ret?: string, adults = 1) {
-  const d = depart.replaceAll("-", "").slice(2); // YYMMDD
-  const r = ret ? ret.replaceAll("-", "").slice(2) : "";
+  const d = depart.replace(/-/g, "").slice(2); // YYMMDD
+  const r = ret ? ret.replace(/-/g, "").slice(2) : "";
   const path = r
     ? `${originIata}/${destIata}/${d}/${r}`
     : `${originIata}/${destIata}/${d}`;
