@@ -37,6 +37,9 @@ import TripFlights from "./pages/TripFlights";
 import TripHotels from "./pages/TripHotels";
 import Insurance from "./pages/Insurance";
 import Benefits from "./pages/Benefits";
+import TripCars from "./pages/TripCars";
+import TripESIM from "./pages/TripESIM";
+import TripActivities from "./pages/TripActivities";
 
 const queryClient = new QueryClient();
 
