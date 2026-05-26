@@ -413,6 +413,35 @@ const DashboardHome = () => {
           </div>
         </section>
 
+        {/* HERRAMIENTAS DE VIAJE */}
+        <section className="space-y-3">
+          <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase">Herramientas</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <button onClick={() => navigate("/dashboard/comparar")} className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all text-left group">
+              <div className="text-primary text-2xl mb-1 group-hover:scale-110 transition-transform inline-block">⚖️</div>
+              <div className="font-medium text-sm">Comparar destinos</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">Costo, visa, clima</div>
+            </button>
+            <button onClick={() => navigate("/dashboard/convertidor")} className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all text-left group">
+              <div className="text-primary text-2xl mb-1 group-hover:scale-110 transition-transform inline-block">💱</div>
+              <div className="font-medium text-sm">Conversor moneda</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">Live + offline</div>
+            </button>
+            <button onClick={() => navigate("/dashboard/concierge")} className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all text-left group">
+              <div className="text-primary text-2xl mb-1 group-hover:scale-110 transition-transform inline-block">👑</div>
+              <div className="font-medium text-sm">Concierge IA</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">24/7</div>
+            </button>
+            <button onClick={() => navigate("/dashboard/cercanos")} className="glass-card rounded-2xl p-4 hover:border-primary/60 transition-all text-left group">
+              <div className="text-primary text-2xl mb-1 group-hover:scale-110 transition-transform inline-block">📍</div>
+              <div className="font-medium text-sm">Cerca de mí</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">Lugares ahora</div>
+            </button>
+          </div>
+        </section>
+
+
+
 
         {/* MIS PRÓXIMOS VIAJES + SMART SPEND */}
         <div className="grid lg:grid-cols-2 gap-5">
