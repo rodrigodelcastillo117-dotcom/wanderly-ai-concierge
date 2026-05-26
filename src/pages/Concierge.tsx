@@ -394,6 +394,8 @@ const Concierge = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <ConciergeActions open={!!liveAction} kind={liveAction} onClose={() => setLiveAction(null)} />
       </div>
     </DashboardLayout>
   );
