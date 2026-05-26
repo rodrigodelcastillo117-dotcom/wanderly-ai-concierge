@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
