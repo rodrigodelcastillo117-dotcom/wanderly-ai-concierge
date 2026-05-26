@@ -3,11 +3,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, MapPin, Plus, X, Sparkles, Train, Mountain, Wallet,
-  Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt,
+  Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt, Wand2,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { Switch } from "@/components/ui/switch";
