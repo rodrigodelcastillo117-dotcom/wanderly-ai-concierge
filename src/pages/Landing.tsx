@@ -225,8 +225,6 @@ const Landing = () => {
           <img src={iatosLogo} alt="IATOS AI" className="h-8 w-auto object-contain" />
           <p className="text-sm text-muted-foreground">© 2026 IATOS AI. Diseñado en CDMX.</p>
         </div>
-          <p className="text-sm text-muted-foreground">© 2026 IATOS AI. Diseñado en CDMX.</p>
-        </div>
       </footer>
     </div>
   );
