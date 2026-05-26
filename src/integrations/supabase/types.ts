@@ -253,6 +253,39 @@ export type Database = {
           },
         ]
       }
+      historical_flight_prices: {
+        Row: {
+          avg_price_usd: number
+          cheapest_months: string | null
+          destination_city: string
+          destination_code: string
+          id: string
+          origin_code: string | null
+          region: string
+          updated_at: string | null
+        }
+        Insert: {
+          avg_price_usd: number
+          cheapest_months?: string | null
+          destination_city: string
+          destination_code: string
+          id?: string
+          origin_code?: string | null
+          region: string
+          updated_at?: string | null
+        }
+        Update: {
+          avg_price_usd?: number
+          cheapest_months?: string | null
+          destination_city?: string
+          destination_code?: string
+          id?: string
+          origin_code?: string | null
+          region?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
