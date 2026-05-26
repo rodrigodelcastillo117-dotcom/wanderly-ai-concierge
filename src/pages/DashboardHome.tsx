@@ -25,29 +25,22 @@ const MOCK_RECOS = [
   { name: "Santorini", country: "Grecia", img: santorini, score: 86 },
 ];
 
-// Donut chart for Smart Spend
-const SpendDonut = () => {
-  const segments = [
-    { label: "Alojamiento", pct: 42, color: "hsl(41 47% 59%)" },
-    { label: "Gastronomía", pct: 28, color: "hsl(41 60% 70%)" },
-    { label: "Experiencias", pct: 18, color: "hsl(36 30% 60%)" },
-    { label: "Transporte", pct: 7, color: "hsl(0 0% 35%)" },
-    { label: "Otros", pct: 5, color: "hsl(0 0% 25%)" },
-  ];
+// Donut chart for Smart Spend (renders empty ring when there's no data)
+const SpendDonut = ({ segments }: { segments: { label: string; pct: number; color: string }[] }) => {
   const radius = 42;
   const C = 2 * Math.PI * radius;
   let offset = 0;
+  const hasData = segments.some((s) => s.pct > 0);
   return (
     <svg viewBox="0 0 120 120" className="w-32 h-32 -rotate-90">
       <circle cx="60" cy="60" r={radius} fill="none" stroke="hsl(0 0% 14%)" strokeWidth="14" />
-      {segments.map((s) => {
+      {hasData && segments.map((s) => {
+        if (s.pct <= 0) return null;
         const len = (s.pct / 100) * C;
         const el = (
           <circle
             key={s.label}
-            cx="60"
-            cy="60"
-            r={radius}
+            cx="60" cy="60" r={radius}
             fill="none"
             stroke={s.color}
             strokeWidth="14"
@@ -90,6 +83,9 @@ const DashboardHome = () => {
   const [reelFading, setReelFading] = useState(false);
   const reelTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const REEL_DURATION = 10_000;
+  const [spendUsd, setSpendUsd] = useState(0);
+  const [spendDeltaPct, setSpendDeltaPct] = useState<number | null>(null);
+  const [spendCats, setSpendCats] = useState<{ label: string; pct: number; color: string }[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -108,8 +104,55 @@ const DashboardHome = () => {
         .order("created_at", { ascending: false })
         .limit(2);
       setTrips(t ?? []);
+
+      // ───── Smart Spend real (gastos del mes actual vs mes anterior) ─────
+      const now = new Date();
+      const startThis = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+      const startPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+      const { data: exps } = await supabase
+        .from("expenses")
+        .select("amount, currency, category, expense_date")
+        .eq("user_id", user.id)
+        .gte("expense_date", startPrev);
+
+      const FX: Record<string, number> = { USD: 1, MXN: 1 / 18.5, EUR: 1.08, GBP: 1.27 };
+      const toUsd = (a: number, c: string) => a * (FX[c?.toUpperCase()] ?? 1);
+
+      const thisMonth = (exps ?? []).filter((e) => e.expense_date >= startThis);
+      const prevMonth = (exps ?? []).filter((e) => e.expense_date < startThis);
+
+      const totalUsd = thisMonth.reduce((s, e) => s + toUsd(Number(e.amount) || 0, e.currency || "MXN"), 0);
+      const prevUsd = prevMonth.reduce((s, e) => s + toUsd(Number(e.amount) || 0, e.currency || "MXN"), 0);
+      setSpendUsd(totalUsd);
+      setSpendDeltaPct(prevUsd > 0 ? Math.round(((totalUsd - prevUsd) / prevUsd) * 100) : null);
+
+      const palette: Record<string, string> = {
+        alojamiento: "hsl(41 47% 59%)",
+        hospedaje: "hsl(41 47% 59%)",
+        gastronomia: "hsl(41 60% 70%)",
+        comida: "hsl(41 60% 70%)",
+        restaurantes: "hsl(41 60% 70%)",
+        experiencias: "hsl(36 30% 60%)",
+        tours: "hsl(36 30% 60%)",
+        transporte: "hsl(0 0% 45%)",
+        vuelos: "hsl(0 0% 45%)",
+        otros: "hsl(0 0% 35%)",
+      };
+      const labelize = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
+      const groups: Record<string, number> = {};
+      for (const e of thisMonth) {
+        const key = (e.category || "otros").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        groups[key] = (groups[key] ?? 0) + toUsd(Number(e.amount) || 0, e.currency || "MXN");
+      }
+      const sum = Object.values(groups).reduce((a, b) => a + b, 0);
+      const cats = Object.entries(groups)
+        .map(([k, v]) => ({ label: labelize(k), pct: sum > 0 ? Math.round((v / sum) * 100) : 0, color: palette[k] ?? "hsl(0 0% 35%)" }))
+        .sort((a, b) => b.pct - a.pct)
+        .slice(0, 5);
+      setSpendCats(cats);
     })();
   }, [user]);
+
 
   // Live clock (refresh every minute)
   useEffect(() => {
@@ -145,13 +188,6 @@ const DashboardHome = () => {
   const today = now.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const time = now.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase().replace(/\./g, "");
 
-  const spendCats = [
-    { label: "Alojamiento", pct: 42, color: "hsl(41 47% 59%)" },
-    { label: "Gastronomía", pct: 28, color: "hsl(41 60% 70%)" },
-    { label: "Experiencias", pct: 18, color: "hsl(36 30% 60%)" },
-    { label: "Transporte", pct: 7, color: "hsl(0 0% 45%)" },
-    { label: "Otros", pct: 5, color: "hsl(0 0% 35%)" },
-  ];
 
   return (
     <DashboardLayout>
@@ -369,11 +405,22 @@ const DashboardHome = () => {
                 </Link>
               </div>
               <p className="text-[11px] text-muted-foreground mb-1 tracking-wide">Este mes</p>
-              <p className="font-display text-4xl md:text-5xl mb-1 gold-text">$2,540</p>
-              <p className="text-[11px] text-muted-foreground mb-5"><span className="text-primary">+12%</span> vs mayo · USD</p>
+              <p className="font-display text-4xl md:text-5xl mb-1 gold-text">
+                ${spendUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-[11px] text-muted-foreground mb-5">
+                {spendDeltaPct !== null ? (
+                  <><span className={spendDeltaPct >= 0 ? "text-primary" : "text-emerald-400"}>{spendDeltaPct >= 0 ? "+" : ""}{spendDeltaPct}%</span> vs mes anterior · USD</>
+                ) : spendUsd > 0 ? "USD · primer mes con gastos" : "Aún sin gastos registrados · USD"}
+              </p>
               <div className="flex items-center gap-5">
-                <SpendDonut />
+                <SpendDonut segments={spendCats.length ? spendCats : [{ label: "Sin datos", pct: 0, color: "hsl(0 0% 25%)" }]} />
                 <ul className="flex-1 space-y-2 text-sm">
+                  {spendCats.length === 0 && (
+                    <li className="text-xs text-muted-foreground italic">
+                      Registra gastos en tus viajes y aquí verás tu desglose real por categoría.
+                    </li>
+                  )}
                   {spendCats.map((c) => (
                     <li key={c.label} className="flex items-center justify-between">
                       <span className="flex items-center gap-2 text-muted-foreground text-xs">
