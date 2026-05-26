@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
-import { EditableBudget } from "@/components/EditableBudget";
+import { ReadonlyBudget } from "@/components/ReadonlyBudget";
 import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
 import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
+import { generateTripPDF } from "@/lib/tripPdf";
+import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
 
 const fmtMXN = (n: number) =>
@@ -26,13 +28,16 @@ const TripDetail = () => {
   const [selHospedaje, setSelHospedaje] = useState<number>(0);
   const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
-  const [openCities, setOpenCities] = useState<Set<string>>(new Set());
-  const toggleCity = (city: string) =>
-    setOpenCities((prev) => {
-      const next = new Set(prev);
-      next.has(city) ? next.delete(city) : next.add(city);
-      return next;
-    });
+  const [activeCity, setActiveCity] = useState<string | null>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const toggleCity = (city: string) => {
+    setAutoScroll(false); // user took manual control
+    setActiveCity((prev) => (prev === city ? null : city));
+    // Re-enable auto after a short moment so future scrolling works normally
+    window.setTimeout(() => setAutoScroll(true), 1500);
+  };
+  const cityRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const loadTrip = async () => {
     if (!id) return;
@@ -49,6 +54,46 @@ const TripDetail = () => {
     loadTrip();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Auto-accordion: open the city whose header is near the top of the viewport
+  useEffect(() => {
+    if (!trip) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (!autoScroll) return;
+        // Find the entry closest to top that is intersecting
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) {
+          const city = (visible[0].target as HTMLElement).dataset.city;
+          if (city && city !== activeCity) setActiveCity(city);
+        }
+      },
+      { rootMargin: "-15% 0px -70% 0px", threshold: 0 },
+    );
+    Object.entries(cityRefs.current).forEach(([city, el]) => {
+      if (el) {
+        el.dataset.city = city;
+        obs.observe(el);
+      }
+    });
+    return () => obs.disconnect();
+  }, [trip, autoScroll, activeCity]);
+
+  const handleDownloadPdf = async () => {
+    if (!trip) return;
+    setGeneratingPdf(true);
+    try {
+      await generateTripPDF(trip, { selVuelo, selHospedaje, nochesEfectivas, selTours }, { desglose: computedDesglose, total: computedTotal });
+      toast.success("PDF descargado");
+    } catch (e: any) {
+      console.error(e);
+      toast.error("No pude generar el PDF", { description: e?.message });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   // itinerario_json puede ser array (single) o objeto { multi, days, logistics, destinations } (multi)
   const itinObj = trip?.itinerario_json;
@@ -140,7 +185,15 @@ const TripDetail = () => {
         >
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>
-        <div className="absolute top-6 right-6">
+        <div className="absolute top-6 right-6 flex items-center gap-2">
+          <button
+            onClick={handleDownloadPdf}
+            disabled={generatingPdf}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5 text-primary" />
+            {generatingPdf ? "Generando…" : "Compartir PDF"}
+          </button>
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
         </div>
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 max-w-5xl">
@@ -236,9 +289,10 @@ const TripDetail = () => {
                 city={city}
                 subtitle={`${cityDays.length || "·"} días · ${cityHosp.length} hoteles · ${cityTours.length} experiencias · ${cityRest.length} mesas`}
                 imageQuery={`${city} skyline landmark travel`}
-                open={openCities.has(city)}
+                open={activeCity === city}
                 onToggle={() => toggleCity(city)}
                 count={totalItems}
+                wrapperRef={(el) => { cityRefs.current[city] = el; }}
               >
                 <div className="space-y-6">
                   {/* Cómo llegar */}
@@ -400,12 +454,7 @@ const TripDetail = () => {
               <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
             </summary>
             <div className="px-5 pb-5 pt-1 border-t border-border/40">
-              <EditableBudget
-                key={`${selVuelo}-${selHospedaje}-${nochesEfectivas}-${Array.from(selTours).sort().join(",")}`}
-                tripId={trip.id}
-                initialDesglose={computedDesglose}
-                initialTotal={computedTotal}
-              />
+              <ReadonlyBudget desglose={computedDesglose} total={computedTotal} />
             </div>
           </details>
         )}
