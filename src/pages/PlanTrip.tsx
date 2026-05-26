@@ -405,7 +405,7 @@ const PlanTrip = () => {
                     <Icon className="w-5 h-5 text-primary" />
                   </div>
                   <h2 className="font-display text-3xl md:text-5xl mb-3">{current.title}</h2>
-                  <p className="text-muted-foreground mb-10">{current.sub}</p>
+                  <p className="text-muted-foreground mb-6 md:mb-10">{current.sub}</p>
                   <div className="mb-12">{current.render()}</div>
                 </motion.div>
               </AnimatePresence>

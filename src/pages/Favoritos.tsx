@@ -40,9 +40,9 @@ const Favoritos = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10">
-        <h1 className="font-display text-4xl md:text-5xl mb-3">Favoritos</h1>
-        <p className="text-muted-foreground mb-10">Tus destinos y experiencias guardadas — el AI aprende de cada uno.</p>
+      <div className="px-4 py-6 md:p-10">
+        <h1 className="font-display text-3xl md:text-5xl mb-3">Favoritos</h1>
+        <p className="text-muted-foreground mb-6 md:mb-10">Tus destinos y experiencias guardadas — el AI aprende de cada uno.</p>
 
         {items.length === 0 ? (
           <div className="glass-card rounded-2xl p-12 text-center">

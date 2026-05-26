@@ -41,14 +41,14 @@ const SmartSpend = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-5xl">
-        <h1 className="font-display text-4xl md:text-5xl mb-3">Smart Spend</h1>
-        <p className="text-muted-foreground mb-10">Análisis inteligente de tus gastos.</p>
+      <div className="px-4 py-6 md:p-10 max-w-5xl">
+        <h1 className="font-display text-3xl md:text-5xl mb-3">Smart Spend</h1>
+        <p className="text-muted-foreground mb-6 md:mb-10">Análisis inteligente de tus gastos.</p>
 
         <div className="glass-card rounded-2xl p-6 md:p-8 mb-6">
           <p className="text-xs text-primary tracking-[0.2em] uppercase mb-2">Este mes</p>
           <div className="flex items-end gap-4 flex-wrap">
-            <p className="font-display text-4xl md:text-5xl">${thisMonth.toLocaleString("es-MX")}</p>
+            <p className="font-display text-3xl md:text-5xl">${thisMonth.toLocaleString("es-MX")}</p>
             {lastMonth > 0 && (
               <span className={`flex items-center gap-1 text-sm ${delta >= 0 ? "text-destructive" : "text-emerald-500"}`}>
                 {delta >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}

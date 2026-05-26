@@ -52,13 +52,13 @@ const Discover = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10">
+      <div className="px-4 py-6 md:p-10">
         <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
           <div>
             <p className="text-primary text-[11px] tracking-[0.35em] uppercase mb-2 flex items-center gap-2">
               <Sparkles className="w-3 h-3" /> Curados por IATOS AI · 100% personalizado
             </p>
-            <h1 className="font-display text-4xl md:text-5xl mb-2">Descubre</h1>
+            <h1 className="font-display text-3xl md:text-5xl mb-2">Descubre</h1>
             <p className="text-muted-foreground text-sm max-w-xl">
               Destinos generados <span className="text-foreground">específicamente para tu perfil de viajero</span> — basados en tus intereses, ritmo, gastronomía, presupuesto y viajes anteriores.
             </p>

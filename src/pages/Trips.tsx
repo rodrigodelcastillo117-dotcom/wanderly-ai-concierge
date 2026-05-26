@@ -100,8 +100,8 @@ const Trips = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10">
-        <h1 className="font-display text-4xl md:text-5xl mb-10">Mis viajes</h1>
+      <div className="px-4 py-6 md:p-10">
+        <h1 className="font-display text-3xl md:text-5xl mb-6 md:mb-10">Mis viajes</h1>
         {trips.length === 0 ? (
           <p className="text-muted-foreground">Aún no has guardado ningún viaje.</p>
         ) : (
