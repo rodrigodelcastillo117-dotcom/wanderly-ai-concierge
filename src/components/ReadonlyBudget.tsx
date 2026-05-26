@@ -32,6 +32,7 @@ const fmtMXN = (n: number) =>
   `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 
 export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: Props) => {
+  const [flightsOpen, setFlightsOpen] = useState(false);
   const items = useMemo(
     () =>
       ORDER
@@ -40,18 +41,22 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
     [desglose],
   );
 
-  // Tramos de vuelo individuales con costo total (precio_por_persona × travelers)
+  // Tramos de vuelo: agrupar por ruta (from→to) y quedarnos con la opción más barata
+  // para que la suma cuadre con el total de "Vuelos".
   const flightLegs = useMemo(() => {
-    return (vuelos ?? [])
-      .map((v) => ({
-        label:
-          v.from && (v.to || v.ciudad)
-            ? `${v.from} → ${v.to || v.ciudad}`
-            : v.aerolinea || "Tramo",
-        airline: v.aerolinea,
-        total: Number(v.precio_por_persona ?? 0) * Math.max(1, travelers),
-      }))
-      .filter((l) => l.total > 0);
+    const byRoute = new Map<string, { label: string; airline?: string; total: number }>();
+    for (const v of vuelos ?? []) {
+      const dest = v.to || v.ciudad;
+      const label = v.from && dest ? `${v.from} → ${dest}` : v.aerolinea || "Tramo";
+      const key = `${v.from ?? ""}→${dest ?? ""}`.toLowerCase() || label;
+      const total = Number(v.precio_por_persona ?? 0) * Math.max(1, travelers);
+      if (total <= 0) continue;
+      const prev = byRoute.get(key);
+      if (!prev || total < prev.total) {
+        byRoute.set(key, { label, airline: v.aerolinea, total });
+      }
+    }
+    return Array.from(byRoute.values());
   }, [vuelos, travelers]);
 
   if (items.length === 0 || total <= 0) return null;
