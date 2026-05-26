@@ -162,92 +162,85 @@ const TripDetail = () => {
           )}
         </motion.section>
 
-        {/* Vuelos */}
+        {/* Vuelos / Cómo llegar a cada ciudad */}
         {trip.vuelos_json?.length > 0 && (
-          <Section icon={Plane} title="Vuelos sugeridos" hint="Selecciona uno">
-            <div className="grid md:grid-cols-3 gap-4">
-              {trip.vuelos_json.map((v: any, i: number) => {
-                const active = selVuelo === i;
-                return (
-                  <div
-                    key={i}
-                    onClick={() => setSelVuelo(i)}
-                    className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}
+          <Section
+            icon={isMulti ? RouteIcon : Plane}
+            title={isMulti ? "Cómo llegar a cada ciudad" : "Vuelos sugeridos"}
+            hint={isMulti ? "Vuelo, tren o roadtrip — elige por destino" : "Selecciona uno"}
+          >
+            {isMulti ? (
+              <div className="space-y-4">
+                {groupByCity(trip.vuelos_json, destinationsMulti).map(([city, items], cityIdx) => (
+                  <CityCollapsible
+                    key={city}
+                    city={city}
+                    subtitle={`${items.length} formas de llegar`}
+                    imageQuery={`${city} skyline travel`}
+                    defaultOpen={cityIdx === 0}
+                    count={items.length}
                   >
-                    {active && <SelectedBadge />}
-                    <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{v.tier}</p>
-                    <p className="font-display text-xl mb-1">{v.aerolinea}</p>
-                    <p className="text-sm text-muted-foreground mb-4">{v.duracion} · {v.escalas}</p>
-                    <p className="font-medium text-lg">{fmtMXN(v.precio_por_persona)}<span className="text-xs text-muted-foreground ml-1">/ persona</span></p>
-                    {v.notas && <p className="text-xs text-muted-foreground mt-3">{v.notas}</p>}
-                  </div>
-                );
-              })}
-              <SkipCard
-                active={selVuelo === -1}
-                onClick={() => setSelVuelo(-1)}
-                title="Ya tengo vuelo"
-                subtitle="O viajo por mi cuenta"
-              />
-            </div>
-
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {items.map((v: any) => {
+                        const i = trip.vuelos_json.indexOf(v);
+                        const active = selVuelo === i;
+                        return (
+                          <ArrivalOptionCard
+                            key={i}
+                            option={v}
+                            active={active}
+                            onClick={() => setSelVuelo(i)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </CityCollapsible>
+                ))}
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-3 gap-4">
+                {trip.vuelos_json.map((v: any, i: number) => {
+                  const active = selVuelo === i;
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => setSelVuelo(i)}
+                      className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}
+                    >
+                      {active && <SelectedBadge />}
+                      <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{v.tier}</p>
+                      <p className="font-display text-xl mb-1">{v.aerolinea}</p>
+                      <p className="text-sm text-muted-foreground mb-4">{v.duracion} · {v.escalas}</p>
+                      <p className="font-medium text-lg">{fmtMXN(v.precio_por_persona)}<span className="text-xs text-muted-foreground ml-1">/ persona</span></p>
+                      {v.notas && <p className="text-xs text-muted-foreground mt-3">{v.notas}</p>}
+                    </div>
+                  );
+                })}
+                <SkipCard
+                  active={selVuelo === -1}
+                  onClick={() => setSelVuelo(-1)}
+                  title="Ya tengo vuelo"
+                  subtitle="O viajo por mi cuenta"
+                />
+              </div>
+            )}
           </Section>
         )}
 
-        {/* Transporte interno (solo multi-destino) */}
-        {isMulti && logistics?.internal_transport?.length > 0 && (
-          <Section icon={Train} title="Transporte entre ciudades" hint="Cómo te mueves de una a otra">
-            <div className="space-y-3">
-              {logistics.internal_transport.map((leg: any, i: number) => {
-                const Icon = leg.mode === "tren" ? Train : leg.mode === "roadtrip" ? Car : leg.mode === "vuelo_interno" ? Plane : Mountain;
-                return (
-                  <div key={i} className="glass-card rounded-xl p-5">
-                    <div className="flex items-center gap-3 text-sm mb-2">
-                      <span className="font-mono text-primary text-xs">{String(i + 1).padStart(2, "0")}</span>
-                      <span className="text-muted-foreground">{leg.from}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="font-medium">{leg.to}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                      <span className="px-2.5 py-1 rounded-full bg-surface border border-border inline-flex items-center gap-1.5">
-                        <Icon className="w-3 h-3 text-primary" />
-                        {leg.provider || leg.mode}{leg.scenic ? " · escénico" : ""}
-                      </span>
-                      {leg.duration && <span className="px-2.5 py-1 rounded-full bg-surface border border-border">{leg.duration}</span>}
-                      {leg.price_per_person_usd != null && (
-                        <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary">
-                          ~${Math.round(leg.price_per_person_usd)} USD / persona
-                        </span>
-                      )}
-                    </div>
-                    {leg.suggested_stops?.length > 0 && (
-                      <div className="mt-3 text-xs text-muted-foreground">
-                        <span className="text-primary">Paradas sugeridas: </span>
-                        {leg.suggested_stops.map((s: any, j: number) => (
-                          <span key={j}>{j > 0 ? " · " : ""}{s.name}{s.why ? ` (${s.why})` : ""}</span>
-                        ))}
-                      </div>
-                    )}
-                    {leg.luggage_note && (
-                      <p className="text-xs text-muted-foreground mt-2 italic">🧳 {leg.luggage_note}</p>
-                    )}
-                  </div>
-                );
-              })}
+        {/* Tips de transporte local (solo multi) */}
+        {isMulti && logistics?.local_transport_tips?.length > 0 && (
+          <Section icon={Car} title="Transporte local en cada ciudad">
+            <div className="grid sm:grid-cols-2 gap-3">
+              {logistics.local_transport_tips.map((t: any, i: number) => (
+                <div key={i} className="glass-card rounded-xl p-4 text-sm">
+                  <p className="text-primary text-xs tracking-wider uppercase mb-1">{t.city}</p>
+                  <p className="text-foreground/90">{t.recommendation}</p>
+                  {t.est_daily_usd != null && (
+                    <p className="text-xs text-muted-foreground mt-1">~${Math.round(t.est_daily_usd)} USD / día</p>
+                  )}
+                </div>
+              ))}
             </div>
-            {logistics.local_transport_tips?.length > 0 && (
-              <div className="grid sm:grid-cols-2 gap-3 mt-4">
-                {logistics.local_transport_tips.map((t: any, i: number) => (
-                  <div key={i} className="glass-card rounded-xl p-4 text-sm">
-                    <p className="text-primary text-xs tracking-wider uppercase mb-1">{t.city}</p>
-                    <p className="text-foreground/90">{t.recommendation}</p>
-                    {t.est_daily_usd != null && (
-                      <p className="text-xs text-muted-foreground mt-1">~${Math.round(t.est_daily_usd)} USD / día</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
           </Section>
         )}
 
@@ -255,27 +248,32 @@ const TripDetail = () => {
         {trip.hospedaje_json?.length > 0 && (
           <Section icon={Hotel} title="Hospedaje" hint={isMulti ? "3 opciones por ciudad" : "Selecciona uno"}>
             {isMulti ? (
-              <div className="space-y-8">
-                {groupByCity(trip.hospedaje_json, destinationsMulti).map(([city, items]) => (
-                  <div key={city}>
-                    <p className="text-primary text-xs tracking-[0.25em] uppercase mb-3">{city}</p>
+              <div className="space-y-4">
+                {groupByCity(trip.hospedaje_json, destinationsMulti).map(([city, items], cityIdx) => (
+                  <CityCollapsible
+                    key={city}
+                    city={city}
+                    subtitle={`${items.length} hoteles curados para tu estilo`}
+                    imageQuery={`${city} luxury hotel`}
+                    defaultOpen={cityIdx === 0}
+                    count={items.length}
+                  >
                     <div className="grid md:grid-cols-3 gap-4">
                       {items.map((h: any) => {
                         const i = trip.hospedaje_json.indexOf(h);
                         const active = selHospedaje === i;
                         return (
-                          <div key={i} onClick={() => setSelHospedaje(i)} className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}>
-                            {active && <SelectedBadge />}
-                            <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{h.tier || h.tipo}</p>
-                            <p className="font-display text-xl mb-1">{h.nombre}</p>
-                            <p className="text-sm text-muted-foreground mb-3">{h.barrio} · ★ {h.rating}</p>
-                            <p className="font-medium mb-3">{fmtMXN(h.precio_por_noche)}<span className="text-xs text-muted-foreground ml-1">/ noche</span></p>
-                            <p className="text-xs text-muted-foreground italic">{h.por_que}</p>
-                          </div>
+                          <HotelCard
+                            key={i}
+                            hotel={h}
+                            city={city}
+                            active={active}
+                            onClick={() => setSelHospedaje(i)}
+                          />
                         );
                       })}
                     </div>
-                  </div>
+                  </CityCollapsible>
                 ))}
               </div>
             ) : (
