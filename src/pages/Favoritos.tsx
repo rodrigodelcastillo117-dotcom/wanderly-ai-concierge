@@ -40,17 +40,28 @@ const Favoritos = () => {
 
   return (
     <DashboardLayout>
-      <div className="px-4 py-6 md:p-10">
-        <h1 className="font-display text-3xl md:text-5xl mb-3">Favoritos</h1>
-        <p className="text-muted-foreground mb-6 md:mb-10">Tus destinos y experiencias guardadas — el AI aprende de cada uno.</p>
+      <div className="px-4 py-6 md:p-10 max-w-[1400px] mx-auto space-y-7 md:space-y-10">
+        <section className="relative rounded-[24px] md:rounded-[28px] overflow-hidden ring-1 ring-white/[0.05] premium-shadow">
+          <div className="h-[160px] md:h-[220px] bg-gradient-to-br from-primary/30 via-primary/10 to-background">
+            <div className="absolute inset-0 flex items-center justify-center opacity-20">
+              <Heart className="w-40 h-40 md:w-56 md:h-56 text-primary fill-primary" />
+            </div>
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+          <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-9">
+            <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2">Curaduría personal</p>
+            <h1 className="font-display text-3xl md:text-5xl leading-[1.05] text-white">Favoritos</h1>
+            <p className="text-xs md:text-sm text-white/70 mt-1.5">Tus destinos y experiencias guardadas — el AI aprende de cada uno.</p>
+          </div>
+        </section>
 
         {items.length === 0 ? (
-          <div className="glass-card rounded-2xl p-12 text-center">
+          <div className="glass-card rounded-3xl p-8 md:p-12 text-center">
             <Heart className="w-10 h-10 text-primary/40 mx-auto mb-4" />
-            <p className="text-muted-foreground">Aún no has guardado nada. Toca el corazón en cualquier destino para empezar.</p>
+            <p className="text-muted-foreground text-sm md:text-base">Aún no has guardado nada. Toca el corazón en cualquier destino para empezar.</p>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
             {items.map((it, i) => (
               <motion.div
                 key={it.id}
