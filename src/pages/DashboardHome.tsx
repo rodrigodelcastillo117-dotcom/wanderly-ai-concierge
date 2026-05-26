@@ -405,11 +405,22 @@ const DashboardHome = () => {
                 </Link>
               </div>
               <p className="text-[11px] text-muted-foreground mb-1 tracking-wide">Este mes</p>
-              <p className="font-display text-4xl md:text-5xl mb-1 gold-text">$2,540</p>
-              <p className="text-[11px] text-muted-foreground mb-5"><span className="text-primary">+12%</span> vs mayo · USD</p>
+              <p className="font-display text-4xl md:text-5xl mb-1 gold-text">
+                ${spendUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-[11px] text-muted-foreground mb-5">
+                {spendDeltaPct !== null ? (
+                  <><span className={spendDeltaPct >= 0 ? "text-primary" : "text-emerald-400"}>{spendDeltaPct >= 0 ? "+" : ""}{spendDeltaPct}%</span> vs mes anterior · USD</>
+                ) : spendUsd > 0 ? "USD · primer mes con gastos" : "Aún sin gastos registrados · USD"}
+              </p>
               <div className="flex items-center gap-5">
-                <SpendDonut />
+                <SpendDonut segments={spendCats.length ? spendCats : [{ label: "Sin datos", pct: 0, color: "hsl(0 0% 25%)" }]} />
                 <ul className="flex-1 space-y-2 text-sm">
+                  {spendCats.length === 0 && (
+                    <li className="text-xs text-muted-foreground italic">
+                      Registra gastos en tus viajes y aquí verás tu desglose real por categoría.
+                    </li>
+                  )}
                   {spendCats.map((c) => (
                     <li key={c.label} className="flex items-center justify-between">
                       <span className="flex items-center gap-2 text-muted-foreground text-xs">
