@@ -63,6 +63,21 @@ const SpendDonut = () => {
   );
 };
 
+const HERO_REELS = [
+  { query: "santorini sunset cinematic luxury travel aerial", fallback: santorini, label: "Santorini" },
+  { query: "kyoto japan cherry blossom cinematic travel aerial", fallback: kyoto, label: "Kyoto" },
+  { query: "maldives overwater villa turquoise ocean cinematic", fallback: bora, label: "Maldivas" },
+  { query: "marrakech morocco medina sunset cinematic travel", fallback: marrakech, label: "Marrakech" },
+  { query: "patagonia argentina mountains cinematic aerial", fallback: patagonia, label: "Patagonia" },
+  { query: "tulum mexico beach cenote cinematic travel", fallback: tulum, label: "Tulum" },
+  { query: "dubai skyline fountain night cinematic luxury", fallback: santorini, label: "Dubai" },
+  { query: "bali rice terraces temple cinematic aerial", fallback: kyoto, label: "Bali" },
+  { query: "amalfi coast italy sunset cliff cinematic", fallback: bora, label: "Amalfi" },
+  { query: "iceland northern lights waterfall cinematic", fallback: patagonia, label: "Islandia" },
+  { query: "capetown south africa table mountain cinematic", fallback: marrakech, label: "Ciudad del Cabo" },
+  { query: "tokyo japan neon shibuya night cinematic", fallback: kyoto, label: "Tokio" },
+];
+
 const DashboardHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
