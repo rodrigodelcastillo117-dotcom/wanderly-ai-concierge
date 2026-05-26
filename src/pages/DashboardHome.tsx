@@ -104,8 +104,55 @@ const DashboardHome = () => {
         .order("created_at", { ascending: false })
         .limit(2);
       setTrips(t ?? []);
+
+      // ───── Smart Spend real (gastos del mes actual vs mes anterior) ─────
+      const now = new Date();
+      const startThis = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+      const startPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+      const { data: exps } = await supabase
+        .from("expenses")
+        .select("amount, currency, category, expense_date")
+        .eq("user_id", user.id)
+        .gte("expense_date", startPrev);
+
+      const FX: Record<string, number> = { USD: 1, MXN: 1 / 18.5, EUR: 1.08, GBP: 1.27 };
+      const toUsd = (a: number, c: string) => a * (FX[c?.toUpperCase()] ?? 1);
+
+      const thisMonth = (exps ?? []).filter((e) => e.expense_date >= startThis);
+      const prevMonth = (exps ?? []).filter((e) => e.expense_date < startThis);
+
+      const totalUsd = thisMonth.reduce((s, e) => s + toUsd(Number(e.amount) || 0, e.currency || "MXN"), 0);
+      const prevUsd = prevMonth.reduce((s, e) => s + toUsd(Number(e.amount) || 0, e.currency || "MXN"), 0);
+      setSpendUsd(totalUsd);
+      setSpendDeltaPct(prevUsd > 0 ? Math.round(((totalUsd - prevUsd) / prevUsd) * 100) : null);
+
+      const palette: Record<string, string> = {
+        alojamiento: "hsl(41 47% 59%)",
+        hospedaje: "hsl(41 47% 59%)",
+        gastronomia: "hsl(41 60% 70%)",
+        comida: "hsl(41 60% 70%)",
+        restaurantes: "hsl(41 60% 70%)",
+        experiencias: "hsl(36 30% 60%)",
+        tours: "hsl(36 30% 60%)",
+        transporte: "hsl(0 0% 45%)",
+        vuelos: "hsl(0 0% 45%)",
+        otros: "hsl(0 0% 35%)",
+      };
+      const labelize = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
+      const groups: Record<string, number> = {};
+      for (const e of thisMonth) {
+        const key = (e.category || "otros").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        groups[key] = (groups[key] ?? 0) + toUsd(Number(e.amount) || 0, e.currency || "MXN");
+      }
+      const sum = Object.values(groups).reduce((a, b) => a + b, 0);
+      const cats = Object.entries(groups)
+        .map(([k, v]) => ({ label: labelize(k), pct: sum > 0 ? Math.round((v / sum) * 100) : 0, color: palette[k] ?? "hsl(0 0% 35%)" }))
+        .sort((a, b) => b.pct - a.pct)
+        .slice(0, 5);
+      setSpendCats(cats);
     })();
   }, [user]);
+
 
   // Live clock (refresh every minute)
   useEffect(() => {
