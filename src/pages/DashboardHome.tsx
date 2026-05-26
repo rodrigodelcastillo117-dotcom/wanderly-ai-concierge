@@ -219,11 +219,11 @@ const DashboardHome = () => {
           }}
           className="space-y-4"
         >
-          <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-5">
-            <h1 className="font-display text-2xl md:text-4xl leading-[1.1] tracking-tight shrink-0">
+          <div className="flex flex-row items-center gap-2 md:gap-5">
+            <h1 className="font-display text-xl md:text-4xl leading-[1.1] tracking-tight shrink-0">
               <span className="capitalize">{name || "Viajero"}</span>.
             </h1>
-            <div className="relative flex items-center gap-2 md:gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl pl-3 md:pl-4 pr-2 py-2 focus-within:border-primary/40 transition flex-1 min-w-0">
+            <div className="relative flex items-center gap-2 md:gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl pl-2.5 md:pl-4 pr-1.5 py-1.5 focus-within:border-primary/40 transition flex-1 min-w-0">
               <Sparkles className="w-4 h-4 text-primary shrink-0" />
               <input
                 type="text"
@@ -231,12 +231,12 @@ const DashboardHome = () => {
                 onChange={(e) => setConcierge(e.target.value)}
                 placeholder="Platícame tu viaje…"
                 aria-label="Platícame tu viaje"
-                className="flex-1 min-w-0 bg-transparent border-0 outline-none font-display italic text-lg md:text-2xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
+                className="flex-1 min-w-0 bg-transparent border-0 outline-none font-display italic text-sm md:text-2xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
               />
               <Button
                 type="submit"
                 disabled={concierge.trim().length < 5}
-                className="h-10 px-3 md:px-5 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40 text-xs md:text-sm tracking-wide shrink-0"
+                className="h-8 md:h-10 px-2.5 md:px-5 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40 text-[11px] md:text-sm tracking-wide shrink-0"
               >
                 Analizar
               </Button>
