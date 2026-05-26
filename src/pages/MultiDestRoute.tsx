@@ -171,7 +171,41 @@ const MultiDestRoute = () => {
     setDraft("");
   };
 
+  const [editingWithAI, setEditingWithAI] = useState(false);
+  const editStopsWithAI = async () => {
+    const instruction = draft.trim();
+    if (!instruction) {
+      toast.error("Escribe una instrucción para la IA");
+      return;
+    }
+    setEditingWithAI(true);
+    try {
+      const current = stops.filter(Boolean);
+      const prompt = `Lista actual de ciudades del viaje en orden: ${current.length ? current.join(" → ") : "(vacía)"}.
+
+Instrucción del usuario: "${instruction}"
+
+Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o expandir una región). Devuelve la lista FINAL actualizada de ciudades reales en el campo "destinations" en el orden que tenga más sentido logístico.`;
+      const { data, error } = await supabase.functions.invoke("parsear-viaje", { body: { prompt } });
+      if (error) throw error;
+      const cities: string[] = Array.isArray(data?.destinations) ? data.destinations.filter(Boolean) : [];
+      if (cities.length === 0) {
+        toast.error("La IA no devolvió ciudades válidas. Intenta de nuevo.");
+        return;
+      }
+      setStops(cities);
+      setDraft("");
+      toast.success(`IATOS AI actualizó tu ruta · ${cities.length} ciudades`);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "No pude editar la ruta con IA");
+    } finally {
+      setEditingWithAI(false);
+    }
+  };
+
   const removeStop = (i: number) => setStops((s) => s.filter((_, idx) => idx !== i));
+
 
   const validStops = stops.map((s) => s.trim()).filter(Boolean);
 
