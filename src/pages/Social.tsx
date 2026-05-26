@@ -312,27 +312,27 @@ export default function Social() {
       </div>
 
       <Dialog open={!!perfilOpen} onOpenChange={(o) => !o && setPerfilOpen(null)}>
-        <DialogContent className="bg-card border-primary/20">
+        <DialogContent className="bg-card border-primary/20 max-w-[92vw] md:max-w-lg rounded-2xl p-5 md:p-6">
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground overflow-hidden">
+            <DialogTitle className="font-display text-xl md:text-2xl flex items-center gap-3">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground overflow-hidden text-sm md:text-base">
                 {perfilOpen?.avatar_url
                   ? <img src={perfilOpen.avatar_url} alt="" className="w-full h-full object-cover" />
                   : (perfilOpen?.full_name?.[0] ?? "?").toUpperCase()}
               </div>
-              {perfilOpen?.full_name ?? perfilOpen?.username ?? "Viajero"}
+              <span className="truncate">{perfilOpen?.full_name ?? perfilOpen?.username ?? "Viajero"}</span>
             </DialogTitle>
           </DialogHeader>
           {perfilOpen?.compat && (
             <div className="space-y-3">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 md:gap-4">
                 <CompatRing score={perfilOpen.compat.score} />
-                <div>
-                  <p className="font-medium gold-text">{perfilOpen.compat.score}% compatibles</p>
-                  <p className="text-xs text-muted-foreground">Basado en tu perfil de viaje</p>
+                <div className="min-w-0">
+                  <p className="font-medium gold-text text-sm md:text-base">{perfilOpen.compat.score}% compatibles</p>
+                  <p className="text-[11px] md:text-xs text-muted-foreground">Basado en tu perfil de viaje</p>
                 </div>
               </div>
-              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <ul className="text-xs md:text-sm text-muted-foreground space-y-1 list-disc list-inside">
                 {perfilOpen.compat.detalles.map((d, i) => <li key={i}>{d}</li>)}
               </ul>
             </div>
