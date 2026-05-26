@@ -80,12 +80,22 @@ const Trips = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("trips")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setTrips(data ?? []));
+    (async () => {
+      const [own, collab] = await Promise.all([
+        supabase.from("trips").select("*").eq("user_id", user.id),
+        supabase.from("trip_collaborators").select("trip_id").eq("user_id", user.id),
+      ]);
+      const sharedIds = (collab.data ?? []).map((c: any) => c.trip_id);
+      let shared: any[] = [];
+      if (sharedIds.length) {
+        const { data } = await supabase.from("trips").select("*").in("id", sharedIds);
+        shared = (data ?? []).map((t: any) => ({ ...t, shared: true }));
+      }
+      const all = [...(own.data ?? []), ...shared].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+      setTrips(all);
+    })();
   }, [user]);
 
   return (
