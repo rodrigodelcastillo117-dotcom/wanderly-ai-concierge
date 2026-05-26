@@ -30,13 +30,22 @@ interface Body {
 
 const SYSTEM = `Eres un consultor de viajes de lujo (IATOS) que diseña travesías multi-destino completas.
 Devuelves SIEMPRE un JSON estricto siguiendo el esquema indicado, con datos REALISTAS y específicos:
-- Aerolíneas, operadores de tren y hoteles deben ser REALES (Italo, Renfe AVE, Shinkansen, Aman, Belmond, Soho House, etc.)
+- Aerolíneas, operadores de tren y hoteles deben ser REALES (Italo, Renfe AVE, Shinkansen, Eurostar, ÖBB Nightjet, Aman, Belmond, Soho House, etc.)
 - Precios en USD por persona, coherentes con el mercado actual
 - Personaliza hospedaje, restaurantes y experiencias al perfil del usuario (estilo, presupuesto, gastronomía, intereses)
 - 3 opciones de hospedaje POR CIUDAD: una ahorro, una equilibrio, una premium — todas alineadas al estilo del usuario
 - 4-6 restaurantes POR CIUDAD que matcheen estilo_comida + restricciones
 - 4-6 experiencias POR CIUDAD que matcheen actividades_tarde + intereses
-- Itinerario día por día distribuyendo las noches entre ciudades de manera lógica`;
+- Itinerario día por día distribuyendo las noches entre ciudades de manera lógica
+
+REGLA CRÍTICA DE TRANSPORTE ENTRE CIUDADES (arrival_options):
+- Para CADA ciudad de destino debes proponer entre 2 y 4 maneras DISTINTAS de llegar desde el punto anterior (origen para la primera ciudad, ciudad anterior para las siguientes).
+- En EUROPA y rutas cortas (<800km) SIEMPRE incluye al menos UNA opción de tren de alta velocidad (Italo/Frecciarossa Roma-Florencia-Venecia 1h30-2h ~$40-90; Renfe AVE Madrid-Barcelona 2h30 ~$60-120; SNCF TGV; Eurostar; ÖBB Nightjet) — frecuentemente es MÁS BARATO y rápido que volar.
+- En Japón usa Shinkansen JR Pass.
+- Cuando exista, también ofrece opción bus low-cost (FlixBus) como tier económico.
+- Solo recomienda vuelo interno si la distancia >800km O si no hay tren directo razonable.
+- Marca tier: economico | equilibrio | premium. Marca scenic:true cuando la ruta sea panorámica.`;
+
 
 const schema = {
   type: "object",
@@ -91,6 +100,27 @@ const schema = {
         properties: {
           city: { type: "string" },
           nights: { type: "number", description: "Noches sugeridas en esta ciudad" },
+          arrival_options: {
+            type: "array",
+            minItems: 2,
+            maxItems: 4,
+            description:
+              "2-4 maneras de LLEGAR a esta ciudad desde el punto anterior. Incluye SIEMPRE tren si la ruta es europea <800km.",
+            items: {
+              type: "object",
+              properties: {
+                from: { type: "string", description: "Ciudad/punto de origen del tramo" },
+                mode: { type: "string", description: "vuelo | tren | roadtrip | bus | ferry" },
+                tier: { type: "string", description: "economico | equilibrio | premium" },
+                provider: { type: "string", description: "Aerolínea/operador real (Italo, Renfe AVE, Iberia, FlixBus…)" },
+                duration: { type: "string" },
+                price_per_person_usd: { type: "number" },
+                scenic: { type: "boolean" },
+                notes: { type: "string" },
+              },
+              required: ["from", "mode", "duration", "price_per_person_usd"],
+            },
+          },
           hospedaje: {
             type: "array",
             minItems: 3,
@@ -138,7 +168,7 @@ const schema = {
             },
           },
         },
-        required: ["city", "nights", "hospedaje", "restaurantes", "experiencias"],
+        required: ["city", "nights", "arrival_options", "hospedaje", "restaurantes", "experiencias"],
       },
     },
     days: {
@@ -265,9 +295,12 @@ Roadtrips con paradas: ${body.prefs?.roadtripStops === false ? "no" : "sí"}
 Logística de equipaje: ${body.prefs?.luggageLogistics === false ? "no" : "sí"}
 
 ENTREGA un JSON que cumpla el esquema con:
-1. flights: 1-2 vuelos internacionales (origen→primera ciudad, última ciudad→origen). Si los costos varían, incluye tiers.
-2. internal_transport: UN tramo entre CADA par consecutivo de destinos (${body.destinations.length - 1} tramos mínimo). Trenes reales (Italo/Renfe/Shinkansen) cuando aplique. Roadtrips con 2-4 paradas.
-3. per_destination: ${body.destinations.length} entradas — UNA por cada ciudad. Cada una con EXACTAMENTE 3 hospedajes (ahorro/equilibrio/premium) tipos REALES alineados al estilo, 4-6 restaurantes y 4-6 experiencias.
+1. flights: 1-2 vuelos internacionales (origen→primera ciudad, última ciudad→origen) con tiers (ahorro/equilibrio/premium).
+2. internal_transport: UN tramo entre CADA par consecutivo de destinos (${body.destinations.length - 1} tramos mínimo). En Europa <800km PREFIERE TREN (Italo, Frecciarossa, Renfe AVE, SNCF TGV, Eurostar, ÖBB Nightjet) sobre vuelo. Roadtrips con 2-4 paradas. NUNCA omitas el tren cuando sea la opción obvia (ej. Roma↔Florencia↔Venecia DEBE ser tren).
+3. per_destination: ${body.destinations.length} entradas — UNA por cada ciudad. CADA entrada debe tener:
+   - arrival_options: 2-4 maneras de LLEGAR a esa ciudad desde la ciudad/origen anterior. Para Europa <800km SIEMPRE incluye tren de alta velocidad + opción bus o vuelo económico. Marca tier economico/equilibrio/premium.
+   - hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium) con hoteles REALES alineados al estilo
+   - 4-6 restaurantes y 4-6 experiencias
 4. days: ~${nights} días distribuidos lógicamente entre las ciudades (ej. 3 noches Roma, 2 Florencia, 2 Venecia), cada día con ciudad, título, mañana/tarde/noche específicos.
 5. mandatory_costs con currency_buffer_pct=3 sobre el total.
 6. total_estimado_usd coherente con todo lo anterior.
