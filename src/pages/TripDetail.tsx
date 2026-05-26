@@ -38,7 +38,18 @@ const TripDetail = () => {
     })();
   }, [id]);
 
-  const dias = trip?.itinerario_json?.length ?? 0;
+  // itinerario_json puede ser array (single) o objeto { multi, days, logistics, destinations } (multi)
+  const itinObj = trip?.itinerario_json;
+  const isMulti = !!(itinObj && !Array.isArray(itinObj) && itinObj.multi);
+  const itinDays: any[] = Array.isArray(itinObj)
+    ? itinObj
+    : Array.isArray(itinObj?.days)
+      ? itinObj.days
+      : [];
+  const logistics = isMulti ? itinObj.logistics : null;
+  const destinationsMulti: string[] = isMulti ? itinObj.destinations ?? [] : [];
+
+  const dias = itinDays.length;
   const noches = Math.max(1, dias - 1);
   const viajeros = trip?.num_viajeros ?? 1;
   const baseDesglose = trip?.desglose_presupuesto ?? {};
