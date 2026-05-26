@@ -241,9 +241,10 @@ const TripDetail = () => {
                 city={city}
                 subtitle={`${cityDays.length || "·"} días · ${cityHosp.length} hoteles · ${cityTours.length} experiencias · ${cityRest.length} mesas`}
                 imageQuery={`${city} skyline landmark travel`}
-                open={openCities.has(city)}
+                open={activeCity === city}
                 onToggle={() => toggleCity(city)}
                 count={totalItems}
+                wrapperRef={(el) => { cityRefs.current[city] = el; }}
               >
                 <div className="space-y-6">
                   {/* Cómo llegar */}
