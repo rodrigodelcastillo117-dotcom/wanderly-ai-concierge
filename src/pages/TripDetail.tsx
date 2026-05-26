@@ -466,6 +466,25 @@ const TripDetail = () => {
   );
 };
 
+// Agrupa items por su campo `ciudad`, respetando el orden de `cityOrder`
+const groupByCity = <T extends { ciudad?: string }>(items: T[], cityOrder: string[]): [string, T[]][] => {
+  const groups = new Map<string, T[]>();
+  for (const it of items) {
+    const c = it.ciudad || "Otros";
+    if (!groups.has(c)) groups.set(c, []);
+    groups.get(c)!.push(it);
+  }
+  const ordered: [string, T[]][] = [];
+  for (const c of cityOrder) {
+    if (groups.has(c)) {
+      ordered.push([c, groups.get(c)!]);
+      groups.delete(c);
+    }
+  }
+  for (const [c, arr] of groups) ordered.push([c, arr]);
+  return ordered;
+};
+
 const SelectedBadge = () => (
   <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
     <Check className="w-3.5 h-3.5" />
