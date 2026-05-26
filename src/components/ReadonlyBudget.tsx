@@ -133,8 +133,7 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
               <div className="overflow-hidden">
                 <div className="space-y-2">
                   {flightLegs.map((leg, i) => {
-                    const pctOfTotal = total > 0 ? (leg.total / total) * 100 : 0;
-                    const pctOfFlights = vuelosTotal > 0 ? (leg.total / vuelosTotal) * 100 : 0;
+                    const pctOfFlights = sumLegs > 0 ? (leg.total / sumLegs) * 100 : 0;
                     return (
                       <div
                         key={i}
