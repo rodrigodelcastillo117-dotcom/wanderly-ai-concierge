@@ -68,14 +68,26 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
   };
 
   const openNotif = async (n: Notification) => {
+    if (n.type === "trip_invite") return; // handled by Accept/Reject buttons
     if (!n.read) {
       await supabase.from("notifications").update({ read: true }).eq("id", n.id);
     }
     setOpen(false);
-    if (n.related_id && (n.type === "trip_invite" || n.type === "trip_updated")) {
+    if (n.related_id && (n.type === "trip_updated" || n.type === "trip_accepted" || n.type === "trip_rejected")) {
       navigate(`/dashboard/viajes/${n.related_id}`);
     }
     load();
+  };
+
+  const respondInvite = async (n: Notification, accept: boolean) => {
+    if (!n.related_id) return;
+    const fn = accept ? "aceptar_invitacion_viaje" : "rechazar_invitacion_viaje";
+    await supabase.rpc(fn as any, { p_trip_id: n.related_id });
+    await load();
+    if (accept) {
+      setOpen(false);
+      navigate(`/dashboard/viajes/${n.related_id}`);
+    }
   };
 
   return (
