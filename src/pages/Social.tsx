@@ -154,21 +154,21 @@ export default function Social() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-5xl mx-auto space-y-8 animate-fade-up">
+      <div className="p-4 md:p-10 max-w-5xl mx-auto space-y-6 md:space-y-8 animate-fade-up">
         <header className="flex items-center gap-3">
-          <Users className="w-7 h-7 text-primary" />
+          <Users className="w-6 h-6 md:w-7 md:h-7 text-primary" />
           <div>
-            <h1 className="font-display text-4xl md:text-5xl">Social</h1>
-            <p className="text-muted-foreground text-sm">Conecta, compite y descubre con tu tribu.</p>
+            <h1 className="font-display text-3xl md:text-5xl">Social</h1>
+            <p className="text-muted-foreground text-xs md:text-sm">Conecta, compite y descubre con tu tribu.</p>
           </div>
         </header>
 
         <Tabs defaultValue="amigos" className="w-full">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-card/40 backdrop-blur-md border border-white/[0.04]">
-            <TabsTrigger value="amigos">Mis Amigos</TabsTrigger>
-            <TabsTrigger value="conectar">Conectar</TabsTrigger>
-            <TabsTrigger value="medallas">Medallas</TabsTrigger>
-            <TabsTrigger value="misiones">Misiones</TabsTrigger>
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-card/40 backdrop-blur-md border border-white/[0.04] h-10 md:h-11">
+            <TabsTrigger value="amigos" className="text-[10px] md:text-sm px-1 md:px-3">Amigos</TabsTrigger>
+            <TabsTrigger value="conectar" className="text-[10px] md:text-sm px-1 md:px-3">Conectar</TabsTrigger>
+            <TabsTrigger value="medallas" className="text-[10px] md:text-sm px-1 md:px-3">Medallas</TabsTrigger>
+            <TabsTrigger value="misiones" className="text-[10px] md:text-sm px-1 md:px-3">Misiones</TabsTrigger>
           </TabsList>
 
           {/* AMIGOS */}
