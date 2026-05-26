@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, MapPin, Calendar, Phone, Languages, Crown,
-  Navigation, Clock, Utensils, Hotel, Plane, Activity, AlertCircle, Sparkles, Luggage
+  Navigation, Clock, Utensils, Hotel, Plane, Activity, AlertCircle, Sparkles, Luggage,
+  Cloud, BookHeart, Users
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -156,39 +157,15 @@ const LiveTrip = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <QuickAction
-            icon={Navigation}
-            label="Mapa"
-            sublabel="Día por día"
-            onClick={() => navigate(`/dashboard/viajes/${trip.id}/mapa`)}
-          />
-          <QuickAction
-            icon={Luggage}
-            label="Packing"
-            sublabel="Checklist"
-            onClick={() => navigate(`/dashboard/viajes/${trip.id}/packing`)}
-          />
-          <QuickAction
-            icon={Phone}
-            label="SOS"
-            sublabel="Emergencias"
-            danger
-            onClick={() => setSosOpen(true)}
-          />
-          <QuickAction
-            icon={Languages}
-            label="Traductor"
-            sublabel="Frases clave"
-            onClick={() => navigate(`/dashboard/concierge?prompt=${encodeURIComponent(`Dame 10 frases esenciales en el idioma local de ${trip.destino} con pronunciación fonética en español.`)}`)}
-          />
-          <QuickAction
-            icon={Crown}
-            label="Concierge"
-            sublabel="24/7"
-            gold
-            onClick={() => navigate("/dashboard/concierge")}
-          />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <QuickAction icon={Navigation} label="Mapa" sublabel="Día por día" onClick={() => navigate(`/dashboard/viajes/${trip.id}/mapa`)} />
+          <QuickAction icon={Luggage} label="Packing" sublabel="Checklist" onClick={() => navigate(`/dashboard/viajes/${trip.id}/packing`)} />
+          <QuickAction icon={Cloud} label="Clima" sublabel="14 días" onClick={() => navigate(`/dashboard/viajes/${trip.id}/clima`)} />
+          <QuickAction icon={Languages} label="Traductor" sublabel="Frases clave" onClick={() => navigate(`/dashboard/viajes/${trip.id}/traductor`)} />
+          <QuickAction icon={BookHeart} label="Diario" sublabel="Memorias" onClick={() => navigate(`/dashboard/viajes/${trip.id}/diario`)} />
+          <QuickAction icon={Users} label="Split" sublabel="Gastos" onClick={() => navigate(`/dashboard/viajes/${trip.id}/split`)} />
+          <QuickAction icon={Phone} label="SOS" sublabel="Emergencias" danger onClick={() => setSosOpen(true)} />
+          <QuickAction icon={Crown} label="Concierge" sublabel="24/7" gold onClick={() => navigate("/dashboard/concierge")} />
         </div>
 
 
