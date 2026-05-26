@@ -16,7 +16,6 @@ const Landing = () => {
       {/* NAV */}
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/60 border-b border-border/40">
         <div className="container mx-auto flex items-center justify-between py-4">
-          <div className="flex items-center gap-2">
           <img src={iatosLogo} alt="IATOS" className="h-9 md:h-10 w-auto object-contain" />
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={() => navigate("/auth")}>Iniciar sesión</Button>
