@@ -222,12 +222,9 @@ const Landing = () => {
       {/* FOOTER */}
       <footer className="border-t border-border/40 py-12">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-gradient-gold flex items-center justify-center">
-              <Compass className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-lg">IATOS AI</span>
-          </div>
+          <img src={iatosLogo} alt="IATOS AI" className="h-8 w-auto object-contain" />
+          <p className="text-sm text-muted-foreground">© 2026 IATOS AI. Diseñado en CDMX.</p>
+        </div>
           <p className="text-sm text-muted-foreground">© 2026 IATOS AI. Diseñado en CDMX.</p>
         </div>
       </footer>
