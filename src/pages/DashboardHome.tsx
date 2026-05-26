@@ -150,25 +150,23 @@ const DashboardHome = () => {
           }}
           className="space-y-4"
         >
-          <h1 className="font-display text-3xl md:text-5xl leading-[1.05] tracking-tight">
-            <span className="capitalize">{name || "Viajero"}</span>.{" "}
-            <span className="italic gold-text font-light">Platícame</span>{" "}
-            <span className="text-foreground/85">tu viaje</span>
+          <h1 className="font-display text-2xl md:text-4xl leading-[1.1] tracking-tight">
+            <span className="capitalize">{name || "Viajero"}</span>.
           </h1>
-          <div className="relative flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl px-4 md:px-5 py-3 focus-within:border-primary/40 transition">
+          <div className="relative flex items-center gap-2 md:gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl pl-3 md:pl-4 pr-2 py-2 focus-within:border-primary/40 transition">
             <Sparkles className="w-4 h-4 text-primary shrink-0" />
             <input
               type="text"
               value={concierge}
               onChange={(e) => setConcierge(e.target.value)}
-              placeholder="Cuéntame qué destino, vibra o experiencia tienes en mente…"
+              placeholder="Platícame tu viaje…"
               aria-label="Platícame tu viaje"
-              className="flex-1 bg-transparent border-0 outline-none text-sm md:text-base placeholder:text-muted-foreground/70 text-foreground"
+              className="flex-1 min-w-0 bg-transparent border-0 outline-none font-display italic text-lg md:text-2xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
             />
             <Button
               type="submit"
               disabled={concierge.trim().length < 5}
-              className="h-10 px-4 md:px-5 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40 text-xs md:text-sm tracking-wide"
+              className="h-10 px-3 md:px-5 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40 text-xs md:text-sm tracking-wide shrink-0"
             >
               Analizar
             </Button>
