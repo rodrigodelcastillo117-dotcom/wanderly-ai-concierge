@@ -191,16 +191,12 @@ const DashboardHome = () => {
     <DashboardLayout>
       <div className="px-4 md:px-10 py-7 md:py-10 space-y-10 md:space-y-12 max-w-[1400px] mx-auto overflow-x-hidden">
         {/* Top header */}
-        <header className="hidden md:flex items-center justify-between gap-4">
+        <header className="hidden md:flex items-center gap-4">
           <p className="text-[11px] md:text-xs text-muted-foreground capitalize tracking-wide">
             {today} <span className="mx-2 text-primary/40">|</span> <span className="text-foreground/80 normal-case">{time}</span>
           </p>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => navigate("/dashboard/perfil")} className="p-2.5 rounded-full hover:bg-white/[0.04] transition" aria-label="Ajustes">
-              <Settings className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.75} />
-            </button>
-          </div>
         </header>
+
 
         {/* Saludo + búsqueda inline */}
         <motion.form
