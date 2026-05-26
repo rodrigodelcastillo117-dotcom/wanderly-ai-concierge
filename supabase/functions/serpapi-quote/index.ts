@@ -269,18 +269,28 @@ Deno.serve(async (req) => {
     const hotelsPromise = serpHotels(serpKey, body.destination, body.depart, body.return_date, travelers)
       .catch((e) => { console.error("hotels err:", e.message); return null; });
 
-    const [flight, hotel] = await Promise.all([flightsPromise, hotelsPromise]);
+    let [flight, hotel] = await Promise.all([flightsPromise, hotelsPromise]);
+    let source = "serpapi";
+
+    // Fallback IA si SerpAPI no devolvió nada (sin créditos / error)
+    if (!flight && !hotel && lovableKey) {
+      try {
+        const est = await aiEstimate(lovableKey, body);
+        flight = est.flight as any;
+        hotel = est.hotel as any;
+        source = "ai-fallback";
+      } catch (e) { console.error("ai fallback err:", (e as Error).message); }
+    }
 
     const flights_total = flight?.price_usd ?? 0;
     const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
     const subtotal = flights_total + hotel_total;
     const buffer = subtotal * 0.2;
     const total_usd = Math.round(subtotal + buffer);
-    const total_mxn = Math.round(total_usd * 18.5); // tipo de cambio aprox
+    const total_mxn = Math.round(total_usd * 18.5);
 
     return new Response(JSON.stringify({
-      flight,
-      hotel,
+      flight, hotel,
       breakdown: {
         flights_usd: flights_total,
         hotel_nightly_usd: hotel?.nightly_usd ?? 0,
@@ -288,8 +298,7 @@ Deno.serve(async (req) => {
         nights,
         buffer_usd: Math.round(buffer),
       },
-      total_usd,
-      total_mxn,
+      total_usd, total_mxn, source,
       fetched_at: new Date().toISOString(),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
