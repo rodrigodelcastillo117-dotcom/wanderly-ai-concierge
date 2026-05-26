@@ -106,6 +106,36 @@ const TripDetail = () => {
   const logistics = isMulti ? itinObj.logistics : null;
   const destinationsMulti: string[] = isMulti ? itinObj.destinations ?? [] : [];
 
+  // Resuelve la "ciudad" usada dentro de hospedaje/tours/restaurantes/itin para cada destino del viaje
+  // (el destino puede ser país como "Grecia" y los items guardarse como "Atenas").
+  const cityKeyFor = (label: string): string => {
+    if (!isMulti) return label;
+    const norm = (s: string) => (s || "").toLowerCase().trim();
+    const collect = (arr: any) => Array.isArray(arr) ? arr.map((x: any) => x?.ciudad).filter(Boolean) : [];
+    const allCiudades: string[] = Array.from(new Set([
+      ...collect(trip?.hospedaje_json),
+      ...collect(trip?.tours_json),
+      ...collect(trip?.restaurantes_json),
+      ...collect(itinDays),
+    ]));
+    // 1) match exacto / substring en cualquier dirección
+    const direct = allCiudades.find(c => norm(c) === norm(label) || norm(c).includes(norm(label)) || norm(label).includes(norm(c)));
+    if (direct) return direct;
+    // 2) fallback por índice (orden) entre ciudades no usadas por otros destinos
+    const used = new Set(
+      destinationsMulti
+        .filter(d => d !== label)
+        .map(d => {
+          const m = allCiudades.find(c => norm(c) === norm(d) || norm(c).includes(norm(d)) || norm(d).includes(norm(c)));
+          return m ?? null;
+        })
+        .filter(Boolean) as string[]
+    );
+    const remaining = allCiudades.filter(c => !used.has(c));
+    const idx = destinationsMulti.indexOf(label);
+    return remaining[Math.min(idx, remaining.length - 1)] ?? label;
+  };
+
   const dias = itinDays.length;
   const noches = Math.max(1, dias - 1);
   const viajeros = trip?.num_viajeros ?? 1;
@@ -261,20 +291,21 @@ const TripDetail = () => {
           </div>
 
           {(isMulti ? destinationsMulti : [trip.destino]).map((city: string, cityIdx: number, allCities: string[]) => {
+            const cityKey = isMulti ? cityKeyFor(city) : city;
             const cityVuelos = isMulti
-              ? (trip.vuelos_json ?? []).filter((v: any) => (v.ciudad || v.to) === city)
+              ? (trip.vuelos_json ?? []).filter((v: any) => (v.ciudad || v.to) === cityKey || (v.ciudad || v.to) === city)
               : (trip.vuelos_json ?? []);
             const cityHosp = isMulti
-              ? (trip.hospedaje_json ?? []).filter((h: any) => h.ciudad === city)
+              ? (trip.hospedaje_json ?? []).filter((h: any) => h.ciudad === cityKey)
               : (trip.hospedaje_json ?? []);
             const cityDays = isMulti
-              ? itinDays.filter((d: any) => d.ciudad === city)
+              ? itinDays.filter((d: any) => d.ciudad === cityKey)
               : itinDays;
             const cityTours = isMulti
-              ? (trip.tours_json ?? []).filter((t: any) => t.ciudad === city)
+              ? (trip.tours_json ?? []).filter((t: any) => t.ciudad === cityKey)
               : (trip.tours_json ?? []);
             const cityRest = isMulti
-              ? (trip.restaurantes_json ?? []).filter((r: any) => r.ciudad === city)
+              ? (trip.restaurantes_json ?? []).filter((r: any) => r.ciudad === cityKey)
               : (trip.restaurantes_json ?? []);
 
             const totalItems =
