@@ -14,14 +14,7 @@ const links = [
   { to: "/dashboard/concierge", icon: Mail, label: "Concierge Pro" },
 ];
 
-const mobileNav = [
-  { to: "/dashboard", icon: Home, label: "Inicio", end: true },
-  { to: "/dashboard/perfil", icon: User, label: "Perfil" },
-  { to: "/dashboard/concierge", icon: Mail, label: "Concierge Pro" },
-  { to: "/dashboard/planear", icon: Plus, label: "Nuevo", primary: true },
-  { to: "/dashboard/descubre", icon: Globe, label: "Descubre" },
-  { to: "/dashboard/cercanos", icon: Users, label: "Cercanos" },
-];
+const mobileNav = links;
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
