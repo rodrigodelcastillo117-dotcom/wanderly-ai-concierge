@@ -19,11 +19,11 @@ const links = [
 // Mobile bottom nav — 2 left + centered (+) + 2 right, with labels
 const mobileLeft = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
-  { to: "/dashboard/perfil", icon: User, label: "Perfil" },
+  { to: "/dashboard/viajes", icon: Map, label: "Viajes" },
 ];
 const mobileRight = [
-  { to: "/dashboard/descubre", icon: Globe, label: "Descubre" },
-  { to: "/dashboard/cercanos", icon: Users, label: "Cercanos" },
+  { to: "/dashboard/social", icon: Users, label: "Social" },
+  { to: "/dashboard/perfil", icon: User, label: "Perfil" },
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {

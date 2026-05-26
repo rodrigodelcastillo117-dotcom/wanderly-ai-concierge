@@ -154,54 +154,54 @@ export default function Social() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-5xl mx-auto space-y-8 animate-fade-up">
+      <div className="p-4 md:p-10 max-w-5xl mx-auto space-y-6 md:space-y-8 animate-fade-up">
         <header className="flex items-center gap-3">
-          <Users className="w-7 h-7 text-primary" />
+          <Users className="w-6 h-6 md:w-7 md:h-7 text-primary" />
           <div>
-            <h1 className="font-display text-4xl md:text-5xl">Social</h1>
-            <p className="text-muted-foreground text-sm">Conecta, compite y descubre con tu tribu.</p>
+            <h1 className="font-display text-3xl md:text-5xl">Social</h1>
+            <p className="text-muted-foreground text-xs md:text-sm">Conecta, compite y descubre con tu tribu.</p>
           </div>
         </header>
 
         <Tabs defaultValue="amigos" className="w-full">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-card/40 backdrop-blur-md border border-white/[0.04]">
-            <TabsTrigger value="amigos">Mis Amigos</TabsTrigger>
-            <TabsTrigger value="conectar">Conectar</TabsTrigger>
-            <TabsTrigger value="medallas">Medallas</TabsTrigger>
-            <TabsTrigger value="misiones">Misiones</TabsTrigger>
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-card/40 backdrop-blur-md border border-white/[0.04] h-10 md:h-11">
+            <TabsTrigger value="amigos" className="text-[10px] md:text-sm px-1 md:px-3">Amigos</TabsTrigger>
+            <TabsTrigger value="conectar" className="text-[10px] md:text-sm px-1 md:px-3">Conectar</TabsTrigger>
+            <TabsTrigger value="medallas" className="text-[10px] md:text-sm px-1 md:px-3">Medallas</TabsTrigger>
+            <TabsTrigger value="misiones" className="text-[10px] md:text-sm px-1 md:px-3">Misiones</TabsTrigger>
           </TabsList>
 
           {/* AMIGOS */}
-          <TabsContent value="amigos" className="mt-6 space-y-3">
+          <TabsContent value="amigos" className="mt-4 md:mt-6 space-y-3">
             {loadingAmigos ? (
               [...Array(3)].map((_, i) => (
                 <div key={i} className="h-20 rounded-2xl bg-card/40 border border-white/[0.04] animate-pulse" />
               ))
             ) : amigos.length === 0 ? (
-              <div className="glass-card rounded-3xl p-12 text-center border border-primary/10">
+              <div className="glass-card rounded-3xl p-8 md:p-12 text-center border border-primary/10">
                 <Sparkles className="w-10 h-10 text-primary mx-auto mb-4 opacity-70" />
-                <p className="font-display text-2xl mb-2">Aún no conectas con nadie</p>
-                <p className="text-muted-foreground text-sm">Invita a tu primer compañero de viaje desde la pestaña "Conectar".</p>
+                <p className="font-display text-xl md:text-2xl mb-2">Aún no conectas con nadie</p>
+                <p className="text-muted-foreground text-sm">Invita a tu primer compañero de viaje desde "Conectar".</p>
               </div>
             ) : (
               amigos.map((a) => (
                 <div key={a.amigo_id}
-                  className="glass-card rounded-2xl p-4 flex items-center gap-4 border border-white/[0.04] hover:border-primary/20 transition">
-                  <div className="w-12 h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shrink-0 overflow-hidden">
+                  className="glass-card rounded-2xl p-3 md:p-4 flex items-center gap-3 md:gap-4 border border-white/[0.04] hover:border-primary/20 transition">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shrink-0 overflow-hidden text-sm md:text-base">
                     {a.avatar_url
                       ? <img src={a.avatar_url} alt="" className="w-full h-full object-cover" />
                       : (a.full_name?.[0] ?? "?").toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{a.full_name ?? a.username ?? "Viajero"}</p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="font-medium text-sm md:text-base truncate">{a.full_name ?? a.username ?? "Viajero"}</p>
+                    <p className="text-[11px] md:text-xs text-muted-foreground truncate">
                       {a.compat?.detalles?.[0] ?? (a.compat ? "Sin coincidencias aún" : "Calculando compatibilidad…")}
                     </p>
                   </div>
-                  {a.compat && <CompatRing score={a.compat.score} />}
-                  <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10"
+                  {a.compat && <div className="hidden sm:block"><CompatRing score={a.compat.score} /></div>}
+                  <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10 text-xs md:text-sm px-2 md:px-3"
                     onClick={() => setPerfilOpen(a)}>
-                    Ver perfil
+                    Ver
                   </Button>
                 </div>
               ))
@@ -209,37 +209,37 @@ export default function Social() {
           </TabsContent>
 
           {/* CONECTAR */}
-          <TabsContent value="conectar" className="mt-6 space-y-6">
-            <div className="glass-card rounded-3xl p-8 border border-primary/20 text-center">
-              <p className="text-xs text-primary tracking-[0.3em] uppercase mb-3">Tu código de invitación</p>
-              <p className="font-display text-5xl md:text-6xl tracking-[0.4em] gold-text mb-6 select-all">
+          <TabsContent value="conectar" className="mt-4 md:mt-6 space-y-4 md:space-y-6">
+            <div className="glass-card rounded-3xl p-6 md:p-8 border border-primary/20 text-center">
+              <p className="text-[10px] md:text-xs text-primary tracking-[0.2em] md:tracking-[0.3em] uppercase mb-2 md:mb-3">Tu código de invitación</p>
+              <p className="font-display text-3xl sm:text-5xl md:text-6xl tracking-[0.3em] md:tracking-[0.4em] gold-text mb-4 md:mb-6 select-all">
                 {myCode || "—"}
               </p>
-              <div className="flex flex-wrap justify-center gap-3">
+              <div className="flex flex-wrap justify-center gap-2 md:gap-3">
                 <Button onClick={() => copy(myCode, "Código")} disabled={!myCode}
-                  className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
-                  <Copy className="w-4 h-4 mr-2" /> Copiar mi código
+                  className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow text-xs md:text-sm">
+                  <Copy className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" /> Copiar
                 </Button>
                 <Button variant="outline" onClick={() => copy(shareLink, "Link")} disabled={!shareLink}
-                  className="border-primary/30 text-primary hover:bg-primary/10">
-                  <Share2 className="w-4 h-4 mr-2" /> Compartir link
+                  className="border-primary/30 text-primary hover:bg-primary/10 text-xs md:text-sm">
+                  <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" /> Compartir
                 </Button>
               </div>
             </div>
 
-            <div className="glass-card rounded-3xl p-8 border border-white/[0.04]">
-              <p className="font-display text-2xl mb-4">Conecta con un amigo</p>
-              <p className="text-sm text-muted-foreground mb-4">Pega su código de 8 caracteres.</p>
-              <div className="flex flex-col sm:flex-row gap-3">
+            <div className="glass-card rounded-3xl p-6 md:p-8 border border-white/[0.04]">
+              <p className="font-display text-xl md:text-2xl mb-3 md:mb-4">Conecta con un amigo</p>
+              <p className="text-xs md:text-sm text-muted-foreground mb-3 md:mb-4">Pega su código de 8 caracteres.</p>
+              <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
                 <Input
                   value={codeInput}
                   onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
                   placeholder="EJ. A3K9PQ7M"
                   maxLength={8}
-                  className="tracking-[0.3em] text-center font-mono uppercase bg-background/40"
+                  className="tracking-[0.2em] md:tracking-[0.3em] text-center font-mono uppercase bg-background/40 text-sm md:text-base h-10 md:h-11"
                 />
                 <Button onClick={handleConnect} disabled={connecting || !codeInput.trim()}
-                  className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
+                  className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-10 md:h-11 text-sm md:text-base">
                   {connecting ? "Conectando…" : "Conectar"}
                 </Button>
               </div>
@@ -247,26 +247,26 @@ export default function Social() {
           </TabsContent>
 
           {/* MEDALLAS */}
-          <TabsContent value="medallas" className="mt-6">
-            <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-              <Trophy className="w-4 h-4 text-primary" />
+          <TabsContent value="medallas" className="mt-4 md:mt-6">
+            <div className="flex items-center gap-2 mb-3 md:mb-4 text-xs md:text-sm text-muted-foreground">
+              <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
               {unlocked.size} de {badges.length} desbloqueadas
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
               {badges.map((b) => {
                 const has = unlocked.has(b.id);
                 return (
                   <div key={b.id}
-                    className={`rounded-2xl p-5 text-center border transition ${
+                    className={`rounded-2xl p-3 md:p-5 text-center border transition ${
                       has
                         ? "glass-card border-primary/30 gold-glow"
                         : "bg-card/30 border-white/[0.04] opacity-50"
                     }`}>
-                    <div className="text-4xl mb-2 relative">
-                      {has ? (b.icono ?? "🏅") : <Lock className="w-7 h-7 mx-auto text-muted-foreground" />}
+                    <div className="text-2xl md:text-4xl mb-1.5 md:mb-2 relative">
+                      {has ? (b.icono ?? "🏅") : <Lock className="w-5 h-5 md:w-7 md:h-7 mx-auto text-muted-foreground" />}
                     </div>
-                    <p className={`font-medium text-sm mb-1 ${has ? "gold-text" : ""}`}>{b.nombre}</p>
-                    <p className="text-[11px] text-muted-foreground leading-snug">{b.descripcion}</p>
+                    <p className={`font-medium text-xs md:text-sm mb-0.5 md:mb-1 ${has ? "gold-text" : ""}`}>{b.nombre}</p>
+                    <p className="text-[10px] md:text-[11px] text-muted-foreground leading-snug">{b.descripcion}</p>
                   </div>
                 );
               })}
@@ -274,9 +274,9 @@ export default function Social() {
           </TabsContent>
 
           {/* MISIONES */}
-          <TabsContent value="misiones" className="mt-6 space-y-3">
+          <TabsContent value="misiones" className="mt-4 md:mt-6 space-y-2 md:space-y-3">
             {misiones.length === 0 ? (
-              <div className="glass-card rounded-2xl p-8 text-center text-muted-foreground text-sm">
+              <div className="glass-card rounded-2xl p-6 md:p-8 text-center text-muted-foreground text-sm">
                 Cargando misiones…
               </div>
             ) : (
@@ -284,22 +284,22 @@ export default function Social() {
                 const pct = m.meta > 0 ? Math.min(100, (m.progreso / m.meta) * 100) : 0;
                 return (
                   <div key={m.id}
-                    className={`glass-card rounded-2xl p-5 border ${
+                    className={`glass-card rounded-2xl p-4 md:p-5 border ${
                       m.completada ? "border-primary/30 opacity-80" : "border-white/[0.04]"
                     }`}>
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="text-2xl">{m.icono ?? "🎯"}</span>
+                    <div className="flex items-center gap-2.5 md:gap-3 mb-2 md:mb-3">
+                      <span className="text-xl md:text-2xl">{m.icono ?? "🎯"}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{m.titulo}</p>
-                        <p className="text-xs text-muted-foreground">{m.progreso} / {m.meta}</p>
+                        <p className="font-medium text-sm md:text-base truncate">{m.titulo}</p>
+                        <p className="text-[11px] md:text-xs text-muted-foreground">{m.progreso} / {m.meta}</p>
                       </div>
                       {m.completada && (
-                        <span className="w-7 h-7 rounded-full bg-gradient-gold flex items-center justify-center">
-                          <Check className="w-4 h-4 text-primary-foreground" />
+                        <span className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gradient-gold flex items-center justify-center shrink-0">
+                          <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary-foreground" />
                         </span>
                       )}
                     </div>
-                    <div className="h-2 rounded-full bg-background/60 overflow-hidden">
+                    <div className="h-1.5 md:h-2 rounded-full bg-background/60 overflow-hidden">
                       <div className="h-full bg-gradient-gold transition-all duration-700"
                         style={{ width: `${pct}%` }} />
                     </div>
@@ -312,27 +312,27 @@ export default function Social() {
       </div>
 
       <Dialog open={!!perfilOpen} onOpenChange={(o) => !o && setPerfilOpen(null)}>
-        <DialogContent className="bg-card border-primary/20">
+        <DialogContent className="bg-card border-primary/20 max-w-[92vw] md:max-w-lg rounded-2xl p-5 md:p-6">
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground overflow-hidden">
+            <DialogTitle className="font-display text-xl md:text-2xl flex items-center gap-3">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground overflow-hidden text-sm md:text-base">
                 {perfilOpen?.avatar_url
                   ? <img src={perfilOpen.avatar_url} alt="" className="w-full h-full object-cover" />
                   : (perfilOpen?.full_name?.[0] ?? "?").toUpperCase()}
               </div>
-              {perfilOpen?.full_name ?? perfilOpen?.username ?? "Viajero"}
+              <span className="truncate">{perfilOpen?.full_name ?? perfilOpen?.username ?? "Viajero"}</span>
             </DialogTitle>
           </DialogHeader>
           {perfilOpen?.compat && (
             <div className="space-y-3">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 md:gap-4">
                 <CompatRing score={perfilOpen.compat.score} />
-                <div>
-                  <p className="font-medium gold-text">{perfilOpen.compat.score}% compatibles</p>
-                  <p className="text-xs text-muted-foreground">Basado en tu perfil de viaje</p>
+                <div className="min-w-0">
+                  <p className="font-medium gold-text text-sm md:text-base">{perfilOpen.compat.score}% compatibles</p>
+                  <p className="text-[11px] md:text-xs text-muted-foreground">Basado en tu perfil de viaje</p>
                 </div>
               </div>
-              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <ul className="text-xs md:text-sm text-muted-foreground space-y-1 list-disc list-inside">
                 {perfilOpen.compat.detalles.map((d, i) => <li key={i}>{d}</li>)}
               </ul>
             </div>
