@@ -117,7 +117,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border/40 bg-background/95 backdrop-blur-lg">
-        <div className="grid grid-cols-6 items-end px-2 py-2">
+        <div className="grid grid-cols-6 items-end px-1 py-2">
           {mobileNav.map((n) => (
             <NavLink
               key={n.to}
@@ -125,22 +125,12 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
               end={n.end}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1 py-2 text-[10px] ${
-                  n.primary
-                    ? "text-primary-foreground"
-                    : isActive
-                      ? "text-primary"
-                      : "text-muted-foreground"
+                  isActive ? "text-primary" : "text-muted-foreground"
                 }`
               }
             >
-              {n.primary ? (
-                <span className="w-12 h-12 -mt-6 rounded-full bg-gradient-gold flex items-center justify-center gold-glow">
-                  <n.icon className="w-5 h-5 text-primary-foreground" />
-                </span>
-              ) : (
-                <n.icon className="w-5 h-5" />
-              )}
-              <span className="truncate">{n.label}</span>
+              <n.icon className="w-5 h-5" />
+              <span className="truncate max-w-full px-0.5">{n.label}</span>
             </NavLink>
           ))}
         </div>
