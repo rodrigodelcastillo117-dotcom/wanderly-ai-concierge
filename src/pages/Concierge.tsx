@@ -318,7 +318,7 @@ const Concierge = () => {
             {QUICK_CHIPS.map((c) => (
               <button
                 key={c.label}
-                onClick={() => sendText(c.label)}
+                onClick={() => c.action ? setLiveAction(c.action) : sendText(c.label)}
                 disabled={sending}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition"
               >
