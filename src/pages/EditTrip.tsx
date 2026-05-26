@@ -173,12 +173,15 @@ const EditTrip = () => {
 
         <div className="space-y-6 glass-card rounded-2xl p-6 md:p-8">
           <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Destino</label>
-            <Input value={destino} onChange={(e) => setDestino(e.target.value)} className="bg-input border-border h-12" />
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground mb-2 block">País destino</label>
-            <Input value={paisDestino} onChange={(e) => setPaisDestino(e.target.value)} className="bg-input border-border h-12" />
+            <label className="text-sm text-muted-foreground mb-2 block">
+              Destinos <span className="text-xs opacity-60">(una o varias ciudades, separadas por coma)</span>
+            </label>
+            <Input
+              value={destino}
+              onChange={(e) => setDestino(e.target.value)}
+              placeholder="Ej. Roma, Florencia, Venecia"
+              className="bg-input border-border h-12"
+            />
           </div>
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">Ciudad de salida</label>
