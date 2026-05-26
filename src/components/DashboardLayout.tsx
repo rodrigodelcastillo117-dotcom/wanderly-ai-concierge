@@ -11,6 +11,7 @@ const links = [
   { to: "/dashboard/viajes", icon: Map, label: "Mis viajes" },
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
+  { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
   { to: "/dashboard/concierge", icon: Mail, label: "AI Concierge" },
 ];
