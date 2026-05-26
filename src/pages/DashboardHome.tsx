@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
+import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+
 
 import kyoto from "@/assets/destination-kyoto.jpg";
 import bora from "@/assets/destination-bora.jpg";
