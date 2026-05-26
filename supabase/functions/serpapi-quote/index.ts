@@ -1,8 +1,8 @@
-// serpapi-quote — Real-time pricing via SerpApi (Google Flights + Google Hotels)
-// Input: { origin, destination, depart, return_date, nights, travelers, currency? }
-// Output: { flight, hotel, breakdown, total_usd, total_mxn }
-// Set ENABLED = false to pause SerpApi spending.
-const ENABLED = true;
+// serpapi-quote — Pricing engine
+// Modo actual: ENABLED=false → estima con IA (Gemini) usando conocimiento de
+// Google Flights, Kayak, Skyscanner, Booking y precios históricos por mes/día.
+// Cuando se reactive (ENABLED=true) vuelve a SerpApi en vivo sin cambios.
+const ENABLED = false;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
