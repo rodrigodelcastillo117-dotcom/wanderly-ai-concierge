@@ -92,10 +92,10 @@ export const Gastos = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-5xl">
+      <div className="px-4 py-6 md:p-10 max-w-5xl">
         <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
           <div>
-            <h1 className="font-display text-4xl md:text-5xl mb-2">Gastos</h1>
+            <h1 className="font-display text-3xl md:text-5xl mb-2">Gastos</h1>
             <p className="text-muted-foreground">Registra, categoriza y analiza cada gasto de tu viaje.</p>
           </div>
           {tab === "lista" && (

@@ -11,9 +11,9 @@ const Profile = () => {
   const { signOut } = useAuth();
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-4xl space-y-12">
+      <div className="px-4 py-6 md:p-10 max-w-4xl space-y-12">
         <section>
-          <h1 className="font-display text-4xl md:text-5xl mb-3">Perfil de gustos</h1>
+          <h1 className="font-display text-3xl md:text-5xl mb-3">Perfil de gustos</h1>
           <p className="text-muted-foreground mb-6">Actualiza tus preferencias y la IA recalibrará todas las recomendaciones.</p>
           <Button onClick={() => navigate("/onboarding")} className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
             <Sparkles className="w-4 h-4 mr-2" />

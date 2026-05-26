@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Pencil, Users } from "lucide-react";
+import { Pencil, Users, Sparkles, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { DestinationVideo } from "@/components/DestinationVideo";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import santorini from "@/assets/hero-santorini.jpg";
 
 const cache = new Map<string, string | null>();
 
@@ -76,6 +80,7 @@ const TripCard = ({ t }: { t: any }) => {
 
 const Trips = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<any[]>([]);
 
   useEffect(() => {
@@ -100,12 +105,36 @@ const Trips = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10">
-        <h1 className="font-display text-4xl md:text-5xl mb-10">Mis viajes</h1>
+      <div className="px-4 py-6 md:p-10 max-w-[1400px] mx-auto space-y-7 md:space-y-10">
+        {/* Cinematic header */}
+        <section className="relative rounded-[24px] md:rounded-[28px] overflow-hidden ring-1 ring-white/[0.05] premium-shadow">
+          <div className="h-[180px] md:h-[260px]">
+            <DestinationVideo
+              query={trips[0]?.destino ? `${trips[0].destino} cinematic aerial luxury travel` : "luxury travel destinations cinematic aerial"}
+              fallbackImage={santorini}
+              alt="Mis viajes"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+          <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-9">
+            <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2 flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3" /> Tu colección
+            </p>
+            <h1 className="font-display text-3xl md:text-5xl leading-[1.05] text-white">Mis viajes</h1>
+            <p className="text-xs md:text-sm text-white/70 mt-1.5">Cada travesía guardada — vuelos, hospedaje, experiencias.</p>
+          </div>
+        </section>
+
         {trips.length === 0 ? (
-          <p className="text-muted-foreground">Aún no has guardado ningún viaje.</p>
+          <div className="glass-card rounded-3xl p-8 md:p-12 text-center">
+            <p className="text-muted-foreground mb-5">Aún no has guardado ningún viaje.</p>
+            <Button onClick={() => navigate("/dashboard/planear")} className="bg-gradient-gold text-primary-foreground gold-glow rounded-2xl">
+              <Plus className="w-4 h-4 mr-2" /> Crear mi primer viaje
+            </Button>
+          </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {trips.map((t) => (
               <TripCard key={t.id} t={t} />
             ))}

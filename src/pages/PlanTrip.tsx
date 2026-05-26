@@ -396,8 +396,8 @@ const PlanTrip = () => {
           </header>
         )}
 
-        <main className="flex-1 px-6 py-10">
-          <div className="w-full max-w-6xl mx-auto grid lg:grid-cols-[1fr_360px] gap-10 items-start">
+        <main className="flex-1 px-4 md:px-6 py-6 md:py-10">
+          <div className="w-full max-w-6xl mx-auto grid lg:grid-cols-[1fr_360px] gap-6 md:gap-10 items-start">
             <div className="w-full max-w-xl mx-auto lg:mx-0">
               <AnimatePresence mode="wait">
                 <motion.div key={step} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }}>
@@ -405,7 +405,7 @@ const PlanTrip = () => {
                     <Icon className="w-5 h-5 text-primary" />
                   </div>
                   <h2 className="font-display text-3xl md:text-5xl mb-3">{current.title}</h2>
-                  <p className="text-muted-foreground mb-10">{current.sub}</p>
+                  <p className="text-muted-foreground mb-6 md:mb-10">{current.sub}</p>
                   <div className="mb-12">{current.render()}</div>
                 </motion.div>
               </AnimatePresence>
