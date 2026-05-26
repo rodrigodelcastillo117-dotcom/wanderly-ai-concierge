@@ -263,7 +263,7 @@ const TripDetail = () => {
             <span className="ml-auto text-xs text-muted-foreground italic">Toca cada destino para explorar</span>
           </div>
 
-          {(isMulti ? destinationsMulti : [trip.destino]).map((city: string) => {
+          {(isMulti ? destinationsMulti : [trip.destino]).map((city: string, cityIdx: number, allCities: string[]) => {
             const cityVuelos = isMulti
               ? (trip.vuelos_json ?? []).filter((v: any) => (v.ciudad || v.to) === city)
               : (trip.vuelos_json ?? []);
@@ -284,8 +284,8 @@ const TripDetail = () => {
               cityVuelos.length + cityHosp.length + cityDays.length + cityTours.length + cityRest.length;
 
             return (
+              <div key={city}>
               <CityCollapsible
-                key={city}
                 city={city}
                 subtitle={`${cityDays.length || "·"} días · ${cityHosp.length} hoteles · ${cityTours.length} experiencias · ${cityRest.length} mesas`}
                 imageQuery={`${city} skyline landmark travel`}
@@ -417,6 +417,10 @@ const TripDetail = () => {
                   )}
                 </div>
               </CityCollapsible>
+              {isMulti && cityIdx < allCities.length - 1 && (
+                <FlightConnector from={city} to={allCities[cityIdx + 1]} />
+              )}
+              </div>
             );
           })}
         </div>
@@ -473,6 +477,48 @@ const SubBlock = ({ icon: Icon, title, children }: any) => (
     {children}
   </div>
 );
+
+// Elegante conector de vuelo entre destinos (multi-ciudad)
+const FlightConnector = ({ from, to }: { from: string; to: string }) => (
+  <div className="relative my-5 md:my-7 select-none" aria-hidden="true">
+    <div className="flex items-center gap-4 px-2">
+      <span className="hidden sm:inline text-[10px] tracking-[0.3em] uppercase text-muted-foreground/70 whitespace-nowrap">
+        {from}
+      </span>
+      <div className="relative flex-1 h-px">
+        {/* línea base sutil */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+        {/* línea punteada dorada */}
+        <div
+          className="absolute inset-0 opacity-60"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, hsl(var(--primary) / 0.5) 50%, transparent 0%)",
+            backgroundSize: "8px 1px",
+            backgroundRepeat: "repeat-x",
+          }}
+        />
+        {/* avión deslizándose */}
+        <motion.div
+          className="absolute top-1/2 -translate-y-1/2"
+          initial={{ left: "0%" }}
+          animate={{ left: ["0%", "100%"] }}
+          transition={{ duration: 6, ease: "easeInOut", repeat: Infinity, repeatDelay: 1.5 }}
+        >
+          <div className="-translate-x-1/2 relative">
+            {/* glow */}
+            <div className="absolute inset-0 blur-md bg-primary/40 rounded-full" />
+            <Plane className="relative w-4 h-4 text-primary rotate-90 drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]" />
+          </div>
+        </motion.div>
+      </div>
+      <span className="hidden sm:inline text-[10px] tracking-[0.3em] uppercase text-primary whitespace-nowrap">
+        {to}
+      </span>
+    </div>
+  </div>
+);
+
 
 // Agrupa items por su campo `ciudad`, respetando el orden de `cityOrder`
 const groupByCity = <T extends { ciudad?: string }>(items: T[], cityOrder: string[]): [string, T[]][] => {
