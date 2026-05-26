@@ -33,20 +33,18 @@ const Compare = () => {
     if (list.length < 2) { toast.error("Agrega al menos 2 destinos"); return; }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("concierge-chat", {
+      const { data, error } = await supabase.functions.invoke("ai-tool", {
         body: {
-          messages: [{
-            role: "user",
-            content: `Compara estos destinos para un viajero mexicano: ${list.join(" vs ")}. Responde SOLO un JSON array así: [{"destino":"...","costo_diario_usd":"$X-Y","mejor_epoca":"...","visa_mx":"Sí/No, info","seguridad":"Alta/Media/Baja + nota","idioma":"...","highlights":"..."}]`
-          }]
+          json: true,
+          prompt: `Compara estos destinos para un viajero mexicano: ${list.join(" vs ")}. Devuelve un array JSON exactamente así: [{"destino":"...","costo_diario_usd":"$X-Y","mejor_epoca":"...","visa_mx":"Sí/No, info","seguridad":"Alta/Media/Baja + nota","idioma":"...","highlights":"..."}]. Un objeto por destino, en el orden dado.`
         }
       });
       if (error) throw error;
-      const text = (data?.message || data?.content || data?.reply || "") as string;
-      const m = text.match(/\[[\s\S]*\]/);
-      if (m) setRows(JSON.parse(m[0]));
-      else toast.error("No se pudo procesar");
-    } catch { toast.error("Error al comparar"); }
+      if (!data?.ok) throw new Error(data?.error || "Error IA");
+      const arr = Array.isArray(data.data) ? data.data : [];
+      if (arr.length === 0) throw new Error("Sin resultados");
+      setRows(arr);
+    } catch (e: any) { toast.error(e?.message || "Error al comparar"); }
     setLoading(false);
   };
 

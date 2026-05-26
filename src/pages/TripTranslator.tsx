@@ -32,21 +32,19 @@ const TripTranslator = () => {
     if (!trip) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("concierge-chat", {
+      const { data, error } = await supabase.functions.invoke("ai-tool", {
         body: {
-          messages: [{
-            role: "user",
-            content: `Para un viaje a ${trip.destino}, traduce estas frases al idioma local con pronunciación fonética en español. Responde SOLO un JSON array así: [{"es":"...","local":"...","phon":"..."}]. Frases: ${list.join(" | ")}`
-          }]
+          json: true,
+          prompt: `Para un viaje a ${trip.destino}, traduce estas frases al idioma local con pronunciación fonética en español. Devuelve un array JSON exactamente así: [{"es":"...","local":"...","phon":"..."}]. Frases: ${list.join(" | ")}`
         }
       });
       if (error) throw error;
-      const text = (data?.message || data?.content || data?.reply || "") as string;
-      const m = text.match(/\[[\s\S]*\]/);
-      if (m) setPhrases(JSON.parse(m[0]));
-      else toast.error("No se pudo procesar la respuesta");
+      if (!data?.ok) throw new Error(data?.error || "Error IA");
+      const arr = Array.isArray(data.data) ? data.data : [];
+      if (arr.length === 0) toast.error("No se pudieron traducir las frases");
+      else setPhrases(prev => list.length === 1 ? [...arr, ...prev] : arr);
     } catch (e: any) {
-      toast.error("Error al traducir");
+      toast.error(e?.message || "Error al traducir");
     }
     setLoading(false);
   };
