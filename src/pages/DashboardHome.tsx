@@ -245,8 +245,9 @@ const DashboardHome = () => {
         >
           <div
             className="relative rounded-[28px] overflow-hidden premium-shadow group cursor-pointer ring-1 ring-white/[0.05]"
-            onClick={() => navigate("/dashboard/planear")}
+            onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(HERO_REELS[reelIdx].label)}&autoCheapest=1`)}
           >
+
             <div
               className={`w-full h-[340px] md:h-[460px] transition-opacity duration-[600ms] ease-out ${reelFading ? "opacity-0" : "opacity-100"}`}
             >
