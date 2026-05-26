@@ -3,11 +3,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, MapPin, Plus, X, Sparkles, Train, Mountain, Wallet,
-  Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt,
+  Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt, Wand2,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +27,13 @@ type RoutePrefs = {
   connection: ConnStyle;
   roadtripStops: boolean;
   luggageLogistics: boolean;
+  aiNotes?: string;
+  themes?: string[];
+  avoid?: string[];
+  pace?: string;
+  transportPreference?: string;
+  budgetStyle?: string;
+  summary?: string;
 };
 
 const DEFAULT_PREFS: RoutePrefs = {
@@ -71,6 +80,8 @@ const MultiDestRoute = () => {
   const [prefs, setPrefs] = useState<RoutePrefs>(DEFAULT_PREFS);
 
   const [configOpen, setConfigOpen] = useState(false);
+  const [smartPrompt, setSmartPrompt] = useState("");
+  const [analyzingPrefs, setAnalyzingPrefs] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<null | {
     logistics: any;
@@ -175,6 +186,51 @@ const MultiDestRoute = () => {
       generateRoute(DEFAULT_PREFS, true);
     } else {
       setConfigOpen(true);
+    }
+  };
+
+  const analyzeSmartPrompt = async () => {
+    const text = smartPrompt.trim();
+    if (!text) {
+      toast.error("Escribe qué te acomoda para que la IA lo analice");
+      return;
+    }
+    setAnalyzingPrefs(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analizar-preferencias-ruta", {
+        body: {
+          prompt: text,
+          contexto: {
+            origin,
+            destinos: validStops,
+            fecha_salida: fechaSalida || undefined,
+            fecha_regreso: fechaRegreso || undefined,
+            viajeros,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setPrefs((p) => ({
+        ...p,
+        connection: data.connection ?? p.connection,
+        roadtripStops: typeof data.roadtripStops === "boolean" ? data.roadtripStops : p.roadtripStops,
+        luggageLogistics: typeof data.luggageLogistics === "boolean" ? data.luggageLogistics : p.luggageLogistics,
+        aiNotes: text,
+        themes: data.themes ?? [],
+        avoid: data.avoid ?? [],
+        pace: data.pace,
+        transportPreference: data.transport_preference,
+        budgetStyle: data.budget_style,
+        summary: data.summary,
+      }));
+      toast.success("IATOS AI entendió tus preferencias");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "No pude analizar tus preferencias");
+    } finally {
+      setAnalyzingPrefs(false);
     }
   };
 
@@ -680,7 +736,73 @@ const MultiDestRoute = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-2">
+          <div className="space-y-6 py-2 max-h-[60vh] overflow-y-auto pr-1">
+            {/* Smart prompt — IA analiza preferencias en lenguaje natural */}
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <Wand2 className="w-4 h-4 mt-0.5 text-primary" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Cuéntale a IATOS AI qué te acomoda</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    En tus palabras: ritmo, comida, ambiente, lo que evitas, presupuesto, transporte preferido… La IA lo traduce en tu configuración ideal.
+                  </p>
+                </div>
+              </div>
+              <Textarea
+                value={smartPrompt}
+                onChange={(e) => setSmartPrompt(e.target.value)}
+                placeholder="Ej. Viajamos en pareja, queremos ritmo relajado, mucha gastronomía local y vinos, evitar madrugar y tours grupales. Preferimos tren antes que vuelos cortos. Presupuesto medio-alto."
+                rows={4}
+                className="bg-surface border-border resize-none text-sm"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] text-muted-foreground">
+                  Opcional. Si lo dejas vacío, usa las opciones de abajo.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={analyzeSmartPrompt}
+                  disabled={analyzingPrefs || !smartPrompt.trim()}
+                  className="border-primary/40 text-primary hover:bg-primary/10"
+                >
+                  {analyzingPrefs ? (
+                    <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Analizando…</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Analizar con IA</>
+                  )}
+                </Button>
+              </div>
+
+              {prefs.summary && (
+                <div className="rounded-lg border border-primary/30 bg-background/40 p-3 space-y-2">
+                  <p className="text-xs text-foreground leading-relaxed">{prefs.summary}</p>
+                  {(prefs.themes?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {prefs.themes!.slice(0, 8).map((t) => (
+                        <Badge key={t} variant="secondary" className="text-[10px] py-0 px-2">{t}</Badge>
+                      ))}
+                    </div>
+                  )}
+                  {(prefs.avoid?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      <span className="text-[10px] text-muted-foreground">Evitar:</span>
+                      {prefs.avoid!.slice(0, 6).map((t) => (
+                        <Badge key={t} variant="outline" className="text-[10px] py-0 px-2 border-destructive/40 text-destructive">{t}</Badge>
+                      ))}
+                    </div>
+                  )}
+                  {(prefs.pace || prefs.transportPreference || prefs.budgetStyle) && (
+                    <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                      {prefs.pace && <span>Ritmo: <b className="text-foreground">{prefs.pace}</b></span>}
+                      {prefs.transportPreference && <span>Transporte: <b className="text-foreground">{prefs.transportPreference}</b></span>}
+                      {prefs.budgetStyle && <span>Presupuesto: <b className="text-foreground">{prefs.budgetStyle}</b></span>}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Estilo de Conexión */}
             <div>
               <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Estilo de conexión</p>
