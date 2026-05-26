@@ -150,7 +150,7 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
                         </div>
                         <div className="flex items-center gap-2 text-right">
                           <span className="text-[10px] text-muted-foreground tabular-nums">
-                            {Math.round(pctOfFlights)}% vuelos · {Math.round(pctOfTotal)}% total
+                            {Math.round(pctOfFlights)}% del rubro vuelos
                           </span>
                           <ChevronRight className="w-3 h-3 text-muted-foreground/40" />
                           <span className="text-sm font-medium tabular-nums w-[110px]">
