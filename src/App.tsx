@@ -24,6 +24,7 @@ import Social from "./pages/Social";
 import { Navigate } from "react-router-dom";
 import Gastos from "./pages/Gastos";
 import NotFound from "./pages/NotFound.tsx";
+import LiveTrip from "./pages/LiveTrip";
 
 const queryClient = new QueryClient();
 
