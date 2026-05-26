@@ -14,7 +14,7 @@ const links = [
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
-  { to: "/dashboard/concierge", icon: Mail, label: "AI Concierge" },
+  { to: "/dashboard/concierge", icon: Mail, label: "Concierge PRO" },
 ];
 
 // Mobile bottom nav — 2 left + centered (+) + 2 right, with labels
