@@ -155,6 +155,54 @@ export type Database = {
         }
         Relationships: []
       }
+      destination_daily_costs: {
+        Row: {
+          city_name: string
+          destination_code: string
+          exp_standard_usd: number
+          exp_vip_usd: number
+          food_michelin_usd: number
+          food_premium_usd: number
+          food_standard_usd: number
+          hotel_3_star_usd: number
+          hotel_4_star_usd: number
+          hotel_5_star_usd: number
+          id: string
+          transport_private_usd: number
+          transport_public_usd: number
+        }
+        Insert: {
+          city_name: string
+          destination_code: string
+          exp_standard_usd: number
+          exp_vip_usd: number
+          food_michelin_usd: number
+          food_premium_usd: number
+          food_standard_usd: number
+          hotel_3_star_usd: number
+          hotel_4_star_usd: number
+          hotel_5_star_usd: number
+          id?: string
+          transport_private_usd: number
+          transport_public_usd: number
+        }
+        Update: {
+          city_name?: string
+          destination_code?: string
+          exp_standard_usd?: number
+          exp_vip_usd?: number
+          food_michelin_usd?: number
+          food_premium_usd?: number
+          food_standard_usd?: number
+          hotel_3_star_usd?: number
+          hotel_4_star_usd?: number
+          hotel_5_star_usd?: number
+          id?: string
+          transport_private_usd?: number
+          transport_public_usd?: number
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
