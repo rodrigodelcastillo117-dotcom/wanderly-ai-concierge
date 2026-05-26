@@ -148,13 +148,6 @@ const DashboardHome = () => {
   const today = now.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const time = now.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase().replace(/\./g, "");
 
-  const spendCats = [
-    { label: "Alojamiento", pct: 42, color: "hsl(41 47% 59%)" },
-    { label: "Gastronomía", pct: 28, color: "hsl(41 60% 70%)" },
-    { label: "Experiencias", pct: 18, color: "hsl(36 30% 60%)" },
-    { label: "Transporte", pct: 7, color: "hsl(0 0% 45%)" },
-    { label: "Otros", pct: 5, color: "hsl(0 0% 35%)" },
-  ];
 
   return (
     <DashboardLayout>
