@@ -497,18 +497,38 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
 
             <form
               onSubmit={(e) => { e.preventDefault(); addStop(); }}
-              className="flex gap-2 mt-3"
+              className="flex flex-col sm:flex-row gap-2 mt-3"
             >
               <Input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Añadir destino (ej. Kioto)"
-                className="h-12 bg-input border-border"
+                placeholder='Agrega una ciudad (ej. "Kioto") o pide a IA: "quita Praga y agrega Roma"'
+                className="h-12 bg-input border-border flex-1"
               />
-              <Button type="submit" variant="outline" className="h-12 border-border">
-                <Plus className="w-4 h-4 mr-1" /> Agregar
-              </Button>
+              <div className="flex gap-2">
+                <Button type="submit" variant="outline" className="h-12 border-border" disabled={!draft.trim()}>
+                  <Plus className="w-4 h-4 mr-1" /> Agregar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={editStopsWithAI}
+                  disabled={editingWithAI || !draft.trim()}
+                  className="h-12 bg-gradient-gold text-primary-foreground hover:opacity-90"
+                >
+                  {editingWithAI ? (
+                    <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Editando…</>
+                  ) : (
+                    <><Wand2 className="w-4 h-4 mr-1.5" /> Editar con IA</>
+                  )}
+                </Button>
+              </div>
             </form>
+            <p className="text-[11px] text-muted-foreground mt-2 italic">
+              Tip: con "Editar con IA" puedes decir cosas como <span className="text-foreground">"quita Berlín"</span>,
+              <span className="text-foreground"> "agrega 2 días en la Toscana"</span> o
+              <span className="text-foreground"> "reordena empezando por París"</span>.
+            </p>
+
           </div>
 
           {/* Status pill — phase indicator */}
