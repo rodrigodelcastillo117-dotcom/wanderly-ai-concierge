@@ -247,9 +247,12 @@ const MultiDestRoute = () => {
             hospedaje_json,
             restaurantes_json,
             tours_json,
-            itinerario_json: itinerarioDays.length
-              ? itinerarioDays
-              : { multi: true, destinations: validStops, logistics },
+            itinerario_json: {
+              multi: true,
+              destinations: validStops,
+              logistics,
+              days: itinerarioDays,
+            },
             // Guardamos logistics completa dentro de tips para no perderla
             tips_personalizados: logistics.resumen ? [logistics.resumen] : null,
           })
