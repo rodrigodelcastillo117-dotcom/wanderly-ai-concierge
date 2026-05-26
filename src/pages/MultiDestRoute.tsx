@@ -45,9 +45,22 @@ const CONNECTION_OPTIONS: {
 const MultiDestRoute = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
 
-  const [origin, setOrigin] = useState("");
-  const [stops, setStops] = useState<string[]>(["", ""]);
+  // Seeds desde la URL (cuando llega desde PlanTrip por detección automática)
+  const seedDestinos = useMemo(
+    () => (params.get("destinos") ?? "").split("|").map((s) => s.trim()).filter(Boolean),
+    [params],
+  );
+  const seedOrigin = params.get("origin") ?? "";
+  const fechaSalida = params.get("fecha_salida") ?? "";
+  const fechaRegreso = params.get("fecha_regreso") ?? "";
+  const viajeros = Number(params.get("viajeros") ?? "2");
+  const presupuesto = params.get("presupuesto");
+  const autoStart = params.get("auto") === "1" && seedDestinos.length >= 2;
+
+  const [origin, setOrigin] = useState(seedOrigin);
+  const [stops, setStops] = useState<string[]>(seedDestinos.length ? seedDestinos : ["", ""]);
   const [draft, setDraft] = useState("");
 
   const [tripsCount, setTripsCount] = useState<number | null>(null);
@@ -56,7 +69,11 @@ const MultiDestRoute = () => {
 
   const [configOpen, setConfigOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState<null | { itinerary: any[]; autonomous: boolean }>(null);
+  const [generated, setGenerated] = useState<null | {
+    logistics: any;
+    autonomous: boolean;
+    tripId?: string;
+  }>(null);
 
   // Veteran when trips_count >= 3 OR strong behavioral signal
   const isVeteran = useMemo(() => {
@@ -79,6 +96,18 @@ const MultiDestRoute = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Autostart cuando venimos con destinos pre-cargados y user listo
+  useEffect(() => {
+    if (!autoStart || !user || tripsCount === null || generated || generating) return;
+    // Veterano → directo. Novato → modal.
+    if (isVeteran) {
+      void generateRoute(DEFAULT_PREFS, true);
+    } else {
+      setConfigOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, user, tripsCount, isVeteran]);
+
   const addStop = () => {
     const v = draft.trim();
     if (!v) return;
@@ -98,10 +127,8 @@ const MultiDestRoute = () => {
       return;
     }
     if (isVeteran) {
-      // PHASE 2 — God Mode: skip modal, auto-generate
       generateRoute(DEFAULT_PREFS, true);
     } else {
-      // PHASE 1 — Manual control
       setConfigOpen(true);
     }
   };
@@ -110,39 +137,62 @@ const MultiDestRoute = () => {
     setConfigOpen(false);
     setGenerating(true);
     try {
-      // Telemetry — drives the AI confidence over time
+      // Telemetría
       if (user) {
         await supabase.from("behavioral_insights").insert([{
           user_id: user.id,
           action: "planned",
-          target_type: "destination",
+          target_type: "multi_destination",
           target_label: validStops.join(" → "),
-          metadata: { multi_dest: true, autonomous, prefs: p as any, origin } as any,
+          metadata: { autonomous, prefs: p as any, origin } as any,
         }]);
       }
 
-      // Build a simulated optimized itinerary client-side so the UX feels real.
-      // (When connected to the multi-leg engine, swap this for an edge-function call.)
-      await new Promise((r) => setTimeout(r, 1400));
+      // Logística real via edge function
+      const { data, error } = await supabase.functions.invoke("logistics-plan", {
+        body: {
+          origin,
+          destinations: validStops,
+          fecha_salida: fechaSalida || undefined,
+          fecha_regreso: fechaRegreso || undefined,
+          num_viajeros: viajeros,
+          prefs: p,
+        },
+      });
+      if (error) throw error;
+      if (!data?.logistics) throw new Error("La IA no devolvió logística");
 
-      const legs = [origin, ...validStops].map((city, i, arr) => {
-        if (i === arr.length - 1) return null;
-        const next = arr[i + 1];
-        const mode =
-          p.connection === "tiempo" ? "Tren bala / vuelo directo"
-          : p.connection === "paisaje" ? "Ruta escénica"
-          : "Mejor costo-beneficio";
-        return {
-          from: city,
-          to: next,
-          mode,
-          duration: p.connection === "tiempo" ? "2h 40m" : p.connection === "paisaje" ? "5h 10m" : "3h 30m",
-          stopovers: p.roadtripStops ? ["Mirador panorámico", "Pueblo mágico cercano"] : [],
-          luggage: p.luggageLogistics ? "Luggage storage reservado en estación" : null,
-        };
-      }).filter(Boolean) as any[];
+      const logistics = data.logistics;
 
-      setGenerated({ itinerary: legs, autonomous });
+      // Persistir como trip
+      let tripId: string | undefined;
+      if (user) {
+        const { data: trip, error: tErr } = await supabase
+          .from("trips")
+          .insert({
+            user_id: user.id,
+            destino: validStops.join(" → "),
+            pais_destino: validStops[validStops.length - 1],
+            ciudad_origen: origin,
+            fecha_salida: fechaSalida || null,
+            fecha_regreso: fechaRegreso || null,
+            num_viajeros: viajeros,
+            presupuesto_objetivo: presupuesto ? Number(presupuesto) : null,
+            total_estimado: logistics.total_estimado_usd
+              ? Math.round(Number(logistics.total_estimado_usd) * 17) // USD → MXN aprox
+              : null,
+            moneda: "MXN",
+            status: "listo",
+            itinerario_json: { multi: true, logistics, destinations: validStops },
+          })
+          .select("id")
+          .single();
+        if (tErr) console.error(tErr);
+        else tripId = trip?.id;
+      }
+
+      setGenerated({ logistics, autonomous, tripId });
+      toast.success("Travesía multi-destino generada");
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "No pudimos generar la ruta");
@@ -150,6 +200,7 @@ const MultiDestRoute = () => {
       setGenerating(false);
     }
   };
+
 
   return (
     <DashboardLayout>
