@@ -149,6 +149,89 @@ export type Database = {
         }
         Relationships: []
       }
+      bookings: {
+        Row: {
+          booking_url: string | null
+          category: string
+          city: string | null
+          commission_amount: number | null
+          confirmation_code: string | null
+          country: string | null
+          created_at: string
+          end_at: string | null
+          id: string
+          image_url: string | null
+          partner_reference: string | null
+          price_amount: number | null
+          price_currency: string | null
+          provider: string
+          raw_payload: Json | null
+          start_at: string | null
+          status: string
+          subtitle: string | null
+          title: string
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_url?: string | null
+          category: string
+          city?: string | null
+          commission_amount?: number | null
+          confirmation_code?: string | null
+          country?: string | null
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          image_url?: string | null
+          partner_reference?: string | null
+          price_amount?: number | null
+          price_currency?: string | null
+          provider: string
+          raw_payload?: Json | null
+          start_at?: string | null
+          status?: string
+          subtitle?: string | null
+          title: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_url?: string | null
+          category?: string
+          city?: string | null
+          commission_amount?: number | null
+          confirmation_code?: string | null
+          country?: string | null
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          image_url?: string | null
+          partner_reference?: string | null
+          price_amount?: number | null
+          price_currency?: string | null
+          provider?: string
+          raw_payload?: Json | null
+          start_at?: string | null
+          status?: string
+          subtitle?: string | null
+          title?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       concierge_requests: {
         Row: {
           created_at: string
