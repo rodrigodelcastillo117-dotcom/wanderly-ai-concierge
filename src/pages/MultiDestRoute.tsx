@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, MapPin, Plus, X, Sparkles, Train, Mountain, Wallet,
-  Car, Luggage, Settings2, Route as RouteIcon, Loader2,
+  Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
 
 type ConnStyle = "tiempo" | "paisaje" | "smart";
 
