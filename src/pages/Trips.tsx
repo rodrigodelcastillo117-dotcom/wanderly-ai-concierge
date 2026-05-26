@@ -5,6 +5,70 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
+const cache = new Map<string, string | null>();
+
+const TripCard = ({ t }: { t: any }) => {
+  const [img, setImg] = useState<string | null>(cache.get(t.destino) ?? null);
+
+  useEffect(() => {
+    if (cache.has(t.destino)) return;
+    const key = `pexels:${t.destino}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      cache.set(t.destino, stored);
+      setImg(stored);
+      return;
+    }
+    const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.functions.supabase.co/pexels-image?query=${encodeURIComponent(
+      `${t.destino} ${t.pais_destino ?? ""} travel`,
+    )}`;
+    fetch(url)
+      .then((r) => r.json())
+      .then((d) => {
+        const image = d?.image ?? null;
+        cache.set(t.destino, image);
+        if (image) localStorage.setItem(key, image);
+        setImg(image);
+      })
+      .catch(() => {});
+  }, [t.destino, t.pais_destino]);
+
+  return (
+    <div className="relative glass-card rounded-2xl overflow-hidden hover:gold-border transition group">
+      <Link
+        to={`/dashboard/viajes/${t.id}/editar`}
+        aria-label="Editar viaje"
+        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-background/60 backdrop-blur hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+      </Link>
+      <Link to={`/dashboard/viajes/${t.id}`} className="block">
+        <div className="relative h-44 w-full overflow-hidden bg-surface">
+          {img ? (
+            <img
+              src={img}
+              alt={t.destino}
+              loading="lazy"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-primary/10 to-surface" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+        </div>
+        <div className="p-5">
+          <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{t.pais_destino}</p>
+          <h3 className="font-display text-2xl mb-3 group-hover:text-primary transition">{t.destino}</h3>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>{new Date(t.fecha_salida).toLocaleDateString("es-MX")}</span>
+            <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")}</span>
+          </div>
+        </div>
+      </Link>
+    </div>
+  );
+};
+
 const Trips = () => {
   const { user } = useAuth();
   const [trips, setTrips] = useState<any[]>([]);
@@ -28,23 +92,7 @@ const Trips = () => {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {trips.map((t) => (
-              <div key={t.id} className="relative glass-card rounded-2xl p-6 hover:gold-border transition group">
-                <Link
-                  to={`/dashboard/viajes/${t.id}/editar`}
-                  aria-label="Editar viaje"
-                  className="absolute top-3 right-3 z-10 p-2 rounded-full bg-surface/60 hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </Link>
-                <Link to={`/dashboard/viajes/${t.id}`} className="block">
-                  <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{t.pais_destino}</p>
-                  <h3 className="font-display text-2xl mb-3 group-hover:text-primary transition">{t.destino}</h3>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>{new Date(t.fecha_salida).toLocaleDateString("es-MX")}</span>
-                    <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")}</span>
-                  </div>
-                </Link>
-              </div>
+              <TripCard key={t.id} t={t} />
             ))}
           </div>
         )}
