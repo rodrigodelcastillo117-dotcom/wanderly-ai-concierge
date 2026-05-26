@@ -25,29 +25,22 @@ const MOCK_RECOS = [
   { name: "Santorini", country: "Grecia", img: santorini, score: 86 },
 ];
 
-// Donut chart for Smart Spend
-const SpendDonut = () => {
-  const segments = [
-    { label: "Alojamiento", pct: 42, color: "hsl(41 47% 59%)" },
-    { label: "Gastronomía", pct: 28, color: "hsl(41 60% 70%)" },
-    { label: "Experiencias", pct: 18, color: "hsl(36 30% 60%)" },
-    { label: "Transporte", pct: 7, color: "hsl(0 0% 35%)" },
-    { label: "Otros", pct: 5, color: "hsl(0 0% 25%)" },
-  ];
+// Donut chart for Smart Spend (renders empty ring when there's no data)
+const SpendDonut = ({ segments }: { segments: { label: string; pct: number; color: string }[] }) => {
   const radius = 42;
   const C = 2 * Math.PI * radius;
   let offset = 0;
+  const hasData = segments.some((s) => s.pct > 0);
   return (
     <svg viewBox="0 0 120 120" className="w-32 h-32 -rotate-90">
       <circle cx="60" cy="60" r={radius} fill="none" stroke="hsl(0 0% 14%)" strokeWidth="14" />
-      {segments.map((s) => {
+      {hasData && segments.map((s) => {
+        if (s.pct <= 0) return null;
         const len = (s.pct / 100) * C;
         const el = (
           <circle
             key={s.label}
-            cx="60"
-            cy="60"
-            r={radius}
+            cx="60" cy="60" r={radius}
             fill="none"
             stroke={s.color}
             strokeWidth="14"
