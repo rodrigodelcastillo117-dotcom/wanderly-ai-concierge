@@ -103,6 +103,8 @@ export async function generateTripPDF(trip: any, sel: Selection, computed: { des
 
   // ---------- CONTENT PAGES ----------
   doc.addPage();
+  doc.setFillColor(...CARBON);
+  doc.rect(0, 0, W, H, "F");
   let cursor = drawSectionHeader(doc, margin, margin, "Resumen del viaje");
 
   // Analysis paragraph
