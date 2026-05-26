@@ -18,14 +18,8 @@ import patagonia from "@/assets/destination-patagonia.jpg";
 import tulum from "@/assets/destination-tulum.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
 
-const MOCK_RECOS = [
-  { name: "Bali", country: "Indonesia", img: kyoto, score: 97 },
-  { name: "Maldivas", country: "Maldivas", img: bora, score: 94 },
-  { name: "Marrakech", country: "Marruecos", img: marrakech, score: 91 },
-  { name: "Islandia", country: "Islandia", img: patagonia, score: 89 },
-  { name: "Tulum", country: "México", img: tulum, score: 88 },
-  { name: "Santorini", country: "Grecia", img: santorini, score: 86 },
-];
+
+
 
 // Donut chart for Smart Spend (renders empty ring when there's no data)
 const SpendDonut = ({ segments }: { segments: { label: string; pct: number; color: string }[] }) => {
