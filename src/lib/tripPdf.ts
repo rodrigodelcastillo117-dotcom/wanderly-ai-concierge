@@ -272,10 +272,6 @@ function ensureSpace(doc: jsPDF, cursor: number, needed: number, margin: number)
 
 function drawSectionHeader(doc: jsPDF, x: number, y: number, label: string): number {
   y = ensureSpace(doc, y, 40, x);
-  // Dark page bg helper (idempotent if already set)
-  doc.setFillColor(...CARBON);
-  doc.rect(0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight(), "F");
-  // (Re)draw if page was just added; but we don't know — keep cheap
   doc.setTextColor(...GOLD);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
