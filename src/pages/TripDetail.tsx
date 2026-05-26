@@ -25,19 +25,20 @@ const TripDetail = () => {
   const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
+  const loadTrip = async () => {
     if (!id) return;
-    (async () => {
-      const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
-      setTrip(data);
-      // Por defecto seleccionar todas las experiencias
-      const tours = (data as any)?.tours_json;
-      if (Array.isArray(tours) && tours.length) {
-        setSelTours(new Set(tours.map((_: any, i: number) => i)));
-      }
+    const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
+    setTrip(data);
+    const tours = (data as any)?.tours_json;
+    if (Array.isArray(tours) && tours.length) {
+      setSelTours(new Set(tours.map((_: any, i: number) => i)));
+    }
+    setLoading(false);
+  };
 
-      setLoading(false);
-    })();
+  useEffect(() => {
+    loadTrip();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // itinerario_json puede ser array (single) o objeto { multi, days, logistics, destinations } (multi)
