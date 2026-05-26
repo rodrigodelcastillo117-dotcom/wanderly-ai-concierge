@@ -8,6 +8,7 @@ import {
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OriginPicker } from "@/components/OriginPicker";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -316,12 +317,7 @@ const MultiDestRoute = () => {
         <section className="rounded-3xl border border-border bg-card p-6 md:p-8 space-y-5 premium-shadow">
           <div>
             <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block">Ciudad de origen</label>
-            <Input
-              value={origin}
-              onChange={(e) => setOrigin(e.target.value)}
-              placeholder="Ciudad de México"
-              className="h-12 bg-input border-border"
-            />
+            <OriginPicker value={origin} onChange={setOrigin} />
           </div>
 
           <div>

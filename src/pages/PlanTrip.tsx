@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
+import { OriginPicker } from "@/components/OriginPicker";
 
 
 const LOADING_MESSAGES = [
@@ -277,7 +278,7 @@ const PlanTrip = () => {
         <div className="space-y-5">
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">Ciudad de salida</label>
-            <Input value={ciudadOrigen} onChange={(e) => setCiudadOrigen(e.target.value)} className="bg-input border-border h-12" placeholder="Ciudad de México" />
+            <OriginPicker value={ciudadOrigen} onChange={setCiudadOrigen} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
