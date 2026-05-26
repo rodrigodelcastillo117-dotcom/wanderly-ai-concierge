@@ -1,5 +1,5 @@
 import { useState, ReactNode } from "react";
-import { ChevronDown, Check, ImageOff } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCityImage } from "@/components/CityCollapsible";
 
