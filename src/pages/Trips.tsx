@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Pencil } from "lucide-react";
+import { Pencil, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -35,6 +35,11 @@ const TripCard = ({ t }: { t: any }) => {
 
   return (
     <div className="relative glass-card rounded-2xl overflow-hidden hover:gold-border transition group">
+      {t.shared && (
+        <div className="absolute top-3 left-3 z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-[10px] font-medium">
+          <Users className="w-3 h-3" /> Compartido
+        </div>
+      )}
       <Link
         to={`/dashboard/viajes/${t.id}/editar`}
         aria-label="Editar viaje"
@@ -75,12 +80,22 @@ const Trips = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("trips")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setTrips(data ?? []));
+    (async () => {
+      const [own, collab] = await Promise.all([
+        supabase.from("trips").select("*").eq("user_id", user.id),
+        supabase.from("trip_collaborators").select("trip_id").eq("user_id", user.id),
+      ]);
+      const sharedIds = (collab.data ?? []).map((c: any) => c.trip_id);
+      let shared: any[] = [];
+      if (sharedIds.length) {
+        const { data } = await supabase.from("trips").select("*").in("id", sharedIds);
+        shared = (data ?? []).map((t: any) => ({ ...t, shared: true }));
+      }
+      const all = [...(own.data ?? []), ...shared].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+      setTrips(all);
+    })();
   }, [user]);
 
   return (

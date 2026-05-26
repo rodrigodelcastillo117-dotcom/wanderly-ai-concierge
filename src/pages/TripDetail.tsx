@@ -10,6 +10,8 @@ import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
 import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
+import { InviteFriendDialog } from "@/components/InviteFriendDialog";
+import { useAuth } from "@/contexts/AuthContext";
 import { generateTripPDF } from "@/lib/tripPdf";
 import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
@@ -20,6 +22,7 @@ const fmtMXN = (n: number) =>
 const TripDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -187,6 +190,7 @@ const TripDetail = () => {
             <Download className="w-3.5 h-3.5 text-primary" />
             {generatingPdf ? "Generando…" : "Compartir PDF"}
           </button>
+          <InviteFriendDialog tripId={trip.id} isOwner={user?.id === trip.user_id} />
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
         </div>
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 max-w-5xl">
