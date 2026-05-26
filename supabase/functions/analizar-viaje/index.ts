@@ -1,5 +1,6 @@
 // supabase/functions/analizar-viaje/index.ts
 // Flujo: Perplexity (sonar-pro) investiga precios reales -> Claude estructura el análisis premium.
+// FIX v2: status "completo" -> "listo" (alinea con el realtime del frontend y el spec).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -48,14 +49,16 @@ function normalizarVuelos(vuelos: any[]): any[] {
     existente._segmentos.push(vuelo);
   }
 
-  return TIER_ORDER
-    .map((tier) => agrupados.get(tier))
+  return TIER_ORDER.map((tier) => agrupados.get(tier))
     .filter(Boolean)
     .map((vuelo) => {
       const segmentos = vuelo._segmentos ?? [];
       const aerolineas = [...new Set(segmentos.map((s: any) => s?.aerolinea).filter(Boolean))];
       const notasSegmentos = segmentos
-        .map((s: any) => `${s?.aerolinea ?? "Vuelo"}: $${Math.round(Number(s?.precio_por_persona) || 0).toLocaleString("es-MX")} MXN`)
+        .map(
+          (s: any) =>
+            `${s?.aerolinea ?? "Vuelo"}: $${Math.round(Number(s?.precio_por_persona) || 0).toLocaleString("es-MX")} MXN`,
+        )
         .join(" + ");
 
       const normalizado = {
@@ -64,9 +67,7 @@ function normalizarVuelos(vuelos: any[]): any[] {
         duracion: segmentos.length > 1 ? "Ruta completa, varios segmentos" : vuelo.duracion,
         escalas: segmentos.length > 1 ? `${segmentos.length} segmentos sumados` : vuelo.escalas,
         precio_por_persona: Math.round(vuelo.precio_por_persona),
-        notas: segmentos.length > 1
-          ? `Total por persona sumando todos los tramos: ${notasSegmentos}`
-          : vuelo.notas,
+        notas: segmentos.length > 1 ? `Total por persona sumando todos los tramos: ${notasSegmentos}` : vuelo.notas,
       };
       delete normalizado._segmentos;
       return normalizado;
@@ -111,7 +112,8 @@ const TOOL_SCHEMA = {
         type: "array",
         minItems: 3,
         maxItems: 3,
-        description: "Exactamente 3 opciones: ahorro, equilibrio y premium. Cada precio_por_persona es la ruta aérea completa por persona, sumando todos los segmentos del viaje.",
+        description:
+          "Exactamente 3 opciones: ahorro, equilibrio y premium. Cada precio_por_persona es la ruta aérea completa por persona, sumando todos los segmentos del viaje.",
         items: {
           type: "object",
           properties: {
@@ -200,7 +202,11 @@ const TOOL_SCHEMA = {
   },
 };
 
-async function investigarConPerplexity(body: AnalisisRequest, dias: number, vaultDesc: string): Promise<{ texto: string; citations: string[] }> {
+async function investigarConPerplexity(
+  body: AnalisisRequest,
+  dias: number,
+  vaultDesc: string,
+): Promise<{ texto: string; citations: string[] }> {
   const query = `Investiga precios REALES y actuales para este viaje, y BUSCA ACTIVAMENTE promociones vigentes asociadas a los programas de lealtad del usuario. Devuelve CIFRAS PUNTUALES en MXN (no rangos vagos).
 
 BÓVEDA DE BENEFICIOS DEL USUARIO (úsala para encontrar descuentos):
@@ -237,13 +243,17 @@ Tipo de cambio actual USD→MXN y EUR→MXN. Sé exhaustivo con cifras puntuales
   const res = await fetch("https://api.perplexity.ai/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${PERPLEXITY_API_KEY}`,
+      Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       model: "sonar-pro",
       messages: [
-        { role: "system", content: "Eres un investigador de precios de viajes. Responde con datos reales, cifras concretas y nombres específicos. En español." },
+        {
+          role: "system",
+          content:
+            "Eres un investigador de precios de viajes. Responde con datos reales, cifras concretas y nombres específicos. En español.",
+        },
         { role: "user", content: query },
       ],
       temperature: 0.2,
@@ -268,19 +278,22 @@ Deno.serve(async (req) => {
   try {
     if (!ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY no configurada" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     if (!PERPLEXITY_API_KEY) {
       return new Response(JSON.stringify({ error: "PERPLEXITY_API_KEY no configurada" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No autorizado" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -291,7 +304,8 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await supabase.auth.getUser();
     if (userErr || !userData.user) {
       return new Response(JSON.stringify({ error: "Sesión inválida" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const user = userData.user;
@@ -299,27 +313,55 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as AnalisisRequest;
     if (!body.destino || !body.fecha_salida || !body.fecha_regreso || !body.ciudad_origen) {
       return new Response(JSON.stringify({ error: "Faltan datos requeridos" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const { data: travelProfile } = await supabase
-      .from("travel_profiles").select("*").eq("user_id", user.id).maybeSingle();
+      .from("travel_profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
     const { data: profile } = await supabase
-      .from("profiles").select("full_name, ciudad_origen").eq("id", user.id).maybeSingle();
-    const { data: vault } = await supabase
-      .from("user_vault_benefits").select("*").eq("user_id", user.id).maybeSingle();
+      .from("profiles")
+      .select("full_name, ciudad_origen")
+      .eq("id", user.id)
+      .maybeSingle();
+    const { data: vault } = await supabase.from("user_vault_benefits").select("*").eq("user_id", user.id).maybeSingle();
 
     const vaultLines: string[] = [];
-    if (vault?.credit_cards?.length) vaultLines.push("- Tarjetas: " + vault.credit_cards.map((c: any) => `${c.bank} ${c.card_tier}${c.perks_enabled?.length ? ` [${c.perks_enabled.join(", ")}]` : ""}`).join("; "));
-    if (vault?.airline_alliances?.length) vaultLines.push("- Aerolíneas: " + vault.airline_alliances.map((a: any) => `${a.airline} ${a.alliance_name} (${a.tier_status})`).join("; "));
-    if (vault?.hotel_loyalty?.length) vaultLines.push("- Hoteles: " + vault.hotel_loyalty.map((h: any) => `${h.chain_name} (${h.status_tier})`).join("; "));
-    if (vault?.car_rentals?.length) vaultLines.push("- Renta autos: " + vault.car_rentals.map((r: any) => `${r.company_name} (${r.preferred_car_type})`).join("; "));
+    if (vault?.credit_cards?.length)
+      vaultLines.push(
+        "- Tarjetas: " +
+          vault.credit_cards
+            .map(
+              (c: any) =>
+                `${c.bank} ${c.card_tier}${c.perks_enabled?.length ? ` [${c.perks_enabled.join(", ")}]` : ""}`,
+            )
+            .join("; "),
+      );
+    if (vault?.airline_alliances?.length)
+      vaultLines.push(
+        "- Aerolíneas: " +
+          vault.airline_alliances.map((a: any) => `${a.airline} ${a.alliance_name} (${a.tier_status})`).join("; "),
+      );
+    if (vault?.hotel_loyalty?.length)
+      vaultLines.push(
+        "- Hoteles: " + vault.hotel_loyalty.map((h: any) => `${h.chain_name} (${h.status_tier})`).join("; "),
+      );
+    if (vault?.car_rentals?.length)
+      vaultLines.push(
+        "- Renta autos: " + vault.car_rentals.map((r: any) => `${r.company_name} (${r.preferred_car_type})`).join("; "),
+      );
     const vaultDesc = vaultLines.join("\n") || "Sin programas de lealtad registrados.";
 
-    const dias = Math.max(1, Math.round(
-      (new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / (1000 * 60 * 60 * 24)
-    ));
+    const dias = Math.max(
+      1,
+      Math.round(
+        (new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / (1000 * 60 * 60 * 24),
+      ),
+    );
 
     // PASO 1: Perplexity investiga precios reales
     console.log("Investigando precios con Perplexity...");
@@ -385,28 +427,35 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. En vuelos, devuel
       const text = await claudeRes.text();
       console.error("Claude error:", claudeRes.status, text);
       return new Response(JSON.stringify({ error: `Claude API error ${claudeRes.status}`, detail: text }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const claudeData = await claudeRes.json();
     const toolUse = (claudeData.content ?? []).find(
-      (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje"
+      (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
     );
     if (!toolUse?.input) {
       console.error("No tool_use:", JSON.stringify(claudeData).slice(0, 2000));
       return new Response(JSON.stringify({ error: "Respuesta inválida de IA" }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const a = toolUse.input;
     a.vuelos = normalizarVuelos(a.vuelos);
     const vueloEquilibrio = a.vuelos.find((v: any) => v.tier === "equilibrio") ?? a.vuelos[0];
-    const vuelosGrupo = Math.round((Number(vueloEquilibrio?.precio_por_persona) || Number(a.desglose_presupuesto?.vuelos) || 0) * body.num_viajeros);
+    const vuelosGrupo = Math.round(
+      (Number(vueloEquilibrio?.precio_por_persona) || Number(a.desglose_presupuesto?.vuelos) || 0) * body.num_viajeros,
+    );
     if (vuelosGrupo > 0) {
       a.desglose_presupuesto = { ...a.desglose_presupuesto, vuelos: vuelosGrupo };
-      a.total_estimado = Object.values(a.desglose_presupuesto).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
+      a.total_estimado = Object.values(a.desglose_presupuesto).reduce(
+        (sum: number, value: any) => sum + (Number(value) || 0),
+        0,
+      );
     }
 
     const { data: trip, error: insertErr } = await supabase
@@ -420,7 +469,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. En vuelos, devuel
         fecha_regreso: body.fecha_regreso,
         num_viajeros: body.num_viajeros,
         presupuesto_objetivo: body.presupuesto_objetivo,
-        status: "completo",
+        status: "listo",
         total_estimado: a.total_estimado,
         moneda: "MXN",
         match_score: a.match_score,
@@ -439,17 +488,20 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. En vuelos, devuel
     if (insertErr) {
       console.error("Insert error:", insertErr);
       return new Response(JSON.stringify({ error: insertErr.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     return new Response(JSON.stringify({ trip, fuentes: investigacion.citations }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
     console.error("analizar-viaje error:", e);
     return new Response(JSON.stringify({ error: e?.message ?? "Error desconocido" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
