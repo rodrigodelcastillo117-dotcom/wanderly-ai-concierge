@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import iatosLogo from "@/assets/iatos-logo.png";
 
 type Answers = {
   ritmo_viaje: string;
