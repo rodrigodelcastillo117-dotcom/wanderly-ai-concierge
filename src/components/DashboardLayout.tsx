@@ -213,7 +213,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                 }
               >
                 <n.icon className="w-[20px] h-[20px]" strokeWidth={1.75} />
-                <span className="text-[10px] tracking-wide leading-none">{n.label}</span>
+                <span className="text-[10px] tracking-wide leading-tight text-center">{n.label}</span>
               </NavLink>
             ))}
           </div>
