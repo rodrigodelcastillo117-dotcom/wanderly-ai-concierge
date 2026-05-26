@@ -27,6 +27,10 @@ import NotFound from "./pages/NotFound.tsx";
 import LiveTrip from "./pages/LiveTrip";
 import TripMap from "./pages/TripMap";
 import TripPacking from "./pages/TripPacking";
+import TripWeather from "./pages/TripWeather";
+import TripTranslator from "./pages/TripTranslator";
+import TripJournal from "./pages/TripJournal";
+import TripSplit from "./pages/TripSplit";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +54,10 @@ const App = () => (
             <Route path="/dashboard/viajes/:id/live" element={<ProtectedRoute><LiveTrip /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id/mapa" element={<ProtectedRoute><TripMap /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id/packing" element={<ProtectedRoute><TripPacking /></ProtectedRoute>} />
+            <Route path="/dashboard/viajes/:id/clima" element={<ProtectedRoute><TripWeather /></ProtectedRoute>} />
+            <Route path="/dashboard/viajes/:id/traductor" element={<ProtectedRoute><TripTranslator /></ProtectedRoute>} />
+            <Route path="/dashboard/viajes/:id/diario" element={<ProtectedRoute><TripJournal /></ProtectedRoute>} />
+            <Route path="/dashboard/viajes/:id/split" element={<ProtectedRoute><TripSplit /></ProtectedRoute>} />
             <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
             <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
             <Route path="/dashboard/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />

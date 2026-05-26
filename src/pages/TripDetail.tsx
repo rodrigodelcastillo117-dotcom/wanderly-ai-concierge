@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download, Radio, Map as MapIcon, Backpack, Cloud, Languages, BookHeart, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
@@ -240,6 +240,35 @@ const TripDetail = () => {
       </div>
 
       <div className="p-6 md:p-12 max-w-5xl space-y-8">
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-3 md:grid-cols-7 gap-3"
+        >
+          {[
+            { icon: Radio, label: "Live", to: `/dashboard/viajes/${id}/live` },
+            { icon: MapIcon, label: "Mapa", to: `/dashboard/viajes/${id}/mapa` },
+            { icon: Backpack, label: "Packing", to: `/dashboard/viajes/${id}/packing` },
+            { icon: Cloud, label: "Clima", to: `/dashboard/viajes/${id}/clima` },
+            { icon: Languages, label: "Traductor", to: `/dashboard/viajes/${id}/traductor` },
+            { icon: BookHeart, label: "Diario", to: `/dashboard/viajes/${id}/diario` },
+            { icon: Wallet, label: "Split", to: `/dashboard/viajes/${id}/split` },
+          ].map(({ icon: Icon, label, to }) => (
+            <button
+              key={label}
+              onClick={() => navigate(to)}
+              className="glass-card rounded-2xl p-3 hover:border-primary/60 transition-all group flex flex-col items-center gap-2"
+            >
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Icon className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-xs font-medium">{label}</span>
+            </button>
+          ))}
+        </motion.div>
+
+
         {/* Total + Análisis narrativo */}
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <LiveTripQuote
