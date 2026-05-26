@@ -27,6 +27,13 @@ type RoutePrefs = {
   connection: ConnStyle;
   roadtripStops: boolean;
   luggageLogistics: boolean;
+  aiNotes?: string;
+  themes?: string[];
+  avoid?: string[];
+  pace?: string;
+  transportPreference?: string;
+  budgetStyle?: string;
+  summary?: string;
 };
 
 const DEFAULT_PREFS: RoutePrefs = {
