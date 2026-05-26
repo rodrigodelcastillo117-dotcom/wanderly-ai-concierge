@@ -80,6 +80,7 @@ const TripCard = ({ t }: { t: any }) => {
 
 const Trips = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<any[]>([]);
 
   useEffect(() => {
