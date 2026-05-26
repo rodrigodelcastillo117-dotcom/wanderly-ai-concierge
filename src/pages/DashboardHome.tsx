@@ -90,6 +90,9 @@ const DashboardHome = () => {
   const [reelFading, setReelFading] = useState(false);
   const reelTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const REEL_DURATION = 10_000;
+  const [spendUsd, setSpendUsd] = useState(0);
+  const [spendDeltaPct, setSpendDeltaPct] = useState<number | null>(null);
+  const [spendCats, setSpendCats] = useState<{ label: string; pct: number; color: string }[]>([]);
 
   useEffect(() => {
     if (!user) return;
