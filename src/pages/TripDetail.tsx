@@ -236,7 +236,8 @@ const TripDetail = () => {
                 city={city}
                 subtitle={`${cityDays.length || "·"} días · ${cityHosp.length} hoteles · ${cityTours.length} experiencias · ${cityRest.length} mesas`}
                 imageQuery={`${city} skyline landmark travel`}
-                defaultOpen={false}
+                open={openCities.has(city)}
+                onToggle={() => toggleCity(city)}
                 count={totalItems}
               >
                 <div className="space-y-6">
