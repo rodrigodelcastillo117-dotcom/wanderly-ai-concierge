@@ -556,8 +556,8 @@ const DashboardHome = () => {
               </Link>
             </div>
 
-            <div className="relative rounded-2xl overflow-hidden aspect-[16/10] group cursor-pointer ring-1 ring-white/[0.05]" onClick={() => navigate("/dashboard/descubre")}>
-              <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
+            <div className="relative rounded-2xl overflow-hidden h-[220px] md:h-[320px] group cursor-pointer ring-1 ring-white/[0.05]" onClick={() => navigate("/dashboard/descubre")}>
+              <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum} alt="Escapadas románticas" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
               <button className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center hover:bg-black/75 transition" aria-label="Siguiente">
                 <ChevronRight className="w-4 h-4" />
@@ -567,6 +567,7 @@ const DashboardHome = () => {
                 <p className="text-[11px] text-white/70 tracking-wide">Destinos perfectos para conectar</p>
               </div>
             </div>
+
             <div className="flex justify-center gap-1.5 mt-4">
               <span className="w-6 h-1 rounded-full bg-primary" />
               <span className="w-1 h-1 rounded-full bg-muted" />
