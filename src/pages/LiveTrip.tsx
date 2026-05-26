@@ -157,12 +157,18 @@ const LiveTrip = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <QuickAction
             icon={Navigation}
             label="Mapa"
-            sublabel="Google Maps"
-            onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${mapsQuery}`, "_blank")}
+            sublabel="Día por día"
+            onClick={() => navigate(`/dashboard/viajes/${trip.id}/mapa`)}
+          />
+          <QuickAction
+            icon={Luggage}
+            label="Packing"
+            sublabel="Checklist"
+            onClick={() => navigate(`/dashboard/viajes/${trip.id}/packing`)}
           />
           <QuickAction
             icon={Phone}
@@ -180,11 +186,12 @@ const LiveTrip = () => {
           <QuickAction
             icon={Crown}
             label="Concierge"
-            sublabel="Asistencia 24/7"
+            sublabel="24/7"
             gold
             onClick={() => navigate("/dashboard/concierge")}
           />
         </div>
+
 
         {/* Hoy en tu viaje */}
         <section className="rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-5 md:p-7">
