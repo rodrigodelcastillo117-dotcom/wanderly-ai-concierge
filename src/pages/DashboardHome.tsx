@@ -264,8 +264,8 @@ const DashboardHome = () => {
             </div>
 
 
-            {/* Reel progress dots */}
-            <div className="absolute top-5 right-5 md:top-7 md:right-7 flex items-center gap-1.5">
+            {/* Reel progress dots — bottom-center on mobile, top-right on desktop */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 md:bottom-auto md:left-auto md:translate-x-0 md:top-7 md:right-7 flex items-center gap-1.5 z-10">
               {HERO_REELS.map((_, i) => (
                 <button
                   key={i}
@@ -275,6 +275,7 @@ const DashboardHome = () => {
                 />
               ))}
             </div>
+
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
 
