@@ -152,7 +152,7 @@ const TripDetail = () => {
         </div>
       </div>
 
-      <div className="p-6 md:p-12 max-w-5xl space-y-12">
+      <div className="p-6 md:p-12 max-w-5xl space-y-8">
         {/* Total + Análisis narrativo */}
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <LiveTripQuote
@@ -165,328 +165,257 @@ const TripDetail = () => {
             fallbackMxn={computedTotal}
           />
           {trip.analisis_ai && (
-            <div className="prose prose-invert max-w-none">
-              <p className="text-lg leading-relaxed text-foreground/90 whitespace-pre-line">{trip.analisis_ai}</p>
-            </div>
+            <details className="glass-card rounded-2xl group">
+              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+                <div className="flex items-center gap-3">
+                  <Lightbulb className="w-5 h-5 text-primary" />
+                  <h2 className="font-display text-xl">Análisis de tu concierge</h2>
+                </div>
+                <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="px-5 pb-5 pt-1 border-t border-border/40">
+                <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-line">{trip.analisis_ai}</p>
+              </div>
+            </details>
           )}
         </motion.section>
 
-        {/* Vuelos / Cómo llegar a cada ciudad */}
-        {trip.vuelos_json?.length > 0 && (
-          <Section
-            icon={isMulti ? RouteIcon : Plane}
-            title={isMulti ? "Cómo llegar a cada ciudad" : "Vuelos sugeridos"}
-            hint={isMulti ? "Vuelo, tren o roadtrip — elige por destino" : "Selecciona uno"}
-          >
-            {isMulti ? (
-              <div className="space-y-4">
-                {groupByCity(trip.vuelos_json, destinationsMulti).map(([city, items], cityIdx) => (
-                  <CityCollapsible
-                    key={city}
-                    city={city}
-                    subtitle={`${items.length} formas de llegar`}
-                    imageQuery={`${city} skyline travel`}
-                    defaultOpen={cityIdx === 0}
-                    count={items.length}
-                  >
-                    <div className="grid md:grid-cols-2 gap-3">
-                      {items.map((v: any) => {
-                        const i = trip.vuelos_json.indexOf(v);
-                        const active = selVuelo === i;
-                        return (
-                          <ArrivalOptionCard
-                            key={i}
-                            option={v}
-                            active={active}
-                            onClick={() => setSelVuelo(i)}
-                          />
-                        );
-                      })}
-                    </div>
-                  </CityCollapsible>
-                ))}
+        {/* Selector noches (solo single + hospedaje seleccionado) */}
+        {!isMulti && selHospedaje >= 0 && noches > 1 && trip.hospedaje_json?.length > 0 && (
+          <div className="glass-card rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-medium">¿Cuántas noches en este hospedaje?</p>
+                <p className="text-xs text-muted-foreground">Tu viaje son {noches} noches.</p>
               </div>
-            ) : (
-              <div className="grid md:grid-cols-3 gap-4">
-                {trip.vuelos_json.map((v: any, i: number) => {
-                  const active = selVuelo === i;
-                  return (
-                    <ExpandableItemCard
-                      key={i}
-                      imageQuery={`${v.aerolinea} airplane airline`}
-                      eyebrow={v.tier}
-                      title={v.aerolinea}
-                      subtitle={`${v.duracion} · ${v.escalas}`}
-                      price={`${fmtMXN(v.precio_por_persona)} / persona`}
-                      active={active}
-                      selectable
-                      onToggle={() => setSelVuelo(i)}
-                    >
-                      {v.notas && <p>{v.notas}</p>}
-                    </ExpandableItemCard>
-                  );
-                })}
-                <SkipCard
-                  active={selVuelo === -1}
-                  onClick={() => setSelVuelo(-1)}
-                  title="Ya tengo vuelo"
-                  subtitle="O viajo por mi cuenta"
-                />
-              </div>
-            )}
-          </Section>
-        )}
-
-        {/* Tips de transporte local (solo multi) */}
-        {isMulti && logistics?.local_transport_tips?.length > 0 && (
-          <Section icon={Car} title="Transporte local en cada ciudad">
-            <div className="grid sm:grid-cols-2 gap-3">
-              {logistics.local_transport_tips.map((t: any, i: number) => (
-                <div key={i} className="glass-card rounded-xl p-4 text-sm">
-                  <p className="text-primary text-xs tracking-wider uppercase mb-1">{t.city}</p>
-                  <p className="text-foreground/90">{t.recommendation}</p>
-                  {t.est_daily_usd != null && (
-                    <p className="text-xs text-muted-foreground mt-1">~${Math.round(t.est_daily_usd)} USD / día</p>
-                  )}
-                </div>
-              ))}
+              <span className="font-display text-2xl gold-text">{nochesEfectivas}<span className="text-sm text-muted-foreground"> / {noches}</span></span>
             </div>
-          </Section>
+            <input type="range" min={0} max={noches} value={nochesEfectivas}
+              onChange={(e) => setNochesHospedaje(Number(e.target.value))} className="w-full accent-primary" />
+          </div>
         )}
 
-        {/* Hospedaje */}
-        {trip.hospedaje_json?.length > 0 && (
-          <Section icon={Hotel} title="Hospedaje" hint={isMulti ? "3 opciones por ciudad" : "Selecciona uno"}>
-            {isMulti ? (
-              <div className="space-y-4">
-                {groupByCity(trip.hospedaje_json, destinationsMulti).map(([city, items], cityIdx) => (
-                  <CityCollapsible
-                    key={city}
-                    city={city}
-                    subtitle={`${items.length} hoteles curados para tu estilo`}
-                    imageQuery={`${city} luxury hotel`}
-                    defaultOpen={cityIdx === 0}
-                    count={items.length}
-                  >
-                    <div className="grid md:grid-cols-3 gap-4">
-                      {items.map((h: any) => {
-                        const i = trip.hospedaje_json.indexOf(h);
-                        const active = selHospedaje === i;
-                        return (
-                          <HotelCard
-                            key={i}
-                            hotel={h}
-                            city={city}
-                            active={active}
-                            onClick={() => setSelHospedaje(i)}
-                          />
-                        );
-                      })}
-                    </div>
-                  </CityCollapsible>
-                ))}
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-3 gap-4">
-                {trip.hospedaje_json.map((h: any, i: number) => {
-                  const active = selHospedaje === i;
-                  return (
-                    <ExpandableItemCard
-                      key={i}
-                      imageQuery={`${h.nombre} ${trip.destino} hotel`}
-                      eyebrow={h.tier || h.tipo}
-                      title={h.nombre}
-                      subtitle={`${h.barrio} · ★ ${h.rating}`}
-                      price={`${fmtMXN(h.precio_por_noche)} / noche`}
-                      active={active}
-                      selectable
-                      onToggle={() => setSelHospedaje(i)}
-                    >
-                      <p className="italic">{h.por_que}</p>
-                    </ExpandableItemCard>
-                  );
-                })}
-                <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)} title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, familia, Airbnb propio…" />
-              </div>
-            )}
+        {/* TODO POR DESTINO — un menú único, plegable, colapsado por default */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 mb-1">
+            <RouteIcon className="w-5 h-5 text-primary" />
+            <h2 className="font-display text-3xl">Tu viaje por destino</h2>
+            <span className="ml-auto text-xs text-muted-foreground italic">Toca cada destino para explorar</span>
+          </div>
 
-            {/* Selector de noches (solo single) */}
-            {!isMulti && selHospedaje >= 0 && noches > 1 && (
-              <div className="mt-5 glass-card rounded-xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-sm font-medium">¿Cuántas noches en este hospedaje?</p>
-                    <p className="text-xs text-muted-foreground">
-                      Tu viaje son {noches} noches. Ajusta si solo te quedas algunas (ej. el resto con un amigo).
-                    </p>
-                  </div>
-                  <span className="font-display text-2xl gold-text">{nochesEfectivas}<span className="text-sm text-muted-foreground"> / {noches}</span></span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={noches}
-                  value={nochesEfectivas}
-                  onChange={(e) => setNochesHospedaje(Number(e.target.value))}
-                  className="w-full accent-primary"
-                />
-              </div>
-            )}
-          </Section>
-        )}
+          {(isMulti ? destinationsMulti : [trip.destino]).map((city: string) => {
+            const cityVuelos = isMulti
+              ? (trip.vuelos_json ?? []).filter((v: any) => (v.ciudad || v.to) === city)
+              : (trip.vuelos_json ?? []);
+            const cityHosp = isMulti
+              ? (trip.hospedaje_json ?? []).filter((h: any) => h.ciudad === city)
+              : (trip.hospedaje_json ?? []);
+            const cityDays = isMulti
+              ? itinDays.filter((d: any) => d.ciudad === city)
+              : itinDays;
+            const cityTours = isMulti
+              ? (trip.tours_json ?? []).filter((t: any) => t.ciudad === city)
+              : (trip.tours_json ?? []);
+            const cityRest = isMulti
+              ? (trip.restaurantes_json ?? []).filter((r: any) => r.ciudad === city)
+              : (trip.restaurantes_json ?? []);
 
-        {/* Itinerario */}
-        {itinDays.length > 0 && (
-          <Section icon={Calendar} title="Itinerario día por día">
-            <div className="space-y-3">
-              {itinDays.map((d: any) => (
-                <details key={d.dia} className="glass-card rounded-xl group">
-                  <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                    <div className="flex items-center gap-4">
-                      <span className="font-display text-2xl gold-text w-10">{String(d.dia).padStart(2, "0")}</span>
-                      <div>
-                        {d.ciudad && <p className="text-[10px] tracking-widest uppercase text-primary">{d.ciudad}</p>}
-                        <span className="font-medium">{d.titulo}</span>
+            const totalItems =
+              cityVuelos.length + cityHosp.length + cityDays.length + cityTours.length + cityRest.length;
+
+            return (
+              <CityCollapsible
+                key={city}
+                city={city}
+                subtitle={`${cityDays.length || "·"} días · ${cityHosp.length} hoteles · ${cityTours.length} experiencias · ${cityRest.length} mesas`}
+                imageQuery={`${city} skyline landmark travel`}
+                defaultOpen={false}
+                count={totalItems}
+              >
+                <div className="space-y-6">
+                  {/* Cómo llegar */}
+                  {cityVuelos.length > 0 && (
+                    <SubBlock icon={isMulti ? RouteIcon : Plane} title={isMulti ? "Cómo llegar" : "Vuelos sugeridos"}>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {cityVuelos.map((v: any) => {
+                          const i = (trip.vuelos_json ?? []).indexOf(v);
+                          const active = selVuelo === i;
+                          return isMulti ? (
+                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(i)} />
+                          ) : (
+                            <ExpandableItemCard
+                              key={i}
+                              imageQuery={`${v.aerolinea} airplane airline`}
+                              eyebrow={v.tier}
+                              title={v.aerolinea}
+                              subtitle={`${v.duracion} · ${v.escalas}`}
+                              price={`${fmtMXN(v.precio_por_persona)} / persona`}
+                              active={active}
+                              selectable
+                              onToggle={() => setSelVuelo(i)}
+                            >
+                              {v.notas && <p>{v.notas}</p>}
+                            </ExpandableItemCard>
+                          );
+                        })}
+                        {!isMulti && (
+                          <SkipCard active={selVuelo === -1} onClick={() => setSelVuelo(-1)}
+                            title="Ya tengo vuelo" subtitle="O viajo por mi cuenta" />
+                        )}
                       </div>
-                    </div>
-                  </summary>
-                  <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-3 text-sm">
-                    <div><span className="text-primary text-xs tracking-wider uppercase">Mañana</span><p className="mt-1 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
-                    <div><span className="text-primary text-xs tracking-wider uppercase">Tarde</span><p className="mt-1 text-muted-foreground">{d.tarde}</p></div>
-                    <div><span className="text-primary text-xs tracking-wider uppercase">Noche</span><p className="mt-1 text-muted-foreground">{d.noche}</p></div>
-                  </div>
-                </details>
-              ))}
-            </div>
-          </Section>
-        )}
+                    </SubBlock>
+                  )}
 
-        {/* Tours / Experiencias */}
-        {trip.tours_json?.length > 0 && (
-          <Section icon={Compass} title="Experiencias" hint={isMulti ? "Por ciudad — selecciona las que quieras" : "Selecciona las que quieras"}>
-            {isMulti ? (
-              <div className="space-y-8">
-                {groupByCity(trip.tours_json, destinationsMulti).map(([city, items]) => (
-                  <div key={city}>
-                    <p className="text-primary text-xs tracking-[0.25em] uppercase mb-3">{city}</p>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {items.map((t: any) => {
-                        const i = trip.tours_json.indexOf(t);
-                        const active = selTours.has(i);
-                        return (
+                  {/* Hospedaje */}
+                  {cityHosp.length > 0 && (
+                    <SubBlock icon={Hotel} title="Hospedaje">
+                      <div className="grid md:grid-cols-3 gap-3">
+                        {cityHosp.map((h: any) => {
+                          const i = (trip.hospedaje_json ?? []).indexOf(h);
+                          const active = selHospedaje === i;
+                          return (
+                            <HotelCard key={i} hotel={h} city={city} active={active} onClick={() => setSelHospedaje(i)} />
+                          );
+                        })}
+                        {!isMulti && (
+                          <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)}
+                            title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
+                        )}
+                      </div>
+                    </SubBlock>
+                  )}
+
+                  {/* Itinerario día por día */}
+                  {cityDays.length > 0 && (
+                    <SubBlock icon={Calendar} title="Itinerario día por día">
+                      <div className="space-y-2">
+                        {cityDays.map((d: any) => (
+                          <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group">
+                            <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
+                              <div className="flex items-center gap-3">
+                                <span className="font-display text-xl gold-text w-8">{String(d.dia).padStart(2, "0")}</span>
+                                <span className="font-medium text-sm">{d.titulo}</span>
+                              </div>
+                              <ChevronDown className="w-4 h-4 text-primary transition-transform group-open:rotate-180" />
+                            </summary>
+                            <div className="px-4 pb-4 pt-1 border-t border-border/40 space-y-2 text-xs">
+                              <div><span className="text-primary tracking-wider uppercase">Mañana</span><p className="mt-0.5 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
+                              <div><span className="text-primary tracking-wider uppercase">Tarde</span><p className="mt-0.5 text-muted-foreground">{d.tarde}</p></div>
+                              <div><span className="text-primary tracking-wider uppercase">Noche</span><p className="mt-0.5 text-muted-foreground">{d.noche}</p></div>
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    </SubBlock>
+                  )}
+
+                  {/* Experiencias */}
+                  {cityTours.length > 0 && (
+                    <SubBlock icon={Compass} title="Experiencias">
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {cityTours.map((t: any) => {
+                          const i = (trip.tours_json ?? []).indexOf(t);
+                          const active = selTours.has(i);
+                          return (
+                            <ExpandableItemCard
+                              key={i}
+                              imageQuery={`${t.nombre} ${city} experience tour`}
+                              eyebrow={t.duracion}
+                              title={t.nombre}
+                              price={t.precio_por_persona > 0 ? fmtMXN(t.precio_por_persona) : undefined}
+                              active={active}
+                              selectable
+                              onToggle={() => toggleTour(i)}
+                            >
+                              <p className="italic">{t.por_que}</p>
+                            </ExpandableItemCard>
+                          );
+                        })}
+                      </div>
+                    </SubBlock>
+                  )}
+
+                  {/* Mesa reservada */}
+                  {cityRest.length > 0 && (
+                    <SubBlock icon={Utensils} title="Mesa reservada">
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {cityRest.map((r: any, i: number) => (
                           <ExpandableItemCard
                             key={i}
-                            imageQuery={`${t.nombre} ${city} experience tour`}
-                            eyebrow={t.duracion}
-                            title={t.nombre}
-                            price={t.precio_por_persona > 0 ? fmtMXN(t.precio_por_persona) : undefined}
-                            active={active}
-                            selectable
-                            onToggle={() => toggleTour(i)}
+                            imageQuery={`${r.nombre} ${city} restaurant food`}
+                            eyebrow={r.cocina}
+                            title={r.nombre.replace(` · ${city}`, "")}
+                            price={r.rango_precio}
                           >
-                            <p className="italic">{t.por_que}</p>
+                            <p className="italic">{r.por_que}</p>
                           </ExpandableItemCard>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {trip.tours_json.map((t: any, i: number) => {
-                  const active = selTours.has(i);
-                  return (
-                    <ExpandableItemCard
-                      key={i}
-                      imageQuery={`${t.nombre} ${trip.destino} experience tour`}
-                      eyebrow={t.duracion}
-                      title={t.nombre}
-                      price={t.precio_por_persona > 0 ? fmtMXN(t.precio_por_persona) : undefined}
-                      active={active}
-                      selectable
-                      onToggle={() => toggleTour(i)}
-                    >
-                      <p className="italic">{t.por_que}</p>
-                    </ExpandableItemCard>
-                  );
-                })}
-              </div>
-            )}
-          </Section>
-        )}
-
-        {/* Restaurantes */}
-        {trip.restaurantes_json?.length > 0 && (
-          <Section icon={Utensils} title="Mesa reservada" hint={isMulti ? "Por ciudad" : undefined}>
-            {isMulti ? (
-              <div className="space-y-8">
-                {groupByCity(trip.restaurantes_json, destinationsMulti).map(([city, items]) => (
-                  <div key={city}>
-                    <p className="text-primary text-xs tracking-[0.25em] uppercase mb-3">{city}</p>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {items.map((r: any, i: number) => (
-                        <ExpandableItemCard
-                          key={i}
-                          imageQuery={`${r.nombre} ${city} restaurant food`}
-                          eyebrow={r.cocina}
-                          title={r.nombre.replace(` · ${city}`, "")}
-                          price={r.rango_precio}
-                        >
-                          <p className="italic">{r.por_que}</p>
-                        </ExpandableItemCard>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {trip.restaurantes_json.map((r: any, i: number) => (
-                  <ExpandableItemCard
-                    key={i}
-                    imageQuery={`${r.nombre} ${trip.destino} restaurant food`}
-                    eyebrow={r.cocina}
-                    title={r.nombre}
-                    price={r.rango_precio}
-                  >
-                    <p className="italic">{r.por_que}</p>
-                  </ExpandableItemCard>
-                ))}
-              </div>
-            )}
-          </Section>
-        )}
+                        ))}
+                      </div>
+                    </SubBlock>
+                  )}
+                </div>
+              </CityCollapsible>
+            );
+          })}
+        </div>
 
         {/* Tips */}
         {trip.tips_personalizados?.length > 0 && (
-          <Section icon={Lightbulb} title="Tips de tu concierge">
-            <div className="glass-card rounded-2xl p-6 md:p-8 space-y-4">
+          <details className="glass-card rounded-2xl group">
+            <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+              <div className="flex items-center gap-3">
+                <Lightbulb className="w-5 h-5 text-primary" />
+                <h2 className="font-display text-xl">Tips de tu concierge</h2>
+                <span className="text-xs text-muted-foreground">({trip.tips_personalizados.length})</span>
+              </div>
+              <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
               {trip.tips_personalizados.map((t: string, i: number) => (
-                <div key={i} className="flex gap-4">
-                  <span className="font-display gold-text text-xl flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
-                  <p className="text-foreground/90 leading-relaxed">{t}</p>
+                <div key={i} className="flex gap-3">
+                  <span className="font-display gold-text text-lg flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                  <p className="text-sm text-foreground/90 leading-relaxed">{t}</p>
                 </div>
               ))}
             </div>
-          </Section>
+          </details>
         )}
 
-        {/* Desglose AL FINAL, calculado en base a selecciones */}
+        {/* Desglose */}
         {computedTotal > 0 && (
-          <Section icon={Compass} title="Desglose de presupuesto">
-            <EditableBudget
-              key={`${selVuelo}-${selHospedaje}-${nochesEfectivas}-${Array.from(selTours).sort().join(",")}`}
-              tripId={trip.id}
-              initialDesglose={computedDesglose}
-              initialTotal={computedTotal}
-            />
-          </Section>
+          <details className="glass-card rounded-2xl group">
+            <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+              <div className="flex items-center gap-3">
+                <Compass className="w-5 h-5 text-primary" />
+                <h2 className="font-display text-xl">Desglose de presupuesto</h2>
+              </div>
+              <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="px-5 pb-5 pt-1 border-t border-border/40">
+              <EditableBudget
+                key={`${selVuelo}-${selHospedaje}-${nochesEfectivas}-${Array.from(selTours).sort().join(",")}`}
+                tripId={trip.id}
+                initialDesglose={computedDesglose}
+                initialTotal={computedTotal}
+              />
+            </div>
+          </details>
         )}
       </div>
     </DashboardLayout>
   );
 };
+
+// Sub-bloque dentro de un destino: header pequeño + contenido
+const SubBlock = ({ icon: Icon, title, children }: any) => (
+  <div>
+    <div className="flex items-center gap-2 mb-3">
+      <Icon className="w-4 h-4 text-primary" />
+      <h3 className="font-display text-lg">{title}</h3>
+    </div>
+    {children}
+  </div>
+);
 
 // Agrupa items por su campo `ciudad`, respetando el orden de `cityOrder`
 const groupByCity = <T extends { ciudad?: string }>(items: T[], cityOrder: string[]): [string, T[]][] => {
