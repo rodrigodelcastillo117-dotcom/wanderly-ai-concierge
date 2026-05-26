@@ -35,6 +35,11 @@ const TripCard = ({ t }: { t: any }) => {
 
   return (
     <div className="relative glass-card rounded-2xl overflow-hidden hover:gold-border transition group">
+      {t.shared && (
+        <div className="absolute top-3 left-3 z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-[10px] font-medium">
+          <Users className="w-3 h-3" /> Compartido
+        </div>
+      )}
       <Link
         to={`/dashboard/viajes/${t.id}/editar`}
         aria-label="Editar viaje"
