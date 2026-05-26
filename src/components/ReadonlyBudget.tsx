@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Plane, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plane, ChevronRight, ChevronDown } from "lucide-react";
 
 type Flight = {
   aerolinea?: string;
