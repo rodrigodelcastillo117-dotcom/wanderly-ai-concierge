@@ -30,20 +30,13 @@ type Msg = {
   ts: number;
 };
 
-const QUICK_CHIPS = [
-  { icon: Utensils, label: "Reservar cena cerca" },
-  { icon: Car, label: "Pedir transporte" },
+const QUICK_CHIPS: Array<{ icon: any; label: string; action?: LiveAction }> = [
+  { icon: Utensils, label: "Cena cerca", action: "dining" },
+  { icon: Car, label: "Pedir transporte", action: "transport" },
+  { icon: Siren, label: "Emergencia local", action: "emergency" },
   { icon: Plane, label: "¿Mi vuelo va a tiempo?" },
   { icon: Luggage, label: "Equipaje Invisible" },
-  { icon: Siren, label: "Emergencia local" },
 ];
-
-const PROACTIVE_ALERT: Card = {
-  type: "alert",
-  title: "Tu vuelo se retrasó 45 min",
-  body: "Avisé al hotel para proteger tu reservación. Tienes acceso al Centurion Lounge con tu AMEX Platinum mientras esperas.",
-  cta_label: "Ver detalles",
-};
 
 // SpeechRecognition typing
 declare global {
