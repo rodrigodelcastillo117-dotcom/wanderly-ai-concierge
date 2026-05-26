@@ -189,7 +189,7 @@ const DashboardHome = () => {
 
   return (
     <DashboardLayout>
-      <div className="px-5 md:px-10 py-7 md:py-10 space-y-12 max-w-[1400px] mx-auto">
+      <div className="px-4 md:px-10 py-7 md:py-10 space-y-10 md:space-y-12 max-w-[1400px] mx-auto overflow-x-hidden">
         {/* Top header */}
         <header className="hidden md:flex items-center justify-between gap-4">
           <p className="text-[11px] md:text-xs text-muted-foreground capitalize tracking-wide">
@@ -359,10 +359,10 @@ const DashboardHome = () => {
         {/* MIS PRÓXIMOS VIAJES + SMART SPEND */}
         <div className="grid lg:grid-cols-2 gap-5">
           {/* Próximos viajes */}
-          <section className="glass-card rounded-3xl p-6 md:p-7">
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">Mis próximos viajes</p>
-              <Link to="/dashboard/viajes" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 mb-5">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Mis próximos viajes</p>
+              <Link to="/dashboard/viajes" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                 Ver todos <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
@@ -373,17 +373,17 @@ const DashboardHome = () => {
                 {trips.map((t) => {
                   const days = Math.max(0, Math.ceil((new Date(t.fecha_salida).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
                   return (
-                    <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-4 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group">
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-surface flex-shrink-0 ring-1 ring-white/[0.06]">
+                    <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-3 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group min-w-0">
+                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden bg-surface flex-shrink-0 ring-1 ring-white/[0.06]">
                         <DestinationVideo query={`${t.destino} ${t.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={t.destino} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-display text-base truncate">{t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
+                        <p className="font-display text-sm md:text-base truncate">{t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
                         <p className="text-[11px] text-muted-foreground tracking-wide">
                           {t.fecha_salida ? new Date(t.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                         </p>
                       </div>
-                      <span className="text-[10px] px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap tracking-wider">
+                      <span className="text-[10px] px-2 md:px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap tracking-wider shrink-0">
                         EN {days}D
                       </span>
                     </Link>
@@ -400,16 +400,18 @@ const DashboardHome = () => {
             </Button>
           </section>
 
+
           {/* Smart Spend */}
-          <section className="glass-card rounded-3xl p-6 md:p-7 relative overflow-hidden">
+          <section className="glass-card rounded-3xl p-4 md:p-7 relative overflow-hidden">
             <div aria-hidden className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">Smart Spend</p>
-                <Link to="/dashboard/smart-spend" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Smart Spend</p>
+                <Link to="/dashboard/smart-spend" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                   Ver reportes <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
+
               <p className="text-[11px] text-muted-foreground mb-1 tracking-wide">Este mes</p>
               <p className="font-display text-4xl md:text-5xl mb-1 gold-text">
                 ${spendUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -450,13 +452,14 @@ const DashboardHome = () => {
 
         {/* AI CONCIERGE + INSPIRACIÓN */}
         <div className="grid lg:grid-cols-2 gap-5">
-          <section className="glass-card rounded-3xl p-6 md:p-7">
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">AI Concierge</p>
-              <Link to="/dashboard/concierge" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 mb-6">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">AI Concierge</p>
+              <Link to="/dashboard/concierge" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                 Ver historial <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
+
             <div className="flex items-start gap-4 mb-5">
               <div className="w-11 h-11 rounded-full bg-gradient-gold flex items-center justify-center flex-shrink-0 shadow-[0_8px_24px_-6px_hsl(41_47%_59%/0.5)]">
                 <Sparkles className="w-4 h-4 text-primary-foreground" />
@@ -484,13 +487,14 @@ const DashboardHome = () => {
             </form>
           </section>
 
-          <section className="glass-card rounded-3xl p-6 md:p-7">
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">Inspiración para ti</p>
-              <Link to="/dashboard/descubre" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 mb-6">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Inspiración para ti</p>
+              <Link to="/dashboard/descubre" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                 Ver más <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
+
             <div className="relative rounded-2xl overflow-hidden aspect-[16/10] group cursor-pointer ring-1 ring-white/[0.05]" onClick={() => navigate("/dashboard/descubre")}>
               <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum} alt="Escapadas románticas" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
