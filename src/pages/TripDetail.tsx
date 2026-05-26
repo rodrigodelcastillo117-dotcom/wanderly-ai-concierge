@@ -7,6 +7,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { EditableBudget } from "@/components/EditableBudget";
 import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
+import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import santorini from "@/assets/hero-santorini.jpg";
 
@@ -207,18 +208,19 @@ const TripDetail = () => {
                 {trip.vuelos_json.map((v: any, i: number) => {
                   const active = selVuelo === i;
                   return (
-                    <div
+                    <ExpandableItemCard
                       key={i}
-                      onClick={() => setSelVuelo(i)}
-                      className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}
+                      imageQuery={`${v.aerolinea} airplane airline`}
+                      eyebrow={v.tier}
+                      title={v.aerolinea}
+                      subtitle={`${v.duracion} · ${v.escalas}`}
+                      price={`${fmtMXN(v.precio_por_persona)} / persona`}
+                      active={active}
+                      selectable
+                      onToggle={() => setSelVuelo(i)}
                     >
-                      {active && <SelectedBadge />}
-                      <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{v.tier}</p>
-                      <p className="font-display text-xl mb-1">{v.aerolinea}</p>
-                      <p className="text-sm text-muted-foreground mb-4">{v.duracion} · {v.escalas}</p>
-                      <p className="font-medium text-lg">{fmtMXN(v.precio_por_persona)}<span className="text-xs text-muted-foreground ml-1">/ persona</span></p>
-                      {v.notas && <p className="text-xs text-muted-foreground mt-3">{v.notas}</p>}
-                    </div>
+                      {v.notas && <p>{v.notas}</p>}
+                    </ExpandableItemCard>
                   );
                 })}
                 <SkipCard
@@ -286,14 +288,19 @@ const TripDetail = () => {
                 {trip.hospedaje_json.map((h: any, i: number) => {
                   const active = selHospedaje === i;
                   return (
-                    <div key={i} onClick={() => setSelHospedaje(i)} className={`glass-card rounded-xl p-6 ${selectedClass(active)}`}>
-                      {active && <SelectedBadge />}
-                      <p className="text-xs tracking-[0.15em] uppercase text-primary mb-2">{h.tipo}</p>
-                      <p className="font-display text-xl mb-1">{h.nombre}</p>
-                      <p className="text-sm text-muted-foreground mb-3">{h.barrio} · ★ {h.rating}</p>
-                      <p className="font-medium mb-3">{fmtMXN(h.precio_por_noche)}<span className="text-xs text-muted-foreground ml-1">/ noche</span></p>
-                      <p className="text-xs text-muted-foreground italic">{h.por_que}</p>
-                    </div>
+                    <ExpandableItemCard
+                      key={i}
+                      imageQuery={`${h.nombre} ${trip.destino} hotel`}
+                      eyebrow={h.tier || h.tipo}
+                      title={h.nombre}
+                      subtitle={`${h.barrio} · ★ ${h.rating}`}
+                      price={`${fmtMXN(h.precio_por_noche)} / noche`}
+                      active={active}
+                      selectable
+                      onToggle={() => setSelHospedaje(i)}
+                    >
+                      <p className="italic">{h.por_que}</p>
+                    </ExpandableItemCard>
                   );
                 })}
                 <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)} title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, familia, Airbnb propio…" />
@@ -359,20 +366,23 @@ const TripDetail = () => {
                 {groupByCity(trip.tours_json, destinationsMulti).map(([city, items]) => (
                   <div key={city}>
                     <p className="text-primary text-xs tracking-[0.25em] uppercase mb-3">{city}</p>
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {items.map((t: any) => {
                         const i = trip.tours_json.indexOf(t);
                         const active = selTours.has(i);
                         return (
-                          <div key={i} onClick={() => toggleTour(i)} className={`glass-card rounded-xl p-5 ${selectedClass(active)}`}>
-                            {active && <SelectedBadge />}
-                            <div className="flex items-start justify-between mb-2 pr-8">
-                              <p className="font-medium">{t.nombre}</p>
-                              {t.precio_por_persona > 0 && <span className="text-xs text-primary whitespace-nowrap">{fmtMXN(t.precio_por_persona)}</span>}
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-2">{t.duracion}</p>
-                            <p className="text-sm text-muted-foreground italic">{t.por_que}</p>
-                          </div>
+                          <ExpandableItemCard
+                            key={i}
+                            imageQuery={`${t.nombre} ${city} experience tour`}
+                            eyebrow={t.duracion}
+                            title={t.nombre}
+                            price={t.precio_por_persona > 0 ? fmtMXN(t.precio_por_persona) : undefined}
+                            active={active}
+                            selectable
+                            onToggle={() => toggleTour(i)}
+                          >
+                            <p className="italic">{t.por_que}</p>
+                          </ExpandableItemCard>
                         );
                       })}
                     </div>
@@ -380,19 +390,22 @@ const TripDetail = () => {
                 ))}
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {trip.tours_json.map((t: any, i: number) => {
                   const active = selTours.has(i);
                   return (
-                    <div key={i} onClick={() => toggleTour(i)} className={`glass-card rounded-xl p-5 ${selectedClass(active)}`}>
-                      {active && <SelectedBadge />}
-                      <div className="flex items-start justify-between mb-2 pr-8">
-                        <p className="font-medium">{t.nombre}</p>
-                        <span className="text-xs text-primary whitespace-nowrap">{fmtMXN(t.precio_por_persona)}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-2">{t.duracion}</p>
-                      <p className="text-sm text-muted-foreground italic">{t.por_que}</p>
-                    </div>
+                    <ExpandableItemCard
+                      key={i}
+                      imageQuery={`${t.nombre} ${trip.destino} experience tour`}
+                      eyebrow={t.duracion}
+                      title={t.nombre}
+                      price={t.precio_por_persona > 0 ? fmtMXN(t.precio_por_persona) : undefined}
+                      active={active}
+                      selectable
+                      onToggle={() => toggleTour(i)}
+                    >
+                      <p className="italic">{t.por_que}</p>
+                    </ExpandableItemCard>
                   );
                 })}
               </div>
@@ -408,32 +421,34 @@ const TripDetail = () => {
                 {groupByCity(trip.restaurantes_json, destinationsMulti).map(([city, items]) => (
                   <div key={city}>
                     <p className="text-primary text-xs tracking-[0.25em] uppercase mb-3">{city}</p>
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {items.map((r: any, i: number) => (
-                        <div key={i} className="glass-card rounded-xl p-5">
-                          <div className="flex items-start justify-between mb-2">
-                            <p className="font-medium">{r.nombre.replace(` · ${city}`, "")}</p>
-                            <span className="text-xs text-primary">{r.rango_precio}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-2">{r.cocina}</p>
-                          <p className="text-sm text-muted-foreground italic">{r.por_que}</p>
-                        </div>
+                        <ExpandableItemCard
+                          key={i}
+                          imageQuery={`${r.nombre} ${city} restaurant food`}
+                          eyebrow={r.cocina}
+                          title={r.nombre.replace(` · ${city}`, "")}
+                          price={r.rango_precio}
+                        >
+                          <p className="italic">{r.por_que}</p>
+                        </ExpandableItemCard>
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {trip.restaurantes_json.map((r: any, i: number) => (
-                  <div key={i} className="glass-card rounded-xl p-5">
-                    <div className="flex items-start justify-between mb-2">
-                      <p className="font-medium">{r.nombre}</p>
-                      <span className="text-xs text-primary">{r.rango_precio}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2">{r.cocina}</p>
-                    <p className="text-sm text-muted-foreground italic">{r.por_que}</p>
-                  </div>
+                  <ExpandableItemCard
+                    key={i}
+                    imageQuery={`${r.nombre} ${trip.destino} restaurant food`}
+                    eyebrow={r.cocina}
+                    title={r.nombre}
+                    price={r.rango_precio}
+                  >
+                    <p className="italic">{r.por_que}</p>
+                  </ExpandableItemCard>
                 ))}
               </div>
             )}
