@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Pencil, Users } from "lucide-react";
+import { Pencil, Users, Sparkles, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { DestinationVideo } from "@/components/DestinationVideo";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import santorini from "@/assets/hero-santorini.jpg";
 
 const cache = new Map<string, string | null>();
 
