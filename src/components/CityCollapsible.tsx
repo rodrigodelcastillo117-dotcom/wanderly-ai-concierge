@@ -7,6 +7,22 @@ import { supabase } from "@/integrations/supabase/client";
 const imgCache = new Map<string, string | null>();
 const inflight = new Map<string, Promise<string | null>>();
 
+const fetchPexels = async (q: string): Promise<string | null> => {
+  try {
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const res = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/pexels-image?query=${encodeURIComponent(q)}`,
+      { headers: { apikey: anonKey } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data?.image as string) ?? null;
+  } catch {
+    return null;
+  }
+};
+
 export const useCityImage = (query: string): string | null => {
   const [url, setUrl] = useState<string | null>(imgCache.get(query) ?? null);
 
@@ -20,19 +36,19 @@ export const useCityImage = (query: string): string | null => {
     const p =
       existing ??
       (async () => {
-        try {
-          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-          const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-          const res = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/pexels-image?query=${encodeURIComponent(query)}`,
-            { headers: { apikey: anonKey } },
-          );
-          if (!res.ok) return null;
-          const data = await res.json();
-          return (data?.image as string) ?? null;
-        } catch {
-          return null;
+        // Primary query
+        let result = await fetchPexels(query);
+        // Fallback 1: first two words (usually the place name)
+        if (!result) {
+          const short = query.split(/\s+/).slice(0, 2).join(" ").trim();
+          if (short && short !== query) result = await fetchPexels(short);
         }
+        // Fallback 2: just the first word
+        if (!result) {
+          const first = query.split(/\s+/)[0]?.trim();
+          if (first && first !== query) result = await fetchPexels(first);
+        }
+        return result;
       })();
     inflight.set(query, p);
     p.then((result) => {
