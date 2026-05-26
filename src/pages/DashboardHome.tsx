@@ -573,6 +573,35 @@ const DashboardHome = () => {
               <span className="w-1 h-1 rounded-full bg-muted" />
             </div>
           </section>
+
+          {/* HERRAMIENTAS — strip elegante */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase">Herramientas</p>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-none md:grid md:grid-cols-4 md:overflow-visible">
+              {[
+                { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar" },
+                { icon: ArrowLeftRight, label: "Conversor", sub: "Moneda", to: "/dashboard/convertidor" },
+                { icon: Crown, label: "Concierge", sub: "IA 24/7", to: "/dashboard/concierge" },
+                { icon: MapPin, label: "Cerca", sub: "De mí", to: "/dashboard/cercanos" },
+              ].map(({ icon: Icon, label, sub, to }) => (
+                <button
+                  key={label}
+                  onClick={() => navigate(to)}
+                  className="snap-start shrink-0 md:shrink w-[150px] md:w-auto flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/40 transition-all text-left group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                    <Icon className="w-4 h-4 text-primary" strokeWidth={1.5} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium leading-tight truncate">{label}</div>
+                    <div className="text-[10px] text-muted-foreground tracking-wide uppercase truncate">{sub}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
     </DashboardLayout>
