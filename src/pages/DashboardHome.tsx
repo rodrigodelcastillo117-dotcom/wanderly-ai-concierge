@@ -513,36 +513,36 @@ const DashboardHome = () => {
         </div>
 
         {/* AI CONCIERGE + INSPIRACIÓN */}
-        <div className="grid lg:grid-cols-2 gap-5 min-w-0">
-          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0">
+        <div className="grid lg:grid-cols-2 gap-5 min-w-0 w-full max-w-full">
+          <section className="glass-card rounded-3xl p-3.5 md:p-7 overflow-hidden min-w-0 w-full max-w-full">
 
-            <div className="flex items-center justify-between gap-2 mb-6">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Concierge PRO</p>
-              <Link to="/dashboard/concierge" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.25em] md:tracking-[0.35em] uppercase truncate min-w-0">Concierge PRO</p>
+              <Link to="/dashboard/concierge" className="text-[10px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                 Ver historial <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
 
-            <div className="flex items-start gap-4 mb-5">
-              <div className="w-11 h-11 rounded-full bg-gradient-gold flex items-center justify-center flex-shrink-0 shadow-[0_8px_24px_-6px_hsl(41_47%_59%/0.5)]">
+            <div className="flex items-start gap-3 mb-4 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center flex-shrink-0 shadow-[0_8px_24px_-6px_hsl(41_47%_59%/0.5)]">
                 <Sparkles className="w-4 h-4 text-primary-foreground" />
               </div>
-              <div>
-                <p className="font-display text-lg mb-1">¿En qué puedo ayudarte hoy?</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Planeo, reservo, descubro y optimizo cada detalle de tu viaje.
+              <div className="min-w-0 flex-1">
+                <p className="font-display text-base md:text-lg mb-0.5">¿En qué puedo ayudarte hoy?</p>
+                <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed">
+                  Planeo, reservo y optimizo cada detalle de tu viaje.
                 </p>
               </div>
             </div>
             <form
               onSubmit={(e) => { e.preventDefault(); if (concierge.trim()) navigate(`/dashboard/planear?q=${encodeURIComponent(concierge)}`); }}
-              className="relative"
+              className="relative w-full"
             >
               <Input
                 value={concierge}
                 onChange={(e) => setConcierge(e.target.value)}
                 placeholder="Escribe tu solicitud…"
-                className="pr-12 h-12 rounded-2xl bg-white/[0.03] border-white/[0.08] focus-visible:ring-primary/40"
+                className="pr-12 h-11 md:h-12 rounded-2xl bg-white/[0.03] border-white/[0.08] focus-visible:ring-primary/40 text-sm w-full"
               />
               <button type="submit" aria-label="Enviar" className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-gold flex items-center justify-center text-primary-foreground hover:opacity-90 transition">
                 <Send className="w-4 h-4" />
@@ -550,32 +550,33 @@ const DashboardHome = () => {
             </form>
           </section>
 
-          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0">
-            <div className="flex items-center justify-between gap-2 mb-6">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Inspiración para ti</p>
-              <Link to="/dashboard/descubre" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
+          <section className="glass-card rounded-3xl p-3.5 md:p-7 overflow-hidden min-w-0 w-full max-w-full">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.25em] md:tracking-[0.35em] uppercase truncate min-w-0">Inspiración para ti</p>
+              <Link to="/dashboard/descubre" className="text-[10px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                 Ver más <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
 
-            <div className="relative rounded-2xl overflow-hidden h-[220px] md:h-[320px] group cursor-pointer ring-1 ring-white/[0.05]" onClick={() => navigate("/dashboard/descubre")}>
+            <div className="relative rounded-2xl overflow-hidden h-[170px] md:h-[320px] group cursor-pointer ring-1 ring-white/[0.05] w-full" onClick={() => navigate("/dashboard/descubre")}>
               <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum} alt="Escapadas románticas" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-              <button className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center hover:bg-black/75 transition" aria-label="Siguiente">
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center hover:bg-black/75 transition" aria-label="Siguiente">
                 <ChevronRight className="w-4 h-4" />
               </button>
-              <div className="absolute bottom-4 left-4 right-4">
-                <h3 className="font-display text-2xl mb-1">Escapadas <span className="italic gold-text font-light">románticas</span></h3>
-                <p className="text-[11px] text-white/70 tracking-wide">Destinos perfectos para conectar</p>
+              <div className="absolute bottom-3 left-3 right-3">
+                <h3 className="font-display text-xl md:text-2xl mb-0.5 leading-tight">Escapadas <span className="italic gold-text font-light">románticas</span></h3>
+                <p className="text-[10px] md:text-[11px] text-white/70 tracking-wide">Destinos perfectos para conectar</p>
               </div>
             </div>
 
-            <div className="flex justify-center gap-1.5 mt-4">
+            <div className="flex justify-center gap-1.5 mt-3">
               <span className="w-6 h-1 rounded-full bg-primary" />
               <span className="w-1 h-1 rounded-full bg-muted" />
               <span className="w-1 h-1 rounded-full bg-muted" />
             </div>
           </section>
+
 
           {/* HERRAMIENTAS — strip elegante */}
           <section>
