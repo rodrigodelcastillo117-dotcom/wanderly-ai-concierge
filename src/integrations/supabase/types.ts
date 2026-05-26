@@ -901,6 +901,7 @@ export type Database = {
       agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
       ensure_ai_prefs: { Args: { p_user: string }; Returns: undefined }
+      gen_invite_code: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
