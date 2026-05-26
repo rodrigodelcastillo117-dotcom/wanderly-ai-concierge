@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut, Bell } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
+import { NotificationBell } from "@/components/NotificationBell";
 import iatosLogo from "@/assets/iatos-logo.png";
 
 const links = [
@@ -144,12 +145,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <img src={iatosLogo} alt="IATOS" className="h-7 w-auto object-contain" />
           </Link>
           <div className="flex items-center gap-2">
-            <button
-              aria-label="Notificaciones"
-              className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition relative"
-            >
-              <Bell className="w-[18px] h-[18px]" strokeWidth={1.75} />
-            </button>
+            <NotificationBell />
+
             <button
               onClick={() => navigate("/dashboard/perfil")}
               aria-label="Mi perfil"
@@ -158,6 +155,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
               {initial}
             </button>
           </div>
+        </div>
+        <div className="hidden md:flex absolute top-4 right-4 z-40">
+          <NotificationBell />
         </div>
         <BackButton />
         {children}
