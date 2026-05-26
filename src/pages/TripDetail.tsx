@@ -451,7 +451,13 @@ const TripDetail = () => {
               <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
             </summary>
             <div className="px-5 pb-5 pt-1 border-t border-border/40">
-              <ReadonlyBudget desglose={computedDesglose} total={computedTotal} />
+              <ReadonlyBudget
+                desglose={computedDesglose}
+                total={computedTotal}
+                vuelos={trip.vuelos_json ?? []}
+                travelers={viajeros}
+              />
+
             </div>
           </details>
         )}
