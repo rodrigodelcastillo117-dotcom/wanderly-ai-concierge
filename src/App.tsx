@@ -25,6 +25,8 @@ import { Navigate } from "react-router-dom";
 import Gastos from "./pages/Gastos";
 import NotFound from "./pages/NotFound.tsx";
 import LiveTrip from "./pages/LiveTrip";
+import TripMap from "./pages/TripMap";
+import TripPacking from "./pages/TripPacking";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +48,8 @@ const App = () => (
             <Route path="/dashboard/viajes/:id" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id/editar" element={<ProtectedRoute><EditTrip /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id/live" element={<ProtectedRoute><LiveTrip /></ProtectedRoute>} />
+            <Route path="/dashboard/viajes/:id/mapa" element={<ProtectedRoute><TripMap /></ProtectedRoute>} />
+            <Route path="/dashboard/viajes/:id/packing" element={<ProtectedRoute><TripPacking /></ProtectedRoute>} />
             <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
             <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
             <Route path="/dashboard/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />
