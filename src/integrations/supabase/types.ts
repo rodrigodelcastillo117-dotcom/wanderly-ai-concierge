@@ -627,6 +627,7 @@ export type Database = {
           id: string
           invited_by: string
           role: string
+          status: string
           trip_id: string
           user_id: string
         }
@@ -635,6 +636,7 @@ export type Database = {
           id?: string
           invited_by: string
           role?: string
+          status?: string
           trip_id: string
           user_id: string
         }
@@ -643,6 +645,7 @@ export type Database = {
           id?: string
           invited_by?: string
           role?: string
+          status?: string
           trip_id?: string
           user_id?: string
         }
@@ -925,6 +928,7 @@ export type Database = {
       }
     }
     Functions: {
+      aceptar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
       agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
       ensure_ai_prefs: { Args: { p_user: string }; Returns: undefined }
@@ -945,6 +949,7 @@ export type Database = {
         Args: { p_trip: string; p_user: string }
         Returns: boolean
       }
+      rechazar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
