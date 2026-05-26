@@ -402,15 +402,16 @@ const DashboardHome = () => {
 
 
           {/* Smart Spend */}
-          <section className="glass-card rounded-3xl p-6 md:p-7 relative overflow-hidden">
+          <section className="glass-card rounded-3xl p-4 md:p-7 relative overflow-hidden">
             <div aria-hidden className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">Smart Spend</p>
-                <Link to="/dashboard/smart-spend" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Smart Spend</p>
+                <Link to="/dashboard/smart-spend" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                   Ver reportes <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
+
               <p className="text-[11px] text-muted-foreground mb-1 tracking-wide">Este mes</p>
               <p className="font-display text-4xl md:text-5xl mb-1 gold-text">
                 ${spendUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
