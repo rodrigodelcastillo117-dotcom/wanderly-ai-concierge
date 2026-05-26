@@ -6,6 +6,7 @@ import heroImg from "@/assets/hero-santorini.jpg";
 import kyoto from "@/assets/destination-kyoto.jpg";
 import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
+import iatosLogo from "@/assets/iatos-logo.png";
 
 const Landing = () => {
   const navigate = useNavigate();
