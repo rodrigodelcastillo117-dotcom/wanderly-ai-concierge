@@ -77,6 +77,23 @@ const PlanTrip = () => {
 
   const analizar = () => {
     if (!destino || !fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+
+    // Detección single vs multi al confirmar.
+    const intent = detectRouteIntent(destino);
+    if (intent.mode === "multi" && intent.destinations.length >= 2) {
+      const qs = new URLSearchParams({
+        origin: ciudadOrigen,
+        destinos: intent.destinations.join("|"),
+        fecha_salida: fechaSalida,
+        fecha_regreso: fechaRegreso,
+        viajeros: String(numViajeros),
+        auto: "1",
+      });
+      if (presupuesto != null) qs.set("presupuesto", String(presupuesto));
+      navigate(`/dashboard/ruta?${qs.toString()}`);
+      return;
+    }
+
     return runAnalisis({
       destino,
       ciudad_origen: ciudadOrigen,
@@ -86,6 +103,7 @@ const PlanTrip = () => {
       presupuesto_objetivo: presupuesto,
     });
   };
+
 
   // Flujo de búsqueda en lenguaje natural: ?q=... viene del Inicio
   useEffect(() => {
