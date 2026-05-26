@@ -453,7 +453,7 @@ const DashboardHome = () => {
         <div className="grid lg:grid-cols-2 gap-5">
           <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
             <div className="flex items-center justify-between gap-2 mb-6">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">AI Concierge</p>
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Concierge PRO</p>
               <Link to="/dashboard/concierge" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                 Ver historial <ChevronRight className="w-3 h-3" />
               </Link>
