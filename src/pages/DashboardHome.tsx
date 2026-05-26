@@ -418,9 +418,10 @@ const DashboardHome = () => {
 
 
         {/* MIS PRÓXIMOS VIAJES + SMART SPEND */}
-        <div className="grid lg:grid-cols-2 gap-5">
+        <div className="grid lg:grid-cols-2 gap-5 min-w-0">
           {/* Próximos viajes */}
-          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0">
+
             <div className="flex items-center justify-between gap-2 mb-5">
               <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Mis próximos viajes</p>
               <Link to="/dashboard/viajes" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
@@ -463,7 +464,7 @@ const DashboardHome = () => {
 
 
           {/* Smart Spend */}
-          <section className="glass-card rounded-3xl p-4 md:p-7 relative overflow-hidden">
+          <section className="glass-card rounded-3xl p-4 md:p-7 relative overflow-hidden min-w-0">
             <div aria-hidden className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative">
               <div className="flex items-center justify-between gap-2 mb-2">
@@ -482,7 +483,7 @@ const DashboardHome = () => {
                   <><span className={spendDeltaPct >= 0 ? "text-primary" : "text-emerald-400"}>{spendDeltaPct >= 0 ? "+" : ""}{spendDeltaPct}%</span> vs mes anterior · USD</>
                 ) : spendUsd > 0 ? "USD · primer mes con gastos" : "Aún sin gastos registrados · USD"}
               </p>
-              <div className="flex items-center gap-5">
+              <div className="flex items-center gap-5 min-w-0">
                 <SpendDonut segments={spendCats.length ? spendCats : [{ label: "Sin datos", pct: 0, color: "hsl(0 0% 25%)" }]} />
                 <ul className="flex-1 space-y-2 text-sm">
                   {spendCats.length === 0 && (
@@ -512,8 +513,9 @@ const DashboardHome = () => {
         </div>
 
         {/* AI CONCIERGE + INSPIRACIÓN */}
-        <div className="grid lg:grid-cols-2 gap-5">
-          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
+        <div className="grid lg:grid-cols-2 gap-5 min-w-0">
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0">
+
             <div className="flex items-center justify-between gap-2 mb-6">
               <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Concierge PRO</p>
               <Link to="/dashboard/concierge" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
@@ -548,7 +550,7 @@ const DashboardHome = () => {
             </form>
           </section>
 
-          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0">
             <div className="flex items-center justify-between gap-2 mb-6">
               <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Inspiración para ti</p>
               <Link to="/dashboard/descubre" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
