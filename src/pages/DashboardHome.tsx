@@ -359,10 +359,10 @@ const DashboardHome = () => {
         {/* MIS PRÓXIMOS VIAJES + SMART SPEND */}
         <div className="grid lg:grid-cols-2 gap-5">
           {/* Próximos viajes */}
-          <section className="glass-card rounded-3xl p-6 md:p-7">
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase">Mis próximos viajes</p>
-              <Link to="/dashboard/viajes" className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 tracking-wide">
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 mb-5">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Mis próximos viajes</p>
+              <Link to="/dashboard/viajes" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
                 Ver todos <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
@@ -373,17 +373,17 @@ const DashboardHome = () => {
                 {trips.map((t) => {
                   const days = Math.max(0, Math.ceil((new Date(t.fecha_salida).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
                   return (
-                    <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-4 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group">
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-surface flex-shrink-0 ring-1 ring-white/[0.06]">
+                    <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-3 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group min-w-0">
+                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden bg-surface flex-shrink-0 ring-1 ring-white/[0.06]">
                         <DestinationVideo query={`${t.destino} ${t.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={t.destino} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-display text-base truncate">{t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
+                        <p className="font-display text-sm md:text-base truncate">{t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
                         <p className="text-[11px] text-muted-foreground tracking-wide">
                           {t.fecha_salida ? new Date(t.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                         </p>
                       </div>
-                      <span className="text-[10px] px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap tracking-wider">
+                      <span className="text-[10px] px-2 md:px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap tracking-wider shrink-0">
                         EN {days}D
                       </span>
                     </Link>
@@ -399,6 +399,7 @@ const DashboardHome = () => {
               Crear nuevo viaje
             </Button>
           </section>
+
 
           {/* Smart Spend */}
           <section className="glass-card rounded-3xl p-6 md:p-7 relative overflow-hidden">
