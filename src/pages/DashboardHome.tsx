@@ -174,23 +174,46 @@ const DashboardHome = () => {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="relative rounded-3xl overflow-hidden premium-shadow group cursor-pointer"
-          onClick={() => navigate("/dashboard/planear")}
+          className="grid md:grid-cols-2 gap-4"
         >
-          <DestinationVideo query="travel landscape cinematic" fallbackImage={santorini} alt="Planea tu próximo viaje" className="w-full h-56 md:h-64 object-cover group-hover:scale-105 transition-transform duration-700" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-          <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-9">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-xs mb-3 self-start border border-white/10">
-              <Sparkles className="w-3 h-3 text-primary" />
-              <span>Planeación guiada</span>
+          <div
+            className="relative rounded-3xl overflow-hidden premium-shadow group cursor-pointer"
+            onClick={() => navigate("/dashboard/planear")}
+          >
+            <DestinationVideo query="travel landscape cinematic" fallbackImage={santorini} alt="Planea tu próximo viaje" className="w-full h-56 md:h-64 object-cover group-hover:scale-105 transition-transform duration-700" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-9">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-xs mb-3 self-start border border-white/10">
+                <Sparkles className="w-3 h-3 text-primary" />
+                <span>Planeación guiada</span>
+              </div>
+              <h2 className="font-display text-2xl md:text-4xl mb-3 leading-tight">¿Prefieres paso a paso?</h2>
+              <Button className="bg-white/10 backdrop-blur border border-white/20 text-foreground hover:bg-white/20 self-start">
+                <Plus className="w-4 h-4 mr-2" />
+                Planeación guiada
+              </Button>
             </div>
-            <h2 className="font-display text-2xl md:text-4xl mb-3 leading-tight">¿Prefieres paso a paso?</h2>
-            <Button className="bg-white/10 backdrop-blur border border-white/20 text-foreground hover:bg-white/20 self-start">
-              <Plus className="w-4 h-4 mr-2" />
-              Planeación guiada
-            </Button>
+          </div>
+
+          <div
+            className="relative rounded-3xl overflow-hidden premium-shadow group cursor-pointer border border-primary/20 bg-card"
+            onClick={() => navigate("/dashboard/ruta")}
+          >
+            <div className="absolute inset-0 opacity-60" style={{ background: "var(--gradient-radial-gold)" }} />
+            <div className="relative p-6 md:p-9 h-56 md:h-64 flex flex-col justify-end">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs mb-3 self-start">
+                <Sparkles className="w-3 h-3" />
+                <span>Ruta multi-destino</span>
+              </div>
+              <h2 className="font-display text-2xl md:text-4xl mb-3 leading-tight">Encadena varias ciudades.</h2>
+              <Button className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow self-start">
+                <ArrowRight className="w-4 h-4 mr-2" />
+                Diseñar travesía
+              </Button>
+            </div>
           </div>
         </motion.div>
+
 
 
         {/* Curado para ti */}
