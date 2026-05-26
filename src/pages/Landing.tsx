@@ -17,11 +17,7 @@ const Landing = () => {
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/60 border-b border-border/40">
         <div className="container mx-auto flex items-center justify-between py-4">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full border border-primary/40 flex items-center justify-center">
-              <Compass className="w-4 h-4 text-primary" />
-            </div>
-            <span className="font-display text-xl tracking-[0.3em]">IATOS</span>
-          </div>
+          <img src={iatosLogo} alt="IATOS" className="h-9 md:h-10 w-auto object-contain" />
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={() => navigate("/auth")}>Iniciar sesión</Button>
             <Button onClick={() => navigate("/auth?mode=signup")} className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
