@@ -263,7 +263,7 @@ const TripDetail = () => {
             <span className="ml-auto text-xs text-muted-foreground italic">Toca cada destino para explorar</span>
           </div>
 
-          {(isMulti ? destinationsMulti : [trip.destino]).map((city: string) => {
+          {(isMulti ? destinationsMulti : [trip.destino]).map((city: string, cityIdx: number, allCities: string[]) => {
             const cityVuelos = isMulti
               ? (trip.vuelos_json ?? []).filter((v: any) => (v.ciudad || v.to) === city)
               : (trip.vuelos_json ?? []);
