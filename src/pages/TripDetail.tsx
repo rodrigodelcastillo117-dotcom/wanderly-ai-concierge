@@ -30,9 +30,25 @@ const TripDetail = () => {
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const toggleCity = (city: string) => {
-    setActiveCity((prev) => (prev === city ? null : city));
+    setActiveCity((prev) => {
+      const next = prev === city ? null : city;
+      if (next) {
+        // Scroll suave al inicio del destino abierto
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            const el = cityRefs.current[next];
+            if (el) {
+              const y = el.getBoundingClientRect().top + window.scrollY - 88;
+              window.scrollTo({ top: y, behavior: "smooth" });
+            }
+          }, 80);
+        });
+      }
+      return next;
+    });
   };
   const cityRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const loadTrip = async () => {
