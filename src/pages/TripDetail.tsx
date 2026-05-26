@@ -7,6 +7,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { EditableBudget } from "@/components/EditableBudget";
 import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
+import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import santorini from "@/assets/hero-santorini.jpg";
 
