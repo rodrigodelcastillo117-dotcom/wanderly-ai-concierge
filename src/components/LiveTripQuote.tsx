@@ -18,7 +18,7 @@ const fmtMXN = (n: number) =>
 
 export function LiveTripQuote({ origin, destination, depart, return_date, nights, travelers, fallbackMxn }: Props) {
   const { data, loading, error } = useLiveQuote({
-    origin, destination, depart, return_date, nights, travelers, enabled: true,
+    origin, destination, depart, return_date, nights, travelers, enabled: false,
   });
 
   const display = useMotionValue(0);

@@ -1,6 +1,8 @@
 // serpapi-quote — Real-time pricing via SerpApi (Google Flights + Google Hotels)
 // Input: { origin, destination, depart, return_date, nights, travelers, currency? }
 // Output: { flight, hotel, breakdown, total_usd, total_mxn }
+// TEMPORARILY DISABLED to avoid spending SerpApi credits. Set ENABLED = true to re-enable.
+const ENABLED = false;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
