@@ -23,7 +23,7 @@ const mobileLeft = [
 ];
 const mobileRight = [
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/perfil", icon: User, label: "Perfil" },
+  { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
