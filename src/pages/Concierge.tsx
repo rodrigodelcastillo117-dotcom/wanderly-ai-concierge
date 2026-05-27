@@ -32,12 +32,13 @@ type Msg = {
   ts: number;
 };
 
-const QUICK_CHIPS: Array<{ icon: any; label: string; action?: LiveAction }> = [
+type QuickAction = LiveAction | "flight" | "luggage";
+const QUICK_CHIPS: Array<{ icon: any; label: string; action?: QuickAction }> = [
   { icon: Utensils, label: "Cena cerca", action: "dining" },
   { icon: Car, label: "Pedir transporte", action: "transport" },
   { icon: Siren, label: "Emergencia local", action: "emergency" },
-  { icon: Plane, label: "¿Mi vuelo va a tiempo?" },
-  { icon: Luggage, label: "Equipaje Invisible" },
+  { icon: Plane, label: "¿Mi vuelo va a tiempo?", action: "flight" },
+  { icon: Luggage, label: "Equipaje Invisible", action: "luggage" },
 ];
 
 // SpeechRecognition typing
