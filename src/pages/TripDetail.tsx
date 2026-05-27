@@ -596,6 +596,24 @@ const TripDetail = () => {
           </details>
         )}
 
+        {/* Desglose */}
+        {computedTotal > 0 && (
+          <div className="glass-card rounded-2xl">
+            <div className="flex items-center gap-3 p-5">
+              <Compass className="w-5 h-5 text-primary" />
+              <h2 className="font-display text-xl">Desglose de presupuesto</h2>
+            </div>
+            <div className="px-5 pb-5 pt-1 border-t border-border/40">
+              <ReadonlyBudget
+                desglose={computedDesglose}
+                total={computedTotal}
+                vuelos={trip.vuelos_json ?? []}
+                travelers={viajeros}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Tips */}
         {trip.tips_personalizados?.length > 0 && (
           <details className="glass-card rounded-2xl group">
@@ -618,27 +636,6 @@ const TripDetail = () => {
           </details>
         )}
 
-        {/* Desglose */}
-        {computedTotal > 0 && (
-          <details className="glass-card rounded-2xl group">
-            <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-              <div className="flex items-center gap-3">
-                <Compass className="w-5 h-5 text-primary" />
-                <h2 className="font-display text-xl">Desglose de presupuesto</h2>
-              </div>
-              <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="px-5 pb-5 pt-1 border-t border-border/40">
-              <ReadonlyBudget
-                desglose={computedDesglose}
-                total={computedTotal}
-                vuelos={trip.vuelos_json ?? []}
-                travelers={viajeros}
-              />
-
-            </div>
-          </details>
-        )}
       </div>
     </DashboardLayout>
   );
