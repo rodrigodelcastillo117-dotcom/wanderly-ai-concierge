@@ -1,43 +1,89 @@
-// parse-trip-file — recibe PDFs o imágenes (base64) y extrae el viaje
-// completo (vuelos, hoteles, fechas, ciudades) usando Gemini multimodal.
-// Devuelve un texto rico listo para pasar a /parsear-viaje + /analizar-viaje.
+// parse-trip-file — lee PDFs/imágenes con Gemini multimodal y extrae el
+// viaje TAL CUAL aparece en los documentos. Devuelve datos mapeados al
+// schema interno (vuelos_json, hospedaje_json, itinerario_json) para que
+// el cliente pueda guardar el viaje sin re-generación por IA.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-const SYSTEM = `Eres un experto en planificación de viajes. Te van a dar PDFs o imágenes con itinerarios, boletos de avión, reservas de hotel, vouchers, tickets, screenshots de Booking/Expedia/Airbnb, etc.
+const SYSTEM = `Eres un extractor de itinerarios de viaje. Te entregarán PDFs o imágenes (boletos de avión, vouchers de crucero, reservas de hotel, itinerarios de agencia, etc.).
 
-Tu trabajo es EXTRAER toda la información del viaje y devolver un JSON estricto con esta forma:
+REGLA #1: NO INVENTES NADA. Solo extrae lo que aparece textualmente en los documentos. Si un dato no está, usa null.
+
+Devuelve SOLO este JSON estricto:
 
 {
-  "summary": string,            // 1-2 párrafos en español describiendo el viaje COMPLETO con TODAS las ciudades, fechas, vuelos y hoteles que viste. Este texto debe servir para reconstruir el viaje al 100%.
-  "destino": string,            // ciudad principal o resumen ("Norte de España")
-  "destinations": string[],     // ciudades en orden de visita
-  "ciudad_origen": string|null, // ciudad de origen del vuelo si aparece
+  "summary": string,                 // 2-4 párrafos en español describiendo el viaje COMPLETO tal cual aparece
+  "destino": string,                 // resumen ("París → Atenas → Crucero Grecia → París")
+  "destinations": string[],          // ciudades en orden cronológico (incluye paradas del crucero)
+  "ciudad_origen": string|null,
   "fecha_salida": "YYYY-MM-DD"|null,
   "fecha_regreso": "YYYY-MM-DD"|null,
-  "num_viajeros": number,       // por defecto 2
-  "flights": [
-    { "airline": string|null, "flight_number": string|null, "from": string|null, "to": string|null, "date": "YYYY-MM-DD"|null, "depart_time": string|null, "arrive_time": string|null, "confirmation": string|null }
+  "num_viajeros": number,            // por defecto 2
+  "presupuesto_total_mxn": number|null,
+  "vuelos": [
+    {
+      "aerolinea": string,
+      "numero_vuelo": string|null,
+      "from": string,                // ciudad o IATA
+      "to": string,                  // ciudad o IATA (usar como "ciudad" del tramo)
+      "fecha": "YYYY-MM-DD"|null,
+      "hora_salida": string|null,
+      "hora_llegada": string|null,
+      "duracion": string|null,
+      "escalas": string|null,        // "directo" o "1 escala en XXX"
+      "clase": string|null,
+      "precio_por_persona_mxn": number|null,
+      "confirmacion": string|null,
+      "notas": string|null
+    }
   ],
-  "hotels": [
-    { "name": string, "city": string|null, "check_in": "YYYY-MM-DD"|null, "check_out": "YYYY-MM-DD"|null, "nights": number|null, "confirmation": string|null, "address": string|null }
+  "hoteles": [
+    {
+      "nombre": string,
+      "ciudad": string,
+      "barrio": string|null,
+      "direccion": string|null,
+      "check_in": "YYYY-MM-DD"|null,
+      "check_out": "YYYY-MM-DD"|null,
+      "noches": number|null,
+      "tipo": string|null,           // "Hotel 5★", "Boutique", "Resort", etc.
+      "rating": number|null,
+      "precio_por_noche_mxn": number|null,
+      "precio_total_mxn": number|null,
+      "confirmacion": string|null,
+      "notas": string|null
+    }
   ],
-  "presupuesto_objetivo": number|null,  // total en MXN si se infiere
-  "notas": string                       // 1 frase con preferencias detectadas
+  "cruceros": [
+    {
+      "naviera": string|null,
+      "barco": string|null,
+      "itinerario": string[],        // puertos en orden
+      "fecha_embarque": "YYYY-MM-DD"|null,
+      "fecha_desembarque": "YYYY-MM-DD"|null,
+      "noches": number|null,
+      "camarote": string|null,
+      "precio_total_mxn": number|null,
+      "confirmacion": string|null
+    }
+  ],
+  "itinerario": [
+    { "dia": number, "fecha": "YYYY-MM-DD"|null, "ciudad": string, "titulo": string, "mañana": string, "tarde": string, "noche": string }
+  ],
+  "notas_generales": string
 }
 
 Reglas:
-- Si la información no está clara, usa null. NO inventes confirmaciones ni vuelos.
-- Las fechas SIEMPRE en formato YYYY-MM-DD.
-- Si hay varias páginas/imágenes, consolida TODO en un solo JSON.
-- El campo "summary" es el más importante: debe contener TODO lo necesario para reconstruir el viaje.
-- Responde SOLO el JSON, sin texto adicional.`;
+- Fechas SIEMPRE en YYYY-MM-DD. Si ves "15 jul 2026" conviértelo.
+- Si el precio viene en USD/EUR conviértelo aprox (USD≈18 MXN, EUR≈20 MXN) y márcalo en notas.
+- Para cruceros, agrega también cada puerto del itinerario al array "destinations" en orden.
+- El "itinerario" llénalo SOLO con lo que aparece en el PDF. Si solo dice "Día 3: Atenas", deja mañana/tarde/noche como "" — NO inventes actividades.
+- Responde SOLO el JSON, sin texto adicional, sin markdown.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -55,9 +101,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Construye contenido multimodal (OpenAI-compat con image_url + data URL)
     const userParts: any[] = [
-      { type: "text", text: `Fecha actual: ${new Date().toISOString().slice(0, 10)}.\nExtrae el viaje completo de los siguientes archivos.${extra ? `\n\nContexto adicional del usuario: ${extra}` : ""}` },
+      { type: "text", text: `Fecha actual: ${new Date().toISOString().slice(0, 10)}.\nExtrae el viaje COMPLETO de los siguientes archivos exactamente como aparece. No inventes nada.${extra ? `\n\nContexto del usuario: ${extra}` : ""}` },
     ];
     for (const f of files) {
       const dataUrl = `data:${f.mime};base64,${f.data_base64}`;
@@ -65,7 +110,7 @@ Deno.serve(async (req) => {
     }
 
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 55000);
+    const tid = setTimeout(() => ctrl.abort(), 90000);
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -101,9 +146,59 @@ Deno.serve(async (req) => {
       parsed = m ? JSON.parse(m[0]) : {};
     }
 
-    return new Response(JSON.stringify({ ok: true, ...parsed }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Mapea a schema interno del proyecto (vuelos_json / hospedaje_json)
+    const vuelos_json = (parsed.vuelos ?? []).map((v: any) => ({
+      aerolinea: v.aerolinea ?? "—",
+      numero_vuelo: v.numero_vuelo ?? null,
+      tier: v.clase ?? "Reservado",
+      from: v.from ?? null,
+      to: v.to ?? null,
+      ciudad: v.to ?? null,
+      fecha: v.fecha ?? null,
+      hora_salida: v.hora_salida ?? null,
+      hora_llegada: v.hora_llegada ?? null,
+      duracion: v.duracion ?? "—",
+      escalas: v.escalas ?? "—",
+      precio_por_persona: v.precio_por_persona_mxn ?? null,
+      confirmacion: v.confirmacion ?? null,
+      notas: v.notas ?? null,
+      desde_pdf: true,
+    }));
+
+    const hospedaje_json = (parsed.hoteles ?? []).map((h: any) => ({
+      nombre: h.nombre ?? "—",
+      ciudad: h.ciudad ?? null,
+      barrio: h.barrio ?? "",
+      direccion: h.direccion ?? null,
+      tipo: h.tipo ?? "Reservado",
+      tier: h.tipo ?? "Reservado",
+      rating: h.rating ?? null,
+      check_in: h.check_in ?? null,
+      check_out: h.check_out ?? null,
+      noches: h.noches ?? null,
+      precio_por_noche: h.precio_por_noche_mxn ?? null,
+      precio_total: h.precio_total_mxn ?? null,
+      por_que: h.notas ?? "Reservado en tu PDF",
+      confirmacion: h.confirmacion ?? null,
+      desde_pdf: true,
+    }));
+
+    return new Response(JSON.stringify({
+      ok: true,
+      summary: parsed.summary ?? "",
+      destino: parsed.destino ?? null,
+      destinations: parsed.destinations ?? [],
+      ciudad_origen: parsed.ciudad_origen ?? null,
+      fecha_salida: parsed.fecha_salida ?? null,
+      fecha_regreso: parsed.fecha_regreso ?? null,
+      num_viajeros: parsed.num_viajeros ?? 2,
+      presupuesto_total_mxn: parsed.presupuesto_total_mxn ?? null,
+      vuelos_json,
+      hospedaje_json,
+      cruceros: parsed.cruceros ?? [],
+      itinerario: parsed.itinerario ?? [],
+      notas_generales: parsed.notas_generales ?? "",
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error(e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
