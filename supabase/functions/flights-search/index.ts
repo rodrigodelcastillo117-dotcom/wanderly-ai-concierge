@@ -92,7 +92,9 @@ Deno.serve(async (req) => {
       u.searchParams.set("api_key", serpKey);
 
       try {
-        const r = await fetch(u.toString());
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 18000);
+        const r = await fetch(u.toString(), { signal: ctrl.signal }).finally(() => clearTimeout(tid));
         if (r.ok) {
           const j = await r.json();
           google_flights_url = j?.search_metadata?.google_flights_url ?? null;
