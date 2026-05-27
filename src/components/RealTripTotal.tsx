@@ -136,8 +136,8 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
           : "Calculado con vuelos, hospedaje y experiencias seleccionadas · incluye comida y transporte local estimados"}
       </p>
 
-      {/* Search de emoción */}
-      <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 md:p-5">
+      {/* Search de emoción - sin caja, fondo transparente, multi-select */}
+      <div className="mt-6">
         <div className="flex items-center gap-2 mb-3">
           <Heart className="w-4 h-4 text-primary" />
           <p className="text-xs tracking-[0.2em] uppercase text-primary">
@@ -150,12 +150,12 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
             onChange={(e) => setEmocion(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && adaptarEmocion()}
             placeholder="ej. quiero sentir libertad total y aventura"
-            className="flex-1 bg-surface/60 border border-border rounded-lg px-4 py-3 text-sm outline-none focus:border-primary transition"
+            className="flex-1 bg-transparent border border-border rounded-lg px-4 py-3 text-sm outline-none focus:border-primary transition"
             disabled={adapting}
           />
           <button
             onClick={adaptarEmocion}
-            disabled={!emocion.trim() || adapting}
+            disabled={(selectedEmociones.length === 0 && !emocion.trim()) || adapting}
             className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
           >
             {adapting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -163,20 +163,27 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
           </button>
         </div>
         <div className="flex flex-wrap gap-1.5 mt-3">
-          {EMOCIONES_SUGERIDAS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setEmocion(s)}
-              disabled={adapting}
-              className="text-[11px] px-2.5 py-1 rounded-full border border-border hover:border-primary/60 hover:text-primary transition disabled:opacity-50"
-            >
-              {s}
-            </button>
-          ))}
+          {EMOCIONES_SUGERIDAS.map((s) => {
+            const active = selectedEmociones.includes(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleEmocion(s)}
+                disabled={adapting}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50 ${
+                  active
+                    ? "border-primary bg-primary/15 text-primary"
+                    : "border-border hover:border-primary/60 hover:text-primary"
+                }`}
+              >
+                {s}
+              </button>
+            );
+          })}
         </div>
         <p className="text-[10px] text-muted-foreground/70 mt-2 italic">
-          IATOS AI reorganiza experiencias, restaurantes y ritmo según la emoción que describas.
+          Puedes elegir varias emociones · IATOS AI las mezcla y reorganiza experiencias, restaurantes y ritmo.
         </p>
       </div>
     </motion.div>
