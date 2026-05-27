@@ -83,14 +83,22 @@ const TripMap = () => {
       : `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
   }, [trip, showAll, allStops, acts]);
 
+  if (loading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center text-foreground/60">Cargando mapa…</div>;
+  }
+  if (!trip) {
+    return <div className="min-h-screen bg-background flex items-center justify-center text-foreground/60">Viaje no encontrado</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
+      <BackButton floating />
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 -right-40 w-[520px] h-[520px] rounded-full bg-primary/[0.06] blur-[140px]" />
       </div>
 
-      <div className="px-4 md:px-8 pt-5 max-w-[1400px] mx-auto">
+      <div className="px-4 md:px-8 pt-14 md:pt-16 max-w-[1400px] mx-auto">
+
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
             <MapPin className="w-5 h-5 text-primary" />
