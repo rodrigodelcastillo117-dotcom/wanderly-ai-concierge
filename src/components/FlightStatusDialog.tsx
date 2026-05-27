@@ -28,6 +28,20 @@ export const FlightStatusDialog = ({
   const [data, setData] = useState<FlightInfo | null>(null);
   const [citations, setCitations] = useState<string[]>([]);
   const [raw, setRaw] = useState<string>("");
+  const [tracking, setTracking] = useState(false);
+
+  const enableAlerts = async () => {
+    if (!flight.trim()) { toast.error("Primero escribe el número de vuelo"); return; }
+    setTracking(true);
+    try {
+      const sub = await subscribePush();
+      if (!sub.ok) { toast.error(sub.error ?? "No pude activar notificaciones"); return; }
+      await trackFlight({ flight: flight.trim(), flight_date: new Date().toISOString().slice(0,10) });
+      toast.success("Alertas activadas. Te avisaré ante cualquier cambio (gate, retraso, terminal).");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error activando alertas");
+    } finally { setTracking(false); }
+  };
 
   const lookup = async () => {
     if (!flight.trim()) { toast.error("Escribe el número de vuelo (ej. AF179)"); return; }
