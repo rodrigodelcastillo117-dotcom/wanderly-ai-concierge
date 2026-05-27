@@ -322,8 +322,8 @@ export const ConciergeActions = ({
                           </a>
                         )}
                         {kind === "dining" && (
-                          <a href={openTableSearch(p.name)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/[0.04] text-foreground text-[11px] hover:bg-white/[0.08]">
-                            <ExternalLink className="w-3 h-3" /> OpenTable
+                          <a href={openTableSearch(p.name, p.address)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/[0.04] text-foreground text-[11px] hover:bg-white/[0.08]">
+                            <ExternalLink className="w-3 h-3" /> Reservar
                           </a>
                         )}
                         {p.website && (
