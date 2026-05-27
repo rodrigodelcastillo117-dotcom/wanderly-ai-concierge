@@ -508,6 +508,7 @@ export type Database = {
           currency_preference: string | null
           email: string | null
           fecha_nacimiento: string | null
+          food_dna: Json
           full_name: string | null
           id: string
           invite_code: string | null
@@ -525,6 +526,7 @@ export type Database = {
           currency_preference?: string | null
           email?: string | null
           fecha_nacimiento?: string | null
+          food_dna?: Json
           full_name?: string | null
           id: string
           invite_code?: string | null
@@ -542,6 +544,7 @@ export type Database = {
           currency_preference?: string | null
           email?: string | null
           fecha_nacimiento?: string | null
+          food_dna?: Json
           full_name?: string | null
           id?: string
           invite_code?: string | null
@@ -1111,6 +1114,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      visited_places: {
+        Row: {
+          address: string | null
+          created_at: string
+          cuisine: string | null
+          id: string
+          lat: number | null
+          lng: number | null
+          maps_url: string | null
+          name: string
+          notes: string | null
+          photo_ref: string | null
+          place_id: string
+          price_level: string | null
+          primary_type: string | null
+          rating: number | null
+          ratings_count: number | null
+          raw: Json | null
+          status: string
+          types: string[] | null
+          updated_at: string
+          user_id: string
+          visited_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          cuisine?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          maps_url?: string | null
+          name: string
+          notes?: string | null
+          photo_ref?: string | null
+          place_id: string
+          price_level?: string | null
+          primary_type?: string | null
+          rating?: number | null
+          ratings_count?: number | null
+          raw?: Json | null
+          status?: string
+          types?: string[] | null
+          updated_at?: string
+          user_id: string
+          visited_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          cuisine?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          maps_url?: string | null
+          name?: string
+          notes?: string | null
+          photo_ref?: string | null
+          place_id?: string
+          price_level?: string | null
+          primary_type?: string | null
+          rating?: number | null
+          ratings_count?: number | null
+          raw?: Json | null
+          status?: string
+          types?: string[] | null
+          updated_at?: string
+          user_id?: string
+          visited_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
