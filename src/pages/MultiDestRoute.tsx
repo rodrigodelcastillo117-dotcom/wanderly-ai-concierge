@@ -66,8 +66,8 @@ const MultiDestRoute = () => {
     [params],
   );
   const seedOrigin = params.get("origin") ?? "";
-  const fechaSalida = params.get("fecha_salida") ?? "";
-  const fechaRegreso = params.get("fecha_regreso") ?? "";
+  const [fechaSalida, setFechaSalida] = useState(params.get("fecha_salida") ?? "");
+  const [fechaRegreso, setFechaRegreso] = useState(params.get("fecha_regreso") ?? "");
   const viajeros = Number(params.get("viajeros") ?? "2");
   const presupuesto = params.get("presupuesto");
   const autoStart = params.get("auto") === "1" && seedDestinos.length >= 1;
