@@ -20,6 +20,55 @@ const KIND_TO_TYPE: Record<string, string> = {
   lodging: "lodging",
 };
 
+const KIND_TO_QUERY: Record<string, string> = {
+  restaurant: "restaurants",
+  hospital: "hospitales",
+  police: "policía",
+  pharmacy: "farmacias",
+  atm: "cajeros automáticos",
+  embassy: "embajadas",
+  gas_station: "gasolineras",
+  lodging: "hoteles",
+};
+
+async function searchWithSerpApi(body: Body) {
+  const serpKey = Deno.env.get("SERPAPI_PRIVATE_KEY");
+  if (!serpKey) return null;
+
+  const query = body.keyword || KIND_TO_QUERY[body.kind] || body.kind;
+  const params = new URLSearchParams({
+    engine: "google_maps",
+    q: query,
+    ll: `@${body.lat},${body.lng},14z`,
+    type: "search",
+    hl: "es",
+    api_key: serpKey,
+  });
+  const res = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+  const data = await res.json();
+  if (!res.ok || data?.error) throw new Error(data?.error || "SerpAPI Google Maps error");
+
+  return (data.local_results ?? []).slice(0, 15).map((p: any) => ({
+    id: p.place_id ?? p.data_id ?? p.position?.toString() ?? crypto.randomUUID(),
+    name: p.title ?? "",
+    address: p.address ?? "",
+    lat: p.gps_coordinates?.latitude ?? null,
+    lng: p.gps_coordinates?.longitude ?? null,
+    rating: p.rating ?? null,
+    ratings_count: p.reviews ?? 0,
+    price_level: p.price ?? null,
+    phone: p.phone ?? null,
+    maps_url: p.place_id
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.title ?? query)}&query_place_id=${encodeURIComponent(p.place_id)}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.title ?? query} ${p.address ?? ""}`)}`,
+    website: p.website ?? null,
+    open_now: typeof p.open_state === "string" ? !p.open_state.toLowerCase().includes("cerrado") : null,
+    type: p.type ?? p.types?.[0] ?? null,
+    photo_url: p.thumbnail ?? null,
+    source: "SerpAPI Google Maps",
+  }));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
