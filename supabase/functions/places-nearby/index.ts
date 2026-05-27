@@ -132,6 +132,16 @@ Deno.serve(async (req) => {
     const data = await res.json();
     if (!res.ok) {
       console.error("Places API error", data);
+      try {
+        const fallbackPlaces = await searchWithSerpApi(body);
+        if (fallbackPlaces) {
+          return new Response(JSON.stringify({ ok: true, places: fallbackPlaces, source: "serpapi_fallback" }), {
+            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (fallbackError) {
+        console.error("SerpAPI fallback error", fallbackError);
+      }
       return new Response(JSON.stringify({ error: data?.error?.message || "Places API error", details: data }), {
         status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -151,6 +161,8 @@ Deno.serve(async (req) => {
       website: p.websiteUri ?? null,
       open_now: p.currentOpeningHours?.openNow ?? null,
       type: p.primaryTypeDisplayName?.text ?? null,
+      photo_url: null,
+      source: "Google Places",
     }));
 
     return new Response(JSON.stringify({ ok: true, places }), {
