@@ -27,8 +27,11 @@ function quickIata(city: string): string | null {
 
 async function aiIata(apiKey: string, city: string): Promise<string | null> {
   try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 6000);
     const r = await fetch(AI_URL, {
       method: "POST",
+      signal: ctrl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
@@ -37,13 +40,14 @@ async function aiIata(apiKey: string, city: string): Promise<string | null> {
           { role: "user", content: city },
         ],
       }),
-    });
+    }).finally(() => clearTimeout(tid));
     if (!r.ok) return null;
     const j = await r.json();
     const code = (j?.choices?.[0]?.message?.content ?? "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
     return code.length === 3 ? code : null;
   } catch { return null; }
 }
+
 
 function googleFlightsUrl(o: string, d: string, dep: string, ret: string, adults: number) {
   // Formato deep-link directo a Google Flights con filtros aplicados
@@ -66,8 +70,14 @@ Deno.serve(async (req) => {
 
     let dep = quickIata(origin);
     let arr = quickIata(destination);
-    if (!dep && lovableKey) dep = await aiIata(lovableKey, origin);
-    if (!arr && lovableKey) arr = await aiIata(lovableKey, destination);
+    if ((!dep || !arr) && lovableKey) {
+      const [d2, a2] = await Promise.all([
+        dep ? Promise.resolve(dep) : aiIata(lovableKey, origin),
+        arr ? Promise.resolve(arr) : aiIata(lovableKey, destination),
+      ]);
+      dep = d2 ?? dep; arr = a2 ?? arr;
+    }
+
     if (!dep || !arr) {
       return new Response(JSON.stringify({ ok: false, error: "no_iata", origin, destination }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -92,7 +102,9 @@ Deno.serve(async (req) => {
       u.searchParams.set("api_key", serpKey);
 
       try {
-        const r = await fetch(u.toString());
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 18000);
+        const r = await fetch(u.toString(), { signal: ctrl.signal }).finally(() => clearTimeout(tid));
         if (r.ok) {
           const j = await r.json();
           google_flights_url = j?.search_metadata?.google_flights_url ?? null;
