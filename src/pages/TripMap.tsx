@@ -104,6 +104,16 @@ const TripMap = () => {
         {/* Day selector */}
         {days.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1 scrollbar-hide">
+            <button
+              onClick={() => setSelectedDay(-1)}
+              className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition ${
+                showAll
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-white/[0.02] border-white/[0.08] text-foreground/70 hover:border-white/[0.16]"
+              }`}
+            >
+              Todos
+            </button>
             {days.map((d: any, i: number) => (
               <button
                 key={i}
@@ -123,8 +133,8 @@ const TripMap = () => {
         {/* Map */}
         <div className="rounded-3xl overflow-hidden border border-white/[0.08] bg-black/30 mb-5 h-[420px] md:h-[520px]">
           <iframe
-            key={mapQuery}
-            title={`Mapa de ${mapQuery}`}
+            key={embedSrc}
+            title={`Mapa de ${trip.destino}`}
             src={embedSrc}
             className="w-full h-full"
             style={{ border: 0 }}
@@ -133,6 +143,7 @@ const TripMap = () => {
             allowFullScreen
           />
         </div>
+
 
         {/* Day plan */}
         {dayPlan && (
