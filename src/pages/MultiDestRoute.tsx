@@ -80,6 +80,8 @@ const MultiDestRoute = () => {
   const [tripsCount, setTripsCount] = useState<number | null>(null);
   const [confidence, setConfidence] = useState<number>(0);
   const [prefs, setPrefs] = useState<RoutePrefs>(DEFAULT_PREFS);
+  const [emociones, setEmociones] = useState<string[]>([]);
+  const [emocionTexto, setEmocionTexto] = useState("");
 
   const [configOpen, setConfigOpen] = useState(false);
 
