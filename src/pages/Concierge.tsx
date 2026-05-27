@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ConciergeActions } from "@/components/ConciergeActions";
+import { FlightStatusDialog } from "@/components/FlightStatusDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -31,12 +32,13 @@ type Msg = {
   ts: number;
 };
 
-const QUICK_CHIPS: Array<{ icon: any; label: string; action?: LiveAction }> = [
+type QuickAction = LiveAction | "flight" | "luggage";
+const QUICK_CHIPS: Array<{ icon: any; label: string; action?: QuickAction }> = [
   { icon: Utensils, label: "Cena cerca", action: "dining" },
   { icon: Car, label: "Pedir transporte", action: "transport" },
   { icon: Siren, label: "Emergencia local", action: "emergency" },
-  { icon: Plane, label: "¿Mi vuelo va a tiempo?" },
-  { icon: Luggage, label: "Equipaje Invisible" },
+  { icon: Plane, label: "¿Mi vuelo va a tiempo?", action: "flight" },
+  { icon: Luggage, label: "Equipaje Invisible", action: "luggage" },
 ];
 
 // SpeechRecognition typing
@@ -53,6 +55,7 @@ const Concierge = () => {
     text: "Bienvenido. Estoy listo para anticiparme a cualquier capricho o emergencia de tu viaje. Usa los botones rápidos abajo para acciones reales en vivo, o escríbeme cualquier petición.",
   }]);
   const [liveAction, setLiveAction] = useState<LiveAction>(null);
+  const [showFlight, setShowFlight] = useState(false);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [godMode, setGodMode] = useState(false);
@@ -307,7 +310,12 @@ const Concierge = () => {
             {QUICK_CHIPS.map((c) => (
               <button
                 key={c.label}
-                onClick={() => c.action ? setLiveAction(c.action) : sendText(c.label)}
+                onClick={() => {
+                  if (c.action === "flight") setShowFlight(true);
+                  else if (c.action === "luggage") sendText("Quiero activar Equipaje Invisible: recolección en mi ubicación actual y entrega en mi siguiente hospedaje. Dame opciones reales (Luggage Forward, AirPortr, LugLess) con precio y link directo.");
+                  else if (c.action) setLiveAction(c.action as LiveAction);
+                  else sendText(c.label);
+                }}
                 disabled={sending}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition"
               >
@@ -385,6 +393,7 @@ const Concierge = () => {
         </AnimatePresence>
 
         <ConciergeActions open={!!liveAction} kind={liveAction} onClose={() => setLiveAction(null)} />
+        <FlightStatusDialog open={showFlight} onClose={() => setShowFlight(false)} />
       </div>
     </DashboardLayout>
   );
