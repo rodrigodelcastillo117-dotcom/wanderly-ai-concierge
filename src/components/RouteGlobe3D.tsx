@@ -235,7 +235,7 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
         endLng: next.lng,
         altitude,
         label: `${i + 1}. ${p.name} → ${next.name} · ${Math.round(km).toLocaleString()} km`,
-        color: ["#d4af37", "#f5e6a8"],
+        color: ["#7fd4ff", "#bff0ff"],
       };
     });
   }, [points]);
