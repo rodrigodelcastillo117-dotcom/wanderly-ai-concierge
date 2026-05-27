@@ -12,7 +12,8 @@ const TripMap = () => {
   const navigate = useNavigate();
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(0);
+  // -1 = "Todos" (vista global con todos los hoteles/puertos del viaje)
+  const [selectedDay, setSelectedDay] = useState<number>(-1);
 
   useEffect(() => {
     if (!id) return;
