@@ -87,7 +87,13 @@ REGLAS ESTRICTAS DE PRECIOS:
 7. total_estimado = suma coherente del desglose para el GRUPO COMPLETO (multiplica por num_viajeros en vuelos/comida/tours; hospedaje es por habitación × noches).
 8. En analisis_narrativo cita explícitamente 2-3 fuentes reales de la lista de FUENTES CITADAS.
 9. Responde SIEMPRE llamando a la herramienta "entregar_analisis_viaje". Nunca texto libre.
-10. CRUCEROS: Si el viaje incluye múltiples islas/puertos/destinos costeros conectados (islas griegas, Caribe, Mediterráneo, fiordos, Alaska), DEBES llenar "cruceros_alternativas" con 2-3 opciones reales tomadas de la investigación de Perplexity. Si no aplica claramente, devuelve [] (array vacío) en ese campo.`;
+10. CRUCEROS: Si el viaje incluye múltiples islas/puertos/destinos costeros conectados (islas griegas, Caribe, Mediterráneo, fiordos, Alaska), DEBES llenar "cruceros_alternativas" con 2-3 opciones reales tomadas de la investigación de Perplexity. Si no aplica claramente, devuelve [] (array vacío) en ese campo.
+11. INSTRUCCIONES DEL USUARIO (prioridad MÁXIMA): Si el bloque "INSTRUCCIONES LITERALES DEL USUARIO" contiene cualquier exclusión, restricción o preferencia (ej: "sin hospedaje en París", "no quiero hoteles", "ya tengo dónde quedarme en X", "sin tours", "solo vuelos", "no comida", "vegano", "evitar Y"), DEBES respetarla AL 100%. En ese caso:
+    - Pon 0 (cero) en el desglose_presupuesto correspondiente (ej. hospedaje: 0 si dijo sin hospedaje en TODAS las ciudades; si solo excluye una ciudad, descuenta esas noches).
+    - En "hospedaje" devuelve [] si excluyó todo, o solo las ciudades donde SÍ quiere hotel.
+    - Menciona explícitamente en analisis_narrativo: "Respetando tu indicación de [X], no incluyo [Y]".
+    - NO ofrezcas alternativas no pedidas para lo excluido.
+    Lee la instrucción palabra por palabra. Si dice "París sin hospedaje" pero el viaje también va a Roma, sigue cotizando hotel en Roma.`;
 
 const TOOL_SCHEMA = {
   name: "entregar_analisis_viaje",
