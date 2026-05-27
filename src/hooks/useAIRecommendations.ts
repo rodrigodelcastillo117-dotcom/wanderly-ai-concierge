@@ -23,10 +23,10 @@ export function useAIRecommendations() {
     setLoading(true);
     setError(null);
     try {
-      // Asegurar sesión válida antes de llamar (si el refresh token murió, sign out limpio)
-      const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session) {
-        await supabase.auth.signOut();
+      // Asegurar sesión real contra backend antes de llamar Edge Functions.
+      const { data: verified, error: userError } = await supabase.auth.getUser();
+      if (userError || !verified.user) {
+        await supabase.auth.signOut({ scope: "local" });
         setError("Tu sesión expiró. Vuelve a iniciar sesión.");
         return;
       }
@@ -36,7 +36,7 @@ export function useAIRecommendations() {
       if (error) {
         const msg = String(error.message || "");
         if (msg.includes("401") || /invalid auth|no auth/i.test(msg)) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: "local" });
           setError("Tu sesión expiró. Vuelve a iniciar sesión.");
           return;
         }
