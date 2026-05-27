@@ -297,13 +297,20 @@ const PlanTrip = () => {
         const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
         return (
           <div className="space-y-3">
-            <Input
-              autoFocus
-              placeholder="París · o · Roma → Florencia → Venecia"
-              value={destino}
-              onChange={(e) => setDestino(e.target.value)}
-              className="h-16 text-lg bg-input border-border"
-            />
+            <div className="relative">
+              <Input
+                autoFocus
+                placeholder="París · o · Roma → Florencia → Venecia"
+                value={destino}
+                onChange={(e) => setDestino(e.target.value)}
+                className="h-16 text-lg bg-input border-border pr-14"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <VoiceInput
+                  onTranscript={(t) => setDestino((prev) => (prev ? prev + " " : "") + t)}
+                />
+              </div>
+            </div>
             {destino.trim().length > 1 && (
               <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${
                 isMulti
