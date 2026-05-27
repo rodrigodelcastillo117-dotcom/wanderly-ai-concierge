@@ -153,18 +153,9 @@ const MultiDestRoute = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, user, stopsLookLikePhrases]);
 
-  // Autostart cuando venimos con destinos pre-cargados, ya resueltos, y user listo
-  useEffect(() => {
-    if (!autoStart || !user || tripsCount === null || generated || generating || resolvingPrompt) return;
-    if (stopsLookLikePhrases) return; // espera a que se resuelvan
-    if (stops.filter(Boolean).length < 2) return;
-    if (isVeteran) {
-      void generateRoute(DEFAULT_PREFS, true);
-    } else {
-      setConfigOpen(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, user, tripsCount, isVeteran, resolvingPrompt, stopsLookLikePhrases, stops]);
+  // NOTA: ya no auto-generamos la ruta automáticamente.
+  // El usuario debe revisar/editar la travesía y pulsar "Generar travesía"
+  // para avanzar a la siguiente página.
 
   const addStop = () => {
     const v = draft.trim();
