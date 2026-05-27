@@ -734,6 +734,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               viajeros={viajeros}
               presupuesto={presupuesto ? Number(presupuesto) : null}
               onChangeFechas={(fs, fr) => { setFechaSalida(fs); setFechaRegreso(fr); }}
+              onChangeViajeros={(n) => setViajeros(n)}
             />
             <RouteGlobe3D origin={origin} destinations={validStops} />
           </div>
