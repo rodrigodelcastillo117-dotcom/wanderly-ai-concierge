@@ -243,6 +243,12 @@ const DashboardHome = () => {
                 aria-label="Platícame tu viaje"
                 className="flex-1 min-w-0 bg-transparent border-0 outline-none font-display italic text-sm md:text-2xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
               />
+              <TripFileUpload
+                size="sm"
+                onParsed={(summary) => {
+                  navigate(`/dashboard/planear?q=${encodeURIComponent(summary)}&auto=1`);
+                }}
+              />
               <VoiceInput
                 onTranscript={(t) => setConcierge((prev) => (prev ? prev + " " : "") + t)}
                 size="sm"
