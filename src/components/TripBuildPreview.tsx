@@ -1,6 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Route as RouteIcon, Calendar, Users, Wallet, Sparkles, Plane, Hotel, Utensils, Compass, Train } from "lucide-react";
+import { MapPin, Route as RouteIcon, Calendar, Users, Wallet, Sparkles, Plane, Hotel, Utensils, Compass, Train, Pencil } from "lucide-react";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Props = {
   origin?: string;
@@ -10,6 +13,7 @@ type Props = {
   fechaRegreso?: string;
   viajeros?: number;
   presupuesto?: number | null;
+  onChangeFechas?: (fechaSalida: string, fechaRegreso: string) => void;
 };
 
 const fmtDate = (s?: string) => {
