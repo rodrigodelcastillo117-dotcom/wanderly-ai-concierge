@@ -235,7 +235,7 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
         endLng: next.lng,
         altitude,
         label: `${i + 1}. ${p.name} → ${next.name} · ${Math.round(km).toLocaleString()} km`,
-        color: ["#d4af37", "#f5e6a8"],
+        color: ["#7fd4ff", "#bff0ff"],
       };
     });
   }, [points]);
@@ -300,11 +300,11 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
           pointsData={points}
           pointLat={(d: any) => d.lat}
           pointLng={(d: any) => d.lng}
-          pointColor={() => "#f5e6a8"}
-          pointAltitude={0.03}
-          pointRadius={0.55}
-          pointLabel={(d: any) => `<div style="background:rgba(0,0,0,.8);color:#f5e6a8;padding:4px 8px;border-radius:6px;font-size:11px">${d.order + 1}. ${d.name}</div>`}
-          // Etiquetas SIEMPRE visibles: nombres de país (grandes) + ciudades numeradas (chicas)
+          pointColor={() => "#bff0ff"}
+          pointAltitude={0.04}
+          pointRadius={0.6}
+          pointLabel={(d: any) => `<div style="background:rgba(0,0,0,.8);color:#bff0ff;padding:4px 8px;border-radius:6px;font-size:11px">${d.order + 1}. ${d.name}</div>`}
+          // País resaltado en dorado · ciudad numerada en cian, más chica y elevada para no encimarse
           labelsData={[
             ...countryLabels.map((c) => ({ ...c, kind: "country" as const })),
             ...cityLabels.map((c) => ({ ...c, kind: "city" as const })),
@@ -312,13 +312,13 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
           labelLat={(d: any) => d.lat}
           labelLng={(d: any) => d.lng}
           labelText={(d: any) =>
-            d.kind === "country" ? String(d.name).toUpperCase() : `${d.order + 1}. ${d.name}`
+            d.kind === "country" ? String(d.name).toUpperCase() : `${d.order + 1}`
           }
-          labelSize={(d: any) => (d.kind === "country" ? 0.9 : 0.45)}
-          labelDotRadius={(d: any) => (d.kind === "country" ? 0 : 0.3)}
-          labelColor={(d: any) => (d.kind === "country" ? "#f5e6a8" : "#ffffff")}
+          labelSize={(d: any) => (d.kind === "country" ? 0.85 : 0.32)}
+          labelDotRadius={(d: any) => (d.kind === "country" ? 0 : 0.25)}
+          labelColor={(d: any) => (d.kind === "country" ? "#f5e6a8" : "#bff0ff")}
           labelResolution={2}
-          labelAltitude={(d: any) => (d.kind === "country" ? 0.03 : 0.012)}
+          labelAltitude={(d: any) => (d.kind === "country" ? 0.012 : 0.05)}
           arcsData={arcs}
           arcColor={(d: any) => d.color}
           arcAltitude={(d: any) => d.altitude}
