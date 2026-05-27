@@ -88,9 +88,30 @@ const Compare = () => {
         </div>
 
         {rows && (
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="min-w-[600px] px-4 sm:px-0">
-              <div className="grid gap-px bg-border rounded-2xl overflow-hidden" style={{ gridTemplateColumns: `140px repeat(${rows.length}, minmax(160px, 1fr))` }}>
+          <>
+            {/* Mobile: stacked cards */}
+            <div className="space-y-4 md:hidden">
+              {rows.map((r, i) => (
+                <div key={i} className="glass-card rounded-2xl overflow-hidden">
+                  <div className="bg-primary/10 px-4 py-3 border-b border-border">
+                    <p className="text-primary text-[10px] tracking-[0.2em] uppercase">Destino {i + 1}</p>
+                    <h3 className="font-display text-xl">{r.destino}</h3>
+                  </div>
+                  <div className="divide-y divide-border/40">
+                    {fields.map(f => (
+                      <div key={f.key} className="px-4 py-3">
+                        <p className="text-primary text-xs font-medium mb-1">{f.label}</p>
+                        <p className="text-sm text-foreground/90 break-words">{r[f.key]}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop / tablet: grid table */}
+            <div className="hidden md:block overflow-x-auto">
+              <div className="grid gap-px bg-border rounded-2xl overflow-hidden" style={{ gridTemplateColumns: `160px repeat(${rows.length}, minmax(180px, 1fr))` }}>
                 <div className="bg-card p-3 text-xs uppercase tracking-wider text-muted-foreground">Aspecto</div>
                 {rows.map((r, i) => (
                   <div key={i} className="bg-card p-3 font-display text-lg">{r.destino}</div>
@@ -99,13 +120,13 @@ const Compare = () => {
                   <Fragment key={f.key}>
                     <div className="bg-card p-3 text-sm font-medium text-primary">{f.label}</div>
                     {rows.map((r, i) => (
-                      <div key={`${f.key}-${i}`} className="bg-card p-3 text-sm">{r[f.key]}</div>
+                      <div key={`${f.key}-${i}`} className="bg-card p-3 text-sm break-words">{r[f.key]}</div>
                     ))}
                   </Fragment>
                 ))}
               </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     </DashboardLayout>
