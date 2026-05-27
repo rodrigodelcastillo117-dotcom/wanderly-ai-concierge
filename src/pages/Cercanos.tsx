@@ -243,7 +243,7 @@ const Cercanos = () => {
       marker.addListener("click", () => {
         setShowRoute(false);
         setSelected(p);
-        logInsight("viewed", "place", p.name ?? "", { placeId: p.placeId, cuisine: p.cuisine });
+        logInsight("viewed", "restaurant", p.name ?? "", { placeId: p.placeId, cuisine: p.cuisine });
       });
       markers.current.set(p.placeId, marker);
       bounds.extend({ lat: p.lat, lng: p.lng });
@@ -280,7 +280,7 @@ const Cercanos = () => {
   const toggleFav = (p: EnrichedPlace) => {
     const isFav = favorited.has(p.placeId);
     setFavorited((s) => { const n = new Set(s); isFav ? n.delete(p.placeId) : n.add(p.placeId); return n; });
-    logInsight(isFav ? "removed" : "saved", "place", p.name ?? "", { placeId: p.placeId });
+    logInsight(isFav ? "removed" : "saved", "restaurant", p.name ?? "", { placeId: p.placeId });
   };
 
   const hasKey = !!import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
