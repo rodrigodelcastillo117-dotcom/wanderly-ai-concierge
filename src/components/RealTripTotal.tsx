@@ -31,7 +31,14 @@ const EMOCIONES_SUGERIDAS = [
 
 export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
   const [emocion, setEmocion] = useState("");
+  const [selectedEmociones, setSelectedEmociones] = useState<string[]>([]);
   const [adapting, setAdapting] = useState(false);
+
+  const toggleEmocion = (s: string) => {
+    setSelectedEmociones((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+    );
+  };
 
   const vuelos: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
   const hoteles: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
