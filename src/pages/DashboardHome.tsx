@@ -10,6 +10,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { VoiceInput } from "@/components/VoiceInput";
+import { TripFileUpload } from "@/components/TripFileUpload";
 
 
 import kyoto from "@/assets/destination-kyoto.jpg";
