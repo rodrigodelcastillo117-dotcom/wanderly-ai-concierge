@@ -304,13 +304,29 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
           pointAltitude={0.03}
           pointRadius={0.55}
           pointLabel={(d: any) => `<div style="background:rgba(0,0,0,.8);color:#f5e6a8;padding:4px 8px;border-radius:6px;font-size:11px">${d.order + 1}. ${d.name}</div>`}
+          // Etiquetas SIEMPRE visibles: nombres de país (grandes) + ciudades numeradas (chicas)
+          labelsData={[
+            ...countryLabels.map((c) => ({ ...c, kind: "country" as const })),
+            ...cityLabels.map((c) => ({ ...c, kind: "city" as const })),
+          ]}
+          labelLat={(d: any) => d.lat}
+          labelLng={(d: any) => d.lng}
+          labelText={(d: any) =>
+            d.kind === "country" ? String(d.name).toUpperCase() : `${d.order + 1}. ${d.name}`
+          }
+          labelSize={(d: any) => (d.kind === "country" ? 0.9 : 0.45)}
+          labelDotRadius={(d: any) => (d.kind === "country" ? 0 : 0.3)}
+          labelColor={(d: any) => (d.kind === "country" ? "#f5e6a8" : "#ffffff")}
+          labelResolution={2}
+          labelAltitude={(d: any) => (d.kind === "country" ? 0.03 : 0.012)}
           arcsData={arcs}
           arcColor={(d: any) => d.color}
+          arcAltitude={(d: any) => d.altitude}
           arcDashLength={0.4}
           arcDashGap={0.15}
           arcDashAnimateTime={2200}
-          arcStroke={0.6}
-          arcAltitudeAutoScale={0.45}
+          arcStroke={0.7}
+          arcLabel={(d: any) => `<div style="background:rgba(0,0,0,.85);color:#f5e6a8;padding:4px 8px;border-radius:6px;font-size:11px">${d.label}</div>`}
         />
       </div>
 
