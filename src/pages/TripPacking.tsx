@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Check, Plus, Trash2, Luggage, AlertCircle, Sparkles, Loader2 } from "lucide-react";
+import { Check, Plus, Trash2, Luggage, AlertCircle, Sparkles, Loader2, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BackButton } from "@/components/BackButton";
 import { toast } from "sonner";
 
 type Item = { id: string; text: string; done: boolean; category: string; sort_order: number };
