@@ -33,6 +33,7 @@ export const TripBuildPreview = ({
   fechaRegreso,
   viajeros,
   presupuesto,
+  onChangeFechas,
 }: Props) => {
   const dests = (() => {
     if (destinations && destinations.length) return destinations.filter(Boolean);
