@@ -373,8 +373,10 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
       }
 
       setGenerated({ logistics, autonomous, tripId });
-      toast.success("Travesía lista. Revísala y pulsa 'Ver viaje completo' para continuar.");
-      // Ya no navegamos automáticamente: el usuario decide cuándo avanzar.
+      toast.success("Travesía lista. Abriendo tu viaje completo…");
+      if (tripId) {
+        navigate(`/dashboard/viajes/${tripId}`);
+      }
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "No pudimos generar la ruta");
