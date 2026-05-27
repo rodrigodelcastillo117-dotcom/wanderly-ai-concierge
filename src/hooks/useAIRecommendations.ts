@@ -23,10 +23,25 @@ export function useAIRecommendations() {
     setLoading(true);
     setError(null);
     try {
+      // Asegurar sesión válida antes de llamar (si el refresh token murió, sign out limpio)
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) {
+        await supabase.auth.signOut();
+        setError("Tu sesión expiró. Vuelve a iniciar sesión.");
+        return;
+      }
       const { data, error } = await supabase.functions.invoke("recomendar-destinos", {
         body: { refresh },
       });
-      if (error) throw error;
+      if (error) {
+        const msg = String(error.message || "");
+        if (msg.includes("401") || /invalid auth|no auth/i.test(msg)) {
+          await supabase.auth.signOut();
+          setError("Tu sesión expiró. Vuelve a iniciar sesión.");
+          return;
+        }
+        throw error;
+      }
       if ((data as any)?.error) throw new Error((data as any).error);
       setRecos((data as any)?.destinations ?? []);
     } catch (e: any) {
