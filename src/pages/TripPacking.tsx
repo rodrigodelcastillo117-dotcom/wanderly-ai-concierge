@@ -198,7 +198,8 @@ const TripPacking = () => {
       </div>
 
       <div className="px-4 md:px-8 pt-5 max-w-[900px] mx-auto">
-        <div className="flex items-center gap-3 mb-5">
+        <BackButton floating />
+        <div className="flex items-center gap-3 mb-5 mt-10">
           <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
             <Luggage className="w-5 h-5 text-primary" />
           </div>
@@ -206,6 +207,16 @@ const TripPacking = () => {
             <div className="text-[11px] uppercase tracking-[0.2em] text-primary font-semibold">Packing list</div>
             <h1 className="text-xl md:text-3xl font-serif truncate">{trip.destino}</h1>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={suggestWithAI}
+            disabled={aiLoading}
+            className="border-primary/40 text-primary hover:bg-primary/10"
+          >
+            {aiLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 mr-1" />}
+            Sugerencias IA
+          </Button>
           <Button variant="ghost" size="sm" onClick={reset}>Reset</Button>
         </div>
 
@@ -231,6 +242,7 @@ const TripPacking = () => {
             <Plus className="w-4 h-4" />
           </Button>
         </div>
+
 
         <div className="space-y-5">
           {grouped.map(([cat, list]) => (
