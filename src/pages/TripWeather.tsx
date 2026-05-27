@@ -49,20 +49,22 @@ const TripWeather = () => {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.from("trips").select("*").eq("id", id).single();
-      setTrip(data);
-      if (!data) { setLoading(false); return; }
+      const t: any = data;
+      setTrip(t);
+      if (!t) { setLoading(false); return; }
 
-      // Reúne ciudades: ciudades[] + hospedaje_json.ciudad + destino como fallback
       const set = new Set<string>();
-      const list: string[] = Array.isArray(data.ciudades) ? data.ciudades : [];
-      list.forEach((c) => c && set.add(c.trim()));
-      (data.hospedaje_json ?? []).forEach((h: any) => {
+      const list: string[] = Array.isArray(t.ciudades) ? t.ciudades : [];
+      list.forEach((c: string) => c && set.add(c.trim()));
+      const hosp = Array.isArray(t.hospedaje_json) ? t.hospedaje_json : [];
+      hosp.forEach((h: any) => {
         const c = h?.ciudad ?? h?.city;
         if (c) set.add(String(c).trim());
       });
-      if (set.size === 0 && data.destino) {
-        String(data.destino).split(/[,&]| y /).forEach((c) => c.trim() && set.add(c.trim()));
+      if (set.size === 0 && t.destino) {
+        String(t.destino).split(/[,&]| y /).forEach((c) => c.trim() && set.add(c.trim()));
       }
+
       const arr = Array.from(set);
 
       const results = await Promise.all(
