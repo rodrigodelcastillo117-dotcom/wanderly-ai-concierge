@@ -310,7 +310,12 @@ const Concierge = () => {
             {QUICK_CHIPS.map((c) => (
               <button
                 key={c.label}
-                onClick={() => c.action ? setLiveAction(c.action) : sendText(c.label)}
+                onClick={() => {
+                  if (c.action === "flight") setShowFlight(true);
+                  else if (c.action === "luggage") sendText("Quiero activar Equipaje Invisible: recolección en mi ubicación actual y entrega en mi siguiente hospedaje. Dame opciones reales (Luggage Forward, AirPortr, LugLess) con precio y link directo.");
+                  else if (c.action) setLiveAction(c.action as LiveAction);
+                  else sendText(c.label);
+                }}
                 disabled={sending}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition"
               >
