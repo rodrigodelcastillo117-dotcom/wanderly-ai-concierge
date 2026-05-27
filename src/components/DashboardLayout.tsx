@@ -17,14 +17,15 @@ const links = [
   { to: "/dashboard/concierge", icon: Mail, label: "Concierge PRO" },
 ];
 
-// Mobile bottom nav — 2 left + centered (+) + 2 right, with labels
-const mobileLeft = [
+// Mobile bottom nav — all 7 tabs + floating (+) above the bar
+const mobileNav = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
   { to: "/dashboard/viajes", icon: Map, label: "Viajes" },
-];
-const mobileRight = [
+  { to: "/dashboard/cercanos", icon: MapPin, label: "Cerca" },
+  { to: "/dashboard/favoritos", icon: Heart, label: "Favs" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/concierge", icon: Crown, label: "Concierge PRO" },
+  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
+  { to: "/dashboard/concierge", icon: Crown, label: "PRO" },
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
@@ -178,42 +179,21 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
       {/* Mobile bottom nav — labels under icons, centered floating gold (+) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
-        <div className="relative mx-3 rounded-[28px] border border-white/[0.06] bg-black/75 backdrop-blur-2xl shadow-[0_18px_60px_-12px_rgba(0,0,0,0.85)]">
-          <div className="grid grid-cols-5 items-end px-2 pt-2 pb-2">
-            {mobileLeft.map((n) => (
+        <div className="relative mx-2 rounded-[28px] border border-white/[0.06] bg-black/75 backdrop-blur-2xl shadow-[0_18px_60px_-12px_rgba(0,0,0,0.85)]">
+          <div className="grid grid-cols-7 items-end px-1.5 pt-2 pb-2 gap-0.5">
+            {mobileNav.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
                 end={n.end}
                 className={({ isActive }) =>
-                  `flex flex-col items-center justify-center gap-1 py-1.5 rounded-2xl transition-colors ${
+                  `flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-colors ${
                     isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   }`
                 }
               >
-                <n.icon className="w-[20px] h-[20px]" strokeWidth={1.75} />
-                <span className="text-[10px] tracking-wide leading-none">{n.label}</span>
-              </NavLink>
-            ))}
-
-            {/* Center column: label only (the floating (+) sits above) */}
-            <div className="flex flex-col items-center justify-end pb-1.5">
-              <span className="h-[20px]" />
-              <span className="text-[10px] tracking-wide leading-none text-primary mt-1">Nuevo</span>
-            </div>
-
-            {mobileRight.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                className={({ isActive }) =>
-                  `flex flex-col items-center justify-center gap-1 py-1.5 rounded-2xl transition-colors ${
-                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                  }`
-                }
-              >
-                <n.icon className="w-[20px] h-[20px]" strokeWidth={1.75} />
-                <span className="text-[10px] tracking-wide leading-tight text-center">{n.label}</span>
+                <n.icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                <span className="text-[9px] tracking-wide leading-none">{n.label}</span>
               </NavLink>
             ))}
           </div>
@@ -222,7 +202,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           <button
             onClick={() => navigate("/dashboard/planear")}
             aria-label="Crear nuevo viaje"
-            className="absolute left-1/2 -top-6 -translate-x-1/2 w-14 h-14 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground shadow-[0_14px_36px_-8px_hsl(41_47%_59%/0.65),inset_0_1px_0_hsl(41_60%_80%/0.5)] ring-4 ring-background active:scale-95 transition"
+            className="absolute left-1/2 -top-7 -translate-x-1/2 w-14 h-14 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground shadow-[0_14px_36px_-8px_hsl(41_47%_59%/0.65),inset_0_1px_0_hsl(41_60%_80%/0.5)] ring-4 ring-background active:scale-95 transition"
           >
             <span aria-hidden className="absolute inset-0 rounded-full bg-primary/30 blur-xl -z-10" />
             <Plus className="w-6 h-6" strokeWidth={2.25} />
