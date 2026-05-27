@@ -251,7 +251,16 @@ FORMATO OBLIGATORIO: Para cada ítem reporta "Aerolínea/Hotel X: $XX,XXX MXN" c
 
 2. HOSPEDAJE — ${dias} noches totales (desglosa por ciudad si aplica). 3 opciones con NOMBRE REAL del hotel (3★, 4★ boutique, 5★), barrio, rating, precio MXN por noche habitación doble en esas fechas exactas. Fuentes: Booking.com, Hotels.com.
 
-3. CRUCERO (si aplica): nombre real, naviera, itinerario, precio MXN por persona interior y balcón. Fuentes: Celestyal, MSC, Royal Caribbean.
+3. CRUCERO COMO ALTERNATIVA (OBLIGATORIO si el destino incluye 2+ islas, puertos o ciudades costeras conectadas — ej: islas griegas, Caribe, Mediterráneo, fiordos noruegos, Alaska, Bahamas):
+   Busca 2-3 cruceros REALES con salida desde el puerto natural más cercano al origen del viaje (ej: Pireo/Atenas para islas griegas, Civitavecchia/Roma para Mediterráneo Oeste, Barcelona, Miami para Caribe). Para cada uno reporta:
+   - Naviera + nombre del barco (Celestyal Journey, MSC Musica, Royal Caribbean Odyssey, etc)
+   - Nombre del itinerario oficial (ej: "Iconic Aegean 4 noches" de Celestyal)
+   - Puertos visitados en orden + número de noches
+   - Fecha de salida real dentro del rango ${body.fecha_salida} → ${body.fecha_regreso}
+   - Precio MXN por persona en cabina interior, exterior y balcón (con impuestos/propinas)
+   - Qué incluye (comidas, excursiones, traslados)
+   - Si reemplaza parte del itinerario por islas, calcula ahorro aproximado vs hacer cada isla independiente con ferry+hotel+comida.
+   Fuentes: vacationstogo.com, celestyal.com, cruisedirect.com, cruisecritic.com, msccruises.com, royalcaribbean.com.
 
 4. TOURS: 4-6 experiencias reales con nombre, duración y precio MXN por persona. Fuentes: GetYourGuide, Viator, Civitatis.
 
