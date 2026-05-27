@@ -557,6 +557,36 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       recomendaciones: {
         Row: {
           created_at: string
@@ -628,6 +658,54 @@ export type Database = {
           stripe_subscription_id?: string | null
           trial_end?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tracked_flights: {
+        Row: {
+          active: boolean
+          created_at: string
+          flight: string
+          flight_date: string | null
+          id: string
+          last_checked_at: string | null
+          last_estimated: string | null
+          last_gate: string | null
+          last_status: string | null
+          last_terminal: string | null
+          route: string | null
+          trip_id: string | null
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          flight: string
+          flight_date?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_estimated?: string | null
+          last_gate?: string | null
+          last_status?: string | null
+          last_terminal?: string | null
+          route?: string | null
+          trip_id?: string | null
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          flight?: string
+          flight_date?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_estimated?: string | null
+          last_gate?: string | null
+          last_status?: string | null
+          last_terminal?: string | null
+          route?: string | null
+          trip_id?: string | null
           user_id?: string
         }
         Relationships: []
