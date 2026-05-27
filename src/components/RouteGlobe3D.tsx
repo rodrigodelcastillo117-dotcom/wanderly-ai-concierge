@@ -92,6 +92,7 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
   const [points, setPoints] = useState<Pt[]>([]);
   const [loading, setLoading] = useState(false);
   const [countries, setCountries] = useState<any[]>([]);
+  const [altitude, setAltitude] = useState(2.4);
 
   const cities = useMemo(() => {
     const arr = [origin, ...destinations].map((s) => (s ?? "").trim()).filter(Boolean) as string[];
