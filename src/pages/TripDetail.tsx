@@ -58,10 +58,7 @@ const TripDetail = () => {
     if (!id) return;
     const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
     setTrip(data);
-    const tours = (data as any)?.tours_json;
-    if (Array.isArray(tours) && tours.length) {
-      setSelTours(new Set(tours.map((_: any, i: number) => i)));
-    }
+    // Experiencias arrancan sin seleccionar — el usuario elige cuál le interesa.
     setLoading(false);
   };
 
