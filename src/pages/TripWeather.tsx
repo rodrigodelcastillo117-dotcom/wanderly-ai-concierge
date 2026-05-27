@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Cloud, CloudRain, Sun, CloudSnow, Wind, Droplets } from "lucide-react";
+import { Cloud, CloudRain, Sun, CloudSnow, Wind, Droplets } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { motion } from "framer-motion";
@@ -49,9 +49,6 @@ const TripWeather = () => {
   return (
     <DashboardLayout>
       <div className="p-6 md:p-10 max-w-4xl mx-auto">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-6">
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
         <div className="mb-8">
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">Clima</p>
           <h1 className="font-display text-4xl">{trip?.destino || "Cargando..."}</h1>

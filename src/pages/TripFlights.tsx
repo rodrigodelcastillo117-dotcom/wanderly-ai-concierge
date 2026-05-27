@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Plane, Search, ExternalLink, Loader2 } from "lucide-react";
+import { Plane, Search, ExternalLink, Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,10 +66,6 @@ const TripFlights = () => {
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
-
         <div>
           <h1 className="font-display text-3xl md:text-4xl">Vuelos reales</h1>
           <p className="text-sm text-muted-foreground mt-1">Precios en vivo de Google Flights · compra directa con tu aerolínea</p>

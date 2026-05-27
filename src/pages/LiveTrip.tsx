@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, MapPin, Calendar, Phone, Languages, Crown,
+  MapPin, Calendar, Phone, Languages, Crown,
   Navigation, Clock, Utensils, Hotel, Plane, Activity, AlertCircle, Sparkles, Luggage,
   Cloud, BookHeart, Users
 } from "lucide-react";
@@ -110,13 +110,6 @@ const LiveTrip = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-background" />
 
         <div className="relative z-10 px-4 md:px-8 pt-5 pb-6 h-full flex flex-col">
-          <button
-            onClick={() => navigate(-1)}
-            className="self-start flex items-center gap-2 px-3 py-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/90 text-sm hover:bg-black/60 transition"
-          >
-            <ArrowLeft className="w-4 h-4" /> Volver
-          </button>
-
           <div className="mt-auto">
             <motion.div
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}

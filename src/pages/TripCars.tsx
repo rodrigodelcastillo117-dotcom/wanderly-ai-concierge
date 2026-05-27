@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Car, ExternalLink, Search } from "lucide-react";
+import { Car, ExternalLink, Search } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +24,6 @@ const TripCars = () => {
   return (
     <DashboardLayout>
       <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 space-y-6">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
-
         <div className="flex items-start gap-3">
           <Car className="w-8 h-8 text-primary mt-1" />
           <div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Ship, ExternalLink, Search } from "lucide-react";
+import { Ship, ExternalLink, Search } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,13 +50,6 @@ const Ferries = () => {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
-
         <div className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden border border-white/10">
           <DestinationVideo
             query={`ferry boat ${destination || "mediterranean sea"}`}

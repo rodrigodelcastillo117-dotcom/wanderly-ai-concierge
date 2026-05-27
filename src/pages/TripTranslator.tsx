@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Languages, Volume2, Sparkles } from "lucide-react";
+import { Languages, Volume2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -59,9 +59,6 @@ const TripTranslator = () => {
   return (
     <DashboardLayout>
       <div className="p-6 md:p-10 max-w-3xl mx-auto">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-6">
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
         <div className="mb-6 flex items-center gap-3">
           <Languages className="w-7 h-7 text-primary" />
           <div>
