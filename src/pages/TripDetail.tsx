@@ -10,6 +10,7 @@ import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
 import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
+import { RealTripTotal } from "@/components/RealTripTotal";
 import { InviteFriendDialog } from "@/components/InviteFriendDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateTripPDF } from "@/lib/tripPdf";
@@ -268,15 +269,19 @@ const TripDetail = () => {
 
         {/* Total + Análisis narrativo */}
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <LiveTripQuote
-            origin={trip.ciudad_origen}
-            destination={isMulti ? destinationsMulti[0] : trip.destino}
-            depart={trip.fecha_salida}
-            return_date={trip.fecha_regreso}
-            nights={noches}
-            travelers={viajeros}
-            fallbackMxn={computedTotal}
-          />
+          {(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0) ? (
+            <RealTripTotal trip={trip} noches={noches} viajeros={viajeros} />
+          ) : (
+            <LiveTripQuote
+              origin={trip.ciudad_origen}
+              destination={isMulti ? destinationsMulti[0] : trip.destino}
+              depart={trip.fecha_salida}
+              return_date={trip.fecha_regreso}
+              nights={noches}
+              travelers={viajeros}
+              fallbackMxn={computedTotal}
+            />
+          )}
           {trip.analisis_ai && (
             <details className="glass-card rounded-2xl group">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
@@ -538,8 +543,26 @@ const TripDetail = () => {
                     <p className="text-sm italic text-foreground/80 mb-3">{c.por_que}</p>
                     <div className="flex flex-wrap items-end justify-between gap-3">
                       <div>
-                        <p className="font-display text-2xl">{fmtMXN(c.precio_por_persona)}</p>
-                        <p className="text-[11px] text-muted-foreground">por persona</p>
+                        {(() => {
+                          const pp = Number(c.precio_por_persona)
+                            || (Number(c.precio_total) && viajeros ? Number(c.precio_total) / viajeros : 0);
+                          const tot = Number(c.precio_total) || pp * viajeros;
+                          return (
+                            <>
+                              {pp > 0 ? (
+                                <>
+                                  <p className="font-display text-2xl">{fmtMXN(pp)}</p>
+                                  <p className="text-[11px] text-muted-foreground">por persona · total {fmtMXN(tot)}</p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="font-display text-xl text-muted-foreground">Cotización pendiente</p>
+                                  <p className="text-[11px] text-muted-foreground">Pídela al concierge</p>
+                                </>
+                              )}
+                            </>
+                          );
+                        })()}
                         {ahorro !== 0 && (
                           <p className={`text-xs mt-1 ${ahorro > 0 ? "text-emerald-400" : "text-amber-400"}`}>
                             {ahorro > 0 ? "Ahorras ≈ " : "Cuesta ≈ "}{fmtMXN(Math.abs(ahorro))} vs island-hop independiente
