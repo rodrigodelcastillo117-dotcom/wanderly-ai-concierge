@@ -735,7 +735,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         </AnimatePresence>
           </div>
 
-          <div className="lg:sticky lg:top-10">
+          <div className="lg:sticky lg:top-10 space-y-5">
             <TripBuildPreview
               origin={origin}
               destinations={validStops}
@@ -744,6 +744,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               viajeros={viajeros}
               presupuesto={presupuesto ? Number(presupuesto) : null}
             />
+            <RouteGlobe3D origin={origin} destinations={validStops} />
           </div>
         </div>
       </div>
