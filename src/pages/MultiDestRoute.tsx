@@ -525,6 +525,43 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
           </div>
         </section>
 
+        {/* Emoción del viaje — IATOS AI acopla a esta emoción */}
+        <section className="rounded-2xl border border-border bg-background p-5 md:p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="text-primary">♡</span>
+            <h3 className="font-display text-xs md:text-sm uppercase tracking-[0.2em] text-primary">
+              ¿Cuál es tu emoción del viaje?
+            </h3>
+          </div>
+          <Input
+            value={emocionTexto}
+            onChange={(e) => setEmocionTexto(e.target.value)}
+            placeholder='ej. quiero sentir libertad total y aventura'
+            className="bg-transparent border-border h-12"
+          />
+          <div className="flex flex-wrap gap-2">
+            {[
+              "Aventura adrenalina","Romance y conexión","Lujo y descanso","Cultura profunda",
+              "Naturaleza y desconexión","Fiesta y vida nocturna","Gastronomía","Espiritual / mindfulness",
+            ].map((em) => {
+              const active = emociones.includes(em);
+              return (
+                <button
+                  key={em}
+                  type="button"
+                  onClick={() => setEmociones((prev) => prev.includes(em) ? prev.filter(x => x !== em) : [...prev, em])}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${active ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                >
+                  {em}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground italic">
+            Puedes elegir varias emociones · IATOS AI las mezcla y reorganiza experiencias, restaurantes y ritmo.
+          </p>
+        </section>
+
         {/* Generated output */}
         <AnimatePresence>
           {generated && (
