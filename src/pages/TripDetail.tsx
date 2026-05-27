@@ -492,6 +492,71 @@ const TripDetail = () => {
           })}
         </div>
 
+        {/* Cruceros alternativos */}
+        {Array.isArray(trip.cruceros_json) && trip.cruceros_json.length > 0 && (
+          <details className="glass-card rounded-2xl group" open>
+            <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+              <div className="flex items-center gap-3">
+                <Ship className="w-5 h-5 text-primary" />
+                <h2 className="font-display text-xl">¿Y si lo haces en crucero?</h2>
+                <span className="text-xs text-muted-foreground">({trip.cruceros_json.length} alternativas reales)</span>
+              </div>
+              <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
+              <p className="text-xs text-muted-foreground italic">
+                Reemplazan parte del itinerario por isla/puerto con un crucero todo-incluido. Precios cotizados por persona.
+              </p>
+              {trip.cruceros_json.map((c: any, i: number) => {
+                const ahorro = Number(c.ahorro_vs_islas_independiente) || 0;
+                const dest = encodeURIComponent(c.puerto_salida?.includes("Atenas") || c.puerto_salida?.toLowerCase().includes("pir") ? "Greek Isles" : "Mediterranean");
+                const cruceroUrl = `/dashboard/cruceros?dest=${dest}${c.fecha_salida_sugerida ? `&depart=${c.fecha_salida_sugerida}` : ""}`;
+                return (
+                  <div key={i} className="rounded-xl border border-border/60 bg-surface/40 p-4 md:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                      <div>
+                        <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{c.naviera}{c.barco ? ` · ${c.barco}` : ""}</p>
+                        <h3 className="font-display text-lg leading-tight mt-0.5">{c.nombre_itinerario}</h3>
+                      </div>
+                      <span className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/30 whitespace-nowrap">
+                        {c.noches} noches · {c.categoria_cabina}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      <span className="font-medium text-foreground/80">Sale de:</span> {c.puerto_salida}
+                      {c.fecha_salida_sugerida && <> · <span className="font-medium text-foreground/80">Fecha:</span> {c.fecha_salida_sugerida}</>}
+                    </p>
+                    {Array.isArray(c.puertos_visitados) && c.puertos_visitados.length > 0 && (
+                      <p className="text-xs mb-2"><span className="text-muted-foreground">Ruta:</span> {c.puertos_visitados.join(" → ")}</p>
+                    )}
+                    {Array.isArray(c.incluye) && c.incluye.length > 0 && (
+                      <p className="text-xs mb-2"><span className="text-muted-foreground">Incluye:</span> {c.incluye.join(", ")}</p>
+                    )}
+                    <p className="text-sm italic text-foreground/80 mb-3">{c.por_que}</p>
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                      <div>
+                        <p className="font-display text-2xl">{fmtMXN(c.precio_por_persona)}</p>
+                        <p className="text-[11px] text-muted-foreground">por persona</p>
+                        {ahorro !== 0 && (
+                          <p className={`text-xs mt-1 ${ahorro > 0 ? "text-emerald-400" : "text-amber-400"}`}>
+                            {ahorro > 0 ? "Ahorras ≈ " : "Cuesta ≈ "}{fmtMXN(Math.abs(ahorro))} vs island-hop independiente
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => navigate(cruceroUrl)}
+                        className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition"
+                      >
+                        Ver y reservar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        )}
+
         {/* Tips */}
         {trip.tips_personalizados?.length > 0 && (
           <details className="glass-card rounded-2xl group">
