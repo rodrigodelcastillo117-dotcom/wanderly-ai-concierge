@@ -29,7 +29,7 @@ export async function trackBookingClick(b: TrackBookingInput) {
     country: b.country ?? null,
     start_at: b.startAt ?? null,
     image_url: b.imageUrl ?? null,
-    status: "redirected",
+    status: "pending",
   });
   window.open(b.bookingUrl, "_blank");
 }

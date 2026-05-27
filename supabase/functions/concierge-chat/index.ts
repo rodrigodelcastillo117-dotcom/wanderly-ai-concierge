@@ -22,6 +22,8 @@ Si el usuario menciona equipaje, ofrece "Equipaje Invisible" (logistics card).
 Si menciona vuelo o First Class, considera ofrecer un Empty Leg en jet privado (jet card).
 Si detectas urgencia (retraso, emergencia, robo), usa una alerta (alert card).
 
+No finjas confirmaciones. Si no hay integración directa de compra/reserva, entrega el mejor link accionable real (OpenTable, Google Maps, sitio oficial, teléfono o proveedor) y di que la confirmación final ocurre en el proveedor.
+
 Responde SIEMPRE con JSON válido:
 {
   "text": "string",
@@ -43,7 +45,37 @@ interface Body {
     destino?: string;
     fechas?: string;
     bovedaResumen?: string;
+    coords?: { lat: number; lng: number };
+    place?: string;
   };
+}
+
+async function nearbyRestaurants(coords?: { lat: number; lng: number }) {
+  const key = Deno.env.get("SERPAPI_PRIVATE_KEY");
+  if (!key || !coords) return [];
+  const params = new URLSearchParams({
+    engine: "google_maps",
+    q: "restaurantes para cenar",
+    ll: `@${coords.lat},${coords.lng},14z`,
+    type: "search",
+    hl: "es",
+    api_key: key,
+  });
+  const r = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+  const j = await r.json();
+  return (j.local_results ?? []).slice(0, 3).map((p: any) => ({
+    type: "restaurant",
+    title: p.title,
+    subtitle: p.address || p.type,
+    image_url: p.thumbnail,
+    rating: p.rating ? Number(p.rating) : undefined,
+    cta_label: "Ver y reservar",
+    cta_action: p.place_id
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.title)}&query_place_id=${encodeURIComponent(p.place_id)}`
+      : `https://www.opentable.com/s?term=${encodeURIComponent(p.title)}`,
+    meta: [p.type, p.open_state, p.price].filter(Boolean).join(" · "),
+    provider: "Google Maps",
+  }));
 }
 
 Deno.serve(async (req) => {
@@ -72,6 +104,16 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as Body;
+    const lastUser = [...(body.messages ?? [])].reverse().find((m) => m.role === "user")?.content?.toLowerCase() ?? "";
+    if (/\b(cena|cenas|cenar|restaurante|restaurantes|mesa|comer cerca)\b/.test(lastUser)) {
+      const cards = await nearbyRestaurants(body.context?.coords);
+      if (cards.length) {
+        return new Response(JSON.stringify({
+          text: "Encontré opciones reales cerca de ti. Te dejo links accionables; la disponibilidad final se confirma en el proveedor.",
+          cards,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
 
     // Carga contexto del viaje activo y bóveda
     const { data: trip } = await supabase
