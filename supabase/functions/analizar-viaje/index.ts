@@ -435,6 +435,12 @@ VIAJE
 - Presupuesto objetivo (MXN): ${body.presupuesto_objetivo ?? "sin presupuesto fijo"}
 
 ==========================================
+INSTRUCCIONES LITERALES DEL USUARIO (prioridad MÁXIMA — léelas palabra por palabra y obedece SIN excepciones)
+==========================================
+${body.notas_usuario?.trim() ? body.notas_usuario.trim() : "(sin instrucciones adicionales)"}
+==========================================
+
+==========================================
 INVESTIGACIÓN DE PRECIOS REALES (Perplexity, datos en vivo)
 ==========================================
 ${investigacion.texto}
@@ -443,7 +449,7 @@ FUENTES CITADAS:
 ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 ==========================================
 
-Llama a "entregar_analisis_viaje" usando estos precios reales. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona debe ser el TOTAL de la ruta aérea completa por persona, no un tramo suelto. Todo en MXN.`;
+Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario (si pidió excluir hospedaje en alguna ciudad, no lo cotices ahí y pon 0 o solo las ciudades incluidas). En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona debe ser el TOTAL de la ruta aérea completa por persona, no un tramo suelto. Todo en MXN.`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
