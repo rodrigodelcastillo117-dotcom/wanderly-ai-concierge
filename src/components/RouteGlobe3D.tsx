@@ -35,12 +35,63 @@ async function geocodeCity(q: string): Promise<{ lat: number; lng: number } | nu
   return null;
 }
 
+// Point-in-polygon (ray casting) — soporta Polygon y MultiPolygon GeoJSON
+function pointInRing(lng: number, lat: number, ring: number[][]) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const intersect =
+      yi > lat !== yj > lat &&
+      lng < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function pointInFeature(lng: number, lat: number, feat: any): boolean {
+  const g = feat?.geometry;
+  if (!g) return false;
+  if (g.type === "Polygon") {
+    if (!pointInRing(lng, lat, g.coordinates[0])) return false;
+    for (let i = 1; i < g.coordinates.length; i++) {
+      if (pointInRing(lng, lat, g.coordinates[i])) return false;
+    }
+    return true;
+  }
+  if (g.type === "MultiPolygon") {
+    for (const poly of g.coordinates) {
+      if (!pointInRing(lng, lat, poly[0])) continue;
+      let inHole = false;
+      for (let i = 1; i < poly.length; i++) {
+        if (pointInRing(lng, lat, poly[i])) { inHole = true; break; }
+      }
+      if (!inHole) return true;
+    }
+  }
+  return false;
+}
+
+// Cache global del GeoJSON de países
+let countriesPromise: Promise<any[]> | null = null;
+function loadCountries(): Promise<any[]> {
+  if (!countriesPromise) {
+    countriesPromise = fetch(
+      "https://unpkg.com/three-globe@2.31.1/example/country-polygons/ne_110m_admin_0_countries.geojson"
+    )
+      .then((r) => r.json())
+      .then((g) => g?.features ?? [])
+      .catch(() => []);
+  }
+  return countriesPromise;
+}
+
 export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<any>(null);
   const [width, setWidth] = useState(600);
   const [points, setPoints] = useState<Pt[]>([]);
   const [loading, setLoading] = useState(false);
+  const [countries, setCountries] = useState<any[]>([]);
 
   const cities = useMemo(() => {
     const arr = [origin, ...destinations].map((s) => (s ?? "").trim()).filter(Boolean) as string[];
@@ -54,6 +105,15 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
     });
     ro.observe(wrapRef.current);
     return () => ro.disconnect();
+  }, []);
+
+  // Carga polígonos de países una sola vez
+  useEffect(() => {
+    let cancelled = false;
+    loadCountries().then((feats) => {
+      if (!cancelled) setCountries(feats);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -80,20 +140,41 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
     };
   }, [cities]);
 
-  // Animación: auto-rotación y enfoque al centroide
+  // Países que contiene la ruta (set de nombres)
+  const highlightedNames = useMemo(() => {
+    if (!countries.length || !points.length) return new Set<string>();
+    const names = new Set<string>();
+    for (const p of points) {
+      for (const f of countries) {
+        if (pointInFeature(p.lng, p.lat, f)) {
+          const nm = f.properties?.ADMIN || f.properties?.NAME || f.properties?.name;
+          if (nm) names.add(nm);
+          break;
+        }
+      }
+    }
+    return names;
+  }, [countries, points]);
+
+  // Auto-rotación + detenerla al primer interactuar (zoom/drag)
   useEffect(() => {
     if (!globeRef.current) return;
     const controls = globeRef.current.controls?.();
-    if (controls) {
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.6;
-      controls.enableZoom = true;
-    }
-    if (points.length > 0) {
-      const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
-      const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
-      globeRef.current.pointOfView({ lat, lng, altitude: 2.4 }, 1200);
-    }
+    if (!controls) return;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.6;
+    controls.enableZoom = true;
+    const stop = () => { controls.autoRotate = false; };
+    controls.addEventListener("start", stop);
+    return () => { controls.removeEventListener?.("start", stop); };
+  }, [countries.length]);
+
+  // Enfoque al centroide cuando cambian los puntos
+  useEffect(() => {
+    if (!globeRef.current || points.length === 0) return;
+    const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+    const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
+    globeRef.current.pointOfView({ lat, lng, altitude: 2.4 }, 1200);
   }, [points]);
 
   const arcs = useMemo(() => {
@@ -139,12 +220,37 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
           bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
           atmosphereColor="#d4af37"
           atmosphereAltitude={0.18}
+          // Países como polígonos — los de la ruta van resaltados en dorado
+          polygonsData={countries}
+          polygonAltitude={(d: any) =>
+            highlightedNames.has(d?.properties?.ADMIN || d?.properties?.NAME) ? 0.025 : 0.005
+          }
+          polygonCapColor={(d: any) =>
+            highlightedNames.has(d?.properties?.ADMIN || d?.properties?.NAME)
+              ? "rgba(212, 175, 55, 0.55)"
+              : "rgba(255, 255, 255, 0.02)"
+          }
+          polygonSideColor={(d: any) =>
+            highlightedNames.has(d?.properties?.ADMIN || d?.properties?.NAME)
+              ? "rgba(212, 175, 55, 0.35)"
+              : "rgba(255, 255, 255, 0.05)"
+          }
+          polygonStrokeColor={(d: any) =>
+            highlightedNames.has(d?.properties?.ADMIN || d?.properties?.NAME)
+              ? "#f5e6a8"
+              : "rgba(255, 255, 255, 0.18)"
+          }
+          polygonLabel={(d: any) => {
+            const nm = d?.properties?.ADMIN || d?.properties?.NAME;
+            if (!highlightedNames.has(nm)) return "";
+            return `<div style="background:rgba(0,0,0,.85);color:#f5e6a8;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.05em">${nm.toUpperCase()}</div>`;
+          }}
           pointsData={points}
           pointLat={(d: any) => d.lat}
           pointLng={(d: any) => d.lng}
           pointColor={() => "#f5e6a8"}
-          pointAltitude={0.02}
-          pointRadius={0.5}
+          pointAltitude={0.03}
+          pointRadius={0.55}
           pointLabel={(d: any) => `<div style="background:rgba(0,0,0,.8);color:#f5e6a8;padding:4px 8px;border-radius:6px;font-size:11px">${d.order + 1}. ${d.name}</div>`}
           arcsData={arcs}
           arcColor={(d: any) => d.color}
@@ -158,7 +264,9 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
 
       {points.length >= 2 && (
         <p className="mt-3 text-[11px] text-muted-foreground italic">
-          {points.length} puntos · {arcs.length} tramos. Arrastra para girar el globo.
+          {points.length} puntos · {arcs.length} tramos
+          {highlightedNames.size > 0 ? ` · ${highlightedNames.size} países resaltados` : ""}.
+          Arrastra para girar · usa la rueda para zoom (la rotación automática se detiene al interactuar).
         </p>
       )}
     </div>
