@@ -393,6 +393,7 @@ const Concierge = () => {
         </AnimatePresence>
 
         <ConciergeActions open={!!liveAction} kind={liveAction} onClose={() => setLiveAction(null)} />
+        <FlightStatusDialog open={showFlight} onClose={() => setShowFlight(false)} />
       </div>
     </DashboardLayout>
   );
