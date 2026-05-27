@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, Calendar, Hotel, Utensils, Activity, ExternalLink } from "lucide-react";
+import { MapPin, Calendar, Hotel, Utensils, Activity, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
@@ -60,13 +60,6 @@ const TripMap = () => {
       </div>
 
       <div className="px-4 md:px-8 pt-5 max-w-[1400px] mx-auto">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-sm text-foreground/70 hover:text-foreground mb-4"
-        >
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
-
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
             <MapPin className="w-5 h-5 text-primary" />

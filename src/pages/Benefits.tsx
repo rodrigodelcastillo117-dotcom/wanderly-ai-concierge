@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Crown, ExternalLink, Sparkles, Plane, Hotel, Wifi, Car, CreditCard } from "lucide-react";
+import { Crown, ExternalLink, Sparkles, Plane, Hotel, Wifi, Car, CreditCard } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 
@@ -53,10 +53,6 @@ const Benefits = () => {
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
-
         <div className="flex items-start gap-3">
           <Crown className="w-8 h-8 text-primary mt-1" />
           <div>

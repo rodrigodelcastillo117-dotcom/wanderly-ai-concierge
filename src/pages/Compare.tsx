@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, GitCompare, Sparkles, X, Plus } from "lucide-react";
+import { GitCompare, Sparkles, X, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -60,9 +60,6 @@ const Compare = () => {
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 md:p-10 max-w-6xl mx-auto">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-6">
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
         <div className="mb-6 flex items-center gap-3">
           <GitCompare className="w-7 h-7 text-primary" />
           <div>

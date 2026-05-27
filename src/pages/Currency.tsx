@@ -24,8 +24,9 @@ const Currency = () => {
       const r = await fetch(`https://open.er-api.com/v6/latest/${base}`).then(r => r.json());
       if (r?.rates) {
         setRates(r.rates);
-        setUpdated(new Date(r.time_last_update_unix * 1000).toLocaleString("es-MX"));
-        try { localStorage.setItem(`iatos:fx:${base}`, JSON.stringify({ rates: r.rates, updated: r.time_last_update_unix })); } catch {}
+        setUpdated(new Date().toLocaleString("es-MX"));
+        try { localStorage.setItem(`iatos:fx:${base}`, JSON.stringify({ rates: r.rates, updated: Math.floor(Date.now() / 1000) })); } catch {}
+        toast.success("Tasas actualizadas");
       } else throw new Error();
     } catch {
       // Fallback to cache
@@ -50,9 +51,6 @@ const Currency = () => {
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 md:p-10 max-w-2xl mx-auto">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-6">
-          <ArrowLeft className="w-4 h-4" /> Volver
-        </button>
         <div className="mb-6 flex items-center gap-3">
           <DollarSign className="w-7 h-7 text-primary" />
           <div>
