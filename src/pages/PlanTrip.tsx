@@ -94,6 +94,7 @@ const PlanTrip = () => {
     fecha_regreso: string;
     num_viajeros: number;
     presupuesto_objetivo?: number | null;
+    notas_usuario?: string | null;
   }) => {
     setDestino(args.destino);
     setAnalizando(true);
