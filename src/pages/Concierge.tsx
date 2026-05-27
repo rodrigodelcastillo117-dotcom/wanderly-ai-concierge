@@ -8,6 +8,7 @@ import {
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ConciergeActions } from "@/components/ConciergeActions";
 import { FlightStatusDialog } from "@/components/FlightStatusDialog";
+import { TravelerAvatar } from "@/components/TravelerAvatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
