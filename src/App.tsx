@@ -54,6 +54,7 @@ const App = () => (
       <Toaster />
       <Sonner theme="dark" />
       <BrowserRouter>
+        <ScrollToTop />
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Landing />} />
