@@ -25,7 +25,7 @@ const mobileNav = [
   { to: "/dashboard/favoritos", icon: Heart, label: "Favs" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
-  { to: "/dashboard/concierge", icon: Crown, label: "PRO" },
+  { to: "/dashboard/concierge", icon: Crown, label: "LUX" },
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
