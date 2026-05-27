@@ -309,20 +309,6 @@ const TripDetail = () => {
               fallbackMxn={computedTotal}
             />
           )}
-          {trip.analisis_ai && (
-            <details className="glass-card rounded-2xl group">
-              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <div className="flex items-center gap-3">
-                  <Lightbulb className="w-5 h-5 text-primary" />
-                  <h2 className="font-display text-xl">Análisis de tu concierge</h2>
-                </div>
-                <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="px-5 pb-5 pt-1 border-t border-border/40">
-                <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-line">{trip.analisis_ai}</p>
-              </div>
-            </details>
-          )}
         </motion.section>
 
         {/* Selector noches (solo single + hospedaje seleccionado) */}
