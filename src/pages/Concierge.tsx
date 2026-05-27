@@ -55,6 +55,7 @@ const Concierge = () => {
     text: "Bienvenido. Estoy listo para anticiparme a cualquier capricho o emergencia de tu viaje. Usa los botones rápidos abajo para acciones reales en vivo, o escríbeme cualquier petición.",
   }]);
   const [liveAction, setLiveAction] = useState<LiveAction>(null);
+  const [showFlight, setShowFlight] = useState(false);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [godMode, setGodMode] = useState(false);
