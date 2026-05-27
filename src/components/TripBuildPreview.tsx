@@ -291,15 +291,14 @@ export const TripBuildPreview = ({
                         const full = `${shareText} ${shareUrl}`.trim();
                         return (
                           <div className="grid grid-cols-3 gap-2">
-                            <a
-                              href={`https://wa.me/?text=${encodeURIComponent(full)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex flex-col items-center gap-1 rounded-lg bg-surface border border-border hover:border-primary/50 py-2 transition-colors"
+                            <button
+                              type="button"
+                              onClick={() => setIatosOpen(true)}
+                              className="flex flex-col items-center gap-1 rounded-lg bg-primary/10 border border-primary/40 hover:border-primary py-2 transition-colors"
                             >
-                              <MessageCircle className="w-4 h-4 text-primary" />
-                              <span className="text-[10px]">WhatsApp</span>
-                            </a>
+                              <Send className="w-4 h-4 text-primary" />
+                              <span className="text-[10px] text-primary">IATOS</span>
+                            </button>
                             <a
                               href={`mailto:?subject=${encodeURIComponent("Mi viaje en IATOS AI")}&body=${encodeURIComponent(full)}`}
                               className="flex flex-col items-center gap-1 rounded-lg bg-surface border border-border hover:border-primary/50 py-2 transition-colors"
