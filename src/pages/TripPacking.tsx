@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Check, Plus, Trash2, Luggage, AlertCircle, Sparkles, Loader2 } from "lucide-react";
+import { Check, Plus, Trash2, Luggage, AlertCircle, Sparkles, Loader2, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BackButton } from "@/components/BackButton";
 import { toast } from "sonner";
 
 type Item = { id: string; text: string; done: boolean; category: string; sort_order: number };
@@ -88,6 +89,34 @@ const TripPacking = () => {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
   const [newItem, setNewItem] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const suggestWithAI = async () => {
+    if (!trip || !id) return;
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("suggest-packing", { body: { trip } });
+      if (error) throw error;
+      const suggestions: { text: string; category: string }[] = data?.items ?? [];
+      if (!suggestions.length) { toast.info("La IA no devolvió sugerencias"); return; }
+      const existing = new Set(items.map(i => i.text.toLowerCase().trim()));
+      const fresh = suggestions
+        .filter(s => s.text && !existing.has(s.text.toLowerCase().trim()))
+        .map((s, i) => ({
+          trip_id: id, text: s.text, category: s.category || "Personalizado",
+          done: false, sort_order: items.length + i,
+        }));
+      if (!fresh.length) { toast.success("Tu lista ya está completa ✨"); return; }
+      const { data: ins, error: insErr } = await supabase.from("trip_packing_items").insert(fresh).select();
+      if (insErr) throw insErr;
+      setItems(prev => [...prev, ...(ins as Item[])]);
+      toast.success(`+${ins?.length ?? fresh.length} sugerencias inteligentes`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "No se pudieron generar sugerencias");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -169,7 +198,8 @@ const TripPacking = () => {
       </div>
 
       <div className="px-4 md:px-8 pt-5 max-w-[900px] mx-auto">
-        <div className="flex items-center gap-3 mb-5">
+        <BackButton floating />
+        <div className="flex items-center gap-3 mb-5 mt-10">
           <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
             <Luggage className="w-5 h-5 text-primary" />
           </div>
@@ -177,6 +207,16 @@ const TripPacking = () => {
             <div className="text-[11px] uppercase tracking-[0.2em] text-primary font-semibold">Packing list</div>
             <h1 className="text-xl md:text-3xl font-serif truncate">{trip.destino}</h1>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={suggestWithAI}
+            disabled={aiLoading}
+            className="border-primary/40 text-primary hover:bg-primary/10"
+          >
+            {aiLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 mr-1" />}
+            Sugerencias IA
+          </Button>
           <Button variant="ghost" size="sm" onClick={reset}>Reset</Button>
         </div>
 
@@ -202,6 +242,7 @@ const TripPacking = () => {
             <Plus className="w-4 h-4" />
           </Button>
         </div>
+
 
         <div className="space-y-5">
           {grouped.map(([cat, list]) => (

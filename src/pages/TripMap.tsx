@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { MapPin, Calendar, Hotel, Utensils, Activity, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/BackButton";
 
 const BROWSER_KEY = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
 
@@ -11,7 +12,8 @@ const TripMap = () => {
   const navigate = useNavigate();
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(0);
+  // -1 = "Todos" (vista global con todos los hoteles/puertos del viaje)
+  const [selectedDay, setSelectedDay] = useState<number>(-1);
 
   useEffect(() => {
     if (!id) return;
@@ -31,16 +33,55 @@ const TripMap = () => {
   const dayPlan = days[selectedDay] ?? null;
   const acts: any[] = dayPlan?.actividades ?? dayPlan?.plan ?? [];
 
-  // Build search query for the embed
-  const mapQuery = useMemo(() => {
+  // Lugares clave del viaje completo (hoteles + puertos del crucero)
+  const allStops = useMemo(() => {
+    if (!trip) return [] as string[];
+    const stops: string[] = [];
+    const hosp = Array.isArray(trip.hospedaje_json) ? trip.hospedaje_json : [];
+    hosp.forEach((h: any) => {
+      const name = h?.nombre ?? h?.hotel ?? h?.titulo;
+      const city = h?.ciudad ?? h?.city ?? "";
+      if (name) stops.push(`${name}${city ? `, ${city}` : ""}`);
+      else if (city) stops.push(city);
+    });
+    const cru = Array.isArray(trip.cruceros_json) ? trip.cruceros_json : [];
+    cru.forEach((c: any) => {
+      const ports = c?.itinerario ?? c?.puertos ?? [];
+      if (Array.isArray(ports)) ports.forEach((p: any) => {
+        const port = typeof p === "string" ? p : (p?.puerto ?? p?.ciudad);
+        if (port) stops.push(`Puerto ${port}`);
+      });
+    });
+    const cities = Array.isArray(trip.ciudades) ? trip.ciudades : [];
+    cities.forEach((c: string) => { if (c && !stops.some(s => s.includes(c))) stops.push(c); });
+    return stops;
+  }, [trip]);
+
+  const showAll = selectedDay < 0;
+
+  // Build embed src
+  const embedSrc = useMemo(() => {
     if (!trip) return "";
-    const base = trip.destino;
-    if (!dayPlan) return base;
-    // Take first activity place name if available
-    const firstAct = acts[0];
-    const placeName = typeof firstAct === "string" ? firstAct : (firstAct?.lugar ?? firstAct?.actividad ?? firstAct?.titulo ?? "");
-    return placeName ? `${placeName} ${base}` : base;
-  }, [trip, dayPlan, acts]);
+    if (showAll && allStops.length >= 2 && BROWSER_KEY) {
+      // Directions traza una ruta y MUESTRA TODOS los marcadores (hoteles/puertos)
+      const origin = allStops[0];
+      const destination = allStops[allStops.length - 1];
+      const waypoints = allStops.slice(1, -1).slice(0, 8); // máx 9 en embed
+      const wp = waypoints.length ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}` : "";
+      return `https://www.google.com/maps/embed/v1/directions?key=${BROWSER_KEY}&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${wp}&mode=driving`;
+    }
+    let q = trip.destino;
+    if (!showAll) {
+      const firstAct = acts[0];
+      const placeName = typeof firstAct === "string" ? firstAct : (firstAct?.lugar ?? firstAct?.actividad ?? firstAct?.titulo ?? "");
+      if (placeName) q = `${placeName} ${trip.destino}`;
+    } else if (allStops.length) {
+      q = allStops[0];
+    }
+    return BROWSER_KEY
+      ? `https://www.google.com/maps/embed/v1/search?key=${BROWSER_KEY}&q=${encodeURIComponent(q)}&zoom=12`
+      : `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
+  }, [trip, showAll, allStops, acts]);
 
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center text-foreground/60">Cargando mapa…</div>;
@@ -49,17 +90,15 @@ const TripMap = () => {
     return <div className="min-h-screen bg-background flex items-center justify-center text-foreground/60">Viaje no encontrado</div>;
   }
 
-  const embedSrc = BROWSER_KEY
-    ? `https://www.google.com/maps/embed/v1/search?key=${BROWSER_KEY}&q=${encodeURIComponent(mapQuery)}&zoom=13`
-    : `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`;
-
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
+      <BackButton floating />
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 -right-40 w-[520px] h-[520px] rounded-full bg-primary/[0.06] blur-[140px]" />
       </div>
 
-      <div className="px-4 md:px-8 pt-5 max-w-[1400px] mx-auto">
+      <div className="px-4 md:px-8 pt-14 md:pt-16 max-w-[1400px] mx-auto">
+
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
             <MapPin className="w-5 h-5 text-primary" />
@@ -73,6 +112,16 @@ const TripMap = () => {
         {/* Day selector */}
         {days.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1 scrollbar-hide">
+            <button
+              onClick={() => setSelectedDay(-1)}
+              className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition ${
+                showAll
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-white/[0.02] border-white/[0.08] text-foreground/70 hover:border-white/[0.16]"
+              }`}
+            >
+              Todos
+            </button>
             {days.map((d: any, i: number) => (
               <button
                 key={i}
@@ -92,8 +141,8 @@ const TripMap = () => {
         {/* Map */}
         <div className="rounded-3xl overflow-hidden border border-white/[0.08] bg-black/30 mb-5 h-[420px] md:h-[520px]">
           <iframe
-            key={mapQuery}
-            title={`Mapa de ${mapQuery}`}
+            key={embedSrc}
+            title={`Mapa de ${trip.destino}`}
             src={embedSrc}
             className="w-full h-full"
             style={{ border: 0 }}
@@ -102,6 +151,7 @@ const TripMap = () => {
             allowFullScreen
           />
         </div>
+
 
         {/* Day plan */}
         {dayPlan && (
