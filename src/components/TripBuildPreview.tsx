@@ -371,6 +371,106 @@ export const TripBuildPreview = ({
           </ul>
         </div>
       )}
+
+      <Dialog open={iatosOpen} onOpenChange={setIatosOpen}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <Send className="w-4 h-4 text-primary" /> Compartir por IATOS Social
+            </DialogTitle>
+            <DialogDescription>
+              Envía este viaje a las notificaciones de tus amigos en IATOS.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-72 overflow-y-auto rounded-xl border border-border divide-y divide-border/60">
+            {loadingFriends ? (
+              <div className="py-8 flex items-center justify-center text-muted-foreground text-sm gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Cargando amigos…
+              </div>
+            ) : friends.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground px-4">
+                Aún no tienes amigos en IATOS Social. Invita a alguien desde la sección <b>Social</b>.
+              </div>
+            ) : (
+              friends.map((f) => {
+                const checked = selectedFriends.has(f.id);
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() =>
+                      setSelectedFriends((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(f.id)) next.delete(f.id); else next.add(f.id);
+                        return next;
+                      })
+                    }
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                      checked ? "bg-primary/10" : "hover:bg-surface"
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center overflow-hidden shrink-0">
+                      {f.avatar ? (
+                        <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-primary font-medium">
+                          {f.name.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <span className="flex-1 text-sm truncate">{f.name}</span>
+                    <span className={`w-5 h-5 rounded-md border flex items-center justify-center ${
+                      checked ? "bg-primary border-primary" : "border-border"
+                    }`}>
+                      {checked && <Check className="w-3.5 h-3.5 text-primary-foreground" />}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <p className="text-xs text-muted-foreground">
+              {selectedFriends.size} seleccionados
+            </p>
+            <Button
+              type="button"
+              disabled={sending || selectedFriends.size === 0}
+              onClick={async () => {
+                setSending(true);
+                try {
+                  const shareText = `Mira este viaje que estoy armando con IATOS AI${
+                    destinations && destinations.length
+                      ? `: ${destinations.filter(Boolean).join(" → ")}`
+                      : destinoRaw ? `: ${destinoRaw}` : ""
+                  }${fechaSalida ? ` (${fmtDate(fechaSalida)}${fechaRegreso ? ` → ${fmtDate(fechaRegreso)}` : ""})` : ""}.`;
+                  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+                  const { data, error } = await supabase.functions.invoke("share-trip-notify", {
+                    body: {
+                      friend_ids: Array.from(selectedFriends),
+                      message: shareText,
+                      url: shareUrl,
+                    },
+                  });
+                  if (error || (data as any)?.error) throw error || new Error((data as any).error);
+                  toast.success(`Viaje enviado a ${selectedFriends.size} amigo(s)`);
+                  setSelectedFriends(new Set());
+                  setIatosOpen(false);
+                } catch (e: any) {
+                  toast.error(e?.message ?? "No se pudo enviar");
+                } finally {
+                  setSending(false);
+                }
+              }}
+            >
+              {sending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+              Enviar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 };
