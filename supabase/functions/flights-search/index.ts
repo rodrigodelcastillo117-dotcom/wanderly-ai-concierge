@@ -70,8 +70,14 @@ Deno.serve(async (req) => {
 
     let dep = quickIata(origin);
     let arr = quickIata(destination);
-    if (!dep && lovableKey) dep = await aiIata(lovableKey, origin);
-    if (!arr && lovableKey) arr = await aiIata(lovableKey, destination);
+    if ((!dep || !arr) && lovableKey) {
+      const [d2, a2] = await Promise.all([
+        dep ? Promise.resolve(dep) : aiIata(lovableKey, origin),
+        arr ? Promise.resolve(arr) : aiIata(lovableKey, destination),
+      ]);
+      dep = d2 ?? dep; arr = a2 ?? arr;
+    }
+
     if (!dep || !arr) {
       return new Response(JSON.stringify({ ok: false, error: "no_iata", origin, destination }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
