@@ -32,14 +32,11 @@ export async function subscribePush(): Promise<{ ok: boolean; error?: string }> 
     // Pedir public key al backend (también guarda suscripción cuando se la mandemos después)
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      // primer intento: ir por la key
-      const pre = await supabase.functions.invoke("push-subscribe", { body: { subscription: { endpoint: "x", keys: { p256dh: "x", auth: "x" } } } });
-      const vapidPublicKey = (pre.data as any)?.vapidPublicKey;
-      if (!vapidPublicKey) {
-        // si falló por validación, intenta leer del error response (no aplica) → pide via OPTIONS
-      }
-      const key = vapidPublicKey || (await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/push-subscribe`, { method: "OPTIONS" }).then(()=>null));
-      if (!vapidPublicKey) return { ok: false, error: "No pude obtener VAPID key" };
+      const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/push-subscribe`, {
+        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+      });
+      const { vapidPublicKey } = await r.json();
+      if (!vapidPublicKey) return { ok: false, error: "VAPID key no configurada" };
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
