@@ -153,7 +153,22 @@ export const TripBuildPreview = ({
                         id="fs"
                         type="date"
                         value={fechaSalida ?? ""}
-                        onChange={(e) => onChangeFechas(e.target.value, fechaRegreso ?? "")}
+                        onChange={(e) => {
+                          const newSalida = e.target.value;
+                          // Si ya hay una duración definida, conservamos los días y recorremos el regreso
+                          if (newSalida && fechaSalida && fechaRegreso) {
+                            const prevDays = Math.round(
+                              (new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000,
+                            );
+                            if (prevDays > 0) {
+                              const d = new Date(newSalida);
+                              d.setDate(d.getDate() + prevDays);
+                              onChangeFechas(newSalida, d.toISOString().slice(0, 10));
+                              return;
+                            }
+                          }
+                          onChangeFechas(newSalida, fechaRegreso ?? "");
+                        }}
                         className="bg-input border-border h-10 mt-1"
                       />
                     </div>
@@ -168,6 +183,9 @@ export const TripBuildPreview = ({
                         className="bg-input border-border h-10 mt-1"
                       />
                     </div>
+                    <p className="text-[10px] text-muted-foreground italic pt-1 border-t border-border/40">
+                      Al cambiar la fecha de ida, la de regreso se ajusta automáticamente para conservar tus {nights ?? "—"} noches.
+                    </p>
                   </div>
                 </PopoverContent>
               </Popover>
