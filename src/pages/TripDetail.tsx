@@ -297,7 +297,7 @@ const TripDetail = () => {
         {/* Total + Análisis narrativo */}
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           {(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0) ? (
-            <RealTripTotal trip={trip} noches={noches} viajeros={viajeros} />
+            <RealTripTotal trip={trip} noches={noches} viajeros={viajeros} onUpdated={loadTrip} />
           ) : (
             <LiveTripQuote
               origin={trip.ciudad_origen}
