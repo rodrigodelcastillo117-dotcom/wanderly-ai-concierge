@@ -208,6 +208,7 @@ const PlanTrip = () => {
           fecha_regreso: data?.fecha_regreso || defaultRegreso,
           num_viajeros: Number(data?.num_viajeros) || 2,
           presupuesto_objetivo: data?.presupuesto_objetivo ?? null,
+          notas_usuario: q,
         });
       } catch (e: any) {
         if (cancelled) return;
