@@ -12,6 +12,11 @@ export type AIRecommendation = {
   image_query: string;
 };
 
+type AIRecommendationsResponse = {
+  destinations?: AIRecommendation[];
+  error?: string;
+};
+
 export function useAIRecommendations() {
   const { user } = useAuth();
   const [recos, setRecos] = useState<AIRecommendation[] | null>(null);
@@ -23,10 +28,10 @@ export function useAIRecommendations() {
     setLoading(true);
     setError(null);
     try {
-      // Asegurar sesión válida antes de llamar (si el refresh token murió, sign out limpio)
-      const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session) {
-        await supabase.auth.signOut();
+      // Asegurar sesión real contra backend antes de llamar Edge Functions.
+      const { data: verified, error: userError } = await supabase.auth.getUser();
+      if (userError || !verified.user) {
+        await supabase.auth.signOut({ scope: "local" });
         setError("Tu sesión expiró. Vuelve a iniciar sesión.");
         return;
       }
@@ -36,17 +41,18 @@ export function useAIRecommendations() {
       if (error) {
         const msg = String(error.message || "");
         if (msg.includes("401") || /invalid auth|no auth/i.test(msg)) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: "local" });
           setError("Tu sesión expiró. Vuelve a iniciar sesión.");
           return;
         }
         throw error;
       }
-      if ((data as any)?.error) throw new Error((data as any).error);
-      setRecos((data as any)?.destinations ?? []);
-    } catch (e: any) {
+      const response = data as AIRecommendationsResponse | null;
+      if (response?.error) throw new Error(response.error);
+      setRecos(response?.destinations ?? []);
+    } catch (e: unknown) {
       console.error(e);
-      setError(e?.message ?? "No pudimos generar recomendaciones");
+      setError(e instanceof Error ? e.message : "No pudimos generar recomendaciones");
     } finally {
       setLoading(false);
     }
