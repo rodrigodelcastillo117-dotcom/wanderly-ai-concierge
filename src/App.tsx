@@ -40,6 +40,9 @@ import Benefits from "./pages/Benefits";
 import TripCars from "./pages/TripCars";
 import TripESIM from "./pages/TripESIM";
 import TripActivities from "./pages/TripActivities";
+import Restaurantes from "./pages/Restaurantes";
+import Trenes from "./pages/Trenes";
+import Reservas from "./pages/Reservas";
 
 const queryClient = new QueryClient();
 
