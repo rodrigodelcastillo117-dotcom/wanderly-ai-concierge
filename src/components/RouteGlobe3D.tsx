@@ -1,0 +1,168 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import Globe from "react-globe.gl";
+import { Globe2, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+type Props = {
+  origin?: string;
+  destinations: string[];
+  height?: number;
+};
+
+type Pt = { name: string; lat: number; lng: number; order: number };
+
+// Geocoding cache en memoria (sesión)
+const geoCache = new Map<string, { lat: number; lng: number }>();
+
+async function geocodeCity(q: string): Promise<{ lat: number; lng: number } | null> {
+  const key = q.trim().toLowerCase();
+  if (!key) return null;
+  if (geoCache.has(key)) return geoCache.get(key)!;
+  try {
+    const { data, error } = await supabase.functions.invoke("geocode", {
+      body: { address: q },
+    });
+    if (error) throw error;
+    const r = Array.isArray(data?.results) ? data.results[0] : null;
+    if (r && typeof r.lat === "number" && typeof r.lng === "number") {
+      const v = { lat: r.lat, lng: r.lng };
+      geoCache.set(key, v);
+      return v;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const globeRef = useRef<any>(null);
+  const [width, setWidth] = useState(600);
+  const [points, setPoints] = useState<Pt[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const cities = useMemo(() => {
+    const arr = [origin, ...destinations].map((s) => (s ?? "").trim()).filter(Boolean) as string[];
+    return Array.from(new Set(arr));
+  }, [origin, destinations]);
+
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) setWidth(Math.max(280, e.contentRect.width));
+    });
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (cities.length === 0) {
+      setPoints([]);
+      return;
+    }
+    setLoading(true);
+    (async () => {
+      const out: Pt[] = [];
+      for (let i = 0; i < cities.length; i++) {
+        const g = await geocodeCity(cities[i]);
+        if (cancelled) return;
+        if (g) out.push({ name: cities[i], lat: g.lat, lng: g.lng, order: i });
+      }
+      if (!cancelled) {
+        setPoints(out);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cities]);
+
+  // Animación: auto-rotación y enfoque al centroide
+  useEffect(() => {
+    if (!globeRef.current) return;
+    const controls = globeRef.current.controls?.();
+    if (controls) {
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.6;
+      controls.enableZoom = true;
+    }
+    if (points.length > 0) {
+      const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+      const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
+      globeRef.current.pointOfView({ lat, lng, altitude: 2.4 }, 1200);
+    }
+  }, [points]);
+
+  const arcs = useMemo(() => {
+    if (points.length < 2) return [];
+    return points.slice(0, -1).map((p, i) => ({
+      startLat: p.lat,
+      startLng: p.lng,
+      endLat: points[i + 1].lat,
+      endLng: points[i + 1].lng,
+      color: ["#d4af37", "#f5e6a8"],
+    }));
+  }, [points]);
+
+  return (
+    <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 p-4 md:p-5 premium-shadow">
+      <header className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Globe2 className="w-4 h-4 text-primary" />
+          <div>
+            <p className="text-[10px] tracking-[0.25em] uppercase text-primary/80">Ruta 3D</p>
+            <h3 className="font-display text-base md:text-lg">Tu travesía en el mundo</h3>
+          </div>
+        </div>
+        {loading && <Loader2 className="w-4 h-4 text-primary animate-spin" />}
+      </header>
+
+      <div
+        ref={wrapRef}
+        className="relative w-full overflow-hidden rounded-2xl bg-black"
+        style={{ height }}
+      >
+        {points.length === 0 && !loading && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground italic px-4 text-center">
+            Agrega ciudades arriba y verás tu ruta trazada sobre el globo terráqueo.
+          </div>
+        )}
+        <Globe
+          ref={globeRef}
+          width={width}
+          height={height}
+          backgroundColor="rgba(0,0,0,0)"
+          globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+          bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+          atmosphereColor="#d4af37"
+          atmosphereAltitude={0.18}
+          pointsData={points}
+          pointLat={(d: any) => d.lat}
+          pointLng={(d: any) => d.lng}
+          pointColor={() => "#f5e6a8"}
+          pointAltitude={0.02}
+          pointRadius={0.5}
+          pointLabel={(d: any) => `<div style="background:rgba(0,0,0,.8);color:#f5e6a8;padding:4px 8px;border-radius:6px;font-size:11px">${d.order + 1}. ${d.name}</div>`}
+          arcsData={arcs}
+          arcColor={(d: any) => d.color}
+          arcDashLength={0.4}
+          arcDashGap={0.15}
+          arcDashAnimateTime={2200}
+          arcStroke={0.6}
+          arcAltitudeAutoScale={0.45}
+        />
+      </div>
+
+      {points.length >= 2 && (
+        <p className="mt-3 text-[11px] text-muted-foreground italic">
+          {points.length} puntos · {arcs.length} tramos. Arrastra para girar el globo.
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default RouteGlobe3D;

@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
+import { RouteGlobe3D } from "@/components/RouteGlobe3D";
+import { VoiceInput } from "@/components/VoiceInput";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -457,12 +459,20 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               onSubmit={(e) => { e.preventDefault(); addStop(); }}
               className="flex flex-col sm:flex-row gap-2 mt-3"
             >
-              <Input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder='Agrega una ciudad (ej. "Kioto") o pide a IA: "quita Praga y agrega Roma"'
-                className="h-12 bg-input border-border flex-1"
-              />
+              <div className="relative flex-1">
+                <Input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder='Agrega una ciudad (ej. "Kioto") o pide a IA: "quita Praga y agrega Roma"'
+                  className="h-12 bg-input border-border pr-12 w-full"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <VoiceInput
+                    size="sm"
+                    onTranscript={(t) => setDraft((prev) => (prev ? prev + " " : "") + t)}
+                  />
+                </div>
+              </div>
               <div className="flex gap-2">
                 <Button type="submit" variant="outline" className="h-12 border-border" disabled={!draft.trim()}>
                   <Plus className="w-4 h-4 mr-1" /> Agregar
@@ -725,7 +735,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         </AnimatePresence>
           </div>
 
-          <div className="lg:sticky lg:top-10">
+          <div className="lg:sticky lg:top-10 space-y-5">
             <TripBuildPreview
               origin={origin}
               destinations={validStops}
@@ -734,6 +744,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               viajeros={viajeros}
               presupuesto={presupuesto ? Number(presupuesto) : null}
             />
+            <RouteGlobe3D origin={origin} destinations={validStops} />
           </div>
         </div>
       </div>
