@@ -14,4 +14,10 @@ export const SoonPage = ({ title, description }: { title: string; description: s
 );
 
 export const Concierge = () => <SoonPage title="AI Concierge" description="Tu asistente personal para planear, reservar y optimizar." />;
-export const Pro = () => <SoonPage title="IATOS PRO" description="Desbloquea experiencias exclusivas y beneficios únicos." />;
+export const Pro = () => {
+  if (typeof window !== "undefined") {
+    window.location.replace("/dashboard/concierge");
+  }
+  return <SoonPage title="IATOS PRO" description="Abriendo tu Concierge..." />;
+};
+
