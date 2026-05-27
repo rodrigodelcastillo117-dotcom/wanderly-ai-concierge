@@ -78,17 +78,23 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
   const porPersona = viajeros > 0 ? total / viajeros : total;
 
   const adaptarEmocion = async () => {
-    if (!emocion.trim() || adapting) return;
+    const combinadas = [
+      ...selectedEmociones,
+      ...(emocion.trim() ? [emocion.trim()] : []),
+    ];
+    if (combinadas.length === 0 || adapting) return;
     setAdapting(true);
     try {
-      const instruction = `Acopla este viaje completamente a la siguiente emoción / vibra del viajero: "${emocion.trim()}". Reorganiza experiencias, restaurantes, tours y hospedaje para que cada día refleje esa emoción. Mantén destinos y fechas. Si el viaje tiene presupuesto_objetivo definido (${presupuestoObjetivo || "sin tope"}), NO lo sobrepases.`;
+      const emocionesTxt = combinadas.join(", ");
+      const instruction = `Acopla este viaje completamente a las siguientes emociones / vibras del viajero: "${emocionesTxt}". Reorganiza experiencias, restaurantes, tours y hospedaje para que cada día refleje y mezcle esas emociones de forma coherente. Mantén destinos y fechas. Si el viaje tiene presupuesto_objetivo definido (${presupuestoObjetivo || "sin tope"}), NO lo sobrepases.`;
       const { data, error } = await supabase.functions.invoke("editar-viaje-ai", {
         body: { trip_id: trip.id, instruction },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success(`Viaje acoplado a: ${emocion}`);
+      toast.success(`Viaje acoplado a: ${emocionesTxt}`);
       setEmocion("");
+      setSelectedEmociones([]);
       onUpdated?.();
     } catch (e: any) {
       toast.error(e?.message ?? "No se pudo adaptar el viaje");
