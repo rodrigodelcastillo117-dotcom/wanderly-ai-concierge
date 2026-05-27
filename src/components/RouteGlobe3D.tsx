@@ -156,6 +156,38 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
     return names;
   }, [countries, points]);
 
+  // Centroide del polígono más grande (para colocar el nombre del país)
+  const countryLabels = useMemo(() => {
+    if (!countries.length || highlightedNames.size === 0) return [];
+    const out: Array<{ lat: number; lng: number; name: string }> = [];
+    for (const f of countries) {
+      const nm = f.properties?.ADMIN || f.properties?.NAME || f.properties?.name;
+      if (!nm || !highlightedNames.has(nm)) continue;
+      const g = f.geometry;
+      let ring: number[][] | null = null;
+      if (g?.type === "Polygon") ring = g.coordinates[0];
+      else if (g?.type === "MultiPolygon") {
+        // ring del polígono con más vértices
+        let best: number[][] | null = null;
+        for (const poly of g.coordinates) {
+          if (!best || poly[0].length > best.length) best = poly[0];
+        }
+        ring = best;
+      }
+      if (!ring || ring.length === 0) continue;
+      let sx = 0, sy = 0;
+      for (const [x, y] of ring) { sx += x; sy += y; }
+      out.push({ lng: sx / ring.length, lat: sy / ring.length, name: nm });
+    }
+    return out;
+  }, [countries, highlightedNames]);
+
+  // Etiquetas de cada ciudad (siempre visibles, numeradas)
+  const cityLabels = useMemo(
+    () => points.map((p) => ({ lat: p.lat, lng: p.lng, name: p.name, order: p.order })),
+    [points],
+  );
+
   // Auto-rotación + detenerla al primer interactuar (zoom/drag)
   useEffect(() => {
     if (!globeRef.current) return;
@@ -177,15 +209,35 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
     globeRef.current.pointOfView({ lat, lng, altitude: 2.4 }, 1200);
   }, [points]);
 
+  // Distancia haversine (km) — para escalar altura del arco
+  const haversine = (a: Pt, b: Pt) => {
+    const R = 6371;
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const s = Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+  };
+
   const arcs = useMemo(() => {
     if (points.length < 2) return [];
-    return points.slice(0, -1).map((p, i) => ({
-      startLat: p.lat,
-      startLng: p.lng,
-      endLat: points[i + 1].lat,
-      endLng: points[i + 1].lng,
-      color: ["#d4af37", "#f5e6a8"],
-    }));
+    return points.slice(0, -1).map((p, i) => {
+      const next = points[i + 1];
+      const km = haversine(p, next);
+      // altura mínima visible para tramos cortos (trenes europeos),
+      // se escala suave para vuelos largos
+      const altitude = Math.max(0.08, Math.min(0.55, km / 12000 + 0.08));
+      return {
+        startLat: p.lat,
+        startLng: p.lng,
+        endLat: next.lat,
+        endLng: next.lng,
+        altitude,
+        label: `${i + 1}. ${p.name} → ${next.name} · ${Math.round(km).toLocaleString()} km`,
+        color: ["#d4af37", "#f5e6a8"],
+      };
+    });
   }, [points]);
 
   return (
