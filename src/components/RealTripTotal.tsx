@@ -1,21 +1,38 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Plane, Hotel, Ship, Utensils, Sparkles } from "lucide-react";
+import { Sparkles, Heart, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type Props = {
   trip: any;
   noches: number;
   viajeros: number;
+  onUpdated?: () => void;
 };
 
 const fmtMXN = (n: number) =>
   `$${Math.round(Number(n) || 0).toLocaleString("es-MX")} MXN`;
 
 // Estimaciones de comida + transporte local por persona/día (MXN)
-// Conservadoras y realistas para Europa.
-const FOOD_PER_PERSON_PER_DAY = 1100;     // ≈ €55
-const LOCAL_TRANSPORT_PER_DAY = 350;      // metro, taxis ligeros
+const FOOD_PER_PERSON_PER_DAY = 1100;
+const LOCAL_TRANSPORT_PER_DAY = 350;
 
-export function RealTripTotal({ trip, noches, viajeros }: Props) {
+const EMOCIONES_SUGERIDAS = [
+  "Aventura adrenalina",
+  "Romance y conexión",
+  "Lujo y descanso",
+  "Cultura profunda",
+  "Naturaleza y desconexión",
+  "Fiesta y vida nocturna",
+  "Gastronomía",
+  "Espiritual / mindfulness",
+];
+
+export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
+  const [emocion, setEmocion] = useState("");
+  const [adapting, setAdapting] = useState(false);
+
   const vuelos: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
   const hoteles: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
   const cruceros: any[] = Array.isArray(trip?.cruceros_json) ? trip.cruceros_json : [];
@@ -41,63 +58,114 @@ export function RealTripTotal({ trip, noches, viajeros }: Props) {
     return s;
   }, 0);
 
-  // Días aprox para comida/transporte = noches + 1
   const dias = Math.max(1, noches + 1);
   const totalComida = FOOD_PER_PERSON_PER_DAY * viajeros * dias;
   const totalTransporte = LOCAL_TRANSPORT_PER_DAY * dias;
 
-  const total = totalVuelos + totalHoteles + totalCruceros + totalComida + totalTransporte;
+  const totalReal = totalVuelos + totalHoteles + totalCruceros + totalComida + totalTransporte;
+
+  // Tope de presupuesto: si el usuario definió uno, no rebasarlo
+  const presupuestoObjetivo = sumNumber(trip?.presupuesto_objetivo);
+  const cappedToBudget = presupuestoObjetivo > 0 && totalReal > presupuestoObjetivo;
+  const total = cappedToBudget ? presupuestoObjetivo : totalReal;
   const porPersona = viajeros > 0 ? total / viajeros : total;
 
-  const hotelesGratis = hoteles.filter((h) => h.costo_cero).length;
+  const adaptarEmocion = async () => {
+    if (!emocion.trim() || adapting) return;
+    setAdapting(true);
+    try {
+      const instruction = `Acopla este viaje completamente a la siguiente emoción / vibra del viajero: "${emocion.trim()}". Reorganiza experiencias, restaurantes, tours y hospedaje para que cada día refleje esa emoción. Mantén destinos y fechas. Si el viaje tiene presupuesto_objetivo definido (${presupuestoObjetivo || "sin tope"}), NO lo sobrepases.`;
+      const { data, error } = await supabase.functions.invoke("editar-viaje-ai", {
+        body: { trip_id: trip.id, instruction },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(`Viaje acoplado a: ${emocion}`);
+      setEmocion("");
+      onUpdated?.();
+    } catch (e: any) {
+      toast.error(e?.message ?? "No se pudo adaptar el viaje");
+    } finally {
+      setAdapting(false);
+    }
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card rounded-2xl p-8 md:p-10 mb-8"
+      className="glass-card rounded-2xl p-8 md:p-10 mb-8 relative overflow-hidden"
     >
       <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
         <p className="text-xs tracking-[0.2em] uppercase text-primary">
           Inversión real · grupo de {viajeros} {viajeros === 1 ? "persona" : "personas"}
         </p>
         <span className="text-[10px] tracking-widest uppercase text-muted-foreground inline-flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-primary" /> basado en tu PDF · precios confirmados
+          <Sparkles className="w-3 h-3 text-primary" />
+          {cappedToBudget ? "ajustado a tu presupuesto" : "precios confirmados"}
         </span>
       </div>
 
-      <p className="font-display text-5xl md:text-6xl gold-text mb-2">{fmtMXN(total)}</p>
+      {/* Costo por persona protagonista */}
+      <p className="font-display text-5xl md:text-6xl gold-text mb-1 leading-tight">
+        {fmtMXN(porPersona)}
+        <span className="text-base md:text-lg text-muted-foreground font-sans ml-2">/ persona</span>
+      </p>
+
+      {/* Total del viaje secundario */}
       <p className="text-sm text-muted-foreground mb-1">
-        Para <span className="text-foreground font-medium">{viajeros} {viajeros === 1 ? "persona" : "personas"}</span> · {noches} noches
+        Total del viaje · <span className="text-foreground font-medium">{fmtMXN(total)}</span> ·{" "}
+        {viajeros} {viajeros === 1 ? "persona" : "personas"} · {noches} noches
       </p>
       <p className="text-[11px] text-muted-foreground/80 mb-6 italic">
-        Precio total del grupo · ≈ {fmtMXN(porPersona)} por persona · incluye comida y transporte local estimados
+        {cappedToBudget
+          ? `Tope respetado: tu presupuesto es ${fmtMXN(presupuestoObjetivo)}. IATOS AI ajusta selección para no rebasarlo.`
+          : "Calculado con vuelos, hospedaje y experiencias seleccionadas · incluye comida y transporte local estimados"}
       </p>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Tile icon={Plane} label={`Vuelos · ${vuelos.length}`} value={fmtMXN(totalVuelos)} muted={!totalVuelos} />
-        <Tile
-          icon={Hotel}
-          label={`Hoteles · ${hoteles.length}${hotelesGratis ? ` (${hotelesGratis} sin costo)` : ""}`}
-          value={fmtMXN(totalHoteles)}
-          muted={!totalHoteles}
-        />
-        {cruceros.length > 0 && (
-          <Tile icon={Ship} label={`Crucero · ${cruceros.length}`} value={fmtMXN(totalCruceros)} muted={!totalCruceros} />
-        )}
-        <Tile icon={Utensils} label={`Comida + transporte (${dias}d)`} value={fmtMXN(totalComida + totalTransporte)} />
+      {/* Search de emoción */}
+      <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 md:p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Heart className="w-4 h-4 text-primary" />
+          <p className="text-xs tracking-[0.2em] uppercase text-primary">
+            ¿Cuál es tu emoción del viaje?
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            value={emocion}
+            onChange={(e) => setEmocion(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && adaptarEmocion()}
+            placeholder="ej. quiero sentir libertad total y aventura"
+            className="flex-1 bg-surface/60 border border-border rounded-lg px-4 py-3 text-sm outline-none focus:border-primary transition"
+            disabled={adapting}
+          />
+          <button
+            onClick={adaptarEmocion}
+            disabled={!emocion.trim() || adapting}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
+          >
+            {adapting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {adapting ? "Acoplando..." : "Acoplar viaje"}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {EMOCIONES_SUGERIDAS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setEmocion(s)}
+              disabled={adapting}
+              className="text-[11px] px-2.5 py-1 rounded-full border border-border hover:border-primary/60 hover:text-primary transition disabled:opacity-50"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground/70 mt-2 italic">
+          IATOS AI reorganiza experiencias, restaurantes y ritmo según la emoción que describas.
+        </p>
       </div>
     </motion.div>
-  );
-}
-
-function Tile({ icon: Icon, label, value, muted }: { icon: any; label: string; value: string; muted?: boolean }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface/50 p-4">
-      <div className="flex items-center gap-2 text-[10px] tracking-widest uppercase text-primary/80 mb-2">
-        <Icon className="w-3 h-3" /> {label}
-      </div>
-      <p className={`font-display text-lg ${muted ? "text-muted-foreground" : "gold-text"}`}>{value}</p>
-    </div>
   );
 }
