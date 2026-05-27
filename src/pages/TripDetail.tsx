@@ -58,10 +58,7 @@ const TripDetail = () => {
     if (!id) return;
     const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
     setTrip(data);
-    const tours = (data as any)?.tours_json;
-    if (Array.isArray(tours) && tours.length) {
-      setSelTours(new Set(tours.map((_: any, i: number) => i)));
-    }
+    // Experiencias arrancan sin seleccionar — el usuario elige cuál le interesa.
     setLoading(false);
   };
 
@@ -398,17 +395,21 @@ const TripDetail = () => {
                   {/* Hospedaje */}
                   {cityHosp.length > 0 && (
                     <SubBlock icon={Hotel} title="Hospedaje">
-                      <div className="grid md:grid-cols-3 gap-3">
+                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
                         {cityHosp.map((h: any) => {
                           const i = (trip.hospedaje_json ?? []).indexOf(h);
                           const active = selHospedaje === i;
                           return (
-                            <HotelCard key={i} hotel={h} city={city} active={active} onClick={() => setSelHospedaje(i)} />
+                            <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                              <HotelCard hotel={h} city={city} active={active} onClick={() => setSelHospedaje(i)} />
+                            </div>
                           );
                         })}
                         {!isMulti && (
-                          <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)}
-                            title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
+                          <div className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                            <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)}
+                              title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
+                          </div>
                         )}
                       </div>
                     </SubBlock>
@@ -441,43 +442,45 @@ const TripDetail = () => {
                   {/* Experiencias */}
                   {cityTours.length > 0 && (
                     <SubBlock icon={Compass} title="Experiencias">
-                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
                         {cityTours.map((t: any) => {
                           const i = (trip.tours_json ?? []).indexOf(t);
                           const active = selTours.has(i);
                           return (
-                            <ExpandableItemCard
-                              key={i}
-                              imageQuery={`${t.nombre} ${city} experience tour`}
-                              eyebrow={t.duracion}
-                              title={t.nombre}
-                              price={t.precio_por_persona > 0 ? fmtMXN(t.precio_por_persona) : undefined}
-                              active={active}
-                              selectable
-                              onToggle={() => toggleTour(i)}
-                            >
-                              <p className="italic">{t.por_que}</p>
-                            </ExpandableItemCard>
+                            <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                              <ExpandableItemCard
+                                imageQuery={`${t.nombre} ${city} experience tour`}
+                                eyebrow={t.duracion}
+                                title={t.nombre}
+                                price={t.precio_por_persona > 0 ? fmtMXN(t.precio_por_persona) : undefined}
+                                active={active}
+                                selectable
+                                onToggle={() => toggleTour(i)}
+                              >
+                                <p className="italic">{t.por_que}</p>
+                              </ExpandableItemCard>
+                            </div>
                           );
                         })}
                       </div>
                     </SubBlock>
                   )}
 
-                  {/* Mesa reservada */}
+                  {/* Restaurantes recomendados */}
                   {cityRest.length > 0 && (
-                    <SubBlock icon={Utensils} title="Mesa reservada">
-                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <SubBlock icon={Utensils} title="Restaurantes recomendados">
+                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
                         {cityRest.map((r: any, i: number) => (
-                          <ExpandableItemCard
-                            key={i}
-                            imageQuery={`${r.nombre} ${city} restaurant food`}
-                            eyebrow={r.cocina}
-                            title={r.nombre.replace(` · ${city}`, "")}
-                            price={r.rango_precio}
-                          >
-                            <p className="italic">{r.por_que}</p>
-                          </ExpandableItemCard>
+                          <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                            <ExpandableItemCard
+                              imageQuery={`${r.nombre} ${city} restaurant food`}
+                              eyebrow={r.cocina}
+                              title={r.nombre.replace(` · ${city}`, "")}
+                              price={r.rango_precio}
+                            >
+                              <p className="italic">{r.por_que}</p>
+                            </ExpandableItemCard>
+                          </div>
                         ))}
                       </div>
                     </SubBlock>
