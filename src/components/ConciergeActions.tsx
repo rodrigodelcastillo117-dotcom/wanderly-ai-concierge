@@ -116,19 +116,25 @@ export const ConciergeActions = ({
     }
   };
 
-  // Geocode destination using Google's free geocoding via Maps JS API key (browser-safe)
+  // Geocode via edge function (gateway con Places API New — la browser key NO autoriza Geocoding)
   const geocodeDest = async () => {
     if (!destination.trim()) return;
-    const k = (import.meta.env as any).VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
-    if (!k) { toast.error("Falta key de mapas"); return; }
     try {
-      const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destination)}&key=${k}&language=es`);
-      const j = await r.json();
-      const loc = j?.results?.[0]?.geometry?.location;
-      const label = j?.results?.[0]?.formatted_address ?? destination;
-      if (loc) setDestCoords({ lat: loc.lat, lng: loc.lng, label });
-      else toast.error("No encontré ese destino");
-    } catch { toast.error("Error de geocoding"); }
+      const { data, error } = await supabase.functions.invoke("geocode-address", {
+        body: { address: destination, near: coords },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setDestCoords({ lat: data.lat, lng: data.lng, label: data.label });
+    } catch (e: any) {
+      toast.error(e?.message ?? "No encontré ese destino");
+    }
+  };
+
+  const taxiLocalUrl = () => {
+    if (!coords) return "#";
+    // Búsqueda Google "taxi cerca de mí" centrada en coords — abre lista de taxis reales con teléfono
+    return `https://www.google.com/maps/search/taxi/@${coords.lat},${coords.lng},15z`;
   };
 
   const uberUrl = () => {
