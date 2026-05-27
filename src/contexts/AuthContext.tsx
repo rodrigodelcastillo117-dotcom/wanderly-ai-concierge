@@ -19,15 +19,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const clearInvalidSession = async () => {
+      setSession(null);
+      setUser(null);
+      await supabase.auth.signOut({ scope: "local" });
+    };
+
     // Listener primero
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
     });
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const { data: verified, error } = await supabase.auth.getUser();
+      if (error || !verified.user) {
+        await clearInvalidSession();
+        setLoading(false);
+        return;
+      }
+
       setSession(data.session);
-      setUser(data.session?.user ?? null);
+      setUser(verified.user);
       setLoading(false);
     });
 
@@ -52,7 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
   };
 
   return (
