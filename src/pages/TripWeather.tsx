@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Cloud, CloudRain, Sun, CloudSnow, Wind, Droplets } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { Cloud, CloudRain, Sun, CloudSnow, Wind, Droplets, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { motion } from "framer-motion";
@@ -14,7 +14,7 @@ const codeIcon = (c: number) => {
 };
 const codeLabel = (c: number) => {
   if (c === 0) return "Despejado";
-  if (c <= 3) return "Parcialmente nublado";
+  if (c <= 3) return "P. nublado";
   if (c <= 48) return "Niebla";
   if (c <= 67) return "Lluvia";
   if (c <= 77) return "Nieve";
@@ -22,73 +22,130 @@ const codeLabel = (c: number) => {
   return "Tormenta";
 };
 
+type CityForecast = { city: string; daily: any | null };
+
+const fetchForecast = async (city: string): Promise<any | null> => {
+  try {
+    const geo = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`
+    ).then((r) => r.json());
+    const loc = geo?.results?.[0];
+    if (!loc) return null;
+    const f = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&forecast_days=14&timezone=auto`
+    ).then((r) => r.json());
+    return f?.daily ?? null;
+  } catch {
+    return null;
+  }
+};
+
 const TripWeather = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [trip, setTrip] = useState<any>(null);
-  const [forecast, setForecast] = useState<any>(null);
+  const [cities, setCities] = useState<CityForecast[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.from("trips").select("*").eq("id", id).single();
-      setTrip(data);
-      if (!data) return setLoading(false);
-      try {
-        const city = (data.destino || "").split(",")[0];
-        const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`).then(r => r.json());
-        const loc = geo?.results?.[0];
-        if (!loc) return setLoading(false);
-        const f = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&forecast_days=14&timezone=auto`).then(r => r.json());
-        setForecast(f?.daily);
-      } catch {}
+      const t: any = data;
+      setTrip(t);
+      if (!t) { setLoading(false); return; }
+
+      const set = new Set<string>();
+      const list: string[] = Array.isArray(t.ciudades) ? t.ciudades : [];
+      list.forEach((c: string) => c && set.add(c.trim()));
+      const hosp = Array.isArray(t.hospedaje_json) ? t.hospedaje_json : [];
+      hosp.forEach((h: any) => {
+        const c = h?.ciudad ?? h?.city;
+        if (c) set.add(String(c).trim());
+      });
+      if (set.size === 0 && t.destino) {
+        String(t.destino).split(/[,&]| y /).forEach((c) => c.trim() && set.add(c.trim()));
+      }
+
+      const arr = Array.from(set);
+
+      const results = await Promise.all(
+        arr.map(async (city) => ({ city, daily: await fetchForecast(city) }))
+      );
+      setCities(results);
       setLoading(false);
     })();
   }, [id]);
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-4xl mx-auto">
+      <div className="p-6 md:p-10 max-w-5xl mx-auto">
         <div className="mb-8">
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">Clima</p>
-          <h1 className="font-display text-4xl">{trip?.destino || "Cargando..."}</h1>
+          <h1 className="font-display text-3xl md:text-4xl">{trip?.destino || "Cargando..."}</h1>
+          <p className="text-sm text-muted-foreground mt-1">Pronóstico por destino del viaje</p>
         </div>
 
-        {loading && <p className="text-muted-foreground">Cargando pronóstico...</p>}
-        {!loading && !forecast && <p className="text-muted-foreground">No se pudo obtener el clima.</p>}
-
-        {forecast && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {forecast.time.map((d: string, i: number) => {
-              const Icon = codeIcon(forecast.weather_code[i]);
-              return (
-                <motion.div
-                  key={d}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="glass-card rounded-2xl p-5 flex items-center gap-4"
-                >
-                  <Icon className="w-10 h-10 text-primary shrink-0" />
-                  <div className="flex-1">
-                    <div className="text-sm text-muted-foreground">
-                      {new Date(d).toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}
-                    </div>
-                    <div className="font-medium">{codeLabel(forecast.weather_code[i])}</div>
-                    <div className="text-xs text-muted-foreground flex gap-3 mt-1">
-                      <span className="flex items-center gap-1"><Droplets className="w-3 h-3" /> {forecast.precipitation_probability_max[i]}%</span>
-                      <span className="flex items-center gap-1"><Wind className="w-3 h-3" /> {Math.round(forecast.wind_speed_10m_max[i])} km/h</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-display">{Math.round(forecast.temperature_2m_max[i])}°</div>
-                    <div className="text-xs text-muted-foreground">{Math.round(forecast.temperature_2m_min[i])}°</div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
+        {loading && <p className="text-muted-foreground">Cargando pronóstico…</p>}
+        {!loading && cities.length === 0 && (
+          <p className="text-muted-foreground">No se pudieron determinar los destinos.</p>
         )}
+
+        <div className="space-y-8">
+          {cities.map(({ city, daily }, idx) => (
+            <motion.section
+              key={city}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
+                  <MapPin className="w-4 h-4 text-primary" />
+                </div>
+                <h2 className="font-display text-xl md:text-2xl uppercase tracking-wide">
+                  {city} <span className="text-primary">· Clima</span>
+                </h2>
+              </div>
+
+              {!daily ? (
+                <p className="text-xs text-muted-foreground pl-10">Sin datos disponibles.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                  {daily.time.slice(0, 7).map((d: string, i: number) => {
+                    const Icon = codeIcon(daily.weather_code[i]);
+                    return (
+                      <div
+                        key={d}
+                        className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 flex flex-col items-center text-center"
+                      >
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {new Date(d).toLocaleDateString("es-MX", { weekday: "short", day: "numeric" })}
+                        </div>
+                        <Icon className="w-7 h-7 text-primary my-1.5" />
+                        <div className="text-base font-semibold leading-none">
+                          {Math.round(daily.temperature_2m_max[i])}°
+                          <span className="text-[11px] font-normal text-muted-foreground ml-0.5">
+                            /{Math.round(daily.temperature_2m_min[i])}°
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+                          {codeLabel(daily.weather_code[i])}
+                        </div>
+                        <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-0.5">
+                            <Droplets className="w-2.5 h-2.5" />{daily.precipitation_probability_max[i]}%
+                          </span>
+                          <span className="flex items-center gap-0.5">
+                            <Wind className="w-2.5 h-2.5" />{Math.round(daily.wind_speed_10m_max[i])}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.section>
+          ))}
+        </div>
       </div>
     </DashboardLayout>
   );
