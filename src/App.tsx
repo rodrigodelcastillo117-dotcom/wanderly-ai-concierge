@@ -42,6 +42,8 @@ import TripESIM from "./pages/TripESIM";
 import TripActivities from "./pages/TripActivities";
 import Restaurantes from "./pages/Restaurantes";
 import Trenes from "./pages/Trenes";
+import Ferries from "./pages/Ferries";
+import Cruceros from "./pages/Cruceros";
 import Reservas from "./pages/Reservas";
 
 const queryClient = new QueryClient();
@@ -81,6 +83,8 @@ const App = () => (
             <Route path="/dashboard/actividades" element={<ProtectedRoute><TripActivities /></ProtectedRoute>} />
             <Route path="/dashboard/restaurantes" element={<ProtectedRoute><Restaurantes /></ProtectedRoute>} />
             <Route path="/dashboard/trenes" element={<ProtectedRoute><Trenes /></ProtectedRoute>} />
+            <Route path="/dashboard/ferries" element={<ProtectedRoute><Ferries /></ProtectedRoute>} />
+            <Route path="/dashboard/cruceros" element={<ProtectedRoute><Cruceros /></ProtectedRoute>} />
             <Route path="/dashboard/reservas" element={<ProtectedRoute><Reservas /></ProtectedRoute>} />
             <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
             <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
