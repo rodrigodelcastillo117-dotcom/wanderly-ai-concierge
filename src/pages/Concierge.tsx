@@ -160,6 +160,15 @@ const Concierge = () => {
     setSending(true);
 
     try {
+      // Validar sesión antes de invocar el edge function (evita 401 "Sesión inválida")
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) {
+        await supabase.auth.signOut();
+        toast.error("Tu sesión expiró. Vuelve a iniciar sesión.");
+        window.location.href = "/auth";
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("concierge-chat", {
         body: {
           messages: next.filter(m => m.id !== "welcome").map(m => ({ role: m.role, content: m.text })),
@@ -180,7 +189,14 @@ const Concierge = () => {
         ts: Date.now(),
       }]);
     } catch (e: any) {
-      toast.error(e?.message ?? "El concierge no respondió");
+      const msg = e?.message ?? "";
+      if (/401|Sesión inválida|No autorizado|invalid auth/i.test(msg)) {
+        await supabase.auth.signOut();
+        toast.error("Tu sesión expiró. Vuelve a iniciar sesión.");
+        window.location.href = "/auth";
+        return;
+      }
+      toast.error(msg || "El concierge no respondió");
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(), role: "assistant", ts: Date.now(),
         text: "Disculpa, hubo un tropiezo. Inténtalo de nuevo en un momento.",
@@ -189,6 +205,7 @@ const Concierge = () => {
       setSending(false);
     }
   };
+
 
   const toggleMic = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
