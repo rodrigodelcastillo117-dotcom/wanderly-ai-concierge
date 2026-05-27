@@ -12,11 +12,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { trackBookingClick } from "@/lib/trackBooking";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
 type Card =
-  | { type: "restaurant"; title: string; subtitle?: string; image_prompt?: string; rating?: number; cta_label: string; cta_action?: string; meta?: string }
+  | { type: "restaurant"; title: string; subtitle?: string; image_prompt?: string; image_url?: string; rating?: number; cta_label: string; cta_action?: string; meta?: string; provider?: string }
   | { type: "transport"; title: string; subtitle?: string; cta_label: string; meta?: string }
   | { type: "alert"; title: string; body: string; cta_label?: string }
   | { type: "luggage"; title: string; from: string; to: string; status: string; cta_label: string }
@@ -61,6 +62,7 @@ const Concierge = () => {
   const [refreshTick, setRefreshTick] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [weather, setWeather] = useState<{ temp: number; place: string } | null>(null);
+  const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recRef = useRef<any>(null);
 
@@ -118,6 +120,7 @@ const Concierge = () => {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        setCurrentCoords({ lat: latitude, lng: longitude });
         try {
           const [wRes, gRes] = await Promise.all([
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`),
@@ -176,6 +179,10 @@ const Concierge = () => {
         body: {
           messages: next.filter(m => m.id !== "welcome").map(m => ({ role: m.role, content: m.text })),
           god_mode: godMode,
+          context: {
+            coords: currentCoords,
+            place: weather?.place,
+          },
         },
       });
       if (error) throw error;
