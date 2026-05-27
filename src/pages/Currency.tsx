@@ -24,8 +24,9 @@ const Currency = () => {
       const r = await fetch(`https://open.er-api.com/v6/latest/${base}`).then(r => r.json());
       if (r?.rates) {
         setRates(r.rates);
-        setUpdated(new Date(r.time_last_update_unix * 1000).toLocaleString("es-MX"));
-        try { localStorage.setItem(`iatos:fx:${base}`, JSON.stringify({ rates: r.rates, updated: r.time_last_update_unix })); } catch {}
+        setUpdated(new Date().toLocaleString("es-MX"));
+        try { localStorage.setItem(`iatos:fx:${base}`, JSON.stringify({ rates: r.rates, updated: Math.floor(Date.now() / 1000) })); } catch {}
+        toast.success("Tasas actualizadas");
       } else throw new Error();
     } catch {
       // Fallback to cache
