@@ -43,6 +43,32 @@ export const TripBuildPreview = ({
   onChangeViajeros,
 }: Props) => {
   const [copied, setCopied] = useState(false);
+  const [iatosOpen, setIatosOpen] = useState(false);
+  const [friends, setFriends] = useState<{ id: string; name: string; avatar: string | null }[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!iatosOpen || friends.length > 0) return;
+    (async () => {
+      setLoadingFriends(true);
+      try {
+        const { data: rows } = await supabase.from("mis_amigos").select("amigo_id");
+        const ids = (rows ?? []).map((r: any) => r.amigo_id);
+        if (!ids.length) { setFriends([]); return; }
+        const { data: profs } = await supabase
+          .from("profiles").select("id, full_name, username, avatar_url").in("id", ids);
+        setFriends((profs ?? []).map((p: any) => ({
+          id: p.id,
+          name: p.full_name || p.username || "Amigo",
+          avatar: p.avatar_url ?? null,
+        })));
+      } finally {
+        setLoadingFriends(false);
+      }
+    })();
+  }, [iatosOpen, friends.length]);
   const dests = (() => {
     if (destinations && destinations.length) return destinations.filter(Boolean);
     if (destinoRaw && destinoRaw.trim()) {
