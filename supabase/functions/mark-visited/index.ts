@@ -86,9 +86,10 @@ Deno.serve(async (req) => {
 
   try {
     const key = Deno.env.get("GOOGLE_MAPS_API_KEY");
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-    if (!key) {
+    if (!key || !lovableKey) {
       return new Response(JSON.stringify({ error: "GOOGLE_MAPS_API_KEY no configurada" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -119,8 +120,8 @@ Deno.serve(async (req) => {
 
     // 1) Place Details
     const dRes = await fetch(
-      `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=es`,
-      { headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": DETAILS_MASK } },
+      `https://connector-gateway.lovable.dev/google_maps/places/v1/places/${encodeURIComponent(placeId)}?languageCode=es`,
+      { headers: { "Authorization": `Bearer ${lovableKey}`, "X-Connection-Api-Key": key, "X-Goog-FieldMask": DETAILS_MASK } },
     );
     const p = await dRes.json();
     if (!dRes.ok) {

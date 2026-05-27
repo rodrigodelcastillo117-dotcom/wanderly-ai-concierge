@@ -6,7 +6,8 @@ Deno.serve(async (req) => {
 
   try {
     const key = Deno.env.get("GOOGLE_MAPS_API_KEY");
-    if (!key) {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!key || !lovableKey) {
       return new Response(JSON.stringify({ error: "GOOGLE_MAPS_API_KEY no configurada" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -30,10 +31,10 @@ Deno.serve(async (req) => {
     if (maxHeight) params.set("maxHeightPx", String(maxHeight));
     if (mode === "url") params.set("skipHttpRedirect", "true");
 
-    const gUrl = `https://places.googleapis.com/v1/${ref}/media?${params.toString()}`;
+    const gUrl = `https://connector-gateway.lovable.dev/google_maps/places/v1/${ref}/media?${params.toString()}`;
 
     if (mode === "url") {
-      const res = await fetch(gUrl, { headers: { "X-Goog-Api-Key": key } });
+      const res = await fetch(gUrl, { headers: { "Authorization": `Bearer ${lovableKey}`, "X-Connection-Api-Key": key } });
       const data = await res.json();
       if (!res.ok) {
         return new Response(JSON.stringify({ error: data?.error?.message ?? "Photo error", raw: data }), {
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
     }
 
     // binary stream
-    const res = await fetch(gUrl, { headers: { "X-Goog-Api-Key": key }, redirect: "follow" });
+    const res = await fetch(gUrl, { headers: { "Authorization": `Bearer ${lovableKey}`, "X-Connection-Api-Key": key }, redirect: "follow" });
     if (!res.ok) {
       const txt = await res.text();
       return new Response(JSON.stringify({ error: "Photo fetch error", raw: txt }), {

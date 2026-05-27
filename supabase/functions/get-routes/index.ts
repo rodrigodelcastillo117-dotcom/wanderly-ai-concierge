@@ -105,11 +105,11 @@ async function computeRoute(mode: Mode, body: Body, key: string) {
   }
 
   try {
-    const res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+    const res = await fetch("https://connector-gateway.lovable.dev/google_maps/routes/directions/v2:computeRoutes", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Goog-Api-Key": key,
+        "Authorization": `Bearer ${lovableKey}`, "X-Connection-Api-Key": key,
         "X-Goog-FieldMask": fieldMaskFor(mode),
       },
       body: JSON.stringify(payload),
@@ -214,7 +214,8 @@ Deno.serve(async (req) => {
 
   try {
     const key = Deno.env.get("GOOGLE_MAPS_API_KEY");
-    if (!key) {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!key || !lovableKey) {
       return new Response(JSON.stringify({ error: "GOOGLE_MAPS_API_KEY no configurada" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
