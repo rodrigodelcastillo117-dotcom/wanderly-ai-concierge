@@ -42,6 +42,8 @@ import TripESIM from "./pages/TripESIM";
 import TripActivities from "./pages/TripActivities";
 import Restaurantes from "./pages/Restaurantes";
 import Trenes from "./pages/Trenes";
+import Ferries from "./pages/Ferries";
+import Cruceros from "./pages/Cruceros";
 import Reservas from "./pages/Reservas";
 
 const queryClient = new QueryClient();
