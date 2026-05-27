@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { TravelAvatar3D } from "@/components/lux/TravelAvatar3D";
 import { useTravelDNA, TravelDNAStats } from "@/components/lux/TravelDNAStats";
 import { CompatibilityPanel } from "@/components/lux/CompatibilityPanel";
-import { RewardsPanel } from "@/components/lux/RewardsPanel";
+import { BestMomentsPanel } from "@/components/lux/BestMomentsPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -97,13 +97,13 @@ const Concierge = () => {
             <CompatibilityPanel />
           </section>
 
-          {/* REWARDS */}
+          {/* BEST MOMENTS */}
           <section className="glass-card rounded-3xl p-5 lg:col-span-3">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] tracking-[0.3em] text-primary uppercase">Recompensas del avatar</p>
-              <p className="text-[10px] text-muted-foreground">Desbloquea pins, outfits, accesorios, badges, mapas y recuerdos</p>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <p className="text-[10px] tracking-[0.3em] text-primary uppercase">Mejores momentos</p>
+              <p className="text-[10px] text-muted-foreground">Sube fotos de tus mejores viajes — IATOS construirá tu galería</p>
             </div>
-            <RewardsPanel trips={dna?.tripCount ?? 0} visits={dna?.visitCount ?? 0} />
+            <BestMomentsPanel />
           </section>
         </div>
       </div>

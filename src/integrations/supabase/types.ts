@@ -710,6 +710,33 @@ export type Database = {
         }
         Relationships: []
       }
+      travel_moments: {
+        Row: {
+          caption: string | null
+          created_at: string
+          id: string
+          image_url: string
+          trip_name: string | null
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          image_url: string
+          trip_name?: string | null
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string
+          trip_name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       travel_profiles: {
         Row: {
           acompanantes_tipico: string | null
