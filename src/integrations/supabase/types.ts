@@ -1040,6 +1040,7 @@ export type Database = {
           credit_cards: Json
           hotel_loyalty: Json
           id: string
+          travel_documents: Json
           updated_at: string
           user_id: string
         }
@@ -1050,6 +1051,7 @@ export type Database = {
           credit_cards?: Json
           hotel_loyalty?: Json
           id?: string
+          travel_documents?: Json
           updated_at?: string
           user_id: string
         }
@@ -1060,6 +1062,7 @@ export type Database = {
           credit_cards?: Json
           hotel_loyalty?: Json
           id?: string
+          travel_documents?: Json
           updated_at?: string
           user_id?: string
         }
