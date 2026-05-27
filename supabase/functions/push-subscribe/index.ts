@@ -4,6 +4,12 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  // GET → devuelve VAPID public key (no requiere auth)
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ vapidPublicKey: Deno.env.get('VAPID_PUBLIC_KEY') }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
   try {
     const auth = req.headers.get('Authorization') ?? '';
     const supabase = createClient(
