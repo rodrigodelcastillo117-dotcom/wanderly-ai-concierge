@@ -59,6 +59,27 @@ export function openTableLink(city: string) {
   return `https://www.opentable.com/s?term=${encodeURIComponent(city)}`;
 }
 
+export function theforkLink(city: string) {
+  return `https://www.thefork.com/search/?cityName=${encodeURIComponent(city)}`;
+}
+
+export function yelpLink(city: string) {
+  return `https://www.yelp.com/search?find_desc=Restaurants&find_loc=${encodeURIComponent(city)}`;
+}
+
+export function trainlineLink(origin: string, destination: string, date: string) {
+  const p = new URLSearchParams({ origin, destination, outwardDate: date, passengers: "1" });
+  return `https://www.thetrainline.com/book/results?${p.toString()}`;
+}
+
+export function omioLink(origin: string, destination: string, date: string) {
+  return `https://www.omio.com/search-frontend/?departureId=${encodeURIComponent(origin)}&arrivalId=${encodeURIComponent(destination)}&departureDate=${date}&passengers=adults%3D1`;
+}
+
+export function raileuropeLink(origin: string, destination: string, date: string) {
+  return `https://www.raileurope.com/en/search?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&outbound_date=${date}&passengers=1`;
+}
+
 export function uberLink(pickupLat?: number, pickupLng?: number, dropoffName?: string) {
   const p = new URLSearchParams({ action: "setPickup" });
   if (pickupLat && pickupLng) {
