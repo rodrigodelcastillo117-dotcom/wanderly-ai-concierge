@@ -9,7 +9,6 @@ const TRACKING = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID;
 
 declare global {
   interface Window {
-    google?: any;
     initTripMap?: () => void;
   }
 }
