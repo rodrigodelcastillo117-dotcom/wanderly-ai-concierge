@@ -66,30 +66,12 @@ const Concierge = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const recRef = useRef<any>(null);
 
-  // PRO gating with allowlist (rodelcast, Carlo)
+  // PRO access: abierto a todos los usuarios registrados
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("tier, full_name, email")
-        .eq("id", user.id)
-        .maybeSingle();
-      const name = (profile?.full_name ?? "").toLowerCase();
-      const email = (profile?.email ?? user.email ?? "").toLowerCase();
-      const allowlisted =
-        name.includes("rodelcast") || name.includes("carlo") ||
-        email.includes("rodelcast") || email.includes("carlo");
-      const isPro = profile?.tier === "pro";
-      if (isPro || allowlisted) {
-        setAllowed(true);
-      } else {
-        setAllowed(false);
-        toast.error("Concierge Pro está disponible solo para miembros IATOS Pro.");
-        navigate("/dashboard/pro", { replace: true });
-      }
-    })();
-  }, [user, navigate]);
+    setAllowed(true);
+  }, [user]);
+
 
   // Load active trip for header — auto-refresh every minute
   useEffect(() => {
