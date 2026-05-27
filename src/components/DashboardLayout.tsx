@@ -14,7 +14,7 @@ const links = [
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
-  { to: "/dashboard/concierge", icon: Mail, label: "Concierge PRO" },
+  { to: "/dashboard/concierge", icon: Crown, label: "IATOS LUX" },
 ];
 
 // Mobile bottom nav — all 7 tabs + floating (+) above the bar
@@ -25,7 +25,7 @@ const mobileNav = [
   { to: "/dashboard/favoritos", icon: Heart, label: "Favs" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
-  { to: "/dashboard/concierge", icon: Crown, label: "PRO" },
+  { to: "/dashboard/concierge", icon: Crown, label: "LUX" },
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {

@@ -8,6 +8,7 @@ import {
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ConciergeActions } from "@/components/ConciergeActions";
 import { FlightStatusDialog } from "@/components/FlightStatusDialog";
+import { TravelerAvatar } from "@/components/TravelerAvatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -239,7 +240,7 @@ const Concierge = () => {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-[60vh] text-muted-foreground text-sm">
-          Verificando acceso a Concierge Pro…
+          Verificando acceso a IATOS LUX…
         </div>
       </DashboardLayout>
     );
@@ -254,9 +255,9 @@ const Concierge = () => {
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
               <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
-                <Crown className="w-3 h-3" /> IATOS · Concierge Pro
+                <Crown className="w-3 h-3" /> IATOS · LUX
               </p>
-              <h1 className="font-display text-2xl md:text-3xl leading-tight">IATOS AI te escucha</h1>
+              <h1 className="font-display text-2xl md:text-3xl leading-tight">IATOS LUX te escucha</h1>
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
                   {trip?.destino ?? "Sin viaje activo"}{trip?.pais_destino ? `, ${trip.pais_destino}` : ""}
@@ -292,6 +293,7 @@ const Concierge = () => {
 
         {/* CHAT STREAM */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
+          <TravelerAvatar />
           {messages.map(m => (
             <MessageBubble key={m.id} msg={m} />
           ))}
