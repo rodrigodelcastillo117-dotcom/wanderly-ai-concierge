@@ -583,31 +583,39 @@ const DashboardHome = () => {
             <div className="flex items-center justify-between mb-3">
               <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase">Herramientas</p>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-none md:grid md:grid-cols-4 md:overflow-visible">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
               {[
-                { icon: Plane, label: "Vuelos", sub: "En vivo", to: "/dashboard/vuelos" },
-                { icon: Hotel, label: "Hoteles", sub: "Reales", to: "/dashboard/hoteles" },
-                { icon: Car, label: "Autos", sub: "Renta", to: "/dashboard/autos" },
-                { icon: Wifi, label: "eSIM", sub: "Datos", to: "/dashboard/esim" },
-                { icon: Compass, label: "Tours", sub: "Experiencias", to: "/dashboard/actividades" },
-                { icon: Shield, label: "Seguros", sub: "Viaje", to: "/dashboard/seguros" },
-                { icon: Gift, label: "Beneficios", sub: "PRO", to: "/dashboard/beneficios" },
-                { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar" },
-                { icon: ArrowLeftRight, label: "Conversor", sub: "Moneda", to: "/dashboard/convertidor" },
-                { icon: Crown, label: "Concierge", sub: "IA 24/7", to: "/dashboard/concierge" },
-                { icon: MapPin, label: "Cerca", sub: "De mí", to: "/dashboard/cercanos" },
-              ].map(({ icon: Icon, label, sub, to }) => (
+                { icon: Plane, label: "Vuelos", sub: "En vivo", to: "/dashboard/vuelos", img: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=600&q=70&auto=format&fit=crop" },
+                { icon: Hotel, label: "Hoteles", sub: "Reales", to: "/dashboard/hoteles", img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=70&auto=format&fit=crop" },
+                { icon: Car, label: "Autos", sub: "Renta", to: "/dashboard/autos", img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&q=70&auto=format&fit=crop" },
+                { icon: Wifi, label: "eSIM", sub: "Datos", to: "/dashboard/esim", img: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&q=70&auto=format&fit=crop" },
+                { icon: Compass, label: "Tours", sub: "Experiencias", to: "/dashboard/actividades", img: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600&q=70&auto=format&fit=crop" },
+                { icon: Shield, label: "Seguros", sub: "Viaje", to: "/dashboard/seguros", img: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=600&q=70&auto=format&fit=crop" },
+                { icon: Gift, label: "Beneficios", sub: "PRO", to: "/dashboard/beneficios", img: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&q=70&auto=format&fit=crop" },
+                { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar", img: "https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=70&auto=format&fit=crop" },
+                { icon: ArrowLeftRight, label: "Conversor", sub: "Moneda", to: "/dashboard/convertidor", img: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&q=70&auto=format&fit=crop" },
+                { icon: Crown, label: "Concierge", sub: "IA 24/7", to: "/dashboard/concierge", img: "https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=70&auto=format&fit=crop" },
+                { icon: MapPin, label: "Cerca", sub: "De mí", to: "/dashboard/cercanos", img: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600&q=70&auto=format&fit=crop" },
+                { icon: Ship, label: "Cruceros", sub: "Islas", to: "/dashboard/cruceros", img: "https://images.unsplash.com/photo-1548574505-5e239809ee19?w=600&q=70&auto=format&fit=crop" },
+              ].map(({ icon: Icon, label, sub, to, img }) => (
                 <button
                   key={label}
                   onClick={() => navigate(to)}
-                  className="snap-start shrink-0 md:shrink w-[150px] md:w-auto flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/40 transition-all text-left group"
+                  className="relative overflow-hidden aspect-[4/3] rounded-xl border border-white/[0.08] hover:border-primary/50 transition-all text-left group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-                    <Icon className="w-4 h-4 text-primary" strokeWidth={1.5} />
+                  <img
+                    src={img}
+                    alt={label}
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 group-hover:scale-105 transition-all duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20" />
+                  <div className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-background/70 backdrop-blur flex items-center justify-center border border-primary/30">
+                    <Icon className="w-3.5 h-3.5 text-primary" strokeWidth={1.5} />
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium leading-tight truncate">{label}</div>
-                    <div className="text-[10px] text-muted-foreground tracking-wide uppercase truncate">{sub}</div>
+                  <div className="absolute bottom-2.5 left-2.5 right-2.5">
+                    <div className="text-[13px] font-semibold leading-tight text-white">{label}</div>
+                    <div className="text-[9px] text-primary/80 tracking-[0.2em] uppercase mt-0.5">{sub}</div>
                   </div>
                 </button>
               ))}
