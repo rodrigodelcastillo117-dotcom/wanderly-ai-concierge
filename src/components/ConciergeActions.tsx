@@ -229,6 +229,9 @@ export const ConciergeActions = ({
                       <a href={lyftUrl()} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] p-3 text-center text-sm font-medium">Lyft</a>
                       <a href={boltUrl()} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] p-3 text-center text-sm font-medium">Bolt</a>
                     </div>
+                    <a href={taxiLocalUrl()} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] p-3 text-sm">
+                      <Car className="w-4 h-4 text-primary" /> Taxis locales cerca (con teléfono)
+                    </a>
                     <a href={mapsDir()} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 p-3 text-sm">
                       <Navigation className="w-4 h-4 text-primary" /> Cómo llegar en Google Maps
                     </a>
