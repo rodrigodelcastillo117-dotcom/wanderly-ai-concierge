@@ -190,6 +190,7 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
   );
 
   // Auto-rotación + detenerla al primer interactuar (zoom/drag)
+  // y trackear altitud de cámara para etiquetas adaptativas
   useEffect(() => {
     if (!globeRef.current) return;
     const controls = globeRef.current.controls?.();
@@ -198,8 +199,18 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
     controls.autoRotateSpeed = 0.6;
     controls.enableZoom = true;
     const stop = () => { controls.autoRotate = false; };
+    const onChange = () => {
+      const pov = globeRef.current?.pointOfView?.();
+      if (pov && typeof pov.altitude === "number") {
+        setAltitude((prev) => (Math.abs(prev - pov.altitude) > 0.05 ? pov.altitude : prev));
+      }
+    };
     controls.addEventListener("start", stop);
-    return () => { controls.removeEventListener?.("start", stop); };
+    controls.addEventListener("change", onChange);
+    return () => {
+      controls.removeEventListener?.("start", stop);
+      controls.removeEventListener?.("change", onChange);
+    };
   }, [countries.length]);
 
   // Enfoque al centroide cuando cambian los puntos
@@ -208,6 +219,7 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
     const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
     const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
     globeRef.current.pointOfView({ lat, lng, altitude: 2.4 }, 1200);
+    setAltitude(2.4);
   }, [points]);
 
   // Distancia haversine (km) — para escalar altura del arco
