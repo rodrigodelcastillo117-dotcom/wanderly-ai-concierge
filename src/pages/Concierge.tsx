@@ -18,10 +18,10 @@ type LiveAction = "transport" | "dining" | "emergency" | null;
 
 type Card =
   | { type: "restaurant"; title: string; subtitle?: string; image_prompt?: string; image_url?: string; rating?: number; cta_label: string; cta_action?: string; meta?: string; provider?: string }
-  | { type: "transport"; title: string; subtitle?: string; cta_label: string; meta?: string }
-  | { type: "alert"; title: string; body: string; cta_label?: string }
-  | { type: "luggage"; title: string; from: string; to: string; status: string; cta_label: string }
-  | { type: "jet"; title: string; route: string; price_usd: number; fbo: string; cta_label: string };
+  | { type: "transport"; title: string; subtitle?: string; cta_label: string; cta_action?: string; meta?: string }
+  | { type: "alert"; title: string; body: string; cta_label?: string; cta_action?: string }
+  | { type: "luggage"; title: string; from: string; to: string; status: string; cta_label: string; cta_action?: string }
+  | { type: "jet"; title: string; route: string; price_usd: number; fbo: string; cta_label: string; cta_action?: string };
 
 type Msg = {
   id: string;
