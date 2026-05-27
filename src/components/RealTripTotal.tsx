@@ -16,27 +16,8 @@ const fmtMXN = (n: number) =>
 const FOOD_PER_PERSON_PER_DAY = 1100;
 const LOCAL_TRANSPORT_PER_DAY = 350;
 
-const EMOCIONES_SUGERIDAS = [
-  "Aventura adrenalina",
-  "Romance y conexión",
-  "Lujo y descanso",
-  "Cultura profunda",
-  "Naturaleza y desconexión",
-  "Fiesta y vida nocturna",
-  "Gastronomía",
-  "Espiritual / mindfulness",
-];
-
 export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
-  const [emocion, setEmocion] = useState("");
-  const [selectedEmociones, setSelectedEmociones] = useState<string[]>([]);
-  const [adapting, setAdapting] = useState(false);
 
-  const toggleEmocion = (s: string) => {
-    setSelectedEmociones((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
-    );
-  };
 
   const vuelos: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
   const hoteles: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
