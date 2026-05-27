@@ -33,27 +33,56 @@ const TripMap = () => {
   const dayPlan = days[selectedDay] ?? null;
   const acts: any[] = dayPlan?.actividades ?? dayPlan?.plan ?? [];
 
-  // Build search query for the embed
-  const mapQuery = useMemo(() => {
+  // Lugares clave del viaje completo (hoteles + puertos del crucero)
+  const allStops = useMemo(() => {
+    if (!trip) return [] as string[];
+    const stops: string[] = [];
+    const hosp = Array.isArray(trip.hospedaje_json) ? trip.hospedaje_json : [];
+    hosp.forEach((h: any) => {
+      const name = h?.nombre ?? h?.hotel ?? h?.titulo;
+      const city = h?.ciudad ?? h?.city ?? "";
+      if (name) stops.push(`${name}${city ? `, ${city}` : ""}`);
+      else if (city) stops.push(city);
+    });
+    const cru = Array.isArray(trip.cruceros_json) ? trip.cruceros_json : [];
+    cru.forEach((c: any) => {
+      const ports = c?.itinerario ?? c?.puertos ?? [];
+      if (Array.isArray(ports)) ports.forEach((p: any) => {
+        const port = typeof p === "string" ? p : (p?.puerto ?? p?.ciudad);
+        if (port) stops.push(`Puerto ${port}`);
+      });
+    });
+    const cities = Array.isArray(trip.ciudades) ? trip.ciudades : [];
+    cities.forEach((c: string) => { if (c && !stops.some(s => s.includes(c))) stops.push(c); });
+    return stops;
+  }, [trip]);
+
+  const showAll = selectedDay < 0;
+
+  // Build embed src
+  const embedSrc = useMemo(() => {
     if (!trip) return "";
-    const base = trip.destino;
-    if (!dayPlan) return base;
-    // Take first activity place name if available
-    const firstAct = acts[0];
-    const placeName = typeof firstAct === "string" ? firstAct : (firstAct?.lugar ?? firstAct?.actividad ?? firstAct?.titulo ?? "");
-    return placeName ? `${placeName} ${base}` : base;
-  }, [trip, dayPlan, acts]);
+    if (showAll && allStops.length >= 2 && BROWSER_KEY) {
+      // Directions traza una ruta y MUESTRA TODOS los marcadores (hoteles/puertos)
+      const origin = allStops[0];
+      const destination = allStops[allStops.length - 1];
+      const waypoints = allStops.slice(1, -1).slice(0, 8); // máx 9 en embed
+      const wp = waypoints.length ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}` : "";
+      return `https://www.google.com/maps/embed/v1/directions?key=${BROWSER_KEY}&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${wp}&mode=driving`;
+    }
+    let q = trip.destino;
+    if (!showAll) {
+      const firstAct = acts[0];
+      const placeName = typeof firstAct === "string" ? firstAct : (firstAct?.lugar ?? firstAct?.actividad ?? firstAct?.titulo ?? "");
+      if (placeName) q = `${placeName} ${trip.destino}`;
+    } else if (allStops.length) {
+      q = allStops[0];
+    }
+    return BROWSER_KEY
+      ? `https://www.google.com/maps/embed/v1/search?key=${BROWSER_KEY}&q=${encodeURIComponent(q)}&zoom=12`
+      : `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
+  }, [trip, showAll, allStops, acts]);
 
-  if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center text-foreground/60">Cargando mapa…</div>;
-  }
-  if (!trip) {
-    return <div className="min-h-screen bg-background flex items-center justify-center text-foreground/60">Viaje no encontrado</div>;
-  }
-
-  const embedSrc = BROWSER_KEY
-    ? `https://www.google.com/maps/embed/v1/search?key=${BROWSER_KEY}&q=${encodeURIComponent(mapQuery)}&zoom=13`
-    : `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`;
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
