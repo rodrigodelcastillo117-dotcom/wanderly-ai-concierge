@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
 
     const body = (await req.json()) as Body;
     const lastUser = [...(body.messages ?? [])].reverse().find((m) => m.role === "user")?.content?.toLowerCase() ?? "";
-    if (/\b(cena|cenar|restaurante|mesa|comer cerca)\b/.test(lastUser)) {
+    if (/\b(cena|cenas|cenar|restaurante|restaurantes|mesa|comer cerca)\b/.test(lastUser)) {
       const cards = await nearbyRestaurants(body.context?.coords);
       if (cards.length) {
         return new Response(JSON.stringify({
