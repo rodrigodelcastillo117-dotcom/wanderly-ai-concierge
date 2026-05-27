@@ -1,5 +1,33 @@
 // Helpers para construir deep-links de compra/booking a partners reales.
-// No requieren API keys: redirigen al sitio del partner con filtros aplicados.
+// El script Travelpayouts Drive (en index.html) etiqueta automáticamente
+// los enlaces salientes con tu marker para cobrar comisiones.
+
+export const TP_MARKER = "533299";
+
+// Aviasales (vuelos, marca propia Travelpayouts — comisión más alta)
+export function aviasalesLink(originIata: string, destIata: string, depart: string, ret?: string, adults = 1) {
+  const d = depart.replace(/-/g, "").slice(2, 8); // YYMMDD → DDMM
+  const dMMDD = d.slice(4, 6) + d.slice(2, 4); // DDMM
+  const r = ret ? ret.replace(/-/g, "").slice(2, 8) : "";
+  const rMMDD = r ? r.slice(4, 6) + r.slice(2, 4) : "";
+  const path = rMMDD
+    ? `${originIata}${dMMDD}${destIata}${rMMDD}${adults}`
+    : `${originIata}${dMMDD}${destIata}${adults}`;
+  return `https://www.aviasales.com/search/${path}?marker=${TP_MARKER}`;
+}
+
+// Hotellook (hoteles, marca propia Travelpayouts)
+export function hotellookLink(city: string, checkin: string, checkout: string, adults = 2) {
+  const p = new URLSearchParams({
+    destination: city,
+    checkIn: checkin,
+    checkOut: checkout,
+    adults: String(adults),
+    marker: TP_MARKER,
+  });
+  return `https://search.hotellook.com/?${p.toString()}`;
+}
+
 
 export function googleFlightsLink(origin: string, destination: string, depart: string, ret?: string, adults = 1) {
   const q = ret
