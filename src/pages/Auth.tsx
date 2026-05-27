@@ -150,6 +150,16 @@ const Auth = () => {
             >
               {loading ? "Procesando..." : mode === "signup" ? "Crear cuenta" : "Iniciar sesión"}
             </Button>
+
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="w-full text-center text-sm text-muted-foreground hover:text-primary transition"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            )}
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
@@ -162,6 +172,7 @@ const Auth = () => {
               {mode === "signup" ? "Iniciar sesión" : "Crea una"}
             </button>
           </p>
+
         </motion.div>
       </main>
     </div>
