@@ -395,17 +395,21 @@ const TripDetail = () => {
                   {/* Hospedaje */}
                   {cityHosp.length > 0 && (
                     <SubBlock icon={Hotel} title="Hospedaje">
-                      <div className="grid md:grid-cols-3 gap-3">
+                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
                         {cityHosp.map((h: any) => {
                           const i = (trip.hospedaje_json ?? []).indexOf(h);
                           const active = selHospedaje === i;
                           return (
-                            <HotelCard key={i} hotel={h} city={city} active={active} onClick={() => setSelHospedaje(i)} />
+                            <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                              <HotelCard hotel={h} city={city} active={active} onClick={() => setSelHospedaje(i)} />
+                            </div>
                           );
                         })}
                         {!isMulti && (
-                          <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)}
-                            title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
+                          <div className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                            <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)}
+                              title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
+                          </div>
                         )}
                       </div>
                     </SubBlock>
