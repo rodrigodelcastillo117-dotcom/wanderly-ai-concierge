@@ -148,8 +148,15 @@ export const ConciergeActions = ({
     ? `https://www.google.com/maps/dir/?api=1&origin=${coords.lat},${coords.lng}&destination=${destCoords.lat},${destCoords.lng}&travelmode=driving`
     : "#";
 
-  const openTableSearch = (placeName: string) =>
-    `https://www.opentable.com/s?term=${encodeURIComponent(placeName)}&covers=2`;
+  const openTableSearch = (placeName: string, address?: string) => {
+    // Extrae ciudad/región del address (formato Google: "Calle X, Colonia, CP Ciudad, Estado, País")
+    const parts = (address || "").split(",").map(s => s.trim()).filter(Boolean);
+    const city = parts.length >= 2 ? parts.slice(-3, -1).join(" ") : (parts[parts.length - 1] || "");
+    const q = encodeURIComponent(`${placeName} ${city} reservación`.trim());
+    // Google con site:opentable.com lleva directo a la ficha real del restaurante si existe en OpenTable;
+    // si no, muestra alternativas reales en lugar de "0 resultados".
+    return `https://www.google.com/search?q=${q}+site%3Aopentable.com+OR+site%3Aresy.com+OR+site%3Atheforksearch.com`;
+  };
 
   const emergency = countryCode ? EMERGENCY_NUMBERS[countryCode] : null;
 
@@ -315,8 +322,8 @@ export const ConciergeActions = ({
                           </a>
                         )}
                         {kind === "dining" && (
-                          <a href={openTableSearch(p.name)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/[0.04] text-foreground text-[11px] hover:bg-white/[0.08]">
-                            <ExternalLink className="w-3 h-3" /> OpenTable
+                          <a href={openTableSearch(p.name, p.address)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/[0.04] text-foreground text-[11px] hover:bg-white/[0.08]">
+                            <ExternalLink className="w-3 h-3" /> Reservar
                           </a>
                         )}
                         {p.website && (
