@@ -240,7 +240,7 @@ const Concierge = () => {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-[60vh] text-muted-foreground text-sm">
-          Verificando acceso a Concierge Pro…
+          Verificando acceso a IATOS LUX…
         </div>
       </DashboardLayout>
     );
