@@ -1,41 +1,54 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, CreditCard, Plane, Building2, Car, Sparkles, X } from "lucide-react";
+import { Plus, Trash2, CreditCard, Plane, Building2, Car, Sparkles, X, Search, Loader2, ShieldCheck, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-type CreditCard = { bank: string; card_tier: string; perks_enabled: string[] };
+type CreditCardItem = {
+  bank: string;
+  card_tier: string;
+  card_name?: string;
+  network?: string;
+  perks_enabled: string[];
+  lounge_access?: string[];
+  insurance?: string[];
+  miles_program?: string | null;
+  extras?: string[];
+  ai_autofilled?: boolean;
+};
 type AirlineAlliance = { alliance_name: string; airline: string; membership_number: string; tier_status: string; seat_preference: string };
 type HotelLoyalty = { chain_name: string; member_id: string; status_tier: string; room_preferences: string };
 type CarRental = { company_name: string; customer_id: string; preferred_car_type: string };
+type TravelDocument = { doc_type: string; number: string; country?: string; expires?: string; notes?: string };
 
 type Vault = {
-  credit_cards: CreditCard[];
+  credit_cards: CreditCardItem[];
   airline_alliances: AirlineAlliance[];
   hotel_loyalty: HotelLoyalty[];
   car_rentals: CarRental[];
+  travel_documents: TravelDocument[];
 };
 
-const empty: Vault = { credit_cards: [], airline_alliances: [], hotel_loyalty: [], car_rentals: [] };
+const empty: Vault = { credit_cards: [], airline_alliances: [], hotel_loyalty: [], car_rentals: [], travel_documents: [] };
 
-const CARD_TIERS = ["Clásica", "Oro", "Platino", "Black", "Infinite"];
-const PERKS = ["Acceso a salas VIP", "Seguro de auto", "Seguro de viaje", "Concierge", "Millas aceleradas"];
 const ALLIANCES = ["Star Alliance", "Oneworld", "SkyTeam", "Sin alianza"];
 const TIERS_AIR = ["Básico", "Silver", "Gold", "Platinum", "Diamond"];
 const SEAT_PREFS = ["Ventana", "Pasillo", "Exit row", "Sin preferencia"];
 const HOTEL_TIERS = ["Member", "Silver", "Gold", "Platinum", "Diamond", "Ambassador"];
 const CAR_TYPES = ["Compacto", "Sedán", "SUV", "Eléctrico", "Lujo", "Convertible"];
+const DOC_TYPES = ["Pasaporte", "Visa USA", "Visa Schengen", "Visa UK", "Global Entry", "TSA PreCheck", "NEXUS", "SENTRI", "Licencia internacional", "Tarjeta de residente", "Otro"];
 
-const AI_HINT = "La IA de IATOS AI usará estos datos para aplicar descuentos automáticos, maletas gratis y accesos VIP en tus cotizaciones en tiempo real.";
+const AI_HINT = "La IA de IATOS AI usará estos datos para aplicar descuentos automáticos, maletas gratis, accesos VIP y rutas correctas en tus cotizaciones en tiempo real.";
 
 const sectionMeta = {
-  credit_cards: { icon: CreditCard, title: "Finanzas", subtitle: "Tarjetas de crédito y débito" },
+  credit_cards: { icon: CreditCard, title: "Finanzas", subtitle: "Tarjetas de crédito y débito (autocompletado con IA)" },
   airline_alliances: { icon: Plane, title: "Aerolíneas", subtitle: "Alianzas y programas de viajero frecuente" },
   hotel_loyalty: { icon: Building2, title: "Hoteles", subtitle: "Programas de lealtad" },
   car_rentals: { icon: Car, title: "Renta de autos", subtitle: "Tus cuentas preferenciales" },
+  travel_documents: { icon: FileText, title: "Documentos de viaje", subtitle: "Pasaporte, visa, Global Entry, TSA PreCheck…" },
 } as const;
 
 const BenefitsVault = () => {
@@ -54,6 +67,7 @@ const BenefitsVault = () => {
           airline_alliances: data.airline_alliances ?? [],
           hotel_loyalty: data.hotel_loyalty ?? [],
           car_rentals: data.car_rentals ?? [],
+          travel_documents: data.travel_documents ?? [],
         });
       }
       setLoading(false);
@@ -92,7 +106,7 @@ const BenefitsVault = () => {
       <div className="flex items-start gap-3 p-4 rounded-xl border border-primary/30 bg-primary/5">
         <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
         <p className="text-sm text-muted-foreground">
-          Tu <span className="text-primary font-medium">Bóveda de Beneficios</span> es privada y cifrada. Cada dato que agregues hace que la IA encuentre vuelos, hoteles y autos donde ya tienes ventajas.
+          Tu <span className="text-primary font-medium">Bóveda de Beneficios</span> es privada y cifrada. Escribe el nombre de tu tarjeta (Amex, AMEX, Visa Santander, BBVA Platinum…) y la IA llenará beneficios, seguros y salas en tiempo real.
         </p>
       </div>
 
@@ -154,19 +168,39 @@ const BenefitsVault = () => {
 const ItemRow = ({ kind, item, onRemove }: { kind: keyof Vault; item: any; onRemove: () => void }) => {
   let title = "";
   let detail = "";
-  if (kind === "credit_cards") { title = `${item.bank} · ${item.card_tier}`; detail = (item.perks_enabled ?? []).join(" · "); }
+  let chips: string[] = [];
+  if (kind === "credit_cards") {
+    title = `${item.bank}${item.card_name ? " · " + item.card_name : ""} · ${item.card_tier}`;
+    detail = [item.network, item.miles_program].filter(Boolean).join(" · ");
+    chips = [...(item.perks_enabled ?? []), ...(item.lounge_access ?? []), ...(item.insurance ?? []), ...(item.extras ?? [])].slice(0, 8);
+  }
   if (kind === "airline_alliances") { title = `${item.airline} (${item.alliance_name})`; detail = `${item.tier_status} · ${item.seat_preference} · ${item.membership_number}`; }
   if (kind === "hotel_loyalty") { title = `${item.chain_name} · ${item.status_tier}`; detail = `${item.member_id}${item.room_preferences ? " · " + item.room_preferences : ""}`; }
   if (kind === "car_rentals") { title = `${item.company_name} · ${item.preferred_car_type}`; detail = item.customer_id; }
+  if (kind === "travel_documents") {
+    title = `${item.doc_type}${item.country ? " · " + item.country : ""}`;
+    detail = [item.number, item.expires ? `Vence ${item.expires}` : null].filter(Boolean).join(" · ");
+  }
   return (
-    <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-surface border border-border/60">
-      <div className="min-w-0">
-        <p className="text-sm font-medium truncate">{title}</p>
-        {detail && <p className="text-xs text-muted-foreground truncate">{detail}</p>}
+    <div className="p-3 rounded-lg bg-surface border border-border/60">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">{title}</p>
+          {detail && <p className="text-xs text-muted-foreground truncate">{detail}</p>}
+        </div>
+        <button onClick={onRemove} className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition" aria-label="Eliminar">
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
-      <button onClick={onRemove} className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition" aria-label="Eliminar">
-        <Trash2 className="w-4 h-4" />
-      </button>
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {chips.map((c, i) => (
+            <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary">
+              {c}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -191,44 +225,20 @@ const AddForm = ({ kind, onSubmit, onCancel }: { kind: keyof Vault; onSubmit: (v
   const [data, setData] = useState<any>({});
   const set = (k: string, v: any) => setData((d: any) => ({ ...d, [k]: v }));
 
-  const togglePerk = (perk: string) => {
-    const cur: string[] = data.perks_enabled ?? [];
-    set("perks_enabled", cur.includes(perk) ? cur.filter((p) => p !== perk) : [...cur, perk]);
-  };
-
   const submit = () => {
-    if (kind === "credit_cards" && (!data.bank || !data.card_tier)) return toast.error("Completa banco y tipo");
+    if (kind === "credit_cards" && (!data.bank || !data.card_tier)) return toast.error("Busca y elige una tarjeta primero");
     if (kind === "airline_alliances" && (!data.airline || !data.membership_number)) return toast.error("Completa aerolínea y número");
     if (kind === "hotel_loyalty" && (!data.chain_name || !data.member_id)) return toast.error("Completa cadena y número");
     if (kind === "car_rentals" && (!data.company_name || !data.customer_id)) return toast.error("Completa empresa y número");
-    const base: any = data;
-    if (kind === "credit_cards") base.perks_enabled = data.perks_enabled ?? [];
-    onSubmit(base);
+    if (kind === "travel_documents" && (!data.doc_type || !data.number)) return toast.error("Selecciona tipo de documento y número");
+    onSubmit(data);
     setData({});
   };
 
   return (
     <div className="space-y-4">
       {kind === "credit_cards" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Field label="Banco"><Input value={data.bank ?? ""} onChange={(e) => set("bank", e.target.value)} placeholder="BBVA, Amex, Santander..." className="bg-input border-border" /></Field>
-          <Field label="Tipo de tarjeta"><Select value={data.card_tier ?? ""} onChange={(v) => set("card_tier", v)} options={CARD_TIERS} /></Field>
-          <div className="md:col-span-2">
-            <Field label="Beneficios activos">
-              <div className="flex flex-wrap gap-2">
-                {PERKS.map((p) => {
-                  const sel = (data.perks_enabled ?? []).includes(p);
-                  return (
-                    <button key={p} type="button" onClick={() => togglePerk(p)}
-                      className={`px-3 py-1.5 rounded-full text-xs border transition ${sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:border-primary/40"}`}>
-                      {p}
-                    </button>
-                  );
-                })}
-              </div>
-            </Field>
-          </div>
-        </div>
+        <CreditCardForm data={data} setData={setData} />
       )}
 
       {kind === "airline_alliances" && (
@@ -258,12 +268,123 @@ const AddForm = ({ kind, onSubmit, onCancel }: { kind: keyof Vault; onSubmit: (v
         </div>
       )}
 
+      {kind === "travel_documents" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field label="Tipo de documento"><Select value={data.doc_type ?? ""} onChange={(v) => set("doc_type", v)} options={DOC_TYPES} /></Field>
+          <Field label="País emisor"><Input value={data.country ?? ""} onChange={(e) => set("country", e.target.value)} placeholder="México, USA…" className="bg-input border-border" /></Field>
+          <Field label="Número"><Input value={data.number ?? ""} onChange={(e) => set("number", e.target.value)} placeholder="G12345678 / KTN / etc." className="bg-input border-border" /></Field>
+          <Field label="Vence (YYYY-MM-DD)"><Input value={data.expires ?? ""} onChange={(e) => set("expires", e.target.value)} placeholder="2031-04-12" className="bg-input border-border" /></Field>
+          <div className="md:col-span-2">
+            <Field label="Notas"><Input value={data.notes ?? ""} onChange={(e) => set("notes", e.target.value)} placeholder="Known Traveler Number, programa, etc." className="bg-input border-border" /></Field>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-end gap-2 pt-2">
         <Button variant="ghost" size="sm" onClick={onCancel}><X className="w-4 h-4 mr-1" /> Cancelar</Button>
         <Button size="sm" onClick={submit} className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
           Guardar
         </Button>
       </div>
+    </div>
+  );
+};
+
+// ---------------- AI Credit Card lookup form ----------------
+const CreditCardForm = ({ data, setData }: { data: any; setData: (fn: any) => void }) => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const search = async () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    setResults([]);
+    try {
+      const { data: res, error } = await supabase.functions.invoke("card-benefits-lookup", { body: { query: query.trim() } });
+      if (error) throw error;
+      if (!res?.ok) throw new Error(res?.error ?? "Sin resultados");
+      setResults(res.cards ?? []);
+      if ((res.cards ?? []).length === 0) toast.info("La IA no encontró tarjetas que coincidan, intenta otro nombre.");
+    } catch (e: any) {
+      toast.error(e.message ?? "Error buscando la tarjeta");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const pick = (card: any) => {
+    setData((d: any) => ({
+      ...d,
+      bank: card.bank,
+      card_name: card.card_name,
+      card_tier: card.card_tier,
+      network: card.network,
+      perks_enabled: card.perks_enabled ?? [],
+      lounge_access: card.lounge_access ?? [],
+      insurance: card.insurance ?? [],
+      miles_program: card.miles_program ?? null,
+      extras: card.extras ?? [],
+      ai_autofilled: true,
+    }));
+    toast.success(`Beneficios cargados: ${card.card_name ?? card.bank}`);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <span className="text-xs text-muted-foreground tracking-wider uppercase mb-1.5 block">
+          Busca tu tarjeta (Amex, AMEX, Visa Santander, BBVA Platinum, Chase Sapphire…)
+        </span>
+        <div className="flex gap-2">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); search(); } }}
+            placeholder="amex platinum, santander aeromexico infinite…"
+            className="bg-input border-border"
+          />
+          <Button type="button" onClick={search} disabled={searching || !query.trim()}
+            className="bg-gradient-gold text-primary-foreground hover:opacity-90 shrink-0">
+            {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            <span className="ml-2 hidden sm:inline">Buscar</span>
+          </Button>
+        </div>
+      </div>
+
+      {results.length > 0 && (
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+          {results.map((c, i) => (
+            <button key={i} type="button" onClick={() => pick(c)}
+              className="w-full text-left p-3 rounded-lg bg-surface border border-border hover:border-primary/60 transition">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">{c.bank} · {c.card_name}</p>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">{c.card_tier}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {[c.network, c.region, c.miles_program].filter(Boolean).join(" · ")}
+              </p>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {[...(c.perks_enabled ?? []), ...(c.lounge_access ?? []), ...(c.insurance ?? []), ...(c.extras ?? [])].slice(0, 6).map((p: string, j: number) => (
+                  <span key={j} className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/10 text-muted-foreground">{p}</span>
+                ))}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {data.bank && (
+        <div className="p-3 rounded-lg border border-primary/30 bg-primary/5">
+          <p className="text-xs uppercase tracking-wider text-primary mb-1 flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5" /> Tarjeta seleccionada
+          </p>
+          <p className="text-sm font-medium">{data.bank}{data.card_name ? ` · ${data.card_name}` : ""} · {data.card_tier}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {(data.perks_enabled ?? []).length} beneficios · {(data.lounge_access ?? []).length} salas · {(data.insurance ?? []).length} seguros
+          </p>
+        </div>
+      )}
     </div>
   );
 };
