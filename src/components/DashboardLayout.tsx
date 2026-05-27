@@ -17,14 +17,15 @@ const links = [
   { to: "/dashboard/concierge", icon: Mail, label: "Concierge PRO" },
 ];
 
-// Mobile bottom nav — 2 left + centered (+) + 2 right, with labels
-const mobileLeft = [
+// Mobile bottom nav — all 7 tabs + floating (+) above the bar
+const mobileNav = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
   { to: "/dashboard/viajes", icon: Map, label: "Viajes" },
-];
-const mobileRight = [
+  { to: "/dashboard/cercanos", icon: MapPin, label: "Cerca" },
+  { to: "/dashboard/favoritos", icon: Heart, label: "Favs" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/concierge", icon: Crown, label: "Concierge PRO" },
+  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
+  { to: "/dashboard/concierge", icon: Crown, label: "PRO" },
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
