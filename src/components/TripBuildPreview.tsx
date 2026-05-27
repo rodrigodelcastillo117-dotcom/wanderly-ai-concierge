@@ -1,11 +1,14 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Route as RouteIcon, Calendar, Users, Wallet, Sparkles, Plane, Hotel, Utensils, Compass, Train, Pencil, Minus, Plus, Share2, MessageCircle, Mail, Copy, Check } from "lucide-react";
+import { MapPin, Route as RouteIcon, Calendar, Users, Wallet, Sparkles, Plane, Hotel, Utensils, Compass, Train, Pencil, Minus, Plus, Share2, Send, Mail, Copy, Check, Loader2 } from "lucide-react";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type Props = {
   origin?: string;
