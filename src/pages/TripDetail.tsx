@@ -68,6 +68,33 @@ const TripDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Auto-sugiere restaurantes si el viaje no los trae (típico de imports de PDF).
+  useEffect(() => {
+    if (!trip || !id) return;
+    const tieneRest = Array.isArray(trip.restaurantes_json) && trip.restaurantes_json.length > 0;
+    if (tieneRest) return;
+    const itinObj2 = trip.itinerario_json;
+    const isMulti2 = !!(itinObj2 && !Array.isArray(itinObj2) && itinObj2.multi);
+    const cities = isMulti2
+      ? (itinObj2.destinations ?? []).filter(Boolean)
+      : [trip.destino].filter(Boolean);
+    if (cities.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke("suggest-restaurants", {
+          body: { cities, travelers: trip.num_viajeros ?? 2 },
+        });
+        if (cancelled || !data?.ok || !Array.isArray(data.restaurantes) || data.restaurantes.length === 0) return;
+        await supabase.from("trips").update({ restaurantes_json: data.restaurantes }).eq("id", id);
+        setTrip((t: any) => (t ? { ...t, restaurantes_json: data.restaurantes } : t));
+      } catch (e) {
+        console.warn("suggest-restaurants failed", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [trip?.id]);
+
   // Abrir el primer destino por default al cargar el viaje
   useEffect(() => {
     if (!trip) return;
