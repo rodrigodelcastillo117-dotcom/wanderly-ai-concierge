@@ -74,7 +74,8 @@ Deno.serve(async (req) => {
 
   try {
     const key = Deno.env.get("GOOGLE_MAPS_API_KEY");
-    if (!key) {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!key || !lovableKey) {
       return new Response(JSON.stringify({ error: "GOOGLE_MAPS_API_KEY no configurada" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -94,11 +95,11 @@ Deno.serve(async (req) => {
     }
 
     // Places API (New) — searchNearby
-    const res = await fetch("https://places.googleapis.com/v1/places:searchNearby", {
+    const res = await fetch("https://connector-gateway.lovable.dev/google_maps/places/v1/places:searchNearby", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Goog-Api-Key": key,
+        "Authorization": `Bearer ${lovableKey}`, "X-Connection-Api-Key": key,
         "X-Goog-FieldMask": [
           "places.id",
           "places.displayName",
