@@ -103,7 +103,7 @@ const TripMap = () => {
   // 2. Cargar script Maps JS
   useEffect(() => {
     if (!BROWSER_KEY) return;
-    if (window.google?.maps) { setMapReady(true); return; }
+    if ((window as any).google?.maps) { setMapReady(true); return; }
     if (document.getElementById("gmaps-trip-script")) return;
     window.initTripMap = () => setMapReady(true);
     const s = document.createElement("script");
@@ -116,7 +116,7 @@ const TripMap = () => {
   // 3. Inicializar el mapa una vez
   useEffect(() => {
     if (!mapReady || !mapDivRef.current || mapRef.current) return;
-    mapRef.current = new window.google.maps.Map(mapDivRef.current, {
+    mapRef.current = new (window as any).google.maps.Map(mapDivRef.current, {
       center: { lat: 20, lng: 0 },
       zoom: 2,
       styles: NIGHT_STYLE,
@@ -139,9 +139,9 @@ const TripMap = () => {
 
   // 4. Geocodificar + dibujar todo cuando hay datos
   useEffect(() => {
-    if (!trip || !mapRef.current || !window.google?.maps) return;
+    if (!trip || !mapRef.current || !(window as any).google?.maps) return;
     const map = mapRef.current;
-    const g = window.google.maps;
+    const g = (window as any).google.maps;
     let cancelled = false;
 
     // Limpia overlays previos
