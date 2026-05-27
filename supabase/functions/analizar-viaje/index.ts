@@ -22,6 +22,7 @@ interface AnalisisRequest {
   fecha_regreso: string;
   num_viajeros: number;
   presupuesto_objetivo?: number | null;
+  notas_usuario?: string | null;
 }
 
 const TIER_ORDER = ["ahorro", "equilibrio", "premium"];
