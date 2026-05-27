@@ -32,12 +32,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const params = new URLSearchParams({ key, language });
+    const params = new URLSearchParams({ language });
     if (address) params.set("address", address);
     if (latlng) params.set("latlng", latlng);
     if (region) params.set("region", region);
 
-    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
+    const res = await fetch(`https://connector-gateway.lovable.dev/google_maps/maps/api/geocode/json?${params.toString()}`, {
+      headers: {
+        "Authorization": `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": key,
+      },
+    });
     const data = await res.json();
     if (!res.ok || (data.status !== "OK" && data.status !== "ZERO_RESULTS")) {
       return new Response(JSON.stringify({ error: data?.error_message ?? data?.status ?? "Geocode error" }), {
