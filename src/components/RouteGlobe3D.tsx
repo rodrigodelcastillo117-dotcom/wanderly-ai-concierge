@@ -92,6 +92,7 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
   const [points, setPoints] = useState<Pt[]>([]);
   const [loading, setLoading] = useState(false);
   const [countries, setCountries] = useState<any[]>([]);
+  const [altitude, setAltitude] = useState(2.4);
 
   const cities = useMemo(() => {
     const arr = [origin, ...destinations].map((s) => (s ?? "").trim()).filter(Boolean) as string[];
@@ -189,6 +190,7 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
   );
 
   // Auto-rotación + detenerla al primer interactuar (zoom/drag)
+  // y trackear altitud de cámara para etiquetas adaptativas
   useEffect(() => {
     if (!globeRef.current) return;
     const controls = globeRef.current.controls?.();
@@ -197,8 +199,18 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
     controls.autoRotateSpeed = 0.6;
     controls.enableZoom = true;
     const stop = () => { controls.autoRotate = false; };
+    const onChange = () => {
+      const pov = globeRef.current?.pointOfView?.();
+      if (pov && typeof pov.altitude === "number") {
+        setAltitude((prev) => (Math.abs(prev - pov.altitude) > 0.05 ? pov.altitude : prev));
+      }
+    };
     controls.addEventListener("start", stop);
-    return () => { controls.removeEventListener?.("start", stop); };
+    controls.addEventListener("change", onChange);
+    return () => {
+      controls.removeEventListener?.("start", stop);
+      controls.removeEventListener?.("change", onChange);
+    };
   }, [countries.length]);
 
   // Enfoque al centroide cuando cambian los puntos
@@ -207,6 +219,7 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
     const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
     const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
     globeRef.current.pointOfView({ lat, lng, altitude: 2.4 }, 1200);
+    setAltitude(2.4);
   }, [points]);
 
   // Distancia haversine (km) — para escalar altura del arco
@@ -305,17 +318,34 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
           pointRadius={0.6}
           pointLabel={(d: any) => `<div style="background:rgba(0,0,0,.8);color:#bff0ff;padding:4px 8px;border-radius:6px;font-size:11px">${d.order + 1}. ${d.name}</div>`}
           // País resaltado en dorado · ciudad numerada en cian, más chica y elevada para no encimarse
-          labelsData={[
-            ...countryLabels.map((c) => ({ ...c, kind: "country" as const })),
-            ...cityLabels.map((c) => ({ ...c, kind: "city" as const })),
-          ]}
+          // Etiquetas adaptativas: lejos = países, medio = ambos, cerca = ciudades
+          labelsData={(() => {
+            const showCountries = altitude > 0.55;
+            const showCityNames = altitude < 1.4;
+            const country = showCountries
+              ? countryLabels.map((c) => ({ ...c, kind: "country" as const }))
+              : [];
+            const city = cityLabels.map((c) => ({
+              ...c,
+              kind: "city" as const,
+              showName: showCityNames,
+            }));
+            return [...country, ...city];
+          })()}
           labelLat={(d: any) => d.lat}
           labelLng={(d: any) => d.lng}
-          labelText={(d: any) =>
-            d.kind === "country" ? String(d.name).toUpperCase() : `${d.order + 1}`
-          }
-          labelSize={(d: any) => (d.kind === "country" ? 0.85 : 0.32)}
-          labelDotRadius={(d: any) => (d.kind === "country" ? 0 : 0.25)}
+          labelText={(d: any) => {
+            if (d.kind === "country") return String(d.name).toUpperCase();
+            return d.showName ? `${d.order + 1}. ${d.name}` : `${d.order + 1}`;
+          }}
+          labelSize={(d: any) => {
+            if (d.kind === "country") {
+              // Más chico al hacer zoom para no encimar
+              return Math.max(0.35, Math.min(1.1, altitude * 0.45));
+            }
+            return d.showName ? Math.max(0.28, Math.min(0.55, 0.9 - altitude * 0.3)) : 0.32;
+          }}
+          labelDotRadius={(d: any) => (d.kind === "country" ? 0 : Math.max(0.18, 0.45 - altitude * 0.1))}
           labelColor={(d: any) => (d.kind === "country" ? "#f5e6a8" : "#bff0ff")}
           labelResolution={2}
           labelAltitude={(d: any) => (d.kind === "country" ? 0.012 : 0.05)}
