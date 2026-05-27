@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type InsightAction = "saved" | "removed" | "viewed" | "searched" | "planned" | "skipped";
-export type InsightTarget = "destination" | "hotel" | "flight" | "tour" | "restaurant" | "expense";
+export type InsightTarget = "destination" | "hotel" | "flight" | "tour" | "restaurant" | "expense" | "place";
 
 export async function logInsight(
   action: InsightAction,
