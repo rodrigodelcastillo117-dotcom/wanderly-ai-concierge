@@ -185,6 +185,29 @@ const TOOL_SCHEMA = {
       },
       tips_personalizados: { type: "array", items: { type: "string" } },
       pais_destino: { type: "string" },
+      cruceros_alternativas: {
+        type: "array",
+        description:
+          "Si el viaje incluye múltiples islas, puertos o destinos costeros conectados (ej: islas griegas desde Atenas, Caribe, Mediterráneo, fiordos), incluye 2-3 opciones REALES de crucero que cubran toda o parte de la ruta. Si no aplica, devuelve [].",
+        items: {
+          type: "object",
+          properties: {
+            naviera: { type: "string", description: "Naviera real (Celestyal, MSC, Royal Caribbean, Norwegian, etc)" },
+            barco: { type: "string", description: "Nombre real del barco si está disponible" },
+            nombre_itinerario: { type: "string", description: "Ej: 'Iconic Aegean 4 noches' o 'Greek Isles & Turkey 7 noches'" },
+            puerto_salida: { type: "string", description: "Puerto exacto, ej: 'Pireo (Atenas)'" },
+            puertos_visitados: { type: "array", items: { type: "string" } },
+            noches: { type: "integer" },
+            fecha_salida_sugerida: { type: "string", description: "YYYY-MM-DD dentro de las fechas del viaje" },
+            categoria_cabina: { type: "string", enum: ["interior", "exterior", "balcon", "suite"] },
+            precio_por_persona: { type: "number", description: "MXN, incluye impuestos y propinas estimadas" },
+            incluye: { type: "array", items: { type: "string" }, description: "Ej: ['todas las comidas','3 excursiones','traslados puerto']" },
+            por_que: { type: "string", description: "Por qué le conviene VS hacer el island-hop por ferry/avión." },
+            ahorro_vs_islas_independiente: { type: "number", description: "MXN aprox que ahorra vs hospedaje+ferry+comida independiente. Puede ser negativo si es más caro." },
+          },
+          required: ["naviera", "nombre_itinerario", "puerto_salida", "puertos_visitados", "noches", "categoria_cabina", "precio_por_persona", "por_que"],
+        },
+      },
     },
     required: [
       "analisis_narrativo",
