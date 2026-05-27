@@ -47,7 +47,14 @@ const Auth = () => {
         if (error) {
           toast.error(error.includes("already") ? "Ya existe una cuenta con este correo" : error);
         } else {
-          toast.success("¡Bienvenido a IATOS AI!");
+          // Auto-confirm está activo: iniciamos sesión de inmediato para evitar quedar sin sesión
+          const { error: signInErr } = await signIn(email, password);
+          if (signInErr) {
+            toast.success("Cuenta creada. Inicia sesión para continuar.");
+            setMode("login");
+          } else {
+            toast.success("¡Bienvenido a IATOS AI!");
+          }
         }
       } else {
         const { error } = await signIn(email, password);
@@ -57,6 +64,16 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  const handleForgotPassword = async () => {
+    if (!email) return toast.error("Escribe tu correo arriba primero");
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) toast.error(error.message);
+    else toast.success("Te enviamos un correo para recuperar tu contraseña");
+  };
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
