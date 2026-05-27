@@ -884,6 +884,7 @@ export type Database = {
           ciudad_origen: string | null
           cover_image_url: string | null
           created_at: string
+          cruceros_json: Json | null
           desglose_presupuesto: Json | null
           destino: string
           fecha_regreso: string | null
@@ -910,6 +911,7 @@ export type Database = {
           ciudad_origen?: string | null
           cover_image_url?: string | null
           created_at?: string
+          cruceros_json?: Json | null
           desglose_presupuesto?: Json | null
           destino: string
           fecha_regreso?: string | null
@@ -936,6 +938,7 @@ export type Database = {
           ciudad_origen?: string | null
           cover_image_url?: string | null
           created_at?: string
+          cruceros_json?: Json | null
           desglose_presupuesto?: Json | null
           destino?: string
           fecha_regreso?: string | null

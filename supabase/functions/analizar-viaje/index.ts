@@ -85,7 +85,8 @@ REGLAS ESTRICTAS DE PRECIOS:
 6. Nombres reales de hoteles, aerolíneas, restaurantes y barrios — los que aparezcan en la investigación.
 7. total_estimado = suma coherente del desglose para el GRUPO COMPLETO (multiplica por num_viajeros en vuelos/comida/tours; hospedaje es por habitación × noches).
 8. En analisis_narrativo cita explícitamente 2-3 fuentes reales de la lista de FUENTES CITADAS.
-9. Responde SIEMPRE llamando a la herramienta "entregar_analisis_viaje". Nunca texto libre.`;
+9. Responde SIEMPRE llamando a la herramienta "entregar_analisis_viaje". Nunca texto libre.
+10. CRUCEROS: Si el viaje incluye múltiples islas/puertos/destinos costeros conectados (islas griegas, Caribe, Mediterráneo, fiordos, Alaska), DEBES llenar "cruceros_alternativas" con 2-3 opciones reales tomadas de la investigación de Perplexity. Si no aplica claramente, devuelve [] (array vacío) en ese campo.`;
 
 const TOOL_SCHEMA = {
   name: "entregar_analisis_viaje",
@@ -185,6 +186,29 @@ const TOOL_SCHEMA = {
       },
       tips_personalizados: { type: "array", items: { type: "string" } },
       pais_destino: { type: "string" },
+      cruceros_alternativas: {
+        type: "array",
+        description:
+          "Si el viaje incluye múltiples islas, puertos o destinos costeros conectados (ej: islas griegas desde Atenas, Caribe, Mediterráneo, fiordos), incluye 2-3 opciones REALES de crucero que cubran toda o parte de la ruta. Si no aplica, devuelve [].",
+        items: {
+          type: "object",
+          properties: {
+            naviera: { type: "string", description: "Naviera real (Celestyal, MSC, Royal Caribbean, Norwegian, etc)" },
+            barco: { type: "string", description: "Nombre real del barco si está disponible" },
+            nombre_itinerario: { type: "string", description: "Ej: 'Iconic Aegean 4 noches' o 'Greek Isles & Turkey 7 noches'" },
+            puerto_salida: { type: "string", description: "Puerto exacto, ej: 'Pireo (Atenas)'" },
+            puertos_visitados: { type: "array", items: { type: "string" } },
+            noches: { type: "integer" },
+            fecha_salida_sugerida: { type: "string", description: "YYYY-MM-DD dentro de las fechas del viaje" },
+            categoria_cabina: { type: "string", enum: ["interior", "exterior", "balcon", "suite"] },
+            precio_por_persona: { type: "number", description: "MXN, incluye impuestos y propinas estimadas" },
+            incluye: { type: "array", items: { type: "string" }, description: "Ej: ['todas las comidas','3 excursiones','traslados puerto']" },
+            por_que: { type: "string", description: "Por qué le conviene VS hacer el island-hop por ferry/avión." },
+            ahorro_vs_islas_independiente: { type: "number", description: "MXN aprox que ahorra vs hospedaje+ferry+comida independiente. Puede ser negativo si es más caro." },
+          },
+          required: ["naviera", "nombre_itinerario", "puerto_salida", "puertos_visitados", "noches", "categoria_cabina", "precio_por_persona", "por_que"],
+        },
+      },
     },
     required: [
       "analisis_narrativo",
@@ -228,7 +252,16 @@ FORMATO OBLIGATORIO: Para cada ítem reporta "Aerolínea/Hotel X: $XX,XXX MXN" c
 
 2. HOSPEDAJE — ${dias} noches totales (desglosa por ciudad si aplica). 3 opciones con NOMBRE REAL del hotel (3★, 4★ boutique, 5★), barrio, rating, precio MXN por noche habitación doble en esas fechas exactas. Fuentes: Booking.com, Hotels.com.
 
-3. CRUCERO (si aplica): nombre real, naviera, itinerario, precio MXN por persona interior y balcón. Fuentes: Celestyal, MSC, Royal Caribbean.
+3. CRUCERO COMO ALTERNATIVA (OBLIGATORIO si el destino incluye 2+ islas, puertos o ciudades costeras conectadas — ej: islas griegas, Caribe, Mediterráneo, fiordos noruegos, Alaska, Bahamas):
+   Busca 2-3 cruceros REALES con salida desde el puerto natural más cercano al origen del viaje (ej: Pireo/Atenas para islas griegas, Civitavecchia/Roma para Mediterráneo Oeste, Barcelona, Miami para Caribe). Para cada uno reporta:
+   - Naviera + nombre del barco (Celestyal Journey, MSC Musica, Royal Caribbean Odyssey, etc)
+   - Nombre del itinerario oficial (ej: "Iconic Aegean 4 noches" de Celestyal)
+   - Puertos visitados en orden + número de noches
+   - Fecha de salida real dentro del rango ${body.fecha_salida} → ${body.fecha_regreso}
+   - Precio MXN por persona en cabina interior, exterior y balcón (con impuestos/propinas)
+   - Qué incluye (comidas, excursiones, traslados)
+   - Si reemplaza parte del itinerario por islas, calcula ahorro aproximado vs hacer cada isla independiente con ferry+hotel+comida.
+   Fuentes: vacationstogo.com, celestyal.com, cruisedirect.com, cruisecritic.com, msccruises.com, royalcaribbean.com.
 
 4. TOURS: 4-6 experiencias reales con nombre, duración y precio MXN por persona. Fuentes: GetYourGuide, Viator, Civitatis.
 
@@ -481,6 +514,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. En vuelos, devuel
         restaurantes_json: a.restaurantes,
         tours_json: a.tours,
         tips_personalizados: a.tips_personalizados,
+        cruceros_json: a.cruceros_alternativas ?? [],
       })
       .select()
       .single();
