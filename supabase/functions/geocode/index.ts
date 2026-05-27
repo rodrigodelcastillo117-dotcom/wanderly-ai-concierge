@@ -6,8 +6,9 @@ Deno.serve(async (req) => {
 
   try {
     const key = Deno.env.get("GOOGLE_MAPS_API_KEY");
-    if (!key) {
-      return new Response(JSON.stringify({ error: "GOOGLE_MAPS_API_KEY no configurada" }), {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!key || !lovableKey) {
+      return new Response(JSON.stringify({ error: "Google Maps connector no configurado" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
