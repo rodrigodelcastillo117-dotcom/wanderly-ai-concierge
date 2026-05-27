@@ -221,7 +221,11 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
 
 
 
-  const generateRoute = async (p: RoutePrefs, autonomous: boolean) => {
+  const generateRoute = async (pIn: RoutePrefs, autonomous: boolean) => {
+    const emocionParts = [...emociones, emocionTexto.trim()].filter(Boolean);
+    const p: RoutePrefs = emocionParts.length
+      ? { ...pIn, aiNotes: [pIn.aiNotes, `Emoción del viaje: ${emocionParts.join(", ")}. Acopla experiencias, ritmo y restaurantes a esta emoción.`].filter(Boolean).join("\n") }
+      : pIn;
     setConfigOpen(false);
     setGenerating(true);
     try {
