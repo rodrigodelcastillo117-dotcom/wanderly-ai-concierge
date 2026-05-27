@@ -80,6 +80,8 @@ const MultiDestRoute = () => {
   const [tripsCount, setTripsCount] = useState<number | null>(null);
   const [confidence, setConfidence] = useState<number>(0);
   const [prefs, setPrefs] = useState<RoutePrefs>(DEFAULT_PREFS);
+  const [emociones, setEmociones] = useState<string[]>([]);
+  const [emocionTexto, setEmocionTexto] = useState("");
 
   const [configOpen, setConfigOpen] = useState(false);
 
@@ -219,7 +221,11 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
 
 
 
-  const generateRoute = async (p: RoutePrefs, autonomous: boolean) => {
+  const generateRoute = async (pIn: RoutePrefs, autonomous: boolean) => {
+    const emocionParts = [...emociones, emocionTexto.trim()].filter(Boolean);
+    const p: RoutePrefs = emocionParts.length
+      ? { ...pIn, aiNotes: [pIn.aiNotes, `Emoción del viaje: ${emocionParts.join(", ")}. Acopla experiencias, ritmo y restaurantes a esta emoción.`].filter(Boolean).join("\n") }
+      : pIn;
     setConfigOpen(false);
     setGenerating(true);
     try {
@@ -517,6 +523,43 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               )}
             </Button>
           </div>
+        </section>
+
+        {/* Emoción del viaje — IATOS AI acopla a esta emoción */}
+        <section className="rounded-2xl border border-border bg-background p-5 md:p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="text-primary">♡</span>
+            <h3 className="font-display text-xs md:text-sm uppercase tracking-[0.2em] text-primary">
+              ¿Cuál es tu emoción del viaje?
+            </h3>
+          </div>
+          <Input
+            value={emocionTexto}
+            onChange={(e) => setEmocionTexto(e.target.value)}
+            placeholder='ej. quiero sentir libertad total y aventura'
+            className="bg-transparent border-border h-12"
+          />
+          <div className="flex flex-wrap gap-2">
+            {[
+              "Aventura adrenalina","Romance y conexión","Lujo y descanso","Cultura profunda",
+              "Naturaleza y desconexión","Fiesta y vida nocturna","Gastronomía","Espiritual / mindfulness",
+            ].map((em) => {
+              const active = emociones.includes(em);
+              return (
+                <button
+                  key={em}
+                  type="button"
+                  onClick={() => setEmociones((prev) => prev.includes(em) ? prev.filter(x => x !== em) : [...prev, em])}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${active ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                >
+                  {em}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground italic">
+            Puedes elegir varias emociones · IATOS AI las mezcla y reorganiza experiencias, restaurantes y ritmo.
+          </p>
         </section>
 
         {/* Generated output */}
