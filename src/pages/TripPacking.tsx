@@ -89,6 +89,34 @@ const TripPacking = () => {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
   const [newItem, setNewItem] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const suggestWithAI = async () => {
+    if (!trip || !id) return;
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("suggest-packing", { body: { trip } });
+      if (error) throw error;
+      const suggestions: { text: string; category: string }[] = data?.items ?? [];
+      if (!suggestions.length) { toast.info("La IA no devolvió sugerencias"); return; }
+      const existing = new Set(items.map(i => i.text.toLowerCase().trim()));
+      const fresh = suggestions
+        .filter(s => s.text && !existing.has(s.text.toLowerCase().trim()))
+        .map((s, i) => ({
+          trip_id: id, text: s.text, category: s.category || "Personalizado",
+          done: false, sort_order: items.length + i,
+        }));
+      if (!fresh.length) { toast.success("Tu lista ya está completa ✨"); return; }
+      const { data: ins, error: insErr } = await supabase.from("trip_packing_items").insert(fresh).select();
+      if (insErr) throw insErr;
+      setItems(prev => [...prev, ...(ins as Item[])]);
+      toast.success(`+${ins?.length ?? fresh.length} sugerencias inteligentes`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "No se pudieron generar sugerencias");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
