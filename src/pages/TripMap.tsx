@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { MapPin, Calendar, Hotel, Utensils, Activity, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/BackButton";
 
 const BROWSER_KEY = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
 
