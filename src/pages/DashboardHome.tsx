@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Gift, Car, Wifi, Compass } from "lucide-react";
+import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Gift, Car, Wifi, Compass, Ship } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
