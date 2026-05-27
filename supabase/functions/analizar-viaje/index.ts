@@ -513,6 +513,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. En vuelos, devuel
         restaurantes_json: a.restaurantes,
         tours_json: a.tours,
         tips_personalizados: a.tips_personalizados,
+        cruceros_json: a.cruceros_alternativas ?? [],
       })
       .select()
       .single();
