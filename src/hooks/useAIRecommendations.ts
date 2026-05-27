@@ -12,6 +12,11 @@ export type AIRecommendation = {
   image_query: string;
 };
 
+type AIRecommendationsResponse = {
+  destinations?: AIRecommendation[];
+  error?: string;
+};
+
 export function useAIRecommendations() {
   const { user } = useAuth();
   const [recos, setRecos] = useState<AIRecommendation[] | null>(null);
@@ -42,11 +47,12 @@ export function useAIRecommendations() {
         }
         throw error;
       }
-      if ((data as any)?.error) throw new Error((data as any).error);
-      setRecos((data as any)?.destinations ?? []);
-    } catch (e: any) {
+      const response = data as AIRecommendationsResponse | null;
+      if (response?.error) throw new Error(response.error);
+      setRecos(response?.destinations ?? []);
+    } catch (e: unknown) {
       console.error(e);
-      setError(e?.message ?? "No pudimos generar recomendaciones");
+      setError(e instanceof Error ? e.message : "No pudimos generar recomendaciones");
     } finally {
       setLoading(false);
     }
