@@ -37,7 +37,9 @@ export const TripBuildPreview = ({
   viajeros,
   presupuesto,
   onChangeFechas,
+  onChangeViajeros,
 }: Props) => {
+  const [copied, setCopied] = useState(false);
   const dests = (() => {
     if (destinations && destinations.length) return destinations.filter(Boolean);
     if (destinoRaw && destinoRaw.trim()) {
