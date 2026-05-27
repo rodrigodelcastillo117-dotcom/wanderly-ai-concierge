@@ -162,12 +162,20 @@ export const FlightStatusDialog = ({
             )}
 
             <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                onClick={enableAlerts}
+                disabled={tracking || !flight.trim()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 h-auto rounded-md bg-gradient-gold text-primary-foreground text-xs font-medium hover:opacity-90"
+              >
+                {tracking ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bell className="w-3 h-3" />}
+                Avisarme si cambia gate / retraso
+              </Button>
               <a
                 href={`https://www.google.com/search?q=${encodeURIComponent(`vuelo ${flight} estado en vivo gate terminal`)}`}
                 target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-xs"
               >
-                <ExternalLink className="w-3 h-3" /> Buscar en Google
+                <ExternalLink className="w-3 h-3" /> Google
               </a>
               <a
                 href={`https://www.flightaware.com/live/flight/${encodeURIComponent(flight.replace(/\s/g, ""))}`}
@@ -186,7 +194,7 @@ export const FlightStatusDialog = ({
             </div>
 
             <p className="text-[11px] text-muted-foreground mt-4">
-              Datos en vivo via Perplexity + fuentes oficiales (FlightAware, FlightRadar24, aerolínea). Para notificaciones push automáticas ante cambios necesitas activar el módulo de push web — pídeselo al concierge.
+              Activa las alertas y un proceso en segundo plano re-consulta tu vuelo cada 5 minutos. Si cambia el estado, gate, terminal u hora estimada, recibes una notificación push al instante.
             </p>
           </motion.div>
         </motion.div>
