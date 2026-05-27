@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
+import { RouteGlobe3D } from "@/components/RouteGlobe3D";
+import { VoiceInput } from "@/components/VoiceInput";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
