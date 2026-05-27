@@ -9,8 +9,7 @@ export const BackButton = () => {
   if (location.pathname === "/dashboard" || location.pathname === "/") return null;
 
   const handleBack = () => {
-    if (window.history.length > 1) navigate(-1);
-    else navigate("/dashboard");
+    navigate("/dashboard");
   };
 
   return (
