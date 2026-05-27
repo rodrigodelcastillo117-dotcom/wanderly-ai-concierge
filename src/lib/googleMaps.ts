@@ -72,3 +72,59 @@ export async function reverseGeocode(lat: number, lng: number, language = "es") 
   if (error) throw error;
   return data?.results ?? [];
 }
+
+// ============ Routes API ============
+export type RouteMode = "DRIVE" | "TRANSIT" | "WALK" | "BICYCLE";
+
+export type RoutePoint = { lat?: number; lng?: number; placeId?: string; address?: string };
+
+export type RouteStep = {
+  instruction: string | null;
+  distance: string | null;
+  duration: string | null;
+  mode: string;
+  transit: null | {
+    line: string | null;
+    line_short: string | null;
+    vehicle: string | null;
+    color: string | null;
+    headsign: string | null;
+    departure_stop: string | null;
+    arrival_stop: string | null;
+    departure_time: string | null;
+    arrival_time: string | null;
+    num_stops: number | null;
+  };
+};
+
+export type RouteResult =
+  | {
+      mode: RouteMode;
+      available: true;
+      duration_seconds: number | null;
+      duration_text: string | null;
+      distance_meters: number | null;
+      distance_text: string | null;
+      description: string | null;
+      transit_summary: null | {
+        transfers: number;
+        lines: string[];
+        stops: Array<{ line: string | null; from: string | null; to: string | null; num_stops: number | null }>;
+      };
+      steps: RouteStep[];
+      maps_url: string;
+    }
+  | { mode: RouteMode; available: false; reason: string };
+
+export async function getRoutes(params: {
+  origin: RoutePoint;
+  destination: RoutePoint;
+  modes?: RouteMode[];
+  language?: string;
+  units?: "METRIC" | "IMPERIAL";
+  departureTime?: string;
+}): Promise<RouteResult[]> {
+  const { data, error } = await supabase.functions.invoke("get-routes", { body: params });
+  if (error) throw error;
+  return data?.routes ?? [];
+}
