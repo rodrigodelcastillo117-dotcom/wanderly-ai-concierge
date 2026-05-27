@@ -1,11 +1,14 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Route as RouteIcon, Calendar, Users, Wallet, Sparkles, Plane, Hotel, Utensils, Compass, Train, Pencil, Minus, Plus, Share2, MessageCircle, Mail, Copy, Check } from "lucide-react";
+import { MapPin, Route as RouteIcon, Calendar, Users, Wallet, Sparkles, Plane, Hotel, Utensils, Compass, Train, Pencil, Minus, Plus, Share2, Send, Mail, Copy, Check, Loader2 } from "lucide-react";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type Props = {
   origin?: string;
@@ -40,6 +43,32 @@ export const TripBuildPreview = ({
   onChangeViajeros,
 }: Props) => {
   const [copied, setCopied] = useState(false);
+  const [iatosOpen, setIatosOpen] = useState(false);
+  const [friends, setFriends] = useState<{ id: string; name: string; avatar: string | null }[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!iatosOpen || friends.length > 0) return;
+    (async () => {
+      setLoadingFriends(true);
+      try {
+        const { data: rows } = await supabase.from("mis_amigos").select("amigo_id");
+        const ids = (rows ?? []).map((r: any) => r.amigo_id);
+        if (!ids.length) { setFriends([]); return; }
+        const { data: profs } = await supabase
+          .from("profiles").select("id, full_name, username, avatar_url").in("id", ids);
+        setFriends((profs ?? []).map((p: any) => ({
+          id: p.id,
+          name: p.full_name || p.username || "Amigo",
+          avatar: p.avatar_url ?? null,
+        })));
+      } finally {
+        setLoadingFriends(false);
+      }
+    })();
+  }, [iatosOpen, friends.length]);
   const dests = (() => {
     if (destinations && destinations.length) return destinations.filter(Boolean);
     if (destinoRaw && destinoRaw.trim()) {
@@ -262,15 +291,14 @@ export const TripBuildPreview = ({
                         const full = `${shareText} ${shareUrl}`.trim();
                         return (
                           <div className="grid grid-cols-3 gap-2">
-                            <a
-                              href={`https://wa.me/?text=${encodeURIComponent(full)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex flex-col items-center gap-1 rounded-lg bg-surface border border-border hover:border-primary/50 py-2 transition-colors"
+                            <button
+                              type="button"
+                              onClick={() => setIatosOpen(true)}
+                              className="flex flex-col items-center gap-1 rounded-lg bg-primary/10 border border-primary/40 hover:border-primary py-2 transition-colors"
                             >
-                              <MessageCircle className="w-4 h-4 text-primary" />
-                              <span className="text-[10px]">WhatsApp</span>
-                            </a>
+                              <Send className="w-4 h-4 text-primary" />
+                              <span className="text-[10px] text-primary">IATOS</span>
+                            </button>
                             <a
                               href={`mailto:?subject=${encodeURIComponent("Mi viaje en IATOS AI")}&body=${encodeURIComponent(full)}`}
                               className="flex flex-col items-center gap-1 rounded-lg bg-surface border border-border hover:border-primary/50 py-2 transition-colors"
@@ -343,6 +371,106 @@ export const TripBuildPreview = ({
           </ul>
         </div>
       )}
+
+      <Dialog open={iatosOpen} onOpenChange={setIatosOpen}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <Send className="w-4 h-4 text-primary" /> Compartir por IATOS Social
+            </DialogTitle>
+            <DialogDescription>
+              Envía este viaje a las notificaciones de tus amigos en IATOS.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-72 overflow-y-auto rounded-xl border border-border divide-y divide-border/60">
+            {loadingFriends ? (
+              <div className="py-8 flex items-center justify-center text-muted-foreground text-sm gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Cargando amigos…
+              </div>
+            ) : friends.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground px-4">
+                Aún no tienes amigos en IATOS Social. Invita a alguien desde la sección <b>Social</b>.
+              </div>
+            ) : (
+              friends.map((f) => {
+                const checked = selectedFriends.has(f.id);
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() =>
+                      setSelectedFriends((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(f.id)) next.delete(f.id); else next.add(f.id);
+                        return next;
+                      })
+                    }
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                      checked ? "bg-primary/10" : "hover:bg-surface"
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center overflow-hidden shrink-0">
+                      {f.avatar ? (
+                        <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-primary font-medium">
+                          {f.name.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <span className="flex-1 text-sm truncate">{f.name}</span>
+                    <span className={`w-5 h-5 rounded-md border flex items-center justify-center ${
+                      checked ? "bg-primary border-primary" : "border-border"
+                    }`}>
+                      {checked && <Check className="w-3.5 h-3.5 text-primary-foreground" />}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <p className="text-xs text-muted-foreground">
+              {selectedFriends.size} seleccionados
+            </p>
+            <Button
+              type="button"
+              disabled={sending || selectedFriends.size === 0}
+              onClick={async () => {
+                setSending(true);
+                try {
+                  const shareText = `Mira este viaje que estoy armando con IATOS AI${
+                    destinations && destinations.length
+                      ? `: ${destinations.filter(Boolean).join(" → ")}`
+                      : destinoRaw ? `: ${destinoRaw}` : ""
+                  }${fechaSalida ? ` (${fmtDate(fechaSalida)}${fechaRegreso ? ` → ${fmtDate(fechaRegreso)}` : ""})` : ""}.`;
+                  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+                  const { data, error } = await supabase.functions.invoke("share-trip-notify", {
+                    body: {
+                      friend_ids: Array.from(selectedFriends),
+                      message: shareText,
+                      url: shareUrl,
+                    },
+                  });
+                  if (error || (data as any)?.error) throw error || new Error((data as any).error);
+                  toast.success(`Viaje enviado a ${selectedFriends.size} amigo(s)`);
+                  setSelectedFriends(new Set());
+                  setIatosOpen(false);
+                } catch (e: any) {
+                  toast.error(e?.message ?? "No se pudo enviar");
+                } finally {
+                  setSending(false);
+                }
+              }}
+            >
+              {sending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+              Enviar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 };
