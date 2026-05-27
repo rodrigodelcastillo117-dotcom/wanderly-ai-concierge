@@ -117,20 +117,68 @@ export const TripBuildPreview = ({
       )}
 
       {/* Meta */}
-      {(fechaSalida || viajeros || presupuesto != null) && (
+      {(fechaSalida || viajeros || presupuesto != null || onChangeFechas) && (
         <div className="grid grid-cols-2 gap-2 text-xs">
-          {fechaSalida && (
-            <div className="rounded-xl bg-surface border border-border px-3 py-2 flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 text-primary/70" />
-              <div className="leading-tight">
-                <p className="text-muted-foreground text-[10px]">Fechas</p>
-                <p>
-                  {fmtDate(fechaSalida)}
-                  {fechaRegreso ? ` → ${fmtDate(fechaRegreso)}` : ""}
-                  {nights ? ` · ${nights}n` : ""}
-                </p>
+          {(fechaSalida || onChangeFechas) && (
+            onChangeFechas ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="rounded-xl bg-surface border border-border px-3 py-2 flex items-center gap-2 text-left hover:border-primary/50 transition-colors"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                    <div className="leading-tight flex-1 min-w-0">
+                      <p className="text-muted-foreground text-[10px] flex items-center gap-1">
+                        Fechas <Pencil className="w-2.5 h-2.5 opacity-60" />
+                      </p>
+                      <p className="truncate">
+                        {fechaSalida ? fmtDate(fechaSalida) : "Elegir salida"}
+                        {fechaRegreso ? ` → ${fmtDate(fechaRegreso)}` : fechaSalida ? " → regreso" : ""}
+                        {nights ? ` · ${nights}n` : ""}
+                      </p>
+                    </div>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 bg-card border-border" align="start">
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="fs" className="text-[10px] uppercase tracking-widest text-muted-foreground">Fecha de ida</Label>
+                      <Input
+                        id="fs"
+                        type="date"
+                        value={fechaSalida ?? ""}
+                        onChange={(e) => onChangeFechas(e.target.value, fechaRegreso ?? "")}
+                        className="bg-input border-border h-10 mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="fr" className="text-[10px] uppercase tracking-widest text-muted-foreground">Fecha de regreso</Label>
+                      <Input
+                        id="fr"
+                        type="date"
+                        value={fechaRegreso ?? ""}
+                        min={fechaSalida || undefined}
+                        onChange={(e) => onChangeFechas(fechaSalida ?? "", e.target.value)}
+                        className="bg-input border-border h-10 mt-1"
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <div className="rounded-xl bg-surface border border-border px-3 py-2 flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5 text-primary/70" />
+                <div className="leading-tight">
+                  <p className="text-muted-foreground text-[10px]">Fechas</p>
+                  <p>
+                    {fmtDate(fechaSalida)}
+                    {fechaRegreso ? ` → ${fmtDate(fechaRegreso)}` : ""}
+                    {nights ? ` · ${nights}n` : ""}
+                  </p>
+                </div>
               </div>
-            </div>
+            )
           )}
           {viajeros ? (
             <div className="rounded-xl bg-surface border border-border px-3 py-2 flex items-center gap-2">
