@@ -507,10 +507,14 @@ const RichCard = ({ card }: { card: Card }) => {
   if (card.type === "restaurant") {
     return (
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="h-32 bg-gradient-to-br from-amber-900/40 via-stone-800 to-stone-900 flex items-center justify-center relative">
-          <Utensils className="w-10 h-10 text-primary/40" />
+        <div className="h-32 bg-muted flex items-center justify-center relative overflow-hidden">
+          {card.image_url ? (
+            <img src={card.image_url} alt={card.title} className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <Utensils className="w-10 h-10 text-primary/40" />
+          )}
           {card.rating && (
-            <span className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur text-xs">
+            <span className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 backdrop-blur text-xs">
               <Star className="w-3 h-3 fill-primary text-primary" /> {card.rating.toFixed(1)}
             </span>
           )}
@@ -522,7 +526,20 @@ const RichCard = ({ card }: { card: Card }) => {
           <ActionButton
             status={status}
             label={card.cta_label}
-            onClick={() => run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta, rating: card.rating } })}
+            onClick={() => {
+              if (card.cta_action) {
+                trackBookingClick({
+                  category: "restaurant",
+                  provider: card.provider ?? "Concierge",
+                  title: card.title,
+                  subtitle: card.subtitle,
+                  bookingUrl: card.cta_action,
+                  imageUrl: card.image_url,
+                });
+                return;
+              }
+              run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta, rating: card.rating } });
+            }}
             className="w-full gold-glow"
           />
         </div>
