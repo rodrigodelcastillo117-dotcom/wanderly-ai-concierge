@@ -167,3 +167,41 @@ export function heymondoLink() {
   return "https://www.heymondo.com/?utm_source=iatos";
 }
 
+// ============ FERRIES ============
+export function ferryhopperLink(origin: string, destination: string, date: string, passengers = 1) {
+  const trip = `${encodeURIComponent(origin)}-${encodeURIComponent(destination)}_${date}`;
+  return `https://www.ferryhopper.com/en/booking?trips=${trip}&adults=${passengers}`;
+}
+
+export function directFerriesLink(origin: string, destination: string, date: string, passengers = 1) {
+  const p = new URLSearchParams({ from: origin, to: destination, outdate: date, adults: String(passengers) });
+  return `https://www.directferries.com/ferry_search.htm?${p.toString()}`;
+}
+
+export function aferryLink(origin: string, destination: string, date: string) {
+  return `https://www.aferry.com/ferry-routes/${encodeURIComponent(origin)}-${encodeURIComponent(destination)}-ferry.htm?date=${date}`;
+}
+
+// ============ CRUCEROS ============
+export function vacationsToGoLink(destination?: string, month?: string) {
+  const p = new URLSearchParams();
+  if (destination) p.set("destination", destination);
+  if (month) p.set("month", month);
+  const qs = p.toString();
+  return qs ? `https://www.vacationstogo.com/cruisesearch.cfm?${qs}` : `https://www.vacationstogo.com/cruisesearch.cfm`;
+}
+
+export function cruiseDirectLink(destination?: string, depart?: string, returnDate?: string) {
+  const p = new URLSearchParams();
+  if (destination) p.set("destination", destination);
+  if (depart) p.set("departDate", depart);
+  if (returnDate) p.set("returnDate", returnDate);
+  return `https://www.cruisedirect.com/cruise-search/?${p.toString()}`;
+}
+
+export function cruiseCriticLink(destination?: string) {
+  return destination
+    ? `https://www.cruisecritic.com/cruiseto/cruisestyles.cfm?cruisestyle=${encodeURIComponent(destination)}`
+    : `https://www.cruisecritic.com/find-a-cruise/`;
+}
+
