@@ -85,7 +85,8 @@ REGLAS ESTRICTAS DE PRECIOS:
 6. Nombres reales de hoteles, aerolíneas, restaurantes y barrios — los que aparezcan en la investigación.
 7. total_estimado = suma coherente del desglose para el GRUPO COMPLETO (multiplica por num_viajeros en vuelos/comida/tours; hospedaje es por habitación × noches).
 8. En analisis_narrativo cita explícitamente 2-3 fuentes reales de la lista de FUENTES CITADAS.
-9. Responde SIEMPRE llamando a la herramienta "entregar_analisis_viaje". Nunca texto libre.`;
+9. Responde SIEMPRE llamando a la herramienta "entregar_analisis_viaje". Nunca texto libre.
+10. CRUCEROS: Si el viaje incluye múltiples islas/puertos/destinos costeros conectados (islas griegas, Caribe, Mediterráneo, fiordos, Alaska), DEBES llenar "cruceros_alternativas" con 2-3 opciones reales tomadas de la investigación de Perplexity. Si no aplica claramente, devuelve [] (array vacío) en ese campo.`;
 
 const TOOL_SCHEMA = {
   name: "entregar_analisis_viaje",
