@@ -22,6 +22,8 @@ type Place = {
   website: string | null;
   open_now: boolean | null;
   type: string | null;
+  photo_url?: string | null;
+  source?: string | null;
 };
 
 // Numeros de emergencia por país (ISO o nombre común). Fallback: 112.
@@ -107,7 +109,7 @@ export const ConciergeActions = ({
       if (data?.error) throw new Error(data.error);
       setPlaces(data?.places ?? []);
     } catch (e: any) {
-      toast.error(e?.message ?? "No se pudo cargar");
+      toast.error(e?.message ?? "No se pudo cargar", { description: "Estoy intentando con fuentes alternativas reales." });
       setPlaces([]);
     } finally {
       setLoading(false);
@@ -274,7 +276,11 @@ export const ConciergeActions = ({
 
                 <div className="space-y-2">
                   {places.map(p => (
-                    <div key={p.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                    <div key={p.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                      {p.photo_url && (
+                        <img src={p.photo_url} alt={p.name} className="h-28 w-full object-cover" loading="lazy" />
+                      )}
+                      <div className="p-3">
                       <div className="flex items-start justify-between gap-3 mb-1">
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-sm truncate">{p.name}</div>
@@ -295,6 +301,7 @@ export const ConciergeActions = ({
                           </span>
                         )}
                         {p.type && <span>· {p.type}</span>}
+                        {p.source && <span>· {p.source}</span>}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {p.phone && (
@@ -317,6 +324,7 @@ export const ConciergeActions = ({
                             <ExternalLink className="w-3 h-3" /> Sitio
                           </a>
                         )}
+                      </div>
                       </div>
                     </div>
                   ))}
