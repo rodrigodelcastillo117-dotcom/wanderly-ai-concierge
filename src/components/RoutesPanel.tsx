@@ -167,7 +167,8 @@ export function RoutesPanel({ origin, destination, destinationLabel, autoFetch =
 
           {current && !current.available && (
             <div className="p-4 text-sm text-muted-foreground">
-              {MODE_META[current.mode].label} no disponible para esta ruta. {current.reason ? `(${current.reason})` : ""}
+              {MODE_META[current.mode].label} no disponible para esta ruta.
+              {"reason" in current && current.reason ? ` (${current.reason})` : ""}
             </div>
           )}
         </>
