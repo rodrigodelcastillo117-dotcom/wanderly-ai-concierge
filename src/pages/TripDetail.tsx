@@ -269,6 +269,13 @@ const TripDetail = () => {
 
         <div className="absolute top-6 right-6 flex items-center gap-2">
           <button
+            onClick={toggleFavorite}
+            aria-label={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
+            className="inline-flex items-center justify-center w-9 h-9 rounded-full glass-card hover:gold-border transition"
+          >
+            <Heart className={`w-4 h-4 ${isFavorite ? "fill-primary text-primary" : "text-foreground"}`} />
+          </button>
+          <button
             onClick={handleDownloadPdf}
             disabled={generatingPdf}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition disabled:opacity-50"
