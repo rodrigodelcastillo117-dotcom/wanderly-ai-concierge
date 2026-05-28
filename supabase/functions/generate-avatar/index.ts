@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
     const overrideStyle: string | undefined = body?.style;
     const overrideDestino: string | undefined = body?.destino;
     const gender: string = body?.gender ?? "androgynous";
+    const selfieDataUrl: string | undefined = body?.selfie;
 
     // Pull signals
     const [{ data: prefs }, { data: profile }, { data: trips }] = await Promise.all([
@@ -80,7 +81,17 @@ Deno.serve(async (req) => {
     const styleKey = overrideStyle ?? (prefs?.perfil_ia as any)?.estilo_dominante_key ?? "luxury";
     const styleHint = STYLE_HINTS[styleKey] ?? STYLE_HINTS.luxury;
 
-    const prompt = `Ultra-realistic cinematic portrait of a single ${gender} luxury traveler, head and shoulders, looking confidently into camera.
+    const prompt = selfieDataUrl
+      ? `Transform the person in this selfie into a stylized realistic luxury travel avatar.
+CRITICAL: Preserve the person's REAL identity — exact face structure, facial proportions, eye shape and color, eyebrows, smile, nose, jawline, hairstyle, facial hair, skin tone and unique features. The avatar must instantly resemble the real person.
+Style: premium cinematic cartoon realism — a blend of Pixar-level realism, Apple-quality 3D avatars, modern luxury metaverse identity and high-end game character design. NOT anime, NOT childish, NOT exaggerated, NOT comedic.
+Cultural context: ${culture.vibe}. ${styleHint}.
+Outfit: ${culture.outfit} — modern luxury travel fashion, sophisticated minimalism, natural elegant posture.
+Setting: ${culture.background}.
+Lighting: ${culture.lighting}, cinematic soft luxury glow, realistic shadows, premium skin reflections.
+Composition: head-and-shoulders portrait, expressive eyes, smooth skin rendering, ultra high detail, premium 3D look, vertical portrait, dark elegant background with subtle gold accents, shallow depth of field.
+NO text, NO logos, NO watermarks, NO captions.`
+      : `Ultra-realistic cinematic portrait of a single ${gender} luxury traveler, head and shoulders, looking confidently into camera.
 Style: ${culture.vibe}. ${styleHint}.
 Outfit: ${culture.outfit}.
 Detail: ${culture.accessory}.
@@ -89,13 +100,20 @@ Lighting: ${culture.lighting}, soft rim light, shallow depth of field, 85mm lens
 Mood: aspirational, emotional, premium, futuristic editorial.
 Output: vertical portrait composition, dark elegant background, gold and soft silver tones, NO text, NO logos, NO watermarks, NO captions.`;
 
+    const userContent: any = selfieDataUrl
+      ? [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: selfieDataUrl } },
+        ]
+      : prompt;
+
     // Call Lovable AI image gen via chat completions (Gemini image model)
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: userContent }],
         modalities: ["image", "text"],
       }),
     });
