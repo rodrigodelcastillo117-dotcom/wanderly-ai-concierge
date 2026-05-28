@@ -162,9 +162,13 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <button
               onClick={() => navigate("/dashboard/perfil")}
               aria-label="Mi perfil"
-              className="ml-1 w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition"
+              className="ml-1 w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition overflow-hidden"
             >
-              {initial}
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
+              ) : (
+                initial
+              )}
             </button>
           </div>
         </div>
