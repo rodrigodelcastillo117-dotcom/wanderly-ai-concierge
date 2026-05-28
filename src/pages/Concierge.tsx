@@ -56,6 +56,9 @@ const Concierge = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* TRAVEL DNA */}
+          <section className="glass-card rounded-3xl p-5 lg:col-span-3">
+
 
             <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-3 flex items-center gap-1.5">
               <Sparkles className="w-3 h-3" /> Travel DNA
