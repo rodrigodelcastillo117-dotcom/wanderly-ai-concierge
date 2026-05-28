@@ -313,8 +313,49 @@ const TripDetail = () => {
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{trip.pais_destino}</p>
           <h1 className="font-display text-5xl md:text-7xl leading-none mb-4">{trip.destino}</h1>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDateOnly(trip.fecha_salida)} – {formatDateOnly(trip.fecha_regreso)}</span>
-            <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {viajeros} {viajeros === 1 ? "viajero" : "viajeros"}</span>
+            <Popover open={editingDates} onOpenChange={setEditingDates}>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1.5 hover:text-primary transition group">
+                  <Calendar className="w-3.5 h-3.5" /> {formatDateOnly(trip.fecha_salida)} – {formatDateOnly(trip.fecha_regreso)}
+                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 space-y-3" align="start">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Editar fechas</p>
+                <label className="block text-xs">
+                  Salida
+                  <Input type="date" defaultValue={trip.fecha_salida ?? ""} id="edit-fecha-salida" className="mt-1" />
+                </label>
+                <label className="block text-xs">
+                  Regreso
+                  <Input type="date" defaultValue={trip.fecha_regreso ?? ""} id="edit-fecha-regreso" className="mt-1" />
+                </label>
+                <Button size="sm" disabled={savingMeta} className="w-full" onClick={() => {
+                  const fs = (document.getElementById("edit-fecha-salida") as HTMLInputElement)?.value;
+                  const fr = (document.getElementById("edit-fecha-regreso") as HTMLInputElement)?.value;
+                  if (!fs || !fr) return toast.error("Fechas requeridas");
+                  if (fr < fs) return toast.error("Regreso debe ser después de salida");
+                  saveTripMeta({ fecha_salida: fs, fecha_regreso: fr });
+                }}>Guardar</Button>
+              </PopoverContent>
+            </Popover>
+            <Popover open={editingTravelers} onOpenChange={setEditingTravelers}>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1.5 hover:text-primary transition group">
+                  <Users className="w-3.5 h-3.5" /> {viajeros} {viajeros === 1 ? "viajero" : "viajeros"}
+                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 space-y-3" align="start">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Nº de viajeros</p>
+                <Input type="number" min={1} max={20} defaultValue={viajeros} id="edit-viajeros" />
+                <Button size="sm" disabled={savingMeta} className="w-full" onClick={() => {
+                  const n = Number((document.getElementById("edit-viajeros") as HTMLInputElement)?.value);
+                  if (!n || n < 1) return toast.error("Mínimo 1");
+                  saveTripMeta({ num_viajeros: n });
+                }}>Guardar</Button>
+              </PopoverContent>
+            </Popover>
             <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Desde {trip.ciudad_origen}</span>
           </div>
         </div>
