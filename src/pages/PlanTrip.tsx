@@ -50,6 +50,8 @@ const PlanTrip = () => {
   const [presupuesto, setPresupuesto] = useState<number | null>(null);
   const [budgetMode, setBudgetMode] = useState<"flexible" | "balanceado" | "premium" | "luxury">("balanceado");
   const [surpriseDates, setSurpriseDates] = useState(false);
+  const [surpriseDestino, setSurpriseDestino] = useState(true);
+  const [destinoEmocion, setDestinoEmocion] = useState("");
   const [emociones, setEmociones] = useState<string[]>([]);
   const [emocionLibre, setEmocionLibre] = useState("");
   const [analizando, setAnalizando] = useState(false);
