@@ -156,6 +156,48 @@ const PlanTrip = () => {
     });
   };
 
+  // Modo emoción: IATOS elige el destino según la emoción + parámetros
+  const elegirDestinoYAnalizar = async () => {
+    if (!fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+    const emocionList = [...emociones, emocionLibre.trim()].filter(Boolean);
+    if (emocionList.length === 0) {
+      toast.error("Elige al menos una emoción para tu viaje.");
+      return;
+    }
+    setEligiendoDestino(true);
+    try {
+      const dias = Math.max(
+        1,
+        Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000),
+      );
+      const prompt = `Quiero que elijas el MEJOR destino para mí (UNA sola ciudad o región concreta, no varias opciones).
+Emociones / estilo que busco: ${emocionList.join(", ")}.
+Viajamos ${numViajeros} persona(s) desde ${ciudadOrigen}.
+Fechas: del ${fechaSalida} al ${fechaRegreso} (${dias} días).
+${presupuesto != null ? `Presupuesto total objetivo: ${presupuesto} MXN.` : "Presupuesto flexible."}
+Devuelve el destino ideal en el campo "destino" y "destinations" con esa única ciudad.`;
+
+      const { data, error } = await supabase.functions.invoke("parsear-viaje", { body: { prompt } });
+      if (error) throw error;
+      const destinoElegido: string = data?.destino || (Array.isArray(data?.destinations) ? data.destinations[0] : "") || "";
+      if (!destinoElegido) throw new Error("IATOS no pudo elegir un destino.");
+      setEligiendoDestino(false);
+      await runAnalisis({
+        destino: destinoElegido,
+        ciudad_origen: ciudadOrigen,
+        fecha_salida: fechaSalida,
+        fecha_regreso: fechaRegreso,
+        num_viajeros: numViajeros,
+        presupuesto_objetivo: presupuesto,
+        notas_usuario: `Emociones: ${emocionList.join(", ")}`,
+      });
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "No pudimos elegir un destino. Intenta de nuevo.");
+      setEligiendoDestino(false);
+    }
+  };
+
 
 
   // Flujo de búsqueda en lenguaje natural: ?q=... viene del Inicio
