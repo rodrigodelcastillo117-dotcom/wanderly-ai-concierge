@@ -309,42 +309,51 @@ Deno.serve(async (req) => {
           const notas = tp?.notas_adicionales ?? "";
           const visitados = (tp?.destinos_visitados ?? []).slice(0, 6).join(", ");
           const pendientes = (tp?.destinos_pendientes ?? []).slice(0, 6).join(", ");
-          const nombre = prof?.full_name?.split(" ")[0] ?? "viajero";
-
-          perfilLine = `PERFIL DEL VIAJERO (úsalo para personalizar TODO: hoteles, restaurantes, experiencias y narrativa):
-- Nombre: ${nombre} · Origen: ${prof?.ciudad_origen ?? "—"} · Nacionalidad: ${prof?.nationality ?? "—"}
-- Estilos preferidos: ${estilos || "no especificado"}
-- Presupuesto: ${presupuesto} · Ritmo: ${ritmo}
-- Intereses: ${intereses || "varios"}
-- Comida: ${comida} · Restricciones: ${alergias}
-- Alojamiento preferido: ${aloj}
-- Acompañantes: ${acomp} · Idiomas: ${idiomas}
-- Actividades favoritas: ${actividades}
-${visitados ? `- Ya visitó: ${visitados} (NO repitas patrones obvios)` : ""}
-${pendientes ? `- Lugares en su lista: ${pendientes}` : ""}
-${notas ? `- Notas personales: ${notas}` : ""}
-INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil. Hoteles que matcheen el estilo (boutique vs resort vs airbnb), restaurantes alineados al gusto culinario, experiencias que respeten ritmo y acompañantes. Evita recomendaciones genéricas.`;
-        }
-      }
-    } catch (e) {
-      console.warn("perfil:", e);
-    }
-
-    const nights = body.fecha_salida && body.fecha_regreso
-      ? Math.max(1, Math.round((new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / 86400000))
-      : Math.max(body.destinations.length * 3, 6);
-
     const viajeros = body.num_viajeros ?? 2;
     const fechas = `${body.fecha_salida ?? "flexible"} a ${body.fecha_regreso ?? "flexible"}`;
     const cityList = body.destinations.join(" → ");
+    const roadtripMode = isRoadtrip(body.destinations, body.origin);
+    const roadtripBlock = roadtripMode ? `\n\n${ROADTRIP_RULES}` : "";
 
     // ───── Llamada GLOBAL (vuelos + transporte + días + costos) ─────
-    const globalPrompt = `${perfilLine}
+    const globalPrompt = `${perfilLine}${roadtripBlock}
 
 Origen: ${body.origin}
 Destinos en orden: ${cityList}
 Viajeros: ${viajeros} | Fechas: ${fechas} (~${nights} noches)
 Preferencia conexión: ${body.prefs?.connection ?? "smart"}
+${roadtripMode ? "MODO: ROADTRIP (transporte interno = coche/campervan obligatorio, NO vuelos internos)." : ""}
+
+Entrega JSON con:
+1. flights: 1-2 vuelos internacionales (origen→primera y última→origen) con tier ahorro/equilibrio/premium.
+2. internal_transport: ${roadtripMode
+  ? `tramos en COCHE/CAMPERVAN entre ciudades consecutivas (mode="coche", provider con renta real, duración en horas de conducción, scenic=true, luggage_note con km y paradas). Añade pickup aeropuerto → primera ciudad y dropoff última ciudad → aeropuerto.`
+  : `UN tramo por cada par consecutivo (${body.destinations.length - 1} tramos). Europa <800km usa TREN. Inter-islas griegas usa FERRY (Blue Star, SeaJets).`}
+3. days: ${nights} días distribuidos lógicamente entre las ciudades, cada uno con ciudad/título/mañana/tarde/noche específicos${roadtripMode ? " (mencionando carretera, km y paradas escénicas)" : ""}.
+4. mandatory_costs con currency_buffer_pct=3${roadtripMode ? ' e incluye en "notes" el costo estimado de gasolina + peajes para todo el recorrido' : ""}.
+5. total_estimado_usd y resumen breve.`;
+
+    // ───── Llamadas POR CIUDAD en paralelo ─────
+    const cityPromises = body.destinations.map((city, i) => {
+      const prevPoint = i === 0 ? body.origin : body.destinations[i - 1];
+      const cityNights = Math.max(1, Math.round(nights / body.destinations.length));
+      const cityPrompt = `${perfilLine}${roadtripBlock}
+
+Ciudad: ${city}
+Punto anterior: ${prevPoint}
+Viajeros: ${viajeros} | Noches sugeridas: ${cityNights}
+Ruta completa del viaje (contexto): ${body.origin} → ${cityList}
+${roadtripMode ? "MODO: ROADTRIP — arrival_options principal SIEMPRE en coche con km, horas y paradas." : ""}
+
+Entrega JSON con:
+- city: "${city}"
+- nights: ${cityNights}
+- arrival_options: 2-3 maneras de LLEGAR desde ${prevPoint}. ${roadtripMode
+  ? `La PRINCIPAL es coche por carretera real (Ring Road / Route 1 / Snæfellsnes 54 / etc.), con km, horas y 2-3 paradas escénicas en "notes". NO incluyas vuelo doméstico salvo que la distancia supere 450km.`
+  : `Si es Europa <800km incluye tren real (Italo/Renfe AVE/SNCF/Eurostar). Si son islas griegas incluye ferry real (Blue Star, SeaJets) y vuelo Aegean/Sky Express.`}
+- hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium) con hoteles REALES de ${city} alineados al estilo del usuario.
+- restaurantes: 4-5 reales en ${city} que matcheen el estilo de comida del usuario.
+- experiencias: 4-5 tours/experiencias reales en ${city}.`;
 
 Entrega JSON con:
 1. flights: 1-2 vuelos internacionales (origen→primera y última→origen) con tier ahorro/equilibrio/premium.
