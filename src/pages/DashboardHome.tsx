@@ -258,31 +258,43 @@ const DashboardHome = () => {
                 </Button>
               </div>
 
-              {/* Despliegue en vivo de lo que el usuario escribe */}
+              {/* Despliegue en vivo de lo que el usuario escribe (editable) */}
               {concierge.trim().length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="absolute left-0 right-0 top-full mt-2 z-30 rounded-2xl border border-primary/20 bg-background/95 backdrop-blur-xl shadow-2xl p-4 md:p-5"
+                  className="absolute left-0 right-0 top-full mt-2 z-30 rounded-2xl border border-primary/20 bg-background/30 backdrop-blur-md shadow-2xl p-4 md:p-5"
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <p className="text-[10px] tracking-[0.3em] uppercase text-primary/80">Tu idea de viaje</p>
                     <span className="text-[10px] text-muted-foreground">{concierge.trim().length} caracteres</span>
                   </div>
-                  <p className="font-display italic text-base md:text-xl leading-snug text-foreground whitespace-pre-wrap break-words">
-                    "{concierge}"
-                  </p>
+                  <textarea
+                    value={concierge}
+                    onChange={(e) => setConcierge(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        const q = concierge.trim();
+                        if (q.length >= 5) navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
+                      }
+                    }}
+                    rows={Math.min(6, Math.max(2, Math.ceil(concierge.length / 60)))}
+                    aria-label="Editar idea de viaje"
+                    className="w-full resize-none bg-transparent border-0 outline-none font-display italic text-base md:text-xl leading-snug text-foreground whitespace-pre-wrap break-words placeholder:text-muted-foreground/50"
+                  />
                   {concierge.trim().length < 5 ? (
-                    <p className="mt-3 text-[11px] text-muted-foreground">
+                    <p className="mt-2 text-[11px] text-muted-foreground">
                       Sigue escribiendo… mínimo 5 caracteres para analizar.
                     </p>
                   ) : (
-                    <p className="mt-3 text-[11px] text-primary/80">
-                      Listo para analizar. Presiona <span className="text-primary">Analizar</span> o Enter.
+                    <p className="mt-2 text-[11px] text-primary/80">
+                      Toca cualquier parte del texto para editar. Presiona <span className="text-primary">Analizar</span> o Enter.
                     </p>
                   )}
                 </motion.div>
               )}
+
             </div>
           </div>
         </motion.form>
