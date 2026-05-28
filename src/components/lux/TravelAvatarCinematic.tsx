@@ -200,7 +200,7 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
               onClick={() => fileInputRef.current?.click()}
               disabled={generating}
               className="group relative px-4 py-2.5 rounded-full border border-white/15 text-xs tracking-[0.15em] uppercase font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10 text-foreground/90"
-              title="Sube un selfie para crear tu avatar IATOS realista"
+              title="Sube un selfie para crear tu avatar caricatura IATOS"
             >
               <span className="flex items-center gap-2">
                 <Upload className="w-3.5 h-3.5" /> Subir selfie

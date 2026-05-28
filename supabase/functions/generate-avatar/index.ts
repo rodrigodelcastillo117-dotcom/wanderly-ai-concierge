@@ -82,21 +82,24 @@ Deno.serve(async (req) => {
     const styleHint = STYLE_HINTS[styleKey] ?? STYLE_HINTS.luxury;
 
     const prompt = selfieDataUrl
-      ? `Transform the person in this selfie into a stylized realistic luxury travel avatar.
+      ? `Transform the person in this selfie into a stylized cartoon caricature luxury travel avatar.
 CRITICAL: Preserve the person's REAL identity — exact face structure, facial proportions, eye shape and color, eyebrows, smile, nose, jawline, hairstyle, facial hair, skin tone and unique features. The avatar must instantly resemble the real person.
-Style: premium cinematic cartoon realism — a blend of Pixar-level realism, Apple-quality 3D avatars, modern luxury metaverse identity and high-end game character design. NOT anime, NOT childish, NOT exaggerated, NOT comedic.
+Style: elegant premium cartoon caricature — think high-end Disney/Pixar adult character design, luxury lifestyle illustration, modern editorial cartoon, NOT anime, NOT childish, NOT exaggerated, NOT comedic, NOT chibi. Sophisticated, aspirational, emotionally resonant.
+Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, warm skin tones with soft gradients, premium fashion illustration aesthetic.
 Cultural context: ${culture.vibe}. ${styleHint}.
 Outfit: ${culture.outfit} — modern luxury travel fashion, sophisticated minimalism, natural elegant posture.
 Setting: ${culture.background}.
-Lighting: ${culture.lighting}, cinematic soft luxury glow, realistic shadows, premium skin reflections.
-Composition: head-and-shoulders portrait, expressive eyes, smooth skin rendering, ultra high detail, premium 3D look, vertical portrait, dark elegant background with subtle gold accents, shallow depth of field.
+Lighting: ${culture.lighting}, cinematic soft luxury glow, stylized premium cartoon shading, elegant color harmony.
+Composition: head-and-shoulders portrait, expressive eyes, ultra high detail, vertical portrait, dark elegant background with subtle gold accents, shallow depth of field.
 NO text, NO logos, NO watermarks, NO captions.`
-      : `Ultra-realistic cinematic portrait of a single ${gender} luxury traveler, head and shoulders, looking confidently into camera.
-Style: ${culture.vibe}. ${styleHint}.
+      : `Premium cartoon caricature portrait of a single ${gender} luxury traveler, head and shoulders, looking confidently into camera.
+Style: elegant premium cartoon caricature — think high-end Disney/Pixar adult character design, luxury lifestyle illustration, modern editorial cartoon, NOT anime, NOT childish, NOT exaggerated, NOT comedic. Sophisticated, aspirational.
+Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, warm skin tones with soft gradients, premium fashion illustration aesthetic.
+Cultural vibe: ${culture.vibe}. ${styleHint}.
 Outfit: ${culture.outfit}.
 Detail: ${culture.accessory}.
 Setting: ${culture.background}.
-Lighting: ${culture.lighting}, soft rim light, shallow depth of field, 85mm lens, f/1.8, photorealistic.
+Lighting: ${culture.lighting}, stylized premium cartoon shading, elegant color harmony.
 Mood: aspirational, emotional, premium, futuristic editorial.
 Output: vertical portrait composition, dark elegant background, gold and soft silver tones, NO text, NO logos, NO watermarks, NO captions.`;
 
