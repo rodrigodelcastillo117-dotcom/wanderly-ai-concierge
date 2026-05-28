@@ -993,6 +993,8 @@ export type Database = {
           cover_image_url: string | null
           created_at: string
           cruceros_json: Json | null
+          dates_optimization_meta: Json | null
+          dates_optimized: boolean
           desglose_presupuesto: Json | null
           destino: string
           fecha_regreso: string | null
@@ -1020,6 +1022,8 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string
           cruceros_json?: Json | null
+          dates_optimization_meta?: Json | null
+          dates_optimized?: boolean
           desglose_presupuesto?: Json | null
           destino: string
           fecha_regreso?: string | null
@@ -1047,6 +1051,8 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string
           cruceros_json?: Json | null
+          dates_optimization_meta?: Json | null
+          dates_optimized?: boolean
           desglose_presupuesto?: Json | null
           destino?: string
           fecha_regreso?: string | null
