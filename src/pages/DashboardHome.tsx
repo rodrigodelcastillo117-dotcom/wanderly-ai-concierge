@@ -310,7 +310,7 @@ const DashboardHome = () => {
         >
           <div
             className="relative rounded-[28px] overflow-hidden premium-shadow group cursor-pointer ring-1 ring-white/[0.05]"
-            onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(HERO_REELS[reelIdx].label)}&autoCheapest=1`)}
+            onClick={() => navigate("/dashboard/planear?mode=emocion")}
           >
 
             <div
