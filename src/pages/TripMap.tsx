@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { MapPin, Calendar, Hotel, Utensils, Activity, ExternalLink, Plane, Ship, Car } from "lucide-react";
+import { MapPin, Calendar, Hotel, Utensils, Activity, ExternalLink, Plane, Ship, Car, TrainFront } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
 
