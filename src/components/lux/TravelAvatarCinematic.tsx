@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Sparkles, MapPin, Wand2, Camera, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Sparkles, MapPin, Wand2, Camera, Loader2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
