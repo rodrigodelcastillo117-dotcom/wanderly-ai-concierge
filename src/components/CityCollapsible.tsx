@@ -88,14 +88,32 @@ export const CityCollapsible = ({
   const [openLocal, setOpenLocal] = useState(defaultOpen);
   const isControlled = openProp !== undefined;
   const open = isControlled ? (openProp as boolean) : openLocal;
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const wasOpenRef = useRef(open);
   const toggle = () => {
     if (isControlled) onToggle?.();
     else setOpenLocal((o) => !o);
   };
   const img = useCityImage(imageQuery || `${city} landmark travel`);
 
+  // Cuando esta tarjeta pasa de cerrada a abierta, lleva el scroll al inicio del destino
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      requestAnimationFrame(() => {
+        innerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    wasOpenRef.current = open;
+  }, [open]);
+
   return (
-    <div ref={wrapperRef} className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24">
+    <div
+      ref={(el) => {
+        innerRef.current = el;
+        wrapperRef?.(el);
+      }}
+      className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24"
+    >
       <button
         type="button"
         onClick={toggle}
