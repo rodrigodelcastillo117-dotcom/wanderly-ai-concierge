@@ -52,7 +52,7 @@ const TripDetail = () => {
   async function saveTripMeta(patch: Record<string, any>) {
     if (!trip?.id) return;
     setSavingMeta(true);
-    const { error } = await supabase.from("viajes").update(patch).eq("id", trip.id);
+    const { error } = await supabase.from("trips").update(patch as any).eq("id", trip.id);
     setSavingMeta(false);
     if (error) return toast.error("No se pudo guardar");
     toast.success("Actualizado");
