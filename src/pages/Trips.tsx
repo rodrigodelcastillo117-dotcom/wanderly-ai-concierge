@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { Button } from "@/components/ui/button";
+import { formatDateOnly } from "@/lib/dateUtils";
 import { useNavigate } from "react-router-dom";
 import santorini from "@/assets/hero-santorini.jpg";
 
@@ -69,7 +70,7 @@ const TripCard = ({ t }: { t: any }) => {
           <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{t.pais_destino}</p>
           <h3 className="font-display text-2xl mb-3 group-hover:text-primary transition">{t.destino}</h3>
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>{new Date(t.fecha_salida).toLocaleDateString("es-MX")}</span>
+            <span>{formatDateOnly(t.fecha_salida)}</span>
             <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")}</span>
           </div>
         </div>
