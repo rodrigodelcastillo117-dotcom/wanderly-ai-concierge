@@ -46,18 +46,20 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
   const dominant = dna?.dominant ?? "luxury";
   const personality = PERSONALITY_LABELS[dominant] ?? PERSONALITY_LABELS.luxury;
 
-  const generate = async () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const runGenerate = async (selfie?: string) => {
     if (!user) return;
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-avatar", {
-        body: { style: dominant, destino: lastTrip?.destino ?? null },
+        body: { style: dominant, destino: lastTrip?.destino ?? null, selfie: selfie ?? null },
       });
       if (error) throw error;
       if (data?.url) {
         setAvatarUrl(data.url);
         setAvatarMeta(data.meta);
-        toast.success("Tu avatar ha evolucionado");
+        toast.success(selfie ? "Tu avatar IATOS está listo" : "Tu avatar ha evolucionado");
       } else {
         throw new Error(data?.error ?? "No se generó la imagen");
       }
@@ -66,6 +68,22 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const generate = () => runGenerate();
+
+  const onSelfieChosen = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecciona una imagen válida");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("La imagen debe pesar menos de 8MB");
+      return;
+    }
+    // Downscale to max 1024px to keep payload light
+    const dataUrl = await downscaleImage(file, 1024);
+    await runGenerate(dataUrl);
   };
 
   const bg = `radial-gradient(ellipse at 30% 20%, ${culture.palette.accent}33 0%, transparent 50%),
