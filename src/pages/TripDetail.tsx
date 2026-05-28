@@ -489,22 +489,45 @@ const TripDetail = () => {
                   {cityDays.length > 0 && (
                     <SubBlock icon={Calendar} title="Itinerario día por día">
                       <div className="space-y-2">
-                        {cityDays.map((d: any) => (
-                          <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group">
-                            <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
-                              <div className="flex items-center gap-3">
-                                <span className="font-display text-xl gold-text w-8">{String(d.dia).padStart(2, "0")}</span>
-                                <span className="font-medium text-sm">{d.titulo}</span>
+                        {cityDays.map((d: any) => {
+                          // Detectar destino mencionado en el título del día (ej. "Parque Nacional Kruger — Safari…")
+                          const titleStr: string = String(d.titulo ?? "");
+                          const mentionedCity = (isMulti ? destinationsMulti : [trip.destino]).find((c: string) =>
+                            titleStr.toLowerCase().includes(String(c).toLowerCase())
+                          );
+                          const targetCity = mentionedCity || d.ciudad || city;
+                          const goToDestino = (e: React.MouseEvent) => {
+                            e.preventDefault();
+                            if (activeCity !== targetCity) {
+                              toggleCity(targetCity);
+                            } else {
+                              const el = cityRefs.current[targetCity];
+                              if (el) {
+                                const y = el.getBoundingClientRect().top + window.scrollY - 88;
+                                window.scrollTo({ top: y, behavior: "smooth" });
+                              }
+                            }
+                          };
+                          return (
+                            <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group">
+                              <summary
+                                onClick={goToDestino}
+                                className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-surface/60 transition"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="font-display text-xl gold-text w-8">{String(d.dia).padStart(2, "0")}</span>
+                                  <span className="font-medium text-sm">{d.titulo}</span>
+                                </div>
+                                <ChevronDown className="w-4 h-4 text-primary transition-transform group-open:rotate-180" />
+                              </summary>
+                              <div className="px-4 pb-4 pt-1 border-t border-border/40 space-y-2 text-xs">
+                                <div><span className="text-primary tracking-wider uppercase">Mañana</span><p className="mt-0.5 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
+                                <div><span className="text-primary tracking-wider uppercase">Tarde</span><p className="mt-0.5 text-muted-foreground">{d.tarde}</p></div>
+                                <div><span className="text-primary tracking-wider uppercase">Noche</span><p className="mt-0.5 text-muted-foreground">{d.noche}</p></div>
                               </div>
-                              <ChevronDown className="w-4 h-4 text-primary transition-transform group-open:rotate-180" />
-                            </summary>
-                            <div className="px-4 pb-4 pt-1 border-t border-border/40 space-y-2 text-xs">
-                              <div><span className="text-primary tracking-wider uppercase">Mañana</span><p className="mt-0.5 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
-                              <div><span className="text-primary tracking-wider uppercase">Tarde</span><p className="mt-0.5 text-muted-foreground">{d.tarde}</p></div>
-                              <div><span className="text-primary tracking-wider uppercase">Noche</span><p className="mt-0.5 text-muted-foreground">{d.noche}</p></div>
-                            </div>
-                          </details>
-                        ))}
+                            </details>
+                          );
+                        })}
                       </div>
                     </SubBlock>
                   )}
