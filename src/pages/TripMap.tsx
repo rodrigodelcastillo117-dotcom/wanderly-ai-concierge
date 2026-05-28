@@ -516,7 +516,7 @@ const TripMap = () => {
         </div>
 
         {/* Map */}
-        <div className="rounded-3xl overflow-hidden border border-white/[0.08] bg-black/30 mb-5 h-[420px] md:h-[520px] relative">
+        <div className="rounded-3xl overflow-hidden border border-white/[0.08] bg-[#0b0f1a] mb-5 h-[420px] md:h-[520px] relative">
           {!BROWSER_KEY ? (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60 px-6 text-center">
               Conecta Google Maps en Conectores para ver el mapa interactivo.
