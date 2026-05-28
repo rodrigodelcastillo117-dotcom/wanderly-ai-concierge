@@ -58,8 +58,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         <div className="absolute top-1/3 -right-40 w-[480px] h-[480px] rounded-full bg-primary/[0.05] blur-[160px]" />
       </div>
 
-      {/* Sidebar — black glassmorphism luxury */}
-      <aside className="hidden md:flex flex-col w-[260px] shrink-0 border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl">
+      {/* Sidebar — black glassmorphism luxury (fixed) */}
+      <aside className="hidden md:flex flex-col w-[260px] shrink-0 border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl sticky top-0 h-screen self-start">
         {/* Brand */}
         <Link to="/dashboard" className="flex items-center justify-center px-6 pt-9 pb-7 border-b border-white/[0.04]">
           <img src={iatosLogo} alt="IATOS" className="w-full max-w-[170px] h-auto object-contain drop-shadow-[0_0_24px_rgba(201,169,97,0.18)]" />
@@ -94,27 +94,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
               )}
             </NavLink>
           ))}
-
-          {/* IATOS PRO card */}
-          <div className="mt-7 mx-1 rounded-3xl border border-primary/20 bg-gradient-to-b from-primary/[0.08] via-primary/[0.02] to-transparent p-5 text-center relative overflow-hidden">
-            <div aria-hidden className="absolute inset-x-0 -top-16 h-32 bg-primary/20 blur-3xl" />
-            <div className="relative">
-              <p className="font-display text-primary tracking-[0.3em] text-[11px] mb-2">IATOS PRO</p>
-              <p className="text-[11px] text-muted-foreground mb-4 leading-relaxed">
-                Identidad de viaje sin límites. Experiencias curadas para ti.
-              </p>
-              <button
-                onClick={() => navigate("/dashboard/pro")}
-                className="px-4 py-1.5 rounded-full border border-primary/40 text-primary text-[11px] hover:bg-primary/10 transition tracking-wider"
-              >
-                Conocer más
-              </button>
-              <div className="mt-4 flex justify-center">
-                <Crown className="w-7 h-7 text-primary/70" />
-              </div>
-            </div>
-          </div>
         </nav>
+
 
         {/* User */}
         <button
