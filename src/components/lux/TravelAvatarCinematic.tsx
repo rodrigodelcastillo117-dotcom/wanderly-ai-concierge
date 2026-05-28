@@ -148,22 +148,23 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
       </div>
 
       {/* Avatar canvas */}
-      <div className="relative z-10 h-[420px] md:h-[540px] flex items-end justify-center pt-4">
+      <div className="relative z-10 min-h-[420px] md:min-h-[540px] flex items-center justify-center pt-4">
         {avatarUrl ? (
-          <div className="relative w-[280px] md:w-[340px] aspect-[3/4] rounded-2xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10">
+          <div className="relative w-[300px] md:w-[380px] aspect-square rounded-2xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10 bg-black/40">
             <img
               src={avatarUrl}
               alt="Tu Travel Avatar"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               loading="lazy"
             />
             {/* Cinematic vignette */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
             {/* Cultural accent emojis */}
             <div className="absolute bottom-3 left-3 flex gap-2 text-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               {culture.emojis.map((e, i) => <span key={i}>{e}</span>)}
             </div>
           </div>
+
         ) : (
           <EmptyAvatar accent={culture.palette.accent} emojis={culture.emojis} />
         )}
