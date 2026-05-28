@@ -474,6 +474,52 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               </div>
             </div>
 
+            {/* DESTINO */}
+            <div className="space-y-4">
+              <h3 className="font-display text-xl tracking-tight">¿Tienes un destino en mente?</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSurpriseDestino(true)}
+                  className={`p-4 rounded-2xl border text-left transition backdrop-blur-sm ${
+                    surpriseDestino
+                      ? "bg-primary/10 border-primary text-foreground gold-glow"
+                      : "bg-surface/60 border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <div className="text-sm font-medium mb-1 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" /> Sorpréndeme
+                  </div>
+                  <div className="text-xs opacity-70">IATOS elige según tu ADN</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSurpriseDestino(false)}
+                  className={`p-4 rounded-2xl border text-left transition backdrop-blur-sm ${
+                    !surpriseDestino
+                      ? "bg-primary/10 border-primary text-foreground gold-glow"
+                      : "bg-surface/60 border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <div className="text-sm font-medium mb-1">Tengo destino</div>
+                  <div className="text-xs opacity-70">Yo elijo a dónde ir</div>
+                </button>
+              </div>
+              {!surpriseDestino && (
+                <Input
+                  placeholder="ej. Tokio, Barcelona, Oaxaca, Patagonia…"
+                  value={destinoEmocion}
+                  onChange={(e) => setDestinoEmocion(e.target.value)}
+                  className="h-12 bg-input border-border"
+                />
+              )}
+              {surpriseDestino && (
+                <p className="text-xs text-primary/90 italic flex items-start gap-1.5">
+                  <Sparkles className="w-3 h-3 mt-0.5 shrink-0" /> IATOS cruzará tus emociones, presupuesto, perfil y viajes previos para elegir el destino perfecto.
+                </p>
+              )}
+            </div>
+
             {/* VIAJEROS */}
             <div className="space-y-4">
               <h3 className="font-display text-xl tracking-tight">¿Cuántas personas viajan?</h3>
