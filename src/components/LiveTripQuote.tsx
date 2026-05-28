@@ -58,7 +58,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
         </p>
         {q && (
           <span className="text-[10px] tracking-widest uppercase text-muted-foreground inline-flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-primary" /> estimación IA · precios de mercado
+            <Sparkles className="w-3 h-3 text-primary" /> cotización del proveedor
           </span>
         )}
       </div>
@@ -67,7 +67,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
       </motion.p>
       {q && (
         <p className="text-xs text-muted-foreground mb-2">
-          ≈ ${q.total_usd.toLocaleString("en-US")} USD · incluye 20% buffer para experiencias diarias
+          ≈ ${q.total_usd.toLocaleString("en-US")} USD · sin extras ni buffer automático
         </p>
       )}
       <p className="text-sm text-muted-foreground mb-1">
