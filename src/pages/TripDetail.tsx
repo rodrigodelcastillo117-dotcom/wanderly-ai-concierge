@@ -29,8 +29,9 @@ const TripDetail = () => {
   const [loading, setLoading] = useState(true);
 
   // Selecciones del usuario
-  const [selVuelo, setSelVuelo] = useState<number>(0);
-  const [selHospedaje, setSelHospedaje] = useState<number>(0);
+  // -1 = sin selección (usa estimación base) · -2 = "ya lo tengo / no aplica" (cuenta 0) · >=0 = opción elegida
+  const [selVuelo, setSelVuelo] = useState<number>(-1);
+  const [selHospedaje, setSelHospedaje] = useState<number>(-1);
   const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
@@ -167,8 +168,8 @@ const TripDetail = () => {
     // Si tiene hospedaje propio parte del viaje, asumimos que sigue gastando en comida/transporte todos los días
     const factorDias = dias > 0 ? dias / Math.max(1, dias) : 1;
     return {
-      vuelos: selVuelo === -1 ? 0 : vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
-      hospedaje: selHospedaje === -1 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * nochesEfectivas : Number(baseDesglose.hospedaje ?? 0),
+      vuelos: selVuelo === -2 ? 0 : vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
+      hospedaje: selHospedaje === -2 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * nochesEfectivas : Number(baseDesglose.hospedaje ?? 0),
       comida: Number(baseDesglose.comida ?? 0) * factorDias,
       tours: toursSum || Number(baseDesglose.tours ?? 0),
       transporte_local: Number(baseDesglose.transporte_local ?? 0) * factorDias,
@@ -411,7 +412,7 @@ const TripDetail = () => {
                           const i = (trip.vuelos_json ?? []).indexOf(v);
                           const active = selVuelo === i;
                           return isMulti ? (
-                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(i)} />
+                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(active ? -1 : i)} />
                           ) : (
                             <ExpandableItemCard
                               key={i}
@@ -422,7 +423,7 @@ const TripDetail = () => {
                               price={`${fmtMXN(v.precio_por_persona)} / persona`}
                               active={active}
                               selectable
-                              onToggle={() => setSelVuelo(i)}
+                              onToggle={() => setSelVuelo(active ? -1 : i)}
                             >
                               {v.notas && <p>{v.notas}</p>}
                               <button
@@ -439,7 +440,7 @@ const TripDetail = () => {
                           );
                         })}
                         {!isMulti && (
-                          <SkipCard active={selVuelo === -1} onClick={() => setSelVuelo(-1)}
+                          <SkipCard active={selVuelo === -2} onClick={() => setSelVuelo(selVuelo === -2 ? -1 : -2)}
                             title="Ya tengo vuelo" subtitle="O viajo por mi cuenta" />
                         )}
                       </div>
@@ -455,13 +456,13 @@ const TripDetail = () => {
                           const active = selHospedaje === i;
                           return (
                             <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
-                              <HotelCard hotel={h} city={city} active={active} onClick={() => setSelHospedaje(i)} />
+                              <HotelCard hotel={h} city={city} active={active} onClick={() => setSelHospedaje(active ? -1 : i)} />
                             </div>
                           );
                         })}
                         {!isMulti && (
                           <div className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
-                            <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)}
+                            <SkipCard active={selHospedaje === -2} onClick={() => setSelHospedaje(selHospedaje === -2 ? -1 : -2)}
                               title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
                           </div>
                         )}
