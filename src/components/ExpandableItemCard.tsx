@@ -72,12 +72,10 @@ export const ExpandableItemCard = ({
 
       {/* Body */}
       <div className="p-4 space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="font-display text-base sm:text-lg leading-tight break-words" title={title}>{title}</p>
-            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
-          </div>
-          {price && <span className="text-xs text-primary font-medium whitespace-nowrap pt-1 shrink-0">{price}</span>}
+        <div className="space-y-1">
+          <p className="font-display text-base sm:text-lg leading-tight break-words" title={title}>{title}</p>
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+          {price && <p className="text-xs text-primary font-medium">{price}</p>}
         </div>
 
         {/* Toggle detalle */}
