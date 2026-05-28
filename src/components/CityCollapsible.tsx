@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import { ChevronDown, MapPin } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 
 // Tiny in-memory cache so we don't re-fetch Pexels for the same city
@@ -70,7 +70,6 @@ interface CityCollapsibleProps {
   open?: boolean;
   onToggle?: () => void;
   count?: number;
-  wrapperRef?: (el: HTMLDivElement | null) => void;
   children: ReactNode;
 }
 
@@ -82,13 +81,11 @@ export const CityCollapsible = ({
   open: openProp,
   onToggle,
   count,
-  wrapperRef,
   children,
 }: CityCollapsibleProps) => {
   const [openLocal, setOpenLocal] = useState(defaultOpen);
   const isControlled = openProp !== undefined;
   const open = isControlled ? (openProp as boolean) : openLocal;
-  const innerRef = useRef<HTMLDivElement | null>(null);
   const toggle = () => {
     if (isControlled) onToggle?.();
     else setOpenLocal((o) => !o);
@@ -96,13 +93,7 @@ export const CityCollapsible = ({
   const img = useCityImage(imageQuery || `${city} landmark travel`);
 
   return (
-    <div
-      ref={(el) => {
-        innerRef.current = el;
-        wrapperRef?.(el);
-      }}
-      className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24"
-    >
+    <div className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24">
       <button
         type="button"
         onClick={toggle}
