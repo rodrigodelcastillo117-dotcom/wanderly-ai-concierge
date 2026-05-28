@@ -382,18 +382,27 @@ const TripDetail = () => {
             const cityVuelos = isMulti
               ? (trip.vuelos_json ?? []).filter((v: any) => (v.ciudad || v.to) === cityKey || (v.ciudad || v.to) === city)
               : (trip.vuelos_json ?? []);
-            const cityHosp = isMulti
+            const priceNum = (s: any) => {
+              if (typeof s === "number") return s;
+              if (typeof s !== "string") return 0;
+              const m = s.replace(/[,\s]/g, "").match(/\d+(\.\d+)?/);
+              return m ? Number(m[0]) : 0;
+            };
+            const cityHosp = (isMulti
               ? (trip.hospedaje_json ?? []).filter((h: any) => h.ciudad === cityKey)
-              : (trip.hospedaje_json ?? []);
+              : (trip.hospedaje_json ?? [])
+            ).slice().sort((a: any, b: any) => (Number(a?.precio_por_noche) || 0) - (Number(b?.precio_por_noche) || 0));
             const cityDays = isMulti
               ? itinDays.filter((d: any) => d.ciudad === cityKey)
               : itinDays;
-            const cityTours = isMulti
+            const cityTours = (isMulti
               ? (trip.tours_json ?? []).filter((t: any) => t.ciudad === cityKey)
-              : (trip.tours_json ?? []);
-            const cityRest = isMulti
+              : (trip.tours_json ?? [])
+            ).slice().sort((a: any, b: any) => (Number(a?.precio_por_persona) || 0) - (Number(b?.precio_por_persona) || 0));
+            const cityRest = (isMulti
               ? (trip.restaurantes_json ?? []).filter((r: any) => r.ciudad === cityKey)
-              : (trip.restaurantes_json ?? []);
+              : (trip.restaurantes_json ?? [])
+            ).slice().sort((a: any, b: any) => priceNum(a?.rango_precio) - priceNum(b?.rango_precio));
 
             const totalItems =
               cityVuelos.length + cityHosp.length + cityDays.length + cityTours.length + cityRest.length;

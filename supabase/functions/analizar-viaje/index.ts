@@ -133,7 +133,15 @@ REGLAS ESTRICTAS DE PRECIOS:
     - En "hospedaje" devuelve [] si excluyó todo, o solo las ciudades donde SÍ quiere hotel.
     - Menciona explícitamente en analisis_narrativo: "Respetando tu indicación de [X], no incluyo [Y]".
     - NO ofrezcas alternativas no pedidas para lo excluido.
-    Lee la instrucción palabra por palabra. Si dice "París sin hospedaje" pero el viaje también va a Roma, sigue cotizando hotel en Roma.`;
+    Lee la instrucción palabra por palabra. Si dice "París sin hospedaje" pero el viaje también va a Roma, sigue cotizando hotel en Roma.
+12. PRECIOS VERIFICADOS Y REALISTAS (CRÍTICO): Cada precio (hospedaje precio_por_noche, tours precio_por_persona, restaurantes rango_precio) debe provenir de la "INVESTIGACIÓN DE PRECIOS REALES" (Booking, Expedia, sitio oficial del hotel, GetYourGuide, Viator, TripAdvisor, OpenTable, etc.). PROHIBIDO inventar nombres de hoteles/restaurantes/tours que no aparezcan en la investigación. Si no encuentras un precio real para un ítem, NO LO INCLUYAS. Mejor 2 opciones reales que 3 inventadas.
+13. RANGOS REALISTAS DE REFERENCIA (si tu cifra cae fuera, revísala antes de entregar):
+    - Hotel boutique/4★ en México (Riviera Maya, CDMX, Oaxaca, San Cristóbal): $2,500-$8,000 MXN/noche.
+    - Hotel 5★ / resort todo incluido en México: $6,000-$18,000 MXN/noche.
+    - Hotel ultra-lujo (Rosewood, Banyan Tree, One&Only, Belmond) en México: $15,000-$45,000 MXN/noche.
+    - Restaurante casual local México: $200-$500 MXN p/p. Medio: $500-$1,200. Fine dining: $1,500-$4,000.
+    - Tour grupal medio día México: $600-$1,800 MXN p/p. Tour día completo: $1,500-$4,000. VIP/privado: $4,000-$12,000.
+14. ORDENA cada array de menor a mayor precio: "hospedaje" ascendente por precio_por_noche, "tours" ascendente por precio_por_persona, "restaurantes" ascendente por el extremo inferior del rango_precio. El usuario ve siempre primero la opción más accesible.`;
 
 const TOOL_SCHEMA = {
   name: "entregar_analisis_viaje",
