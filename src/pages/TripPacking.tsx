@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BackButton } from "@/components/BackButton";
+import { diffDateOnlyDays } from "@/lib/dateUtils";
 import { toast } from "sonner";
 
 type Item = { id: string; text: string; done: boolean; category: string; sort_order: number };
@@ -132,9 +133,7 @@ const TripPacking = () => {
       if (existing && existing.length > 0) {
         setItems(existing as Item[]);
       } else if (t) {
-        const start = t.fecha_salida ? new Date(t.fecha_salida) : new Date();
-        const end = t.fecha_regreso ? new Date(t.fecha_regreso) : start;
-        const dias = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+        const dias = Math.max(1, diffDateOnlyDays(t.fecha_salida, t.fecha_regreso) + 1);
         const defaults = buildDefaults(t.destino, dias, t.pais_destino);
         const rows = defaults.map(d => ({ ...d, trip_id: id }));
         const { data: ins, error } = await supabase.from("trip_packing_items").insert(rows).select();
@@ -169,9 +168,7 @@ const TripPacking = () => {
   const reset = async () => {
     if (!trip || !id || !confirm("¿Resetear la lista a los valores recomendados?")) return;
     await supabase.from("trip_packing_items").delete().eq("trip_id", id);
-    const start = trip.fecha_salida ? new Date(trip.fecha_salida) : new Date();
-    const end = trip.fecha_regreso ? new Date(trip.fecha_regreso) : start;
-    const dias = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+    const dias = Math.max(1, diffDateOnlyDays(trip.fecha_salida, trip.fecha_regreso) + 1);
     const defaults = buildDefaults(trip.destino, dias, trip.pais_destino);
     const rows = defaults.map(d => ({ ...d, trip_id: id }));
     const { data } = await supabase.from("trip_packing_items").insert(rows).select();
