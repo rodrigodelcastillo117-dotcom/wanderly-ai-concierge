@@ -477,7 +477,7 @@ const ActionButton = ({
     className={`bg-gradient-gold text-primary-foreground hover:opacity-90 ${className}`}
   >
     {status === "loading" && "Procesando…"}
-    {status === "confirmed" && "✓ Confirmado"}
+    {status === "confirmed" && "✓ Enviado"}
     {status === "idle" && label}
     {status === "error" && "Reintentar"}
   </Button>
