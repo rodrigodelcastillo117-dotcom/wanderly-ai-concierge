@@ -474,12 +474,6 @@ const TripDetail = () => {
                     <SubBlock icon={Calendar} title="Itinerario día por día">
                       <div className="space-y-2">
                         {cityDays.map((d: any) => {
-                          // Detectar destino mencionado en el título del día (ej. "Parque Nacional Kruger — Safari…")
-                          const titleStr: string = String(d.titulo ?? "");
-                          const mentionedCity = (isMulti ? destinationsMulti : [trip.destino]).find((c: string) =>
-                            titleStr.toLowerCase().includes(String(c).toLowerCase())
-                          );
-                          const targetCity = mentionedCity || d.ciudad || city;
                           return (
                             <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group">
                               <summary
