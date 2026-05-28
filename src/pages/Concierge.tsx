@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Crown, RefreshCw, TrendingUp, Sparkles } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { TravelAvatarCinematic } from "@/components/lux/TravelAvatarCinematic";
+
 import { useTravelDNA, TravelDNAStats } from "@/components/lux/TravelDNAStats";
 import { CompatibilityPanel } from "@/components/lux/CompatibilityPanel";
 import { BestMomentsPanel } from "@/components/lux/BestMomentsPanel";
