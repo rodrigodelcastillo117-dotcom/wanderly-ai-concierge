@@ -25,11 +25,21 @@ import santorini from "@/assets/hero-santorini.jpg";
 const cache = new Map<string, string | null>();
 
 const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void }) => {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    const { error } = await supabase.from("trips").delete().eq("id", t.id);
+    if (error) {
+      toast.error(error.message);
+      setDeleting(false);
+      return;
+    }
+    toast.success("Viaje eliminado");
+    onDeleted(t.id);
+  };
 
 
-const cache = new Map<string, string | null>();
-
-const TripCard = ({ t }: { t: any }) => {
   const [img, setImg] = useState<string | null>(cache.get(t.destino) ?? null);
 
   useEffect(() => {
