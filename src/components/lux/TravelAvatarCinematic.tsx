@@ -159,22 +159,46 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
             )}
           </div>
 
-          <button
-            onClick={generate}
-            disabled={generating}
-            className="group relative px-5 py-2.5 rounded-full border text-xs tracking-[0.15em] uppercase font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-            style={{
-              borderColor: culture.palette.accent,
-              color: culture.palette.accent,
-              background: `linear-gradient(135deg, ${culture.palette.accent}15, transparent)`,
-            }}
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-              {generating ? "Evolucionando..." : avatarUrl ? "Re-generar" : "Generar avatar"}
-            </span>
-            <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: `linear-gradient(135deg, ${culture.palette.accent}30, transparent)` }} />
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onSelfieChosen(f);
+                e.target.value = "";
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={generating}
+              className="group relative px-4 py-2.5 rounded-full border border-white/15 text-xs tracking-[0.15em] uppercase font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10 text-foreground/90"
+              title="Sube un selfie para crear tu avatar IATOS realista"
+            >
+              <span className="flex items-center gap-2">
+                <Upload className="w-3.5 h-3.5" /> Subir selfie
+              </span>
+            </button>
+            <button
+              onClick={generate}
+              disabled={generating}
+              className="group relative px-5 py-2.5 rounded-full border text-xs tracking-[0.15em] uppercase font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+              style={{
+                borderColor: culture.palette.accent,
+                color: culture.palette.accent,
+                background: `linear-gradient(135deg, ${culture.palette.accent}15, transparent)`,
+              }}
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                {generating ? "Evolucionando..." : avatarUrl ? "Re-generar" : "Generar avatar"}
+              </span>
+              <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: `linear-gradient(135deg, ${culture.palette.accent}30, transparent)` }} />
+            </button>
+          </div>
+
         </div>
 
         {/* Timeline */}
