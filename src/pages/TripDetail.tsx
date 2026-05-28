@@ -168,8 +168,8 @@ const TripDetail = () => {
     // Si tiene hospedaje propio parte del viaje, asumimos que sigue gastando en comida/transporte todos los días
     const factorDias = dias > 0 ? dias / Math.max(1, dias) : 1;
     return {
-      vuelos: selVuelo === -1 ? 0 : vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
-      hospedaje: selHospedaje === -1 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * nochesEfectivas : Number(baseDesglose.hospedaje ?? 0),
+      vuelos: selVuelo === -2 ? 0 : vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
+      hospedaje: selHospedaje === -2 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * nochesEfectivas : Number(baseDesglose.hospedaje ?? 0),
       comida: Number(baseDesglose.comida ?? 0) * factorDias,
       tours: toursSum || Number(baseDesglose.tours ?? 0),
       transporte_local: Number(baseDesglose.transporte_local ?? 0) * factorDias,
