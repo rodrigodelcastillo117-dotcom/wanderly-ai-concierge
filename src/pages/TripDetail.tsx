@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download, Radio, Map as MapIcon, Backpack, Cloud, Languages, BookHeart, Wallet, Sparkles, Pencil } from "lucide-react";
@@ -35,11 +35,8 @@ const TripDetail = () => {
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const toggleCity = (city: string) => {
-    // El scroll al inicio lo maneja CityCollapsible tras la animación de expansión
-    // para evitar dobles disparos que dejan la tarjeta a media pantalla.
     setActiveCity((prev) => (prev === city ? null : city));
   };
-  const cityRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
@@ -404,7 +401,6 @@ const TripDetail = () => {
                 open={activeCity === city}
                 onToggle={() => toggleCity(city)}
                 count={totalItems}
-                wrapperRef={(el) => { cityRefs.current[city] = el; }}
               >
                 <div className="space-y-6">
                   {/* Cómo llegar */}
@@ -478,28 +474,9 @@ const TripDetail = () => {
                     <SubBlock icon={Calendar} title="Itinerario día por día">
                       <div className="space-y-2">
                         {cityDays.map((d: any) => {
-                          // Detectar destino mencionado en el título del día (ej. "Parque Nacional Kruger — Safari…")
-                          const titleStr: string = String(d.titulo ?? "");
-                          const mentionedCity = (isMulti ? destinationsMulti : [trip.destino]).find((c: string) =>
-                            titleStr.toLowerCase().includes(String(c).toLowerCase())
-                          );
-                          const targetCity = mentionedCity || d.ciudad || city;
-                          const goToDestino = (e: React.MouseEvent) => {
-                            e.preventDefault();
-                            if (activeCity !== targetCity) {
-                              toggleCity(targetCity);
-                            } else {
-                              const el = cityRefs.current[targetCity];
-                              if (el) {
-                                const y = el.getBoundingClientRect().top + window.scrollY - 88;
-                                window.scrollTo({ top: y, behavior: "smooth" });
-                              }
-                            }
-                          };
                           return (
                             <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group">
                               <summary
-                                onClick={goToDestino}
                                 className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-surface/60 transition"
                               >
                                 <div className="flex items-center gap-3">

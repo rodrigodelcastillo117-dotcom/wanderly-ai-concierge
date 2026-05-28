@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import { ChevronDown, MapPin } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 
 // Tiny in-memory cache so we don't re-fetch Pexels for the same city
@@ -70,7 +70,6 @@ interface CityCollapsibleProps {
   open?: boolean;
   onToggle?: () => void;
   count?: number;
-  wrapperRef?: (el: HTMLDivElement | null) => void;
   children: ReactNode;
 }
 
@@ -82,45 +81,19 @@ export const CityCollapsible = ({
   open: openProp,
   onToggle,
   count,
-  wrapperRef,
   children,
 }: CityCollapsibleProps) => {
   const [openLocal, setOpenLocal] = useState(defaultOpen);
   const isControlled = openProp !== undefined;
   const open = isControlled ? (openProp as boolean) : openLocal;
-  const innerRef = useRef<HTMLDivElement | null>(null);
-  const wasOpenRef = useRef(open);
   const toggle = () => {
     if (isControlled) onToggle?.();
     else setOpenLocal((o) => !o);
   };
   const img = useCityImage(imageQuery || `${city} landmark travel`);
 
-  // Cuando esta tarjeta pasa de cerrada a abierta, lleva el scroll al inicio del destino
-  // Esperamos a que la animación de expansión termine (~600ms) para que el cálculo de
-  // posición sea correcto incluso si otra tarjeta se está cerrando arriba.
-  useEffect(() => {
-    if (open && !wasOpenRef.current) {
-      const t = window.setTimeout(() => {
-        const el = innerRef.current;
-        if (!el) return;
-        const y = el.getBoundingClientRect().top + window.scrollY - 80;
-        window.scrollTo({ top: y, behavior: "smooth" });
-      }, 620);
-      wasOpenRef.current = open;
-      return () => window.clearTimeout(t);
-    }
-    wasOpenRef.current = open;
-  }, [open]);
-
   return (
-    <div
-      ref={(el) => {
-        innerRef.current = el;
-        wrapperRef?.(el);
-      }}
-      className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24"
-    >
+    <div className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24">
       <button
         type="button"
         onClick={toggle}
