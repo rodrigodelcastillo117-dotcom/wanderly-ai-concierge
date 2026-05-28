@@ -146,17 +146,17 @@ const TripMap = () => {
     });
   }, [mapReady]);
 
-  // 3b. Centra inmediatamente en el destino del viaje (fallback visual antes de geocodificar paradas)
+  // 3b. Centra inmediatamente en el origen del viaje (fallback visual antes de geocodificar paradas)
   useEffect(() => {
     if (!mapReady || !mapRef.current || !trip) return;
-    const seed = [trip.destino, trip.pais_destino].filter(Boolean).join(", ");
+    const seed = trip.ciudad_origen || trip.destino || trip.pais_destino;
     if (!seed) return;
     let cancelled = false;
     (async () => {
       const pt = await geocode(seed);
       if (cancelled || !pt) return;
       mapRef.current.setCenter({ lat: pt.lat, lng: pt.lng });
-      mapRef.current.setZoom(9);
+      mapRef.current.setZoom(5);
     })();
     return () => { cancelled = true; };
   }, [mapReady, trip]);
@@ -166,9 +166,17 @@ const TripMap = () => {
     const itin = trip.itinerario_json;
     return Array.isArray(itin) ? itin : Array.isArray(itin?.days) ? itin.days : [];
   }, [trip]);
+  // Lista de destinos del viaje (multi o single)
+  const destinations: string[] = useMemo(() => {
+    if (!trip) return [];
+    const itin = trip.itinerario_json;
+    const multi = !Array.isArray(itin) && Array.isArray(itin?.destinations) ? itin.destinations.filter(Boolean) : null;
+    return multi && multi.length ? multi : (trip.destino ? [trip.destino] : []);
+  }, [trip]);
   const dayPlan = days[selectedDay] ?? null;
   const acts: any[] = dayPlan?.actividades ?? dayPlan?.plan ?? [];
   const showAll = selectedDay < 0;
+
 
   // 4. Geocodificar + dibujar todo cuando hay datos
   useEffect(() => {
@@ -250,15 +258,32 @@ const TripMap = () => {
         if (c) tourStops.push({ name, city, lat: c.lat, lng: c.lng, kind: "tour", order: i });
       }
 
-      const allStops = [...hotelStops, ...portStops, ...restStops, ...tourStops];
+      // ---- 4e. Origen del viaje (parada 1) + destinos como city stops para asegurar ruta visible ----
+      const cityStops: Stop[] = [];
+      const originName = trip.ciudad_origen || trip.ciudad || "";
+      if (originName && showAll) {
+        const c = await geocode(originName);
+        if (cancelled) return;
+        if (c) cityStops.push({ name: originName, city: originName, lat: c.lat, lng: c.lng, kind: "city", order: -1 });
+      }
+      for (let i = 0; i < destinations.length; i++) {
+        const d = destinations[i];
+        if (filterDay && !d.toLowerCase().includes(dayCity.toLowerCase())) continue;
+        const c = await geocode(d);
+        if (cancelled) return;
+        if (c) cityStops.push({ name: d, city: d, lat: c.lat, lng: c.lng, kind: "city", order: i });
+      }
+
+      const allStops = [...cityStops, ...hotelStops, ...portStops, ...restStops, ...tourStops];
       if (allStops.length === 0) return;
 
       const bounds = new g.LatLngBounds();
 
-      // ---- 5. Ruta principal: hoteles en orden cronológico + puertos al final ----
-      const routeStops: Stop[] = [...hotelStops];
-      // intercala puertos en su posición temporal aproximada (después del último hotel previo al embarque)
-      if (portStops.length) routeStops.push(...portStops);
+      // ---- 5. Ruta principal: origen → destinos en orden; hoteles ordenados como inner stops ----
+      const routeStops: Stop[] = cityStops.length > 0
+        ? [...cityStops, ...portStops]
+        : [...hotelStops, ...portStops];
+
 
       // Dibuja un segmento por par consecutivo con estilo según modo
       for (let i = 0; i < routeStops.length - 1; i++) {
@@ -349,17 +374,26 @@ const TripMap = () => {
       placeMarkers(restStops, "#f87171", "R");
       placeMarkers(tourStops, "#a78bfa", "T");
 
-      // Marcadores numerados de los hoteles (orden de ruta)
-      hotelStops.forEach((s, i) => {
+      // Marcadores numerados para origen + destinos (1, 2, 3…) — parada 1 = origen
+      const numberedStops: Stop[] = routeStops.length ? routeStops : hotelStops;
+      numberedStops.forEach((s, i) => {
+        const isOrigin = i === 0 && cityStops.length > 0 && originName && s.name === originName;
         const m = new g.Marker({
           position: { lat: s.lat, lng: s.lng },
           map,
-          icon: { path: g.SymbolPath.CIRCLE, scale: 13, fillColor: "#d4af37", fillOpacity: 1, strokeColor: "#0b0f1a", strokeWeight: 2 },
+          title: isOrigin ? `Origen · ${s.name}` : `Parada ${i + 1} · ${s.name}`,
+          icon: { path: g.SymbolPath.CIRCLE, scale: 14, fillColor: isOrigin ? "#22c55e" : "#d4af37", fillOpacity: 1, strokeColor: "#0b0f1a", strokeWeight: 2 },
           label: { text: String(i + 1), color: "#0b0f1a", fontSize: "12px", fontWeight: "700" },
           zIndex: 999,
         });
+        const info = new g.InfoWindow({
+          content: `<div style="color:#0b0f1a;font-family:system-ui;font-size:13px;font-weight:700;padding:2px 4px">${isOrigin ? "📍 Origen · " : `Parada ${i + 1} · `}${s.name}</div>`,
+        });
+        m.addListener("click", () => info.open({ anchor: m, map }));
         overlaysRef.current.push(m);
+        bounds.extend({ lat: s.lat, lng: s.lng });
       });
+
 
       // ---- 7. Estaciones de metro / transit cercanas al hotel del día ----
       const focusHotel = filterDay

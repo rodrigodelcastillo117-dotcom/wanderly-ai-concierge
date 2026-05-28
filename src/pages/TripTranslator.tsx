@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Languages, Volume2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -13,11 +13,19 @@ const ESSENTIALS = [
   "La cuenta, por favor", "No entiendo", "Ayuda", "¿Habla inglés?", "Disculpe"
 ];
 
+type Phrase = {
+  es: string;
+  destino: string;
+  idioma: string;       // ej. "Francés"
+  bcp47?: string;       // ej. "fr-FR" para SpeechSynthesis
+  local: string;
+  phon: string;
+};
+
 const TripTranslator = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [trip, setTrip] = useState<any>(null);
-  const [phrases, setPhrases] = useState<{ es: string; local: string; phon: string }[]>([]);
+  const [phrases, setPhrases] = useState<Phrase[]>([]);
   const [loading, setLoading] = useState(false);
   const [customInput, setCustomInput] = useState("");
 
@@ -28,19 +36,34 @@ const TripTranslator = () => {
     })();
   }, [id]);
 
+  // Lista de destinos del viaje (multi o single)
+  const destinations: string[] = useMemo(() => {
+    if (!trip) return [];
+    const itin = trip.itinerario_json;
+    const multi = !Array.isArray(itin) && Array.isArray(itin?.destinations)
+      ? itin.destinations.filter(Boolean)
+      : null;
+    return multi && multi.length ? multi : (trip.destino ? [trip.destino] : []);
+  }, [trip]);
+
   const generate = async (list: string[]) => {
-    if (!trip) return;
+    if (!trip || destinations.length === 0) return;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("ai-tool", {
         body: {
           json: true,
-          prompt: `Para un viaje a ${trip.destino}, traduce estas frases al idioma local con pronunciación fonética en español. Devuelve un array JSON exactamente así: [{"es":"...","local":"...","phon":"..."}]. Frases: ${list.join(" | ")}`
+          prompt: `Para un viaje que incluye estos destinos: ${destinations.join(", ")}. ` +
+            `Traduce cada frase al idioma LOCAL de cada destino (uno por destino, en el orden dado). ` +
+            `Incluye pronunciación fonética en español castellano y el código BCP47 del idioma (ej. fr-FR, el-GR, es-ES, en-US). ` +
+            `Devuelve SOLO un array JSON con esta forma EXACTA, una entrada por destino y por frase: ` +
+            `[{"es":"...","destino":"<destino>","idioma":"<nombre del idioma en español>","bcp47":"xx-XX","local":"...","phon":"..."}]. ` +
+            `Si un destino comparte idioma con el origen español, igual inclúyelo. Frases a traducir: ${list.join(" | ")}`
         }
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "Error IA");
-      const arr = Array.isArray(data.data) ? data.data : [];
+      const arr: Phrase[] = Array.isArray(data.data) ? data.data : [];
       if (arr.length === 0) toast.error("No se pudieron traducir las frases");
       else setPhrases(prev => list.length === 1 ? [...arr, ...prev] : arr);
     } catch (e: any) {
@@ -49,12 +72,24 @@ const TripTranslator = () => {
     setLoading(false);
   };
 
-  const speak = (txt: string) => {
+  const speak = (txt: string, lang?: string) => {
     try {
       const u = new SpeechSynthesisUtterance(txt);
+      if (lang) u.lang = lang;
       window.speechSynthesis.speak(u);
     } catch {}
   };
+
+  // Agrupar por frase original (es) → varias traducciones por idioma
+  const grouped = useMemo(() => {
+    const map = new Map<string, Phrase[]>();
+    for (const p of phrases) {
+      const key = p.es ?? "";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
+    }
+    return Array.from(map.entries());
+  }, [phrases]);
 
   return (
     <DashboardLayout>
@@ -63,7 +98,7 @@ const TripTranslator = () => {
           <Languages className="w-7 h-7 text-primary" />
           <div>
             <p className="text-primary text-xs tracking-[0.2em] uppercase">Traductor</p>
-            <h1 className="font-display text-3xl">{trip?.destino}</h1>
+            <h1 className="font-display text-3xl">{destinations.join(" → ") || trip?.destino}</h1>
           </div>
         </div>
 
@@ -74,23 +109,42 @@ const TripTranslator = () => {
         </div>
 
         <div className="flex gap-2 mb-6">
-          <Input placeholder="Escribe una frase en español..." value={customInput} onChange={e => setCustomInput(e.target.value)} />
+          <Input
+            placeholder="Escribe una frase en español..."
+            value={customInput}
+            onChange={e => setCustomInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && customInput.trim()) { generate([customInput]); setCustomInput(""); } }}
+          />
           <Button variant="outline" onClick={() => { if (customInput.trim()) { generate([customInput]); setCustomInput(""); } }}>Traducir</Button>
         </div>
 
-        <div className="space-y-2">
-          {phrases.map((p, i) => (
-            <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-              className="glass-card rounded-2xl p-4">
-              <div className="text-xs text-muted-foreground mb-1">{p.es}</div>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-lg font-medium">{p.local}</div>
-                  <div className="text-xs text-primary italic">/{p.phon}/</div>
-                </div>
-                <Button size="icon" variant="ghost" onClick={() => speak(p.local)}>
-                  <Volume2 className="w-4 h-4" />
-                </Button>
+        <div className="space-y-4">
+          {grouped.map(([es, items], i) => (
+            <motion.div
+              key={es + i}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+              className="glass-card rounded-2xl p-4"
+            >
+              <div className="text-xs text-muted-foreground mb-3">{es}</div>
+              <div className="space-y-2">
+                {items.map((p, j) => (
+                  <div key={j} className="flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-background/40 p-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-primary mb-0.5">
+                        <span>{p.destino}</span>
+                        <span className="text-foreground/30">·</span>
+                        <span className="text-foreground/60">{p.idioma}</span>
+                      </div>
+                      <div className="text-lg font-medium truncate">{p.local}</div>
+                      <div className="text-xs text-primary/80 italic">/{p.phon}/</div>
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => speak(p.local, p.bcp47)} className="shrink-0">
+                      <Volume2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             </motion.div>
           ))}
