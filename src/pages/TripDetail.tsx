@@ -412,7 +412,7 @@ const TripDetail = () => {
                           const i = (trip.vuelos_json ?? []).indexOf(v);
                           const active = selVuelo === i;
                           return isMulti ? (
-                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(i)} />
+                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(active ? -1 : i)} />
                           ) : (
                             <ExpandableItemCard
                               key={i}
@@ -423,7 +423,7 @@ const TripDetail = () => {
                               price={`${fmtMXN(v.precio_por_persona)} / persona`}
                               active={active}
                               selectable
-                              onToggle={() => setSelVuelo(i)}
+                              onToggle={() => setSelVuelo(active ? -1 : i)}
                             >
                               {v.notas && <p>{v.notas}</p>}
                               <button
@@ -440,7 +440,7 @@ const TripDetail = () => {
                           );
                         })}
                         {!isMulti && (
-                          <SkipCard active={selVuelo === -1} onClick={() => setSelVuelo(-1)}
+                          <SkipCard active={selVuelo === -2} onClick={() => setSelVuelo(selVuelo === -2 ? -1 : -2)}
                             title="Ya tengo vuelo" subtitle="O viajo por mi cuenta" />
                         )}
                       </div>
