@@ -444,35 +444,38 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
           (surpriseDates || (!!fechaSalida && !!fechaRegreso && fechaRegreso > fechaSalida)),
         render: () => (
           <div className="space-y-10">
-            {/* EMOCIÓN */}
-            <div className="space-y-4">
-              <Input
-                autoFocus
-                placeholder="ej. quiero sentir libertad total y aventura"
-                value={emocionLibre}
-                onChange={(e) => setEmocionLibre(e.target.value)}
-                className="h-14 bg-input border-border"
-              />
-              <div className="flex flex-wrap gap-2">
+            {/* EMOCIÓN — grilla de tarjetas con íconos */}
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {EMOCIONES.map((e) => {
-                  const active = emociones.includes(e);
+                  const active = emociones.includes(e.key);
+                  const Icon = e.Icon;
                   return (
                     <button
-                      key={e}
+                      key={e.key}
                       type="button"
-                      onClick={() => toggleEmocion(e)}
-                      className={`px-4 py-2 rounded-full border text-sm transition ${
+                      onClick={() => toggleEmocion(e.key)}
+                      className={`group relative flex flex-col items-center justify-center text-center px-3 py-6 rounded-2xl border transition aspect-square ${
                         active
-                          ? "bg-primary/15 border-primary text-primary gold-glow"
-                          : "bg-surface border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                          ? "bg-primary/10 border-primary text-foreground gold-glow"
+                          : "bg-surface/60 border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
                       }`}
                     >
-                      {e}
+                      <Icon className={`w-7 h-7 mb-3 transition ${active ? "text-primary" : "text-muted-foreground group-hover:text-primary/80"}`} strokeWidth={1.4} />
+                      <span className={`font-display text-base leading-tight mb-1 ${active ? "text-foreground" : ""}`}>{e.label}</span>
+                      <span className="text-[11px] leading-snug opacity-70 whitespace-pre-line">{e.sub}</span>
                     </button>
                   );
                 })}
               </div>
+              <Input
+                placeholder="¿Otra emoción? Cuéntanos con tus palabras…"
+                value={emocionLibre}
+                onChange={(e) => setEmocionLibre(e.target.value)}
+                className="h-12 bg-input border-border"
+              />
             </div>
+
 
             {/* DESTINO */}
             <div className="space-y-4">
