@@ -32,14 +32,14 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [profile, setProfile] = useState<{ full_name?: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name?: string | null; avatar_url?: string | null } | null>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
       setProfile(data);
@@ -48,6 +48,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Viajero";
   const initial = firstName.charAt(0).toUpperCase();
+  const avatarUrl = profile?.avatar_url ?? null;
 
   return (
     <div className="min-h-screen flex w-full bg-background relative overflow-x-hidden">
@@ -120,8 +121,12 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           onClick={() => navigate("/dashboard/perfil")}
           className="flex items-center gap-3 px-5 py-4 border-t border-white/[0.04] hover:bg-white/[0.03] transition"
         >
-          <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)]">
-            {initial}
+          <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] overflow-hidden ring-1 ring-primary/30">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
+            ) : (
+              initial
+            )}
           </div>
           <div className="flex-1 text-left min-w-0">
             <p className="text-sm font-medium truncate">{firstName}</p>
@@ -157,9 +162,13 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <button
               onClick={() => navigate("/dashboard/perfil")}
               aria-label="Mi perfil"
-              className="ml-1 w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition"
+              className="ml-1 w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition overflow-hidden"
             >
-              {initial}
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
+              ) : (
+                initial
+              )}
             </button>
           </div>
         </div>
