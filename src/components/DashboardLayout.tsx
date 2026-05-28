@@ -32,14 +32,14 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [profile, setProfile] = useState<{ full_name?: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name?: string | null; avatar_url?: string | null } | null>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
       setProfile(data);
@@ -48,6 +48,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Viajero";
   const initial = firstName.charAt(0).toUpperCase();
+  const avatarUrl = profile?.avatar_url ?? null;
 
   return (
     <div className="min-h-screen flex w-full bg-background relative overflow-x-hidden">
