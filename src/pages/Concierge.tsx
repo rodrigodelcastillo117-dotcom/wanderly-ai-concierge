@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Crown, RefreshCw, TrendingUp, Sparkles } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { TravelAvatarCinematic } from "@/components/lux/TravelAvatarCinematic";
+
 import { useTravelDNA, TravelDNAStats } from "@/components/lux/TravelDNAStats";
 import { CompatibilityPanel } from "@/components/lux/CompatibilityPanel";
 import { BestMomentsPanel } from "@/components/lux/BestMomentsPanel";
@@ -35,37 +35,31 @@ const Concierge = () => {
     <DashboardLayout>
       <div className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
         {/* HEADER */}
-        <div className="mb-6">
-          <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
-            <Crown className="w-3 h-3" /> IATOS · LUX
-          </p>
-          <h1 className="font-display text-3xl md:text-4xl leading-tight">Tu Travel Avatar</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Una identidad 3D que evoluciona con cada viaje. Más viajes, más detalle.
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
+              <Crown className="w-3 h-3" /> CONCIERGE PRO
+            </p>
+            <h1 className="font-display text-3xl md:text-4xl leading-tight">Tu Travel DNA</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Tu identidad de viaje, compatibilidades y mejores momentos. Tu avatar vive en Social.
+            </p>
+          </div>
+          <button
+            onClick={evolucionar}
+            disabled={evolving}
+            className="text-[11px] px-3 py-1.5 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3 h-3 ${evolving ? "animate-spin" : ""}`} />
+            {evolving ? "Recalculando DNA..." : "Recalcular Travel DNA"}
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* CINEMATIC AVATAR */}
-          <section className="lg:col-span-2">
-            <TravelAvatarCinematic dna={dna} />
-            <div className="flex items-center justify-between mt-3 flex-wrap gap-2 px-1">
-              <p className="text-xs text-muted-foreground">
-                {dna ? `${dna.tripCount} viajes · ${dna.visitCount} lugares · DNA evoluciona con cada experiencia` : "Cargando tu identidad..."}
-              </p>
-              <button
-                onClick={evolucionar}
-                disabled={evolving}
-                className="text-[11px] px-3 py-1.5 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3 h-3 ${evolving ? "animate-spin" : ""}`} />
-                {evolving ? "Recalculando DNA..." : "Recalcular Travel DNA"}
-              </button>
-            </div>
-          </section>
-
           {/* TRAVEL DNA */}
-          <section className="glass-card rounded-3xl p-5">
+          <section className="glass-card rounded-3xl p-5 lg:col-span-3">
+
+
             <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-3 flex items-center gap-1.5">
               <Sparkles className="w-3 h-3" /> Travel DNA
             </p>

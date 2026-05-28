@@ -75,7 +75,7 @@ export const TravelerAvatar = () => {
 
         <div className="min-w-0 flex-1">
           <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
-            <Sparkles className="w-3 h-3" /> IATOS LUX · Tu avatar de viajero
+            <Sparkles className="w-3 h-3" /> CONCIERGE PRO · Tu avatar de viajero
             {version != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· v{version}</span>}
             {conf != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· {conf}% confianza</span>}
           </p>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Users, Copy, Share2, Lock, Check, Trophy, Target, Sparkles } from "lucide-react";
+import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles, Crown } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { TravelAvatarCinematic } from "@/components/lux/TravelAvatarCinematic";
+import { useTravelDNA } from "@/components/lux/TravelDNAStats";
 
 type Amigo = {
   amigo_id: string;
@@ -48,6 +50,7 @@ const CompatRing = ({ score }: { score: number }) => {
 
 export default function Social() {
   const { user } = useAuth();
+  const { dna } = useTravelDNA();
   const [params] = useSearchParams();
   const [myCode, setMyCode] = useState<string>("");
   const [codeInput, setCodeInput] = useState<string>(params.get("codigo")?.toUpperCase() ?? "");
@@ -163,13 +166,27 @@ export default function Social() {
           </div>
         </header>
 
-        <Tabs defaultValue="amigos" className="w-full">
+        <Tabs defaultValue="avatar" className="w-full">
           <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-card/40 backdrop-blur-md border border-white/[0.04] h-10 md:h-11">
+            <TabsTrigger value="avatar" className="text-[10px] md:text-sm px-1 md:px-3">Travel Avatar</TabsTrigger>
             <TabsTrigger value="amigos" className="text-[10px] md:text-sm px-1 md:px-3">Amigos</TabsTrigger>
+            <TabsTrigger value="logros" className="text-[10px] md:text-sm px-1 md:px-3">Logros</TabsTrigger>
             <TabsTrigger value="conectar" className="text-[10px] md:text-sm px-1 md:px-3">Conectar</TabsTrigger>
-            <TabsTrigger value="medallas" className="text-[10px] md:text-sm px-1 md:px-3">Medallas</TabsTrigger>
-            <TabsTrigger value="misiones" className="text-[10px] md:text-sm px-1 md:px-3">Misiones</TabsTrigger>
           </TabsList>
+
+          {/* TRAVEL AVATAR */}
+          <TabsContent value="avatar" className="mt-4 md:mt-6">
+            <div className="mb-4">
+              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
+                <Crown className="w-3 h-3" /> Tu identidad de viajero
+              </p>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Una identidad que evoluciona con cada viaje. Más viajes, más detalle.
+              </p>
+            </div>
+            <TravelAvatarCinematic dna={dna} />
+          </TabsContent>
+
 
           {/* AMIGOS */}
           <TabsContent value="amigos" className="mt-4 md:mt-6 space-y-3">
@@ -246,70 +263,81 @@ export default function Social() {
             </div>
           </TabsContent>
 
-          {/* MEDALLAS */}
-          <TabsContent value="medallas" className="mt-4 md:mt-6">
-            <div className="flex items-center gap-2 mb-3 md:mb-4 text-xs md:text-sm text-muted-foreground">
-              <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
-              {unlocked.size} de {badges.length} desbloqueadas
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
-              {badges.map((b) => {
-                const has = unlocked.has(b.id);
-                return (
-                  <div key={b.id}
-                    className={`rounded-2xl p-3 md:p-5 text-center border transition ${
-                      has
-                        ? "glass-card border-primary/30 gold-glow"
-                        : "bg-card/30 border-white/[0.04] opacity-50"
-                    }`}>
-                    <div className="text-2xl md:text-4xl mb-1.5 md:mb-2 relative">
-                      {has ? (b.icono ?? "🏅") : <Lock className="w-5 h-5 md:w-7 md:h-7 mx-auto text-muted-foreground" />}
-                    </div>
-                    <p className={`font-medium text-xs md:text-sm mb-0.5 md:mb-1 ${has ? "gold-text" : ""}`}>{b.nombre}</p>
-                    <p className="text-[10px] md:text-[11px] text-muted-foreground leading-snug">{b.descripcion}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </TabsContent>
-
-          {/* MISIONES */}
-          <TabsContent value="misiones" className="mt-4 md:mt-6 space-y-2 md:space-y-3">
-            {misiones.length === 0 ? (
-              <div className="glass-card rounded-2xl p-6 md:p-8 text-center text-muted-foreground text-sm">
-                Cargando misiones…
+          {/* LOGROS — Medallas + Misiones */}
+          <TabsContent value="logros" className="mt-4 md:mt-6 space-y-6 md:space-y-8">
+            {/* Medallas */}
+            <div>
+              <div className="flex items-center gap-2 mb-3 md:mb-4 text-xs md:text-sm text-muted-foreground">
+                <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
+                <span className="font-medium text-foreground">Medallas</span>
+                <span>· {unlocked.size} de {badges.length} desbloqueadas</span>
               </div>
-            ) : (
-              misiones.map((m) => {
-                const pct = m.meta > 0 ? Math.min(100, (m.progreso / m.meta) * 100) : 0;
-                return (
-                  <div key={m.id}
-                    className={`glass-card rounded-2xl p-4 md:p-5 border ${
-                      m.completada ? "border-primary/30 opacity-80" : "border-white/[0.04]"
-                    }`}>
-                    <div className="flex items-center gap-2.5 md:gap-3 mb-2 md:mb-3">
-                      <span className="text-xl md:text-2xl">{m.icono ?? "🎯"}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm md:text-base truncate">{m.titulo}</p>
-                        <p className="text-[11px] md:text-xs text-muted-foreground">{m.progreso} / {m.meta}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
+                {badges.map((b) => {
+                  const has = unlocked.has(b.id);
+                  return (
+                    <div key={b.id}
+                      className={`rounded-2xl p-3 md:p-5 text-center border transition ${
+                        has
+                          ? "glass-card border-primary/30 gold-glow"
+                          : "bg-card/30 border-white/[0.04] opacity-50"
+                      }`}>
+                      <div className="text-2xl md:text-4xl mb-1.5 md:mb-2 relative">
+                        {has ? (b.icono ?? "🏅") : <Lock className="w-5 h-5 md:w-7 md:h-7 mx-auto text-muted-foreground" />}
                       </div>
-                      {m.completada && (
-                        <span className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gradient-gold flex items-center justify-center shrink-0">
-                          <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary-foreground" />
-                        </span>
-                      )}
+                      <p className={`font-medium text-xs md:text-sm mb-0.5 md:mb-1 ${has ? "gold-text" : ""}`}>{b.nombre}</p>
+                      <p className="text-[10px] md:text-[11px] text-muted-foreground leading-snug">{b.descripcion}</p>
                     </div>
-                    <div className="h-1.5 md:h-2 rounded-full bg-background/60 overflow-hidden">
-                      <div className="h-full bg-gradient-gold transition-all duration-700"
-                        style={{ width: `${pct}%` }} />
-                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Misiones */}
+            <div>
+              <div className="flex items-center gap-2 mb-3 md:mb-4 text-xs md:text-sm text-muted-foreground">
+                <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
+                <span className="font-medium text-foreground">Misiones activas</span>
+              </div>
+              <div className="space-y-2 md:space-y-3">
+                {misiones.length === 0 ? (
+                  <div className="glass-card rounded-2xl p-6 md:p-8 text-center text-muted-foreground text-sm">
+                    Cargando misiones…
                   </div>
-                );
-              })
-            )}
+                ) : (
+                  misiones.map((m) => {
+                    const pct = m.meta > 0 ? Math.min(100, (m.progreso / m.meta) * 100) : 0;
+                    return (
+                      <div key={m.id}
+                        className={`glass-card rounded-2xl p-4 md:p-5 border ${
+                          m.completada ? "border-primary/30 opacity-80" : "border-white/[0.04]"
+                        }`}>
+                        <div className="flex items-center gap-2.5 md:gap-3 mb-2 md:mb-3">
+                          <span className="text-xl md:text-2xl">{m.icono ?? "🎯"}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm md:text-base truncate">{m.titulo}</p>
+                            <p className="text-[11px] md:text-xs text-muted-foreground">{m.progreso} / {m.meta}</p>
+                          </div>
+                          {m.completada && (
+                            <span className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gradient-gold flex items-center justify-center shrink-0">
+                              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary-foreground" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="h-1.5 md:h-2 rounded-full bg-background/60 overflow-hidden">
+                          <div className="h-full bg-gradient-gold transition-all duration-700"
+                            style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
+
 
       <Dialog open={!!perfilOpen} onOpenChange={(o) => !o && setPerfilOpen(null)}>
         <DialogContent className="bg-card border-primary/20 max-w-[92vw] md:max-w-lg rounded-2xl p-5 md:p-6">
