@@ -574,6 +574,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         tours_json: a.tours,
         tips_personalizados: a.tips_personalizados,
         cruceros_json: a.cruceros_alternativas ?? [],
+        dates_optimized: datesOptimized,
+        dates_optimization_meta: datesOptimized ? resolved.optimization : null,
       })
       .select()
       .single();
