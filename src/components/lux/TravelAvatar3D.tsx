@@ -185,7 +185,7 @@ function Figure({ style }: { style: AvatarStyle }) {
 }
 
 export const TravelAvatar3D = ({ style }: { style: AvatarStyle }) => {
-  const colors = STYLE_COLORS[style];
+  const colors = STYLE_COLORS[style] ?? STYLE_COLORS.cultural;
   return (
     <div className="w-full h-[320px] md:h-[420px] rounded-2xl overflow-hidden border border-primary/20 relative" style={{ background: `radial-gradient(ellipse at center, ${colors.bg} 0%, #000 100%)` }}>
       <Canvas shadows camera={{ position: [0, 1.2, 4], fov: 40 }}>
