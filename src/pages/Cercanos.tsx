@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
 import { placePhotoUrl } from "@/lib/googleMaps";
+import { formatDateOnly } from "@/lib/dateUtils";
 import { RoutesPanel } from "@/components/RoutesPanel";
 import { Button } from "@/components/ui/button";
 
@@ -301,7 +302,7 @@ const Cercanos = () => {
           {activeTrip && (
             <div className="text-right">
               <p className="text-xs text-primary tracking-[0.2em] uppercase">Viaje activo</p>
-              <p className="text-sm">{new Date(activeTrip.fecha_salida).toLocaleDateString("es-MX")} → {new Date(activeTrip.fecha_regreso).toLocaleDateString("es-MX")}</p>
+              <p className="text-sm">{formatDateOnly(activeTrip.fecha_salida)} → {formatDateOnly(activeTrip.fecha_regreso)}</p>
             </div>
           )}
         </div>
