@@ -133,8 +133,51 @@ Deno.serve(async (req) => {
         }
       } catch (e) { console.error("serpapi flights err:", (e as Error).message); }
     }
+    // Fallback 2 (datos REALES): Travelpayouts cached prices
+    const tpToken = Deno.env.get("TRAVELPAYOUTS_TOKEN");
+    const tpMarker = "533299";
+    if (results.length === 0 && tpToken) {
+      try {
+        const u = new URL("https://api.travelpayouts.com/v1/prices/cheap");
+        u.searchParams.set("origin", dep);
+        u.searchParams.set("destination", arr);
+        u.searchParams.set("depart_date", depart);
+        if (return_date) u.searchParams.set("return_date", return_date);
+        u.searchParams.set("currency", "usd");
+        u.searchParams.set("token", tpToken);
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 12000);
+        const r = await fetch(u.toString(), { signal: ctrl.signal }).finally(() => clearTimeout(tid));
+        if (r.ok) {
+          const j = await r.json();
+          const bucket = j?.data?.[arr] ?? {};
+          const items: any[] = Object.values(bucket);
+          const dd = depart.split("-"); // YYYY-MM-DD -> DDMM
+          const rd = (return_date ?? "").split("-");
+          const datePart = `${dd[2]}${dd[1]}`;
+          const retPart = rd.length === 3 ? `${rd[2]}${rd[1]}` : "";
+          const avia = `https://www.aviasales.com/search/${dep}${datePart}${arr}${retPart}${travelers}?marker=${tpMarker}`;
+          results = items.slice(0, 10).map((o: any) => ({
+            price_usd: Math.round(Number(o.price ?? 0) * travelers),
+            price_per_person_usd: Math.round(Number(o.price ?? 0)),
+            airline: o.airline ?? "—",
+            airline_logo: o.airline ? `https://pics.avs.io/200/80/${o.airline}.png` : null,
+            duration: "—",
+            stops: Number(o.transfers ?? 0),
+            departure: { id: dep, time: o.departure_at },
+            arrival: { id: arr, time: o.return_at },
+            booking_token: null,
+            buy_url: avia,
+            airline_buy_url: avia,
+          })).sort((a, b) => a.price_per_person_usd - b.price_per_person_usd);
+          if (results.length > 0) source = "travelpayouts";
+        } else {
+          console.error("travelpayouts status:", r.status);
+        }
+      } catch (e) { console.error("travelpayouts err:", (e as Error).message); }
+    }
 
-    // Fallback IA: estima 3 opciones realistas
+    // Fallback 3 (último recurso): estimación IA
     if (results.length === 0 && lovableKey) {
       try {
         const prompt = `Estima 3 opciones REALES y realistas de vuelo ${origin}->${destination} salida ${depart} regreso ${return_date} para ${travelers} adulto(s) en USD por persona round-trip. Devuelve SOLO JSON: {"options":[{"airline":"...","price_per_person_usd":N,"duration":"Xh Ym","stops":0|1|2}]}`;
@@ -171,6 +214,7 @@ Deno.serve(async (req) => {
         }
       } catch (e) { console.error("ai fallback err:", (e as Error).message); }
     }
+
 
     return new Response(JSON.stringify({
       ok: true, source, results,
