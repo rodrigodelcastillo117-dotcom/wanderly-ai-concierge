@@ -737,16 +737,18 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                 </p>
               )}
 
-              <div className="flex justify-center gap-2 mt-8">
-                {stepsConfig.map((_, i) => (
-                  <div
-                    key={i}
-                    className={`h-1 rounded-full transition-all duration-500 ${
-                      i === step ? "w-8 bg-primary" : "w-2 bg-border"
-                    }`}
-                  />
-                ))}
-              </div>
+              {stepsConfig.length > 1 && (
+                <div className="flex justify-center gap-2 mt-8">
+                  {stepsConfig.map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-1 rounded-full transition-all duration-500 ${
+                        i === step ? "w-8 bg-primary" : "w-2 bg-border"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="lg:sticky lg:top-10">
