@@ -611,7 +611,9 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         },
       };
 
-  const stepsConfig = [
+  const stepsConfig = isEmocionMode
+    ? [firstStep]
+    : [
     firstStep,
 
     {
