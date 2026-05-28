@@ -548,14 +548,20 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               </AnimatePresence>
 
               <Button
-                onClick={() => (step === stepsConfig.length - 1 ? analizar() : setStep(step + 1))}
+                onClick={() =>
+                  step === stepsConfig.length - 1
+                    ? isEmocionMode
+                      ? elegirDestinoYAnalizar()
+                      : analizar()
+                    : setStep(step + 1)
+                }
                 disabled={!current.canNext()}
                 className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-14"
               >
                 {step === stepsConfig.length - 1 ? (
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
-                    Generar análisis
+                    {isEmocionMode ? "Elegir mi destino con IATOS AI" : "Generar análisis"}
                   </>
                 ) : (
                   <>
