@@ -293,6 +293,49 @@ const TripDetail = () => {
           ))}
         </motion.div>
 
+        {/* Smart Date Resolution: fechas optimizadas por IATOS */}
+        {trip.dates_optimized && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-background to-background p-5 md:p-6"
+          >
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.15),transparent_60%)]" />
+            <div className="relative flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm">
+                    <span className="font-semibold text-primary">Fechas Optimizadas por IATOS:</span>{" "}
+                    <span className="text-muted-foreground">
+                      Como no nos diste fechas, buscamos el momento más inteligente para viajar. Cotizamos tarifas reales para la temporada ideal{" "}
+                      <span className="text-foreground font-medium">
+                        ({new Date(trip.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "long" })} – {new Date(trip.fecha_regreso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })})
+                      </span>
+                      , asegurando menos multitudes y el mejor precio.
+                    </span>
+                  </p>
+                  {trip.dates_optimization_meta?.reason && (
+                    <p className="text-xs text-muted-foreground/80 italic">
+                      {trip.dates_optimization_meta.reason}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => navigate(`/dashboard/viajes/${id}/editar`)}
+                className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/50 text-primary text-xs font-medium hover:bg-primary/10 transition"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Cambiar fechas y re-cotizar
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+
 
         {/* Total + Análisis narrativo */}
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
