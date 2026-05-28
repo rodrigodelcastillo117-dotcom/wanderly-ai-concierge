@@ -308,7 +308,31 @@ Deno.serve(async (req) => {
           const idiomas = (tp?.idiomas_hablados ?? []).join(", ") || "español";
           const notas = tp?.notas_adicionales ?? "";
           const visitados = (tp?.destinos_visitados ?? []).slice(0, 6).join(", ");
-          const pendientes = (tp?.destinos_pendientes ?? []).slice(0, 6).join(", ");
+          const nombre = prof?.full_name?.split(" ")[0] ?? "viajero";
+
+          perfilLine = `PERFIL DEL VIAJERO (úsalo para personalizar TODO: hoteles, restaurantes, experiencias y narrativa):
+- Nombre: ${nombre} · Origen: ${prof?.ciudad_origen ?? "—"} · Nacionalidad: ${prof?.nationality ?? "—"}
+- Estilos preferidos: ${estilos || "no especificado"}
+- Presupuesto: ${presupuesto} · Ritmo: ${ritmo}
+- Intereses: ${intereses || "varios"}
+- Comida: ${comida} · Restricciones: ${alergias}
+- Alojamiento preferido: ${aloj}
+- Acompañantes: ${acomp} · Idiomas: ${idiomas}
+- Actividades favoritas: ${actividades}
+${visitados ? `- Ya visitó: ${visitados} (NO repitas patrones obvios)` : ""}
+${pendientes ? `- Lugares en su lista: ${pendientes}` : ""}
+${notas ? `- Notas personales: ${notas}` : ""}
+INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil.`;
+        }
+      }
+    } catch (e) {
+      console.warn("perfil:", e);
+    }
+
+    const nights = body.fecha_salida && body.fecha_regreso
+      ? Math.max(1, Math.round((new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / 86400000))
+      : Math.max(body.destinations.length * 3, 6);
+
     const viajeros = body.num_viajeros ?? 2;
     const fechas = `${body.fecha_salida ?? "flexible"} a ${body.fecha_regreso ?? "flexible"}`;
     const cityList = body.destinations.join(" → ");
@@ -354,32 +378,6 @@ Entrega JSON con:
 - hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium) con hoteles REALES de ${city} alineados al estilo del usuario.
 - restaurantes: 4-5 reales en ${city} que matcheen el estilo de comida del usuario.
 - experiencias: 4-5 tours/experiencias reales en ${city}.`;
-
-Entrega JSON con:
-1. flights: 1-2 vuelos internacionales (origen→primera y última→origen) con tier ahorro/equilibrio/premium.
-2. internal_transport: UN tramo por cada par consecutivo (${body.destinations.length - 1} tramos). Europa <800km usa TREN. Inter-islas griegas usa FERRY (Blue Star, SeaJets).
-3. days: ${nights} días distribuidos lógicamente entre las ciudades, cada uno con ciudad/título/mañana/tarde/noche específicos.
-4. mandatory_costs con currency_buffer_pct=3.
-5. total_estimado_usd y resumen breve.`;
-
-    // ───── Llamadas POR CIUDAD en paralelo ─────
-    const cityPromises = body.destinations.map((city, i) => {
-      const prevPoint = i === 0 ? body.origin : body.destinations[i - 1];
-      const cityNights = Math.max(1, Math.round(nights / body.destinations.length));
-      const cityPrompt = `${perfilLine}
-
-Ciudad: ${city}
-Punto anterior: ${prevPoint}
-Viajeros: ${viajeros} | Noches sugeridas: ${cityNights}
-Ruta completa del viaje (contexto): ${body.origin} → ${cityList}
-
-Entrega JSON con:
-- city: "${city}"
-- nights: ${cityNights}
-- arrival_options: 2-3 maneras de LLEGAR desde ${prevPoint}. Si es Europa <800km incluye tren real (Italo/Renfe AVE/SNCF/Eurostar). Si son islas griegas incluye ferry real (Blue Star, SeaJets) y vuelo Aegean/Sky Express.
-- hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium) con hoteles REALES de ${city} alineados al estilo del usuario.
-- restaurantes: 4-5 reales en ${city} que matcheen el estilo de comida del usuario.
-- experiencias: 4-5 tours/experiencias reales en ${city}.`;
       return callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema)
         .catch((e) => {
           console.error(`city ${city} failed:`, e.message);
@@ -389,6 +387,7 @@ Entrega JSON con:
           };
         });
     });
+
 
     const globalPromise = callAI(apiKey, GLOBAL_SYSTEM, globalPrompt, "emit_global", globalSchema);
 
