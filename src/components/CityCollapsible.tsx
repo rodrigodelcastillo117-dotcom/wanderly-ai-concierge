@@ -97,11 +97,18 @@ export const CityCollapsible = ({
   const img = useCityImage(imageQuery || `${city} landmark travel`);
 
   // Cuando esta tarjeta pasa de cerrada a abierta, lleva el scroll al inicio del destino
+  // Esperamos a que la animación de expansión termine (~600ms) para que el cálculo de
+  // posición sea correcto incluso si otra tarjeta se está cerrando arriba.
   useEffect(() => {
     if (open && !wasOpenRef.current) {
-      requestAnimationFrame(() => {
-        innerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
+      const t = window.setTimeout(() => {
+        const el = innerRef.current;
+        if (!el) return;
+        const y = el.getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }, 620);
+      wasOpenRef.current = open;
+      return () => window.clearTimeout(t);
     }
     wasOpenRef.current = open;
   }, [open]);
