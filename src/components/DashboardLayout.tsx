@@ -59,22 +59,22 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </div>
 
       {/* Sidebar — black glassmorphism luxury (fixed) */}
-      <aside className="hidden md:flex flex-col w-[260px] border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen z-30">
+      <aside className="hidden md:flex flex-col w-[200px] border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen z-30">
 
         {/* Brand */}
-        <Link to="/dashboard" className="flex items-center justify-center px-6 pt-9 pb-7 border-b border-white/[0.04]">
-          <img src={iatosLogo} alt="IATOS" className="w-full max-w-[170px] h-auto object-contain drop-shadow-[0_0_24px_rgba(201,169,97,0.18)]" />
+        <Link to="/dashboard" className="flex items-center justify-center px-4 pt-6 pb-5 border-b border-white/[0.04]">
+          <img src={iatosLogo} alt="IATOS" className="w-full max-w-[130px] h-auto object-contain drop-shadow-[0_0_24px_rgba(201,169,97,0.18)]" />
         </Link>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {links.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
               end={l.end}
               className={({ isActive }) =>
-                `group relative flex items-center gap-3 px-4 py-3 rounded-2xl text-sm transition-all duration-300 ${
+                `group relative flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-300 ${
                   isActive
                     ? "text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-white/[0.03]"
@@ -86,10 +86,10 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                   {isActive && (
                     <span
                       aria-hidden
-                      className="absolute inset-0 rounded-2xl bg-gradient-gold shadow-[0_8px_28px_-8px_hsl(41_47%_59%/0.55),inset_0_1px_0_hsl(41_60%_75%/0.4)]"
+                      className="absolute inset-0 rounded-xl bg-gradient-gold shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.55),inset_0_1px_0_hsl(41_60%_75%/0.4)]"
                     />
                   )}
-                  <l.icon className={`relative w-[18px] h-[18px] ${isActive ? "" : "opacity-80 group-hover:opacity-100"}`} />
+                  <l.icon className={`relative w-[16px] h-[16px] ${isActive ? "" : "opacity-80 group-hover:opacity-100"}`} />
                   <span className="relative tracking-wide">{l.label}</span>
                 </>
               )}
@@ -101,9 +101,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         {/* User */}
         <button
           onClick={() => navigate("/dashboard/perfil")}
-          className="flex items-center gap-3 px-5 py-4 border-t border-white/[0.04] hover:bg-white/[0.03] transition"
+          className="flex items-center gap-2 px-3 py-3 border-t border-white/[0.04] hover:bg-white/[0.03] transition"
         >
-          <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] overflow-hidden ring-1 ring-primary/30">
+          <div className="w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] overflow-hidden ring-1 ring-primary/30 flex-shrink-0">
             {avatarUrl ? (
               <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
             ) : (
@@ -111,14 +111,14 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             )}
           </div>
           <div className="flex-1 text-left min-w-0">
-            <p className="text-sm font-medium truncate">{firstName}</p>
-            <p className="text-[11px] text-muted-foreground truncate tracking-wide">Explorador frecuente</p>
+            <p className="text-[13px] font-medium truncate">{firstName}</p>
+            <p className="text-[10px] text-muted-foreground truncate tracking-wide">Explorador</p>
           </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         </button>
         <button
           onClick={async () => { await signOut(); navigate("/"); }}
-          className="flex items-center gap-2 px-5 py-3 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide"
+          className="flex items-center gap-2 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide"
         >
           <LogOut className="w-3.5 h-3.5" />
           Cerrar sesión
@@ -126,7 +126,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </aside>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 overflow-x-hidden pb-28 md:pb-0 md:pl-[260px] relative">
+      <main className="flex-1 min-w-0 overflow-x-hidden pb-28 md:pb-0 md:pl-[200px] relative">
         {/* Mobile top bar — notifications + profile avatar */}
         <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
           <Link to="/dashboard" className="flex items-center">
