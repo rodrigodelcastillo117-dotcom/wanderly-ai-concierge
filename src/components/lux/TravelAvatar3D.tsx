@@ -16,7 +16,7 @@ const STYLE_COLORS: Record<AvatarStyle, { body: string; accent: string; bg: stri
 
 function Figure({ style }: { style: AvatarStyle }) {
   const group = useRef<THREE.Group>(null);
-  const colors = STYLE_COLORS[style];
+  const colors = STYLE_COLORS[style] ?? STYLE_COLORS.cultural;
 
   useFrame((_, dt) => {
     if (group.current) group.current.rotation.y += dt * 0.35;
