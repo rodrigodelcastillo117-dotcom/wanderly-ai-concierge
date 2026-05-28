@@ -40,6 +40,51 @@ const TripDetail = () => {
   };
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favRecoId, setFavRecoId] = useState<string | null>(null);
+
+  // Cargar estado de favorito
+  useEffect(() => {
+    if (!user || !trip?.destino) return;
+    supabase.from("recomendaciones")
+      .select("id, guardado")
+      .eq("user_id", user.id)
+      .eq("titulo", trip.destino)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setFavRecoId(data.id);
+          setIsFavorite(!!data.guardado);
+        }
+      });
+  }, [user, trip?.destino]);
+
+  const toggleFavorite = async () => {
+    if (!user || !trip) return;
+    if (isFavorite && favRecoId) {
+      await supabase.from("recomendaciones").update({ guardado: false }).eq("id", favRecoId);
+      setIsFavorite(false);
+      toast.success("Quitado de favoritos");
+    } else if (favRecoId) {
+      await supabase.from("recomendaciones").update({ guardado: true }).eq("id", favRecoId);
+      setIsFavorite(true);
+      toast.success(`${trip.destino} guardado en favoritos`);
+    } else {
+      const { data } = await supabase.from("recomendaciones").insert([{
+        user_id: user.id,
+        titulo: trip.destino,
+        tipo: "destination_ai",
+        descripcion: trip.pais_destino,
+        imagen_url: trip.cover_image_url,
+        match_score: trip.match_score,
+        guardado: true,
+        metadata: { from_trip_id: trip.id },
+      }]).select("id").single();
+      if (data) setFavRecoId(data.id);
+      setIsFavorite(true);
+      toast.success(`${trip.destino} guardado en favoritos`);
+    }
+  };
 
   const loadTrip = async () => {
     if (!id) return;
