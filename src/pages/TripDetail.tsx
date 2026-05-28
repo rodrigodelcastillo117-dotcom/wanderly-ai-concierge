@@ -39,6 +39,9 @@ const TripDetail = () => {
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const toggleCity = (city: string) => {
+    setActiveCity((prev) => (prev === city ? null : city));
+  };
+
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favRecoId, setFavRecoId] = useState<string | null>(null);
@@ -57,8 +60,6 @@ const TripDetail = () => {
     setEditingTravelers(false);
     loadTrip();
   }
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [favRecoId, setFavRecoId] = useState<string | null>(null);
 
   // Cargar estado de favorito
   useEffect(() => {
