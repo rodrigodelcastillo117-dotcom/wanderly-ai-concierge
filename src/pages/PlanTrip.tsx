@@ -368,47 +368,92 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     );
   }
 
-  const stepsConfig = [
-    {
-      icon: MapPin,
-      title: "¿A dónde quieres ir?",
-      sub: "Un destino ('Tokio') o una travesía ('México → Madrid → París'). IATOS AI detecta el modo.",
-      canNext: () => destino.trim().length > 1,
-      render: () => {
-        const intent = detectRouteIntent(destino);
-        const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
-        return (
-          <div className="space-y-3">
-            <div className="relative">
-              <Input
-                autoFocus
-                placeholder="París · o · Roma → Florencia → Venecia"
-                value={destino}
-                onChange={(e) => setDestino(e.target.value)}
-                className="h-16 text-lg bg-input border-border pr-14"
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <VoiceInput
-                  onTranscript={(t) => setDestino((prev) => (prev ? prev + " " : "") + t)}
-                />
-              </div>
+  const toggleEmocion = (e: string) =>
+    setEmociones((prev) => (prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]));
+
+  const firstStep = isEmocionMode
+    ? {
+        icon: Heart,
+        title: "¿Cuál es tu emoción del viaje?",
+        sub: "Elige una o varias. IATOS AI las mezcla con tu ADN para escoger el destino perfecto.",
+        canNext: () => emociones.length > 0 || emocionLibre.trim().length > 2,
+        render: () => (
+          <div className="space-y-4">
+            <Input
+              autoFocus
+              placeholder="ej. quiero sentir libertad total y aventura"
+              value={emocionLibre}
+              onChange={(e) => setEmocionLibre(e.target.value)}
+              className="h-14 bg-input border-border"
+            />
+            <div className="flex flex-wrap gap-2">
+              {EMOCIONES.map((e) => {
+                const active = emociones.includes(e);
+                return (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => toggleEmocion(e)}
+                    className={`px-4 py-2 rounded-full border text-sm transition ${
+                      active
+                        ? "bg-primary/15 border-primary text-primary"
+                        : "bg-surface border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {e}
+                  </button>
+                );
+              })}
             </div>
-            {destino.trim().length > 1 && (
-              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${
-                isMulti
-                  ? "bg-primary/10 border-primary/40 text-primary"
-                  : "bg-surface border-border text-muted-foreground"
-              }`}>
-                {isMulti ? <RouteIcon className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
-                {isMulti
-                  ? `Travesía multi-destino · ${intent.destinations.length} ciudades`
-                  : "Viaje a un solo destino"}
-              </div>
-            )}
+            <p className="text-xs text-muted-foreground italic">
+              Puedes elegir varias emociones · IATOS AI las mezcla y elige tu próximo destino.
+            </p>
           </div>
-        );
-      },
-    },
+        ),
+      }
+    : {
+        icon: MapPin,
+        title: "¿A dónde quieres ir?",
+        sub: "Un destino ('Tokio') o una travesía ('México → Madrid → París'). IATOS AI detecta el modo.",
+        canNext: () => destino.trim().length > 1,
+        render: () => {
+          const intent = detectRouteIntent(destino);
+          const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
+          return (
+            <div className="space-y-3">
+              <div className="relative">
+                <Input
+                  autoFocus
+                  placeholder="París · o · Roma → Florencia → Venecia"
+                  value={destino}
+                  onChange={(e) => setDestino(e.target.value)}
+                  className="h-16 text-lg bg-input border-border pr-14"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <VoiceInput
+                    onTranscript={(t) => setDestino((prev) => (prev ? prev + " " : "") + t)}
+                  />
+                </div>
+              </div>
+              {destino.trim().length > 1 && (
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${
+                  isMulti
+                    ? "bg-primary/10 border-primary/40 text-primary"
+                    : "bg-surface border-border text-muted-foreground"
+                }`}>
+                  {isMulti ? <RouteIcon className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
+                  {isMulti
+                    ? `Travesía multi-destino · ${intent.destinations.length} ciudades`
+                    : "Viaje a un solo destino"}
+                </div>
+              )}
+            </div>
+          );
+        },
+      };
+
+  const stepsConfig = [
+    firstStep,
 
     {
       icon: Calendar,
