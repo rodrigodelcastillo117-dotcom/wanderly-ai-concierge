@@ -46,18 +46,12 @@ const Concierge = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* 3D AVATAR */}
-          <section className="lg:col-span-2 glass-card rounded-3xl p-4 md:p-5">
-            {loading || !dna ? (
-              <div className="h-[320px] md:h-[420px] flex items-center justify-center text-muted-foreground text-sm">
-                Construyendo tu avatar…
-              </div>
-            ) : (
-              <TravelAvatar3D style={dna.dominant} />
-            )}
-            <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+          {/* CINEMATIC AVATAR */}
+          <section className="lg:col-span-2">
+            <TravelAvatarCinematic dna={dna} />
+            <div className="flex items-center justify-between mt-3 flex-wrap gap-2 px-1">
               <p className="text-xs text-muted-foreground">
-                {dna ? `${dna.tripCount} viajes · ${dna.visitCount} lugares visitados` : ""}
+                {dna ? `${dna.tripCount} viajes · ${dna.visitCount} lugares · DNA evoluciona con cada experiencia` : "Cargando tu identidad..."}
               </p>
               <button
                 onClick={evolucionar}
@@ -65,7 +59,7 @@ const Concierge = () => {
                 className="text-[11px] px-3 py-1.5 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition flex items-center gap-1.5 disabled:opacity-50"
               >
                 <RefreshCw className={`w-3 h-3 ${evolving ? "animate-spin" : ""}`} />
-                {evolving ? "Evolucionando…" : "Evolucionar avatar"}
+                {evolving ? "Recalculando DNA..." : "Recalcular Travel DNA"}
               </button>
             </div>
           </section>
