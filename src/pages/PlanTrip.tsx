@@ -161,23 +161,30 @@ const PlanTrip = () => {
 
   // Modo emoción: IATOS elige el destino según la emoción + parámetros
   const elegirDestinoYAnalizar = async () => {
-    if (!fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+    if (!ciudadOrigen) {
+      toast.error("Necesitamos tu ciudad de origen.");
+      return;
+    }
     const emocionList = [...emociones, emocionLibre.trim()].filter(Boolean);
     if (emocionList.length === 0) {
       toast.error("Elige al menos una emoción para tu viaje.");
       return;
     }
+    const usarFechas = !surpriseDates && fechaSalida && fechaRegreso;
     setEligiendoDestino(true);
     try {
-      const dias = Math.max(
-        1,
-        Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000),
-      );
+      const dias = usarFechas
+        ? Math.max(1, Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000))
+        : null;
+      const presupuestoTxt =
+        presupuesto != null
+          ? `Presupuesto total objetivo: ${presupuesto} MXN.`
+          : `Estilo de presupuesto: ${budgetMode} (sin tope rígido — IATOS optimiza).`;
       const prompt = `Quiero que elijas el MEJOR destino para mí (UNA sola ciudad o región concreta, no varias opciones).
 Emociones / estilo que busco: ${emocionList.join(", ")}.
 Viajamos ${numViajeros} persona(s) desde ${ciudadOrigen}.
-Fechas: del ${fechaSalida} al ${fechaRegreso} (${dias} días).
-${presupuesto != null ? `Presupuesto total objetivo: ${presupuesto} MXN.` : "Presupuesto flexible."}
+${usarFechas ? `Fechas: del ${fechaSalida} al ${fechaRegreso} (${dias} días).` : `Fechas flexibles — elige tú la mejor temporada para esa emoción y destino.`}
+${presupuestoTxt}
 Devuelve el destino ideal en el campo "destino" y "destinations" con esa única ciudad.`;
 
       const { data, error } = await supabase.functions.invoke("parsear-viaje", { body: { prompt } });
@@ -188,11 +195,11 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       await runAnalisis({
         destino: destinoElegido,
         ciudad_origen: ciudadOrigen,
-        fecha_salida: fechaSalida,
-        fecha_regreso: fechaRegreso,
+        fecha_salida: usarFechas ? fechaSalida : (null as any),
+        fecha_regreso: usarFechas ? fechaRegreso : (null as any),
         num_viajeros: numViajeros,
         presupuesto_objetivo: presupuesto,
-        notas_usuario: `Emociones: ${emocionList.join(", ")}`,
+        notas_usuario: `Emociones: ${emocionList.join(", ")}. Estilo presupuesto: ${budgetMode}.`,
       });
     } catch (e: any) {
       console.error(e);
