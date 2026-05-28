@@ -50,7 +50,13 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
     (async () => {
       const [{ data: prefs }, { data: trips }] = await Promise.all([
         supabase.from("ai_user_preferences").select("perfil_ia").eq("user_id", user.id).maybeSingle(),
-        supabase.from("trips").select("destino, pais_destino").eq("user_id", user.id).order("created_at", { ascending: false }).limit(6),
+        supabase
+          .from("trips")
+          .select("destino, pais_destino, fecha_salida, created_at")
+          .eq("user_id", user.id)
+          .order("fecha_salida", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(8),
       ]);
       if (cancelled) return;
       const p: any = prefs?.perfil_ia ?? {};
@@ -61,7 +67,8 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
       setTripsTimeline((trips ?? []).map((x: any) => ({ destino: x.destino, pais: x.pais_destino })));
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, dna?.tripCount]);
+
 
   const culture = useMemo(
     () => detectCulture(lastTrip?.destino, lastTrip?.pais_destino),
