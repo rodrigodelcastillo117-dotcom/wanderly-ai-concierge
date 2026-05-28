@@ -290,6 +290,11 @@ const Onboarding = () => {
         { onConflict: "user_id" }
       );
       if (error) throw error;
+      // También marcar travel_profiles.completado para que el login no vuelva a mandar al onboarding
+      await (supabase as any).from("travel_profiles").upsert(
+        { user_id: user.id, completado: true, perfil_ia },
+        { onConflict: "user_id" }
+      );
       toast.success("¡Tu perfil de viajero está listo!");
       navigate("/dashboard");
     } catch (e: any) {
