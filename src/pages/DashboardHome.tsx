@@ -356,7 +356,10 @@ const DashboardHome = () => {
               <p className="text-sm md:text-base text-white/70 mb-6 max-w-xl leading-relaxed">
                 IATOS detecta single o multi-destino, arma vuelos, hospedaje y experiencias según tu ADN de viaje.
               </p>
-              <Button className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow self-start h-12 px-6 rounded-2xl text-sm tracking-wide">
+              <Button
+                onClick={() => navigate("/dashboard/planear?mode=emocion")}
+                className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow self-start h-12 px-6 rounded-2xl text-sm tracking-wide"
+              >
                 <Plus className="w-4 h-4 mr-2" strokeWidth={2.25} />
                 Empezar análisis
               </Button>
