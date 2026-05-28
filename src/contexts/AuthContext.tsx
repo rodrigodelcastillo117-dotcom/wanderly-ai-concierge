@@ -19,35 +19,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const clearInvalidSession = async () => {
-      setSession(null);
-      setUser(null);
-      await supabase.auth.signOut({ scope: "local" });
-    };
-
-    // Listener primero
+    // Listener primero — mantiene la sesión sincronizada (refresh automático, login, logout explícito)
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
+      setLoading(false);
     });
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) {
-        setSession(null);
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      const { data: verified, error } = await supabase.auth.getUser();
-      if (error || !verified.user) {
-        await clearInvalidSession();
-        setLoading(false);
-        return;
-      }
-
-      setSession(data.session);
-      setUser(verified.user);
+    // Hidratar desde storage local. NO cerramos sesión por errores transitorios de red:
+    // solo confiamos en getSession() para la persistencia local del dispositivo.
+    // El refresh token de Supabase + autoRefreshToken se encargan de validar contra el servidor
+    // cuando hay conexión. Si el refresh falla con un error real de auth, el listener
+    // recibirá SIGNED_OUT y limpiará el estado.
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session ?? null);
+      setUser(data.session?.user ?? null);
       setLoading(false);
     });
 
