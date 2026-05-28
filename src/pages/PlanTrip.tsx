@@ -390,7 +390,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   ];
 
   const BUDGETS: Array<{ id: typeof budgetMode; label: string; hint: string; value: number | null }> = [
-    { id: "flexible", label: "Flexible", hint: "IATOS optimiza sin tope", value: null },
+    { id: "flexible", label: "Económico", hint: "Destinos cercanos, gran valor", value: 15000 },
     { id: "balanceado", label: "Balanceado", hint: "Confort sin excesos", value: 35000 },
     { id: "premium", label: "Premium", hint: "Experiencias selectas", value: 80000 },
     { id: "luxury", label: "Luxury", hint: "Sin compromiso", value: 180000 },
