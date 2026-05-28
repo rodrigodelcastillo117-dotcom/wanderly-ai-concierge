@@ -108,9 +108,6 @@ const TripFlights = () => {
           </p>
         )}
 
-            {meta && ` · ${meta.dep_iata} → ${meta.arr_iata}`}
-          </p>
-        )}
 
         <div className="space-y-3">
           {results.map((f, i) => (
