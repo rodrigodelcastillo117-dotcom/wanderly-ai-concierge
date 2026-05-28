@@ -166,13 +166,27 @@ export default function Social() {
           </div>
         </header>
 
-        <Tabs defaultValue="amigos" className="w-full">
+        <Tabs defaultValue="avatar" className="w-full">
           <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-card/40 backdrop-blur-md border border-white/[0.04] h-10 md:h-11">
+            <TabsTrigger value="avatar" className="text-[10px] md:text-sm px-1 md:px-3">Travel Avatar</TabsTrigger>
             <TabsTrigger value="amigos" className="text-[10px] md:text-sm px-1 md:px-3">Amigos</TabsTrigger>
+            <TabsTrigger value="logros" className="text-[10px] md:text-sm px-1 md:px-3">Logros</TabsTrigger>
             <TabsTrigger value="conectar" className="text-[10px] md:text-sm px-1 md:px-3">Conectar</TabsTrigger>
-            <TabsTrigger value="medallas" className="text-[10px] md:text-sm px-1 md:px-3">Medallas</TabsTrigger>
-            <TabsTrigger value="misiones" className="text-[10px] md:text-sm px-1 md:px-3">Misiones</TabsTrigger>
           </TabsList>
+
+          {/* TRAVEL AVATAR */}
+          <TabsContent value="avatar" className="mt-4 md:mt-6">
+            <div className="mb-4">
+              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
+                <Crown className="w-3 h-3" /> Tu identidad de viajero
+              </p>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Una identidad que evoluciona con cada viaje. Más viajes, más detalle.
+              </p>
+            </div>
+            <TravelAvatarCinematic dna={dna} />
+          </TabsContent>
+
 
           {/* AMIGOS */}
           <TabsContent value="amigos" className="mt-4 md:mt-6 space-y-3">
