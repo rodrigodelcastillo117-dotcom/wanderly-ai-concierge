@@ -15,6 +15,9 @@ import { InviteFriendDialog } from "@/components/InviteFriendDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateTripPDF } from "@/lib/tripPdf";
 import { formatDateOnly } from "@/lib/dateUtils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
 
