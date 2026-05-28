@@ -14,6 +14,7 @@ import { RealTripTotal } from "@/components/RealTripTotal";
 import { InviteFriendDialog } from "@/components/InviteFriendDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateTripPDF } from "@/lib/tripPdf";
+import { formatDateOnly } from "@/lib/dateUtils";
 import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
 
@@ -244,7 +245,7 @@ const TripDetail = () => {
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{trip.pais_destino}</p>
           <h1 className="font-display text-5xl md:text-7xl leading-none mb-4">{trip.destino}</h1>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {new Date(trip.fecha_salida).toLocaleDateString("es-MX")} – {new Date(trip.fecha_regreso).toLocaleDateString("es-MX")}</span>
+            <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDateOnly(trip.fecha_salida)} – {formatDateOnly(trip.fecha_regreso)}</span>
             <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {viajeros} {viajeros === 1 ? "viajero" : "viajeros"}</span>
             <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Desde {trip.ciudad_origen}</span>
           </div>
@@ -299,7 +300,7 @@ const TripDetail = () => {
                     <span className="text-muted-foreground">
                       Como no nos diste fechas, buscamos el momento más inteligente para viajar. Cotizamos tarifas reales para la temporada ideal{" "}
                       <span className="text-foreground font-medium">
-                        ({new Date(trip.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "long" })} – {new Date(trip.fecha_regreso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })})
+                        ({formatDateOnly(trip.fecha_salida, { day: "numeric", month: "long" })} – {formatDateOnly(trip.fecha_regreso, { day: "numeric", month: "long", year: "numeric" })})
                       </span>
                       , asegurando menos multitudes y el mejor precio.
                     </span>

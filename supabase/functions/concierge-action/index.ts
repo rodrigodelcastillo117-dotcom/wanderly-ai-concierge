@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
 
     const labelByType: Record<string, string> = {
       reservation: "Mesa solicitada",
-      pickup: "Recolección coordinada",
+      pickup: "Solicitud de equipaje preparada",
       transport: "Transporte solicitado",
       jet: "Jet privado solicitado",
       alert: "Alerta atendida",
@@ -86,31 +86,8 @@ Deno.serve(async (req) => {
       related_id: reqRow.id,
     });
 
-    // 3) Background confirmation after short delay (simulated partner confirmation)
-    const confirmTask = async () => {
-      await new Promise((r) => setTimeout(r, 4500));
-      await admin
-        .from("concierge_requests")
-        .update({ status: "confirmed" })
-        .eq("id", reqRow.id);
-      await admin.from("notifications").insert({
-        user_id: userId,
-        type: body.type,
-        title: `Confirmado: ${body.title}`,
-        body: `Tu ${labelByType[body.type] ?? "solicitud"} está confirmada. Revisa los detalles en tu chat.`,
-        related_id: reqRow.id,
-      });
-    };
-    // @ts-ignore EdgeRuntime is available in Supabase Edge runtime
-    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
-      // @ts-ignore
-      EdgeRuntime.waitUntil(confirmTask());
-    } else {
-      confirmTask();
-    }
-
     return new Response(
-      JSON.stringify({ ok: true, request: reqRow }),
+      JSON.stringify({ ok: true, request: reqRow, confirmation_required: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

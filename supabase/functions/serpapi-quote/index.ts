@@ -215,8 +215,7 @@ Deno.serve(async (req) => {
       const flights_total = flight?.price_usd ?? 0;
       const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
       const subtotal = flights_total + hotel_total;
-      const buffer = subtotal * 0.2;
-      const total_usd = Math.round(subtotal + buffer);
+      const total_usd = Math.round(subtotal);
       const total_mxn = Math.round(total_usd * 18.5);
       return new Response(JSON.stringify({
         flight: flight ? { ...flight, airline_logo: null } : null,
@@ -226,7 +225,7 @@ Deno.serve(async (req) => {
           hotel_nightly_usd: hotel?.nightly_usd ?? 0,
           hotel_total_usd: hotel_total,
           nights,
-          buffer_usd: Math.round(buffer),
+          buffer_usd: 0,
         },
         total_usd,
         total_mxn,
@@ -285,8 +284,7 @@ Deno.serve(async (req) => {
     const flights_total = flight?.price_usd ?? 0;
     const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
     const subtotal = flights_total + hotel_total;
-    const buffer = subtotal * 0.2;
-    const total_usd = Math.round(subtotal + buffer);
+    const total_usd = Math.round(subtotal);
     const total_mxn = Math.round(total_usd * 18.5);
 
     return new Response(JSON.stringify({
@@ -296,7 +294,7 @@ Deno.serve(async (req) => {
         hotel_nightly_usd: hotel?.nightly_usd ?? 0,
         hotel_total_usd: hotel_total,
         nights,
-        buffer_usd: Math.round(buffer),
+        buffer_usd: 0,
       },
       total_usd, total_mxn, source,
       fetched_at: new Date().toISOString(),

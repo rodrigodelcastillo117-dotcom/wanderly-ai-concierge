@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Cloud, CloudRain, Sun, CloudSnow, Wind, Droplets, MapPin, Calendar, Thermometer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { formatDateOnly } from "@/lib/dateUtils";
 import { motion } from "framer-motion";
 
 const codeIcon = (c: number) => {
@@ -217,8 +218,8 @@ const TripWeather = () => {
                   </h2>
                   <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    {new Date(b.start).toLocaleDateString("es-MX", { day: "numeric", month: "short" })} –{" "}
-                    {new Date(b.end).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
+                    {formatDateOnly(b.start, { day: "numeric", month: "short" })} –{" "}
+                    {formatDateOnly(b.end, { day: "numeric", month: "short" })}
                   </span>
                 </div>
 
@@ -256,7 +257,7 @@ const TripWeather = () => {
                             className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 flex flex-col items-center text-center"
                           >
                             <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                              {new Date(d.date).toLocaleDateString("es-MX", { weekday: "short", day: "numeric" })}
+                              {formatDateOnly(d.date, { weekday: "short", day: "numeric" })}
                             </div>
                             <Icon className="w-6 h-6 text-primary my-1" />
                             <div className="text-sm font-semibold leading-none">
