@@ -127,7 +127,7 @@ const TripMap = () => {
     const s = document.createElement("script");
     s.id = "gmaps-trip-script";
     s.async = true;
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places,geocoding&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
     document.head.appendChild(s);
   }, []);
 
