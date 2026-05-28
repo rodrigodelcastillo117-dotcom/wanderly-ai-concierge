@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'sonar',
         messages: [
           { role: 'system', content: 'Eres un asistente que consulta estado de vuelos en sitios oficiales (FlightAware, FlightRadar24, aerolínea, aeropuerto). Devuelves SOLO JSON, sin texto extra.' },
           { role: 'user', content: q },
@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
         max_tokens: 600,
         return_related_questions: false,
       }),
+
     });
     const j = await r.json();
     const content: string = j?.choices?.[0]?.message?.content ?? '';
