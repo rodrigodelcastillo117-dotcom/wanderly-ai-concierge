@@ -436,6 +436,12 @@ Deno.serve(async (req) => {
       );
     const vaultDesc = vaultLines.join("\n") || "Sin programas de lealtad registrados.";
 
+    // PASO 0: Smart Date Resolution (Gemini). Si faltan fechas, elegimos la ventana óptima.
+    const resolved = await resolverFechasSiFaltan(authHeader, body);
+    body.fecha_salida = resolved.fecha_salida;
+    body.fecha_regreso = resolved.fecha_regreso;
+    const datesOptimized = resolved.optimization !== null;
+
     const dias = Math.max(
       1,
       Math.round(
