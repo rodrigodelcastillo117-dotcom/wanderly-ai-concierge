@@ -1,14 +1,31 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Pencil, Users, Sparkles, Plus } from "lucide-react";
+import { Pencil, Users, Sparkles, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { useNavigate } from "react-router-dom";
 import santorini from "@/assets/hero-santorini.jpg";
+
+const cache = new Map<string, string | null>();
+
+const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void }) => {
+
 
 const cache = new Map<string, string | null>();
 
