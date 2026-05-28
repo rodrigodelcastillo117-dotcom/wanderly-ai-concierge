@@ -240,7 +240,7 @@ const Concierge = () => {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-[60vh] text-muted-foreground text-sm">
-          Verificando acceso a IATOS LUX…
+          Verificando acceso a Concierge PRO…
         </div>
       </DashboardLayout>
     );
@@ -255,9 +255,9 @@ const Concierge = () => {
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
               <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
-                <Crown className="w-3 h-3" /> IATOS · LUX
+                <Crown className="w-3 h-3" /> CONCIERGE PRO
               </p>
-              <h1 className="font-display text-2xl md:text-3xl leading-tight">IATOS LUX te escucha</h1>
+              <h1 className="font-display text-2xl md:text-3xl leading-tight">Concierge PRO te escucha</h1>
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
                   {trip?.destino ?? "Sin viaje activo"}{trip?.pais_destino ? `, ${trip.pais_destino}` : ""}
