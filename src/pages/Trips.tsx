@@ -192,7 +192,8 @@ const Trips = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {trips.map((t) => (
-              <TripCard key={t.id} t={t} />
+              <TripCard key={t.id} t={t} onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
+
             ))}
           </div>
         )}
