@@ -18,11 +18,51 @@ interface AnalisisRequest {
   destino: string;
   pais_destino?: string;
   ciudad_origen: string;
-  fecha_salida: string;
-  fecha_regreso: string;
+  fecha_salida?: string | null;
+  fecha_regreso?: string | null;
   num_viajeros: number;
   presupuesto_objetivo?: number | null;
   notas_usuario?: string | null;
+  trip_length_days?: number | null;
+}
+
+async function resolverFechasSiFaltan(
+  authHeader: string,
+  body: AnalisisRequest,
+): Promise<{ fecha_salida: string; fecha_regreso: string; optimization: any | null }> {
+  const has = !!body.fecha_salida && !!body.fecha_regreso && body.fecha_regreso > body.fecha_salida;
+  if (has) {
+    return {
+      fecha_salida: body.fecha_salida as string,
+      fecha_regreso: body.fecha_regreso as string,
+      optimization: null,
+    };
+  }
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/resolver-fechas`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader,
+      apikey: SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      destino: body.destino,
+      pais_destino: body.pais_destino,
+      fecha_salida: body.fecha_salida,
+      fecha_regreso: body.fecha_regreso,
+      notas_usuario: body.notas_usuario,
+      trip_length_days: body.trip_length_days,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`resolver-fechas ${res.status}: ${await res.text()}`);
+  }
+  const j = await res.json();
+  return {
+    fecha_salida: j.fecha_salida,
+    fecha_regreso: j.fecha_regreso,
+    optimization: j.optimization ?? null,
+  };
 }
 
 const TIER_ORDER = ["ahorro", "equilibrio", "premium"];
@@ -351,7 +391,7 @@ Deno.serve(async (req) => {
     const user = userData.user;
 
     const body = (await req.json()) as AnalisisRequest;
-    if (!body.destino || !body.fecha_salida || !body.fecha_regreso || !body.ciudad_origen) {
+    if (!body.destino || !body.ciudad_origen) {
       return new Response(JSON.stringify({ error: "Faltan datos requeridos" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -395,6 +435,12 @@ Deno.serve(async (req) => {
         "- Renta autos: " + vault.car_rentals.map((r: any) => `${r.company_name} (${r.preferred_car_type})`).join("; "),
       );
     const vaultDesc = vaultLines.join("\n") || "Sin programas de lealtad registrados.";
+
+    // PASO 0: Smart Date Resolution (Gemini). Si faltan fechas, elegimos la ventana óptima.
+    const resolved = await resolverFechasSiFaltan(authHeader, body);
+    body.fecha_salida = resolved.fecha_salida;
+    body.fecha_regreso = resolved.fecha_regreso;
+    const datesOptimized = resolved.optimization !== null;
 
     const dias = Math.max(
       1,
