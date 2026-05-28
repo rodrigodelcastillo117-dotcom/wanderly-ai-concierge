@@ -34,14 +34,27 @@ export const FlightStatusDialog = ({
     if (!flight.trim()) { toast.error("Primero escribe el número de vuelo"); return; }
     setTracking(true);
     try {
-      const sub = await subscribePush();
-      if (!sub.ok) { toast.error(sub.error ?? "No pude activar notificaciones"); return; }
+      // 1) Siempre registramos el seguimiento en backend (cron + notificación in-app realtime).
       await trackFlight({ flight: flight.trim(), flight_date: new Date().toISOString().slice(0,10) });
-      toast.success("Alertas activadas. Te avisaré ante cualquier cambio (gate, retraso, terminal).");
+
+      // 2) Intentamos además activar el push del navegador (opcional, mejor experiencia).
+      const sub = await subscribePush();
+      if (sub.ok) {
+        toast.success("Alertas activadas. Te avisaré ante cualquier cambio (gate, retraso, terminal).");
+      } else if (/denegado|denied/i.test(sub.error ?? "")) {
+        toast.success("Seguimiento activado. Te avisaré dentro de la app.", {
+          description: "Para notificaciones push: abre los ajustes de tu navegador → Notificaciones → permite este sitio.",
+        });
+      } else {
+        toast.success("Seguimiento activado. Te avisaré dentro de la app.", {
+          description: sub.error,
+        });
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Error activando alertas");
     } finally { setTracking(false); }
   };
+
 
   const lookup = async () => {
     if (!flight.trim()) { toast.error("Escribe el número de vuelo (ej. AF179)"); return; }

@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'sonar',
         messages: [
           { role: 'system', content: 'Eres un asistente que consulta estado de vuelos en sitios oficiales (FlightAware, FlightRadar24, aerolínea, aeropuerto). Devuelves SOLO JSON, sin texto extra.' },
           { role: 'user', content: q },
@@ -39,8 +39,16 @@ Deno.serve(async (req) => {
         max_tokens: 600,
         return_related_questions: false,
       }),
+
     });
     const j = await r.json();
+    if (!r.ok) {
+      const errMsg = j?.error?.message || j?.error || `Perplexity ${r.status}`;
+      console.error('Perplexity error', errMsg, j);
+      return new Response(JSON.stringify({ error: typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg) }), {
+        status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const content: string = j?.choices?.[0]?.message?.content ?? '';
     const citations: string[] = j?.citations ?? [];
 
@@ -55,6 +63,7 @@ Deno.serve(async (req) => {
       raw: content,
       citations,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
