@@ -37,12 +37,12 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
-      setProfile(data);
+      const [{ data: prof }, { data: prefs }] = await Promise.all([
+        supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).maybeSingle(),
+        supabase.from("ai_user_preferences").select("perfil_ia").eq("user_id", user.id).maybeSingle(),
+      ]);
+      const iaAvatar = (prefs?.perfil_ia as any)?.avatar_url ?? null;
+      setProfile({ full_name: prof?.full_name ?? null, avatar_url: iaAvatar ?? prof?.avatar_url ?? null });
     })();
   }, [user]);
 
