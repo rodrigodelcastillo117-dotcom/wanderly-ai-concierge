@@ -393,7 +393,7 @@ const TripDetail = () => {
               cityVuelos.length + cityHosp.length + cityDays.length + cityTours.length + cityRest.length;
 
             return (
-              <div key={city}>
+              <div key={`${city}-${cityIdx}`}>
               <CityCollapsible
                 city={city}
                 subtitle={`${cityDays.length || "·"} días · ${cityHosp.length} hoteles · ${cityTours.length} experiencias · ${cityRest.length} mesas`}
