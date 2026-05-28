@@ -1,18 +1,45 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Pencil, Users, Sparkles, Plus } from "lucide-react";
+import { Pencil, Users, Sparkles, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { useNavigate } from "react-router-dom";
 import santorini from "@/assets/hero-santorini.jpg";
 
 const cache = new Map<string, string | null>();
 
-const TripCard = ({ t }: { t: any }) => {
+const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void }) => {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    const { error } = await supabase.from("trips").delete().eq("id", t.id);
+    if (error) {
+      toast.error(error.message);
+      setDeleting(false);
+      return;
+    }
+    toast.success("Viaje eliminado");
+    onDeleted(t.id);
+  };
+
+
   const [img, setImg] = useState<string | null>(cache.get(t.destino) ?? null);
 
   useEffect(() => {
@@ -45,13 +72,41 @@ const TripCard = ({ t }: { t: any }) => {
           <Users className="w-3 h-3" /> Compartido
         </div>
       )}
-      <Link
-        to={`/dashboard/viajes/${t.id}/editar`}
-        aria-label="Editar viaje"
-        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-background/60 backdrop-blur hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
-      >
-        <Pencil className="w-3.5 h-3.5" />
-      </Link>
+      <div className="absolute top-3 right-3 z-10 flex gap-1.5">
+        <Link
+          to={`/dashboard/viajes/${t.id}/editar`}
+          aria-label="Editar viaje"
+          className="p-2 rounded-full bg-background/60 backdrop-blur hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </Link>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              aria-label="Eliminar viaje"
+              disabled={deleting}
+              className="p-2 rounded-full bg-background/60 backdrop-blur hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar este viaje?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se borrará todo el análisis de "{t.destino}".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
       <Link to={`/dashboard/viajes/${t.id}`} className="block">
         <div className="relative h-44 w-full overflow-hidden bg-surface">
           {img ? (
@@ -137,7 +192,8 @@ const Trips = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {trips.map((t) => (
-              <TripCard key={t.id} t={t} />
+              <TripCard key={t.id} t={t} onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
+
             ))}
           </div>
         )}
