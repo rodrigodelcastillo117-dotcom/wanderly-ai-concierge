@@ -72,13 +72,41 @@ const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void })
           <Users className="w-3 h-3" /> Compartido
         </div>
       )}
-      <Link
-        to={`/dashboard/viajes/${t.id}/editar`}
-        aria-label="Editar viaje"
-        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-background/60 backdrop-blur hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
-      >
-        <Pencil className="w-3.5 h-3.5" />
-      </Link>
+      <div className="absolute top-3 right-3 z-10 flex gap-1.5">
+        <Link
+          to={`/dashboard/viajes/${t.id}/editar`}
+          aria-label="Editar viaje"
+          className="p-2 rounded-full bg-background/60 backdrop-blur hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </Link>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              aria-label="Eliminar viaje"
+              disabled={deleting}
+              className="p-2 rounded-full bg-background/60 backdrop-blur hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar este viaje?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se borrará todo el análisis de "{t.destino}".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
       <Link to={`/dashboard/viajes/${t.id}`} className="block">
         <div className="relative h-44 w-full overflow-hidden bg-surface">
           {img ? (
