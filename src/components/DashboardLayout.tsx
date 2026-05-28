@@ -101,9 +101,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         {/* User */}
         <button
           onClick={() => navigate("/dashboard/perfil")}
-          className="flex items-center gap-3 px-5 py-4 border-t border-white/[0.04] hover:bg-white/[0.03] transition"
+          className="flex items-center gap-2 px-3 py-3 border-t border-white/[0.04] hover:bg-white/[0.03] transition"
         >
-          <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] overflow-hidden ring-1 ring-primary/30">
+          <div className="w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] overflow-hidden ring-1 ring-primary/30 flex-shrink-0">
             {avatarUrl ? (
               <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
             ) : (
@@ -111,14 +111,14 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             )}
           </div>
           <div className="flex-1 text-left min-w-0">
-            <p className="text-sm font-medium truncate">{firstName}</p>
-            <p className="text-[11px] text-muted-foreground truncate tracking-wide">Explorador frecuente</p>
+            <p className="text-[13px] font-medium truncate">{firstName}</p>
+            <p className="text-[10px] text-muted-foreground truncate tracking-wide">Explorador</p>
           </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         </button>
         <button
           onClick={async () => { await signOut(); navigate("/"); }}
-          className="flex items-center gap-2 px-5 py-3 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide"
+          className="flex items-center gap-2 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide"
         >
           <LogOut className="w-3.5 h-3.5" />
           Cerrar sesión
