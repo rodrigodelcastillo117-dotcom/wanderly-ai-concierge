@@ -99,10 +99,15 @@ const TripFlights = () => {
             Buscar vuelos
           </Button>
         </div>
-
         {source && (
           <p className="text-xs text-muted-foreground">
-            {source === "serpapi" ? "✓ Datos en vivo Google Flights" : "Estimación IA (SerpAPI sin créditos)"}
+            {source === "serpapi" && "✓ Datos en vivo Google Flights"}
+            {source === "travelpayouts" && "✓ Precios reales Travelpayouts (Aviasales)"}
+            {source === "ai-fallback" && "Estimación IA (sin créditos de proveedores en vivo)"}
+            {meta && ` · ${meta.dep_iata} → ${meta.arr_iata}`}
+          </p>
+        )}
+
             {meta && ` · ${meta.dep_iata} → ${meta.arr_iata}`}
           </p>
         )}
