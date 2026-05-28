@@ -198,16 +198,73 @@ export default function Social() {
 
           {/* TRAVEL AVATAR */}
           <TabsContent value="avatar" className="mt-4 md:mt-6">
-            <div className="mb-4">
-              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
-                <Crown className="w-3 h-3" /> Tu identidad de viajero
-              </p>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Una identidad que evoluciona con cada viaje. Más viajes, más detalle.
-              </p>
+            <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
+                  <Crown className="w-3 h-3" /> Tu identidad de viajero
+                </p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Una identidad que evoluciona con cada viaje. Más viajes, más detalle.
+                </p>
+              </div>
+              <button
+                onClick={evolucionar}
+                disabled={evolving}
+                className="text-[11px] px-3 py-1.5 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${evolving ? "animate-spin" : ""}`} />
+                {evolving ? "Recalculando…" : "Recalcular Travel DNA"}
+              </button>
             </div>
-            <TravelAvatarCinematic dna={dna} />
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* AVATAR CINEMATICO */}
+              <section className="lg:col-span-2">
+                <TravelAvatarCinematic dna={dna} />
+                <p className="text-xs text-muted-foreground mt-2 px-1">
+                  {dna ? `${dna.tripCount} viajes · ${dna.visitCount} lugares · DNA evoluciona con cada experiencia` : "Cargando tu identidad..."}
+                </p>
+              </section>
+
+              {/* TRAVEL DNA */}
+              <section className="glass-card rounded-3xl p-5">
+                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-3 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" /> Travel DNA
+                </p>
+                {dna ? <TravelDNAStats stats={dna.stats} /> : <p className="text-xs text-muted-foreground">Cargando…</p>}
+              </section>
+
+              {/* EVOLUCIÓN */}
+              <section className="glass-card rounded-3xl p-5 lg:col-span-2 border border-primary/15">
+                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-2 flex items-center gap-1.5">
+                  <TrendingUp className="w-3 h-3" /> Evolución detectada
+                </p>
+                <p className="text-sm md:text-base leading-relaxed text-foreground/90">{evolucionMsg}</p>
+                {divergencias.length > 1 && (
+                  <ul className="mt-3 text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                    {divergencias.slice(1, 4).map((d, i) => <li key={i}>{d}</li>)}
+                  </ul>
+                )}
+              </section>
+
+              {/* COMPATIBILIDAD */}
+              <section className="glass-card rounded-3xl p-5">
+                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-3">Compatibilidad de viaje</p>
+                <CompatibilityPanel />
+              </section>
+
+              {/* MEJORES MOMENTOS */}
+              <section className="glass-card rounded-3xl p-5 lg:col-span-3">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <p className="text-[10px] tracking-[0.3em] text-primary uppercase">Mejores momentos</p>
+                  <p className="text-[10px] text-muted-foreground">Sube fotos de tus mejores viajes — IATOS construirá tu galería</p>
+                </div>
+                <BestMomentsPanel />
+              </section>
+            </div>
           </TabsContent>
+
+
 
 
           {/* AMIGOS */}
