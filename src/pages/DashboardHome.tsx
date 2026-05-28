@@ -284,8 +284,9 @@ const DashboardHome = () => {
                 </motion.div>
               )}
             </div>
-
+          </div>
         </motion.form>
+
 
         {/* Modo Viaje Activo */}
         {activeTrip && (
