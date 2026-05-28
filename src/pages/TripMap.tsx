@@ -374,15 +374,25 @@ const TripMap = () => {
       placeMarkers(restStops, "#f87171", "R");
       placeMarkers(tourStops, "#a78bfa", "T");
 
-      // Marcadores numerados de los hoteles (orden de ruta)
-      hotelStops.forEach((s, i) => {
+      // Marcadores numerados para origen + destinos (1, 2, 3…) — parada 1 = origen
+      const numberedStops: Stop[] = routeStops.length ? routeStops : hotelStops;
+      numberedStops.forEach((s, i) => {
+        const isOrigin = i === 0 && cityStops.length > 0 && originName && s.name === originName;
         const m = new g.Marker({
           position: { lat: s.lat, lng: s.lng },
           map,
-          icon: { path: g.SymbolPath.CIRCLE, scale: 13, fillColor: "#d4af37", fillOpacity: 1, strokeColor: "#0b0f1a", strokeWeight: 2 },
+          title: isOrigin ? `Origen · ${s.name}` : `Parada ${i + 1} · ${s.name}`,
+          icon: { path: g.SymbolPath.CIRCLE, scale: 14, fillColor: isOrigin ? "#22c55e" : "#d4af37", fillOpacity: 1, strokeColor: "#0b0f1a", strokeWeight: 2 },
           label: { text: String(i + 1), color: "#0b0f1a", fontSize: "12px", fontWeight: "700" },
           zIndex: 999,
         });
+        const info = new g.InfoWindow({
+          content: `<div style="color:#0b0f1a;font-family:system-ui;font-size:13px;font-weight:700;padding:2px 4px">${isOrigin ? "📍 Origen · " : `Parada ${i + 1} · `}${s.name}</div>`,
+        });
+        m.addListener("click", () => info.open({ anchor: m, map }));
+        overlaysRef.current.push(m);
+        bounds.extend({ lat: s.lat, lng: s.lng });
+      });
         overlaysRef.current.push(m);
       });
 
