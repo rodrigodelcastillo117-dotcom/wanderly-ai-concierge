@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles, Route as RouteIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles, Route as RouteIcon, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -13,6 +13,17 @@ import { detectRouteIntent } from "@/lib/detectRouteIntent";
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
+
+const EMOCIONES = [
+  "Aventura adrenalina",
+  "Romance y conexión",
+  "Lujo y descanso",
+  "Cultura profunda",
+  "Naturaleza y desconexión",
+  "Fiesta y vida nocturna",
+  "Gastronomía",
+  "Espiritual / mindfulness",
+];
 
 
 const LOADING_MESSAGES = [
