@@ -50,6 +50,7 @@ const CompatRing = ({ score }: { score: number }) => {
 
 export default function Social() {
   const { user } = useAuth();
+  const { dna } = useTravelDNA();
   const [params] = useSearchParams();
   const [myCode, setMyCode] = useState<string>("");
   const [codeInput, setCodeInput] = useState<string>(params.get("codigo")?.toUpperCase() ?? "");
