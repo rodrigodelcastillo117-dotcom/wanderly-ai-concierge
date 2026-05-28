@@ -80,6 +80,27 @@ export const InviteFriendDialog = ({ tripId, isOwner }: Props) => {
     }
     toast.success("Amigo invitado al viaje");
     setCollabIds((s) => new Set([...s, friendId]));
+    // Fire-and-forget email notification (best-effort)
+    try {
+      const friend = friends.find((f: any) => f.id === friendId);
+      const { data: tripData } = await supabase
+        .from("trips").select("destino, fecha_salida, fecha_regreso").eq("id", tripId).single();
+      if (friend?.email && tripData) {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            to: friend.email,
+            subject: `Te invitaron a un viaje a ${tripData.destino}`,
+            html: `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#0f0f10;color:#fff;border-radius:16px">
+              <h1 style="color:#d4af37;font-family:Georgia,serif">IATOS</h1>
+              <h2>Te invitaron a un viaje</h2>
+              <p>${friend.full_name ?? "Hola"}, te agregaron como colaborador del viaje a <b>${tripData.destino}</b>.</p>
+              <p style="color:#aaa">${tripData.fecha_salida} → ${tripData.fecha_regreso}</p>
+              <a href="https://iatos-ai.lovable.app/dashboard/viajes/${tripId}" style="display:inline-block;background:#d4af37;color:#000;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px">Ver viaje</a>
+            </div>`,
+          },
+        });
+      }
+    } catch (e) { console.warn("email send skipped", e); }
   };
 
   const remove = async (friendId: string) => {
