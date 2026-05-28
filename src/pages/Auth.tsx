@@ -21,14 +21,14 @@ const Auth = () => {
 
   useEffect(() => {
     if (user) {
-      // Decide a dónde mandarlo: si tiene travel_profile completado → dashboard, si no → onboarding
+      // Verificar completado en ambas tablas (compatibilidad)
       (async () => {
-        const { data } = await supabase
-          .from("travel_profiles")
-          .select("completado")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        navigate(data?.completado ? "/dashboard" : "/onboarding", { replace: true });
+        const [{ data: prefs }, { data: tp }] = await Promise.all([
+          supabase.from("ai_user_preferences").select("completado").eq("user_id", user.id).maybeSingle(),
+          supabase.from("travel_profiles").select("completado").eq("user_id", user.id).maybeSingle(),
+        ]);
+        const done = (prefs as any)?.completado || (tp as any)?.completado;
+        navigate(done ? "/dashboard" : "/onboarding", { replace: true });
       })();
     }
   }, [user, navigate]);
