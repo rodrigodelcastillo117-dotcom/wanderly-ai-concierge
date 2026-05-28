@@ -118,17 +118,27 @@ const TripMap = () => {
     })();
   }, [id]);
 
-  // 2. Cargar script Maps JS
+  // 2. Cargar script Maps JS (robusto: callback + polling de respaldo)
   useEffect(() => {
     if (!BROWSER_KEY) return;
     if ((window as any).google?.maps) { setMapReady(true); return; }
-    if (document.getElementById("gmaps-trip-script")) return;
+    // Siempre (re)asignamos el callback al setter actual
     window.initTripMap = () => setMapReady(true);
-    const s = document.createElement("script");
-    s.id = "gmaps-trip-script";
-    s.async = true;
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places,geocoding&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
-    document.head.appendChild(s);
+    if (!document.getElementById("gmaps-trip-script")) {
+      const s = document.createElement("script");
+      s.id = "gmaps-trip-script";
+      s.async = true;
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
+      document.head.appendChild(s);
+    }
+    // Polling de respaldo por si el callback ya se consumió en otra vista
+    const iv = window.setInterval(() => {
+      if ((window as any).google?.maps) {
+        setMapReady(true);
+        window.clearInterval(iv);
+      }
+    }, 250);
+    return () => window.clearInterval(iv);
   }, []);
 
   // 3. Inicializar el mapa una vez
@@ -506,7 +516,7 @@ const TripMap = () => {
         </div>
 
         {/* Map */}
-        <div className="rounded-3xl overflow-hidden border border-white/[0.08] bg-black/30 mb-5 h-[420px] md:h-[520px] relative">
+        <div className="rounded-3xl overflow-hidden border border-white/[0.08] bg-[#0b0f1a] mb-5 h-[420px] md:h-[520px] relative">
           {!BROWSER_KEY ? (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60 px-6 text-center">
               Conecta Google Maps en Conectores para ver el mapa interactivo.
