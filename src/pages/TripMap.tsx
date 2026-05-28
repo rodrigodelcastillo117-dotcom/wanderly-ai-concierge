@@ -361,7 +361,52 @@ const TripMap = () => {
         overlaysRef.current.push(m);
       });
 
-      if (!bounds.isEmpty()) map.fitBounds(bounds, 60);
+      // ---- 7. Estaciones de metro / transit cercanas al hotel del día ----
+      const focusHotel = filterDay
+        ? (hotelStops.find((h) => (h.city || "").toLowerCase().includes(dayCity.toLowerCase())) ?? hotelStops[0])
+        : null;
+      if (focusHotel && g.places?.Place?.searchNearby) {
+        try {
+          const { places } = await g.places.Place.searchNearby({
+            fields: ["displayName", "location", "primaryType"],
+            locationRestriction: {
+              center: { lat: focusHotel.lat, lng: focusHotel.lng },
+              radius: 800,
+            },
+            includedTypes: ["subway_station", "train_station", "transit_station", "light_rail_station"],
+            maxResultCount: 12,
+          });
+          if (!cancelled && Array.isArray(places)) {
+            for (const p of places) {
+              const loc = typeof p.location?.lat === "function"
+                ? { lat: p.location.lat(), lng: p.location.lng() }
+                : { lat: p.location?.latitude, lng: p.location?.longitude };
+              if (typeof loc.lat !== "number") continue;
+              const name = typeof p.displayName === "string" ? p.displayName : (p.displayName?.text ?? "Estación");
+              const m = new g.Marker({
+                position: loc,
+                map,
+                title: `🚇 ${name}`,
+                icon: { path: g.SymbolPath.CIRCLE, scale: 6, fillColor: "#60a5fa", fillOpacity: 0.95, strokeColor: "#0b0f1a", strokeWeight: 1.5 },
+                zIndex: 500,
+              });
+              const info = new g.InfoWindow({
+                content: `<div style="color:#0b0f1a;font-family:system-ui;font-size:12px;font-weight:600;padding:2px 4px">🚇 ${name}</div>`,
+              });
+              m.addListener("click", () => info.open({ anchor: m, map }));
+              overlaysRef.current.push(m);
+            }
+          }
+        } catch { /* sin metro nearby */ }
+      }
+
+      // ---- 8. Centrado: si hay día, foco en el hotel; si no, ajusta bounds globales ----
+      if (filterDay && focusHotel) {
+        map.setCenter({ lat: focusHotel.lat, lng: focusHotel.lng });
+        map.setZoom(15);
+      } else if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, 60);
+      }
     })();
 
     return () => { cancelled = true; };
