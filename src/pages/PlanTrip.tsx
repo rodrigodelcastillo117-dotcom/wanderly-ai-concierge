@@ -722,7 +722,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                 {step === stepsConfig.length - 1 ? (
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
-                    {isEmocionMode ? "Elegir mi destino con IATOS AI" : "Generar análisis"}
+                    {isEmocionMode ? "Empezar análisis" : "Generar análisis"}
                   </>
                 ) : (
                   <>
@@ -731,6 +731,11 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   </>
                 )}
               </Button>
+              {isEmocionMode && step === stepsConfig.length - 1 && (
+                <p className="text-center text-xs text-muted-foreground mt-3 italic">
+                  IATOS AI creará un destino alcanzable y personalizado para ti.
+                </p>
+              )}
 
               <div className="flex justify-center gap-2 mt-8">
                 {stepsConfig.map((_, i) => (
