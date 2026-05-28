@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     const [{ data: prefs }, { data: profile }, { data: trips }] = await Promise.all([
       userClient.from("ai_user_preferences").select("perfil_ia, dna_version").eq("user_id", uid).maybeSingle(),
       userClient.from("profiles").select("full_name, nationality").eq("id", uid).maybeSingle(),
-      userClient.from("trips").select("destino, pais_destino, created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(1),
+      userClient.from("trips").select("destino, pais_destino, created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(5),
     ]);
 
     const lastTrip = trips?.[0];
@@ -81,27 +81,40 @@ Deno.serve(async (req) => {
     const styleKey = overrideStyle ?? (prefs?.perfil_ia as any)?.estilo_dominante_key ?? "luxury";
     const styleHint = STYLE_HINTS[styleKey] ?? STYLE_HINTS.luxury;
 
+    // Build a "travel journey" memory line so the avatar evolves with the user's trips
+    const journey = (trips ?? [])
+      .map(t => [t.destino, t.pais_destino].filter(Boolean).join(", "))
+      .filter(Boolean);
+    const journeyLine = journey.length
+      ? `Traveler memory (subtle hints of past journeys in styling, accessories or souvenirs): ${journey.join(" • ")}.`
+      : "";
+
+    const FULL_BODY_RULES = `MANDATORY COMPOSITION: FULL BODY shot from head to toe. The ENTIRE body must be visible inside the frame — head, torso, hips, legs AND both feet/shoes fully in frame with comfortable margin above the head and below the shoes. Vertical 3:4 portrait, character standing in a confident natural pose, slight contrapposto, centered. DO NOT crop legs or feet. DO NOT zoom in on the face. Wide enough framing to show the complete outfit and footwear.`;
+
     const prompt = selfieDataUrl
-      ? `Transform the person in this selfie into a stylized cartoon caricature luxury travel avatar.
+      ? `Transform the person in this selfie into a stylized cartoon caricature luxury travel avatar — FULL BODY.
 CRITICAL: Preserve the person's REAL identity — exact face structure, facial proportions, eye shape and color, eyebrows, smile, nose, jawline, hairstyle, facial hair, skin tone and unique features. The avatar must instantly resemble the real person.
-Style: elegant premium cartoon caricature — think high-end Disney/Pixar adult character design, luxury lifestyle illustration, modern editorial cartoon, NOT anime, NOT childish, NOT exaggerated, NOT comedic, NOT chibi. Sophisticated, aspirational, emotionally resonant.
+Style: elegant premium cartoon caricature — high-end Disney/Pixar adult character design, luxury lifestyle illustration, modern editorial cartoon, NOT anime, NOT childish, NOT chibi. Sophisticated, aspirational.
 Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, warm skin tones with soft gradients, premium fashion illustration aesthetic.
 Cultural context: ${culture.vibe}. ${styleHint}.
-Outfit: ${culture.outfit} — modern luxury travel fashion, sophisticated minimalism, natural elegant posture.
+Outfit (full ensemble visible top to bottom including shoes): ${culture.outfit} — modern luxury travel fashion, sophisticated minimalism.
+Accessory: ${culture.accessory}.
 Setting: ${culture.background}.
-Lighting: ${culture.lighting}, cinematic soft luxury glow, stylized premium cartoon shading, elegant color harmony.
-Composition: head-and-shoulders portrait, expressive eyes, ultra high detail, vertical portrait, dark elegant background with subtle gold accents, shallow depth of field.
+Lighting: ${culture.lighting}, cinematic soft luxury glow, elegant color harmony.
+${journeyLine}
+${FULL_BODY_RULES}
 NO text, NO logos, NO watermarks, NO captions.`
-      : `Premium cartoon caricature portrait of a single ${gender} luxury traveler, head and shoulders, looking confidently into camera.
-Style: elegant premium cartoon caricature — think high-end Disney/Pixar adult character design, luxury lifestyle illustration, modern editorial cartoon, NOT anime, NOT childish, NOT exaggerated, NOT comedic. Sophisticated, aspirational.
-Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, warm skin tones with soft gradients, premium fashion illustration aesthetic.
+      : `Premium cartoon caricature FULL BODY portrait of a single ${gender} luxury traveler standing confidently, looking into camera.
+Style: elegant premium cartoon caricature — high-end Disney/Pixar adult character design, luxury lifestyle illustration, NOT anime, NOT childish. Sophisticated, aspirational.
+Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, premium fashion illustration aesthetic.
 Cultural vibe: ${culture.vibe}. ${styleHint}.
-Outfit: ${culture.outfit}.
-Detail: ${culture.accessory}.
+Outfit (head-to-toe, including shoes): ${culture.outfit}.
+Accessory: ${culture.accessory}.
 Setting: ${culture.background}.
-Lighting: ${culture.lighting}, stylized premium cartoon shading, elegant color harmony.
-Mood: aspirational, emotional, premium, futuristic editorial.
-Output: vertical portrait composition, dark elegant background, gold and soft silver tones, NO text, NO logos, NO watermarks, NO captions.`;
+Lighting: ${culture.lighting}, elegant color harmony.
+${journeyLine}
+${FULL_BODY_RULES}
+Dark elegant background, gold and soft silver tones, NO text, NO logos, NO watermarks, NO captions.`;
 
     const userContent: any = selfieDataUrl
       ? [
