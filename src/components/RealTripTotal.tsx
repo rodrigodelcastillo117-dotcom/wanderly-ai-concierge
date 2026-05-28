@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, Lightbulb, ChevronDown } from "lucide-react";
+import { Receipt, Lightbulb, ChevronDown } from "lucide-react";
 
 type Props = {
   trip: any;
@@ -12,10 +12,6 @@ type Props = {
 const fmtMXN = (n: number) =>
   `$${Math.round(Number(n) || 0).toLocaleString("es-MX")} MXN`;
 
-// Estimaciones de comida + transporte local por persona/día (MXN)
-const FOOD_PER_PERSON_PER_DAY = 1100;
-const LOCAL_TRANSPORT_PER_DAY = 350;
-
 export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
 
 
@@ -24,6 +20,8 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
   const cruceros: any[] = Array.isArray(trip?.cruceros_json) ? trip.cruceros_json : [];
 
   const sumNumber = (n: any) => Number(n) || 0;
+  const desglose = trip?.desglose_presupuesto ?? {};
+  const explicitBreakdownTotal = Object.values(desglose).reduce((s: number, v) => s + sumNumber(v), 0);
 
   const totalVuelos = vuelos.reduce((s, v) => {
     if (v.precio_total) return s + sumNumber(v.precio_total);
@@ -44,11 +42,8 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
     return s;
   }, 0);
 
-  const dias = Math.max(1, noches + 1);
-  const totalComida = FOOD_PER_PERSON_PER_DAY * viajeros * dias;
-  const totalTransporte = LOCAL_TRANSPORT_PER_DAY * dias;
-
-  const totalReal = totalVuelos + totalHoteles + totalCruceros + totalComida + totalTransporte;
+  const itemSubtotal = totalVuelos + totalHoteles + totalCruceros;
+  const totalReal = sumNumber(trip?.total_estimado) || explicitBreakdownTotal || itemSubtotal;
 
   // Tope de presupuesto: si el usuario definió uno, no rebasarlo
   const presupuestoObjetivo = sumNumber(trip?.presupuesto_objetivo);
@@ -69,8 +64,8 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
           Inversión real · grupo de {viajeros} {viajeros === 1 ? "persona" : "personas"}
         </p>
         <span className="text-[10px] tracking-widest uppercase text-muted-foreground inline-flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-primary" />
-          {cappedToBudget ? "ajustado a tu presupuesto" : "precios confirmados"}
+          <Receipt className="w-3 h-3 text-primary" />
+          {cappedToBudget ? "ajustado a tu presupuesto" : "cotización base respetada"}
         </span>
       </div>
 
@@ -88,7 +83,7 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
       <p className="text-[11px] text-muted-foreground/80 mb-2 italic">
         {cappedToBudget
           ? `Tope respetado: tu presupuesto es ${fmtMXN(presupuestoObjetivo)}. IATOS AI ajusta selección para no rebasarlo.`
-          : "Calculado con vuelos, hospedaje y experiencias seleccionadas · incluye comida y transporte local estimados"}
+          : "Calculado solo con los importes de la cotización y tus selecciones; no se agregan extras automáticos"}
       </p>
 
       {/* Análisis del concierge integrado en la misma tarjeta */}
