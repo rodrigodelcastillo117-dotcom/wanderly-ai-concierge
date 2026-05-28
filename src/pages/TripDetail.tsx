@@ -34,22 +34,9 @@ const TripDetail = () => {
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const toggleCity = (city: string) => {
-    setActiveCity((prev) => {
-      const next = prev === city ? null : city;
-      if (next) {
-        // Scroll suave al inicio del destino abierto
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            const el = cityRefs.current[next];
-            if (el) {
-              const y = el.getBoundingClientRect().top + window.scrollY - 88;
-              window.scrollTo({ top: y, behavior: "smooth" });
-            }
-          }, 80);
-        });
-      }
-      return next;
-    });
+    // El scroll al inicio lo maneja CityCollapsible tras la animación de expansión
+    // para evitar dobles disparos que dejan la tarjeta a media pantalla.
+    setActiveCity((prev) => (prev === city ? null : city));
   };
   const cityRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
