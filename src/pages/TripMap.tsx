@@ -464,6 +464,7 @@ const TripMap = () => {
           <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#f87171]" /> Restaurante</span>
           <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#a78bfa]" /> Tour</span>
           <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#7fd4ff]" /> Puerto</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#60a5fa]" /> Metro</span>
           <span className="mx-1 opacity-30">|</span>
           <span className="inline-flex items-center gap-1.5"><Plane className="w-3 h-3 text-[#f5e6a8]" /> Avión</span>
           <span className="inline-flex items-center gap-1.5"><Ship className="w-3 h-3 text-[#7fd4ff]" /> Crucero</span>
