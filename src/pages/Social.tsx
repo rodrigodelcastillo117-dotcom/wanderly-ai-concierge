@@ -52,8 +52,28 @@ const CompatRing = ({ score }: { score: number }) => {
 
 export default function Social() {
   const { user } = useAuth();
-  const { dna } = useTravelDNA();
+  const { dna, reload } = useTravelDNA();
   const [params] = useSearchParams();
+  const [evolving, setEvolving] = useState(false);
+
+  const evolucionar = async () => {
+    setEvolving(true);
+    try {
+      const { error } = await supabase.functions.invoke("evolucionar-dna", { body: {} });
+      if (error) throw error;
+      toast.success("Travel DNA actualizado");
+      reload();
+    } catch (e: any) {
+      toast.error(e?.message ?? "No se pudo evolucionar");
+    } finally {
+      setEvolving(false);
+    }
+  };
+
+  const divergencias: string[] = dna?.perfil?.divergencias_detectadas ?? [];
+  const evolucionMsg = divergencias[0] ?? (dna && dna.tripCount > 0
+    ? `Tu estilo dominante es ${dna.dominant}. Sigue viajando para refinar tu Travel DNA.`
+    : "Crea tu primer viaje para activar la evolución de tu avatar.");
   const [myCode, setMyCode] = useState<string>("");
   const [codeInput, setCodeInput] = useState<string>(params.get("codigo")?.toUpperCase() ?? "");
   const [amigos, setAmigos] = useState<Amigo[]>([]);
