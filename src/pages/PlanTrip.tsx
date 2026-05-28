@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles, Route as RouteIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles, Route as RouteIcon, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -13,6 +13,17 @@ import { detectRouteIntent } from "@/lib/detectRouteIntent";
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
+
+const EMOCIONES = [
+  "Aventura adrenalina",
+  "Romance y conexión",
+  "Lujo y descanso",
+  "Cultura profunda",
+  "Naturaleza y desconexión",
+  "Fiesta y vida nocturna",
+  "Gastronomía",
+  "Espiritual / mindfulness",
+];
 
 
 const LOADING_MESSAGES = [
@@ -28,14 +39,19 @@ const PlanTrip = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [step, setStep] = useState(0);
+  const mode = params.get("mode"); // "emocion" => IATOS elige destino
+  const isEmocionMode = mode === "emocion";
   const [destino, setDestino] = useState(params.get("destino") ?? "");
   const [ciudadOrigen, setCiudadOrigen] = useState("");
   const [fechaSalida, setFechaSalida] = useState("");
   const [fechaRegreso, setFechaRegreso] = useState("");
   const [numViajeros, setNumViajeros] = useState(2);
   const [presupuesto, setPresupuesto] = useState<number | null>(null);
+  const [emociones, setEmociones] = useState<string[]>([]);
+  const [emocionLibre, setEmocionLibre] = useState("");
   const [analizando, setAnalizando] = useState(false);
   const [interpretando, setInterpretando] = useState(false);
+  const [eligiendoDestino, setEligiendoDestino] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(0);
 
   useEffect(() => {
@@ -138,6 +154,48 @@ const PlanTrip = () => {
       num_viajeros: numViajeros,
       presupuesto_objetivo: presupuesto,
     });
+  };
+
+  // Modo emoción: IATOS elige el destino según la emoción + parámetros
+  const elegirDestinoYAnalizar = async () => {
+    if (!fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+    const emocionList = [...emociones, emocionLibre.trim()].filter(Boolean);
+    if (emocionList.length === 0) {
+      toast.error("Elige al menos una emoción para tu viaje.");
+      return;
+    }
+    setEligiendoDestino(true);
+    try {
+      const dias = Math.max(
+        1,
+        Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000),
+      );
+      const prompt = `Quiero que elijas el MEJOR destino para mí (UNA sola ciudad o región concreta, no varias opciones).
+Emociones / estilo que busco: ${emocionList.join(", ")}.
+Viajamos ${numViajeros} persona(s) desde ${ciudadOrigen}.
+Fechas: del ${fechaSalida} al ${fechaRegreso} (${dias} días).
+${presupuesto != null ? `Presupuesto total objetivo: ${presupuesto} MXN.` : "Presupuesto flexible."}
+Devuelve el destino ideal en el campo "destino" y "destinations" con esa única ciudad.`;
+
+      const { data, error } = await supabase.functions.invoke("parsear-viaje", { body: { prompt } });
+      if (error) throw error;
+      const destinoElegido: string = data?.destino || (Array.isArray(data?.destinations) ? data.destinations[0] : "") || "";
+      if (!destinoElegido) throw new Error("IATOS no pudo elegir un destino.");
+      setEligiendoDestino(false);
+      await runAnalisis({
+        destino: destinoElegido,
+        ciudad_origen: ciudadOrigen,
+        fecha_salida: fechaSalida,
+        fecha_regreso: fechaRegreso,
+        num_viajeros: numViajeros,
+        presupuesto_objetivo: presupuesto,
+        notas_usuario: `Emociones: ${emocionList.join(", ")}`,
+      });
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "No pudimos elegir un destino. Intenta de nuevo.");
+      setEligiendoDestino(false);
+    }
   };
 
 
@@ -244,6 +302,30 @@ const PlanTrip = () => {
     );
   }
 
+  if (eligiendoDestino) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+          <motion.div
+            animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 2.2, repeat: Infinity }}
+            className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center mb-8 gold-glow"
+          >
+            <Heart className="w-7 h-7 text-primary-foreground" />
+          </motion.div>
+          <h2 className="font-display text-3xl md:text-5xl mb-3">
+            IATOS AI está eligiendo tu <span className="gold-text italic">próximo destino</span>
+          </h2>
+          <p className="text-muted-foreground max-w-md">
+            Cruzando tus emociones, fechas, viajeros y presupuesto con tu ADN de viaje…
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+
+
 
 
   if (analizando) {
@@ -286,47 +368,92 @@ const PlanTrip = () => {
     );
   }
 
-  const stepsConfig = [
-    {
-      icon: MapPin,
-      title: "¿A dónde quieres ir?",
-      sub: "Un destino ('Tokio') o una travesía ('México → Madrid → París'). IATOS AI detecta el modo.",
-      canNext: () => destino.trim().length > 1,
-      render: () => {
-        const intent = detectRouteIntent(destino);
-        const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
-        return (
-          <div className="space-y-3">
-            <div className="relative">
-              <Input
-                autoFocus
-                placeholder="París · o · Roma → Florencia → Venecia"
-                value={destino}
-                onChange={(e) => setDestino(e.target.value)}
-                className="h-16 text-lg bg-input border-border pr-14"
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <VoiceInput
-                  onTranscript={(t) => setDestino((prev) => (prev ? prev + " " : "") + t)}
-                />
-              </div>
+  const toggleEmocion = (e: string) =>
+    setEmociones((prev) => (prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]));
+
+  const firstStep = isEmocionMode
+    ? {
+        icon: Heart,
+        title: "¿Cuál es tu emoción del viaje?",
+        sub: "Elige una o varias. IATOS AI las mezcla con tu ADN para escoger el destino perfecto.",
+        canNext: () => emociones.length > 0 || emocionLibre.trim().length > 2,
+        render: () => (
+          <div className="space-y-4">
+            <Input
+              autoFocus
+              placeholder="ej. quiero sentir libertad total y aventura"
+              value={emocionLibre}
+              onChange={(e) => setEmocionLibre(e.target.value)}
+              className="h-14 bg-input border-border"
+            />
+            <div className="flex flex-wrap gap-2">
+              {EMOCIONES.map((e) => {
+                const active = emociones.includes(e);
+                return (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => toggleEmocion(e)}
+                    className={`px-4 py-2 rounded-full border text-sm transition ${
+                      active
+                        ? "bg-primary/15 border-primary text-primary"
+                        : "bg-surface border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {e}
+                  </button>
+                );
+              })}
             </div>
-            {destino.trim().length > 1 && (
-              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${
-                isMulti
-                  ? "bg-primary/10 border-primary/40 text-primary"
-                  : "bg-surface border-border text-muted-foreground"
-              }`}>
-                {isMulti ? <RouteIcon className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
-                {isMulti
-                  ? `Travesía multi-destino · ${intent.destinations.length} ciudades`
-                  : "Viaje a un solo destino"}
-              </div>
-            )}
+            <p className="text-xs text-muted-foreground italic">
+              Puedes elegir varias emociones · IATOS AI las mezcla y elige tu próximo destino.
+            </p>
           </div>
-        );
-      },
-    },
+        ),
+      }
+    : {
+        icon: MapPin,
+        title: "¿A dónde quieres ir?",
+        sub: "Un destino ('Tokio') o una travesía ('México → Madrid → París'). IATOS AI detecta el modo.",
+        canNext: () => destino.trim().length > 1,
+        render: () => {
+          const intent = detectRouteIntent(destino);
+          const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
+          return (
+            <div className="space-y-3">
+              <div className="relative">
+                <Input
+                  autoFocus
+                  placeholder="París · o · Roma → Florencia → Venecia"
+                  value={destino}
+                  onChange={(e) => setDestino(e.target.value)}
+                  className="h-16 text-lg bg-input border-border pr-14"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <VoiceInput
+                    onTranscript={(t) => setDestino((prev) => (prev ? prev + " " : "") + t)}
+                  />
+                </div>
+              </div>
+              {destino.trim().length > 1 && (
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${
+                  isMulti
+                    ? "bg-primary/10 border-primary/40 text-primary"
+                    : "bg-surface border-border text-muted-foreground"
+                }`}>
+                  {isMulti ? <RouteIcon className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
+                  {isMulti
+                    ? `Travesía multi-destino · ${intent.destinations.length} ciudades`
+                    : "Viaje a un solo destino"}
+                </div>
+              )}
+            </div>
+          );
+        },
+      };
+
+  const stepsConfig = [
+    firstStep,
 
     {
       icon: Calendar,
@@ -421,14 +548,20 @@ const PlanTrip = () => {
               </AnimatePresence>
 
               <Button
-                onClick={() => (step === stepsConfig.length - 1 ? analizar() : setStep(step + 1))}
+                onClick={() =>
+                  step === stepsConfig.length - 1
+                    ? isEmocionMode
+                      ? elegirDestinoYAnalizar()
+                      : analizar()
+                    : setStep(step + 1)
+                }
                 disabled={!current.canNext()}
                 className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-14"
               >
                 {step === stepsConfig.length - 1 ? (
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
-                    Generar análisis
+                    {isEmocionMode ? "Elegir mi destino con IATOS AI" : "Generar análisis"}
                   </>
                 ) : (
                   <>
