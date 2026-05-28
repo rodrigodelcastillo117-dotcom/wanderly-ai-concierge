@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
     const overrideStyle: string | undefined = body?.style;
     const overrideDestino: string | undefined = body?.destino;
     const gender: string = body?.gender ?? "androgynous";
+    const selfieDataUrl: string | undefined = body?.selfie;
 
     // Pull signals
     const [{ data: prefs }, { data: profile }, { data: trips }] = await Promise.all([
