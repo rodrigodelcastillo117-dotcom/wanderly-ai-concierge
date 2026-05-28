@@ -205,20 +205,44 @@ const PRICING_REFS = `REFERENCIAS DE MERCADO (USD POR PERSONA, conservadoras y r
 VUELOS round-trip clase turista temporada media:
 - México↔Europa occidental (MAD/BCN/CDG/FCO/LHR/AMS): 900–1,500
 - México↔Grecia/Europa este (ATH/JTR/IST/VIE): 1,100–1,800
+- México↔Islandia (KEF vía MAD/LHR/JFK): 900–1,600
 - México↔Asia (HND/BKK/SIN/DXB/DPS): 1,200–2,100
 - México↔EEUU: 350–900 | Sudamérica: 500–1,000 | Doméstico MX: 100–250
 Temporada alta (jun-ago, navidad, semana santa) +25-50%. Vuelo directo +15-30%.
 TRENES (Europa): AVE Madrid-Barcelona 60-130, Italo/Trenitalia Roma-Florencia 30-70, Eurostar Londres-París 90-220, TGV París-Lyon 60-130.
 FERRIES Grecia: Atenas-Santorini Blue Star 50-75, SeaJets rápido 90-140.
+RENTA DE AUTO (por día, total del grupo, seguro completo incluido):
+- Islandia 4x4 SUV (Dacia Duster, Suzuki Jimny, Toyota RAV4): 90–160 baja, 140–260 alta. 2WD compacto: 55–95. Camper van: 130–220.
+- Nueva Zelanda SUV/4WD: 70–130. Campervan: 110–200.
+- Escocia/Irlanda compacto: 45–85. Patagonia 4x4: 80–150. USA West SUV: 60–110.
+- Gasolina Islandia: ~2.00 USD/L (consumo SUV ~9L/100km). Peajes túneles Vaðlaheiði/Hvalfjörður 12–15 USD.
 HOSPEDAJE por noche:
 - MAD/BCN/Lisboa/Roma: 5★ 280-450, 4★ 150-240
 - París/Londres/Ámsterdam: 5★ 450-750, 4★ 220-350
 - Santorini/Mykonos temp alta: 5★ 500-900, 4★ 280-450
+- Reikiavik/Akureyri: 5★ 380-650, 4★ 200-340, guesthouse 110-180. Hoteles rurales Ring Road 160-280.
 - Tokio/Singapur/HK: 5★ 350-600, 4★ 200-320
 - Dubai/Bangkok/Bali: 5★ 250-500, 4★ 130-250
 - NYC/Miami/LA: 5★ 400-700, 4★ 220-350
 EXPERIENCIAS premium: tour guiado 80-180, cena tasting 120-300, day-trip privado 250-600.
+Islandia: Blue Lagoon premium 110-180, Sky Lagoon 90-130, glacier hike 180-260, tour auroras 100-150, snorkel Silfra 180-220, super-jeep Þórsmörk 280-400.
 NUNCA precios optimistas. Sé conservador.`;
+
+// Países / destinos donde la lógica de transporte interno DEBE ser roadtrip (no hay vuelos internos prácticos o lo natural es coche/ring road).
+const ROADTRIP_REGEX = /(islandia|iceland|reykjav|new\s*zealand|nueva\s*zelanda|patagonia|carretera\s*austral|ruta\s*40|escocia|scotland|highlands|irlanda|ireland|ring\s*of\s*kerry|wild\s*atlantic|noruega|norway|lofoten|fiordos|toscana|tuscany|provenza|provence|amalfi|big\s*sur|pacific\s*coast|route\s*66|grand\s*circle|utah|arizona|colorado|namibia|south\s*africa|garden\s*route|australia\s*outback|costa\s*rica|baja\s*california|yucat[áa]n)/i;
+
+function isRoadtrip(destinations: string[], origin: string): boolean {
+  return destinations.some(d => ROADTRIP_REGEX.test(d)) || ROADTRIP_REGEX.test(origin);
+}
+
+const ROADTRIP_RULES = `MODO ROADTRIP DETECTADO — REGLAS OBLIGATORIAS:
+- NO sugieras vuelos internos entre ciudades del destino. El transporte interno es SIEMPRE coche de renta (o campervan si encaja con el perfil).
+- En "internal_transport" cada tramo debe tener mode="coche" o "campervan", provider con renta real (Blue Car Rental, Lava Car Rental, Hertz Iceland, Europcar, Go Iceland, Sixt) y duration realista en horas de conducción.
+- Añade un tramo extra "pickup" desde el aeropuerto (KEF→Reikiavik 50 min) y "dropoff" al regreso.
+- En cada day["mañana"|"tarde"|"noche"] menciona la carretera (Ring Road / Route 1, Golden Circle, Snæfellsnes 54, South Coast 1, Diamond Circle 85), km aproximados y paradas escénicas (cascadas, cráteres, miradores).
+- En arrival_options de cada ciudad: la opción principal es "Coche por Ring Road desde [punto anterior]" con km, horas y paradas clave. Solo añade vuelo doméstico (Air Iceland Connect) si la distancia >450km Y el usuario tiene ritmo "rápido".
+- mandatory_costs DEBE incluir un extra "fuel_and_tolls_usd" en notes (gasolina + peajes túneles) calculado por km totales del recorrido.
+- Recomienda hoteles fuera de capital cuando el día siguiente la ruta lo justifique (Vík, Höfn, Mývatn, Akureyri, Borgarnes, etc.).`;
 
 const GLOBAL_SYSTEM = `Eres IATOS, analista senior de pricing de viajes de lujo. Devuelves JSON estricto con precios REALES de mercado.
 Aerolíneas/operadores REALES (Iberia, Air France, Italo, Renfe AVE, Eurostar, Ferries Blue Star, etc).
@@ -231,6 +255,7 @@ const CITY_SYSTEM = `Eres IATOS, analista senior de viajes de lujo. Para UNA ciu
 - 4-5 restaurantes reales que matcheen el estilo del usuario
 - 4-5 experiencias/tours reales
 ${PRICING_REFS}`;
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
