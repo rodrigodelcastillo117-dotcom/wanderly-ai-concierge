@@ -154,7 +154,7 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
             <img
               src={avatarUrl}
               alt="Tu Travel Avatar"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain object-bottom"
               loading="lazy"
             />
             {/* Cinematic vignette */}
