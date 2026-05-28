@@ -146,17 +146,17 @@ const TripMap = () => {
     });
   }, [mapReady]);
 
-  // 3b. Centra inmediatamente en el destino del viaje (fallback visual antes de geocodificar paradas)
+  // 3b. Centra inmediatamente en el origen del viaje (fallback visual antes de geocodificar paradas)
   useEffect(() => {
     if (!mapReady || !mapRef.current || !trip) return;
-    const seed = [trip.destino, trip.pais_destino].filter(Boolean).join(", ");
+    const seed = trip.ciudad_origen || trip.destino || trip.pais_destino;
     if (!seed) return;
     let cancelled = false;
     (async () => {
       const pt = await geocode(seed);
       if (cancelled || !pt) return;
       mapRef.current.setCenter({ lat: pt.lat, lng: pt.lng });
-      mapRef.current.setZoom(9);
+      mapRef.current.setZoom(5);
     })();
     return () => { cancelled = true; };
   }, [mapReady, trip]);
@@ -166,9 +166,17 @@ const TripMap = () => {
     const itin = trip.itinerario_json;
     return Array.isArray(itin) ? itin : Array.isArray(itin?.days) ? itin.days : [];
   }, [trip]);
+  // Lista de destinos del viaje (multi o single)
+  const destinations: string[] = useMemo(() => {
+    if (!trip) return [];
+    const itin = trip.itinerario_json;
+    const multi = !Array.isArray(itin) && Array.isArray(itin?.destinations) ? itin.destinations.filter(Boolean) : null;
+    return multi && multi.length ? multi : (trip.destino ? [trip.destino] : []);
+  }, [trip]);
   const dayPlan = days[selectedDay] ?? null;
   const acts: any[] = dayPlan?.actividades ?? dayPlan?.plan ?? [];
   const showAll = selectedDay < 0;
+
 
   // 4. Geocodificar + dibujar todo cuando hay datos
   useEffect(() => {
