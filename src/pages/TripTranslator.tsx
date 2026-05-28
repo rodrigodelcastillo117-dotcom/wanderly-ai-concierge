@@ -72,13 +72,46 @@ const TripTranslator = () => {
     setLoading(false);
   };
 
-  const speak = (txt: string, lang?: string) => {
-    try {
-      const u = new SpeechSynthesisUtterance(txt);
-      if (lang) u.lang = lang;
-      window.speechSynthesis.speak(u);
-    } catch {}
+  // Cargar voces del navegador (algunas se cargan asíncronamente)
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  useEffect(() => {
+    const load = () => setVoices(window.speechSynthesis?.getVoices?.() ?? []);
+    load();
+    window.speechSynthesis?.addEventListener?.("voiceschanged", load);
+    return () => window.speechSynthesis?.removeEventListener?.("voiceschanged", load);
+  }, []);
+
+  const pickVoice = (lang?: string): SpeechSynthesisVoice | undefined => {
+    if (!lang || voices.length === 0) return undefined;
+    const target = lang.toLowerCase();
+    const prefix = target.split("-")[0];
+    return (
+      voices.find(v => v.lang?.toLowerCase() === target) ||
+      voices.find(v => v.lang?.toLowerCase().startsWith(prefix + "-")) ||
+      voices.find(v => v.lang?.toLowerCase().startsWith(prefix))
+    );
   };
+
+  const speak = (txt: string, lang?: string) => {
+    if (!txt) return;
+    try {
+      if (!("speechSynthesis" in window)) {
+        toast.error("Tu navegador no soporta audio de voz");
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(txt);
+      const v = pickVoice(lang);
+      if (v) { u.voice = v; u.lang = v.lang; }
+      else if (lang) u.lang = lang;
+      u.rate = 0.95;
+      u.onerror = () => toast.error("No se pudo reproducir el audio");
+      window.speechSynthesis.speak(u);
+    } catch {
+      toast.error("Error al reproducir audio");
+    }
+  };
+
 
   // Agrupar por frase original (es) → varias traducciones por idioma
   const grouped = useMemo(() => {
