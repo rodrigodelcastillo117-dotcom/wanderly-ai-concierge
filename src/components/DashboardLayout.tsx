@@ -59,11 +59,11 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </div>
 
       {/* Sidebar — black glassmorphism luxury (fixed) */}
-      <aside className="hidden md:flex flex-col w-[260px] border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen z-30">
+      <aside className="hidden md:flex flex-col w-[200px] border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen z-30">
 
         {/* Brand */}
-        <Link to="/dashboard" className="flex items-center justify-center px-6 pt-9 pb-7 border-b border-white/[0.04]">
-          <img src={iatosLogo} alt="IATOS" className="w-full max-w-[170px] h-auto object-contain drop-shadow-[0_0_24px_rgba(201,169,97,0.18)]" />
+        <Link to="/dashboard" className="flex items-center justify-center px-4 pt-6 pb-5 border-b border-white/[0.04]">
+          <img src={iatosLogo} alt="IATOS" className="w-full max-w-[130px] h-auto object-contain drop-shadow-[0_0_24px_rgba(201,169,97,0.18)]" />
         </Link>
 
         {/* Nav */}
