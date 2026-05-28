@@ -96,6 +96,7 @@ const LiveTrip = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
+      <BackButton floating fallback={`/dashboard/viajes/${trip.id}`} />
       {/* Ambient glow */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 -right-40 w-[520px] h-[520px] rounded-full bg-primary/[0.08] blur-[140px]" />
