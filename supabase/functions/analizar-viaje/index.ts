@@ -391,7 +391,7 @@ Deno.serve(async (req) => {
     const user = userData.user;
 
     const body = (await req.json()) as AnalisisRequest;
-    if (!body.destino || !body.fecha_salida || !body.fecha_regreso || !body.ciudad_origen) {
+    if (!body.destino || !body.ciudad_origen) {
       return new Response(JSON.stringify({ error: "Faltan datos requeridos" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
