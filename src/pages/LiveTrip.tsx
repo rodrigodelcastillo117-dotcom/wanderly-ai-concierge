@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DestinationVideo } from "@/components/DestinationVideo";
+import { BackButton } from "@/components/BackButton";
 
 // Números de emergencia por país (datos reales básicos)
 const EMERGENCY_NUMBERS: Record<string, { policia: string; ambulancia: string; bomberos: string }> = {
