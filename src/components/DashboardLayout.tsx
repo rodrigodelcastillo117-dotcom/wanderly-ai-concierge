@@ -59,7 +59,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </div>
 
       {/* Sidebar — black glassmorphism luxury (fixed) */}
-      <aside className="hidden md:flex flex-col w-[260px] shrink-0 border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl sticky top-0 h-screen self-start">
+      <aside className="hidden md:flex flex-col w-[260px] border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen z-30">
+
         {/* Brand */}
         <Link to="/dashboard" className="flex items-center justify-center px-6 pt-9 pb-7 border-b border-white/[0.04]">
           <img src={iatosLogo} alt="IATOS" className="w-full max-w-[170px] h-auto object-contain drop-shadow-[0_0_24px_rgba(201,169,97,0.18)]" />
@@ -125,7 +126,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </aside>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 overflow-x-hidden pb-28 md:pb-0 relative">
+      <main className="flex-1 min-w-0 overflow-x-hidden pb-28 md:pb-0 md:pl-[260px] relative">
         {/* Mobile top bar — notifications + profile avatar */}
         <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
           <Link to="/dashboard" className="flex items-center">
