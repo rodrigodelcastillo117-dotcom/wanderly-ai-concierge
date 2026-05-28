@@ -128,6 +128,21 @@ const TripMap = () => {
     });
   }, [mapReady]);
 
+  // 3b. Centra inmediatamente en el destino del viaje (fallback visual antes de geocodificar paradas)
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !trip) return;
+    const seed = [trip.destino, trip.pais_destino].filter(Boolean).join(", ");
+    if (!seed) return;
+    let cancelled = false;
+    (async () => {
+      const pt = await geocode(seed);
+      if (cancelled || !pt) return;
+      mapRef.current.setCenter({ lat: pt.lat, lng: pt.lng });
+      mapRef.current.setZoom(9);
+    })();
+    return () => { cancelled = true; };
+  }, [mapReady, trip]);
+
   const days = useMemo(() => {
     if (!trip) return [];
     const itin = trip.itinerario_json;
