@@ -39,14 +39,19 @@ const PlanTrip = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [step, setStep] = useState(0);
+  const mode = params.get("mode"); // "emocion" => IATOS elige destino
+  const isEmocionMode = mode === "emocion";
   const [destino, setDestino] = useState(params.get("destino") ?? "");
   const [ciudadOrigen, setCiudadOrigen] = useState("");
   const [fechaSalida, setFechaSalida] = useState("");
   const [fechaRegreso, setFechaRegreso] = useState("");
   const [numViajeros, setNumViajeros] = useState(2);
   const [presupuesto, setPresupuesto] = useState<number | null>(null);
+  const [emociones, setEmociones] = useState<string[]>([]);
+  const [emocionLibre, setEmocionLibre] = useState("");
   const [analizando, setAnalizando] = useState(false);
   const [interpretando, setInterpretando] = useState(false);
+  const [eligiendoDestino, setEligiendoDestino] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(0);
 
   useEffect(() => {
