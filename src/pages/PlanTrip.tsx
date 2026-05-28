@@ -176,15 +176,22 @@ const PlanTrip = () => {
       const dias = usarFechas
         ? Math.max(1, Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000))
         : null;
+      const budgetGuide: Record<typeof budgetMode, string> = {
+        flexible: `PRESUPUESTO ECONÓMICO (~15,000 MXN total para ${numViajeros} persona(s)). OBLIGATORIO: elige un destino NACIONAL en México o un país vecino muy cercano (máx 4h de vuelo o destino terrestre/autobús/road-trip). PROHIBIDO destinos en Europa, Asia, Oceanía, África o Sudamérica lejana. Ejemplos válidos: Oaxaca, Mérida, San Cristóbal, Puerto Escondido, Bacalar, Guanajuato, La Paz, Holbox, Antigua Guatemala, La Habana.`,
+        balanceado: `PRESUPUESTO BALANCEADO (~35,000 MXN total para ${numViajeros} persona(s)). Destinos nacionales premium o internacionales cercanos (Caribe, Centroamérica, sur de EEUU, Colombia, Perú). NO Europa ni Asia.`,
+        premium: `PRESUPUESTO PREMIUM (~80,000 MXN total para ${numViajeros} persona(s)). Internacional medio alcance OK (EEUU, Canadá, Sudamérica, Caribe lujo, Europa básico si alcanza).`,
+        luxury: `PRESUPUESTO LUXURY (~180,000 MXN total para ${numViajeros} persona(s)). Cualquier destino mundial.`,
+      };
       const presupuestoTxt =
-        presupuesto != null
-          ? `Presupuesto total objetivo: ${presupuesto} MXN.`
-          : `Estilo de presupuesto: ${budgetMode} (sin tope rígido — IATOS optimiza).`;
+        presupuesto != null && budgetMode !== "flexible"
+          ? `Presupuesto total objetivo: ${presupuesto} MXN. ${budgetGuide[budgetMode]}`
+          : budgetGuide[budgetMode];
       const prompt = `Quiero que elijas el MEJOR destino para mí (UNA sola ciudad o región concreta, no varias opciones).
 Emociones / estilo que busco: ${emocionList.join(", ")}.
 Viajamos ${numViajeros} persona(s) desde ${ciudadOrigen}.
 ${usarFechas ? `Fechas: del ${fechaSalida} al ${fechaRegreso} (${dias} días).` : `Fechas flexibles — elige tú la mejor temporada para esa emoción y destino.`}
 ${presupuestoTxt}
+REGLA CRÍTICA: el destino DEBE ser realista para el presupuesto y la distancia desde ${ciudadOrigen}. NO sugieras destinos exóticos lejanos si el presupuesto no alcanza el vuelo round-trip + hospedaje.
 Devuelve el destino ideal en el campo "destino" y "destinations" con esa única ciudad.`;
 
       const { data, error } = await supabase.functions.invoke("parsear-viaje", { body: { prompt } });
@@ -390,7 +397,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   ];
 
   const BUDGETS: Array<{ id: typeof budgetMode; label: string; hint: string; value: number | null }> = [
-    { id: "flexible", label: "Flexible", hint: "IATOS optimiza sin tope", value: null },
+    { id: "flexible", label: "Económico", hint: "Destinos cercanos, gran valor", value: 15000 },
     { id: "balanceado", label: "Balanceado", hint: "Confort sin excesos", value: 35000 },
     { id: "premium", label: "Premium", hint: "Experiencias selectas", value: 80000 },
     { id: "luxury", label: "Luxury", hint: "Sin compromiso", value: 180000 },
