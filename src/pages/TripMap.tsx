@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { MapPin, Calendar, Hotel, Utensils, Activity, ExternalLink, Plane, Ship, Car } from "lucide-react";
+import { MapPin, Calendar, Hotel, Utensils, Activity, ExternalLink, Plane, Ship, Car, TrainFront } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
 
@@ -19,6 +19,24 @@ async function geocode(q: string): Promise<{ lat: number; lng: number } | null> 
   const key = q.trim().toLowerCase();
   if (!key) return null;
   if (geoCache.has(key)) return geoCache.get(key)!;
+  // 1) Browser Geocoder (rápido y confiable, sin edge function)
+  const g = (window as any).google?.maps;
+  if (g?.Geocoder) {
+    try {
+      const gc = new g.Geocoder();
+      const res: any = await new Promise((resolve) => {
+        gc.geocode({ address: q }, (r: any, status: string) => {
+          resolve(status === "OK" && r?.[0] ? r[0] : null);
+        });
+      });
+      if (res?.geometry?.location) {
+        const v = { lat: res.geometry.location.lat(), lng: res.geometry.location.lng() };
+        geoCache.set(key, v);
+        return v;
+      }
+    } catch { /* fallback */ }
+  }
+  // 2) Fallback edge function
   try {
     const { data } = await supabase.functions.invoke("geocode", { body: { address: q } });
     const r = Array.isArray(data?.results) ? data.results[0] : null;
@@ -109,7 +127,7 @@ const TripMap = () => {
     const s = document.createElement("script");
     s.id = "gmaps-trip-script";
     s.async = true;
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places,geocoding&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
     document.head.appendChild(s);
   }, []);
 
@@ -343,7 +361,52 @@ const TripMap = () => {
         overlaysRef.current.push(m);
       });
 
-      if (!bounds.isEmpty()) map.fitBounds(bounds, 60);
+      // ---- 7. Estaciones de metro / transit cercanas al hotel del día ----
+      const focusHotel = filterDay
+        ? (hotelStops.find((h) => (h.city || "").toLowerCase().includes(dayCity.toLowerCase())) ?? hotelStops[0])
+        : null;
+      if (focusHotel && g.places?.Place?.searchNearby) {
+        try {
+          const { places } = await g.places.Place.searchNearby({
+            fields: ["displayName", "location", "primaryType"],
+            locationRestriction: {
+              center: { lat: focusHotel.lat, lng: focusHotel.lng },
+              radius: 800,
+            },
+            includedTypes: ["subway_station", "train_station", "transit_station", "light_rail_station"],
+            maxResultCount: 12,
+          });
+          if (!cancelled && Array.isArray(places)) {
+            for (const p of places) {
+              const loc = typeof p.location?.lat === "function"
+                ? { lat: p.location.lat(), lng: p.location.lng() }
+                : { lat: p.location?.latitude, lng: p.location?.longitude };
+              if (typeof loc.lat !== "number") continue;
+              const name = typeof p.displayName === "string" ? p.displayName : (p.displayName?.text ?? "Estación");
+              const m = new g.Marker({
+                position: loc,
+                map,
+                title: `🚇 ${name}`,
+                icon: { path: g.SymbolPath.CIRCLE, scale: 6, fillColor: "#60a5fa", fillOpacity: 0.95, strokeColor: "#0b0f1a", strokeWeight: 1.5 },
+                zIndex: 500,
+              });
+              const info = new g.InfoWindow({
+                content: `<div style="color:#0b0f1a;font-family:system-ui;font-size:12px;font-weight:600;padding:2px 4px">🚇 ${name}</div>`,
+              });
+              m.addListener("click", () => info.open({ anchor: m, map }));
+              overlaysRef.current.push(m);
+            }
+          }
+        } catch { /* sin metro nearby */ }
+      }
+
+      // ---- 8. Centrado: si hay día, foco en el hotel; si no, ajusta bounds globales ----
+      if (filterDay && focusHotel) {
+        map.setCenter({ lat: focusHotel.lat, lng: focusHotel.lng });
+        map.setZoom(15);
+      } else if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, 60);
+      }
     })();
 
     return () => { cancelled = true; };
@@ -401,6 +464,7 @@ const TripMap = () => {
           <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#f87171]" /> Restaurante</span>
           <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#a78bfa]" /> Tour</span>
           <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#7fd4ff]" /> Puerto</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#60a5fa]" /> Metro</span>
           <span className="mx-1 opacity-30">|</span>
           <span className="inline-flex items-center gap-1.5"><Plane className="w-3 h-3 text-[#f5e6a8]" /> Avión</span>
           <span className="inline-flex items-center gap-1.5"><Ship className="w-3 h-3 text-[#7fd4ff]" /> Crucero</span>
