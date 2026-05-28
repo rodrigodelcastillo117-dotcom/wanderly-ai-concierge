@@ -46,7 +46,10 @@ const PlanTrip = () => {
   const [fechaSalida, setFechaSalida] = useState("");
   const [fechaRegreso, setFechaRegreso] = useState("");
   const [numViajeros, setNumViajeros] = useState(2);
+  const [grupoPreset, setGrupoPreset] = useState<"solo" | "pareja" | "amigos" | "familia" | "custom">("pareja");
   const [presupuesto, setPresupuesto] = useState<number | null>(null);
+  const [budgetMode, setBudgetMode] = useState<"flexible" | "balanceado" | "premium" | "luxury">("balanceado");
+  const [surpriseDates, setSurpriseDates] = useState(false);
   const [emociones, setEmociones] = useState<string[]>([]);
   const [emocionLibre, setEmocionLibre] = useState("");
   const [analizando, setAnalizando] = useState(false);
@@ -158,23 +161,30 @@ const PlanTrip = () => {
 
   // Modo emoción: IATOS elige el destino según la emoción + parámetros
   const elegirDestinoYAnalizar = async () => {
-    if (!fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+    if (!ciudadOrigen) {
+      toast.error("Necesitamos tu ciudad de origen.");
+      return;
+    }
     const emocionList = [...emociones, emocionLibre.trim()].filter(Boolean);
     if (emocionList.length === 0) {
       toast.error("Elige al menos una emoción para tu viaje.");
       return;
     }
+    const usarFechas = !surpriseDates && fechaSalida && fechaRegreso;
     setEligiendoDestino(true);
     try {
-      const dias = Math.max(
-        1,
-        Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000),
-      );
+      const dias = usarFechas
+        ? Math.max(1, Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000))
+        : null;
+      const presupuestoTxt =
+        presupuesto != null
+          ? `Presupuesto total objetivo: ${presupuesto} MXN.`
+          : `Estilo de presupuesto: ${budgetMode} (sin tope rígido — IATOS optimiza).`;
       const prompt = `Quiero que elijas el MEJOR destino para mí (UNA sola ciudad o región concreta, no varias opciones).
 Emociones / estilo que busco: ${emocionList.join(", ")}.
 Viajamos ${numViajeros} persona(s) desde ${ciudadOrigen}.
-Fechas: del ${fechaSalida} al ${fechaRegreso} (${dias} días).
-${presupuesto != null ? `Presupuesto total objetivo: ${presupuesto} MXN.` : "Presupuesto flexible."}
+${usarFechas ? `Fechas: del ${fechaSalida} al ${fechaRegreso} (${dias} días).` : `Fechas flexibles — elige tú la mejor temporada para esa emoción y destino.`}
+${presupuestoTxt}
 Devuelve el destino ideal en el campo "destino" y "destinations" con esa única ciudad.`;
 
       const { data, error } = await supabase.functions.invoke("parsear-viaje", { body: { prompt } });
@@ -185,11 +195,11 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       await runAnalisis({
         destino: destinoElegido,
         ciudad_origen: ciudadOrigen,
-        fecha_salida: fechaSalida,
-        fecha_regreso: fechaRegreso,
+        fecha_salida: usarFechas ? fechaSalida : (null as any),
+        fecha_regreso: usarFechas ? fechaRegreso : (null as any),
         num_viajeros: numViajeros,
         presupuesto_objetivo: presupuesto,
-        notas_usuario: `Emociones: ${emocionList.join(", ")}`,
+        notas_usuario: `Emociones: ${emocionList.join(", ")}. Estilo presupuesto: ${budgetMode}.`,
       });
     } catch (e: any) {
       console.error(e);
@@ -371,43 +381,192 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   const toggleEmocion = (e: string) =>
     setEmociones((prev) => (prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]));
 
+  const GRUPOS: Array<{ id: typeof grupoPreset; label: string; n: number }> = [
+    { id: "solo", label: "Solo", n: 1 },
+    { id: "pareja", label: "Pareja", n: 2 },
+    { id: "amigos", label: "Amigos", n: 4 },
+    { id: "familia", label: "Familia", n: 4 },
+    { id: "custom", label: "Otro", n: numViajeros },
+  ];
+
+  const BUDGETS: Array<{ id: typeof budgetMode; label: string; hint: string; value: number | null }> = [
+    { id: "flexible", label: "Flexible", hint: "IATOS optimiza sin tope", value: null },
+    { id: "balanceado", label: "Balanceado", hint: "Confort sin excesos", value: 35000 },
+    { id: "premium", label: "Premium", hint: "Experiencias selectas", value: 80000 },
+    { id: "luxury", label: "Luxury", hint: "Sin compromiso", value: 180000 },
+  ];
+
+  const pickGrupo = (g: typeof grupoPreset) => {
+    setGrupoPreset(g);
+    const found = GRUPOS.find((x) => x.id === g);
+    if (g !== "custom" && found) setNumViajeros(found.n);
+  };
+
+  const pickBudget = (b: typeof budgetMode) => {
+    setBudgetMode(b);
+    const found = BUDGETS.find((x) => x.id === b);
+    setPresupuesto(found ? found.value : null);
+  };
+
   const firstStep = isEmocionMode
     ? {
         icon: Heart,
         title: "¿Cuál es tu emoción del viaje?",
-        sub: "Elige una o varias. IATOS AI las mezcla con tu ADN para escoger el destino perfecto.",
-        canNext: () => emociones.length > 0 || emocionLibre.trim().length > 2,
+        sub: "Elige una o varias. IATOS AI las mezcla con tu ADN y diseña el viaje perfecto.",
+        canNext: () =>
+          (emociones.length > 0 || emocionLibre.trim().length > 2) &&
+          !!ciudadOrigen &&
+          (surpriseDates || (!!fechaSalida && !!fechaRegreso && fechaRegreso > fechaSalida)),
         render: () => (
-          <div className="space-y-4">
-            <Input
-              autoFocus
-              placeholder="ej. quiero sentir libertad total y aventura"
-              value={emocionLibre}
-              onChange={(e) => setEmocionLibre(e.target.value)}
-              className="h-14 bg-input border-border"
-            />
-            <div className="flex flex-wrap gap-2">
-              {EMOCIONES.map((e) => {
-                const active = emociones.includes(e);
-                return (
-                  <button
-                    key={e}
-                    type="button"
-                    onClick={() => toggleEmocion(e)}
-                    className={`px-4 py-2 rounded-full border text-sm transition ${
-                      active
-                        ? "bg-primary/15 border-primary text-primary"
-                        : "bg-surface border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
-                    }`}
-                  >
-                    {e}
-                  </button>
-                );
-              })}
+          <div className="space-y-10">
+            {/* EMOCIÓN */}
+            <div className="space-y-4">
+              <Input
+                autoFocus
+                placeholder="ej. quiero sentir libertad total y aventura"
+                value={emocionLibre}
+                onChange={(e) => setEmocionLibre(e.target.value)}
+                className="h-14 bg-input border-border"
+              />
+              <div className="flex flex-wrap gap-2">
+                {EMOCIONES.map((e) => {
+                  const active = emociones.includes(e);
+                  return (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => toggleEmocion(e)}
+                      className={`px-4 py-2 rounded-full border text-sm transition ${
+                        active
+                          ? "bg-primary/15 border-primary text-primary gold-glow"
+                          : "bg-surface border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      {e}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground italic">
-              Puedes elegir varias emociones · IATOS AI las mezcla y elige tu próximo destino.
-            </p>
+
+            {/* VIAJEROS */}
+            <div className="space-y-4">
+              <h3 className="font-display text-xl tracking-tight">¿Cuántas personas viajan?</h3>
+              <div className="flex flex-wrap gap-2">
+                {GRUPOS.map((g) => {
+                  const active = grupoPreset === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => pickGrupo(g.id)}
+                      className={`px-5 py-2.5 rounded-full border text-sm transition ${
+                        active
+                          ? "bg-primary/15 border-primary text-primary gold-glow"
+                          : "bg-surface border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      {g.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {grupoPreset === "custom" && (
+                <div className="pt-2">
+                  <label className="text-xs text-muted-foreground mb-2 block">
+                    Número de viajeros: <span className="text-foreground font-medium">{numViajeros}</span>
+                  </label>
+                  <Slider value={[numViajeros]} onValueChange={(v) => setNumViajeros(v[0])} min={1} max={12} step={1} />
+                </div>
+              )}
+              {grupoPreset === "pareja" && (
+                <p className="text-xs text-primary/90 italic flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" /> IATOS combinará gustos y estilos de viaje.
+                </p>
+              )}
+            </div>
+
+            {/* FECHAS */}
+            <div className="space-y-4">
+              <h3 className="font-display text-xl tracking-tight">¿Cuándo quieres viajar?</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSurpriseDates(false)}
+                  className={`p-4 rounded-2xl border text-left transition backdrop-blur-sm ${
+                    !surpriseDates
+                      ? "bg-primary/10 border-primary text-foreground gold-glow"
+                      : "bg-surface/60 border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <div className="text-sm font-medium mb-1">Seleccionar fechas</div>
+                  <div className="text-xs opacity-70">Elijo yo</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSurpriseDates(true)}
+                  className={`p-4 rounded-2xl border text-left transition backdrop-blur-sm ${
+                    surpriseDates
+                      ? "bg-primary/10 border-primary text-foreground gold-glow"
+                      : "bg-surface/60 border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <div className="text-sm font-medium mb-1 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" /> Sorpréndeme
+                  </div>
+                  <div className="text-xs opacity-70">La mejor temporada</div>
+                </button>
+              </div>
+              {!surpriseDates && (
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block">Salida</label>
+                    <Input type="date" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} className="bg-input border-border h-12" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block">Regreso</label>
+                    <Input type="date" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} className="bg-input border-border h-12" />
+                  </div>
+                </div>
+              )}
+              {surpriseDates && (
+                <p className="text-xs text-primary/90 italic flex items-start gap-1.5">
+                  <Sparkles className="w-3 h-3 mt-0.5 shrink-0" /> IATOS recomendará la mejor temporada — menos multitudes, mejor clima y mejor precio.
+                </p>
+              )}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Ciudad de salida</label>
+                <OriginPicker value={ciudadOrigen} onChange={setCiudadOrigen} />
+              </div>
+            </div>
+
+            {/* PRESUPUESTO */}
+            <div className="space-y-4">
+              <h3 className="font-display text-xl tracking-tight">¿Cuál es tu presupuesto aproximado?</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {BUDGETS.map((b) => {
+                  const active = budgetMode === b.id;
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => pickBudget(b.id)}
+                      className={`p-3 rounded-2xl border text-left transition ${
+                        active
+                          ? "bg-primary/10 border-primary text-foreground gold-glow"
+                          : "bg-surface/60 border-border text-muted-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      <div className="text-sm font-medium">{b.label}</div>
+                      <div className="text-[11px] opacity-70 mt-0.5">{b.hint}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground italic">
+                ✨ No buscamos el viaje más caro — buscamos el viaje perfecto para ti.
+              </p>
+            </div>
           </div>
         ),
       }
@@ -452,7 +611,9 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         },
       };
 
-  const stepsConfig = [
+  const stepsConfig = isEmocionMode
+    ? [firstStep]
+    : [
     firstStep,
 
     {
@@ -561,7 +722,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                 {step === stepsConfig.length - 1 ? (
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
-                    {isEmocionMode ? "Elegir mi destino con IATOS AI" : "Generar análisis"}
+                    {isEmocionMode ? "Empezar análisis" : "Generar análisis"}
                   </>
                 ) : (
                   <>
@@ -570,17 +731,24 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   </>
                 )}
               </Button>
+              {isEmocionMode && step === stepsConfig.length - 1 && (
+                <p className="text-center text-xs text-muted-foreground mt-3 italic">
+                  IATOS AI creará un destino alcanzable y personalizado para ti.
+                </p>
+              )}
 
-              <div className="flex justify-center gap-2 mt-8">
-                {stepsConfig.map((_, i) => (
-                  <div
-                    key={i}
-                    className={`h-1 rounded-full transition-all duration-500 ${
-                      i === step ? "w-8 bg-primary" : "w-2 bg-border"
-                    }`}
-                  />
-                ))}
-              </div>
+              {stepsConfig.length > 1 && (
+                <div className="flex justify-center gap-2 mt-8">
+                  {stepsConfig.map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-1 rounded-full transition-all duration-500 ${
+                        i === step ? "w-8 bg-primary" : "w-2 bg-border"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="lg:sticky lg:top-10">
