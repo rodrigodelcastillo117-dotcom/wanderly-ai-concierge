@@ -29,8 +29,9 @@ const TripDetail = () => {
   const [loading, setLoading] = useState(true);
 
   // Selecciones del usuario
-  const [selVuelo, setSelVuelo] = useState<number>(0);
-  const [selHospedaje, setSelHospedaje] = useState<number>(0);
+  // -1 = sin selección (usa estimación base) · -2 = "ya lo tengo / no aplica" (cuenta 0) · >=0 = opción elegida
+  const [selVuelo, setSelVuelo] = useState<number>(-1);
+  const [selHospedaje, setSelHospedaje] = useState<number>(-1);
   const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
