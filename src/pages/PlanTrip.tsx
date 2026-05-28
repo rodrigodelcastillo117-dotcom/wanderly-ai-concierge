@@ -14,15 +14,15 @@ import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
 
-const EMOCIONES = [
-  "Aventura adrenalina",
-  "Romance y conexión",
-  "Lujo y descanso",
-  "Cultura profunda",
-  "Naturaleza y desconexión",
-  "Fiesta y vida nocturna",
-  "Gastronomía",
-  "Espiritual / mindfulness",
+const EMOCIONES: Array<{ key: string; label: string; sub: string; Icon: any }> = [
+  { key: "Inspiración",  label: "Inspiración",  sub: "Quiero descubrir\nalgo nuevo",        Icon: Heart },
+  { key: "Conexión",     label: "Conexión",     sub: "Quiero reconectar\nconmigo",          Icon: Flower2 },
+  { key: "Aventura",     label: "Aventura",     sub: "Quiero adrenalina\ny explorar",       Icon: Mountain },
+  { key: "Descanso",     label: "Descanso",     sub: "Quiero relajarme\ny desconectar",     Icon: Palmtree },
+  { key: "Cultura",      label: "Cultura",      sub: "Quiero conocer\ny aprender",          Icon: Star },
+  { key: "Gastronomía",  label: "Gastronomía",  sub: "Quiero vivir nuevos\nsabores",        Icon: Utensils },
+  { key: "Celebración",  label: "Celebración",  sub: "Quiero celebrar algo\nespecial",      Icon: PartyPopper },
+  { key: "Otro",         label: "Otro",         sub: "Tengo otra emoción\nen mente",        Icon: MoreHorizontal },
 ];
 
 
