@@ -173,11 +173,26 @@ const PlanTrip = () => {
       return;
     }
     const usarFechas = !surpriseDates && fechaSalida && fechaRegreso;
+    const dias = usarFechas
+      ? Math.max(1, Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000))
+      : null;
+
+    // Si el usuario ya eligió un destino concreto, saltar la elección de IATOS.
+    if (!surpriseDestino && destinoEmocion.trim().length > 1) {
+      await runAnalisis({
+        destino: destinoEmocion.trim(),
+        ciudad_origen: ciudadOrigen,
+        fecha_salida: usarFechas ? fechaSalida : (null as any),
+        fecha_regreso: usarFechas ? fechaRegreso : (null as any),
+        num_viajeros: numViajeros,
+        presupuesto_objetivo: presupuesto,
+        notas_usuario: `Emociones: ${emocionList.join(", ")}. Estilo presupuesto: ${budgetMode}.`,
+      });
+      return;
+    }
+
     setEligiendoDestino(true);
     try {
-      const dias = usarFechas
-        ? Math.max(1, Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000))
-        : null;
       const budgetGuide: Record<typeof budgetMode, string> = {
         flexible: `PRESUPUESTO ECONÓMICO (~15,000 MXN total para ${numViajeros} persona(s)). OBLIGATORIO: elige un destino NACIONAL en México o un país vecino muy cercano (máx 4h de vuelo o destino terrestre/autobús/road-trip). PROHIBIDO destinos en Europa, Asia, Oceanía, África o Sudamérica lejana. Ejemplos válidos: Oaxaca, Mérida, San Cristóbal, Puerto Escondido, Bacalar, Guanajuato, La Paz, Holbox, Antigua Guatemala, La Habana.`,
         balanceado: `PRESUPUESTO BALANCEADO (~35,000 MXN total para ${numViajeros} persona(s)). Destinos nacionales premium o internacionales cercanos (Caribe, Centroamérica, sur de EEUU, Colombia, Perú). NO Europa ni Asia.`,
