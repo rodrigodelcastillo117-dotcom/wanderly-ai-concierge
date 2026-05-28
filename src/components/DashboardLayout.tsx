@@ -121,8 +121,12 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           onClick={() => navigate("/dashboard/perfil")}
           className="flex items-center gap-3 px-5 py-4 border-t border-white/[0.04] hover:bg-white/[0.03] transition"
         >
-          <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)]">
-            {initial}
+          <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] overflow-hidden ring-1 ring-primary/30">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
+            ) : (
+              initial
+            )}
           </div>
           <div className="flex-1 text-left min-w-0">
             <p className="text-sm font-medium truncate">{firstName}</p>
