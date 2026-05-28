@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles, Crown } from "lucide-react";
+import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles, Crown, TrendingUp, RefreshCw } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { TravelAvatarCinematic } from "@/components/lux/TravelAvatarCinematic";
-import { useTravelDNA } from "@/components/lux/TravelDNAStats";
+import { useTravelDNA, TravelDNAStats } from "@/components/lux/TravelDNAStats";
+import { CompatibilityPanel } from "@/components/lux/CompatibilityPanel";
+import { BestMomentsPanel } from "@/components/lux/BestMomentsPanel";
 
 type Amigo = {
   amigo_id: string;
@@ -50,8 +52,28 @@ const CompatRing = ({ score }: { score: number }) => {
 
 export default function Social() {
   const { user } = useAuth();
-  const { dna } = useTravelDNA();
+  const { dna, reload } = useTravelDNA();
   const [params] = useSearchParams();
+  const [evolving, setEvolving] = useState(false);
+
+  const evolucionar = async () => {
+    setEvolving(true);
+    try {
+      const { error } = await supabase.functions.invoke("evolucionar-dna", { body: {} });
+      if (error) throw error;
+      toast.success("Travel DNA actualizado");
+      reload();
+    } catch (e: any) {
+      toast.error(e?.message ?? "No se pudo evolucionar");
+    } finally {
+      setEvolving(false);
+    }
+  };
+
+  const divergencias: string[] = dna?.perfil?.divergencias_detectadas ?? [];
+  const evolucionMsg = divergencias[0] ?? (dna && dna.tripCount > 0
+    ? `Tu estilo dominante es ${dna.dominant}. Sigue viajando para refinar tu Travel DNA.`
+    : "Crea tu primer viaje para activar la evolución de tu avatar.");
   const [myCode, setMyCode] = useState<string>("");
   const [codeInput, setCodeInput] = useState<string>(params.get("codigo")?.toUpperCase() ?? "");
   const [amigos, setAmigos] = useState<Amigo[]>([]);
@@ -176,16 +198,73 @@ export default function Social() {
 
           {/* TRAVEL AVATAR */}
           <TabsContent value="avatar" className="mt-4 md:mt-6">
-            <div className="mb-4">
-              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
-                <Crown className="w-3 h-3" /> Tu identidad de viajero
-              </p>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Una identidad que evoluciona con cada viaje. Más viajes, más detalle.
-              </p>
+            <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
+                  <Crown className="w-3 h-3" /> Tu identidad de viajero
+                </p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Una identidad que evoluciona con cada viaje. Más viajes, más detalle.
+                </p>
+              </div>
+              <button
+                onClick={evolucionar}
+                disabled={evolving}
+                className="text-[11px] px-3 py-1.5 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${evolving ? "animate-spin" : ""}`} />
+                {evolving ? "Recalculando…" : "Recalcular Travel DNA"}
+              </button>
             </div>
-            <TravelAvatarCinematic dna={dna} />
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* AVATAR CINEMATICO */}
+              <section className="lg:col-span-2">
+                <TravelAvatarCinematic dna={dna} />
+                <p className="text-xs text-muted-foreground mt-2 px-1">
+                  {dna ? `${dna.tripCount} viajes · ${dna.visitCount} lugares · DNA evoluciona con cada experiencia` : "Cargando tu identidad..."}
+                </p>
+              </section>
+
+              {/* TRAVEL DNA */}
+              <section className="glass-card rounded-3xl p-5">
+                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-3 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" /> Travel DNA
+                </p>
+                {dna ? <TravelDNAStats stats={dna.stats} /> : <p className="text-xs text-muted-foreground">Cargando…</p>}
+              </section>
+
+              {/* EVOLUCIÓN */}
+              <section className="glass-card rounded-3xl p-5 lg:col-span-2 border border-primary/15">
+                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-2 flex items-center gap-1.5">
+                  <TrendingUp className="w-3 h-3" /> Evolución detectada
+                </p>
+                <p className="text-sm md:text-base leading-relaxed text-foreground/90">{evolucionMsg}</p>
+                {divergencias.length > 1 && (
+                  <ul className="mt-3 text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                    {divergencias.slice(1, 4).map((d, i) => <li key={i}>{d}</li>)}
+                  </ul>
+                )}
+              </section>
+
+              {/* COMPATIBILIDAD */}
+              <section className="glass-card rounded-3xl p-5">
+                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-3">Compatibilidad de viaje</p>
+                <CompatibilityPanel />
+              </section>
+
+              {/* MEJORES MOMENTOS */}
+              <section className="glass-card rounded-3xl p-5 lg:col-span-3">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <p className="text-[10px] tracking-[0.3em] text-primary uppercase">Mejores momentos</p>
+                  <p className="text-[10px] text-muted-foreground">Sube fotos de tus mejores viajes — IATOS construirá tu galería</p>
+                </div>
+                <BestMomentsPanel />
+              </section>
+            </div>
           </TabsContent>
+
+
 
 
           {/* AMIGOS */}
