@@ -440,6 +440,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         canNext: () =>
           (emociones.length > 0 || emocionLibre.trim().length > 2) &&
           !!ciudadOrigen &&
+          (surpriseDestino || destinoEmocion.trim().length > 1) &&
           (surpriseDates || (!!fechaSalida && !!fechaRegreso && fechaRegreso > fechaSalida)),
         render: () => (
           <div className="space-y-10">
