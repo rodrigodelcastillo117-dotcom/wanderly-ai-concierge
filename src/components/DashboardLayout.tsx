@@ -67,14 +67,14 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         </Link>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {links.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
               end={l.end}
               className={({ isActive }) =>
-                `group relative flex items-center gap-3 px-4 py-3 rounded-2xl text-sm transition-all duration-300 ${
+                `group relative flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-300 ${
                   isActive
                     ? "text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-white/[0.03]"
@@ -86,10 +86,10 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                   {isActive && (
                     <span
                       aria-hidden
-                      className="absolute inset-0 rounded-2xl bg-gradient-gold shadow-[0_8px_28px_-8px_hsl(41_47%_59%/0.55),inset_0_1px_0_hsl(41_60%_75%/0.4)]"
+                      className="absolute inset-0 rounded-xl bg-gradient-gold shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.55),inset_0_1px_0_hsl(41_60%_75%/0.4)]"
                     />
                   )}
-                  <l.icon className={`relative w-[18px] h-[18px] ${isActive ? "" : "opacity-80 group-hover:opacity-100"}`} />
+                  <l.icon className={`relative w-[16px] h-[16px] ${isActive ? "" : "opacity-80 group-hover:opacity-100"}`} />
                   <span className="relative tracking-wide">{l.label}</span>
                 </>
               )}
