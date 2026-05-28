@@ -773,11 +773,26 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
             <div className="w-full max-w-xl mx-auto lg:mx-0">
               <AnimatePresence mode="wait">
                 <motion.div key={step} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }}>
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-6">
-                    <Icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <h2 className="font-display text-3xl md:text-5xl mb-3">{current.title}</h2>
-                  <p className="text-muted-foreground mb-6 md:mb-10">{current.sub}</p>
+                  {isEmocionMode && step === 0 ? (
+                    <div className="mb-8">
+                      <h2 className="font-display text-4xl md:text-6xl leading-[1.05] tracking-tight">
+                        ¿Cuál es
+                        <br />
+                        <span className="gold-text italic">tu emoción del viaje?</span>
+                      </h2>
+                      <p className="text-muted-foreground mt-4 max-w-md">
+                        Cuéntanos cómo te sientes y deja que IATOS AI cree tu próximo viaje ideal.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-6">
+                        <Icon className="w-5 h-5 text-primary" />
+                      </div>
+                      <h2 className="font-display text-3xl md:text-5xl mb-3">{current.title}</h2>
+                      <p className="text-muted-foreground mb-6 md:mb-10">{current.sub}</p>
+                    </>
+                  )}
                   <div className="mb-12">{current.render()}</div>
                 </motion.div>
               </AnimatePresence>
@@ -791,23 +806,30 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                     : setStep(step + 1)
                 }
                 disabled={!current.canNext()}
-                className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-14"
+                className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow rounded-2xl h-auto py-4 flex flex-col gap-0.5"
               >
                 {step === stepsConfig.length - 1 ? (
                   <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    {isEmocionMode ? "Empezar análisis" : "Generar análisis"}
+                    <span className="inline-flex items-center font-display text-lg">
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {isEmocionMode ? "Empezar análisis" : "Generar análisis"}
+                    </span>
+                    {isEmocionMode && (
+                      <span className="text-xs font-normal opacity-80">IATOS AI creará tu próximo viaje ideal</span>
+                    )}
                   </>
                 ) : (
-                  <>
+                  <span className="inline-flex items-center font-medium">
                     Continuar
                     <ArrowRight className="w-4 h-4 ml-2" />
-                  </>
+                  </span>
                 )}
               </Button>
-              {isEmocionMode && step === stepsConfig.length - 1 && (
-                <p className="text-center text-xs text-muted-foreground mt-3 italic">
-                  IATOS AI creará un destino alcanzable y personalizado para ti.
+
+              {isEmocionMode && step === 0 && (
+                <p className="text-center text-[11px] text-muted-foreground mt-5 inline-flex items-center justify-center gap-2 w-full tracking-wide">
+                  <Lock className="w-3 h-3" />
+                  100% Personalizado · Privado · Inteligente
                 </p>
               )}
 
@@ -824,6 +846,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                 </div>
               )}
             </div>
+
 
             <div className="lg:sticky lg:top-10">
               <TripBuildPreview
