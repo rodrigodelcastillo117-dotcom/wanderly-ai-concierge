@@ -302,6 +302,27 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     );
   }
 
+  if (eligiendoDestino) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+          <motion.div
+            animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 2.2, repeat: Infinity }}
+            className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center mb-8 gold-glow"
+          >
+            <Heart className="w-7 h-7 text-primary-foreground" />
+          </motion.div>
+          <h2 className="font-display text-3xl md:text-5xl mb-3">
+            IATOS AI está eligiendo tu <span className="gold-text italic">próximo destino</span>
+          </h2>
+          <p className="text-muted-foreground max-w-md">
+            Cruzando tus emociones, fechas, viajeros y presupuesto con tu ADN de viaje…
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+
 
 
   if (analizando) {
