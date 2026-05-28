@@ -233,30 +233,58 @@ const DashboardHome = () => {
             <h1 className="font-display text-xl md:text-4xl leading-[1.1] tracking-tight shrink-0">
               <span className="capitalize">{name || "Viajero"}</span>.
             </h1>
-            <div className="relative flex items-center gap-2 md:gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl pl-2.5 md:pl-4 pr-1.5 py-1.5 focus-within:border-primary/40 transition flex-1 min-w-0">
-              <Sparkles className="w-4 h-4 text-primary shrink-0" />
-              <input
-                type="text"
-                value={concierge}
-                onChange={(e) => setConcierge(e.target.value)}
-                placeholder="Platícame tu viaje…"
-                aria-label="Platícame tu viaje"
-                className="flex-1 min-w-0 bg-transparent border-0 outline-none font-display italic text-sm md:text-2xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
-              />
-              <TripFileUpload size="sm" />
-              <VoiceInput
-                onTranscript={(t) => setConcierge((prev) => (prev ? prev + " " : "") + t)}
-                size="sm"
-              />
-              <Button
-                type="submit"
-                disabled={concierge.trim().length < 5}
-                className="h-8 md:h-10 px-2.5 md:px-5 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40 text-[11px] md:text-sm tracking-wide shrink-0"
-              >
-                Analizar
-              </Button>
+            <div className="relative flex-1 min-w-0">
+              <div className="relative flex items-center gap-2 md:gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl pl-2.5 md:pl-4 pr-1.5 py-1.5 focus-within:border-primary/40 transition">
+                <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                <input
+                  type="text"
+                  value={concierge}
+                  onChange={(e) => setConcierge(e.target.value)}
+                  placeholder="Platícame tu viaje…"
+                  aria-label="Platícame tu viaje"
+                  className="flex-1 min-w-0 bg-transparent border-0 outline-none font-display italic text-sm md:text-2xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
+                />
+                <TripFileUpload size="sm" />
+                <VoiceInput
+                  onTranscript={(t) => setConcierge((prev) => (prev ? prev + " " : "") + t)}
+                  size="sm"
+                />
+                <Button
+                  type="submit"
+                  disabled={concierge.trim().length < 5}
+                  className="h-8 md:h-10 px-2.5 md:px-5 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40 text-[11px] md:text-sm tracking-wide shrink-0"
+                >
+                  Analizar
+                </Button>
+              </div>
+
+              {/* Despliegue en vivo de lo que el usuario escribe */}
+              {concierge.trim().length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute left-0 right-0 top-full mt-2 z-30 rounded-2xl border border-primary/20 bg-background/95 backdrop-blur-xl shadow-2xl p-4 md:p-5"
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <p className="text-[10px] tracking-[0.3em] uppercase text-primary/80">Tu idea de viaje</p>
+                    <span className="text-[10px] text-muted-foreground">{concierge.trim().length} caracteres</span>
+                  </div>
+                  <p className="font-display italic text-base md:text-xl leading-snug text-foreground whitespace-pre-wrap break-words">
+                    "{concierge}"
+                  </p>
+                  {concierge.trim().length < 5 ? (
+                    <p className="mt-3 text-[11px] text-muted-foreground">
+                      Sigue escribiendo… mínimo 5 caracteres para analizar.
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-[11px] text-primary/80">
+                      Listo para analizar. Presiona <span className="text-primary">Analizar</span> o Enter.
+                    </p>
+                  )}
+                </motion.div>
+              )}
             </div>
-          </div>
+
         </motion.form>
 
         {/* Modo Viaje Activo */}
