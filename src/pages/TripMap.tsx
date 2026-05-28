@@ -393,8 +393,7 @@ const TripMap = () => {
         overlaysRef.current.push(m);
         bounds.extend({ lat: s.lat, lng: s.lng });
       });
-        overlaysRef.current.push(m);
-      });
+
 
       // ---- 7. Estaciones de metro / transit cercanas al hotel del día ----
       const focusHotel = filterDay
