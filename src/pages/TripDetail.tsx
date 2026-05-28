@@ -39,10 +39,24 @@ const TripDetail = () => {
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const toggleCity = (city: string) => {
-    setActiveCity((prev) => (prev === city ? null : city));
-  };
-
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favRecoId, setFavRecoId] = useState<string | null>(null);
+  const [editingDates, setEditingDates] = useState(false);
+  const [editingTravelers, setEditingTravelers] = useState(false);
+  const [savingMeta, setSavingMeta] = useState(false);
+
+  async function saveTripMeta(patch: Record<string, any>) {
+    if (!trip?.id) return;
+    setSavingMeta(true);
+    const { error } = await supabase.from("viajes").update(patch).eq("id", trip.id);
+    setSavingMeta(false);
+    if (error) return toast.error("No se pudo guardar");
+    toast.success("Actualizado");
+    setEditingDates(false);
+    setEditingTravelers(false);
+    loadTrip();
+  }
   const [isFavorite, setIsFavorite] = useState(false);
   const [favRecoId, setFavRecoId] = useState<string | null>(null);
 
