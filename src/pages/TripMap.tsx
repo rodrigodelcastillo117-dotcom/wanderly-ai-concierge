@@ -258,15 +258,32 @@ const TripMap = () => {
         if (c) tourStops.push({ name, city, lat: c.lat, lng: c.lng, kind: "tour", order: i });
       }
 
-      const allStops = [...hotelStops, ...portStops, ...restStops, ...tourStops];
+      // ---- 4e. Origen del viaje (parada 1) + destinos como city stops para asegurar ruta visible ----
+      const cityStops: Stop[] = [];
+      const originName = trip.ciudad_origen || trip.ciudad || "";
+      if (originName && showAll) {
+        const c = await geocode(originName);
+        if (cancelled) return;
+        if (c) cityStops.push({ name: originName, city: originName, lat: c.lat, lng: c.lng, kind: "city", order: -1 });
+      }
+      for (let i = 0; i < destinations.length; i++) {
+        const d = destinations[i];
+        if (filterDay && !d.toLowerCase().includes(dayCity.toLowerCase())) continue;
+        const c = await geocode(d);
+        if (cancelled) return;
+        if (c) cityStops.push({ name: d, city: d, lat: c.lat, lng: c.lng, kind: "city", order: i });
+      }
+
+      const allStops = [...cityStops, ...hotelStops, ...portStops, ...restStops, ...tourStops];
       if (allStops.length === 0) return;
 
       const bounds = new g.LatLngBounds();
 
-      // ---- 5. Ruta principal: hoteles en orden cronológico + puertos al final ----
-      const routeStops: Stop[] = [...hotelStops];
-      // intercala puertos en su posición temporal aproximada (después del último hotel previo al embarque)
-      if (portStops.length) routeStops.push(...portStops);
+      // ---- 5. Ruta principal: origen → destinos en orden; hoteles ordenados como inner stops ----
+      const routeStops: Stop[] = cityStops.length > 0
+        ? [...cityStops, ...portStops]
+        : [...hotelStops, ...portStops];
+
 
       // Dibuja un segmento por par consecutivo con estilo según modo
       for (let i = 0; i < routeStops.length - 1; i++) {
