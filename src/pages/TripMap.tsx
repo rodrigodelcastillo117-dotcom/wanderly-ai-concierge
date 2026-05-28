@@ -19,6 +19,24 @@ async function geocode(q: string): Promise<{ lat: number; lng: number } | null> 
   const key = q.trim().toLowerCase();
   if (!key) return null;
   if (geoCache.has(key)) return geoCache.get(key)!;
+  // 1) Browser Geocoder (rápido y confiable, sin edge function)
+  const g = (window as any).google?.maps;
+  if (g?.Geocoder) {
+    try {
+      const gc = new g.Geocoder();
+      const res: any = await new Promise((resolve) => {
+        gc.geocode({ address: q }, (r: any, status: string) => {
+          resolve(status === "OK" && r?.[0] ? r[0] : null);
+        });
+      });
+      if (res?.geometry?.location) {
+        const v = { lat: res.geometry.location.lat(), lng: res.geometry.location.lng() };
+        geoCache.set(key, v);
+        return v;
+      }
+    } catch { /* fallback */ }
+  }
+  // 2) Fallback edge function
   try {
     const { data } = await supabase.functions.invoke("geocode", { body: { address: q } });
     const r = Array.isArray(data?.results) ? data.results[0] : null;
