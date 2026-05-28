@@ -50,6 +50,8 @@ const PlanTrip = () => {
   const [presupuesto, setPresupuesto] = useState<number | null>(null);
   const [budgetMode, setBudgetMode] = useState<"flexible" | "balanceado" | "premium" | "luxury">("balanceado");
   const [surpriseDates, setSurpriseDates] = useState(false);
+  const [surpriseDestino, setSurpriseDestino] = useState(true);
+  const [destinoEmocion, setDestinoEmocion] = useState("");
   const [emociones, setEmociones] = useState<string[]>([]);
   const [emocionLibre, setEmocionLibre] = useState("");
   const [analizando, setAnalizando] = useState(false);
@@ -171,11 +173,26 @@ const PlanTrip = () => {
       return;
     }
     const usarFechas = !surpriseDates && fechaSalida && fechaRegreso;
+    const dias = usarFechas
+      ? Math.max(1, Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000))
+      : null;
+
+    // Si el usuario ya eligió un destino concreto, saltar la elección de IATOS.
+    if (!surpriseDestino && destinoEmocion.trim().length > 1) {
+      await runAnalisis({
+        destino: destinoEmocion.trim(),
+        ciudad_origen: ciudadOrigen,
+        fecha_salida: usarFechas ? fechaSalida : (null as any),
+        fecha_regreso: usarFechas ? fechaRegreso : (null as any),
+        num_viajeros: numViajeros,
+        presupuesto_objetivo: presupuesto,
+        notas_usuario: `Emociones: ${emocionList.join(", ")}. Estilo presupuesto: ${budgetMode}.`,
+      });
+      return;
+    }
+
     setEligiendoDestino(true);
     try {
-      const dias = usarFechas
-        ? Math.max(1, Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000))
-        : null;
       const budgetGuide: Record<typeof budgetMode, string> = {
         flexible: `PRESUPUESTO ECONÓMICO (~15,000 MXN total para ${numViajeros} persona(s)). OBLIGATORIO: elige un destino NACIONAL en México o un país vecino muy cercano (máx 4h de vuelo o destino terrestre/autobús/road-trip). PROHIBIDO destinos en Europa, Asia, Oceanía, África o Sudamérica lejana. Ejemplos válidos: Oaxaca, Mérida, San Cristóbal, Puerto Escondido, Bacalar, Guanajuato, La Paz, Holbox, Antigua Guatemala, La Habana.`,
         balanceado: `PRESUPUESTO BALANCEADO (~35,000 MXN total para ${numViajeros} persona(s)). Destinos nacionales premium o internacionales cercanos (Caribe, Centroamérica, sur de EEUU, Colombia, Perú). NO Europa ni Asia.`,
@@ -423,6 +440,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         canNext: () =>
           (emociones.length > 0 || emocionLibre.trim().length > 2) &&
           !!ciudadOrigen &&
+          (surpriseDestino || destinoEmocion.trim().length > 1) &&
           (surpriseDates || (!!fechaSalida && !!fechaRegreso && fechaRegreso > fechaSalida)),
         render: () => (
           <div className="space-y-10">
@@ -454,6 +472,52 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   );
                 })}
               </div>
+            </div>
+
+            {/* DESTINO */}
+            <div className="space-y-4">
+              <h3 className="font-display text-xl tracking-tight">¿Tienes un destino en mente?</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSurpriseDestino(true)}
+                  className={`p-4 rounded-2xl border text-left transition backdrop-blur-sm ${
+                    surpriseDestino
+                      ? "bg-primary/10 border-primary text-foreground gold-glow"
+                      : "bg-surface/60 border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <div className="text-sm font-medium mb-1 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" /> Sorpréndeme
+                  </div>
+                  <div className="text-xs opacity-70">IATOS elige según tu ADN</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSurpriseDestino(false)}
+                  className={`p-4 rounded-2xl border text-left transition backdrop-blur-sm ${
+                    !surpriseDestino
+                      ? "bg-primary/10 border-primary text-foreground gold-glow"
+                      : "bg-surface/60 border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <div className="text-sm font-medium mb-1">Tengo destino</div>
+                  <div className="text-xs opacity-70">Yo elijo a dónde ir</div>
+                </button>
+              </div>
+              {!surpriseDestino && (
+                <Input
+                  placeholder="ej. Tokio, Barcelona, Oaxaca, Patagonia…"
+                  value={destinoEmocion}
+                  onChange={(e) => setDestinoEmocion(e.target.value)}
+                  className="h-12 bg-input border-border"
+                />
+              )}
+              {surpriseDestino && (
+                <p className="text-xs text-primary/90 italic flex items-start gap-1.5">
+                  <Sparkles className="w-3 h-3 mt-0.5 shrink-0" /> IATOS cruzará tus emociones, presupuesto, perfil y viajes previos para elegir el destino perfecto.
+                </p>
+              )}
             </div>
 
             {/* VIAJEROS */}
