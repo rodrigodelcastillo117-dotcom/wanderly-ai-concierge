@@ -456,13 +456,13 @@ const TripDetail = () => {
                           const active = selHospedaje === i;
                           return (
                             <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
-                              <HotelCard hotel={h} city={city} active={active} onClick={() => setSelHospedaje(i)} />
+                              <HotelCard hotel={h} city={city} active={active} onClick={() => setSelHospedaje(active ? -1 : i)} />
                             </div>
                           );
                         })}
                         {!isMulti && (
                           <div className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
-                            <SkipCard active={selHospedaje === -1} onClick={() => setSelHospedaje(-1)}
+                            <SkipCard active={selHospedaje === -2} onClick={() => setSelHospedaje(selHospedaje === -2 ? -1 : -2)}
                               title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
                           </div>
                         )}
