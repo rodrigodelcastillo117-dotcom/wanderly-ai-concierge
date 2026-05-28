@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatDateOnly } from "@/lib/dateUtils";
 
 // Palette (matches index.css tokens)
 const GOLD: [number, number, number] = [201, 169, 97];      // #C9A961
@@ -62,8 +63,8 @@ export async function generateTripPDF(trip: any, sel: Selection, computed: { des
   doc.text(titleLines, margin, H / 2 - 30);
 
   // Meta line
-  const fechaSalida = trip.fecha_salida ? new Date(trip.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "";
-  const fechaRegreso = trip.fecha_regreso ? new Date(trip.fecha_regreso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "";
+  const fechaSalida = trip.fecha_salida ? formatDateOnly(trip.fecha_salida, { day: "numeric", month: "long", year: "numeric" }) : "";
+  const fechaRegreso = trip.fecha_regreso ? formatDateOnly(trip.fecha_regreso, { day: "numeric", month: "long", year: "numeric" }) : "";
   doc.setTextColor(...CREAM);
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
