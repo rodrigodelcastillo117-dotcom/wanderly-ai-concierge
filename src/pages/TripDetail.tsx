@@ -651,16 +651,26 @@ const TripDetail = () => {
                   {/* Restaurantes recomendados */}
                   {cityRest.length > 0 && (
                     <SubBlock icon={Utensils} title="Restaurantes recomendados">
-                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
-                        {cityRest.map((r: any, i: number) => (
-                          <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
-                            <ExpandableItemCard
-                              imageQuery={`${r.nombre} ${city} restaurant food`}
-                              eyebrow={r.cocina}
-                              title={r.nombre.replace(` · ${city}`, "")}
-                              price={r.rango_precio}
-                            >
-                              <p className="italic">{r.por_que}</p>
+                        {cityRest.map((r: any, i: number) => {
+                          const cleanName = r.nombre.replace(` · ${city}`, "");
+                          return (
+                            <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
+                              <ExpandableItemCard
+                                imageQuery={`${r.nombre} ${city} restaurant food`}
+                                eyebrow={r.cocina}
+                                title={cleanName}
+                                price={r.rango_precio}
+                                actions={[
+                                  { label: "Reservar / Ver", href: googleMapsSearchLink(cleanName, city), primary: true },
+                                  { label: "TheFork", href: theforkLink(city, cleanName) },
+                                ]}
+                              >
+                                <p className="italic">{r.por_que}</p>
+                              </ExpandableItemCard>
+                            </div>
+                          );
+                        })}
+
                             </ExpandableItemCard>
                           </div>
                         ))}
