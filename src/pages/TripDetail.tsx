@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
+import { getYourGuideLink, viatorLink, googleMapsSearchLink, theforkLink } from "@/lib/affiliateLinks";
+
 
 const fmtMXN = (n: number) =>
   `$${Number(n).toLocaleString("es-MX", { maximumFractionDigits: 0 })} MXN`;
@@ -621,6 +623,7 @@ const TripDetail = () => {
                           const active = selTours.has(i);
                           return (
                             <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
+
                               <ExpandableItemCard
                                 imageQuery={`${t.nombre} ${city} experience tour`}
                                 eyebrow={t.duracion}
@@ -629,10 +632,16 @@ const TripDetail = () => {
                                 active={active}
                                 selectable
                                 onToggle={() => toggleTour(i)}
+                                actions={[
+                                  { label: "Reservar en GetYourGuide", href: getYourGuideLink(city, t.nombre), primary: true },
+                                  { label: "Ver en Viator", href: viatorLink(city, t.nombre) },
+                                  { label: "Ubicación", href: googleMapsSearchLink(t.nombre, city) },
+                                ]}
                               >
                                 <p className="italic">{t.por_que}</p>
                               </ExpandableItemCard>
                             </div>
+
                           );
                         })}
                       </div>
@@ -643,20 +652,28 @@ const TripDetail = () => {
                   {cityRest.length > 0 && (
                     <SubBlock icon={Utensils} title="Restaurantes recomendados">
                       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
-                        {cityRest.map((r: any, i: number) => (
-                          <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
-                            <ExpandableItemCard
-                              imageQuery={`${r.nombre} ${city} restaurant food`}
-                              eyebrow={r.cocina}
-                              title={r.nombre.replace(` · ${city}`, "")}
-                              price={r.rango_precio}
-                            >
-                              <p className="italic">{r.por_que}</p>
-                            </ExpandableItemCard>
-                          </div>
-                        ))}
+                        {cityRest.map((r: any, i: number) => {
+                          const cleanName = r.nombre.replace(` · ${city}`, "");
+                          return (
+                            <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
+                              <ExpandableItemCard
+                                imageQuery={`${r.nombre} ${city} restaurant food`}
+                                eyebrow={r.cocina}
+                                title={cleanName}
+                                price={r.rango_precio}
+                                actions={[
+                                  { label: "Reservar / Ver", href: googleMapsSearchLink(cleanName, city), primary: true },
+                                  { label: "TheFork", href: theforkLink(city, cleanName) },
+                                ]}
+                              >
+                                <p className="italic">{r.por_que}</p>
+                              </ExpandableItemCard>
+                            </div>
+                          );
+                        })}
                       </div>
                     </SubBlock>
+
                   )}
                 </div>
               </CityCollapsible>
