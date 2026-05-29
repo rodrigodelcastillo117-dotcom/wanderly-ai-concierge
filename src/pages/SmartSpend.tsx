@@ -5,6 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { TripSavingsCalculator } from "@/components/TripSavingsCalculator";
+
 
 const COLORS = ["#C9A961", "#E0C586", "#8b7355", "#6b5a45", "#3f3528"];
 const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"];
@@ -104,7 +106,12 @@ const SmartSpend = () => {
           </div>
         </div>
 
-        <Link to="/dashboard/gastos" className="inline-block px-5 py-2.5 rounded-full border border-primary/40 text-primary text-sm hover:bg-primary/10 transition">
+
+        <div className="mt-8">
+          <TripSavingsCalculator />
+        </div>
+
+        <Link to="/dashboard/gastos" className="mt-6 inline-block px-5 py-2.5 rounded-full border border-primary/40 text-primary text-sm hover:bg-primary/10 transition">
           Ver detalles y análisis →
         </Link>
       </div>
@@ -113,3 +120,4 @@ const SmartSpend = () => {
 };
 
 export default SmartSpend;
+
