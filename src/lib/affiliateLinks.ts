@@ -112,7 +112,7 @@ export function googleMapsSearchLink(query: string, city?: string) {
 
 
 export function trainlineLink(origin: string, destination: string, date: string) {
-export function trainlineLink(origin: string, destination: string, date: string) {
+
   // Trainline /book/results requiere hashes internos de estación; el deep-link
   // con nombres de ciudad devuelve 500. Usamos la búsqueda SEO pública que
   // siempre carga y rellena origen/destino en la UI.
