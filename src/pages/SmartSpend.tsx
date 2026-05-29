@@ -102,8 +102,10 @@ const SmartSpend = () => {
                   </div>
                 );
               })}
+            </div>
           </div>
         </div>
+
 
         <div className="mt-8">
           <TripSavingsCalculator />
