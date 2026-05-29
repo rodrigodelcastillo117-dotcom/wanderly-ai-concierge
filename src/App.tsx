@@ -100,7 +100,7 @@ const App = () => (
             <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
             <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/dashboard/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
+            <Route path="/dashboard/members" element={<Navigate to="/dashboard/concierge?tab=members" replace />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
