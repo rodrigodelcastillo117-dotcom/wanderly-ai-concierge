@@ -19,6 +19,30 @@ function bookingUrl(city: string, ci: string, co: string, adults: number) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---
+  try {
+    const __authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization");
+    if (!__authHeader) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const __apikey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const __ures = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/user`, {
+      headers: { Authorization: __authHeader, apikey: __apikey },
+    });
+    if (!__ures.ok) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  } catch (_e) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  // --- end auth gate ---
   try {
     const body = await req.json();
     const { city, checkin, checkout, adults = 1, hotel_class = "" } = body;
