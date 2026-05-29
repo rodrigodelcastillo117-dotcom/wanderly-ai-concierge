@@ -29,7 +29,8 @@ export const Gastos = () => {
   const { user } = useAuth();
   const [items, setItems] = useState<Expense[]>([]);
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<"lista" | "smart" | "calc">("lista");
+
   const [tab, setTab] = useState<"lista" | "smart">("lista");
   const [form, setForm] = useState({
     amount: "",
