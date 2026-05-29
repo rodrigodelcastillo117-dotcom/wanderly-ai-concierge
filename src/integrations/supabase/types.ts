@@ -467,6 +467,102 @@ export type Database = {
           },
         ]
       }
+      nightlife_access: {
+        Row: {
+          confirmed_adult: boolean
+          confirmed_adult_at: string | null
+          created_at: string
+          password_unlocked: boolean
+          password_unlocked_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confirmed_adult?: boolean
+          confirmed_adult_at?: string | null
+          created_at?: string
+          password_unlocked?: boolean
+          password_unlocked_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          confirmed_adult?: boolean
+          confirmed_adult_at?: string | null
+          created_at?: string
+          password_unlocked?: boolean
+          password_unlocked_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      nightlife_premium: {
+        Row: {
+          active: boolean
+          address: string | null
+          categoria: string
+          ciudad: string
+          ciudad_display: string
+          created_at: string
+          descripcion: string | null
+          dress_code: string | null
+          emoji: string | null
+          id: string
+          lat: number | null
+          lng: number | null
+          nombre: string
+          pais: string | null
+          por_que: string | null
+          precio_estimado: string | null
+          reserva_requerida: boolean
+          tags: string[] | null
+          website: string | null
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          categoria: string
+          ciudad: string
+          ciudad_display: string
+          created_at?: string
+          descripcion?: string | null
+          dress_code?: string | null
+          emoji?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          nombre: string
+          pais?: string | null
+          por_que?: string | null
+          precio_estimado?: string | null
+          reserva_requerida?: boolean
+          tags?: string[] | null
+          website?: string | null
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          categoria?: string
+          ciudad?: string
+          ciudad_display?: string
+          created_at?: string
+          descripcion?: string | null
+          dress_code?: string | null
+          emoji?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          nombre?: string
+          pais?: string | null
+          por_que?: string | null
+          precio_estimado?: string | null
+          reserva_requerida?: boolean
+          tags?: string[] | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null

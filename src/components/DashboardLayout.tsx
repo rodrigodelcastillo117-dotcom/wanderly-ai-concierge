@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut, Settings } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut, Settings, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
@@ -15,6 +15,7 @@ const links = [
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
   { to: "/dashboard/concierge", icon: Crown, label: "Concierge Pro" },
+  { to: "/dashboard/members", icon: Sparkles, label: "Members Only" },
 ];
 
 // Mobile bottom nav — all 7 tabs + floating (+) above the bar
