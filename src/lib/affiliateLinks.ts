@@ -205,13 +205,20 @@ export function ferryhopperLink(origin: string, destination: string, date: strin
 }
 
 export function directFerriesLink(origin: string, destination: string, date: string, passengers = 1) {
-  const p = new URLSearchParams({ from: origin, to: destination, outdate: date, adults: String(passengers) });
-  return `https://www.directferries.com/ferry_search.htm?${p.toString()}`;
+  // /ferry_search.htm devuelve 404. Usamos su buscador SEO por ruta que sí
+  // existe y, si no resuelve la ruta exacta, cae al buscador con el query.
+  const o = encodeURIComponent(origin.trim().replace(/\s+/g, "-"));
+  const d = encodeURIComponent(destination.trim().replace(/\s+/g, "-"));
+  return `https://www.directferries.com/${o}_to_${d}_ferry.htm?outdate=${date}&adults=${passengers}`;
 }
 
 export function aferryLink(origin: string, destination: string, date: string) {
-  return `https://www.aferry.com/ferry-routes/${encodeURIComponent(origin)}-${encodeURIComponent(destination)}-ferry.htm?date=${date}`;
+  // Las slugs de /ferry-routes/ sólo funcionan para rutas conocidas. Usamos el
+  // buscador genérico con query params para no devolver 404.
+  const p = new URLSearchParams({ from: origin, to: destination, date });
+  return `https://www.aferry.com/?${p.toString()}`;
 }
+
 
 // ============ CRUCEROS ============
 export function vacationsToGoLink(destination?: string, month?: string) {
