@@ -51,11 +51,9 @@ interface Props {
 
 export function MembersOnlyPanel({ onReserve }: Props) {
   const { user } = useAuth();
-  const [accessLoading, setAccessLoading] = useState(true);
-  const [confirmedAdult, setConfirmedAdult] = useState(false);
-  const [passwordUnlocked, setPasswordUnlocked] = useState(false);
-  const [pwInput, setPwInput] = useState("");
-  const [pwError, setPwError] = useState("");
+  const accessLoading = false;
+  const confirmedAdult = true;
+  const passwordUnlocked = true;
 
   const [city, setCity] = useState<string>("París");
   const [cityInput, setCityInput] = useState<string>("París");
@@ -65,21 +63,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
   const [reservingId, setReservingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase
-        .from("nightlife_access")
-        .select("confirmed_adult, password_unlocked")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      setConfirmedAdult(!!data?.confirmed_adult);
-      setPasswordUnlocked(!!data?.password_unlocked);
-      setAccessLoading(false);
-    })();
-  }, [user]);
-
-  useEffect(() => {
-    if (!confirmedAdult || !passwordUnlocked || !city) return;
+    if (!city) return;
     setLoadingVenues(true);
     (async () => {
       const { data, error } = await supabase
@@ -95,7 +79,8 @@ export function MembersOnlyPanel({ onReserve }: Props) {
       }
       setLoadingVenues(false);
     })();
-  }, [city, confirmedAdult, passwordUnlocked]);
+  }, [city]);
+
 
   const filteredVenues = useMemo(() => {
     if (!activeCat) return venues;
