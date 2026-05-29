@@ -4,11 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Receipt, Upload, PieChart } from "lucide-react";
+import { Plus, Trash2, Receipt, Upload, PieChart, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
 import SmartSpendPanel from "@/components/SmartSpendPanel";
+import { TripSavingsCalculator } from "@/components/TripSavingsCalculator";
+
 
 const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"] as const;
 const MONEDAS = ["MXN", "USD", "EUR"] as const;
