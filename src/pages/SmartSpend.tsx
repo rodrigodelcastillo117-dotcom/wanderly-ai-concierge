@@ -104,10 +104,15 @@ const SmartSpend = () => {
               })}
             </div>
           </div>
+        <div className="mt-8">
+          <TripSavingsCalculator />
         </div>
 
-        <Link to="/dashboard/gastos" className="inline-block px-5 py-2.5 rounded-full border border-primary/40 text-primary text-sm hover:bg-primary/10 transition">
+        <Link to="/dashboard/gastos" className="mt-6 inline-block px-5 py-2.5 rounded-full border border-primary/40 text-primary text-sm hover:bg-primary/10 transition">
           Ver detalles y análisis →
+        </Link>
+      </div>
+
         </Link>
       </div>
     </DashboardLayout>
