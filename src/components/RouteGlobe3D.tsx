@@ -101,11 +101,12 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
 
   useEffect(() => {
     if (!wrapRef.current) return;
-    if (!("ResizeObserver" in window)) {
+    const browserWindow = window as Window & typeof globalThis;
+    if (!("ResizeObserver" in browserWindow)) {
       const updateWidth = () => setWidth(Math.max(280, wrapRef.current?.clientWidth ?? 600));
       updateWidth();
-      window.addEventListener("resize", updateWidth);
-      return () => window.removeEventListener("resize", updateWidth);
+      browserWindow.addEventListener("resize", updateWidth);
+      return () => browserWindow.removeEventListener("resize", updateWidth);
     }
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) setWidth(Math.max(280, e.contentRect.width));
