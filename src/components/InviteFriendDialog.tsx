@@ -128,9 +128,9 @@ export const InviteFriendDialog = ({ tripId, isOwner }: Props) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="inline-flex items-center gap-2 px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition">
+        <button className="inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-2 text-xs transition hover:gold-border sm:px-3 glass-card" aria-label="Compartir viaje">
           <UserPlus className="w-3.5 h-3.5 text-primary" />
-          Compartir
+          <span className="hidden sm:inline">Compartir</span>
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-md max-w-[92vw] bg-surface border-border">
