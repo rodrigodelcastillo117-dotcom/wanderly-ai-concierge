@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
+import { getYourGuideLink, viatorLink, googleMapsSearchLink, theforkLink } from "@/lib/affiliateLinks";
+
 
 const fmtMXN = (n: number) =>
   `$${Number(n).toLocaleString("es-MX", { maximumFractionDigits: 0 })} MXN`;
