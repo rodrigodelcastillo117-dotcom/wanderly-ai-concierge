@@ -71,29 +71,45 @@ export function airbnbLink(city: string, checkin: string, checkout: string, adul
   return `https://www.airbnb.com/s/${encodeURIComponent(city)}/homes?${p.toString()}`;
 }
 
-export function getYourGuideLink(city: string) {
-  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(city)}`;
+export function getYourGuideLink(city: string, query?: string) {
+  const q = query ? `${query} ${city}` : city;
+  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}`;
 }
 
-export function viatorLink(city: string) {
-  return `https://www.viator.com/searchResults/all?text=${encodeURIComponent(city)}`;
+export function viatorLink(city: string, query?: string) {
+  const q = query ? `${query} ${city}` : city;
+  return `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}`;
 }
 
-export function tripadvisorLink(city: string) {
-  return `https://www.tripadvisor.com/Search?q=${encodeURIComponent(city)}`;
+export function tripadvisorLink(city: string, query?: string) {
+  const q = query ? `${query} ${city}` : city;
+  return `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q)}`;
 }
 
-export function openTableLink(city: string) {
-  return `https://www.opentable.com/s?term=${encodeURIComponent(city)}`;
+export function openTableLink(city: string, query?: string) {
+  const q = query ? `${query} ${city}` : city;
+  return `https://www.opentable.com/s?term=${encodeURIComponent(q)}`;
 }
 
-export function theforkLink(city: string) {
-  return `https://www.thefork.com/search/?cityName=${encodeURIComponent(city)}`;
+export function theforkLink(city: string, query?: string) {
+  if (query) {
+    return `https://www.thefork.com/search?cityName=${encodeURIComponent(city)}&searchText=${encodeURIComponent(query)}`;
+  }
+  return `https://www.thefork.com/search?cityName=${encodeURIComponent(city)}`;
 }
 
-export function yelpLink(city: string) {
-  return `https://www.yelp.com/search?find_desc=Restaurants&find_loc=${encodeURIComponent(city)}`;
+export function yelpLink(city: string, query?: string) {
+  const desc = query || "Restaurants";
+  return `https://www.yelp.com/search?find_desc=${encodeURIComponent(desc)}&find_loc=${encodeURIComponent(city)}`;
 }
+
+// Búsqueda directa en Google Maps — el más confiable para encontrar cualquier
+// lugar (restaurante, museo, atracción) en cualquier ciudad del mundo.
+export function googleMapsSearchLink(query: string, city?: string) {
+  const q = city ? `${query} ${city}` : query;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+}
+
 
 export function trainlineLink(origin: string, destination: string, date: string) {
   const p = new URLSearchParams({ origin, destination, outwardDate: date, passengers: "1" });
