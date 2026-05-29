@@ -47,6 +47,7 @@ import Trenes from "./pages/Trenes";
 import Ferries from "./pages/Ferries";
 import Cruceros from "./pages/Cruceros";
 import Reservas from "./pages/Reservas";
+import Members from "./pages/Members";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +100,7 @@ const App = () => (
             <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
             <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/dashboard/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
