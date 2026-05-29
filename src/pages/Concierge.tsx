@@ -267,12 +267,14 @@ const Concierge = () => {
               <h1 className="font-display text-2xl md:text-3xl leading-tight">Concierge PRO te escucha</h1>
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
-                  {trip?.destino ?? "Sin viaje activo"}{trip?.pais_destino ? `, ${trip.pais_destino}` : ""}
+                  {weather ? `${weather.place} · ${weather.temp}°C` : "Detectando tu ubicación real…"}
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <Cloud className="w-3.5 h-3.5 text-primary" />
-                  {weather ? `${weather.place} · ${weather.temp}°C` : "Detectando ubicación…"}
-                </span>
+                {trip?.destino && (
+                  <span className="flex items-center gap-1.5">
+                    <Plane className="w-3.5 h-3.5 text-primary" />
+                    Viaje activo: {trip.destino}{trip.pais_destino ? `, ${trip.pais_destino}` : ""}
+                  </span>
+                )}
                 <span className="hidden sm:inline">|</span>
                 <span>{localTimeContext}</span>
                 <span className="hidden sm:inline">|</span>
@@ -284,6 +286,7 @@ const Concierge = () => {
                   <RefreshCw className="w-3 h-3" /> Auto-refresh 60s
                 </button>
               </div>
+
             </div>
 
             <button
