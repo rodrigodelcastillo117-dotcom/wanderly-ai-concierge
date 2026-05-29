@@ -224,14 +224,15 @@ export function vacationsToGoLink(destination?: string, month?: string) {
   return qs ? `https://www.vacationstogo.com/cruisesearch.cfm?${qs}` : `https://www.vacationstogo.com/cruisesearch.cfm`;
 }
 export function cruiseDirectLink(destination?: string, depart?: string, returnDate?: string) {
-  // El path correcto es /cruise-search (sin la slash final).
+  // El buscador real vive en /search/ — los params los lee del estado.
   const p = new URLSearchParams();
   if (destination) p.set("destination", destination);
   if (depart) p.set("departDate", depart);
   if (returnDate) p.set("returnDate", returnDate);
   const qs = p.toString();
-  return qs ? `https://www.cruisedirect.com/cruise-search?${qs}` : `https://www.cruisedirect.com/cruise-search`;
+  return qs ? `https://www.cruisedirect.com/search/?${qs}` : `https://www.cruisedirect.com/search/`;
 }
+
 
 export function cruiseCriticLink(destination?: string) {
   // /cruiseto/cruisestyles.cfm está descontinuado. Usamos su buscador actual.
