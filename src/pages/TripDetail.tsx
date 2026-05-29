@@ -305,7 +305,7 @@ const TripDetail = () => {
           <InviteFriendDialog tripId={trip.id} isOwner={user?.id === trip.user_id} />
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
         </div>
-        <div className="absolute inset-x-0 bottom-28 max-w-5xl p-4 sm:bottom-24 sm:p-6 md:bottom-0 md:p-12">
+        <div className="absolute inset-x-0 bottom-36 max-w-5xl p-4 sm:bottom-28 sm:p-6 md:bottom-0 md:p-12">
           {trip.match_score && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium mb-4">
               <Star className="w-3 h-3 fill-current" /> {trip.match_score}% match con tu perfil
