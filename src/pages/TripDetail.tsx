@@ -305,14 +305,14 @@ const TripDetail = () => {
           <InviteFriendDialog tripId={trip.id} isOwner={user?.id === trip.user_id} />
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
         </div>
-        <div className="absolute inset-x-0 bottom-0 max-w-5xl p-4 sm:p-6 md:p-12">
+        <div className="absolute inset-x-0 bottom-16 max-w-5xl p-4 sm:p-6 md:bottom-0 md:p-12">
           {trip.match_score && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium mb-4">
               <Star className="w-3 h-3 fill-current" /> {trip.match_score}% match con tu perfil
             </div>
           )}
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{trip.pais_destino}</p>
-          <h1 className="font-display text-4xl sm:text-5xl md:text-7xl leading-tight mb-4 break-words">{trip.destino}</h1>
+          <h1 className="font-display text-3xl min-[380px]:text-4xl sm:text-5xl md:text-7xl leading-tight mb-4 break-words">{trip.destino}</h1>
           <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
             <Popover open={editingDates} onOpenChange={setEditingDates}>
               <PopoverTrigger asChild>
