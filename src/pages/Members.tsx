@@ -387,22 +387,12 @@ export default function Members() {
           <p className="text-xs tracking-[0.18em] uppercase text-muted-foreground mb-4">Ciudades destacadas</p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {FEATURED_CITIES.map((c) => (
-              <button
+              <CityVideoCard
                 key={c}
+                city={c}
+                active={norm(c) === norm(city)}
                 onClick={() => { setCity(c); setCityInput(c); }}
-                className={`group relative overflow-hidden rounded-2xl border h-28 flex items-end p-3 transition-all duration-300 ${
-                  norm(c) === norm(city)
-                    ? "border-primary/60 shadow-[0_10px_40px_-12px_rgba(201,169,97,0.45)]"
-                    : "border-primary/15 hover:border-primary/40"
-                }`}
-                style={{
-                  backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.55), rgba(0,0,0,0.85)), url(https://source.unsplash.com/featured/?${encodeURIComponent(c)},night,city)`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              >
-                <span className="relative font-fraunces text-base text-foreground drop-shadow-lg">{c}</span>
-              </button>
+              />
             ))}
           </div>
         </div>
