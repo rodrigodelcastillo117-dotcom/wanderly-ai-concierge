@@ -33,7 +33,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
 
   if (loading) {
     return (
-      <div className="glass-card rounded-2xl p-8 md:p-10 mb-8 relative overflow-hidden">
+      <div className="glass-card rounded-2xl p-5 sm:p-8 md:p-10 mb-8 relative overflow-hidden max-w-full">
         <p className="text-xs tracking-[0.2em] uppercase text-primary mb-3">Inversión total estimada</p>
         <div className="h-16 md:h-20 w-2/3 rounded-lg bg-gradient-to-r from-primary/10 via-primary/30 to-primary/10 animate-pulse mb-4" />
         <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -50,9 +50,9 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card rounded-2xl p-8 md:p-10 mb-8"
+      className="glass-card rounded-2xl p-5 sm:p-8 md:p-10 mb-8 max-w-full overflow-hidden"
     >
-      <div className="flex items-start justify-between gap-4 mb-3">
+      <div className="flex flex-col items-start justify-between gap-2 mb-3 sm:flex-row sm:gap-4">
         <p className="text-xs tracking-[0.2em] uppercase text-primary">
           Inversión total · grupo de {travelers} {travelers === 1 ? "persona" : "personas"}
         </p>
@@ -62,7 +62,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
           </span>
         )}
       </div>
-      <motion.p className="font-display text-5xl md:text-6xl gold-text mb-2">
+      <motion.p className="font-display text-4xl sm:text-5xl md:text-6xl gold-text mb-2 break-words leading-tight">
         {rounded as any}
       </motion.p>
       {q && (
@@ -85,7 +85,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
               <div className="flex items-center gap-2 text-[10px] tracking-widest uppercase text-primary/80 mb-2">
                 <Plane className="w-3 h-3" /> Vuelo round-trip
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 {q.flight.airline_logo && (
                   <img src={q.flight.airline_logo} alt={q.flight.airline} className="w-8 h-8 rounded object-contain bg-white/90 p-0.5" />
                 )}
@@ -95,7 +95,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
                     {q.flight.departure} → {q.flight.arrival} · {q.flight.duration} · {q.flight.stops === 0 ? "directo" : `${q.flight.stops} escala${q.flight.stops > 1 ? "s" : ""}`}
                   </p>
                 </div>
-                <p className="ml-auto font-display text-lg gold-text">${q.flight.price_usd.toLocaleString("en-US")}</p>
+                <p className="ml-auto shrink-0 font-display text-base sm:text-lg gold-text">${q.flight.price_usd.toLocaleString("en-US")}</p>
               </div>
             </div>
           )}
@@ -104,7 +104,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
               <div className="flex items-center gap-2 text-[10px] tracking-widest uppercase text-primary/80 mb-2">
                 <Hotel className="w-3 h-3" /> Hospedaje {q.hotel.hotel_class ? `${q.hotel.hotel_class}★` : "premium"}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 {q.hotel.thumbnail && (
                   <img src={q.hotel.thumbnail} alt={q.hotel.name} className="w-10 h-10 rounded object-cover" />
                 )}
@@ -115,7 +115,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
                     {q.hotel.rating ? ` · ${q.hotel.rating}★` : ""}
                   </p>
                 </div>
-                <p className="ml-auto font-display text-lg gold-text">${q.breakdown.hotel_total_usd.toLocaleString("en-US")}</p>
+                <p className="ml-auto shrink-0 font-display text-base sm:text-lg gold-text">${q.breakdown.hotel_total_usd.toLocaleString("en-US")}</p>
               </div>
             </div>
           )}
