@@ -284,9 +284,14 @@ export const TripSavingsCalculator = () => {
                 <Verdict
                   icon={<AlertTriangle className="w-6 h-6 text-destructive" />}
                   title={`No alcanza con tu ritmo actual`}
-                  body={`Necesitas ahorrar ${fmtMoney(computed.ahorroRequerido, computed.currency)}/mes pero tu margen real es ${fmtMoney(Math.max(0, computed.capacidadAhorro), computed.currency)}/mes. Recorta al menos ${fmtMoney(computed.recorteSugerido, computed.currency)}/mes en variables, sube ingresos, o mueve la salida ${Math.ceil(computed.faltante / Math.max(1, computed.capacidadAhorro))} meses adelante.`}
+                  body={
+                    computed.capacidadAhorro <= 0
+                      ? `Tus gastos (${fmtMoney(computed.fijos + computed.variables, computed.currency)}/mes) ya superan tus ingresos (${fmtMoney(computed.ingreso, computed.currency)}/mes) por ${fmtMoney(Math.abs(computed.capacidadAhorro), computed.currency)}. Antes de pensar en el viaje, recorta al menos ${fmtMoney(Math.abs(computed.capacidadAhorro) + Math.ceil(computed.faltante / Math.max(1, computed.meses)), computed.currency)}/mes en variables o sube ingresos para generar margen.`
+                      : `Necesitas ahorrar ${fmtMoney(computed.ahorroRequerido, computed.currency)}/mes pero tu margen real es ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes. Recorta ${fmtMoney(computed.recorteSugerido, computed.currency)}/mes en variables, sube ingresos, o mueve la salida ${Math.max(1, Math.ceil(computed.faltante / computed.capacidadAhorro) - computed.meses)} ${Math.max(1, Math.ceil(computed.faltante / computed.capacidadAhorro) - computed.meses) === 1 ? "mes" : "meses"} adelante.`
+                  }
                 />
               )}
+
               {computed.costoViaje === 0 && (
                 <p className="text-sm text-muted-foreground">Este viaje todavía no tiene costo estimado. Termina de planearlo y vuelve.</p>
               )}
