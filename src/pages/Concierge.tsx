@@ -59,7 +59,14 @@ const Concierge = () => {
   const [showFlight, setShowFlight] = useState(false);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [godMode, setGodMode] = useState(false);
+  const [godMode, setGodMode] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const v = localStorage.getItem("iatos_god_mode");
+    return v === null ? true : v === "1";
+  });
+  useEffect(() => {
+    try { localStorage.setItem("iatos_god_mode", godMode ? "1" : "0"); } catch {}
+  }, [godMode]);
   const [listening, setListening] = useState(false);
   const [showFixer, setShowFixer] = useState(false);
   const [trip, setTrip] = useState<any>(null);
