@@ -112,17 +112,46 @@ export function googleMapsSearchLink(query: string, city?: string) {
 
 
 export function trainlineLink(origin: string, destination: string, date: string) {
-  const p = new URLSearchParams({ origin, destination, outwardDate: date, passengers: "1" });
-  return `https://www.thetrainline.com/book/results?${p.toString()}`;
+export function trainlineLink(origin: string, destination: string, date: string) {
+  // Trainline /book/results requiere hashes internos de estación; el deep-link
+  // con nombres de ciudad devuelve 500. Usamos la búsqueda SEO pública que
+  // siempre carga y rellena origen/destino en la UI.
+  const o = encodeURIComponent(origin.trim());
+  const d = encodeURIComponent(destination.trim());
+  return `https://www.thetrainline.com/trains/from-${o}/to-${d}?outwardDate=${date}`;
 }
 
 export function omioLink(origin: string, destination: string, date: string) {
-  return `https://www.omio.com/search-frontend/?departureId=${encodeURIComponent(origin)}&arrivalId=${encodeURIComponent(destination)}&departureDate=${date}&passengers=adults%3D1`;
+  // Omio /search-frontend requiere IDs internos; usamos su buscador público
+  // que sí acepta nombres de ciudad.
+  const p = new URLSearchParams({
+    fromCity: origin,
+    toCity: destination,
+    outboundDate: date,
+    adults: "1",
+  });
+  return `https://www.omio.com/search?${p.toString()}`;
 }
 
 export function raileuropeLink(origin: string, destination: string, date: string) {
   return `https://www.raileurope.com/en/search?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&outbound_date=${date}&passengers=1`;
 }
+
+export function uberLink(pickupLat?: number, pickupLng?: number, dropoffName?: string) {
+  const p = new URLSearchParams({ action: "setPickup" });
+  if (pickupLat && pickupLng) {
+    p.set("pickup[latitude]", String(pickupLat));
+    p.set("pickup[longitude]", String(pickupLng));
+  } else {
+    p.set("pickup", "my_location");
+  }
+  if (dropoffName) {
+    p.set("dropoff[formatted_address]", dropoffName);
+    p.set("dropoff[nickname]", dropoffName);
+  }
+  return `https://m.uber.com/ul/?${p.toString()}`;
+}
+
 
 export function uberLink(pickupLat?: number, pickupLng?: number, dropoffName?: string) {
   const p = new URLSearchParams({ action: "setPickup" });
