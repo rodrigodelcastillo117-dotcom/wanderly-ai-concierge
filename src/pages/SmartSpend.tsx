@@ -5,6 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { TripSavingsCalculator } from "@/components/TripSavingsCalculator";
+
 
 const COLORS = ["#C9A961", "#E0C586", "#8b7355", "#6b5a45", "#3f3528"];
 const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"];
