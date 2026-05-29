@@ -620,8 +620,6 @@ const TripDetail = () => {
                       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
                         {cityTours.map((t: any) => {
                           const i = (trip.tours_json ?? []).indexOf(t);
-                          const active = selTours.has(i);
-                          return (
                             <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                               <ExpandableItemCard
                                 imageQuery={`${t.nombre} ${city} experience tour`}
@@ -631,10 +629,16 @@ const TripDetail = () => {
                                 active={active}
                                 selectable
                                 onToggle={() => toggleTour(i)}
+                                actions={[
+                                  { label: "Reservar en GetYourGuide", href: getYourGuideLink(city, t.nombre), primary: true },
+                                  { label: "Ver en Viator", href: viatorLink(city, t.nombre) },
+                                  { label: "Ubicación", href: googleMapsSearchLink(t.nombre, city) },
+                                ]}
                               >
                                 <p className="italic">{t.por_que}</p>
                               </ExpandableItemCard>
                             </div>
+
                           );
                         })}
                       </div>
