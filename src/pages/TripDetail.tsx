@@ -620,7 +620,10 @@ const TripDetail = () => {
                       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
                         {cityTours.map((t: any) => {
                           const i = (trip.tours_json ?? []).indexOf(t);
+                          const active = selTours.has(i);
+                          return (
                             <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
+
                               <ExpandableItemCard
                                 imageQuery={`${t.nombre} ${city} experience tour`}
                                 eyebrow={t.duracion}
