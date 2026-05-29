@@ -245,11 +245,4 @@ export function cruiseCriticLink(destination?: string) {
     : `https://www.cruisecritic.com/find-a-cruise/`;
 }
 
-}
-
-export function cruiseCriticLink(destination?: string) {
-  return destination
-    ? `https://www.cruisecritic.com/cruiseto/cruisestyles.cfm?cruisestyle=${encodeURIComponent(destination)}`
-    : `https://www.cruisecritic.com/find-a-cruise/`;
-}
 
