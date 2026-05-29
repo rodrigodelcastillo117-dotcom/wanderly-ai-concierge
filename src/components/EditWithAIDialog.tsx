@@ -46,15 +46,16 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/90 text-primary-foreground text-sm font-medium hover:bg-primary transition shadow-lg"
+        className="inline-flex shrink-0 items-center gap-2 rounded-full bg-primary/90 px-2.5 py-2 text-sm font-medium text-primary-foreground shadow-lg transition hover:bg-primary sm:px-4"
+        aria-label="Editar viaje con IA"
       >
-        <Sparkles className="w-4 h-4" /> Editar con IA
+        <Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">Editar con IA</span>
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => !loading && setOpen(false)}>
           <div
-            className="glass-card rounded-2xl p-6 md:p-8 w-full max-w-2xl gold-border relative"
+            className="glass-card rounded-2xl p-5 md:p-8 w-full max-w-2xl max-h-[88vh] overflow-y-auto gold-border relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
