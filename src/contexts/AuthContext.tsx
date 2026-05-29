@@ -19,11 +19,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Listener primero — mantiene la sesión sincronizada (refresh automático, login, logout explícito)
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    let mounted = true;
+    const finishAuth = (newSession: Session | null) => {
+      if (!mounted) return;
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      finishAuth(null);
+    }, 4500);
+
+    // Listener primero — mantiene la sesión sincronizada (refresh automático, login, logout explícito)
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      window.clearTimeout(timeoutId);
+      finishAuth(newSession);
     });
 
     // Hidratar desde storage local. NO cerramos sesión por errores transitorios de red:
@@ -31,13 +42,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // El refresh token de Supabase + autoRefreshToken se encargan de validar contra el servidor
     // cuando hay conexión. Si el refresh falla con un error real de auth, el listener
     // recibirá SIGNED_OUT y limpiará el estado.
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session ?? null);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        window.clearTimeout(timeoutId);
+        finishAuth(data.session ?? null);
+      })
+      .catch(() => {
+        window.clearTimeout(timeoutId);
+        finishAuth(null);
+      });
 
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      window.clearTimeout(timeoutId);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
