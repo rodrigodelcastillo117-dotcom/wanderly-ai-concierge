@@ -1,7 +1,13 @@
 import { useState, ReactNode } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCityImage } from "@/components/CityCollapsible";
+
+export interface ExpandableItemCardAction {
+  label: string;
+  href: string;
+  primary?: boolean;
+}
 
 interface ExpandableItemCardProps {
   imageQuery: string;
@@ -13,11 +19,10 @@ interface ExpandableItemCardProps {
   selectable?: boolean;
   onToggle?: () => void;
   defaultOpen?: boolean;
-  children: ReactNode; // detalle expandido (por qué, notas, etc.)
+  actions?: ExpandableItemCardAction[];
+  children?: ReactNode; // detalle expandido (por qué, notas, etc.)
 }
 
-export const ExpandableItemCard = ({
-  imageQuery,
   eyebrow,
   title,
   subtitle,
