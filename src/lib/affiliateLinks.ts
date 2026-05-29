@@ -112,12 +112,24 @@ export function googleMapsSearchLink(query: string, city?: string) {
 
 
 export function trainlineLink(origin: string, destination: string, date: string) {
-  const p = new URLSearchParams({ origin, destination, outwardDate: date, passengers: "1" });
-  return `https://www.thetrainline.com/book/results?${p.toString()}`;
+  // Trainline no expone deep-link público con nombres de ciudad (requiere
+  // hashes internos de estación). Mandamos a la landing con un hint en hash
+  // para que el usuario complete origen/destino en la UI.
+  const hint = `#from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&date=${date}`;
+  return `https://www.thetrainline.com/${hint}`;
 }
 
+
 export function omioLink(origin: string, destination: string, date: string) {
-  return `https://www.omio.com/search-frontend/?departureId=${encodeURIComponent(origin)}&arrivalId=${encodeURIComponent(destination)}&departureDate=${date}&passengers=adults%3D1`;
+  // Omio /search-frontend requiere IDs internos; usamos su buscador público
+  // que sí acepta nombres de ciudad.
+  const p = new URLSearchParams({
+    fromCity: origin,
+    toCity: destination,
+    outboundDate: date,
+    adults: "1",
+  });
+  return `https://www.omio.com/search?${p.toString()}`;
 }
 
 export function raileuropeLink(origin: string, destination: string, date: string) {
@@ -138,6 +150,8 @@ export function uberLink(pickupLat?: number, pickupLng?: number, dropoffName?: s
   }
   return `https://m.uber.com/ul/?${p.toString()}`;
 }
+
+
 
 export function discoverCarsLink(city: string, pickup: string, ret: string) {
   // Discover Cars usa búsqueda con texto libre
@@ -188,15 +202,18 @@ export function ferryhopperLink(origin: string, destination: string, date: strin
   const trip = `${encodeURIComponent(origin)}-${encodeURIComponent(destination)}_${date}`;
   return `https://www.ferryhopper.com/en/booking?trips=${trip}&adults=${passengers}`;
 }
-
 export function directFerriesLink(origin: string, destination: string, date: string, passengers = 1) {
+  // El buscador con query params (?from=...&to=...) sí carga (200) aunque no
+  // resuelva la ruta exacta — siempre el usuario puede afinar en la UI.
   const p = new URLSearchParams({ from: origin, to: destination, outdate: date, adults: String(passengers) });
-  return `https://www.directferries.com/ferry_search.htm?${p.toString()}`;
+  return `https://www.directferries.com/?${p.toString()}`;
 }
 
 export function aferryLink(origin: string, destination: string, date: string) {
-  return `https://www.aferry.com/ferry-routes/${encodeURIComponent(origin)}-${encodeURIComponent(destination)}-ferry.htm?date=${date}`;
+  const p = new URLSearchParams({ from: origin, to: destination, date });
+  return `https://www.aferry.com/?${p.toString()}`;
 }
+
 
 // ============ CRUCEROS ============
 export function vacationsToGoLink(destination?: string, month?: string) {
@@ -206,18 +223,22 @@ export function vacationsToGoLink(destination?: string, month?: string) {
   const qs = p.toString();
   return qs ? `https://www.vacationstogo.com/cruisesearch.cfm?${qs}` : `https://www.vacationstogo.com/cruisesearch.cfm`;
 }
-
 export function cruiseDirectLink(destination?: string, depart?: string, returnDate?: string) {
+  // El buscador real vive en /search/ — los params los lee del estado.
   const p = new URLSearchParams();
   if (destination) p.set("destination", destination);
   if (depart) p.set("departDate", depart);
   if (returnDate) p.set("returnDate", returnDate);
-  return `https://www.cruisedirect.com/cruise-search/?${p.toString()}`;
+  const qs = p.toString();
+  return qs ? `https://www.cruisedirect.com/search/?${qs}` : `https://www.cruisedirect.com/search/`;
 }
 
+
 export function cruiseCriticLink(destination?: string) {
+  // /cruiseto/cruisestyles.cfm está descontinuado. Usamos su buscador actual.
   return destination
-    ? `https://www.cruisecritic.com/cruiseto/cruisestyles.cfm?cruisestyle=${encodeURIComponent(destination)}`
+    ? `https://www.cruisecritic.com/find-a-cruise/?destination=${encodeURIComponent(destination)}`
     : `https://www.cruisecritic.com/find-a-cruise/`;
 }
+
 
