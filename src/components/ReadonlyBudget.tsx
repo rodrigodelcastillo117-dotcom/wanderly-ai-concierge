@@ -62,10 +62,10 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
   if (items.length === 0 || total <= 0) return null;
 
   return (
-    <div className="glass-card rounded-2xl p-6 md:p-8">
+    <div className="glass-card rounded-2xl p-4 sm:p-6 md:p-8 max-w-full overflow-hidden">
       <div className="mb-5">
         <p className="text-xs tracking-[0.2em] uppercase text-primary mb-1">Total estimado</p>
-        <p className="font-display text-3xl md:text-4xl gold-text">{fmtMXN(total)}</p>
+        <p className="font-display text-2xl sm:text-3xl md:text-4xl gold-text break-words">{fmtMXN(total)}</p>
         <p className="text-[11px] text-muted-foreground mt-1">
           Calculado en base a las opciones seleccionadas arriba.
         </p>
@@ -114,11 +114,11 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
             <button
               type="button"
               onClick={() => setFlightsOpen((v) => !v)}
-              className="w-full flex items-center justify-between gap-2 mb-3 group"
+              className="w-full flex items-center justify-between gap-2 mb-3 group text-left"
               aria-expanded={flightsOpen}
             >
-              <div className="flex items-center gap-2">
-                <Plane className="w-3.5 h-3.5 text-primary" />
+              <div className="flex min-w-0 items-center gap-2">
+                <Plane className="w-3.5 h-3.5 text-primary shrink-0" />
                 <p className="text-[10px] tracking-[0.25em] uppercase text-primary">
                   Desglose por vuelo · {flightLegs.length} {flightLegs.length === 1 ? "tramo" : "tramos"}
                 </p>
@@ -137,9 +137,9 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
                     return (
                       <div
                         key={i}
-                        className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface/40 px-3 py-2.5"
+                         className="flex flex-col gap-2 rounded-xl border border-border/50 bg-surface/40 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3"
                       >
-                        <span className="font-mono text-[10px] text-primary w-6">
+                        <span className="font-mono text-[10px] text-primary sm:w-6">
                           {String(i + 1).padStart(2, "0")}
                         </span>
                         <div className="flex-1 min-w-0">
@@ -148,12 +148,12 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
                             <p className="text-[10px] text-muted-foreground truncate">{leg.airline}</p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-right">
+                        <div className="flex items-center justify-between gap-2 text-left sm:text-right">
                           <span className="text-[10px] text-muted-foreground tabular-nums">
                             {Math.round(pctOfFlights)}% del rubro vuelos
                           </span>
-                          <ChevronRight className="w-3 h-3 text-muted-foreground/40" />
-                          <span className="text-sm font-medium tabular-nums w-[110px]">
+                          <ChevronRight className="hidden w-3 h-3 text-muted-foreground/40 sm:block" />
+                          <span className="text-sm font-medium tabular-nums sm:w-[110px]">
                             {fmtMXN(leg.total)}
                           </span>
                         </div>
