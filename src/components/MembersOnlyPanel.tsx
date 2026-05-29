@@ -87,42 +87,6 @@ export function MembersOnlyPanel({ onReserve }: Props) {
     return venues.filter((v) => v.categoria === activeCat);
   }, [venues, activeCat]);
 
-  const handleConfirmAdult = async () => {
-    if (!user) return;
-    const { error } = await supabase.from("nightlife_access").upsert(
-      { user_id: user.id, confirmed_adult: true, confirmed_adult_at: new Date().toISOString() },
-      { onConflict: "user_id" },
-    );
-    if (error) {
-      toast({ title: "No se pudo confirmar", description: error.message, variant: "destructive" });
-      return;
-    }
-    setConfirmedAdult(true);
-  };
-
-  const handleUnlockPassword = async () => {
-    if (!user) return;
-    if (pwInput.trim().toLowerCase() !== MEMBERS_PASSWORD) {
-      setPwError("Contraseña incorrecta");
-      return;
-    }
-    const { error } = await supabase.from("nightlife_access").upsert(
-      {
-        user_id: user.id,
-        confirmed_adult: true,
-        password_unlocked: true,
-        password_unlocked_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    setPasswordUnlocked(true);
-    setPwError("");
-  };
-
   const handleReserve = async (v: Venue) => {
     if (!user) return;
     setReservingId(v.id);
@@ -157,71 +121,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
     }
   };
 
-  // ============== GATES ==============
-  if (accessLoading) {
-    return (
-      <div className="min-h-[60vh] grid place-items-center text-muted-foreground text-sm">Cargando…</div>
-    );
-  }
 
-  if (!confirmedAdult) {
-    return (
-      <div className="min-h-[70vh] grid place-items-center p-6">
-        <div className="max-w-md w-full rounded-3xl border border-primary/30 bg-gradient-to-b from-black/90 to-black/70 p-8 shadow-[0_30px_120px_-20px_rgba(201,169,97,0.4)]">
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 rounded-full bg-gradient-gold grid place-items-center shadow-[0_10px_40px_-10px_hsl(41_47%_59%/0.6)]">
-              <ShieldCheck className="w-8 h-8 text-primary-foreground" />
-            </div>
-          </div>
-          <h1 className="font-fraunces text-3xl text-center text-foreground mb-2">Members Only</h1>
-          <p className="text-center text-primary text-sm tracking-wide mb-6">Acceso para adultos</p>
-          <p className="text-muted-foreground text-sm leading-relaxed mb-8 text-center">
-            Esta sección contiene curaduría de vida nocturna premium (cabarets, members clubs, casinos VIP, lounges)
-            destinada a adultos mayores de 18 años.
-          </p>
-          <Button
-            onClick={handleConfirmAdult}
-            className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 h-12 rounded-xl text-sm tracking-wide"
-          >
-            Confirmo que soy mayor de 18 años · Entrar
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!passwordUnlocked) {
-    return (
-      <div className="min-h-[70vh] grid place-items-center p-6">
-        <div className="max-w-md w-full rounded-3xl border border-primary/30 bg-gradient-to-b from-black/80 to-black/60 backdrop-blur-2xl p-8 shadow-[0_30px_120px_-20px_rgba(201,169,97,0.35)]">
-          <div className="flex justify-center mb-6">
-            <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 grid place-items-center">
-              <Lock className="w-6 h-6 text-primary" />
-            </div>
-          </div>
-          <h2 className="font-fraunces text-2xl text-center mb-2">Acceso restringido</h2>
-          <p className="text-center text-muted-foreground text-sm mb-6">
-            Ingresa la contraseña de miembro para continuar.
-          </p>
-          <Input
-            type="password"
-            value={pwInput}
-            onChange={(e) => { setPwInput(e.target.value); setPwError(""); }}
-            onKeyDown={(e) => e.key === "Enter" && handleUnlockPassword()}
-            placeholder="Contraseña"
-            className="h-12 rounded-xl border-primary/20 bg-black/40 text-center tracking-widest"
-          />
-          {pwError && <p className="text-destructive text-xs mt-2 text-center">{pwError}</p>}
-          <Button
-            onClick={handleUnlockPassword}
-            className="w-full mt-4 bg-gradient-gold text-primary-foreground hover:opacity-90 h-12 rounded-xl"
-          >
-            Desbloquear
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   // ============== CONTENIDO ==============
   return (
