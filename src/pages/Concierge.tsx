@@ -51,6 +51,22 @@ declare global {
 const Concierge = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState<"chat" | "members">(
+    searchParams.get("tab") === "members" ? "members" : "chat",
+  );
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t === "members" && tab !== "members") setTab("members");
+    if (t !== "members" && tab === "members") setTab("chat");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const switchTab = (next: "chat" | "members") => {
+    setTab(next);
+    const sp = new URLSearchParams(searchParams);
+    if (next === "members") sp.set("tab", "members"); else sp.delete("tab");
+    setSearchParams(sp, { replace: true });
+  };
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<Msg[]>([{
     id: "welcome", role: "assistant", ts: Date.now(),
