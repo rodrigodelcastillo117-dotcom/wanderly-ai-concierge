@@ -102,8 +102,9 @@ const SmartSpend = () => {
                   </div>
                 );
               })}
-            </div>
           </div>
+        </div>
+
         <div className="mt-8">
           <TripSavingsCalculator />
         </div>
@@ -112,11 +113,9 @@ const SmartSpend = () => {
           Ver detalles y análisis →
         </Link>
       </div>
-
-        </Link>
-      </div>
     </DashboardLayout>
   );
 };
 
 export default SmartSpend;
+
