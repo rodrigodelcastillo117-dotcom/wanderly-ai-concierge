@@ -51,13 +51,12 @@ const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void })
       setImg(stored);
       return;
     }
-    const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.functions.supabase.co/pexels-image?query=${encodeURIComponent(
-      `${t.destino} ${t.pais_destino ?? ""} travel`,
-    )}`;
-    fetch(url)
-      .then((r) => r.json())
-      .then((d) => {
-        const image = d?.image ?? null;
+    supabase.functions
+      .invoke("pexels-image", {
+        body: { query: `${t.destino} ${t.pais_destino ?? ""} travel` },
+      })
+      .then(({ data }) => {
+        const image = (data as any)?.image ?? null;
         cache.set(t.destino, image);
         if (image) localStorage.setItem(key, image);
         setImg(image);
