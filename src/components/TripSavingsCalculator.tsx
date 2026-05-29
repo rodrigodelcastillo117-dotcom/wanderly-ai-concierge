@@ -280,17 +280,36 @@ export const TripSavingsCalculator = () => {
                   body={`Eso usa el ${(computed.ratio * 100).toFixed(0)}% de tu capacidad de ahorro (${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes). Cualquier imprevisto te puede tronar el plan. Considera bajar variables o mover la fecha 1-2 meses.`}
                 />
               )}
-              {computed.estado === "imposible" && (
-                <Verdict
-                  icon={<AlertTriangle className="w-6 h-6 text-destructive" />}
-                  title={`No alcanza con tu ritmo actual`}
-                  body={
-                    computed.capacidadAhorro <= 0
-                      ? `Tus gastos (${fmtMoney(computed.fijos + computed.variables, computed.currency)}/mes) ya superan tus ingresos (${fmtMoney(computed.ingreso, computed.currency)}/mes) por ${fmtMoney(Math.abs(computed.capacidadAhorro), computed.currency)}. Antes de pensar en el viaje, recorta al menos ${fmtMoney(Math.abs(computed.capacidadAhorro) + Math.ceil(computed.faltante / Math.max(1, computed.meses)), computed.currency)}/mes en variables o sube ingresos para generar margen.`
-                      : `Necesitas ahorrar ${fmtMoney(computed.ahorroRequerido, computed.currency)}/mes pero tu margen real es ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes. Recorta ${fmtMoney(computed.recorteSugerido, computed.currency)}/mes en variables, sube ingresos, o mueve la salida ${Math.max(1, Math.ceil(computed.faltante / computed.capacidadAhorro) - computed.meses)} ${Math.max(1, Math.ceil(computed.faltante / computed.capacidadAhorro) - computed.meses) === 1 ? "mes" : "meses"} adelante.`
-                  }
-                />
+              {computed.estado === "imposible" && (() => {
+                const mesesNecesarios = computed.capacidadAhorro > 0
+                  ? Math.ceil(computed.faltante / computed.capacidadAhorro)
+                  : 0;
+                const mesesExtra = Math.max(1, mesesNecesarios - computed.meses);
+                const variablesTotal = computed.variables;
+                const recorteRealista = Math.min(computed.recorteSugerido, variablesTotal);
+
+                let body: string;
+                if (computed.capacidadAhorro <= 0) {
+                  body = `Tus gastos (${fmtMoney(computed.fijos + computed.variables, computed.currency)}/mes) superan tus ingresos (${fmtMoney(computed.ingreso, computed.currency)}/mes) por ${fmtMoney(Math.abs(computed.capacidadAhorro), computed.currency)}. Primero genera margen positivo recortando variables o subiendo ingresos; después volvemos a calcular el viaje.`;
+                } else if (variablesTotal < computed.recorteSugerido * 0.5) {
+                  // No hay de dónde recortar — empuja mover fecha
+                  body = `Con tu margen de ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes y solo ${computed.meses} ${computed.meses === 1 ? "mes" : "meses"} hasta la salida, no alcanza. La salida más realista: mueve la fecha ${mesesExtra} ${mesesExtra === 1 ? "mes" : "meses"} adelante (${mesesNecesarios} meses ahorrando ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes ≈ ${fmtMoney(computed.capacidadAhorro * mesesNecesarios, computed.currency)}).`;
+                } else {
+                  body = `Necesitas ahorrar ${fmtMoney(computed.ahorroRequerido, computed.currency)}/mes pero tu margen real es ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes. Opciones: recorta hasta ${fmtMoney(recorteRealista, computed.currency)}/mes en variables, sube ingresos, o mueve la salida ${mesesExtra} ${mesesExtra === 1 ? "mes" : "meses"} adelante.`;
+                }
+
+                return (
+                  <Verdict
+                    icon={<AlertTriangle className="w-6 h-6 text-destructive" />}
+                    title="No alcanza con tu ritmo actual"
+                    body={body}
+                  />
+                );
+              })()}
+              {computed.costoViaje === 0 && (
+                <p className="text-sm text-muted-foreground">Este viaje todavía no tiene costo estimado. Termina de planearlo y vuelve.</p>
               )}
+
 
               {computed.costoViaje === 0 && (
                 <p className="text-sm text-muted-foreground">Este viaje todavía no tiene costo estimado. Termina de planearlo y vuelve.</p>
