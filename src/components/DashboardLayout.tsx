@@ -59,7 +59,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </div>
 
       {/* Sidebar — black glassmorphism luxury (fixed) */}
-      <aside className="hidden md:flex flex-col w-[200px] border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen z-30">
+      <aside className="hidden lg:flex flex-col w-[200px] border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen z-30">
 
         {/* Brand */}
         <Link to="/dashboard" className="flex items-center justify-center px-4 pt-6 pb-5 border-b border-white/[0.04]">
@@ -126,9 +126,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </aside>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 overflow-x-hidden pb-32 md:pb-0 md:pl-[200px] relative">
+      <main className="flex-1 min-w-0 overflow-x-hidden pb-32 lg:pb-0 lg:pl-[200px] relative">
         {/* Mobile top bar — notifications + profile avatar */}
-        <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
+        <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
           <Link to="/dashboard" className="flex items-center">
             <img src={iatosLogo} alt="IATOS" className="h-7 w-auto object-contain" />
           </Link>
@@ -154,7 +154,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             </button>
           </div>
         </div>
-        <div className="hidden md:flex absolute top-4 right-4 z-40 items-center gap-1">
+        <div className="hidden lg:flex absolute top-4 right-4 z-40 items-center gap-1">
           <NotificationBell />
           <button
             onClick={() => navigate("/dashboard/perfil")}
@@ -169,7 +169,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </main>
 
       {/* Mobile bottom nav — labels under icons, centered floating gold (+) */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
         <div className="relative mx-2 rounded-[28px] border border-white/[0.06] bg-black/75 backdrop-blur-2xl shadow-[0_18px_60px_-12px_rgba(0,0,0,0.85)]">
           <div className="grid grid-cols-7 items-end px-1.5 pt-2 pb-2 gap-0.5">
             {mobileNav.map((n) => (
