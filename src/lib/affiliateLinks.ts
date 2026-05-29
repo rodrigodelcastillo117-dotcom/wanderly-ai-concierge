@@ -112,14 +112,13 @@ export function googleMapsSearchLink(query: string, city?: string) {
 
 
 export function trainlineLink(origin: string, destination: string, date: string) {
-
-  // Trainline /book/results requiere hashes internos de estación; el deep-link
-  // con nombres de ciudad devuelve 500. Usamos la búsqueda SEO pública que
-  // siempre carga y rellena origen/destino en la UI.
-  const o = encodeURIComponent(origin.trim());
-  const d = encodeURIComponent(destination.trim());
-  return `https://www.thetrainline.com/trains/from-${o}/to-${d}?outwardDate=${date}`;
+  // Trainline no expone deep-link público con nombres de ciudad (requiere
+  // hashes internos de estación). Mandamos a la landing con un hint en hash
+  // para que el usuario complete origen/destino en la UI.
+  const hint = `#from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&date=${date}`;
+  return `https://www.thetrainline.com/${hint}`;
 }
+
 
 export function omioLink(origin: string, destination: string, date: string) {
   // Omio /search-frontend requiere IDs internos; usamos su buscador público
