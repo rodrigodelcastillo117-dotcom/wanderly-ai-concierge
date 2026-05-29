@@ -33,7 +33,14 @@ Deno.serve(async (req) => {
   // --- end auth gate ---
   try {
     const url = new URL(req.url);
-    const query = (url.searchParams.get('query') ?? '').trim().slice(0, 100);
+    let query = (url.searchParams.get('query') ?? '').trim();
+    if (!query && (req.method === 'POST' || req.method === 'PUT')) {
+      try {
+        const body = await req.json();
+        query = String(body?.query ?? '').trim();
+      } catch { /* ignore */ }
+    }
+    query = query.slice(0, 100);
     if (!query) {
       return new Response(JSON.stringify({ error: 'query required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
