@@ -154,7 +154,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             </button>
           </div>
         </div>
-        <div className="hidden md:flex absolute top-4 right-4 z-40 items-center gap-1">
+        <div className="hidden lg:flex absolute top-4 right-4 z-40 items-center gap-1">
           <NotificationBell />
           <button
             onClick={() => navigate("/dashboard/perfil")}
