@@ -396,15 +396,15 @@ const TripDetail = () => {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-background to-background p-5 md:p-6"
+            className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-background to-background p-4 md:p-6"
           >
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.15),transparent_60%)]" />
             <div className="relative flex flex-col md:flex-row md:items-center gap-4">
-              <div className="flex items-start gap-3 flex-1">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                   <Sparkles className="w-5 h-5 text-primary" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-sm">
                     <span className="font-semibold text-primary">Fechas Optimizadas por IATOS:</span>{" "}
                     <span className="text-muted-foreground">
@@ -424,7 +424,7 @@ const TripDetail = () => {
               </div>
               <button
                 onClick={() => navigate(`/dashboard/viajes/${id}/editar`)}
-                className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/50 text-primary text-xs font-medium hover:bg-primary/10 transition"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-primary/50 px-4 py-2 text-xs font-medium text-primary transition hover:bg-primary/10 md:w-auto md:shrink-0"
               >
                 <Pencil className="w-3.5 h-3.5" />
                 Cambiar fechas y re-cotizar
@@ -469,10 +469,12 @@ const TripDetail = () => {
 
         {/* TODO POR DESTINO — un menú único, plegable, colapsado por default */}
         <div className="space-y-4">
-          <div className="flex items-center gap-3 mb-1">
-            <RouteIcon className="w-5 h-5 text-primary" />
-            <h2 className="font-display text-3xl">Tu viaje por destino</h2>
-            <span className="ml-auto text-xs text-muted-foreground italic">Toca cada destino para explorar</span>
+          <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <RouteIcon className="w-5 h-5 text-primary shrink-0" />
+              <h2 className="font-display text-2xl sm:text-3xl break-words">Tu viaje por destino</h2>
+            </div>
+            <span className="text-xs text-muted-foreground italic sm:ml-auto">Toca cada destino para explorar</span>
           </div>
 
           {(isMulti ? destinationsMulti : [trip.destino]).map((city: string, cityIdx: number, allCities: string[]) => {
@@ -519,7 +521,7 @@ const TripDetail = () => {
                   {/* Cómo llegar */}
                   {cityVuelos.length > 0 && (
                     <SubBlock icon={isMulti ? RouteIcon : Plane} title={isMulti ? "Cómo llegar" : "Vuelos sugeridos"}>
-                      <div className="grid md:grid-cols-2 gap-3">
+                      <div className="grid min-w-0 md:grid-cols-2 gap-3">
                         {cityVuelos.map((v: any) => {
                           const i = (trip.vuelos_json ?? []).indexOf(v);
                           const active = selVuelo === i;
@@ -567,13 +569,13 @@ const TripDetail = () => {
                           const i = (trip.hospedaje_json ?? []).indexOf(h);
                           const active = selHospedaje === i;
                           return (
-                            <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                            <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                               <HotelCard hotel={h} city={city} active={active} onClick={() => setSelHospedaje(active ? -1 : i)} />
                             </div>
                           );
                         })}
                         {!isMulti && (
-                          <div className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                          <div className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                             <SkipCard active={selHospedaje === -2} onClick={() => setSelHospedaje(selHospedaje === -2 ? -1 : -2)}
                               title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
                           </div>
@@ -590,13 +592,13 @@ const TripDetail = () => {
                           return (
                             <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group">
                               <summary
-                                className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-surface/60 transition"
+                                className="flex items-center justify-between gap-3 p-4 cursor-pointer list-none hover:bg-surface/60 transition"
                               >
-                                <div className="flex items-center gap-3">
-                                  <span className="font-display text-xl gold-text w-8">{String(d.dia).padStart(2, "0")}</span>
-                                  <span className="font-medium text-sm">{d.titulo}</span>
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <span className="font-display text-xl gold-text w-8 shrink-0">{String(d.dia).padStart(2, "0")}</span>
+                                  <span className="font-medium text-sm break-words">{d.titulo}</span>
                                 </div>
-                                <ChevronDown className="w-4 h-4 text-primary transition-transform group-open:rotate-180" />
+                                <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
                               </summary>
                               <div className="px-4 pb-4 pt-1 border-t border-border/40 space-y-2 text-xs">
                                 <div><span className="text-primary tracking-wider uppercase">Mañana</span><p className="mt-0.5 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
@@ -618,7 +620,7 @@ const TripDetail = () => {
                           const i = (trip.tours_json ?? []).indexOf(t);
                           const active = selTours.has(i);
                           return (
-                            <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                            <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                               <ExpandableItemCard
                                 imageQuery={`${t.nombre} ${city} experience tour`}
                                 eyebrow={t.duracion}
@@ -642,7 +644,7 @@ const TripDetail = () => {
                     <SubBlock icon={Utensils} title="Restaurantes recomendados">
                       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
                         {cityRest.map((r: any, i: number) => (
-                          <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                          <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                             <ExpandableItemCard
                               imageQuery={`${r.nombre} ${city} restaurant food`}
                               eyebrow={r.cocina}
