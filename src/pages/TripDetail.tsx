@@ -651,6 +651,7 @@ const TripDetail = () => {
                   {/* Restaurantes recomendados */}
                   {cityRest.length > 0 && (
                     <SubBlock icon={Utensils} title="Restaurantes recomendados">
+                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
                         {cityRest.map((r: any, i: number) => {
                           const cleanName = r.nombre.replace(` · ${city}`, "");
                           return (
@@ -670,12 +671,9 @@ const TripDetail = () => {
                             </div>
                           );
                         })}
-
-                            </ExpandableItemCard>
-                          </div>
-                        ))}
                       </div>
                     </SubBlock>
+
                   )}
                 </div>
               </CityCollapsible>
