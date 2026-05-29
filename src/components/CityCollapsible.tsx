@@ -9,14 +9,10 @@ const inflight = new Map<string, Promise<string | null>>();
 
 const fetchPexels = async (q: string): Promise<string | null> => {
   try {
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    const res = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/pexels-image?query=${encodeURIComponent(q)}`,
-      { headers: { apikey: anonKey } },
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
+    const { data, error } = await supabase.functions.invoke("pexels-image", {
+      body: { query: q },
+    });
+    if (error) return null;
     return (data?.image as string) ?? null;
   } catch {
     return null;
