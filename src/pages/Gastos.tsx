@@ -112,16 +112,26 @@ export const Gastos = () => {
           <button
             onClick={() => setTab("lista")}
             className={`px-5 py-2 rounded-full text-sm transition flex items-center gap-2 ${tab === "lista" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Receipt className="w-4 h-4" /> Lista
-          </button>
           <button
             onClick={() => setTab("smart")}
             className={`px-5 py-2 rounded-full text-sm transition flex items-center gap-2 ${tab === "smart" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
             <PieChart className="w-4 h-4" /> Smart Spend
           </button>
+          <button
+            onClick={() => setTab("calc")}
+            className={`px-5 py-2 rounded-full text-sm transition flex items-center gap-2 ${tab === "calc" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Calculator className="w-4 h-4" /> Calculadora de viaje
+          </button>
         </div>
+
+        {tab === "calc" ? (
+          <TripSavingsCalculator />
+        ) : tab === "smart" ? (
+          <SmartSpendPanel />
+        ) : (
+        <>
 
         {tab === "smart" ? (
           <SmartSpendPanel />
