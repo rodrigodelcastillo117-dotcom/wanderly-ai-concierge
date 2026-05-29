@@ -153,20 +153,6 @@ export function uberLink(pickupLat?: number, pickupLng?: number, dropoffName?: s
 }
 
 
-export function uberLink(pickupLat?: number, pickupLng?: number, dropoffName?: string) {
-  const p = new URLSearchParams({ action: "setPickup" });
-  if (pickupLat && pickupLng) {
-    p.set("pickup[latitude]", String(pickupLat));
-    p.set("pickup[longitude]", String(pickupLng));
-  } else {
-    p.set("pickup", "my_location");
-  }
-  if (dropoffName) {
-    p.set("dropoff[formatted_address]", dropoffName);
-    p.set("dropoff[nickname]", dropoffName);
-  }
-  return `https://m.uber.com/ul/?${p.toString()}`;
-}
 
 export function discoverCarsLink(city: string, pickup: string, ret: string) {
   // Discover Cars usa búsqueda con texto libre
