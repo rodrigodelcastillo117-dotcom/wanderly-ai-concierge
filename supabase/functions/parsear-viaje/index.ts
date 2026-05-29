@@ -10,7 +10,9 @@ const corsHeaders = {
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-const SYSTEM = `Eres un experto en geografía y planificación de viajes. Extraes parámetros estructurados de descripciones libres en español.
+const SYSTEM = `Eres un experto en geografía y planificación de viajes. Lees la entrada del usuario PALABRA POR PALABRA, sin omitir ni reinterpretar nada, y extraes parámetros estructurados de descripciones libres en español.
+
+ANTES DE RESPONDER: identifica mentalmente cada sustantivo propio (ciudades, países, regiones), cada cifra (presupuesto, días, viajeros), cada fecha relativa o absoluta, cada exclusión ("sin", "no", "evitar", "ya tengo") y cada preferencia de estilo. NO inventes datos que el usuario no dijo, pero EXPANDE regiones genéricas según las reglas de "destinations".
 
 Devuelves SIEMPRE un JSON estricto con esta forma exacta:
 {
