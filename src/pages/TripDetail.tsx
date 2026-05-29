@@ -280,47 +280,48 @@ const TripDetail = () => {
   return (
     <DashboardLayout>
       {/* HERO */}
-      <div className="relative h-[60vh] min-h-[420px] overflow-hidden">
+      <div className="relative h-[60vh] min-h-[500px] md:min-h-[420px] overflow-hidden">
         <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={trip.cover_image_url ?? santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-overlay" />
 
 
-        <div className="absolute top-6 right-6 flex items-center gap-2">
+        <div className="absolute top-4 inset-x-4 z-20 flex flex-wrap items-start justify-end gap-2 md:top-6 md:right-6 md:left-auto md:flex-nowrap">
           <button
             onClick={toggleFavorite}
             aria-label={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
-            className="inline-flex items-center justify-center w-9 h-9 rounded-full glass-card hover:gold-border transition"
+            className="inline-flex items-center justify-center w-9 h-9 rounded-full glass-card hover:gold-border transition shrink-0"
           >
             <Heart className={`w-4 h-4 ${isFavorite ? "fill-primary text-primary" : "text-foreground"}`} />
           </button>
           <button
             onClick={handleDownloadPdf}
             disabled={generatingPdf}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition disabled:opacity-50 shrink-0"
+            aria-label={generatingPdf ? "Generando PDF" : "Compartir PDF"}
           >
             <Download className="w-3.5 h-3.5 text-primary" />
-            {generatingPdf ? "Generando…" : "Compartir PDF"}
+            <span className="hidden sm:inline">{generatingPdf ? "Generando…" : "Compartir PDF"}</span>
           </button>
           <InviteFriendDialog tripId={trip.id} isOwner={user?.id === trip.user_id} />
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
         </div>
-        <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 max-w-5xl">
+        <div className="absolute inset-x-0 bottom-0 max-w-5xl p-4 sm:p-6 md:p-12">
           {trip.match_score && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium mb-4">
               <Star className="w-3 h-3 fill-current" /> {trip.match_score}% match con tu perfil
             </div>
           )}
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{trip.pais_destino}</p>
-          <h1 className="font-display text-5xl md:text-7xl leading-none mb-4">{trip.destino}</h1>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+          <h1 className="font-display text-4xl sm:text-5xl md:text-7xl leading-tight mb-4 break-words">{trip.destino}</h1>
+          <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
             <Popover open={editingDates} onOpenChange={setEditingDates}>
               <PopoverTrigger asChild>
-                <button className="flex items-center gap-1.5 hover:text-primary transition group">
+                <button className="flex max-w-full min-w-0 items-center gap-1.5 text-left hover:text-primary transition group">
                   <Calendar className="w-3.5 h-3.5" /> {formatDateOnly(trip.fecha_salida)} – {formatDateOnly(trip.fecha_regreso)}
                   <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 space-y-3" align="start">
+              <PopoverContent className="w-72 max-w-[calc(100vw-2rem)] space-y-3" align="start">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Editar fechas</p>
                 <label className="block text-xs">
                   Salida
@@ -346,7 +347,7 @@ const TripDetail = () => {
                   <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-56 space-y-3" align="start">
+              <PopoverContent className="w-56 max-w-[calc(100vw-2rem)] space-y-3" align="start">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Nº de viajeros</p>
                 <Input type="number" min={1} max={20} defaultValue={viajeros} id="edit-viajeros" />
                 <Button size="sm" disabled={savingMeta} className="w-full" onClick={() => {
@@ -356,17 +357,17 @@ const TripDetail = () => {
                 }}>Guardar</Button>
               </PopoverContent>
             </Popover>
-            <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Desde {trip.ciudad_origen}</span>
+            <span className="flex max-w-full min-w-0 items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="break-words">Desde {trip.ciudad_origen}</span></span>
           </div>
         </div>
       </div>
 
-      <div className="p-6 md:p-12 max-w-5xl space-y-8">
+      <div className="max-w-5xl space-y-8 p-4 sm:p-6 md:p-12">
         {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-3 md:grid-cols-7 gap-3"
+          className="grid grid-cols-2 min-[380px]:grid-cols-3 md:grid-cols-7 gap-3"
         >
           {[
             { icon: Radio, label: "Live", to: `/dashboard/viajes/${id}/live` },
