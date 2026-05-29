@@ -318,6 +318,46 @@ const Concierge = () => {
           </div>
         </div>
 
+        {/* TABS: Chat / Members Only */}
+        <div className="px-4 md:px-8 pt-3 border-b border-border bg-background/60 backdrop-blur flex gap-1">
+          <button
+            onClick={() => switchTab("chat")}
+            className={`relative px-4 py-2.5 text-sm tracking-wide transition ${
+              tab === "chat" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <span className="inline-flex items-center gap-2"><Crown className="w-3.5 h-3.5" />Concierge</span>
+            {tab === "chat" && <span className="absolute left-2 right-2 -bottom-px h-0.5 bg-gradient-gold rounded-full" />}
+          </button>
+          <button
+            onClick={() => switchTab("members")}
+            className={`relative px-4 py-2.5 text-sm tracking-wide transition ${
+              tab === "members" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <span className="inline-flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" />Members Only</span>
+            {tab === "members" && <span className="absolute left-2 right-2 -bottom-px h-0.5 bg-gradient-gold rounded-full" />}
+          </button>
+        </div>
+
+        {tab === "members" ? (
+          <div className="flex-1 overflow-y-auto">
+            <MembersOnlyPanel
+              onReserve={(v) => {
+                switchTab("chat");
+                setTimeout(() => {
+                  sendText(
+                    `Quiero reservar en ${v.nombre} (${v.ciudad_display}) — ${v.categoria}. ` +
+                    (v.dress_code ? `Dress code: ${v.dress_code}. ` : "") +
+                    (v.precio_estimado ? `Rango: ${v.precio_estimado}. ` : "") +
+                    `Por favor consigue la mejor mesa/horario disponible para esta semana, confírmame opciones y procede a reservar.`,
+                  );
+                }, 250);
+              }}
+            />
+          </div>
+        ) : (
+          <>
         {/* CHAT STREAM */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
           <TravelerAvatar />
