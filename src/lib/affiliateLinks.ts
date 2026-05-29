@@ -202,18 +202,14 @@ export function ferryhopperLink(origin: string, destination: string, date: strin
   const trip = `${encodeURIComponent(origin)}-${encodeURIComponent(destination)}_${date}`;
   return `https://www.ferryhopper.com/en/booking?trips=${trip}&adults=${passengers}`;
 }
-
 export function directFerriesLink(origin: string, destination: string, date: string, passengers = 1) {
-  // /ferry_search.htm devuelve 404. Usamos su buscador SEO por ruta que sí
-  // existe y, si no resuelve la ruta exacta, cae al buscador con el query.
-  const o = encodeURIComponent(origin.trim().replace(/\s+/g, "-"));
-  const d = encodeURIComponent(destination.trim().replace(/\s+/g, "-"));
-  return `https://www.directferries.com/${o}_to_${d}_ferry.htm?outdate=${date}&adults=${passengers}`;
+  // El buscador con query params (?from=...&to=...) sí carga (200) aunque no
+  // resuelva la ruta exacta — siempre el usuario puede afinar en la UI.
+  const p = new URLSearchParams({ from: origin, to: destination, outdate: date, adults: String(passengers) });
+  return `https://www.directferries.com/?${p.toString()}`;
 }
 
 export function aferryLink(origin: string, destination: string, date: string) {
-  // Las slugs de /ferry-routes/ sólo funcionan para rutas conocidas. Usamos el
-  // buscador genérico con query params para no devolver 404.
   const p = new URLSearchParams({ from: origin, to: destination, date });
   return `https://www.aferry.com/?${p.toString()}`;
 }
