@@ -671,15 +671,15 @@ const TripDetail = () => {
         {/* Cruceros alternativos */}
         {Array.isArray(trip.cruceros_json) && trip.cruceros_json.length > 0 && (
           <details className="glass-card rounded-2xl group" open>
-            <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-              <div className="flex items-center gap-3">
-                <Ship className="w-5 h-5 text-primary" />
-                <h2 className="font-display text-xl">¿Y si lo haces en crucero?</h2>
+            <summary className="flex items-center justify-between gap-3 p-4 sm:p-5 cursor-pointer list-none">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+                <Ship className="w-5 h-5 text-primary shrink-0" />
+                <h2 className="font-display text-lg sm:text-xl break-words">¿Y si lo haces en crucero?</h2>
                 <span className="text-xs text-muted-foreground">({trip.cruceros_json.length} alternativas reales)</span>
               </div>
-              <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
+              <ChevronDown className="w-5 h-5 shrink-0 text-primary transition-transform group-open:rotate-180" />
             </summary>
-            <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
+            <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
               <p className="text-xs text-muted-foreground italic">
                 Reemplazan parte del itinerario por isla/puerto con un crucero todo-incluido. Precios cotizados por persona.
               </p>
@@ -690,11 +690,11 @@ const TripDetail = () => {
                 return (
                   <div key={i} className="rounded-xl border border-border/60 bg-surface/40 p-4 md:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{c.naviera}{c.barco ? ` · ${c.barco}` : ""}</p>
-                        <h3 className="font-display text-lg leading-tight mt-0.5">{c.nombre_itinerario}</h3>
+                        <h3 className="font-display text-lg leading-tight mt-0.5 break-words">{c.nombre_itinerario}</h3>
                       </div>
-                      <span className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/30 whitespace-nowrap">
+                      <span className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
                         {c.noches} noches · {c.categoria_cabina}
                       </span>
                     </div>
@@ -709,8 +709,8 @@ const TripDetail = () => {
                       <p className="text-xs mb-2"><span className="text-muted-foreground">Incluye:</span> {c.incluye.join(", ")}</p>
                     )}
                     <p className="text-sm italic text-foreground/80 mb-3">{c.por_que}</p>
-                    <div className="flex flex-wrap items-end justify-between gap-3">
-                      <div>
+                    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+                      <div className="min-w-0">
                         {(() => {
                           const pp = Number(c.precio_por_persona)
                             || (Number(c.precio_total) && viajeros ? Number(c.precio_total) / viajeros : 0);
@@ -739,7 +739,7 @@ const TripDetail = () => {
                       </div>
                       <button
                         onClick={() => navigate(cruceroUrl)}
-                        className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition"
+                        className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 sm:w-auto"
                       >
                         Ver y reservar
                       </button>
@@ -754,11 +754,11 @@ const TripDetail = () => {
         {/* Desglose */}
         {computedTotal > 0 && (
           <div className="glass-card rounded-2xl">
-            <div className="flex items-center gap-3 p-5">
-              <Compass className="w-5 h-5 text-primary" />
-              <h2 className="font-display text-xl">Desglose de presupuesto</h2>
+            <div className="flex items-center gap-3 p-4 sm:p-5">
+              <Compass className="w-5 h-5 text-primary shrink-0" />
+              <h2 className="font-display text-lg sm:text-xl break-words">Desglose de presupuesto</h2>
             </div>
-            <div className="px-5 pb-5 pt-1 border-t border-border/40">
+            <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40">
               <ReadonlyBudget
                 desglose={computedDesglose}
                 total={computedTotal}
@@ -772,15 +772,15 @@ const TripDetail = () => {
         {/* Tips */}
         {trip.tips_personalizados?.length > 0 && (
           <details className="glass-card rounded-2xl group">
-            <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-              <div className="flex items-center gap-3">
-                <Lightbulb className="w-5 h-5 text-primary" />
-                <h2 className="font-display text-xl">Tips de tu concierge</h2>
+            <summary className="flex items-center justify-between gap-3 p-4 sm:p-5 cursor-pointer list-none">
+              <div className="flex min-w-0 flex-wrap items-center gap-3">
+                <Lightbulb className="w-5 h-5 text-primary shrink-0" />
+                <h2 className="font-display text-lg sm:text-xl break-words">Tips de tu concierge</h2>
                 <span className="text-xs text-muted-foreground">({trip.tips_personalizados.length})</span>
               </div>
-              <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
+              <ChevronDown className="w-5 h-5 shrink-0 text-primary transition-transform group-open:rotate-180" />
             </summary>
-            <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
+            <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
               {trip.tips_personalizados.map((t: string, i: number) => (
                 <div key={i} className="flex gap-3">
                   <span className="font-display gold-text text-lg flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
