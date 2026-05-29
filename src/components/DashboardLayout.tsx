@@ -15,7 +15,6 @@ const links = [
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
   { to: "/dashboard/concierge", icon: Crown, label: "Concierge Pro" },
-  { to: "/dashboard/members", icon: Sparkles, label: "Members Only" },
 ];
 
 // Mobile bottom nav — all 7 tabs + floating (+) above the bar
