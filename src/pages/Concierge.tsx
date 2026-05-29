@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, Send, Phone, Sparkles, Cloud, MapPin, Utensils, Car, Siren,
@@ -9,6 +9,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { ConciergeActions } from "@/components/ConciergeActions";
 import { FlightStatusDialog } from "@/components/FlightStatusDialog";
 import { TravelerAvatar } from "@/components/TravelerAvatar";
+import { MembersOnlyPanel } from "@/components/MembersOnlyPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
