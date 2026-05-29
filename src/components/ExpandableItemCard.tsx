@@ -111,9 +111,31 @@ export const ExpandableItemCard = ({
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="pt-2 border-t border-border/40 text-sm text-muted-foreground space-y-2 break-words">
+              <div className="pt-2 border-t border-border/40 text-sm text-muted-foreground space-y-3 break-words">
                 {children}
+                {actions && actions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {actions.map((a) => (
+                      <a
+                        key={a.label + a.href}
+                        href={a.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                          a.primary
+                            ? "bg-primary/15 hover:bg-primary/25 text-primary border-primary/40"
+                            : "border-border/60 hover:border-primary/40 hover:text-primary text-foreground/80"
+                        }`}
+                      >
+                        {a.label}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
+
             </motion.div>
           )}
         </AnimatePresence>
