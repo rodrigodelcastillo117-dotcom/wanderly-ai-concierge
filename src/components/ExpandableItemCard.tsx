@@ -23,6 +23,8 @@ interface ExpandableItemCardProps {
   children?: ReactNode; // detalle expandido (por qué, notas, etc.)
 }
 
+export const ExpandableItemCard = ({
+  imageQuery,
   eyebrow,
   title,
   subtitle,
@@ -31,8 +33,10 @@ interface ExpandableItemCardProps {
   selectable = false,
   onToggle,
   defaultOpen = false,
+  actions,
   children,
 }: ExpandableItemCardProps) => {
+
   const [open, setOpen] = useState(defaultOpen);
   const img = useCityImage(imageQuery);
 
