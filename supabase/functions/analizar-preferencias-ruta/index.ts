@@ -47,14 +47,18 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const __apikey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const __serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const __token = __authHeader.replace(/^Bearer\s+/i, "");
+    if (!__serviceKey || __token !== __serviceKey) {
+      const __apikey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
     const __ures = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/user`, {
       headers: { Authorization: __authHeader, apikey: __apikey },
     });
     if (!__ures.ok) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
   } catch (_e) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
