@@ -445,6 +445,10 @@ const Concierge = () => {
             </button>
           </div>
         </div>
+          </>
+        )}
+
+
 
         {/* FIXER MODAL */}
         <AnimatePresence>
