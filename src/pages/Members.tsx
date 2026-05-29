@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { CityVideoCard } from "@/components/CityVideoCard";
 
 // Password gate (capa adicional sobre el 18+). Cambia este valor cuando quieras.
 const MEMBERS_PASSWORD = "iatos2026";
