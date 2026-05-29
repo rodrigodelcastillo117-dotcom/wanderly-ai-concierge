@@ -33,7 +33,7 @@ export const ExpandableItemCard = ({
 
   return (
     <div
-      className={`group relative rounded-2xl overflow-hidden border bg-card transition ${
+      className={`group relative max-w-full rounded-2xl overflow-hidden border bg-card transition ${
         active ? "border-primary ring-1 ring-primary/40 gold-glow" : "border-border/60 hover:border-primary/50"
       }`}
     >
@@ -59,7 +59,7 @@ export const ExpandableItemCard = ({
 
 
         {eyebrow && (
-          <span className="absolute top-3 left-3 text-[10px] tracking-[0.2em] uppercase text-primary bg-background/70 backdrop-blur-sm px-2 py-0.5 rounded-full border border-primary/30">
+          <span className="absolute left-3 right-3 top-3 w-fit max-w-[calc(100%-1.5rem)] break-words rounded-full border border-primary/30 bg-background/70 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-primary backdrop-blur-sm">
             {eyebrow}
           </span>
         )}
@@ -75,7 +75,7 @@ export const ExpandableItemCard = ({
         <div className="space-y-1">
           <p className="font-display text-base sm:text-lg leading-tight break-words" title={title}>{title}</p>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-          {price && <p className="text-xs text-primary font-medium">{price}</p>}
+          {price && <p className="text-xs text-primary font-medium break-words">{price}</p>}
         </div>
 
         {/* Toggle detalle */}
@@ -102,7 +102,7 @@ export const ExpandableItemCard = ({
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="pt-2 border-t border-border/40 text-sm text-muted-foreground space-y-2">
+              <div className="pt-2 border-t border-border/40 text-sm text-muted-foreground space-y-2 break-words">
                 {children}
               </div>
             </motion.div>

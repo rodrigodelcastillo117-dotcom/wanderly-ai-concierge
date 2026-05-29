@@ -280,47 +280,48 @@ const TripDetail = () => {
   return (
     <DashboardLayout>
       {/* HERO */}
-      <div className="relative h-[60vh] min-h-[420px] overflow-hidden">
+      <div className="relative h-[calc(100vh-3.25rem)] min-h-[560px] md:h-[60vh] md:min-h-[420px] overflow-hidden">
         <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={trip.cover_image_url ?? santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-overlay" />
 
 
-        <div className="absolute top-6 right-6 flex items-center gap-2">
+        <div className="absolute top-4 inset-x-4 z-20 flex flex-wrap items-start justify-end gap-2 md:top-6 md:right-6 md:left-auto md:flex-nowrap">
           <button
             onClick={toggleFavorite}
             aria-label={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
-            className="inline-flex items-center justify-center w-9 h-9 rounded-full glass-card hover:gold-border transition"
+            className="inline-flex items-center justify-center w-9 h-9 rounded-full glass-card hover:gold-border transition shrink-0"
           >
             <Heart className={`w-4 h-4 ${isFavorite ? "fill-primary text-primary" : "text-foreground"}`} />
           </button>
           <button
             onClick={handleDownloadPdf}
             disabled={generatingPdf}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition disabled:opacity-50 shrink-0"
+            aria-label={generatingPdf ? "Generando PDF" : "Compartir PDF"}
           >
             <Download className="w-3.5 h-3.5 text-primary" />
-            {generatingPdf ? "Generando…" : "Compartir PDF"}
+            <span className="hidden sm:inline">{generatingPdf ? "Generando…" : "Compartir PDF"}</span>
           </button>
           <InviteFriendDialog tripId={trip.id} isOwner={user?.id === trip.user_id} />
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
         </div>
-        <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 max-w-5xl">
+        <div className="absolute inset-x-0 bottom-36 max-w-5xl p-4 sm:bottom-28 sm:p-6 md:bottom-0 md:p-12">
           {trip.match_score && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium mb-4">
               <Star className="w-3 h-3 fill-current" /> {trip.match_score}% match con tu perfil
             </div>
           )}
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{trip.pais_destino}</p>
-          <h1 className="font-display text-5xl md:text-7xl leading-none mb-4">{trip.destino}</h1>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+          <h1 className="font-display text-3xl min-[380px]:text-4xl sm:text-5xl md:text-7xl leading-tight mb-3 md:mb-4 break-words">{trip.destino}</h1>
+          <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
             <Popover open={editingDates} onOpenChange={setEditingDates}>
               <PopoverTrigger asChild>
-                <button className="flex items-center gap-1.5 hover:text-primary transition group">
+                <button className="flex max-w-full min-w-0 items-center gap-1.5 text-left hover:text-primary transition group">
                   <Calendar className="w-3.5 h-3.5" /> {formatDateOnly(trip.fecha_salida)} – {formatDateOnly(trip.fecha_regreso)}
                   <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 space-y-3" align="start">
+              <PopoverContent className="w-72 max-w-[calc(100vw-2rem)] space-y-3" align="start">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Editar fechas</p>
                 <label className="block text-xs">
                   Salida
@@ -346,7 +347,7 @@ const TripDetail = () => {
                   <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-56 space-y-3" align="start">
+              <PopoverContent className="w-56 max-w-[calc(100vw-2rem)] space-y-3" align="start">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Nº de viajeros</p>
                 <Input type="number" min={1} max={20} defaultValue={viajeros} id="edit-viajeros" />
                 <Button size="sm" disabled={savingMeta} className="w-full" onClick={() => {
@@ -356,17 +357,17 @@ const TripDetail = () => {
                 }}>Guardar</Button>
               </PopoverContent>
             </Popover>
-            <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Desde {trip.ciudad_origen}</span>
+            <span className="flex max-w-full min-w-0 items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="break-words">Desde {trip.ciudad_origen}</span></span>
           </div>
         </div>
       </div>
 
-      <div className="p-6 md:p-12 max-w-5xl space-y-8">
+      <div className="max-w-5xl space-y-8 p-4 sm:p-6 md:p-12">
         {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-3 md:grid-cols-7 gap-3"
+          className="grid grid-cols-2 min-[380px]:grid-cols-3 md:grid-cols-7 gap-3"
         >
           {[
             { icon: Radio, label: "Live", to: `/dashboard/viajes/${id}/live` },
@@ -395,15 +396,15 @@ const TripDetail = () => {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-background to-background p-5 md:p-6"
+            className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-background to-background p-4 md:p-6"
           >
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.15),transparent_60%)]" />
             <div className="relative flex flex-col md:flex-row md:items-center gap-4">
-              <div className="flex items-start gap-3 flex-1">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                   <Sparkles className="w-5 h-5 text-primary" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-sm">
                     <span className="font-semibold text-primary">Fechas Optimizadas por IATOS:</span>{" "}
                     <span className="text-muted-foreground">
@@ -423,7 +424,7 @@ const TripDetail = () => {
               </div>
               <button
                 onClick={() => navigate(`/dashboard/viajes/${id}/editar`)}
-                className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/50 text-primary text-xs font-medium hover:bg-primary/10 transition"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-primary/50 px-4 py-2 text-xs font-medium text-primary transition hover:bg-primary/10 md:w-auto md:shrink-0"
               >
                 <Pencil className="w-3.5 h-3.5" />
                 Cambiar fechas y re-cotizar
@@ -468,10 +469,12 @@ const TripDetail = () => {
 
         {/* TODO POR DESTINO — un menú único, plegable, colapsado por default */}
         <div className="space-y-4">
-          <div className="flex items-center gap-3 mb-1">
-            <RouteIcon className="w-5 h-5 text-primary" />
-            <h2 className="font-display text-3xl">Tu viaje por destino</h2>
-            <span className="ml-auto text-xs text-muted-foreground italic">Toca cada destino para explorar</span>
+          <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <RouteIcon className="w-5 h-5 text-primary shrink-0" />
+              <h2 className="font-display text-2xl sm:text-3xl break-words">Tu viaje por destino</h2>
+            </div>
+            <span className="text-xs text-muted-foreground italic sm:ml-auto">Toca cada destino para explorar</span>
           </div>
 
           {(isMulti ? destinationsMulti : [trip.destino]).map((city: string, cityIdx: number, allCities: string[]) => {
@@ -518,7 +521,7 @@ const TripDetail = () => {
                   {/* Cómo llegar */}
                   {cityVuelos.length > 0 && (
                     <SubBlock icon={isMulti ? RouteIcon : Plane} title={isMulti ? "Cómo llegar" : "Vuelos sugeridos"}>
-                      <div className="grid md:grid-cols-2 gap-3">
+                      <div className="grid min-w-0 md:grid-cols-2 gap-3">
                         {cityVuelos.map((v: any) => {
                           const i = (trip.vuelos_json ?? []).indexOf(v);
                           const active = selVuelo === i;
@@ -566,13 +569,13 @@ const TripDetail = () => {
                           const i = (trip.hospedaje_json ?? []).indexOf(h);
                           const active = selHospedaje === i;
                           return (
-                            <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                            <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                               <HotelCard hotel={h} city={city} active={active} onClick={() => setSelHospedaje(active ? -1 : i)} />
                             </div>
                           );
                         })}
                         {!isMulti && (
-                          <div className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                          <div className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                             <SkipCard active={selHospedaje === -2} onClick={() => setSelHospedaje(selHospedaje === -2 ? -1 : -2)}
                               title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
                           </div>
@@ -589,13 +592,13 @@ const TripDetail = () => {
                           return (
                             <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group">
                               <summary
-                                className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-surface/60 transition"
+                                className="flex items-center justify-between gap-3 p-4 cursor-pointer list-none hover:bg-surface/60 transition"
                               >
-                                <div className="flex items-center gap-3">
-                                  <span className="font-display text-xl gold-text w-8">{String(d.dia).padStart(2, "0")}</span>
-                                  <span className="font-medium text-sm">{d.titulo}</span>
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <span className="font-display text-xl gold-text w-8 shrink-0">{String(d.dia).padStart(2, "0")}</span>
+                                  <span className="font-medium text-sm break-words">{d.titulo}</span>
                                 </div>
-                                <ChevronDown className="w-4 h-4 text-primary transition-transform group-open:rotate-180" />
+                                <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
                               </summary>
                               <div className="px-4 pb-4 pt-1 border-t border-border/40 space-y-2 text-xs">
                                 <div><span className="text-primary tracking-wider uppercase">Mañana</span><p className="mt-0.5 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
@@ -617,7 +620,7 @@ const TripDetail = () => {
                           const i = (trip.tours_json ?? []).indexOf(t);
                           const active = selTours.has(i);
                           return (
-                            <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                            <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                               <ExpandableItemCard
                                 imageQuery={`${t.nombre} ${city} experience tour`}
                                 eyebrow={t.duracion}
@@ -641,7 +644,7 @@ const TripDetail = () => {
                     <SubBlock icon={Utensils} title="Restaurantes recomendados">
                       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
                         {cityRest.map((r: any, i: number) => (
-                          <div key={i} className="snap-start shrink-0 w-[78%] sm:w-[48%] md:w-[32%]">
+                          <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                             <ExpandableItemCard
                               imageQuery={`${r.nombre} ${city} restaurant food`}
                               eyebrow={r.cocina}
@@ -668,15 +671,15 @@ const TripDetail = () => {
         {/* Cruceros alternativos */}
         {Array.isArray(trip.cruceros_json) && trip.cruceros_json.length > 0 && (
           <details className="glass-card rounded-2xl group" open>
-            <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-              <div className="flex items-center gap-3">
-                <Ship className="w-5 h-5 text-primary" />
-                <h2 className="font-display text-xl">¿Y si lo haces en crucero?</h2>
+            <summary className="flex items-center justify-between gap-3 p-4 sm:p-5 cursor-pointer list-none">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+                <Ship className="w-5 h-5 text-primary shrink-0" />
+                <h2 className="font-display text-lg sm:text-xl break-words">¿Y si lo haces en crucero?</h2>
                 <span className="text-xs text-muted-foreground">({trip.cruceros_json.length} alternativas reales)</span>
               </div>
-              <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
+              <ChevronDown className="w-5 h-5 shrink-0 text-primary transition-transform group-open:rotate-180" />
             </summary>
-            <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
+            <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
               <p className="text-xs text-muted-foreground italic">
                 Reemplazan parte del itinerario por isla/puerto con un crucero todo-incluido. Precios cotizados por persona.
               </p>
@@ -687,11 +690,11 @@ const TripDetail = () => {
                 return (
                   <div key={i} className="rounded-xl border border-border/60 bg-surface/40 p-4 md:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{c.naviera}{c.barco ? ` · ${c.barco}` : ""}</p>
-                        <h3 className="font-display text-lg leading-tight mt-0.5">{c.nombre_itinerario}</h3>
+                        <h3 className="font-display text-lg leading-tight mt-0.5 break-words">{c.nombre_itinerario}</h3>
                       </div>
-                      <span className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/30 whitespace-nowrap">
+                      <span className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
                         {c.noches} noches · {c.categoria_cabina}
                       </span>
                     </div>
@@ -706,8 +709,8 @@ const TripDetail = () => {
                       <p className="text-xs mb-2"><span className="text-muted-foreground">Incluye:</span> {c.incluye.join(", ")}</p>
                     )}
                     <p className="text-sm italic text-foreground/80 mb-3">{c.por_que}</p>
-                    <div className="flex flex-wrap items-end justify-between gap-3">
-                      <div>
+                    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+                      <div className="min-w-0">
                         {(() => {
                           const pp = Number(c.precio_por_persona)
                             || (Number(c.precio_total) && viajeros ? Number(c.precio_total) / viajeros : 0);
@@ -736,7 +739,7 @@ const TripDetail = () => {
                       </div>
                       <button
                         onClick={() => navigate(cruceroUrl)}
-                        className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition"
+                        className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 sm:w-auto"
                       >
                         Ver y reservar
                       </button>
@@ -751,11 +754,11 @@ const TripDetail = () => {
         {/* Desglose */}
         {computedTotal > 0 && (
           <div className="glass-card rounded-2xl">
-            <div className="flex items-center gap-3 p-5">
-              <Compass className="w-5 h-5 text-primary" />
-              <h2 className="font-display text-xl">Desglose de presupuesto</h2>
+            <div className="flex items-center gap-3 p-4 sm:p-5">
+              <Compass className="w-5 h-5 text-primary shrink-0" />
+              <h2 className="font-display text-lg sm:text-xl break-words">Desglose de presupuesto</h2>
             </div>
-            <div className="px-5 pb-5 pt-1 border-t border-border/40">
+            <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40">
               <ReadonlyBudget
                 desglose={computedDesglose}
                 total={computedTotal}
@@ -769,15 +772,15 @@ const TripDetail = () => {
         {/* Tips */}
         {trip.tips_personalizados?.length > 0 && (
           <details className="glass-card rounded-2xl group">
-            <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-              <div className="flex items-center gap-3">
-                <Lightbulb className="w-5 h-5 text-primary" />
-                <h2 className="font-display text-xl">Tips de tu concierge</h2>
+            <summary className="flex items-center justify-between gap-3 p-4 sm:p-5 cursor-pointer list-none">
+              <div className="flex min-w-0 flex-wrap items-center gap-3">
+                <Lightbulb className="w-5 h-5 text-primary shrink-0" />
+                <h2 className="font-display text-lg sm:text-xl break-words">Tips de tu concierge</h2>
                 <span className="text-xs text-muted-foreground">({trip.tips_personalizados.length})</span>
               </div>
-              <ChevronDown className="w-5 h-5 text-primary transition-transform group-open:rotate-180" />
+              <ChevronDown className="w-5 h-5 shrink-0 text-primary transition-transform group-open:rotate-180" />
             </summary>
-            <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
+            <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40 space-y-3">
               {trip.tips_personalizados.map((t: string, i: number) => (
                 <div key={i} className="flex gap-3">
                   <span className="font-display gold-text text-lg flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>

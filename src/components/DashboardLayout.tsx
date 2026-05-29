@@ -126,7 +126,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </aside>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 overflow-x-hidden pb-28 md:pb-0 md:pl-[200px] relative">
+      <main className="flex-1 min-w-0 overflow-x-hidden pb-32 md:pb-0 md:pl-[200px] relative">
         {/* Mobile top bar — notifications + profile avatar */}
         <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
           <Link to="/dashboard" className="flex items-center">

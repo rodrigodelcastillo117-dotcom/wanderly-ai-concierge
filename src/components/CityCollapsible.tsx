@@ -93,7 +93,7 @@ export const CityCollapsible = ({
   const img = useCityImage(imageQuery || `${city} landmark travel`);
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24">
+    <div className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24 max-w-full">
       <button
         type="button"
         onClick={toggle}
@@ -109,18 +109,18 @@ export const CityCollapsible = ({
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/55 to-background/25" />
 
-        <div className="relative h-full flex items-center justify-between px-5 md:px-7">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-primary/15 border border-primary/40 flex items-center justify-center backdrop-blur-sm">
+        <div className="relative h-full flex items-center justify-between gap-3 px-4 md:px-7">
+          <div className="flex min-w-0 items-center gap-3 md:gap-4">
+            <div className="w-10 h-10 rounded-full bg-primary/15 border border-primary/40 flex items-center justify-center backdrop-blur-sm shrink-0">
               <MapPin className="w-4 h-4 text-primary" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] tracking-[0.3em] uppercase text-primary mb-1">Destino</p>
-              <h3 className="font-display text-2xl md:text-3xl leading-tight">{city}</h3>
-              {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+              <h3 className="font-display text-xl min-[380px]:text-2xl md:text-3xl leading-tight break-words">{city}</h3>
+              {subtitle && <p className="text-xs text-muted-foreground mt-1 break-words">{subtitle}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             {count != null && (
               <span className="hidden md:inline-flex text-xs px-2.5 py-1 rounded-full bg-background/60 border border-border backdrop-blur-sm">
                 {count} {count === 1 ? "opción" : "opciones"}
@@ -146,7 +146,7 @@ export const CityCollapsible = ({
         }}
         style={{ overflow: "hidden", willChange: "height, opacity" }}
       >
-        <div className="p-5 md:p-6 border-t border-border/60">{children}</div>
+        <div className="p-4 md:p-6 border-t border-border/60 max-w-full overflow-hidden">{children}</div>
       </motion.div>
     </div>
   );

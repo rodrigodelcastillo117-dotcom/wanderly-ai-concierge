@@ -57,7 +57,7 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card rounded-2xl p-8 md:p-10 mb-8 relative overflow-hidden"
+      className="glass-card rounded-2xl p-5 sm:p-8 md:p-10 mb-8 relative overflow-hidden max-w-full"
     >
       <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
         <p className="text-xs tracking-[0.2em] uppercase text-primary">
@@ -70,9 +70,9 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
       </div>
 
       {/* Costo por persona protagonista */}
-      <p className="font-display text-5xl md:text-6xl gold-text mb-1 leading-tight">
+      <p className="font-display text-4xl sm:text-5xl md:text-6xl gold-text mb-1 leading-tight break-words">
         {fmtMXN(porPersona)}
-        <span className="text-base md:text-lg text-muted-foreground font-sans ml-2">/ persona</span>
+        <span className="text-sm sm:text-base md:text-lg text-muted-foreground font-sans ml-2">/ persona</span>
       </p>
 
       {/* Total del viaje secundario */}
