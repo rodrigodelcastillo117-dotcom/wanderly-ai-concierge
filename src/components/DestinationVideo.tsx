@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
 
 
 interface DestinationVideoProps {
@@ -29,13 +31,19 @@ export const DestinationVideo = ({ query, fallbackImage, alt, className }: Desti
     const p =
       existing ??
       (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return { url: null, poster: null };
         const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/buscar-video?q=${encodeURIComponent(query)}`;
         const res = await fetch(url, {
-          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          headers: {
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+          },
         });
         if (!res.ok) return { url: null, poster: null };
         return (await res.json()) as { url: string | null; poster: string | null };
       })();
+
 
 
     inflight.set(query, p);
