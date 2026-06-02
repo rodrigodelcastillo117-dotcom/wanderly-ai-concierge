@@ -127,6 +127,17 @@ ${journeyLine}
 ${FULL_BODY_RULES}
 NO text, NO logos, NO watermarks, NO captions.`
       : `Premium cartoon caricature FULL BODY portrait of a single ${gender} luxury traveler standing confidently, looking into camera.
+Style: elegant premium cartoon caricature — high-end Disney/Pixar adult character design, luxury lifestyle illustration, NOT anime, NOT childish. Sophisticated, aspirational.
+Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, premium fashion illustration aesthetic.
+Cultural vibe: ${culture.vibe}. ${styleHint}.
+Outfit (head-to-toe, including shoes): ${culture.outfit}.
+Accessory: ${culture.accessory}.
+Setting: ${culture.background}.
+Lighting: ${culture.lighting}, elegant color harmony.
+${journeyLine}
+${FULL_BODY_RULES}
+Dark elegant background, gold and soft silver tones, NO text, NO logos, NO watermarks, NO captions.`;
+
 
 
     const userContent: any = selfieDataUrl
