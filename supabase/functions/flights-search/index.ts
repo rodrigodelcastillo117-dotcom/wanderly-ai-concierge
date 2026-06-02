@@ -127,7 +127,9 @@ Deno.serve(async (req) => {
       u.searchParams.set("adults", String(travelers));
       u.searchParams.set("currency", "USD");
       u.searchParams.set("hl", "es");
+      u.searchParams.set("sort_by", "2"); // cheapest first
       u.searchParams.set("api_key", serpKey);
+
 
       try {
         const ctrl = new AbortController();
