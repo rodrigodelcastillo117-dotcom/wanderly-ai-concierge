@@ -81,11 +81,12 @@ Deno.serve(async (req) => {
     ]);
 
     const lastTrip = trips?.[0];
-    const destino = overrideDestino ?? lastTrip?.destino ?? null;
+    const destino = overrideDestino ?? builder?.dream_destination ?? lastTrip?.destino ?? null;
     const pais = lastTrip?.pais_destino ?? null;
     const culture = detectCulture(destino, pais);
     const styleKey = overrideStyle ?? (prefs?.perfil_ia as any)?.estilo_dominante_key ?? "luxury";
     const styleHint = STYLE_HINTS[styleKey] ?? STYLE_HINTS.luxury;
+
 
     // Build a "travel journey" memory line so the avatar evolves with the user's trips
     const journey = (trips ?? [])
