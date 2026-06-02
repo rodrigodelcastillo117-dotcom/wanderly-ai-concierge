@@ -42,7 +42,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         supabase.from("ai_user_preferences").select("perfil_ia").eq("user_id", user.id).maybeSingle(),
       ]);
       const iaAvatar = (prefs?.perfil_ia as any)?.avatar_url ?? null;
-      setProfile({ full_name: prof?.full_name ?? null, avatar_url: iaAvatar ?? prof?.avatar_url ?? null });
+      // profiles.avatar_url is the single source of truth (Travel Avatar)
+      setProfile({ full_name: prof?.full_name ?? null, avatar_url: prof?.avatar_url ?? iaAvatar ?? null });
     })();
   }, [user]);
 

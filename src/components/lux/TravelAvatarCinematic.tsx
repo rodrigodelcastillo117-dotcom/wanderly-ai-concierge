@@ -48,8 +48,9 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const [{ data: prefs }, { data: trips }] = await Promise.all([
+      const [{ data: prefs }, { data: prof }, { data: trips }] = await Promise.all([
         supabase.from("ai_user_preferences").select("perfil_ia").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle(),
         supabase
           .from("trips")
           .select("destino, pais_destino, fecha_salida, created_at")
@@ -60,7 +61,8 @@ export const TravelAvatarCinematic = ({ dna }: Props) => {
       ]);
       if (cancelled) return;
       const p: any = prefs?.perfil_ia ?? {};
-      setAvatarUrl(p.avatar_url ?? null);
+      // profiles.avatar_url (Travel Avatar) tiene prioridad
+      setAvatarUrl((prof as any)?.avatar_url ?? p.avatar_url ?? null);
       setAvatarMeta(p.avatar_meta ?? null);
       const t = trips?.[0] ?? null;
       setLastTrip(t ? { destino: t.destino, pais_destino: (t as any).pais_destino ?? null } : null);
