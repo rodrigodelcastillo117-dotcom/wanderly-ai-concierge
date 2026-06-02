@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import iatosLogo from "@/assets/iatos-logo.png";
+import AvatarCreator from "@/components/AvatarCreator";
+
 
 type Answers = {
   ritmo_viaje: string;
@@ -267,42 +269,65 @@ const Onboarding = () => {
         { id: "celebracion", label: "Celebrar una ocasión especial", emoji: "🥂" },
       ]} />,
     },
+    {
+      title: "Por último, crea tu Travel Avatar",
+      subtitle: "Tu identidad de viajero estilo Pixar. Aparecerá en tu perfil, en Social y en tus viajes.",
+      canNext: () => true,
+      render: () => (
+        <AvatarCreator
+          onComplete={async (url) => {
+            if (url && user) {
+              await (supabase as any).from("profiles").update({ avatar_url: url }).eq("id", user.id);
+              toast.success("¡Avatar guardado!");
+            }
+            navigate("/dashboard");
+          }}
+          onSkip={() => navigate("/dashboard")}
+        />
+      ),
+    },
   ];
 
   const current = steps[step];
   const progress = ((step + 1) / steps.length) * 100;
+  const isAvatarStep = step === steps.length - 1;
 
   const next = async () => {
-    if (step < steps.length - 1) { setStep(step + 1); return; }
-    if (!user) return;
-    setSaving(true);
-    try {
-      let perfil_ia: any = null;
-      try {
-        const { data: audit } = await supabase.functions.invoke("auditar-perfil", {
-          body: { descripcion: a.mejor_viaje_descripcion, contexto: a },
-        });
-        perfil_ia = audit?.perfil ?? null;
-      } catch (e) { console.warn("auditar-perfil falló:", e); }
+    if (step < steps.length - 1) {
+      // Si es el penúltimo (proposito_viaje), guardar perfil antes de mostrar avatar
+      if (step === steps.length - 2 && user) {
+        setSaving(true);
+        try {
+          let perfil_ia: any = null;
+          try {
+            const { data: audit } = await supabase.functions.invoke("auditar-perfil", {
+              body: { descripcion: a.mejor_viaje_descripcion, contexto: a },
+            });
+            perfil_ia = audit?.perfil ?? null;
+          } catch (e) { console.warn("auditar-perfil falló:", e); }
 
-      const { error } = await (supabase as any).from("ai_user_preferences").upsert(
-        { user_id: user.id, ...a, perfil_ia, completado: true },
-        { onConflict: "user_id" }
-      );
-      if (error) throw error;
-      // También marcar travel_profiles.completado para que el login no vuelva a mandar al onboarding
-      await (supabase as any).from("travel_profiles").upsert(
-        { user_id: user.id, completado: true, perfil_ia },
-        { onConflict: "user_id" }
-      );
-      toast.success("¡Tu perfil de viajero está listo!");
-      navigate("/dashboard");
-    } catch (e: any) {
-      toast.error(e?.message ?? "No se pudo guardar tu perfil");
-    } finally {
-      setSaving(false);
+          const { error } = await (supabase as any).from("ai_user_preferences").upsert(
+            { user_id: user.id, ...a, perfil_ia, completado: true },
+            { onConflict: "user_id" }
+          );
+          if (error) throw error;
+          await (supabase as any).from("travel_profiles").upsert(
+            { user_id: user.id, completado: true, perfil_ia },
+            { onConflict: "user_id" }
+          );
+        } catch (e: any) {
+          toast.error(e?.message ?? "No se pudo guardar tu perfil");
+          setSaving(false);
+          return;
+        } finally {
+          setSaving(false);
+        }
+      }
+      setStep(step + 1);
+      return;
     }
   };
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -331,16 +356,19 @@ const Onboarding = () => {
             </motion.div>
           </AnimatePresence>
 
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0} className="text-muted-foreground">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Atrás
-            </Button>
-            <Button onClick={next} disabled={!current.canNext() || saving}
-              className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-12 px-8">
-              {saving ? "Auditando con IA..." : step === steps.length - 1 ? "Construir mi perfil" : "Continuar"}
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
+          {!isAvatarStep && (
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0} className="text-muted-foreground">
+                <ArrowLeft className="w-4 h-4 mr-2" /> Atrás
+              </Button>
+              <Button onClick={next} disabled={!current.canNext() || saving}
+                className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-12 px-8">
+                {saving ? "Guardando perfil..." : step === steps.length - 2 ? "Casi listo" : "Continuar"}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          )}
+
         </div>
       </main>
     </div>

@@ -66,6 +66,12 @@ Deno.serve(async (req) => {
     const overrideDestino: string | undefined = body?.destino;
     const gender: string = body?.gender ?? "androgynous";
     const selfieDataUrl: string | undefined = body?.selfie;
+    const builder: undefined | {
+      gender?: string; skin?: string; hair_style?: string; hair_color?: string;
+      outfit_style?: string; accessory?: string; dream_destination?: string;
+      vibe?: string;
+    } = body?.builder;
+
 
     // Pull signals
     const [{ data: prefs }, { data: profile }, { data: trips }] = await Promise.all([
@@ -75,11 +81,12 @@ Deno.serve(async (req) => {
     ]);
 
     const lastTrip = trips?.[0];
-    const destino = overrideDestino ?? lastTrip?.destino ?? null;
+    const destino = overrideDestino ?? builder?.dream_destination ?? lastTrip?.destino ?? null;
     const pais = lastTrip?.pais_destino ?? null;
     const culture = detectCulture(destino, pais);
     const styleKey = overrideStyle ?? (prefs?.perfil_ia as any)?.estilo_dominante_key ?? "luxury";
     const styleHint = STYLE_HINTS[styleKey] ?? STYLE_HINTS.luxury;
+
 
     // Build a "travel journey" memory line so the avatar evolves with the user's trips
     const journey = (trips ?? [])
@@ -104,6 +111,21 @@ Lighting: ${culture.lighting}, cinematic soft luxury glow, elegant color harmony
 ${journeyLine}
 ${FULL_BODY_RULES}
 NO text, NO logos, NO watermarks, NO captions.`
+      : builder
+      ? `Premium cartoon caricature FULL BODY portrait of a single ${builder.gender ?? gender} luxury traveler, standing confidently and smiling, looking into camera.
+Style: elegant premium cartoon caricature — high-end Disney/Pixar adult character design, luxury lifestyle illustration, NOT anime, NOT childish, NOT chibi. Sophisticated, aspirational, joyful.
+Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, premium fashion illustration aesthetic.
+Character traits (MUST match exactly):
+- Skin tone: ${builder.skin ?? "natural medium"}.
+- Hair: ${builder.hair_style ?? "modern stylish"} in ${builder.hair_color ?? "natural"} color.
+- Outfit (head-to-toe, including shoes): ${builder.outfit_style ?? culture.outfit}.
+- Holding / wearing accessory: ${builder.accessory ?? culture.accessory}.
+- Overall vibe: ${builder.vibe ?? culture.vibe}. ${styleHint}.
+Setting: ${culture.background}${builder.dream_destination ? ` — inspired by ${builder.dream_destination}` : ""}.
+Lighting: ${culture.lighting}, cinematic soft luxury glow, elegant color harmony.
+${journeyLine}
+${FULL_BODY_RULES}
+NO text, NO logos, NO watermarks, NO captions.`
       : `Premium cartoon caricature FULL BODY portrait of a single ${gender} luxury traveler standing confidently, looking into camera.
 Style: elegant premium cartoon caricature — high-end Disney/Pixar adult character design, luxury lifestyle illustration, NOT anime, NOT childish. Sophisticated, aspirational.
 Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, premium fashion illustration aesthetic.
@@ -115,6 +137,8 @@ Lighting: ${culture.lighting}, elegant color harmony.
 ${journeyLine}
 ${FULL_BODY_RULES}
 Dark elegant background, gold and soft silver tones, NO text, NO logos, NO watermarks, NO captions.`;
+
+
 
     const userContent: any = selfieDataUrl
       ? [
