@@ -127,7 +127,9 @@ Deno.serve(async (req) => {
       u.searchParams.set("adults", String(travelers));
       u.searchParams.set("currency", "USD");
       u.searchParams.set("hl", "es");
+      u.searchParams.set("sort_by", "2"); // cheapest first
       u.searchParams.set("api_key", serpKey);
+
 
       try {
         const ctrl = new AbortController();
@@ -136,7 +138,10 @@ Deno.serve(async (req) => {
         if (r.ok) {
           const j = await r.json();
           google_flights_url = j?.search_metadata?.google_flights_url ?? null;
-          const all = [...(j?.best_flights ?? []), ...(j?.other_flights ?? [])].slice(0, 12);
+          const all = [...(j?.best_flights ?? []), ...(j?.other_flights ?? [])]
+            .filter((f: any) => Number(f?.price ?? 0) > 0)
+            .sort((a: any, b: any) => Number(a.price) - Number(b.price))
+            .slice(0, 12);
           results = all.map((f: any) => {
             const segs = f.flights ?? [];
             const dur = f.total_duration ?? 0;
@@ -156,6 +161,7 @@ Deno.serve(async (req) => {
               airline_buy_url: airlineSiteSearch(airline, origin, destination, depart, return_date ?? depart),
             };
           });
+
         } else {
           console.error("serpapi flights status:", r.status);
         }

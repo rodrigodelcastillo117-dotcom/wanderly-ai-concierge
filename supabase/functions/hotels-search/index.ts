@@ -66,13 +66,20 @@ Deno.serve(async (req) => {
       u.searchParams.set("currency", "USD");
       u.searchParams.set("hl", "es");
       if (hotel_class) u.searchParams.set("hotel_class", hotel_class);
-      u.searchParams.set("sort_by", "8");
+      u.searchParams.set("sort_by", "3"); // 3 = lowest price
       u.searchParams.set("api_key", serpKey);
       try {
         const r = await fetch(u.toString());
         if (r.ok) {
           const j = await r.json();
-          const props = (j?.properties ?? []).slice(0, 15);
+          const props = (j?.properties ?? [])
+            .filter((p: any) => Number(p?.rate_per_night?.extracted_lowest ?? p?.total_rate?.extracted_lowest ?? 0) > 0)
+            .sort((a: any, b: any) => {
+              const pa = Number(a?.rate_per_night?.extracted_lowest ?? a?.total_rate?.extracted_lowest ?? 9e9);
+              const pb = Number(b?.rate_per_night?.extracted_lowest ?? b?.total_rate?.extracted_lowest ?? 9e9);
+              return pa - pb;
+            })
+            .slice(0, 15);
           results = props.map((p: any) => ({
             name: p.name,
             rating: p.overall_rating ?? null,
@@ -85,6 +92,7 @@ Deno.serve(async (req) => {
             link: p.link ?? null,
             booking_url: bookingUrl(`${p.name} ${city}`, checkin, checkout, adults),
           }));
+
         } else console.error("hotels status", r.status);
       } catch (e) { console.error("hotels err", (e as Error).message); }
     }
