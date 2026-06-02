@@ -69,21 +69,28 @@ async function serpFlights(key: string, dep: string, arr: string, outbound: stri
   u.searchParams.set("arrival_id", arr);
   u.searchParams.set("outbound_date", outbound);
   u.searchParams.set("return_date", ret);
+  u.searchParams.set("type", "1"); // round trip
   u.searchParams.set("adults", String(travelers));
   u.searchParams.set("currency", "USD");
   u.searchParams.set("hl", "es");
+  u.searchParams.set("sort_by", "2"); // 2 = lowest price
   u.searchParams.set("api_key", key);
   const r = await fetch(u.toString());
   if (!r.ok) throw new Error(`flights ${r.status}`);
   const j = await r.json();
-  const best = j?.best_flights?.[0] ?? j?.other_flights?.[0];
+  // Combina todas las opciones y elige la MÁS BARATA real
+  const all = [...(j?.best_flights ?? []), ...(j?.other_flights ?? [])]
+    .filter((f: any) => Number(f?.price ?? 0) > 0)
+    .sort((a: any, b: any) => Number(a.price) - Number(b.price));
+  const best = all[0];
   if (!best) return null;
   const segs = best.flights ?? [];
   const airline = segs[0]?.airline ?? "—";
   const airline_logo = segs[0]?.airline_logo ?? null;
   const duration_min = best.total_duration ?? segs.reduce((s: number, x: any) => s + (x.duration ?? 0), 0);
   return {
-    price_usd: Number(best.price ?? 0),         // total para todos los adultos
+    price_usd: Number(best.price ?? 0),
+    price_per_person_usd: Math.round(Number(best.price ?? 0) / Math.max(1, travelers)),
     airline,
     airline_logo,
     duration: `${Math.floor(duration_min / 60)}h ${duration_min % 60}m`,
@@ -102,14 +109,23 @@ async function serpHotels(key: string, city: string, checkin: string, checkout: 
   u.searchParams.set("adults", String(travelers));
   u.searchParams.set("currency", "USD");
   u.searchParams.set("hl", "es");
-  u.searchParams.set("hotel_class", "4,5");
-  u.searchParams.set("sort_by", "8"); // lowest price
+  // Sin filtro de clase: buscamos el MEJOR precio real, con buena calificación
+  u.searchParams.set("sort_by", "3"); // 3 = lowest price
+  u.searchParams.set("min_rating", "8"); // solo hoteles con buen rating real
   u.searchParams.set("api_key", key);
   const r = await fetch(u.toString());
   if (!r.ok) throw new Error(`hotels ${r.status}`);
   const j = await r.json();
-  const props = j?.properties ?? [];
-  const top = props.find((p: any) => p?.rate_per_night?.extracted_lowest) ?? props[0];
+  const props: any[] = (j?.properties ?? []).filter((p: any) =>
+    Number(p?.rate_per_night?.extracted_lowest ?? p?.total_rate?.extracted_lowest ?? 0) > 0
+  );
+  // Asegura el más barato real
+  props.sort((a, b) => {
+    const pa = Number(a?.rate_per_night?.extracted_lowest ?? a?.total_rate?.extracted_lowest ?? 9e9);
+    const pb = Number(b?.rate_per_night?.extracted_lowest ?? b?.total_rate?.extracted_lowest ?? 9e9);
+    return pa - pb;
+  });
+  const top = props[0];
   if (!top) return null;
   return {
     name: top.name,
@@ -120,6 +136,7 @@ async function serpHotels(key: string, city: string, checkin: string, checkout: 
     link: top.link ?? null,
   };
 }
+
 
 async function aiEstimate(apiKey: string, body: Body) {
   const travelers = Math.max(1, body.travelers ?? 1);
