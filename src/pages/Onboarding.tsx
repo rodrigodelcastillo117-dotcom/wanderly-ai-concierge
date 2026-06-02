@@ -356,16 +356,19 @@ const Onboarding = () => {
             </motion.div>
           </AnimatePresence>
 
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0} className="text-muted-foreground">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Atrás
-            </Button>
-            <Button onClick={next} disabled={!current.canNext() || saving}
-              className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-12 px-8">
-              {saving ? "Auditando con IA..." : step === steps.length - 1 ? "Construir mi perfil" : "Continuar"}
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
+          {!isAvatarStep && (
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0} className="text-muted-foreground">
+                <ArrowLeft className="w-4 h-4 mr-2" /> Atrás
+              </Button>
+              <Button onClick={next} disabled={!current.canNext() || saving}
+                className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-12 px-8">
+                {saving ? "Guardando perfil..." : step === steps.length - 2 ? "Casi listo" : "Continuar"}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          )}
+
         </div>
       </main>
     </div>
