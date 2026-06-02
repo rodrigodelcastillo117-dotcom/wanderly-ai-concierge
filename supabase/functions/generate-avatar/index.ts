@@ -111,17 +111,23 @@ Lighting: ${culture.lighting}, cinematic soft luxury glow, elegant color harmony
 ${journeyLine}
 ${FULL_BODY_RULES}
 NO text, NO logos, NO watermarks, NO captions.`
-      : `Premium cartoon caricature FULL BODY portrait of a single ${gender} luxury traveler standing confidently, looking into camera.
-Style: elegant premium cartoon caricature — high-end Disney/Pixar adult character design, luxury lifestyle illustration, NOT anime, NOT childish. Sophisticated, aspirational.
+      : builder
+      ? `Premium cartoon caricature FULL BODY portrait of a single ${builder.gender ?? gender} luxury traveler, standing confidently and smiling, looking into camera.
+Style: elegant premium cartoon caricature — high-end Disney/Pixar adult character design, luxury lifestyle illustration, NOT anime, NOT childish, NOT chibi. Sophisticated, aspirational, joyful.
 Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, premium fashion illustration aesthetic.
-Cultural vibe: ${culture.vibe}. ${styleHint}.
-Outfit (head-to-toe, including shoes): ${culture.outfit}.
-Accessory: ${culture.accessory}.
-Setting: ${culture.background}.
-Lighting: ${culture.lighting}, elegant color harmony.
+Character traits (MUST match exactly):
+- Skin tone: ${builder.skin ?? "natural medium"}.
+- Hair: ${builder.hair_style ?? "modern stylish"} in ${builder.hair_color ?? "natural"} color.
+- Outfit (head-to-toe, including shoes): ${builder.outfit_style ?? culture.outfit}.
+- Holding / wearing accessory: ${builder.accessory ?? culture.accessory}.
+- Overall vibe: ${builder.vibe ?? culture.vibe}. ${styleHint}.
+Setting: ${culture.background}${builder.dream_destination ? ` — inspired by ${builder.dream_destination}` : ""}.
+Lighting: ${culture.lighting}, cinematic soft luxury glow, elegant color harmony.
 ${journeyLine}
 ${FULL_BODY_RULES}
-Dark elegant background, gold and soft silver tones, NO text, NO logos, NO watermarks, NO captions.`;
+NO text, NO logos, NO watermarks, NO captions.`
+      : `Premium cartoon caricature FULL BODY portrait of a single ${gender} luxury traveler standing confidently, looking into camera.
+
 
     const userContent: any = selfieDataUrl
       ? [
