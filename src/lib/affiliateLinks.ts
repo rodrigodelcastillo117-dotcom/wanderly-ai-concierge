@@ -5,6 +5,7 @@
 export const TP_MARKER = "533299";
 
 export function ensureAviasalesMarker(url: string) {
+  if (!/^https:\/\/(www\.)?aviasales\.com\//i.test(url)) return url;
   if (/[?&]marker=/.test(url)) return url;
   return `${url}${url.includes("?") ? "&" : "?"}marker=${TP_MARKER}`;
 }

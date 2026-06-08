@@ -54,6 +54,7 @@ async function aiIata(apiKey: string, city: string): Promise<string | null> {
 const DEFAULT_TP_MARKER = (Deno.env.get("TRAVELPAYOUTS_MARKER") || "533299").trim() || "533299";
 
 function ensureAviasalesMarker(url: string) {
+  if (!/^https:\/\/(www\.)?aviasales\.com\//i.test(url)) return url;
   if (/[?&]marker=/.test(url)) return url;
   return `${url}${url.includes("?") ? "&" : "?"}marker=${DEFAULT_TP_MARKER}`;
 }
