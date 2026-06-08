@@ -126,12 +126,24 @@ const TripMap = () => {
     })();
   }, [id]);
 
-  // 2. Cargar script Maps JS (robusto: callback + polling de respaldo)
+  // 2. Cargar script Maps JS (robusto: callback + importLibrary)
   useEffect(() => {
     if (!BROWSER_KEY) return;
-    if ((window as any).google?.maps) { setMapReady(true); return; }
+    let cancelled = false;
+    const markReady = async () => {
+      try {
+        const g = (window as any).google?.maps;
+        if (!g) return;
+        if (g.importLibrary) await g.importLibrary("maps");
+        if (!cancelled) setMapReady(true);
+      } catch (error) {
+        console.error("No se pudo cargar la librería de mapas", error);
+        if (!cancelled) setMapError("No se pudo cargar Google Maps. Actualiza la página e inténtalo de nuevo.");
+      }
+    };
+    if ((window as any).google?.maps) { void markReady(); return () => { cancelled = true; }; }
     // Siempre (re)asignamos el callback al setter actual
-    window.initTripMap = () => setMapReady(true);
+    window.initTripMap = () => { void markReady(); };
     if (!document.getElementById("gmaps-trip-script")) {
       const s = document.createElement("script");
       s.id = "gmaps-trip-script";
@@ -142,12 +154,13 @@ const TripMap = () => {
     }
     // Polling de respaldo por si el callback ya se consumió en otra vista
     const iv = window.setInterval(() => {
-      if ((window as any).google?.maps) {
-        setMapReady(true);
+      const g = (window as any).google?.maps;
+      if (g?.Map || g?.importLibrary) {
+        void markReady();
         window.clearInterval(iv);
       }
     }, 250);
-    return () => window.clearInterval(iv);
+    return () => { cancelled = true; window.clearInterval(iv); };
   }, []);
 
   // 3. Inicializar el mapa una vez
