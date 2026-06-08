@@ -563,7 +563,7 @@ const TripMap = () => {
             <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60 px-6 text-center">
               {mapError}
             </div>
-          ) : !mapReady ? (
+          ) : !mapReady || !mapInitialized ? (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60">
               Cargando Google Maps…
             </div>
