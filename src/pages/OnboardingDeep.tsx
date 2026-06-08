@@ -41,7 +41,7 @@ const initial: Answers = {
 
 const RESTRICCIONES = ["Vegetariano", "Vegano", "Sin gluten", "Sin lactosa", "Kosher", "Halal", "Alergias a mariscos", "Alergias a frutos secos"];
 
-const Onboarding = () => {
+const OnboardingDeep = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -375,4 +375,4 @@ const Onboarding = () => {
   );
 };
 
-export default Onboarding;
+export default OnboardingDeep;
