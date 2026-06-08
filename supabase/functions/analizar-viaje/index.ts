@@ -724,9 +724,9 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
           sample: (tpFlights?.flights ?? []).slice(0, 3),
         },
         hotels: {
-          count: tpHotels?.hotels?.length ?? 0,
-          error: tpHotels?.error ?? null,
-          sample: (tpHotels?.hotels ?? []).slice(0, 3),
+          count: 0,
+          error: "Hotellook cerró en oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.",
+          sample: [],
         },
       },
     }), {
