@@ -510,7 +510,8 @@ Deno.serve(async (req) => {
       }),
     }).then((r) => r.json()).catch((e) => ({ source: "travelpayouts", error: String(e?.message ?? e), flights: [] }));
 
-    const tpHotelsPromise = fetch(`${SUPABASE_URL}/functions/v1/travelpayouts-hotels`, {
+    // Hotellook murió oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.
+    /* const tpHotelsPromise = fetch(`${SUPABASE_URL}/functions/v1/travelpayouts-hotels`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -524,12 +525,13 @@ Deno.serve(async (req) => {
         adults: body.num_viajeros,
         currency: "usd",
       }),
-    }).then((r) => r.json()).catch((e) => ({ source: "hotellook", error: String(e?.message ?? e), hotels: [] }));
+    }).then((r) => r.json()).catch((e) => ({ source: "hotellook", error: String(e?.message ?? e), hotels: [] })); */
 
-    const [perplexityResult, tpFlightsRes, tpHotelsRes] = await Promise.allSettled([
+    const [perplexityResult, tpFlightsRes] = await Promise.allSettled([
       investigarConPerplexity(body, dias, vaultDesc),
       tpFlightsPromise,
-      tpHotelsPromise,
+      // Hotellook murió oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.
+      // tpHotelsPromise,
     ]);
 
     const investigacion = perplexityResult.status === "fulfilled"
