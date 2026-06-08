@@ -26,11 +26,12 @@ const defaults = (uid: string): OnboardingState => ({
 
 export function useOnboardingStatus() {
   const { user } = useAuth();
+  const uid = user?.id ?? null;
   const [status, setStatus] = useState<OnboardingState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) {
+    if (!uid) {
       setStatus(null);
       setIsLoading(false);
       return;
@@ -39,22 +40,33 @@ export function useOnboardingStatus() {
     const { data } = await supabase
       .from("user_onboarding_state")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", uid)
       .maybeSingle();
 
     if (!data) {
-      const seed = defaults(user.id);
+      // Backfill: if this user already has trips or a travel_profile,
+      // they're a pre-existing user — mark onboarding complete.
+      const [{ count: tripCount }, { data: tp }] = await Promise.all([
+        supabase.from("trips").select("id", { count: "exact", head: true }).eq("user_id", uid),
+        supabase.from("travel_profiles").select("user_id").eq("user_id", uid).maybeSingle(),
+      ]);
+      const isExisting = (tripCount ?? 0) > 0 || !!tp;
+      const seed: OnboardingState = {
+        ...defaults(uid),
+        completed_onboarding: isExisting,
+        completed_at: isExisting ? new Date().toISOString() : null,
+        current_step: isExisting ? 5 : 1,
+      };
       await supabase.from("user_onboarding_state").upsert(seed, { onConflict: "user_id" });
-      // Re-read in case of race
       const { data: fresh } = await supabase
         .from("user_onboarding_state")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", uid)
         .maybeSingle();
       setStatus(fresh ? ({ ...seed, ...(fresh as any) }) : seed);
     } else {
       setStatus({
-        ...defaults(user.id),
+        ...defaults(uid),
         ...data,
         selected_cards: (data.selected_cards as any) ?? [],
         selected_loyalty_airlines: (data.selected_loyalty_airlines as any) ?? [],
@@ -62,11 +74,12 @@ export function useOnboardingStatus() {
       });
     }
     setIsLoading(false);
-  }, [user]);
+  }, [uid]);
 
   useEffect(() => {
     load();
   }, [load]);
+
 
   const markStepComplete = useCallback(
     async (step: number, data: Partial<OnboardingState>) => {
