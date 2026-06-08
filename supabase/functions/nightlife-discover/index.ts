@@ -81,13 +81,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    const norm = (s: string) => s.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const ciudadNorm = norm(body.ciudad);
+
     // 1. ¿Ya hay suficientes en DB?
     const { data: existentes } = await supabase
       .from("nightlife_premium")
       .select("*")
-      .ilike("ciudad", body.ciudad)
+      .eq("ciudad", ciudadNorm)
       .eq("active", true)
-      .order("rating", { ascending: false });
+      .order("nombre");
+
 
     if ((existentes?.length ?? 0) >= MIN_VENUES) {
       return new Response(JSON.stringify({ ciudad: body.ciudad, venues: existentes, fuente: "cache" }), {
