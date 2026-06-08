@@ -9,6 +9,8 @@ const corsHeaders = {
 };
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
+
 
 const SYSTEM = `Eres un experto en geografía y planificación de viajes. Lees la entrada del usuario PALABRA POR PALABRA, sin omitir ni reinterpretar nada, y extraes parámetros estructurados de descripciones libres en español.
 
