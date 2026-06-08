@@ -149,7 +149,34 @@ REGLAS ESTRICTAS DE PRECIOS:
     - Perplexity es SOLO contexto cualitativo (restaurantes, tours, tips, mejor temporada). NUNCA fuente de precios de vuelo si Travelpayouts trajo datos.
     - PROHIBIDO generar booking_link a google.com/travel, google.com/flights o búsquedas genéricas de Google. Está bloqueado por CORS y rompe la experiencia.
     - Para booking_link de cada vuelo: copia EXACTAMENTE el LINK del bloque TRAVELPAYOUTS (formato https://www.aviasales.com/...?marker=...). Si por algún motivo no tienes un link de Aviasales para un tier, usa el sitio oficial de la aerolínea: Aeroméxico → https://aeromexico.com, Iberia → https://iberia.com, American → https://aa.com, United → https://united.com, Delta → https://delta.com, Air France → https://airfrance.com, LATAM → https://latam.com, Avianca → https://avianca.com, KLM → https://klm.com, Lufthansa → https://lufthansa.com, British Airways → https://britishairways.com, Volaris → https://volaris.com, Viva → https://vivaaerobus.com. NUNCA google.com.
-    - Si Travelpayouts NO trajo datos (el bloque dice "Sin datos de Travelpayouts"), entonces sí cae a Perplexity para el precio, pero el booking_link sigue siendo el sitio oficial de la aerolínea — JAMÁS google.com/travel.`;
+    - Si Travelpayouts NO trajo datos (el bloque dice "Sin datos de Travelpayouts"), entonces sí cae a Perplexity para el precio, pero el booking_link sigue siendo el sitio oficial de la aerolínea — JAMÁS google.com/travel.
+16. LINKS DE RESTAURANTES — REGLA NO NEGOCIABLE:
+    Para el campo cta_action de cada restaurante en el array "restaurantes", usa SIEMPRE
+    un link real útil. Orden de prioridad:
+    A) Sitio web oficial del restaurante si lo conoces con certeza (ej. lhardy.com,
+       botin.es, restaurantecoque.com, pujol.com.mx, quintonil.com). Verifica que sea el
+       dominio real (.com / .es / .mx según país); NO inventes dominios.
+    B) Si NO sabes el sitio oficial con certeza, usa el sistema de reserva más probable
+       según el país:
+       - España: https://www.thefork.es/r/[nombre-restaurante]
+       - Francia: https://www.thefork.fr/r/[nombre-restaurante]
+       - Italia: https://www.thefork.it/r/[nombre-restaurante]
+       - UK: https://www.opentable.co.uk
+       - USA: https://www.opentable.com (para mainstream) o https://resy.com (para top)
+       - México: https://www.opentable.com.mx
+       - Japón: https://tabelog.com
+       - Resto del mundo: https://www.thefork.com
+    C) ÚLTIMO recurso si nada anterior aplica: link de búsqueda en Google Maps
+       https://www.google.com/maps/search/[NOMBRE+RESTAURANTE]+[CIUDAD]
+       (NO uses google.com/search ni búsquedas web genéricas — solo Google Maps porque
+       SÍ funciona en navegador y muestra el restaurante con info de reserva).
+    PROHIBIDO:
+    - Links de búsqueda genérica de Google (google.com/search?q=...)
+    - Links a Yelp, Tripadvisor sin URL específica
+    - Inventar dominios que no existen
+    - Dejar el campo cta_action vacío
+    Para restaurantes Michelin/World's 50 Best/icónicos: prefiere SIEMPRE el sitio
+    oficial del restaurante (regla A), no plataforma de reserva.`;
 
 const TOOL_SCHEMA = {
   name: "entregar_analisis_viaje",
@@ -234,6 +261,7 @@ const TOOL_SCHEMA = {
             cocina: { type: "string" },
             rango_precio: { type: "string" },
             por_que: { type: "string" },
+            cta_action: { type: "string", description: "Link de reserva oficial o plataforma de reserva real (TheFork, OpenTable, Resy, Tabelog, Google Maps). NUNCA google.com/search genérico." },
           },
           required: ["nombre", "cocina", "rango_precio", "por_que"],
         },
