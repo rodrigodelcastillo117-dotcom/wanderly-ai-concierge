@@ -108,6 +108,7 @@ const TripMap = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number>(-1);
   const [mapReady, setMapReady] = useState(false);
+  const [mapInitialized, setMapInitialized] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const tipMapa = useTooltipShown("mapa");
 
@@ -170,6 +171,7 @@ const TripMap = () => {
           fullscreenControl: true,
           backgroundColor: "#04070d",
         });
+        setMapInitialized(true);
       } catch (error) {
         console.error("No se pudo inicializar Google Maps", error);
         setMapError("No se pudo iniciar Google Maps. Actualiza la página e inténtalo de nuevo.");
@@ -180,7 +182,7 @@ const TripMap = () => {
 
   // 3b. Centra inmediatamente en el origen del viaje (fallback visual antes de geocodificar paradas)
   useEffect(() => {
-    if (!mapReady || !mapRef.current || !trip) return;
+    if (!mapInitialized || !mapRef.current || !trip) return;
     const seed = trip.ciudad_origen || trip.destino || trip.pais_destino;
     if (!seed) return;
     let cancelled = false;
@@ -191,7 +193,7 @@ const TripMap = () => {
       mapRef.current.setZoom(5);
     })();
     return () => { cancelled = true; };
-  }, [mapReady, trip]);
+  }, [mapInitialized, trip]);
 
   const days = useMemo(() => {
     if (!trip) return [];
@@ -212,7 +214,7 @@ const TripMap = () => {
 
   // 4. Geocodificar + dibujar todo cuando hay datos
   useEffect(() => {
-    if (!trip || !mapRef.current || !(window as any).google?.maps) return;
+    if (!trip || !mapInitialized || !mapRef.current || !(window as any).google?.maps) return;
     const map = mapRef.current;
     const g = (window as any).google.maps;
     let cancelled = false;
@@ -476,7 +478,7 @@ const TripMap = () => {
     })();
 
     return () => { cancelled = true; };
-  }, [trip, selectedDay, mapReady, showAll, dayPlan]);
+  }, [trip, selectedDay, mapInitialized, showAll, dayPlan]);
 
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center text-foreground/60">Cargando mapa…</div>;
