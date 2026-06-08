@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import { Cloud, CloudRain, Sun, CloudSnow, Wind, Droplets, MapPin, Calendar, Thermometer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { motion } from "framer-motion";
 
