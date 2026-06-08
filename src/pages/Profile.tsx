@@ -214,7 +214,7 @@ const Profile = () => {
             Actualiza tus preferencias y la IA recalibrará todas las recomendaciones.
           </p>
           <Button
-            onClick={() => navigate("/onboarding")}
+            onClick={() => navigate("/onboarding/deep")}
             variant="outline"
             className="border-primary/40 hover:bg-primary/10"
           >
