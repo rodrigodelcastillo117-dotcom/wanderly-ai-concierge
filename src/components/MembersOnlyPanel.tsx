@@ -180,14 +180,23 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                 ? "bg-gradient-gold text-primary-foreground border-transparent"
                 : "border-primary/20 text-muted-foreground hover:border-primary/40"
             }`}
-          >Todas</button>
-          {CATEGORIES.map((c) => (
+          >Todas <span className="opacity-60">({venues.length})</span></button>
+          {CATEGORIES.filter((c) => (categoryCounts[c.id] ?? 0) > 0).map((c) => (
             <button
               key={c.id}
               onClick={() => setActiveCat(c.id === activeCat ? null : c.id)}
               className={`px-4 py-2 rounded-full text-xs tracking-wide transition border ${
                 activeCat === c.id
                   ? "bg-gradient-gold text-primary-foreground border-transparent"
+                  : "border-primary/20 text-muted-foreground hover:border-primary/40"
+              }`}
+            >
+              <span className="mr-1">{c.emoji}</span>{c.label}
+              <span className="ml-1.5 opacity-60">({categoryCounts[c.id]})</span>
+            </button>
+          ))}
+        </div>
+      </div>
                   : "border-primary/20 text-muted-foreground hover:border-primary/40"
               }`}
             >
