@@ -306,15 +306,19 @@ const Concierge = () => {
 
             </div>
 
-            <button
-              onClick={() => setShowFixer(true)}
-              className="group relative flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl bg-white/5 border border-primary/30 hover:border-primary hover:bg-primary/10 transition text-sm"
-              title="Para caprichos imposibles o emergencias extremas, un humano VIP local tomará el control."
-            >
-              <Phone className="w-4 h-4 text-primary" />
-              <span className="hidden sm:inline">Contactar Fixer</span>
-              <span className="sm:hidden">Fixer</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <TravelerAvatar compact />
+              <button
+                onClick={() => setShowFixer(true)}
+                className="group relative flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl bg-white/5 border border-primary/30 hover:border-primary hover:bg-primary/10 transition text-sm"
+                title="Para caprichos imposibles o emergencias extremas, un humano VIP local tomará el control."
+              >
+                <Phone className="w-4 h-4 text-primary" />
+                <span className="hidden sm:inline">Contactar Fixer</span>
+                <span className="sm:hidden">Fixer</span>
+              </button>
+            </div>
+
           </div>
         </div>
 
@@ -360,7 +364,7 @@ const Concierge = () => {
           <>
         {/* CHAT STREAM */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
-          <TravelerAvatar />
+
           {messages.map(m => (
             <MessageBubble key={m.id} msg={m} />
           ))}
