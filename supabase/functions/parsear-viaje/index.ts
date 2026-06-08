@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
     }
 
     const hoy = new Date().toISOString().slice(0, 10);
+    const systemFinal = [MASTER_PROMPT_IATOS, SYSTEM].filter(Boolean).join("\n\n---\n\n");
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -73,9 +74,10 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3.1-pro-preview",
         messages: [
-          { role: "system", content: SYSTEM },
+          { role: "system", content: systemFinal },
           { role: "user", content: `Fecha actual: ${hoy}\n\nDescripción del viaje:\n${prompt}` },
         ],
+
         response_format: { type: "json_object" },
       }),
     });
