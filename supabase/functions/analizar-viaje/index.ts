@@ -537,9 +537,10 @@ Deno.serve(async (req) => {
       : { texto: `(Perplexity falló: ${(perplexityResult as any).reason?.message ?? "error"})`, citations: [] };
 
     const tpFlights = tpFlightsRes.status === "fulfilled" ? tpFlightsRes.value : { error: "promise_rejected", flights: [] };
-    const tpHotels = tpHotelsRes.status === "fulfilled" ? tpHotelsRes.value : { error: "promise_rejected", hotels: [] };
+    // Hotellook murió oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.
+    // const tpHotels = tpHotelsRes.status === "fulfilled" ? tpHotelsRes.value : { error: "promise_rejected", hotels: [] };
 
-    console.log("Perplexity citations:", investigacion.citations.length, "| TP flights:", tpFlights?.flights?.length ?? 0, "| TP hotels:", tpHotels?.hotels?.length ?? 0);
+    console.log("Perplexity citations:", investigacion.citations.length, "| TP flights:", tpFlights?.flights?.length ?? 0, "| TP hotels: deshabilitado (Hotellook cerró oct 2025)");
 
     // Bloques de texto que Claude verá para los precios reales de Travelpayouts
     const tpFlightsBlock = (() => {
@@ -553,16 +554,8 @@ Deno.serve(async (req) => {
       return `Fuente: Travelpayouts/Aviasales (precios oficiales del inventario, consultados ${tpFlights.consulted_at}).\nRuta: ${tpFlights.origin}→${tpFlights.destination}\n${lines}`;
     })();
 
-    const tpHotelsBlock = (() => {
-      if (!Array.isArray(tpHotels?.hotels) || tpHotels.hotels.length === 0) {
-        return `(Sin datos de Hotellook — usar hoteles de Perplexity${tpHotels?.error ? `. Motivo: ${tpHotels.error}` : ""})`;
-      }
-      const lines = tpHotels.hotels.slice(0, 15).map((h: any, i: number) => {
-        const perNightMxn = Math.round((Number(h.price_per_night) || 0) * 18.5);
-        return `${i + 1}. ${h.name} — ${h.stars ?? "?"}★ — rating ${h.rating ?? "?"} — USD ${h.price_per_night}/noche (~$${perNightMxn.toLocaleString("es-MX")} MXN) — ${h.location_name} — LINK: ${h.booking_link}`;
-      }).join("\n");
-      return `Fuente: Hotellook (precios oficiales de inventario, consultados ${tpHotels.consulted_at}).\nCiudad: ${tpHotels.city} | ${tpHotels.nights} noches | ${tpHotels.adults} adultos\n${lines}`;
-    })();
+    // Hotellook murió oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.
+    const tpHotelsBlock = "(Sin datos de Hotellook — servicio cerrado en octubre 2025. Usar hoteles de Perplexity.)";
 
     // PASO 2: Claude estructura el análisis usando los datos reales
     const userPrompt = `Genera un análisis premium de viaje usando EXCLUSIVAMENTE los precios reales investigados abajo.
@@ -724,9 +717,9 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
           sample: (tpFlights?.flights ?? []).slice(0, 3),
         },
         hotels: {
-          count: tpHotels?.hotels?.length ?? 0,
-          error: tpHotels?.error ?? null,
-          sample: (tpHotels?.hotels ?? []).slice(0, 3),
+          count: 0,
+          error: "Hotellook cerró en oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.",
+          sample: [],
         },
       },
     }), {
