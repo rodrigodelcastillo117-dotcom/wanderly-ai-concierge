@@ -69,6 +69,31 @@ async function resolverFechasSiFaltan(
 
 const TIER_ORDER = ["ahorro", "equilibrio", "premium"];
 
+const DEFAULT_TP_MARKER = (Deno.env.get("TRAVELPAYOUTS_MARKER") || "533299").trim() || "533299";
+
+/**
+ * CAPA DE SEGURIDAD (sub-regla 15.1): garantiza que TODO link de Aviasales
+ * en los vuelos lleve `?marker=...`. Si Claude truncó el marker al copiar el
+ * booking_link, lo re-inyectamos antes de guardar/responder. Esto protege la
+ * comisión de afiliado aunque el modelo se equivoque.
+ */
+function ensureMarkerInFlightLinks(vuelos: any[]): any[] {
+  if (!Array.isArray(vuelos)) return vuelos;
+  const marker = DEFAULT_TP_MARKER;
+  const fix = (url: unknown): unknown => {
+    if (typeof url !== "string" || !url) return url;
+    if (!url.startsWith("https://www.aviasales.com/") && !url.startsWith("https://aviasales.com/")) return url;
+    if (/[?&]marker=/.test(url)) return url;
+    return url + (url.includes("?") ? "&" : "?") + `marker=${marker}`;
+  };
+  for (const v of vuelos) {
+    if (!v || typeof v !== "object") continue;
+    if (v.booking_link) v.booking_link = fix(v.booking_link);
+    if (v.cta_action) v.cta_action = fix(v.cta_action);
+  }
+  return vuelos;
+}
+
 function normalizarVuelos(vuelos: any[]): any[] {
   if (!Array.isArray(vuelos)) return [];
 
