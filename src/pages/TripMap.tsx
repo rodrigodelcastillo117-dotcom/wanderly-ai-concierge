@@ -23,9 +23,12 @@ async function geocode(q: string): Promise<{ lat: number; lng: number } | null> 
   if (geoCache.has(key)) return geoCache.get(key)!;
   // 1) Browser Geocoder (rápido y confiable, sin edge function)
   const g = (window as any).google?.maps;
-  if (g?.Geocoder) {
+  if (g) {
     try {
-      const gc = new g.Geocoder();
+      const geocodingLib = g.importLibrary ? await g.importLibrary("geocoding") : null;
+      const GeocoderCtor = geocodingLib?.Geocoder ?? g.Geocoder;
+      if (!GeocoderCtor) throw new Error("Google Geocoder no está disponible");
+      const gc = new GeocoderCtor();
       const res: any = await new Promise((resolve) => {
         gc.geocode({ address: q }, (r: any, status: string) => {
           resolve(status === "OK" && r?.[0] ? r[0] : null);
@@ -105,6 +108,7 @@ const TripMap = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number>(-1);
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const tipMapa = useTooltipShown("mapa");
 
   const mapDivRef = useRef<HTMLDivElement>(null);
@@ -131,6 +135,7 @@ const TripMap = () => {
       const s = document.createElement("script");
       s.id = "gmaps-trip-script";
       s.async = true;
+      s.onerror = () => setMapError("No se pudo cargar Google Maps. Revisa la clave o el dominio autorizado.");
       s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
       document.head.appendChild(s);
     }
@@ -147,16 +152,30 @@ const TripMap = () => {
   // 3. Inicializar el mapa una vez
   useEffect(() => {
     if (!mapReady || !mapDivRef.current || mapRef.current) return;
-    mapRef.current = new (window as any).google.maps.Map(mapDivRef.current, {
-      center: { lat: 20, lng: 0 },
-      zoom: 2,
-      styles: NIGHT_STYLE,
-      disableDefaultUI: false,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true,
-      backgroundColor: "#04070d",
-    });
+    let cancelled = false;
+    (async () => {
+      try {
+        const g = (window as any).google?.maps;
+        const mapsLib = g?.importLibrary ? await g.importLibrary("maps") : g;
+        const MapCtor = mapsLib?.Map ?? g?.Map;
+        if (cancelled || !mapDivRef.current) return;
+        if (!MapCtor) throw new Error("Google Maps todavía no expone Map");
+        mapRef.current = new MapCtor(mapDivRef.current, {
+          center: { lat: 20, lng: 0 },
+          zoom: 2,
+          styles: NIGHT_STYLE,
+          disableDefaultUI: false,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+          backgroundColor: "#04070d",
+        });
+      } catch (error) {
+        console.error("No se pudo inicializar Google Maps", error);
+        setMapError("No se pudo iniciar Google Maps. Actualiza la página e inténtalo de nuevo.");
+      }
+    })();
+    return () => { cancelled = true; };
   }, [mapReady]);
 
   // 3b. Centra inmediatamente en el origen del viaje (fallback visual antes de geocodificar paradas)
