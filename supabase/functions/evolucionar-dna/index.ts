@@ -144,7 +144,7 @@ Genera el Travel DNA evolucionado. Detecta divergencias entre lo declarado y lo 
       body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
-          { role: "system", content: SYSTEM },
+          { role: "system", content: systemFinal },
           { role: "user", content: userPrompt },
         ],
         response_format: { type: "json_object" },
