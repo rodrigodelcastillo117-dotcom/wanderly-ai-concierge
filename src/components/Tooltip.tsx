@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ type TooltipProps = {
 /**
  * Contextual one-time tooltip. Dismissable, auto-hides after 8s, ESC to close.
  * - position="bottom": fixed banner at bottom of screen (mobile-friendly)
- * - position="top": fixed banner near top
+ * - position="top":    fixed banner near top
  * - position="inline": rendered in normal flow (anchor it yourself)
  */
 export function Tooltip({
@@ -28,9 +28,15 @@ export function Tooltip({
   autoHideMs = 8000,
   delayMs = 500,
 }: TooltipProps) {
-  // Delay before showing
-  const [visible, setVisible] = useDelayedVisible(delayMs);
+  const [visible, setVisible] = useState(false);
 
+  // Delayed mount
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), delayMs);
+    return () => clearTimeout(t);
+  }, [delayMs]);
+
+  // Auto-hide + ESC
   useEffect(() => {
     if (!visible) return;
     const t = setTimeout(() => onDismiss(), autoHideMs);
@@ -85,18 +91,26 @@ export function Tooltip({
   );
 }
 
-function useDelayedVisible(delayMs: number) {
-  const [visible, setVisible] = useStateBool(false);
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), delayMs);
-    return () => clearTimeout(t);
-  }, [delayMs]);
-  return [visible, setVisible] as const;
-}
-
-function useStateBool(initial: boolean) {
-  // tiny wrapper to keep imports terse
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const React = require("react") as typeof import("react");
-  return React.useState(initial);
+/**
+ * Convenience wrapper: pair with useTooltipShown in one line.
+ * Renders nothing if the tooltip was already dismissed.
+ */
+export function FeatureTooltip(props: {
+  id: string;
+  text: string;
+  icon?: string;
+  shouldShow: boolean;
+  onDismiss: () => void;
+  position?: TooltipProps["position"];
+}) {
+  if (!props.shouldShow) return null;
+  return (
+    <Tooltip
+      id={props.id}
+      text={props.text}
+      icon={props.icon}
+      position={props.position}
+      onDismiss={props.onDismiss}
+    />
+  );
 }
