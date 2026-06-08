@@ -48,23 +48,8 @@ const CompatRing = ({ score }: { score: number }) => {
 
 export default function Social() {
   const { user } = useAuth();
-  const { dna, reload } = useTravelDNA();
   const [params] = useSearchParams();
-  const [evolving, setEvolving] = useState(false);
 
-  const evolucionar = async () => {
-    setEvolving(true);
-    try {
-      const { error } = await supabase.functions.invoke("evolucionar-dna", { body: {} });
-      if (error) throw error;
-      toast.success("Travel DNA actualizado");
-      reload();
-    } catch (e: any) {
-      toast.error(e?.message ?? "No se pudo evolucionar");
-    } finally {
-      setEvolving(false);
-    }
-  };
 
   const divergencias: string[] = dna?.perfil?.divergencias_detectadas ?? [];
   const evolucionMsg = divergencias[0] ?? (dna && dna.tripCount > 0
