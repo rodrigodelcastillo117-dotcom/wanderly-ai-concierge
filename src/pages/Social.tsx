@@ -51,10 +51,7 @@ export default function Social() {
   const [params] = useSearchParams();
 
 
-  const divergencias: string[] = dna?.perfil?.divergencias_detectadas ?? [];
-  const evolucionMsg = divergencias[0] ?? (dna && dna.tripCount > 0
-    ? `Tu estilo dominante es ${dna.dominant}. Sigue viajando para refinar tu Travel DNA.`
-    : "Crea tu primer viaje para activar la evolución de tu avatar.");
+
   const [myCode, setMyCode] = useState<string>("");
   const [codeInput, setCodeInput] = useState<string>(params.get("codigo")?.toUpperCase() ?? "");
   const [amigos, setAmigos] = useState<Amigo[]>([]);
