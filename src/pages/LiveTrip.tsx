@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { BackButton } from "@/components/BackButton";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 
 // Números de emergencia por país (datos reales básicos)
 const EMERGENCY_NUMBERS: Record<string, { policia: string; ambulancia: string; bomberos: string }> = {
@@ -45,6 +47,7 @@ const LiveTrip = () => {
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sosOpen, setSosOpen] = useState(false);
+  const tipLive = useTooltipShown("live");
 
   useEffect(() => {
     if (!id || !user) return;
@@ -97,6 +100,7 @@ const LiveTrip = () => {
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
       <BackButton floating fallback={`/dashboard/viajes/${trip.id}`} />
+      <FeatureTooltip id="live" icon="🎙️" text="Modo en-viaje. Iato te avisa de retrasos, sugiere bares cerca, te recuerda confirmar reservas." shouldShow={tipLive.shouldShow} onDismiss={tipLive.dismiss} />
       {/* Ambient glow */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 -right-40 w-[520px] h-[520px] rounded-full bg-primary/[0.08] blur-[140px]" />

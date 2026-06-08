@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import { MapPin, Calendar, Hotel, Utensils, Activity, ExternalLink, Plane, Ship, Car, TrainFront } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 
 const BROWSER_KEY = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
 const TRACKING = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID;
@@ -103,6 +105,7 @@ const TripMap = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number>(-1);
   const [mapReady, setMapReady] = useState(false);
+  const tipMapa = useTooltipShown("mapa");
 
   const mapDivRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -466,6 +469,7 @@ const TripMap = () => {
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
       <BackButton floating />
+      <FeatureTooltip id="mapa" icon="📍" text="Aquí ves cada hotel, restaurante y experiencia geolocalizados. Tap para abrir en Google Maps." shouldShow={tipMapa.shouldShow} onDismiss={tipMapa.dismiss} />
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 -right-40 w-[520px] h-[520px] rounded-full bg-primary/[0.06] blur-[140px]" />
       </div>

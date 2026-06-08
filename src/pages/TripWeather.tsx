@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import { Cloud, CloudRain, Sun, CloudSnow, Wind, Droplets, MapPin, Calendar, Thermometer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { motion } from "framer-motion";
 
@@ -133,6 +135,7 @@ const TripWeather = () => {
   const [trip, setTrip] = useState<any>(null);
   const [blocks, setBlocks] = useState<CityBlock[]>([]);
   const [loading, setLoading] = useState(true);
+  const tipClima = useTooltipShown("clima");
 
   useEffect(() => {
     (async () => {
@@ -185,6 +188,7 @@ const TripWeather = () => {
 
   return (
     <DashboardLayout>
+      <FeatureTooltip id="clima" icon="☁️" text="Pronóstico día por día para empacar y planear con tiempo." shouldShow={tipClima.shouldShow} onDismiss={tipClima.dismiss} />
       <div className="p-6 md:p-10 max-w-5xl mx-auto">
         <div className="mb-8">
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">Clima</p>

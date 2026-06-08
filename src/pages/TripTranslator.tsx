@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import { Languages, Volume2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
@@ -28,6 +30,7 @@ const TripTranslator = () => {
   const [phrases, setPhrases] = useState<Phrase[]>([]);
   const [loading, setLoading] = useState(false);
   const [customInput, setCustomInput] = useState("");
+  const tipTrad = useTooltipShown("traductor");
 
   useEffect(() => {
     (async () => {
@@ -126,6 +129,7 @@ const TripTranslator = () => {
 
   return (
     <DashboardLayout>
+      <FeatureTooltip id="traductor" icon="🌐" text="Traductor offline para tu destino. Iato sugiere frases clave del país." shouldShow={tipTrad.shouldShow} onDismiss={tipTrad.dismiss} />
       <div className="p-6 md:p-10 max-w-3xl mx-auto">
         <div className="mb-6 flex items-center gap-3">
           <Languages className="w-7 h-7 text-primary" />

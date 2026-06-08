@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { BackButton } from "@/components/BackButton";
 import { diffDateOnlyDays } from "@/lib/dateUtils";
 import { toast } from "sonner";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 
 type Item = { id: string; text: string; done: boolean; category: string; sort_order: number };
 
@@ -91,6 +93,7 @@ const TripPacking = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [newItem, setNewItem] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const tipPacking = useTooltipShown("packing");
 
   const suggestWithAI = async () => {
     if (!trip || !id) return;
@@ -190,6 +193,7 @@ const TripPacking = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
+      <FeatureTooltip id="packing" icon="🎒" text="Lista de equipaje personalizada por destino, clima y duración del viaje." shouldShow={tipPacking.shouldShow} onDismiss={tipPacking.dismiss} />
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 -right-40 w-[520px] h-[520px] rounded-full bg-primary/[0.06] blur-[140px]" />
       </div>

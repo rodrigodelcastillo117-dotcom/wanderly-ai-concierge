@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 
 type Amigo = {
   amigo_id: string;
@@ -61,6 +63,7 @@ export default function Social() {
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [misiones, setMisiones] = useState<Mision[]>([]);
   const [perfilOpen, setPerfilOpen] = useState<Amigo | null>(null);
+  const tipSocial = useTooltipShown("social");
 
   const shareLink = useMemo(
     () => myCode ? `${window.location.origin}/dashboard/social?codigo=${myCode}` : "",
@@ -157,6 +160,7 @@ export default function Social() {
 
   return (
     <DashboardLayout>
+      <FeatureTooltip id="social" icon="👥" text="Compara Travel DNA con amigos, gana medallas, completa misiones de viajero." shouldShow={tipSocial.shouldShow} onDismiss={tipSocial.dismiss} />
       <div className="p-4 md:p-10 max-w-5xl mx-auto space-y-6 md:space-y-8 animate-fade-up">
         <header className="flex items-center gap-3">
           <Users className="w-6 h-6 md:w-7 md:h-7 text-primary" />
