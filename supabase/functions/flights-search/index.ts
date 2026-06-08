@@ -49,15 +49,38 @@ async function aiIata(apiKey: string, city: string): Promise<string | null> {
 }
 
 
-function googleFlightsUrl(o: string, d: string, dep: string, ret: string, adults: number) {
-  // Formato deep-link directo a Google Flights con filtros aplicados
-  const q = encodeURIComponent(`flights from ${o} to ${d} on ${dep} returning ${ret} for ${adults} adults`);
-  return `https://www.google.com/travel/flights?q=${q}`;
+// Aviasales deep-link con marker de afiliado Travelpayouts (formato DDMM).
+// NUNCA usamos google.com/travel — Google bloquea ese embed con ERR_BLOCKED_BY_RESPONSE.
+function aviasalesBuyUrl(depIata: string, arrIata: string, depart: string, ret: string, adults: number) {
+  const tpMarker = Deno.env.get("TRAVELPAYOUTS_MARKER") ?? (Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "").slice(0, 6) ?? "533299";
+  const dd = depart.split("-");
+  const rd = (ret ?? "").split("-");
+  const datePart = dd.length === 3 ? `${dd[2]}${dd[1]}` : "";
+  const retPart = rd.length === 3 ? `${rd[2]}${rd[1]}` : "";
+  return `https://www.aviasales.com/search/${depIata}${datePart}${arrIata}${retPart}${adults}?marker=${tpMarker}`;
 }
 
-function airlineSiteSearch(airline: string, o: string, d: string, dep: string, ret: string) {
-  const q = encodeURIComponent(`${airline} vuelo ${o} ${d} ${dep} ${ret}`);
-  return `https://www.google.com/search?q=${q}`;
+// Mapa de aerolíneas → sitio oficial (fallback cuando no hay link de Aviasales).
+const AIRLINE_SITES: Record<string, string> = {
+  "aeromexico": "https://aeromexico.com", "aeroméxico": "https://aeromexico.com", "am": "https://aeromexico.com",
+  "iberia": "https://iberia.com", "ib": "https://iberia.com",
+  "american": "https://aa.com", "american airlines": "https://aa.com", "aa": "https://aa.com",
+  "united": "https://united.com", "ua": "https://united.com",
+  "delta": "https://delta.com", "dl": "https://delta.com",
+  "air france": "https://airfrance.com", "af": "https://airfrance.com",
+  "klm": "https://klm.com", "kl": "https://klm.com",
+  "lufthansa": "https://lufthansa.com", "lh": "https://lufthansa.com",
+  "british airways": "https://britishairways.com", "ba": "https://britishairways.com",
+  "latam": "https://latam.com", "la": "https://latam.com",
+  "avianca": "https://avianca.com", "av": "https://avianca.com",
+  "volaris": "https://volaris.com", "y4": "https://volaris.com",
+  "viva aerobus": "https://vivaaerobus.com", "vivaaerobus": "https://vivaaerobus.com", "vb": "https://vivaaerobus.com",
+  "air canada": "https://aircanada.com", "ac": "https://aircanada.com",
+  "turkish airlines": "https://turkishairlines.com", "tk": "https://turkishairlines.com",
+};
+function airlineSiteSearch(airline: string, _o: string, _d: string, _dep: string, _ret: string) {
+  const key = (airline ?? "").toLowerCase().trim();
+  return AIRLINE_SITES[key] ?? `https://www.google.com/search?q=${encodeURIComponent(airline + " vuelos")}`;
 }
 
 Deno.serve(async (req) => {
