@@ -15,6 +15,34 @@ declare global {
   }
 }
 
+let tripMapsPromise: Promise<any> | null = null;
+
+function loadTripMaps(): Promise<any> {
+  if ((window as any).google?.maps?.importLibrary) {
+    return (window as any).google.maps.importLibrary("maps");
+  }
+  if (tripMapsPromise) return tripMapsPromise;
+  tripMapsPromise = new Promise((resolve, reject) => {
+    window.initTripMap = async () => {
+      try {
+        const maps = await (window as any).google.maps.importLibrary("maps");
+        resolve(maps);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    const existing = document.getElementById("gmaps-trip-script") as HTMLScriptElement | null;
+    if (existing) return;
+    const s = document.createElement("script");
+    s.id = "gmaps-trip-script";
+    s.async = true;
+    s.onerror = () => reject(new Error("No se pudo cargar Google Maps"));
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
+    document.head.appendChild(s);
+  });
+  return tripMapsPromise;
+}
+
 // Cache global de geocoding
 const geoCache = new Map<string, { lat: number; lng: number } | null>();
 async function geocode(q: string): Promise<{ lat: number; lng: number } | null> {
@@ -23,9 +51,12 @@ async function geocode(q: string): Promise<{ lat: number; lng: number } | null> 
   if (geoCache.has(key)) return geoCache.get(key)!;
   // 1) Browser Geocoder (rápido y confiable, sin edge function)
   const g = (window as any).google?.maps;
-  if (g?.Geocoder) {
+  if (g) {
     try {
-      const gc = new g.Geocoder();
+      const geocodingLib = g.importLibrary ? await g.importLibrary("geocoding") : null;
+      const GeocoderCtor = geocodingLib?.Geocoder ?? g.Geocoder;
+      if (!GeocoderCtor) throw new Error("Google Geocoder no está disponible");
+      const gc = new GeocoderCtor();
       const res: any = await new Promise((resolve) => {
         gc.geocode({ address: q }, (r: any, status: string) => {
           resolve(status === "OK" && r?.[0] ? r[0] : null);
@@ -105,6 +136,8 @@ const TripMap = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number>(-1);
   const [mapReady, setMapReady] = useState(false);
+  const [mapInitialized, setMapInitialized] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const tipMapa = useTooltipShown("mapa");
 
   const mapDivRef = useRef<HTMLDivElement>(null);
@@ -121,47 +154,45 @@ const TripMap = () => {
     })();
   }, [id]);
 
-  // 2. Cargar script Maps JS (robusto: callback + polling de respaldo)
+  // 2. Cargar Google Maps e inicializar el mapa una vez
   useEffect(() => {
-    if (!BROWSER_KEY) return;
-    if ((window as any).google?.maps) { setMapReady(true); return; }
-    // Siempre (re)asignamos el callback al setter actual
-    window.initTripMap = () => setMapReady(true);
-    if (!document.getElementById("gmaps-trip-script")) {
-      const s = document.createElement("script");
-      s.id = "gmaps-trip-script";
-      s.async = true;
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
-      document.head.appendChild(s);
-    }
-    // Polling de respaldo por si el callback ya se consumió en otra vista
-    const iv = window.setInterval(() => {
-      if ((window as any).google?.maps) {
-        setMapReady(true);
-        window.clearInterval(iv);
+    if (!BROWSER_KEY || mapRef.current) return;
+    let cancelled = false;
+    let frame = 0;
+    (async () => {
+      try {
+        const mapsLib = await loadTripMaps();
+        const mount = () => {
+          if (cancelled || mapRef.current) return;
+          if (!mapDivRef.current) {
+            frame = window.requestAnimationFrame(mount);
+            return;
+          }
+          mapRef.current = new mapsLib.Map(mapDivRef.current, {
+            center: { lat: 20, lng: 0 },
+            zoom: 2,
+            styles: NIGHT_STYLE,
+            disableDefaultUI: false,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true,
+            backgroundColor: "#04070d",
+          });
+          setMapReady(true);
+          setMapInitialized(true);
+        };
+        mount();
+      } catch (error) {
+        console.error("No se pudo inicializar Google Maps", error);
+        setMapError("No se pudo iniciar Google Maps. Actualiza la página e inténtalo de nuevo.");
       }
-    }, 250);
-    return () => window.clearInterval(iv);
+    })();
+    return () => { cancelled = true; if (frame) window.cancelAnimationFrame(frame); };
   }, []);
-
-  // 3. Inicializar el mapa una vez
-  useEffect(() => {
-    if (!mapReady || !mapDivRef.current || mapRef.current) return;
-    mapRef.current = new (window as any).google.maps.Map(mapDivRef.current, {
-      center: { lat: 20, lng: 0 },
-      zoom: 2,
-      styles: NIGHT_STYLE,
-      disableDefaultUI: false,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true,
-      backgroundColor: "#04070d",
-    });
-  }, [mapReady]);
 
   // 3b. Centra inmediatamente en el origen del viaje (fallback visual antes de geocodificar paradas)
   useEffect(() => {
-    if (!mapReady || !mapRef.current || !trip) return;
+    if (!mapInitialized || !mapRef.current || !trip) return;
     const seed = trip.ciudad_origen || trip.destino || trip.pais_destino;
     if (!seed) return;
     let cancelled = false;
@@ -172,7 +203,7 @@ const TripMap = () => {
       mapRef.current.setZoom(5);
     })();
     return () => { cancelled = true; };
-  }, [mapReady, trip]);
+  }, [mapInitialized, trip]);
 
   const days = useMemo(() => {
     if (!trip) return [];
@@ -193,7 +224,7 @@ const TripMap = () => {
 
   // 4. Geocodificar + dibujar todo cuando hay datos
   useEffect(() => {
-    if (!trip || !mapRef.current || !(window as any).google?.maps) return;
+    if (!trip || !mapInitialized || !mapRef.current || !(window as any).google?.maps) return;
     const map = mapRef.current;
     const g = (window as any).google.maps;
     let cancelled = false;
@@ -457,7 +488,7 @@ const TripMap = () => {
     })();
 
     return () => { cancelled = true; };
-  }, [trip, selectedDay, mapReady, showAll, dayPlan]);
+  }, [trip, selectedDay, mapInitialized, showAll, dayPlan]);
 
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center text-foreground/60">Cargando mapa…</div>;
@@ -525,7 +556,11 @@ const TripMap = () => {
             <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60 px-6 text-center">
               Conecta Google Maps en Conectores para ver el mapa interactivo.
             </div>
-          ) : !mapReady ? (
+          ) : mapError ? (
+            <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60 px-6 text-center">
+              {mapError}
+            </div>
+          ) : !mapInitialized ? (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60">
               Cargando Google Maps…
             </div>
