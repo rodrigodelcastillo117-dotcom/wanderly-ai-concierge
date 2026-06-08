@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
               departure: { id: segs[0]?.departure_airport?.id, time: segs[0]?.departure_airport?.time },
               arrival: { id: segs[segs.length - 1]?.arrival_airport?.id, time: segs[segs.length - 1]?.arrival_airport?.time },
               booking_token: f.booking_token ?? null,
-              buy_url: googleFlightsUrl(origin, destination, depart, return_date ?? depart, travelers),
+              buy_url: aviasalesBuyUrl(dep, arr, depart, return_date ?? depart, travelers),
               airline_buy_url: airlineSiteSearch(airline, origin, destination, depart, return_date ?? depart),
             };
           });
