@@ -156,16 +156,22 @@ REGLAS ESTRICTAS DE PRECIOS:
     A) Sitio web oficial del restaurante si lo conoces con certeza (ej. lhardy.com,
        botin.es, restaurantecoque.com, pujol.com.mx, quintonil.com). Verifica que sea el
        dominio real (.com / .es / .mx según país); NO inventes dominios.
-    B) Si NO sabes el sitio oficial con certeza, usa el sistema de reserva más probable
-       según el país:
-       - España: https://www.thefork.es/r/[nombre-restaurante]
-       - Francia: https://www.thefork.fr/r/[nombre-restaurante]
-       - Italia: https://www.thefork.it/r/[nombre-restaurante]
-       - UK: https://www.opentable.co.uk
-       - USA: https://www.opentable.com (para mainstream) o https://resy.com (para top)
-       - México: https://www.opentable.com.mx
-       - Japón: https://tabelog.com
-       - Resto del mundo: https://www.thefork.com
+     B) Si NO sabes el sitio oficial con certeza, usa el sistema de reserva conocido del
+        país EXACTO. SOLO usa thefork.com / thefork.fr / thefork.es / thefork.it si estás
+        SEGURO que el restaurante está listado ahí. NUNCA inventes una URL específica de
+        thefork si no la viste antes.
+        - España: https://www.thefork.es (genérica, sin /r/inventado)
+        - Francia: https://www.thefork.fr
+        - Italia: https://www.thefork.it
+        - UK: https://www.opentable.co.uk
+        - USA: https://www.opentable.com o https://resy.com
+        - México: https://www.opentable.com.mx
+        - Japón: https://tabelog.com
+
+        PAÍSES SIN PLATAFORMA RESERVA DOMINANTE (Argentina, Chile, Perú, Colombia, Brasil,
+        Grecia, Turquía, Egipto, Marruecos, Sudáfrica, India, Tailandia, Vietnam,
+        Indonesia, etc.): NO uses thefork.com ni inventes plataforma. SALTA directo a
+        opción C (Google Maps).
     C) ÚLTIMO recurso si nada anterior aplica: link de búsqueda en Google Maps
        https://www.google.com/maps/search/[NOMBRE+RESTAURANTE]+[CIUDAD]
        (NO uses google.com/search ni búsquedas web genéricas — solo Google Maps porque
