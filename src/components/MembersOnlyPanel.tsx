@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CityVideoCard } from "@/components/CityVideoCard";
+import { VenueDetailDialog } from "@/components/VenueDetailDialog";
 
 const CATEGORIES: { id: string; emoji: string; label: string }[] = [
   { id: "cabaret", emoji: "🎭", label: "Cabaret" },
@@ -61,6 +62,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loadingVenues, setLoadingVenues] = useState(false);
   const [reservingId, setReservingId] = useState<string | null>(null);
+  const [detailVenue, setDetailVenue] = useState<Venue | null>(null);
 
   useEffect(() => {
     if (!city) return;
@@ -86,6 +88,12 @@ export function MembersOnlyPanel({ onReserve }: Props) {
     if (!activeCat) return venues;
     return venues.filter((v) => v.categoria === activeCat);
   }, [venues, activeCat]);
+
+  const categoryCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const v of venues) m[v.categoria] = (m[v.categoria] ?? 0) + 1;
+    return m;
+  }, [venues]);
 
   const handleReserve = async (v: Venue) => {
     if (!user) return;
@@ -143,9 +151,19 @@ export function MembersOnlyPanel({ onReserve }: Props) {
             onChange={(e) => setCityInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && setCity(cityInput)}
             placeholder="Buscar por ciudad…"
-            className="pl-11 h-12 rounded-xl border-primary/20 bg-black/40"
+            className="pl-11 pr-10 h-12 rounded-xl border-primary/20 bg-black/40"
             list="cities-list-members"
           />
+          {cityInput && (
+            <button
+              type="button"
+              onClick={() => setCityInput("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
+              aria-label="Limpiar"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
           <datalist id="cities-list-members">
             {FEATURED_CITIES.map((c) => <option key={c} value={c} />)}
           </datalist>
@@ -162,8 +180,8 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                 ? "bg-gradient-gold text-primary-foreground border-transparent"
                 : "border-primary/20 text-muted-foreground hover:border-primary/40"
             }`}
-          >Todas</button>
-          {CATEGORIES.map((c) => (
+          >Todas <span className="opacity-60">({venues.length})</span></button>
+          {CATEGORIES.filter((c) => (categoryCounts[c.id] ?? 0) > 0).map((c) => (
             <button
               key={c.id}
               onClick={() => setActiveCat(c.id === activeCat ? null : c.id)}
@@ -174,15 +192,26 @@ export function MembersOnlyPanel({ onReserve }: Props) {
               }`}
             >
               <span className="mr-1">{c.emoji}</span>{c.label}
+              <span className="ml-1.5 opacity-60">({categoryCounts[c.id]})</span>
             </button>
           ))}
         </div>
       </div>
 
       <div className="mb-12">
-        <h3 className="font-fraunces text-2xl mb-4">
-          Venues en <span className="text-primary">{city}</span>
-        </h3>
+        <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
+          <h3 className="font-fraunces text-2xl">
+            Venues en <span className="text-primary">{city}</span>
+          </h3>
+          {!loadingVenues && (
+            <span className="text-xs tracking-[0.18em] uppercase text-muted-foreground">
+              {filteredVenues.length} {filteredVenues.length === 1 ? "venue" : "venues"}
+              {activeCat && venues.length !== filteredVenues.length && (
+                <span className="ml-1 opacity-60">de {venues.length}</span>
+              )}
+            </span>
+          )}
+        </div>
 
         {loadingVenues ? (
           <div className="grid md:grid-cols-2 gap-4">
@@ -200,7 +229,8 @@ export function MembersOnlyPanel({ onReserve }: Props) {
             {filteredVenues.map((v) => (
               <article
                 key={v.id}
-                className="rounded-2xl border border-primary/15 bg-gradient-to-b from-black/60 to-black/30 backdrop-blur-xl p-6 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_20px_60px_-20px_rgba(201,169,97,0.3)]"
+                onClick={() => setDetailVenue(v)}
+                className="cursor-pointer rounded-2xl border border-primary/15 bg-gradient-to-b from-black/60 to-black/30 backdrop-blur-xl p-6 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_20px_60px_-20px_rgba(201,169,97,0.3)]"
               >
                 <div className="flex items-start gap-4 mb-3">
                   <div className="text-4xl">{v.emoji ?? "✨"}</div>
@@ -229,9 +259,9 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                   ))}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                   <button
-                    onClick={() => handleReserve(v)}
+                    onClick={(e) => { e.stopPropagation(); handleReserve(v); }}
                     disabled={reservingId === v.id}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-gradient-gold text-primary-foreground hover:opacity-90 transition disabled:opacity-50"
                   >
@@ -242,6 +272,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                     <a
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${v.nombre} ${v.address}`)}`}
                       target="_blank" rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-primary/25 text-foreground hover:bg-primary/10 transition"
                     >
                       <MapPin className="w-3.5 h-3.5" /> Cómo llegar
@@ -251,6 +282,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                     <a
                       href={v.website}
                       target="_blank" rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-primary/25 text-foreground hover:bg-primary/10 transition"
                     >
                       <ExternalLink className="w-3.5 h-3.5" /> Sitio oficial
@@ -276,6 +308,14 @@ export function MembersOnlyPanel({ onReserve }: Props) {
           ))}
         </div>
       </div>
+
+      <VenueDetailDialog
+        venue={detailVenue}
+        open={!!detailVenue}
+        onClose={() => setDetailVenue(null)}
+        onReserve={(v) => { handleReserve(v); setDetailVenue(null); }}
+        reserving={!!detailVenue && reservingId === detailVenue.id}
+      />
     </div>
   );
 }
