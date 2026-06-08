@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
       { data: visits },
       { data: favoritos },
       { data: insights },
+      { data: profile },
     ] = await Promise.all([
       supabase.from("travel_profiles").select("*").eq("user_id", uid).maybeSingle(),
       supabase.from("ai_user_preferences").select("*").eq("user_id", uid).maybeSingle(),
@@ -92,7 +93,9 @@ Deno.serve(async (req) => {
       supabase.from("user_visits").select("place_name, category, rating").eq("user_id", uid).order("visited_at", { ascending: false }).limit(50),
       supabase.from("recomendaciones").select("tipo, titulo").eq("user_id", uid).eq("guardado", true).limit(30),
       supabase.from("behavioral_insights").select("action, target_type, target_label").eq("user_id", uid).order("created_at", { ascending: false }).limit(50),
+      supabase.from("profiles").select("full_name, ciudad_origen").eq("id", uid).maybeSingle(),
     ]);
+
 
     // Resumen de viajes
     const tripsResumen = (trips ?? []).map((t: any) =>
