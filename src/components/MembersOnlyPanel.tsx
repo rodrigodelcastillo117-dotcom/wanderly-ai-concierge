@@ -229,7 +229,8 @@ export function MembersOnlyPanel({ onReserve }: Props) {
             {filteredVenues.map((v) => (
               <article
                 key={v.id}
-                className="rounded-2xl border border-primary/15 bg-gradient-to-b from-black/60 to-black/30 backdrop-blur-xl p-6 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_20px_60px_-20px_rgba(201,169,97,0.3)]"
+                onClick={() => setDetailVenue(v)}
+                className="cursor-pointer rounded-2xl border border-primary/15 bg-gradient-to-b from-black/60 to-black/30 backdrop-blur-xl p-6 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_20px_60px_-20px_rgba(201,169,97,0.3)]"
               >
                 <div className="flex items-start gap-4 mb-3">
                   <div className="text-4xl">{v.emoji ?? "✨"}</div>
