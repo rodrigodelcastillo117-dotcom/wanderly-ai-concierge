@@ -181,6 +181,8 @@ const TOOL_SCHEMA = {
             escalas: { type: "string" },
             precio_por_persona: { type: "number" },
             notas: { type: "string" },
+            booking_link: { type: "string", description: "Link de afiliado (Travelpayouts/Aviasales) si el precio vino del bloque TRAVELPAYOUTS. Cópialo tal cual." },
+            fuente_precio: { type: "string", enum: ["travelpayouts", "perplexity", "estimado"], description: "Origen del precio. Usa 'travelpayouts' si lo tomaste del bloque TRAVELPAYOUTS." },
           },
           required: ["tier", "aerolinea", "duracion", "escalas", "precio_por_persona"],
         },
