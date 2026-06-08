@@ -29,8 +29,9 @@ export function CityVideoCard({ city, active, onClick }: Props) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
+        // Query muy específica por ciudad para evitar resultados duplicados entre ciudades
         const url = `https://uhkdewinscffhdonhhmt.supabase.co/functions/v1/buscar-video?q=${encodeURIComponent(
-          `${city} city night skyline cinematic`,
+          `${city} city skyline night aerial landmark cinematic`,
         )}`;
         const r = await fetch(url, {
           headers: {
@@ -43,6 +44,7 @@ export function CityVideoCard({ city, active, onClick }: Props) {
         cache.set(city, { url: json.url ?? null, poster: json.poster ?? null });
         setSrc(json.url ?? null);
         setPoster(json.poster ?? null);
+
       } catch {
         // ignore
       } finally {
