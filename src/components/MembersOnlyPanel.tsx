@@ -308,6 +308,14 @@ export function MembersOnlyPanel({ onReserve }: Props) {
           ))}
         </div>
       </div>
+
+      <VenueDetailDialog
+        venue={detailVenue}
+        open={!!detailVenue}
+        onClose={() => setDetailVenue(null)}
+        onReserve={(v) => { handleReserve(v); setDetailVenue(null); }}
+        reserving={!!detailVenue && reservingId === detailVenue.id}
+      />
     </div>
   );
 }
