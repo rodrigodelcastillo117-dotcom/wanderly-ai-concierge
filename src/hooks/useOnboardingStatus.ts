@@ -44,8 +44,14 @@ export function useOnboardingStatus() {
 
     if (!data) {
       const seed = defaults(user.id);
-      await supabase.from("user_onboarding_state").insert(seed);
-      setStatus(seed);
+      await supabase.from("user_onboarding_state").upsert(seed, { onConflict: "user_id" });
+      // Re-read in case of race
+      const { data: fresh } = await supabase
+        .from("user_onboarding_state")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setStatus(fresh ? ({ ...seed, ...(fresh as any) }) : seed);
     } else {
       setStatus({
         ...defaults(user.id),
