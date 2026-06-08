@@ -419,6 +419,12 @@ Deno.serve(async (req) => {
       .eq("id", user.id)
       .maybeSingle();
     const { data: vault } = await supabase.from("user_vault_benefits").select("*").eq("user_id", user.id).maybeSingle();
+    const { data: aiPrefs } = await supabase
+      .from("ai_user_preferences")
+      .select("perfil_ia")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
 
     const vaultLines: string[] = [];
     if (vault?.credit_cards?.length)
