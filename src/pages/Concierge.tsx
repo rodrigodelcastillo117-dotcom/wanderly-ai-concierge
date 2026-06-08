@@ -364,7 +364,7 @@ const Concierge = () => {
           <>
         {/* CHAT STREAM */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
-          <TravelerAvatar />
+
           {messages.map(m => (
             <MessageBubble key={m.id} msg={m} />
           ))}
