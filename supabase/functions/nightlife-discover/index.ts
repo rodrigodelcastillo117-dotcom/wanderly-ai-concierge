@@ -168,6 +168,7 @@ Para cada uno: nombre exacto, dirección, dress code, precio estimado, si requie
       .filter((v: any) => v?.nombre && CATEGORIAS.includes(v?.categoria))
       .map((v: any) => ({
         ciudad: body.ciudad,
+        ciudad_display: body.ciudad,
         pais: body.pais ?? null,
         categoria: v.categoria,
         nombre: v.nombre,
