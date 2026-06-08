@@ -9,7 +9,8 @@ const corsHeaders = {
 };
 
 const TP_TOKEN = Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "";
-const TP_MARKER = Deno.env.get("TRAVELPAYOUTS_MARKER") ?? TP_TOKEN.slice(0, 6); // marker para tracking de afiliado
+// Marker de afiliado Travelpayouts. Fallback hardcoded 533299 para NUNCA perder comisión.
+const TP_MARKER = (Deno.env.get("TRAVELPAYOUTS_MARKER") || TP_TOKEN.slice(0, 6) || "533299").trim() || "533299";
 
 interface FlightsRequest {
   origin_iata?: string;
@@ -104,7 +105,7 @@ Deno.serve(async (req) => {
       return okJson({ source: "travelpayouts", error: "Respuesta sin data", flights: [] });
     }
 
-    const marker = TP_MARKER || "lovable";
+    const marker = (TP_MARKER && TP_MARKER.trim()) ? TP_MARKER.trim() : "533299";
     const flights = data.data.slice(0, 20).map((f: any) => {
       const rawLink: string = f?.link ?? "";
       const bookingLink = rawLink
