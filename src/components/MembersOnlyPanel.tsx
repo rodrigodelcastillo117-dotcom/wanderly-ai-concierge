@@ -62,6 +62,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loadingVenues, setLoadingVenues] = useState(false);
   const [reservingId, setReservingId] = useState<string | null>(null);
+  const [detailVenue, setDetailVenue] = useState<Venue | null>(null);
 
   useEffect(() => {
     if (!city) return;
