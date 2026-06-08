@@ -261,6 +261,7 @@ const TOOL_SCHEMA = {
             cocina: { type: "string" },
             rango_precio: { type: "string" },
             por_que: { type: "string" },
+            cta_action: { type: "string", description: "Link de reserva oficial o plataforma de reserva real (TheFork, OpenTable, Resy, Tabelog, Google Maps). NUNCA google.com/search genérico." },
           },
           required: ["nombre", "cocina", "rango_precio", "por_que"],
         },
