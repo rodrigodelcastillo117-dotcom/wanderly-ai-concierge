@@ -19,6 +19,8 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY =
   Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
+
 
 const SYSTEM = `Eres el motor de Travel DNA de IATOS AI. Tu trabajo es OBSERVAR el
 comportamiento real de un viajero (no solo lo que dijo en el onboarding) y
