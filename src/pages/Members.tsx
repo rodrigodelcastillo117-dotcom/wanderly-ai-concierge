@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CityVideoCard } from "@/components/CityVideoCard";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 
 // Password gate (capa adicional sobre el 18+). Cambia este valor cuando quieras.
 const MEMBERS_PASSWORD = "iatos2026";
@@ -59,6 +61,7 @@ export default function Members() {
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loadingVenues, setLoadingVenues] = useState(false);
+  const tipMembers = useTooltipShown("members_only");
 
   // Cargar estado del gate
   useEffect(() => {
@@ -229,6 +232,7 @@ export default function Members() {
   // ============== CONTENIDO ==============
   return (
     <DashboardLayout>
+      <FeatureTooltip id="members_only" icon="🥂" text="Venues nocturnos premium curados (jazz lounges, rooftops, casinos VIP). Requiere verificación 18+." shouldShow={tipMembers.shouldShow} onDismiss={tipMembers.dismiss} />
       <div className="px-4 md:px-10 py-8 md:py-12 max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-10">
