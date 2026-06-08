@@ -143,7 +143,13 @@ REGLAS ESTRICTAS DE PRECIOS:
     - Hotel ultra-lujo (Rosewood, Banyan Tree, One&Only, Belmond) en México: $15,000-$45,000 MXN/noche.
     - Restaurante casual local México: $200-$500 MXN p/p. Medio: $500-$1,200. Fine dining: $1,500-$4,000.
     - Tour grupal medio día México: $600-$1,800 MXN p/p. Tour día completo: $1,500-$4,000. VIP/privado: $4,000-$12,000.
-14. ORDENA cada array de menor a mayor precio: "hospedaje" ascendente por precio_por_noche, "tours" ascendente por precio_por_persona, "restaurantes" ascendente por el extremo inferior del rango_precio. El usuario ve siempre primero la opción más accesible.`;
+14. ORDENA cada array de menor a mayor precio: "hospedaje" ascendente por precio_por_noche, "tours" ascendente por precio_por_persona, "restaurantes" ascendente por el extremo inferior del rango_precio. El usuario ve siempre primero la opción más accesible.
+15. FUENTE PRIMARIA DE PRECIOS DE VUELO — TRAVELPAYOUTS/AVIASALES (REGLA NO NEGOCIABLE):
+    - Cuando en el userPrompt veas el bloque "PRECIOS PRIMARIOS — TRAVELPAYOUTS" con vuelos listados (líneas con "LINK: https://www.aviasales.com/..."), ESOS VUELOS SON LA FUENTE PRIMARIA. Usa SUS precios (convertidos USD×18.5 = MXN) para los 3 tiers ahorro/equilibrio/premium. No uses "rangos históricos", no uses precios estimados ni los que Perplexity sugiera para vuelos.
+    - Perplexity es SOLO contexto cualitativo (restaurantes, tours, tips, mejor temporada). NUNCA fuente de precios de vuelo si Travelpayouts trajo datos.
+    - PROHIBIDO generar booking_link a google.com/travel, google.com/flights o búsquedas genéricas de Google. Está bloqueado por CORS y rompe la experiencia.
+    - Para booking_link de cada vuelo: copia EXACTAMENTE el LINK del bloque TRAVELPAYOUTS (formato https://www.aviasales.com/...?marker=...). Si por algún motivo no tienes un link de Aviasales para un tier, usa el sitio oficial de la aerolínea: Aeroméxico → https://aeromexico.com, Iberia → https://iberia.com, American → https://aa.com, United → https://united.com, Delta → https://delta.com, Air France → https://airfrance.com, LATAM → https://latam.com, Avianca → https://avianca.com, KLM → https://klm.com, Lufthansa → https://lufthansa.com, British Airways → https://britishairways.com, Volaris → https://volaris.com, Viva → https://vivaaerobus.com. NUNCA google.com.
+    - Si Travelpayouts NO trajo datos (el bloque dice "Sin datos de Travelpayouts"), entonces sí cae a Perplexity para el precio, pero el booking_link sigue siendo el sitio oficial de la aerolínea — JAMÁS google.com/travel.`;
 
 const TOOL_SCHEMA = {
   name: "entregar_analisis_viaje",
