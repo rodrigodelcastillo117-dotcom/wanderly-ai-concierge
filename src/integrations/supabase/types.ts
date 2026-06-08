@@ -1248,6 +1248,7 @@ export type Database = {
           selected_cards: Json
           selected_loyalty_airlines: Json
           selected_loyalty_hotels: Json
+          tooltips_shown: Json
           travel_dna_seed: string | null
           updated_at: string
           user_id: string
@@ -1260,6 +1261,7 @@ export type Database = {
           selected_cards?: Json
           selected_loyalty_airlines?: Json
           selected_loyalty_hotels?: Json
+          tooltips_shown?: Json
           travel_dna_seed?: string | null
           updated_at?: string
           user_id: string
@@ -1272,6 +1274,7 @@ export type Database = {
           selected_cards?: Json
           selected_loyalty_airlines?: Json
           selected_loyalty_hotels?: Json
+          tooltips_shown?: Json
           travel_dna_seed?: string | null
           updated_at?: string
           user_id?: string
