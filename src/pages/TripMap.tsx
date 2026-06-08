@@ -165,15 +165,23 @@ const TripMap = () => {
 
   // 3. Inicializar el mapa una vez
   useEffect(() => {
-    if (!mapReady || !mapDivRef.current || mapRef.current) return;
+    if (!BROWSER_KEY || mapRef.current) return;
     let cancelled = false;
+    let retryTimer: number | undefined;
     (async () => {
       try {
         const g = (window as any).google?.maps;
-        const mapsLib = g?.importLibrary ? await g.importLibrary("maps") : g;
+        if (!g) {
+          retryTimer = window.setTimeout(() => setMapReady((ready) => !ready), 250);
+          return;
+        }
+        const mapsLib = g.importLibrary ? await g.importLibrary("maps") : g;
         const MapCtor = mapsLib?.Map ?? g?.Map;
         if (cancelled || !mapDivRef.current) return;
-        if (!MapCtor) throw new Error("Google Maps todavía no expone Map");
+        if (!MapCtor) {
+          retryTimer = window.setTimeout(() => setMapReady((ready) => !ready), 250);
+          return;
+        }
         mapRef.current = new MapCtor(mapDivRef.current, {
           center: { lat: 20, lng: 0 },
           zoom: 2,
@@ -190,7 +198,7 @@ const TripMap = () => {
         setMapError("No se pudo iniciar Google Maps. Actualiza la página e inténtalo de nuevo.");
       }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; if (retryTimer) window.clearTimeout(retryTimer); };
   }, [mapReady]);
 
   // 3b. Centra inmediatamente en el origen del viaje (fallback visual antes de geocodificar paradas)
