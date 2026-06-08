@@ -138,6 +138,15 @@ ${tripsResumen}
 
 Genera el Travel DNA evolucionado. Detecta divergencias entre lo declarado y lo real.`;
 
+    // ---- userContext ligero para Iato ----
+    const ctxLines: string[] = ["CONTEXTO DEL USUARIO ACTUAL:"];
+    if (profile?.full_name) ctxLines.push(`Nombre: ${profile.full_name}`);
+    if (profile?.ciudad_origen) ctxLines.push(`Ciudad origen: ${profile.ciudad_origen}`);
+    const userContext = ctxLines.length > 1 ? ctxLines.join("\n") : "";
+    const systemFinal = [MASTER_PROMPT_IATOS, userContext, SYSTEM].filter(Boolean).join("\n\n---\n\n");
+
+
+
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
