@@ -264,7 +264,7 @@ Deno.serve(async (req) => {
             departure: { id: dep },
             arrival: { id: arr },
             booking_token: null,
-            buy_url: googleFlightsUrl(origin, destination, depart, return_date ?? depart, travelers),
+            buy_url: aviasalesBuyUrl(dep, arr, depart, return_date ?? depart, travelers),
             airline_buy_url: airlineSiteSearch(o.airline, origin, destination, depart, return_date ?? depart),
           }));
           source = "ai-fallback";
