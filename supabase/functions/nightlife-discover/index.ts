@@ -167,11 +167,13 @@ Para cada uno: nombre exacto, dirección, dress code, precio estimado, si requie
     try { parsed = JSON.parse(raw); }
     catch { const m = raw.match(/\{[\s\S]*\}/); if (m) parsed = JSON.parse(m[0]); }
 
-    // 4. Filtrar categorías permitidas + insertar
+    // 4. Filtrar categorías permitidas + insertar (dedupe contra existentes)
+    const existingNames = new Set((existentes ?? []).map((v: any) => (v.nombre ?? "").toLowerCase().trim()));
     const venuesValidos = (parsed.venues ?? [])
       .filter((v: any) => v?.nombre && CATEGORIAS.includes(v?.categoria))
+      .filter((v: any) => !existingNames.has(String(v.nombre).toLowerCase().trim()))
       .map((v: any) => ({
-        ciudad: body.ciudad,
+        ciudad: ciudadNorm,
         ciudad_display: body.ciudad,
         pais: body.pais ?? null,
         categoria: v.categoria,
@@ -183,20 +185,21 @@ Para cada uno: nombre exacto, dirección, dress code, precio estimado, si requie
         precio_estimado: v.precio_estimado ?? null,
         reserva_requerida: v.reserva_requerida ?? true,
         website: v.contacto ?? null,
-        rating: typeof v.rating === "number" ? v.rating : null,
         tags: Array.isArray(v.tags) ? v.tags : [],
       }));
 
     if (venuesValidos.length > 0) {
-      await supabase.from("nightlife_premium").insert(venuesValidos);
+      const { error: insErr } = await supabase.from("nightlife_premium").insert(venuesValidos);
+      if (insErr) console.error("insert error:", insErr.message);
     }
 
     const { data: finales } = await supabase
       .from("nightlife_premium")
       .select("*")
-      .ilike("ciudad", body.ciudad)
+      .eq("ciudad", ciudadNorm)
       .eq("active", true)
-      .order("rating", { ascending: false });
+      .order("nombre");
+
 
     return new Response(JSON.stringify({
       ciudad: body.ciudad,
