@@ -197,14 +197,6 @@ export function MembersOnlyPanel({ onReserve }: Props) {
           ))}
         </div>
       </div>
-                  : "border-primary/20 text-muted-foreground hover:border-primary/40"
-              }`}
-            >
-              <span className="mr-1">{c.emoji}</span>{c.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="mb-12">
         <h3 className="font-fraunces text-2xl mb-4">
