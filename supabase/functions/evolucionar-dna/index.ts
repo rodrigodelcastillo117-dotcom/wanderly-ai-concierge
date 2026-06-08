@@ -19,6 +19,8 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY =
   Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
+
 
 const SYSTEM = `Eres el motor de Travel DNA de IATOS AI. Tu trabajo es OBSERVAR el
 comportamiento real de un viajero (no solo lo que dijo en el onboarding) y
@@ -83,6 +85,7 @@ Deno.serve(async (req) => {
       { data: visits },
       { data: favoritos },
       { data: insights },
+      { data: profile },
     ] = await Promise.all([
       supabase.from("travel_profiles").select("*").eq("user_id", uid).maybeSingle(),
       supabase.from("ai_user_preferences").select("*").eq("user_id", uid).maybeSingle(),
@@ -90,7 +93,9 @@ Deno.serve(async (req) => {
       supabase.from("user_visits").select("place_name, category, rating").eq("user_id", uid).order("visited_at", { ascending: false }).limit(50),
       supabase.from("recomendaciones").select("tipo, titulo").eq("user_id", uid).eq("guardado", true).limit(30),
       supabase.from("behavioral_insights").select("action, target_type, target_label").eq("user_id", uid).order("created_at", { ascending: false }).limit(50),
+      supabase.from("profiles").select("full_name, ciudad_origen").eq("id", uid).maybeSingle(),
     ]);
+
 
     // Resumen de viajes
     const tripsResumen = (trips ?? []).map((t: any) =>
@@ -133,13 +138,22 @@ ${tripsResumen}
 
 Genera el Travel DNA evolucionado. Detecta divergencias entre lo declarado y lo real.`;
 
+    // ---- userContext ligero para Iato ----
+    const ctxLines: string[] = ["CONTEXTO DEL USUARIO ACTUAL:"];
+    if (profile?.full_name) ctxLines.push(`Nombre: ${profile.full_name}`);
+    if (profile?.ciudad_origen) ctxLines.push(`Ciudad origen: ${profile.ciudad_origen}`);
+    const userContext = ctxLines.length > 1 ? ctxLines.join("\n") : "";
+    const systemFinal = [MASTER_PROMPT_IATOS, userContext, SYSTEM].filter(Boolean).join("\n\n---\n\n");
+
+
+
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
-          { role: "system", content: SYSTEM },
+          { role: "system", content: systemFinal },
           { role: "user", content: userPrompt },
         ],
         response_format: { type: "json_object" },

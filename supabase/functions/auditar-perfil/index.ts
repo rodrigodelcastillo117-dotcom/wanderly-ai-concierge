@@ -11,6 +11,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -36,6 +38,7 @@ Deno.serve(async (req) => {
   "senales_clave": { "clave": "valor" }
 }`;
     const userMsg = `Descripción del usuario:\n${descripcion}\n\nContexto previo:\n${JSON.stringify(contexto ?? {}, null, 2)}`;
+    const systemFinal = [MASTER_PROMPT_IATOS, system].filter(Boolean).join("\n\n---\n\n");
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -43,9 +46,10 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: system },
+          { role: "system", content: systemFinal },
           { role: "user", content: userMsg },
         ],
+
         response_format: { type: "json_object" },
       }),
     });

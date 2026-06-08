@@ -11,8 +11,10 @@ const corsHeaders = {
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+
 
 interface AnalisisRequest {
   destino: string;
@@ -417,6 +419,12 @@ Deno.serve(async (req) => {
       .eq("id", user.id)
       .maybeSingle();
     const { data: vault } = await supabase.from("user_vault_benefits").select("*").eq("user_id", user.id).maybeSingle();
+    const { data: aiPrefs } = await supabase
+      .from("ai_user_preferences")
+      .select("perfil_ia")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
 
     const vaultLines: string[] = [];
     if (vault?.credit_cards?.length)
@@ -443,6 +451,27 @@ Deno.serve(async (req) => {
         "- Renta autos: " + vault.car_rentals.map((r: any) => `${r.company_name} (${r.preferred_car_type})`).join("; "),
       );
     const vaultDesc = vaultLines.join("\n") || "Sin programas de lealtad registrados.";
+
+    // ---- Bloque de contexto del usuario para Iato (igual patrón que concierge-chat) ----
+    const perfilIa: any = aiPrefs?.perfil_ia ?? travelProfile?.perfil_ia ?? {};
+    const ctxLines: string[] = ["CONTEXTO DEL USUARIO ACTUAL:"];
+    if (profile?.full_name) ctxLines.push(`Nombre: ${profile.full_name}`);
+    if (profile?.ciudad_origen) ctxLines.push(`Ciudad origen: ${profile.ciudad_origen}`);
+    if (perfilIa?.resumen) ctxLines.push(`Travel DNA: ${perfilIa.resumen}`);
+    if (perfilIa?.estilo_dominante) ctxLines.push(`Estilo dominante: ${perfilIa.estilo_dominante}`);
+    if (travelProfile?.ritmo_viaje) ctxLines.push(`Ritmo: ${travelProfile.ritmo_viaje}`);
+    if (travelProfile?.presupuesto_rango) ctxLines.push(`Presupuesto: ${travelProfile.presupuesto_rango}`);
+    if (travelProfile?.preferencias_comida?.length) ctxLines.push(`Comida: ${travelProfile.preferencias_comida.join(", ")}`);
+    if (travelProfile?.alergias_restricciones?.length) ctxLines.push(`Restricciones: ${travelProfile.alergias_restricciones.join(", ")}`);
+    if (travelProfile?.intereses?.length) ctxLines.push(`Intereses: ${travelProfile.intereses.join(", ")}`);
+    const boveda: string[] = [];
+    if (vault?.credit_cards?.length) boveda.push(`Tarjetas ${vault.credit_cards.map((c: any) => `${c.bank} ${c.card_tier}`).join(", ")}`);
+    if (vault?.airline_alliances?.length) boveda.push(`Aerolíneas ${vault.airline_alliances.map((a: any) => `${a.airline} ${a.tier_status}`).join(", ")}`);
+    if (vault?.hotel_loyalty?.length) boveda.push(`Hoteles ${vault.hotel_loyalty.map((h: any) => `${h.chain_name} ${h.status_tier}`).join(", ")}`);
+    ctxLines.push(boveda.length ? `Bóveda: ${boveda.join("; ")}` : "Bóveda: vacía");
+    const userContext = ctxLines.join("\n");
+    const systemFinal = [MASTER_PROMPT_IATOS, userContext, SYSTEM_PROMPT].filter(Boolean).join("\n\n---\n\n");
+
 
     // PASO 0: Smart Date Resolution (Gemini). Si faltan fechas, elegimos la ventana óptima.
     const resolved = await resolverFechasSiFaltan(authHeader, body);
@@ -516,7 +545,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         model: "claude-sonnet-4-20250514",
         max_tokens: 8000,
         temperature: 0,
-        system: SYSTEM_PROMPT,
+        system: systemFinal,
         tools: [TOOL_SCHEMA],
         tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
         messages: [{ role: "user", content: userPrompt }],
