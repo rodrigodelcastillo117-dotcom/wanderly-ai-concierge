@@ -199,9 +199,19 @@ export function MembersOnlyPanel({ onReserve }: Props) {
       </div>
 
       <div className="mb-12">
-        <h3 className="font-fraunces text-2xl mb-4">
-          Venues en <span className="text-primary">{city}</span>
-        </h3>
+        <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
+          <h3 className="font-fraunces text-2xl">
+            Venues en <span className="text-primary">{city}</span>
+          </h3>
+          {!loadingVenues && (
+            <span className="text-xs tracking-[0.18em] uppercase text-muted-foreground">
+              {filteredVenues.length} {filteredVenues.length === 1 ? "venue" : "venues"}
+              {activeCat && venues.length !== filteredVenues.length && (
+                <span className="ml-1 opacity-60">de {venues.length}</span>
+              )}
+            </span>
+          )}
+        </div>
 
         {loadingVenues ? (
           <div className="grid md:grid-cols-2 gap-4">
