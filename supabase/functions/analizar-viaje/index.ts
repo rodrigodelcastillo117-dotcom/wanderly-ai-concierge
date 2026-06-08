@@ -741,6 +741,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
 
     const a = toolUse.input;
     a.vuelos = normalizarVuelos(a.vuelos);
+    // Sub-regla 15.1: re-inyecta ?marker=... si Claude lo truncó al copiar el booking_link.
+    a.vuelos = ensureMarkerInFlightLinks(a.vuelos);
     const vueloEquilibrio = a.vuelos.find((v: any) => v.tier === "equilibrio") ?? a.vuelos[0];
     const vuelosGrupo = Math.round(
       (Number(vueloEquilibrio?.precio_por_persona) || Number(a.desglose_presupuesto?.vuelos) || 0) * body.num_viajeros,
