@@ -259,9 +259,9 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                   ))}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                   <button
-                    onClick={() => handleReserve(v)}
+                    onClick={(e) => { e.stopPropagation(); handleReserve(v); }}
                     disabled={reservingId === v.id}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-gradient-gold text-primary-foreground hover:opacity-90 transition disabled:opacity-50"
                   >
@@ -272,6 +272,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                     <a
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${v.nombre} ${v.address}`)}`}
                       target="_blank" rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-primary/25 text-foreground hover:bg-primary/10 transition"
                     >
                       <MapPin className="w-3.5 h-3.5" /> Cómo llegar
@@ -281,6 +282,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                     <a
                       href={v.website}
                       target="_blank" rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-primary/25 text-foreground hover:bg-primary/10 transition"
                     >
                       <ExternalLink className="w-3.5 h-3.5" /> Sitio oficial
