@@ -86,8 +86,7 @@ Deno.serve(async (req) => {
       .from("nightlife_premium")
       .select("*")
       .ilike("ciudad", body.ciudad)
-      .eq("activo", true)
-      .order("verificado", { ascending: false })
+      .eq("active", true)
       .order("rating", { ascending: false });
 
     if ((existentes?.length ?? 0) >= MIN_VENUES) {
@@ -174,15 +173,13 @@ Para cada uno: nombre exacto, dirección, dress code, precio estimado, si requie
         nombre: v.nombre,
         descripcion: v.descripcion ?? null,
         por_que: v.por_que ?? null,
-        direccion: v.direccion ?? null,
+        address: v.direccion ?? null,
         dress_code: v.dress_code ?? null,
         precio_estimado: v.precio_estimado ?? null,
         reserva_requerida: v.reserva_requerida ?? true,
-        contacto: v.contacto ?? null,
+        website: v.contacto ?? null,
         rating: typeof v.rating === "number" ? v.rating : null,
         tags: Array.isArray(v.tags) ? v.tags : [],
-        fuente: "ai",
-        verificado: false,
       }));
 
     if (venuesValidos.length > 0) {
@@ -193,8 +190,7 @@ Para cada uno: nombre exacto, dirección, dress code, precio estimado, si requie
       .from("nightlife_premium")
       .select("*")
       .ilike("ciudad", body.ciudad)
-      .eq("activo", true)
-      .order("verificado", { ascending: false })
+      .eq("active", true)
       .order("rating", { ascending: false });
 
     return new Response(JSON.stringify({
