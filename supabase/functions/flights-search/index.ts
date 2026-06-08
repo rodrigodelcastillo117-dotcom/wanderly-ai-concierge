@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       ok: true, source, results,
-      google_flights_url: google_flights_url ?? googleFlightsUrl(origin, destination, depart, return_date ?? depart, travelers),
+      google_flights_url: google_flights_url ?? aviasalesBuyUrl(dep, arr, depart, return_date ?? depart, travelers),
       meta: { origin, destination, depart, return_date, travelers, dep_iata: dep, arr_iata: arr },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
