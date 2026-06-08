@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles, Crown, TrendingUp, RefreshCw } from "lucide-react";
+import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { TravelAvatarCinematic } from "@/components/lux/TravelAvatarCinematic";
-import { useTravelDNA, TravelDNAStats } from "@/components/lux/TravelDNAStats";
-import { CompatibilityPanel } from "@/components/lux/CompatibilityPanel";
-import { BestMomentsPanel } from "@/components/lux/BestMomentsPanel";
 
 type Amigo = {
   amigo_id: string;
