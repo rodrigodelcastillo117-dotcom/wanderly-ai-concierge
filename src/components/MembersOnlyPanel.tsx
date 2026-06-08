@@ -89,6 +89,12 @@ export function MembersOnlyPanel({ onReserve }: Props) {
     return venues.filter((v) => v.categoria === activeCat);
   }, [venues, activeCat]);
 
+  const categoryCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const v of venues) m[v.categoria] = (m[v.categoria] ?? 0) + 1;
+    return m;
+  }, [venues]);
+
   const handleReserve = async (v: Venue) => {
     if (!user) return;
     setReservingId(v.id);
