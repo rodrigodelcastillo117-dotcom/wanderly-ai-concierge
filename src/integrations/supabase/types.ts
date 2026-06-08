@@ -596,6 +596,44 @@ export type Database = {
         }
         Relationships: []
       }
+      packing_lists: {
+        Row: {
+          estado_checkboxes: Json
+          generated_at: string
+          id: string
+          lista_json: Json
+          trip_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          estado_checkboxes?: Json
+          generated_at?: string
+          id?: string
+          lista_json: Json
+          trip_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          estado_checkboxes?: Json
+          generated_at?: string
+          id?: string
+          lista_json?: Json
+          trip_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packing_lists_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: true
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
