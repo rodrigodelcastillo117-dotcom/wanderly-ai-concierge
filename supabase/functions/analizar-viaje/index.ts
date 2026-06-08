@@ -490,10 +490,79 @@ Deno.serve(async (req) => {
       ),
     );
 
-    // PASO 1: Perplexity investiga precios reales
-    console.log("Investigando precios con Perplexity...");
-    const investigacion = await investigarConPerplexity(body, dias, vaultDesc);
-    console.log("Perplexity OK, citations:", investigacion.citations.length);
+    // PASO 1: Lanzar EN PARALELO Perplexity + Travelpayouts vuelos + Travelpayouts hoteles
+    console.log("Lanzando Perplexity + Travelpayouts (vuelos+hoteles) en paralelo...");
+
+    const tpFlightsPromise = fetch(`${SUPABASE_URL}/functions/v1/travelpayouts-flights`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        origin_city: body.ciudad_origen,
+        destination_city: body.destino,
+        departure_date: body.fecha_salida,
+        return_date: body.fecha_regreso,
+        adults: body.num_viajeros,
+        currency: "usd",
+      }),
+    }).then((r) => r.json()).catch((e) => ({ source: "travelpayouts", error: String(e?.message ?? e), flights: [] }));
+
+    const tpHotelsPromise = fetch(`${SUPABASE_URL}/functions/v1/travelpayouts-hotels`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        city: body.destino,
+        checkin: body.fecha_salida,
+        checkout: body.fecha_regreso,
+        adults: body.num_viajeros,
+        currency: "usd",
+      }),
+    }).then((r) => r.json()).catch((e) => ({ source: "hotellook", error: String(e?.message ?? e), hotels: [] }));
+
+    const [perplexityResult, tpFlightsRes, tpHotelsRes] = await Promise.allSettled([
+      investigarConPerplexity(body, dias, vaultDesc),
+      tpFlightsPromise,
+      tpHotelsPromise,
+    ]);
+
+    const investigacion = perplexityResult.status === "fulfilled"
+      ? perplexityResult.value
+      : { texto: `(Perplexity falló: ${(perplexityResult as any).reason?.message ?? "error"})`, citations: [] };
+
+    const tpFlights = tpFlightsRes.status === "fulfilled" ? tpFlightsRes.value : { error: "promise_rejected", flights: [] };
+    const tpHotels = tpHotelsRes.status === "fulfilled" ? tpHotelsRes.value : { error: "promise_rejected", hotels: [] };
+
+    console.log("Perplexity citations:", investigacion.citations.length, "| TP flights:", tpFlights?.flights?.length ?? 0, "| TP hotels:", tpHotels?.hotels?.length ?? 0);
+
+    // Bloques de texto que Claude verá para los precios reales de Travelpayouts
+    const tpFlightsBlock = (() => {
+      if (!Array.isArray(tpFlights?.flights) || tpFlights.flights.length === 0) {
+        return `(Sin datos de Travelpayouts/Aviasales — usar precios de Perplexity${tpFlights?.error ? `. Motivo: ${tpFlights.error}` : ""})`;
+      }
+      const lines = tpFlights.flights.slice(0, 12).map((f: any, i: number) => {
+        const priceMxn = Math.round((Number(f.price) || 0) * 18.5);
+        return `${i + 1}. ${f.airline} ${f.flight_number} — ${f.origin_airport}→${f.destination_airport} — USD ${f.price} (~$${priceMxn.toLocaleString("es-MX")} MXN) — ${f.stops} escalas — sale ${f.departure_at ?? "?"} — LINK: ${f.booking_link}`;
+      }).join("\n");
+      return `Fuente: Travelpayouts/Aviasales (precios oficiales del inventario, consultados ${tpFlights.consulted_at}).\nRuta: ${tpFlights.origin}→${tpFlights.destination}\n${lines}`;
+    })();
+
+    const tpHotelsBlock = (() => {
+      if (!Array.isArray(tpHotels?.hotels) || tpHotels.hotels.length === 0) {
+        return `(Sin datos de Hotellook — usar hoteles de Perplexity${tpHotels?.error ? `. Motivo: ${tpHotels.error}` : ""})`;
+      }
+      const lines = tpHotels.hotels.slice(0, 15).map((h: any, i: number) => {
+        const perNightMxn = Math.round((Number(h.price_per_night) || 0) * 18.5);
+        return `${i + 1}. ${h.name} — ${h.stars ?? "?"}★ — rating ${h.rating ?? "?"} — USD ${h.price_per_night}/noche (~$${perNightMxn.toLocaleString("es-MX")} MXN) — ${h.location_name} — LINK: ${h.booking_link}`;
+      }).join("\n");
+      return `Fuente: Hotellook (precios oficiales de inventario, consultados ${tpHotels.consulted_at}).\nCiudad: ${tpHotels.city} | ${tpHotels.nights} noches | ${tpHotels.adults} adultos\n${lines}`;
+    })();
 
     // PASO 2: Claude estructura el análisis usando los datos reales
     const userPrompt = `Genera un análisis premium de viaje usando EXCLUSIVAMENTE los precios reales investigados abajo.
