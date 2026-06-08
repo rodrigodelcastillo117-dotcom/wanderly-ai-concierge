@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 
 type Entry = { id: string; created_at: string; text: string; photo_url: string | null; author_id: string };
 
@@ -20,6 +22,7 @@ const TripJournal = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const tipDiario = useTooltipShown("diario");
 
   useEffect(() => {
     if (!id) return;
@@ -81,6 +84,7 @@ const TripJournal = () => {
 
   return (
     <DashboardLayout>
+      <FeatureTooltip id="diario" icon="📔" text="Captura recuerdos durante el viaje. Iato puede usarlos para evolucionar tu Travel DNA." shouldShow={tipDiario.shouldShow} onDismiss={tipDiario.dismiss} />
       <div className="p-4 sm:p-6 md:p-10 max-w-3xl mx-auto">
         <div className="mb-6 flex items-center gap-3">
           <BookHeart className="w-7 h-7 text-primary" />

@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { BackButton } from "@/components/BackButton";
 import { diffDateOnlyDays } from "@/lib/dateUtils";
 import { toast } from "sonner";
+import { FeatureTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 
 type Item = { id: string; text: string; done: boolean; category: string; sort_order: number };
 
