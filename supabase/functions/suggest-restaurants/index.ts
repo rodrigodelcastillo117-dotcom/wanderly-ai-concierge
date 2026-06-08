@@ -86,9 +86,27 @@ NO inventes nombres. Si no estás 100% seguro de uno, omítelo.`;
     }
     const data = await res.json();
     const content = data?.choices?.[0]?.message?.content ?? "{}";
-    let parsed: any;
-    try { parsed = JSON.parse(content); } catch {
-      const m = content.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {};
+    let parsed: any = {};
+    const tryParse = (s: string) => { try { return JSON.parse(s); } catch { return null; } };
+    // strip markdown fences
+    let cleaned = String(content)
+      .replace(/```json\s*/gi, "")
+      .replace(/```/g, "")
+      .trim();
+    parsed = tryParse(cleaned);
+    if (!parsed) {
+      // extract from first { to last }
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+      if (start !== -1 && end > start) {
+        let slice = cleaned.slice(start, end + 1)
+          .replace(/,\s*}/g, "}")
+          .replace(/,\s*]/g, "]")
+          .replace(/[\x00-\x1F\x7F]/g, " ");
+        parsed = tryParse(slice) ?? {};
+      } else {
+        parsed = {};
+      }
     }
     return new Response(JSON.stringify({ ok: true, restaurantes: parsed.restaurantes ?? [] }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
