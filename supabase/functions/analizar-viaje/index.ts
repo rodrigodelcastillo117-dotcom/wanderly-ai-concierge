@@ -545,7 +545,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         model: "claude-sonnet-4-20250514",
         max_tokens: 8000,
         temperature: 0,
-        system: SYSTEM_PROMPT,
+        system: systemFinal,
         tools: [TOOL_SCHEMA],
         tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
         messages: [{ role: "user", content: userPrompt }],
