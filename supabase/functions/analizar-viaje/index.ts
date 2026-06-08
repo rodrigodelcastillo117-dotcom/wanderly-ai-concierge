@@ -198,6 +198,8 @@ const TOOL_SCHEMA = {
             rating: { type: "number" },
             precio_por_noche: { type: "number" },
             por_que: { type: "string" },
+            booking_link: { type: "string", description: "Link de afiliado (Hotellook) si el hotel vino del bloque TRAVELPAYOUTS. Cópialo tal cual." },
+            fuente_precio: { type: "string", enum: ["travelpayouts", "perplexity", "estimado"] },
           },
           required: ["nombre", "tipo", "barrio", "rating", "precio_por_noche", "por_que"],
         },
