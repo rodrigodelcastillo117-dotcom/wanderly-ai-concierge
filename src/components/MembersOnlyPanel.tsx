@@ -151,9 +151,19 @@ export function MembersOnlyPanel({ onReserve }: Props) {
             onChange={(e) => setCityInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && setCity(cityInput)}
             placeholder="Buscar por ciudad…"
-            className="pl-11 h-12 rounded-xl border-primary/20 bg-black/40"
+            className="pl-11 pr-10 h-12 rounded-xl border-primary/20 bg-black/40"
             list="cities-list-members"
           />
+          {cityInput && (
+            <button
+              type="button"
+              onClick={() => setCityInput("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
+              aria-label="Limpiar"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
           <datalist id="cities-list-members">
             {FEATURED_CITIES.map((c) => <option key={c} value={c} />)}
           </datalist>
