@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       return okJson({ source: "travelpayouts", error: "Respuesta sin data", flights: [] });
     }
 
-    const marker = TP_MARKER || "lovable";
+    const marker = (TP_MARKER && TP_MARKER.trim()) ? TP_MARKER.trim() : "533299";
     const flights = data.data.slice(0, 20).map((f: any) => {
       const rawLink: string = f?.link ?? "";
       const bookingLink = rawLink
