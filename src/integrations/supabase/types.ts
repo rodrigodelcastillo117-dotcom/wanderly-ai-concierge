@@ -1239,6 +1239,45 @@ export type Database = {
           },
         ]
       }
+      user_onboarding_state: {
+        Row: {
+          completed_at: string | null
+          completed_onboarding: boolean
+          created_at: string
+          current_step: number
+          selected_cards: Json
+          selected_loyalty_airlines: Json
+          selected_loyalty_hotels: Json
+          travel_dna_seed: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_onboarding?: boolean
+          created_at?: string
+          current_step?: number
+          selected_cards?: Json
+          selected_loyalty_airlines?: Json
+          selected_loyalty_hotels?: Json
+          travel_dna_seed?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_onboarding?: boolean
+          created_at?: string
+          current_step?: number
+          selected_cards?: Json
+          selected_loyalty_airlines?: Json
+          selected_loyalty_hotels?: Json
+          travel_dna_seed?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_vault_benefits: {
         Row: {
           airline_alliances: Json
