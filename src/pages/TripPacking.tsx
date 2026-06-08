@@ -93,6 +93,7 @@ const TripPacking = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [newItem, setNewItem] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const tipPacking = useTooltipShown("packing");
 
   const suggestWithAI = async () => {
     if (!trip || !id) return;
