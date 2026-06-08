@@ -181,6 +181,8 @@ const TOOL_SCHEMA = {
             escalas: { type: "string" },
             precio_por_persona: { type: "number" },
             notas: { type: "string" },
+            booking_link: { type: "string", description: "Link de afiliado (Travelpayouts/Aviasales) si el precio vino del bloque TRAVELPAYOUTS. Cópialo tal cual." },
+            fuente_precio: { type: "string", enum: ["travelpayouts", "perplexity", "estimado"], description: "Origen del precio. Usa 'travelpayouts' si lo tomaste del bloque TRAVELPAYOUTS." },
           },
           required: ["tier", "aerolinea", "duracion", "escalas", "precio_por_persona"],
         },
@@ -196,6 +198,8 @@ const TOOL_SCHEMA = {
             rating: { type: "number" },
             precio_por_noche: { type: "number" },
             por_que: { type: "string" },
+            booking_link: { type: "string", description: "Link de afiliado (Hotellook) si el hotel vino del bloque TRAVELPAYOUTS. Cópialo tal cual." },
+            fuente_precio: { type: "string", enum: ["travelpayouts", "perplexity", "estimado"] },
           },
           required: ["nombre", "tipo", "barrio", "rating", "precio_por_noche", "por_que"],
         },
@@ -486,10 +490,79 @@ Deno.serve(async (req) => {
       ),
     );
 
-    // PASO 1: Perplexity investiga precios reales
-    console.log("Investigando precios con Perplexity...");
-    const investigacion = await investigarConPerplexity(body, dias, vaultDesc);
-    console.log("Perplexity OK, citations:", investigacion.citations.length);
+    // PASO 1: Lanzar EN PARALELO Perplexity + Travelpayouts vuelos + Travelpayouts hoteles
+    console.log("Lanzando Perplexity + Travelpayouts (vuelos+hoteles) en paralelo...");
+
+    const tpFlightsPromise = fetch(`${SUPABASE_URL}/functions/v1/travelpayouts-flights`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        origin_city: body.ciudad_origen,
+        destination_city: body.destino,
+        departure_date: body.fecha_salida,
+        return_date: body.fecha_regreso,
+        adults: body.num_viajeros,
+        currency: "usd",
+      }),
+    }).then((r) => r.json()).catch((e) => ({ source: "travelpayouts", error: String(e?.message ?? e), flights: [] }));
+
+    const tpHotelsPromise = fetch(`${SUPABASE_URL}/functions/v1/travelpayouts-hotels`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        city: body.destino,
+        checkin: body.fecha_salida,
+        checkout: body.fecha_regreso,
+        adults: body.num_viajeros,
+        currency: "usd",
+      }),
+    }).then((r) => r.json()).catch((e) => ({ source: "hotellook", error: String(e?.message ?? e), hotels: [] }));
+
+    const [perplexityResult, tpFlightsRes, tpHotelsRes] = await Promise.allSettled([
+      investigarConPerplexity(body, dias, vaultDesc),
+      tpFlightsPromise,
+      tpHotelsPromise,
+    ]);
+
+    const investigacion = perplexityResult.status === "fulfilled"
+      ? perplexityResult.value
+      : { texto: `(Perplexity falló: ${(perplexityResult as any).reason?.message ?? "error"})`, citations: [] };
+
+    const tpFlights = tpFlightsRes.status === "fulfilled" ? tpFlightsRes.value : { error: "promise_rejected", flights: [] };
+    const tpHotels = tpHotelsRes.status === "fulfilled" ? tpHotelsRes.value : { error: "promise_rejected", hotels: [] };
+
+    console.log("Perplexity citations:", investigacion.citations.length, "| TP flights:", tpFlights?.flights?.length ?? 0, "| TP hotels:", tpHotels?.hotels?.length ?? 0);
+
+    // Bloques de texto que Claude verá para los precios reales de Travelpayouts
+    const tpFlightsBlock = (() => {
+      if (!Array.isArray(tpFlights?.flights) || tpFlights.flights.length === 0) {
+        return `(Sin datos de Travelpayouts/Aviasales — usar precios de Perplexity${tpFlights?.error ? `. Motivo: ${tpFlights.error}` : ""})`;
+      }
+      const lines = tpFlights.flights.slice(0, 12).map((f: any, i: number) => {
+        const priceMxn = Math.round((Number(f.price) || 0) * 18.5);
+        return `${i + 1}. ${f.airline} ${f.flight_number} — ${f.origin_airport}→${f.destination_airport} — USD ${f.price} (~$${priceMxn.toLocaleString("es-MX")} MXN) — ${f.stops} escalas — sale ${f.departure_at ?? "?"} — LINK: ${f.booking_link}`;
+      }).join("\n");
+      return `Fuente: Travelpayouts/Aviasales (precios oficiales del inventario, consultados ${tpFlights.consulted_at}).\nRuta: ${tpFlights.origin}→${tpFlights.destination}\n${lines}`;
+    })();
+
+    const tpHotelsBlock = (() => {
+      if (!Array.isArray(tpHotels?.hotels) || tpHotels.hotels.length === 0) {
+        return `(Sin datos de Hotellook — usar hoteles de Perplexity${tpHotels?.error ? `. Motivo: ${tpHotels.error}` : ""})`;
+      }
+      const lines = tpHotels.hotels.slice(0, 15).map((h: any, i: number) => {
+        const perNightMxn = Math.round((Number(h.price_per_night) || 0) * 18.5);
+        return `${i + 1}. ${h.name} — ${h.stars ?? "?"}★ — rating ${h.rating ?? "?"} — USD ${h.price_per_night}/noche (~$${perNightMxn.toLocaleString("es-MX")} MXN) — ${h.location_name} — LINK: ${h.booking_link}`;
+      }).join("\n");
+      return `Fuente: Hotellook (precios oficiales de inventario, consultados ${tpHotels.consulted_at}).\nCiudad: ${tpHotels.city} | ${tpHotels.nights} noches | ${tpHotels.adults} adultos\n${lines}`;
+    })();
 
     // PASO 2: Claude estructura el análisis usando los datos reales
     const userPrompt = `Genera un análisis premium de viaje usando EXCLUSIVAMENTE los precios reales investigados abajo.
@@ -524,7 +597,17 @@ ${body.notas_usuario?.trim() ? body.notas_usuario.trim() : "(sin instrucciones a
 ==========================================
 
 ==========================================
-INVESTIGACIÓN DE PRECIOS REALES (Perplexity, datos en vivo)
+PRECIOS PRIMARIOS — TRAVELPAYOUTS (fuente oficial de inventario; USA ESTOS PRECIOS Y LOS BOOKING_LINK COMO PRIMARIOS)
+==========================================
+VUELOS (Aviasales):
+${tpFlightsBlock}
+
+HOTELES (Hotellook):
+${tpHotelsBlock}
+==========================================
+
+==========================================
+CONTEXTO CUALITATIVO — PERPLEXITY (úsalo SOLO para restaurantes, tours, tips locales, cruceros, mejor temporada, promos de lealtad; NO para precios de vuelos/hoteles si TRAVELPAYOUTS arriba trajo datos)
 ==========================================
 ${investigacion.texto}
 
@@ -532,7 +615,13 @@ FUENTES CITADAS:
 ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 ==========================================
 
-Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario (si pidió excluir hospedaje en alguna ciudad, no lo cotices ahí y pon 0 o solo las ciudades incluidas). En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona debe ser el TOTAL de la ruta aérea completa por persona, no un tramo suelto. Todo en MXN.`;
+REGLAS DE FUENTES:
+- Si arriba hay datos de TRAVELPAYOUTS para vuelos, los 3 tiers (ahorro/equilibrio/premium) DEBEN salir de esa lista. Convierte USD→MXN (×18.5). En cada vuelo, copia el booking_link exacto y pon fuente_precio="travelpayouts".
+- Si arriba hay datos de TRAVELPAYOUTS para hoteles, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Copia el booking_link y pon fuente_precio="travelpayouts".
+- Si TRAVELPAYOUTS no trajo datos para una categoría, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link.
+- Restaurantes, tours, itinerario, tips y cruceros se sacan SIEMPRE de Perplexity.
+
+Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -625,7 +714,22 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       });
     }
 
-    return new Response(JSON.stringify({ trip, fuentes: investigacion.citations }), {
+    return new Response(JSON.stringify({
+      trip,
+      fuentes: investigacion.citations,
+      travelpayouts: {
+        flights: {
+          count: tpFlights?.flights?.length ?? 0,
+          error: tpFlights?.error ?? null,
+          sample: (tpFlights?.flights ?? []).slice(0, 3),
+        },
+        hotels: {
+          count: tpHotels?.hotels?.length ?? 0,
+          error: tpHotels?.error ?? null,
+          sample: (tpHotels?.hotels ?? []).slice(0, 3),
+        },
+      },
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
