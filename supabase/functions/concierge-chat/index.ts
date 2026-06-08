@@ -201,42 +201,62 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as Body;
     const lastUserMsg = [...(body.messages ?? [])].reverse().find((m) => m.role === "user")?.content ?? "";
 
-    // Carga contexto: viaje activo, bóveda, dna
-    const [{ data: trip }, { data: vault }, { data: prefs }] = await Promise.all([
+    // Carga contexto: perfil, viaje activo, bóveda, dna, travel_profiles
+    const [{ data: trip }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }] = await Promise.all([
       supabase.from("trips")
-        .select("destino, pais_destino, ciudad_origen, fecha_salida, fecha_regreso, num_viajeros, presupuesto_objetivo")
+        .select("destino, pais_destino, ciudad_origen, fecha_salida, fecha_regreso, num_viajeros, presupuesto_objetivo, status")
         .eq("user_id", u.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("user_vault_benefits").select("*").eq("user_id", u.user.id).maybeSingle(),
       supabase.from("ai_user_preferences").select("*").eq("user_id", u.user.id).maybeSingle(),
+      supabase.from("profiles").select("full_name, ciudad_origen").eq("id", u.user.id).maybeSingle(),
+      supabase.from("travel_profiles").select("estilo_viaje, presupuesto_rango, ritmo_viaje, preferencias_comida, alergias_restricciones, intereses, perfil_ia").eq("user_id", u.user.id).maybeSingle(),
     ]);
 
     const vaultLines: string[] = [];
     if (vault?.credit_cards?.length) vaultLines.push("Tarjetas: " + vault.credit_cards.map((c: any) => `${c.bank} ${c.card_tier}`).join("; "));
     if (vault?.airline_alliances?.length) vaultLines.push("Aerolíneas: " + vault.airline_alliances.map((a: any) => `${a.airline} ${a.tier_status}`).join("; "));
     if (vault?.hotel_loyalty?.length) vaultLines.push("Hoteles: " + vault.hotel_loyalty.map((h: any) => `${h.chain_name} ${h.status_tier}`).join("; "));
+    if (vault?.car_rentals?.length) vaultLines.push("Autos: " + vault.car_rentals.map((c: any) => `${c.company} ${c.tier_status ?? ""}`.trim()).join("; "));
 
-    const dnaLines: string[] = [];
-    if (prefs?.estilo_comida?.length) dnaLines.push("Comida: " + prefs.estilo_comida.join(", "));
-    if (prefs?.actividades_tarde?.length) dnaLines.push("Intereses: " + prefs.actividades_tarde.join(", "));
-    if (prefs?.ritmo_viaje) dnaLines.push("Ritmo: " + prefs.ritmo_viaje);
-    if (prefs?.nivel_presupuesto) dnaLines.push("Presupuesto: " + prefs.nivel_presupuesto);
-    if (prefs?.hospedaje_preferencias?.length) dnaLines.push("Hospedaje: " + prefs.hospedaje_preferencias.join(", "));
-    if (prefs?.restricciones_alimentarias?.length) dnaLines.push("Restricciones: " + prefs.restricciones_alimentarias.join(", "));
+    // Bloque de contexto del usuario en texto plano
+    const ctxLines: string[] = ["CONTEXTO DEL USUARIO ACTUAL:"];
+    const nombre = profile?.full_name ?? null;
+    const ciudadOrigen = profile?.ciudad_origen ?? (trip as any)?.ciudad_origen ?? null;
+    if (nombre) ctxLines.push(`Nombre: ${nombre}`);
+    if (ciudadOrigen) ctxLines.push(`Ciudad origen: ${ciudadOrigen}`);
+    const perfilIA = (tprof as any)?.perfil_ia ?? (prefs as any)?.perfil_ia ?? null;
+    if (perfilIA?.resumen) ctxLines.push(`Travel DNA: ${perfilIA.resumen}`);
+    if (perfilIA?.estilo_dominante) ctxLines.push(`Estilo dominante: ${perfilIA.estilo_dominante}`);
+    const ritmo = (tprof as any)?.ritmo_viaje ?? (prefs as any)?.ritmo_viaje;
+    if (ritmo) ctxLines.push(`Ritmo: ${ritmo}`);
+    const presu = (tprof as any)?.presupuesto_rango ?? (prefs as any)?.nivel_presupuesto;
+    if (presu) ctxLines.push(`Presupuesto: ${presu}`);
+    const comida = (tprof as any)?.preferencias_comida ?? (prefs as any)?.estilo_comida;
+    if (comida?.length) ctxLines.push(`Comida: ${comida.join(", ")}`);
+    const restr = (tprof as any)?.alergias_restricciones ?? (prefs as any)?.restricciones_alimentarias;
+    if (restr?.length) ctxLines.push(`Restricciones: ${restr.join(", ")}`);
+    const intereses = (tprof as any)?.intereses ?? (prefs as any)?.actividades_tarde;
+    if (intereses?.length) ctxLines.push(`Intereses: ${intereses.join(", ")}`);
+    ctxLines.push(vaultLines.length ? `Bóveda: ${vaultLines.join(" | ")}` : "Bóveda: vacía (sugiere al usuario llenarla)");
+    if (trip) {
+      ctxLines.push(`Viaje más reciente: ${trip.destino} del ${trip.fecha_salida ?? "?"} al ${trip.fecha_regreso ?? "?"}, status ${(trip as any).status ?? "?"}`);
+    }
+    if (body.context?.coords) ctxLines.push(`Ubicación actual aprox: ${body.context.coords.lat.toFixed(4)}, ${body.context.coords.lng.toFixed(4)}`);
+    if (body.god_mode) ctxLines.push("MODO: GOD MODE — caza reservas imposibles, upgrades premium, mesas Michelin sold-out, empty-legs.");
 
-    const contextoStr = [
-      `Viaje activo: ${trip ? `${trip.destino} (${trip.fecha_salida ?? "?"} a ${trip.fecha_regreso ?? "?"}, ${trip.num_viajeros ?? 1} pax, presupuesto ~$${trip.presupuesto_objetivo ?? "?"} MXN, sale de ${trip.ciudad_origen ?? "?"})` : "ninguno"}.`,
-      `Bóveda: ${vaultLines.join(" | ") || "vacía"}.`,
-      `DNA de viajero: ${dnaLines.join(" | ") || "todavía aprendiendo"}.`,
-      body.context?.coords ? `Ubicación actual aprox: ${body.context.coords.lat.toFixed(4)}, ${body.context.coords.lng.toFixed(4)}.` : "",
-      body.god_mode ? "MODO: GOD MODE — caza reservas imposibles, upgrades premium, mesas Michelin sold-out, empty-legs." : "",
-    ].filter(Boolean).join("\n");
+    const userContextBlock = ctxLines.join("\n");
+    const masterPrompt = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
+
+    const systemContent = [masterPrompt, userContextBlock, SYSTEM]
+      .filter((s) => s && s.length > 0)
+      .join("\n\n---\n\n");
 
     // Conversación con tool-calling loop
     const messages: any[] = [
-      { role: "system", content: SYSTEM },
-      { role: "system", content: contextoStr },
+      { role: "system", content: systemContent },
       ...body.messages.slice(-10),
     ];
+
 
     const toolsUsed: string[] = [];
     let finalText = "";
