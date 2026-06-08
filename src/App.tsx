@@ -10,6 +10,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
+import OnboardingDeep from "./pages/OnboardingDeep";
 import DashboardHome from "./pages/DashboardHome";
 import PlanTrip from "./pages/PlanTrip";
 import TripDetail from "./pages/TripDetail";
