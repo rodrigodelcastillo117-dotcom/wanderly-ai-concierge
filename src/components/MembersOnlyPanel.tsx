@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapPin, ExternalLink, Search, Lock, Sparkles, ShieldCheck, CalendarCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { MapPin, ExternalLink, Search, X, Sparkles, CalendarCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CityVideoCard } from "@/components/CityVideoCard";
-
-const MEMBERS_PASSWORD = "iatos2026";
 
 const CATEGORIES: { id: string; emoji: string; label: string }[] = [
   { id: "cabaret", emoji: "🎭", label: "Cabaret" },
@@ -21,9 +18,12 @@ const CATEGORIES: { id: string; emoji: string; label: string }[] = [
 ];
 
 const FEATURED_CITIES = [
-  "París", "Londres", "Nueva York", "Las Vegas",
-  "Ciudad de México", "Dubái", "Tokio", "Berlín", "Ibiza", "Miami",
+  "París", "Londres", "Nueva York", "Las Vegas", "Ciudad de México",
+  "Dubái", "Tokio", "Berlín", "Ibiza", "Miami",
+  "Madrid", "Roma", "Milán", "Atenas", "Bangkok",
+  "Saint-Tropez", "Mykonos", "Tulum",
 ];
+
 
 interface Venue {
   id: string;
