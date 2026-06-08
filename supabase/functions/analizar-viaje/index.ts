@@ -537,9 +537,10 @@ Deno.serve(async (req) => {
       : { texto: `(Perplexity falló: ${(perplexityResult as any).reason?.message ?? "error"})`, citations: [] };
 
     const tpFlights = tpFlightsRes.status === "fulfilled" ? tpFlightsRes.value : { error: "promise_rejected", flights: [] };
-    const tpHotels = tpHotelsRes.status === "fulfilled" ? tpHotelsRes.value : { error: "promise_rejected", hotels: [] };
+    // Hotellook murió oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.
+    // const tpHotels = tpHotelsRes.status === "fulfilled" ? tpHotelsRes.value : { error: "promise_rejected", hotels: [] };
 
-    console.log("Perplexity citations:", investigacion.citations.length, "| TP flights:", tpFlights?.flights?.length ?? 0, "| TP hotels:", tpHotels?.hotels?.length ?? 0);
+    console.log("Perplexity citations:", investigacion.citations.length, "| TP flights:", tpFlights?.flights?.length ?? 0, "| TP hotels: deshabilitado (Hotellook cerró oct 2025)");
 
     // Bloques de texto que Claude verá para los precios reales de Travelpayouts
     const tpFlightsBlock = (() => {
