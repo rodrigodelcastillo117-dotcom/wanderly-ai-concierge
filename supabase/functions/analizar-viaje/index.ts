@@ -69,6 +69,31 @@ async function resolverFechasSiFaltan(
 
 const TIER_ORDER = ["ahorro", "equilibrio", "premium"];
 
+const DEFAULT_TP_MARKER = (Deno.env.get("TRAVELPAYOUTS_MARKER") || "533299").trim() || "533299";
+
+/**
+ * CAPA DE SEGURIDAD (sub-regla 15.1): garantiza que TODO link de Aviasales
+ * en los vuelos lleve `?marker=...`. Si Claude truncó el marker al copiar el
+ * booking_link, lo re-inyectamos antes de guardar/responder. Esto protege la
+ * comisión de afiliado aunque el modelo se equivoque.
+ */
+function ensureMarkerInFlightLinks(vuelos: any[]): any[] {
+  if (!Array.isArray(vuelos)) return vuelos;
+  const marker = DEFAULT_TP_MARKER;
+  const fix = (url: unknown): unknown => {
+    if (typeof url !== "string" || !url) return url;
+    if (!url.startsWith("https://www.aviasales.com/") && !url.startsWith("https://aviasales.com/")) return url;
+    if (/[?&]marker=/.test(url)) return url;
+    return url + (url.includes("?") ? "&" : "?") + `marker=${marker}`;
+  };
+  for (const v of vuelos) {
+    if (!v || typeof v !== "object") continue;
+    if (v.booking_link) v.booking_link = fix(v.booking_link);
+    if (v.cta_action) v.cta_action = fix(v.cta_action);
+  }
+  return vuelos;
+}
+
 function normalizarVuelos(vuelos: any[]): any[] {
   if (!Array.isArray(vuelos)) return [];
 
@@ -149,7 +174,24 @@ REGLAS ESTRICTAS DE PRECIOS:
     - Perplexity es SOLO contexto cualitativo (restaurantes, tours, tips, mejor temporada). NUNCA fuente de precios de vuelo si Travelpayouts trajo datos.
     - PROHIBIDO generar booking_link a google.com/travel, google.com/flights o búsquedas genéricas de Google. Está bloqueado por CORS y rompe la experiencia.
     - Para booking_link de cada vuelo: copia EXACTAMENTE el LINK del bloque TRAVELPAYOUTS (formato https://www.aviasales.com/...?marker=...). Si por algún motivo no tienes un link de Aviasales para un tier, usa el sitio oficial de la aerolínea: Aeroméxico → https://aeromexico.com, Iberia → https://iberia.com, American → https://aa.com, United → https://united.com, Delta → https://delta.com, Air France → https://airfrance.com, LATAM → https://latam.com, Avianca → https://avianca.com, KLM → https://klm.com, Lufthansa → https://lufthansa.com, British Airways → https://britishairways.com, Volaris → https://volaris.com, Viva → https://vivaaerobus.com. NUNCA google.com.
-    - Si Travelpayouts NO trajo datos (el bloque dice "Sin datos de Travelpayouts"), entonces sí cae a Perplexity para el precio, pero el booking_link sigue siendo el sitio oficial de la aerolínea — JAMÁS google.com/travel.
+     - Si Travelpayouts NO trajo datos (el bloque dice "Sin datos de Travelpayouts"), entonces sí cae a Perplexity para el precio, pero el booking_link sigue siendo el sitio oficial de la aerolínea — JAMÁS google.com/travel.
+
+     SUB-REGLA 15.1 — PRESERVACIÓN DEL MARKER (CRÍTICA):
+     Cuando copies un booking_link del bloque TRAVELPAYOUTS al campo booking_link (o cta_action)
+     del JSON de salida, COPIA LA URL COMPLETA INCLUYENDO los parámetros después del `?`. NUNCA
+     trunques `?marker=...`, `&marker=...`, ni cualquier parámetro de query string. El marker
+     es nuestro identificador de afiliado y SIN ÉL perdemos toda comisión.
+
+     Si el booking_link en el prompt termina con `?marker=533299`, tu booking_link TAMBIÉN debe
+     terminar con `?marker=533299`. No simplifiques, no abrevies, no limpies la URL.
+
+     EJEMPLO CORRECTO:
+     - Prompt dice: LINK: https://www.aviasales.com/search/MEX0511SCL12111?marker=533299
+     - booking_link: "https://www.aviasales.com/search/MEX0511SCL12111?marker=533299"
+
+     EJEMPLO INCORRECTO (NO HAGAS ESTO):
+     - Prompt dice: LINK: https://www.aviasales.com/search/MEX0511SCL12111?marker=533299
+     - booking_link: "https://www.aviasales.com/search/MEX0511SCL12111"   ← FALTA MARKER
 16. LINKS DE RESTAURANTES — REGLA NO NEGOCIABLE:
     Para el campo cta_action de cada restaurante en el array "restaurantes", usa SIEMPRE
     un link real útil. Orden de prioridad:
@@ -699,6 +741,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
 
     const a = toolUse.input;
     a.vuelos = normalizarVuelos(a.vuelos);
+    // Sub-regla 15.1: re-inyecta ?marker=... si Claude lo truncó al copiar el booking_link.
+    a.vuelos = ensureMarkerInFlightLinks(a.vuelos);
     const vueloEquilibrio = a.vuelos.find((v: any) => v.tier === "equilibrio") ?? a.vuelos[0];
     const vuelosGrupo = Math.round(
       (Number(vueloEquilibrio?.precio_por_persona) || Number(a.desglose_presupuesto?.vuelos) || 0) * body.num_viajeros,
