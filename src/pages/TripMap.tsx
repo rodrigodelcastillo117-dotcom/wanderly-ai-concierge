@@ -546,6 +546,10 @@ const TripMap = () => {
             <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60 px-6 text-center">
               Conecta Google Maps en Conectores para ver el mapa interactivo.
             </div>
+          ) : mapError ? (
+            <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60 px-6 text-center">
+              {mapError}
+            </div>
           ) : !mapReady ? (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/60">
               Cargando Google Maps…
