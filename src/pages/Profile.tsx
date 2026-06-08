@@ -14,6 +14,8 @@ import { TravelAvatarCinematic } from "@/components/lux/TravelAvatarCinematic";
 import { useTravelDNA, TravelDNAStats } from "@/components/lux/TravelDNAStats";
 import { CompatibilityPanel } from "@/components/lux/CompatibilityPanel";
 import { BestMomentsPanel } from "@/components/lux/BestMomentsPanel";
+import { Tooltip as InlineTooltip } from "@/components/Tooltip";
+import { useTooltipShown } from "@/hooks/useTooltipShown";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -27,6 +29,7 @@ const Profile = () => {
     version: null,
     updated_at: null,
   });
+  const tipDNA = useTooltipShown("travel_dna_perfil");
 
   useEffect(() => {
     if (!user) return;
@@ -145,6 +148,16 @@ const Profile = () => {
               {evolving ? "Recalculando…" : "✨ Recalcular mi Travel DNA"}
             </Button>
           </div>
+
+          {tipDNA.shouldShow && (
+            <InlineTooltip
+              id="travel_dna_perfil"
+              icon="✨"
+              text="Tu DNA evoluciona cada 3 viajes automáticamente. También lo puedes recalcular manual aquí."
+              position="inline"
+              onDismiss={tipDNA.dismiss}
+            />
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* AVATAR CINEMATICO */}
