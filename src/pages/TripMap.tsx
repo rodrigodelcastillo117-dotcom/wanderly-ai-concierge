@@ -154,80 +154,41 @@ const TripMap = () => {
     })();
   }, [id]);
 
-  // 2. Cargar script Maps JS (robusto: callback + importLibrary)
-  useEffect(() => {
-    if (!BROWSER_KEY) return;
-    let cancelled = false;
-    const markReady = async () => {
-      try {
-        const g = (window as any).google?.maps;
-        if (!g) return;
-        if (g.importLibrary) await g.importLibrary("maps");
-        if (!cancelled) setMapReady(true);
-      } catch (error) {
-        console.error("No se pudo cargar la librería de mapas", error);
-        if (!cancelled) setMapError("No se pudo cargar Google Maps. Actualiza la página e inténtalo de nuevo.");
-      }
-    };
-    if ((window as any).google?.maps) { void markReady(); return () => { cancelled = true; }; }
-    // Siempre (re)asignamos el callback al setter actual
-    window.initTripMap = () => { void markReady(); };
-    if (!document.getElementById("gmaps-trip-script")) {
-      const s = document.createElement("script");
-      s.id = "gmaps-trip-script";
-      s.async = true;
-      s.onerror = () => setMapError("No se pudo cargar Google Maps. Revisa la clave o el dominio autorizado.");
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
-      document.head.appendChild(s);
-    }
-    // Polling de respaldo por si el callback ya se consumió en otra vista
-    const iv = window.setInterval(() => {
-      const g = (window as any).google?.maps;
-      if (g?.Map || g?.importLibrary) {
-        void markReady();
-        window.clearInterval(iv);
-      }
-    }, 250);
-    return () => { cancelled = true; window.clearInterval(iv); };
-  }, []);
-
-  // 3. Inicializar el mapa una vez
+  // 2. Cargar Google Maps e inicializar el mapa una vez
   useEffect(() => {
     if (!BROWSER_KEY || mapRef.current) return;
     let cancelled = false;
-    let retryTimer: number | undefined;
+    let frame = 0;
     (async () => {
       try {
-        const g = (window as any).google?.maps;
-        if (!g) {
-          retryTimer = window.setTimeout(() => setMapReady((ready) => !ready), 250);
-          return;
-        }
-        const mapsLib = g.importLibrary ? await g.importLibrary("maps") : g;
-        const MapCtor = mapsLib?.Map ?? g?.Map;
-        if (cancelled || !mapDivRef.current) return;
-        if (!MapCtor) {
-          retryTimer = window.setTimeout(() => setMapReady((ready) => !ready), 250);
-          return;
-        }
-        mapRef.current = new MapCtor(mapDivRef.current, {
-          center: { lat: 20, lng: 0 },
-          zoom: 2,
-          styles: NIGHT_STYLE,
-          disableDefaultUI: false,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: true,
-          backgroundColor: "#04070d",
-        });
-        setMapInitialized(true);
+        const mapsLib = await loadTripMaps();
+        const mount = () => {
+          if (cancelled || mapRef.current) return;
+          if (!mapDivRef.current) {
+            frame = window.requestAnimationFrame(mount);
+            return;
+          }
+          mapRef.current = new mapsLib.Map(mapDivRef.current, {
+            center: { lat: 20, lng: 0 },
+            zoom: 2,
+            styles: NIGHT_STYLE,
+            disableDefaultUI: false,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true,
+            backgroundColor: "#04070d",
+          });
+          setMapReady(true);
+          setMapInitialized(true);
+        };
+        mount();
       } catch (error) {
         console.error("No se pudo inicializar Google Maps", error);
         setMapError("No se pudo iniciar Google Maps. Actualiza la página e inténtalo de nuevo.");
       }
     })();
-    return () => { cancelled = true; if (retryTimer) window.clearTimeout(retryTimer); };
-  }, [mapReady]);
+    return () => { cancelled = true; if (frame) window.cancelAnimationFrame(frame); };
+  }, []);
 
   // 3b. Centra inmediatamente en el origen del viaje (fallback visual antes de geocodificar paradas)
   useEffect(() => {
