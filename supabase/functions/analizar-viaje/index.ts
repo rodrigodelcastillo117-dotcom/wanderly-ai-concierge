@@ -597,7 +597,17 @@ ${body.notas_usuario?.trim() ? body.notas_usuario.trim() : "(sin instrucciones a
 ==========================================
 
 ==========================================
-INVESTIGACIÓN DE PRECIOS REALES (Perplexity, datos en vivo)
+PRECIOS PRIMARIOS — TRAVELPAYOUTS (fuente oficial de inventario; USA ESTOS PRECIOS Y LOS BOOKING_LINK COMO PRIMARIOS)
+==========================================
+VUELOS (Aviasales):
+${tpFlightsBlock}
+
+HOTELES (Hotellook):
+${tpHotelsBlock}
+==========================================
+
+==========================================
+CONTEXTO CUALITATIVO — PERPLEXITY (úsalo SOLO para restaurantes, tours, tips locales, cruceros, mejor temporada, promos de lealtad; NO para precios de vuelos/hoteles si TRAVELPAYOUTS arriba trajo datos)
 ==========================================
 ${investigacion.texto}
 
@@ -605,7 +615,13 @@ FUENTES CITADAS:
 ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 ==========================================
 
-Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario (si pidió excluir hospedaje en alguna ciudad, no lo cotices ahí y pon 0 o solo las ciudades incluidas). En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona debe ser el TOTAL de la ruta aérea completa por persona, no un tramo suelto. Todo en MXN.`;
+REGLAS DE FUENTES:
+- Si arriba hay datos de TRAVELPAYOUTS para vuelos, los 3 tiers (ahorro/equilibrio/premium) DEBEN salir de esa lista. Convierte USD→MXN (×18.5). En cada vuelo, copia el booking_link exacto y pon fuente_precio="travelpayouts".
+- Si arriba hay datos de TRAVELPAYOUTS para hoteles, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Copia el booking_link y pon fuente_precio="travelpayouts".
+- Si TRAVELPAYOUTS no trajo datos para una categoría, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link.
+- Restaurantes, tours, itinerario, tips y cruceros se sacan SIEMPRE de Perplexity.
+
+Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
