@@ -714,7 +714,22 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       });
     }
 
-    return new Response(JSON.stringify({ trip, fuentes: investigacion.citations }), {
+    return new Response(JSON.stringify({
+      trip,
+      fuentes: investigacion.citations,
+      travelpayouts: {
+        flights: {
+          count: tpFlights?.flights?.length ?? 0,
+          error: tpFlights?.error ?? null,
+          sample: (tpFlights?.flights ?? []).slice(0, 3),
+        },
+        hotels: {
+          count: tpHotels?.hotels?.length ?? 0,
+          error: tpHotels?.error ?? null,
+          sample: (tpHotels?.hotels ?? []).slice(0, 3),
+        },
+      },
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
