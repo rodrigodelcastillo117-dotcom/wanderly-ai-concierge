@@ -545,11 +545,11 @@ const TripDetail = () => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                    const bookingUrl = v.booking_link || v.cta_action;
-                                    if (bookingUrl) {
-                                      window.open(ensureAviasalesMarker(bookingUrl), "_blank", "noopener,noreferrer");
-                                      return;
-                                    }
+                                  const bookingUrl = v.booking_link || v.cta_action;
+                                  if (bookingUrl) {
+                                    window.open(ensureAviasalesMarker(bookingUrl), "_blank", "noopener,noreferrer");
+                                    return;
+                                  }
                                   const u = `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "Mexico City")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida}&return=${trip.fecha_regreso}&travelers=${trip.viajeros ?? 1}&auto=1`;
                                   window.location.href = u;
                                 }}
