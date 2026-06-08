@@ -15,6 +15,34 @@ declare global {
   }
 }
 
+let tripMapsPromise: Promise<any> | null = null;
+
+function loadTripMaps(): Promise<any> {
+  if ((window as any).google?.maps?.importLibrary) {
+    return (window as any).google.maps.importLibrary("maps");
+  }
+  if (tripMapsPromise) return tripMapsPromise;
+  tripMapsPromise = new Promise((resolve, reject) => {
+    window.initTripMap = async () => {
+      try {
+        const maps = await (window as any).google.maps.importLibrary("maps");
+        resolve(maps);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    const existing = document.getElementById("gmaps-trip-script") as HTMLScriptElement | null;
+    if (existing) return;
+    const s = document.createElement("script");
+    s.id = "gmaps-trip-script";
+    s.async = true;
+    s.onerror = () => reject(new Error("No se pudo cargar Google Maps"));
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
+    document.head.appendChild(s);
+  });
+  return tripMapsPromise;
+}
+
 // Cache global de geocoding
 const geoCache = new Map<string, { lat: number; lng: number } | null>();
 async function geocode(q: string): Promise<{ lat: number; lng: number } | null> {
