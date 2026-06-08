@@ -51,13 +51,20 @@ async function aiIata(apiKey: string, city: string): Promise<string | null> {
 
 // Aviasales deep-link con marker de afiliado Travelpayouts (formato DDMM).
 // NUNCA usamos google.com/travel — Google bloquea ese embed con ERR_BLOCKED_BY_RESPONSE.
+const DEFAULT_TP_MARKER = (Deno.env.get("TRAVELPAYOUTS_MARKER") || "533299").trim() || "533299";
+
+function ensureAviasalesMarker(url: string) {
+  if (!/^https:\/\/(www\.)?aviasales\.com\//i.test(url)) return url;
+  if (/[?&]marker=/.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}marker=${DEFAULT_TP_MARKER}`;
+}
+
 function aviasalesBuyUrl(depIata: string, arrIata: string, depart: string, ret: string, adults: number) {
-  const tpMarker = Deno.env.get("TRAVELPAYOUTS_MARKER") ?? (Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "").slice(0, 6) ?? "533299";
   const dd = depart.split("-");
   const rd = (ret ?? "").split("-");
   const datePart = dd.length === 3 ? `${dd[2]}${dd[1]}` : "";
   const retPart = rd.length === 3 ? `${rd[2]}${rd[1]}` : "";
-  return `https://www.aviasales.com/search/${depIata}${datePart}${arrIata}${retPart}${adults}?marker=${tpMarker}`;
+  return ensureAviasalesMarker(`https://www.aviasales.com/search/${depIata}${datePart}${arrIata}${retPart}${adults}`);
 }
 
 // Mapa de aerolíneas → sitio oficial (fallback cuando no hay link de Aviasales).
@@ -192,7 +199,6 @@ Deno.serve(async (req) => {
     }
     // Fallback 2 (datos REALES): Travelpayouts cached prices
     const tpToken = Deno.env.get("TRAVELPAYOUTS_TOKEN");
-    const tpMarker = "533299";
     if (results.length === 0 && tpToken) {
       try {
         const u = new URL("https://api.travelpayouts.com/v1/prices/cheap");
@@ -213,7 +219,7 @@ Deno.serve(async (req) => {
           const rd = (return_date ?? "").split("-");
           const datePart = `${dd[2]}${dd[1]}`;
           const retPart = rd.length === 3 ? `${rd[2]}${rd[1]}` : "";
-          const avia = `https://www.aviasales.com/search/${dep}${datePart}${arr}${retPart}${travelers}?marker=${tpMarker}`;
+          const avia = ensureAviasalesMarker(`https://www.aviasales.com/search/${dep}${datePart}${arr}${retPart}${travelers}`);
           results = items.slice(0, 10).map((o: any) => ({
             price_usd: Math.round(Number(o.price ?? 0) * travelers),
             price_per_person_usd: Math.round(Number(o.price ?? 0)),

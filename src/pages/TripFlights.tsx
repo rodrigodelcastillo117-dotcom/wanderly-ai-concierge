@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { googleFlightsLink, skyscannerLink, kayakFlightsLink } from "@/lib/affiliateLinks";
+import { googleFlightsLink, skyscannerLink, kayakFlightsLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
 
 interface FlightResult {
   price_usd: number;
@@ -145,10 +145,10 @@ const TripFlights = () => {
                 <div className="font-display text-2xl gold-text">${f.price_per_person_usd}</div>
                 <div className="text-[11px] text-muted-foreground">USD / persona</div>
                 <div className="flex flex-col gap-1 mt-2">
-                  <Button size="sm" onClick={() => window.open(f.buy_url, "_blank")} className="w-full">
+                  <Button size="sm" onClick={() => window.open(ensureAviasalesMarker(f.buy_url), "_blank")} className="w-full">
                     Reservar <ExternalLink className="w-3 h-3 ml-1" />
                   </Button>
-                  <button onClick={() => window.open(f.airline_buy_url, "_blank")} className="text-[11px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline">
+                  <button onClick={() => window.open(ensureAviasalesMarker(f.airline_buy_url), "_blank")} className="text-[11px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline">
                     Comprar en {f.airline}
                   </button>
                 </div>

@@ -4,6 +4,12 @@
 
 export const TP_MARKER = "533299";
 
+export function ensureAviasalesMarker(url: string) {
+  if (!/^https:\/\/(www\.)?aviasales\.com\//i.test(url)) return url;
+  if (/[?&]marker=/.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}marker=${TP_MARKER}`;
+}
+
 // Aviasales (vuelos, marca propia Travelpayouts — comisión más alta)
 export function aviasalesLink(originIata: string, destIata: string, depart: string, ret?: string, adults = 1) {
   const d = depart.replace(/-/g, "").slice(2, 8); // YYMMDD → DDMM
@@ -13,7 +19,7 @@ export function aviasalesLink(originIata: string, destIata: string, depart: stri
   const path = rMMDD
     ? `${originIata}${dMMDD}${destIata}${rMMDD}${adults}`
     : `${originIata}${dMMDD}${destIata}${adults}`;
-  return `https://www.aviasales.com/search/${path}?marker=${TP_MARKER}`;
+  return ensureAviasalesMarker(`https://www.aviasales.com/search/${path}`);
 }
 
 // Hotellook (hoteles, marca propia Travelpayouts)

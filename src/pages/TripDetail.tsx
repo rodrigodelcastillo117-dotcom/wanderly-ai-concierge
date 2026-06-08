@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
-import { getYourGuideLink, viatorLink, googleMapsSearchLink, theforkLink } from "@/lib/affiliateLinks";
+import { getYourGuideLink, viatorLink, googleMapsSearchLink, theforkLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
 
 
 const fmtMXN = (n: number) =>
@@ -545,12 +545,17 @@ const TripDetail = () => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  const bookingUrl = v.booking_link || v.cta_action;
+                                  if (bookingUrl) {
+                                    window.open(ensureAviasalesMarker(bookingUrl), "_blank", "noopener,noreferrer");
+                                    return;
+                                  }
                                   const u = `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "Mexico City")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida}&return=${trip.fecha_regreso}&travelers=${trip.viajeros ?? 1}&auto=1`;
                                   window.location.href = u;
                                 }}
                                 className="mt-2 text-xs px-3 py-1.5 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition"
                               >
-                                Buscar vuelos reales y reservar →
+                                  {(v.booking_link || v.cta_action) ? "Reservar vuelo →" : "Buscar vuelos reales y reservar →"}
                               </button>
                             </ExpandableItemCard>
                           );
