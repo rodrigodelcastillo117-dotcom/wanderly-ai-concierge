@@ -316,26 +316,27 @@ Deno.serve(async (req) => {
 
     // Carga contexto: perfil, viaje activo (FULL), bóveda, dna, travel_profiles
     const todayISO = new Date().toISOString().slice(0, 10);
-    const [{ data: trip }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }] = await Promise.all([
-      // Prioriza viaje activo/futuro; trae TODO el JSON para que el concierge no pida lo que ya existe
+    const [{ data: tripRows }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }] = await Promise.all([
+      // Trae candidatos amplios y elige por ciudad/intención. No filtrar por status: en producción existen status como "listo".
       supabase.from("trips")
         .select("*")
         .eq("user_id", u.user.id)
-        .gte("fecha_regreso", todayISO)
-        .order("fecha_salida", { ascending: true })
-        .limit(1).maybeSingle()
-        .then(async (r) => {
-          if (r.data) return r;
-          // Fallback: el más reciente aunque sea pasado
-          return await supabase.from("trips").select("*")
-            .eq("user_id", u.user.id)
-            .order("created_at", { ascending: false }).limit(1).maybeSingle();
-        }),
+        .order("created_at", { ascending: false })
+        .limit(25),
       supabase.from("user_vault_benefits").select("*").eq("user_id", u.user.id).maybeSingle(),
       supabase.from("ai_user_preferences").select("*").eq("user_id", u.user.id).maybeSingle(),
       supabase.from("profiles").select("full_name, ciudad_origen").eq("id", u.user.id).maybeSingle(),
       supabase.from("travel_profiles").select("estilo_viaje, presupuesto_rango, ritmo_viaje, preferencias_comida, alergias_restricciones, intereses, perfil_ia").eq("user_id", u.user.id).maybeSingle(),
     ]);
+    const trip = chooseTripForRequest(tripRows ?? [], todayISO, lastUserMsg);
+    console.log("concierge_trip_context", JSON.stringify({
+      user_id: u.user.id,
+      candidates: tripRows?.length ?? 0,
+      selected_trip_id: trip?.id ?? null,
+      destino: trip?.destino ?? null,
+      status: trip?.status ?? null,
+      asked: lastUserMsg.slice(0, 120),
+    }));
 
     // Reservas reales (transfers, restaurantes, tours ya pagados) para detectar lo FALTANTE
     let bookings: any[] = [];
@@ -380,7 +381,9 @@ Deno.serve(async (req) => {
     // === BLOQUE DEDICADO AL VIAJE ACTIVO ===
     // Se inyecta como SYSTEM separado para que el modelo lo trate como contexto fijo.
     let tripContextBlock = "";
+    let requestIntel: any = null;
     if (trip) {
+      requestIntel = buildRequestIntelligence(trip, lastUserMsg, bookings);
       const tripPayload = {
         destino: trip.destino,
         pais_destino: trip.pais_destino,
@@ -401,6 +404,7 @@ Deno.serve(async (req) => {
         tips_personalizados: trip.tips_personalizados ?? null,
         analisis_ai: trip.analisis_ai ?? null,
         reservas_confirmadas_bookings: bookings,
+        datos_relevantes_para_la_peticion_actual: requestIntel,
       };
       tripContextBlock = [
         "VIAJE ACTIVO DEL USUARIO (datos REALES de su perfil — úsalos SIEMPRE):",
@@ -428,6 +432,16 @@ Deno.serve(async (req) => {
         "Cuando el usuario pregunte por una categoría (transfers, restaurantes, tours, etc.),",
         "COMPARA lo ya reservado (en reservas_confirmadas_bookings) vs lo que el itinerario",
         "implica que falta, y sugiere proactivamente lo faltante con fechas/horas exactas.",
+        "",
+        "REGLA ESPECÍFICA DE TRANSFERS AEROPUERTO → HOTEL:",
+        "Si el usuario pide transporte/transfer al hotel, primero busca en datos_relevantes_para_la_peticion_actual,",
+        "vuelos, hospedaje, itinerario.transfers y pendientes. Debes responder usando el vuelo, hotel, fecha,",
+        "dirección y confirmaciones existentes. Si falta hora exacta, NO pidas todo otra vez: indícalo como único dato",
+        "faltante o propón opciones flexibles con seguimiento de vuelo.",
+        "",
+        "PROHIBIDO ABSOLUTO:",
+        "No respondas jamás: 'necesito saber el nombre de tu hotel', 'necesito la fecha',",
+        "'dime tu vuelo' o equivalentes cuando el JSON contiene hospedaje/vuelos/fechas.",
       ].join("\n");
     }
 
