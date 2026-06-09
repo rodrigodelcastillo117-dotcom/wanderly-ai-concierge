@@ -18,7 +18,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { trackBookingClick } from "@/lib/trackBooking";
 import { ActionButton as AffiliateActionButton } from "@/components/ActionButton";
-import { useAuth as useAuthHook } from "@/contexts/AuthContext";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
