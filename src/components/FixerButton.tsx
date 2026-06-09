@@ -211,27 +211,30 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.94, y: 16 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg rounded-3xl border border-primary/40 bg-card p-6 sm:p-7 md:p-8 relative shadow-[0_30px_80px_-20px_hsl(var(--primary)/0.4)]"
+              className="w-full max-w-lg rounded-3xl border border-primary/40 bg-card p-4 sm:p-7 md:p-8 relative shadow-[0_30px_80px_-20px_hsl(var(--primary)/0.4)] max-h-[calc(100dvh-2rem)] overflow-y-auto"
             >
               <button
                 onClick={handleClose}
                 disabled={submitting}
-                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground disabled:opacity-40"
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 text-muted-foreground hover:text-foreground disabled:opacity-40"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="w-12 h-12 rounded-full bg-gradient-gold flex items-center justify-center mb-4 gold-glow">
-                <Phone className="w-5 h-5 text-primary-foreground" />
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-gradient-gold flex items-center justify-center mb-2 sm:mb-4 gold-glow">
+                <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
               </div>
-              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-2">The Fixer</p>
-              <h3 className="font-display text-2xl mb-2">Contactar a tu Fixer</h3>
-              <p className="text-sm text-muted-foreground mb-6">
+              <p className="text-[9px] sm:text-[10px] tracking-[0.3em] text-primary uppercase mb-1 sm:mb-2">The Fixer</p>
+              <h3 className="font-display text-lg sm:text-2xl mb-1 sm:mb-2 leading-tight">Contactar a tu Fixer</h3>
+              <p className="hidden sm:block text-sm text-muted-foreground mb-6">
                 Un humano premium revisará tu caso y te contactará por WhatsApp.
               </p>
+              <p className="sm:hidden text-xs text-muted-foreground mb-4">
+                Humano premium · respuesta por WhatsApp.
+              </p>
 
-              <div className="space-y-2 mb-5">
-                <p className="text-[11px] tracking-[0.2em] text-muted-foreground uppercase">Nivel de urgencia</p>
+              <div className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-5">
+                <p className="text-[10px] sm:text-[11px] tracking-[0.2em] text-muted-foreground uppercase">Nivel de urgencia</p>
                 {URGENCIAS.map((u) => {
                   const selected = urgencia === u.id;
                   return (
@@ -239,34 +242,35 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
                       key={u.id}
                       type="button"
                       onClick={() => setUrgencia(u.id)}
-                      className={`w-full text-left px-4 py-3 rounded-2xl border transition flex items-start gap-3 ${
+                      className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl border transition flex items-start gap-2.5 sm:gap-3 ${
                         selected
                           ? "border-primary bg-primary/10 shadow-[0_0_24px_-6px_hsl(var(--primary)/0.6)]"
                           : "border-border hover:border-primary/40"
                       }`}
                     >
-                      <span className="text-xl leading-none mt-0.5">{u.emoji}</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{u.titulo}</p>
-                        <p className="text-xs text-muted-foreground">{u.desc}</p>
+                      <span className="text-base sm:text-xl leading-none mt-0.5">{u.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium leading-tight">{u.titulo}</p>
+                        <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">{u.desc}</p>
                       </div>
                     </button>
                   );
                 })}
               </div>
 
-              <div className="mb-6">
-                <p className="text-[11px] tracking-[0.2em] text-muted-foreground uppercase mb-2">
+              <div className="mb-4 sm:mb-6">
+                <p className="text-[10px] sm:text-[11px] tracking-[0.2em] text-muted-foreground uppercase mb-2">
                   Cuéntale a tu Fixer (opcional)
                 </p>
                 <Textarea
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}
                   placeholder="Ej. Mi vuelo Air France a París se canceló, necesito reubicación esta noche."
-                  className="min-h-[88px] resize-none"
+                  className="min-h-[64px] sm:min-h-[88px] resize-none text-sm"
                   maxLength={600}
                 />
               </div>
+
 
               <div className="flex items-center gap-2">
                 <Button
