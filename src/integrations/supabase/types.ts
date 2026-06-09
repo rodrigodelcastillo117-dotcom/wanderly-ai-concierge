@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_clicks: {
+        Row: {
+          accion: string
+          clicked_at: string
+          id: string
+          payload: Json | null
+          proveedor: string
+          trip_id: string | null
+          url_final: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          accion: string
+          clicked_at?: string
+          id?: string
+          payload?: Json | null
+          proveedor: string
+          trip_id?: string | null
+          url_final?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          accion?: string
+          clicked_at?: string
+          id?: string
+          payload?: Json | null
+          proveedor?: string
+          trip_id?: string | null
+          url_final?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_clicks_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_user_preferences: {
         Row: {
           actividades_tarde: string[] | null

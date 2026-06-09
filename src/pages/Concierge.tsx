@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { trackBookingClick } from "@/lib/trackBooking";
+import { ActionButton as AffiliateActionButton } from "@/components/ActionButton";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -525,6 +526,7 @@ const ActionButton = ({
 );
 
 const RichCard = ({ card }: { card: Card }) => {
+  const { user } = useAuth();
   const { status, run } = useConciergeAction();
 
   if (card.type === "alert") {
@@ -597,7 +599,6 @@ const RichCard = ({ card }: { card: Card }) => {
       </div>
     );
   }
-
   if (card.type === "transport") {
     return (
       <div className="rounded-2xl border border-border bg-card p-4">
@@ -611,15 +612,22 @@ const RichCard = ({ card }: { card: Card }) => {
           </div>
         </div>
         {card.meta && <p className="text-xs text-muted-foreground mb-3">{card.meta}</p>}
-        <ActionButton
-          status={status}
+        <AffiliateActionButton
+          type="welcome_pickups_transfer"
+          userId={user?.id}
           label={card.cta_label}
-          onClick={() => run({ type: "transport", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })}
-          className="w-full h-9 text-sm"
+          payload={{
+            origen: card.subtitle,
+            destino: card.title,
+            ciudad: card.title,
+          }}
+          className="h-10 text-sm"
         />
       </div>
     );
   }
+
+
 
   if (card.type === "luggage") {
     return (
