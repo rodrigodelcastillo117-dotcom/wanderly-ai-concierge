@@ -259,7 +259,13 @@ function buildRequestIntelligence(trip: any, userMsg: string, bookings: any[]) {
 }
 
 function asksForKnownTripData(text: string) {
-  return /necesito|dime|dame|proporciona|cu[aá]l es|nombre de tu hotel|fecha|hotel en|a qu[eé] hora/.test(normText(text));
+  return /necesito|dime|dame|proporciona|cu[aá]l es|nombre de tu hotel|fecha|hotel en|a qu[eé] hora|te gustar[ií]a que te busque|quieres que busque|puedo ayudarte a encontrar/.test(normText(text));
+}
+
+function shouldForceTransferAnswer(intel: any, parsed: any) {
+  if (intel?.tipo_peticion_detectada !== "transfer_aeropuerto_hotel") return false;
+  const cards = Array.isArray(parsed?.cards) ? parsed.cards : [];
+  return cards.length === 0 || asksForKnownTripData(parsed?.text ?? "");
 }
 
 function buildTransferFallback(intel: any) {
@@ -513,7 +519,7 @@ Deno.serve(async (req) => {
     let parsed: any;
     try { parsed = JSON.parse(finalText); }
     catch { parsed = { text: finalText, cards: [] }; }
-    const fallback = asksForKnownTripData(parsed?.text ?? "") ? buildTransferFallback(requestIntel) : null;
+    const fallback = shouldForceTransferAnswer(requestIntel, parsed) ? buildTransferFallback(requestIntel) : null;
     if (fallback) {
       parsed = fallback;
       console.warn("concierge_guardrail_rewrote_known_data_request", JSON.stringify({ trip_id: trip?.id, city: requestIntel?.ciudad_detectada }));
