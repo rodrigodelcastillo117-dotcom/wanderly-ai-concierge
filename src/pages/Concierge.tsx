@@ -526,6 +526,7 @@ const ActionButton = ({
 );
 
 const RichCard = ({ card }: { card: Card }) => {
+  const { user } = useAuth();
   const { status, run } = useConciergeAction();
 
   if (card.type === "alert") {
