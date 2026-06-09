@@ -232,6 +232,47 @@ export type Database = {
           },
         ]
       }
+      concierge_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          messages: Json
+          resumen_actualizado_at: string | null
+          resumen_historico: string | null
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          messages?: Json
+          resumen_actualizado_at?: string | null
+          resumen_historico?: string | null
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          messages?: Json
+          resumen_actualizado_at?: string | null
+          resumen_historico?: string | null
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_conversations_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       concierge_requests: {
         Row: {
           created_at: string

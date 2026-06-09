@@ -476,9 +476,52 @@ Deno.serve(async (req) => {
       ].join("\n");
     }
 
+    // === CAPA 2 — MEMORIA DE CONVERSACIONES ===
+    const trip_id_activo = trip?.id ?? null;
+    const convQuery = supabase
+      .from("concierge_conversations")
+      .select("*")
+      .eq("user_id", u.user.id);
+    const { data: convPrevia } = await (trip_id_activo
+      ? convQuery.eq("trip_id", trip_id_activo).maybeSingle()
+      : convQuery.is("trip_id", null).maybeSingle());
+
+    let memoryBlock = "";
+    const prevMessages: any[] = Array.isArray(convPrevia?.messages) ? convPrevia!.messages : [];
+    if (convPrevia) {
+      const parts: string[] = [];
+      if (convPrevia.resumen_historico) {
+        parts.push(`═══ RESUMEN DE CONVERSACIONES PREVIAS ═══\n${convPrevia.resumen_historico}`);
+      }
+      const ultimosTurnos = prevMessages.slice(-10);
+      if (ultimosTurnos.length > 0) {
+        const lines = ultimosTurnos.map((m: any) => {
+          const role = m.role === "user" ? "USUARIO" : "TÚ (Iato)";
+          const c = typeof m.content === "string" ? m.content : JSON.stringify(m.content);
+          return `${role}: ${String(c).slice(0, 800)}`;
+        }).join("\n");
+        parts.push(`═══ ÚLTIMOS ${ultimosTurnos.length} INTERCAMBIOS ═══\n${lines}`);
+      }
+      if (parts.length) {
+        memoryBlock = [
+          parts.join("\n\n"),
+          "",
+          "═══ REGLA — MEMORIA DE CONVERSACIONES ═══",
+          "Tienes acceso al historial de tus conversaciones previas con este usuario (bloque arriba). ÚSALO con criterio de concierge real:",
+          "1. RECUERDA preferencias mencionadas antes (alergias, gustos, dress code preferido). Ejemplo: si dijo 'soy alérgico al ajo', JAMÁS sugieras un restaurante sin advertir sobre platos con ajo.",
+          "2. RETOMA temas abiertos. Si la última conversación quedó en 'te confirmo el transfer mañana', al iniciar nuevo chat dilo: 'Te confirmo el transfer de Welcome Pickups...'.",
+          "3. NO REPITAS preguntas que el usuario ya respondió (ej. si ya dijo 'voy con mi pareja Sofía', no le preguntes '¿quién más viaja contigo?').",
+          "4. CONECTA temas. Si habló de proposal en Atenas y hoy pregunta por restaurantes, sugiere uno con vista premium para la ocasión.",
+          "5. NO menciones explícitamente 'según nuestro chat anterior'. Habla con naturalidad como concierge que recuerda al cliente.",
+          "ANTI-PATRÓN PROHIBIDO: ignorar una alergia o preferencia previa al recomendar.",
+        ].join("\n");
+      }
+    }
+
     const masterPrompt = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 
-    const systemContent = [masterPrompt, userContextBlock, tripContextBlock, SYSTEM]
+    // Orden: 1) master prompt, 2) contexto usuario, 3) contexto viaje activo (Capa 1), 4) memoria (Capa 2), 5) SYSTEM
+    const systemContent = [masterPrompt, userContextBlock, tripContextBlock, memoryBlock, SYSTEM]
       .filter((s) => s && s.length > 0)
       .join("\n\n---\n\n");
 
@@ -487,6 +530,8 @@ Deno.serve(async (req) => {
       { role: "system", content: systemContent },
       ...body.messages.slice(-10),
     ];
+
+
 
 
     const toolsUsed: string[] = [];
@@ -549,7 +594,78 @@ Deno.serve(async (req) => {
     if (parsed !== beforeGuardrail) console.warn("concierge_guardrail_transfer_context_enforced", JSON.stringify({ trip_id: trip?.id, city: requestIntel?.ciudad_detectada }));
     parsed._tools_used = toolsUsed;
 
+    // === CAPA 2 — Persistir turnos en concierge_conversations ===
+    try {
+      const assistantText = typeof parsed?.text === "string" && parsed.text
+        ? parsed.text
+        : (typeof finalText === "string" ? finalText : JSON.stringify(parsed));
+      const nuevosTurnos = [
+        ...prevMessages,
+        { role: "user", content: lastUserMsg, timestamp: new Date().toISOString() },
+        { role: "assistant", content: assistantText, timestamp: new Date().toISOString() },
+      ];
+
+      let mensajesParaGuardar = nuevosTurnos;
+      let resumenHistorico: string | null = convPrevia?.resumen_historico ?? null;
+      let resumenActualizadoAt: string | null = convPrevia?.resumen_actualizado_at ?? null;
+
+      if (nuevosTurnos.length > 30) {
+        const aResumir = nuevosTurnos.slice(0, -10);
+        const aMantener = nuevosTurnos.slice(-10);
+        const promptResumen = `Resume estas ${aResumir.length} interacciones entre un usuario y su concierge IA Iato. Extrae HECHOS CLAVE: preferencias declaradas, decisiones tomadas, alergias, gustos, eventos importantes, nombres de acompañantes. Formato: bullet points concisos. NO incluyas saludos ni respuestas genéricas.\n\nInteracciones:\n${aResumir.map((m: any) => `${m.role}: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`).join("\n")}`;
+        try {
+          const rs = await fetch(AI_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Lovable-API-Key": LOVABLE_API_KEY },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-lite",
+              messages: [{ role: "user", content: promptResumen }],
+            }),
+          });
+          if (rs.ok) {
+            const js = await rs.json();
+            const nuevoResumen = js?.choices?.[0]?.message?.content?.trim();
+            if (nuevoResumen) {
+              resumenHistorico = resumenHistorico ? `${resumenHistorico}\n\n${nuevoResumen}` : nuevoResumen;
+              resumenActualizadoAt = new Date().toISOString();
+              mensajesParaGuardar = aMantener;
+            }
+          }
+        } catch (e) {
+          console.warn("resumen_historico failed", e);
+        }
+      }
+
+      if (convPrevia?.id) {
+        const { error: updErr } = await supabase
+          .from("concierge_conversations")
+          .update({
+            messages: mensajesParaGuardar,
+            resumen_historico: resumenHistorico,
+            resumen_actualizado_at: resumenActualizadoAt,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", convPrevia.id);
+        if (updErr) console.warn("concierge_conv_update_err", updErr.message);
+      } else {
+        const { error: insErr } = await supabase
+          .from("concierge_conversations")
+          .insert({
+            user_id: u.user.id,
+            trip_id: trip_id_activo,
+            messages: mensajesParaGuardar,
+            resumen_historico: resumenHistorico,
+            resumen_actualizado_at: resumenActualizadoAt,
+          });
+        if (insErr) console.warn("concierge_conv_insert_err", insErr.message);
+      }
+
+    } catch (e) {
+      console.warn("persist concierge conversation failed", e);
+    }
+
     return new Response(JSON.stringify(parsed), {
+
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
