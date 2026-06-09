@@ -259,16 +259,68 @@ Deno.serve(async (req) => {
     const intereses = (tprof as any)?.intereses ?? (prefs as any)?.actividades_tarde;
     if (intereses?.length) ctxLines.push(`Intereses: ${intereses.join(", ")}`);
     ctxLines.push(vaultLines.length ? `Bóveda: ${vaultLines.join(" | ")}` : "Bóveda: vacía (sugiere al usuario llenarla)");
-    if (trip) {
-      ctxLines.push(`Viaje más reciente: ${trip.destino} del ${trip.fecha_salida ?? "?"} al ${trip.fecha_regreso ?? "?"}, status ${(trip as any).status ?? "?"}`);
-    }
     if (body.context?.coords) ctxLines.push(`Ubicación actual aprox: ${body.context.coords.lat.toFixed(4)}, ${body.context.coords.lng.toFixed(4)}`);
     if (body.god_mode) ctxLines.push("MODO: GOD MODE — caza reservas imposibles, upgrades premium, mesas Michelin sold-out, empty-legs.");
 
     const userContextBlock = ctxLines.join("\n");
+
+    // === BLOQUE DEDICADO AL VIAJE ACTIVO ===
+    // Se inyecta como SYSTEM separado para que el modelo lo trate como contexto fijo.
+    let tripContextBlock = "";
+    if (trip) {
+      const tripPayload = {
+        destino: trip.destino,
+        pais_destino: trip.pais_destino,
+        ciudad_origen: trip.ciudad_origen,
+        fecha_salida: trip.fecha_salida,
+        fecha_regreso: trip.fecha_regreso,
+        num_viajeros: trip.num_viajeros,
+        status: trip.status,
+        presupuesto_objetivo: trip.presupuesto_objetivo,
+        total_estimado: trip.total_estimado,
+        moneda: trip.moneda,
+        itinerario: trip.itinerario_json ?? null,
+        vuelos: trip.vuelos_json ?? null,
+        hospedaje: trip.hospedaje_json ?? null,
+        restaurantes: trip.restaurantes_json ?? null,
+        tours: trip.tours_json ?? null,
+        cruceros: trip.cruceros_json ?? null,
+        tips_personalizados: trip.tips_personalizados ?? null,
+        analisis_ai: trip.analisis_ai ?? null,
+        reservas_confirmadas_bookings: bookings,
+      };
+      tripContextBlock = [
+        "VIAJE ACTIVO DEL USUARIO (datos REALES de su perfil — úsalos SIEMPRE):",
+        "```json",
+        JSON.stringify(tripPayload, null, 1),
+        "```",
+        "",
+        "REGLA ARQUITECTÓNICA — CONTEXTO DEL VIAJE (NO NEGOCIABLE):",
+        "JAMÁS pidas al usuario datos que YA ESTÁN arriba. NUNCA digas 'dame las fechas',",
+        "'dime el nombre del hotel', 'qué aeropuerto', 'a qué hora llegas' — TÚ YA LO SABES.",
+        "Léelo del JSON de arriba (vuelos, hospedaje, restaurantes, tours, cruceros, bookings).",
+        "",
+        "Cuando el usuario haga cualquier pregunta sobre SU viaje:",
+        "1) Identifica los datos relevantes del JSON arriba.",
+        "2) Úsalos LITERALMENTE en tu respuesta (nombres, horas, terminales, direcciones, PNR).",
+        "3) Solo pregunta lo que NO esté en el contexto (ej. '¿prefieres sedán o SUV?').",
+        "",
+        "ANTI-PATRÓN PROHIBIDO:",
+        "Usuario: 'consígueme transporte del aeropuerto al hotel en Madrid'",
+        "MAL: 'necesito que me digas las fechas y el hotel'",
+        "BIEN: 'Veo que llegas a Madrid Barajas T4S el 10 jul 14:50 (IB0572) y vas al Hotel",
+        "Indigo Gran Vía (Calle Silva 6). Te propongo 3 opciones de transfer...'",
+        "",
+        "CONCIERGE PROACTIVO — DETECCIÓN DE FALTANTES:",
+        "Cuando el usuario pregunte por una categoría (transfers, restaurantes, tours, etc.),",
+        "COMPARA lo ya reservado (en reservas_confirmadas_bookings) vs lo que el itinerario",
+        "implica que falta, y sugiere proactivamente lo faltante con fechas/horas exactas.",
+      ].join("\n");
+    }
+
     const masterPrompt = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 
-    const systemContent = [masterPrompt, userContextBlock, SYSTEM]
+    const systemContent = [masterPrompt, userContextBlock, tripContextBlock, SYSTEM]
       .filter((s) => s && s.length > 0)
       .join("\n\n---\n\n");
 
