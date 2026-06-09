@@ -10,6 +10,7 @@ import { ConciergeActions } from "@/components/ConciergeActions";
 import { FlightStatusDialog } from "@/components/FlightStatusDialog";
 import { TravelerAvatar } from "@/components/TravelerAvatar";
 import { MembersOnlyPanel } from "@/components/MembersOnlyPanel";
+import { FixerButton } from "@/components/FixerButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -85,7 +86,7 @@ const Concierge = () => {
     try { localStorage.setItem("iatos_god_mode", godMode ? "1" : "0"); } catch {}
   }, [godMode]);
   const [listening, setListening] = useState(false);
-  const [showFixer, setShowFixer] = useState(false);
+  
   const [trip, setTrip] = useState<any>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -308,15 +309,10 @@ const Concierge = () => {
 
             <div className="flex items-center gap-2 shrink-0">
               <TravelerAvatar compact />
-              <button
-                onClick={() => setShowFixer(true)}
-                className="group relative flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl bg-white/5 border border-primary/30 hover:border-primary hover:bg-primary/10 transition text-sm"
-                title="Para caprichos imposibles o emergencias extremas, un humano VIP local tomará el control."
-              >
-                <Phone className="w-4 h-4 text-primary" />
-                <span className="hidden sm:inline">Contactar Fixer</span>
-                <span className="sm:hidden">Fixer</span>
-              </button>
+              <FixerButton
+                trip={trip}
+                ultimosTurnos={messages.slice(-6).map((m) => ({ role: m.role, content: m.text }))}
+              />
             </div>
 
           </div>
@@ -454,37 +450,7 @@ const Concierge = () => {
 
 
 
-        {/* FIXER MODAL */}
-        <AnimatePresence>
-          {showFixer && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-center justify-center p-6"
-              onClick={() => setShowFixer(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
-                onClick={(e) => e.stopPropagation()}
-                className="max-w-md w-full rounded-3xl border border-primary/40 bg-card p-8 relative"
-              >
-                <button onClick={() => setShowFixer(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
-                  <X className="w-5 h-5" />
-                </button>
-                <div className="w-14 h-14 rounded-full bg-gradient-gold flex items-center justify-center mb-4 gold-glow">
-                  <Phone className="w-6 h-6 text-primary-foreground" />
-                </div>
-                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-2">The Fixer</p>
-                <h3 className="font-display text-2xl mb-3">Un humano VIP toma el control</h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Para caprichos imposibles o emergencias extremas. Te conectamos en menos de 5 minutos con un fixer local de confianza.
-                </p>
-                <Button className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow">
-                  <Phone className="w-4 h-4 mr-2" /> Llamar ahora
-                </Button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* FIXER MODAL — ahora dentro de <FixerButton /> */}
 
         <ConciergeActions open={!!liveAction} kind={liveAction} onClose={() => setLiveAction(null)} />
         <FlightStatusDialog open={showFlight} onClose={() => setShowFlight(false)} />

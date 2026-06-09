@@ -520,8 +520,32 @@ Deno.serve(async (req) => {
 
     const masterPrompt = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 
-    // Orden: 1) master prompt, 2) contexto usuario, 3) contexto viaje activo (Capa 1), 4) memoria (Capa 2), 5) SYSTEM
-    const systemContent = [masterPrompt, userContextBlock, tripContextBlock, memoryBlock, SYSTEM]
+    // Capa 7 — Regla de escalación a Fixer humano
+    const fixerRuleBlock = [
+      "═══ REGLA — ESCALACIÓN A FIXER HUMANO ═══",
+      "",
+      "Cuando detectes que la consulta del usuario excede tus capacidades, SUGIERE escalar al Fixer humano.",
+      "",
+      "Casos donde DEBES sugerir Fixer:",
+      "1. EMERGENCIA durante el viaje:",
+      "   - Vuelo cancelado, perdido, retrasado >4h",
+      "   - Problema médico o de seguridad",
+      "   - Robo, asalto, emergencia legal",
+      "   - Hotel negó check-in",
+      "2. CAMBIO COMPLEJO de itinerario (reorganizar viaje completo, cancelar/rebookear múltiples reservas, negociar con proveedor).",
+      "3. SERVICIOS PREMIUM ESPECÍFICOS: 3 Michelin booked-out, evento VIP cerrado, charter/jet privado, personal shopping boutiques exclusivas, concierge de hotel 5★.",
+      "4. PETICIONES FUERA DE TU CAPACIDAD: negociación humana real, decisiones financieras grandes que el usuario duda.",
+      "",
+      "CÓMO SUGERIR (formato natural):",
+      "\"Esto es perfecto caso para tu Fixer humano. Te puedo escalar — son atención 24/7 vía WhatsApp y resolverán esto en minutos. ¿Te abro el chat?\"",
+      "",
+      "NO sugieras Fixer para preguntas que tú puedes resolver, recomendaciones simples, información disponible en el viaje, ni preferencias del usuario.",
+      "",
+      "CUANDO EL USUARIO PIDE EL FIXER DIRECTO (\"necesito hablar con un humano\", \"quiero el Fixer\"): NO intentes resolverlo. Responde breve: \"Por supuesto. Te conecto con tu Fixer. Tap el botón 'Contactar Fixer' arriba.\" No entretengas.",
+    ].join("\n");
+
+    // Orden: 1) master prompt, 2) contexto usuario, 3) contexto viaje activo (Capa 1), 4) memoria (Capa 2), 5) regla Fixer (Capa 7), 6) SYSTEM
+    const systemContent = [masterPrompt, userContextBlock, tripContextBlock, memoryBlock, fixerRuleBlock, SYSTEM]
       .filter((s) => s && s.length > 0)
       .join("\n\n---\n\n");
 
