@@ -636,21 +636,30 @@ Deno.serve(async (req) => {
         }
       }
 
-      const upsertPayload: any = {
-        user_id: u.user.id,
-        trip_id: trip_id_activo,
-        messages: mensajesParaGuardar,
-        resumen_historico: resumenHistorico,
-        resumen_actualizado_at: resumenActualizadoAt,
-        updated_at: new Date().toISOString(),
-      };
-      if (convPrevia?.id) upsertPayload.id = convPrevia.id;
+      if (convPrevia?.id) {
+        const { error: updErr } = await supabase
+          .from("concierge_conversations")
+          .update({
+            messages: mensajesParaGuardar,
+            resumen_historico: resumenHistorico,
+            resumen_actualizado_at: resumenActualizadoAt,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", convPrevia.id);
+        if (updErr) console.warn("concierge_conv_update_err", updErr.message);
+      } else {
+        const { error: insErr } = await supabase
+          .from("concierge_conversations")
+          .insert({
+            user_id: u.user.id,
+            trip_id: trip_id_activo,
+            messages: mensajesParaGuardar,
+            resumen_historico: resumenHistorico,
+            resumen_actualizado_at: resumenActualizadoAt,
+          });
+        if (insErr) console.warn("concierge_conv_insert_err", insErr.message);
+      }
 
-      const onConflict = trip_id_activo ? "user_id,trip_id" : "user_id";
-      const { error: upsertErr } = await supabase
-        .from("concierge_conversations")
-        .upsert(upsertPayload, { onConflict });
-      if (upsertErr) console.warn("concierge_conv_upsert_err", upsertErr.message);
     } catch (e) {
       console.warn("persist concierge conversation failed", e);
     }
