@@ -162,8 +162,11 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
         ultimosTurnos,
       });
 
-      const url = `https://wa.me/${FIXER_WHATSAPP_NUMBER}?text=${encodeURIComponent(mensaje)}`;
-      window.open(url, "_blank", "noopener,noreferrer");
+      const numero = String(FIXER_WHATSAPP_NUMBER).replace(/\D/g, "");
+      const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+      // Sin "noopener,noreferrer": WhatsApp redirige a api.whatsapp.com con COOP
+      // que bloquea popups opener-less (ERR_BLOCKED_BY_RESPONSE en Chrome).
+      window.open(url, "_blank");
 
       // 3. Marcar como WhatsApp abierto
       if (esc?.id) {

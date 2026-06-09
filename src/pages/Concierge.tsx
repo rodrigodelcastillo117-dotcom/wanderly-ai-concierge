@@ -398,8 +398,10 @@ const Concierge = () => {
               <button
                 key={c.label}
                 onClick={() => {
-                  if (c.action === "flight") setShowFlight(true);
+                  if (c.action === "flight") sendText("¿Mi vuelo de hoy va a tiempo? Dame estatus real, terminal, puerta y posibles retrasos.");
                   else if (c.action === "luggage") sendText("Quiero activar Equipaje Invisible: recolección en mi ubicación actual y entrega en mi siguiente hospedaje. Dame opciones reales (Luggage Forward, AirPortr, LugLess) con precio y link directo.");
+                  else if (c.action === "dining") sendText("Recomiéndame cenas premium cerca de mi hotel para hoy, con rating real y link de reserva.");
+                  else if (c.action === "transport") sendText("Necesito transfer/taxi premium ahora. Propón opciones con tiempo estimado y link de reserva.");
                   else if (c.action) setLiveAction(c.action as LiveAction);
                   else sendText(c.label);
                 }}
