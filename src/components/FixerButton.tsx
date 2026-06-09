@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, X, AlertTriangle, AlertCircle, MessageCircle, Loader2 } from "lucide-react";
+import { Phone, X, AlertTriangle, AlertCircle, MessageCircle, Loader2, ArrowLeft, Check, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -35,7 +36,7 @@ const URGENCIAS: Array<{
   emoji: string;
   titulo: string;
   desc: string;
-  icon: any;
+  icon: LucideIcon;
 }> = [
   { id: "critica", emoji: "🔴", titulo: "Crítico", desc: "Vuelo cancelado, problema médico, robo", icon: AlertTriangle },
   { id: "alta", emoji: "🟡", titulo: "Importante", desc: "Cambio de itinerario, problema con reserva", icon: AlertCircle },
@@ -93,11 +94,13 @@ function construirMensajeFixer({
 export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant = "header" }: FixerButtonProps) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<"urgencia" | "detalle">("urgencia");
   const [urgencia, setUrgencia] = useState<Urgencia | null>(null);
   const [motivo, setMotivo] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
+    setStep("urgencia");
     setUrgencia(null);
     setMotivo("");
   };
@@ -132,7 +135,10 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
           trip_id: trip?.id ?? null,
           motivo: motivo.trim() || null,
           urgencia,
-          contexto_chat: ultimosTurnos.slice(-5) as any,
+          contexto_chat: ultimosTurnos.slice(-5).map((t) => ({
+            role: t.role,
+            content: t.content ?? t.text ?? "",
+          })),
           status: "iniciado",
         })
         .select("id")
@@ -171,9 +177,10 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
       });
       setOpen(false);
       setTimeout(reset, 200);
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Inténtalo de nuevo";
       console.error("[FixerButton]", e);
-      toast.error("No pudimos registrar la solicitud", { description: e?.message ?? "Inténtalo de nuevo" });
+      toast.error("No pudimos registrar la solicitud", { description: message });
     } finally {
       setSubmitting(false);
     }
@@ -183,6 +190,164 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
     variant === "header"
       ? "group relative flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl bg-white/5 border border-primary/30 hover:border-primary hover:bg-primary/10 transition text-sm"
       : "inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-gold text-primary-foreground gold-glow text-sm";
+
+  const selectedUrgencia = URGENCIAS.find((u) => u.id === urgencia);
+  const modal = (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-background/90 backdrop-blur-xl p-0 sm:p-6"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ y: 28, scale: 0.98 }}
+            animate={{ y: 0, scale: 1 }}
+            exit={{ y: 28, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 280, damping: 28 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative flex w-full max-w-md max-h-[calc(100dvh-0.75rem)] flex-col overflow-hidden rounded-t-[28px] border border-primary/30 bg-card shadow-[0_30px_90px_-24px_hsl(var(--primary)/0.45)] sm:rounded-[28px] sm:max-h-[min(720px,calc(100dvh-3rem))]"
+          >
+            <div className="shrink-0 border-b border-border/80 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 sm:pt-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-gold text-primary-foreground shadow-[0_10px_28px_-10px_hsl(var(--primary)/0.75)]">
+                    <Phone className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.28em] text-primary">The Fixer</p>
+                    <h3 className="font-display text-xl leading-tight">Asistencia humana</h3>
+                  </div>
+                </div>
+                <button
+                  onClick={handleClose}
+                  disabled={submitting}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:text-foreground disabled:opacity-40"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 rounded-full border border-border bg-background/60 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setStep("urgencia")}
+                  className={`rounded-full px-3 py-2 transition ${step === "urgencia" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                >
+                  1. Urgencia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => urgencia && setStep("detalle")}
+                  className={`rounded-full px-3 py-2 transition ${step === "detalle" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                >
+                  2. Enviar
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+              {step === "urgencia" ? (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">¿Qué tan urgente es?</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Elige una opción. Te llevamos al mensaje final.</p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {URGENCIAS.map((u) => {
+                      const selected = urgencia === u.id;
+                      const Icon = u.icon;
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => {
+                            setUrgencia(u.id);
+                            setStep("detalle");
+                          }}
+                          className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                            selected
+                              ? "border-primary bg-primary/10 shadow-[0_0_28px_-12px_hsl(var(--primary)/0.8)]"
+                              : "border-border bg-background/40 hover:border-primary/50"
+                          }`}
+                        >
+                          <span className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-medium leading-tight">{u.titulo}</span>
+                              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{u.desc}</span>
+                            </span>
+                            {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setStep("urgencia")}
+                    className="inline-flex items-center gap-2 text-xs text-muted-foreground transition hover:text-foreground"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" /> Cambiar urgencia
+                  </button>
+
+                  <div className="rounded-2xl border border-primary/25 bg-primary/10 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.24em] text-primary">Solicitud</p>
+                    <p className="mt-1 text-sm font-medium">{selectedUrgencia?.titulo ?? "Urgencia seleccionada"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Un humano revisa tu caso y abre conversación por WhatsApp.</p>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Mensaje opcional
+                    </label>
+                    <Textarea
+                      value={motivo}
+                      onChange={(e) => setMotivo(e.target.value)}
+                      placeholder="Ej. Mi vuelo se canceló y necesito reubicación esta noche."
+                      className="min-h-[112px] resize-none text-sm leading-relaxed"
+                      maxLength={600}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="shrink-0 border-t border-border/80 bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+              {step === "urgencia" ? (
+                <Button variant="outline" onClick={handleClose} disabled={submitting} className="h-11 w-full rounded-full">
+                  Ahora no
+                </Button>
+              ) : (
+                <div className="grid grid-cols-[0.85fr_1.15fr] gap-2">
+                  <Button variant="outline" onClick={() => setStep("urgencia")} disabled={submitting} className="h-11 rounded-full">
+                    Atrás
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!urgencia || submitting}
+                    className="h-11 rounded-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow"
+                  >
+                    {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
+                    WhatsApp
+                  </Button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   return (
     <>
@@ -195,110 +360,7 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
         <span className="hidden sm:inline">Contactar Fixer</span>
         <span className="sm:hidden">Fixer</span>
       </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-background/85 backdrop-blur-md overflow-y-auto overscroll-contain"
-            onClick={handleClose}
-          >
-            <div className="min-h-[100dvh] w-full flex items-start sm:items-center justify-center p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(6rem,env(safe-area-inset-bottom))]">
-            <motion.div
-              initial={{ scale: 0.94, y: 16 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.94, y: 16 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg rounded-3xl border border-primary/40 bg-card p-4 sm:p-7 md:p-8 relative shadow-[0_30px_80px_-20px_hsl(var(--primary)/0.4)] max-h-[calc(100dvh-2rem)] overflow-y-auto"
-            >
-              <button
-                onClick={handleClose}
-                disabled={submitting}
-                className="absolute top-3 right-3 sm:top-4 sm:right-4 text-muted-foreground hover:text-foreground disabled:opacity-40"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-gradient-gold flex items-center justify-center mb-2 sm:mb-4 gold-glow">
-                <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
-              </div>
-              <p className="text-[9px] sm:text-[10px] tracking-[0.3em] text-primary uppercase mb-1 sm:mb-2">The Fixer</p>
-              <h3 className="font-display text-lg sm:text-2xl mb-1 sm:mb-2 leading-tight">Contactar a tu Fixer</h3>
-              <p className="hidden sm:block text-sm text-muted-foreground mb-6">
-                Un humano premium revisará tu caso y te contactará por WhatsApp.
-              </p>
-              <p className="sm:hidden text-xs text-muted-foreground mb-4">
-                Humano premium · respuesta por WhatsApp.
-              </p>
-
-              <div className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-5">
-                <p className="text-[10px] sm:text-[11px] tracking-[0.2em] text-muted-foreground uppercase">Nivel de urgencia</p>
-                {URGENCIAS.map((u) => {
-                  const selected = urgencia === u.id;
-                  return (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => setUrgencia(u.id)}
-                      className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl border transition flex items-start gap-2.5 sm:gap-3 ${
-                        selected
-                          ? "border-primary bg-primary/10 shadow-[0_0_24px_-6px_hsl(var(--primary)/0.6)]"
-                          : "border-border hover:border-primary/40"
-                      }`}
-                    >
-                      <span className="text-base sm:text-xl leading-none mt-0.5">{u.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-tight">{u.titulo}</p>
-                        <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">{u.desc}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mb-4 sm:mb-6">
-                <p className="text-[10px] sm:text-[11px] tracking-[0.2em] text-muted-foreground uppercase mb-2">
-                  Cuéntale a tu Fixer (opcional)
-                </p>
-                <Textarea
-                  value={motivo}
-                  onChange={(e) => setMotivo(e.target.value)}
-                  placeholder="Ej. Mi vuelo Air France a París se canceló, necesito reubicación esta noche."
-                  className="min-h-[64px] sm:min-h-[88px] resize-none text-sm"
-                  maxLength={600}
-                />
-              </div>
-
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleClose}
-                  disabled={submitting}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!urgencia || submitting}
-                  className="flex-1 bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Phone className="w-4 h-4 mr-2" />
-                  )}
-                  Contactar Fixer →
-                </Button>
-              </div>
-            </motion.div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {typeof document !== "undefined" ? createPortal(modal, document.body) : modal}
     </>
   );
 };
