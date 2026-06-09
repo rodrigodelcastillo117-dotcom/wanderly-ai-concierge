@@ -44,18 +44,18 @@ export function ActionButton({
   const [loading, setLoading] = useState(false);
   const lastClick = useRef<number>(0);
 
-  async function handleClick() {
-    // Debounce 60s para no duplicar logs por doble tap.
+  function handleClick() {
+    // CRÍTICO iOS/Safari: debe ser SÍNCRONO. Cualquier await antes de window.open
+    // pierde el "user gesture" y Safari bloquea o demora la apertura → app se siente lentísima.
     const now = Date.now();
     const isDuplicate = now - lastClick.current < 60_000;
     lastClick.current = now;
 
-    setLoading(true);
-    try {
-      let urlFinal = "";
-      let provider = "";
-      let accion = "";
+    let urlFinal = "";
+    let provider = "";
+    let accion = "";
 
+    try {
       if (type === "welcome_pickups_transfer") {
         provider = "welcome_pickups";
         accion = `transfer_${(payload.ciudad ?? "general").toLowerCase()}`;
@@ -70,39 +70,47 @@ export function ActionButton({
         provider = payload.provider ?? "custom";
         accion = payload.accion ?? "custom";
       }
-
-      if (!urlFinal) throw new Error("URL vacía");
-
-      if (!isDuplicate) {
-        try {
-          await supabase.from("affiliate_clicks").insert({
-            user_id: userId ?? null,
-            trip_id: tripId ?? null,
-            proveedor: provider,
-            accion,
-            payload: payload as any,
-            url_final: urlFinal,
-            user_agent: navigator.userAgent,
-          });
-        } catch (logErr) {
-          console.error("Failed to log affiliate click:", logErr);
-        }
-      }
-
-      // Sin "noopener,noreferrer" para wa.me: el redirect a api.whatsapp.com
-      // dispara COOP y Chrome bloquea popups opener-less.
-      const isWhatsapp = urlFinal.includes("wa.me") || urlFinal.includes("whatsapp.com");
-      window.open(urlFinal, "_blank", isWhatsapp ? undefined : "noopener,noreferrer");
-      toast.success("Abriendo proveedor…");
     } catch (err) {
-      console.error("Action error:", err);
-      toast.error("Hubo un problema. Te conectamos con tu Fixer.");
-      const numero = FIXER_WHATSAPP.replace(/\D/g, "");
-      const fallback = `https://wa.me/${numero}?text=${encodeURIComponent(construirMensajeFixer(payload))}`;
-      window.open(fallback, "_blank");
-    } finally {
-      setLoading(false);
+      console.error("Action build URL error:", err);
     }
+
+    if (!urlFinal) {
+      const numero = FIXER_WHATSAPP.replace(/\D/g, "");
+      urlFinal = `https://wa.me/${numero}?text=${encodeURIComponent(construirMensajeFixer(payload))}`;
+      provider = "fixer";
+      accion = "fallback";
+    }
+
+    // 1) ABRIR DE INMEDIATO, mismo gesto del usuario.
+    const isWhatsapp = urlFinal.includes("wa.me") || urlFinal.includes("whatsapp.com");
+    const win = window.open(urlFinal, "_blank", isWhatsapp ? undefined : "noopener,noreferrer");
+    if (!win) {
+      // Safari estricto: fallback a navegación misma pestaña (preserva gesto).
+      window.location.href = urlFinal;
+    }
+
+    // 2) Loggear en background — fire-and-forget, NUNCA bloquea el click.
+    if (!isDuplicate) {
+      void supabase
+        .from("affiliate_clicks")
+        .insert({
+          user_id: userId ?? null,
+          trip_id: tripId ?? null,
+          proveedor: provider,
+          accion,
+          payload: payload as any,
+          url_final: urlFinal,
+          user_agent: navigator.userAgent,
+        })
+        .then(({ error }) => {
+          if (error) console.error("Failed to log affiliate click:", error);
+        });
+    }
+
+    // Feedback visual breve sin bloquear.
+    setLoading(true);
+    setTimeout(() => setLoading(false), 400);
+    toast.success("Abriendo proveedor…");
   }
 
   const displayLabel =

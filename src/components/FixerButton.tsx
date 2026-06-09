@@ -112,7 +112,7 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
     setTimeout(reset, 200);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!urgencia) {
       toast.error("Selecciona el nivel de urgencia");
       return;
@@ -126,68 +126,60 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
       return;
     }
 
-    setSubmitting(true);
-    try {
-      // 1. Registrar escalación
-      const { data: esc, error: insErr } = await supabase
-        .from("fixer_escalations")
-        .insert({
-          user_id: user.id,
-          trip_id: trip?.id ?? null,
-          motivo: motivo.trim() || null,
-          urgencia,
-          contexto_chat: ultimosTurnos.slice(-5).map((t) => ({
-            role: t.role,
-            content: t.content ?? t.text ?? "",
-          })),
-          status: "iniciado",
-        })
-        .select("id")
-        .single();
+    // CRÍTICO iOS/Safari: abrir WhatsApp SÍNCRONO con el gesto del usuario.
+    // Cualquier await antes de window.open hace que Safari pierda el gesto
+    // y la apertura se sienta lentísima o no ocurra.
+    const nombre =
+      (user.user_metadata?.full_name as string) ||
+      (user.user_metadata?.name as string) ||
+      user.email ||
+      "Usuario IATOS";
 
-      if (insErr) throw insErr;
+    const mensaje = construirMensajeFixer({
+      nombre,
+      trip,
+      urgencia,
+      motivo,
+      ultimosTurnos,
+    });
 
-      // 2. Construir mensaje + abrir WhatsApp
-      const nombre =
-        (user.user_metadata?.full_name as string) ||
-        (user.user_metadata?.name as string) ||
-        user.email ||
-        "Usuario IATOS";
+    const numero = String(FIXER_WHATSAPP_NUMBER).replace(/\D/g, "");
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
 
-      const mensaje = construirMensajeFixer({
-        nombre,
-        trip,
-        urgencia,
-        motivo,
-        ultimosTurnos,
-      });
-
-      const numero = String(FIXER_WHATSAPP_NUMBER).replace(/\D/g, "");
-      const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
-      // Sin "noopener,noreferrer": WhatsApp redirige a api.whatsapp.com con COOP
-      // que bloquea popups opener-less (ERR_BLOCKED_BY_RESPONSE en Chrome).
-      window.open(url, "_blank");
-
-      // 3. Marcar como WhatsApp abierto
-      if (esc?.id) {
-        await supabase
-          .from("fixer_escalations")
-          .update({ status: "whatsapp_abierto" })
-          .eq("id", esc.id);
-      }
-
-      toast.success("Tu Fixer recibió tu solicitud", {
-        description: "Te contactará por WhatsApp en minutos.",
-      });
-      setOpen(false);
-      setTimeout(reset, 200);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Inténtalo de nuevo";
-      console.error("[FixerButton]", e);
-      toast.error("No pudimos registrar la solicitud", { description: message });
-    } finally {
-      setSubmitting(false);
+    // 1) Abrir YA.
+    const win = window.open(url, "_blank");
+    if (!win) {
+      // Fallback iOS estricto: navega en la misma pestaña preservando el gesto.
+      window.location.href = url;
     }
+
+    // 2) Loggear en background (fire-and-forget).
+    setSubmitting(true);
+    void supabase
+      .from("fixer_escalations")
+      .insert({
+        user_id: user.id,
+        trip_id: trip?.id ?? null,
+        motivo: motivo.trim() || null,
+        urgencia,
+        contexto_chat: ultimosTurnos.slice(-5).map((t) => ({
+          role: t.role,
+          content: t.content ?? t.text ?? "",
+        })),
+        status: "whatsapp_abierto",
+      })
+      .then(({ error }) => {
+        if (error) console.error("[FixerButton] log error:", error);
+      });
+
+    toast.success("Tu Fixer recibió tu solicitud", {
+      description: "Te contactará por WhatsApp en minutos.",
+    });
+    setOpen(false);
+    setTimeout(() => {
+      reset();
+      setSubmitting(false);
+    }, 200);
   };
 
   const triggerClass =
