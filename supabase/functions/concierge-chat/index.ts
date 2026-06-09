@@ -513,6 +513,11 @@ Deno.serve(async (req) => {
     let parsed: any;
     try { parsed = JSON.parse(finalText); }
     catch { parsed = { text: finalText, cards: [] }; }
+    const fallback = asksForKnownTripData(parsed?.text ?? "") ? buildTransferFallback(requestIntel) : null;
+    if (fallback) {
+      parsed = fallback;
+      console.warn("concierge_guardrail_rewrote_known_data_request", JSON.stringify({ trip_id: trip?.id, city: requestIntel?.ciudad_detectada }));
+    }
     parsed._tools_used = toolsUsed;
 
     return new Response(JSON.stringify(parsed), {
