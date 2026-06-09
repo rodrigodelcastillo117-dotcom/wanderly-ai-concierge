@@ -173,6 +173,150 @@ interface Body {
   context?: { destino?: string; fechas?: string; coords?: { lat: number; lng: number }; place?: string };
 }
 
+const normText = (value: unknown) => String(value ?? "")
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .trim();
+
+const asArray = (value: unknown): any[] => Array.isArray(value) ? value : [];
+
+const compactItem = (item: any) => Object.fromEntries(
+  Object.entries(item ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== ""),
+);
+
+function extractTripCities(trip: any): string[] {
+  const cities = new Set<string>();
+  const push = (v: unknown) => { const s = String(v ?? "").trim(); if (s) cities.add(s); };
+  String(trip?.destino ?? "").split(/→|,|;/).forEach(push);
+  asArray(trip?.hospedaje_json).forEach((h) => push(h?.ciudad));
+  asArray(trip?.vuelos_json).forEach((f) => { push(f?.to); push(f?.ciudad); push(f?.from); });
+  asArray(trip?.itinerario_json?.destinations).forEach(push);
+  return [...cities];
+}
+
+function chooseTripForRequest(trips: any[], todayISO: string, userMsg: string) {
+  if (!trips.length) return null;
+  const msg = normText(userMsg);
+  const scored = trips.map((trip) => {
+    const cities = extractTripCities(trip);
+    const cityMatch = cities.some((city) => city.length > 2 && msg.includes(normText(city)));
+    const activeNow = trip.fecha_salida <= todayISO && trip.fecha_regreso >= todayISO;
+    const future = !trip.fecha_regreso || trip.fecha_regreso >= todayISO;
+    const status = normText(trip.status);
+    let score = 0;
+    if (cityMatch) score += 120;
+    if (activeNow) score += 70;
+    if (future) score += 40;
+    if (["listo", "active", "confirmed", "planned", "pendiente"].includes(status)) score += 15;
+    return { trip, score };
+  });
+  scored.sort((a, b) => b.score - a.score || String(b.trip.created_at ?? "").localeCompare(String(a.trip.created_at ?? "")));
+  return scored[0]?.trip ?? null;
+}
+
+function buildRequestIntelligence(trip: any, userMsg: string, bookings: any[]) {
+  if (!trip) return null;
+  const msg = normText(userMsg);
+  const vuelos = asArray(trip.vuelos_json);
+  const hospedajes = asArray(trip.hospedaje_json);
+  const transfers = asArray(trip.itinerario_json?.transfers);
+  const pendientes = asArray(trip.itinerario_json?.pendientes);
+  const cities = extractTripCities(trip);
+  const city = cities.find((c) => c.length > 2 && msg.includes(normText(c))) ?? cities[0] ?? trip.destino;
+  const cityNorm = normText(city);
+  const relevantFlights = vuelos
+    .filter((f) => normText([f?.to, f?.ciudad, f?.from, f?.numero_vuelo, f?.aerolinea].join(" ")).includes(cityNorm))
+    .map(compactItem)
+    .slice(0, 4);
+  const relevantHotels = hospedajes
+    .filter((h) => normText([h?.ciudad, h?.nombre, h?.direccion, h?.barrio].join(" ")).includes(cityNorm))
+    .map(compactItem)
+    .slice(0, 4);
+  const relevantTransfers = transfers
+    .filter((t) => normText([t?.from, t?.to, t?.proveedor, t?.fecha, t?.hora].join(" ")).includes(cityNorm))
+    .map(compactItem)
+    .slice(0, 4);
+  const relevantPending = pendientes
+    .filter((p) => normText(p).includes(cityNorm) || /transfer|transporte|taxi|aeropuerto|airport|hotel|uber/.test(normText(p)))
+    .slice(0, 8);
+  const relevantBookings = bookings
+    .filter((b) => normText([b?.city, b?.title, b?.subtitle, b?.category, b?.provider].join(" ")).includes(cityNorm))
+    .map(compactItem)
+    .slice(0, 6);
+  const transferIntent = /transfer|transporte|traslado|taxi|chofer|driver|uber|blacklane|aeropuerto/.test(msg)
+    && /hotel|aeropuerto|airport|barajas|terminal|llegad/.test(msg);
+  return {
+    tipo_peticion_detectada: transferIntent ? "transfer_aeropuerto_hotel" : "general_viaje",
+    ciudad_detectada: city,
+    vuelos_relevantes: relevantFlights,
+    hospedaje_relevante: relevantHotels,
+    transfers_confirmados_o_itinerario: relevantTransfers,
+    pendientes_relacionados: relevantPending,
+    bookings_relacionados: relevantBookings,
+    instruccion_operativa: "Usa estos datos primero. No pidas hotel, fechas, vuelo ni destino si aparecen aquí; solo pregunta preferencias no guardadas.",
+  };
+}
+
+function asksForKnownTripData(text: string) {
+  return /necesito|dime|dame|proporciona|cu[aá]l es|nombre de tu hotel|fecha|hotel en|a qu[eé] hora|te gustar[ií]a que te busque|quieres que busque|puedo ayudarte a encontrar/.test(normText(text));
+}
+
+function shouldForceTransferAnswer(intel: any, parsed: any) {
+  if (intel?.tipo_peticion_detectada !== "transfer_aeropuerto_hotel") return false;
+  const cards = Array.isArray(parsed?.cards) ? parsed.cards : [];
+  return cards.length === 0 || asksForKnownTripData(parsed?.text ?? "");
+}
+
+function transferKnownDataLine(intel: any) {
+  if (intel?.tipo_peticion_detectada !== "transfer_aeropuerto_hotel") return "";
+  const flight = intel.vuelos_relevantes?.[0];
+  const hotel = intel.hospedaje_relevante?.[0];
+  const flightLine = flight
+    ? `${flight.aerolinea ?? "vuelo"} ${flight.numero_vuelo ?? ""}`.trim() + `${flight.fecha ? ` (${flight.fecha})` : ""}`
+    : "tu vuelo de llegada";
+  const hotelLine = hotel
+    ? `${hotel.nombre ?? "tu hotel"}${hotel.direccion ? `, ${hotel.direccion}` : ""}`
+    : `tu hotel en ${intel.ciudad_detectada}`;
+  return `Ya leí tu viaje: para Madrid tengo ${flightLine} y hospedaje en ${hotelLine}.`;
+}
+
+function ensureTransferUsesKnownData(intel: any, parsed: any) {
+  if (intel?.tipo_peticion_detectada !== "transfer_aeropuerto_hotel") return parsed;
+  const fallback = shouldForceTransferAnswer(intel, parsed) ? buildTransferFallback(intel) : null;
+  if (fallback) return fallback;
+  const knownLine = transferKnownDataLine(intel);
+  const text = String(parsed?.text ?? "");
+  const hotelName = normText(intel.hospedaje_relevante?.[0]?.nombre);
+  const flightNo = normText(intel.vuelos_relevantes?.[0]?.numero_vuelo);
+  const alreadyUsesTrip = (!hotelName || normText(text).includes(hotelName)) && (!flightNo || normText(text).includes(flightNo));
+  return alreadyUsesTrip ? parsed : { ...parsed, text: `${knownLine} ${text}`.trim() };
+}
+
+function buildTransferFallback(intel: any) {
+  if (!intel || intel.tipo_peticion_detectada !== "transfer_aeropuerto_hotel") return null;
+  const flight = intel.vuelos_relevantes?.[0];
+  const hotel = intel.hospedaje_relevante?.[0];
+  if (!flight && !hotel) return null;
+  const pendingText = intel.pendientes_relacionados?.join(" | ") ?? "";
+  const airport = /barajas/i.test(pendingText) ? "Madrid Barajas" : `aeropuerto de llegada en ${intel.ciudad_detectada}`;
+  const flightLine = flight
+    ? `${flight.aerolinea ?? "vuelo"} ${flight.numero_vuelo ?? ""}`.trim() + `${flight.fecha ? ` · ${flight.fecha}` : ""}${flight.hora_llegada ? ` · llegada ${flight.hora_llegada}` : ""}`
+    : `llegada a ${intel.ciudad_detectada}`;
+  const hotelLine = hotel
+    ? `${hotel.nombre ?? "tu hotel"}${hotel.direccion ? `, ${hotel.direccion}` : ""}${hotel.check_in ? ` · check-in ${hotel.check_in}` : ""}`
+    : `hotel en ${intel.ciudad_detectada}`;
+  const query = encodeURIComponent(`${airport} ${hotel?.nombre ?? "hotel"} ${hotel?.direccion ?? ""} transfer privado`);
+  return {
+    text: `Ya tengo los datos del viaje: llegas a ${intel.ciudad_detectada} en ${flightLine} y tu hospedaje es ${hotelLine}. Además, en tu itinerario aparece pendiente el traslado aeropuerto → hotel; te dejo opciones premium para activarlo sin pedirte datos repetidos.`,
+    cards: [
+      { type: "transport", title: "Transfer privado premium", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Buscar Welcome Pickups", cta_action: `https://www.google.com/search?q=${query}+Welcome+Pickups`, meta: pendingText || "Pendiente detectado en tu itinerario" },
+      { type: "transport", title: "Chofer ejecutivo", subtitle: `${airport} → ${hotel?.direccion ?? hotel?.nombre ?? intel.ciudad_detectada}`, cta_label: "Buscar Blacklane", cta_action: `https://www.google.com/search?q=${query}+Blacklane`, meta: flightLine },
+      { type: "transport", title: "Taxi oficial / VTC", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Abrir Maps", cta_action: `https://www.google.com/maps/search/?api=1&query=${query}`, meta: "Ruta con origen y destino del viaje" },
+    ],
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -203,26 +347,27 @@ Deno.serve(async (req) => {
 
     // Carga contexto: perfil, viaje activo (FULL), bóveda, dna, travel_profiles
     const todayISO = new Date().toISOString().slice(0, 10);
-    const [{ data: trip }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }] = await Promise.all([
-      // Prioriza viaje activo/futuro; trae TODO el JSON para que el concierge no pida lo que ya existe
+    const [{ data: tripRows }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }] = await Promise.all([
+      // Trae candidatos amplios y elige por ciudad/intención. No filtrar por status: en producción existen status como "listo".
       supabase.from("trips")
         .select("*")
         .eq("user_id", u.user.id)
-        .gte("fecha_regreso", todayISO)
-        .order("fecha_salida", { ascending: true })
-        .limit(1).maybeSingle()
-        .then(async (r) => {
-          if (r.data) return r;
-          // Fallback: el más reciente aunque sea pasado
-          return await supabase.from("trips").select("*")
-            .eq("user_id", u.user.id)
-            .order("created_at", { ascending: false }).limit(1).maybeSingle();
-        }),
+        .order("created_at", { ascending: false })
+        .limit(25),
       supabase.from("user_vault_benefits").select("*").eq("user_id", u.user.id).maybeSingle(),
       supabase.from("ai_user_preferences").select("*").eq("user_id", u.user.id).maybeSingle(),
       supabase.from("profiles").select("full_name, ciudad_origen").eq("id", u.user.id).maybeSingle(),
       supabase.from("travel_profiles").select("estilo_viaje, presupuesto_rango, ritmo_viaje, preferencias_comida, alergias_restricciones, intereses, perfil_ia").eq("user_id", u.user.id).maybeSingle(),
     ]);
+    const trip = chooseTripForRequest(tripRows ?? [], todayISO, lastUserMsg);
+    console.log("concierge_trip_context", JSON.stringify({
+      user_id: u.user.id,
+      candidates: tripRows?.length ?? 0,
+      selected_trip_id: trip?.id ?? null,
+      destino: trip?.destino ?? null,
+      status: trip?.status ?? null,
+      asked: lastUserMsg.slice(0, 120),
+    }));
 
     // Reservas reales (transfers, restaurantes, tours ya pagados) para detectar lo FALTANTE
     let bookings: any[] = [];
@@ -267,7 +412,9 @@ Deno.serve(async (req) => {
     // === BLOQUE DEDICADO AL VIAJE ACTIVO ===
     // Se inyecta como SYSTEM separado para que el modelo lo trate como contexto fijo.
     let tripContextBlock = "";
+    let requestIntel: any = null;
     if (trip) {
+      requestIntel = buildRequestIntelligence(trip, lastUserMsg, bookings);
       const tripPayload = {
         destino: trip.destino,
         pais_destino: trip.pais_destino,
@@ -288,6 +435,7 @@ Deno.serve(async (req) => {
         tips_personalizados: trip.tips_personalizados ?? null,
         analisis_ai: trip.analisis_ai ?? null,
         reservas_confirmadas_bookings: bookings,
+        datos_relevantes_para_la_peticion_actual: requestIntel,
       };
       tripContextBlock = [
         "VIAJE ACTIVO DEL USUARIO (datos REALES de su perfil — úsalos SIEMPRE):",
@@ -315,6 +463,16 @@ Deno.serve(async (req) => {
         "Cuando el usuario pregunte por una categoría (transfers, restaurantes, tours, etc.),",
         "COMPARA lo ya reservado (en reservas_confirmadas_bookings) vs lo que el itinerario",
         "implica que falta, y sugiere proactivamente lo faltante con fechas/horas exactas.",
+        "",
+        "REGLA ESPECÍFICA DE TRANSFERS AEROPUERTO → HOTEL:",
+        "Si el usuario pide transporte/transfer al hotel, primero busca en datos_relevantes_para_la_peticion_actual,",
+        "vuelos, hospedaje, itinerario.transfers y pendientes. Debes responder usando el vuelo, hotel, fecha,",
+        "dirección y confirmaciones existentes. Si falta hora exacta, NO pidas todo otra vez: indícalo como único dato",
+        "faltante o propón opciones flexibles con seguimiento de vuelo.",
+        "",
+        "PROHIBIDO ABSOLUTO:",
+        "No respondas jamás: 'necesito saber el nombre de tu hotel', 'necesito la fecha',",
+        "'dime tu vuelo' o equivalentes cuando el JSON contiene hospedaje/vuelos/fechas.",
       ].join("\n");
     }
 
@@ -386,6 +544,9 @@ Deno.serve(async (req) => {
     let parsed: any;
     try { parsed = JSON.parse(finalText); }
     catch { parsed = { text: finalText, cards: [] }; }
+    const beforeGuardrail = parsed;
+    parsed = ensureTransferUsesKnownData(requestIntel, parsed);
+    if (parsed !== beforeGuardrail) console.warn("concierge_guardrail_transfer_context_enforced", JSON.stringify({ trip_id: trip?.id, city: requestIntel?.ciudad_detectada }));
     parsed._tools_used = toolsUsed;
 
     return new Response(JSON.stringify(parsed), {
