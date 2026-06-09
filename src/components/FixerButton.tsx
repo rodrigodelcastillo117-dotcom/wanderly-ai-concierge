@@ -291,6 +291,7 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
                 </Button>
               </div>
             </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
