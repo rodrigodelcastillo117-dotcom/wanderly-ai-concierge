@@ -407,6 +407,47 @@ export type Database = {
           },
         ]
       }
+      fixer_escalations: {
+        Row: {
+          contexto_chat: Json | null
+          created_at: string
+          id: string
+          motivo: string | null
+          status: string
+          trip_id: string | null
+          urgencia: string | null
+          user_id: string
+        }
+        Insert: {
+          contexto_chat?: Json | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          status?: string
+          trip_id?: string | null
+          urgencia?: string | null
+          user_id: string
+        }
+        Update: {
+          contexto_chat?: Json | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          status?: string
+          trip_id?: string | null
+          urgencia?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixer_escalations_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       friendships: {
         Row: {
           addressee_id: string
