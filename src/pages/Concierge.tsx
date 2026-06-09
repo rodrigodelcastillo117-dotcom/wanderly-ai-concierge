@@ -599,8 +599,33 @@ const RichCard = ({ card }: { card: Card }) => {
     );
   }
   if (card.type === "transport") {
-    return <TransportCard card={card} />;
+    return (
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+            <Car className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h4 className="font-display text-base leading-tight">{card.title}</h4>
+            {card.subtitle && <p className="text-xs text-muted-foreground">{card.subtitle}</p>}
+          </div>
+        </div>
+        {card.meta && <p className="text-xs text-muted-foreground mb-3">{card.meta}</p>}
+        <AffiliateActionButton
+          type="welcome_pickups_transfer"
+          userId={user?.id}
+          label={card.cta_label}
+          payload={{
+            origen: card.subtitle,
+            destino: card.title,
+            ciudad: card.title,
+          }}
+          className="h-10 text-sm"
+        />
+      </div>
+    );
   }
+
 
 
   if (card.type === "luggage") {
