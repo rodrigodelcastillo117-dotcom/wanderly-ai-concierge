@@ -202,15 +202,16 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-background/85 backdrop-blur-md flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-background/85 backdrop-blur-md overflow-y-auto overscroll-contain"
             onClick={handleClose}
           >
+            <div className="min-h-[100dvh] w-full flex items-start sm:items-center justify-center p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(6rem,env(safe-area-inset-bottom))]">
             <motion.div
               initial={{ scale: 0.94, y: 16 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.94, y: 16 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg rounded-3xl border border-primary/40 bg-card p-7 md:p-8 relative shadow-[0_30px_80px_-20px_hsl(var(--primary)/0.4)]"
+              className="w-full max-w-lg rounded-3xl border border-primary/40 bg-card p-6 sm:p-7 md:p-8 relative shadow-[0_30px_80px_-20px_hsl(var(--primary)/0.4)]"
             >
               <button
                 onClick={handleClose}
@@ -290,6 +291,7 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
                 </Button>
               </div>
             </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
