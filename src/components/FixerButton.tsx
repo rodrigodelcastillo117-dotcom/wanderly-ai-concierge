@@ -56,9 +56,10 @@ function construirMensajeFixer({
   motivo: string;
   ultimosTurnos: Turn[];
 }) {
-  const emoji = urgencia === "critica" ? "🔴" : urgencia === "alta" ? "🟡" : "🟢";
+  const tagUrgencia =
+    urgencia === "critica" ? "[CRITICO]" : urgencia === "alta" ? "[IMPORTANTE]" : "[CONSULTA]";
 
-  let mensaje = `${emoji} *Solicitud Fixer IATOS*\n\n`;
+  let mensaje = `${tagUrgencia} *Solicitud Fixer IATOS*\n\n`;
   mensaje += `Hola, soy *${nombre}* (usuario IATOS AI).\n\n`;
   mensaje += `*Urgencia:* ${urgencia.toUpperCase()}\n`;
 
@@ -81,7 +82,7 @@ function construirMensajeFixer({
   if (ultimosTurnos && ultimosTurnos.length > 0) {
     mensaje += `\n*Contexto chat con Iato (últimos 3 turnos):*\n`;
     ultimosTurnos.slice(-3).forEach((t) => {
-      const role = t.role === "user" ? "👤" : "🤖";
+      const role = t.role === "user" ? "Tú:" : "Iato:";
       const txt = (t.content ?? t.text ?? "").slice(0, 200);
       mensaje += `${role} ${txt}\n`;
     });
