@@ -201,16 +201,37 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as Body;
     const lastUserMsg = [...(body.messages ?? [])].reverse().find((m) => m.role === "user")?.content ?? "";
 
-    // Carga contexto: perfil, viaje activo, bóveda, dna, travel_profiles
+    // Carga contexto: perfil, viaje activo (FULL), bóveda, dna, travel_profiles
+    const todayISO = new Date().toISOString().slice(0, 10);
     const [{ data: trip }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }] = await Promise.all([
+      // Prioriza viaje activo/futuro; trae TODO el JSON para que el concierge no pida lo que ya existe
       supabase.from("trips")
-        .select("destino, pais_destino, ciudad_origen, fecha_salida, fecha_regreso, num_viajeros, presupuesto_objetivo, status")
-        .eq("user_id", u.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        .select("*")
+        .eq("user_id", u.user.id)
+        .gte("fecha_regreso", todayISO)
+        .order("fecha_salida", { ascending: true })
+        .limit(1).maybeSingle()
+        .then(async (r) => {
+          if (r.data) return r;
+          // Fallback: el más reciente aunque sea pasado
+          return await supabase.from("trips").select("*")
+            .eq("user_id", u.user.id)
+            .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        }),
       supabase.from("user_vault_benefits").select("*").eq("user_id", u.user.id).maybeSingle(),
       supabase.from("ai_user_preferences").select("*").eq("user_id", u.user.id).maybeSingle(),
       supabase.from("profiles").select("full_name, ciudad_origen").eq("id", u.user.id).maybeSingle(),
       supabase.from("travel_profiles").select("estilo_viaje, presupuesto_rango, ritmo_viaje, preferencias_comida, alergias_restricciones, intereses, perfil_ia").eq("user_id", u.user.id).maybeSingle(),
     ]);
+
+    // Reservas reales (transfers, restaurantes, tours ya pagados) para detectar lo FALTANTE
+    let bookings: any[] = [];
+    if (trip?.id) {
+      const { data: bks } = await supabase.from("bookings")
+        .select("category, provider, status, title, subtitle, city, start_at, end_at, price_amount, price_currency, confirmation_code, booking_url")
+        .eq("trip_id", trip.id).order("start_at", { ascending: true });
+      bookings = bks ?? [];
+    }
 
     const vaultLines: string[] = [];
     if (vault?.credit_cards?.length) vaultLines.push("Tarjetas: " + vault.credit_cards.map((c: any) => `${c.bank} ${c.card_tier}`).join("; "));
