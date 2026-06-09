@@ -598,29 +598,10 @@ const RichCard = ({ card }: { card: Card }) => {
       </div>
     );
   }
-
   if (card.type === "transport") {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-            <Car className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h4 className="font-display text-base leading-tight">{card.title}</h4>
-            {card.subtitle && <p className="text-xs text-muted-foreground">{card.subtitle}</p>}
-          </div>
-        </div>
-        {card.meta && <p className="text-xs text-muted-foreground mb-3">{card.meta}</p>}
-        <ActionButton
-          status={status}
-          label={card.cta_label}
-          onClick={() => run({ type: "transport", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })}
-          className="w-full h-9 text-sm"
-        />
-      </div>
-    );
+    return <TransportCard card={card} />;
   }
+
 
   if (card.type === "luggage") {
     return (
