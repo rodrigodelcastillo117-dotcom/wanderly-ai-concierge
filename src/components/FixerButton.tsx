@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, X, AlertTriangle, AlertCircle, MessageCircle, Loader2, ArrowLeft, Check } from "lucide-react";
+import { Phone, X, AlertTriangle, AlertCircle, MessageCircle, Loader2, ArrowLeft, Check, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -36,7 +36,7 @@ const URGENCIAS: Array<{
   emoji: string;
   titulo: string;
   desc: string;
-  icon: any;
+  icon: LucideIcon;
 }> = [
   { id: "critica", emoji: "🔴", titulo: "Crítico", desc: "Vuelo cancelado, problema médico, robo", icon: AlertTriangle },
   { id: "alta", emoji: "🟡", titulo: "Importante", desc: "Cambio de itinerario, problema con reserva", icon: AlertCircle },
@@ -135,7 +135,10 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
           trip_id: trip?.id ?? null,
           motivo: motivo.trim() || null,
           urgencia,
-          contexto_chat: ultimosTurnos.slice(-5) as any,
+          contexto_chat: ultimosTurnos.slice(-5).map((t) => ({
+            role: t.role,
+            content: t.content ?? t.text ?? "",
+          })),
           status: "iniciado",
         })
         .select("id")
@@ -174,9 +177,10 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
       });
       setOpen(false);
       setTimeout(reset, 200);
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Inténtalo de nuevo";
       console.error("[FixerButton]", e);
-      toast.error("No pudimos registrar la solicitud", { description: e?.message ?? "Inténtalo de nuevo" });
+      toast.error("No pudimos registrar la solicitud", { description: message });
     } finally {
       setSubmitting(false);
     }
