@@ -268,6 +268,31 @@ function shouldForceTransferAnswer(intel: any, parsed: any) {
   return cards.length === 0 || asksForKnownTripData(parsed?.text ?? "");
 }
 
+function transferKnownDataLine(intel: any) {
+  if (intel?.tipo_peticion_detectada !== "transfer_aeropuerto_hotel") return "";
+  const flight = intel.vuelos_relevantes?.[0];
+  const hotel = intel.hospedaje_relevante?.[0];
+  const flightLine = flight
+    ? `${flight.aerolinea ?? "vuelo"} ${flight.numero_vuelo ?? ""}`.trim() + `${flight.fecha ? ` (${flight.fecha})` : ""}`
+    : "tu vuelo de llegada";
+  const hotelLine = hotel
+    ? `${hotel.nombre ?? "tu hotel"}${hotel.direccion ? `, ${hotel.direccion}` : ""}`
+    : `tu hotel en ${intel.ciudad_detectada}`;
+  return `Ya leí tu viaje: para Madrid tengo ${flightLine} y hospedaje en ${hotelLine}.`;
+}
+
+function ensureTransferUsesKnownData(intel: any, parsed: any) {
+  if (intel?.tipo_peticion_detectada !== "transfer_aeropuerto_hotel") return parsed;
+  const fallback = shouldForceTransferAnswer(intel, parsed) ? buildTransferFallback(intel) : null;
+  if (fallback) return fallback;
+  const knownLine = transferKnownDataLine(intel);
+  const text = String(parsed?.text ?? "");
+  const hotelName = normText(intel.hospedaje_relevante?.[0]?.nombre);
+  const flightNo = normText(intel.vuelos_relevantes?.[0]?.numero_vuelo);
+  const alreadyUsesTrip = (!hotelName || normText(text).includes(hotelName)) && (!flightNo || normText(text).includes(flightNo));
+  return alreadyUsesTrip ? parsed : { ...parsed, text: `${knownLine} ${text}`.trim() };
+}
+
 function buildTransferFallback(intel: any) {
   if (!intel || intel.tipo_peticion_detectada !== "transfer_aeropuerto_hotel") return null;
   const flight = intel.vuelos_relevantes?.[0];
@@ -519,11 +544,9 @@ Deno.serve(async (req) => {
     let parsed: any;
     try { parsed = JSON.parse(finalText); }
     catch { parsed = { text: finalText, cards: [] }; }
-    const fallback = shouldForceTransferAnswer(requestIntel, parsed) ? buildTransferFallback(requestIntel) : null;
-    if (fallback) {
-      parsed = fallback;
-      console.warn("concierge_guardrail_rewrote_known_data_request", JSON.stringify({ trip_id: trip?.id, city: requestIntel?.ciudad_detectada }));
-    }
+    const beforeGuardrail = parsed;
+    parsed = ensureTransferUsesKnownData(requestIntel, parsed);
+    if (parsed !== beforeGuardrail) console.warn("concierge_guardrail_transfer_context_enforced", JSON.stringify({ trip_id: trip?.id, city: requestIntel?.ciudad_detectada }));
     parsed._tools_used = toolsUsed;
 
     return new Response(JSON.stringify(parsed), {
