@@ -594,7 +594,69 @@ Deno.serve(async (req) => {
     if (parsed !== beforeGuardrail) console.warn("concierge_guardrail_transfer_context_enforced", JSON.stringify({ trip_id: trip?.id, city: requestIntel?.ciudad_detectada }));
     parsed._tools_used = toolsUsed;
 
+    // === CAPA 2 — Persistir turnos en concierge_conversations ===
+    try {
+      const assistantText = typeof parsed?.text === "string" && parsed.text
+        ? parsed.text
+        : (typeof finalText === "string" ? finalText : JSON.stringify(parsed));
+      const nuevosTurnos = [
+        ...prevMessages,
+        { role: "user", content: lastUserMsg, timestamp: new Date().toISOString() },
+        { role: "assistant", content: assistantText, timestamp: new Date().toISOString() },
+      ];
+
+      let mensajesParaGuardar = nuevosTurnos;
+      let resumenHistorico: string | null = convPrevia?.resumen_historico ?? null;
+      let resumenActualizadoAt: string | null = convPrevia?.resumen_actualizado_at ?? null;
+
+      if (nuevosTurnos.length > 30) {
+        const aResumir = nuevosTurnos.slice(0, -10);
+        const aMantener = nuevosTurnos.slice(-10);
+        const promptResumen = `Resume estas ${aResumir.length} interacciones entre un usuario y su concierge IA Iato. Extrae HECHOS CLAVE: preferencias declaradas, decisiones tomadas, alergias, gustos, eventos importantes, nombres de acompañantes. Formato: bullet points concisos. NO incluyas saludos ni respuestas genéricas.\n\nInteracciones:\n${aResumir.map((m: any) => `${m.role}: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`).join("\n")}`;
+        try {
+          const rs = await fetch(AI_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Lovable-API-Key": LOVABLE_API_KEY },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-lite",
+              messages: [{ role: "user", content: promptResumen }],
+            }),
+          });
+          if (rs.ok) {
+            const js = await rs.json();
+            const nuevoResumen = js?.choices?.[0]?.message?.content?.trim();
+            if (nuevoResumen) {
+              resumenHistorico = resumenHistorico ? `${resumenHistorico}\n\n${nuevoResumen}` : nuevoResumen;
+              resumenActualizadoAt = new Date().toISOString();
+              mensajesParaGuardar = aMantener;
+            }
+          }
+        } catch (e) {
+          console.warn("resumen_historico failed", e);
+        }
+      }
+
+      const upsertPayload: any = {
+        user_id: u.user.id,
+        trip_id: trip_id_activo,
+        messages: mensajesParaGuardar,
+        resumen_historico: resumenHistorico,
+        resumen_actualizado_at: resumenActualizadoAt,
+        updated_at: new Date().toISOString(),
+      };
+      if (convPrevia?.id) upsertPayload.id = convPrevia.id;
+
+      const onConflict = trip_id_activo ? "user_id,trip_id" : "user_id";
+      const { error: upsertErr } = await supabase
+        .from("concierge_conversations")
+        .upsert(upsertPayload, { onConflict });
+      if (upsertErr) console.warn("concierge_conv_upsert_err", upsertErr.message);
+    } catch (e) {
+      console.warn("persist concierge conversation failed", e);
+    }
+
     return new Response(JSON.stringify(parsed), {
+
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
