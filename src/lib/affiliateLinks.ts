@@ -4,6 +4,43 @@
 
 export const TP_MARKER = "533299";
 
+// Welcome Pickups (transfers premium) — tracking_id Travelpayouts.
+export const WP_AFF_TRACK_ID = "3dc38e66900549469a7f18b5e-733063";
+
+export interface WelcomePickupsTransferInput {
+  origen?: string;
+  destino?: string;
+  fecha?: string;   // YYYY-MM-DD
+  hora?: string;    // HH:MM
+  pax?: number;
+  vuelo?: string;
+  ciudad?: string;
+}
+
+export function welcomePickupsLink(input: WelcomePickupsTransferInput = {}): string {
+  const base = "https://www.welcomepickups.com/";
+  const params = new URLSearchParams({
+    aff_track_id: WP_AFF_TRACK_ID,
+    utm_source: "travelpayouts",
+    utm_medium: "iatos_concierge",
+    utm_campaign: `transfer_${(input.ciudad ?? "general").toLowerCase().replace(/\s+/g, "_")}`,
+  });
+  if (input.origen) params.set("pickup_location", input.origen);
+  if (input.destino) params.set("dropoff_location", input.destino);
+  if (input.fecha) params.set("pickup_date", input.fecha);
+  if (input.hora) params.set("pickup_time", input.hora);
+  if (input.pax) params.set("passengers", String(input.pax));
+  if (input.vuelo) params.set("flight_number", input.vuelo);
+  return `${base}?${params.toString()}`;
+}
+
+export function ensureWelcomePickupsTrack(url: string): string {
+  if (!url.includes("welcomepickups.com")) return url;
+  if (url.includes("aff_track_id=")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}aff_track_id=${WP_AFF_TRACK_ID}&utm_source=travelpayouts`;
+}
+
 export function ensureAviasalesMarker(url: string) {
   if (!/^https:\/\/(www\.)?aviasales\.com\//i.test(url)) return url;
   if (/[?&]marker=/.test(url)) return url;
