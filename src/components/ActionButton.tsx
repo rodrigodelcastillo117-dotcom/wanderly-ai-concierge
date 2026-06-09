@@ -63,7 +63,8 @@ export function ActionButton({
       } else if (type === "fixer_escalation") {
         provider = "fixer";
         accion = payload.accion ?? "general";
-        urlFinal = `https://wa.me/${FIXER_WHATSAPP}?text=${encodeURIComponent(construirMensajeFixer(payload))}`;
+        const numero = FIXER_WHATSAPP.replace(/\D/g, "");
+        urlFinal = `https://wa.me/${numero}?text=${encodeURIComponent(construirMensajeFixer(payload))}`;
       } else if (type === "custom_link") {
         urlFinal = payload.url ?? "";
         provider = payload.provider ?? "custom";
@@ -88,13 +89,17 @@ export function ActionButton({
         }
       }
 
-      window.open(urlFinal, "_blank", "noopener,noreferrer");
+      // Sin "noopener,noreferrer" para wa.me: el redirect a api.whatsapp.com
+      // dispara COOP y Chrome bloquea popups opener-less.
+      const isWhatsapp = urlFinal.includes("wa.me") || urlFinal.includes("whatsapp.com");
+      window.open(urlFinal, "_blank", isWhatsapp ? undefined : "noopener,noreferrer");
       toast.success("Abriendo proveedor…");
     } catch (err) {
       console.error("Action error:", err);
       toast.error("Hubo un problema. Te conectamos con tu Fixer.");
-      const fallback = `https://wa.me/${FIXER_WHATSAPP}?text=${encodeURIComponent(construirMensajeFixer(payload))}`;
-      window.open(fallback, "_blank", "noopener,noreferrer");
+      const numero = FIXER_WHATSAPP.replace(/\D/g, "");
+      const fallback = `https://wa.me/${numero}?text=${encodeURIComponent(construirMensajeFixer(payload))}`;
+      window.open(fallback, "_blank");
     } finally {
       setLoading(false);
     }
