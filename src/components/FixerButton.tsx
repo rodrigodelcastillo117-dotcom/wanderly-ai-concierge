@@ -8,9 +8,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Número de WhatsApp del Fixer (formato internacional, sin "+" ni espacios).
-// Cambiar aquí cuando haya equipo dedicado o un Telegram/Slack workflow.
-const FIXER_WHATSAPP_NUMBER = "525543580077";
+// Datos del Fixer (números visibles + email backend)
+const FIXER_WHATSAPP_DIGITS = "525543580077";
+const FIXER_WHATSAPP_DISPLAY = "+52 55 4358 0077";
+const FIXER_EMAIL_FALLBACK = "rodrigo@traveliatos.life";
 
 type Urgencia = "critica" | "alta" | "media";
 
