@@ -418,6 +418,65 @@ Deno.serve(async (req) => {
     // Se inyecta como SYSTEM separado para que el modelo lo trate como contexto fijo.
     let tripContextBlock = "";
     let requestIntel: any = null;
+    // === BLOQUE MULTI-VIAJE (Capa 1) — lista compacta de TODOS los viajes vigentes ===
+    let multiTripBlock = "";
+    if (viajesVigentes.length > 0) {
+      const lines: string[] = [
+        `═══ VIAJES DEL USUARIO (${viajesVigentes.length} ${viajesVigentes.length === 1 ? "viaje vigente" : "viajes vigentes"}) ═══`,
+        "",
+      ];
+      viajesVigentes.forEach((tr: any, idx: number) => {
+        const esMasProximo = idx === 0;
+        lines.push(`▌ VIAJE ${idx + 1}${esMasProximo ? " (más próximo)" : ""}`);
+        lines.push(`   ID: ${tr.id}`);
+        lines.push(`   Destino: ${tr.destino ?? "Sin título"}`);
+        if (tr.pais_destino) lines.push(`   País: ${tr.pais_destino}`);
+        if (tr.ciudad_origen) lines.push(`   Origen: ${tr.ciudad_origen}`);
+        lines.push(`   Fechas: ${tr.fecha_salida ?? "?"} al ${tr.fecha_regreso ?? "?"}`);
+        if (tr.num_viajeros) lines.push(`   Viajeros: ${tr.num_viajeros}`);
+        if (tr.status) lines.push(`   Status: ${tr.status}`);
+        const vuelos = asArray(tr.vuelos_json);
+        if (vuelos.length) {
+          lines.push("   VUELOS:");
+          vuelos.slice(0, 8).forEach((v: any) => {
+            lines.push(`     - ${v.aerolinea ?? ""} ${v.numero_vuelo ?? v.numero ?? ""} | ${v.fecha ?? v.fecha_salida ?? ""} | ${v.from ?? v.aeropuerto_origen ?? ""}${v.terminal_origen ? " T" + v.terminal_origen : ""} → ${v.to ?? v.aeropuerto_destino ?? v.ciudad ?? ""}${v.terminal_destino ? " T" + v.terminal_destino : ""} | ${v.hora_salida ?? ""}-${v.hora_llegada ?? ""}${v.pnr ? " | PNR: " + v.pnr : ""}`);
+          });
+        }
+        const hospedaje = asArray(tr.hospedaje_json);
+        if (hospedaje.length) {
+          lines.push("   HOTELES:");
+          hospedaje.slice(0, 8).forEach((h: any) => {
+            lines.push(`     - ${h.nombre ?? ""} | ${h.ciudad ?? h.direccion ?? ""} | ${h.check_in ?? h.checkin ?? ""} → ${h.check_out ?? h.checkout ?? ""}${h.booking_id ? " | Booking: " + h.booking_id : ""}`);
+          });
+        }
+        const cruceros = asArray(tr.cruceros_json);
+        if (cruceros.length) {
+          lines.push("   CRUCEROS:");
+          cruceros.slice(0, 4).forEach((c: any) => {
+            lines.push(`     - ${c.nave ?? c.nombre ?? ""} | ${c.puerto_embarque ?? ""} → ${c.puerto_desembarque ?? ""} | ${c.fecha_embarque ?? ""} a ${c.fecha_desembarque ?? ""}${c.booking ? " | Booking: " + c.booking : ""}${c.suite ? " | Suite: " + c.suite : ""}`);
+          });
+        }
+        lines.push("");
+      });
+      lines.push("═══ FIN VIAJES DEL USUARIO ═══");
+      lines.push("");
+      lines.push("═══ REGLA ARQUITECTÓNICA — VIAJES DEL USUARIO (CRÍTICA) ═══");
+      lines.push("El usuario puede tener MÚLTIPLES viajes vigentes simultáneamente. Arriba ves TODOS, numerados.");
+      lines.push("");
+      lines.push("REGLAS DE INTERPRETACIÓN:");
+      lines.push("1. Si menciona un destino específico ('el viaje a Europa', 'mi vuelo de París'), identifica el viaje correcto buscando en la lista por destino/ciudad/vuelo.");
+      lines.push("2. Si dice 'mi viaje' sin especificar y hay MÚLTIPLES viajes, pregunta cuál: 'Tienes [N] viajes vigentes: [destinos]. ¿A cuál te refieres?'. NO asumas el más próximo.");
+      lines.push("3. Si menciona DOS viajes en la misma frase ('cambia mi vuelo de Buenos Aires por el de Europa'), identifica AMBOS y pregunta la INTENCIÓN (cancelar uno, mover fechas, cambiar vuelo específico), pero NO pidas info que ya tienes.");
+      lines.push("4. ANTI-PATRÓN PROHIBIDO: el usuario dice 'cambia mi vuelo de Buenos Aires por el de Europa' y tú respondes '¿a qué ciudad de Europa?' — eso ignora que el viaje a Europa YA está arriba con sus ciudades y vuelos.");
+      lines.push("5. SIEMPRE identifica claramente sobre cuál viaje respondes: 'Para tu viaje a Europa...', 'En tu viaje a Buenos Aires...'. NUNCA digas 'tu viaje' ambiguo cuando hay varios.");
+      lines.push("═══ FIN REGLA ARQUITECTÓNICA ═══");
+      multiTripBlock = lines.join("\n");
+    }
+
+    // === BLOQUE DEDICADO AL VIAJE MÁS RELEVANTE PARA LA PETICIÓN ACTUAL ===
+    // Se inyecta como SYSTEM separado para que el modelo lo trate como contexto fijo.
+    let tripContextBlock = "";
+    let requestIntel: any = null;
     if (trip) {
       requestIntel = buildRequestIntelligence(trip, lastUserMsg, bookings);
       const tripPayload = {
@@ -443,7 +502,7 @@ Deno.serve(async (req) => {
         datos_relevantes_para_la_peticion_actual: requestIntel,
       };
       tripContextBlock = [
-        "VIAJE ACTIVO DEL USUARIO (datos REALES de su perfil — úsalos SIEMPRE):",
+        "VIAJE MÁS RELEVANTE PARA ESTA PETICIÓN (detalle completo — los demás viajes vigentes están listados arriba):",
         "```json",
         JSON.stringify(tripPayload, null, 1),
         "```",
