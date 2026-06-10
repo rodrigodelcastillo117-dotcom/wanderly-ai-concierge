@@ -370,10 +370,20 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
                     className="h-11 rounded-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow"
                   >
                     {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
-                    WhatsApp
+                    Enviar al Fixer
                   </Button>
                 </div>
               )}
+              <div className="mt-3 pt-3 border-t border-border/60 text-center">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground mb-1">O escríbenos directo</p>
+                <a
+                  href={`tel:${FIXER_WHATSAPP_DIGITS}`}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  {FIXER_WHATSAPP_DISPLAY}
+                </a>
+              </div>
             </div>
           </motion.div>
         </motion.div>
