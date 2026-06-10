@@ -1,6 +1,6 @@
 // supabase/functions/analizar-viaje/index.ts
 // Flujo: Perplexity (sonar-pro) investiga precios reales -> Claude estructura el análisis premium.
-// FIX v2: status "completo" -> "listo" (alinea con el realtime del frontend y el spec).
+// FIX v3: Perplexity opcional — si falta la key, continúa sin contexto cualitativo (no 500).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
