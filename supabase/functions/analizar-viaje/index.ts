@@ -374,6 +374,13 @@ async function investigarConPerplexity(
   dias: number,
   vaultDesc: string,
 ): Promise<{ texto: string; citations: string[] }> {
+  if (!PERPLEXITY_API_KEY) {
+    return {
+      texto: "(Perplexity no configurado: continuar con Travelpayouts/Aviasales y estimaciones estructuradas sin contexto web adicional.)",
+      citations: [],
+    };
+  }
+
   const query = `Investiga precios REALES y actuales para este viaje, y BUSCA ACTIVAMENTE promociones vigentes asociadas a los programas de lealtad del usuario. Devuelve CIFRAS PUNTUALES en MXN (no rangos vagos).
 
 BÓVEDA DE BENEFICIOS DEL USUARIO (úsala para encontrar descuentos):
@@ -454,12 +461,6 @@ Deno.serve(async (req) => {
   try {
     if (!ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY no configurada" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!PERPLEXITY_API_KEY) {
-      return new Response(JSON.stringify({ error: "PERPLEXITY_API_KEY no configurada" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
