@@ -8,9 +8,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Número de WhatsApp del Fixer (formato internacional, sin "+" ni espacios).
-// Cambiar aquí cuando haya equipo dedicado o un Telegram/Slack workflow.
-const FIXER_WHATSAPP_NUMBER = "525543580077";
+// Datos del Fixer (números visibles + email backend)
+const FIXER_WHATSAPP_DIGITS = "525543580077";
+const FIXER_WHATSAPP_DISPLAY = "+52 55 4358 0077";
+const FIXER_EMAIL_FALLBACK = "rodrigo@traveliatos.life";
 
 type Urgencia = "critica" | "alta" | "media";
 
@@ -112,13 +113,31 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
     setTimeout(reset, 200);
   };
 
-  const handleSubmit = () => {
+  const buildEmailBody = (nombre: string) => {
+    let body = `Hola,\n\nNecesito ayuda con lo siguiente:\n\n`;
+    body += `Urgencia: ${(urgencia ?? "media").toUpperCase()}\n\n`;
+    if (motivo.trim()) body += `Motivo:\n${motivo.trim()}\n\n`;
+    if (trip && (trip.destino || trip.id)) {
+      body += `---\nMi viaje activo:\n${trip.destino ?? ""}\n`;
+      if (trip.fecha_salida || trip.fecha_regreso) {
+        body += `Del ${trip.fecha_salida ?? "?"} al ${trip.fecha_regreso ?? "?"}\n`;
+      }
+      body += `\n`;
+    }
+    body += `---\nMis datos:\n${nombre}\n\n`;
+    body += `Enviado desde IATOS AI - ${new Date().toLocaleString("es-MX")}`;
+    return body;
+  };
+
+  const abrirMailtoFallback = (nombre: string) => {
+    const subject = `[IATOS Fixer ${(urgencia ?? "media").toUpperCase()}] ${nombre} - ${motivo.slice(0, 50)}`;
+    const url = `mailto:${FIXER_EMAIL_FALLBACK}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(buildEmailBody(nombre))}`;
+    window.open(url, "_blank");
+  };
+
+  const handleSubmit = async () => {
     if (!urgencia) {
       toast.error("Selecciona el nivel de urgencia");
-      return;
-    }
-    if (!FIXER_WHATSAPP_NUMBER || FIXER_WHATSAPP_NUMBER.length < 8) {
-      toast.error("Fixer no configurado todavía");
       return;
     }
     if (!user) {
@@ -126,35 +145,20 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
       return;
     }
 
-    // CRÍTICO iOS/Safari: abrir WhatsApp SÍNCRONO con el gesto del usuario.
-    // Cualquier await antes de window.open hace que Safari pierda el gesto
-    // y la apertura se sienta lentísima o no ocurra.
     const nombre =
       (user.user_metadata?.full_name as string) ||
       (user.user_metadata?.name as string) ||
       user.email ||
       "Usuario IATOS";
 
-    const mensaje = construirMensajeFixer({
-      nombre,
-      trip,
-      urgencia,
-      motivo,
-      ultimosTurnos,
-    });
-
-    const numero = String(FIXER_WHATSAPP_NUMBER).replace(/\D/g, "");
-    const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
-
-    // 1) Abrir YA.
-    const win = window.open(url, "_blank");
-    if (!win) {
-      // Fallback iOS estricto: navega en la misma pestaña preservando el gesto.
-      window.location.href = url;
-    }
-
-    // 2) Loggear en background (fire-and-forget).
     setSubmitting(true);
+
+    const contexto = ultimosTurnos.slice(-5).map((t) => ({
+      role: t.role,
+      content: t.content ?? t.text ?? "",
+    }));
+
+    // 1) Log en BD (no bloquea)
     void supabase
       .from("fixer_escalations")
       .insert({
@@ -162,24 +166,56 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
         trip_id: trip?.id ?? null,
         motivo: motivo.trim() || null,
         urgencia,
-        contexto_chat: ultimosTurnos.slice(-5).map((t) => ({
-          role: t.role,
-          content: t.content ?? t.text ?? "",
-        })),
-        status: "whatsapp_abierto",
+        contexto_chat: contexto,
+        status: "email_enviado",
       })
       .then(({ error }) => {
         if (error) console.error("[FixerButton] log error:", error);
       });
 
-    toast.success("Tu Fixer recibió tu solicitud", {
-      description: "Te contactará por WhatsApp en minutos.",
-    });
-    setOpen(false);
-    setTimeout(() => {
-      reset();
-      setSubmitting(false);
-    }, 200);
+    // 2) Edge function (Resend)
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "enviar-email-fixer",
+        {
+          body: {
+            user_name: nombre,
+            user_email: user.email ?? "sin-email@iatos.ai",
+            trip: trip
+              ? {
+                  titulo: trip.destino,
+                  destinos: trip.destino,
+                  fecha_salida: trip.fecha_salida ?? undefined,
+                  fecha_regreso: trip.fecha_regreso ?? undefined,
+                }
+              : undefined,
+            urgencia,
+            motivo: motivo.trim() || "(sin detalle)",
+            contexto_chat: contexto,
+          },
+        },
+      );
+
+      if (error || (data && (data as any).error)) {
+        console.warn("Resend fallo, usando mailto fallback:", error || data);
+        toast.warning("Abrimos tu cliente de email como backup");
+        abrirMailtoFallback(nombre);
+      } else {
+        toast.success("Tu Fixer recibió tu solicitud", {
+          description: "Te contactará por email o WhatsApp en minutos.",
+        });
+      }
+    } catch (err) {
+      console.error("Submit error:", err);
+      toast.warning("Abrimos tu cliente de email como backup");
+      abrirMailtoFallback(nombre);
+    } finally {
+      setOpen(false);
+      setTimeout(() => {
+        reset();
+        setSubmitting(false);
+      }, 200);
+    }
   };
 
   const triggerClass =
@@ -334,10 +370,20 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
                     className="h-11 rounded-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow"
                   >
                     {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
-                    WhatsApp
+                    Enviar al Fixer
                   </Button>
                 </div>
               )}
+              <div className="mt-3 pt-3 border-t border-border/60 text-center">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground mb-1">O escríbenos directo</p>
+                <a
+                  href={`tel:${FIXER_WHATSAPP_DIGITS}`}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  {FIXER_WHATSAPP_DISPLAY}
+                </a>
+              </div>
             </div>
           </motion.div>
         </motion.div>
