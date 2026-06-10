@@ -360,9 +360,14 @@ Deno.serve(async (req) => {
       supabase.from("travel_profiles").select("estilo_viaje, presupuesto_rango, ritmo_viaje, preferencias_comida, alergias_restricciones, intereses, perfil_ia").eq("user_id", u.user.id).maybeSingle(),
     ]);
     const trip = chooseTripForRequest(tripRows ?? [], todayISO, lastUserMsg);
+    // Capa 1 MULTI-VIAJE: todos los viajes vigentes (fecha_regreso >= hoy), ordenados por salida
+    const viajesVigentes = (tripRows ?? [])
+      .filter((t: any) => !t.fecha_regreso || String(t.fecha_regreso) >= todayISO)
+      .sort((a: any, b: any) => String(a.fecha_salida ?? "").localeCompare(String(b.fecha_salida ?? "")));
     console.log("concierge_trip_context", JSON.stringify({
       user_id: u.user.id,
       candidates: tripRows?.length ?? 0,
+      vigentes: viajesVigentes.length,
       selected_trip_id: trip?.id ?? null,
       destino: trip?.destino ?? null,
       status: trip?.status ?? null,
