@@ -81,11 +81,11 @@ export const detectRouteIntent = (input: string): RouteIntent => {
     .filter(looksLikeCity);
   if (flexible.length >= 2) return { mode: "multi", destinations: dedupe(flexible) };
 
-  // 4) 2-4 tokens "ciudad ciudad ciudad" sin conectores
-  const bare = cleaned.split(/\s+/).map(cleanCity).filter(looksLikeCity);
-  if (bare.length >= 2 && bare.length <= 4) {
-    return { mode: "multi", destinations: dedupe(bare) };
-  }
+  // 4) (Eliminado) Antes splitteábamos por espacios sin conector, pero rompía
+  //    nombres compuestos como "Buenos Aires", "Rio de Janeiro", "New York",
+  //    "Los Ángeles", "San Francisco", etc. Si no hay separador explícito
+  //    (coma, "y", "→", "luego", "después", "/", "+") lo tratamos como UN
+  //    solo destino.
 
   // Default: single
   const single = cleanCity(cleaned);
