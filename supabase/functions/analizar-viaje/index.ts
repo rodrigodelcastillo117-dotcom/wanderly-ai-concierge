@@ -10,6 +10,7 @@ const corsHeaders = {
 };
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+const ANTHROPIC_MODEL = (Deno.env.get("ANTHROPIC_MODEL") ?? "claude-3-5-sonnet-20241022").trim();
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
 const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -709,7 +710,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: ANTHROPIC_MODEL,
         max_tokens: 8000,
         temperature: 0,
         system: systemFinal,
