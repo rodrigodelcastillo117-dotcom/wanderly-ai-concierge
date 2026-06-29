@@ -178,12 +178,12 @@ REGLAS ESTRICTAS DE PRECIOS:
 
      SUB-REGLA 15.1 — PRESERVACIÓN DEL MARKER (CRÍTICA):
      Cuando copies un booking_link del bloque TRAVELPAYOUTS al campo booking_link (o cta_action)
-     del JSON de salida, COPIA LA URL COMPLETA INCLUYENDO los parámetros después del `?`. NUNCA
-     trunques `?marker=...`, `&marker=...`, ni cualquier parámetro de query string. El marker
+     del JSON de salida, COPIA LA URL COMPLETA INCLUYENDO los parámetros después del "?". NUNCA
+     trunques "?marker=...", "&marker=...", ni cualquier parámetro de query string. El marker
      es nuestro identificador de afiliado y SIN ÉL perdemos toda comisión.
 
-     Si el booking_link en el prompt termina con `?marker=533299`, tu booking_link TAMBIÉN debe
-     terminar con `?marker=533299`. No simplifiques, no abrevies, no limpies la URL.
+     Si el booking_link en el prompt termina con "?marker=533299", tu booking_link TAMBIÉN debe
+     terminar con "?marker=533299". No simplifiques, no abrevies, no limpies la URL.
 
      EJEMPLO CORRECTO:
      - Prompt dice: LINK: https://www.aviasales.com/search/MEX0511SCL12111?marker=533299
