@@ -10,10 +10,23 @@ const corsHeaders = {
 };
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+const ANTHROPIC_MODEL = (Deno.env.get("ANTHROPIC_MODEL") ?? "claude-3-5-sonnet-20241022").trim();
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
 const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+
+const CLAUDE_MODEL_FALLBACKS = [
+  ANTHROPIC_MODEL,
+  "claude-sonnet-4-20250514",
+  "claude-3-7-sonnet-20250219",
+  "claude-3-5-sonnet-latest",
+  "claude-3-5-sonnet-20241022",
+  "claude-3-5-sonnet-20240620",
+  "claude-3-sonnet-20240229",
+  "claude-3-haiku-20240307",
+].filter((model, index, arr) => model && arr.indexOf(model) === index);
 
 
 interface AnalisisRequest {
@@ -178,12 +191,12 @@ REGLAS ESTRICTAS DE PRECIOS:
 
      SUB-REGLA 15.1 — PRESERVACIÓN DEL MARKER (CRÍTICA):
      Cuando copies un booking_link del bloque TRAVELPAYOUTS al campo booking_link (o cta_action)
-     del JSON de salida, COPIA LA URL COMPLETA INCLUYENDO los parámetros después del `?`. NUNCA
-     trunques `?marker=...`, `&marker=...`, ni cualquier parámetro de query string. El marker
+     del JSON de salida, COPIA LA URL COMPLETA INCLUYENDO los parámetros después del "?". NUNCA
+     trunques "?marker=...", "&marker=...", ni cualquier parámetro de query string. El marker
      es nuestro identificador de afiliado y SIN ÉL perdemos toda comisión.
 
-     Si el booking_link en el prompt termina con `?marker=533299`, tu booking_link TAMBIÉN debe
-     terminar con `?marker=533299`. No simplifiques, no abrevies, no limpies la URL.
+     Si el booking_link en el prompt termina con "?marker=533299", tu booking_link TAMBIÉN debe
+     terminar con "?marker=533299". No simplifiques, no abrevies, no limpies la URL.
 
      EJEMPLO CORRECTO:
      - Prompt dice: LINK: https://www.aviasales.com/search/MEX0511SCL12111?marker=533299
@@ -455,6 +468,87 @@ Tipo de cambio actual USD→MXN y EUR→MXN. Sé exhaustivo con cifras puntuales
   };
 }
 
+async function callClaudeWithFallback(payload: Record<string, unknown>) {
+  let lastErrorText = "";
+  let lastStatus = 0;
+
+  for (const model of CLAUDE_MODEL_FALLBACKS) {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ ...payload, model }),
+    });
+
+    if (res.ok) {
+      console.log("Claude model usado:", model);
+      return res;
+    }
+
+    const text = await res.text();
+    lastStatus = res.status;
+    lastErrorText = text;
+    console.warn("Claude model falló:", model, res.status, text.slice(0, 500));
+
+    const shouldTryNext =
+      res.status === 404 && /model|not_found|not found/i.test(text) ||
+      res.status === 400 && /model/i.test(text);
+    if (!shouldTryNext) break;
+  }
+
+  return new Response(lastErrorText, { status: lastStatus || 502 });
+}
+
+async function callLovableGatewayAnalysis(systemFinal: string, userPrompt: string) {
+  if (!LOVABLE_API_KEY) {
+    return new Response(JSON.stringify({ error: "LOVABLE_API_KEY no configurada" }), { status: 500 });
+  }
+
+  const responseSchema = {
+    type: "object",
+    properties: TOOL_SCHEMA.input_schema.properties,
+    required: TOOL_SCHEMA.input_schema.required,
+  };
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Lovable-API-Key": LOVABLE_API_KEY,
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "system",
+          content: `${systemFinal}\n\nDevuelve SOLO un JSON válido con la estructura solicitada. No markdown. No texto adicional.`,
+        },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "analisis_viaje",
+          schema: responseSchema,
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) return res;
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content ?? "{}";
+  try {
+    return JSON.parse(content);
+  } catch {
+    const match = String(content).match(/\{[\s\S]*\}/);
+    return match ? JSON.parse(match[0]) : null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -701,46 +795,48 @@ REGLAS DE FUENTES:
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 8000,
-        temperature: 0,
-        system: systemFinal,
-        tools: [TOOL_SCHEMA],
-        tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
+    const claudePayload = {
+      max_tokens: 8000,
+      temperature: 0,
+      system: systemFinal,
+      tools: [TOOL_SCHEMA],
+      tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
+      messages: [{ role: "user", content: userPrompt }],
+    };
+    const claudeRes = await callClaudeWithFallback(claudePayload);
 
-    if (!claudeRes.ok) {
+    let a: any = null;
+    if (claudeRes.ok) {
+      const claudeData = await claudeRes.json();
+      const toolUse = (claudeData.content ?? []).find(
+        (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
+      );
+      if (toolUse?.input) a = toolUse.input;
+      else console.error("No tool_use, usando fallback Gateway:", JSON.stringify(claudeData).slice(0, 2000));
+    } else {
       const text = await claudeRes.text();
-      console.error("Claude error:", claudeRes.status, text);
-      return new Response(JSON.stringify({ error: `Claude API error ${claudeRes.status}`, detail: text }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("Claude no disponible; usando fallback Gateway:", claudeRes.status, text.slice(0, 1000));
     }
 
-    const claudeData = await claudeRes.json();
-    const toolUse = (claudeData.content ?? []).find(
-      (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
-    );
-    if (!toolUse?.input) {
-      console.error("No tool_use:", JSON.stringify(claudeData).slice(0, 2000));
+    if (!a) {
+      const gatewayResult = await callLovableGatewayAnalysis(systemFinal, userPrompt);
+      if (gatewayResult instanceof Response) {
+        const text = await gatewayResult.text();
+        console.error("Gateway fallback error:", gatewayResult.status, text);
+        return new Response(JSON.stringify({ error: `AI gateway error ${gatewayResult.status}`, detail: text }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      a = gatewayResult;
+    }
+
+    if (!a || typeof a !== "object") {
       return new Response(JSON.stringify({ error: "Respuesta inválida de IA" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const a = toolUse.input;
     a.vuelos = normalizarVuelos(a.vuelos);
     // Sub-regla 15.1: re-inyecta ?marker=... si Claude lo truncó al copiar el booking_link.
     a.vuelos = ensureMarkerInFlightLinks(a.vuelos);
