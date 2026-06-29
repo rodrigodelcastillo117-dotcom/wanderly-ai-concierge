@@ -16,6 +16,17 @@ const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 
+const CLAUDE_MODEL_FALLBACKS = [
+  ANTHROPIC_MODEL,
+  "claude-sonnet-4-20250514",
+  "claude-3-7-sonnet-20250219",
+  "claude-3-5-sonnet-latest",
+  "claude-3-5-sonnet-20241022",
+  "claude-3-5-sonnet-20240620",
+  "claude-3-sonnet-20240229",
+  "claude-3-haiku-20240307",
+].filter((model, index, arr) => model && arr.indexOf(model) === index);
+
 
 interface AnalisisRequest {
   destino: string;
@@ -454,6 +465,40 @@ Tipo de cambio actual USD→MXN y EUR→MXN. Sé exhaustivo con cifras puntuales
     texto: data.choices?.[0]?.message?.content ?? "",
     citations: data.citations ?? [],
   };
+}
+
+async function callClaudeWithFallback(payload: Record<string, unknown>) {
+  let lastErrorText = "";
+  let lastStatus = 0;
+
+  for (const model of CLAUDE_MODEL_FALLBACKS) {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ ...payload, model }),
+    });
+
+    if (res.ok) {
+      console.log("Claude model usado:", model);
+      return res;
+    }
+
+    const text = await res.text();
+    lastStatus = res.status;
+    lastErrorText = text;
+    console.warn("Claude model falló:", model, res.status, text.slice(0, 500));
+
+    const shouldTryNext =
+      res.status === 404 && /model|not_found|not found/i.test(text) ||
+      res.status === 400 && /model/i.test(text);
+    if (!shouldTryNext) break;
+  }
+
+  return new Response(lastErrorText, { status: lastStatus || 502 });
 }
 
 Deno.serve(async (req) => {
