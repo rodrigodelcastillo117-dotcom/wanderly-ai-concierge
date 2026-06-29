@@ -502,6 +502,53 @@ async function callClaudeWithFallback(payload: Record<string, unknown>) {
   return new Response(lastErrorText, { status: lastStatus || 502 });
 }
 
+async function callLovableGatewayAnalysis(systemFinal: string, userPrompt: string) {
+  if (!LOVABLE_API_KEY) {
+    return new Response(JSON.stringify({ error: "LOVABLE_API_KEY no configurada" }), { status: 500 });
+  }
+
+  const responseSchema = {
+    type: "object",
+    properties: TOOL_SCHEMA.input_schema.properties,
+    required: TOOL_SCHEMA.input_schema.required,
+  };
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Lovable-API-Key": LOVABLE_API_KEY,
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "system",
+          content: `${systemFinal}\n\nDevuelve SOLO un JSON válido con la estructura solicitada. No markdown. No texto adicional.`,
+        },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "analisis_viaje",
+          schema: responseSchema,
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) return res;
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content ?? "{}";
+  try {
+    return JSON.parse(content);
+  } catch {
+    const match = String(content).match(/\{[\s\S]*\}/);
+    return match ? JSON.parse(match[0]) : null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
