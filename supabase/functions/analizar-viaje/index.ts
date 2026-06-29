@@ -747,22 +747,13 @@ REGLAS DE FUENTES:
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 8000,
-        temperature: 0,
-        system: systemFinal,
-        tools: [TOOL_SCHEMA],
-        tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
-        messages: [{ role: "user", content: userPrompt }],
-      }),
+    const claudeRes = await callClaudeWithFallback({
+      max_tokens: 8000,
+      temperature: 0,
+      system: systemFinal,
+      tools: [TOOL_SCHEMA],
+      tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
+      messages: [{ role: "user", content: userPrompt }],
     });
 
     if (!claudeRes.ok) {
