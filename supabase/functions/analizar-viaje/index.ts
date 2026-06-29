@@ -795,37 +795,48 @@ REGLAS DE FUENTES:
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
-    const claudeRes = await callClaudeWithFallback({
+    const claudePayload = {
       max_tokens: 8000,
       temperature: 0,
       system: systemFinal,
       tools: [TOOL_SCHEMA],
       tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
       messages: [{ role: "user", content: userPrompt }],
-    });
+    };
+    const claudeRes = await callClaudeWithFallback(claudePayload);
 
-    if (!claudeRes.ok) {
+    let a: any = null;
+    if (claudeRes.ok) {
+      const claudeData = await claudeRes.json();
+      const toolUse = (claudeData.content ?? []).find(
+        (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
+      );
+      if (toolUse?.input) a = toolUse.input;
+      else console.error("No tool_use, usando fallback Gateway:", JSON.stringify(claudeData).slice(0, 2000));
+    } else {
       const text = await claudeRes.text();
-      console.error("Claude error:", claudeRes.status, text);
-      return new Response(JSON.stringify({ error: `Claude API error ${claudeRes.status}`, detail: text }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("Claude no disponible; usando fallback Gateway:", claudeRes.status, text.slice(0, 1000));
     }
 
-    const claudeData = await claudeRes.json();
-    const toolUse = (claudeData.content ?? []).find(
-      (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
-    );
-    if (!toolUse?.input) {
-      console.error("No tool_use:", JSON.stringify(claudeData).slice(0, 2000));
+    if (!a) {
+      const gatewayResult = await callLovableGatewayAnalysis(systemFinal, userPrompt);
+      if (gatewayResult instanceof Response) {
+        const text = await gatewayResult.text();
+        console.error("Gateway fallback error:", gatewayResult.status, text);
+        return new Response(JSON.stringify({ error: `AI gateway error ${gatewayResult.status}`, detail: text }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      a = gatewayResult;
+    }
+
+    if (!a || typeof a !== "object") {
       return new Response(JSON.stringify({ error: "Respuesta inválida de IA" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const a = toolUse.input;
     a.vuelos = normalizarVuelos(a.vuelos);
     // Sub-regla 15.1: re-inyecta ?marker=... si Claude lo truncó al copiar el booking_link.
     a.vuelos = ensureMarkerInFlightLinks(a.vuelos);
