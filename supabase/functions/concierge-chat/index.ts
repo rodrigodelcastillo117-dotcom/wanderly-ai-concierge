@@ -278,7 +278,7 @@ function transferKnownDataLine(intel: any) {
   const hotelLine = hotel
     ? `${hotel.nombre ?? "tu hotel"}${hotel.direccion ? `, ${hotel.direccion}` : ""}`
     : `tu hotel en ${intel.ciudad_detectada}`;
-  return `Ya leí tu viaje: para Madrid tengo ${flightLine} y hospedaje en ${hotelLine}.`;
+  return `Ya leí tu viaje: para ${intel.ciudad_detectada} tengo ${flightLine} y hospedaje en ${hotelLine}.`;
 }
 
 function ensureTransferUsesKnownData(intel: any, parsed: any) {
