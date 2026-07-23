@@ -48,21 +48,29 @@ Deno.serve(async (req) => {
         const r = await fetch(u.toString());
         if (r.ok) {
           const j = await r.json();
-          const props = (j?.properties ?? [])
-            .filter((p: any) => Number(p?.rate_per_night?.extracted_lowest ?? p?.total_rate?.extracted_lowest ?? 0) > 0)
-            .sort((a: any, b: any) => {
-              const pa = Number(a?.rate_per_night?.extracted_lowest ?? a?.total_rate?.extracted_lowest ?? 9e9);
-              const pb = Number(b?.rate_per_night?.extracted_lowest ?? b?.total_rate?.extracted_lowest ?? 9e9);
-              return pa - pb;
-            })
+          const nightsSafe = Math.max(1, Math.round(
+            (new Date(checkout).getTime() - new Date(checkin).getTime()) / 86400000
+          )) || 1;
+          const withNightly = (j?.properties ?? []).map((p: any) => {
+            const nightlyRaw = Number(p?.rate_per_night?.extracted_lowest ?? 0);
+            const totalRaw = Number(p?.total_rate?.extracted_lowest ?? 0);
+            const nightly = nightlyRaw > 0 ? nightlyRaw : (totalRaw > 0 ? totalRaw / nightsSafe : 0);
+            if (nightly > 2000) {
+              console.warn("hotels-search sanity: nightly>2000 usd", {
+                name: p?.name, nightlyRaw, totalRaw, nights: nightsSafe, derived: nightly,
+              });
+            }
+            return { p, nightly, totalRaw };
+          }).filter((x: any) => x.nightly > 0)
+            .sort((a: any, b: any) => a.nightly - b.nightly)
             .slice(0, 15);
-          results = props.map((p: any) => ({
+          results = withNightly.map(({ p, nightly, totalRaw }: any) => ({
             name: p.name,
             rating: p.overall_rating ?? null,
             reviews: p.reviews ?? null,
             hotel_class: p.hotel_class ?? null,
-            nightly_usd: Number(p.rate_per_night?.extracted_lowest ?? p.total_rate?.extracted_lowest ?? 0),
-            total_usd: Number(p.total_rate?.extracted_lowest ?? 0),
+            nightly_usd: Math.round(nightly),
+            total_usd: Math.round(totalRaw > 0 ? totalRaw : nightly * nightsSafe),
             thumbnail: p.images?.[0]?.thumbnail ?? null,
             amenities: (p.amenities ?? []).slice(0, 6),
             link: p.link ?? null,
