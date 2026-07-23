@@ -1,1 +1,143 @@
 project_id = "uhkdewinscffhdonhhmt"
+
+[functions.ai-tool]
+verify_jwt = true
+
+[functions.analizar-preferencias-ruta]
+verify_jwt = true
+
+[functions.analizar-viaje]
+verify_jwt = true
+
+[functions.auditar-perfil]
+verify_jwt = true
+
+[functions.buscar-promociones]
+verify_jwt = true
+
+[functions.buscar-video]
+verify_jwt = true
+
+[functions.card-benefits-lookup]
+verify_jwt = true
+
+[functions.concierge-action]
+verify_jwt = true
+
+[functions.concierge-chat]
+verify_jwt = true
+
+[functions.editar-viaje-ai]
+verify_jwt = true
+
+[functions.enviar-email-fixer]
+verify_jwt = true
+
+[functions.evaluar-logros]
+verify_jwt = true
+
+[functions.evolucionar-dna]
+verify_jwt = true
+
+[functions.flight-status]
+verify_jwt = true
+
+# cron: valida CRON_SECRET internamente, no JWT de usuario
+[functions.flight-watch-cron]
+verify_jwt = false
+
+[functions.flights-search]
+verify_jwt = true
+
+[functions.generar-packing-list]
+verify_jwt = true
+
+[functions.generate-avatar]
+verify_jwt = true
+
+[functions.geocode]
+verify_jwt = true
+
+[functions.geocode-address]
+verify_jwt = true
+
+[functions.get-routes]
+verify_jwt = true
+
+[functions.hotels-search]
+verify_jwt = true
+
+[functions.logistics-plan]
+verify_jwt = true
+
+[functions.mark-visited]
+verify_jwt = true
+
+[functions.nearby-places]
+verify_jwt = true
+
+[functions.nightlife-discover]
+verify_jwt = true
+
+[functions.parse-trip-file]
+verify_jwt = true
+
+[functions.parsear-viaje]
+verify_jwt = true
+
+[functions.pexels-image]
+verify_jwt = true
+
+[functions.place-details]
+verify_jwt = true
+
+[functions.place-photo]
+verify_jwt = true
+
+[functions.places-nearby]
+verify_jwt = true
+
+[functions.places-search]
+verify_jwt = true
+
+[functions.push-subscribe]
+verify_jwt = true
+
+[functions.recomendar-destinos]
+verify_jwt = true
+
+[functions.resolver-fechas]
+verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
+
+[functions.serpapi-quote]
+verify_jwt = true
+
+[functions.share-trip-notify]
+verify_jwt = true
+
+[functions.suggest-packing]
+verify_jwt = true
+
+[functions.suggest-restaurants]
+verify_jwt = true
+
+[functions.track-flight]
+verify_jwt = true
+
+[functions.travelpayouts-flights]
+verify_jwt = true
+
+[functions.travelpayouts-hotels]
+verify_jwt = true
+
+[functions.travelpayouts-search]
+verify_jwt = true
+
+[functions.tripadvisor-search]
+verify_jwt = true
+
+[functions.update-food-dna]
+verify_jwt = true
