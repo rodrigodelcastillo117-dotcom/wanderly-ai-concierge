@@ -83,7 +83,7 @@ function humanDistance(meters: number | null, units: "METRIC" | "IMPERIAL"): str
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(meters < 10000 ? 1 : 0)} km`;
 }
 
-async function computeRoute(mode: Mode, body: Body, key: string) {
+async function computeRoute(mode: Mode, body: Body, key: string, lovableKey: string) {
   const origin = waypoint(body.origin);
   const destination = waypoint(body.destination);
   if (!origin || !destination) {
