@@ -138,7 +138,7 @@ async function serpFlights(key: string, dep: string, arr: string, outbound: stri
   };
 }
 
-async function serpHotels(key: string, city: string, checkin: string, checkout: string, travelers: number) {
+async function serpHotels(key: string, city: string, checkin: string, checkout: string, travelers: number, nights: number) {
   const u = new URL(SERPAPI);
   u.searchParams.set("engine", "google_hotels");
   u.searchParams.set("q", `${city} hotels`);
@@ -147,31 +147,40 @@ async function serpHotels(key: string, city: string, checkin: string, checkout: 
   u.searchParams.set("adults", String(travelers));
   u.searchParams.set("currency", "USD");
   u.searchParams.set("hl", "es");
-  // Sin filtro de clase: buscamos el MEJOR precio real, con buena calificación
-  u.searchParams.set("sort_by", "3"); // 3 = lowest price
-  u.searchParams.set("min_rating", "8"); // solo hoteles con buen rating real
+  u.searchParams.set("sort_by", "3");
+  u.searchParams.set("min_rating", "8");
   u.searchParams.set("api_key", key);
   const r = await fetch(u.toString());
   if (!r.ok) throw new Error(`hotels ${r.status}`);
   const j = await r.json();
-  const props: any[] = (j?.properties ?? []).filter((p: any) =>
-    Number(p?.rate_per_night?.extracted_lowest ?? p?.total_rate?.extracted_lowest ?? 0) > 0
-  );
-  // Asegura el más barato real
-  props.sort((a, b) => {
-    const pa = Number(a?.rate_per_night?.extracted_lowest ?? a?.total_rate?.extracted_lowest ?? 9e9);
-    const pb = Number(b?.rate_per_night?.extracted_lowest ?? b?.total_rate?.extracted_lowest ?? 9e9);
-    return pa - pb;
-  });
-  const top = props[0];
+  const nightsSafe = Math.max(1, nights);
+
+  // Deriva nightly correctamente: si no viene rate_per_night, usa total_rate / nights.
+  // NUNCA tratar total_rate como si fuera por noche (bug de doble multiplicación).
+  const withNightly = (j?.properties ?? []).map((p: any) => {
+    const nightlyRaw = Number(p?.rate_per_night?.extracted_lowest ?? 0);
+    const totalRaw = Number(p?.total_rate?.extracted_lowest ?? 0);
+    const nightly = nightlyRaw > 0 ? nightlyRaw : (totalRaw > 0 ? totalRaw / nightsSafe : 0);
+    return { p, nightly, nightlyRaw, totalRaw };
+  }).filter((x: any) => x.nightly > 0);
+
+  withNightly.sort((a: any, b: any) => a.nightly - b.nightly);
+  const top = withNightly[0];
   if (!top) return null;
+
+  if (top.nightly > 2000) {
+    console.warn("hotels sanity: nightly>2000 usd", {
+      name: top.p?.name, nightlyRaw: top.nightlyRaw, totalRaw: top.totalRaw, nights: nightsSafe, derived: top.nightly,
+    });
+  }
+
   return {
-    name: top.name,
-    rating: top.overall_rating ?? null,
-    hotel_class: top.hotel_class ?? null,
-    nightly_usd: Number(top.rate_per_night?.extracted_lowest ?? top.total_rate?.extracted_lowest ?? 0),
-    thumbnail: top.images?.[0]?.thumbnail ?? top.thumbnail ?? null,
-    link: top.link ?? null,
+    name: top.p.name,
+    rating: top.p.overall_rating ?? null,
+    hotel_class: top.p.hotel_class ?? null,
+    nightly_usd: Math.round(top.nightly),
+    thumbnail: top.p.images?.[0]?.thumbnail ?? top.p.thumbnail ?? null,
+    link: top.p.link ?? null,
   };
 }
 
@@ -326,7 +335,7 @@ Deno.serve(async (req) => {
         })
       : Promise.resolve(null);
 
-    const hotelsPromise = serpHotels(serpKey, body.destination, body.depart, body.return_date, travelers)
+    const hotelsPromise = serpHotels(serpKey, body.destination, body.depart, body.return_date, travelers, nights)
       .catch((e) => { console.error("hotels err:", e.message); return null; });
 
     let [flight, hotel] = await Promise.all([flightsPromise, hotelsPromise]);
