@@ -269,11 +269,14 @@ Deno.serve(async (req) => {
       const travelers = Math.max(1, body.travelers ?? 1);
       const nights = Math.max(1, body.nights ?? 1);
       const { flight, hotel } = await aiEstimate(lovableKey, body);
+      if (!flight && !hotel) return noPricingResponse();
       const flights_total = flight?.price_usd ?? 0;
       const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
       const subtotal = flights_total + hotel_total;
       const total_usd = Math.round(subtotal);
-      const total_mxn = Math.round(total_usd * 18.5);
+      if (total_usd <= 0) return noPricingResponse();
+      const fxRate = await getUsdMxnRate();
+      const total_mxn = Math.round(total_usd * fxRate);
       return new Response(JSON.stringify({
         flight: flight ? { ...flight, airline_logo: null } : null,
         hotel: hotel ? { ...hotel, thumbnail: null, link: null } : null,
@@ -286,6 +289,7 @@ Deno.serve(async (req) => {
         },
         total_usd,
         total_mxn,
+        fx_rate: fxRate,
         source: "ai-estimate",
         fetched_at: new Date().toISOString(),
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
