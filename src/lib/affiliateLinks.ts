@@ -139,24 +139,29 @@ export function airbnbLink(city: string, checkin: string, checkout: string, adul
 
 export function getYourGuideLink(city: string, query?: string) {
   const q = query ? `${query} ${city}` : city;
-  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}`;
+  const url = `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}`;
+  return tpDeepLink(url, "tours");
 }
 
 export function viatorLink(city: string, query?: string) {
   const q = query ? `${query} ${city}` : city;
-  return `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}`;
+  const url = `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}`;
+  return tpDeepLink(url, "tours");
 }
 
 export function tripadvisorLink(city: string, query?: string) {
   const q = query ? `${query} ${city}` : city;
-  return `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q)}`;
+  const url = `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q)}`;
+  return tpDeepLink(url, "tours");
 }
 
+// TODO: confirmar programa de afiliado antes de monetizar
 export function openTableLink(city: string, query?: string) {
   const q = query ? `${query} ${city}` : city;
   return `https://www.opentable.com/s?term=${encodeURIComponent(q)}`;
 }
 
+// TODO: confirmar programa de afiliado antes de monetizar
 export function theforkLink(city: string, query?: string) {
   if (query) {
     return `https://www.thefork.com/search?cityName=${encodeURIComponent(city)}&searchText=${encodeURIComponent(query)}`;
@@ -164,6 +169,7 @@ export function theforkLink(city: string, query?: string) {
   return `https://www.thefork.com/search?cityName=${encodeURIComponent(city)}`;
 }
 
+// TODO: confirmar programa de afiliado antes de monetizar
 export function yelpLink(city: string, query?: string) {
   const desc = query || "Restaurants";
   return `https://www.yelp.com/search?find_desc=${encodeURIComponent(desc)}&find_loc=${encodeURIComponent(city)}`;
