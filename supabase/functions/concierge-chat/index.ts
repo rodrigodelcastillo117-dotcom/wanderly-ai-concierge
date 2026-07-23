@@ -475,8 +475,6 @@ Deno.serve(async (req) => {
 
     // === BLOQUE DEDICADO AL VIAJE MÁS RELEVANTE PARA LA PETICIÓN ACTUAL ===
     // Se inyecta como SYSTEM separado para que el modelo lo trate como contexto fijo.
-    let tripContextBlock = "";
-    let requestIntel: any = null;
     if (trip) {
       requestIntel = buildRequestIntelligence(trip, lastUserMsg, bookings);
       const tripPayload = {
