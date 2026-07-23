@@ -4,6 +4,25 @@
 
 export const TP_MARKER = "533299";
 
+/**
+ * Envuelve una URL de partner en el redirect de Travelpayouts para atribuir
+ * la comisión. `subId` permite medir qué vertical convierte mejor.
+ */
+export function tpDeepLink(targetUrl: string, subId?: string): string {
+  const p = new URLSearchParams({
+    marker: subId ? `${TP_MARKER}.${subId}` : TP_MARKER,
+    u: targetUrl,
+  });
+  return `https://tp.media/click?${p.toString()}`;
+}
+
+/** Añade ?marker= directo para partners que lo aceptan como query param. */
+export function withMarker(url: string, param = "marker"): string {
+  if (new RegExp(`[?&]${param}=`).test(url)) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}${param}=${TP_MARKER}`;
+}
+
 // Welcome Pickups (transfers premium) — tracking_id Travelpayouts.
 export const WP_AFF_TRACK_ID = "3dc38e66900549469a7f18b5e-733063";
 
@@ -85,12 +104,14 @@ export function skyscannerLink(originIata: string, destIata: string, depart: str
   const path = r
     ? `${originIata}/${destIata}/${d}/${r}`
     : `${originIata}/${destIata}/${d}`;
-  return `https://www.skyscanner.com.mx/transport/flights/${path}/?adults=${adults}`;
+  const url = `https://www.skyscanner.com.mx/transport/flights/${path}/?adults=${adults}`;
+  return tpDeepLink(url, "flights");
 }
 
 export function kayakFlightsLink(originIata: string, destIata: string, depart: string, ret?: string, adults = 1) {
   const path = ret ? `${originIata}-${destIata}/${depart}/${ret}` : `${originIata}-${destIata}/${depart}`;
-  return `https://www.kayak.com/flights/${path}?adults=${adults}`;
+  const url = `https://www.kayak.com/flights/${path}?adults=${adults}`;
+  return tpDeepLink(url, "flights");
 }
 
 export function bookingLink(city: string, checkin: string, checkout: string, adults = 2) {
@@ -101,7 +122,8 @@ export function bookingLink(city: string, checkin: string, checkout: string, adu
     group_adults: String(adults),
     no_rooms: "1",
   });
-  return `https://www.booking.com/searchresults.html?${p.toString()}`;
+  const url = `https://www.booking.com/searchresults.html?${p.toString()}`;
+  return tpDeepLink(url, "hotels");
 }
 
 export function airbnbLink(city: string, checkin: string, checkout: string, adults = 2) {
@@ -111,7 +133,8 @@ export function airbnbLink(city: string, checkin: string, checkout: string, adul
     checkout,
     adults: String(adults),
   });
-  return `https://www.airbnb.com/s/${encodeURIComponent(city)}/homes?${p.toString()}`;
+  const url = `https://www.airbnb.com/s/${encodeURIComponent(city)}/homes?${p.toString()}`;
+  return tpDeepLink(url, "hotels");
 }
 
 export function getYourGuideLink(city: string, query?: string) {
