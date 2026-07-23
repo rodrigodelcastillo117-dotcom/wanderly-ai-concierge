@@ -1,4 +1,5 @@
 // supabase/functions/resolver-fechas/index.ts
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 // Smart Date Resolution: detecta si el usuario dio fechas explícitas; si no,
 // usa Gemini para calcular el mes históricamente más barato/menos masificado
 // para el destino y genera una ventana estratégica (segundo martes + 10 días).
@@ -105,6 +106,8 @@ async function geminiOptimalMonth(destino: string, pais?: string | null): Promis
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   try {
     const body = (await req.json().catch(() => ({}))) as Body;

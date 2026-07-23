@@ -1,4 +1,5 @@
 // suggest-restaurants — sugiere 4-6 restaurantes REALES y reconocidos por ciudad
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 // para complementar viajes importados desde PDF que no traen restaurantes.
 
 const corsHeaders = {
@@ -10,6 +11,8 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---
   try {

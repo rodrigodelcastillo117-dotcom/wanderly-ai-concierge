@@ -1,6 +1,7 @@
 // Edge function: enviar-email-fixer
 // Envía un email al Fixer humano vía Resend cuando un usuario escala desde el Concierge.
 // Si RESEND_API_KEY no está configurada, el cliente hace fallback a mailto:.
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,6 +91,8 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,

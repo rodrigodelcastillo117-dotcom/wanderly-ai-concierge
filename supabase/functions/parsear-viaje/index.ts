@@ -1,4 +1,5 @@
 // supabase/functions/parsear-viaje/index.ts
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 // Convierte un prompt natural ("quiero ir a Tokio en julio con mi pareja, ~$60k MXN")
 // en parámetros estructurados que /analizar-viaje pueda usar.
 
@@ -50,6 +51,8 @@ Reglas generales:
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   try {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY no configurada");

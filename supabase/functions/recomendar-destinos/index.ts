@@ -3,6 +3,7 @@
 // Usa: travel_profiles + ai_user_preferences + profiles + viajes pasados.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +42,8 @@ Ordena por score descendente. Las 8 ciudades deben ser DISTINTAS entre sí (no 4
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   try {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY no configurada");

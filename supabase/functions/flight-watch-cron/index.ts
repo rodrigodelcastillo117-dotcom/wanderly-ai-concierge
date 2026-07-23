@@ -46,15 +46,15 @@ async function pushToUser(user_id: string, title: string, body: string, url: str
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  // Auth gate: only allow when triggered with the configured CRON_SECRET
-  // or with the Supabase service-role key (used by internal schedulers).
+  // Auth gate: require shared CRON_SECRET (fail-closed).
+  // Also accept the Supabase service-role key for internal schedulers.
   const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const cronHeader = req.headers.get('x-cron-key') ?? '';
+  const cronHeader = req.headers.get('x-cron-secret') ?? req.headers.get('x-cron-key') ?? '';
   const authHeader = req.headers.get('authorization') ?? req.headers.get('Authorization') ?? '';
   const bearer = authHeader.replace(/^Bearer\s+/i, '');
-  const isCron = cronSecret && cronHeader === cronSecret;
-  const isService = serviceKey && bearer === serviceKey;
+  const isCron = !!cronSecret && cronHeader === cronSecret;
+  const isService = !!serviceKey && bearer === serviceKey;
   if (!isCron && !isService) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

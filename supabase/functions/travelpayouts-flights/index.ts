@@ -1,4 +1,5 @@
 // supabase/functions/travelpayouts-flights/index.ts
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 // Consulta precios de vuelos via Travelpayouts/Aviasales v3 prices_for_dates.
 // Acepta IATA o nombre de ciudad (auto-resuelve via autocomplete Travelpayouts).
 
@@ -43,6 +44,8 @@ async function resolveIata(input: string | undefined): Promise<string | null> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   const okJson = (obj: unknown, status = 200) =>
     new Response(JSON.stringify(obj), {

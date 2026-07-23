@@ -3,6 +3,7 @@
 // (incluye destinos_sugeridos + estilo_dominante) Y persiste el perfil
 // en travel_profiles.perfil_ia + ai_user_preferences.perfil_ia.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,8 @@ const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
   try {
     const { descripcion, contexto } = await req.json();
     if (!descripcion || descripcion.trim().length < 5) {

@@ -1,4 +1,5 @@
 // flights-search — devuelve top resultados reales de Google Flights vía SerpAPI
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 // con deep-link de compra. Fallback IA si no hay créditos.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,6 +93,8 @@ function airlineSiteSearch(airline: string, _o: string, _d: string, _dep: string
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---
   try {
