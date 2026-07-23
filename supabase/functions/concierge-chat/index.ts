@@ -299,7 +299,7 @@ function buildTransferFallback(intel: any) {
   const hotel = intel.hospedaje_relevante?.[0];
   if (!flight && !hotel) return null;
   const pendingText = intel.pendientes_relacionados?.join(" | ") ?? "";
-  const airport = /barajas/i.test(pendingText) ? "Madrid Barajas" : `aeropuerto de llegada en ${intel.ciudad_detectada}`;
+  const airport = flight?.aeropuerto_destino || flight?.to || flight?.terminal_destino || flight?.ciudad || `aeropuerto de llegada en ${intel.ciudad_detectada}`;
   const flightLine = flight
     ? `${flight.aerolinea ?? "vuelo"} ${flight.numero_vuelo ?? ""}`.trim() + `${flight.fecha ? ` · ${flight.fecha}` : ""}${flight.hora_llegada ? ` · llegada ${flight.hora_llegada}` : ""}`
     : `llegada a ${intel.ciudad_detectada}`;
