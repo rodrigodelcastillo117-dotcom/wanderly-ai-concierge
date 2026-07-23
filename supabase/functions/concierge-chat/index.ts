@@ -278,7 +278,7 @@ function transferKnownDataLine(intel: any) {
   const hotelLine = hotel
     ? `${hotel.nombre ?? "tu hotel"}${hotel.direccion ? `, ${hotel.direccion}` : ""}`
     : `tu hotel en ${intel.ciudad_detectada}`;
-  return `Ya leí tu viaje: para Madrid tengo ${flightLine} y hospedaje en ${hotelLine}.`;
+  return `Ya leí tu viaje: para ${intel.ciudad_detectada} tengo ${flightLine} y hospedaje en ${hotelLine}.`;
 }
 
 function ensureTransferUsesKnownData(intel: any, parsed: any) {
@@ -299,7 +299,7 @@ function buildTransferFallback(intel: any) {
   const hotel = intel.hospedaje_relevante?.[0];
   if (!flight && !hotel) return null;
   const pendingText = intel.pendientes_relacionados?.join(" | ") ?? "";
-  const airport = /barajas/i.test(pendingText) ? "Madrid Barajas" : `aeropuerto de llegada en ${intel.ciudad_detectada}`;
+  const airport = flight?.aeropuerto_destino || flight?.to || flight?.terminal_destino || flight?.ciudad || `aeropuerto de llegada en ${intel.ciudad_detectada}`;
   const flightLine = flight
     ? `${flight.aerolinea ?? "vuelo"} ${flight.numero_vuelo ?? ""}`.trim() + `${flight.fecha ? ` · ${flight.fecha}` : ""}${flight.hora_llegada ? ` · llegada ${flight.hora_llegada}` : ""}`
     : `llegada a ${intel.ciudad_detectada}`;
@@ -307,10 +307,22 @@ function buildTransferFallback(intel: any) {
     ? `${hotel.nombre ?? "tu hotel"}${hotel.direccion ? `, ${hotel.direccion}` : ""}${hotel.check_in ? ` · check-in ${hotel.check_in}` : ""}`
     : `hotel en ${intel.ciudad_detectada}`;
   const query = encodeURIComponent(`${airport} ${hotel?.nombre ?? "hotel"} ${hotel?.direccion ?? ""} transfer privado`);
+  const wpParams = new URLSearchParams({
+    aff_track_id: "3dc38e66900549469a7f18b5e-733063",
+    utm_source: "travelpayouts",
+    utm_medium: "iatos_concierge",
+    utm_campaign: `transfer_${String(intel.ciudad_detectada ?? "general").toLowerCase().replace(/\s+/g, "_")}`,
+  });
+  if (airport) wpParams.set("pickup_location", airport);
+  if (hotel?.nombre) wpParams.set("dropoff_location", `${hotel.nombre}${hotel.direccion ? ", " + hotel.direccion : ""}`);
+  if (flight?.fecha) wpParams.set("pickup_date", flight.fecha);
+  if (flight?.hora_llegada) wpParams.set("pickup_time", flight.hora_llegada);
+  if (flight?.numero_vuelo) wpParams.set("flight_number", flight.numero_vuelo);
+  const wpUrl = `https://www.welcomepickups.com/?${wpParams.toString()}`;
   return {
     text: `Ya tengo los datos del viaje: llegas a ${intel.ciudad_detectada} en ${flightLine} y tu hospedaje es ${hotelLine}. Además, en tu itinerario aparece pendiente el traslado aeropuerto → hotel; te dejo opciones premium para activarlo sin pedirte datos repetidos.`,
     cards: [
-      { type: "transport", title: "Transfer privado premium", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Buscar Welcome Pickups", cta_action: `https://www.google.com/search?q=${query}+Welcome+Pickups`, meta: pendingText || "Pendiente detectado en tu itinerario" },
+      { type: "transport", title: "Transfer privado premium", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Reservar transfer", cta_action: wpUrl, meta: pendingText || "Pendiente detectado en tu itinerario" },
       { type: "transport", title: "Chofer ejecutivo", subtitle: `${airport} → ${hotel?.direccion ?? hotel?.nombre ?? intel.ciudad_detectada}`, cta_label: "Buscar Blacklane", cta_action: `https://www.google.com/search?q=${query}+Blacklane`, meta: flightLine },
       { type: "transport", title: "Taxi oficial / VTC", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Abrir Maps", cta_action: `https://www.google.com/maps/search/?api=1&query=${query}`, meta: "Ruta con origen y destino del viaje" },
     ],
