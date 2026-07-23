@@ -335,7 +335,7 @@ Deno.serve(async (req) => {
         })
       : Promise.resolve(null);
 
-    const hotelsPromise = serpHotels(serpKey, body.destination, body.depart, body.return_date, travelers)
+    const hotelsPromise = serpHotels(serpKey, body.destination, body.depart, body.return_date, travelers, nights)
       .catch((e) => { console.error("hotels err:", e.message); return null; });
 
     let [flight, hotel] = await Promise.all([flightsPromise, hotelsPromise]);
