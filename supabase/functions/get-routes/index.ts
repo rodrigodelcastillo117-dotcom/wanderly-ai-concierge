@@ -83,7 +83,7 @@ function humanDistance(meters: number | null, units: "METRIC" | "IMPERIAL"): str
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(meters < 10000 ? 1 : 0)} km`;
 }
 
-async function computeRoute(mode: Mode, body: Body, key: string) {
+async function computeRoute(mode: Mode, body: Body, key: string, lovableKey: string) {
   const origin = waypoint(body.origin);
   const destination = waypoint(body.destination);
   if (!origin || !destination) {
@@ -216,33 +216,6 @@ Deno.serve(async (req) => {
   if (!__user) return unauthorizedResponse(corsHeaders);
 
 
-  // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---
-  try {
-    const __authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization");
-    if (!__authHeader) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const __serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const __token = __authHeader.replace(/^Bearer\s+/i, "");
-    if (!__serviceKey || __token !== __serviceKey) {
-      const __apikey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const __ures = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/user`, {
-      headers: { Authorization: __authHeader, apikey: __apikey },
-    });
-    if (!__ures.ok) {
-        return new Response(JSON.stringify({ error: "unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-  } catch (_e) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  // --- end auth gate ---
   try {
     const key = Deno.env.get("GOOGLE_MAPS_API_KEY");
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
@@ -265,7 +238,7 @@ Deno.serve(async (req) => {
     }
 
     const modes = (body.modes?.length ? body.modes : ALL_MODES).filter((m) => ALL_MODES.includes(m));
-    const results = await Promise.all(modes.map((m) => computeRoute(m, body, key)));
+    const results = await Promise.all(modes.map((m) => computeRoute(m, body, key, lovableKey)));
 
     return new Response(JSON.stringify({ routes: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

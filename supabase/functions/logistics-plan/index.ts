@@ -264,33 +264,6 @@ Deno.serve(async (req) => {
   if (!__user) return unauthorizedResponse(corsHeaders);
 
 
-  // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---
-  try {
-    const __authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization");
-    if (!__authHeader) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const __serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const __token = __authHeader.replace(/^Bearer\s+/i, "");
-    if (!__serviceKey || __token !== __serviceKey) {
-      const __apikey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const __ures = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/user`, {
-      headers: { Authorization: __authHeader, apikey: __apikey },
-    });
-    if (!__ures.ok) {
-        return new Response(JSON.stringify({ error: "unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-  } catch (_e) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  // --- end auth gate ---
   try {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {
@@ -339,6 +312,7 @@ Deno.serve(async (req) => {
           const idiomas = (tp?.idiomas_hablados ?? []).join(", ") || "español";
           const notas = tp?.notas_adicionales ?? "";
           const visitados = (tp?.destinos_visitados ?? []).slice(0, 6).join(", ");
+          const pendientes = ((tp as any)?.destinos_pendientes ?? (tp as any)?.wishlist ?? []).slice(0, 6).join(", ");
           const nombre = prof?.full_name?.split(" ")[0] ?? "viajero";
 
           perfilLine = `PERFIL DEL VIAJERO (úsalo para personalizar TODO: hoteles, restaurantes, experiencias y narrativa):
