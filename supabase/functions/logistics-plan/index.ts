@@ -312,6 +312,7 @@ Deno.serve(async (req) => {
           const idiomas = (tp?.idiomas_hablados ?? []).join(", ") || "español";
           const notas = tp?.notas_adicionales ?? "";
           const visitados = (tp?.destinos_visitados ?? []).slice(0, 6).join(", ");
+          const pendientes = ((tp as any)?.destinos_pendientes ?? (tp as any)?.wishlist ?? []).slice(0, 6).join(", ");
           const nombre = prof?.full_name?.split(" ")[0] ?? "viajero";
 
           perfilLine = `PERFIL DEL VIAJERO (úsalo para personalizar TODO: hoteles, restaurantes, experiencias y narrativa):
