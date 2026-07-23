@@ -342,11 +342,15 @@ Deno.serve(async (req) => {
       } catch (e) { console.error("ai fallback err:", (e as Error).message); }
     }
 
+    if (!flight && !hotel) return noPricingResponse();
+
     const flights_total = flight?.price_usd ?? 0;
     const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
     const subtotal = flights_total + hotel_total;
     const total_usd = Math.round(subtotal);
-    const total_mxn = Math.round(total_usd * 18.5);
+    if (total_usd <= 0) return noPricingResponse();
+    const fxRate = await getUsdMxnRate();
+    const total_mxn = Math.round(total_usd * fxRate);
 
     return new Response(JSON.stringify({
       flight, hotel,
@@ -357,7 +361,7 @@ Deno.serve(async (req) => {
         nights,
         buffer_usd: 0,
       },
-      total_usd, total_mxn, source,
+      total_usd, total_mxn, fx_rate: fxRate, source,
       fetched_at: new Date().toISOString(),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
