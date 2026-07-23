@@ -4,6 +4,25 @@
 
 export const TP_MARKER = "533299";
 
+/**
+ * Envuelve una URL de partner en el redirect de Travelpayouts para atribuir
+ * la comisión. `subId` permite medir qué vertical convierte mejor.
+ */
+export function tpDeepLink(targetUrl: string, subId?: string): string {
+  const p = new URLSearchParams({
+    marker: subId ? `${TP_MARKER}.${subId}` : TP_MARKER,
+    u: targetUrl,
+  });
+  return `https://tp.media/click?${p.toString()}`;
+}
+
+/** Añade ?marker= directo para partners que lo aceptan como query param. */
+export function withMarker(url: string, param = "marker"): string {
+  if (new RegExp(`[?&]${param}=`).test(url)) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}${param}=${TP_MARKER}`;
+}
+
 // Welcome Pickups (transfers premium) — tracking_id Travelpayouts.
 export const WP_AFF_TRACK_ID = "3dc38e66900549469a7f18b5e-733063";
 
@@ -85,12 +104,14 @@ export function skyscannerLink(originIata: string, destIata: string, depart: str
   const path = r
     ? `${originIata}/${destIata}/${d}/${r}`
     : `${originIata}/${destIata}/${d}`;
-  return `https://www.skyscanner.com.mx/transport/flights/${path}/?adults=${adults}`;
+  const url = `https://www.skyscanner.com.mx/transport/flights/${path}/?adults=${adults}`;
+  return tpDeepLink(url, "flights");
 }
 
 export function kayakFlightsLink(originIata: string, destIata: string, depart: string, ret?: string, adults = 1) {
   const path = ret ? `${originIata}-${destIata}/${depart}/${ret}` : `${originIata}-${destIata}/${depart}`;
-  return `https://www.kayak.com/flights/${path}?adults=${adults}`;
+  const url = `https://www.kayak.com/flights/${path}?adults=${adults}`;
+  return tpDeepLink(url, "flights");
 }
 
 export function bookingLink(city: string, checkin: string, checkout: string, adults = 2) {
@@ -101,7 +122,8 @@ export function bookingLink(city: string, checkin: string, checkout: string, adu
     group_adults: String(adults),
     no_rooms: "1",
   });
-  return `https://www.booking.com/searchresults.html?${p.toString()}`;
+  const url = `https://www.booking.com/searchresults.html?${p.toString()}`;
+  return tpDeepLink(url, "hotels");
 }
 
 export function airbnbLink(city: string, checkin: string, checkout: string, adults = 2) {
@@ -111,29 +133,35 @@ export function airbnbLink(city: string, checkin: string, checkout: string, adul
     checkout,
     adults: String(adults),
   });
-  return `https://www.airbnb.com/s/${encodeURIComponent(city)}/homes?${p.toString()}`;
+  const url = `https://www.airbnb.com/s/${encodeURIComponent(city)}/homes?${p.toString()}`;
+  return tpDeepLink(url, "hotels");
 }
 
 export function getYourGuideLink(city: string, query?: string) {
   const q = query ? `${query} ${city}` : city;
-  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}`;
+  const url = `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}`;
+  return tpDeepLink(url, "tours");
 }
 
 export function viatorLink(city: string, query?: string) {
   const q = query ? `${query} ${city}` : city;
-  return `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}`;
+  const url = `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}`;
+  return tpDeepLink(url, "tours");
 }
 
 export function tripadvisorLink(city: string, query?: string) {
   const q = query ? `${query} ${city}` : city;
-  return `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q)}`;
+  const url = `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q)}`;
+  return tpDeepLink(url, "tours");
 }
 
+// TODO: confirmar programa de afiliado antes de monetizar
 export function openTableLink(city: string, query?: string) {
   const q = query ? `${query} ${city}` : city;
   return `https://www.opentable.com/s?term=${encodeURIComponent(q)}`;
 }
 
+// TODO: confirmar programa de afiliado antes de monetizar
 export function theforkLink(city: string, query?: string) {
   if (query) {
     return `https://www.thefork.com/search?cityName=${encodeURIComponent(city)}&searchText=${encodeURIComponent(query)}`;
@@ -141,6 +169,7 @@ export function theforkLink(city: string, query?: string) {
   return `https://www.thefork.com/search?cityName=${encodeURIComponent(city)}`;
 }
 
+// TODO: confirmar programa de afiliado antes de monetizar
 export function yelpLink(city: string, query?: string) {
   const desc = query || "Restaurants";
   return `https://www.yelp.com/search?find_desc=${encodeURIComponent(desc)}&find_loc=${encodeURIComponent(city)}`;
@@ -159,7 +188,8 @@ export function trainlineLink(origin: string, destination: string, date: string)
   // hashes internos de estación). Mandamos a la landing con un hint en hash
   // para que el usuario complete origen/destino en la UI.
   const hint = `#from=${encodeURIComponent(origin)}&to=${encodeURIComponent(destination)}&date=${date}`;
-  return `https://www.thetrainline.com/${hint}`;
+  const url = `https://www.thetrainline.com/${hint}`;
+  return tpDeepLink(url, "trains");
 }
 
 
@@ -172,11 +202,13 @@ export function omioLink(origin: string, destination: string, date: string) {
     outboundDate: date,
     adults: "1",
   });
-  return `https://www.omio.com/search?${p.toString()}`;
+  const url = `https://www.omio.com/search?${p.toString()}`;
+  return tpDeepLink(url, "trains");
 }
 
 export function raileuropeLink(origin: string, destination: string, date: string) {
-  return `https://www.raileurope.com/en/search?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&outbound_date=${date}&passengers=1`;
+  const url = `https://www.raileurope.com/en/search?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&outbound_date=${date}&passengers=1`;
+  return tpDeepLink(url, "trains");
 }
 
 export function uberLink(pickupLat?: number, pickupLng?: number, dropoffName?: string) {
@@ -203,7 +235,8 @@ export function discoverCarsLink(city: string, pickup: string, ret: string) {
     pickup_date: pickup,
     return_date: ret,
   });
-  return `https://www.discovercars.com/?${p.toString()}`;
+  const url = `https://www.discovercars.com/?${p.toString()}`;
+  return tpDeepLink(url, "cars");
 }
 
 export function rentalcarsLink(city: string, pickup: string, ret: string) {
@@ -216,45 +249,53 @@ export function rentalcarsLink(city: string, pickup: string, ret: string) {
     doMonth: ret.slice(5, 7),
     doYear: ret.slice(0, 4),
   });
-  return `https://www.rentalcars.com/SearchResults.do?${p.toString()}`;
+  const url = `https://www.rentalcars.com/SearchResults.do?${p.toString()}`;
+  return tpDeepLink(url, "cars");
 }
 
 export function kayakCarsLink(city: string, pickup: string, ret: string) {
-  return `https://www.kayak.com/cars/${encodeURIComponent(city)}/${pickup}/${ret}`;
+  const url = `https://www.kayak.com/cars/${encodeURIComponent(city)}/${pickup}/${ret}`;
+  return tpDeepLink(url, "cars");
 }
 
 export function airaloLink(country?: string) {
   // Airalo no expone búsqueda directa por país en URL — landing global
-  return country
+  const url = country
     ? `https://www.airalo.com/${encodeURIComponent(country.toLowerCase().replace(/\s+/g, "-"))}-esim`
     : `https://www.airalo.com/`;
+  return tpDeepLink(url, "esim");
 }
 
 export function holaflyLink(country?: string) {
-  return country
+  const url = country
     ? `https://esim.holafly.com/esim-${encodeURIComponent(country.toLowerCase().replace(/\s+/g, "-"))}/`
     : `https://esim.holafly.com/`;
+  return tpDeepLink(url, "esim");
 }
 
 export function heymondoLink() {
-  return "https://www.heymondo.com/?utm_source=iatos";
+  const url = "https://www.heymondo.com/?utm_source=iatos";
+  return tpDeepLink(url, "insurance");
 }
 
 // ============ FERRIES ============
 export function ferryhopperLink(origin: string, destination: string, date: string, passengers = 1) {
   const trip = `${encodeURIComponent(origin)}-${encodeURIComponent(destination)}_${date}`;
-  return `https://www.ferryhopper.com/en/booking?trips=${trip}&adults=${passengers}`;
+  const url = `https://www.ferryhopper.com/en/booking?trips=${trip}&adults=${passengers}`;
+  return tpDeepLink(url, "ferries");
 }
 export function directFerriesLink(origin: string, destination: string, date: string, passengers = 1) {
   // El buscador con query params (?from=...&to=...) sí carga (200) aunque no
   // resuelva la ruta exacta — siempre el usuario puede afinar en la UI.
   const p = new URLSearchParams({ from: origin, to: destination, outdate: date, adults: String(passengers) });
-  return `https://www.directferries.com/?${p.toString()}`;
+  const url = `https://www.directferries.com/?${p.toString()}`;
+  return tpDeepLink(url, "ferries");
 }
 
 export function aferryLink(origin: string, destination: string, date: string) {
   const p = new URLSearchParams({ from: origin, to: destination, date });
-  return `https://www.aferry.com/?${p.toString()}`;
+  const url = `https://www.aferry.com/?${p.toString()}`;
+  return tpDeepLink(url, "ferries");
 }
 
 
@@ -264,7 +305,8 @@ export function vacationsToGoLink(destination?: string, month?: string) {
   if (destination) p.set("destination", destination);
   if (month) p.set("month", month);
   const qs = p.toString();
-  return qs ? `https://www.vacationstogo.com/cruisesearch.cfm?${qs}` : `https://www.vacationstogo.com/cruisesearch.cfm`;
+  const url = qs ? `https://www.vacationstogo.com/cruisesearch.cfm?${qs}` : `https://www.vacationstogo.com/cruisesearch.cfm`;
+  return tpDeepLink(url, "cruises");
 }
 export function cruiseDirectLink(destination?: string, depart?: string, returnDate?: string) {
   // El buscador real vive en /search/ — los params los lee del estado.
@@ -273,15 +315,17 @@ export function cruiseDirectLink(destination?: string, depart?: string, returnDa
   if (depart) p.set("departDate", depart);
   if (returnDate) p.set("returnDate", returnDate);
   const qs = p.toString();
-  return qs ? `https://www.cruisedirect.com/search/?${qs}` : `https://www.cruisedirect.com/search/`;
+  const url = qs ? `https://www.cruisedirect.com/search/?${qs}` : `https://www.cruisedirect.com/search/`;
+  return tpDeepLink(url, "cruises");
 }
 
 
 export function cruiseCriticLink(destination?: string) {
   // /cruiseto/cruisestyles.cfm está descontinuado. Usamos su buscador actual.
-  return destination
+  const url = destination
     ? `https://www.cruisecritic.com/find-a-cruise/?destination=${encodeURIComponent(destination)}`
     : `https://www.cruisecritic.com/find-a-cruise/`;
+  return tpDeepLink(url, "cruises");
 }
 
 
