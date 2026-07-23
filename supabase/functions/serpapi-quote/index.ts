@@ -1,7 +1,12 @@
 // serpapi-quote — Pricing engine
-// Modo actual: ENABLED=false → estima con IA (Gemini) usando conocimiento de
-// Google Flights, Kayak, Skyscanner, Booking y precios históricos por mes/día.
-// Cuando se reactive (ENABLED=true) vuelve a SerpApi en vivo sin cambios.
+// Modo actual:
+//   ENABLED=true  → consulta SerpApi en vivo (Google Flights + Google Hotels).
+//                   Consume créditos SerpApi reales en cada request. Si SerpApi
+//                   falla o no devuelve datos, cae automáticamente al estimador
+//                   de IA (Gemini) como fallback.
+//   ENABLED=false → salta SerpApi por completo y estima con IA (Gemini) usando
+//                   conocimiento de Google Flights, Kayak, Skyscanner, Booking
+//                   y precios históricos. Sin costo de SerpApi.
 const ENABLED = true;
 
 const corsHeaders = {
@@ -12,6 +17,39 @@ const corsHeaders = {
 
 const SERPAPI = "https://serpapi.com/search.json";
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+// --- FX USD→MXN con cache en memoria (TTL 6h) ---
+const USD_MXN_FALLBACK = 20.5;
+const FX_TTL_MS = 6 * 60 * 60 * 1000;
+let fxCache: { rate: number; fetchedAt: number } | null = null;
+
+async function getUsdMxnRate(): Promise<number> {
+  const now = Date.now();
+  if (fxCache && now - fxCache.fetchedAt < FX_TTL_MS) return fxCache.rate;
+  try {
+    const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=MXN");
+    if (!r.ok) throw new Error(`fx ${r.status}`);
+    const j = await r.json();
+    const rate = Number(j?.rates?.MXN);
+    if (!Number.isFinite(rate) || rate < 10 || rate > 40) {
+      console.warn("fx rate out of range or invalid:", rate);
+      return USD_MXN_FALLBACK;
+    }
+    fxCache = { rate, fetchedAt: now };
+    return rate;
+  } catch (e) {
+    console.warn("fx fetch failed, using fallback:", (e as Error).message);
+    return USD_MXN_FALLBACK;
+  }
+}
+
+function noPricingResponse() {
+  return new Response(JSON.stringify({
+    error: "no_pricing_available",
+    message: "No pudimos obtener precios en este momento. Intenta de nuevo en unos minutos.",
+  }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
 
 interface Body {
   origin: string;
@@ -231,11 +269,14 @@ Deno.serve(async (req) => {
       const travelers = Math.max(1, body.travelers ?? 1);
       const nights = Math.max(1, body.nights ?? 1);
       const { flight, hotel } = await aiEstimate(lovableKey, body);
+      if (!flight && !hotel) return noPricingResponse();
       const flights_total = flight?.price_usd ?? 0;
       const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
       const subtotal = flights_total + hotel_total;
       const total_usd = Math.round(subtotal);
-      const total_mxn = Math.round(total_usd * 18.5);
+      if (total_usd <= 0) return noPricingResponse();
+      const fxRate = await getUsdMxnRate();
+      const total_mxn = Math.round(total_usd * fxRate);
       return new Response(JSON.stringify({
         flight: flight ? { ...flight, airline_logo: null } : null,
         hotel: hotel ? { ...hotel, thumbnail: null, link: null } : null,
@@ -248,6 +289,7 @@ Deno.serve(async (req) => {
         },
         total_usd,
         total_mxn,
+        fx_rate: fxRate,
         source: "ai-estimate",
         fetched_at: new Date().toISOString(),
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -300,11 +342,15 @@ Deno.serve(async (req) => {
       } catch (e) { console.error("ai fallback err:", (e as Error).message); }
     }
 
+    if (!flight && !hotel) return noPricingResponse();
+
     const flights_total = flight?.price_usd ?? 0;
     const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
     const subtotal = flights_total + hotel_total;
     const total_usd = Math.round(subtotal);
-    const total_mxn = Math.round(total_usd * 18.5);
+    if (total_usd <= 0) return noPricingResponse();
+    const fxRate = await getUsdMxnRate();
+    const total_mxn = Math.round(total_usd * fxRate);
 
     return new Response(JSON.stringify({
       flight, hotel,
@@ -315,7 +361,7 @@ Deno.serve(async (req) => {
         nights,
         buffer_usd: 0,
       },
-      total_usd, total_mxn, source,
+      total_usd, total_mxn, fx_rate: fxRate, source,
       fetched_at: new Date().toISOString(),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
