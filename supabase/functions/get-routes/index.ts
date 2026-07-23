@@ -238,7 +238,7 @@ Deno.serve(async (req) => {
     }
 
     const modes = (body.modes?.length ? body.modes : ALL_MODES).filter((m) => ALL_MODES.includes(m));
-    const results = await Promise.all(modes.map((m) => computeRoute(m, body, key)));
+    const results = await Promise.all(modes.map((m) => computeRoute(m, body, key, lovableKey)));
 
     return new Response(JSON.stringify({ routes: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
