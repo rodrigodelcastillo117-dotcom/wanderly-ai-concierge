@@ -322,7 +322,7 @@ function buildTransferFallback(intel: any) {
   return {
     text: `Ya tengo los datos del viaje: llegas a ${intel.ciudad_detectada} en ${flightLine} y tu hospedaje es ${hotelLine}. Además, en tu itinerario aparece pendiente el traslado aeropuerto → hotel; te dejo opciones premium para activarlo sin pedirte datos repetidos.`,
     cards: [
-      { type: "transport", title: "Transfer privado premium", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Buscar Welcome Pickups", cta_action: `https://www.google.com/search?q=${query}+Welcome+Pickups`, meta: pendingText || "Pendiente detectado en tu itinerario" },
+      { type: "transport", title: "Transfer privado premium", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Reservar transfer", cta_action: wpUrl, meta: pendingText || "Pendiente detectado en tu itinerario" },
       { type: "transport", title: "Chofer ejecutivo", subtitle: `${airport} → ${hotel?.direccion ?? hotel?.nombre ?? intel.ciudad_detectada}`, cta_label: "Buscar Blacklane", cta_action: `https://www.google.com/search?q=${query}+Blacklane`, meta: flightLine },
       { type: "transport", title: "Taxi oficial / VTC", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Abrir Maps", cta_action: `https://www.google.com/maps/search/?api=1&query=${query}`, meta: "Ruta con origen y destino del viaje" },
     ],
