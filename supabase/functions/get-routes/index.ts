@@ -1,5 +1,6 @@
 // Routes API v2 - computeRoutes para los 4 modos
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 
 type Point = { lat?: number; lng?: number; placeId?: string; address?: string };
 type Mode = "DRIVE" | "TRANSIT" | "WALK" | "BICYCLE";
@@ -211,6 +212,8 @@ async function computeRoute(mode: Mode, body: Body, key: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
 
   // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---

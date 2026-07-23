@@ -1,4 +1,5 @@
 // parse-trip-file — lee PDFs/imágenes con Gemini multimodal y extrae el
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 // viaje TAL CUAL aparece en los documentos. Devuelve datos mapeados al
 // schema interno (vuelos_json, hospedaje_json, cruceros_json, itinerario_json).
 
@@ -118,6 +119,8 @@ Antes de responder, autocheck: ¿incluiste TODOS los vuelos del PDF? ¿TODOS los
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
 
   // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---

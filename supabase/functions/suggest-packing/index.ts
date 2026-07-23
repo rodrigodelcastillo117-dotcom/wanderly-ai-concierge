@@ -1,4 +1,5 @@
 // suggest-packing — sugerencias inteligentes y personalizadas de packing
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 // basadas en destino, fechas, clima esperado, vuelos, crucero, hospedaje y actividades.
 
 const corsHeaders = {
@@ -10,6 +11,8 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
   try {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY no configurada");
     const { trip } = await req.json();

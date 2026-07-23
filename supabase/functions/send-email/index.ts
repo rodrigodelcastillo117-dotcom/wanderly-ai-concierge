@@ -1,9 +1,12 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   try {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');

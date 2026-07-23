@@ -4,6 +4,7 @@
 // - N llamadas en paralelo (una por ciudad) para hospedaje + restaurantes + experiencias + arrival_options
 // Esto evita el timeout de 150s al no pedir el JSON gigante en una sola llamada.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -259,6 +260,8 @@ ${PRICING_REFS}`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
 
   // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---

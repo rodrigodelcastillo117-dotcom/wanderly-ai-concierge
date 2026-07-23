@@ -1,9 +1,12 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 
 // Travelpayouts Data API — cached lowest prices (does not need user, real data)
 // Docs: https://support.travelpayouts.com/hc/en-us/articles/360011498618
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   try {
     const TOKEN = Deno.env.get('TRAVELPAYOUTS_TOKEN');

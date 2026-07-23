@@ -1,4 +1,5 @@
 // hotels-search — top resultados Google Hotels vía SerpAPI + Booking deep-link.
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -19,6 +20,8 @@ function bookingUrl(city: string, ci: string, co: string, adults: number) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---
   try {

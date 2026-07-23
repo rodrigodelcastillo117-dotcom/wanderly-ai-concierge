@@ -1,4 +1,5 @@
 // supabase/functions/travelpayouts-hotels/index.ts
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 // Consulta precios de hoteles via Hotellook cache.json (Travelpayouts).
 
 const corsHeaders = {
@@ -21,6 +22,8 @@ interface HotelsRequest {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   const okJson = (obj: unknown, status = 200) =>
     new Response(JSON.stringify(obj), {

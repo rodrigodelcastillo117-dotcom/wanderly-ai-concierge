@@ -1,4 +1,5 @@
 // card-benefits-lookup — dado el nombre de un banco/tarjeta (libre, en cualquier formato:
+import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 // "amex", "AMEX", "American Express Platinum", "Visa Santander Aeroméxico"), devuelve
 // las tarjetas que coinciden con sus beneficios reales (salas VIP, seguros, millas, etc.).
 
@@ -36,6 +37,8 @@ Solo JSON, sin markdown. Si la búsqueda es muy vaga ("visa"), devuelve las tarj
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
 
   // --- Auth gate: require valid Supabase JWT to prevent API quota abuse ---
   try {
