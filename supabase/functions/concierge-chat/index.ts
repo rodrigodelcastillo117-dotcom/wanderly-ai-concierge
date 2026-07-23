@@ -307,6 +307,18 @@ function buildTransferFallback(intel: any) {
     ? `${hotel.nombre ?? "tu hotel"}${hotel.direccion ? `, ${hotel.direccion}` : ""}${hotel.check_in ? ` · check-in ${hotel.check_in}` : ""}`
     : `hotel en ${intel.ciudad_detectada}`;
   const query = encodeURIComponent(`${airport} ${hotel?.nombre ?? "hotel"} ${hotel?.direccion ?? ""} transfer privado`);
+  const wpParams = new URLSearchParams({
+    aff_track_id: "3dc38e66900549469a7f18b5e-733063",
+    utm_source: "travelpayouts",
+    utm_medium: "iatos_concierge",
+    utm_campaign: `transfer_${String(intel.ciudad_detectada ?? "general").toLowerCase().replace(/\s+/g, "_")}`,
+  });
+  if (airport) wpParams.set("pickup_location", airport);
+  if (hotel?.nombre) wpParams.set("dropoff_location", `${hotel.nombre}${hotel.direccion ? ", " + hotel.direccion : ""}`);
+  if (flight?.fecha) wpParams.set("pickup_date", flight.fecha);
+  if (flight?.hora_llegada) wpParams.set("pickup_time", flight.hora_llegada);
+  if (flight?.numero_vuelo) wpParams.set("flight_number", flight.numero_vuelo);
+  const wpUrl = `https://www.welcomepickups.com/?${wpParams.toString()}`;
   return {
     text: `Ya tengo los datos del viaje: llegas a ${intel.ciudad_detectada} en ${flightLine} y tu hospedaje es ${hotelLine}. Además, en tu itinerario aparece pendiente el traslado aeropuerto → hotel; te dejo opciones premium para activarlo sin pedirte datos repetidos.`,
     cards: [
