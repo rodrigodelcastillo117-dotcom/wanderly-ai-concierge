@@ -17,6 +17,30 @@ const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 
+const USD_MXN_FALLBACK = 20.5;
+const FX_TTL_MS = 6 * 60 * 60 * 1000;
+let fxCache: { rate: number; fetchedAt: number } | null = null;
+
+async function getUsdMxnRate(): Promise<number> {
+  const now = Date.now();
+  if (fxCache && now - fxCache.fetchedAt < FX_TTL_MS) return fxCache.rate;
+  try {
+    const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=MXN");
+    if (!r.ok) throw new Error(`fx ${r.status}`);
+    const j = await r.json();
+    const rate = Number(j?.rates?.MXN);
+    if (!Number.isFinite(rate) || rate < 10 || rate > 40) {
+      console.warn("fx rate out of range or invalid:", rate);
+      return USD_MXN_FALLBACK;
+    }
+    fxCache = { rate, fetchedAt: now };
+    return rate;
+  } catch (e) {
+    console.warn("fx fetch failed, using fallback:", (e as Error).message);
+    return USD_MXN_FALLBACK;
+  }
+}
+
 const CLAUDE_MODEL_FALLBACKS = [
   ANTHROPIC_MODEL,
   "claude-sonnet-4-20250514",
@@ -155,12 +179,12 @@ function normalizarVuelos(vuelos: any[]): any[] {
     });
 }
 
-const SYSTEM_PROMPT = `Eres un consultor de viajes premium con 20 años de experiencia, tono sofisticado, cálido y específico, como un concierge personal. Siempre respondes en español de México y todos los precios en pesos mexicanos (MXN).
+const buildSystemPrompt = (fxUsd: number, fxEur: number) => `Eres un consultor de viajes premium con 20 años de experiencia, tono sofisticado, cálido y específico, como un concierge personal. Siempre respondes en español de México y todos los precios en pesos mexicanos (MXN).
 
 REGLAS ESTRICTAS DE PRECIOS:
 1. PROHIBIDO inventar, redondear hacia abajo o "ajustar" precios. Cada cifra que pongas DEBE aparecer textualmente (o ser conversión directa USD→MXN / EUR→MXN) en la sección "INVESTIGACIÓN DE PRECIOS REALES".
 2. Si Perplexity te da un rango (ej: "$25,000-$32,000"), usa el PUNTO MEDIO, nunca el extremo bajo.
-3. Tipo de cambio fijo: 1 USD = 18.5 MXN, 1 EUR = 21 MXN. Convierte siempre.
+3. Tipo de cambio de referencia del día (no fijo, actualizado al momento de esta consulta): 1 USD = ${fxUsd} MXN, 1 EUR ≈ ${fxEur} MXN. Convierte siempre usando estos valores.
 4. Para vuelos con varios segmentos (ej: CDMX→París→Madrid→Atenas), entrega SOLO 3 filas de vuelos: ahorro, equilibrio y premium. Cada fila debe representar el COSTO TOTAL DE TODOS LOS SEGMENTOS por persona, no un solo tramo. Si Perplexity desglosa por tramo, SUMA los tramos antes de poner el precio.
 5. Si una opción "equilibrio" o "premium" sale más barata que "ahorro", está mal: revisa y corrige.
 6. Nombres reales de hoteles, aerolíneas, restaurantes y barrios — los que aparezcan en la investigación.
@@ -183,7 +207,7 @@ REGLAS ESTRICTAS DE PRECIOS:
     - Tour grupal medio día México: $600-$1,800 MXN p/p. Tour día completo: $1,500-$4,000. VIP/privado: $4,000-$12,000.
 14. ORDENA cada array de menor a mayor precio: "hospedaje" ascendente por precio_por_noche, "tours" ascendente por precio_por_persona, "restaurantes" ascendente por el extremo inferior del rango_precio. El usuario ve siempre primero la opción más accesible.
 15. FUENTE PRIMARIA DE PRECIOS DE VUELO — TRAVELPAYOUTS/AVIASALES (REGLA NO NEGOCIABLE):
-    - Cuando en el userPrompt veas el bloque "PRECIOS PRIMARIOS — TRAVELPAYOUTS" con vuelos listados (líneas con "LINK: https://www.aviasales.com/..."), ESOS VUELOS SON LA FUENTE PRIMARIA. Usa SUS precios (convertidos USD×18.5 = MXN) para los 3 tiers ahorro/equilibrio/premium. No uses "rangos históricos", no uses precios estimados ni los que Perplexity sugiera para vuelos.
+    - Cuando en el userPrompt veas el bloque "PRECIOS PRIMARIOS — TRAVELPAYOUTS" con vuelos listados (líneas con "LINK: https://www.aviasales.com/..."), ESOS VUELOS SON LA FUENTE PRIMARIA. Usa SUS precios (convertidos USD×${fxUsd} = MXN, tipo de cambio de referencia del día) para los 3 tiers ahorro/equilibrio/premium. No uses "rangos históricos", no uses precios estimados ni los que Perplexity sugiera para vuelos.
     - Perplexity es SOLO contexto cualitativo (restaurantes, tours, tips, mejor temporada). NUNCA fuente de precios de vuelo si Travelpayouts trajo datos.
     - PROHIBIDO generar booking_link a google.com/travel, google.com/flights o búsquedas genéricas de Google. Está bloqueado por CORS y rompe la experiencia.
     - Para booking_link de cada vuelo: copia EXACTAMENTE el LINK del bloque TRAVELPAYOUTS (formato https://www.aviasales.com/...?marker=...). Si por algún motivo no tienes un link de Aviasales para un tier, usa el sitio oficial de la aerolínea: Aeroméxico → https://aeromexico.com, Iberia → https://iberia.com, American → https://aa.com, United → https://united.com, Delta → https://delta.com, Air France → https://airfrance.com, LATAM → https://latam.com, Avianca → https://avianca.com, KLM → https://klm.com, Lufthansa → https://lufthansa.com, British Airways → https://britishairways.com, Volaris → https://volaris.com, Viva → https://vivaaerobus.com. NUNCA google.com.
@@ -651,7 +675,9 @@ Deno.serve(async (req) => {
     if (vault?.hotel_loyalty?.length) boveda.push(`Hoteles ${vault.hotel_loyalty.map((h: any) => `${h.chain_name} ${h.status_tier}`).join(", ")}`);
     ctxLines.push(boveda.length ? `Bóveda: ${boveda.join("; ")}` : "Bóveda: vacía");
     const userContext = ctxLines.join("\n");
-    const systemFinal = [MASTER_PROMPT_IATOS, userContext, SYSTEM_PROMPT].filter(Boolean).join("\n\n---\n\n");
+    const fxUsd = await getUsdMxnRate();
+    const fxEur = Math.round(fxUsd * 1.08 * 10) / 10;
+    const systemFinal = [MASTER_PROMPT_IATOS, userContext, buildSystemPrompt(fxUsd, fxEur)].filter(Boolean).join("\n\n---\n\n");
 
 
     // PASO 0: Smart Date Resolution (Gemini). Si faltan fechas, elegimos la ventana óptima.
@@ -727,7 +753,7 @@ Deno.serve(async (req) => {
         return `(Sin datos de Travelpayouts/Aviasales — usar precios de Perplexity${tpFlights?.error ? `. Motivo: ${tpFlights.error}` : ""})`;
       }
       const lines = tpFlights.flights.slice(0, 12).map((f: any, i: number) => {
-        const priceMxn = Math.round((Number(f.price) || 0) * 18.5);
+        const priceMxn = Math.round((Number(f.price) || 0) * fxUsd);
         return `${i + 1}. ${f.airline} ${f.flight_number} — ${f.origin_airport}→${f.destination_airport} — USD ${f.price} (~$${priceMxn.toLocaleString("es-MX")} MXN) — ${f.stops} escalas — sale ${f.departure_at ?? "?"} — LINK: ${f.booking_link}`;
       }).join("\n");
       return `Fuente: Travelpayouts/Aviasales (precios oficiales del inventario, consultados ${tpFlights.consulted_at}).\nRuta: ${tpFlights.origin}→${tpFlights.destination}\n${lines}`;
@@ -788,7 +814,7 @@ ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 ==========================================
 
 REGLAS DE FUENTES:
-- Si arriba hay datos de TRAVELPAYOUTS para vuelos, los 3 tiers (ahorro/equilibrio/premium) DEBEN salir de esa lista. Convierte USD→MXN (×18.5). En cada vuelo, copia el booking_link exacto y pon fuente_precio="travelpayouts".
+- Si arriba hay datos de TRAVELPAYOUTS para vuelos, los 3 tiers (ahorro/equilibrio/premium) DEBEN salir de esa lista. Convierte USD→MXN (×${fxUsd}, tipo de cambio de referencia del día). En cada vuelo, copia el booking_link exacto y pon fuente_precio="travelpayouts".
 - Si arriba hay datos de TRAVELPAYOUTS para hoteles, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Copia el booking_link y pon fuente_precio="travelpayouts".
 - Si TRAVELPAYOUTS no trajo datos para una categoría, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link.
 - Restaurantes, tours, itinerario, tips y cruceros se sacan SIEMPRE de Perplexity.
