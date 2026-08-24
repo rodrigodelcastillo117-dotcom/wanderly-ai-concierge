@@ -9,6 +9,7 @@ export async function sendEmail(opts: {
   subject: string;
   html: string;
   from?: string;
+  replyTo?: string;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -29,8 +30,10 @@ export async function sendEmail(opts: {
         to: Array.isArray(opts.to) ? opts.to : [opts.to],
         subject: opts.subject,
         html: opts.html,
+        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
       }),
     });
+
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       console.error("sendEmail error", r.status, data);
