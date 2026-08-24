@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,49 +8,60 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import ScrollToTop from "@/components/ScrollToTop";
 import Landing from "./pages/Landing";
-import Auth from "./pages/Auth";
-import ResetPassword from "./pages/ResetPassword";
-import Onboarding from "./pages/Onboarding";
-import OnboardingDeep from "./pages/OnboardingDeep";
-import DashboardHome from "./pages/DashboardHome";
-import PlanTrip from "./pages/PlanTrip";
-import TripDetail from "./pages/TripDetail";
-import EditTrip from "./pages/EditTrip";
-import Trips from "./pages/Trips";
-import MultiDestRoute from "./pages/MultiDestRoute";
-import Profile from "./pages/Profile";
-import Discover from "./pages/Discover";
-import Pro from "./pages/Pro";
-import Concierge from "./pages/Concierge";
-import Cercanos from "./pages/Cercanos";
-import Favoritos from "./pages/Favoritos";
-import Social from "./pages/Social";
 import { Navigate } from "react-router-dom";
-import Gastos from "./pages/Gastos";
-import NotFound from "./pages/NotFound.tsx";
-import LiveTrip from "./pages/LiveTrip";
-import TripMap from "./pages/TripMap";
-import TripPacking from "./pages/TripPacking";
-import TripWeather from "./pages/TripWeather";
-import TripTranslator from "./pages/TripTranslator";
-import TripJournal from "./pages/TripJournal";
-import TripSplit from "./pages/TripSplit";
-import Compare from "./pages/Compare";
-import Currency from "./pages/Currency";
-import TripFlights from "./pages/TripFlights";
-import TripHotels from "./pages/TripHotels";
-import Insurance from "./pages/Insurance";
-import Benefits from "./pages/Benefits";
-import TripCars from "./pages/TripCars";
-import TripESIM from "./pages/TripESIM";
-import TripActivities from "./pages/TripActivities";
-import Restaurantes from "./pages/Restaurantes";
-import Trenes from "./pages/Trenes";
-import Ferries from "./pages/Ferries";
-import Cruceros from "./pages/Cruceros";
-import Reservas from "./pages/Reservas";
-import Members from "./pages/Members";
-import { Terminos, Privacidad, Cookies, Reembolsos } from "./pages/Legal";
+
+// Code-splitting: todo lo que no es la landing se carga bajo demanda por ruta.
+// El bundle único pesaba >4.4MB; esto reparte el peso en chunks por página.
+const Auth = lazy(() => import("./pages/Auth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const OnboardingDeep = lazy(() => import("./pages/OnboardingDeep"));
+const DashboardHome = lazy(() => import("./pages/DashboardHome"));
+const PlanTrip = lazy(() => import("./pages/PlanTrip"));
+const TripDetail = lazy(() => import("./pages/TripDetail"));
+const EditTrip = lazy(() => import("./pages/EditTrip"));
+const Trips = lazy(() => import("./pages/Trips"));
+const MultiDestRoute = lazy(() => import("./pages/MultiDestRoute"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Discover = lazy(() => import("./pages/Discover"));
+const Pro = lazy(() => import("./pages/Pro"));
+const Concierge = lazy(() => import("./pages/Concierge"));
+const Cercanos = lazy(() => import("./pages/Cercanos"));
+const Favoritos = lazy(() => import("./pages/Favoritos"));
+const Social = lazy(() => import("./pages/Social"));
+const Gastos = lazy(() => import("./pages/Gastos"));
+const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const LiveTrip = lazy(() => import("./pages/LiveTrip"));
+const TripMap = lazy(() => import("./pages/TripMap"));
+const TripPacking = lazy(() => import("./pages/TripPacking"));
+const TripWeather = lazy(() => import("./pages/TripWeather"));
+const TripTranslator = lazy(() => import("./pages/TripTranslator"));
+const TripJournal = lazy(() => import("./pages/TripJournal"));
+const TripSplit = lazy(() => import("./pages/TripSplit"));
+const Compare = lazy(() => import("./pages/Compare"));
+const Currency = lazy(() => import("./pages/Currency"));
+const TripFlights = lazy(() => import("./pages/TripFlights"));
+const TripHotels = lazy(() => import("./pages/TripHotels"));
+const Insurance = lazy(() => import("./pages/Insurance"));
+const Benefits = lazy(() => import("./pages/Benefits"));
+const TripCars = lazy(() => import("./pages/TripCars"));
+const TripESIM = lazy(() => import("./pages/TripESIM"));
+const TripActivities = lazy(() => import("./pages/TripActivities"));
+const Restaurantes = lazy(() => import("./pages/Restaurantes"));
+const Trenes = lazy(() => import("./pages/Trenes"));
+const Ferries = lazy(() => import("./pages/Ferries"));
+const Cruceros = lazy(() => import("./pages/Cruceros"));
+const Reservas = lazy(() => import("./pages/Reservas"));
+const Terminos = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Terminos })));
+const Privacidad = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Privacidad })));
+const Cookies = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Cookies })));
+const Reembolsos = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Reembolsos })));
+
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -61,6 +73,7 @@ const App = () => (
       <BrowserRouter>
         <ScrollToTop />
         <AuthProvider>
+          <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
@@ -111,6 +124,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
