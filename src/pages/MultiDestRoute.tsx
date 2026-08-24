@@ -255,7 +255,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
       if (!data?.logistics) throw new Error("La IA no devolvió logística");
 
       const logistics = data.logistics;
-      const USD_MXN = 17;
+      // FX dinámico devuelto por la edge function (_shared/fx.ts). Nunca un valor fijo.
+      const USD_MXN = Number(logistics.fx_usd_mxn) > 0 ? Number(logistics.fx_usd_mxn) : 20.5;
 
       // Aplanar per_destination → vuelos_json (incluye vuelos + trenes + buses + roadtrips por ciudad),
       // hospedaje_json / restaurantes_json / tours_json para que TripDetail los agrupe por ciudad.
@@ -271,6 +272,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
           duracion: f.duration || "",
           escalas: f.stops || "Directo",
           precio_por_persona: Math.round(Number(f.price_per_person_usd ?? 0) * USD_MXN),
+          fuente_precio: f.fuente_precio ?? "estimado",
+          booking_link: f.booking_link ?? null,
           notas: f.notes ? `${f.from} → ${f.to} · ${f.notes}` : `${f.from} → ${f.to}`,
           ciudad,
           from: f.from,
@@ -291,6 +294,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             duracion: opt.duration || "",
             escalas: opt.scenic ? "Ruta escénica" : (opt.mode === "vuelo" ? "Directo" : opt.mode),
             precio_por_persona: Math.round(Number(opt.price_per_person_usd ?? 0) * USD_MXN),
+            fuente_precio: opt.fuente_precio ?? "estimado",
             notas: opt.notes ? `${opt.from} → ${pd.city} · ${opt.notes}` : `${opt.from} → ${pd.city}`,
             ciudad: pd.city,
             from: opt.from,
@@ -304,6 +308,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             barrio: h.barrio || pd.city,
             rating: h.rating ?? 4.5,
             precio_por_noche: Math.round(Number(h.price_per_night_usd ?? 0) * USD_MXN),
+            fuente_precio: h.fuente_precio ?? "estimado",
+            booking_link: h.booking_url ?? null,
             por_que: h.por_que || "",
             ciudad: pd.city,
             tier: h.tier,
@@ -323,6 +329,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             nombre: t.nombre,
             duracion: t.duracion || "",
             precio_por_persona: Math.round(Number(t.price_per_person_usd ?? 0) * USD_MXN),
+            fuente: t.fuente ?? "estimado",
+            rating: t.rating ?? null,
             por_que: t.por_que || "",
             ciudad: pd.city,
           });
@@ -353,9 +361,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             fecha_regreso: fechaRegreso || null,
             num_viajeros: viajeros,
             presupuesto_objetivo: presupuesto ? Number(presupuesto) : null,
-            total_estimado: logistics.total_estimado_usd
-              ? Math.round(Number(logistics.total_estimado_usd) * USD_MXN)
-              : null,
+            // Total real calculado en el servidor (suma del desglose del tier del usuario).
+            total_estimado: Number(logistics.total_estimado_mxn) || null,
+            desglose_presupuesto: logistics.desglose_presupuesto ?? null,
             moneda: "MXN",
             status: "listo",
             analisis_ai: logistics.resumen ?? null,
@@ -377,6 +385,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         if (tErr) console.error(tErr);
         else tripId = trip?.id;
       }
+
 
       setGenerated({ logistics, autonomous, tripId });
       toast.success("Travesía lista. Abriendo tu viaje completo…");
