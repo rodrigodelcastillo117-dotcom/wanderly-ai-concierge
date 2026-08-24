@@ -888,9 +888,13 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          cancel_at_period_end: boolean
           created_at: string
+          currency: string
           current_period_end: string | null
           id: string
+          plan: string
+          price_id: string | null
           status: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -899,9 +903,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cancel_at_period_end?: boolean
           created_at?: string
+          currency?: string
           current_period_end?: string | null
           id?: string
+          plan?: string
+          price_id?: string | null
           status?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -910,9 +918,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cancel_at_period_end?: boolean
           created_at?: string
+          currency?: string
           current_period_end?: string | null
           id?: string
+          plan?: string
+          price_id?: string | null
           status?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -1336,6 +1348,33 @@ export type Database = {
         }
         Relationships: []
       }
+      usage_limits: {
+        Row: {
+          concierge_messages_used: number
+          concierge_period: string
+          created_at: string
+          trips_analyzed_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          concierge_messages_used?: number
+          concierge_period?: string
+          created_at?: string
+          trips_analyzed_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          concierge_messages_used?: number
+          concierge_period?: string
+          created_at?: string
+          trips_analyzed_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_badges: {
         Row: {
           badge_id: string
@@ -1652,8 +1691,13 @@ export type Database = {
       aceptar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
       agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
+      consume_free_quota: {
+        Args: { _kind: string; _user_id: string }
+        Returns: Json
+      }
       ensure_ai_prefs: { Args: { p_user: string }; Returns: undefined }
       gen_invite_code: { Args: never; Returns: string }
+      get_access_state: { Args: { _user_id: string }; Returns: Json }
       has_trip_access: {
         Args: { p_trip: string; p_user: string }
         Returns: boolean
@@ -1662,6 +1706,7 @@ export type Database = {
         Args: { p_friend_id: string; p_trip_id: string }
         Returns: Json
       }
+      is_pro: { Args: { _user_id: string }; Returns: boolean }
       is_trip_collaborator: {
         Args: { p_trip: string; p_user: string }
         Returns: boolean

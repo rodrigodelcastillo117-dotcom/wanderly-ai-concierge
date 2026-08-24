@@ -2,6 +2,7 @@
 // Concierge IA ultra-lujo con TOOL CALLING real: vuelos, hoteles, atracciones,
 // lugares cercanos. Aprende del usuario en cada turno (behavioral_insights + dna_signal).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -353,6 +354,11 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Gate PRO / cuota gratuita (3 mensajes al mes sin suscripción)
+    const quota = await consumeQuota(u.user.id, "concierge");
+    if (!quota.allowed) return paywallResponse("concierge", corsHeaders);
+
 
     const body = (await req.json()) as Body;
     const lastUserMsg = [...(body.messages ?? [])].reverse().find((m) => m.role === "user")?.content ?? "";

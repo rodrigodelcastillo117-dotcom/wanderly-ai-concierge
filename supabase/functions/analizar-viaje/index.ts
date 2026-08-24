@@ -2,6 +2,7 @@
 // Flujo: Perplexity (sonar-pro) investiga precios reales -> Claude estructura el análisis premium.
 // FIX v3: Perplexity opcional — si falta la key, continúa sin contexto cualitativo (no 500).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -604,6 +605,11 @@ Deno.serve(async (req) => {
       });
     }
     const user = userData.user;
+
+    // Gate PRO / cuota gratuita (1 análisis de viaje gratis de por vida)
+    const quota = await consumeQuota(user.id, "trip_analysis");
+    if (!quota.allowed) return paywallResponse("trip_analysis", corsHeaders);
+
 
     const body = (await req.json()) as AnalisisRequest;
     if (!body.destino || !body.ciudad_origen) {
