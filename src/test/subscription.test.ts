@@ -13,8 +13,10 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
+const TEST_USER = { id: "user-1", email: "a@b.mx" };
+const TEST_SESSION = {};
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: { id: "user-1", email: "a@b.mx" }, session: {}, loading: false }),
+  useAuth: () => ({ user: TEST_USER, session: TEST_SESSION, loading: false }),
 }));
 
 vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
