@@ -101,6 +101,14 @@ function tierFromPresupuesto(raw?: string | null): Tier {
 
 /** Comida estimada por persona/día en USD según tier (techo de cordura aparte). */
 const COMIDA_USD_PP_DIA: Record<Tier, number> = { ahorro: 45, equilibrio: 95, premium: 190 };
+
+/** Filtro de estrellas de Google Hotels por nivel de presupuesto (SerpApi ordena por precio más bajo). */
+const HOTEL_CLASS_BY_TIER: Record<Tier, string> = {
+  ahorro: "2,3",
+  equilibrio: "3,4",
+  premium: "4,5",
+};
+
 const COMIDA_TECHO_MXN_PP_DIA = 12000; // mismo techo que analizar-viaje
 
 function pickByTier<T>(sortedAsc: T[], tier: Tier): T | undefined {
