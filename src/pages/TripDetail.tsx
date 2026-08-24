@@ -644,6 +644,13 @@ const TripDetail = () => {
                                   { label: "Ubicación", href: googleMapsSearchLink(t.nombre, city) },
                                 ]}
                               >
+                                {t.fuente === "tripadvisor" && (
+                                  <p className="text-xs text-muted-foreground mb-1">
+                                    {t.rating != null && `★ ${t.rating}/5`}
+                                    {t.num_reviews != null && ` · ${t.num_reviews} reseñas`}
+                                  </p>
+                                )}
+                                {t.fuente && <PriceSourceBadge source={t.fuente} className="mb-2" />}
                                 <p className="italic">{t.por_que}</p>
                               </ExpandableItemCard>
                             </div>

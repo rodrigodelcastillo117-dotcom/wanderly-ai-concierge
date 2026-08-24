@@ -363,6 +363,9 @@ const TOOL_SCHEMA = {
             duracion: { type: "string" },
             precio_por_persona: { type: "number" },
             por_que: { type: "string" },
+            fuente: { type: "string", enum: ["tripadvisor", "perplexity", "estimado"], description: "Usa 'tripadvisor' si el nombre/rating salió del bloque ATRACCIONES — TRIPADVISOR." },
+            rating: { type: "number", description: "Rating real de TripAdvisor (0-5) si fuente='tripadvisor'." },
+            num_reviews: { type: "integer", description: "Número real de reseñas de TripAdvisor si fuente='tripadvisor'." },
           },
           required: ["nombre", "duracion", "precio_por_persona", "por_que"],
         },
@@ -743,10 +746,25 @@ Deno.serve(async (req) => {
       }),
     }).then((r) => r.json()).catch((e) => ({ source: "error", error: String(e?.message ?? e), results: [] }));
 
-    const [perplexityResult, tpFlightsRes, serpHotelsRes] = await Promise.allSettled([
+    const tripadvisorPromise = fetch(`${SUPABASE_URL}/functions/v1/tripadvisor-search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        query: body.destino,
+        category: "attractions",
+        language: "es_MX",
+      }),
+    }).then((r) => r.json()).catch((e) => ({ ok: false, error: String(e?.message ?? e), results: [] }));
+
+    const [perplexityResult, tpFlightsRes, serpHotelsRes, tripadvisorRes] = await Promise.allSettled([
       investigarConPerplexity(body, dias, vaultDesc),
       tpFlightsPromise,
       serpHotelsPromise,
+      tripadvisorPromise,
     ]);
 
     const investigacion = perplexityResult.status === "fulfilled"
@@ -758,10 +776,14 @@ Deno.serve(async (req) => {
     // Solo consideramos "en vivo" lo que realmente vino de SerpApi (hotels-search puede caer a IA).
     const serpHotelsLive = serpHotels?.source === "serpapi" && Array.isArray(serpHotels?.results) && serpHotels.results.length > 0;
 
+    const tripadvisor = tripadvisorRes.status === "fulfilled" ? tripadvisorRes.value : { ok: false, error: "promise_rejected", results: [] };
+    const tripadvisorLive = tripadvisor?.ok === true && Array.isArray(tripadvisor?.results) && tripadvisor.results.length > 0;
+
     console.log(
       "Perplexity citations:", investigacion.citations.length,
       "| TP flights:", tpFlights?.flights?.length ?? 0,
       "| SerpApi hotels:", serpHotels?.results?.length ?? 0, "source:", serpHotels?.source ?? "none",
+      "| TripAdvisor attractions:", tripadvisor?.results?.length ?? 0,
     );
 
     // Bloques de texto que Claude verá para los precios reales de Travelpayouts
@@ -786,6 +808,18 @@ Deno.serve(async (req) => {
         return `${i + 1}. ${h.name}${h.hotel_class ? ` (${h.hotel_class}★)` : ""}${h.rating ? ` — rating ${h.rating}` : ""} — USD ${h.nightly_usd}/noche (~$${nightlyMxn.toLocaleString("es-MX")} MXN/noche) — total estancia USD ${h.total_usd ?? "?"} — LINK: ${h.booking_url}`;
       }).join("\n");
       return `Fuente: SerpApi / Google Hotels (tarifas reales consultadas hoy para ${body.fecha_salida} → ${body.fecha_regreso}, ${body.num_viajeros} adultos).\n${lines}`;
+    })();
+
+    // Bloque de atracciones/experiencias reales de TripAdvisor Content API
+    const tripadvisorBlock = (() => {
+      if (!tripadvisorLive) {
+        return `(Sin datos en vivo de TripAdvisor${tripadvisor?.error ? `. Motivo: ${tripadvisor.error}` : ""} — usa tours de Perplexity con fuente="perplexity" o "estimado")`;
+      }
+      const lines = tripadvisor.results.slice(0, 10).map((a: any, i: number) => {
+        const reviews = a.num_reviews != null ? `${a.num_reviews} reseñas` : "sin conteo de reseñas";
+        return `${i + 1}. ${a.name}${a.rating ? ` — rating ${a.rating}/5 (${reviews})` : ""}${a.ranking ? ` — ${a.ranking}` : ""}${a.address ? ` — ${a.address}` : ""}`;
+      }).join("\n");
+      return `Fuente: TripAdvisor Content API (atracciones reales con rating y reseñas verificadas, consultadas hoy).\n${lines}`;
     })();
 
 
@@ -829,6 +863,9 @@ ${tpFlightsBlock}
 
 HOTELES (SerpApi / Google Hotels):
 ${serpHotelsBlock}
+
+ATRACCIONES — TRIPADVISOR (fuente curada para tours/experiencias; nombres y ratings reales):
+${tripadvisorBlock}
 ==========================================
 
 ==========================================
@@ -844,7 +881,8 @@ REGLAS DE FUENTES:
 - Si arriba hay datos de TRAVELPAYOUTS para vuelos, los 3 tiers (ahorro/equilibrio/premium) DEBEN salir de esa lista. Convierte USD→MXN (×${fxUsd}, tipo de cambio de referencia del día). En cada vuelo, copia el booking_link exacto y pon fuente_precio="travelpayouts".
 - Si arriba hay datos de SERPAPI / GOOGLE HOTELS, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Convierte USD→MXN (×${fxUsd}), copia el booking_link exacto y pon fuente_precio="serpapi". NUNCA inventes un hotel ni un precio si esa lista trae datos.
 - Si una categoría no trajo datos en vivo, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link. Si tampoco hay contexto de Perplexity, pon fuente_precio="estimado".
-- Restaurantes, tours, itinerario, tips y cruceros se sacan SIEMPRE de Perplexity.
+- Si arriba hay datos de ATRACCIONES — TRIPADVISOR, prioriza esos nombres para "tours" (son lugares reales con reseñas verificadas): copia el nombre exacto, pon fuente="tripadvisor", y copia rating/num_reviews tal cual. El precio_por_persona sigue siendo una estimación (TripAdvisor Content API no da precio de boleto) — está bien, solo el nombre/rating son reales. Completa hasta 4-6 tours mezclando TripAdvisor con ideas de Perplexity si TripAdvisor trae menos de 4; en esos extras pon fuente="perplexity" o "estimado".
+- Restaurantes, itinerario, tips y cruceros se sacan SIEMPRE de Perplexity.
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
@@ -998,6 +1036,11 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
           count: serpHotels?.results?.length ?? 0,
           error: serpHotels?.error ?? null,
           sample: (serpHotels?.results ?? []).slice(0, 3),
+        },
+        attractions: {
+          source: tripadvisorLive ? "tripadvisor" : "none",
+          count: tripadvisor?.results?.length ?? 0,
+          error: tripadvisor?.error ?? null,
         },
       },
     }), {
