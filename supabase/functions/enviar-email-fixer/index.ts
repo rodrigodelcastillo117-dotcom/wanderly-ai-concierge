@@ -1,7 +1,9 @@
 // Edge function: enviar-email-fixer
-// Envía un email al Fixer humano vía Resend cuando un usuario escala desde el Concierge.
-// Si RESEND_API_KEY no está configurada, el cliente hace fallback a mailto:.
+// Envía un email al Fixer humano vía el gateway de Resend de Lovable
+// cuando un usuario escala desde el Concierge.
+// Si el envío falla, el cliente hace fallback a mailto:.
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { sendEmail } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,10 +13,11 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const FIXER_EMAIL = Deno.env.get("FIXER_EMAIL") || "rodrigo@traveliatos.life";
+const FIXER_EMAIL = Deno.env.get("FIXER_EMAIL") || "hola@traveliatos.life";
 const FROM_ADDRESS =
   Deno.env.get("FIXER_FROM_ADDRESS") ||
-  "IATOS Fixer <onboarding@resend.dev>";
+  "IATOS Fixer <hola@traveliatos.life>";
+
 
 interface FixerPayload {
   user_name: string;
