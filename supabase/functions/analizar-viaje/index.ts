@@ -301,7 +301,7 @@ const TOOL_SCHEMA = {
             precio_por_persona: { type: "number" },
             notas: { type: "string" },
             booking_link: { type: "string", description: "Link de afiliado (Travelpayouts/Aviasales) si el precio vino del bloque TRAVELPAYOUTS. Cópialo tal cual." },
-            fuente_precio: { type: "string", enum: ["travelpayouts", "perplexity", "estimado"], description: "Origen del precio. Usa 'travelpayouts' si lo tomaste del bloque TRAVELPAYOUTS." },
+            fuente_precio: { type: "string", enum: ["travelpayouts", "serpapi", "perplexity", "estimado"], description: "Origen del precio. Usa 'travelpayouts' si lo tomaste del bloque TRAVELPAYOUTS." },
           },
           required: ["tier", "aerolinea", "duracion", "escalas", "precio_por_persona"],
         },
@@ -317,8 +317,8 @@ const TOOL_SCHEMA = {
             rating: { type: "number" },
             precio_por_noche: { type: "number" },
             por_que: { type: "string" },
-            booking_link: { type: "string", description: "Link de afiliado (Hotellook) si el hotel vino del bloque TRAVELPAYOUTS. Cópialo tal cual." },
-            fuente_precio: { type: "string", enum: ["travelpayouts", "perplexity", "estimado"] },
+            booking_link: { type: "string", description: "Link de reserva si el hotel vino del bloque SERPAPI / GOOGLE HOTELS. Cópialo tal cual." },
+            fuente_precio: { type: "string", enum: ["serpapi", "travelpayouts", "perplexity", "estimado"], description: "Usa 'serpapi' si el precio vino del bloque GOOGLE HOTELS." },
           },
           required: ["nombre", "tipo", "barrio", "rating", "precio_por_noche", "por_que"],
         },
@@ -819,8 +819,8 @@ PRECIOS PRIMARIOS — TRAVELPAYOUTS (fuente oficial de inventario; USA ESTOS PRE
 VUELOS (Aviasales):
 ${tpFlightsBlock}
 
-HOTELES (Hotellook):
-${tpHotelsBlock}
+HOTELES (SerpApi / Google Hotels):
+${serpHotelsBlock}
 ==========================================
 
 ==========================================
@@ -834,8 +834,8 @@ ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 
 REGLAS DE FUENTES:
 - Si arriba hay datos de TRAVELPAYOUTS para vuelos, los 3 tiers (ahorro/equilibrio/premium) DEBEN salir de esa lista. Convierte USD→MXN (×${fxUsd}, tipo de cambio de referencia del día). En cada vuelo, copia el booking_link exacto y pon fuente_precio="travelpayouts".
-- Si arriba hay datos de TRAVELPAYOUTS para hoteles, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Copia el booking_link y pon fuente_precio="travelpayouts".
-- Si TRAVELPAYOUTS no trajo datos para una categoría, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link.
+- Si arriba hay datos de SERPAPI / GOOGLE HOTELS, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Convierte USD→MXN (×${fxUsd}), copia el booking_link exacto y pon fuente_precio="serpapi". NUNCA inventes un hotel ni un precio si esa lista trae datos.
+- Si una categoría no trajo datos en vivo, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link. Si tampoco hay contexto de Perplexity, pon fuente_precio="estimado".
 - Restaurantes, tours, itinerario, tips y cruceros se sacan SIEMPRE de Perplexity.
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
@@ -945,9 +945,10 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
           sample: (tpFlights?.flights ?? []).slice(0, 3),
         },
         hotels: {
-          count: 0,
-          error: "Hotellook cerró en oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.",
-          sample: [],
+          source: serpHotelsLive ? "serpapi" : (serpHotels?.source ?? "none"),
+          count: serpHotels?.results?.length ?? 0,
+          error: serpHotels?.error ?? null,
+          sample: (serpHotels?.results ?? []).slice(0, 3),
         },
       },
     }), {
