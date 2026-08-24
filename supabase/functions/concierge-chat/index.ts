@@ -597,6 +597,9 @@ Deno.serve(async (req) => {
       ];
       viajesVigentes.forEach((tr: any, idx: number) => {
         const esMasProximo = idx === 0;
+        // Anti-duplicación de tokens: el viaje elegido se detalla completo más abajo (bloque JSON).
+        // Aquí solo va su cabecera; vuelos/hoteles/cruceros se omiten para no repetirlos.
+        const esViajeDetallado = trip && tr.id === trip.id;
         lines.push(`▌ VIAJE ${idx + 1}${esMasProximo ? " (más próximo)" : ""}`);
         lines.push(`   ID: ${tr.id}`);
         lines.push(`   Destino: ${tr.destino ?? "Sin título"}`);
@@ -605,7 +608,13 @@ Deno.serve(async (req) => {
         lines.push(`   Fechas: ${tr.fecha_salida ?? "?"} al ${tr.fecha_regreso ?? "?"}`);
         if (tr.num_viajeros) lines.push(`   Viajeros: ${tr.num_viajeros}`);
         if (tr.status) lines.push(`   Status: ${tr.status}`);
+        if (esViajeDetallado) {
+          lines.push("   (Detalle completo de vuelos, hoteles y reservas: ver bloque JSON más abajo)");
+          lines.push("");
+          return;
+        }
         const vuelos = asArray(tr.vuelos_json);
+
         if (vuelos.length) {
           lines.push("   VUELOS:");
           vuelos.slice(0, 8).forEach((v: any) => {
