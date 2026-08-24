@@ -1,6 +1,7 @@
 // supabase/functions/buscar-promociones/index.ts
 // Busca promociones reales en tiempo real (Perplexity) basadas en la Bóveda de Beneficios del usuario.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,6 +145,9 @@ Deno.serve(async (req) => {
       });
     }
     const user = userData.user;
+
+    const __rl = await enforceRateLimit(req, "buscar-promociones", user.id, { perMinute: 8, perHour: 60, ipPerMinute: 25 });
+    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
     const body = (await req.json().catch(() => ({}))) as ReqBody;
 
     const { data: vault } = await supabase
