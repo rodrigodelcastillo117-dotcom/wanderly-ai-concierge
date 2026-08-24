@@ -265,9 +265,19 @@ CRITICAL: price_per_person_usd es POR PERSONA, no total. Sé realista, no barato
 }
 
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const __user = await getAuthUser(req);
+  if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "serpapi-quote", __user.id, {
+    perMinute: 12, perHour: 120, ipPerMinute: 40,
+  });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
+
 
   // === MODO ESTIMACIÓN IA (sin gastar SerpApi) ===
   if (!ENABLED) {

@@ -3,6 +3,7 @@
 // FIX v3: Perplexity opcional — si falta la key, continúa sin contexto cualitativo (no 500).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
