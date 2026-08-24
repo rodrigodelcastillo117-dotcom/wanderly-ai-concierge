@@ -98,6 +98,26 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           ))}
         </nav>
 
+        {/* Estado de membresía */}
+        <Link
+          to="/dashboard/pro"
+          className="mx-2 mb-2 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2 text-[11px] hover:bg-primary/[0.1] transition"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+          <span className="truncate text-muted-foreground">
+            {subLoading
+              ? "Cargando…"
+              : isComped
+                ? "PRO de cortesía"
+                : isTrialing
+                  ? `Prueba · ${trialDaysLeft ?? 0} días`
+                  : isPro
+                    ? "IATOS PRO activo"
+                    : "Activar IATOS PRO"}
+          </span>
+        </Link>
+
+
 
         {/* User */}
         <button
