@@ -961,6 +961,28 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       });
     }
 
+    // Email de cotización lista (fire-and-forget: nunca bloquea la respuesta).
+    try {
+      const { data: perfilEmail } = await supabase
+        .from("profiles").select("email, full_name").eq("id", user.id).maybeSingle();
+      const destinatario = perfilEmail?.email ?? user.email;
+      if (destinatario) {
+        const { subject, html } = tripQuoteEmail({
+          nombre: perfilEmail?.full_name?.split(" ")[0] ?? null,
+          destino: trip.destino,
+          fechaSalida: trip.fecha_salida,
+          fechaRegreso: trip.fecha_regreso,
+          total: Number(trip.total_estimado) || 0,
+          desglose: (trip.desglose_presupuesto ?? {}) as Record<string, unknown>,
+          tripId: trip.id,
+        });
+        void sendEmail({ to: destinatario, subject, html });
+      }
+    } catch (e) {
+      console.warn("analizar-viaje: email no enviado", (e as Error).message);
+    }
+
+
     return new Response(JSON.stringify({
       trip,
       fuentes: investigacion.citations,
