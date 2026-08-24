@@ -115,6 +115,14 @@ Devuelve el viaje completo actualizado como un único objeto JSON.`;
     }
     if (!parsed) return json({ error: "Respuesta de IA inválida" }, 502);
 
+    // Coherencia: total_estimado SIEMPRE = suma del desglose (nunca confiar en la aritmética del modelo).
+    if (parsed.desglose_presupuesto && typeof parsed.desglose_presupuesto === "object") {
+      const suma = Object.values(parsed.desglose_presupuesto)
+        .map((v) => Number(v) || 0)
+        .reduce((a: number, b: number) => a + b, 0);
+      if (suma > 0) parsed.total_estimado = Math.round(suma);
+    }
+
     const update: Record<string, any> = { updated_at: new Date().toISOString() };
     const allowed = [
       "destino","pais_destino","ciudad_origen","fecha_salida","fecha_regreso",
