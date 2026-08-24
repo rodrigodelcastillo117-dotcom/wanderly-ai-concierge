@@ -93,9 +93,6 @@ export function useOnboardingStatus() {
         .select()
         .maybeSingle();
       if (upd) setStatus((s) => (s ? { ...s, ...(upd as any) } : s));
-      track("onboarding_completed");
-      // Correo de bienvenida (solo al propio usuario, fire-and-forget).
-      void supabase.functions.invoke("email-bienvenida", { body: {} }).catch(() => {});
     },
     [user]
   );
