@@ -938,6 +938,34 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     if (vuelosGrupo > 0) {
       a.desglose_presupuesto = { ...a.desglose_presupuesto, vuelos: vuelosGrupo };
     }
+
+    // Igual que con vuelos: el renglón de hospedaje del desglose DEBE coincidir con una opción
+    // real mostrada, no con lo que Claude haya escrito aparte. Tomamos la opción de precio medio
+    // (sin tag de tier explícito en hospedaje) como referencia "equilibrio".
+    if (Array.isArray(a.hospedaje) && a.hospedaje.length > 0) {
+      const hospedajeOrdenado = [...a.hospedaje].sort(
+        (x: any, y: any) => (Number(x?.precio_por_noche) || 0) - (Number(y?.precio_por_noche) || 0),
+      );
+      const hotelReferencia = hospedajeOrdenado[Math.floor(hospedajeOrdenado.length / 2)];
+      const hospedajeGrupo = Math.round((Number(hotelReferencia?.precio_por_noche) || 0) * dias);
+      if (hospedajeGrupo > 0) {
+        a.desglose_presupuesto = { ...a.desglose_presupuesto, hospedaje: hospedajeGrupo };
+      }
+    }
+
+    // Comida no tiene un array de opciones contra el cual recalcular, así que la acotamos con el
+    // techo que el propio prompt le dio a Claude (fine dining: hasta $4,000 MXN p/p por comida,
+    // 3 comidas/día). Si el modelo se pasa de ahí, es un error de redondeo, no un dato real.
+    const COMIDA_TECHO_DIA_PP = 12000;
+    const comidaTecho = COMIDA_TECHO_DIA_PP * dias * body.num_viajeros;
+    const comidaDeclarada = Number(a.desglose_presupuesto?.comida) || 0;
+    if (comidaDeclarada > comidaTecho) {
+      console.warn("analizar-viaje: comida fuera de rango, acotando", {
+        destino: body.destino, declarada: comidaDeclarada, techo: comidaTecho,
+      });
+      a.desglose_presupuesto = { ...a.desglose_presupuesto, comida: comidaTecho };
+    }
+
     // COHERENCIA DE PRESUPUESTO (no negociable): total_estimado = suma exacta del desglose.
     a.desglose_presupuesto = Object.fromEntries(
       Object.entries(a.desglose_presupuesto ?? {}).map(([k, v]) => [k, Math.round(Number(v) || 0)]),
