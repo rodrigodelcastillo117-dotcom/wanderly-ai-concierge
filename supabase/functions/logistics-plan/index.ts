@@ -669,9 +669,13 @@ Entrega JSON con:
         };
         const cheap = sorted[0];
         const mid = sorted[Math.floor(sorted.length / 2)] ?? cheap;
-        const top = sorted[sorted.length - 1] ?? mid;
+        // Para "premium" preferimos la categoría de estrellas más alta disponible, no solo el precio.
+        const maxClass = Math.max(...sorted.map((h: any) => Number(h.hotel_class) || 0));
+        const topPool = maxClass > 0 ? sorted.filter((h: any) => (Number(h.hotel_class) || 0) === maxClass) : sorted;
+        const top = topPool[topPool.length - 1] ?? sorted[sorted.length - 1] ?? mid;
         const built = [build(cheap, "ahorro"), build(mid, "equilibrio"), build(top, "premium")].filter(Boolean);
         if (built.length) hospedaje = built;
+
       } else {
         hospedaje = hospedaje.map((h: any) => ({ ...h, fuente_precio: h.fuente_precio ?? "estimado" }));
       }
