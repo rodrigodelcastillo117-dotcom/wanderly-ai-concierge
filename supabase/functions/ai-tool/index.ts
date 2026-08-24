@@ -1,6 +1,7 @@
 // supabase/functions/ai-tool/index.ts
 // Generic Lovable AI bridge that returns plain text or JSON.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +36,9 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const __rl = await enforceRateLimit(req, "ai-tool", u.user.id, { perMinute: 10, perHour: 80, ipPerMinute: 30 });
+    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
     const { prompt, system, model = "google/gemini-2.5-flash", json = false } = (await req.json()) as {
       prompt: string; system?: string; model?: string; json?: boolean;
