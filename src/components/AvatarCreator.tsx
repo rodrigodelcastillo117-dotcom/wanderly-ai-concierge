@@ -280,7 +280,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <button onClick={() => builderStep === 0 ? setMode("choose") : setBuilderStep(builderStep - 1)} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+          <button onClick={() => builderStep === 0 ? setMode("photo") : setBuilderStep(builderStep - 1)} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
             <ArrowLeft className="w-3 h-3" /> Volver
           </button>
           <span className="text-xs text-muted-foreground">{builderStep + 1} / {builderSteps.length}</span>
