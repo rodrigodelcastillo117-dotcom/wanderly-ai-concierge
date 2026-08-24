@@ -260,6 +260,149 @@ function buildRequestIntelligence(trip: any, userMsg: string, bookings: any[]) {
   };
 }
 
+// ═══ CAPA 4 — DETECCIÓN PROACTIVA DE GAPS ═══
+// Detección determinista (no depende del criterio del modelo) de lo que le falta al viaje.
+const VISA_REQUIRED_HINTS = [
+  "estados unidos", "eeuu", "usa", "united states", "canada", "canadá", "reino unido", "united kingdom",
+  "australia", "nueva zelanda", "japon", "japón", "china", "india", "rusia", "emiratos", "vietnam",
+];
+
+function daysUntil(dateISO: string | null | undefined, todayISO: string): number | null {
+  if (!dateISO) return null;
+  const d = Date.parse(`${dateISO}T00:00:00Z`);
+  const t = Date.parse(`${todayISO}T00:00:00Z`);
+  if (!Number.isFinite(d) || !Number.isFinite(t)) return null;
+  return Math.round((d - t) / 86400000);
+}
+
+export function computeTripGaps(trip: any, bookings: any[], todayISO: string) {
+  if (!trip) return [] as { id: string; severidad: string; titulo: string; detalle: string; sugerencia: string }[];
+  const gaps: { id: string; severidad: string; titulo: string; detalle: string; sugerencia: string }[] = [];
+  const vuelos = asArray(trip.vuelos_json);
+  const hospedaje = asArray(trip.hospedaje_json);
+  const bks = Array.isArray(bookings) ? bookings : [];
+  const catText = normText(bks.map((b) => `${b?.category ?? ""} ${b?.title ?? ""} ${b?.subtitle ?? ""}`).join(" "));
+  const dias = daysUntil(trip.fecha_salida, todayISO);
+  const destinoNorm = normText(`${trip.destino ?? ""} ${trip.pais_destino ?? ""}`);
+  const inTrip = trip.fecha_salida <= todayISO && (trip.fecha_regreso ?? "") >= todayISO;
+
+  // 1. Vuelo de regreso
+  const tieneRegreso = vuelos.length > 1
+    || vuelos.some((v: any) => /regreso|return|vuelta|inbound/.test(normText(JSON.stringify(v ?? {}))))
+    || /vuelo|flight/.test(catText);
+  if (trip.fecha_regreso && vuelos.length > 0 && !tieneRegreso) {
+    gaps.push({
+      id: "vuelo_regreso",
+      severidad: "alta",
+      titulo: "Falta el vuelo de regreso",
+      detalle: `El viaje termina el ${trip.fecha_regreso} pero solo veo vuelo de ida en el itinerario.`,
+      sugerencia: "Ofrece buscar el vuelo de regreso con la tool search_flights usando la fecha de regreso del viaje.",
+    });
+  }
+
+  // 2. Hospedaje
+  if (vuelos.length > 0 && hospedaje.length === 0 && !/hotel|alojamiento|hospedaje|stay/.test(catText)) {
+    gaps.push({
+      id: "hospedaje",
+      severidad: "alta",
+      titulo: "Sin hospedaje reservado",
+      detalle: `No hay hotel registrado para ${trip.destino ?? "el destino"}.`,
+      sugerencia: "Ofrece buscar hoteles con search_hotels usando las fechas exactas del viaje.",
+    });
+  }
+
+  // 3. Seguro de viaje
+  if (!/seguro|insurance|assist/.test(catText)) {
+    gaps.push({
+      id: "seguro",
+      severidad: dias !== null && dias <= 14 ? "alta" : "media",
+      titulo: "Sin seguro de viaje",
+      detalle: "No detecto seguro de viaje contratado para este viaje.",
+      sugerencia: "Recomienda contratar seguro y dirígelo a la sección Seguros de IATOS (/dashboard/insurance).",
+    });
+  }
+
+  // 4. Visa / documentación
+  if (VISA_REQUIRED_HINTS.some((h) => destinoNorm.includes(h))) {
+    gaps.push({
+      id: "visa",
+      severidad: dias !== null && dias <= 45 ? "alta" : "media",
+      titulo: "Verificar visa / autorización de viaje",
+      detalle: `${trip.pais_destino ?? trip.destino} suele requerir visa o autorización electrónica (ESTA/eTA/ETIAS) para pasaporte mexicano.`,
+      sugerencia: "Pregunta si ya tiene visa vigente y explica el trámite y tiempos si no.",
+    });
+  }
+
+  // 5. Transfer aeropuerto → hotel
+  if (vuelos.length > 0 && hospedaje.length > 0 && !/transfer|traslado|transporte|pickup/.test(catText)
+      && !asArray(trip.itinerario_json?.transfers).length) {
+    gaps.push({
+      id: "transfer",
+      severidad: "media",
+      titulo: "Sin transfer aeropuerto → hotel",
+      detalle: "Hay vuelo y hotel pero ningún traslado registrado.",
+      sugerencia: "Ofrece transfer privado con Welcome Pickups usando vuelo, fecha y dirección del hotel ya conocidos.",
+    });
+  }
+
+  // 6. eSIM / conectividad
+  if (!/esim|sim|roaming|datos/.test(catText) && dias !== null && dias <= 21) {
+    gaps.push({
+      id: "esim",
+      severidad: "baja",
+      titulo: "Sin plan de datos internacional",
+      detalle: "El viaje es pronto y no veo eSIM ni plan de roaming.",
+      sugerencia: "Sugiere una eSIM (sección /dashboard/esim) para llegar conectado.",
+    });
+  }
+
+  // 7. Check-in de vuelo inminente
+  if (dias !== null && dias >= 0 && dias <= 2 && vuelos.length > 0) {
+    gaps.push({
+      id: "checkin",
+      severidad: "alta",
+      titulo: "Check-in de vuelo",
+      detalle: `Sales en ${dias === 0 ? "hoy" : `${dias} día(s)`}. El check-in en línea suele abrir 24-48h antes.`,
+      sugerencia: "Recuérdale hacer check-in y confirmar terminal y hora de llegada al aeropuerto.",
+    });
+  }
+
+  // 8. Sin actividades planeadas durante el viaje
+  if (inTrip && asArray(trip.tours_json).length === 0 && asArray(trip.restaurantes_json).length === 0) {
+    gaps.push({
+      id: "actividades",
+      severidad: "baja",
+      titulo: "Sin actividades ni restaurantes",
+      detalle: "Estás en destino sin plan de tours ni reservas gastronómicas.",
+      sugerencia: "Propón 2-3 experiencias y un restaurante alineados a su perfil, usando tools reales.",
+    });
+  }
+
+  return gaps;
+}
+
+function buildGapsBlock(gaps: ReturnType<typeof computeTripGaps>, trip: any) {
+  if (!gaps.length) return "";
+  const lines = [
+    "═══ CAPA 4 — GAPS DETECTADOS EN EL VIAJE (revisión automática) ═══",
+    `Viaje: ${trip?.destino ?? "?"} (${trip?.fecha_salida ?? "?"} → ${trip?.fecha_regreso ?? "?"})`,
+    "",
+  ];
+  gaps.forEach((g, i) => {
+    lines.push(`${i + 1}. [${g.severidad.toUpperCase()}] ${g.titulo}`);
+    lines.push(`   Detalle: ${g.detalle}`);
+    lines.push(`   Acción sugerida: ${g.sugerencia}`);
+  });
+  lines.push("");
+  lines.push("CÓMO USAR ESTOS GAPS:");
+  lines.push("- Estos faltantes son REALES (calculados desde su viaje y reservas). No los cuestiones ni los repitas todos de golpe.");
+  lines.push("- Menciona como MÁXIMO 1 gap por respuesta, el de mayor severidad que sea relevante a lo que preguntó, al final y en una sola frase.");
+  lines.push("- Si el gap es de severidad ALTA y el usuario no pregunta nada relacionado, agrégalo igual como card { \"type\": \"alert\", \"title\": ..., \"body\": ... }.");
+  lines.push("- NUNCA inventes gaps que no estén en esta lista.");
+  lines.push("═══ FIN CAPA 4 ═══");
+  return lines.join("\n");
+}
+
 function asksForKnownTripData(text: string) {
   return /necesito|dime|dame|proporciona|cu[aá]l es|nombre de tu hotel|fecha|hotel en|a qu[eé] hora|te gustar[ií]a que te busque|quieres que busque|puedo ayudarte a encontrar/.test(normText(text));
 }
