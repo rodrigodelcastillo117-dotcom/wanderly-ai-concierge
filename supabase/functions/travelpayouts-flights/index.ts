@@ -181,8 +181,10 @@ Deno.serve(async (req) => {
       currency: currency.toUpperCase(),
       departure_date: body.departure_date,
       return_date: body.return_date ?? null,
+      approximate_dates: approximate,
       flights,
     });
+
   } catch (e: any) {
     console.error("travelpayouts-flights error:", e);
     return okJson({ source: "travelpayouts", error: e?.message ?? "Error desconocido", flights: [] });
