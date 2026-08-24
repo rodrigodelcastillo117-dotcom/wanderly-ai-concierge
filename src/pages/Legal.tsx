@@ -21,6 +21,7 @@ const Shell = ({ title, description, children }: { title: string; description: s
       <footer className="mt-16 pt-8 border-t border-border/40 text-sm text-muted-foreground flex flex-wrap gap-4">
         <Link to="/terminos" className="hover:text-foreground transition">Términos y Condiciones</Link>
         <Link to="/privacidad" className="hover:text-foreground transition">Aviso de Privacidad</Link>
+        <Link to="/reembolsos" className="hover:text-foreground transition">Reembolsos y Cancelación</Link>
         <Link to="/cookies" className="hover:text-foreground transition">Cookies</Link>
         <span>·</span>
         <a href={`mailto:${CONTACT}`} className="hover:text-foreground transition">{CONTACT}</a>
