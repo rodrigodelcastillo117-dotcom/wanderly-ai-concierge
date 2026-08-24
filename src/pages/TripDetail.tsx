@@ -1028,7 +1028,22 @@ const HotelCard = ({ hotel, city, active, onClick }: { hotel: any; city: string;
           <span className="text-xs text-muted-foreground ml-1">/ noche</span>
         </p>
         {hotel.fuente_precio && <PriceSourceBadge source={hotel.fuente_precio} className="mb-2" />}
-        <p className="text-xs text-muted-foreground italic line-clamp-3">{hotel.por_que}</p>
+        <p className="text-xs text-muted-foreground italic line-clamp-3 mb-2">{hotel.por_que}</p>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const bookingUrl = hotel.booking_link || hotel.booking_url || hotel.cta_action;
+            if (bookingUrl) {
+              window.open(bookingUrl, "_blank", "noopener,noreferrer");
+              return;
+            }
+            const u = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(`${hotel.nombre} ${city}`)}`;
+            window.open(u, "_blank", "noopener,noreferrer");
+          }}
+          className="text-xs px-3 py-1.5 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition"
+        >
+          {(hotel.booking_link || hotel.booking_url || hotel.cta_action) ? "Reservar hotel →" : "Buscar y reservar →"}
+        </button>
       </div>
     </div>
   );
