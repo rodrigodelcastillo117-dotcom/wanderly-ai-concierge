@@ -205,11 +205,23 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
   if (mode === "photo") {
     return (
       <div className="space-y-6">
-        <button onClick={() => { setMode("choose"); setSelfie(null); }} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-          <ArrowLeft className="w-3 h-3" /> Volver
-        </button>
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center gap-1 text-[11px] uppercase tracking-widest text-primary">
+            <Sparkles className="w-3 h-3" /> Recomendado
+          </div>
+          <h3 className="font-display text-2xl">Crea tu avatar a partir de tu selfie</h3>
+          <p className="text-sm text-muted-foreground">
+            La IA conserva tus rasgos reales y los convierte en un retrato premium estilo Pixar. Se parecerá a ti de verdad.
+          </p>
+        </div>
 
-        <div className="rounded-2xl border-2 border-dashed border-border bg-surface/50 p-8 text-center">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => !selfie && fileRef.current?.click()}
+          onKeyDown={(e) => { if (!selfie && (e.key === "Enter" || e.key === " ")) fileRef.current?.click(); }}
+          className="rounded-2xl border-2 border-dashed border-primary/50 bg-surface/50 p-8 text-center cursor-pointer hover:border-primary transition"
+        >
           {selfie ? (
             <div className="space-y-4">
               <img src={selfie} alt="Tu foto" className="mx-auto max-h-80 rounded-xl object-cover" />
@@ -219,10 +231,10 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
             </div>
           ) : (
             <div className="space-y-3 py-8">
-              <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
-              <p className="font-display text-lg">Sube una foto clara de tu cara</p>
-              <p className="text-xs text-muted-foreground">JPG o PNG · máx 8MB · cuanto más clara, mejor el resultado</p>
-              <Button onClick={() => fileRef.current?.click()} className="bg-gradient-gold text-primary-foreground">
+              <Camera className="w-12 h-12 text-primary mx-auto" />
+              <p className="font-display text-lg">Sube o toma una foto clara de tu cara</p>
+              <p className="text-xs text-muted-foreground">JPG o PNG · máx 8MB · de frente y bien iluminada = mejor parecido</p>
+              <Button className="bg-gradient-gold text-primary-foreground gold-glow">
                 <Upload className="w-4 h-4 mr-2" /> Seleccionar foto
               </Button>
             </div>
@@ -231,6 +243,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
             ref={fileRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
+            capture="user"
             className="hidden"
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
           />
@@ -238,12 +251,25 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
 
         {selfie && (
           <Button onClick={generateFromSelfie} disabled={loading} className="w-full h-12 bg-gradient-gold text-primary-foreground gold-glow">
-            <Sparkles className="w-4 h-4 mr-2" /> Crear mi caricatura
+            <Sparkles className="w-4 h-4 mr-2" /> Crear mi avatar con mi cara
           </Button>
         )}
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+          <button
+            onClick={() => { setSelfie(null); setMode("builder"); }}
+            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+          >
+            <Wand2 className="w-3 h-3" /> Prefiero diseñarlo por rasgos
+          </button>
+          <button onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground transition">
+            Saltar por ahora →
+          </button>
+        </div>
       </div>
     );
   }
+
 
   if (mode === "builder") {
     const step = builderSteps[builderStep];
