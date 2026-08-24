@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { track } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -68,6 +69,7 @@ export function useSubscription() {
     });
     if (error) throw new Error(error.message);
     if (!data?.url) throw new Error(data?.message ?? "No se pudo iniciar el checkout.");
+    track("checkout_started", { plan: "pro_mensual" });
     window.location.href = data.url as string;
   }, []);
 
