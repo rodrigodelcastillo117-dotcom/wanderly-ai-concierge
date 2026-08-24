@@ -112,6 +112,22 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "check_flight_status",
+      description: "Consulta el estado EN VIVO de un vuelo específico (a tiempo, retrasado, cancelado, puerta, terminal, hora estimada). Úsalo siempre que el usuario pregunte por el estatus de un vuelo concreto, suyo o de alguien más — nunca digas que no tienes acceso a esto sin haberlo intentado primero.",
+      parameters: {
+        type: "object",
+        properties: {
+          flight: { type: "string", description: "Número de vuelo, ej. 'AF179' o 'Aeroméxico 002'" },
+          date: { type: "string", description: "YYYY-MM-DD (opcional, default hoy)" },
+          route: { type: "string", description: "Ej. 'CDMX-CDG' (opcional, ayuda a desambiguar)" },
+        },
+        required: ["flight"],
+      },
+    },
+  },
 ];
 
 async function callTool(name: string, args: any, authHeader: string): Promise<any> {
@@ -120,6 +136,7 @@ async function callTool(name: string, args: any, authHeader: string): Promise<an
     search_hotels: "hotels-search",
     search_attractions: "tripadvisor-search",
     search_nearby: "places-nearby",
+    check_flight_status: "flight-status",
   };
   const fn = map[name];
   if (!fn) return { error: `tool ${name} desconocida` };
