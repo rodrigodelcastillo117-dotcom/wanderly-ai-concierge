@@ -4,6 +4,7 @@ import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
+import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationBell } from "@/components/NotificationBell";
 import iatosLogo from "@/assets/iatos-logo.png";
 
@@ -30,6 +31,7 @@ const mobileNav = [
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
+  const { loading: subLoading, isPro, isTrialing, isComped, trialDaysLeft } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useState<{ full_name?: string | null; avatar_url?: string | null } | null>(null);
@@ -97,6 +99,26 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             </NavLink>
           ))}
         </nav>
+
+        {/* Estado de membresía */}
+        <Link
+          to="/dashboard/pro"
+          className="mx-2 mb-2 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2 text-[11px] hover:bg-primary/[0.1] transition"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+          <span className="truncate text-muted-foreground">
+            {subLoading
+              ? "Cargando…"
+              : isComped
+                ? "PRO de cortesía"
+                : isTrialing
+                  ? `Prueba · ${trialDaysLeft ?? 0} días`
+                  : isPro
+                    ? "IATOS PRO activo"
+                    : "Activar IATOS PRO"}
+          </span>
+        </Link>
+
 
 
         {/* User */}

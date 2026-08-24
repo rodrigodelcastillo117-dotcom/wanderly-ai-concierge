@@ -28,6 +28,8 @@ export type LiveQuote = {
   };
   total_usd: number;
   total_mxn: number;
+  fx_rate?: number;
+  source?: string;
   fetched_at: string;
 };
 

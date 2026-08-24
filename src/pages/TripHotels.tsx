@@ -1,3 +1,4 @@
+import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Hotel, Search, ExternalLink, Loader2, Star } from "lucide-react";
@@ -103,11 +104,7 @@ const TripHotels = () => {
           </Button>
         </div>
 
-        {source && (
-          <p className="text-xs text-muted-foreground">
-            {source === "serpapi" ? "✓ Datos en vivo Google Hotels" : "Estimación IA"}
-          </p>
-        )}
+        {source && <PriceSourceBadge source={source === "serpapi" ? "google_hotels" : source} />}
 
         <div className="grid md:grid-cols-2 gap-3">
           {results.map((h, i) => (

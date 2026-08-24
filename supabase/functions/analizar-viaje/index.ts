@@ -301,7 +301,7 @@ const TOOL_SCHEMA = {
             precio_por_persona: { type: "number" },
             notas: { type: "string" },
             booking_link: { type: "string", description: "Link de afiliado (Travelpayouts/Aviasales) si el precio vino del bloque TRAVELPAYOUTS. Cópialo tal cual." },
-            fuente_precio: { type: "string", enum: ["travelpayouts", "perplexity", "estimado"], description: "Origen del precio. Usa 'travelpayouts' si lo tomaste del bloque TRAVELPAYOUTS." },
+            fuente_precio: { type: "string", enum: ["travelpayouts", "serpapi", "perplexity", "estimado"], description: "Origen del precio. Usa 'travelpayouts' si lo tomaste del bloque TRAVELPAYOUTS." },
           },
           required: ["tier", "aerolinea", "duracion", "escalas", "precio_por_persona"],
         },
@@ -317,8 +317,8 @@ const TOOL_SCHEMA = {
             rating: { type: "number" },
             precio_por_noche: { type: "number" },
             por_que: { type: "string" },
-            booking_link: { type: "string", description: "Link de afiliado (Hotellook) si el hotel vino del bloque TRAVELPAYOUTS. Cópialo tal cual." },
-            fuente_precio: { type: "string", enum: ["travelpayouts", "perplexity", "estimado"] },
+            booking_link: { type: "string", description: "Link de reserva si el hotel vino del bloque SERPAPI / GOOGLE HOTELS. Cópialo tal cual." },
+            fuente_precio: { type: "string", enum: ["serpapi", "travelpayouts", "perplexity", "estimado"], description: "Usa 'serpapi' si el precio vino del bloque GOOGLE HOTELS." },
           },
           required: ["nombre", "tipo", "barrio", "rating", "precio_por_noche", "por_que"],
         },
@@ -719,8 +719,8 @@ Deno.serve(async (req) => {
       }),
     }).then((r) => r.json()).catch((e) => ({ source: "travelpayouts", error: String(e?.message ?? e), flights: [] }));
 
-    // Hotellook murió oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.
-    /* const tpHotelsPromise = fetch(`${SUPABASE_URL}/functions/v1/travelpayouts-hotels`, {
+    // Hotellook murió oct 2025. Fuente primaria de hospedaje ahora: SerpApi Google Hotels (hotels-search).
+    const serpHotelsPromise = fetch(`${SUPABASE_URL}/functions/v1/hotels-search`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -732,15 +732,13 @@ Deno.serve(async (req) => {
         checkin: body.fecha_salida,
         checkout: body.fecha_regreso,
         adults: body.num_viajeros,
-        currency: "usd",
       }),
-    }).then((r) => r.json()).catch((e) => ({ source: "hotellook", error: String(e?.message ?? e), hotels: [] })); */
+    }).then((r) => r.json()).catch((e) => ({ source: "error", error: String(e?.message ?? e), results: [] }));
 
-    const [perplexityResult, tpFlightsRes] = await Promise.allSettled([
+    const [perplexityResult, tpFlightsRes, serpHotelsRes] = await Promise.allSettled([
       investigarConPerplexity(body, dias, vaultDesc),
       tpFlightsPromise,
-      // Hotellook murió oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.
-      // tpHotelsPromise,
+      serpHotelsPromise,
     ]);
 
     const investigacion = perplexityResult.status === "fulfilled"
@@ -748,10 +746,15 @@ Deno.serve(async (req) => {
       : { texto: `(Perplexity falló: ${(perplexityResult as any).reason?.message ?? "error"})`, citations: [] };
 
     const tpFlights = tpFlightsRes.status === "fulfilled" ? tpFlightsRes.value : { error: "promise_rejected", flights: [] };
-    // Hotellook murió oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.
-    // const tpHotels = tpHotelsRes.status === "fulfilled" ? tpHotelsRes.value : { error: "promise_rejected", hotels: [] };
+    const serpHotels = serpHotelsRes.status === "fulfilled" ? serpHotelsRes.value : { error: "promise_rejected", results: [] };
+    // Solo consideramos "en vivo" lo que realmente vino de SerpApi (hotels-search puede caer a IA).
+    const serpHotelsLive = serpHotels?.source === "serpapi" && Array.isArray(serpHotels?.results) && serpHotels.results.length > 0;
 
-    console.log("Perplexity citations:", investigacion.citations.length, "| TP flights:", tpFlights?.flights?.length ?? 0, "| TP hotels: deshabilitado (Hotellook cerró oct 2025)");
+    console.log(
+      "Perplexity citations:", investigacion.citations.length,
+      "| TP flights:", tpFlights?.flights?.length ?? 0,
+      "| SerpApi hotels:", serpHotels?.results?.length ?? 0, "source:", serpHotels?.source ?? "none",
+    );
 
     // Bloques de texto que Claude verá para los precios reales de Travelpayouts
     const tpFlightsBlock = (() => {
@@ -765,8 +768,18 @@ Deno.serve(async (req) => {
       return `Fuente: Travelpayouts/Aviasales (precios oficiales del inventario, consultados ${tpFlights.consulted_at}).\nRuta: ${tpFlights.origin}→${tpFlights.destination}\n${lines}`;
     })();
 
-    // Hotellook murió oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.
-    const tpHotelsBlock = "(Sin datos de Hotellook — servicio cerrado en octubre 2025. Usar hoteles de Perplexity.)";
+    // Bloque de hoteles con precios reales de SerpApi / Google Hotels
+    const serpHotelsBlock = (() => {
+      if (!serpHotelsLive) {
+        return `(Sin datos en vivo de Google Hotels${serpHotels?.error ? `. Motivo: ${serpHotels.error}` : ""} — usar hoteles de Perplexity con fuente_precio="perplexity" o "estimado")`;
+      }
+      const lines = serpHotels.results.slice(0, 12).map((h: any, i: number) => {
+        const nightlyMxn = Math.round((Number(h.nightly_usd) || 0) * fxUsd);
+        return `${i + 1}. ${h.name}${h.hotel_class ? ` (${h.hotel_class}★)` : ""}${h.rating ? ` — rating ${h.rating}` : ""} — USD ${h.nightly_usd}/noche (~$${nightlyMxn.toLocaleString("es-MX")} MXN/noche) — total estancia USD ${h.total_usd ?? "?"} — LINK: ${h.booking_url}`;
+      }).join("\n");
+      return `Fuente: SerpApi / Google Hotels (tarifas reales consultadas hoy para ${body.fecha_salida} → ${body.fecha_regreso}, ${body.num_viajeros} adultos).\n${lines}`;
+    })();
+
 
     // PASO 2: Claude estructura el análisis usando los datos reales
     const userPrompt = `Genera un análisis premium de viaje usando EXCLUSIVAMENTE los precios reales investigados abajo.
@@ -806,8 +819,8 @@ PRECIOS PRIMARIOS — TRAVELPAYOUTS (fuente oficial de inventario; USA ESTOS PRE
 VUELOS (Aviasales):
 ${tpFlightsBlock}
 
-HOTELES (Hotellook):
-${tpHotelsBlock}
+HOTELES (SerpApi / Google Hotels):
+${serpHotelsBlock}
 ==========================================
 
 ==========================================
@@ -821,8 +834,8 @@ ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 
 REGLAS DE FUENTES:
 - Si arriba hay datos de TRAVELPAYOUTS para vuelos, los 3 tiers (ahorro/equilibrio/premium) DEBEN salir de esa lista. Convierte USD→MXN (×${fxUsd}, tipo de cambio de referencia del día). En cada vuelo, copia el booking_link exacto y pon fuente_precio="travelpayouts".
-- Si arriba hay datos de TRAVELPAYOUTS para hoteles, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Copia el booking_link y pon fuente_precio="travelpayouts".
-- Si TRAVELPAYOUTS no trajo datos para una categoría, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link.
+- Si arriba hay datos de SERPAPI / GOOGLE HOTELS, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Convierte USD→MXN (×${fxUsd}), copia el booking_link exacto y pon fuente_precio="serpapi". NUNCA inventes un hotel ni un precio si esa lista trae datos.
+- Si una categoría no trajo datos en vivo, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link. Si tampoco hay contexto de Perplexity, pon fuente_precio="estimado".
 - Restaurantes, tours, itinerario, tips y cruceros se sacan SIEMPRE de Perplexity.
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
@@ -932,9 +945,10 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
           sample: (tpFlights?.flights ?? []).slice(0, 3),
         },
         hotels: {
-          count: 0,
-          error: "Hotellook cerró en oct 2025. travelpayouts-hotels deshabilitada hasta integrar afiliado nuevo.",
-          sample: [],
+          source: serpHotelsLive ? "serpapi" : (serpHotels?.source ?? "none"),
+          count: serpHotels?.results?.length ?? 0,
+          error: serpHotels?.error ?? null,
+          sample: (serpHotels?.results ?? []).slice(0, 3),
         },
       },
     }), {
