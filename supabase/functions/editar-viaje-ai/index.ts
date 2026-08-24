@@ -2,6 +2,7 @@
 // y la IA reescribe/reorganiza/recotiza el viaje completo.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { getUsdMxnRate, getEurMxnRate } from "../_shared/fx.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
