@@ -461,7 +461,11 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
           checkin: w.checkin,
           checkout: w.checkout,
           adults: viajeros,
+          // SerpApi ordena por precio más bajo: sin filtro de categoría el resultado son hostales.
+          // Filtramos por estrellas según el nivel de presupuesto del usuario.
+          hotel_class: HOTEL_CLASS_BY_TIER[selectedTier],
         }),
+
         invokeFn("tripadvisor-search", authHeader, {
           query: w.city,
           category: "attractions",
