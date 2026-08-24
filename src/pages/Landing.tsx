@@ -225,6 +225,12 @@ const Landing = () => {
       <footer className="border-t border-border/40 py-12">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <img src={iatosLogo} alt="IATOS AI" className="h-8 w-auto object-contain" />
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+            <Link to="/terminos" className="hover:text-foreground transition">Términos</Link>
+            <Link to="/privacidad" className="hover:text-foreground transition">Privacidad</Link>
+            <Link to="/cookies" className="hover:text-foreground transition">Cookies</Link>
+            <a href="mailto:hola@traveliatos.life" className="hover:text-foreground transition">Contacto</a>
+          </nav>
           <p className="text-sm text-muted-foreground">© 2026 IATOS AI. Diseñado en CDMX.</p>
         </div>
       </footer>
