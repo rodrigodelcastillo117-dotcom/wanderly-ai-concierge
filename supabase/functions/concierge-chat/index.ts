@@ -652,6 +652,10 @@ Deno.serve(async (req) => {
       multiTripBlock = lines.join("\n");
     }
 
+    // === CAPA 4 — GAPS DEL VIAJE (determinista) ===
+    const tripGaps = trip ? computeTripGaps(trip, bookings, todayISO) : [];
+    const gapsBlock = buildGapsBlock(tripGaps, trip);
+
     // === BLOQUE DEDICADO AL VIAJE MÁS RELEVANTE PARA LA PETICIÓN ACTUAL ===
     // Se inyecta como SYSTEM separado para que el modelo lo trate como contexto fijo.
     if (trip) {
