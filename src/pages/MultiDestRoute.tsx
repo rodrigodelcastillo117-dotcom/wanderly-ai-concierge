@@ -749,14 +749,81 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                 </div>
               )}
 
+              {/* Hospedaje y experiencias por ciudad */}
+              {generated.logistics.per_destination?.length > 0 && (
+                <div className="rounded-3xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 md:px-6 py-3 border-b border-border flex items-center gap-2 text-sm">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span className="text-primary tracking-[0.25em] uppercase text-xs">Hospedaje y experiencias</span>
+                  </div>
+                  {generated.logistics.per_destination.map((pd: any, i: number) => (
+                    <div key={i} className="p-5 md:p-6 border-b border-border last:border-0 space-y-3">
+                      <p className="text-sm text-foreground font-medium">
+                        {pd.city}
+                        <span className="text-xs text-muted-foreground ml-2">{pd.nights} noche(s)</span>
+                      </p>
+                      <ul className="space-y-2 text-sm">
+                        {(pd.hospedaje ?? []).map((h: any, j: number) => (
+                          <li key={j} className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs uppercase tracking-widest text-muted-foreground">{h.tier}</span>
+                              <span className="text-foreground">{h.nombre}</span>
+                              <PriceSourceBadge source={h.fuente_precio} />
+                            </div>
+                            {h.price_per_night_usd != null && (
+                              <span className="text-xs text-primary whitespace-nowrap">
+                                ${Math.round(h.price_per_night_usd)} USD / noche
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {(pd.experiencias ?? []).length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {pd.experiencias.map((e: any, j: number) => (
+                            <span
+                              key={j}
+                              className="px-2.5 py-1 rounded-full bg-surface border border-border text-xs inline-flex items-center gap-1.5"
+                            >
+                              {e.nombre}
+                              <PriceSourceBadge source={e.fuente} />
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Total + CTA al detalle */}
-              {generated.logistics.total_estimado_usd != null && (
+              {generated.logistics.total_estimado_mxn != null && (
                 <div className="rounded-3xl border border-border bg-card p-6 flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs tracking-[0.25em] uppercase text-primary mb-1">Total estimado</p>
-                    <p className="font-display text-3xl md:text-4xl gold-text">
-                      ${Math.round(generated.logistics.total_estimado_usd).toLocaleString("en-US")} USD
+                    <p className="text-xs tracking-[0.25em] uppercase text-primary mb-1">
+                      Total estimado · nivel {generated.logistics.selected_tier ?? "equilibrio"}
                     </p>
+                    <p className="font-display text-3xl md:text-4xl gold-text">
+                      ${Math.round(generated.logistics.total_estimado_mxn).toLocaleString("es-MX")} MXN
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ≈ ${Math.round(generated.logistics.total_estimado_usd ?? 0).toLocaleString("en-US")} USD
+                      {generated.logistics.fx_usd_mxn
+                        ? ` · TC ${Number(generated.logistics.fx_usd_mxn).toFixed(2)} MXN/USD`
+                        : ""}
+                    </p>
+                    {generated.logistics.desglose_presupuesto && (
+                      <ul className="mt-3 text-xs text-muted-foreground space-y-1 max-w-xs">
+                        {Object.entries(generated.logistics.desglose_presupuesto).map(([k, v]) => (
+                          <li key={k} className="flex justify-between gap-6">
+                            <span className="capitalize">{k.replace("_", " ")}</span>
+                            <span className="text-foreground">
+                              ${Math.round(Number(v) || 0).toLocaleString("es-MX")}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     {generated.logistics.resumen && (
                       <p className="text-xs text-muted-foreground mt-2 max-w-md">{generated.logistics.resumen}</p>
                     )}
@@ -771,6 +838,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                   )}
                 </div>
               )}
+
 
             </motion.section>
           )}
