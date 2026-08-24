@@ -637,6 +637,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                             ${Math.round(f.price_per_person_usd)} USD / persona
                           </span>
                         )}
+                        <PriceSourceBadge source={f.fuente_precio} />
+
                       </div>
                       {f.notes && <p className="text-xs text-muted-foreground mt-2">{f.notes}</p>}
                     </div>
