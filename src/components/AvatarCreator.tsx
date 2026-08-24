@@ -93,7 +93,8 @@ type Props = {
 };
 
 export default function AvatarCreator({ onComplete, onSkip }: Props) {
-  const [mode, setMode] = useState<Mode>("choose");
+  // La ruta principal es la selfie: el avatar debe PARECERSE al usuario.
+  const [mode, setMode] = useState<Mode>("photo");
   const [selfie, setSelfie] = useState<string | null>(null);
   const [builder, setBuilder] = useState<Builder>(DEFAULT_BUILDER);
   const [builderStep, setBuilderStep] = useState(0);
