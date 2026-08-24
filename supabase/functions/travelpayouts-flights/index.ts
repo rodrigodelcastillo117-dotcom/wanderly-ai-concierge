@@ -81,36 +81,70 @@ Deno.serve(async (req) => {
     }
 
     const currency = (body.currency ?? "usd").toLowerCase();
-    const params = new URLSearchParams({
-      origin,
-      destination,
-      departure_at: body.departure_date,
-      currency,
-      sorting: "price",
-      direct: "false",
-      limit: "30",
-      token: TP_TOKEN,
-    });
-    if (body.return_date) params.set("return_at", body.return_date);
 
-    const url = `https://api.travelpayouts.com/aviasales/v3/prices_for_dates?${params.toString()}`;
-    const res = await fetch(url, {
-      headers: { "X-Access-Token": TP_TOKEN, Accept: "application/json" },
-    });
+    const fetchTp = async (departAt: string, returnAt?: string | null) => {
+      const params = new URLSearchParams({
+        origin,
+        destination,
+        departure_at: departAt,
+        currency,
+        sorting: "price",
+        direct: "false",
+        limit: "30",
+        token: TP_TOKEN,
+      });
+      if (returnAt) params.set("return_at", returnAt);
+      const url = `https://api.travelpayouts.com/aviasales/v3/prices_for_dates?${params.toString()}`;
+      const res = await fetch(url, {
+        headers: { "X-Access-Token": TP_TOKEN, Accept: "application/json" },
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        return { ok: false, error: `Travelpayouts HTTP ${res.status}: ${t.slice(0, 300)}`, rows: [] as any[] };
+      }
+      const data = await res.json();
+      if (!data?.success || !Array.isArray(data?.data)) {
+        return { ok: false, error: "Respuesta sin data", rows: [] as any[] };
+      }
+      return { ok: true, error: null as string | null, rows: data.data as any[] };
+    };
 
-    if (!res.ok) {
-      const t = await res.text();
+    // 1) Fecha exacta. 2) Si la caché de Travelpayouts no tiene esa fecha,
+    //    reintenta a nivel mes (YYYY-MM) y prioriza las salidas más cercanas.
+    let attempt = await fetchTp(body.departure_date, body.return_date);
+    let rows = attempt.rows;
+    let approximate = false;
+    let lastError = attempt.error;
+
+    if (rows.length === 0 && /^\d{4}-\d{2}-\d{2}$/.test(body.departure_date)) {
+      const month = body.departure_date.slice(0, 7);
+      const monthAttempt = await fetchTp(month, body.return_date ? body.return_date.slice(0, 7) : null);
+      if (monthAttempt.rows.length > 0) {
+        const target = new Date(body.departure_date).getTime();
+        rows = monthAttempt.rows
+          .slice()
+          .sort((a: any, b: any) => {
+            const da = Math.abs(new Date(a?.departure_at ?? 0).getTime() - target);
+            const db = Math.abs(new Date(b?.departure_at ?? 0).getTime() - target);
+            return da - db;
+          })
+          .slice(0, 20);
+        approximate = true;
+      } else {
+        lastError = monthAttempt.error ?? lastError;
+      }
+    }
+
+    const data = { data: rows };
+    if (rows.length === 0) {
       return okJson({
         source: "travelpayouts",
-        error: `Travelpayouts HTTP ${res.status}: ${t.slice(0, 300)}`,
+        error: lastError ?? "sin_resultados_en_cache",
+        approximate_dates: false,
         flights: [],
       });
     }
 
-    const data = await res.json();
-    if (!data?.success || !Array.isArray(data?.data)) {
-      return okJson({ source: "travelpayouts", error: "Respuesta sin data", flights: [] });
-    }
 
     const marker = (TP_MARKER && TP_MARKER.trim()) ? TP_MARKER.trim() : "533299";
     const flights = data.data.slice(0, 20).map((f: any) => {
@@ -147,8 +181,10 @@ Deno.serve(async (req) => {
       currency: currency.toUpperCase(),
       departure_date: body.departure_date,
       return_date: body.return_date ?? null,
+      approximate_dates: approximate,
       flights,
     });
+
   } catch (e: any) {
     console.error("travelpayouts-flights error:", e);
     return okJson({ source: "travelpayouts", error: e?.message ?? "Error desconocido", flights: [] });
