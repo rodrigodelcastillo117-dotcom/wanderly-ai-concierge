@@ -3,6 +3,7 @@ import { ExternalLink, Loader2 } from "lucide-react";
 import { welcomePickupsLink, type WelcomePickupsTransferInput } from "@/lib/affiliateLinks";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { track } from "@/lib/analytics";
 
 const FIXER_WHATSAPP = "525543580077";
 
@@ -106,6 +107,8 @@ export function ActionButton({
           if (error) console.error("Failed to log affiliate click:", error);
         });
     }
+
+    track("affiliate_click", { provider, accion });
 
     // Feedback visual breve sin bloquear.
     setLoading(true);

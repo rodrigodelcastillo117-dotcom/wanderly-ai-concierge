@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { setSentryUser } from "@/lib/sentry";
+import { identifyUser, resetAnalytics, track } from "@/lib/analytics";
 
 interface AuthContextValue {
   user: User | null;
@@ -26,6 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setSentryUser(newSession?.user ? { id: newSession.user.id, email: newSession.user.email } : null);
+      if (newSession?.user) identifyUser(newSession.user.id, { email: newSession.user.email });
       setLoading(false);
     };
 
@@ -63,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) track("login", { method: "password" });
     return { error: error?.message };
   };
 
@@ -75,11 +78,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         data: { full_name: fullName },
       },
     });
+    if (!error) track("signup", { method: "password" });
     return { error: error?.message };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut({ scope: "local" });
+    resetAnalytics();
   };
 
   return (

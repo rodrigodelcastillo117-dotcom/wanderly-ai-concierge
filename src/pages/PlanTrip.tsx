@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { useAuth } from "@/contexts/AuthContext";
+import { track } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -124,6 +125,11 @@ const PlanTrip = () => {
       const { data, error } = await supabase.functions.invoke("analizar-viaje", { body: args });
       if (error) throw error;
       if (!data?.trip?.id) throw new Error("Sin resultado");
+      track("trip_quoted", {
+        destino: args.destino,
+        viajeros: args.num_viajeros,
+        total_estimado: data.trip.total_estimado ?? null,
+      });
       navigate(`/dashboard/viajes/${data.trip.id}`);
     } catch (e: any) {
       console.error(e);

@@ -4,6 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -898,11 +899,30 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     );
     if (vuelosGrupo > 0) {
       a.desglose_presupuesto = { ...a.desglose_presupuesto, vuelos: vuelosGrupo };
-      a.total_estimado = Object.values(a.desglose_presupuesto).reduce(
-        (sum: number, value: any) => sum + (Number(value) || 0),
-        0,
-      );
     }
+    // COHERENCIA DE PRESUPUESTO (no negociable): total_estimado = suma exacta del desglose.
+    a.desglose_presupuesto = Object.fromEntries(
+      Object.entries(a.desglose_presupuesto ?? {}).map(([k, v]) => [k, Math.round(Number(v) || 0)]),
+    );
+    const sumaDesglose = Object.values(a.desglose_presupuesto).reduce(
+      (sum: number, value: any) => sum + (Number(value) || 0),
+      0,
+    );
+    if (sumaDesglose > 0) {
+      a.total_estimado = sumaDesglose;
+    } else if (!(Number(a.total_estimado) > 0)) {
+      // Nunca guardar un viaje con total 0: es peor que un error visible.
+      console.error("analizar-viaje: desglose vacío y total 0", { destino: body.destino });
+      return new Response(JSON.stringify({
+        error: "no_pricing_available",
+        message: "No pudimos armar una cotización confiable ahora mismo. Intenta de nuevo en unos minutos.",
+      }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    // Trazabilidad de campos vacíos para monitoreo (no bloquea, pero queda en logs).
+    const camposVacios = ["vuelos", "hospedaje", "restaurantes", "tours", "itinerario"]
+      .filter((k) => !Array.isArray(a[k]) ? !a[k] : a[k].length === 0);
+    if (camposVacios.length) console.warn("analizar-viaje: campos vacíos", camposVacios, body.destino);
+
 
     const { data: trip, error: insertErr } = await supabase
       .from("trips")
@@ -941,6 +961,28 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Email de cotización lista (fire-and-forget: nunca bloquea la respuesta).
+    try {
+      const { data: perfilEmail } = await supabase
+        .from("profiles").select("email, full_name").eq("id", user.id).maybeSingle();
+      const destinatario = perfilEmail?.email ?? user.email;
+      if (destinatario) {
+        const { subject, html } = tripQuoteEmail({
+          nombre: perfilEmail?.full_name?.split(" ")[0] ?? null,
+          destino: trip.destino,
+          fechaSalida: trip.fecha_salida,
+          fechaRegreso: trip.fecha_regreso,
+          total: Number(trip.total_estimado) || 0,
+          desglose: (trip.desglose_presupuesto ?? {}) as Record<string, unknown>,
+          tripId: trip.id,
+        });
+        void sendEmail({ to: destinatario, subject, html });
+      }
+    } catch (e) {
+      console.warn("analizar-viaje: email no enviado", (e as Error).message);
+    }
+
 
     return new Response(JSON.stringify({
       trip,
