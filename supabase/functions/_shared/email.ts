@@ -3,12 +3,16 @@
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 const FROM_DEFAULT = "IATOS AI <hola@traveliatos.life>";
+// Remitente compartido de Resend: se usa solo si el dominio propio
+// todavía no está verificado, para no perder el envío.
+const FROM_FALLBACK = "IATOS AI <onboarding@resend.dev>";
 
 export async function sendEmail(opts: {
   to: string | string[];
   subject: string;
   html: string;
   from?: string;
+  replyTo?: string;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -16,7 +20,8 @@ export async function sendEmail(opts: {
     console.warn("sendEmail: faltan LOVABLE_API_KEY o RESEND_API_KEY");
     return { ok: false, error: "email_not_configured" };
   }
-  try {
+
+  const post = async (from: string) => {
     const r = await fetch(`${GATEWAY_URL}/emails`, {
       method: "POST",
       headers: {
@@ -25,23 +30,37 @@ export async function sendEmail(opts: {
         "X-Connection-Api-Key": RESEND_API_KEY,
       },
       body: JSON.stringify({
-        from: opts.from ?? FROM_DEFAULT,
+        from,
         to: Array.isArray(opts.to) ? opts.to : [opts.to],
         subject: opts.subject,
         html: opts.html,
+        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
       }),
     });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      console.error("sendEmail error", r.status, data);
-      return { ok: false, error: data?.message ?? `resend_${r.status}` };
+    return { ok: r.ok, status: r.status, data };
+  };
+
+  try {
+    const from = opts.from ?? FROM_DEFAULT;
+    let res = await post(from);
+
+    if (!res.ok && /not verified/i.test(String(res.data?.message ?? ""))) {
+      console.warn("sendEmail: dominio no verificado, usando remitente compartido");
+      res = await post(FROM_FALLBACK);
     }
-    return { ok: true, id: data?.id };
+
+    if (!res.ok) {
+      console.error("sendEmail error", res.status, res.data);
+      return { ok: false, error: res.data?.message ?? `resend_${res.status}` };
+    }
+    return { ok: true, id: res.data?.id };
   } catch (e) {
     console.error("sendEmail exception", (e as Error).message);
     return { ok: false, error: (e as Error).message };
   }
 }
+
 
 const money = (n: number) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n || 0);
