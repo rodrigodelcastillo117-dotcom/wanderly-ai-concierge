@@ -118,6 +118,18 @@ verify_jwt = true
 [functions.share-trip-notify]
 verify_jwt = true
 
+[functions.stripe-checkout]
+verify_jwt = true
+
+[functions.stripe-portal]
+verify_jwt = true
+
+# webhook público: valida la firma de Stripe internamente
+[functions.stripe-webhook]
+verify_jwt = false
+
+
+
 [functions.suggest-packing]
 verify_jwt = true
 
