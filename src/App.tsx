@@ -19,7 +19,7 @@ import Trips from "./pages/Trips";
 import MultiDestRoute from "./pages/MultiDestRoute";
 import Profile from "./pages/Profile";
 import Discover from "./pages/Discover";
-import { Pro } from "./pages/SoonPages";
+import Pro from "./pages/Pro";
 import Concierge from "./pages/Concierge";
 import Cercanos from "./pages/Cercanos";
 import Favoritos from "./pages/Favoritos";
