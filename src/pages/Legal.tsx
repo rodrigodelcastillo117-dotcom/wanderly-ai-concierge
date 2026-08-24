@@ -83,7 +83,9 @@ export const Privacidad = () => (
       <h2>2. Datos que recabamos</h2>
       <ul>
         <li><strong>Cuenta:</strong> nombre, correo electrónico, ciudad de origen, fecha de nacimiento (opcional) y foto de perfil.</li>
-        <li><strong>Preferencias de viaje:</strong> gustos gastronómicos, restricciones alimentarias, ritmo de viaje, presupuesto y programas de lealtad que decidas registrar.</li>
+        <li><strong>Preferencias de viaje (Travel DNA):</strong> gustos gastronómicos, restricciones alimentarias, ritmo de viaje, presupuesto y programas de lealtad que decidas registrar.</li>
+        <li><strong>Bóveda de beneficios:</strong> el nombre o tipo de tus tarjetas y membresías para identificar beneficios aplicables. <strong>Nunca pedimos ni almacenamos números completos de tarjeta, CVV ni fechas de vencimiento.</strong></li>
+        <li><strong>Fotografías para tu avatar:</strong> si subes una selfie para generar tu avatar, la imagen se procesa con nuestro proveedor de IA para crear el avatar y no se usa para entrenar modelos ni se comparte con terceros con fines publicitarios. Puedes eliminar tu avatar y tu foto desde tu perfil.</li>
         <li><strong>Contenido de viajes:</strong> destinos, fechas, itinerarios, gastos, notas y conversaciones con el Concierge.</li>
         <li><strong>Datos técnicos:</strong> dirección IP, tipo de dispositivo y registros de error para seguridad y diagnóstico.</li>
       </ul>
