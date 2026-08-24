@@ -2,6 +2,14 @@ import { useNavigate } from "react-router-dom";
 import { Crown, ExternalLink, Sparkles, Plane, Hotel, Wifi, Car, CreditCard } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
+import { airaloLink, discoverCarsLink, getYourGuideLink } from "@/lib/affiliateLinks";
+
+// Fechas placeholder solo para que el link de Discover Cars abra con un rango
+// razonable; el usuario ajusta ciudad/fechas reales en el sitio del partner.
+const hoy = new Date();
+const enUnMes = new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000);
+const enDosMeses = new Date(hoy.getTime() + 60 * 24 * 60 * 60 * 1000);
+const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 const BENEFITS = [
   {
@@ -9,6 +17,7 @@ const BENEFITS = [
     name: "Priority Pass",
     desc: "Acceso a +1,500 salas VIP en aeropuertos del mundo",
     perk: "30 días gratis con tarjeta American Express Platinum",
+    // Sin programa de afiliado propio confirmado — va directo al sitio oficial.
     url: "https://www.prioritypass.com/",
   },
   {
@@ -16,6 +25,7 @@ const BENEFITS = [
     name: "Hoteles.com Rewards",
     desc: "1 noche gratis cada 10 reservadas",
     perk: "Apila con Silver/Gold para upgrades automáticos",
+    // Página de lealtad, no de reserva — no hay comisión que capturar aquí.
     url: "https://www.hoteles.com/rewards",
   },
   {
@@ -23,20 +33,21 @@ const BENEFITS = [
     name: "Airalo eSIM",
     desc: "Datos móviles en 200+ países sin cambiar chip",
     perk: "$3 USD OFF tu primera eSIM con código NEWTOAIRALO",
-    url: "https://www.airalo.com/?ref=iatos",
+    url: airaloLink(),
   },
   {
     icon: Car,
     name: "Discover Cars",
     desc: "Comparador de rentas de auto en 145 países",
     perk: "Cancelación gratis hasta 48h antes",
-    url: "https://www.discovercars.com/",
+    url: discoverCarsLink("", iso(enUnMes), iso(enDosMeses)),
   },
   {
     icon: CreditCard,
     name: "Wise (TransferWise)",
     desc: "Tarjeta multidivisa con tipo de cambio real",
     perk: "Hasta $700 USD/mes sin comisión en cajeros",
+    // Requiere código de referido personal de Wise — sin programa configurado.
     url: "https://wise.com/",
   },
   {
@@ -44,7 +55,7 @@ const BENEFITS = [
     name: "GetYourGuide",
     desc: "Tours, experiencias y skip-the-line en 150+ destinos",
     perk: "Cancelación gratis 24h antes en la mayoría",
-    url: "https://www.getyourguide.com/",
+    url: getYourGuideLink(""),
   },
 ];
 
