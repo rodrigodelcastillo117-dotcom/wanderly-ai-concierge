@@ -228,6 +228,7 @@ const Landing = () => {
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
             <Link to="/terminos" className="hover:text-foreground transition">Términos</Link>
             <Link to="/privacidad" className="hover:text-foreground transition">Privacidad</Link>
+            <Link to="/reembolsos" className="hover:text-foreground transition">Reembolsos</Link>
             <Link to="/cookies" className="hover:text-foreground transition">Cookies</Link>
             <a href="mailto:hola@traveliatos.life" className="hover:text-foreground transition">Contacto</a>
           </nav>

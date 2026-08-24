@@ -21,6 +21,7 @@ const Shell = ({ title, description, children }: { title: string; description: s
       <footer className="mt-16 pt-8 border-t border-border/40 text-sm text-muted-foreground flex flex-wrap gap-4">
         <Link to="/terminos" className="hover:text-foreground transition">Términos y Condiciones</Link>
         <Link to="/privacidad" className="hover:text-foreground transition">Aviso de Privacidad</Link>
+        <Link to="/reembolsos" className="hover:text-foreground transition">Reembolsos y Cancelación</Link>
         <Link to="/cookies" className="hover:text-foreground transition">Cookies</Link>
         <span>·</span>
         <a href={`mailto:${CONTACT}`} className="hover:text-foreground transition">{CONTACT}</a>
@@ -82,7 +83,9 @@ export const Privacidad = () => (
       <h2>2. Datos que recabamos</h2>
       <ul>
         <li><strong>Cuenta:</strong> nombre, correo electrónico, ciudad de origen, fecha de nacimiento (opcional) y foto de perfil.</li>
-        <li><strong>Preferencias de viaje:</strong> gustos gastronómicos, restricciones alimentarias, ritmo de viaje, presupuesto y programas de lealtad que decidas registrar.</li>
+        <li><strong>Preferencias de viaje (Travel DNA):</strong> gustos gastronómicos, restricciones alimentarias, ritmo de viaje, presupuesto y programas de lealtad que decidas registrar.</li>
+        <li><strong>Bóveda de beneficios:</strong> el nombre o tipo de tus tarjetas y membresías para identificar beneficios aplicables. <strong>Nunca pedimos ni almacenamos números completos de tarjeta, CVV ni fechas de vencimiento.</strong></li>
+        <li><strong>Fotografías para tu avatar:</strong> si subes una selfie para generar tu avatar, la imagen se procesa con nuestro proveedor de IA para crear el avatar y no se usa para entrenar modelos ni se comparte con terceros con fines publicitarios. Puedes eliminar tu avatar y tu foto desde tu perfil.</li>
         <li><strong>Contenido de viajes:</strong> destinos, fechas, itinerarios, gastos, notas y conversaciones con el Concierge.</li>
         <li><strong>Datos técnicos:</strong> dirección IP, tipo de dispositivo y registros de error para seguridad y diagnóstico.</li>
       </ul>
@@ -134,6 +137,52 @@ export const Cookies = () => (
     <section>
       <h2>3. Contacto</h2>
       <p>Dudas sobre cookies: <a href={`mailto:${CONTACT}`} className="text-primary">{CONTACT}</a>.</p>
+    </section>
+  </Shell>
+);
+
+export const Reembolsos = () => (
+  <Shell title="Política de Reembolsos y Cancelación" description="Suscripción IATOS PRO — $99 MXN al mes">
+    <section>
+      <h2>1. Qué estás contratando</h2>
+      <p>IATOS PRO es una suscripción digital de $99 MXN mensuales que te da acceso ilimitado al Concierge Iato, análisis de viaje con precios en vivo, Members Only y Fixer humano. Es un servicio de software: <strong>no incluye vuelos, hoteles, tours ni seguros</strong>. Esas reservas las haces tú directamente con el proveedor final a través de los enlaces que te entregamos.</p>
+    </section>
+    <section>
+      <h2>2. Periodo de prueba de 30 días</h2>
+      <ul>
+        <li>Al activar la suscripción se requiere una tarjeta, pero <strong>no se genera ningún cargo durante los primeros 30 días</strong>.</li>
+        <li>Si cancelas antes de que termine la prueba, no se te cobra nada.</li>
+        <li>Al terminar la prueba se realiza el primer cargo de $99 MXN y a partir de ahí se renueva automáticamente cada mes.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>3. Cancelación</h2>
+      <ul>
+        <li>Puedes cancelar en cualquier momento, sin penalización, desde <strong>Dashboard → IATOS PRO → Gestionar suscripción</strong> (portal de Stripe).</li>
+        <li>La cancelación surte efecto al final del periodo ya pagado: conservas el acceso PRO hasta esa fecha y no se generan cargos posteriores.</li>
+        <li>También puedes solicitar la cancelación escribiendo a <a href={`mailto:${CONTACT}`} className="text-primary">{CONTACT}</a>; la procesamos dentro de los 5 días hábiles siguientes.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>4. Reembolsos</h2>
+      <ul>
+        <li><strong>Garantía de 7 días:</strong> si solicitas el reembolso dentro de los 7 días naturales posteriores a tu primer cargo, te devolvemos el 100% de ese cargo, sin preguntas.</li>
+        <li><strong>Cargo duplicado o error de facturación:</strong> reembolso íntegro siempre, sin límite de tiempo, en cuanto lo verifiquemos.</li>
+        <li><strong>Falla del servicio:</strong> si la plataforma estuvo inoperante por una causa atribuible a nosotros durante una parte significativa del mes, reembolsamos la parte proporcional.</li>
+        <li>Fuera de esos supuestos, los meses ya iniciados no son reembolsables de forma prorrateada; lo que hacemos es cancelar la renovación y dejarte el acceso hasta el fin del periodo.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>5. Cómo solicitarlo</h2>
+      <p>Escribe a <a href={`mailto:${CONTACT}`} className="text-primary">{CONTACT}</a> desde el correo de tu cuenta, indicando la fecha del cargo. Respondemos en un máximo de 5 días hábiles. Los reembolsos aprobados se procesan por Stripe al mismo método de pago y suelen reflejarse en tu estado de cuenta en 5 a 10 días hábiles, según tu banco.</p>
+    </section>
+    <section>
+      <h2>6. Reservas con proveedores externos</h2>
+      <p>Los cobros de vuelos, hoteles, tours, traslados o seguros los realiza el proveedor final, no IATOS AI. Cualquier cambio, cancelación o reembolso de esas reservas se rige por las políticas de ese proveedor y debe gestionarse directamente con él. Podemos ayudarte a ubicar el canal correcto, pero no tenemos facultad para cancelar ni reembolsar en su nombre.</p>
+    </section>
+    <section>
+      <h2>7. Cambios de precio</h2>
+      <p>Si modificamos el precio de la suscripción, te avisaremos por correo con al menos 30 días de anticipación. Puedes cancelar antes de que aplique el nuevo precio sin ningún cargo adicional.</p>
     </section>
   </Shell>
 );
