@@ -4,6 +4,7 @@ import { Crown, Check, Loader2, Sparkles } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
+import { track } from "@/lib/analytics";
 
 const BENEFITS = [
   "Concierge Iato ilimitado (chat, transfers, reservas y logística)",
@@ -28,6 +29,7 @@ export default function Pro() {
   useEffect(() => {
     const c = params.get("checkout");
     if (!c) return;
+    if (c === "success") track("checkout_completed", { plan: "pro_mensual" });
     if (c === "success") toast({ title: "¡Bienvenido a IATOS PRO!", description: "Tu membresía quedó activa. Disfruta el acceso ilimitado." });
     if (c === "cancel") toast({ title: "Checkout cancelado", description: "No se realizó ningún cargo." });
     params.delete("checkout");
