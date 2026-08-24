@@ -680,6 +680,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                               ${Math.round(leg.price_per_person_usd)} USD / persona
                             </span>
                           )}
+                          <PriceSourceBadge source={leg.fuente_precio} />
+
                           {leg.luggage_note && (
                             <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary inline-flex items-center gap-1.5">
                               <Luggage className="w-3 h-3" /> {leg.luggage_note}
