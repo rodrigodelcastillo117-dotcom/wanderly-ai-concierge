@@ -4,6 +4,7 @@ import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
+import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationBell } from "@/components/NotificationBell";
 import iatosLogo from "@/assets/iatos-logo.png";
 
