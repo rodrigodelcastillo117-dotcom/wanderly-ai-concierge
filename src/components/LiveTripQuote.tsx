@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { Plane, Hotel, Sparkles, RefreshCw } from "lucide-react";
 import { useLiveQuote, type LiveQuote } from "@/hooks/useLiveQuote";
+import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 
 type Props = {
   origin?: string;
@@ -56,11 +57,7 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
         <p className="text-xs tracking-[0.2em] uppercase text-primary">
           Inversión total · grupo de {travelers} {travelers === 1 ? "persona" : "personas"}
         </p>
-        {q && (
-          <span className="text-[10px] tracking-widest uppercase text-muted-foreground inline-flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-primary" /> cotización del proveedor
-          </span>
-        )}
+        {q && <PriceSourceBadge source={q.source ?? "serpapi"} />}
       </div>
       <motion.p className="font-display text-4xl sm:text-5xl md:text-6xl gold-text mb-2 break-words leading-tight">
         {rounded as any}

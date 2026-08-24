@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download, Radio, Map as MapIcon, Backpack, Cloud, Languages, BookHeart, Wallet, Sparkles, Pencil, Heart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { ReadonlyBudget } from "@/components/ReadonlyBudget";
@@ -985,6 +986,7 @@ const ArrivalOptionCard = ({ option, active, onClick }: { option: any; active: b
           <span className="text-xs text-muted-foreground ml-1">/ persona</span>
         </p>
       )}
+      {option.fuente_precio && <PriceSourceBadge source={option.fuente_precio} className="mt-2" />}
       {option.notas && <p className="text-xs text-muted-foreground mt-2 italic">{option.notas}</p>}
     </div>
   );
@@ -1025,6 +1027,7 @@ const HotelCard = ({ hotel, city, active, onClick }: { hotel: any; city: string;
           {fmtMXN(hotel.precio_por_noche)}
           <span className="text-xs text-muted-foreground ml-1">/ noche</span>
         </p>
+        {hotel.fuente_precio && <PriceSourceBadge source={hotel.fuente_precio} className="mb-2" />}
         <p className="text-xs text-muted-foreground italic line-clamp-3">{hotel.por_que}</p>
       </div>
     </div>
