@@ -14,17 +14,20 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const SYSTEM = `Eres un concierge de viajes premium. Recibes un viaje YA cotizado (en JSON) e instrucciones en lenguaje natural del usuario para modificarlo: reorganizar días, cambiar ciudades, ajustar presupuesto, agregar/quitar tours, cambiar hospedaje, cambiar fechas, recotizar, etc.
+function buildSystem(fxUsd: number, fxEur: number) {
+  return `Eres un concierge de viajes premium. Recibes un viaje YA cotizado (en JSON) e instrucciones en lenguaje natural del usuario para modificarlo: reorganizar días, cambiar ciudades, ajustar presupuesto, agregar/quitar tours, cambiar hospedaje, cambiar fechas, recotizar, etc.
 
 Devuelves el viaje COMPLETO ACTUALIZADO en JSON con la MISMA ESTRUCTURA que recibiste. Conserva los campos no afectados por la instrucción. Recalcula desglose_presupuesto y total_estimado de forma coherente.
 
 REGLAS:
-- Todos los precios en MXN (1 USD = 18.5 MXN, 1 EUR = 21 MXN).
+- Todos los precios en MXN. Tipo de cambio DEL DÍA (úsalo exactamente, no inventes otro): 1 USD = ${fxUsd.toFixed(2)} MXN, 1 EUR = ${fxEur.toFixed(2)} MXN.
 - En vuelos_json devuelve 3 opciones (ahorro/equilibrio/premium) por ciudad si es multi-destino, o 3 totales si es single.
 - Mantén nombres reales de aerolíneas, hoteles, restaurantes y barrios.
 - analisis_ai: reescribe un párrafo breve mencionando los cambios aplicados.
 - NO inventes IDs ni campos nuevos. Solo cambia el contenido pedido.
+- total_estimado DEBE ser exactamente la suma de los valores de desglose_presupuesto. Nunca devuelvas 0 si hay ítems cotizados.
 - Responde SOLO con un objeto JSON válido, sin markdown, sin texto extra.`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
