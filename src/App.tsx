@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,56 +6,58 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
+import { lazyWithRetry } from "@/lib/lazyRetry";
 import Landing from "./pages/Landing";
 import { Navigate } from "react-router-dom";
 
 // Code-splitting: todo lo que no es la landing se carga bajo demanda por ruta.
 // El bundle único pesaba >4.4MB; esto reparte el peso en chunks por página.
-const Auth = lazy(() => import("./pages/Auth"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const Onboarding = lazy(() => import("./pages/Onboarding"));
-const OnboardingDeep = lazy(() => import("./pages/OnboardingDeep"));
-const DashboardHome = lazy(() => import("./pages/DashboardHome"));
-const PlanTrip = lazy(() => import("./pages/PlanTrip"));
-const TripDetail = lazy(() => import("./pages/TripDetail"));
-const EditTrip = lazy(() => import("./pages/EditTrip"));
-const Trips = lazy(() => import("./pages/Trips"));
-const MultiDestRoute = lazy(() => import("./pages/MultiDestRoute"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Discover = lazy(() => import("./pages/Discover"));
-const Pro = lazy(() => import("./pages/Pro"));
-const Concierge = lazy(() => import("./pages/Concierge"));
-const Cercanos = lazy(() => import("./pages/Cercanos"));
-const Favoritos = lazy(() => import("./pages/Favoritos"));
-const Social = lazy(() => import("./pages/Social"));
-const Gastos = lazy(() => import("./pages/Gastos"));
-const NotFound = lazy(() => import("./pages/NotFound.tsx"));
-const LiveTrip = lazy(() => import("./pages/LiveTrip"));
-const TripMap = lazy(() => import("./pages/TripMap"));
-const TripPacking = lazy(() => import("./pages/TripPacking"));
-const TripWeather = lazy(() => import("./pages/TripWeather"));
-const TripTranslator = lazy(() => import("./pages/TripTranslator"));
-const TripJournal = lazy(() => import("./pages/TripJournal"));
-const TripSplit = lazy(() => import("./pages/TripSplit"));
-const Compare = lazy(() => import("./pages/Compare"));
-const Currency = lazy(() => import("./pages/Currency"));
-const TripFlights = lazy(() => import("./pages/TripFlights"));
-const TripHotels = lazy(() => import("./pages/TripHotels"));
-const Insurance = lazy(() => import("./pages/Insurance"));
-const Benefits = lazy(() => import("./pages/Benefits"));
-const TripCars = lazy(() => import("./pages/TripCars"));
-const TripESIM = lazy(() => import("./pages/TripESIM"));
-const TripActivities = lazy(() => import("./pages/TripActivities"));
-const Restaurantes = lazy(() => import("./pages/Restaurantes"));
-const Trenes = lazy(() => import("./pages/Trenes"));
-const Ferries = lazy(() => import("./pages/Ferries"));
-const Cruceros = lazy(() => import("./pages/Cruceros"));
-const Reservas = lazy(() => import("./pages/Reservas"));
-const Terminos = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Terminos })));
-const Privacidad = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Privacidad })));
-const Cookies = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Cookies })));
-const Reembolsos = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Reembolsos })));
+const Auth = lazyWithRetry(() => import("./pages/Auth"));
+const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
+const Onboarding = lazyWithRetry(() => import("./pages/Onboarding"));
+const OnboardingDeep = lazyWithRetry(() => import("./pages/OnboardingDeep"));
+const DashboardHome = lazyWithRetry(() => import("./pages/DashboardHome"));
+const PlanTrip = lazyWithRetry(() => import("./pages/PlanTrip"));
+const TripDetail = lazyWithRetry(() => import("./pages/TripDetail"));
+const EditTrip = lazyWithRetry(() => import("./pages/EditTrip"));
+const Trips = lazyWithRetry(() => import("./pages/Trips"));
+const MultiDestRoute = lazyWithRetry(() => import("./pages/MultiDestRoute"));
+const Profile = lazyWithRetry(() => import("./pages/Profile"));
+const Discover = lazyWithRetry(() => import("./pages/Discover"));
+const Pro = lazyWithRetry(() => import("./pages/Pro"));
+const Concierge = lazyWithRetry(() => import("./pages/Concierge"));
+const Cercanos = lazyWithRetry(() => import("./pages/Cercanos"));
+const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
+const Social = lazyWithRetry(() => import("./pages/Social"));
+const Gastos = lazyWithRetry(() => import("./pages/Gastos"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound.tsx"));
+const LiveTrip = lazyWithRetry(() => import("./pages/LiveTrip"));
+const TripMap = lazyWithRetry(() => import("./pages/TripMap"));
+const TripPacking = lazyWithRetry(() => import("./pages/TripPacking"));
+const TripWeather = lazyWithRetry(() => import("./pages/TripWeather"));
+const TripTranslator = lazyWithRetry(() => import("./pages/TripTranslator"));
+const TripJournal = lazyWithRetry(() => import("./pages/TripJournal"));
+const TripSplit = lazyWithRetry(() => import("./pages/TripSplit"));
+const Compare = lazyWithRetry(() => import("./pages/Compare"));
+const Currency = lazyWithRetry(() => import("./pages/Currency"));
+const TripFlights = lazyWithRetry(() => import("./pages/TripFlights"));
+const TripHotels = lazyWithRetry(() => import("./pages/TripHotels"));
+const Insurance = lazyWithRetry(() => import("./pages/Insurance"));
+const Benefits = lazyWithRetry(() => import("./pages/Benefits"));
+const TripCars = lazyWithRetry(() => import("./pages/TripCars"));
+const TripESIM = lazyWithRetry(() => import("./pages/TripESIM"));
+const TripActivities = lazyWithRetry(() => import("./pages/TripActivities"));
+const Restaurantes = lazyWithRetry(() => import("./pages/Restaurantes"));
+const Trenes = lazyWithRetry(() => import("./pages/Trenes"));
+const Ferries = lazyWithRetry(() => import("./pages/Ferries"));
+const Cruceros = lazyWithRetry(() => import("./pages/Cruceros"));
+const Reservas = lazyWithRetry(() => import("./pages/Reservas"));
+const Terminos = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Terminos })));
+const Privacidad = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Privacidad })));
+const Cookies = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Cookies })));
+const Reembolsos = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Reembolsos })));
 
 const RouteFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -66,7 +68,8 @@ const RouteFallback = () => (
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <AppErrorBoundary>
+    <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner theme="dark" />
@@ -128,7 +131,8 @@ const App = () => (
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
+    </QueryClientProvider>
+  </AppErrorBoundary>
 );
 
 export default App;
