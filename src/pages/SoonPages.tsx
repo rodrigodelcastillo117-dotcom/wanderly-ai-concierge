@@ -14,10 +14,5 @@ export const SoonPage = ({ title, description }: { title: string; description: s
 );
 
 export const Concierge = () => <SoonPage title="AI Concierge" description="Tu asistente personal para planear, reservar y optimizar." />;
-export const Pro = () => {
-  if (typeof window !== "undefined") {
-    window.location.replace("/dashboard/concierge");
-  }
-  return <SoonPage title="IATOS PRO" description="Abriendo tu Concierge..." />;
-};
+// La página real de IATOS PRO vive en src/pages/Pro.tsx
 
