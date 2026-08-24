@@ -132,26 +132,18 @@ Deno.serve(async (req: Request) => {
     const subject = `[IATOS Fixer · ${payload.urgencia.toUpperCase()}] ${payload.user_name} — ${payload.motivo.slice(0, 60)}`;
     const html = construirHtmlEmail(payload);
 
-    const resp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: FROM_ADDRESS,
-        to: [FIXER_EMAIL],
-        reply_to: payload.user_email,
-        subject,
-        html,
-      }),
+    const sent = await sendEmail({
+      to: FIXER_EMAIL,
+      from: FROM_ADDRESS,
+      replyTo: payload.user_email,
+      subject,
+      html,
     });
 
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      console.error("Resend error:", errorText);
+    if (!sent.ok) {
+      console.error("Fixer email error:", sent.error);
       return new Response(
-        JSON.stringify({ error: "Email send failed", details: errorText }),
+        JSON.stringify({ error: "Email send failed", details: sent.error }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -159,10 +151,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const data = await resp.json();
-    return new Response(JSON.stringify({ success: true, email_id: data.id }), {
+    return new Response(JSON.stringify({ success: true, email_id: sent.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (err) {
     console.error("Error in enviar-email-fixer:", err);
     return new Response(
