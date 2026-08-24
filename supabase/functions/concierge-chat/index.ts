@@ -862,6 +862,7 @@ Deno.serve(async (req) => {
     parsed = ensureTransferUsesKnownData(requestIntel, parsed);
     if (parsed !== beforeGuardrail) console.warn("concierge_guardrail_transfer_context_enforced", JSON.stringify({ trip_id: trip?.id, city: requestIntel?.ciudad_detectada }));
     parsed._tools_used = toolsUsed;
+    parsed._gaps = tripGaps;
 
     // === CAPA 2 — Persistir turnos en concierge_conversations ===
     try {
