@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Sparkles, Compass, Wallet, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroImg from "@/assets/hero-santorini.jpg";

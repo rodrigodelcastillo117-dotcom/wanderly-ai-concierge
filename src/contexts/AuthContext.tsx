@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { setSentryUser } from "@/lib/sentry";
 
 interface AuthContextValue {
   user: User | null;
@@ -24,6 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!mounted) return;
       setSession(newSession);
       setUser(newSession?.user ?? null);
+      setSentryUser(newSession?.user ? { id: newSession.user.id, email: newSession.user.email } : null);
       setLoading(false);
     };
 
