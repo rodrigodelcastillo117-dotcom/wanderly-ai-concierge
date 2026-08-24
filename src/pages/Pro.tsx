@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { Crown, Check, Loader2, Sparkles } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -148,7 +148,15 @@ export default function Pro() {
 
             <p className="text-[11px] text-muted-foreground">
               Se requiere tarjeta para iniciar la prueba. No se te cobra nada durante los primeros 30 días y puedes cancelar
-              en cualquier momento desde “Gestionar suscripción”.
+              en cualquier momento desde “Gestionar suscripción”. El cobro lo procesa Stripe; IATOS AI no almacena tu tarjeta.
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-2 flex flex-wrap gap-x-3 gap-y-1">
+              Al continuar aceptas los
+              <Link to="/terminos" className="text-primary hover:underline">Términos y Condiciones</Link>
+              <span>·</span>
+              <Link to="/privacidad" className="text-primary hover:underline">Aviso de Privacidad</Link>
+              <span>·</span>
+              <Link to="/reembolsos" className="text-primary hover:underline">Política de Reembolsos</Link>
             </p>
           </>
         )}
