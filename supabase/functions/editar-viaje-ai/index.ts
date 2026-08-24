@@ -80,6 +80,8 @@ ${JSON.stringify(currentSnapshot, null, 2)}
 
 Devuelve el viaje completo actualizado como un único objeto JSON.`;
 
+    const [fxUsd, fxEur] = await Promise.all([getUsdMxnRate(), getEurMxnRate()]);
+
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -89,7 +91,7 @@ Devuelve el viaje completo actualizado como un único objeto JSON.`;
       body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
-          { role: "system", content: SYSTEM },
+          { role: "system", content: buildSystem(fxUsd, fxEur) },
           { role: "user", content: userMsg },
         ],
         response_format: { type: "json_object" },
