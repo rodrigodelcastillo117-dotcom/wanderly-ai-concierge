@@ -30,6 +30,7 @@ const mobileNav = [
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
+  const { loading: subLoading, isPro, isTrialing, isComped, trialDaysLeft } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useState<{ full_name?: string | null; avatar_url?: string | null } | null>(null);
