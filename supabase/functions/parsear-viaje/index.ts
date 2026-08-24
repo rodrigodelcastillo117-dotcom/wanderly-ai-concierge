@@ -1,5 +1,6 @@
 // supabase/functions/parsear-viaje/index.ts
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 // Convierte un prompt natural ("quiero ir a Tokio en julio con mi pareja, ~$60k MXN")
 // en parámetros estructurados que /analizar-viaje pueda usar.
 
@@ -53,6 +54,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "parsear-viaje", __user.id, { perMinute: 8, perHour: 60, ipPerMinute: 25 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
   try {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY no configurada");

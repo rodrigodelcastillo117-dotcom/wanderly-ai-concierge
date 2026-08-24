@@ -1,5 +1,6 @@
 // supabase/functions/travelpayouts-hotels/index.ts
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 // Consulta precios de hoteles via Hotellook cache.json (Travelpayouts).
 
 const corsHeaders = {
@@ -24,6 +25,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "travelpayouts-hotels", __user.id, { perMinute: 20, perHour: 200, ipPerMinute: 60 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
   const okJson = (obj: unknown, status = 200) =>
     new Response(JSON.stringify(obj), {

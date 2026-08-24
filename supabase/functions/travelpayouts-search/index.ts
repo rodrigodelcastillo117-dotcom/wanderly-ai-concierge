@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // Travelpayouts Data API — cached lowest prices (does not need user, real data)
 // Docs: https://support.travelpayouts.com/hc/en-us/articles/360011498618
@@ -7,6 +8,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "travelpayouts-search", __user.id, { perMinute: 20, perHour: 200, ipPerMinute: 60 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
   try {
     const TOKEN = Deno.env.get('TRAVELPAYOUTS_TOKEN');

@@ -1,6 +1,7 @@
 // Routes API v2 - computeRoutes para los 4 modos
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 type Point = { lat?: number; lng?: number; placeId?: string; address?: string };
 type Mode = "DRIVE" | "TRANSIT" | "WALK" | "BICYCLE";
@@ -214,6 +215,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "get-routes", __user.id, { perMinute: 20, perHour: 200, ipPerMinute: 60 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
 
   try {

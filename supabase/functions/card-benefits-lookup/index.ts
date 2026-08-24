@@ -1,5 +1,6 @@
 // card-benefits-lookup — dado el nombre de un banco/tarjeta (libre, en cualquier formato:
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 // "amex", "AMEX", "American Express Platinum", "Visa Santander Aeroméxico"), devuelve
 // las tarjetas que coinciden con sus beneficios reales (salas VIP, seguros, millas, etc.).
 
@@ -39,6 +40,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "card-benefits-lookup", __user.id, { perMinute: 10, perHour: 80, ipPerMinute: 30 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
   try {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY no configurada");
