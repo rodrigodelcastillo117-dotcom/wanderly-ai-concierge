@@ -1,5 +1,6 @@
 // supabase/functions/nightlife-discover/index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,6 +59,9 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: u } = await supabase.auth.getUser();
+
+    const __rl = await enforceRateLimit(req, "nightlife-discover", u.user!.id, { perMinute: 10, perHour: 80, ipPerMinute: 30 });
+    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
     if (!u?.user) {
       return new Response(JSON.stringify({ error: "Sesión inválida" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },

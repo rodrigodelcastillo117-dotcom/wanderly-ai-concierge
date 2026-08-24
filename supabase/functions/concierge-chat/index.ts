@@ -3,6 +3,7 @@
 // lugares cercanos. Aprende del usuario en cada turno (behavioral_insights + dna_signal).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -355,9 +356,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Anti-abuso: límite de ritmo por usuario e IP (aplica también a PRO)
+    const rl = await enforceRateLimit(req, "concierge-chat", u.user.id, {
+      perMinute: 10, perHour: 120, ipPerMinute: 30,
+    });
+    if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
+
     // Gate PRO / cuota gratuita (3 mensajes al mes sin suscripción)
     const quota = await consumeQuota(u.user.id, "concierge");
     if (!quota.allowed) return paywallResponse("concierge", corsHeaders);
+
+
 
 
     const body = (await req.json()) as Body;

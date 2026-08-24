@@ -4,6 +4,7 @@
 // en travel_profiles.perfil_ia + ai_user_preferences.perfil_ia.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "auditar-perfil", __user.id, { perMinute: 6, perHour: 40, ipPerMinute: 20 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
   try {
     const { descripcion, contexto } = await req.json();
     if (!descripcion || descripcion.trim().length < 5) {

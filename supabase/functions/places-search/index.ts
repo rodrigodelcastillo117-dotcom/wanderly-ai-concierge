@@ -1,6 +1,7 @@
 // Places API (New) - Text Search
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 type Body = {
   query: string;
@@ -36,6 +37,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "places-search", __user.id, { perMinute: 30, perHour: 300, ipPerMinute: 80 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
 
   try {

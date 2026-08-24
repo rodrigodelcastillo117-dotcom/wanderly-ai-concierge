@@ -3,6 +3,7 @@
 // Reads last trip + dominant DNA, builds a culture-aware prompt, calls
 // google/gemini-2.5-flash-image, uploads to storage, persists URL in perfil_ia.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +61,9 @@ Deno.serve(async (req) => {
     const { data: u } = await userClient.auth.getUser();
     if (!u?.user) return json({ error: "Sesión inválida" }, 401);
     const uid = u.user.id;
+
+    const __rl = await enforceRateLimit(req, "generate-avatar", uid, { perMinute: 4, perHour: 20, ipPerMinute: 10 });
+    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
     const body = await req.json().catch(() => ({}));
     const overrideStyle: string | undefined = body?.style;

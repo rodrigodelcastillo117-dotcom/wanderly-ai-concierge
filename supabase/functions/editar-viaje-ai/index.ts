@@ -1,6 +1,7 @@
 // Editar viaje con AI: el usuario describe en lenguaje natural los cambios
 // y la IA reescribe/reorganiza/recotiza el viaje completo.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +36,9 @@ Deno.serve(async (req) => {
     });
     const { data: userData, error: userErr } = await supabase.auth.getUser();
     if (userErr || !userData.user) return json({ error: "Sesión inválida" }, 401);
+
+    const __rl = await enforceRateLimit(req, "editar-viaje-ai", userData.user.id, { perMinute: 8, perHour: 60, ipPerMinute: 25 });
+    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
     const { trip_id, instruction } = await req.json();
     if (!trip_id || !instruction || typeof instruction !== "string") {

@@ -1,6 +1,7 @@
 // Google Places Nearby Search (New API) — usa el GOOGLE_MAPS_API_KEY del connector
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 type Body = {
   lat: number;
@@ -74,6 +75,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "places-nearby", __user.id, { perMinute: 30, perHour: 300, ipPerMinute: 80 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
   try {
     const key = Deno.env.get("GOOGLE_MAPS_API_KEY");

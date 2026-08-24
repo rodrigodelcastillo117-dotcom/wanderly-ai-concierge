@@ -1,11 +1,15 @@
 // Geocoding API - address → lat/lng (y reverse opcional)
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "geocode", __user.id, { perMinute: 30, perHour: 300, ipPerMinute: 80 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
 
   try {

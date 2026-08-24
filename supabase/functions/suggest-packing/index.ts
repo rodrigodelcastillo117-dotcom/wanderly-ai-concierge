@@ -1,5 +1,6 @@
 // suggest-packing — sugerencias inteligentes y personalizadas de packing
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 // basadas en destino, fechas, clima esperado, vuelos, crucero, hospedaje y actividades.
 
 const corsHeaders = {
@@ -13,6 +14,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "suggest-packing", __user.id, { perMinute: 8, perHour: 60, ipPerMinute: 25 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
   try {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY no configurada");
     const { trip } = await req.json();

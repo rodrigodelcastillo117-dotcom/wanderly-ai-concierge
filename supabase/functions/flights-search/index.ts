@@ -1,5 +1,6 @@
 // flights-search — devuelve top resultados reales de Google Flights vía SerpAPI
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 // con deep-link de compra. Fallback IA si no hay créditos.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,6 +96,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "flights-search", __user.id, { perMinute: 15, perHour: 150, ipPerMinute: 50 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
   try {
     const body = await req.json();

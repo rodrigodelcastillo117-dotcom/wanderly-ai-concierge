@@ -1,5 +1,6 @@
 // parse-trip-file — lee PDFs/imágenes con Gemini multimodal y extrae el
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 // viaje TAL CUAL aparece en los documentos. Devuelve datos mapeados al
 // schema interno (vuelos_json, hospedaje_json, cruceros_json, itinerario_json).
 
@@ -121,6 +122,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "parse-trip-file", __user.id, { perMinute: 6, perHour: 40, ipPerMinute: 20 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
 
   try {

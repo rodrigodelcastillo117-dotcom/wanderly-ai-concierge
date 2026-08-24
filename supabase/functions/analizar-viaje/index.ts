@@ -3,6 +3,7 @@
 // FIX v3: Perplexity opcional — si falta la key, continúa sin contexto cualitativo (no 500).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -605,6 +606,12 @@ Deno.serve(async (req) => {
       });
     }
     const user = userData.user;
+
+    // Anti-abuso: análisis es caro (Claude + SerpApi + Perplexity)
+    const rl = await enforceRateLimit(req, "analizar-viaje", user.id, {
+      perMinute: 3, perHour: 20, ipPerMinute: 10,
+    });
+    if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
     // Gate PRO / cuota gratuita (1 análisis de viaje gratis de por vida)
     const quota = await consumeQuota(user.id, "trip_analysis");

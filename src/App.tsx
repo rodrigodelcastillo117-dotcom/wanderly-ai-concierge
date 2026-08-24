@@ -49,6 +49,7 @@ import Ferries from "./pages/Ferries";
 import Cruceros from "./pages/Cruceros";
 import Reservas from "./pages/Reservas";
 import Members from "./pages/Members";
+import { Terminos, Privacidad, Cookies } from "./pages/Legal";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,9 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/terminos" element={<Terminos />} />
+            <Route path="/privacidad" element={<Privacidad />} />
+            <Route path="/cookies" element={<Cookies />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/onboarding/deep" element={<ProtectedRoute><OnboardingDeep /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardHome /></ProtectedRoute>} />

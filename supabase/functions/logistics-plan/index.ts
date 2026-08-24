@@ -5,6 +5,7 @@
 // Esto evita el timeout de 150s al no pedir el JSON gigante en una sola llamada.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -262,6 +263,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "logistics-plan", __user.id, { perMinute: 8, perHour: 60, ipPerMinute: 25 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
 
   try {

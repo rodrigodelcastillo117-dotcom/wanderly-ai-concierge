@@ -1,5 +1,6 @@
 // Analiza un texto libre del usuario y devuelve preferencias estructuradas para
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 // la configuración de ruta multi-destino.
 
 const corsHeaders = {
@@ -40,6 +41,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "analizar-preferencias-ruta", __user.id, { perMinute: 8, perHour: 60, ipPerMinute: 25 });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
 
   try {

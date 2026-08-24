@@ -847,6 +847,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          bucket: string
+          created_at: string
+          id: string
+          subject: string
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          id?: string
+          subject: string
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          id?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       recomendaciones: {
         Row: {
           created_at: string
@@ -1690,6 +1711,15 @@ export type Database = {
     Functions: {
       aceptar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
       agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
+      check_rate_limit: {
+        Args: {
+          _bucket: string
+          _limit: number
+          _subject: string
+          _window_seconds: number
+        }
+        Returns: Json
+      }
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
       consume_free_quota: {
         Args: { _kind: string; _user_id: string }

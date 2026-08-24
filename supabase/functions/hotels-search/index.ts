@@ -1,5 +1,6 @@
 // hotels-search — top resultados Google Hotels vía SerpAPI + Booking deep-link.
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -22,6 +23,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
+
+  const __rl = await enforceRateLimit(req, "hotels-search", __user.id, {
+    perMinute: 12, perHour: 120, ipPerMinute: 40,
+  });
+  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
+
 
   try {
     const body = await req.json();
