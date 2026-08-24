@@ -1,3 +1,4 @@
+import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plane, Search, ExternalLink, Loader2 } from "lucide-react";
@@ -100,12 +101,12 @@ const TripFlights = () => {
           </Button>
         </div>
         {source && (
-          <p className="text-xs text-muted-foreground">
-            {source === "serpapi" && "✓ Datos en vivo Google Flights"}
-            {source === "travelpayouts" && "✓ Precios reales Travelpayouts (Aviasales)"}
-            {source === "ai-fallback" && "Estimación IA (sin créditos de proveedores en vivo)"}
-            {meta && ` · ${meta.dep_iata} → ${meta.arr_iata}`}
-          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <PriceSourceBadge source={source === "serpapi" ? "google_flights" : source} />
+            {meta && (
+              <span className="text-xs text-muted-foreground">{meta.dep_iata} → {meta.arr_iata}</span>
+            )}
+          </div>
         )}
 
 
