@@ -790,7 +790,7 @@ Deno.serve(async (req) => {
     ].join("\n");
 
     // Orden: 1) master prompt, 2) contexto usuario, 3) contexto viaje activo (Capa 1), 4) memoria (Capa 2), 5) regla Fixer (Capa 7), 6) SYSTEM
-    const systemContent = [masterPrompt, userContextBlock, multiTripBlock, tripContextBlock, memoryBlock, fixerRuleBlock, SYSTEM]
+    const systemContent = [masterPrompt, userContextBlock, multiTripBlock, tripContextBlock, gapsBlock, memoryBlock, fixerRuleBlock, SYSTEM]
       .filter((s) => s && s.length > 0)
       .join("\n\n---\n\n");
 
