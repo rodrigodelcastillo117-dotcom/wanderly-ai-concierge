@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { RouteGlobe3D } from "@/components/RouteGlobe3D";
+import { PriceSourceBadge } from "@/components/PriceSourceBadge";
+
 import { VoiceInput } from "@/components/VoiceInput";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -255,7 +257,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
       if (!data?.logistics) throw new Error("La IA no devolvió logística");
 
       const logistics = data.logistics;
-      const USD_MXN = 17;
+      // FX dinámico devuelto por la edge function (_shared/fx.ts). Nunca un valor fijo.
+      const USD_MXN = Number(logistics.fx_usd_mxn) > 0 ? Number(logistics.fx_usd_mxn) : 20.5;
 
       // Aplanar per_destination → vuelos_json (incluye vuelos + trenes + buses + roadtrips por ciudad),
       // hospedaje_json / restaurantes_json / tours_json para que TripDetail los agrupe por ciudad.
@@ -271,6 +274,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
           duracion: f.duration || "",
           escalas: f.stops || "Directo",
           precio_por_persona: Math.round(Number(f.price_per_person_usd ?? 0) * USD_MXN),
+          fuente_precio: f.fuente_precio ?? "estimado",
+          booking_link: f.booking_link ?? null,
           notas: f.notes ? `${f.from} → ${f.to} · ${f.notes}` : `${f.from} → ${f.to}`,
           ciudad,
           from: f.from,
@@ -291,6 +296,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             duracion: opt.duration || "",
             escalas: opt.scenic ? "Ruta escénica" : (opt.mode === "vuelo" ? "Directo" : opt.mode),
             precio_por_persona: Math.round(Number(opt.price_per_person_usd ?? 0) * USD_MXN),
+            fuente_precio: opt.fuente_precio ?? "estimado",
             notas: opt.notes ? `${opt.from} → ${pd.city} · ${opt.notes}` : `${opt.from} → ${pd.city}`,
             ciudad: pd.city,
             from: opt.from,
@@ -304,6 +310,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             barrio: h.barrio || pd.city,
             rating: h.rating ?? 4.5,
             precio_por_noche: Math.round(Number(h.price_per_night_usd ?? 0) * USD_MXN),
+            fuente_precio: h.fuente_precio ?? "estimado",
+            booking_link: h.booking_url ?? null,
             por_que: h.por_que || "",
             ciudad: pd.city,
             tier: h.tier,
@@ -323,6 +331,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             nombre: t.nombre,
             duracion: t.duracion || "",
             precio_por_persona: Math.round(Number(t.price_per_person_usd ?? 0) * USD_MXN),
+            fuente: t.fuente ?? "estimado",
+            rating: t.rating ?? null,
             por_que: t.por_que || "",
             ciudad: pd.city,
           });
@@ -353,9 +363,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             fecha_regreso: fechaRegreso || null,
             num_viajeros: viajeros,
             presupuesto_objetivo: presupuesto ? Number(presupuesto) : null,
-            total_estimado: logistics.total_estimado_usd
-              ? Math.round(Number(logistics.total_estimado_usd) * USD_MXN)
-              : null,
+            // Total real calculado en el servidor (suma del desglose del tier del usuario).
+            total_estimado: Number(logistics.total_estimado_mxn) || null,
+            desglose_presupuesto: logistics.desglose_presupuesto ?? null,
             moneda: "MXN",
             status: "listo",
             analisis_ai: logistics.resumen ?? null,
@@ -377,6 +387,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         if (tErr) console.error(tErr);
         else tripId = trip?.id;
       }
+
 
       setGenerated({ logistics, autonomous, tripId });
       toast.success("Travesía lista. Abriendo tu viaje completo…");
@@ -628,6 +639,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                             ${Math.round(f.price_per_person_usd)} USD / persona
                           </span>
                         )}
+                        <PriceSourceBadge source={f.fuente_precio} />
+
                       </div>
                       {f.notes && <p className="text-xs text-muted-foreground mt-2">{f.notes}</p>}
                     </div>
@@ -669,6 +682,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                               ${Math.round(leg.price_per_person_usd)} USD / persona
                             </span>
                           )}
+                          <PriceSourceBadge source={leg.fuente_precio} />
+
                           {leg.luggage_note && (
                             <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary inline-flex items-center gap-1.5">
                               <Luggage className="w-3 h-3" /> {leg.luggage_note}
@@ -740,14 +755,81 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                 </div>
               )}
 
+              {/* Hospedaje y experiencias por ciudad */}
+              {generated.logistics.per_destination?.length > 0 && (
+                <div className="rounded-3xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 md:px-6 py-3 border-b border-border flex items-center gap-2 text-sm">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span className="text-primary tracking-[0.25em] uppercase text-xs">Hospedaje y experiencias</span>
+                  </div>
+                  {generated.logistics.per_destination.map((pd: any, i: number) => (
+                    <div key={i} className="p-5 md:p-6 border-b border-border last:border-0 space-y-3">
+                      <p className="text-sm text-foreground font-medium">
+                        {pd.city}
+                        <span className="text-xs text-muted-foreground ml-2">{pd.nights} noche(s)</span>
+                      </p>
+                      <ul className="space-y-2 text-sm">
+                        {(pd.hospedaje ?? []).map((h: any, j: number) => (
+                          <li key={j} className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs uppercase tracking-widest text-muted-foreground">{h.tier}</span>
+                              <span className="text-foreground">{h.nombre}</span>
+                              <PriceSourceBadge source={h.fuente_precio} />
+                            </div>
+                            {h.price_per_night_usd != null && (
+                              <span className="text-xs text-primary whitespace-nowrap">
+                                ${Math.round(h.price_per_night_usd)} USD / noche
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {(pd.experiencias ?? []).length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {pd.experiencias.map((e: any, j: number) => (
+                            <span
+                              key={j}
+                              className="px-2.5 py-1 rounded-full bg-surface border border-border text-xs inline-flex items-center gap-1.5"
+                            >
+                              {e.nombre}
+                              <PriceSourceBadge source={e.fuente} />
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Total + CTA al detalle */}
-              {generated.logistics.total_estimado_usd != null && (
+              {generated.logistics.total_estimado_mxn != null && (
                 <div className="rounded-3xl border border-border bg-card p-6 flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs tracking-[0.25em] uppercase text-primary mb-1">Total estimado</p>
-                    <p className="font-display text-3xl md:text-4xl gold-text">
-                      ${Math.round(generated.logistics.total_estimado_usd).toLocaleString("en-US")} USD
+                    <p className="text-xs tracking-[0.25em] uppercase text-primary mb-1">
+                      Total estimado · nivel {generated.logistics.selected_tier ?? "equilibrio"}
                     </p>
+                    <p className="font-display text-3xl md:text-4xl gold-text">
+                      ${Math.round(generated.logistics.total_estimado_mxn).toLocaleString("es-MX")} MXN
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ≈ ${Math.round(generated.logistics.total_estimado_usd ?? 0).toLocaleString("en-US")} USD
+                      {generated.logistics.fx_usd_mxn
+                        ? ` · TC ${Number(generated.logistics.fx_usd_mxn).toFixed(2)} MXN/USD`
+                        : ""}
+                    </p>
+                    {generated.logistics.desglose_presupuesto && (
+                      <ul className="mt-3 text-xs text-muted-foreground space-y-1 max-w-xs">
+                        {Object.entries(generated.logistics.desglose_presupuesto).map(([k, v]) => (
+                          <li key={k} className="flex justify-between gap-6">
+                            <span className="capitalize">{k.replace("_", " ")}</span>
+                            <span className="text-foreground">
+                              ${Math.round(Number(v) || 0).toLocaleString("es-MX")}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     {generated.logistics.resumen && (
                       <p className="text-xs text-muted-foreground mt-2 max-w-md">{generated.logistics.resumen}</p>
                     )}
@@ -762,6 +844,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                   )}
                 </div>
               )}
+
 
             </motion.section>
           )}

@@ -574,7 +574,7 @@ Deno.serve(async (req) => {
     if (vault?.credit_cards?.length) vaultLines.push("Tarjetas: " + vault.credit_cards.map((c: any) => `${c.bank} ${c.card_tier}`).join("; "));
     if (vault?.airline_alliances?.length) vaultLines.push("Aerolíneas: " + vault.airline_alliances.map((a: any) => `${a.airline} ${a.tier_status}`).join("; "));
     if (vault?.hotel_loyalty?.length) vaultLines.push("Hoteles: " + vault.hotel_loyalty.map((h: any) => `${h.chain_name} ${h.status_tier}`).join("; "));
-    if (vault?.car_rentals?.length) vaultLines.push("Autos: " + vault.car_rentals.map((c: any) => `${c.company} ${c.tier_status ?? ""}`.trim()).join("; "));
+    if (vault?.car_rentals?.length) vaultLines.push("Autos: " + vault.car_rentals.map((c: any) => `${c.company_name ?? c.company ?? ""} ${c.preferred_car_type ?? c.tier_status ?? ""}`.trim()).join("; "));
 
     // Bloque de contexto del usuario en texto plano
     const ctxLines: string[] = ["CONTEXTO DEL USUARIO ACTUAL:"];
