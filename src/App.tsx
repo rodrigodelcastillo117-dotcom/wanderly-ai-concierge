@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
+import { CookieBanner } from "@/components/CookieBanner";
 import { lazyWithRetry } from "@/lib/lazyRetry";
 import Landing from "./pages/Landing";
 import { Navigate } from "react-router-dom";
@@ -75,6 +76,7 @@ const App = () => (
       <Sonner theme="dark" />
       <BrowserRouter>
         <ScrollToTop />
+        <CookieBanner />
         <AuthProvider>
           <Suspense fallback={<RouteFallback />}>
           <Routes>
