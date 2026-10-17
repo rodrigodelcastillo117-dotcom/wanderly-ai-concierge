@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,7 +12,12 @@ import { Input } from "@/components/ui/input";
 
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
-import { RouteGlobe3D } from "@/components/RouteGlobe3D";
+import { lazyWithRetry } from "@/lib/lazyRetry";
+// react-globe.gl arrastra three.js (~1.9MB sin comprimir): se carga aparte,
+// no bloquea el resto de la página mientras descarga.
+const RouteGlobe3D = lazyWithRetry(() =>
+  import("@/components/RouteGlobe3D").then((m) => ({ default: m.RouteGlobe3D }))
+);
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 
 import { VoiceInput } from "@/components/VoiceInput";
@@ -862,7 +867,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               onChangeFechas={(fs, fr) => { setFechaSalida(fs); setFechaRegreso(fr); }}
               onChangeViajeros={(n) => setViajeros(n)}
             />
-            <RouteGlobe3D origin={origin} destinations={validStops} />
+            <Suspense fallback={<div className="h-64 rounded-xl bg-surface animate-pulse" />}>
+              <RouteGlobe3D origin={origin} destinations={validStops} />
+            </Suspense>
           </div>
         </div>
       </div>

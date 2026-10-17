@@ -1,7 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
-
-const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
+import { sendEmail } from "../_shared/email.ts";
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -9,13 +8,8 @@ Deno.serve(async (req) => {
   if (!__user) return unauthorizedResponse(corsHeaders);
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY missing');
-    if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY missing');
-
     const body = await req.json();
-    const { to, subject, html, from } = body ?? {};
+    const { to, subject, html, from, replyTo } = body ?? {};
     if (!to || !subject || !html) {
       return new Response(JSON.stringify({ error: 'to, subject, html required' }), {
         status: 400,
@@ -23,28 +17,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const r = await fetch(`${GATEWAY_URL}/emails`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'X-Connection-Api-Key': RESEND_API_KEY,
-      },
-      body: JSON.stringify({
-        from: from || 'IATOS <onboarding@resend.dev>',
-        to: Array.isArray(to) ? to : [to],
-        subject,
-        html,
-      }),
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      return new Response(JSON.stringify({ error: data?.message || 'Resend error', details: data }), {
-        status: r.status,
+    // Delega al helper compartido: usa el dominio propio (traveliatos.life) y
+    // solo cae al remitente compartido de Resend si ese dominio no está verificado.
+    const res = await sendEmail({ to, subject, html, from, replyTo });
+    if (!res.ok) {
+      return new Response(JSON.stringify({ error: res.error || 'Resend error' }), {
+        status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    return new Response(JSON.stringify({ ok: true, id: data?.id }), {
+    return new Response(JSON.stringify({ ok: true, id: res.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
