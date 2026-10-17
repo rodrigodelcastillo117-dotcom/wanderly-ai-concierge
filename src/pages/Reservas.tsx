@@ -23,12 +23,14 @@ type Booking = {
 const labels: Record<string, string> = {
   restaurant: "Restaurante",
   train: "Tren",
+  ferry: "Ferry",
   flight: "Vuelo",
   hotel: "Hotel",
   car: "Auto",
   activity: "Actividad",
   esim: "eSIM",
   insurance: "Seguro",
+  other: "Otro",
 };
 
 const Reservas = () => {

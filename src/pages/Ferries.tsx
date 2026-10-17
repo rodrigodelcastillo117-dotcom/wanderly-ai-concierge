@@ -38,7 +38,7 @@ const Ferries = () => {
   function reservar(name: string, url: string) {
     if (!origin || !destination) return toast.error("Completa origen y destino");
     trackBookingClick({
-      category: "train",
+      category: "ferry",
       provider: name,
       title: `Ferry ${origin} → ${destination}`,
       subtitle: name,

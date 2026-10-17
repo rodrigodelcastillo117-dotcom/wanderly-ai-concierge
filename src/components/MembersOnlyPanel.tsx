@@ -99,24 +99,25 @@ export function MembersOnlyPanel({ onReserve }: Props) {
     if (!user) return;
     setReservingId(v.id);
     try {
-      const { error } = await supabase.from("concierge_requests").insert({
-        user_id: user.id,
-        type: "members_nightlife_reservation",
-        title: `Reserva: ${v.nombre} · ${v.ciudad_display}`,
-        status: "pending",
-        payload: {
-          venue_id: v.id,
-          venue_name: v.nombre,
-          ciudad: v.ciudad_display,
-          categoria: v.categoria,
-          dress_code: v.dress_code,
-          precio_estimado: v.precio_estimado,
-          address: v.address,
-          website: v.website,
-          por_que: v.por_que,
+      const { data, error } = await supabase.functions.invoke("concierge-action", {
+        body: {
+          type: "members_nightlife_reservation",
+          title: `Reserva: ${v.nombre} · ${v.ciudad_display}`,
+          payload: {
+            venue_id: v.id,
+            venue_name: v.nombre,
+            ciudad: v.ciudad_display,
+            categoria: v.categoria,
+            dress_code: v.dress_code,
+            precio_estimado: v.precio_estimado,
+            address: v.address,
+            website: v.website,
+            por_que: v.por_que,
+          },
         },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast({
         title: "Solicitud enviada al Concierge",
         description: `Tu solicitud para ${v.nombre} está en cola. Te confirmamos por chat.`,

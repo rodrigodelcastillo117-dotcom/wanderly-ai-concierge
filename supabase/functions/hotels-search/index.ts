@@ -7,6 +7,16 @@ const corsHeaders = {
 };
 const SERPAPI = "https://serpapi.com/search.json";
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const TP_TOKEN = Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "";
+// Marker de afiliado Travelpayouts. Fallback hardcoded 533299 para NUNCA perder comisión.
+const TP_MARKER = (Deno.env.get("TRAVELPAYOUTS_MARKER") || TP_TOKEN.slice(0, 6) || "533299").trim() || "533299";
+
+// Mismo esquema que tpDeepLink() en src/lib/affiliateLinks.ts: Booking.com se
+// atribuye vía el redirect tp.media/click, no con un marker directo en la URL.
+function tpDeepLink(targetUrl: string, subId: string): string {
+  const p = new URLSearchParams({ marker: `${TP_MARKER}.${subId}`, u: targetUrl });
+  return `https://tp.media/click?${p.toString()}`;
+}
 
 function bookingUrl(city: string, ci: string, co: string, adults: number) {
   const p = new URLSearchParams({
@@ -16,7 +26,7 @@ function bookingUrl(city: string, ci: string, co: string, adults: number) {
     group_adults: String(adults),
     no_rooms: "1",
   });
-  return `https://www.booking.com/searchresults.html?${p.toString()}`;
+  return tpDeepLink(`https://www.booking.com/searchresults.html?${p.toString()}`, "hotels");
 }
 
 Deno.serve(async (req) => {

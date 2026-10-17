@@ -115,8 +115,23 @@ const DashboardHome = () => {
         .eq("user_id", user.id)
         .gte("expense_date", startPrev);
 
-      const FX: Record<string, number> = { USD: 1, MXN: 1 / 18.5, EUR: 1.08, GBP: 1.27 };
-      const toUsd = (a: number, c: string) => a * (FX[c?.toUpperCase()] ?? 1);
+      // Tipo de cambio en vivo (mismo patrón que Currency.tsx: open.er-api.com, sin key, con fallback si falla)
+      const FX_FALLBACK: Record<string, number> = { USD: 1, MXN: 1 / 18.5, EUR: 1.08, GBP: 1.27 };
+      let FX: Record<string, number> = FX_FALLBACK;
+      try {
+        const r = await fetch("https://open.er-api.com/v6/latest/USD").then((res) => res.json());
+        if (r?.rates) {
+          // r.rates está en "1 USD = X moneda" (ej. MXN: 18.5); invertimos para obtener "1 moneda = X USD"
+          const live: Record<string, number> = { USD: 1 };
+          for (const [code, perUsd] of Object.entries(r.rates as Record<string, number>)) {
+            if (typeof perUsd === "number" && perUsd > 0) live[code] = 1 / perUsd;
+          }
+          FX = live;
+        }
+      } catch {
+        // offline o API caída: usamos el fallback estático, no bloquea el dashboard
+      }
+      const toUsd = (a: number, c: string) => a * (FX[c?.toUpperCase()] ?? FX_FALLBACK[c?.toUpperCase()] ?? 1);
 
       const thisMonth = (exps ?? []).filter((e) => e.expense_date >= startThis);
       const prevMonth = (exps ?? []).filter((e) => e.expense_date < startThis);

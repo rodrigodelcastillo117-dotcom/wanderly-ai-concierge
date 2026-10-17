@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { sendEmail } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,8 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const FIXER_EMAIL = Deno.env.get("FIXER_EMAIL") || "hola@traveliatos.life";
+const FROM_ADDRESS = Deno.env.get("FIXER_FROM_ADDRESS") || "IATOS Fixer <hola@traveliatos.life>";
 
 type Body = {
   type: "reservation" | "pickup" | "transport" | "jet" | "alert";
@@ -85,6 +88,30 @@ Deno.serve(async (req) => {
       body: `Tu concierge está procesando: ${body.title}.`,
       related_id: reqRow.id,
     });
+
+    // 3) Notifica a un humano por email — sin esto la solicitud se queda en
+    // "processing" para siempre y nadie la atiende de verdad.
+    try {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", userId)
+        .maybeSingle();
+      const userEmail = userData.user.email ?? "sin email";
+      const subject = `[IATOS Concierge] ${labelByType[body.type] ?? body.type} — ${profile?.full_name ?? userEmail}`;
+      const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;padding:20px">
+        <h2>${labelByType[body.type] ?? "Nueva solicitud de concierge"}</h2>
+        <p><b>Cliente:</b> ${profile?.full_name ?? "Sin nombre"} (${userEmail})</p>
+        <p><b>Tipo:</b> ${body.type}</p>
+        <p><b>Título:</b> ${body.title}</p>
+        <p><b>Detalle:</b> ${JSON.stringify(body.payload ?? {})}</p>
+        <p style="color:#888;font-size:12px">concierge_requests.id = ${reqRow.id}</p>
+      </body></html>`;
+      const sent = await sendEmail({ to: FIXER_EMAIL, from: FROM_ADDRESS, replyTo: userEmail, subject, html });
+      if (!sent.ok) console.error("concierge-action: no se pudo notificar al humano", sent.error);
+    } catch (notifyErr) {
+      console.error("concierge-action: error notificando al humano", notifyErr);
+    }
 
     return new Response(
       JSON.stringify({ ok: true, request: reqRow, confirmation_required: true }),

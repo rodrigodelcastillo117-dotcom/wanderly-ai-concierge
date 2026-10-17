@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type TrackBookingInput = {
-  category: "restaurant" | "train" | "flight" | "hotel" | "car" | "activity" | "esim" | "insurance";
+  category: "restaurant" | "train" | "ferry" | "flight" | "hotel" | "car" | "activity" | "esim" | "insurance" | "other";
   provider: string;
   title: string;
   subtitle?: string;

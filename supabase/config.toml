@@ -142,12 +142,6 @@ verify_jwt = true
 [functions.travelpayouts-flights]
 verify_jwt = true
 
-[functions.travelpayouts-hotels]
-verify_jwt = true
-
-[functions.travelpayouts-search]
-verify_jwt = true
-
 [functions.tripadvisor-search]
 verify_jwt = true
 

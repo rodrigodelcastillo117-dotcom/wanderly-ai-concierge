@@ -354,6 +354,9 @@ const CreditCardForm = ({ data, setData }: { data: any; setData: (fn: any) => vo
 
       {results.length > 0 && (
         <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+          <p className="text-[10px] text-muted-foreground px-1">
+            Beneficios generados por IA a partir de conocimiento general de la tarjeta, no verificados en tiempo real. Confirma coberturas y vigencia con tu banco antes de confiar en un seguro o acceso.
+          </p>
           {results.map((c, i) => (
             <button key={i} type="button" onClick={() => pick(c)}
               className="w-full text-left p-3 rounded-lg bg-surface border border-border hover:border-primary/60 transition">
