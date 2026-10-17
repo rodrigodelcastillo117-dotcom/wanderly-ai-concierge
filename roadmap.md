@@ -1,6 +1,7 @@
 - [x] Introspect live schema and restore missing versioned table definitions.
 - [x] Implement authenticated account deletion, including files and relationship cleanup.
 - [x] Add double confirmation in Profile and verify with a disposable user.
-- [ ] Apply price-watch schema and deploy requested functions.
-- [ ] Schedule price-watch-cron every 12 hours using supported scheduling.
-- [ ] Verify real baseline and price-drop notification with disposable account; remove test data.
+- [x] Apply price-watch schema, explicit service-role grants, and deploy all requested functions.
+- [ ] Schedule price-watch-cron every 12 hours: blocked because this legacy project lacks managed HTTP schedule tools/helper; existing unmanaged HTTP job preserved.
+- [ ] Verify real baseline and price-drop notification: blocked by start returning 422 no_fare for MEX–MAD 2026-12-17/24 and one cron invocation returning 401 unauthorized; no further provider attempts made.
+- [x] Delete disposable account and confirm zero Auth, profile, trip, watch, check and notification rows.
