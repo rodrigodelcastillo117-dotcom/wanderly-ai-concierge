@@ -10,6 +10,9 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { VoiceInput } from "@/components/VoiceInput";
+import tileTrenes from "@/assets/tools/tile-trenes.png";
+import tileFerries from "@/assets/tools/tile-ferries.png";
+import tileReservas from "@/assets/tools/tile-reservas.png";
 import { TripFileUpload } from "@/components/TripFileUpload";
 
 
@@ -664,9 +667,9 @@ const DashboardHome = () => {
                 { icon: MapPin, label: "Cerca", sub: "De mí", to: "/dashboard/cercanos", img: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600&q=70&auto=format&fit=crop" },
                 { icon: Ship, label: "Cruceros", sub: "Islas", to: "/dashboard/cruceros", img: "https://images.unsplash.com/photo-1548574505-5e239809ee19?w=600&q=70&auto=format&fit=crop" },
                 { icon: UtensilsCrossed, label: "Restaurantes", sub: "Mesas", to: "/dashboard/restaurantes", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=70&auto=format&fit=crop" },
-                { icon: TrainFront, label: "Trenes", sub: "Europa+", to: "/dashboard/trenes", img: "https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=600&q=70&auto=format&fit=crop" },
-                { icon: Anchor, label: "Ferries", sub: "Islas", to: "/dashboard/ferries", img: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&q=70&auto=format&fit=crop" },
-                { icon: Receipt, label: "Mis reservas", sub: "Historial", to: "/dashboard/reservas", img: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=70&auto=format&fit=crop" },
+                { icon: TrainFront, label: "Trenes", sub: "Europa+", to: "/dashboard/trenes", img: tileTrenes },
+                { icon: Anchor, label: "Ferries", sub: "Islas", to: "/dashboard/ferries", img: tileFerries },
+                { icon: Receipt, label: "Mis reservas", sub: "Historial", to: "/dashboard/reservas", img: tileReservas },
               ].map(({ icon: Icon, label, sub, to, img }) => (
                 <button
                   key={label}
