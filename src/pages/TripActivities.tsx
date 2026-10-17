@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getYourGuideLink, viatorLink, tripadvisorLink, openTableLink } from "@/lib/affiliateLinks";
+import { trackBookingClick } from "@/lib/trackBooking";
 
 type TAResult = {
   id: string; name: string; address: string; rating: number | null;
@@ -24,11 +25,11 @@ const TripActivities = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TAResult[]>([]);
 
-  const sources = [
-    { name: "GetYourGuide", desc: "Tours, skip-the-line, experiencias guiadas. Cancelación 24h.", link: () => getYourGuideLink(city) },
-    { name: "Viator", desc: "Marketplace de TripAdvisor: actividades y tours.", link: () => viatorLink(city) },
-    { name: "TripAdvisor Web", desc: "Catálogo completo con todos los reviews.", link: () => tripadvisorLink(city) },
-    { name: "OpenTable", desc: "Reservas en restaurantes con disponibilidad real.", link: () => openTableLink(city) },
+  const sources: { name: string; desc: string; link: () => string; category: "activity" | "restaurant" }[] = [
+    { name: "GetYourGuide", desc: "Tours, skip-the-line, experiencias guiadas. Cancelación 24h.", link: () => getYourGuideLink(city), category: "activity" },
+    { name: "Viator", desc: "Marketplace de TripAdvisor: actividades y tours.", link: () => viatorLink(city), category: "activity" },
+    { name: "TripAdvisor Web", desc: "Catálogo completo con todos los reviews.", link: () => tripadvisorLink(city), category: "activity" },
+    { name: "OpenTable", desc: "Reservas en restaurantes con disponibilidad real.", link: () => openTableLink(city), category: "restaurant" },
   ];
 
   async function buscar() {
@@ -124,7 +125,10 @@ const TripActivities = () => {
               <div key={s.name} className="glass-card rounded-2xl p-5 border border-white/10 hover:border-primary/40 transition-all">
                 <h3 className="font-display text-lg mb-2">{s.name}</h3>
                 <p className="text-xs text-muted-foreground mb-4">{s.desc}</p>
-                <Button disabled={!city} onClick={() => window.open(s.link(), "_blank")} variant="outline" className="w-full">
+                <Button disabled={!city} onClick={() => trackBookingClick({
+                  category: s.category, provider: s.name, title: `${s.name} — ${city}`,
+                  city, bookingUrl: s.link(),
+                })} variant="outline" className="w-full">
                   <Search className="w-3 h-3 mr-1" /> Explorar {city || "destino"} <ExternalLink className="w-3 h-3 ml-1" />
                 </Button>
               </div>

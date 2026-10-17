@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { airaloLink, holaflyLink } from "@/lib/affiliateLinks";
+import { trackBookingClick } from "@/lib/trackBooking";
 
 const PROVIDERS = [
   {
@@ -56,7 +57,10 @@ const TripESIM = () => {
               <div className="text-[11px] px-2 py-1.5 rounded bg-primary/10 text-primary border border-primary/20 mb-3">
                 {p.perk}
               </div>
-              <Button onClick={() => window.open(p.link(country), "_blank")} className="w-full">
+              <Button onClick={() => trackBookingClick({
+                category: "esim", provider: p.name, title: `eSIM ${country || ""}`.trim(),
+                country, bookingUrl: p.link(country),
+              })} className="w-full">
                 Comprar eSIM <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
             </div>

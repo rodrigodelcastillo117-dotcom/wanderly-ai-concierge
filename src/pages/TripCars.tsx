@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { discoverCarsLink, rentalcarsLink, kayakCarsLink } from "@/lib/affiliateLinks";
+import { trackBookingClick } from "@/lib/trackBooking";
 
 const TripCars = () => {
   const navigate = useNavigate();
@@ -54,7 +55,10 @@ const TripCars = () => {
             <div key={p.name} className="glass-card rounded-2xl p-5 border border-white/10 hover:border-primary/40 transition-all">
               <h3 className="font-display text-lg mb-2">{p.name}</h3>
               <p className="text-xs text-muted-foreground mb-4">{p.desc}</p>
-              <Button disabled={!canSearch} onClick={() => window.open(p.url(), "_blank")} className="w-full">
+              <Button disabled={!canSearch} onClick={() => trackBookingClick({
+                category: "car", provider: p.name, title: `Auto en ${city}`,
+                city, bookingUrl: p.url(), startAt: pickup || undefined,
+              })} className="w-full">
                 <Search className="w-3 h-3 mr-1" /> Buscar <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
             </div>

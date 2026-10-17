@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { bookingLink, airbnbLink } from "@/lib/affiliateLinks";
+import { trackBookingClick } from "@/lib/trackBooking";
 
 interface HotelResult {
   name: string;
@@ -141,7 +142,10 @@ const TripHotels = () => {
                     <div className="font-display text-xl gold-text">${h.nightly_usd}</div>
                     <div className="text-[10px] text-muted-foreground">USD / noche</div>
                   </div>
-                  <Button size="sm" onClick={() => window.open(h.booking_url, "_blank")}>
+                  <Button size="sm" onClick={() => trackBookingClick({
+                    category: "hotel", provider: "Booking.com", title: h.name,
+                    subtitle: `$${h.nightly_usd} USD / noche`, city, bookingUrl: h.booking_url, startAt: checkin || undefined,
+                  })}>
                     Reservar <ExternalLink className="w-3 h-3 ml-1" />
                   </Button>
                 </div>
@@ -152,10 +156,16 @@ const TripHotels = () => {
 
         {results.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => window.open(bookingLink(city, checkin, checkout, adults), "_blank")}>
+            <Button variant="outline" onClick={() => trackBookingClick({
+              category: "hotel", provider: "Booking.com", title: `Hoteles en ${city}`,
+              city, bookingUrl: bookingLink(city, checkin, checkout, adults), startAt: checkin || undefined,
+            })}>
               Ver todo en Booking.com
             </Button>
-            <Button variant="outline" onClick={() => window.open(airbnbLink(city, checkin, checkout, adults), "_blank")}>
+            <Button variant="outline" onClick={() => trackBookingClick({
+              category: "hotel", provider: "Airbnb", title: `Hoteles en ${city}`,
+              city, bookingUrl: airbnbLink(city, checkin, checkout, adults), startAt: checkin || undefined,
+            })}>
               Buscar en Airbnb
             </Button>
           </div>

@@ -3,6 +3,7 @@ import { Crown, ExternalLink, Sparkles, Plane, Hotel, Wifi, Car, CreditCard } fr
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { airaloLink, discoverCarsLink, getYourGuideLink } from "@/lib/affiliateLinks";
+import { trackBookingClick } from "@/lib/trackBooking";
 
 // Fechas placeholder solo para que el link de Discover Cars abra con un rango
 // razonable; el usuario ajusta ciudad/fechas reales en el sitio del partner.
@@ -34,6 +35,7 @@ const BENEFITS = [
     desc: "Datos móviles en 200+ países sin cambiar chip",
     perk: "$3 USD OFF tu primera eSIM con código NEWTOAIRALO",
     url: airaloLink(),
+    category: "esim" as const,
   },
   {
     icon: Car,
@@ -41,6 +43,7 @@ const BENEFITS = [
     desc: "Comparador de rentas de auto en 145 países",
     perk: "Cancelación gratis hasta 48h antes",
     url: discoverCarsLink("", iso(enUnMes), iso(enDosMeses)),
+    category: "car" as const,
   },
   {
     icon: CreditCard,
@@ -56,6 +59,7 @@ const BENEFITS = [
     desc: "Tours, experiencias y skip-the-line en 150+ destinos",
     perk: "Cancelación gratis 24h antes en la mayoría",
     url: getYourGuideLink(""),
+    category: "activity" as const,
   },
 ];
 
@@ -83,7 +87,10 @@ const Benefits = () => {
               <div className="text-[11px] px-2 py-1.5 rounded bg-primary/10 text-primary border border-primary/20 mb-3">
                 {b.perk}
               </div>
-              <Button onClick={() => window.open(b.url, "_blank")} variant="outline" size="sm" className="w-full">
+              <Button onClick={() => "category" in b
+                ? trackBookingClick({ category: b.category, provider: b.name, title: b.name, subtitle: b.perk, bookingUrl: b.url })
+                : window.open(b.url, "_blank")
+              } variant="outline" size="sm" className="w-full">
                 Ver más <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
             </div>

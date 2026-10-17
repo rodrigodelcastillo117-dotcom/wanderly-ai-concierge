@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Shield, ExternalLink, CheckCircle2 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
+import { trackBookingClick } from "@/lib/trackBooking";
 
 const PARTNERS = [
   {
@@ -78,7 +79,10 @@ const Insurance = () => {
                   </li>
                 ))}
               </ul>
-              <Button onClick={() => window.open(p.url, "_blank")} className="w-full" size="sm">
+              <Button onClick={() => trackBookingClick({
+                category: "insurance", provider: p.name, title: `Seguro de viaje — ${p.name}`,
+                subtitle: p.tagline, bookingUrl: p.url,
+              })} className="w-full" size="sm">
                 Cotizar <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
             </div>

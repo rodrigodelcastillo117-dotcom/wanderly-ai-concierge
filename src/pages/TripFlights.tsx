@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { googleFlightsLink, skyscannerLink, kayakFlightsLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
+import { trackBookingClick } from "@/lib/trackBooking";
 
 interface FlightResult {
   price_usd: number;
@@ -146,10 +147,18 @@ const TripFlights = () => {
                 <div className="font-display text-2xl gold-text">${f.price_per_person_usd}</div>
                 <div className="text-[11px] text-muted-foreground">USD / persona</div>
                 <div className="flex flex-col gap-1 mt-2">
-                  <Button size="sm" onClick={() => window.open(ensureAviasalesMarker(f.buy_url), "_blank")} className="w-full">
+                  <Button size="sm" onClick={() => trackBookingClick({
+                    category: "flight", provider: f.airline, title: `${origin} → ${destination}`,
+                    subtitle: `$${f.price_per_person_usd} USD / persona`, city: destination,
+                    bookingUrl: ensureAviasalesMarker(f.buy_url), startAt: depart || undefined,
+                  })} className="w-full">
                     Reservar <ExternalLink className="w-3 h-3 ml-1" />
                   </Button>
-                  <button onClick={() => window.open(ensureAviasalesMarker(f.airline_buy_url), "_blank")} className="text-[11px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline">
+                  <button onClick={() => trackBookingClick({
+                    category: "flight", provider: f.airline, title: `${origin} → ${destination}`,
+                    subtitle: `$${f.price_per_person_usd} USD / persona`, city: destination,
+                    bookingUrl: ensureAviasalesMarker(f.airline_buy_url), startAt: depart || undefined,
+                  })} className="text-[11px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline">
                     Comprar en {f.airline}
                   </button>
                 </div>
@@ -160,14 +169,23 @@ const TripFlights = () => {
 
         {results.length > 0 && meta && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <Button variant="outline" onClick={() => window.open(googleFlightsLink(origin, destination, depart, returnDate, travelers), "_blank")}>
+            <Button variant="outline" onClick={() => trackBookingClick({
+              category: "flight", provider: "Google Flights", title: `${origin} → ${destination}`,
+              city: destination, bookingUrl: googleFlightsLink(origin, destination, depart, returnDate, travelers), startAt: depart || undefined,
+            })}>
               Ver todo en Google Flights
             </Button>
             {meta.dep_iata && meta.arr_iata && <>
-              <Button variant="outline" onClick={() => window.open(skyscannerLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), "_blank")}>
+              <Button variant="outline" onClick={() => trackBookingClick({
+                category: "flight", provider: "Skyscanner", title: `${origin} → ${destination}`,
+                city: destination, bookingUrl: skyscannerLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
+              })}>
                 Skyscanner
               </Button>
-              <Button variant="outline" onClick={() => window.open(kayakFlightsLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), "_blank")}>
+              <Button variant="outline" onClick={() => trackBookingClick({
+                category: "flight", provider: "Kayak", title: `${origin} → ${destination}`,
+                city: destination, bookingUrl: kayakFlightsLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
+              })}>
                 Kayak
               </Button>
             </>}
