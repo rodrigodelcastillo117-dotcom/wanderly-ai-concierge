@@ -1,9 +1,23 @@
-// Estado de vuelo en vivo usando Perplexity (busca en Google/sitios oficiales en tiempo real)
+// Estado de vuelo: widget estructurado de Google vía SerpApi; Perplexity es un fallback opcional.
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { z } from "npm:zod@3.25.76";
+import { querySerpApi } from "./serpapi.ts";
 
 const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+const SERPAPI_PRIVATE_KEY = Deno.env.get('SERPAPI_PRIVATE_KEY');
+const BodySchema = z.object({
+  flight: z.string().trim().min(1).max(80).optional(),
+  route: z.string().trim().min(1).max(100).nullish(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }).nullish(),
+}).refine(body => body.flight || body.route);
+const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -15,17 +29,20 @@ Deno.serve(async (req) => {
 
 
   try {
-    const { flight, date, route } = await req.json();
-    // flight: "AF179" o "AeroMéxico 002". date: "2026-05-28" (opcional). route: "CDMX-CDG" (opcional)
-    if (!flight && !route) {
-      return new Response(JSON.stringify({ error: 'Falta número de vuelo o ruta' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const input = BodySchema.safeParse(await req.json().catch(() => null));
+    if (!input.success) return jsonResponse({ error: 'Número de vuelo/ruta o fecha inválidos' }, 400);
+    const { flight, route } = input.data;
+    const date = input.data.date ?? new Date().toISOString().slice(0, 10);
+    if (SERPAPI_PRIVATE_KEY && flight) {
+      try {
+        const result = await querySerpApi(SERPAPI_PRIVATE_KEY, flight, date, route ?? undefined);
+        if (result) return jsonResponse({ flight, date, route, ...result });
+      } catch {
+        console.warn('flight-status: SerpApi unavailable; attempting optional fallback');
+      }
     }
     if (!PERPLEXITY_API_KEY) {
-      return new Response(JSON.stringify({ error: 'Falta PERPLEXITY_API_KEY' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'flight_status_unavailable', message: 'No hay datos verificables para ese vuelo y fecha.', flight, date }, 503);
     }
 
     const today = new Date().toISOString().slice(0, 10);
@@ -47,15 +64,14 @@ Deno.serve(async (req) => {
         max_tokens: 600,
         return_related_questions: false,
       }),
+      signal: AbortSignal.timeout(20000),
 
     });
     const j = await r.json();
     if (!r.ok) {
       const errMsg = j?.error?.message || j?.error || `Perplexity ${r.status}`;
-      console.error('Perplexity error', errMsg, j);
-      return new Response(JSON.stringify({ error: typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg) }), {
-        status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      console.warn('flight-status: Perplexity unavailable', r.status);
+      return jsonResponse({ error: 'flight_status_unavailable' }, 502);
     }
     const content: string = j?.choices?.[0]?.message?.content ?? '';
     const citations: string[] = j?.citations ?? [];
@@ -64,17 +80,18 @@ Deno.serve(async (req) => {
     let parsed: any = null;
     const m = content.match(/\{[\s\S]*\}/);
     if (m) { try { parsed = JSON.parse(m[0]); } catch { /* */ } }
+    if (!parsed || parsed.status === 'desconocido' || !citations.length) {
+      return jsonResponse({ error: 'flight_status_unavailable', flight, date }, 503);
+    }
 
     return new Response(JSON.stringify({
       flight, date: date ?? today, route,
-      data: parsed,
+      data: { ...parsed, fuente: 'perplexity' }, provider: 'perplexity',
       raw: content,
       citations,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: 'flight_status_unavailable' }, 502);
   }
 });
