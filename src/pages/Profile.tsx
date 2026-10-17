@@ -16,6 +16,7 @@ import { CompatibilityPanel } from "@/components/lux/CompatibilityPanel";
 import { BestMomentsPanel } from "@/components/lux/BestMomentsPanel";
 import { Tooltip as InlineTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
+import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -253,6 +254,8 @@ const Profile = () => {
         <section>
           <PromocionesActivas />
         </section>
+
+        <DeleteAccountSection />
 
         <section className="pt-6 border-t border-white/[0.06] flex justify-center">
           <Button

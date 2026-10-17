@@ -150,3 +150,6 @@ verify_jwt = true
 
 [functions.email-bienvenida]
 verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
