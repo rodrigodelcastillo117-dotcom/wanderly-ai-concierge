@@ -1709,6 +1709,13 @@ export type Database = {
       }
     }
     Functions: {
+      account_deletion_files: {
+        Args: { p_user_id: string }
+        Returns: {
+          bucket_id: string
+          name: string
+        }[]
+      }
       aceptar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
       agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
       check_rate_limit: {
@@ -1745,6 +1752,7 @@ export type Database = {
         Args: { p_trip: string; p_user: string }
         Returns: boolean
       }
+      purge_account_data: { Args: { p_user_id: string }; Returns: Json }
       rechazar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
     }
     Enums: {

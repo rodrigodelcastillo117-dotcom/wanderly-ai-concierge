@@ -1,3 +1,3 @@
-- [ ] Introspect live schema and restore missing versioned table definitions.
-- [ ] Implement authenticated account deletion, including files and relationship cleanup.
-- [ ] Add double confirmation in Profile and verify with a disposable user.
+- [x] Introspect live schema and restore missing versioned table definitions.
+- [x] Implement authenticated account deletion, including files and relationship cleanup.
+- [x] Add double confirmation in Profile and verify with a disposable user.
