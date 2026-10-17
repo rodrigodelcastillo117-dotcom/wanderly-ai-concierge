@@ -27,6 +27,8 @@ The public-table cleanup is transactional, but billing, files and Auth are separ
 - Real disposable-user Profile flow returned HTTP 200 `{"ok":true}`, signed out, and returned to `/`.
 - Readback: zero rows across all 26 user_id tables, zero profile/Auth identity, friendship/collaboration/authorship references, owned trip and files.
 - Bystander profile, trip, shared journal entry, expense and file remained; their expense reference to the deleted trip became NULL.
+- Mobile confirmation and deletion also returned 200 and redirected to landing; both disposable accounts were removed after testing.
+- Live unsafe requests returned 401 with invalid authentication and 400 with a supplied target user ID; neither caused deletion.
 
 ## Limits
 
