@@ -31,7 +31,7 @@ const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void })
     setDeleting(true);
     const { error } = await supabase.from("trips").delete().eq("id", t.id);
     if (error) {
-      toast.error(error.message);
+      toast.error("No pudimos eliminar el viaje. Intenta de nuevo.");
       setDeleting(false);
       return;
     }

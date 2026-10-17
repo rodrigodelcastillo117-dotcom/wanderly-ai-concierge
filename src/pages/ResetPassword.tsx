@@ -32,7 +32,7 @@ const ResetPassword = () => {
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error("No pudimos actualizar tu contraseña. Intenta de nuevo.");
     toast.success("Contraseña actualizada");
     navigate("/dashboard", { replace: true });
   };

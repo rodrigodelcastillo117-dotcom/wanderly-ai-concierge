@@ -89,7 +89,7 @@ export default function Members() {
         .eq("ciudad", norm(city))
         .order("nombre");
       if (error) {
-        toast({ title: "Error cargando venues", description: error.message, variant: "destructive" });
+        toast({ title: "Error cargando venues", description: "No pudimos cargar los lugares. Intenta de nuevo.", variant: "destructive" });
         setVenues([]);
       } else {
         setVenues((data ?? []) as Venue[]);
@@ -116,7 +116,7 @@ export default function Members() {
         { onConflict: "user_id" },
       );
     if (error) {
-      toast({ title: "No se pudo confirmar", description: error.message, variant: "destructive" });
+      toast({ title: "No se pudo confirmar", description: "Intenta de nuevo en un momento.", variant: "destructive" });
       return;
     }
     setConfirmedAdult(true);
@@ -140,7 +140,7 @@ export default function Members() {
         { onConflict: "user_id" },
       );
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: "No pudimos desbloquear el acceso. Intenta de nuevo.", variant: "destructive" });
       return;
     }
     setPasswordUnlocked(true);

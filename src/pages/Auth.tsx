@@ -74,7 +74,7 @@ const Auth = () => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (error) toast.error(error.message);
+    if (error) toast.error("No pudimos enviar el correo de recuperación. Intenta de nuevo.");
     else toast.success("Te enviamos un correo para recuperar tu contraseña");
   };
 

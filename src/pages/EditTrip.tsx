@@ -69,7 +69,7 @@ const EditTrip = () => {
       .eq("id", id);
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      toast.error("No pudimos guardar los cambios. Intenta de nuevo.");
       return;
     }
     toast.success("Cambios guardados");
@@ -106,7 +106,7 @@ const EditTrip = () => {
     if (!id) return;
     const { error } = await supabase.from("trips").delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      toast.error("No pudimos eliminar el viaje. Intenta de nuevo.");
       return;
     }
     toast.success("Viaje eliminado");
