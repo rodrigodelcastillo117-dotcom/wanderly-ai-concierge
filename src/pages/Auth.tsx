@@ -45,7 +45,11 @@ const Auth = () => {
         }
         const { error } = await signUp(email, password, fullName);
         if (error) {
-          toast.error(error.includes("already") ? "Ya existe una cuenta con este correo" : error);
+          toast.error(
+            error.includes("already")
+              ? "Ya existe una cuenta con este correo"
+              : "No pudimos crear tu cuenta. Revisa tus datos e intenta de nuevo."
+          );
         } else {
           // Auto-confirm está activo: iniciamos sesión de inmediato para evitar quedar sin sesión
           const { error: signInErr } = await signIn(email, password);

@@ -66,7 +66,7 @@ const Currency = () => {
             <select value={from} onChange={e => setFrom(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <Button variant="ghost" size="icon" onClick={swap} className="mx-auto">
+            <Button variant="ghost" size="icon" onClick={swap} className="mx-auto" aria-label="Invertir monedas">
               <ArrowLeftRight className="w-5 h-5 text-primary" />
             </Button>
             <select value={to} onChange={e => setTo(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">

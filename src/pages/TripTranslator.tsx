@@ -177,7 +177,7 @@ const TripTranslator = () => {
                       <div className="text-lg font-medium truncate">{p.local}</div>
                       <div className="text-xs text-primary/80 italic">/{p.phon}/</div>
                     </div>
-                    <Button size="icon" variant="ghost" onClick={() => speak(p.local, p.bcp47)} className="shrink-0">
+                    <Button size="icon" variant="ghost" onClick={() => speak(p.local, p.bcp47)} className="shrink-0" aria-label={`Escuchar pronunciación: ${p.local}`}>
                       <Volume2 className="w-4 h-4" />
                     </Button>
                   </div>

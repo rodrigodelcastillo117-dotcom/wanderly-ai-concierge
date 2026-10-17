@@ -62,6 +62,7 @@ export default function Social() {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [misiones, setMisiones] = useState<Mision[]>([]);
+  const [loadingMisiones, setLoadingMisiones] = useState(true);
   const [perfilOpen, setPerfilOpen] = useState<Amigo | null>(null);
   const tipSocial = useTooltipShown("social");
 
@@ -113,7 +114,7 @@ export default function Social() {
     setUnlocked(new Set((ub ?? []).map((x: any) => x.badge_id)));
 
     const { data: ev, error } = await supabase.functions.invoke("evaluar-logros");
-    if (error) return;
+    if (error) { setLoadingMisiones(false); return; }
     const payload: any = ev;
     if (payload?.nuevas_medallas?.length) {
       payload.nuevas_medallas.forEach((m: any) =>
@@ -122,6 +123,7 @@ export default function Social() {
       const { data: ub2 } = await supabase.from("user_badges").select("badge_id");
       setUnlocked(new Set((ub2 ?? []).map((x: any) => x.badge_id)));
     }
+    setLoadingMisiones(false);
     if (payload?.misiones) {
       setMisiones(payload.misiones);
       payload.misiones.forEach((m: Mision) => {
@@ -294,9 +296,13 @@ export default function Social() {
                 <span className="font-medium text-foreground">Misiones activas</span>
               </div>
               <div className="space-y-2 md:space-y-3">
-                {misiones.length === 0 ? (
+                {loadingMisiones ? (
                   <div className="glass-card rounded-2xl p-6 md:p-8 text-center text-muted-foreground text-sm">
                     Cargando misiones…
+                  </div>
+                ) : misiones.length === 0 ? (
+                  <div className="glass-card rounded-2xl p-6 md:p-8 text-center text-muted-foreground text-sm">
+                    Aún no tienes misiones activas. Sigue usando IATOS para desbloquearlas.
                   </div>
                 ) : (
                   misiones.map((m) => {

@@ -73,7 +73,7 @@ const Compare = () => {
             <div key={i} className="flex gap-2">
               <Input placeholder={`Destino ${i + 1} (ej: Tokio, Japón)`} value={d} onChange={e => set(i, e.target.value)} />
               {dests.length > 2 && (
-                <Button variant="ghost" size="icon" onClick={() => remove(i)}><X className="w-4 h-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => remove(i)} aria-label={`Quitar destino ${i + 1}`}><X className="w-4 h-4" /></Button>
               )}
             </div>
           ))}
