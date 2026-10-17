@@ -760,6 +760,121 @@ export type Database = {
           },
         ]
       }
+      price_watch_checks: {
+        Row: {
+          approximate_dates: boolean
+          checked_at: string
+          id: string
+          price_mxn: number
+          source: string
+          user_id: string
+          watch_id: string
+        }
+        Insert: {
+          approximate_dates?: boolean
+          checked_at?: string
+          id?: string
+          price_mxn: number
+          source?: string
+          user_id: string
+          watch_id: string
+        }
+        Update: {
+          approximate_dates?: boolean
+          checked_at?: string
+          id?: string
+          price_mxn?: number
+          source?: string
+          user_id?: string
+          watch_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_watch_checks_watch_id_fkey"
+            columns: ["watch_id"]
+            isOneToOne: false
+            referencedRelation: "price_watches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_watches: {
+        Row: {
+          active: boolean
+          adults: number
+          alerts_sent: number
+          baseline_approximate: boolean
+          baseline_price_mxn: number
+          booking_link: string | null
+          created_at: string
+          departure_date: string
+          destination_iata: string
+          id: string
+          last_alert_at: string | null
+          last_alert_price_mxn: number | null
+          last_checked_at: string | null
+          last_price_mxn: number | null
+          lowest_price_mxn: number | null
+          origin_iata: string
+          return_date: string | null
+          trip_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          adults?: number
+          alerts_sent?: number
+          baseline_approximate?: boolean
+          baseline_price_mxn: number
+          booking_link?: string | null
+          created_at?: string
+          departure_date: string
+          destination_iata: string
+          id?: string
+          last_alert_at?: string | null
+          last_alert_price_mxn?: number | null
+          last_checked_at?: string | null
+          last_price_mxn?: number | null
+          lowest_price_mxn?: number | null
+          origin_iata: string
+          return_date?: string | null
+          trip_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          adults?: number
+          alerts_sent?: number
+          baseline_approximate?: boolean
+          baseline_price_mxn?: number
+          booking_link?: string | null
+          created_at?: string
+          departure_date?: string
+          destination_iata?: string
+          id?: string
+          last_alert_at?: string | null
+          last_alert_price_mxn?: number | null
+          last_checked_at?: string | null
+          last_price_mxn?: number | null
+          lowest_price_mxn?: number | null
+          origin_iata?: string
+          return_date?: string | null
+          trip_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_watches_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: true
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

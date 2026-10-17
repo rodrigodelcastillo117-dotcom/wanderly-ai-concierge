@@ -1,3 +1,6 @@
 - [x] Introspect live schema and restore missing versioned table definitions.
 - [x] Implement authenticated account deletion, including files and relationship cleanup.
 - [x] Add double confirmation in Profile and verify with a disposable user.
+- [ ] Apply price-watch schema and deploy requested functions.
+- [ ] Schedule price-watch-cron every 12 hours using supported scheduling.
+- [ ] Verify real baseline and price-drop notification with disposable account; remove test data.

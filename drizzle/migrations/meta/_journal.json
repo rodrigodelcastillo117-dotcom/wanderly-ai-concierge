@@ -22,6 +22,13 @@
       "when": 1792231862947,
       "tag": "0002_restore_missing_schema_views_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792256142937,
+      "tag": "0003_price_watches",
+      "breakpoints": true
     }
   ]
 }
