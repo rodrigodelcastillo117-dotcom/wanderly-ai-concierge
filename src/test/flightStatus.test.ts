@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { normalizeFlightWidget, querySerpApi } from "../../supabase/functions/flight-status/serpapi";
+import { normalizeFlightWidget, querySerpApi } from "../../supabase/functions/_shared/flight-serpapi";
 
 const widget = (status = "SCHEDULED", delay = 0) => ({ dates: [{ date: "2026-10-17",
   metadata: { status, departure_delay: delay, origin: "MEX", destination: "CDG" },

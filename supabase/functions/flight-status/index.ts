@@ -3,7 +3,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { z } from "npm:zod@3.25.76";
-import { querySerpApi } from "./serpapi.ts";
+import { querySerpApi } from "../_shared/flight-serpapi.ts";
 
 const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
 const SERPAPI_PRIVATE_KEY = Deno.env.get('SERPAPI_PRIVATE_KEY');

@@ -760,63 +760,6 @@ export type Database = {
           },
         ]
       }
-      profiles: {
-        Row: {
-          avatar_url: string | null
-          ciudad_origen: string | null
-          created_at: string
-          currency_preference: string | null
-          email: string | null
-          fecha_nacimiento: string | null
-          food_dna: Json
-          full_name: string | null
-          id: string
-          invite_code: string | null
-          loyalty_programs: Json | null
-          nationality: string | null
-          pais_origen: string | null
-          tier: string | null
-          updated_at: string
-          username: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          ciudad_origen?: string | null
-          created_at?: string
-          currency_preference?: string | null
-          email?: string | null
-          fecha_nacimiento?: string | null
-          food_dna?: Json
-          full_name?: string | null
-          id: string
-          invite_code?: string | null
-          loyalty_programs?: Json | null
-          nationality?: string | null
-          pais_origen?: string | null
-          tier?: string | null
-          updated_at?: string
-          username?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          ciudad_origen?: string | null
-          created_at?: string
-          currency_preference?: string | null
-          email?: string | null
-          fecha_nacimiento?: string | null
-          food_dna?: Json
-          full_name?: string | null
-          id?: string
-          invite_code?: string | null
-          loyalty_programs?: Json | null
-          nationality?: string | null
-          pais_origen?: string | null
-          tier?: string | null
-          updated_at?: string
-          username?: string | null
-        }
-        Relationships: []
-      }
       price_watch_checks: {
         Row: {
           approximate_dates: boolean
@@ -931,6 +874,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          ciudad_origen: string | null
+          created_at: string
+          currency_preference: string | null
+          email: string | null
+          fecha_nacimiento: string | null
+          food_dna: Json
+          full_name: string | null
+          id: string
+          invite_code: string | null
+          loyalty_programs: Json | null
+          nationality: string | null
+          pais_origen: string | null
+          tier: string | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          ciudad_origen?: string | null
+          created_at?: string
+          currency_preference?: string | null
+          email?: string | null
+          fecha_nacimiento?: string | null
+          food_dna?: Json
+          full_name?: string | null
+          id: string
+          invite_code?: string | null
+          loyalty_programs?: Json | null
+          nationality?: string | null
+          pais_origen?: string | null
+          tier?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          ciudad_origen?: string | null
+          created_at?: string
+          currency_preference?: string | null
+          email?: string | null
+          fecha_nacimiento?: string | null
+          food_dna?: Json
+          full_name?: string | null
+          id?: string
+          invite_code?: string | null
+          loyalty_programs?: Json | null
+          nationality?: string | null
+          pais_origen?: string | null
+          tier?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
       }
       push_subscriptions: {
         Row: {
