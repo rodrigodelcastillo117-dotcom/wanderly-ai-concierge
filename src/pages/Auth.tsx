@@ -5,6 +5,7 @@ import { Compass, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +18,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -39,8 +41,12 @@ const Auth = () => {
     setLoading(true);
     try {
       if (mode === "signup") {
-        if (password.length < 6) {
-          toast.error("La contraseña debe tener al menos 6 caracteres");
+        if (password.length < 8) {
+          toast.error("La contraseña debe tener al menos 8 caracteres");
+          return;
+        }
+        if (!acceptedTerms) {
+          toast.error("Acepta los Términos y la Política de Privacidad para continuar");
           return;
         }
         const { error } = await signUp(email, password, fullName);
@@ -143,13 +149,35 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-2 bg-input border-border h-12"
-                placeholder="Mínimo 6 caracteres"
+                placeholder={mode === "signup" ? "Mínimo 8 caracteres" : "Tu contraseña"}
               />
             </div>
 
+            {mode === "signup" && (
+              <div className="flex items-start gap-2.5">
+                <Checkbox
+                  id="terms"
+                  checked={acceptedTerms}
+                  onCheckedChange={(v) => setAcceptedTerms(v === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="terms" className="text-xs text-muted-foreground font-normal leading-relaxed cursor-pointer">
+                  Acepto los{" "}
+                  <Link to="/terminos" target="_blank" className="text-primary hover:underline">
+                    Términos de Servicio
+                  </Link>{" "}
+                  y la{" "}
+                  <Link to="/privacidad" target="_blank" className="text-primary hover:underline">
+                    Política de Privacidad
+                  </Link>{" "}
+                  de IATOS AI.
+                </Label>
+              </div>
+            )}
+
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || (mode === "signup" && !acceptedTerms)}
               className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-12"
             >
               {loading ? "Procesando..." : mode === "signup" ? "Crear cuenta" : "Iniciar sesión"}
