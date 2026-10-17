@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792231802953,
+      "tag": "0000_restore_missing_schema_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792231829114,
+      "tag": "0001_account_deletion_private_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792231862947,
+      "tag": "0002_restore_missing_schema_views_indexes",
+      "breakpoints": true
+    }
+  ]
+}

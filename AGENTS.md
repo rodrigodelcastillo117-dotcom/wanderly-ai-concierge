@@ -1,3 +1,6 @@
 # Architecture rules
 
 - Flight status normalizes structured SerpApi Google widgets in `supabase/functions/flight-status/serpapi.ts`, with optional Perplexity fallback; keep the mapper independently testable and reject mismatched dates so another day's status cannot be presented as current.
+- Account deletion authenticates the caller in `delete-account`, cancels external billing, removes owned storage via API, calls service-role-only transactional cleanup, then deletes Auth identity; never accept a caller-supplied user ID, so deletion cannot target someone else.
+- Account cleanup enumerates live public base tables with UUID `user_id` and explicitly handles friendships, authorship, invitations and trip dependencies; review new non-user_id identity columns so personal data cannot escape erasure.
+- Retroactive schema baselines are idempotent and ordered before their historical dependents; legacy Auth FKs remain on deployed tables but reconstructed application tables use plain user UUIDs to comply with Cloud schema rules.
