@@ -2,6 +2,7 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
+import { querySerpApi } from '../flight-status/serpapi.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -16,13 +17,20 @@ webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-async function callFlightStatus(flight: string, route?: string | null, date?: string | null) {
-  const r = await fetch(`${SUPABASE_URL}/functions/v1/flight-status`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${SERVICE_KEY}`, 'apikey': SERVICE_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ flight, route, date }),
-  });
-  return await r.json();
+// flight-status only accepts user JWTs (the service key fails getAuthUser), so the
+// cron queries the same SerpApi normalizer directly.
+async function callFlightStatus(
+  flight: string,
+  route?: string | null,
+  date?: string | null,
+): Promise<{ data?: Record<string, any> }> {
+  const key = Deno.env.get('SERPAPI_PRIVATE_KEY');
+  if (!key) return {};
+  try {
+    return (await querySerpApi(key, flight, date ?? new Date().toISOString().slice(0, 10), route ?? undefined)) ?? {};
+  } catch {
+    return {};
+  }
 }
 
 async function pushToUser(user_id: string, title: string, body: string, url: string) {

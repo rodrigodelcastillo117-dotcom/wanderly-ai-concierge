@@ -13,6 +13,7 @@ import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
 import { RealTripTotal } from "@/components/RealTripTotal";
 import { InviteFriendDialog } from "@/components/InviteFriendDialog";
+import { PriceWatchCard } from "@/components/PriceWatchCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateTripPDF } from "@/lib/tripPdf";
 import { formatDateOnly } from "@/lib/dateUtils";
@@ -454,6 +455,10 @@ const TripDetail = () => {
             />
           )}
         </motion.section>
+
+        {user?.id === trip.user_id && (
+          <PriceWatchCard tripId={trip.id} departureDate={trip.fecha_salida} />
+        )}
 
         {/* Selector noches (solo single + hospedaje seleccionado) */}
         {!isMulti && selHospedaje >= 0 && noches > 1 && trip.hospedaje_json?.length > 0 && (

@@ -73,7 +73,7 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
       await supabase.from("notifications").update({ read: true }).eq("id", n.id);
     }
     setOpen(false);
-    if (n.related_id && (n.type === "trip_updated" || n.type === "trip_accepted" || n.type === "trip_rejected")) {
+    if (n.related_id && (n.type === "trip_updated" || n.type === "trip_accepted" || n.type === "trip_rejected" || n.type === "price_drop")) {
       navigate(`/dashboard/viajes/${n.related_id}`);
     }
     load();

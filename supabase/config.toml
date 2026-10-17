@@ -153,3 +153,9 @@ verify_jwt = true
 
 [functions.delete-account]
 verify_jwt = true
+
+[functions.price-watch]
+verify_jwt = true
+
+[functions.price-watch-cron]
+verify_jwt = false
