@@ -36,6 +36,13 @@
       "when": 1792256164125,
       "tag": "0004_price_watch_service_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792304925915,
+      "tag": "0005_price_watch_baseline_source",
+      "breakpoints": true
     }
   ]
 }
