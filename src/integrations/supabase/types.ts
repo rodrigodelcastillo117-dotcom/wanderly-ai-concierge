@@ -805,7 +805,6 @@ export type Database = {
           alerts_sent: number
           baseline_approximate: boolean
           baseline_price_mxn: number
-          baseline_source: string
           booking_link: string | null
           created_at: string
           departure_date: string
@@ -828,7 +827,6 @@ export type Database = {
           alerts_sent?: number
           baseline_approximate?: boolean
           baseline_price_mxn: number
-          baseline_source?: string
           booking_link?: string | null
           created_at?: string
           departure_date: string
@@ -851,7 +849,6 @@ export type Database = {
           alerts_sent?: number
           baseline_approximate?: boolean
           baseline_price_mxn?: number
-          baseline_source?: string
           booking_link?: string | null
           created_at?: string
           departure_date?: string
