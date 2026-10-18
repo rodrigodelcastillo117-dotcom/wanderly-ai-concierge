@@ -2,6 +2,8 @@
 - [x] Implement authenticated account deletion, including files and relationship cleanup.
 - [x] Add double confirmation in Profile and verify with a disposable user.
 - [x] Apply price-watch schema, explicit service-role grants, and deploy all requested functions.
-- [ ] Schedule price-watch-cron every 12 hours: blocked because this legacy project lacks managed HTTP schedule tools/helper; existing unmanaged HTTP job preserved.
-- [ ] Verify real baseline and price-drop notification: blocked by start returning 422 no_fare for MEX–MAD 2026-12-17/24 and one cron invocation returning 401 unauthorized; no further provider attempts made.
+- [x] Apply baseline_source migration and redeploy price-watch, price-watch-cron and flight-watch-cron.
+- [ ] Apply Vault validator and schedule price-watch-cron twice daily: blocked by migration tool rejecting Vault access (Agent access to secrets is not allowed), and managed HTTP scheduling unavailable for this legacy project; existing unmanaged flight schedule preserved.
+- [x] Verify MEX–MAD 17–24 December 2026: real Google Flights baseline 22,152 MXN; raise test baseline 30%; one cron invocation HTTP 200 with one price_drop notification.
+- [x] Inspect recent HTTP responses: latest 20 responses at five-minute intervals were HTTP 401; direct cron job internals inspection blocked.
 - [x] Delete disposable account and confirm zero Auth, profile, trip, watch, check and notification rows.
