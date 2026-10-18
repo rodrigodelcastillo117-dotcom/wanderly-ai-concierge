@@ -10,6 +10,9 @@ avisos de cambios en vuelos rastreados (cada 15 min), y te da acceso a
 `/dashboard/admin`.
 
 1. Abre el proyecto en Lovable → pestaña **Cloud** → **SQL editor**.
+   - Si Lovable no ha aplicado aún la migración
+     `supabase/migrations/20261018120000_admin_metrics_and_referrals.sql`, pega
+     primero ese archivo completo y presiona **Run** (es seguro repetirlo).
 2. Copia todo el contenido de [`programar-tareas.sql`](./programar-tareas.sql).
 3. En la sección 4, cambia `TU-CORREO@ejemplo.com` por el correo con el que
    inicias sesión en IATOS.
