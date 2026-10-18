@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Watch = Tables<"price_watches">;
-type Check = Pick<Tables<"price_watch_checks">, "price_mxn" | "checked_at" | "approximate_dates">;
+type Check = Pick<Tables<"price_watch_checks">, "price_mxn" | "checked_at" | "approximate_dates" | "source">;
 
 const mxn = (n: number | null | undefined) =>
   n == null ? "—" : `$${Math.round(Number(n)).toLocaleString("es-MX")}`;
@@ -52,7 +52,7 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
     if (w) {
       const { data: c } = await supabase
         .from("price_watch_checks")
-        .select("price_mxn,checked_at,approximate_dates")
+        .select("price_mxn,checked_at,approximate_dates,source")
         .eq("watch_id", w.id)
         .order("checked_at", { ascending: false })
         .limit(30);
@@ -109,7 +109,9 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
   const current = watch.last_price_mxn == null ? null : Number(watch.last_price_mxn);
   const delta = current == null ? 0 : current - baseline;
   const down = delta < 0;
-  const exact = checks.filter((c) => !c.approximate_dates).map((c) => Number(c.price_mxn));
+  const exact = checks
+    .filter((c) => !c.approximate_dates && c.source === watch.baseline_source)
+    .map((c) => Number(c.price_mxn));
   const route = `${watch.origin_iata} → ${watch.destination_iata}`;
 
   return (
@@ -156,7 +158,7 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
       )}
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-        <PriceSourceBadge source="travelpayouts" />
+        <PriceSourceBadge source={watch.baseline_source} />
         <div className="flex-1" />
         <button type="button" onClick={() => call("stop")} disabled={busy} className="text-xs text-muted-foreground hover:text-foreground transition">
           Dejar de vigilar

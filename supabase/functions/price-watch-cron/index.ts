@@ -1,8 +1,9 @@
 // Re-quotes watched trips' flights and alerts users when the live fare drops.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { cheapestFareUsd } from "../_shared/travelpayouts.ts";
+import { cheapestFare, type CheapestFare } from "../_shared/travelpayouts.ts";
 import { getUsdMxnRate } from "../_shared/fx.ts";
 import { pushToUser } from "../_shared/push.ts";
+import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 import { decide, formatMxn } from "./rules.ts";
 
 const json = (body: unknown, status = 200) =>
@@ -11,18 +12,13 @@ const json = (body: unknown, status = 200) =>
 const BATCH = 40;
 
 Deno.serve(async (req) => {
-  // Fail closed: shared CRON_SECRET header, or the service-role key for internal schedulers.
-  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const cronHeader = req.headers.get("x-cron-secret") ?? req.headers.get("x-cron-key") ?? "";
-  const bearer = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!((cronSecret && cronHeader === cronSecret) || (serviceKey && bearer === serviceKey))) {
-    return json({ error: "unauthorized" }, 401);
-  }
+  if (!(await isAuthorizedCron(req))) return json({ error: "unauthorized" }, 401);
 
   const token = Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "";
-  if (!token) return json({ error: "TRAVELPAYOUTS_TOKEN missing" }, 503);
+  const serpKey = Deno.env.get("SERPAPI_PRIVATE_KEY") ?? "";
+  if (!token && !serpKey) return json({ error: "no_price_source" }, 503);
   const marker = (Deno.env.get("TRAVELPAYOUTS_MARKER") || "533299").trim();
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey, { auth: { persistSession: false } });
 
   const now = new Date();
@@ -40,18 +36,19 @@ Deno.serve(async (req) => {
   if (error) return json({ error: "query_failed" }, 500);
 
   const fx = await getUsdMxnRate();
-  const fareCache = new Map<string, Awaited<ReturnType<typeof cheapestFareUsd>>>();
+  const fareCache = new Map<string, CheapestFare | null>();
   const summary = { checked: 0, no_fare: 0, alerts: 0, rebaselined: 0, failed: 0 };
 
   for (const w of watches ?? []) {
     try {
-      const key = `${w.origin_iata}|${w.destination_iata}|${w.departure_date}|${w.return_date ?? ""}`;
+      const prefer = w.baseline_approximate ? "travelpayouts" : w.baseline_source;
+      const key = `${w.origin_iata}|${w.destination_iata}|${w.departure_date}|${w.return_date ?? ""}|${prefer}`;
       if (!fareCache.has(key)) {
-        fareCache.set(key, await cheapestFareUsd({
-          token, marker,
-          origin: w.origin_iata, destination: w.destination_iata,
-          departureDate: w.departure_date, returnDate: w.return_date,
-        }));
+        fareCache.set(key, await cheapestFare(
+          { origin: w.origin_iata, destination: w.destination_iata, departureDate: w.departure_date, returnDate: w.return_date },
+          { travelpayoutsToken: token, serpKey, marker },
+          prefer,
+        ));
       }
       const fare = fareCache.get(key);
       const checkedAt = new Date().toISOString();
@@ -65,31 +62,36 @@ Deno.serve(async (req) => {
       summary.checked++;
       await admin.from("price_watch_checks").insert({
         watch_id: w.id, user_id: w.user_id, price_mxn: price, approximate_dates: fare.approximateDates,
+        source: fare.source,
       });
-
-      const update: Record<string, unknown> = {
-        last_checked_at: checkedAt,
-        last_price_mxn: price,
-        booking_link: fare.bookingLink,
-      };
-      if (!fare.approximateDates) {
-        update.lowest_price_mxn = w.lowest_price_mxn == null ? price : Math.min(Number(w.lowest_price_mxn), price);
-      }
 
       const decision = decide(
         {
           baselinePrice: Number(w.baseline_price_mxn),
           baselineApproximate: w.baseline_approximate,
+          baselineSource: w.baseline_source,
           lastAlertPrice: w.last_alert_price_mxn == null ? null : Number(w.last_alert_price_mxn),
           lastAlertAt: w.last_alert_at,
         },
-        { price, approximate: fare.approximateDates },
+        { price, approximate: fare.approximateDates, source: fare.source },
         now,
       );
+
+      const update: Record<string, unknown> = { last_checked_at: checkedAt };
+      // The card compares "today" with the baseline, so it only shows prices
+      // from the baseline's own source and exact dates.
+      const comparable = decision.kind === "rebaseline" ||
+        (!fare.approximateDates && fare.source === w.baseline_source);
+      if (comparable) {
+        update.last_price_mxn = price;
+        update.booking_link = fare.bookingLink;
+        update.lowest_price_mxn = w.lowest_price_mxn == null ? price : Math.min(Number(w.lowest_price_mxn), price);
+      }
 
       if (decision.kind === "rebaseline") {
         update.baseline_price_mxn = price;
         update.baseline_approximate = false;
+        update.baseline_source = fare.source;
         update.lowest_price_mxn = price;
         summary.rebaselined++;
       } else if (decision.kind === "alert") {

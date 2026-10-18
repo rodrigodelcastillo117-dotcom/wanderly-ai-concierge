@@ -3,8 +3,8 @@ import { render, screen } from "@testing-library/react";
 
 let watchRow: Record<string, unknown> | null = null;
 const checkRows = [
-  { price_mxn: 21000, checked_at: "2026-10-15T00:00:00Z", approximate_dates: false },
-  { price_mxn: 18500, checked_at: "2026-10-16T00:00:00Z", approximate_dates: false },
+  { price_mxn: 21000, checked_at: "2026-10-15T00:00:00Z", approximate_dates: false, source: "travelpayouts" },
+  { price_mxn: 18500, checked_at: "2026-10-16T00:00:00Z", approximate_dates: false, source: "travelpayouts" },
 ];
 
 vi.mock("@/integrations/supabase/client", () => {
@@ -36,7 +36,7 @@ describe("PriceWatchCard", () => {
   it("shows baseline, current, lowest and the drop when watching", async () => {
     watchRow = {
       id: "w1", trip_id: "t1", active: true, origin_iata: "MEX", destination_iata: "NRT",
-      baseline_price_mxn: 21000, baseline_approximate: false, last_price_mxn: 18500, lowest_price_mxn: 18500,
+      baseline_price_mxn: 21000, baseline_approximate: false, baseline_source: "travelpayouts", last_price_mxn: 18500, lowest_price_mxn: 18500,
       booking_link: "https://www.aviasales.com/x?marker=533299", last_checked_at: new Date().toISOString(),
       departure_date: future,
     };

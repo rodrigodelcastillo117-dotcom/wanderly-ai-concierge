@@ -3,6 +3,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 import { querySerpApi } from '../_shared/flight-serpapi.ts';
+import { isAuthorizedCron } from '../_shared/cron-auth.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -57,16 +58,7 @@ async function pushToUser(user_id: string, title: string, body: string, url: str
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  // Auth gate: require shared CRON_SECRET (fail-closed).
-  // Also accept the Supabase service-role key for internal schedulers.
-  const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const cronHeader = req.headers.get('x-cron-secret') ?? req.headers.get('x-cron-key') ?? '';
-  const authHeader = req.headers.get('authorization') ?? req.headers.get('Authorization') ?? '';
-  const bearer = authHeader.replace(/^Bearer\s+/i, '');
-  const isCron = !!cronSecret && cronHeader === cronSecret;
-  const isService = !!serviceKey && bearer === serviceKey;
-  if (!isCron && !isService) {
+  if (!(await isAuthorizedCron(req))) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

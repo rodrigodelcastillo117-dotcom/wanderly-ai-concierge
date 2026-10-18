@@ -4,7 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { cheapestFareUsd, resolveIata } from "../_shared/travelpayouts.ts";
+import { cheapestFare, resolveIata } from "../_shared/travelpayouts.ts";
 import { getUsdMxnRate } from "../_shared/fx.ts";
 import { primaryPlace } from "./place.ts";
 
@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
   }
 
   const token = Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "";
-  if (!token) return respond({ error: "price_source_unavailable" }, 503);
+  const serpKey = Deno.env.get("SERPAPI_PRIVATE_KEY") ?? "";
+  if (!token && !serpKey) return respond({ error: "price_source_unavailable" }, 503);
   const marker = (Deno.env.get("TRAVELPAYOUTS_MARKER") || "533299").trim();
 
   const [origin, destination] = await Promise.all([
@@ -63,10 +64,10 @@ Deno.serve(async (req) => {
     return respond({ error: "route_unresolved", message: "No pudimos identificar los aeropuertos de este viaje." }, 422);
   }
 
-  const fare = await cheapestFareUsd({
-    token, marker, origin, destination,
-    departureDate: trip.fecha_salida, returnDate: trip.fecha_regreso,
-  });
+  const fare = await cheapestFare(
+    { origin, destination, departureDate: trip.fecha_salida, returnDate: trip.fecha_regreso },
+    { travelpayoutsToken: token, serpKey, marker },
+  );
   if (!fare) {
     return respond({ error: "no_fare", message: "Aún no hay tarifas publicadas para esta ruta y fecha." }, 422);
   }
@@ -86,6 +87,7 @@ Deno.serve(async (req) => {
       adults,
       baseline_price_mxn: price,
       baseline_approximate: fare.approximateDates,
+      baseline_source: fare.source,
       last_price_mxn: price,
       lowest_price_mxn: fare.approximateDates ? null : price,
       booking_link: fare.bookingLink,
@@ -100,6 +102,7 @@ Deno.serve(async (req) => {
 
   await admin.from("price_watch_checks").insert({
     watch_id: watch.id, user_id: user.id, price_mxn: price, approximate_dates: fare.approximateDates,
+    source: fare.source,
   });
 
   return respond({ ok: true, watch });

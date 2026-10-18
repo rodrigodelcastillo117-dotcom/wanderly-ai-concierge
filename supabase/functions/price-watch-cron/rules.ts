@@ -10,14 +10,15 @@ export const MIN_ALERT_GAP_HOURS = 20;
 export type WatchState = {
   baselinePrice: number;
   baselineApproximate: boolean;
+  baselineSource: string;
   lastAlertPrice: number | null;
   lastAlertAt: string | null;
 };
 
-export type Check = { price: number; approximate: boolean };
+export type Check = { price: number; approximate: boolean; source: string };
 
 export type Decision =
-  | { kind: "skip"; reason: "approximate" | "no_drop" | "too_soon" | "not_new_low" }
+  | { kind: "skip"; reason: "approximate" | "source_mismatch" | "no_drop" | "too_soon" | "not_new_low" }
   | { kind: "rebaseline" }
   | { kind: "alert"; dropMxn: number; dropPct: number };
 
@@ -25,6 +26,8 @@ export function decide(watch: WatchState, check: Check, now: Date): Decision {
   // Never compare prices for different dates: only exact-date fares can alert.
   if (check.approximate) return { kind: "skip", reason: "approximate" };
   if (watch.baselineApproximate) return { kind: "rebaseline" };
+  // Different providers aren't comparable; a gap between them is not a price drop.
+  if (check.source !== watch.baselineSource) return { kind: "skip", reason: "source_mismatch" };
 
   const dropMxn = watch.baselinePrice - check.price;
   const dropPct = dropMxn / watch.baselinePrice;
