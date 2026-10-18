@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { claimPendingReferral } from "@/lib/referral";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -23,6 +24,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (user) {
+      claimPendingReferral().catch(() => {});
       // Verificar completado en ambas tablas (compatibilidad)
       (async () => {
         const [{ data: prefs }, { data: tp }] = await Promise.all([

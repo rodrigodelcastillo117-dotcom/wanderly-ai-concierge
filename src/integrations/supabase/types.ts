@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      admins: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       affiliate_clicks: {
         Row: {
           accion: string
@@ -986,6 +1001,30 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          referrer_id: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          referrer_id: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          referrer_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       recomendaciones: {
         Row: {
           created_at: string
@@ -1827,6 +1866,8 @@ export type Database = {
       }
     }
     Functions: {
+      admin_metrics: { Args: never; Returns: Json }
+      claim_referral: { Args: { p_code: string }; Returns: boolean }
       account_deletion_files: {
         Args: { p_user_id: string }
         Returns: {

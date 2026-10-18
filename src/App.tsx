@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
 import { CookieBanner } from "@/components/CookieBanner";
+import { ReferralCapture } from "@/components/ReferralCapture";
 import { lazyWithRetry } from "@/lib/lazyRetry";
 import Landing from "./pages/Landing";
 import { Navigate } from "react-router-dom";
@@ -28,6 +29,7 @@ const MultiDestRoute = lazyWithRetry(() => import("./pages/MultiDestRoute"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Discover = lazyWithRetry(() => import("./pages/Discover"));
 const Pro = lazyWithRetry(() => import("./pages/Pro"));
+const AdminMetrics = lazyWithRetry(() => import("./pages/AdminMetrics"));
 const Concierge = lazyWithRetry(() => import("./pages/Concierge"));
 const Cercanos = lazyWithRetry(() => import("./pages/Cercanos"));
 const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
@@ -77,6 +79,7 @@ const App = () => (
       <BrowserRouter>
         <ScrollToTop />
         <CookieBanner />
+        <ReferralCapture />
         <AuthProvider>
           <Suspense fallback={<RouteFallback />}>
           <Routes>
@@ -124,6 +127,7 @@ const App = () => (
             <Route path="/dashboard/gastos" element={<ProtectedRoute><Gastos /></ProtectedRoute>} />
             <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
             <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
+            <Route path="/dashboard/admin" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/dashboard/members" element={<Navigate to="/dashboard/concierge?tab=members" replace />} />
 

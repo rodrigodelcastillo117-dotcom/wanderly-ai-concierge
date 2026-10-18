@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import BenefitsVault from "@/components/BenefitsVault";
 import PromocionesActivas from "@/components/PromocionesActivas";
 import AvatarCreator from "@/components/AvatarCreator";
-import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp } from "lucide-react";
+import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp, BarChart3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import { BestMomentsPanel } from "@/components/lux/BestMomentsPanel";
 import { Tooltip as InlineTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
+import { InviteFriendsCard } from "@/components/InviteFriendsCard";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -31,6 +32,13 @@ const Profile = () => {
     updated_at: null,
   });
   const tipDNA = useTooltipShown("travel_dna_perfil");
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("admins").select("user_id").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -254,6 +262,22 @@ const Profile = () => {
         <section>
           <PromocionesActivas />
         </section>
+
+        <InviteFriendsCard />
+
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/admin")}
+            className="w-full glass-card rounded-xl p-5 flex items-center gap-3 text-left hover:border-primary/40 transition"
+          >
+            <BarChart3 className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium">Panel de métricas</p>
+              <p className="text-xs text-muted-foreground">Usuarios, viajes, reservas y crecimiento en vivo</p>
+            </div>
+          </button>
+        )}
 
         <DeleteAccountSection />
 

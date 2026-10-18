@@ -26,8 +26,8 @@ export async function isAuthorizedCron(req: Request): Promise<boolean> {
     }
   }
 
-  // Database schedulers send a secret kept in Supabase Vault (see migration
-  // 20261018091000_schedule_price_watch_cron.sql); it is checked in the database.
+  // Database schedulers send a secret kept in Supabase Vault (see
+  // docs/ops/programar-tareas.sql); it is checked in the database.
   if (cronHeader && serviceKey && SUPABASE_URL) {
     try {
       const admin = createClient(SUPABASE_URL, serviceKey, { auth: { persistSession: false } });
