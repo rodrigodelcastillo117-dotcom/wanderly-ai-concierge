@@ -69,6 +69,20 @@ The frontend talks to the project's live Supabase backend (see
 required for frontend work. To edit/deploy edge functions, use the
 Supabase CLI or the Lovable editor.
 
+## Database
+
+`supabase/migrations/` rebuilds the full production schema from an empty
+Supabase database (42 tables, 2 views, 18 functions — verified by replaying
+every migration on Postgres 16 and diffing against the live-generated
+`src/integrations/supabase/types.ts`). Objects that were created live before
+they were versioned have idempotent "restore" migrations that are no-ops on
+production. One known gap: the triggers that bump `ai_user_preferences.trip_count`
+/ `visit_count` exist only in production; their functions are versioned, the
+trigger definitions are not.
+
+Operational steps that need a person (scheduling, admin access) are in
+`docs/ops/LEEME.md`.
+
 ## Secrets / environment
 
 Configured in Supabase Project Settings → Secrets (edge functions) and as
