@@ -88,8 +88,8 @@ Deno.serve(async (req) => {
         });
       }
       if (res.status === 402) {
-        return new Response(JSON.stringify({ error: "Sin créditos de IA disponibles." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({ error: "Nuestro asistente no está disponible en este momento. Intenta de nuevo en unos minutos." }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       return new Response(JSON.stringify({ error: `AI gateway ${res.status}` }), {

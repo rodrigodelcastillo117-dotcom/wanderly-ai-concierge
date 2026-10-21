@@ -103,7 +103,7 @@ Devuelve el viaje completo actualizado como un único objeto JSON.`;
       const t = await aiRes.text();
       console.error("AI error", aiRes.status, t);
       if (aiRes.status === 429) return json({ error: "Demasiadas solicitudes, intenta en un minuto." }, 429);
-      if (aiRes.status === 402) return json({ error: "Sin créditos de IA. Agrega créditos en Configuración." }, 402);
+      if (aiRes.status === 402) return json({ error: "Nuestro asistente no está disponible en este momento. Intenta de nuevo en unos minutos." }, 503);
       return json({ error: "Error de IA", detail: t }, 502);
     }
 

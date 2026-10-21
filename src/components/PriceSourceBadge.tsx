@@ -11,7 +11,7 @@ const LIVE_SOURCES = new Set([
 ]);
 
 /** Fuentes que son un lugar real y curado (rating/reseñas reales) aunque el precio no venga de un motor en vivo. */
-const CURATED_SOURCES = new Set(["tripadvisor"]);
+const CURATED_SOURCES = new Set(["tripadvisor", "google_maps"]);
 
 const LABELS: Record<string, string> = {
   serpapi: "Precio verificado en vivo · Google",
@@ -21,6 +21,7 @@ const LABELS: Record<string, string> = {
   travelpayouts: "Precio verificado en vivo · Aviasales",
   aviasales: "Precio verificado en vivo · Aviasales",
   tripadvisor: "Curado con reseñas reales · TripAdvisor",
+  google_maps: "Curado con reseñas reales · Google",
 };
 
 export const isLivePrice = (source?: string | null) => Boolean(source && LIVE_SOURCES.has(source));

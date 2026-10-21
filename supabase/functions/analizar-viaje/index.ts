@@ -7,6 +7,14 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
 import { aiFetch } from "../_shared/ai.ts";
 
+// Extrae de las notas del cliente lo que describe el hospedaje, para buscarlo en Google Hotels.
+const HOTEL_WORDS = /(hotel|hospedaje|alojamiento|boutique|resort|villa|caba[ñn]a|hostal|airbnb|todo incluido|all inclusive|vista al mar|frente al mar|frente a la playa|alberca|piscina|spa|lujo|5 estrellas|adults only|solo adultos)/i;
+function hotelPreference(notas: unknown): string {
+  const text = String(notas ?? "").replace(/\s+/g, " ").trim();
+  if (!text || !HOTEL_WORDS.test(text)) return "";
+  return text.slice(0, 100);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -364,9 +372,9 @@ const TOOL_SCHEMA = {
             duracion: { type: "string" },
             precio_por_persona: { type: "number" },
             por_que: { type: "string" },
-            fuente: { type: "string", enum: ["tripadvisor", "perplexity", "estimado"], description: "Usa 'tripadvisor' si el nombre/rating salió del bloque ATRACCIONES — TRIPADVISOR." },
-            rating: { type: "number", description: "Rating real de TripAdvisor (0-5) si fuente='tripadvisor'." },
-            num_reviews: { type: "integer", description: "Número real de reseñas de TripAdvisor si fuente='tripadvisor'." },
+            fuente: { type: "string", enum: ["tripadvisor", "google_maps", "perplexity", "estimado"], description: "Usa la fuente que indica el bloque ATRACCIONES ('tripadvisor' o 'google_maps') si el nombre/rating salió de ahí." },
+            rating: { type: "number", description: "Rating real (0-5) si salió del bloque ATRACCIONES." },
+            num_reviews: { type: "integer", description: "Número real de reseñas si salió del bloque ATRACCIONES." },
           },
           required: ["nombre", "duracion", "precio_por_persona", "por_que"],
         },
@@ -744,6 +752,7 @@ Deno.serve(async (req) => {
         checkin: body.fecha_salida,
         checkout: body.fecha_regreso,
         adults: body.num_viajeros,
+        query: hotelPreference(body.notas_usuario),
       }),
     }).then((r) => r.json()).catch((e) => ({ source: "error", error: String(e?.message ?? e), results: [] }));
 
@@ -779,6 +788,9 @@ Deno.serve(async (req) => {
 
     const tripadvisor = tripadvisorRes.status === "fulfilled" ? tripadvisorRes.value : { ok: false, error: "promise_rejected", results: [] };
     const tripadvisorLive = tripadvisor?.ok === true && Array.isArray(tripadvisor?.results) && tripadvisor.results.length > 0;
+    // tripadvisor-search cae a Google Maps (SerpApi) cuando TripAdvisor no responde.
+    const placesSource: "tripadvisor" | "google_maps" = tripadvisor?.source === "google_maps" ? "google_maps" : "tripadvisor";
+    const placesLabel = placesSource === "google_maps" ? "Google Maps" : "TripAdvisor";
 
     console.log(
       "Perplexity citations:", investigacion.citations.length,
@@ -814,13 +826,13 @@ Deno.serve(async (req) => {
     // Bloque de atracciones/experiencias reales de TripAdvisor Content API
     const tripadvisorBlock = (() => {
       if (!tripadvisorLive) {
-        return `(Sin datos en vivo de TripAdvisor${tripadvisor?.error ? `. Motivo: ${tripadvisor.error}` : ""} — usa tours de Perplexity con fuente="perplexity" o "estimado")`;
+        return `(Sin datos en vivo de atracciones${tripadvisor?.error ? `. Motivo: ${tripadvisor.error}` : ""} — usa tours de Perplexity con fuente="perplexity" o "estimado")`;
       }
       const lines = tripadvisor.results.slice(0, 10).map((a: any, i: number) => {
         const reviews = a.num_reviews != null ? `${a.num_reviews} reseñas` : "sin conteo de reseñas";
         return `${i + 1}. ${a.name}${a.rating ? ` — rating ${a.rating}/5 (${reviews})` : ""}${a.ranking ? ` — ${a.ranking}` : ""}${a.address ? ` — ${a.address}` : ""}`;
       }).join("\n");
-      return `Fuente: TripAdvisor Content API (atracciones reales con rating y reseñas verificadas, consultadas hoy).\n${lines}`;
+      return `Fuente: ${placesLabel} (atracciones reales con rating y reseñas verificadas, consultadas hoy). Usa fuente="${placesSource}".\n${lines}`;
     })();
 
 
@@ -865,7 +877,7 @@ ${tpFlightsBlock}
 HOTELES (SerpApi / Google Hotels):
 ${serpHotelsBlock}
 
-ATRACCIONES — TRIPADVISOR (fuente curada para tours/experiencias; nombres y ratings reales):
+ATRACCIONES — ${placesLabel.toUpperCase()} (fuente curada para tours/experiencias; nombres y ratings reales):
 ${tripadvisorBlock}
 ==========================================
 
@@ -880,9 +892,9 @@ ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 
 REGLAS DE FUENTES:
 - Si arriba hay datos de TRAVELPAYOUTS para vuelos, los 3 tiers (ahorro/equilibrio/premium) DEBEN salir de esa lista. Convierte USD→MXN (×${fxUsd}, tipo de cambio de referencia del día). En cada vuelo, copia el booking_link exacto y pon fuente_precio="travelpayouts".
-- Si arriba hay datos de SERPAPI / GOOGLE HOTELS, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Convierte USD→MXN (×${fxUsd}), copia el booking_link exacto y pon fuente_precio="serpapi". NUNCA inventes un hotel ni un precio si esa lista trae datos.
+- Si arriba hay datos de SERPAPI / GOOGLE HOTELS, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Si el cliente pidió un tipo de hospedaje (boutique, vista al mar, lujo, todo incluido, etc.), elige SOLO hoteles de la lista que encajen con esa petición y prefiere rating ≥ 4.3; menciona en "por_que" cómo cumple lo que pidió. Convierte USD→MXN (×${fxUsd}), copia el booking_link exacto y pon fuente_precio="serpapi". NUNCA inventes un hotel ni un precio si esa lista trae datos.
 - Si una categoría no trajo datos en vivo, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link. Si tampoco hay contexto de Perplexity, pon fuente_precio="estimado".
-- Si arriba hay datos de ATRACCIONES — TRIPADVISOR, prioriza esos nombres para "tours" (son lugares reales con reseñas verificadas): copia el nombre exacto, pon fuente="tripadvisor", y copia rating/num_reviews tal cual. El precio_por_persona sigue siendo una estimación (TripAdvisor Content API no da precio de boleto) — está bien, solo el nombre/rating son reales. Completa hasta 4-6 tours mezclando TripAdvisor con ideas de Perplexity si TripAdvisor trae menos de 4; en esos extras pon fuente="perplexity" o "estimado".
+- Si arriba hay datos de ATRACCIONES, prioriza esos nombres para "tours" (son lugares reales con reseñas verificadas): copia el nombre exacto, pon fuente="${placesSource}", y copia rating/num_reviews tal cual. El precio_por_persona sigue siendo una estimación (${placesLabel} no da precio de boleto) — está bien, solo el nombre/rating son reales. Completa hasta 4-6 tours mezclando esa lista con ideas de Perplexity si trae menos de 4; en esos extras pon fuente="perplexity" o "estimado".
 - Restaurantes, itinerario, tips y cruceros se sacan SIEMPRE de Perplexity.
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
@@ -1067,7 +1079,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
           sample: (serpHotels?.results ?? []).slice(0, 3),
         },
         attractions: {
-          source: tripadvisorLive ? "tripadvisor" : "none",
+          source: tripadvisorLive ? placesSource : "none",
           count: tripadvisor?.results?.length ?? 0,
           error: tripadvisor?.error ?? null,
         },

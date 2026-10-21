@@ -24,6 +24,7 @@ const TripActivities = () => {
   const [cat, setCat] = useState<"attractions" | "restaurants" | "hotels">("attractions");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TAResult[]>([]);
+  const [source, setSource] = useState<"tripadvisor" | "google_maps">("tripadvisor");
 
   const sources: { name: string; desc: string; link: () => string; category: "activity" | "restaurant" }[] = [
     { name: "GetYourGuide", desc: "Tours, skip-the-line, experiencias guiadas. Cancelación 24h.", link: () => getYourGuideLink(city), category: "activity" },
@@ -43,9 +44,10 @@ const TripActivities = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResults(data?.results ?? []);
+      setSource(data?.source === "google_maps" ? "google_maps" : "tripadvisor");
       if (!data?.results?.length) toast.message("Sin resultados para ese destino");
     } catch (e: any) {
-      toast.error(e?.message ?? "Error buscando en TripAdvisor");
+      toast.error(e?.message ?? "No pudimos buscar en este momento. Intenta de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -58,7 +60,7 @@ const TripActivities = () => {
           <Sparkles className="w-8 h-8 text-primary mt-1" />
           <div>
             <h1 className="font-display text-3xl md:text-4xl">Tours, restaurantes y atracciones</h1>
-            <p className="text-sm text-muted-foreground mt-1">Reviews reales de TripAdvisor + marketplaces para reservar</p>
+            <p className="text-sm text-muted-foreground mt-1">Lugares reales con reseñas verificadas + marketplaces para reservar</p>
           </div>
         </div>
 
@@ -74,7 +76,7 @@ const TripActivities = () => {
           </Tabs>
           <Button onClick={buscar} disabled={loading || !city} className="w-full">
             {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
-            Buscar en TripAdvisor
+            Buscar lugares
           </Button>
         </div>
 
@@ -103,7 +105,7 @@ const TripActivities = () => {
                   <div className="flex gap-2 pt-2">
                     {r.web_url && (
                       <Button size="sm" onClick={() => window.open(r.web_url!, "_blank")} className="flex-1">
-                        Ver en TripAdvisor <ExternalLink className="w-3 h-3 ml-1" />
+                        {source === "google_maps" ? "Ver en Google Maps" : "Ver en TripAdvisor"} <ExternalLink className="w-3 h-3 ml-1" />
                       </Button>
                     )}
                     {r.website && (

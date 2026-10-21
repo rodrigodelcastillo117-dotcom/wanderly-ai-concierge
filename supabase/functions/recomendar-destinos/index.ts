@@ -72,35 +72,36 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const forceRefresh: boolean = !!body?.refresh;
 
+    const { data: cached } = await supabase
+      .from("recomendaciones")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("tipo", "destination_ai")
+      .order("created_at", { ascending: false })
+      .limit(8);
+    const cachedResponse = (stale: boolean) =>
+      new Response(
+        JSON.stringify({
+          destinations: (cached ?? []).map((c: any) => ({
+            name: c.titulo,
+            country: c.descripcion ?? "",
+            score: c.match_score ?? 85,
+            reason: c.metadata?.reason ?? "",
+            best_months: c.metadata?.best_months ?? "",
+            trip_type: c.metadata?.trip_type ?? "",
+            image_query: c.metadata?.image_query ?? `${c.titulo} cinematic travel aerial`,
+          })),
+          cached: true,
+          stale,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    const hasCache = !!cached && cached.length >= 6;
+
     // Cache: si ya hay recomendaciones <24h y NO se pide refresh, devolverlas tal cual.
-    if (!forceRefresh) {
-      const { data: cached } = await supabase
-        .from("recomendaciones")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("tipo", "destination_ai")
-        .order("created_at", { ascending: false })
-        .limit(8);
-      if (cached && cached.length >= 6) {
-        const ageMs = Date.now() - new Date(cached[0].created_at).getTime();
-        if (ageMs < 24 * 60 * 60 * 1000) {
-          return new Response(
-            JSON.stringify({
-              destinations: cached.map((c: any) => ({
-                name: c.titulo,
-                country: c.descripcion ?? "",
-                score: c.match_score ?? 85,
-                reason: c.metadata?.reason ?? "",
-                best_months: c.metadata?.best_months ?? "",
-                trip_type: c.metadata?.trip_type ?? "",
-                image_query: c.metadata?.image_query ?? `${c.titulo} cinematic travel aerial`,
-              })),
-              cached: true,
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-      }
+    if (!forceRefresh && hasCache) {
+      const ageMs = Date.now() - new Date(cached![0].created_at).getTime();
+      if (ageMs < 24 * 60 * 60 * 1000) return cachedResponse(false);
     }
 
     // El límite solo cuenta generaciones nuevas (llaman a la IA); leer la caché es gratis.
@@ -176,9 +177,11 @@ Recomienda 8 destinos del mundo que CLARAMENTE encajen con este perfil específi
     if (!aiRes.ok) {
       const txt = await aiRes.text();
       console.error("AI gateway", aiRes.status, txt);
+      // Mejor mostrar las últimas recomendaciones que un error.
+      if (hasCache) return cachedResponse(true);
       if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "Sin créditos de IA. Agrega créditos en Settings → Usage." }), {
-          status: 402,
+        return new Response(JSON.stringify({ error: "No pudimos generar recomendaciones en este momento. Intenta más tarde." }), {
+          status: 503,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

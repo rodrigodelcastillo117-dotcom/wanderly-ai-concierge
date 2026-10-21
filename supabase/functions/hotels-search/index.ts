@@ -42,46 +42,54 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { city, checkin, checkout, adults = 1, hotel_class = "" } = body;
+    const { city, checkin, checkout, adults = 1, hotel_class = "", query = "", sort = "value" } = body;
     const serpKey = Deno.env.get("SERPAPI_PRIVATE_KEY");
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
 
     let results: any[] = [];
     let source = "serpapi";
 
-    if (serpKey) {
+    const nightsSafe = Math.max(1, Math.round(
+      (new Date(checkout).getTime() - new Date(checkin).getTime()) / 86400000
+    )) || 1;
+
+    // sort "value" (default): los mejor calificados de Google Hotels, presentados de menor a mayor
+    // precio para que quien llama pueda armar tiers. sort "price": los más baratos.
+    const searchSerp = async (q: string): Promise<any[]> => {
       const u = new URL(SERPAPI);
       u.searchParams.set("engine", "google_hotels");
-      u.searchParams.set("q", `${city} hotels`);
+      u.searchParams.set("q", q);
       u.searchParams.set("check_in_date", checkin);
       u.searchParams.set("check_out_date", checkout);
       u.searchParams.set("adults", String(adults));
       u.searchParams.set("currency", "USD");
       u.searchParams.set("hl", "es");
       if (hotel_class) u.searchParams.set("hotel_class", hotel_class);
-      u.searchParams.set("sort_by", "3"); // 3 = lowest price
-      u.searchParams.set("api_key", serpKey);
+      u.searchParams.set("sort_by", sort === "price" ? "3" : "8"); // 3 = menor precio, 8 = mejor calificación
+      u.searchParams.set("api_key", serpKey!);
       try {
         const r = await fetch(u.toString());
-        if (r.ok) {
-          const j = await r.json();
-          const nightsSafe = Math.max(1, Math.round(
-            (new Date(checkout).getTime() - new Date(checkin).getTime()) / 86400000
-          )) || 1;
-          const withNightly = (j?.properties ?? []).map((p: any) => {
-            const nightlyRaw = Number(p?.rate_per_night?.extracted_lowest ?? 0);
-            const totalRaw = Number(p?.total_rate?.extracted_lowest ?? 0);
-            const nightly = nightlyRaw > 0 ? nightlyRaw : (totalRaw > 0 ? totalRaw / nightsSafe : 0);
-            if (nightly > 2000) {
-              console.warn("hotels-search sanity: nightly>2000 usd", {
-                name: p?.name, nightlyRaw, totalRaw, nights: nightsSafe, derived: nightly,
-              });
-            }
-            return { p, nightly, totalRaw };
-          }).filter((x: any) => x.nightly > 0)
-            .sort((a: any, b: any) => a.nightly - b.nightly)
-            .slice(0, 15);
-          results = withNightly.map(({ p, nightly, totalRaw }: any) => ({
+        if (!r.ok) { console.error("hotels status", r.status); return []; }
+        const j = await r.json();
+        let withNightly = (j?.properties ?? []).map((p: any) => {
+          const nightlyRaw = Number(p?.rate_per_night?.extracted_lowest ?? 0);
+          const totalRaw = Number(p?.total_rate?.extracted_lowest ?? 0);
+          const nightly = nightlyRaw > 0 ? nightlyRaw : (totalRaw > 0 ? totalRaw / nightsSafe : 0);
+          if (nightly > 2000) {
+            console.warn("hotels-search sanity: nightly>2000 usd", {
+              name: p?.name, nightlyRaw, totalRaw, nights: nightsSafe, derived: nightly,
+            });
+          }
+          return { p, nightly, totalRaw };
+        }).filter((x: any) => x.nightly > 0);
+        if (sort !== "price") {
+          const wellRated = withNightly.filter((x: any) => Number(x.p?.overall_rating ?? 0) >= 4.0);
+          if (wellRated.length >= 3) withNightly = wellRated;
+        }
+        return withNightly
+          .sort((a: any, b: any) => a.nightly - b.nightly)
+          .slice(0, 15)
+          .map(({ p, nightly, totalRaw }: any) => ({
             name: p.name,
             rating: p.overall_rating ?? null,
             reviews: p.reviews ?? null,
@@ -93,9 +101,17 @@ Deno.serve(async (req) => {
             link: p.link ?? null,
             booking_url: bookingUrl(`${p.name} ${city}`, checkin, checkout, adults),
           }));
+      } catch (e) {
+        console.error("hotels err", (e as Error).message);
+        return [];
+      }
+    };
 
-        } else console.error("hotels status", r.status);
-      } catch (e) { console.error("hotels err", (e as Error).message); }
+    if (serpKey) {
+      // Preferencias del cliente ("hotel boutique con vista al mar") van en la búsqueda de Google.
+      const pref = String(query ?? "").replace(/\s+/g, " ").trim().slice(0, 100);
+      if (pref) results = await searchSerp(`${pref} ${city}`);
+      if (results.length < 3) results = await searchSerp(`${city} hotels`);
     }
 
     if (results.length === 0 && lovableKey) {

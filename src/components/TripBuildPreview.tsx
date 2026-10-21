@@ -114,7 +114,13 @@ export const TripBuildPreview = ({
         <div className="space-y-2">
           <p className="text-[10px] tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
             {isMulti ? <RouteIcon className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
-            {isMulti ? `Travesía · ${dests.length} ciudades` : "Destino"}
+            {isMulti
+              ? `Travesía · ${dests.length} ciudades`
+              : origin && dests.length > 0
+                ? "Ruta"
+                : dests.length > 0
+                  ? "Destino"
+                  : "Saliendo de"}
           </p>
           <div className="flex flex-wrap items-center gap-1.5">
             <AnimatePresence mode="popLayout">

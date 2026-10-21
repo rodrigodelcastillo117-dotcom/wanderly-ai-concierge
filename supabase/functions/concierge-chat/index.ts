@@ -836,7 +836,7 @@ Deno.serve(async (req) => {
       if (!res.ok) {
         const t = await res.text();
         if (res.status === 429) return new Response(JSON.stringify({ error: "Demasiadas solicitudes, intenta en un momento." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (res.status === 402) return new Response(JSON.stringify({ error: "Sin créditos de IA. Recarga en Settings → Workspace." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (res.status === 402) return new Response(JSON.stringify({ error: "Nuestro asistente no está disponible en este momento. Intenta de nuevo en unos minutos." }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         return new Response(JSON.stringify({ error: `AI gateway ${res.status}`, detail: t }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const data = await res.json();
