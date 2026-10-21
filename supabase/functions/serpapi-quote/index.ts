@@ -16,7 +16,6 @@ const corsHeaders = {
 };
 
 const SERPAPI = "https://serpapi.com/search.json";
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 // --- FX USD→MXN con cache en memoria (TTL 6h) ---
 const USD_MXN_FALLBACK = 20.5;
@@ -82,7 +81,7 @@ function quickIata(city: string): string | null {
 
 async function aiIata(apiKey: string, city: string): Promise<string | null> {
   try {
-    const r = await fetch(AI_URL, {
+    const r = await aiFetch({
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
@@ -233,7 +232,7 @@ Devuelve SOLO JSON válido (sin markdown):
 
 CRITICAL: price_per_person_usd es POR PERSONA, no total. Sé realista, no barato.`;
 
-  const r = await fetch(AI_URL, {
+  const r = await aiFetch({
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
@@ -266,6 +265,7 @@ CRITICAL: price_per_person_usd es POR PERSONA, no total. Sé realista, no barato
 
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

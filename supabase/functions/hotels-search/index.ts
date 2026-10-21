@@ -1,12 +1,12 @@
 // hotels-search — top resultados Google Hotels vía SerpAPI + Booking deep-link.
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 const SERPAPI = "https://serpapi.com/search.json";
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const TP_TOKEN = Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "";
 // Marker de afiliado Travelpayouts. Fallback hardcoded 533299 para NUNCA perder comisión.
 const TP_MARKER = (Deno.env.get("TRAVELPAYOUTS_MARKER") || TP_TOKEN.slice(0, 6) || "533299").trim() || "533299";
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
     if (results.length === 0 && lovableKey) {
       try {
         const prompt = `Lista 6 hoteles 4-5★ REALES y conocidos en ${city} con tarifa USD por noche realista para ${checkin}. SOLO JSON: {"options":[{"name":"...","hotel_class":4|5,"nightly_usd":N,"rating":4.5}]}`;
-        const r = await fetch(AI_URL, {
+        const r = await aiFetch({
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
           body: JSON.stringify({

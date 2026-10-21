@@ -23,7 +23,9 @@ GitHub repo.
   AI calls, third-party API integrations). Shared helpers live in
   `supabase/functions/_shared/` (auth verification, rate limiting,
   entitlements/quota, email sending, live FX).
-- **AI**: Lovable AI Gateway (Gemini/Claude-class models) for
+- **AI**: Google Gemini, called directly with the project's own key when
+  `GEMINI_API_KEY` is set and through the Lovable AI Gateway otherwise (or as
+  fallback) — see `supabase/functions/_shared/ai.ts` — for
   itinerary/pricing generation and the Concierge's tool-calling loop;
   Perplexity (`sonar`) for web-grounded research (promotions, nightlife,
   flight status) where configured.
@@ -95,7 +97,8 @@ checked into this repo. At minimum, the app needs:
 | `TRAVELPAYOUTS_TOKEN` / `TRAVELPAYOUTS_MARKER` | Flight data + affiliate commission |
 | `SERPAPI_PRIVATE_KEY` | Hotel pricing, flight status fallback, places |
 | `TRIPADVISOR_API_KEY` | Attractions data |
-| `LOVABLE_API_KEY` | AI gateway (itinerary/pricing generation, email send) |
+| `GEMINI_API_KEY` | Primary AI provider: Google Gemini called directly (`_shared/ai.ts`); falls back to the Lovable gateway |
+| `LOVABLE_API_KEY` | AI gateway fallback and image generation, email send |
 | `RESEND_API_KEY` | Transactional email |
 | `GOOGLE_MAPS_API_KEY` | Geocoding / Places |
 | `CRON_SECRET` | Authenticates scheduled cron-triggered functions |

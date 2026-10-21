@@ -1,6 +1,7 @@
 // card-benefits-lookup — dado el nombre de un banco/tarjeta (libre, en cualquier formato:
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 // "amex", "AMEX", "American Express Platinum", "Visa Santander Aeroméxico"), devuelve
 // las tarjetas que coinciden con sus beneficios reales (salas VIP, seguros, millas, etc.).
 
@@ -56,7 +57,7 @@ Deno.serve(async (req) => {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 30000);
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await aiFetch({
       method: "POST",
       signal: ctrl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },

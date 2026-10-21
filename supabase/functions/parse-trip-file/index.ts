@@ -1,6 +1,7 @@
 // parse-trip-file — lee PDFs/imágenes con Gemini multimodal y extrae el
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 // viaje TAL CUAL aparece en los documentos. Devuelve datos mapeados al
 // schema interno (vuelos_json, hospedaje_json, cruceros_json, itinerario_json).
 
@@ -151,7 +152,7 @@ Deno.serve(async (req) => {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 110000);
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await aiFetch({
       method: "POST",
       signal: ctrl.signal,
       headers: {

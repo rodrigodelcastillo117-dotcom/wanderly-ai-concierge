@@ -1,6 +1,7 @@
 // suggest-packing — sugerencias inteligentes y personalizadas de packing
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 // basadas en destino, fechas, clima esperado, vuelos, crucero, hospedaje y actividades.
 
 const corsHeaders = {
@@ -60,7 +61,7 @@ DATOS DEL VIAJE:
 
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 60000);
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await aiFetch({
       method: "POST",
       signal: ctrl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },

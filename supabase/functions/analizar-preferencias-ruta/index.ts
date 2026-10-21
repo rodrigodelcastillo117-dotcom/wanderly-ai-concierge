@@ -1,6 +1,7 @@
 // Analiza un texto libre del usuario y devuelve preferencias estructuradas para
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 // la configuración de ruta multi-destino.
 
 const corsHeaders = {
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
       `Preferencias del usuario:\n${prompt}`,
     ].filter(Boolean).join("\n\n");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await aiFetch({
       method: "POST",
       headers: {
         "Content-Type": "application/json",

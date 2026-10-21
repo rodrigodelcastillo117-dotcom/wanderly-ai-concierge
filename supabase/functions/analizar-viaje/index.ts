@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
+import { aiFetch } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -543,7 +544,7 @@ async function callLovableGatewayAnalysis(systemFinal: string, userPrompt: strin
     required: TOOL_SCHEMA.input_schema.required,
   };
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await aiFetch({
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -10,6 +10,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { getUsdMxnRate } from "../_shared/fx.ts";
+import { aiFetch } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,10 +38,9 @@ interface Body {
 type Tier = "ahorro" | "equilibrio" | "premium";
 
 const MODEL = "google/gemini-2.5-pro";
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 async function callAI(apiKey: string, system: string, user: string, toolName: string, schema: any) {
-  const res = await fetch(AI_URL, {
+  const res = await aiFetch({
     method: "POST",
     headers: {
       "Content-Type": "application/json",

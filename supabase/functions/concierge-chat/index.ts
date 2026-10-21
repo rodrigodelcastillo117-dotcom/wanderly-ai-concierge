@@ -4,6 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,7 +16,6 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 const FN_URL = `${SUPABASE_URL}/functions/v1`;
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 const SYSTEM = `Eres "IATOS AI Concierge", asistente de viaje ULTRA-LUJO 24/7 para clientes PRO (todos los usuarios son PRO). Tono cálido, refinado, breve, en español de México.
 
@@ -823,7 +823,7 @@ Deno.serve(async (req) => {
     const toolsUsed: string[] = [];
     let finalText = "";
     for (let i = 0; i < 4; i++) {
-      const res = await fetch(AI_URL, {
+      const res = await aiFetch({
         method: "POST",
         headers: { "Content-Type": "application/json", "Lovable-API-Key": LOVABLE_API_KEY },
         body: JSON.stringify({
@@ -901,7 +901,7 @@ Deno.serve(async (req) => {
         const aMantener = nuevosTurnos.slice(-10);
         const promptResumen = `Resume estas ${aResumir.length} interacciones entre un usuario y su concierge IA Iato. Extrae HECHOS CLAVE: preferencias declaradas, decisiones tomadas, alergias, gustos, eventos importantes, nombres de acompañantes. Formato: bullet points concisos. NO incluyas saludos ni respuestas genéricas.\n\nInteracciones:\n${aResumir.map((m: any) => `${m.role}: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`).join("\n")}`;
         try {
-          const rs = await fetch(AI_URL, {
+          const rs = await aiFetch({
             method: "POST",
             headers: { "Content-Type": "application/json", "Lovable-API-Key": LOVABLE_API_KEY },
             body: JSON.stringify({

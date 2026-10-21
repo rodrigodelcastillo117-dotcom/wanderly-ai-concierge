@@ -3,6 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { getUsdMxnRate, getEurMxnRate } from "../_shared/fx.ts";
+import { aiFetch } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,7 +83,7 @@ Devuelve el viaje completo actualizado como un único objeto JSON.`;
 
     const [fxUsd, fxEur] = await Promise.all([getUsdMxnRate(), getEurMxnRate()]);
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await aiFetch({
       method: "POST",
       headers: {
         "Lovable-API-Key": LOVABLE_API_KEY,

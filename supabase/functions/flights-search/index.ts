@@ -1,13 +1,13 @@
 // flights-search — devuelve top resultados reales de Google Flights vía SerpAPI
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 // con deep-link de compra. Fallback IA si no hay créditos.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 const SERPAPI = "https://serpapi.com/search.json";
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 const IATA: Record<string, string> = {
   "mexico city": "MEX", "ciudad de mexico": "MEX", "cdmx": "MEX",
@@ -31,7 +31,7 @@ async function aiIata(apiKey: string, city: string): Promise<string | null> {
   try {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 6000);
-    const r = await fetch(AI_URL, {
+    const r = await aiFetch({
       method: "POST",
       signal: ctrl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
     if (results.length === 0 && lovableKey) {
       try {
         const prompt = `Estima 3 opciones REALES y realistas de vuelo ${origin}->${destination} salida ${depart} regreso ${return_date} para ${travelers} adulto(s) en USD por persona round-trip. Devuelve SOLO JSON: {"options":[{"airline":"...","price_per_person_usd":N,"duration":"Xh Ym","stops":0|1|2}]}`;
-        const r = await fetch(AI_URL, {
+        const r = await aiFetch({
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
           body: JSON.stringify({

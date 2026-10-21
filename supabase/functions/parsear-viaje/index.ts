@@ -1,6 +1,7 @@
 // supabase/functions/parsear-viaje/index.ts
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 // Convierte un prompt natural ("quiero ir a Tokio en julio con mi pareja, ~$60k MXN")
 // en parámetros estructurados que /analizar-viaje pueda usar.
 
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
     const hoy = new Date().toISOString().slice(0, 10);
     const systemFinal = [MASTER_PROMPT_IATOS, SYSTEM].filter(Boolean).join("\n\n---\n\n");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await aiFetch({
       method: "POST",
       headers: {
         "Content-Type": "application/json",

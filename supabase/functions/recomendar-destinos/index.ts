@@ -5,6 +5,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -156,7 +157,7 @@ ${JSON.stringify(perfil, null, 2)}
 
 Recomienda 8 destinos del mundo que CLARAMENTE encajen con este perfil específico. Cada "reason" debe citar de forma explícita 1-2 elementos concretos del perfil (por ejemplo: "tu interés en ${perfil.intereses?.[0] ?? "X"}" o "tu ritmo ${perfil.ritmo ?? "relajado"}"). Si el perfil está casi vacío, basa las recomendaciones en el origen (${perfil.origen ?? "desconocido"}) y prioriza variedad geográfica/temática. NO repitas destinos ya visitados.`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await aiFetch({
       method: "POST",
       headers: {
         "Content-Type": "application/json",

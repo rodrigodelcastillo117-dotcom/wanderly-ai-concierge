@@ -1,6 +1,7 @@
 // supabase/functions/resolver-fechas/index.ts
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { aiFetch } from "../_shared/ai.ts";
 // Smart Date Resolution: detecta si el usuario dio fechas explícitas; si no,
 // usa Gemini para calcular el mes históricamente más barato/menos masificado
 // para el destino y genera una ventana estratégica (segundo martes + 10 días).
@@ -12,7 +13,6 @@ const corsHeaders = {
 };
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 type Body = {
   destino: string;
@@ -72,7 +72,7 @@ async function geminiOptimalMonth(destino: string, pais?: string | null): Promis
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), 12000);
   try {
-    const r = await fetch(AI_URL, {
+    const r = await aiFetch({
       method: "POST",
       signal: ctrl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
