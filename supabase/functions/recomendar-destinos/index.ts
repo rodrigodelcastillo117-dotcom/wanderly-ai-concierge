@@ -46,9 +46,6 @@ Deno.serve(async (req) => {
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
 
-  const __rl = await enforceRateLimit(req, "recomendar-destinos", __user.id, { perMinute: 6, perHour: 40, ipPerMinute: 20 });
-  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
-
   try {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY no configurada");
 
@@ -104,6 +101,10 @@ Deno.serve(async (req) => {
         }
       }
     }
+
+    // El límite solo cuenta generaciones nuevas (llaman a la IA); leer la caché es gratis.
+    const __rl = await enforceRateLimit(req, "recomendar-destinos", __user.id, { perMinute: 6, perHour: 40, ipPerMinute: 20 });
+    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
     // Cargar contexto completo del usuario
     const [{ data: tp }, { data: ai }, { data: prof }, { data: trips }] = await Promise.all([
