@@ -112,6 +112,26 @@ Every feature that depends on an unconfigured secret fails honestly
 (an explicit error or a clearly-labeled estimate) rather than fabricating
 data — see the data-honesty convention above.
 
+## Handover notes (for a new owner)
+
+Accounts and keys to move or re-create under the new owner, then replace in
+Lovable → More → Secrets:
+
+- **Stripe** (`STRIPE_*`): the "IATOS" Stripe account; switch test keys to
+  live keys and recreate the product/price and webhook in live mode.
+- **Google Gemini** (`GEMINI_API_KEY`): primary AI provider. Enable billing in
+  Google AI Studio for production so customer prompts are not used for training.
+- **SerpApi** (`SERPAPI_PRIVATE_KEY`): Google Flights, Google Hotels and Google
+  Maps data (flights, hotels, attractions with real ratings/reviews).
+- **Travelpayouts** (`TRAVELPAYOUTS_TOKEN` / `TRAVELPAYOUTS_MARKER`): affiliate
+  commission on flights, hotels and tours; change the marker to the new owner's.
+- **TripAdvisor** (`TRIPADVISOR_API_KEY`): optional. The current key is rejected
+  (TripAdvisor moved its API to a paid plan); attractions fall back to Google Maps
+  automatically.
+- **Planned: Viator Partner API** (`VIATOR_API_KEY`, free Basic Access for
+  affiliates) to show real tour prices. Tours currently show real places and
+  ratings with estimated prices and affiliate booking links.
+
 ## Editing
 
 - **Via Lovable**: open the project at
