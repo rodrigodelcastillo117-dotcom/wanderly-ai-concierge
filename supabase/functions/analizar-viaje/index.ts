@@ -6,14 +6,7 @@ import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
 import { aiFetch } from "../_shared/ai.ts";
-
-// Extrae de las notas del cliente lo que describe el hospedaje, para buscarlo en Google Hotels.
-const HOTEL_WORDS = /(hotel|hospedaje|alojamiento|boutique|resort|villa|caba[ñn]a|hostal|airbnb|todo incluido|all inclusive|vista al mar|frente al mar|frente a la playa|alberca|piscina|spa|lujo|5 estrellas|adults only|solo adultos)/i;
-function hotelPreference(notas: unknown): string {
-  const text = String(notas ?? "").replace(/\s+/g, " ").trim();
-  if (!text || !HOTEL_WORDS.test(text)) return "";
-  return text.slice(0, 100);
-}
+import { enforceSources, hotelPreference } from "./sources.ts";
 
 // Las miniaturas de Google (googleusercontent) aceptan el tamaño en el sufijo "=w..-h..".
 function largeGooglePhoto(url: unknown): string | null {
@@ -1059,6 +1052,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     const camposVacios = ["vuelos", "hospedaje", "restaurantes", "tours", "itinerario"]
       .filter((k) => !Array.isArray(a[k]) ? !a[k] : a[k].length === 0);
     if (camposVacios.length) console.warn("analizar-viaje: campos vacíos", camposVacios, body.destino);
+    enforceSources(a, tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : [], placesSource);
 
 
     const { data: trip, error: insertErr } = await supabase
