@@ -291,6 +291,21 @@ export type Database = {
           },
         ]
       }
+      comp_grants: {
+        Row: {
+          created_at: string
+          email: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+        }
+        Relationships: []
+      }
       concierge_conversations: {
         Row: {
           created_at: string
@@ -1001,30 +1016,6 @@ export type Database = {
         }
         Relationships: []
       }
-      referrals: {
-        Row: {
-          code: string
-          created_at: string
-          id: string
-          referrer_id: string
-          user_id: string
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          id?: string
-          referrer_id: string
-          user_id: string
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          id?: string
-          referrer_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       recomendaciones: {
         Row: {
           created_at: string
@@ -1060,6 +1051,30 @@ export type Database = {
           metadata?: Json | null
           tipo?: string | null
           titulo?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          referrer_id: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          referrer_id: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          referrer_id?: string
           user_id?: string
         }
         Relationships: []
@@ -1866,8 +1881,6 @@ export type Database = {
       }
     }
     Functions: {
-      admin_metrics: { Args: never; Returns: Json }
-      claim_referral: { Args: { p_code: string }; Returns: boolean }
       account_deletion_files: {
         Args: { p_user_id: string }
         Returns: {
@@ -1876,6 +1889,7 @@ export type Database = {
         }[]
       }
       aceptar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
+      admin_metrics: { Args: never; Returns: Json }
       agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
       check_rate_limit: {
         Args: {
@@ -1886,6 +1900,7 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_referral: { Args: { p_code: string }; Returns: boolean }
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
       consume_free_quota: {
         Args: { _kind: string; _user_id: string }
@@ -1913,6 +1928,7 @@ export type Database = {
       }
       purge_account_data: { Args: { p_user_id: string }; Returns: Json }
       rechazar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
+      verify_cron_secret: { Args: { p_secret: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
