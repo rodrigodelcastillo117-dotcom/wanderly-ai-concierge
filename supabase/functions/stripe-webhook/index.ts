@@ -25,7 +25,11 @@ async function upsertFromSubscription(sub: Stripe.Subscription, fallbackUserId?:
     stripe_subscription_id: sub.id,
     stripe_customer_id: typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null,
     trial_end: tsToIso(sub.trial_end),
-    current_period_end: tsToIso((sub as unknown as { current_period_end?: number }).current_period_end),
+    // Desde la API 2025-03-31 el periodo vive en cada item, no en la suscripción.
+    current_period_end: tsToIso(
+      (sub as unknown as { current_period_end?: number }).current_period_end ??
+        (sub.items?.data?.[0] as unknown as { current_period_end?: number } | undefined)?.current_period_end,
+    ),
     cancel_at_period_end: Boolean(sub.cancel_at_period_end),
     price_id: sub.items?.data?.[0]?.price?.id ?? null,
     currency: (sub.currency ?? "mxn").toUpperCase(),
