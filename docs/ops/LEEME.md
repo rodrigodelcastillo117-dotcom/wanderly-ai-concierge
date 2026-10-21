@@ -32,3 +32,21 @@ quitárselo:
 DELETE FROM public.admins
 WHERE user_id = (SELECT id FROM auth.users WHERE lower(email) = lower('correo@ejemplo.com'));
 ```
+
+## Regalar IATOS PRO a alguien
+
+La migración `20261021090000_comp_grants.sql` crea la lista `comp_grants`: quien
+esté en ella queda PRO de cortesía (sin cobro ni vencimiento) al registrarse, o
+al instante si ya tiene cuenta. Para agregar a alguien:
+
+```sql
+INSERT INTO public.comp_grants (email) VALUES (lower('correo@ejemplo.com'))
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO public.subscriptions (user_id, status, plan)
+SELECT u.id, 'comped', 'pro' FROM auth.users u
+JOIN public.comp_grants g ON g.email = lower(u.email)
+ON CONFLICT (user_id) DO UPDATE
+  SET status = 'comped', plan = 'pro', current_period_end = NULL,
+      cancel_at_period_end = false, updated_at = now();
+```
