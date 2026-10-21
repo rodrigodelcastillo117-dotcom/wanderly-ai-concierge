@@ -506,7 +506,11 @@ const DashboardHome = () => {
                   return (
                     <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-3 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group min-w-0">
                       <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden bg-surface flex-shrink-0 ring-1 ring-white/[0.06]">
-                        <DestinationVideo query={`${t.destino} ${t.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={t.destino} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                        {t.cover_image_url ? (
+                          <img src={t.cover_image_url} alt={t.destino} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                        ) : (
+                          <DestinationVideo query={`${t.destino} ${t.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={t.destino} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-display text-sm md:text-base truncate">{t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""}</p>

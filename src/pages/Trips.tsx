@@ -40,10 +40,11 @@ const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void })
   };
 
 
-  const [img, setImg] = useState<string | null>(cache.get(t.destino) ?? null);
+  // Foto real del destino (Google) guardada con el viaje; si no hay, una de stock.
+  const [img, setImg] = useState<string | null>(t.cover_image_url ?? cache.get(t.destino) ?? null);
 
   useEffect(() => {
-    if (cache.has(t.destino)) return;
+    if (t.cover_image_url || cache.has(t.destino)) return;
     const key = `pexels:${t.destino}`;
     const stored = localStorage.getItem(key);
     if (stored) {
@@ -62,7 +63,7 @@ const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void })
         setImg(image);
       })
       .catch(() => {});
-  }, [t.destino, t.pais_destino]);
+  }, [t.destino, t.pais_destino, t.cover_image_url]);
 
   return (
     <div className="relative glass-card rounded-2xl overflow-hidden hover:gold-border transition group">

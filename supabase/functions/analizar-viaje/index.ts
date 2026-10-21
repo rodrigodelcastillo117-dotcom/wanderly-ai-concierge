@@ -15,6 +15,26 @@ function hotelPreference(notas: unknown): string {
   return text.slice(0, 100);
 }
 
+// Las miniaturas de Google (googleusercontent) aceptan el tamaño en el sufijo "=w..-h..".
+function largeGooglePhoto(url: unknown): string | null {
+  if (typeof url !== "string" || !/^https:\/\//.test(url)) return null;
+  if (/googleusercontent\.com/.test(url) && url.includes("=")) return url.replace(/=[^=/]*$/, "=w1600-h900-k-no");
+  return url;
+}
+
+// Portada real del viaje: foto del lugar más reseñado del destino; si no hay, la del primer hotel.
+function pickCover(places: any[], hotels: any[]): string | null {
+  for (const p of places ?? []) {
+    const u = largeGooglePhoto(p?.photos?.[0]);
+    if (u) return u;
+  }
+  for (const h of hotels ?? []) {
+    const u = largeGooglePhoto(h?.thumbnail);
+    if (u) return u;
+  }
+  return null;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -219,7 +239,7 @@ REGLAS ESTRICTAS DE PRECIOS:
     - Tour grupal medio día México: $600-$1,800 MXN p/p. Tour día completo: $1,500-$4,000. VIP/privado: $4,000-$12,000.
 14. ORDENA cada array de menor a mayor precio: "hospedaje" ascendente por precio_por_noche, "tours" ascendente por precio_por_persona, "restaurantes" ascendente por el extremo inferior del rango_precio. El usuario ve siempre primero la opción más accesible.
 15. FUENTE PRIMARIA DE PRECIOS DE VUELO — TRAVELPAYOUTS/AVIASALES (REGLA NO NEGOCIABLE):
-    - Cuando en el userPrompt veas el bloque "PRECIOS PRIMARIOS — TRAVELPAYOUTS" con vuelos listados (líneas con "LINK: https://www.aviasales.com/..."), ESOS VUELOS SON LA FUENTE PRIMARIA. Usa SUS precios (convertidos USD×${fxUsd} = MXN, tipo de cambio de referencia del día) para los 3 tiers ahorro/equilibrio/premium. No uses "rangos históricos", no uses precios estimados ni los que Perplexity sugiera para vuelos.
+    - Cuando en el userPrompt veas el bloque "PRECIOS PRIMARIOS — TRAVELPAYOUTS" con vuelos listados (Aviasales y/o Google Flights, líneas con "LINK: https://www.aviasales.com/..."), ESOS VUELOS SON LA FUENTE PRIMARIA. Usa SUS precios (convertidos USD×${fxUsd} = MXN, tipo de cambio de referencia del día) para los 3 tiers ahorro/equilibrio/premium. No uses "rangos históricos", no uses precios estimados ni los que Perplexity sugiera para vuelos.
     - Perplexity es SOLO contexto cualitativo (restaurantes, tours, tips, mejor temporada). NUNCA fuente de precios de vuelo si Travelpayouts trajo datos.
     - PROHIBIDO generar booking_link a google.com/travel, google.com/flights o búsquedas genéricas de Google. Está bloqueado por CORS y rompe la experiencia.
     - Para booking_link de cada vuelo: copia EXACTAMENTE el LINK del bloque TRAVELPAYOUTS (formato https://www.aviasales.com/...?marker=...). Si por algún motivo no tienes un link de Aviasales para un tier, usa el sitio oficial de la aerolínea: Aeroméxico → https://aeromexico.com, Iberia → https://iberia.com, American → https://aa.com, United → https://united.com, Delta → https://delta.com, Air France → https://airfrance.com, LATAM → https://latam.com, Avianca → https://avianca.com, KLM → https://klm.com, Lufthansa → https://lufthansa.com, British Airways → https://britishairways.com, Volaris → https://volaris.com, Viva → https://vivaaerobus.com. NUNCA google.com.
@@ -311,8 +331,8 @@ const TOOL_SCHEMA = {
             escalas: { type: "string" },
             precio_por_persona: { type: "number" },
             notas: { type: "string" },
-            booking_link: { type: "string", description: "Link de afiliado (Travelpayouts/Aviasales) si el precio vino del bloque TRAVELPAYOUTS. Cópialo tal cual." },
-            fuente_precio: { type: "string", enum: ["travelpayouts", "serpapi", "perplexity", "estimado"], description: "Origen del precio. Usa 'travelpayouts' si lo tomaste del bloque TRAVELPAYOUTS." },
+            booking_link: { type: "string", description: "Link de afiliado (Aviasales) del vuelo elegido en las listas de VUELOS. Cópialo tal cual." },
+            fuente_precio: { type: "string", enum: ["travelpayouts", "serpapi", "perplexity", "estimado"], description: "Origen del precio: 'travelpayouts' si salió de VUELOS (Aviasales), 'serpapi' si salió de VUELOS (Google Flights)." },
           },
           required: ["tier", "aerolinea", "duracion", "escalas", "precio_por_persona"],
         },
@@ -756,6 +776,25 @@ Deno.serve(async (req) => {
       }),
     }).then((r) => r.json()).catch((e) => ({ source: "error", error: String(e?.message ?? e), results: [] }));
 
+    // Google Flights (SerpApi): precios reales de todas las aerolíneas, incluidas las de servicio
+    // completo que Travelpayouts a veces no trae; sirve sobre todo para el tier premium.
+    const googleFlightsPromise = fetch(`${SUPABASE_URL}/functions/v1/flights-search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        origin: body.ciudad_origen,
+        destination: body.destino,
+        depart: body.fecha_salida,
+        return_date: body.fecha_regreso,
+        travelers: body.num_viajeros,
+        type: "round",
+      }),
+    }).then((r) => r.json()).catch((e) => ({ ok: false, error: String(e?.message ?? e), results: [] }));
+
     const tripadvisorPromise = fetch(`${SUPABASE_URL}/functions/v1/tripadvisor-search`, {
       method: "POST",
       headers: {
@@ -770,11 +809,12 @@ Deno.serve(async (req) => {
       }),
     }).then((r) => r.json()).catch((e) => ({ ok: false, error: String(e?.message ?? e), results: [] }));
 
-    const [perplexityResult, tpFlightsRes, serpHotelsRes, tripadvisorRes] = await Promise.allSettled([
+    const [perplexityResult, tpFlightsRes, serpHotelsRes, tripadvisorRes, googleFlightsRes] = await Promise.allSettled([
       investigarConPerplexity(body, dias, vaultDesc),
       tpFlightsPromise,
       serpHotelsPromise,
       tripadvisorPromise,
+      googleFlightsPromise,
     ]);
 
     const investigacion = perplexityResult.status === "fulfilled"
@@ -782,6 +822,9 @@ Deno.serve(async (req) => {
       : { texto: `(Perplexity falló: ${(perplexityResult as any).reason?.message ?? "error"})`, citations: [] };
 
     const tpFlights = tpFlightsRes.status === "fulfilled" ? tpFlightsRes.value : { error: "promise_rejected", flights: [] };
+    const googleFlights = googleFlightsRes.status === "fulfilled" ? googleFlightsRes.value : { ok: false, results: [] };
+    const googleFlightsLive = googleFlights?.ok === true && googleFlights?.source === "serpapi" &&
+      Array.isArray(googleFlights?.results) && googleFlights.results.length > 0;
     const serpHotels = serpHotelsRes.status === "fulfilled" ? serpHotelsRes.value : { error: "promise_rejected", results: [] };
     // Solo consideramos "en vivo" lo que realmente vino de SerpApi (hotels-search puede caer a IA).
     const serpHotelsLive = serpHotels?.source === "serpapi" && Array.isArray(serpHotels?.results) && serpHotels.results.length > 0;
@@ -795,6 +838,7 @@ Deno.serve(async (req) => {
     console.log(
       "Perplexity citations:", investigacion.citations.length,
       "| TP flights:", tpFlights?.flights?.length ?? 0,
+      "| Google flights:", googleFlightsLive ? googleFlights.results.length : 0,
       "| SerpApi hotels:", serpHotels?.results?.length ?? 0, "source:", serpHotels?.source ?? "none",
       "| TripAdvisor attractions:", tripadvisor?.results?.length ?? 0,
     );
@@ -809,6 +853,16 @@ Deno.serve(async (req) => {
         return `${i + 1}. ${f.airline} ${f.flight_number} — ${f.origin_airport}→${f.destination_airport} — USD ${f.price} (~$${priceMxn.toLocaleString("es-MX")} MXN) — ${f.stops} escalas — sale ${f.departure_at ?? "?"} — LINK: ${f.booking_link}`;
       }).join("\n");
       return `Fuente: Travelpayouts/Aviasales (precios oficiales del inventario, consultados ${tpFlights.consulted_at}).\nRuta: ${tpFlights.origin}→${tpFlights.destination}\n${lines}`;
+    })();
+
+    const googleFlightsBlock = (() => {
+      if (!googleFlightsLive) return "(Sin datos de Google Flights)";
+      const lines = googleFlights.results.slice(0, 10).map((f: any, i: number) => {
+        const ppMxn = Math.round((Number(f.price_per_person_usd) || 0) * fxUsd);
+        const escalas = f.stops === 0 ? "directo" : `${f.stops} escala(s)`;
+        return `${i + 1}. ${f.airline} — ${f.departure?.id ?? "?"}→${f.arrival?.id ?? "?"} — ${escalas} — ${f.duration} — USD ${f.price_per_person_usd}/persona redondo (~$${ppMxn.toLocaleString("es-MX")} MXN) — sale ${f.departure?.time ?? "?"} — LINK: ${f.buy_url}`;
+      }).join("\n");
+      return `Fuente: Google Flights vía SerpApi (tarifas reales consultadas hoy, viaje redondo, precio por persona).\n${lines}`;
     })();
 
     // Bloque de hoteles con precios reales de SerpApi / Google Hotels
@@ -874,6 +928,9 @@ PRECIOS PRIMARIOS — TRAVELPAYOUTS (fuente oficial de inventario; USA ESTOS PRE
 VUELOS (Aviasales):
 ${tpFlightsBlock}
 
+VUELOS (Google Flights):
+${googleFlightsBlock}
+
 HOTELES (SerpApi / Google Hotels):
 ${serpHotelsBlock}
 
@@ -891,7 +948,8 @@ ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 ==========================================
 
 REGLAS DE FUENTES:
-- Si arriba hay datos de TRAVELPAYOUTS para vuelos, los 3 tiers (ahorro/equilibrio/premium) DEBEN salir de esa lista. Convierte USD→MXN (×${fxUsd}, tipo de cambio de referencia del día). En cada vuelo, copia el booking_link exacto y pon fuente_precio="travelpayouts".
+- Los 3 tiers de vuelo (ahorro/equilibrio/premium) DEBEN salir de las listas de VUELOS de arriba (Aviasales o Google Flights). Convierte USD→MXN (×${fxUsd}, tipo de cambio de referencia del día). Copia el LINK exacto en booking_link. fuente_precio="travelpayouts" si salió de Aviasales, "serpapi" si salió de Google Flights.
+- Tier "premium": la mejor experiencia REAL de esas listas (directo, mejor horario, aerolínea de servicio completo como Aeroméxico, United, Iberia…) aunque cueste más. NUNCA pongas un vuelo premium "estimado" si alguna de las listas trae vuelos.
 - Si arriba hay datos de SERPAPI / GOOGLE HOTELS, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Si el cliente pidió un tipo de hospedaje (boutique, vista al mar, lujo, todo incluido, etc.), elige SOLO hoteles de la lista que encajen con esa petición y prefiere rating ≥ 4.3; menciona en "por_que" cómo cumple lo que pidió. Convierte USD→MXN (×${fxUsd}), copia el booking_link exacto y pon fuente_precio="serpapi". NUNCA inventes un hotel ni un precio si esa lista trae datos.
 - Si una categoría no trajo datos en vivo, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link. Si tampoco hay contexto de Perplexity, pon fuente_precio="estimado".
 - Si arriba hay datos de ATRACCIONES, prioriza esos nombres para "tours" (son lugares reales con reseñas verificadas): copia el nombre exacto, pon fuente="${placesSource}", y copia rating/num_reviews tal cual. El precio_por_persona sigue siendo una estimación (${placesLabel} no da precio de boleto) — está bien, solo el nombre/rating son reales. Completa hasta 4-6 tours mezclando esa lista con ideas de Perplexity si trae menos de 4; en esos extras pon fuente="perplexity" o "estimado".
@@ -1029,6 +1087,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         cruceros_json: a.cruceros_alternativas ?? [],
         dates_optimized: datesOptimized,
         dates_optimization_meta: datesOptimized ? resolved.optimization : null,
+        cover_image_url: pickCover(tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : []),
       })
       .select()
       .single();

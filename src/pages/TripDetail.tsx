@@ -285,7 +285,11 @@ const TripDetail = () => {
     <DashboardLayout>
       {/* HERO */}
       <div className="relative h-[calc(100vh-3.25rem)] min-h-[560px] md:h-[60vh] md:min-h-[420px] overflow-hidden">
-        <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={trip.cover_image_url ?? santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+        {trip.cover_image_url ? (
+          <img src={trip.cover_image_url} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+        )}
         <div className="absolute inset-0 bg-gradient-overlay" />
 
 
