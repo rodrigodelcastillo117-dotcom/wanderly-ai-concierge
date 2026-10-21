@@ -9,6 +9,9 @@
 // Uso: reemplaza `fetch(LOVABLE_GATEWAY_URL, init)` por `aiFetch(init)`. La respuesta tiene
 // la misma forma (incluido streaming SSE), así que el resto del código no cambia.
 
+// Tipado mínimo para que las pruebas de Vitest (fuera de Deno) también compilen.
+declare const Deno: { env: { get(key: string): string | undefined } };
+
 const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const GEMINI_FALLBACK_MODEL = "gemini-2.5-flash";
