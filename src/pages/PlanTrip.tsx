@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
+import { parseTripFallback } from "@/lib/parseTripFallback";
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
@@ -313,7 +314,17 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       } catch (e: any) {
         if (cancelled) return;
         console.error(e);
-        toast.error("No pudimos interpretar tu solicitud. Llena el formulario.");
+        // Sin IA: rescatar lo que se pueda de la frase para no perderla.
+        const fb = parseTripFallback(q);
+        if (fb.destino) setDestino(fb.destino);
+        if (fb.fechaSalida) setFechaSalida(fb.fechaSalida);
+        if (fb.fechaRegreso) setFechaRegreso(fb.fechaRegreso);
+        if (fb.viajeros) setNumViajeros(fb.viajeros);
+        toast.error(
+          fb.destino
+            ? "No pudimos interpretar todo tu mensaje. Revisa los datos que llenamos y continúa."
+            : "No pudimos interpretar tu solicitud. Llena el formulario.",
+        );
         setInterpretando(false);
       }
     })();

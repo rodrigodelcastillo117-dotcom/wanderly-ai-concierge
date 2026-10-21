@@ -9,6 +9,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     auth: { getUser: () => getUser(), signOut: vi.fn() },
   },
 }));
+// Objeto nuevo en cada render, como un contexto que se re-crea: el hook no debe re-pedir.
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
 
 import { useAIRecommendations, __resetRecommendationsCache } from "@/hooks/useAIRecommendations";
@@ -42,6 +43,7 @@ describe("useAIRecommendations", () => {
     const { result } = renderHook(() => useAIRecommendations());
     await waitFor(() => expect(result.current.error).toMatch(/Intenta de nuevo en unos minutos/));
     expect(spy).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledTimes(1);
     spy.mockRestore();
   });
 

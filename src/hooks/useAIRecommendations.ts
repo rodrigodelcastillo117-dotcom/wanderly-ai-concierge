@@ -61,28 +61,29 @@ async function fetchRecommendations(refresh: boolean): Promise<AIRecommendation[
 
 export function useAIRecommendations() {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [recos, setRecos] = useState<AIRecommendation[] | null>(() =>
-    user ? cache.get(user.id) ?? null : null,
+    userId ? cache.get(userId) ?? null : null,
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
-    if (!user) return;
-    if (!refresh && cache.has(user.id)) {
-      setRecos(cache.get(user.id)!);
+    if (!userId) return;
+    if (!refresh && cache.has(userId)) {
+      setRecos(cache.get(userId)!);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      let pending = refresh ? undefined : inflight.get(user.id);
+      let pending = refresh ? undefined : inflight.get(userId);
       if (!pending) {
         pending = fetchRecommendations(refresh);
-        inflight.set(user.id, pending);
+        inflight.set(userId, pending);
       }
-      const result = await pending.finally(() => inflight.delete(user.id));
-      cache.set(user.id, result);
+      const result = await pending.finally(() => inflight.delete(userId));
+      cache.set(userId, result);
       setRecos(result);
     } catch (e: unknown) {
       if (e instanceof SessionExpiredError) {
@@ -97,12 +98,12 @@ export function useAIRecommendations() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
-    if (user) void load(false);
+    if (userId) void load(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [userId]);
 
   return { recos, loading, error, refresh: () => load(true) };
 }
