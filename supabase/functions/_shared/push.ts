@@ -1,43 +1,36 @@
 // Web push to every registered device of a user; prunes expired subscriptions.
+// VAPID se configura en el primer envío (no al cargar el módulo): si faltan las llaves la función
+// sigue funcionando y solo se omite el push.
 import webpush from "npm:web-push@3.6.7";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { createPushSender, type PushOptions, type PushPayload } from "./push-core.ts";
 
-let configured = false;
+export { FLIGHT_PUSH_OPTIONS, PRICE_PUSH_OPTIONS } from "./push-core.ts";
 
-function configure(): boolean {
-  if (configured) return true;
-  const pub = Deno.env.get("VAPID_PUBLIC_KEY");
-  const priv = Deno.env.get("VAPID_PRIVATE_KEY");
-  if (!pub || !priv) return false;
-  // web-push requires a mailto: or https:// subject.
-  const raw = Deno.env.get("VAPID_SUBJECT") || "concierge@iatos.ai";
-  const subject = /^(mailto:|https?:\/\/)/i.test(raw) ? raw : `mailto:${raw}`;
-  webpush.setVapidDetails(subject, pub, priv);
-  configured = true;
-  return true;
-}
+const senders = new WeakMap<SupabaseClient, ReturnType<typeof createPushSender>>();
 
-export async function pushToUser(
+export function pushToUser(
   admin: SupabaseClient,
   userId: string,
-  payload: { title: string; body: string; url: string },
+  payload: PushPayload,
+  options: PushOptions = {},
 ): Promise<number> {
-  if (!configure()) return 0;
-  const { data: subs } = await admin.from("push_subscriptions").select("endpoint,p256dh,auth").eq("user_id", userId);
-  let sent = 0;
-  for (const s of subs ?? []) {
-    try {
-      await webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        JSON.stringify({ ...payload, icon: "/icons/icon-192.png", badge: "/icons/icon-192.png" }),
-      );
-      sent++;
-    } catch (e) {
-      const status = (e as { statusCode?: number })?.statusCode;
-      if (status === 410 || status === 404) {
-        await admin.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
-      }
-    }
+  let sender = senders.get(admin);
+  if (!sender) {
+    sender = createPushSender({
+      env: (k) => Deno.env.get(k),
+      setVapid: (subject, pub, priv) => webpush.setVapidDetails(subject, pub, priv),
+      send: (sub, body, opts) => webpush.sendNotification(sub, body, opts),
+      listSubscriptions: async (id) => {
+        const { data } = await admin.from("push_subscriptions").select("endpoint,p256dh,auth").eq("user_id", id);
+        return data ?? [];
+      },
+      deleteSubscription: async (endpoint) => {
+        await admin.from("push_subscriptions").delete().eq("endpoint", endpoint);
+      },
+      warn: (...args) => console.warn(...args),
+    });
+    senders.set(admin, sender);
   }
-  return sent;
+  return sender(userId, payload, options);
 }
