@@ -112,11 +112,16 @@ describe("Members Only con la curaduría", () => {
     // Ciudades del servidor en sugerencias y tarjetas.
     await waitFor(() => expect(screen.getAllByTestId("city-card").map((e) => e.textContent)).toEqual(["Ciudad de México", "Mónaco"]));
     expect(document.querySelector('#cities-list-members option[value="Mónaco"]')).not.toBeNull();
-    // La búsqueda manda el texto tal cual (el servidor resuelve CDMX, Mexico City, Polanco…).
-    const input = screen.getByLabelText("Buscar por ciudad");
+    // La búsqueda reconoce sobrenombres de ciudades con curaduría ("CDMX" → Ciudad de México) y
+    // lo que no conoce (un barrio) lo manda tal cual: el servidor resuelve "Polanco".
+    const input = screen.getByLabelText("Buscar ciudad o lugar");
     fireEvent.change(input, { target: { value: "CDMX" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("members_venues", { p_ciudad: "CDMX" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("members_venues", { p_ciudad: "Ciudad de México" }));
+    await screen.findByText("Licoreria Limantour");
+    fireEvent.change(input, { target: { value: "Polanco" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("members_venues", { p_ciudad: "Polanco" }));
   });
 
   it("la solicitud de reserva sigue igual (concierge-action)", async () => {

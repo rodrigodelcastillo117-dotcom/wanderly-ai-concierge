@@ -1,0 +1,38 @@
+{
+ "París": {
+  "status": 200,
+  "url": "https://videos.pexels.com/video-files/11363927/11363927-hd_1280_720_25fps.mp4",
+  "poster": "https://images.pexels.com/videos/11363927/pexels-photo-11363927.jpeg",
+  "cached": true
+ },
+ "Mykonos": {
+  "status": 200,
+  "url": "https://videos.pexels.com/video-files/11363927/11363927-hd_1280_720_25fps.mp4",
+  "poster": "https://images.pexels.com/videos/11363927/pexels-photo-11363927.jpeg",
+  "cached": true
+ },
+ "Milán": {
+  "status": 200,
+  "url": "https://videos.pexels.com/video-files/30997958/13250841_640_360_60fps.mp4",
+  "poster": "https://images.pexels.com/videos/30997958/pexels-photo-30997958.jpeg",
+  "cached": true
+ },
+ "Londres": {
+  "status": 200,
+  "url": "https://videos.pexels.com/video-files/30997958/13250841_640_360_60fps.mp4",
+  "poster": "https://images.pexels.com/videos/30997958/pexels-photo-30997958.jpeg",
+  "cached": true
+ },
+ "Roma": {
+  "status": 200,
+  "url": "https://videos.pexels.com/video-files/31279247/13357806_640_360_25fps.mp4",
+  "poster": "https://images.pexels.com/videos/31279247/4k-drone-4k-drone-footage-4k-drone-shot-4k-drone-video-31279247.jpeg",
+  "cached": true
+ },
+ "Tokio": {
+  "status": 200,
+  "url": "https://videos.pexels.com/video-files/30070091/12897515_684_360_24fps.mp4",
+  "poster": "https://images.pexels.com/videos/30070091/4k-drone-car-cinematic-effect-montreal-30070091.jpeg",
+  "cached": true
+ }
+}

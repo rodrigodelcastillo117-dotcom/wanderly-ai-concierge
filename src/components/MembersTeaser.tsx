@@ -25,6 +25,9 @@ function groupCategories(categories: Record<string, number>): [string, number][]
   return Object.entries(m);
 }
 
+/** Ciudades visibles antes de "Ver las N". */
+const TEASER_CITIES = 12;
+
 interface Props {
   /** La contraseña temporal del dueño está encendida y vigente (members_access_state.password_gate). */
   passwordGate: boolean;
@@ -41,6 +44,7 @@ export function MembersTeaser({ passwordGate, onUnlocked }: Props) {
   const [pw, setPw] = useState("");
   const [pwError, setPwError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [allCities, setAllCities] = useState(false);
 
   useEffect(() => {
     fetchMembersTeaser(supabase).then((rows) => setSummary(summarizeTeaser(rows)));
@@ -61,19 +65,23 @@ export function MembersTeaser({ passwordGate, onUnlocked }: Props) {
   };
 
   return (
-    <div className="px-4 md:px-10 py-8 md:py-10 max-w-4xl mx-auto">
-      <div className="flex items-center gap-2 text-primary text-xs tracking-[0.2em] uppercase mb-3">
-        <Sparkles className="w-3.5 h-3.5" /> Nightlife Premium
+    <div className="px-4 md:px-10 pt-4 md:pt-8 pb-28 md:pb-10 max-w-4xl mx-auto">
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-primary text-[10px] tracking-[0.25em] uppercase">
+            <Sparkles className="w-3 h-3" aria-hidden="true" /> Nightlife Premium
+          </p>
+          <h2 className="font-fraunces text-2xl md:text-4xl text-foreground leading-tight">Members Only</h2>
+        </div>
+        <PriveEntryLink />
       </div>
-      <h2 className="font-fraunces text-3xl md:text-5xl text-foreground mb-2">Members Only</h2>
-      <PriveEntryLink />
-      <p className="text-muted-foreground mb-6">
+      <p className="text-sm text-muted-foreground mb-4">
         Vida nocturna seleccionada con reservas gestionadas por tu Concierge. Es exclusivo de IATOS PRO:
         aquí ves un adelanto de lo que incluye.
       </p>
 
-      <div className="rounded-2xl border border-primary/25 bg-black/40 p-6 mb-8 flex flex-col sm:flex-row sm:items-center gap-4">
-        <Lock className="w-6 h-6 text-primary shrink-0" />
+      <div className="rounded-2xl border border-primary/25 bg-black/40 p-4 md:p-6 mb-5 flex flex-col sm:flex-row sm:items-center gap-3 md:gap-4">
+        <Lock className="w-5 h-5 text-primary shrink-0 hidden sm:block" aria-hidden="true" />
         <p className="text-sm flex-1">
           {summary && summary.total > 0
             ? `${summary.total} lugares en ${summary.cities.length} ${summary.cities.length === 1 ? "ciudad" : "ciudades"}. Los nombres, direcciones y reservas se desbloquean con IATOS PRO.`
@@ -86,20 +94,27 @@ export function MembersTeaser({ passwordGate, onUnlocked }: Props) {
 
       {summary && summary.total > 0 && (
         <>
-          <p className="text-xs tracking-[0.18em] uppercase text-muted-foreground mb-3">Por categoría</p>
-          <ul className="flex flex-wrap gap-2 mb-8" aria-label="Categorías">
+          <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-2">Por categoría</p>
+          <ul className="flex gap-2 mb-5 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Categorías">
             {groupCategories(summary.categories).map(([cat, n]) => (
-              <li key={cat} className="px-4 py-2 rounded-full text-xs border border-primary/20 text-muted-foreground">
+              <li key={cat} className="shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs border border-primary/20 text-muted-foreground">
                 {CATEGORY_LABELS[cat] ?? cat} <span className="text-muted-foreground">({n})</span>
               </li>
             ))}
           </ul>
-          <p className="text-xs tracking-[0.18em] uppercase text-muted-foreground mb-3">Ciudades con curaduría</p>
-          <ul className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-8" aria-label="Ciudades">
-            {summary.cities.map((c) => (
-              <li key={c.ciudad} className="rounded-xl border border-primary/15 bg-black/30 px-4 py-3 text-sm">
-                {c.display}{c.pais ? <span className="text-muted-foreground">, {c.pais}</span> : null}
-                <span className="block text-xs text-muted-foreground">{c.total} {c.total === 1 ? "lugar" : "lugares"}</span>
+          <div className="flex items-baseline justify-between mb-2">
+            <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Ciudades con curaduría</p>
+            {summary.cities.length > TEASER_CITIES && (
+              <button type="button" onClick={() => setAllCities((v) => !v)} aria-expanded={allCities} className="text-[11px] text-primary hover:underline underline-offset-2">
+                {allCities ? "Ver menos" : `Ver las ${summary.cities.length}`}
+              </button>
+            )}
+          </div>
+          {/* Chips compactos (antes, una tarjeta por ciudad: 79 ciudades = varias pantallas de scroll). */}
+          <ul className="flex flex-wrap gap-1.5 mb-6" aria-label="Ciudades">
+            {(allCities ? summary.cities : summary.cities.slice(0, TEASER_CITIES)).map((c) => (
+              <li key={c.ciudad} className="rounded-full border border-primary/15 bg-black/30 px-3 py-1.5 text-xs">
+                {c.display}<span className="text-muted-foreground"> · {c.total}</span>
               </li>
             ))}
           </ul>

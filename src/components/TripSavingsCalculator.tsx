@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calculator, PiggyBank, AlertTriangle, CheckCircle2, Plane, Wallet } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plane, Wallet, MapPin, Sparkles, ArrowRight } from "lucide-react";
 import { convert, fxLabel, type FxTable } from "@/lib/fx";
 import { useFxTable } from "@/hooks/useFxTable";
+import { computeGoal } from "@/lib/savingsGoal";
+import { estimateTripCost, regionOf, REGIONS, type Region } from "@/lib/tripEstimate";
+import { localISODate, parseLocalDate } from "@/lib/localDate";
 
 export type Trip = {
   id: string;
@@ -141,12 +145,58 @@ export function computeSavings(state: State, trip: Trip | null, now = new Date()
   };
 }
 
+const PLAN_KEY = "iatos_savings_plan_v2";
+
+export type Plan = {
+  /** Viaje de la persona al que se liga la meta ("" = destino libre). */
+  tripId: string;
+  destino: string;
+  fecha: string;
+  costo: string;
+  /** De dónde salió el costo: lo escribió, estimación de referencia o el estimado de su viaje. */
+  costoFuente: "manual" | "estimacion" | "viaje";
+  ahorrado: string;
+  dias: string;
+  personas: string;
+  region: Region | "";
+};
+
+export const defaultPlan = (now = new Date()): Plan => ({
+  tripId: "",
+  destino: "",
+  // Sin fecha elegida se propone dentro de 6 meses (se ve y se puede cambiar).
+  fecha: localISODate(new Date(now.getFullYear(), now.getMonth() + 6, now.getDate())),
+  costo: "",
+  costoFuente: "manual",
+  ahorrado: "",
+  dias: "7",
+  personas: "2",
+  region: "",
+});
+
+const POPULAR_DESTINATIONS = [
+  "París", "Roma", "Madrid", "Barcelona", "Londres", "Nueva York", "Tokio", "Dubái",
+  "Cancún", "Los Cabos", "Tulum", "Miami", "Bangkok", "Buenos Aires", "Lima", "Lisboa",
+];
+
+const shortDate = (iso: string | null) => {
+  const d = parseLocalDate(iso);
+  return d ? d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "sin fecha";
+};
+
+/**
+ * Ahorro para tu viaje: funciona sin viaje planeado. Destino (o un viaje tuyo), fecha, costo (o
+ * "usa una estimación", marcada como tal) y lo que ya llevas → cuánto apartar al mes. Lo de sueldo
+ * y gastos del mes queda como paso opcional ("¿Te alcanza?").
+ */
 export const TripSavingsCalculator = () => {
   const { user } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [plan, setPlan] = useState<Plan>(() => defaultPlan());
   const [state, setState] = useState<State>(defaultState);
+  const fx = useFxTable();
 
-  // Load persisted
+  // Lo guardado en este dispositivo (la versión anterior guardaba sueldo, gastos y "patrimonio").
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -154,216 +204,313 @@ export const TripSavingsCalculator = () => {
         const parsed = JSON.parse(raw);
         setState({ ...defaultState(), ...parsed, fijos: { ...defaultState().fijos, ...(parsed.fijos ?? {}) }, variables: { ...defaultState().variables, ...(parsed.variables ?? {}) } });
       }
-    } catch {/* */}
+      const rawPlan = localStorage.getItem(PLAN_KEY);
+      if (rawPlan) setPlan((p) => ({ ...p, ...JSON.parse(rawPlan) }));
+      else if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.patrimonio) setPlan((p) => ({ ...p, ahorrado: String(parsed.patrimonio) }));
+      }
+    } catch {/* sin almacenamiento */}
   }, []);
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {/* */} }, [state]);
+  useEffect(() => { try { localStorage.setItem(PLAN_KEY, JSON.stringify(plan)); } catch {/* */} }, [plan]);
 
-  // Persist on change
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {/* */}
-  }, [state]);
-
-  // Fetch trips
   useEffect(() => {
     if (!user) return;
     supabase.from("trips")
       .select("id,destino,pais_destino,fecha_salida,fecha_regreso,total_estimado,moneda")
       .eq("user_id", user.id)
       .order("fecha_salida", { ascending: true })
-      .then(({ data }) => {
-        const list = ((data ?? []) as Trip[]).filter((t) => isUpcoming(t));
-        setTrips(list);
-        setState(s => list.some((t) => t.id === s.tripId) ? s : { ...s, tripId: list[0]?.id ?? "" });
-      });
+      .then(({ data }) => setTrips(((data ?? []) as Trip[]).filter((t) => isUpcoming(t))));
   }, [user]);
 
-  const trip = trips.find(t => t.id === state.tripId) ?? null;
+  const set = (patch: Partial<Plan>) => setPlan((p) => ({ ...p, ...patch }));
 
-  const fx = useFxTable();
-  const computed = useMemo(() => computeSavings(state, trip, new Date(), fx), [state, trip, fx]);
+  /** Costo del viaje en MXN (null si está en otra moneda y no hay tipo de cambio). */
+  const tripCostMxn = (t: Trip): number | null => {
+    const amount = Number(t.total_estimado) || 0;
+    if (!amount) return null;
+    const cur = String(t.moneda || "MXN").toUpperCase();
+    if (cur === "MXN") return amount;
+    return fx ? convert(amount, cur, "MXN", fx) : null;
+  };
 
+  const linkTrip = (t: Trip | null) => {
+    if (!t) { set({ tripId: "" }); return; }
+    const cost = tripCostMxn(t);
+    const days = parseLocalDate(t.fecha_salida) && parseLocalDate(t.fecha_regreso)
+      ? Math.max(1, Math.round((parseLocalDate(t.fecha_regreso)!.getTime() - parseLocalDate(t.fecha_salida)!.getTime()) / 86_400_000) + 1)
+      : null;
+    set({
+      tripId: t.id,
+      destino: t.destino,
+      fecha: t.fecha_salida ?? plan.fecha,
+      ...(cost != null ? { costo: String(Math.round(cost)), costoFuente: "viaje" as const } : {}),
+      ...(days ? { dias: String(days) } : {}),
+    });
+  };
+
+  const linked = trips.find((t) => t.id === plan.tripId) ?? null;
+  const detectedRegion = regionOf(plan.destino);
+  const estimate = useMemo(
+    () => estimateTripCost({ destino: plan.destino, region: plan.region || detectedRegion, dias: Number(plan.dias), personas: Number(plan.personas) }),
+    [plan.destino, plan.region, detectedRegion, plan.dias, plan.personas],
+  );
+  const goal = useMemo(
+    () => computeGoal({ costMxn: Number(plan.costo), savedMxn: Number(plan.ahorrado), dateISO: plan.fecha }),
+    [plan.costo, plan.ahorrado, plan.fecha],
+  );
+
+  // Paso opcional: ¿te alcanza con tu sueldo y tus gastos? (la lógica de siempre, sobre esta meta).
+  const asTrip: Trip = {
+    id: plan.tripId || "meta", destino: plan.destino || "tu viaje", pais_destino: null,
+    fecha_salida: plan.fecha || null, fecha_regreso: null, total_estimado: Number(plan.costo) || 0, moneda: "MXN",
+  };
+  const computed = useMemo(
+    () => computeSavings({ ...state, patrimonio: plan.ahorrado }, asTrip, new Date(), fx),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- asTrip se deriva de plan
+    [state, plan, fx],
+  );
   const setFijo = (k: string, v: string) => setState(s => ({ ...s, fijos: { ...s.fijos, [k]: v } }));
   const setVar = (k: string, v: string) => setState(s => ({ ...s, variables: { ...s.variables, [k]: v } }));
 
-  return (
-    <section className="glass-card rounded-2xl p-6 md:p-8">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-11 h-11 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
-          <Calculator className="w-5 h-5 text-primary" />
-        </div>
-        <div>
-          <p className="text-[10px] tracking-[0.3em] text-primary uppercase">Smart Spend</p>
-          <h2 className="font-display text-2xl md:text-3xl">Calculadora de viaje</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Te digo cuánto ahorrar cada mes para irte sin culpa.
-          </p>
-        </div>
-      </div>
+  const pct = Math.round(goal.avance * 100);
+  const maxBar = Math.max(1, goal.costo);
 
-      {trips.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">
-          Planea un viaje próximo para calcular cuánto necesitas ahorrar cada mes.
-        </p>
-      ) : (
-        <>
-          {/* Selector de viaje */}
-          <div className="mb-6">
-            <label htmlFor="tripsavingscalculator-viaje-a-financiar" className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 block">Viaje a financiar</label>
-            <select id="tripsavingscalculator-viaje-a-financiar"
-              value={state.tripId}
-              onChange={(e) => setState(s => ({ ...s, tripId: e.target.value }))}
-              className="w-full rounded-xl bg-surface border border-border px-3 py-2.5 text-sm focus:border-primary outline-none"
-            >
-              {trips.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""} · {t.fecha_salida ?? "sin fecha"} · {t.total_estimado ? fmtMoney(Number(t.total_estimado), t.moneda || "MXN") : "sin estimado"}
-                </option>
+  return (
+    <section aria-label="Ahorro para tu viaje" className="grid lg:grid-cols-[1.1fr_1fr] gap-3 md:gap-6 items-start">
+      {/* ── Tu meta ─────────────────────────────────────── */}
+      <div className="glass-card rounded-2xl p-5 md:p-7">
+        {trips.length > 0 && (
+          <div className="mb-5">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">¿Es para un viaje que ya planeaste?</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x" role="group" aria-label="Vincular a un viaje">
+              {trips.map((t) => (
+                <button key={t.id} type="button" onClick={() => linkTrip(plan.tripId === t.id ? null : t)} aria-pressed={plan.tripId === t.id}
+                  className={`snap-start shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs transition ${plan.tripId === t.id ? "bg-gradient-gold text-primary-foreground border-transparent" : "border-primary/25 text-foreground/85 hover:border-primary/50"}`}>
+                  <Plane className="w-3 h-3" aria-hidden="true" /> {t.destino} · {shortDate(t.fecha_salida)}
+                </button>
               ))}
-            </select>
-            {trip && (
-              <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5">
-                  <Plane className="w-3 h-3 text-primary" /> {trip.destino}
-                </span>
-                {trip.fecha_salida && (
-                  <span className="px-3 py-1.5 rounded-full border border-border bg-surface">
-                    Salida: {new Date(trip.fecha_salida + "T00:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}
-                  </span>
-                )}
-                {trip.total_estimado && (
-                  <span className="px-3 py-1.5 rounded-full border border-border bg-surface">
-                    Costo estimado: <strong className="text-primary">{fmtMoney(Number(trip.total_estimado), trip.moneda || "MXN")}</strong>
-                    {computed.convertido && <> ≈ <strong className="text-primary">{fmtMoney(computed.costoViaje, "MXN")}</strong></>}
-                  </span>
-                )}
-                {computed.convertido && fx && (
-                  <span className="px-3 py-1.5 text-[11px] text-muted-foreground">{fxLabel(fx)}</span>
-                )}
-              </div>
+              <button type="button" onClick={() => linkTrip(null)} aria-pressed={!plan.tripId}
+                className={`snap-start shrink-0 px-3 py-2 rounded-full border text-xs transition ${!plan.tripId ? "bg-primary/15 border-primary/40 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}>
+                Otro destino
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="col-span-2 block">
+            <span className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">¿A dónde quieres ir?</span>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" aria-hidden="true" />
+              <input id="calc-destino" list="calc-destinos" value={plan.destino} placeholder="Ej. París"
+                onChange={(e) => set({ destino: e.target.value, tripId: "", region: "" })}
+                className="w-full rounded-lg bg-background/60 border border-border pl-9 pr-3 py-2.5 placeholder:text-muted-foreground placeholder:italic focus:border-primary outline-none" />
+              <datalist id="calc-destinos">{POPULAR_DESTINATIONS.map((d) => <option key={d} value={d} />)}</datalist>
+            </div>
+          </label>
+          {/* Fecha, días y personas en un solo renglón (también en móvil). */}
+          <div className="col-span-2 grid grid-cols-[1.6fr_1fr_1fr] gap-2 sm:gap-3">
+            <label className="block min-w-0">
+              <span className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">¿Cuándo sales?</span>
+              <input id="calc-fecha" type="date" value={plan.fecha} min={localISODate()} onChange={(e) => set({ fecha: e.target.value })}
+                className="w-full min-w-0 rounded-lg bg-background/60 border border-border px-2 sm:px-3 py-2.5 text-sm focus:border-primary outline-none" />
+            </label>
+            <SmallNum label="Días" value={plan.dias} onChange={(v) => set({ dias: v })} />
+            <SmallNum label="Personas" value={plan.personas} onChange={(v) => set({ personas: v })} />
+          </div>
+
+          <div className="col-span-2">
+            <NumField label="¿Cuánto cuesta el viaje? (MXN)" value={plan.costo} placeholder="Ej. 120000"
+              onChange={(v) => set({ costo: v, costoFuente: "manual" })} />
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <button type="button" onClick={() => estimate && set({ costo: String(estimate.total), costoFuente: "estimacion" })}
+                disabled={!estimate}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border border-primary/40 text-primary hover:bg-primary/10 transition disabled:opacity-50">
+                <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> Usa una estimación{estimate ? ` (${fmtMoney(estimate.total)})` : ""}
+              </button>
+              {!detectedRegion && plan.destino.trim().length > 1 && (
+                <select aria-label="Región del destino" value={plan.region} onChange={(e) => set({ region: e.target.value as Region | "" })}
+                  className="rounded-full bg-background/60 border border-border px-3 py-1.5 text-xs">
+                  <option value="">¿En qué región está?</option>
+                  {REGIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </select>
+              )}
+              {!estimate && !plan.destino.trim() && <span className="text-[11px] text-muted-foreground">Escribe el destino para estimar.</span>}
+            </div>
+            {plan.costoFuente === "estimacion" && estimate && (
+              <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed" role="note">
+                <strong className="text-primary">Estimación de referencia</strong>, no es una cotización: vuelo redondo desde México
+                (~{fmtMoney(estimate.vuelo)} por persona) + hotel 4-5★, comidas y traslados (~{fmtMoney(estimate.diario)} por persona al día)
+                · {estimate.personas} {estimate.personas === 1 ? "persona" : "personas"} · {estimate.dias} días · {estimate.regionLabel}. Ajústala si ya tienes precios.
+              </p>
+            )}
+            {plan.costoFuente === "viaje" && linked && (
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Costo estimado de tu viaje a {linked.destino}
+                {String(linked.moneda || "MXN").toUpperCase() !== "MXN" && fx && <> ({fmtMoney(Number(linked.total_estimado), String(linked.moneda))} · {fxLabel(fx)})</>}.
+              </p>
             )}
           </div>
 
-          {/* Ingresos + patrimonio */}
-          <div className="grid md:grid-cols-3 gap-3 mb-6">
-            <NumField label="Sueldo neto mensual" value={state.sueldo} onChange={(v) => setState(s => ({ ...s, sueldo: v }))} placeholder="Ej. 35000" />
-            <NumField label="Otros ingresos / freelance" value={state.extras} onChange={(v) => setState(s => ({ ...s, extras: v }))} placeholder="Ej. 5000" />
-            <NumField label="Patrimonio / ahorro actual" value={state.patrimonio} onChange={(v) => setState(s => ({ ...s, patrimonio: v }))} placeholder="Ej. 20000" hint="Lo que ya tienes para el viaje" />
+          <div className="col-span-2">
+            <NumField label="¿Cuánto llevas ahorrado para este viaje?" value={plan.ahorrado} placeholder="Ej. 20000" onChange={(v) => set({ ahorrado: v })} />
           </div>
+        </div>
 
-          {/* Fijos */}
-          <details className="mb-4 rounded-xl border border-border bg-surface/40" open>
-            <summary className="cursor-pointer px-4 py-3 text-sm font-medium flex items-center justify-between">
-              <span className="flex items-center gap-2"><Wallet className="w-4 h-4 text-primary" /> Gastos fijos del mes</span>
-              <span className="text-xs text-muted-foreground">{fmtMoney(computed.fijos, computed.currency)}</span>
-            </summary>
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2 p-4 pt-2">
-              {FIXED_FIELDS.map(f => (
-                <NumField key={f.key} label={f.label} value={state.fijos[f.key] ?? ""} onChange={(v) => setFijo(f.key, v)} compact />
-              ))}
-            </div>
-          </details>
+        {!plan.tripId && plan.destino.trim() && (
+          <Link to="/dashboard/planear" className="mt-5 inline-flex items-center gap-1.5 text-xs text-primary hover:underline underline-offset-2">
+            ¿Ya te decidiste? Planea tu viaje a {plan.destino.trim()} <ArrowRight className="w-3 h-3" aria-hidden="true" />
+          </Link>
+        )}
+      </div>
 
-          {/* Variables */}
-          <details className="mb-6 rounded-xl border border-border bg-surface/40" open>
-            <summary className="cursor-pointer px-4 py-3 text-sm font-medium flex items-center justify-between">
-              <span className="flex items-center gap-2"><PiggyBank className="w-4 h-4 text-primary" /> Gastos variables (placeres del mes)</span>
-              <span className="text-xs text-muted-foreground">{fmtMoney(computed.variables, computed.currency)}</span>
-            </summary>
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2 p-4 pt-2">
-              {VAR_FIELDS.map(f => (
-                <NumField key={f.key} label={f.label} value={state.variables[f.key] ?? ""} onChange={(v) => setVar(f.key, v)} compact />
-              ))}
-            </div>
-          </details>
-
-          {/* Resultado */}
-          <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 md:p-6">
-            <div className="grid md:grid-cols-4 gap-4 mb-5">
-              <Stat label="Ingreso mensual" value={fmtMoney(computed.ingreso, computed.currency)} />
-              <Stat label="Gastos totales" value={fmtMoney(computed.fijos + computed.variables, computed.currency)} />
-              <Stat label="Capacidad de ahorro" value={fmtMoney(computed.capacidadAhorro, computed.currency)} accent={computed.capacidadAhorro > 0 ? "good" : "bad"} />
-              <Stat
-                label={computed.fechaViaje ? "Meses al viaje" : "Sin fecha"}
-                value={computed.fechaViaje ? (computed.meses > 0 ? `${computed.meses}` : "Este mes") : "—"}
-              />
-            </div>
-
-            <div className="rounded-xl bg-background/40 border border-border p-4 md:p-5">
-              {computed.estado === "pagado" && (
-                <Verdict
-                  icon={<CheckCircle2 className="w-6 h-6 text-emerald-400" />}
-                  title="Tu ahorro ya cubre el costo estimado"
-                  body={`Tu ahorro (${fmtMoney(computed.patrimonio, computed.currency)}) alcanza para el costo estimado del viaje (${fmtMoney(computed.costoViaje, computed.currency)}). Confirma los precios antes de reservar.`}
-                />
-              )}
-              {computed.estado === "sin_ingresos" && (
-                <Verdict
-                  icon={<Wallet className="w-6 h-6 text-primary" />}
-                  title="Escribe tu sueldo para calcular"
-                  body={`Te faltan ${fmtMoney(computed.faltante, computed.currency)} para el viaje. Con tu sueldo neto y tus gastos del mes te digo cuánto apartar cada mes.`}
-                />
-              )}
-              {computed.estado === "sin_fecha" && (
-                <Verdict
-                  icon={<AlertTriangle className="w-6 h-6 text-amber-400" />}
-                  title="Falta fijar fecha de salida"
-                  body={`Necesitas ${fmtMoney(computed.faltante, computed.currency)} más. Pon fecha al viaje para calcular el ahorro mensual.`}
-                />
-              )}
-              {computed.estado === "ok" && (
-                <Verdict
-                  icon={<CheckCircle2 className="w-6 h-6 text-emerald-400" />}
-                  title={`Ahorra ${fmtMoney(computed.ahorroRequerido, computed.currency)} cada mes`}
-                  body={`${computed.meses > 0 ? `Durante ${computed.meses} ${computed.meses === 1 ? "mes" : "meses"}` : "Este mes, antes de la salida,"} para juntar los ${fmtMoney(computed.faltante, computed.currency)} que te faltan. Tu capacidad real es ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes — vas holgado (${(computed.ratio * 100).toFixed(0)}% de tu margen).`}
-                />
-              )}
-              {computed.estado === "ajustado" && (
-                <Verdict
-                  icon={<AlertTriangle className="w-6 h-6 text-amber-400" />}
-                  title={`Ajustado: ahorra ${fmtMoney(computed.ahorroRequerido, computed.currency)} cada mes`}
-                  body={`Eso usa el ${(computed.ratio * 100).toFixed(0)}% de tu capacidad de ahorro (${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes). Cualquier imprevisto te puede tronar el plan. Considera bajar variables o mover la fecha 1-2 meses.`}
-                />
-              )}
-              {computed.estado === "imposible" && (() => {
-                const mesesNecesarios = computed.capacidadAhorro > 0
-                  ? Math.ceil(computed.faltante / computed.capacidadAhorro)
-                  : 0;
-                const mesesExtra = Math.max(1, mesesNecesarios - computed.meses);
-                const variablesTotal = computed.variables;
-                const recorteRealista = Math.min(computed.recorteSugerido, variablesTotal);
-
-                let body: string;
-                if (computed.capacidadAhorro <= 0) {
-                  body = `Tus gastos (${fmtMoney(computed.fijos + computed.variables, computed.currency)}/mes) superan tus ingresos (${fmtMoney(computed.ingreso, computed.currency)}/mes) por ${fmtMoney(Math.abs(computed.capacidadAhorro), computed.currency)}. Primero genera margen positivo recortando variables o subiendo ingresos; después volvemos a calcular el viaje.`;
-                } else if (variablesTotal < computed.recorteSugerido * 0.5) {
-                  // No hay de dónde recortar — empuja mover fecha
-                  body = `Con tu margen de ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes y ${computed.meses > 0 ? `solo ${computed.meses} ${computed.meses === 1 ? "mes" : "meses"}` : "menos de un mes"} hasta la salida, no alcanza. La salida más realista: mueve la fecha ${mesesExtra} ${mesesExtra === 1 ? "mes" : "meses"} adelante (${mesesNecesarios} meses ahorrando ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes ≈ ${fmtMoney(computed.capacidadAhorro * mesesNecesarios, computed.currency)}).`;
-                } else {
-                  body = `Necesitas ahorrar ${fmtMoney(computed.ahorroRequerido, computed.currency)}/mes pero tu margen real es ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes. Opciones: recorta hasta ${fmtMoney(recorteRealista, computed.currency)}/mes en variables, sube ingresos, o mueve la salida ${mesesExtra} ${mesesExtra === 1 ? "mes" : "meses"} adelante.`;
-                }
-
-                return (
-                  <Verdict
-                    icon={<AlertTriangle className="w-6 h-6 text-destructive" />}
-                    title="No alcanza con tu ritmo actual"
-                    body={body}
-                  />
-                );
-              })()}
-              {computed.estado === "sin_tipo_cambio" && (
-                <p className="text-sm text-muted-foreground">
-                  Este viaje está cotizado en {computed.monedaViaje} y no tenemos tipo de cambio para pasarlo a pesos ahora. Intenta más tarde.
+      {/* ── Resultado ───────────────────────────────────── */}
+      {/* En móvil la respuesta va primero: se ve cambiar mientras escribes debajo. */}
+      <div className="order-first lg:order-none rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 md:p-7 lg:sticky lg:top-6" aria-live="polite">
+        <div className="flex items-center gap-4 md:gap-5">
+          <ProgressRing pct={pct} />
+          <div className="min-w-0">
+            {goal.estado === "ok" && (
+              <>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-primary mb-1">Aparta cada mes</p>
+                <p className="font-display text-3xl md:text-4xl leading-none" data-testid="ahorro-mensual">{fmtMoney(goal.mensual)}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {goal.meses > 0 ? `Durante ${goal.mesesAhorro} ${goal.mesesAhorro === 1 ? "mes" : "meses"}` : "Sales este mes: es lo que te falta"}
+                  {" "}· ≈ {fmtMoney(goal.semanal)} por semana
                 </p>
-              )}
-              {computed.estado === "sin_costo" && (
-                <p className="text-sm text-muted-foreground">Este viaje todavía no tiene costo estimado. Termina de planearlo y vuelve.</p>
-              )}
+              </>
+            )}
+            {goal.estado === "cubierto" && (
+              <>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-emerald-400 mb-1">Meta cubierta</p>
+                <p className="font-display text-2xl md:text-3xl leading-tight">Ya tienes lo del viaje</p>
+                <p className="text-xs text-muted-foreground mt-2">Confirma precios antes de reservar.</p>
+              </>
+            )}
+            {goal.estado === "sin_costo" && (
+              <>
+                <p className="font-display text-xl md:text-2xl leading-tight">¿Cuánto cuesta el viaje?</p>
+                <p className="text-xs text-muted-foreground mt-2">Escríbelo o toca <strong>Usa una estimación</strong> y te digo cuánto apartar al mes.</p>
+              </>
+            )}
+            {goal.estado === "sin_fecha" && <p className="font-display text-xl md:text-2xl leading-tight">Elige cuándo sales</p>}
+            {goal.estado === "fecha_pasada" && <p className="font-display text-xl md:text-2xl leading-tight">Esa fecha ya pasó: elige una próxima</p>}
+          </div>
+        </div>
+
+        {goal.costo > 0 && (
+          <dl className="grid grid-cols-3 gap-2 mt-5 text-center">
+            <div className="rounded-xl bg-background/40 border border-border p-2.5">
+              <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Meta</dt>
+              <dd className="font-display text-base md:text-lg">{fmtMoney(goal.costo)}</dd>
+            </div>
+            <div className="rounded-xl bg-background/40 border border-border p-2.5">
+              <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Llevas</dt>
+              <dd className="font-display text-base md:text-lg">{fmtMoney(goal.ahorrado)}</dd>
+            </div>
+            <div className="rounded-xl bg-background/40 border border-border p-2.5">
+              <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Te falta</dt>
+              <dd className="font-display text-base md:text-lg text-primary">{fmtMoney(goal.faltante)}</dd>
+            </div>
+          </dl>
+        )}
+
+        {goal.estado === "ok" && goal.calendario.length > 1 && (
+          <div className="mt-5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Así crece tu ahorro</p>
+            <div className="flex items-end gap-1 h-20" aria-hidden="true">
+              {goal.calendario.map((m) => (
+                <div key={m.mes} className="flex-1 min-w-0 flex flex-col items-center gap-1">
+                  <div className="w-full rounded-t bg-gradient-to-t from-primary/50 to-primary" style={{ height: `${Math.max(6, (m.acumulado / maxBar) * 64)}px` }} />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+              <span>{goal.calendario[0].mes}</span>
+              <span>{plan.destino.trim() ? `✈ ${plan.destino.trim()}` : "✈ salida"} · {shortDate(plan.fecha)}</span>
             </div>
           </div>
-        </>
-      )}
+        )}
+
+        {/* Paso opcional: ¿te alcanza? */}
+        <details className="mt-5 rounded-xl border border-border bg-background/30 group">
+          <summary className="cursor-pointer px-4 py-3 text-sm flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2"><Wallet className="w-4 h-4 text-primary" aria-hidden="true" /> ¿Te alcanza con tu sueldo? <span className="text-[11px] text-muted-foreground">(opcional)</span></span>
+          </summary>
+          <div className="px-4 pb-4">
+            <div className="grid sm:grid-cols-2 gap-2 mb-3">
+              <NumField label="Sueldo neto mensual" value={state.sueldo} onChange={(v) => setState(s => ({ ...s, sueldo: v }))} placeholder="Ej. 35000" compact />
+              <NumField label="Otros ingresos" value={state.extras} onChange={(v) => setState(s => ({ ...s, extras: v }))} placeholder="Ej. 5000" compact />
+            </div>
+            <details className="mb-2 rounded-lg border border-border">
+              <summary className="cursor-pointer px-3 py-2 text-xs flex justify-between"><span>Gastos fijos del mes</span><span className="text-muted-foreground">{fmtMoney(computed.fijos)}</span></summary>
+              <div className="grid sm:grid-cols-2 gap-2 p-3 pt-1">
+                {FIXED_FIELDS.map(f => <NumField key={f.key} label={f.label} value={state.fijos[f.key] ?? ""} onChange={(v) => setFijo(f.key, v)} compact />)}
+              </div>
+            </details>
+            <details className="mb-3 rounded-lg border border-border">
+              <summary className="cursor-pointer px-3 py-2 text-xs flex justify-between"><span>Gustos y gastos variables</span><span className="text-muted-foreground">{fmtMoney(computed.variables)}</span></summary>
+              <div className="grid sm:grid-cols-2 gap-2 p-3 pt-1">
+                {VAR_FIELDS.map(f => <NumField key={f.key} label={f.label} value={state.variables[f.key] ?? ""} onChange={(v) => setVar(f.key, v)} compact />)}
+              </div>
+            </details>
+            <AffordVerdict computed={computed} />
+          </div>
+        </details>
+      </div>
     </section>
   );
 };
+
+/** Veredicto del paso opcional (sueldo − gastos contra lo que hay que apartar). */
+const AffordVerdict = ({ computed }: { computed: ReturnType<typeof computeSavings> }) => {
+  const c = computed;
+  if (c.estado === "sin_costo" || c.estado === "sin_fecha" || c.estado === "sin_tipo_cambio") {
+    return <p className="text-xs text-muted-foreground">Primero completa costo y fecha de tu meta.</p>;
+  }
+  if (c.estado === "pagado") return <Verdict icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />} title="Ya lo tienes cubierto" body="Tu ahorro alcanza para la meta." />;
+  if (c.estado === "sin_ingresos") return <p className="text-xs text-muted-foreground">Escribe tu sueldo para ver si te alcanza.</p>;
+  if (c.estado === "ok") {
+    return <Verdict icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />} title="Te alcanza con holgura"
+      body={`Apartar ${fmtMoney(c.ahorroRequerido)} al mes usa el ${(c.ratio * 100).toFixed(0)}% de lo que te sobra (${fmtMoney(c.capacidadAhorro)}/mes).`} />;
+  }
+  if (c.estado === "ajustado") {
+    return <Verdict icon={<AlertTriangle className="w-5 h-5 text-amber-400" />} title="Te alcanza, pero justo"
+      body={`Usa el ${(c.ratio * 100).toFixed(0)}% de lo que te sobra (${fmtMoney(c.capacidadAhorro)}/mes). Un imprevisto te mueve el plan: baja gustos o mueve la fecha 1-2 meses.`} />;
+  }
+  const mesesNecesarios = c.capacidadAhorro > 0 ? Math.ceil(c.faltante / c.capacidadAhorro) : 0;
+  const body = c.capacidadAhorro <= 0
+    ? `Tus gastos (${fmtMoney(c.fijos + c.variables)}/mes) superan tus ingresos (${fmtMoney(c.ingreso)}/mes). Primero genera margen recortando gustos o subiendo ingresos.`
+    : `Te sobran ${fmtMoney(c.capacidadAhorro)}/mes y necesitas ${fmtMoney(c.ahorroRequerido)}/mes. Con tu ritmo actual lo juntas en ${mesesNecesarios} meses: mueve la salida o recorta ${fmtMoney(Math.min(c.recorteSugerido, c.variables || c.recorteSugerido))}/mes en gustos.`;
+  return <Verdict icon={<AlertTriangle className="w-5 h-5 text-destructive" />} title="Con tu ritmo actual no alcanza" body={body} />;
+};
+
+const ProgressRing = ({ pct }: { pct: number }) => {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative w-20 h-20 md:w-24 md:h-24 shrink-0" role="img" aria-label={`Llevas el ${pct}% de la meta`}>
+      <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
+        <circle cx="40" cy="40" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
+        <circle cx="40" cy="40" r={r} fill="none" stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(100, pct) / 100)} style={{ transition: "stroke-dashoffset .5s ease" }} />
+      </svg>
+      <div className="absolute inset-0 grid place-items-center text-center">
+        <span className="font-display text-lg md:text-xl leading-none">{pct}%<span className="block text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">ahorrado</span></span>
+      </div>
+    </div>
+  );
+};
+
+const SmallNum = ({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) => (
+  <label className="block min-w-0">
+    <span className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">{label}</span>
+    <input type="number" inputMode="numeric" min="1" value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}
+      className="w-full min-w-0 rounded-lg bg-background/60 border border-border px-3 py-2.5 text-sm focus:border-primary outline-none" />
+  </label>
+);
 
 const NumField = ({
   label, value, onChange, placeholder, hint, compact,
@@ -385,13 +532,6 @@ const NumField = ({
     </div>
     {hint && <span className="block text-[10px] text-muted-foreground mt-0.5">{hint}</span>}
   </label>
-);
-
-const Stat = ({ label, value, accent }: { label: string; value: string; accent?: "good" | "bad" }) => (
-  <div>
-    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-    <p className={`font-display text-xl md:text-2xl mt-1 ${accent === "good" ? "text-emerald-400" : accent === "bad" ? "text-destructive" : ""}`}>{value}</p>
-  </div>
 );
 
 const Verdict = ({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) => (

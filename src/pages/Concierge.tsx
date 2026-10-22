@@ -422,8 +422,8 @@ const Concierge = () => {
   return (
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
-        {/* CONTEXT HEADER */}
-        <div className="px-4 md:px-8 pt-6 pb-3 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur">
+        {/* CONTEXT HEADER (del chat; en Members Only se oculta para que la curaduría quepa sin bajar) */}
+        <div className={`px-4 md:px-8 pt-6 pb-3 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur ${tab === "members" ? "hidden" : ""}`}>
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
               {/* Encabezado según el plan real: a cuentas gratis ya no les dice "Concierge PRO". */}
@@ -495,6 +495,7 @@ const Concierge = () => {
         {tab === "members" ? (
           <div className="flex-1 overflow-y-auto">
             <MembersOnlyPanel
+              preferredCities={[weather?.place, trip?.destino]}
               onReserve={(v) => {
                 switchTab("chat");
                 setTimeout(() => {
