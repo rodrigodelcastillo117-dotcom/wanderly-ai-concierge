@@ -11,7 +11,7 @@ import { RequestComposer } from "./RequestComposer";
 
 const CHANNEL_KINDS = ["whatsapp", "email", "sms", "phone", "assisted_request", "prive_request"];
 
-export function BookingActions({ offer, source, tripId, serverActions, className = "", max = 3 }: {
+export function BookingActions({ offer, source, tripId, serverActions, className = "", max = 3, fallbackInternal = null }: {
   offer: BookingOffer;
   source: BridgeSource;
   tripId?: string | null;
@@ -20,6 +20,8 @@ export function BookingActions({ offer, source, tripId, serverActions, className
   className?: string;
   /** Cuántas acciones web se muestran como botones (el resto en "Más opciones"). */
   max?: number;
+  /** Acción dentro de IATOS cuando no hay enlace externo fiable (p. ej. buscar vuelos reales). */
+  fallbackInternal?: { label: string; href: string } | null;
 }) {
   const actions = serverActions?.length ? serverActions : offer.actions;
   const o: BookingOffer = serverActions?.length ? { ...offer, actions } : offer;
@@ -101,9 +103,14 @@ export function BookingActions({ offer, source, tripId, serverActions, className
           </button>
         )}
       </div>
-      {web.length === 0 && !channel && (
+      {web.length === 0 && !channel && (fallbackInternal ? (
+        <a href={fallbackInternal.href} onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center gap-1 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 px-3 py-1.5 text-xs transition">
+          {fallbackInternal.label}
+        </a>
+      ) : (
         <p className="text-[11px] text-muted-foreground">No encontramos una forma fiable de reservar en línea esta opción.</p>
-      )}
+      ))}
       {sheet && <BookingSheet open={!!sheet} onOpenChange={(v) => !v && setSheet(null)} offer={o} action={sheet} source={source} tripId={tripId} />}
       {composer && <RequestComposer open={!!composer} onOpenChange={(v) => !v && setComposer(null)} offer={o} source={source} initialKind={composer} tripId={tripId} />}
     </div>

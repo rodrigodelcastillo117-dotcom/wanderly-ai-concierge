@@ -12,6 +12,14 @@ export type LinkVerdict = {
   checked_at: string; expires_at: string;
 };
 
+const SOFT_404 = /page not found|p[aá]gina no encontrada|we can.?t find (that|this) page|no podemos encontrar (esa|la) p[aá]gina|this page (does not|doesn.?t) exist|esta p[aá]gina no existe/i;
+/** Texto visible de una página de error que responde 200 (sin ejecutar JavaScript). */
+export function isSoft404(html: string): boolean {
+  const title = /<title[^>]*>([^<]{0,300})<\/title>/i.exec(html)?.[1] ?? "";
+  const body = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").slice(0, 20000);
+  return SOFT_404.test(`${title} ${body}`);
+}
+
 /** Una URL por host y como máximo perRun (control de tasa por corrida). */
 export function pickBatch(rows: DueLink[], perRun = 20): DueLink[] {
   const hosts = new Set<string>();
@@ -72,8 +80,10 @@ export async function checkOne(link: DueLink, doFetch: typeof fetch, now = Date.
     const fh = new URL(current).hostname;
     if (res.status === 403 || res.status === 429 || res.status === 503) return { ...base, status: "blocked", http_status: res.status, final_host: fh };
     if (res.status >= 400) return { ...base, status: "broken", http_status: res.status, final_host: fh };
-    const findings = link.kind === "official_site" && /html/i.test(res.headers.get("content-type") ?? "html")
-      ? detectReservationLinks(await readCapped(res), current) : {};
+    const html = /html/i.test(res.headers.get("content-type") ?? "html") ? await readCapped(res) : "";
+    // "Soft 404": responde 200 pero la página dice que no existe (visto en Resy, 2026-10-22).
+    if (isSoft404(html)) return { ...base, status: "broken", http_status: res.status, final_host: fh };
+    const findings = link.kind === "official_site" && html ? detectReservationLinks(html, current) : {};
     return { ...base, status: "ok", http_status: res.status, final_host: fh, findings };
   } catch (e) {
     return { ...base, status: "unknown", error: String((e as Error)?.message ?? e).slice(0, 200) };

@@ -5,16 +5,19 @@
 // documenta en docs/iatos/IATOS_BOOKING_BRIDGE.md §Evidencia y se prueba abriendo el enlace con
 // scripts/booking/verify_links.mjs (capturas en docs/iatos/evidencia/bridge/).
 //
-// Monetización: los enlaces que IATOS ya etiquetaba (Aviasales con marker, Booking/GetYourGuide/Viator
-// vía tp.media) se arman EXACTAMENTE igual que antes; a los proveedores nuevos (Google Flights,
-// OpenTable, Tock, Maps…) no se les agrega ningún identificador de afiliado.
+// Monetización: Aviasales conserva su marker como antes. El redirect tp.media/click que la app usaba
+// para Booking/GetYourGuide/Viator responde HTTP 400 ("source_type is empty", verificado el
+// 2026-10-22, docs/iatos/evidencia/bridge/H1.jpg): mandaba al usuario a una página de error. El bridge
+// abre el destino directo (la atribución queda como esté configurada en Travelpayouts Drive); cómo
+// recuperar la atribución por enlace es decisión del dueño (IATOS_BOOKING_BRIDGE_GO_NO_GO.md). A los
+// proveedores nuevos (OpenTable, Tock, Maps…) no se les agrega ningún identificador de afiliado.
 import { TP_PUBLIC_MARKER } from "../tp-params.ts";
 
 export const EVIDENCE = {
   AVIASALES_SEARCH: "EV-AVIASALES-SEARCH", // Travelpayouts Data API, campo "link" (/search/MAD2807BCN26081)
   AVIASALES_TP_LINK: "EV-AVIASALES-TP-LINK", // mismo artículo: "Add the code to https://www.aviasales.com/"
   GOOGLE_FLIGHTS_SERP_URL: "EV-GFLIGHTS-SERP-URL", // search_metadata.google_flights_url de SerpApi
-  GOOGLE_FLIGHTS_Q: "EV-GFLIGHTS-Q", // https://www.google.com/travel/flights?q=… (observado)
+  // Descartado: google.com/travel/flights?q=… abre el formulario VACÍO (captura F6, 2026-10-22).
   GOOGLE_FLIGHTS_BOOKING_REQUEST: "EV-GFLIGHTS-BOOKING-REQUEST", // SerpApi Booking Options: booking_request {url, post_data}
   GOOGLE_HOTELS_PRICE_LINK: "EV-GHOTELS-PRICE-LINK", // SerpApi Property Details: featured_prices[].link / rooms[].link
   BOOKING_SEARCH: "EV-BOOKING-SEARCH", // booking.com/searchresults.html?ss&checkin&checkout&group_adults&no_rooms (observado)
@@ -42,12 +45,6 @@ export function isIsoDate(d: unknown): d is string {
 }
 
 const ddmm = (d: string) => `${d.slice(8, 10)}${d.slice(5, 7)}`;
-
-/** Travelpayouts envuelve con tp.media/click (igual que src/lib/affiliateLinks.ts tpDeepLink). */
-export function tpWrap(targetUrl: string, subId: string, marker = TP_PUBLIC_MARKER): string {
-  const p = new URLSearchParams({ marker: `${marker}.${subId}`, u: targetUrl });
-  return `https://tp.media/click?${p.toString()}`;
-}
 
 export type FlightSearchQuery = { origin: string; destination: string; depart: string; ret?: string | null; adults: number; children?: number };
 
@@ -85,29 +82,16 @@ export function aviasalesFromTpLink(link: string, marker = TP_PUBLIC_MARKER): st
   return /[?&]marker=/.test(base) ? base : `${base}${base.includes("?") ? "&" : "?"}marker=${marker}`;
 }
 
-/**
- * Búsqueda de Google Flights por texto (?q=), el formato que IATOS ya usaba (affiliateLinks.ts
- * googleFlightsLink). Observado: Google interpreta origen, destino, fechas y adultos de la frase.
- */
-export function googleFlightsQueryUrl(q: FlightSearchQuery): string | null {
-  if (!q.origin || !q.destination || !isIsoDate(q.depart)) return null;
-  const adults = Math.max(1, Math.round(Number(q.adults) || 1));
-  const text = q.ret && isIsoDate(q.ret)
-    ? `flights from ${q.origin} to ${q.destination} on ${q.depart} returning ${q.ret} for ${adults} adults`
-    : `flights from ${q.origin} to ${q.destination} on ${q.depart} for ${adults} adults`;
-  return `https://www.google.com/travel/flights?q=${encodeURIComponent(text)}`;
-}
-
 export type HotelSearchQuery = { query: string; checkin: string; checkout: string; adults: number; rooms?: number };
 
 /** Habitaciones por defecto: misma regla que hotels-search (2 adultos por habitación). */
 export const roomsForAdults = (adults: number) => Math.max(1, Math.ceil((Math.max(1, adults) || 1) / 2));
 
 /**
- * Búsqueda de Booking.com (searchresults.html con ss, checkin, checkout, group_adults, no_rooms),
- * envuelta con tp.media como ya lo hacía hotels-search. Formato observado en booking.com.
+ * Búsqueda de Booking.com (searchresults.html con ss, checkin, checkout, group_adults, no_rooms).
+ * Formato observado: la página aplica destino, fechas y ocupación (capturas H2–H10, 2026-10-22).
  */
-export function bookingSearchUrl(q: HotelSearchQuery, marker = TP_PUBLIC_MARKER): string | null {
+export function bookingSearchUrl(q: HotelSearchQuery): string | null {
   if (!q.query || !isIsoDate(q.checkin) || !isIsoDate(q.checkout) || q.checkout <= q.checkin) return null;
   const adults = Math.max(1, Math.round(Number(q.adults) || 1));
   const p = new URLSearchParams({
@@ -117,7 +101,7 @@ export function bookingSearchUrl(q: HotelSearchQuery, marker = TP_PUBLIC_MARKER)
     group_adults: String(adults),
     no_rooms: String(q.rooms ?? roomsForAdults(adults)),
   });
-  return tpWrap(`https://www.booking.com/searchresults.html?${p.toString()}`, "hotels", marker);
+  return `https://www.booking.com/searchresults.html?${p.toString()}`;
 }
 
 /** Fechas y ocupantes de un enlace de Booking.com (directo o dentro de tp.media). */
@@ -154,15 +138,13 @@ export function mapsListingUrl(query: string, placeId?: string | null): string |
 export function getYourGuideSearchUrl(city: string, query?: string, marker = TP_PUBLIC_MARKER): string | null {
   const q = [query, city].filter(Boolean).join(" ").trim();
   if (!q) return null;
-  const url = `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}&marker=${marker}`;
-  return tpWrap(url, "tours", marker);
+  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}&marker=${marker}`;
 }
 
 export function viatorSearchUrl(city: string, query?: string, marker = TP_PUBLIC_MARKER): string | null {
   const q = [query, city].filter(Boolean).join(" ").trim();
   if (!q) return null;
-  const url = `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}&marker=${marker}`;
-  return tpWrap(url, "tours", marker);
+  return `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}&marker=${marker}`;
 }
 
 /** Búsqueda pública de OpenTable (affiliateLinks.ts openTableLink), sin afiliado. */

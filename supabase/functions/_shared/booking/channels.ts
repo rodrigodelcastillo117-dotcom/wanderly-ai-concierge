@@ -25,7 +25,8 @@ const TRUNK_ZERO = new Set(["FR", "GB", "DE", "JP", "NL", "BE", "CH", "AT", "TR"
   "TH", "ID", "MY", "PH", "VN", "IN", "AR", "PE", "BR", "KE", "TZ", "LK", "SE", "FI", "CZ", "HU", "PL", "MA"]);
 // Italia y Mónaco conservan el 0 inicial de los fijos dentro del número internacional.
 
-export type PhoneResult = { ok: true; e164: string; digits: string; country: string | null } | { ok: false; reason: string };
+export type PhoneResult = { ok: true; e164: string; digits: string; country: string | null; reason?: undefined }
+  | { ok: false; reason: string; e164?: undefined; digits?: undefined; country?: undefined };
 
 /**
  * Normaliza a E.164. `country` (ISO-2) es el país del lugar (se infiere del destino). Acepta

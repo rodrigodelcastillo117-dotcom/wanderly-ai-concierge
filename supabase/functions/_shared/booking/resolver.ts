@@ -11,7 +11,7 @@
 //  6. Ficha de Google Maps.
 //  7. Solicitud asistida o guardar para después.
 // Cada botón dice exactamente lo que hace: "Comprar esta oferta" solo existe en el nivel 1.
-import { checkAllowlisted, checkTrustedSource, processorLabel, type UrlVerdict } from "./allowlist.ts";
+import { checkAllowlisted, checkTrustedSource, processorLabel, unwrapAffiliate, type UrlVerdict } from "./allowlist.ts";
 import { mailtoLink, normalizePhone, smsLink, telLink, whatsappLink } from "./channels.ts";
 import { EVIDENCE, mapsListingUrl } from "./links.ts";
 import { draftRequest, type RequestDraftInput, type RequestLang } from "./messages.ts";
@@ -124,7 +124,10 @@ function modeFor(kind: ActionKind): BookingMode {
 
 function check(c: LinkCandidate): UrlVerdict {
   // Lo que escribió la IA o mandó el cliente solo puede salir a dominios de la lista blanca.
-  return c.trust === "ai" || c.trust === "client" ? checkAllowlisted(c.url) : checkTrustedSource(c.url);
+  const v = c.trust === "ai" || c.trust === "client" ? checkAllowlisted(c.url) : checkTrustedSource(c.url);
+  // tp.media/click responde 400 (ver links.ts): se abre su destino, que también pasó la lista blanca.
+  if (v.ok && v.provider?.provider === "travelpayouts") return checkAllowlisted(unwrapAffiliate(v.url));
+  return v;
 }
 
 function preservesNotes(p: Preserves, product: ProductType): string[] {

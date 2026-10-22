@@ -110,7 +110,7 @@ export function parseHotelPrices(j: any, selectedRoom?: string | null): { option
 
 export type RecheckEnv = { serpKey?: string | null; serpFetch?: typeof fetch; now?: () => number };
 
-async function serp(env: RecheckEnv, params: Record<string, string>): Promise<{ ok: true; json: any; cached: boolean } | { ok: false; code: "PROVIDER_DOWN" | "LIVE_LIMIT" | "RECHECK_UNAVAILABLE" }> {
+async function serp(env: RecheckEnv, params: Record<string, string>): Promise<{ ok: true; json: any; cached: boolean; code?: undefined } | { ok: false; code: "PROVIDER_DOWN" | "LIVE_LIMIT" | "RECHECK_UNAVAILABLE"; json?: undefined; cached?: undefined }> {
   if (!env.serpKey) return { ok: false, code: "RECHECK_UNAVAILABLE" };
   const u = new URL(SERPAPI);
   for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);

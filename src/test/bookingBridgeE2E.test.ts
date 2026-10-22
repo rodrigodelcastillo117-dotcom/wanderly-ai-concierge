@@ -222,7 +222,7 @@ describe("Fase 11 · los 20 recorridos E2E (simulados, sin compras reales)", () 
     const o = (await t.call("resolve", { source: tripItem("tours_json", 0) })).body.offer as any;
     expect(o.actions[0]).toMatchObject({ label: "Buscar en GetYourGuide", mode: "PROVIDER_SEARCH" });
     const s = await t.call("start_booking", { source: tripItem("tours_json", 0), action_kind: "equivalent_search", idempotency_key: key(), consent: true });
-    expect((await t.go(String(s.body.go_url))).location).toMatch(/^https:\/\/tp\.media\/click\?.*getyourguide/);
+    expect((await t.go(String(s.body.go_url))).location).toMatch(/^https:\/\/www\.getyourguide\.com\/s\/\?q=Tour%20del%20Museo%20del%20Prado%20Madrid/);
   });
 
   it("12 · experiencia Privé con solicitud: usa prive_request_create y queda REQUESTED", async () => {

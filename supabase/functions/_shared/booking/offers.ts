@@ -5,7 +5,7 @@
 import { checkAllowlisted, unwrapAffiliate } from "./allowlist.ts";
 import { whatsappNumberFromUrl } from "./channels.ts";
 import {
-  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, EVIDENCE, getYourGuideSearchUrl, googleFlightsQueryUrl, isIsoDate,
+  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, EVIDENCE, getYourGuideSearchUrl, isIsoDate,
   openTableSearchUrl, parseAviasalesSearch, parseBookingSearch, roomsForAdults, viatorSearchUrl,
 } from "./links.ts";
 import type { RequestLang } from "./messages.ts";
@@ -236,10 +236,7 @@ export function offerFromTripFlight(v: any, ctx: OfferContext & { city?: string 
       rejected.push({ url: raw, reason: "no_es_un_enlace_de_vuelo" });
     }
   }
-  if (!ground && depart && trip.ciudad_origen && city) {
-    const gf = googleFlightsQueryUrl({ origin: trip.ciudad_origen, destination: city, depart, ret, adults: travelers });
-    if (gf) searches.push({ url: gf, trust: "builder", evidence: EVIDENCE.GOOGLE_FLIGHTS_Q, preserves: { product: false, dates: true, travelers: true, room_or_fare: false } });
-  }
+  // No se arma Google Flights por texto (?q=): abre el formulario vacío (evidencia F6).
   const est = ESTIMATED.has(String(v?.fuente_precio ?? "").toLowerCase()) || String(v?.estado_dato ?? "").toUpperCase() === "ESTIMADO" || num(v?.precio_min) != null;
   const pp = num(v?.precio_por_persona);
   const checked = str(v?.consultado_at) ?? trip.created_at ?? null;

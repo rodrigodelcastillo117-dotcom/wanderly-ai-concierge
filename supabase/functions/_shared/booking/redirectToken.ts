@@ -35,7 +35,7 @@ export async function signRedirect(secret: string, claims: Omit<RedirectClaims, 
   return `${body}.${b64url(await hmac(secret, body))}`;
 }
 
-export type VerifyResult = { ok: true; claims: RedirectClaims } | { ok: false; reason: "formato" | "firma" | "vencido" };
+export type VerifyResult = { ok: true; claims: RedirectClaims; reason?: undefined } | { ok: false; reason: "formato" | "firma" | "vencido"; claims?: undefined };
 
 export async function verifyRedirect(secret: string, token: unknown, nowMs = Date.now()): Promise<VerifyResult> {
   if (!secret || typeof token !== "string" || token.length > 1200) return { ok: false, reason: "formato" };

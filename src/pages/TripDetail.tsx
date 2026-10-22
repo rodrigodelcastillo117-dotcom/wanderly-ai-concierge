@@ -657,7 +657,9 @@ const TripDetail = () => {
                               <BookingActions className="mt-2" tripId={trip.id}
                                 offer={offerFromTripFlight(v, { trip, city, index: i })}
                                 source={{ type: "trip_item", trip_id: trip.id, col: "vuelos_json", index: i, name: v.aerolinea }}
-                                serverActions={serverOffers.vuelos_json?.[i]} />
+                                serverActions={serverOffers.vuelos_json?.[i]}
+                                fallbackInternal={isGroundOption(v) ? null : { label: "Buscar vuelos reales en IATOS →",
+                                  href: `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida ?? ""}&return=${trip.fecha_regreso ?? ""}&travelers=${trip.num_viajeros ?? 1}&auto=1&trip=${trip.id}` }} />
                             </ExpandableItemCard>
                           );
                         })}

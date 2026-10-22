@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { checkAllowlisted, checkTrustedSource, looksLikeBrandImpersonation, processorLabel } from "../../supabase/functions/_shared/booking/allowlist";
 import {
-  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, googleFlightsQueryUrl, mapsListingUrl, parseAviasalesSearch, parseBookingSearch,
+  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, mapsListingUrl, parseAviasalesSearch, parseBookingSearch,
 } from "../../supabase/functions/_shared/booking/links";
 import {
   containsCardNumber, countryIso, mailtoLink, normalizePhone, smsLink, telLink, whatsappLink, whatsappNumberFromUrl,
@@ -56,6 +56,9 @@ describe("lista blanca de salida (Fase 12)", () => {
       expect(checkTrustedSource(`https://${h}/x`).ok, h).toBe(false);
     }
     expect(checkTrustedSource("https://quintonil.com").ok).toBe(true);
+    // Un dominio de proveedor conocido no entra como "fuente confiable" fuera de sus rutas permitidas.
+    expect(checkTrustedSource("https://www.google.com/url?q=https://evil.example").ok).toBe(false);
+    expect(checkTrustedSource("https://tp.media/click?u=" + encodeURIComponent("https://evil.example")).ok).toBe(false);
     expect(checkTrustedSource("https://www.fourseasons.com/mexico/dining/").ok).toBe(true);
   });
 });
@@ -70,11 +73,13 @@ describe("constructores de enlaces documentados", () => {
     expect(aviasalesFromTpLink("/search/MAD2807BCN26081?t=IB169")).toBe("https://www.aviasales.com/search/MAD2807BCN26081?t=IB169&marker=533299");
     expect(aviasalesFromTpLink("//evil.example/x")).toBeNull();
   });
-  it("Booking.com: fechas y ocupantes, envuelto en tp.media como ya se hacía", () => {
+  it("Booking.com: destino, fechas y ocupantes, directo (tp.media/click responde 400)", () => {
     const u = bookingSearchUrl({ query: "Hotel Urban Madrid", checkin: "2026-12-05", checkout: "2026-12-12", adults: 3 })!;
-    expect(u.startsWith("https://tp.media/click?")).toBe(true);
+    expect(u.startsWith("https://www.booking.com/searchresults.html?")).toBe(true);
     expect(parseBookingSearch(u)).toEqual({ ss: "Hotel Urban Madrid", checkin: "2026-12-05", checkout: "2026-12-12", adults: 3 });
-    expect(new URL(new URL(u).searchParams.get("u")!).searchParams.get("no_rooms")).toBe("2");
+    expect(new URL(u).searchParams.get("no_rooms")).toBe("2");
+    // Un enlace viejo envuelto en tp.media se sigue pudiendo leer (para comparar fechas).
+    expect(parseBookingSearch("https://tp.media/click?marker=1.hotels&u=" + encodeURIComponent(u))?.checkin).toBe("2026-12-05");
     expect(bookingSearchUrl({ query: "x", checkin: "2026-12-12", checkout: "2026-12-05", adults: 1 })).toBeNull();
   });
   it("Google Maps URLs: query_place_id evita homónimos", () => {
@@ -83,10 +88,6 @@ describe("constructores de enlaces documentados", () => {
     expect(u.searchParams.get("api")).toBe("1");
     expect(u.searchParams.get("query_place_id")).toBe("ChIJx5Rc1n0oQg0R5B1hVIKdWUU");
     expect(new URL(mapsListingUrl("Botín", "<script>")!).searchParams.get("query_place_id")).toBeNull();
-  });
-  it("Google Flights por texto lleva ruta, fechas y adultos", () => {
-    const q = new URL(googleFlightsQueryUrl({ origin: "Ciudad de México", destination: "Madrid", depart: "2026-12-05", ret: "2026-12-12", adults: 2 })!).searchParams.get("q");
-    expect(q).toBe("flights from Ciudad de México to Madrid on 2026-12-05 returning 2026-12-12 for 2 adults");
   });
 });
 
@@ -202,6 +203,13 @@ describe("BookingActionResolver: orden y textos del dueño", () => {
       whatsapp: { value: "34600111222", verified_by: "", trust: "client" }, phone: { value: "913664217", verified_by: "", trust: "client" } });
     expect(r.actions.some((a) => ["whatsapp", "phone", "sms", "email"].includes(a.kind))).toBe(false);
   });
+  it("un enlace tp.media (responde 400) se abre directo en su destino permitido", () => {
+    const inner = "https://www.omio.com/search?fromCity=Cancun&toCity=Tulum";
+    const r = resolveBookingActions({ product_type: "transport", title: "Bus", now: NOW,
+      searches: [{ url: "https://tp.media/click?marker=533299.bus&u=" + encodeURIComponent(inner), trust: "ai", evidence: "x" }] });
+    expect(r.primary?.url).toBe(inner);
+    expect(r.primary?.label).toBe("Buscar boletos");
+  });
   it("URL de la IA a un dominio no permitido se descarta (con motivo)", () => {
     const r = resolveBookingActions({ product_type: "restaurant", title: "x", now: NOW,
       official_booking: [{ url: "https://iatos.ai/", trust: "ai", evidence: "x" }] });
@@ -220,8 +228,14 @@ describe("adaptadores sobre lo que IATOS ya tiene", () => {
     expect(o.price).toBe(42000);
     expect(o.booking_mode).toBe("PROVIDER_SEARCH");
   });
+  it("vuelo sin enlace ni aeropuertos: no se inventa una búsqueda", () => {
+    const o = offerFromTripFlight({ aerolinea: "Iberia", fuente_precio: "travelpayouts" }, { trip: TRIP, now: NOW });
+    expect(o.actions.map((a) => a.kind)).toEqual(["save_for_later"]);
+    expect(o.booking_mode).toBe("UNAVAILABLE");
+  });
   it("vuelo estimado: avisa que el precio es una estimación", () => {
-    const o = offerFromTripFlight({ aerolinea: "Volaris", fuente_precio: "estimado", precio_por_persona: 5000 }, { trip: TRIP, now: NOW });
+    const o = offerFromTripFlight({ aerolinea: "Volaris", fuente_precio: "estimado", precio_por_persona: 5000,
+      booking_link: "https://www.aviasales.com/search/MEX0512MAD12122?marker=533299" }, { trip: TRIP, now: NOW });
     expect(o.price_is_estimate).toBe(true);
     expect(o.actions[0].disclosures.join(" ")).toMatch(/estimación/);
   });
@@ -406,7 +420,7 @@ describe("Iato: frases permitidas y prohibidas (Fase 9)", () => {
   it("habla según la acción real de la oferta", () => {
     const venue = venueFromPriveRow({ name: "Rosetta", booking_url: "https://www.opentable.com.mx/r/rosetta-mexico" }, "Ciudad de México", "MX");
     expect(iatoLineFor(offerFromVenue(venue, "restaurant", { now: NOW }))).toContain(IATO_PHRASES.opentable);
-    const fl = offerFromTripFlight({ aerolinea: "Iberia", fuente_precio: "travelpayouts" }, { trip: TRIP, now: NOW });
+    const fl = offerFromTripFlight({ aerolinea: "Iberia", fuente_precio: "travelpayouts", booking_link: "https://www.aviasales.com/search/MEX0512MAD12122?marker=533299" }, { trip: TRIP, now: NOW });
     expect(iatoLineFor(fl)).toMatch(/búsqueda de este vuelo.*No puedo llevar la tarifa exacta/);
     expect(findFalseClaims(iatoLineFor(fl))).toEqual([]);
   });

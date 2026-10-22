@@ -95,8 +95,9 @@ const BRAND_REAL_DOMAINS = ["expedia.com", "expedia.mx", "hotels.com", "tripadvi
   "googleusercontent.com", "kayak.com.mx"];
 
 export type UrlVerdict =
-  | { ok: true; url: string; host: string; provider: ProviderInfo | null; trust: "allowlist" | "trusted_source" }
-  | { ok: false; reason: string };
+  // (campos opcionales en ambas ramas: el tsconfig de la app no es strict y no estrecha por `ok`)
+  | { ok: true; url: string; host: string; provider: ProviderInfo | null; trust: "allowlist" | "trusted_source"; reason?: undefined }
+  | { ok: false; reason: string; url?: undefined; host?: undefined; provider?: undefined; trust?: undefined };
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 const MAX_URL = 4096;
@@ -126,7 +127,7 @@ export function providerFor(host: string, pathname = "/"): ProviderInfo | null {
 }
 
 /** Reglas comunes de seguridad de una URL de salida (https, sin credenciales, sin IP, puerto 443). */
-function basicCheck(raw: unknown): { ok: true; u: URL } | { ok: false; reason: string } {
+function basicCheck(raw: unknown): { ok: true; u: URL; reason?: undefined } | { ok: false; reason: string; u?: undefined } {
   if (typeof raw !== "string") return { ok: false, reason: "no_es_texto" };
   const s = raw.trim();
   if (!s || s.length > MAX_URL) return { ok: false, reason: "longitud" };
@@ -164,7 +165,7 @@ export function looksLikeBrandImpersonation(host: string): boolean {
  */
 export function checkAllowlisted(raw: unknown, depth = 0): UrlVerdict {
   const b = basicCheck(raw);
-  if (!b.ok) return b;
+  if (!b.ok) return { ok: false, reason: b.reason };
   const host = b.u.hostname.toLowerCase();
   const prov = providerFor(host, b.u.pathname);
   if (!prov) return { ok: false, reason: "dominio_no_permitido" };
@@ -185,8 +186,11 @@ export function checkTrustedSource(raw: unknown): UrlVerdict {
   const strict = checkAllowlisted(raw);
   if (strict.ok) return strict;
   const b = basicCheck(raw);
-  if (!b.ok) return b;
+  if (!b.ok) return { ok: false, reason: b.reason };
   const host = b.u.hostname.toLowerCase();
+  // Un dominio de proveedor conocido (google.com, tp.media, booking.com…) solo vale con sus reglas
+  // estrictas: así google.com/url?q=… o tp.media con destino falso no entran como "fuente confiable".
+  if (PROVIDERS.some((p) => hostMatches(host, p.domain))) return { ok: false, reason: strict.reason ?? "ruta_no_permitida" };
   if (looksLikeBrandImpersonation(host)) return { ok: false, reason: "dominio_sospechoso" };
   return { ok: true, url: b.u.toString(), host, provider: null, trust: "trusted_source" };
 }
