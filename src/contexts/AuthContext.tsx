@@ -5,6 +5,17 @@ import { setSentryUser } from "@/lib/sentry";
 import { identifyUser, resetAnalytics, track } from "@/lib/analytics";
 import { captureRecoveryFromUrl, clearRecoveryFlag, hasRecoveryFlag, markRecovery } from "@/lib/passwordRecovery";
 
+// Borra los viajes guardados para lectura offline (public/sw.js) al cerrar sesión,
+// para que otra persona en el mismo dispositivo no los vea.
+const clearOfflineTripCache = () => {
+  try {
+    if (typeof caches !== "undefined") void caches.delete("iatos-data-v1").catch(() => {});
+    navigator.serviceWorker?.controller?.postMessage({ type: "iatos:clear-user-cache" });
+  } catch {
+    /* noop */
+  }
+};
+
 // Capturamos `type=recovery` en cuanto se evalúa este módulo (parte del bundle
 // inicial): Supabase borra el hash tras validar el token y /reset-password es lazy.
 captureRecoveryFromUrl();
@@ -53,6 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (mounted) setPasswordRecovery(true);
       } else if (event === "SIGNED_OUT") {
         clearRecoveryFlag();
+        clearOfflineTripCache();
         if (mounted) setPasswordRecovery(false);
       }
       finishAuth(newSession);
@@ -102,6 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     clearRecoveryFlag();
     setPasswordRecovery(false);
+    clearOfflineTripCache();
     await supabase.auth.signOut({ scope: "local" });
     resetAnalytics();
   };
