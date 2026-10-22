@@ -1,0 +1,72 @@
+// Punto de integración del catálogo Privé (grupo "catalog"). Aquí se conectan las RPC de contenido
+// `prive_*(_ps text, …)`; cada una empieza con prive_require en el servidor. Mientras no haya
+// ninguna registrada, el hub muestra "en curaduría" sin llamar a nada.
+//
+// Cómo registrar una sección: agregar a PRIVE_HUB_SECTIONS { id, title, rpc, args?, render }.
+// La llamada pasa por usePriveAccess().content, que NO llama sin sesión Privé y que, ante un código
+// PRIVE_*, borra la sesión y regresa al candado.
+import { useEffect, useState } from "react";
+import { usePriveAccess } from "@/hooks/usePriveAccess";
+import { messageFor } from "@/lib/priveCopy";
+import type { PriveErrorCode } from "@/lib/priveApi";
+
+export type PriveHubSection = {
+  id: string;
+  title: string;
+  rpc: string;
+  args?: Record<string, unknown>;
+  /** Devuelve null si los datos vienen vacíos (entonces se muestra "en curaduría"). */
+  render: (data: unknown) => React.ReactNode | null;
+};
+
+export const PRIVE_HUB_SECTIONS: PriveHubSection[] = [];
+
+type Loaded = { id: string; node: React.ReactNode | null } | { id: string; error: PriveErrorCode };
+
+export function PriveCatalogSlot({ sections = PRIVE_HUB_SECTIONS }: { sections?: PriveHubSection[] }) {
+  const { content, unlocked } = usePriveAccess();
+  const [loaded, setLoaded] = useState<Loaded[] | null>(sections.length ? null : []);
+
+  useEffect(() => {
+    if (!unlocked || sections.length === 0) return;
+    let alive = true;
+    void Promise.all(
+      sections.map(async (s): Promise<Loaded> => {
+        const r = await content(s.rpc, s.args ?? {});
+        return r.ok ? { id: s.id, node: s.render(r.data) } : { id: s.id, error: r.code };
+      }),
+    ).then((res) => { if (alive) setLoaded(res); });
+    return () => { alive = false; };
+  }, [unlocked, sections, content]);
+
+  const visible = (loaded ?? []).filter((l) => ("node" in l ? l.node != null : l.error !== "NOT_AVAILABLE"));
+
+  if (loaded === null) {
+    return <p role="status" className="text-sm prive-muted">Cargando tu selección…</p>;
+  }
+  if (visible.length === 0) {
+    return (
+      <div className="prive-panel p-6 sm:p-8" data-testid="prive-curating">
+        <p className="prive-eyebrow mb-3">Para ti</p>
+        <h2 className="text-2xl sm:text-3xl mb-3">Contenido en curaduría</h2>
+        <p className="text-sm prive-muted max-w-prose">
+          Estamos revisando cada lugar con fuentes y fechas antes de mostrártelo. Cuando las primeras fichas verificadas estén
+          listas, aparecerán aquí, ordenadas para ti. No mostramos nada que no hayamos podido comprobar.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-10">
+      {visible.map((l) => {
+        const s = sections.find((x) => x.id === l.id)!;
+        return (
+          <section key={l.id} aria-labelledby={`prive-sec-${l.id}`}>
+            <h2 id={`prive-sec-${l.id}`} className="text-2xl mb-4">{s.title}</h2>
+            {"node" in l ? l.node : <p role="alert" className="text-sm prive-muted">{messageFor(l.error)}</p>}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
