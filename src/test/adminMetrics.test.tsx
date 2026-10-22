@@ -58,5 +58,11 @@ describe("AdminMetrics", () => {
     rpc.mockResolvedValue({ data: null, error: { code: "42501", message: "not_authorized" } });
     renderPage();
     expect(await screen.findByText("Acceso solo para administradores")).toBeInTheDocument();
+    // La decisión es del servidor (admin_metrics responde 42501): la página la pidió y no muestra datos
+    // ni el panel de estado de servicios (CALIDAD_PRUEBAS.md: antes solo se veía el texto).
+    expect(rpc).toHaveBeenCalledWith("admin_metrics");
+    expect(screen.queryByText("Estado de los servicios")).toBeNull();
+    expect(screen.queryByText("60%")).toBeNull();
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
   });
 });

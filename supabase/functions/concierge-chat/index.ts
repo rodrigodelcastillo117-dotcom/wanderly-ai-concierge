@@ -41,6 +41,7 @@ import { runConciergeTurn } from "./turn.ts";
 import { encodeEvent, type ConciergeStreamEvent } from "./stream.ts";
 import { runWebSearch } from "./webSearch.ts";
 import { executeAction } from "./actionExec.ts";
+import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempotency.ts";
 import type { ActionContext } from "./actions.ts";
 import { withTimeout } from "./tools.ts";
 
@@ -211,10 +212,15 @@ async function handleAction(req: Request, body: Body, authHeader: string) {
     hasPriveSession: !!req.headers.get("x-prive-session"),
   };
   const priveSession = req.headers.get("x-prive-session");
+  // AUD-SEG-05: "Reintentar" tras un timeout manda la misma clave; si la acción ya se hizo, se devuelve
+  // la misma respuesta sin volver a crear el viaje ni la solicitud.
+  const idemKey = idemKeyFrom((body as { idempotency_key?: unknown }).idempotency_key);
+  const out = await withIdempotency(idemKey ? rpcIdemStore(adminClient()) : null, u.user.id, "concierge-chat-action", idemKey, async () => {
   const result = await executeAction(body.action?.type, body.action?.params, ctx, {
     userId: u.user.id,
     db: supabase,
     priveSession,
+    idempotencyKey: idemKey,
     callFunction: async (name, payload, headers) => {
       try {
         const r = await callFn(name, payload, authHeader, 20_000, headers ?? {});
@@ -226,7 +232,9 @@ async function handleAction(req: Request, body: Body, authHeader: string) {
   });
   console.log("concierge_action", JSON.stringify({ user_id: u.user.id, type: body.action?.type, ok: result.ok, code: result.code ?? null }));
   if (result.ok) logInsight(supabase, u.user.id, `accion:${body.action?.type}`, []).catch(() => {});
-  return json(result, result.ok ? 200 : 422);
+  return { status: result.ok ? 200 : 422, body: result as unknown as Record<string, unknown> };
+  });
+  return json(out.body, out.status);
 }
 
 // ═══ Mensaje ═══

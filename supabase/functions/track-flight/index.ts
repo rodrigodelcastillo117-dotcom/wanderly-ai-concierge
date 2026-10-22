@@ -2,7 +2,7 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { enforceRateLimit, rateLimitResponse } from '../_shared/rate-limit.ts';
-import { freePlanDateError, HARD_CAP_ACTIVE_PER_USER, normalizeFlight, trackError } from './rules.ts';
+import { freePlanDateError, HARD_CAP_ACTIVE_PER_USER, normalizeFlight, trackError, tripIdForTracking } from './rules.ts';
 import { planLimit, serviceUnavailableResponse } from '../_shared/entitlements.ts';
 import { activeLimitDecision } from '../_shared/planGate.ts';
 
@@ -69,12 +69,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Con la sesión del usuario: RLS de trips decide si el viaje es suyo o colabora en él.
+    const safeTripId = await tripIdForTracking(trip_id, async (id) => {
+      const { data } = await supabase.from('trips').select('id').eq('id', id).maybeSingle();
+      return !!data;
+    });
     const { error } = await admin.from('tracked_flights').upsert({
       user_id: u.user.id,
       flight: code,
       flight_date,
       route: route ?? null,
-      trip_id: trip_id ?? null,
+      trip_id: safeTripId,
       active: true,
     }, { onConflict: 'user_id,flight,flight_date' });
     if (error) throw error;

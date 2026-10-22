@@ -4,6 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
+import { canWritePackingList, vaultSummary } from "./access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,7 +145,7 @@ function buildUserPrompt(trip: any, profile: any, vault: any[], travelDna: any) 
     .filter(Boolean);
   const crucero = viaje.cruceros?.[0] ?? viaje.crucero;
 
-  const vaultNames = (vault ?? []).map((b: any) => b.benefit_name ?? b.name).filter(Boolean);
+  const vaultNames = vaultSummary(vault);
 
   return `VIAJE A PLANEAR:
 - Destinos: ${trip.destino}${trip.pais_destino ? ` (${trip.pais_destino})` : ""}
@@ -237,10 +238,22 @@ Deno.serve(async (req) => {
       }
     }
 
+    // AUD-SEG-03: no quitarle la lista al dueño (ver access.ts).
+    const { data: existingList } = await admin.from("packing_lists").select("user_id").eq("trip_id", trip_id).maybeSingle();
+    if (!canWritePackingList(existingList ?? null, userId, trip.user_id)) {
+      return new Response(JSON.stringify({ error: "packing_list_owned_by_other", message: "La lista de equipaje de este viaje es de otra persona del viaje." }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // AUD-SEG-03: el contexto es el de QUIEN LLAMA. Antes se leía el perfil completo, la bóveda de
+    // tarjetas y el ADN del dueño y un colaborador recibía una lista armada con los beneficios de
+    // tarjeta del dueño.
     const [{ data: profile }, { data: vault }, { data: dnaPref }] = await Promise.all([
-      admin.from("profiles").select("*").eq("id", trip.user_id).maybeSingle(),
-      admin.from("user_vault_benefits").select("*").eq("user_id", trip.user_id),
-      admin.from("ai_user_preferences").select("*").eq("user_id", trip.user_id).maybeSingle(),
+      admin.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
+      admin.from("user_vault_benefits").select("*").eq("user_id", userId),
+      admin.from("ai_user_preferences").select("*").eq("user_id", userId).maybeSingle(),
     ]);
 
     const userPrompt = buildUserPrompt(trip, profile, vault ?? [], dnaPref);

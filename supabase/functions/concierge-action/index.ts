@@ -3,6 +3,7 @@ import { sendEmail } from "../_shared/email.ts";
 import { conciergeRequestOpsEmail, type OpsRequestInput } from "../_shared/email-ops.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { redactPii } from "../_shared/redact.ts";
+import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempotency.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +23,8 @@ type Body = {
   title: string;
   trip_id?: string | null;
   payload?: Record<string, unknown>;
+  /** AUD-SEG-05: clave del cliente; el reintento con la misma clave no crea otra solicitud. */
+  idempotency_key?: string;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -74,6 +77,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    // AUD-SEG-05: todo lo que crea la solicitud corre UNA vez por clave. El reintento tras un timeout
+    // devuelve el mismo folio en vez de crear otra solicitud (y otro correo al equipo).
+    const idemKey = idemKeyFrom(body.idempotency_key);
+    const run = async (): Promise<Response> => {
     // Reservas de Members Only: solo con derecho (PRO o contraseña temporal vigente), en el servidor.
     if (body.type === "members_nightlife_reservation") {
       const { data: entitled } = await supaUser.rpc("members_access");
@@ -180,6 +187,13 @@ Deno.serve(async (req) => {
       JSON.stringify({ ok: true, request: { id: reqRow.id, status: reqRow.status }, human_notified: humanNotified, confirmation_required: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+    };
+    const out = await withIdempotency(idemKey ? rpcIdemStore(createClient(SUPABASE_URL, SERVICE_KEY)) : null, userId, "concierge-action", idemKey,
+      async () => {
+        const r = await run();
+        return { status: r.status, body: await r.json().catch(() => ({ ok: false })) };
+      });
+    return new Response(JSON.stringify(out.body), { status: out.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("concierge-action error", redactPii((e as Error)?.message ?? e));
     return new Response(JSON.stringify({ code: "INTERNAL_ERROR", error: "internal_error" }), {

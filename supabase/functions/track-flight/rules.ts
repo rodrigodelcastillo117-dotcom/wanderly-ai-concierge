@@ -38,3 +38,18 @@ export function freePlanDateError(flightDate: string, todayISO: string): string 
   const days = (Date.parse(`${flightDate}T00:00:00Z`) - Date.parse(`${todayISO}T00:00:00Z`)) / DAY_MS;
   return days === 0 || days === 1 ? null : FREE_DAY_OF_FLIGHT_MESSAGE;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * AUD-SEG-04: el vuelo se guarda con la llave de servicio, que se salta la política
+ * tf_insert_own (has_trip_access). Solo se acepta un trip_id que el usuario puede ver con SU sesión;
+ * cualquier otro valor se guarda como null (el vuelo se sigue igual, sin ligarlo a un viaje ajeno).
+ */
+export async function tripIdForTracking(raw: unknown, canSee: (id: string) => Promise<boolean>): Promise<string | null> {
+  if (typeof raw !== "string" || !UUID_RE.test(raw)) return null;
+  try {
+    return (await canSee(raw)) ? raw : null;
+  } catch {
+    return null;
+  }
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, BadgeCheck, BedDouble, Car, ExternalLink, Globe, Landmark, Luggage, MapPin, Navigation, Phone, Plane, Sparkles, Star,
@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { track } from "@/lib/analytics";
 import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
+import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 import {
   CARD_TYPES, safeCardLink, safeHttpsUrl, type CardLink, type ConciergeCard,
 } from "../../../supabase/functions/concierge-chat/cards.ts";
@@ -204,15 +205,22 @@ export function useConciergeRequest(tripId?: string | null) {
   const [state, setState] = useState<RequestState>("idle");
   const [folio, setFolio] = useState<string | null>(null);
   const [humanNotified, setHumanNotified] = useState<boolean | null>(null);
+  // AUD-SEG-05: la misma solicitud reintentada (tras un timeout) lleva la misma clave y el servidor
+  // devuelve el mismo folio en vez de crear otra. Tras el éxito, o si cambia la solicitud, clave nueva.
+  const idem = useRef<{ sig: string; key: string } | null>(null);
   const run = async (payload: { type: string; title: string; payload?: Record<string, unknown> }) => {
     setState("loading");
+    const sig = JSON.stringify([payload, tripId ?? null]);
+    if (!idem.current || idem.current.sig !== sig) idem.current = { sig, key: newIdemKey() };
+    const idempotency_key = idem.current.key;
     try {
       const { data, error } = await supabase.functions.invoke("concierge-action", {
-        body: { ...payload, trip_id: tripId ?? null },
+        body: { ...payload, trip_id: tripId ?? null, idempotency_key },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       if (!data?.ok || !data?.request?.id) throw new Error("El servidor no confirmó la solicitud");
+      idem.current = null;
       setFolio(String(data.request.id).slice(0, 8).toUpperCase());
       setHumanNotified(data.human_notified !== false);
       setState("confirmed");
