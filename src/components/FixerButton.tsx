@@ -224,7 +224,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
       } else {
         saveOutcome("email_enviado");
         toast.success("Tu Fixer recibió tu solicitud", {
-          description: "Te contactará por email o WhatsApp en minutos.",
+          description: "Te responderá por email en cuanto esté disponible. El tiempo de respuesta depende de la disponibilidad del equipo.",
         });
       }
     } catch (err) {
