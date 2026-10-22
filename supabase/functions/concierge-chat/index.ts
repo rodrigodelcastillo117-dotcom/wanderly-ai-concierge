@@ -22,6 +22,8 @@ import { aiFetch } from "../_shared/ai.ts";
 import { dbCacheStore, liveSearchGateFor, logUsage } from "../_shared/serpRuntime.ts";
 import type { UsageEntry } from "../_shared/usage.ts";
 import { buildTripQuestion, mentionsUntrackedPlace, needsSpecificTrip, resolveActiveTrip } from "../_shared/activeTrip.ts";
+import { getTasteProfile, readTasteCache } from "../_shared/tasteProfileStore.ts";
+import { renderTasteProfile, tasteToday } from "../_shared/tasteProfile.ts";
 import { todayLine, toolArgs } from "./tools.ts";
 import { resolveToday, sanitizeClientMessages } from "./guard.ts";
 import { buildContextMessage, buildDynamicSystem, buildMemoryData, buildStableSystem, capSummary } from "./prompt.ts";
@@ -281,15 +283,22 @@ Deno.serve(async (req) => {
     const explicitId = typeof body.trip_id === "string" && UUID.test(body.trip_id) ? body.trip_id : null;
     const priveSession = req.headers.get("x-prive-session");
 
-    // Contexto: viajes, bóveda, preferencias, perfil, travel_profiles y viaje fijado.
-    const [{ data: tripRows }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }, pinnedRes] = await Promise.all([
+    // Contexto: viajes, bóveda, preferencias, perfil, travel_profiles, viaje fijado y la caché del
+    // perfil de gustos (una lectura; solo se recalcula si cambió una señal).
+    const [{ data: tripRows }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }, pinnedRes, tasteCache] = await Promise.all([
       supabase.from("trips").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(25),
       supabase.from("user_vault_benefits").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("ai_user_preferences").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("profiles").select("full_name, ciudad_origen").eq("id", userId).maybeSingle(),
       supabase.from("travel_profiles").select("estilo_viaje, presupuesto_rango, ritmo_viaje, preferencias_comida, alergias_restricciones, intereses, perfil_ia").eq("user_id", userId).maybeSingle(),
       supabase.from("profiles").select("active_trip_id").eq("id", userId).maybeSingle(),
+      readTasteCache(supabase, userId),
     ]);
+    // Si hay que recalcular, corre en paralelo con lo demás y tiene 700 ms; si tarda más, se usa el
+    // perfil anterior y el nuevo se guarda en segundo plano para el siguiente mensaje.
+    const tastePromise = getTasteProfile({ db: supabase, cache: adminClient(), userId, todayISO: tasteToday(), cached: tasteCache, timeoutMs: 700 })
+      .then((r) => { if (r.pending) bg(r.pending); return r; })
+      .catch(() => ({ profile: null, source: "none" as const }));
     const pinnedId = (pinnedRes as any)?.error ? null : ((pinnedRes as any)?.data?.active_trip_id ?? null);
 
     // Viajes compartidos (colaborador): si el elegido o el fijado no es propio, se carga por id (RLS).
@@ -429,7 +438,10 @@ Deno.serve(async (req) => {
       toolHints: plan.toolHints,
       exigenteNote: exigenteCapped ? "El usuario pidió Modo exigente pero ya usó su tope de hoy: responde en modo normal y díselo en una línea al final." : undefined,
     });
-    const contextMessage = buildContextMessage({ perfil: compactItem(perfil), viajes, viajeEnContexto, faltantes: tripGaps, memoria, notas: plan.notes });
+    const taste = await tastePromise;
+    // ≤ 350 tokens en el chat (lo declarado ya va en <perfil_usuario>): el contexto sigue compacto.
+    const gustos = renderTasteProfile(taste.profile, { maxTokens: 350, omitDeclared: true });
+    const contextMessage = buildContextMessage({ perfil: compactItem(perfil), gustos, viajes, viajeEnContexto, faltantes: tripGaps, memoria, notas: plan.notes });
 
     const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords });
 
@@ -454,6 +466,7 @@ Deno.serve(async (req) => {
         user_id: userId, tier: route.tier, provider: agent.provider, model: agent.model, prefetch_ms: prefetchMs,
         first_text_ms: agent.firstTextMs, total_ms: totalMs, tools: agent.toolsUsed, prefetch: plan.prefetch.map((p) => p.name),
         failures: agent.failures, rerouted: agent.rerouted, guards: final.guards, breaker: sharedBreaker.snapshot(),
+        taste: taste.source, taste_chars: gustos.length,
       }));
 
       const reply = {

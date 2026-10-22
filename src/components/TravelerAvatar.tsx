@@ -3,6 +3,7 @@ import { Crown, Sparkles, RefreshCw, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { dnaForDisplay } from "../../supabase/functions/_shared/dnaVoice";
 
 type Perfil = {
   resumen?: string;
@@ -31,7 +32,7 @@ export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
       supabase.from("travel_profiles").select("perfil_ia").eq("user_id", user.id).maybeSingle(),
       supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).maybeSingle(),
     ]);
-    setPerfil((prefs?.perfil_ia as Perfil) ?? (tp?.perfil_ia as Perfil) ?? null);
+    setPerfil(dnaForDisplay((prefs?.perfil_ia as Perfil) ?? (tp?.perfil_ia as Perfil) ?? null));
     setVersion((prefs?.dna_version as number) ?? null);
     if (prof?.full_name) setNombre(prof.full_name.split(" ")[0]);
     setAvatarUrl((prof as any)?.avatar_url ?? null);
@@ -45,7 +46,7 @@ export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
       const { data, error } = await supabase.functions.invoke("evolucionar-dna", { body: {} });
       if (error) throw error;
       if (data?.dna) {
-        setPerfil(data.dna);
+        setPerfil(dnaForDisplay(data.dna as Perfil));
         setVersion(data.version ?? null);
         toast.success("Avatar evolucionado con tus últimos viajes");
         setOpen(true);
