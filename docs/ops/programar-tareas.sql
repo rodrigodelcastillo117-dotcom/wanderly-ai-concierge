@@ -22,6 +22,8 @@ BEGIN
   END IF;
 END $$;
 
+-- (La misma función está en supabase/migrations/20261022132300_ops_health_check_jobs_and_email.sql;
+--  repetirla aquí es inofensivo.)
 CREATE OR REPLACE FUNCTION public.verify_cron_secret(p_secret text)
 RETURNS boolean
 LANGUAGE sql
@@ -115,7 +117,8 @@ INSERT INTO public.admins (user_id)
 SELECT id FROM auth.users WHERE lower(email) = lower('TU-CORREO@ejemplo.com')
 ON CONFLICT (user_id) DO NOTHING;
 
--- 5) Verificación: debe listar los 2 trabajos y tu usuario como admin.
+-- 5) Verificación: debe listar los 3 trabajos y tu usuario como admin.
 SELECT jobname, schedule, active FROM cron.job
-WHERE jobname IN ('price-watch-twice-daily', 'flight-watch-every-15-min');
+WHERE jobname IN ('price-watch-twice-daily', 'flight-watch-every-15-min', 'health-check-daily')
+ORDER BY jobname;
 SELECT a.user_id, u.email FROM public.admins a JOIN auth.users u ON u.id = a.user_id;

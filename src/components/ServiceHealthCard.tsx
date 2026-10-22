@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { emailStatusLabel, HEALTH_STALE_HOURS, isHealthStale } from "@/lib/serviceHealth";
 
 type Check = { name: string; ok: boolean; warn?: string; detail?: string };
-type Run = { ran_at: string; ok: boolean; results: Check[] };
+type Run = { ran_at: string; ok: boolean; results: Check[]; email_status?: string | null; email_error?: string | null };
 
 /** Último chequeo diario de servicios externos (función health-check). Solo administradores. */
 export function ServiceHealthCard() {
@@ -12,7 +13,7 @@ export function ServiceHealthCard() {
   useEffect(() => {
     supabase
       .from("health_checks")
-      .select("ran_at, ok, results")
+      .select("ran_at, ok, results, email_status, email_error")
       .order("ran_at", { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -31,6 +32,15 @@ export function ServiceHealthCard() {
           </span>
         )}
       </div>
+      {run && isHealthStale(run.ran_at) && (
+        <p role="alert" className="flex items-start gap-2 text-sm rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 mb-3">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-400" aria-hidden="true" />
+          <span>
+            El último chequeo tiene más de {HEALTH_STALE_HOURS} horas: la tarea diaria dejó de correr.
+            Revisa que exista <span className="font-mono">health-check-daily</span> (docs/ops/LEEME.md).
+          </span>
+        </p>
+      )}
       {!run ? (
         <p className="text-sm text-muted-foreground">Todavía no corre el chequeo diario.</p>
       ) : (
@@ -54,6 +64,12 @@ export function ServiceHealthCard() {
             </li>
           ))}
         </ul>
+      )}
+      {run && emailStatusLabel(run.email_status) && (
+        <p className="text-xs text-muted-foreground mt-3">
+          {emailStatusLabel(run.email_status)}
+          {run.email_error ? ` (${run.email_error})` : ""}
+        </p>
       )}
     </section>
   );

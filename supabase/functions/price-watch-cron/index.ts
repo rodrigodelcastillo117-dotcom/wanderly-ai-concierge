@@ -2,9 +2,13 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { cheapestFare, type CheapestFare } from "../_shared/travelpayouts.ts";
 import { getUsdMxnRate } from "../_shared/fx.ts";
-import { pushToUser } from "../_shared/push.ts";
+import { PRICE_PUSH_OPTIONS, pushToUser } from "../_shared/push.ts";
 import { isAuthorizedCron } from "../_shared/cron-auth.ts";
-import { decide, formatMxn } from "./rules.ts";
+import { safeErrorMessage } from "../_shared/redact.ts";
+import { decide, formatMxn, priceDedupKey } from "./rules.ts";
+
+// Las dos fuentes (Travelpayouts y Google Flights vía SerpApi) se consultan en dólares.
+const PROVIDER_CURRENCY = "USD";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -58,22 +62,25 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const price = Math.round(fare.priceUsd * fx);
+      const amount = fare.priceUsd;
+      const price = Math.round(amount * fx);
       summary.checked++;
       await admin.from("price_watch_checks").insert({
         watch_id: w.id, user_id: w.user_id, price_mxn: price, approximate_dates: fare.approximateDates,
-        source: fare.source,
+        source: fare.source, amount_original: amount, currency: PROVIDER_CURRENCY, fx_rate: fx,
       });
 
+      const baselineAmount = w.baseline_amount_original == null ? null : Number(w.baseline_amount_original);
       const decision = decide(
         {
-          baselinePrice: Number(w.baseline_price_mxn),
+          baselineAmount,
+          baselineCurrency: w.baseline_currency ?? null,
           baselineApproximate: w.baseline_approximate,
           baselineSource: w.baseline_source,
-          lastAlertPrice: w.last_alert_price_mxn == null ? null : Number(w.last_alert_price_mxn),
+          lastAlertAmount: w.last_alert_amount_original == null ? null : Number(w.last_alert_amount_original),
           lastAlertAt: w.last_alert_at,
         },
-        { price, approximate: fare.approximateDates, source: fare.source },
+        { amount, currency: PROVIDER_CURRENCY, approximate: fare.approximateDates, source: fare.source, fxToMxn: fx },
         now,
       );
 
@@ -84,37 +91,52 @@ Deno.serve(async (req) => {
         (!fare.approximateDates && fare.source === w.baseline_source);
       if (comparable) {
         update.last_price_mxn = price;
+        update.last_amount_original = amount;
         update.booking_link = fare.bookingLink;
         update.lowest_price_mxn = w.lowest_price_mxn == null ? price : Math.min(Number(w.lowest_price_mxn), price);
       }
 
       if (decision.kind === "rebaseline") {
         update.baseline_price_mxn = price;
+        update.baseline_amount_original = amount;
+        update.baseline_currency = PROVIDER_CURRENCY;
         update.baseline_approximate = false;
         update.baseline_source = fare.source;
         update.lowest_price_mxn = price;
+        update.last_alert_amount_original = null;
         summary.rebaselined++;
       } else if (decision.kind === "alert") {
         const destino = (w.trips as { destino?: string } | null)?.destino ?? "tu destino";
         const totalSaving = decision.dropMxn * (w.adults ?? 1);
+        // "Antes" se convierte con el tipo de cambio de hoy, igual que "ahora": así el ahorro que se
+        // muestra es solo la baja real de la tarifa, no un efecto del dólar.
+        const before = Math.round(baselineAmount! * fx);
         const title = `Bajó tu vuelo a ${destino}`;
         const body = (w.adults ?? 1) > 1
-          ? `Ahora ${formatMxn(price)} por persona (antes ${formatMxn(Number(w.baseline_price_mxn))}). Ahorras ${formatMxn(totalSaving)} para ${w.adults} viajeros.`
-          : `Ahora ${formatMxn(price)} (antes ${formatMxn(Number(w.baseline_price_mxn))}). Ahorras ${formatMxn(totalSaving)}.`;
-        await admin.from("notifications").insert({
-          user_id: w.user_id, type: "price_drop", title, body, related_id: w.trip_id,
+          ? `Ahora ${formatMxn(price)} por persona (antes ${formatMxn(before)}, al tipo de cambio de hoy). Ahorras ${formatMxn(totalSaving)} para ${w.adults} viajeros.`
+          : `Ahora ${formatMxn(price)} (antes ${formatMxn(before)}, al tipo de cambio de hoy). Ahorras ${formatMxn(totalSaving)}.`;
+        // Aviso con llave única: si esta corrida se repite o se encima, no se duplica ni se repite el push.
+        const { data: inserted, error: notifyErr } = await admin.rpc("notify_once", {
+          p_user_id: w.user_id, p_type: "price_drop", p_title: title, p_body: body, p_related_id: w.trip_id,
+          p_dedup_key: priceDedupKey(w.id, baselineAmount!, amount, PROVIDER_CURRENCY),
         });
-        await pushToUser(admin, w.user_id, { title, body, url: `/dashboard/viajes/${w.trip_id}` });
+        if (notifyErr) throw new Error(`notify_failed: ${notifyErr.message}`);
+        if (inserted != null) {
+          await pushToUser(admin, w.user_id, { title, body, url: `/dashboard/viajes/${w.trip_id}` }, PRICE_PUSH_OPTIONS);
+          summary.alerts++;
+        }
         update.last_alert_at = checkedAt;
         update.last_alert_price_mxn = price;
-        update.alerts_sent = (w.alerts_sent ?? 0) + 1;
-        summary.alerts++;
+        update.last_alert_amount_original = amount;
+        update.alerts_sent = (w.alerts_sent ?? 0) + (inserted != null ? 1 : 0);
       }
 
       await admin.from("price_watches").update(update).eq("id", w.id);
     } catch (e) {
       summary.failed++;
-      console.error("price-watch-cron: watch failed", w.id, (e as Error).message);
+      console.error("price-watch-cron: watch failed", w.id, safeErrorMessage(e));
+      // Sin esto, una vigilancia que siempre falla se queda al frente de la fila en cada corrida.
+      await admin.from("price_watches").update({ last_checked_at: new Date().toISOString() }).eq("id", w.id);
     }
   }
 

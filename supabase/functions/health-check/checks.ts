@@ -1,5 +1,6 @@
 // Chequeos de salud de los servicios externos de IATOS. Sin dependencias de Deno para poder
 // probarlos: reciben las llaves y `fetch` como parámetros.
+import { redactSecrets } from "../_shared/redact.ts";
 
 export type CheckResult = {
   name: string;
@@ -30,9 +31,11 @@ async function timed(name: string, fn: () => Promise<Omit<CheckResult, "name" | 
   const t0 = Date.now();
   try {
     const r = await fn();
-    return { name, ...r, ms: Date.now() - t0 };
+    return { name, ...r, detail: redactSecrets(r.detail), warn: redactSecrets(r.warn, 300), ms: Date.now() - t0 };
   } catch (e) {
-    return { name, ok: false, detail: (e as Error).message.slice(0, 200), ms: Date.now() - t0 };
+    // Los errores de red de Deno traen la URL, y SerpApi/Travelpayouts llevan la llave en la URL:
+    // nunca se guarda ni se manda por correo el texto crudo.
+    return { name, ok: false, detail: redactSecrets((e as Error)?.message) ?? "error sin detalle", ms: Date.now() - t0 };
   }
 }
 
@@ -88,8 +91,9 @@ export function runChecks(k: Keys, f: Fetch = fetch): Promise<CheckResult[]> {
     }),
     timed("Precios de vuelos (Travelpayouts)", async () => {
       if (!k.travelpayoutsToken) return { ok: false, detail: "Falta TRAVELPAYOUTS_TOKEN" };
-      const u = `https://api.travelpayouts.com/v1/prices/cheap?origin=MEX&destination=CUN&currency=usd&token=${encodeURIComponent(k.travelpayoutsToken)}`;
-      const r = await withTimeout(f, u);
+      // El token va en el encabezado, no en la URL, para que un error de red no lo exponga.
+      const u = "https://api.travelpayouts.com/v1/prices/cheap?origin=MEX&destination=CUN&currency=usd";
+      const r = await withTimeout(f, u, { headers: { "X-Access-Token": k.travelpayoutsToken } });
       return r.ok ? { ok: true } : { ok: false, detail: `HTTP ${r.status}` };
     }),
     timed("Pagos (Stripe)", async () => {
