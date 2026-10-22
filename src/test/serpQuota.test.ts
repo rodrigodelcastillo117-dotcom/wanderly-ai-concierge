@@ -54,7 +54,9 @@ describe("búsquedas idénticas al mismo tiempo", () => {
     const a = createSerpFetch({ store: memoryCacheStore(() => NOW), fetchImpl: impl as unknown as typeof fetch, now: () => NOW, inflight, onLive });
     const b = createSerpFetch({ store: memoryCacheStore(() => NOW), fetchImpl: impl as unknown as typeof fetch, now: () => NOW, inflight, onLive });
     const pa = a.fetch(url("2026-11-10"));
-    await new Promise((r) => setTimeout(r, 5));
+    // Espera a que la primera ya esté en SerpApi (antes: 5 ms fijos; con la máquina cargada la segunda
+    // llegaba antes de que la primera se registrara y la prueba fallaba sin que el código estuviera mal).
+    await vi.waitFor(() => expect(impl).toHaveBeenCalledTimes(1));
     const pb = b.fetch(url("2026-11-10"));
     // La segunda llega mientras la primera sigue esperando a SerpApi (cachés distintas a propósito).
     await new Promise((r) => setTimeout(r, 20));
