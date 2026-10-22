@@ -5,43 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
+import { loadGoogleMaps } from "@/lib/googleMapsLoader";
 
 const BROWSER_KEY = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
-const TRACKING = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID;
 
-declare global {
-  interface Window {
-    initTripMap?: () => void;
-  }
-}
-
-let tripMapsPromise: Promise<any> | null = null;
-
-function loadTripMaps(): Promise<any> {
-  if ((window as any).google?.maps?.importLibrary) {
-    return (window as any).google.maps.importLibrary("maps");
-  }
-  if (tripMapsPromise) return tripMapsPromise;
-  tripMapsPromise = new Promise((resolve, reject) => {
-    window.initTripMap = async () => {
-      try {
-        const maps = await (window as any).google.maps.importLibrary("maps");
-        resolve(maps);
-      } catch (error) {
-        reject(error);
-      }
-    };
-    const existing = document.getElementById("gmaps-trip-script") as HTMLScriptElement | null;
-    if (existing) return;
-    const s = document.createElement("script");
-    s.id = "gmaps-trip-script";
-    s.async = true;
-    s.onerror = () => reject(new Error("No se pudo cargar Google Maps"));
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&loading=async&libraries=places&callback=initTripMap${TRACKING ? `&channel=${TRACKING}` : ""}`;
-    document.head.appendChild(s);
-  });
-  return tripMapsPromise;
-}
+// Cargador único compartido con Cercanos (un solo <script>, espera a que Map sea constructor).
+// Devuelve google.maps, que ya trae Map (y el resto de clases) poblado.
+const loadTripMaps = (): Promise<any> => loadGoogleMaps();
 
 // Cache global de geocoding
 const geoCache = new Map<string, { lat: number; lng: number } | null>();
