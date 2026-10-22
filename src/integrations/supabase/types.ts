@@ -481,27 +481,6 @@ export type Database = {
           },
         ]
       }
-      health_checks: {
-        Row: {
-          id: number
-          ok: boolean
-          ran_at: string
-          results: Json
-        }
-        Insert: {
-          id?: number
-          ok: boolean
-          ran_at?: string
-          results: Json
-        }
-        Update: {
-          id?: number
-          ok?: boolean
-          ran_at?: string
-          results?: Json
-        }
-        Relationships: []
-      }
       fixer_escalations: {
         Row: {
           contexto_chat: Json | null
@@ -567,6 +546,27 @@ export type Database = {
           requester_id?: string
           status?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      health_checks: {
+        Row: {
+          id: number
+          ok: boolean
+          ran_at: string
+          results: Json
+        }
+        Insert: {
+          id?: number
+          ok: boolean
+          ran_at?: string
+          results: Json
+        }
+        Update: {
+          id?: number
+          ok?: boolean
+          ran_at?: string
+          results?: Json
         }
         Relationships: []
       }
