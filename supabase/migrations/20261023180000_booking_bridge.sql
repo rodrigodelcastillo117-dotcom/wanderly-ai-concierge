@@ -498,7 +498,12 @@ CREATE OR REPLACE FUNCTION public.booking_venue_lookup(_name text, _city text)
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT to_jsonb(x) FROM (
     SELECT e.id, e.slug, e.name, e.website, e.booking_url, e.booking_method, e.google_place_id, e.verified_at,
-           d.name_es AS city, d.iso_country
+           d.name_es AS city, d.iso_country,
+           -- Última revisión del enlace de reservas (roto o redirigido a otro dominio = no se ofrece).
+           (SELECT c.status FROM public.booking_link_checks c WHERE c.url = e.booking_url ORDER BY c.checked_at DESC NULLS LAST LIMIT 1) AS booking_url_status,
+           -- Canales públicos encontrados en el sitio oficial (WhatsApp, correo, teléfono), con su fecha.
+           (SELECT jsonb_build_object('findings', c.findings, 'checked_at', c.checked_at) FROM public.booking_link_checks c
+             WHERE c.url = e.website AND c.status = 'ok' ORDER BY c.checked_at DESC LIMIT 1) AS site_scan
       FROM public.prive_experiences_v e
       JOIN public.prive_destinations d ON d.id = e.destination_id
      WHERE e.effective_state IN ('VERIFICADO','CURADO','ESTIMADO')

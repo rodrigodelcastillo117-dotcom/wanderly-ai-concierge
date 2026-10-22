@@ -134,8 +134,8 @@ export function offerFromFlightResult(r: FlightResultLike, meta: FlightSearchMet
     searches.push({ url: av, trust: "builder", evidence: EVIDENCE.AVIASALES_SEARCH,
       preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false } });
   }
-  const airlineSite = r.airline_buy_url && checkAllowlisted(r.airline_buy_url).ok && checkAllowlisted(r.airline_buy_url).provider?.kind === "airline"
-    ? r.airline_buy_url : null;
+  const av2 = r.airline_buy_url ? checkAllowlisted(r.airline_buy_url) : null;
+  const airlineSite = av2 && av2.ok && av2.provider?.kind === "airline" ? av2.url : null;
   const price = num(r.price_usd);
   const input: ResolverInput = {
     product_type: "flight", title: `${r.airline ?? "Vuelo"} · ${origin} → ${dest}`, now: ctx.now, flags: ctx.flags,
@@ -399,6 +399,8 @@ export type VenueInfo = {
   whatsapp_url?: string | null;
   source: "prive_catalog" | "google_places" | "official_site_scan";
   verified_at?: string | null;
+  /** De dónde salieron teléfono/correo/WhatsApp si no es la misma fuente (p. ej. escaneo del sitio). */
+  channel_source?: VenueInfo["source"] | null;
   prive_experience_id?: string | null;
   prive_slug?: string | null;
 };
@@ -424,10 +426,12 @@ function venueInputs(v: VenueInfo | null): Pick<ResolverInput, "official_booking
   }
   // WhatsApp solo si el enlace está en el sitio oficial o en el catálogo curado: un teléfono de Google
   // no garantiza que ese número tenga WhatsApp.
-  if (wa && v.source !== "google_places") out.whatsapp = { value: wa, verified_by: VERIFIED_BY[v.source], trust };
+  const cs = v.channel_source ?? v.source;
+  const waSource = waFromBooking ? v.source : cs;
+  if (wa && waSource !== "google_places") out.whatsapp = { value: wa, verified_by: VERIFIED_BY[waSource], trust: VENUE_TRUST[waSource] };
   if (v.website) out.website = { url: v.website, trust, evidence: v.source === "google_places" ? EVIDENCE.GOOGLE_PLACES : EVIDENCE.CATALOG_BOOKING_URL, verified_at: v.verified_at ?? null };
-  if (v.phone) out.phone = { value: v.phone, verified_by: VERIFIED_BY[v.source], trust };
-  if (v.email) out.email = { value: v.email, verified_by: VERIFIED_BY[v.source], trust };
+  if (v.phone) out.phone = { value: v.phone, verified_by: VERIFIED_BY[cs], trust: VENUE_TRUST[cs] };
+  if (v.email) out.email = { value: v.email, verified_by: VERIFIED_BY[cs], trust: VENUE_TRUST[cs] };
   out.maps = { query: [v.name, v.city].filter(Boolean).join(", "), place_id: v.place_id ?? null };
   if (v.prive_experience_id) out.prive_experience_id = v.prive_experience_id;
   return out;
@@ -528,9 +532,17 @@ export function offerFromTripTour(t: any, ctx: OfferContext & { city?: string | 
 
 /** Fila del catálogo Privé → datos del lugar (la usan el servidor y el planeador Privé). */
 export function venueFromPriveRow(row: any, cityName?: string | null, iso?: string | null): VenueInfo {
+  // Enlace de reservas roto o que redirige a otro dominio (última revisión de booking-links-cron): no se ofrece.
+  const brokenBooking = ["broken", "redirected_offsite"].includes(String(row?.booking_url_status ?? ""));
+  const f = row?.site_scan?.findings ?? {};
+  const scanWa = Array.isArray(f.whatsapp) && f.whatsapp[0] ? `https://wa.me/${String(f.whatsapp[0]).replace(/\D/g, "")}` : null;
+  const scanEmail = Array.isArray(f.emails) && f.emails[0] ? String(f.emails[0]) : null;
+  const scanPhone = Array.isArray(f.phones) && f.phones[0] ? String(f.phones[0]) : null;
+  const scanBooking = !row?.booking_url && Array.isArray(f.booking) && f.booking[0]?.url ? String(f.booking[0].url) : null;
   return {
     name: String(row?.name ?? ""), city: cityName ?? null, country: iso ?? null, place_id: row?.google_place_id ?? null,
-    website: row?.website ?? null, booking_url: row?.booking_url ?? null, booking_method: row?.booking_method ?? null,
+    website: row?.website ?? null, booking_url: brokenBooking ? null : (row?.booking_url ?? scanBooking), booking_method: row?.booking_method ?? null,
+    whatsapp_url: scanWa, email: scanEmail, phone: scanPhone, channel_source: scanWa || scanEmail || scanPhone ? "official_site_scan" : null,
     source: "prive_catalog", verified_at: row?.verified_at ?? null, prive_experience_id: row?.id ?? null, prive_slug: row?.slug ?? null,
   };
 }

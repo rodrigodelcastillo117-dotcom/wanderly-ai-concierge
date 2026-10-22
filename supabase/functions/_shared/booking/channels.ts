@@ -121,3 +121,37 @@ export function emailFromMailto(href: string): string | null {
   const e = decodeURIComponent(m[1]).trim();
   return isEmail(e) ? e : null;
 }
+
+const COUNTRY_NAMES: Record<string, string> = {
+  mexico: "MX", "estados unidos": "US", usa: "US", "united states": "US", canada: "CA", espana: "ES", spain: "ES", francia: "FR", france: "FR",
+  italia: "IT", italy: "IT", portugal: "PT", "reino unido": "GB", "united kingdom": "GB", inglaterra: "GB", alemania: "DE", germany: "DE",
+  grecia: "GR", greece: "GR", japon: "JP", japan: "JP", "emiratos arabes unidos": "AE", "emiratos arabes": "AE", monaco: "MC", marruecos: "MA",
+  "paises bajos": "NL", holanda: "NL", belgica: "BE", suiza: "CH", austria: "AT", turquia: "TR", brasil: "BR", argentina: "AR", colombia: "CO",
+  peru: "PE", chile: "CL", "costa rica": "CR", "republica dominicana": "DO", tailandia: "TH", indonesia: "ID", singapur: "SG", australia: "AU",
+  croacia: "HR", maldivas: "MV", irlanda: "IE", sudafrica: "ZA", egipto: "EG", "corea del sur": "KR", china: "CN", india: "IN", vietnam: "VN",
+};
+
+/** País ISO-2 a partir del nombre que guarda el viaje (trips.pais_destino) o de un código ya ISO. */
+export function countryIso(name: unknown): string | null {
+  const s = String(name ?? "").trim();
+  if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();
+  const k = s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]+/g, " ").replace(/\s+/g, " ").trim();
+  return COUNTRY_NAMES[k] ?? null;
+}
+
+/** ¿Trae un número de tarjeta (13–19 dígitos que pasan Luhn)? Nunca se guardan datos de pago. */
+export function containsCardNumber(text: unknown): boolean {
+  const s = String(text ?? "");
+  for (const m of s.matchAll(/(?:\d[ -]?){13,19}/g)) {
+    const d = m[0].replace(/\D/g, "");
+    if (d.length < 13 || d.length > 19) continue;
+    let sum = 0;
+    for (let i = 0; i < d.length; i++) {
+      let n = Number(d[d.length - 1 - i]);
+      if (i % 2 === 1) { n *= 2; if (n > 9) n -= 9; }
+      sum += n;
+    }
+    if (sum % 10 === 0) return true;
+  }
+  return false;
+}

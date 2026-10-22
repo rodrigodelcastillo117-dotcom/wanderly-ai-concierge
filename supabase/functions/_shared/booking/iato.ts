@@ -17,14 +17,16 @@ export const IATO_PHRASES = {
 
 /** Afirmaciones prohibidas sin una operación ejecutada y confirmada. */
 export const FORBIDDEN_CLAIMS: RegExp[] = [
-  /\bya\s+(te\s+)?(compr[eé]|pagu[eé]|emit[ií])\b/i,
-  /\bya\s+(te\s+)?reserv[eé]\b/i,
+  // (sin \b al final: en JS "é" no es carácter de palabra)
+  /\bya\s+(te\s+)?(compr[eé]|pagu[eé]|emit[ií])(?![a-záéíóúñ])/i,
+  /\bya\s+(te\s+|le\s+)?reserv[eé](?![a-záéíóúñ])/i,
   /\b(tu|la)\s+mesa\s+(est[aá]|qued[oó]|ya\s+est[aá])\s+confirmada/i,
   /\b(tu|la)\s+reserva(ci[oó]n)?\s+(est[aá]|qued[oó]|ya\s+est[aá])\s+confirmada/i,
   /\b(tu|el)\s+(vuelo|boleto|hotel)\s+(est[aá]|qued[oó]|ya\s+est[aá])\s+(comprado|reservado|pagado|confirmado)/i,
   /\bboleto\s+emitido\b/i,
   /\bhay\s+disponibilidad\s+(confirmada|garantizada)\b/i,
   /\b(n[uú]mero|datos)\s+de\s+(tu\s+)?tarjeta\b/i,
+  /\b(dame|p[aá]same|env[ií]ame|comp[aá]rteme|escribe)\s+(aqu[ií]\s+)?(el\s+n[uú]mero\s+de\s+)?(tu\s+)?tarjeta\b/i,
   /\bcvv\b|\bcvc\b/i,
 ];
 

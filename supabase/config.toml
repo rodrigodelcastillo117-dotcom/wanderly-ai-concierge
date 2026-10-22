@@ -178,3 +178,14 @@ verify_jwt = false
 # IATOS Privé: respaldo de antigüedad desde Stripe (manual, dry_run por defecto); autenticación de cron interna
 [functions.prive-tenure-backfill]
 verify_jwt = false
+
+[functions.booking-bridge]
+verify_jwt = true
+
+# salida firmada al proveedor: la autoriza el token HMAC (ver booking-go/go.ts), no un JWT
+[functions.booking-go]
+verify_jwt = false
+
+# cron: valida CRON_SECRET internamente, no JWT de usuario
+[functions.booking-links-cron]
+verify_jwt = false
