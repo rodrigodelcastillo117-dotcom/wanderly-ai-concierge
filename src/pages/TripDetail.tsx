@@ -382,7 +382,7 @@ const TripDetail = () => {
               </PopoverTrigger>
               <PopoverContent className="w-56 max-w-[calc(100vw-2rem)] space-y-3" align="start">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Nº de viajeros</p>
-                <Input type="number" min={1} max={20} defaultValue={viajeros} id="edit-viajeros" />
+                <Input type="number" min={1} max={20} defaultValue={viajeros} id="edit-viajeros" aria-label="Número de viajeros" />
                 <Button size="sm" disabled={savingMeta} className="w-full" onClick={() => {
                   const n = Number((document.getElementById("edit-viajeros") as HTMLInputElement)?.value);
                   if (!n || n < 1) return toast.error("Mínimo 1");
@@ -509,7 +509,7 @@ const TripDetail = () => {
               </div>
               <span className="font-display text-2xl gold-text">{nochesEfectivas}<span className="text-sm text-muted-foreground"> / {noches}</span></span>
             </div>
-            <input type="range" min={0} max={noches} value={nochesEfectivas}
+            <input type="range" min={0} max={noches} value={nochesEfectivas} aria-label="Noches en este hospedaje"
               onChange={(e) => setNochesHospedaje(Number(e.target.value))} className="w-full accent-primary" />
           </div>
         )}
@@ -896,7 +896,7 @@ const SubBlock = ({ icon: Icon, title, children }: any) => (
 const FlightConnector = ({ from, to }: { from: string; to: string }) => (
   <div className="relative my-5 md:my-7 select-none" aria-hidden="true">
     <div className="flex items-center gap-4 px-2">
-      <span className="hidden sm:inline text-[10px] tracking-[0.3em] uppercase text-muted-foreground/70 whitespace-nowrap">
+      <span className="hidden sm:inline text-[10px] tracking-[0.3em] uppercase text-muted-foreground whitespace-nowrap">
         {from}
       </span>
       <div className="relative flex-1 h-px">
