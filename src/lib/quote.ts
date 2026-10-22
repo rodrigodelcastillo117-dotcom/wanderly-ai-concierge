@@ -9,6 +9,7 @@
  */
 import { diffDateOnlyDays, formatDateOnly } from "@/lib/dateUtils";
 import { formatAge, LIVE_TTL_HOURS } from "@/lib/provenance";
+import { sameSelections } from "@/lib/tripSelections";
 
 export type QuoteSnapshot = {
   id: string;
@@ -40,25 +41,34 @@ export function quoteBasis(trip: any, snapshot?: QuoteSnapshot | null): QuoteBas
   return null;
 }
 
-export type Staleness = { stale: boolean; basis: QuoteBasis | null; reasons: Array<"viajeros" | "fechas"> };
+export type Staleness = { stale: boolean; basis: QuoteBasis | null; reasons: Array<"viajeros" | "fechas" | "seleccion"> };
 
-/** ¿Cambiaron viajeros o fechas desde que se cotizó? */
+/**
+ * ¿Cambiaron viajeros, fechas o la selección (vuelo, hotel, experiencias) desde que se cotizó?
+ * La selección con que se cotizó la guarda el servidor en quote_basis.selections (null = la
+ * cotización tal cual); trips.selections es la del usuario ahora (E-12).
+ */
 export function quoteStaleness(trip: any, snapshot?: QuoteSnapshot | null): Staleness {
   const basis = quoteBasis(trip, snapshot);
   if (!basis) return { stale: false, basis: null, reasons: [] };
   const reasons: Staleness["reasons"] = [];
   if (Number(trip?.num_viajeros || 1) !== basis.travelers) reasons.push("viajeros");
   if ((trip?.fecha_salida ?? null) !== basis.dateFrom || (trip?.fecha_regreso ?? null) !== basis.dateTo) reasons.push("fechas");
+  if (!sameSelections(trip?.selections ?? null, trip?.quote_basis?.selections ?? null)) reasons.push("seleccion");
   return { stale: reasons.length > 0 || trip?.quote_needs_update === true, basis, reasons };
 }
 
 /** "Cotización para 2 viajeros del 10 nov al 15 nov 2026; actualiza la cotización". */
-export function staleQuoteMessage(basis: QuoteBasis): string {
+export function staleQuoteMessage(basis: QuoteBasis, reasons: Staleness["reasons"] = []): string {
+  if (reasons.length > 0 && reasons.every((r) => r === "seleccion")) {
+    return "Cambiaste tu selección de vuelo, hotel o experiencias después de cotizar; actualiza la cotización";
+  }
   const who = `${basis.travelers} ${basis.travelers === 1 ? "viajero" : "viajeros"}`;
   const fechas = basis.dateFrom && basis.dateTo
     ? ` del ${formatDateOnly(basis.dateFrom, { day: "numeric", month: "short" })} al ${formatDateOnly(basis.dateTo, { day: "numeric", month: "short", year: "numeric" })}`
     : "";
-  return `Cotización para ${who}${fechas}; actualiza la cotización`;
+  const sel = reasons.includes("seleccion") ? " y cambiaste tu selección" : "";
+  return `Cotización para ${who}${fechas}${sel}; actualiza la cotización`;
 }
 
 export type Validity = {
