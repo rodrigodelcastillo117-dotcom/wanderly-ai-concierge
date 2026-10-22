@@ -566,7 +566,7 @@ const TripDetail = () => {
                 <div className="space-y-6">
                   {/* Cómo llegar */}
                   {cityVuelos.length > 0 && (
-                    <SubBlock icon={isMulti ? RouteIcon : Plane} title={isMulti ? "Cómo llegar" : "Vuelos sugeridos"}>
+                    <SubBlock icon={isMulti ? RouteIcon : Plane} title={isMulti || cityVuelos.some(isGroundOption) ? "Cómo llegar" : "Vuelos sugeridos"}>
                       <div className="grid min-w-0 md:grid-cols-2 gap-3">
                         {cityVuelos.map((v: any) => {
                           const i = (trip.vuelos_json ?? []).indexOf(v);
@@ -576,16 +576,17 @@ const TripDetail = () => {
                           ) : (
                             <ExpandableItemCard
                               key={i}
-                              imageQuery={`${v.aerolinea} airplane airline`}
+                              imageQuery={v.modo === "autobus" ? "intercity bus highway" : v.modo === "auto" ? "car road trip highway" : `${v.aerolinea} airplane airline`}
                               eyebrow={v.tier}
                               title={v.aerolinea}
                               subtitle={`${v.duracion} · ${v.escalas}`}
-                              price={`${fmtMXN(v.precio_por_persona)} / persona`}
+                              price={flightPriceLabel(v)}
+                              // Igual que en los hoteles, la procedencia del precio se ve sin abrir el detalle (N-07).
+                              badge={<PriceSourceBadge source={v.fuente_precio} estado={v.estado_dato} consultadoAt={v.consultado_at ?? (quote?.created_at ?? trip.created_at)} approximateDates={v.approximate_dates} />}
                               active={active}
                               selectable
                               onToggle={() => setSelVuelo(active ? -1 : i)}
                             >
-                              <PriceSourceBadge source={v.fuente_precio} estado={v.estado_dato} consultadoAt={v.consultado_at ?? (quote?.created_at ?? trip.created_at)} approximateDates={v.approximate_dates} className="mb-2" />
                               {v.notas && <p>{v.notas}</p>}
                               <button
                                 onClick={(e) => {
@@ -594,7 +595,7 @@ const TripDetail = () => {
                                   if (bookingUrl) {
                                     // Abre en el mismo gesto y registra el clic sin esperar (iOS).
                                     trackBookingClick({
-                                      category: "flight", provider: v.aerolinea || "Aviasales",
+                                      category: v.modo === "auto" ? "car" : isGroundOption(v) ? "other" : "flight", provider: v.aerolinea || "Aviasales",
                                       title: `${trip.ciudad_origen ?? ""} → ${city}`.trim(),
                                       subtitle: `${v.tier ?? ""} · ${fmtMXN(v.precio_por_persona)} / persona`,
                                       bookingUrl: ensureAviasalesMarker(bookingUrl), city, startAt: trip.fecha_salida ?? undefined,
@@ -606,7 +607,7 @@ const TripDetail = () => {
                                 }}
                                 className="mt-2 text-xs px-3 py-1.5 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition"
                               >
-                                  {(v.booking_link || v.cta_action) ? "Reservar vuelo →" : "Buscar vuelos reales y reservar →"}
+                                  {isGroundOption(v) ? "Ver horarios y precios →" : (v.booking_link || v.cta_action) ? "Reservar vuelo →" : "Buscar vuelos reales y reservar →"}
                               </button>
                             </ExpandableItemCard>
                           );
@@ -1004,6 +1005,16 @@ const MODE_LABEL: Record<string, string> = {
   ferry: "Ferry",
   vuelo_interno: "Vuelo interno",
 };
+
+// Trayectos cortos (N-06): opciones por carretera, siempre estimadas y con rango de precio.
+const isGroundOption = (v: any) => v?.modo === "autobus" || v?.modo === "auto";
+function flightPriceLabel(v: any): string {
+  if (Number(v?.precio_min) > 0 && Number(v?.precio_max) > 0) {
+    return `${fmtMXN(v.precio_min)}–${fmtMXN(v.precio_max)} / persona (estimado)`;
+  }
+  if (!(Number(v?.precio_por_persona) > 0)) return "Precio no disponible: consúltalo en el buscador";
+  return `${fmtMXN(v.precio_por_persona)} / persona`;
+}
 
 const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any; active: boolean; onClick: () => void; quotedAt?: string | null }) => {
   const Icon = MODE_ICON[option.mode] || Plane;

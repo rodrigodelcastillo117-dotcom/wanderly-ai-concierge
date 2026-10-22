@@ -79,13 +79,44 @@ it("si la misma intención vuelve a montarse (p. ej. historial viejo con ?q), ll
   expect(analyzeCalls()).toBe(1);
 });
 
-it("la URL deja de tener ?q en cuanto se consume", async () => {
-  invoke.mockImplementationOnce(async () => new Promise(() => {})); // parsear-viaje se queda pendiente
+it("la URL deja de tener ?q en cuanto un montaje vivo toma la interpretación", async () => {
+  let resolveParse: (v: any) => void = () => {};
+  invoke.mockImplementationOnce(async () => new Promise((r) => { resolveParse = r; })); // parsear-viaje pendiente
   render(
     <MemoryRouter initialEntries={["/dashboard/planear?q=Lima&mode=x"]}>
       <Spy />
-      <Routes><Route path="/dashboard/planear" element={<PlanTrip />} /></Routes>
+      <Routes>
+        <Route path="/dashboard/planear" element={<PlanTrip />} />
+        <Route path="/dashboard/viajes/:id" element={<p>VIAJE</p>} />
+      </Routes>
     </MemoryRouter>,
   );
-  await waitFor(() => expect(loc).toBe("/dashboard/planear?mode=x"));
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("parsear-viaje", expect.anything()));
+  // Mientras se interpreta, la frase sigue en la URL: un remontaje puede retomarla (N-09).
+  expect(loc).toBe("/dashboard/planear?q=Lima&mode=x");
+  await act(async () => { resolveParse({ data: { destino: "Lima" }, error: null }); });
+  await screen.findByText("VIAJE");
+  expect(loc).toBe("/dashboard/viajes/trip-1");
+});
+
+it("N-09: si la página se desmonta y remonta mientras interpreta, retoma la misma interpretación (una sola llamada) y sí analiza", async () => {
+  let resolveParse: (v: any) => void = () => {};
+  invoke.mockImplementationOnce(async () => new Promise((r) => { resolveParse = r; }));
+  const tree = (
+    <MemoryRouter initialEntries={["/dashboard/planear?q=Lisboa"]}>
+      <Spy />
+      <Routes>
+        <Route path="/dashboard/planear" element={<PlanTrip />} />
+        <Route path="/dashboard/viajes/:id" element={<p>VIAJE</p>} />
+      </Routes>
+    </MemoryRouter>
+  );
+  const first = render(tree);
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("parsear-viaje", expect.anything()));
+  first.unmount(); // p. ej. la guardia de rutas mostró su spinner un instante
+  render(tree);
+  await act(async () => { resolveParse({ data: { destino: "Lisboa" }, error: null }); });
+  await screen.findByText("VIAJE");
+  expect(invoke.mock.calls.filter((c) => c[0] === "parsear-viaje").length).toBe(1);
+  expect(analyzeCalls()).toBe(1);
 });

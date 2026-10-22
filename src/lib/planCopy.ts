@@ -91,3 +91,58 @@ export function membersOnlySubtitle(v: PlanView): string {
   if (v.loading) return base;
   return v.isPro ? `${base} ${FIXER_LINE}.` : `${base} Con IATOS PRO: ${FIXER_LINE.charAt(0).toLowerCase()}${FIXER_LINE.slice(1)}.`;
 }
+
+/**
+ * Cómo funciona la prueba hoy. "no_card" = DEC-02 encendido (app_flags.trial_no_card_enabled);
+ * "card" = la prueba de 30 días se activa al contratar en Stripe (comportamiento mientras el
+ * dueño no encienda la prueba sin tarjeta). La página nunca debe prometer la otra.
+ */
+export type TrialMode = "no_card" | "card";
+
+export type TrialCopy = {
+  line: string;
+  after: string;
+  cta: string;
+  conditions: string;
+  signup: string;
+  /** Nota bajo el botón de contratar en la página PRO. */
+  checkoutNote: string;
+  /** Viñetas de la sección "Periodo de prueba" de la política de reembolsos. */
+  policy: string[];
+};
+
+export function trialCopy(mode: TrialMode): TrialCopy {
+  if (mode === "no_card") {
+    return {
+      line: TRIAL_LINE,
+      after: AFTER_TRIAL_LINE,
+      cta: TRIAL_CTA,
+      conditions: TRIAL_CONDITIONS,
+      signup: `${TRIAL_LINE}.`,
+      checkoutNote:
+        "La tarjeta solo se pide al contratar PRO; la prueba gratis no la necesita. Si contratas durante tu prueba, el primer cargo se hace cuando termina. PRO se renueva cada mes hasta que canceles desde “Gestionar suscripción”. El cobro lo procesa Stripe; IATOS AI no almacena tu tarjeta.",
+      policy: [
+        `${TRIAL_LINE}. ${TRIAL_CONDITIONS}`,
+        "No necesitas tarjeta para la prueba y no se genera ningún cargo durante ni después de ella.",
+        AFTER_TRIAL_LINE,
+        "Si contratas PRO durante la prueba, el primer cargo se hace cuando termina la prueba; si lo contratas después, el primer cargo es al contratar.",
+      ],
+    };
+  }
+  const line = `Prueba IATOS PRO ${TRIAL_DAYS} días gratis al contratarlo por primera vez`;
+  const after = `Registras tu tarjeta al contratar; si cancelas antes de que terminen los ${TRIAL_DAYS} días no se cobra nada. Si no cancelas, se cobra ${PRICE_LINE}.`;
+  return {
+    line,
+    after,
+    cta: "Empezar gratis",
+    conditions: "Crear tu cuenta es gratis; la prueba de PRO es una por persona.",
+    signup: "Crea tu cuenta gratis. La prueba de PRO la activas cuando quieras.",
+    checkoutNote: `Al contratar registras tu tarjeta en Stripe. Si es tu primera vez, los primeros ${TRIAL_DAYS} días son de prueba y no se cobra nada si cancelas antes; después, ${PRICE_LINE}, cada mes hasta que canceles desde “Gestionar suscripción”. IATOS AI no almacena tu tarjeta.`,
+    policy: [
+      `${line}. Es una por persona.`,
+      `Para activarla registras tu tarjeta en Stripe, pero no se genera ningún cargo durante los primeros ${TRIAL_DAYS} días.`,
+      "Si cancelas antes de que termine la prueba, no se te cobra nada.",
+      `Al terminar la prueba se hace el primer cargo de ${PRICE_LINE} y después cada mes hasta que canceles.`,
+    ],
+  };
+}

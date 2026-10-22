@@ -3,6 +3,23 @@
 El agente de Lovable tiene prohibido por política tocar secretos y programar
 tareas, así que estos pasos los hace el dueño del proyecto.
 
+## Orden de publicación: primero migraciones, luego el frontend
+
+Al publicar una versión nueva, aplica **primero** todas las migraciones pendientes de
+`supabase/migrations/`, después las funciones y **al final** el frontend (Publish).
+
+- Si el frontend sale antes, consulta columnas que todavía no existen. Ejemplo real (N-03 en
+  `docs/iatos/IATOS_E2E_EVIDENCE.md`): el Concierge lee `profiles.active_trip_id`, que llega con
+  `20261022131000_active_trip_and_fixer_status.sql`; sin ella, PostgREST responde **400**.
+- El frontend ya tolera ese caso (deja de preguntar tras el primer error y usa la elección local del
+  dispositivo), pero el "viaje en contexto" no se guarda en tu perfil hasta que apliques la migración.
+- Para comprobarlo en el SQL editor (si no devuelve ninguna fila, la migración falta):
+
+```sql
+SELECT column_name FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'active_trip_id';
+```
+
 ## Programar tareas automáticas y activar el panel de métricas
 
 Activa **tres** revisiones automáticas y te da acceso a `/dashboard/admin`:
