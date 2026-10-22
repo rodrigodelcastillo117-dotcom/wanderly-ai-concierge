@@ -1,0 +1,27 @@
+# Mutaciones (se quita la corrección, la prueba debe fallar; luego se restaura)
+M1 hotels-search vuelve a tp.media: FALLA (bien) · 2 failed | 137 passed (139)
+    src/test/enlacesCompra.test.ts > hoteles > hotels-search: el enlace de Booking ya no pasa por tp.media/click (respondía 400
+    src/test/liveSearchFallback.test.ts > búsqueda en vivo sin proveedores: nunca se inventan vuelos ni hoteles > hotels-search: Ser
+M2 autobús vuelve a Omio /search: FALLA (bien) · 2 failed | 137 passed (139)
+    src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > autobús en trayectos cortos: rutas de
+    src/test/groundTransport.test.ts > ligas y prompt > Google Maps en transporte público para autobús (Omio /search respondía 41
+M3 Google Flights vuelve al texto ?q=: FALLA (bien) · 113 passed (113)
+M4 Kayak vuelve a ?adults=: FALLA (bien) · 1 failed | 138 passed (139)
+    src/test/enlacesCompra.test.ts > vuelos > Kayak: los pasajeros van en la ruta (/2adults), no en ?adults= (que Kayak ignorab
+M5 eSIM vuelve al nombre en español: FALLA (bien) · 1 failed | 138 passed (139)
+    src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > eSIM: el país en español se convierte
+M6 'Ya lo reservé' se guarda como confirmada: FALLA (bien) · 2 failed | 137 passed (139)
+    src/test/tripPurchasePlan.test.tsx > TripPurchasePlan (UI) > 'Ya lo reservé' guarda la marca en bookings y cambia el estado; 'D
+    src/test/tripPurchasePlan.test.tsx > buildPurchasePlan > 'Ya lo reservé' se guarda como pending con la clave del elemento (nunc
+M7 el vuelo del viaje sin Google Flights: FALLA (bien) · 6 failed | 133 passed (139)
+    src/test/bookingBridge.test.ts > adaptadores sobre lo que IATOS ya tiene > vuelo del viaje con fechas viejas: se descarta e
+    src/test/bookingBridgeE2E.test.ts > Fase 11 · los 20 recorridos E2E (simulados, sin compras reales) > 1 · cotización de vuelo 
+    src/test/bookingBridgeE2E.test.ts > Fase 11 · los 20 recorridos E2E (simulados, sin compras reales) > 3 · cambio de fechas: el
+    src/test/enlacesCompra.test.ts > vuelos > vuelo del viaje (Aeroméxico): primero Google Flights con la ruta del enlace, fech
+M8 Rentalcars vuelve a SearchResults.do: FALLA (bien) · 1 failed | 138 passed (139)
+    src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > autos: Kayak con ciudad y fechas; Dis
+M9 Vacations To Go vuelve a cruisesearch.cfm: FALLA (bien) · 1 failed | 138 passed (139)
+    src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > ferries y cruceros: sin parámetros in
+M10 Booking sin niños: FALLA (bien) · 1 failed | 138 passed (139)
+    src/test/enlacesCompra.test.ts > hoteles > Booking.com: hotel + ciudad, fechas, 2 adultos, 1 habitación (y niños con edad, 
+M3 (precisa) Google Flights vuelve al texto ?q=: FALLA (bien) · 3 failed | 23 passed (26) en enlacesCompra

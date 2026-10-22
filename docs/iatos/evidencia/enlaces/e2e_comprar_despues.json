@@ -1,0 +1,105 @@
+{
+ "generated_at": "2026-10-22T20:04:44.343Z",
+ "base": "http://127.0.0.1:8231",
+ "nota": "Supabase y sitios externos simulados con route(); app real compilada por Vite en Chromium.",
+ "results": [
+  {
+   "viewport": 390,
+   "tag": "despues",
+   "steps": [
+    {
+     "paso": "ver 'Comprar mi viaje'",
+     "ok": true
+    },
+    {
+     "paso": "tocar vuelo → URL de salida",
+     "href": "https://www.google.com/travel/flights?tfs=Gh4SCjIwMjYtMTItMTIyAklCagUSA01FWHIFEgNNQUQaHhIKMjAyNi0xMi0xOTICSUJqBRIDTUFEcgUSA01FWEABQAFIAZgBAQ%3D%3D&hl=es-419",
+     "salida": "https://www.google.com/travel/flights?tfs=Gh4SCjIwMjYtMTItMTIyAklCagUSA01FWHIFEgNNQUQaHhIKMjAyNi0xMi0xOTICSUJqBRIDTUFEcgUSA01FWEABQAFIAZgBAQ%3D%3D&hl=es-419",
+     "lleva": "Va precargado: MEX → MAD · 12–19 dic 2026 · 2 adultos · solo Iberia"
+    },
+    {
+     "paso": "marcar 'Ya lo reservé'",
+     "estado": "marcado",
+     "progreso": "1 de 2 reservados",
+     "guardado": [
+      {
+       "status": "pending",
+       "category": "flight"
+      },
+      {
+       "status": "pending",
+       "category": "flight",
+       "raw_payload": {
+        "compra_item": "vuelo:0:iberia",
+        "marcado_por_usuario": true,
+        "marcado_at": "2026-10-22T20:04:38.193Z",
+        "nota": "Marcado a mano por el usuario: sin verificar con el proveedor."
+       }
+      }
+     ]
+    }
+   ],
+   "overflow": false,
+   "errors": [],
+   "log": [
+    "HEAD notifications",
+    "HEAD notifications",
+    "fn booking-bridge",
+    "fn pexels-image",
+    "fn buscar-video",
+    "POST bookings {}",
+    "salida https://www.google.com/travel/flights?tfs=Gh4SCjIwMjYtMTItMTIyAklCagUSA01FWHIFEgNNQUQaHhIKMjAyNi0xMi0xOTICSUJqBRIDTUFEcgUSA01FWEABQAFIAZgBAQ%3D%3D&hl=es-419",
+    "POST bookings {\"compra_item\":\"vuelo:0:iberia\",\"marcado_por_usuario\":true,\"marcado_at\":\"2026-10-22T20:04:38.193Z\",\"nota\":\"Marcado a mano por el usuario: sin verificar con el proveedor.\"}"
+   ]
+  },
+  {
+   "viewport": 1440,
+   "tag": "despues",
+   "steps": [
+    {
+     "paso": "ver 'Comprar mi viaje'",
+     "ok": true
+    },
+    {
+     "paso": "tocar vuelo → URL de salida",
+     "href": "https://www.google.com/travel/flights?tfs=Gh4SCjIwMjYtMTItMTIyAklCagUSA01FWHIFEgNNQUQaHhIKMjAyNi0xMi0xOTICSUJqBRIDTUFEcgUSA01FWEABQAFIAZgBAQ%3D%3D&hl=es-419",
+     "salida": "https://www.google.com/travel/flights?tfs=Gh4SCjIwMjYtMTItMTIyAklCagUSA01FWHIFEgNNQUQaHhIKMjAyNi0xMi0xOTICSUJqBRIDTUFEcgUSA01FWEABQAFIAZgBAQ%3D%3D&hl=es-419",
+     "lleva": "Va precargado: MEX → MAD · 12–19 dic 2026 · 2 adultos · solo Iberia"
+    },
+    {
+     "paso": "marcar 'Ya lo reservé'",
+     "estado": "marcado",
+     "progreso": "1 de 2 reservados",
+     "guardado": [
+      {
+       "status": "pending",
+       "category": "flight"
+      },
+      {
+       "status": "pending",
+       "category": "flight",
+       "raw_payload": {
+        "compra_item": "vuelo:0:iberia",
+        "marcado_por_usuario": true,
+        "marcado_at": "2026-10-22T20:04:43.856Z",
+        "nota": "Marcado a mano por el usuario: sin verificar con el proveedor."
+       }
+      }
+     ]
+    }
+   ],
+   "overflow": false,
+   "errors": [],
+   "log": [
+    "HEAD notifications",
+    "HEAD notifications",
+    "fn booking-bridge",
+    "fn pexels-image",
+    "fn buscar-video",
+    "POST bookings {}",
+    "salida https://www.google.com/travel/flights?tfs=Gh4SCjIwMjYtMTItMTIyAklCagUSA01FWHIFEgNNQUQaHhIKMjAyNi0xMi0xOTICSUJqBRIDTUFEcgUSA01FWEABQAFIAZgBAQ%3D%3D&hl=es-419",
+    "POST bookings {\"compra_item\":\"vuelo:0:iberia\",\"marcado_por_usuario\":true,\"marcado_at\":\"2026-10-22T20:04:43.856Z\",\"nota\":\"Marcado a mano por el usuario: sin verificar con el proveedor.\"}"
+   ]
+  }
+ ]
+}
