@@ -31,6 +31,7 @@ export function backFallback(pathname: string): string {
   const trip = /^\/dashboard\/viajes\/([^/]+)(\/.+)?$/.exec(p);
   if (trip) return trip[2] ? `/dashboard/viajes/${trip[1]}` : "/dashboard/viajes";
   if (p.startsWith("/onboarding/")) return "/dashboard/perfil";
+  if (p.startsWith("/dashboard/social/")) return "/dashboard/social";
   return "/dashboard";
 }
 
