@@ -22,6 +22,9 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  // "¿Olvidaste tu contraseña?": desactivado mientras se envía y 60 s después (cada toque
+  // mandaba otro correo y Supabase acaba rechazándolos por límite de envíos).
+  const [resetState, setResetState] = useState<"idle" | "sending" | "sent">("idle");
 
   useEffect(() => {
     if (user) {
@@ -79,12 +82,20 @@ const Auth = () => {
   };
 
   const handleForgotPassword = async () => {
+    if (resetState !== "idle") return;
     if (!email) return toast.error("Escribe tu correo arriba primero");
+    setResetState("sending");
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (error) toast.error("No pudimos enviar el correo de recuperación. Intenta de nuevo.");
-    else toast.success("Te enviamos un correo para recuperar tu contraseña");
+    if (error) {
+      setResetState("idle");
+      toast.error("No pudimos enviar el correo de recuperación. Intenta de nuevo.");
+    } else {
+      setResetState("sent");
+      toast.success("Te enviamos un correo para recuperar tu contraseña");
+      window.setTimeout(() => setResetState("idle"), 60_000);
+    }
   };
 
 
@@ -190,9 +201,15 @@ const Auth = () => {
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="w-full text-center text-sm text-muted-foreground hover:text-primary transition"
+                disabled={resetState !== "idle"}
+                aria-busy={resetState === "sending"}
+                className="w-full text-center text-sm text-muted-foreground hover:text-primary transition disabled:opacity-60 disabled:hover:text-muted-foreground"
               >
-                ¿Olvidaste tu contraseña?
+                {resetState === "sending"
+                  ? "Enviando correo…"
+                  : resetState === "sent"
+                    ? "Correo enviado. Revisa tu bandeja (puedes pedir otro en 1 min)"
+                    : "¿Olvidaste tu contraseña?"}
               </button>
             )}
           </form>
