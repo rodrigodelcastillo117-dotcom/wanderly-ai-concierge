@@ -48,8 +48,13 @@ const renderAt = (path: string) => render(
   </MemoryRouter>,
 );
 
+// El modo revista es lo predeterminado (priveMagazine.test.tsx); estas pruebas revisan la VISTA CONTINUA, que
+// se conserva por accesibilidad y se elige con «Vista continua» (se recuerda durante la visita).
+const continuousView = () => sessionStorage.setItem("iatos_edition_view", "continuous");
+
 beforeEach(() => {
   content.mockReset(); rpc.mockReset();
+  try { sessionStorage.clear(); } catch { /* noop */ }
   try { localStorage.clear(); } catch { /* noop */ }
   window.scrollTo = vi.fn() as never;
   // jsdom dice "en-US": el miembro de estas pruebas tiene el navegador en español (el idioma sale del navegador).
@@ -58,6 +63,7 @@ beforeEach(() => {
 
 describe("revista para el miembro", () => {
   it("portada, número, fecha, índice con secciones y tiempos; nota honesta de edición común", async () => {
+    continuousView();
     content.mockImplementation(async (fn: string) => memberContent(fn));
     renderAt("/prive/edicion");
     const cover = await screen.findByTestId("edition-cover");
@@ -81,6 +87,7 @@ describe("revista para el miembro", () => {
   });
 
   it("artículo: fuentes con fechas, créditos y licencia, cita destacada, análisis señalado y acciones reales", async () => {
+    continuousView();
     content.mockImplementation(async (fn: string) => memberContent(fn));
     renderAt("/prive/edicion/articulo/cdmx-fin-de-semana-gran-premio");
     const art = await screen.findByTestId("edition-article");
@@ -98,6 +105,7 @@ describe("revista para el miembro", () => {
   });
 
   it("cambio de idioma: el mismo artículo en inglés", async () => {
+    continuousView();
     content.mockImplementation(async (fn: string) => memberContent(fn));
     renderAt("/prive/edicion/articulo/merida-guadalajara-mesa-mexicana");
     await screen.findByTestId("edition-article");

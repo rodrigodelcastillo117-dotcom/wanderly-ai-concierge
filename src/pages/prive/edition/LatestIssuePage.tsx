@@ -1,8 +1,10 @@
 // Latest Issue: portada, índice configurable (doble página en escritorio) y reportajes del número vigente.
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { BookOpen } from "lucide-react";
 import { useEdition } from "@/components/prive/edition/EditionContext";
-import { BriefItem, Cover, FeatureGrid, IssueIndex } from "@/components/prive/edition/Magazine";
+import { BriefItem, Cover, FeatureGrid, IssueIndex, useOnline } from "@/components/prive/edition/Magazine";
+import { MagazineReader } from "@/components/prive/edition/MagazineReader";
 import { PriveLocked } from "@/components/prive/catalog/PriveLocked";
 import { PriveLockedError } from "@/lib/priveCatalogApi";
 import { hasEnoughContent, interestLabel, personalizeIssue, txt, type IssuePayload } from "@/lib/priveEdition";
@@ -74,9 +76,37 @@ export function IssueView({ payload, lang, prefs, hrefFor, preview = false, memb
   );
 }
 
+/** Vuelve de la vista continua al modo revista (predeterminado). */
+export function MagazineSwitch({ lang, onClick }: { lang: "es" | "en"; onClick: () => void }) {
+  const T = editionText(lang);
+  return (
+    <div className="flex justify-end px-4 sm:px-8 pt-3">
+      <button type="button" className="ped-btn ghost !min-h-[44px] !px-4 !text-[0.66rem]" onClick={onClick} data-testid="mz-enter">
+        <BookOpen className="h-4 w-4" aria-hidden="true" />{T.mz.magazine}
+      </button>
+    </div>
+  );
+}
+
+/** El número en modo revista (portada, índice, pliegos…). */
+export function IssueMagazine({ payload, startSlug, hrefFor, memberName }: {
+  payload: IssuePayload; startSlug?: string | null; hrefFor: (slug: string) => string; memberName?: string | null;
+}) {
+  const { lang, prefs, saved, toggleSave, setView } = useEdition();
+  const online = useOnline();
+  const navigate = useNavigate();
+  const ed = useMemo(() => personalizeIssue(payload, prefs), [payload, prefs]);
+  return (
+    <MagazineReader issue={payload.issue ?? null} ed={ed} images={payload.images ?? {}} lang={lang} startSlug={startSlug} offline={!online}
+      isSaved={(s) => saved.has(s)} onToggleSave={(s) => void toggleSave(s)} memberName={memberName}
+      personalizeHref="/prive/edicion/mi-edicion" opportunitiesHref="/prive/edicion/oportunidades"
+      onExit={(slug) => { setView("continuous"); if (slug) navigate(hrefFor(slug)); }} />
+  );
+}
+
 export default function LatestIssuePage() {
   const { issue: issueSlug } = useParams();
-  const { issue: latest, lang, prefs, api } = useEdition();
+  const { issue: latest, lang, prefs, api, view, setView } = useEdition();
   const [other, setOther] = useState<IssuePayload | null>(null);
   const [locked, setLocked] = useState<null | string>(null);
   useEffect(() => {
@@ -98,6 +128,12 @@ export default function LatestIssuePage() {
     );
   }
   const name = prefs.show_name_on_cover && prefs.first_name ? prefs.first_name : null;
-  return <IssueView payload={payload} lang={lang} prefs={prefs} memberName={name}
-    hrefFor={(slug) => `/prive/edicion/articulo/${slug}${other ? `?numero=${payload.issue!.slug}` : ""}`} />;
+  const hrefFor = (slug: string) => `/prive/edicion/articulo/${slug}${other ? `?numero=${payload.issue!.slug}` : ""}`;
+  if (view === "magazine") return <IssueMagazine key={payload.issue.slug} payload={payload} hrefFor={hrefFor} memberName={name} />;
+  return (
+    <>
+      <MagazineSwitch lang={lang} onClick={() => setView("magazine")} />
+      <IssueView payload={payload} lang={lang} prefs={prefs} memberName={name} hrefFor={hrefFor} />
+    </>
+  );
 }

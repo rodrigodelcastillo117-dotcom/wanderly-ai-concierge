@@ -5,6 +5,7 @@ import { PriveLockedError } from "@/lib/priveCatalogApi";
 import type { PriveErrorCode } from "@/lib/priveApi";
 import { DEFAULT_PREFS, resolveLanguage, type EditionPrefs, type IssuePayload, type Lang } from "@/lib/priveEdition";
 import { useEditionApi, type EditionApi } from "@/lib/priveEditionApi";
+import { readView, writeView, type EditionView } from "@/lib/priveMagazine";
 import { invalidateEditionSection } from "./PrivateEditionTeaser";
 
 const LANG_KEY = "iatos_edition_lang";
@@ -26,6 +27,9 @@ export interface EditionState {
   reload: () => void;
   saved: Set<string>;
   toggleSave: (slug: string) => Promise<void>;
+  /** Modo revista (predeterminado) o vista continua (se recuerda durante la visita). */
+  view: EditionView;
+  setView: (v: EditionView) => void;
 }
 
 const Ctx = createContext<EditionState | null>(null);
@@ -41,6 +45,8 @@ export function EditionProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [view, setViewState] = useState<EditionView>(readView);
+  const setView = useCallback((v: EditionView) => { setViewState(v); writeView(v); }, []);
 
   useEffect(() => {
     let alive = true;
@@ -95,8 +101,8 @@ export function EditionProvider({ children }: { children: ReactNode }) {
   }, [api, saved]);
 
   const value = useMemo<EditionState>(() => ({
-    api, lang, setLang, prefs, prefsSaved, savePrefs, issue, loading, locked, error, reload: () => setTick((t) => t + 1), saved, toggleSave,
-  }), [api, lang, setLang, prefs, prefsSaved, savePrefs, issue, loading, locked, error, saved, toggleSave]);
+    api, lang, setLang, prefs, prefsSaved, savePrefs, issue, loading, locked, error, reload: () => setTick((t) => t + 1), saved, toggleSave, view, setView,
+  }), [api, lang, setLang, prefs, prefsSaved, savePrefs, issue, loading, locked, error, saved, toggleSave, view, setView]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
