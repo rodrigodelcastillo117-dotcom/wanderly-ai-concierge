@@ -16,7 +16,7 @@ export const CULTURE_PROFILES: CultureProfile[] = [
   {
     key: "france",
     match: /(francia|france|par[ií]s|paris)/i,
-    label: "Parisian Elegance",
+    label: "Elegancia parisina",
     vibe: "elegant Parisian luxury, haute couture",
     outfit: "tailored beige trench coat over cashmere knit, silk scarf",
     accessory: "holding a golden croissant on porcelain plate",
@@ -28,7 +28,7 @@ export const CULTURE_PROFILES: CultureProfile[] = [
   {
     key: "italy",
     match: /(italia|italy|roma|rome|milan|amalfi|venecia|venice|florence|florencia)/i,
-    label: "Italian Riviera",
+    label: "Riviera italiana",
     vibe: "Italian summer dolce vita, Mediterranean luxury",
     outfit: "linen shirt unbuttoned, sun-kissed glow, designer sunglasses",
     accessory: "espresso cup and Vespa keys",
@@ -40,7 +40,7 @@ export const CULTURE_PROFILES: CultureProfile[] = [
   {
     key: "japan",
     match: /(japon|japan|tokio|tokyo|kyoto|osaka)/i,
-    label: "Neo-Tokyo",
+    label: "Neo-Tokio",
     vibe: "futuristic minimal Tokyo, neon cyberpunk meets zen",
     outfit: "sleek black technical jacket, minimalist silhouette",
     accessory: "ramen bowl with chopsticks, neon glow reflection",
@@ -52,7 +52,7 @@ export const CULTURE_PROFILES: CultureProfile[] = [
   {
     key: "mexico",
     match: /(mexico|méxico|cdmx|oaxaca|tulum|cancun|playa del carmen|guadalajara|merida)/i,
-    label: "Mexican Soul",
+    label: "Alma mexicana",
     vibe: "vibrant Mexican cultural luxury, mezcal lounge energy",
     outfit: "embroidered linen shirt, woven artisan textures",
     accessory: "copita of mezcal and street tacos plate",
@@ -64,7 +64,7 @@ export const CULTURE_PROFILES: CultureProfile[] = [
   {
     key: "iceland",
     match: /(islandia|iceland|reykjavik)/i,
-    label: "Arctic Explorer",
+    label: "Explorador ártico",
     vibe: "cinematic arctic adventure luxury",
     outfit: "premium technical parka with fur-lined hood, gloves",
     accessory: "thermal flask and aurora-glow camera",
@@ -76,7 +76,7 @@ export const CULTURE_PROFILES: CultureProfile[] = [
   {
     key: "bali",
     match: /(bali|indonesia|ubud|seminyak)/i,
-    label: "Bali Wellness",
+    label: "Bienestar en Bali",
     vibe: "tropical wellness luxury, spiritual sanctuary",
     outfit: "flowing linen kaftan, mala beads, sun-kissed serenity",
     accessory: "tropical coconut and frangipani flowers",
@@ -88,7 +88,7 @@ export const CULTURE_PROFILES: CultureProfile[] = [
   {
     key: "newyork",
     match: /(new york|nueva york|nyc|manhattan|brooklyn)/i,
-    label: "Manhattan Nights",
+    label: "Noches de Manhattan",
     vibe: "Manhattan rooftop luxury, sophisticated nightlife",
     outfit: "tailored black coat, silver accents, confident pose",
     accessory: "crystal coupe with champagne",
@@ -100,7 +100,7 @@ export const CULTURE_PROFILES: CultureProfile[] = [
   {
     key: "spain",
     match: /(espa[nñ]a|spain|barcelona|madrid|sevilla|ibiza)/i,
-    label: "Spanish Soul",
+    label: "Alma española",
     vibe: "Mediterranean Spanish elegance",
     outfit: "warm linen and leather, summer luxury",
     accessory: "glass of rioja and tapas plate",
@@ -112,7 +112,7 @@ export const CULTURE_PROFILES: CultureProfile[] = [
   {
     key: "default",
     match: /.*/,
-    label: "Global Traveler",
+    label: "Viajero global",
     vibe: "cinematic luxury wanderer, timeless premium identity",
     outfit: "tailored cashmere coat, leather travel bag",
     accessory: "vintage compass and leather journal",
@@ -128,12 +128,5 @@ export function detectCulture(destino?: string | null, pais?: string | null): Cu
   return CULTURE_PROFILES.find(c => c.key !== "default" && c.match.test(haystack)) ?? CULTURE_PROFILES[CULTURE_PROFILES.length - 1];
 }
 
-export const PERSONALITY_LABELS: Record<string, { label: string; tag: string }> = {
-  food:      { label: "Food Explorer",      tag: "Gastronomic Soul" },
-  adventure: { label: "Adventure Seeker",   tag: "Wild Energy" },
-  cultural:  { label: "Cultural Explorer",  tag: "Refined Mind" },
-  luxury:    { label: "Luxury Traveler",    tag: "Premium Identity" },
-  relax:     { label: "Wellness Traveler",  tag: "Serene Aura" },
-  nightlife: { label: "Social Traveler",    tag: "Night Energy" },
-  hidden:    { label: "Hidden Gem Hunter",  tag: "Curated Vision" },
-};
+// Arquetipos en español (la fuente es lib/travelDna.ts; se conserva este nombre por compatibilidad).
+export { DNA_ARCHETYPES as PERSONALITY_LABELS } from "@/lib/travelDna";

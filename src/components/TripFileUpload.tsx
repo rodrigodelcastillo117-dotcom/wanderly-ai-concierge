@@ -49,7 +49,16 @@ export function TripFileUpload({ size = "md" }: Props) {
       })));
 
       const { data, error } = await supabase.functions.invoke("parse-trip-file", { body: { files: payload } });
-      if (error) throw error;
+      if (error) {
+        // El servidor explica qué pasó (archivo ilegible, formato no admitido…): se muestra eso y no
+        // "Edge Function returned a non-2xx status code".
+        let msg = "No pudimos leer el archivo. Prueba con un PDF o una captura más clara.";
+        try {
+          const body = await (error as any)?.context?.clone?.().json();
+          if (typeof body?.error === "string") msg = body.error;
+        } catch { /* sin cuerpo */ }
+        throw new Error(msg);
+      }
       if (!data?.ok) throw new Error(data?.error ?? "No pudimos leer el archivo");
 
       const destinations: string[] = (data.destinations ?? []).filter(Boolean);

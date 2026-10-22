@@ -207,3 +207,22 @@
   .animate-pulse, .animate-ping { animation: none !important; }
   html { scroll-behavior: auto !important; }
 }
+
+/* Sello IATOS Privé (components/PriveSeal.tsx): brillo dorado sutil que cruza el sello cada pocos
+   segundos; sin movimiento si la persona lo pidió. Anillo del avatar circular (AvatarCircle). */
+.prive-seal-shine {
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 248, 220, 0.75) 50%, transparent 65%);
+  background-size: 250% 100%;
+  mix-blend-mode: soft-light;
+  animation: prive-seal-shine 4.5s ease-in-out infinite;
+}
+@keyframes prive-seal-shine {
+  0%, 60% { background-position: 150% 0; }
+  100% { background-position: -100% 0; }
+}
+.avatar-ring {
+  background: conic-gradient(from 210deg, #f7e7a6, #d4af37, #8f6d1a, #d4af37, #f7e7a6, #b8902b, #f7e7a6);
+}
+@media (prefers-reduced-motion: reduce) {
+  .prive-seal-shine { animation: none; }
+}

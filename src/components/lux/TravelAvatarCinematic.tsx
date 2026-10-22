@@ -1,294 +1,143 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles, MapPin, Wand2, Camera, Loader2, Upload } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Sparkles, MapPin, Upload, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { CULTURE_PROFILES, detectCulture, PERSONALITY_LABELS } from "@/lib/cultureProfiles";
+import { detectCulture } from "@/lib/cultureProfiles";
+import { DNA_ARCHETYPES } from "@/lib/travelDna";
+import { useMyAvatar } from "@/hooks/useMyAvatar";
+import { usePriveSeal } from "@/hooks/usePriveSeal";
+import { AvatarCircle } from "@/components/avatar/AvatarCircle";
+import { AvatarEvolutionTimeline } from "@/components/avatar/AvatarEvolutionTimeline";
+import { useAvatarSouvenirs } from "@/components/avatar/useAvatarSouvenirs";
 import type { DNAResult } from "./TravelDNAStats";
 
-async function downscaleImage(file: File, maxSize: number): Promise<string> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const i = new Image();
-    i.onload = () => resolve(i);
-    i.onerror = reject;
-    i.src = dataUrl;
-  });
-  const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-  const w = Math.round(img.width * scale);
-  const h = Math.round(img.height * scale);
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return dataUrl;
-  ctx.drawImage(img, 0, 0, w, h);
-  return canvas.toDataURL("image/jpeg", 0.9);
-}
-
-type Props = { dna: DNAResult | null };
+type Props = {
+  dna: DNAResult | null;
+  /** Abre el creador del avatar (selfie). Sin selfie no se regenera: antes se inventaba otra persona. */
+  onEditAvatar?: () => void;
+};
 
 type LastTrip = { destino: string | null; pais_destino: string | null };
 
-export const TravelAvatarCinematic = ({ dna }: Props) => {
+/**
+ * Tarjeta del Travel Avatar en el Travel DNA: avatar CIRCULAR dentro del anillo dorado, recuerdos
+ * de viaje orbitando el anillo (nunca sobre la cara), arquetipo en español y la "Evolución" (qué
+ * viaje desbloqueó qué detalle). La imagen sale de la misma fuente que el resto de la app.
+ */
+export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
   const { user } = useAuth();
-  const [generating, setGenerating] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarMeta, setAvatarMeta] = useState<any>(null);
+  const { url: avatarUrl } = useMyAvatar();
+  const prive = usePriveSeal();
+  const { rows } = useAvatarSouvenirs();
   const [lastTrip, setLastTrip] = useState<LastTrip | null>(null);
-  const [tripsTimeline, setTripsTimeline] = useState<Array<{ destino: string; pais: string | null }>>([]);
+  const [version, setVersion] = useState<number | null>(null);
 
-  // Load avatar + last trip
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const [{ data: prefs }, { data: prof }, { data: trips }] = await Promise.all([
-        supabase.from("ai_user_preferences").select("perfil_ia").eq("user_id", user.id).maybeSingle(),
-        supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle(),
-        supabase
-          .from("trips")
-          .select("destino, pais_destino, fecha_salida, created_at")
-          .eq("user_id", user.id)
-          .order("fecha_salida", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false })
-          .limit(8),
+      const today = new Date().toISOString().slice(0, 10);
+      const [{ data: trips }, ap] = await Promise.all([
+        // El ambiente lo da el último viaje HECHO (antes era el último creado, aunque fuera a futuro).
+        supabase.from("trips").select("destino, pais_destino, fecha_salida, fecha_regreso")
+          .eq("user_id", user.id).lt("fecha_salida", today)
+          .order("fecha_salida", { ascending: false }).limit(1),
+        (supabase as any).from("avatar_profiles").select("version").eq("user_id", user.id).maybeSingle(),
       ]);
       if (cancelled) return;
-      const p: any = prefs?.perfil_ia ?? {};
-      // profiles.avatar_url (Travel Avatar) tiene prioridad
-      setAvatarUrl((prof as any)?.avatar_url ?? p.avatar_url ?? null);
-      setAvatarMeta(p.avatar_meta ?? null);
       const t = trips?.[0] ?? null;
       setLastTrip(t ? { destino: t.destino, pais_destino: (t as any).pais_destino ?? null } : null);
-      setTripsTimeline((trips ?? []).map((x: any) => ({ destino: x.destino, pais: x.pais_destino })));
+      setVersion(ap?.error ? null : (ap?.data?.version ?? null));
     })();
     return () => { cancelled = true; };
-  }, [user, dna?.tripCount]);
+  }, [user, dna?.tripCount, avatarUrl]);
 
-
-  const culture = useMemo(
-    () => detectCulture(lastTrip?.destino, lastTrip?.pais_destino),
-    [lastTrip],
-  );
-
-  const dominant = dna?.dominant ?? "luxury";
-  const personality = PERSONALITY_LABELS[dominant] ?? PERSONALITY_LABELS.luxury;
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const runGenerate = async (selfie?: string) => {
-    if (!user) return;
-    setGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-avatar", {
-        body: { style: dominant, destino: lastTrip?.destino ?? null, selfie: selfie ?? null },
-      });
-      if (error) throw error;
-      if (data?.url) {
-        setAvatarUrl(data.url);
-        setAvatarMeta(data.meta);
-        toast.success(selfie ? "Tu avatar IATOS está listo" : "Tu avatar ha evolucionado");
-      } else {
-        throw new Error(data?.error ?? "No se generó la imagen");
-      }
-    } catch (e: any) {
-      toast.error(e?.message ?? "No se pudo generar el avatar");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const generate = () => runGenerate();
-
-  const onSelfieChosen = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Selecciona una imagen válida");
-      return;
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("La imagen debe pesar menos de 8MB");
-      return;
-    }
-    // Downscale to max 1024px to keep payload light
-    const dataUrl = await downscaleImage(file, 1024);
-    await runGenerate(dataUrl);
-  };
+  const culture = useMemo(() => detectCulture(lastTrip?.destino, lastTrip?.pais_destino), [lastTrip]);
+  const archetype = dna?.dominant ? DNA_ARCHETYPES[dna.dominant] : null;
+  const badges = rows.filter((r) => r.visible && r.status === "aplicado").map((r) => ({ key: r.id, emoji: r.emoji, nombre: r.nombre }));
 
   const bg = `radial-gradient(ellipse at 30% 20%, ${culture.palette.accent}33 0%, transparent 50%),
               radial-gradient(ellipse at 70% 80%, ${culture.palette.via} 0%, transparent 60%),
               linear-gradient(160deg, ${culture.palette.from} 0%, ${culture.palette.via} 50%, ${culture.palette.to} 100%)`;
 
   return (
-    <div className="relative rounded-3xl overflow-hidden border border-primary/20 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
-      {/* Cinematic background */}
+    <div className="relative rounded-3xl overflow-hidden border border-primary/20 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]" data-testid="travel-avatar-card">
       <div className="absolute inset-0" style={{ background: bg }} />
 
-      {/* Animated aura rings */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] aspect-square rounded-full opacity-40 animate-[spin_40s_linear_infinite]"
-          style={{ background: `conic-gradient(from 0deg, transparent, ${culture.palette.accent}40, transparent, ${culture.palette.accent}20, transparent)` }}
-        />
-        <div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] aspect-square rounded-full border opacity-30 animate-[pulse_4s_ease-in-out_infinite]"
-          style={{ borderColor: culture.palette.accent }}
-        />
-      </div>
-
-      {/* Top bar */}
-      <div className="relative z-10 flex items-center justify-between px-5 pt-5">
-        <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5">
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: culture.palette.accent }} />
-          <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: culture.palette.accent }}>
-            {culture.label}
-          </span>
+      {/* Barra superior */}
+      <div className="relative z-10 flex items-center justify-between gap-2 px-5 pt-5">
+        <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 min-w-0">
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: culture.palette.accent }} />
+          <span className="text-[10px] tracking-[0.14em] sm:tracking-[0.25em] uppercase whitespace-nowrap" style={{ color: culture.palette.accent }}>{culture.label}</span>
         </div>
-        {avatarMeta?.version && (
-          <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 text-[10px] tracking-[0.25em] uppercase text-foreground/80">
-            Evolución v{avatarMeta.version}
+        {version ? (
+          <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 text-[10px] tracking-[0.2em] uppercase text-foreground/80 shrink-0">
+            Evolución v{version}
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* Avatar canvas */}
-      <div className="relative z-10 min-h-[460px] md:min-h-[600px] flex items-center justify-center pt-4 pb-2">
-        {avatarUrl ? (
-          <div className="relative w-[320px] md:w-[420px] aspect-[3/4] rounded-[2rem] overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.95)] border border-white/10 bg-[#0a0806]">
-            <img
-              src={avatarUrl}
-              alt="Tu Travel Avatar"
-              className="w-full h-full object-contain object-bottom"
-              loading="lazy"
-            />
-            {/* Cinematic vignette */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-            {/* Cultural accent emojis */}
-            <div className="absolute bottom-3 left-3 flex gap-2 text-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-              {culture.emojis.map((e, i) => <span key={i}>{e}</span>)}
-            </div>
-          </div>
-
-
-        ) : (
-          <EmptyAvatar accent={culture.palette.accent} emojis={culture.emojis} />
-        )}
+      {/* Avatar circular dentro del anillo decorativo */}
+      <div className="relative z-10 flex items-center justify-center py-8 md:py-10">
+        <div className="relative flex items-center justify-center">
+          <div
+            aria-hidden="true"
+            className="absolute rounded-full w-[calc(100%+44px)] h-[calc(100%+44px)] border opacity-40"
+            style={{ borderColor: culture.palette.accent }}
+          />
+          <div
+            aria-hidden="true"
+            className="absolute rounded-full w-[calc(100%+90px)] h-[calc(100%+90px)] opacity-30 motion-safe:animate-[spin_60s_linear_infinite]"
+            style={{ background: `conic-gradient(from 0deg, transparent, ${culture.palette.accent}40, transparent, ${culture.palette.accent}20, transparent)` }}
+          />
+          <AvatarCircle url={avatarUrl} name={user?.user_metadata?.full_name ?? null} size="lg" prive={prive} badges={badges} />
+        </div>
       </div>
 
-      {/* Bottom info */}
-      <div className="relative z-10 px-5 pb-5 pt-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+      {/* Información */}
+      <div className="relative z-10 px-5 pb-5 pt-3 bg-gradient-to-t from-black/85 via-black/50 to-transparent">
         <div className="flex items-end justify-between flex-wrap gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-[10px] tracking-[0.3em] uppercase" style={{ color: culture.palette.accent }}>
-              {personality.tag}
+              {archetype ? archetype.tag : "Tu identidad de viaje"}
             </p>
-            <h3 className="font-display text-2xl md:text-3xl leading-tight">{personality.label}</h3>
+            <h3 className="font-display text-2xl md:text-3xl leading-tight">
+              {archetype ? archetype.label : "Por descubrir"}
+            </h3>
             {lastTrip?.destino && (
               <p className="text-xs text-foreground/70 mt-1 flex items-center gap-1.5">
-                <MapPin className="w-3 h-3" /> Inspirado en {lastTrip.destino}
+                <MapPin className="w-3 h-3" aria-hidden="true" /> Último viaje: {lastTrip.destino}
               </p>
             )}
           </div>
-
           <div className="flex items-center gap-2 flex-wrap">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onSelfieChosen(f);
-                e.target.value = "";
-              }}
-            />
             <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={generating}
-              className="group relative px-4 py-2.5 rounded-full border border-white/15 text-xs tracking-[0.15em] uppercase font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10 text-foreground/90"
-              title="Sube un selfie para crear tu avatar caricatura IATOS"
+              type="button"
+              onClick={onEditAvatar}
+              className="px-4 py-2.5 rounded-full border border-white/15 text-xs tracking-[0.12em] uppercase font-medium bg-white/5 hover:bg-white/10 text-foreground/90 inline-flex items-center gap-2"
             >
-              <span className="flex items-center gap-2">
-                <Upload className="w-3.5 h-3.5" /> Subir selfie
-              </span>
+              <Upload className="w-3.5 h-3.5" aria-hidden="true" /> Subir selfie
             </button>
-            <button
-              onClick={generate}
-              disabled={generating}
-              className="group relative px-5 py-2.5 rounded-full border text-xs tracking-[0.15em] uppercase font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-              style={{
-                borderColor: culture.palette.accent,
-                color: culture.palette.accent,
-                background: `linear-gradient(135deg, ${culture.palette.accent}15, transparent)`,
-              }}
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                {generating ? "Evolucionando..." : avatarUrl ? "Re-generar" : "Generar avatar"}
-              </span>
-              <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: `linear-gradient(135deg, ${culture.palette.accent}30, transparent)` }} />
-            </button>
+            {avatarUrl && (
+              <button
+                type="button"
+                onClick={onEditAvatar}
+                className="px-4 py-2.5 rounded-full border text-xs tracking-[0.12em] uppercase font-medium inline-flex items-center gap-2"
+                style={{ borderColor: culture.palette.accent, color: culture.palette.accent, background: `linear-gradient(135deg, ${culture.palette.accent}15, transparent)` }}
+              >
+                <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" /> Volver a generar
+              </button>
+            )}
           </div>
-
         </div>
 
-        {/* Timeline */}
-        {tripsTimeline.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-white/10">
-            <p className="text-[9px] tracking-[0.3em] uppercase text-foreground/50 mb-2 flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3" /> Evolución
-            </p>
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-              {tripsTimeline.slice().reverse().map((t, i) => {
-                const c = detectCulture(t.destino, t.pais);
-                const isLast = i === tripsTimeline.length - 1;
-                return (
-                  <div
-                    key={i}
-                    className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] border ${isLast ? "ring-1" : ""}`}
-                    style={{
-                      borderColor: `${c.palette.accent}50`,
-                      color: c.palette.accent,
-                      background: `${c.palette.accent}10`,
-                    }}
-                    title={t.destino}
-                  >
-                    {t.destino?.split(",")[0]?.slice(0, 14)}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        <div className="mt-5 pt-4 border-t border-white/10">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/60 mb-3 flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3" aria-hidden="true" /> Evolución
+          </p>
+          <AvatarEvolutionTimeline rows={rows} hasAvatar={!!avatarUrl} />
+        </div>
       </div>
     </div>
   );
 };
-
-const EmptyAvatar = ({ accent, emojis }: { accent: string; emojis: string[] }) => (
-  <div className="relative w-[280px] md:w-[340px] aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 flex flex-col items-center justify-center backdrop-blur-sm" style={{ background: `linear-gradient(180deg, ${accent}10, transparent)` }}>
-    <div className="relative">
-      <div
-        className="w-32 h-32 rounded-full flex items-center justify-center"
-        style={{ background: `radial-gradient(circle, ${accent}40 0%, transparent 70%)` }}
-      >
-        <Camera className="w-12 h-12" style={{ color: accent }} />
-      </div>
-    </div>
-    <p className="mt-6 text-xs tracking-[0.25em] uppercase text-center px-6" style={{ color: accent }}>
-      Tu identidad de viaje<br />aún no se ha materializado
-    </p>
-    <p className="mt-2 text-[10px] text-foreground/50 text-center px-6">
-      Pulsa <span style={{ color: accent }}>Generar avatar</span> para crear tu primera evolución
-    </p>
-    <div className="mt-4 flex gap-2 text-xl opacity-60">
-      {emojis.map((e, i) => <span key={i}>{e}</span>)}
-    </div>
-  </div>
-);
-

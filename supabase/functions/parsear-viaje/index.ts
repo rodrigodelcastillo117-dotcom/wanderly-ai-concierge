@@ -2,6 +2,7 @@
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
+import { validateTripParams } from "./schema.ts";
 // Convierte un prompt natural ("quiero ir a Tokio en julio con mi pareja, ~$60k MXN")
 // en parámetros estructurados que /analizar-viaje pueda usar.
 
@@ -100,15 +101,15 @@ Deno.serve(async (req) => {
     }
 
     const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content ?? "{}";
-    let parsed: any;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      // intenta extraer JSON envuelto
-      const m = content.match(/\{[\s\S]*\}/);
-      parsed = m ? JSON.parse(m[0]) : {};
+    // IATOS-064: la respuesta del modelo se valida y limpia antes de usarla.
+    const checked = validateTripParams(data?.choices?.[0]?.message?.content ?? "");
+    if (!checked.ok) {
+      return new Response(JSON.stringify({ error: "No entendimos el destino. Escríbelo de nuevo, por ejemplo: «Oaxaca del 12 al 16 de diciembre, 2 personas»." }), {
+        status: 422,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    const parsed = checked.data;
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
