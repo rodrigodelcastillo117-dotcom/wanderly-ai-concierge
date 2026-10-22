@@ -11,6 +11,7 @@
 //  * si se pide `plan`, arma la propuesta con el planificador determinista (horarios con fuente,
 //    traslados ESTIMADOS, precios con fuente). Nunca reserva ni confirma.
 import { INTENTS, parseIntents, planExperiences, planSummary, type Candidate, type IntentKey } from "../_shared/privePlanner.ts";
+import { buildKey, type KeyCandidate, resolveWish } from "../_shared/priveKey.ts";
 
 export const PRIVE_UNIVERSES = ["the_table", "after_dark", "casino_grand_nights", "yacht_sea", "private_stays", "iconic_events",
   "culture_access", "wellness_escape", "adventure_elite", "sport_leisure", "celebrations", "signature_mexico"] as const;
@@ -27,7 +28,9 @@ export const SEARCH_PRIVE_TOOL = {
       "estado si no es VERIFICADO; precio y horario solo si vienen con fuente, si no di 'por confirmar'; traslados siempre 'aprox.'; " +
       "no digas reservado, confirmado, VIP, exclusivo ni garantizado; los casinos son solo información práctica (sin apuestas) y con su " +
       "regla de edad. Si responde available:false, explica que el usuario debe desbloquear IATOS Privé en la app y no menciones lugares. " +
-      "Para pedir algo, el usuario usa 'Solicitar' en la ficha: el equipo lo gestiona y avisa cuando el lugar confirme.",
+      "Para pedir algo, el usuario usa 'Solicitar' en la ficha: el equipo lo gestiona y avisa cuando el lugar confirme. " +
+      "Si el usuario pide que le organices algo especial (una noche, un aniversario, 48 horas, 'sorpréndeme'), usa `key`: devuelve hasta tres " +
+      "propuestas THE SIGNATURE / THE INSIDER / THE UNEXPECTED ya validadas; preséntalas tal cual y ofrece abrirlas en The Privé Key (/prive/key).",
     parameters: {
       type: "object",
       properties: {
@@ -38,6 +41,14 @@ export const SEARCH_PRIVE_TOOL = {
         date_to: { type: "string", description: "YYYY-MM-DD" },
         party_size: { type: "integer" },
         budget_level: { type: "integer", minimum: 1, maximum: 4 },
+        key: {
+          type: "object",
+          description: "The Privé Key: hasta tres propuestas diferenciadas (noche completa, 48 horas o sorpresa) para la primera ciudad.",
+          properties: {
+            request: { type: "string", description: "Lo que pidió el usuario, tal cual" },
+            mode: { type: "string", enum: ["key", "h48", "surprise"] },
+          },
+        },
         plan: {
           type: "object",
           description: "Pide una propuesta compuesta validada (días, horarios, traslados, presupuesto). Solo si el usuario quiere un plan.",
@@ -172,6 +183,8 @@ export async function runSearchPrive(args: Record<string, unknown>, deps: Search
       nota: !c.resolved || !(c.items ?? []).length ? "Sin selección verificada de IATOS Privé aquí: dilo tal cual y no inventes lugares." : undefined,
     })),
   };
+  const keyReq = args.key && typeof args.key === "object" ? (args.key as Record<string, any>) : null;
+  if (keyReq) out.key = await keyForIato(keyReq, cities[0], ps, deps, args);
   if (planReq) {
     const city = res.cities.find((c: any) => c.resolved && (c.items ?? []).length);
     if (city) {
@@ -195,4 +208,27 @@ export async function runSearchPrive(args: Record<string, unknown>, deps: Search
     }
   }
   return out;
+}
+
+/** The Privé Key dentro del chat: mismas propuestas que /prive/key, compactas para el modelo. */
+async function keyForIato(keyReq: Record<string, any>, city: string, ps: string, deps: SearchPriveDeps, args: Record<string, unknown>) {
+  const today = deps.todayISO ?? new Date().toISOString().slice(0, 10);
+  const request = String(keyReq.request ?? "").slice(0, 600);
+  const wish = resolveWish(`${request} en ${city}`, {
+    date: isoDate(args.date_from) ?? "today", party: Number(args.party_size) || 2, budget: "open",
+    mode: keyReq.mode === "h48" || keyReq.mode === "surprise" ? keyReq.mode : null,
+  }, { todayISO: today });
+  const { data, error } = await deps.rpc("prive_search", { _ps: ps, _cities: [city], _universes: null, _keywords: null, _date_from: wish.date, _date_to: wish.date,
+    _party: wish.party, _budget: null, _per_universe: 6 });
+  const c = !error ? (data as any)?.cities?.[0] : null;
+  if (!c?.resolved || !(c.items ?? []).length) return { status: "sin_datos", nota: "No hay experiencias verificadas para armar propuestas en esa ciudad: dilo tal cual." };
+  const cands: KeyCandidate[] = c.items.map((x: any) => ({ ...toCandidate(x, c.city), why: x.why ?? null, price_note: x.price_note ?? null, reasons: x.reasons ?? null,
+    accolades: x.accolades ?? null, neighborhood: x.neighborhood ?? null }));
+  const r = buildKey(cands, wish, { todayISO: today, seed: today });
+  return {
+    status: r.status,
+    propuestas: r.proposals.map((p) => ({ nivel: p.title, idea: p.concept, presupuesto: p.budget.text,
+      pasos: p.steps.map((s) => `${s.time_text} · ${s.intent_label}: ${s.experience.name} [${s.experience.state}] · ${s.cost.text}`), pendiente: p.pending.slice(0, 5) })),
+    nota: "Propuestas, no reservas. Ofrece abrirlas en The Privé Key (/prive/key) para guardarlas, agregarlas al viaje o ver cómo reservar.",
+  };
 }

@@ -75,7 +75,7 @@ export const INTENTS: Record<IntentKey, IntentDef> = {
   cena: { label: "Cena", universes: ["the_table"], slot: "noche", start: "20:00", latest: "21:45", duration: 150 },
   restaurante: { label: "Restaurante", universes: ["the_table"], slot: "comida", start: "13:30", latest: "21:30", duration: 120 },
   gastronomia: { label: "Gastronomía", universes: ["the_table", "signature_mexico"], slot: "comida", start: "13:30", latest: "21:30", duration: 120 },
-  espectaculo: { label: "Espectáculo", universes: ["iconic_events", "after_dark", "culture_access"], match: /(show|espectacul|cabaret|opera|teatro|ballet|burlesque|musical|concert)/, slot: "noche", start: "21:00", latest: "23:30", duration: 120 },
+  espectaculo: { label: "Espectáculo", universes: ["iconic_events", "after_dark", "culture_access", "signature_mexico"], match: /(show|espectacul|cabaret|opera|teatro|ballet|burlesque|musical|concert|lucha libre)/, slot: "noche", start: "21:00", latest: "23:30", duration: 120 },
   lounge: { label: "Lounge / coctelería", universes: ["after_dark"], match: /(lounge|cocteler|cocktail|bar|speakeasy|rooftop|jazz)/, slot: "noche", start: "22:30", latest: "01:00", duration: 90 },
   concierto: { label: "Concierto", universes: ["iconic_events", "culture_access", "after_dark"], match: /(concert|concierto|jazz|opera|orquesta|sinfon|recital|musica en vivo|live music)/, slot: "noche", start: "20:30", latest: "22:30", duration: 120 },
   beach_club: { label: "Tarde en un beach club", universes: ["wellness_escape", "yacht_sea", "after_dark", "the_table", "celebrations"], match: /(beach|playa|plage|club de playa|lido)/, slot: "tarde", start: "13:00", latest: "16:00", duration: 240 },
@@ -250,6 +250,8 @@ export interface PlanRequest {
   text?: string;              // o el texto del usuario, que se traduce con parseIntents
   template?: string | null;
   timeZone?: string | null;
+  /** Puntos extra por candidato (The Privé Key: cada nivel ordena distinto). Determinista; no salta reglas. */
+  preference?: ((c: Candidate, intent: IntentKey) => number) | null;
 }
 
 export interface PlannedItem {
@@ -325,6 +327,7 @@ function rankCandidates(cands: Candidate[], intent: IntentKey, req: PlanRequest,
       if (lvl && c.price_level) score -= Math.abs(lvl - c.price_level) * 15;
       if (hasPoint(from) && hasPoint(c)) score -= Math.min(60, haversineKm(from, c) * 5);
       if (c.label === "EXPERIENCIA_PRIVADA" && intent === "navegacion") score += 10;
+      if (req.preference) score += req.preference(c, intent);
       return { c, score };
     })
     .sort((a, b) => b.score - a.score || a.c.name.localeCompare(b.c.name))
