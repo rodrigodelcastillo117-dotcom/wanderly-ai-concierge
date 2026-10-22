@@ -3,70 +3,15 @@ import { DestinationVideo } from "@/components/DestinationVideo";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, RefreshCw, Sparkles, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { logInsight } from "@/lib/insights";
-import { toast } from "sonner";
-import { useAIRecommendations, type AIRecommendation } from "@/hooks/useAIRecommendations";
+import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+import { useSavedDestinations } from "@/hooks/useSavedDestinations";
 
 import santorini from "@/assets/hero-santorini.jpg";
 
 const Discover = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [saved, setSaved] = useState<Set<string>>(new Set());
   const { recos, loading, error, refresh } = useAIRecommendations();
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("recomendaciones").select("titulo").eq("user_id", user.id).eq("guardado", true)
-      .then(({ data }) => setSaved(new Set((data ?? []).map((r: any) => r.titulo))));
-  }, [user]);
-
-  // Un segundo toque mientras se guarda creaba dos filas en recomendaciones (y TripDetail, que
-  // busca una sola con maybeSingle, dejaba de reconocer el favorito).
-  const [pendingSave, setPendingSave] = useState<Set<string>>(new Set());
-  const toggleSave = async (d: AIRecommendation) => {
-    if (!user || pendingSave.has(d.name)) return;
-    setPendingSave((s) => new Set(s).add(d.name));
-    try {
-      await toggleSaveNow(d);
-    } catch {
-      toast.error("No se pudo actualizar tus favoritos. Intenta de nuevo.");
-    } finally {
-      setPendingSave((s) => { const n = new Set(s); n.delete(d.name); return n; });
-    }
-  };
-
-  const toggleSaveNow = async (d: AIRecommendation) => {
-    if (!user) return;
-    const isSaved = saved.has(d.name);
-    if (isSaved) {
-      const { error } = await supabase.from("recomendaciones").update({ guardado: false })
-        .eq("user_id", user.id).eq("titulo", d.name);
-      if (error) throw error;
-      await logInsight("removed", "destination", d.name);
-      setSaved((s) => { const n = new Set(s); n.delete(d.name); return n; });
-    } else {
-      const { data: existing } = await supabase.from("recomendaciones").select("id")
-        .eq("user_id", user.id).eq("titulo", d.name).maybeSingle();
-      if (existing) {
-        const { error } = await supabase.from("recomendaciones").update({ guardado: true }).eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("recomendaciones").insert([{
-          user_id: user.id, titulo: d.name, tipo: "destination_ai",
-          descripcion: d.country, match_score: d.score, guardado: true,
-          metadata: { reason: d.reason, image_query: d.image_query, trip_type: d.trip_type, best_months: d.best_months },
-        }]);
-        if (error) throw error;
-      }
-      await logInsight("saved", "destination", d.name, { country: d.country, score: d.score });
-      setSaved((s) => new Set(s).add(d.name));
-      toast.success(`${d.name} guardado en favoritos`);
-    }
-  };
+  const { saved, pending: pendingSave, toggle: toggleSave } = useSavedDestinations();
 
   return (
     <DashboardLayout>

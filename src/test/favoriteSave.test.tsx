@@ -9,7 +9,7 @@ vi.mock("@/integrations/supabase/client", () => {
   const from = () => {
     let inserting = false;
     const api: any = {
-      select: () => api, eq: () => api, update: () => api,
+      select: () => api, eq: () => api, update: () => api, limit: () => api,
       maybeSingle: async () => ({ data: null, error: null }),
       insert: () => { inserting = true; db.inserts++; return api; },
       then: (ok: any, ko: any) => inserting
