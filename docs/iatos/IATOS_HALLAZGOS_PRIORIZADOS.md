@@ -114,6 +114,9 @@ La unificación partió de 133 hallazgos originales: A 19, B 22, C 17, D 26, E 2
 | IATOS-020 | P1 | Prueba de 30 días repetible sin límite | A-04, F-14 | ABIERTO |
 | IATOS-021 | P1 | El planificador multidestino evade la cuota de análisis | A-02 | ABIERTO |
 | IATOS-022 | P1 | Sin flujo de pago: un 402 se ve como error genérico | A-13 | ABIERTO |
+| IATOS-111 | P1 | Cuota gratis agotada se ve como error técnico (Lovable) | IATOS-P1-FREE-01, A-13 | EN CURSO |
+| IATOS-112 | P1 | Un análisis fallido consume la oportunidad gratis (Lovable) | IATOS-P1-FREE-02, A-09, A-11 | EN CURSO |
+| IATOS-113 | P2 | El avatar obliga a usar la cámara del teléfono (Lovable) | IATOS-P2-AVATAR-01 | CORREGIDO EN RAMA |
 | IATOS-023 | P1 | El chat no dibuja tarjetas de vuelo, hotel ni atracción | B-02 | ABIERTO |
 | IATOS-024 | P1 | Precios "estimados por IA" con botón de compra y sin marca | B-03 | ABIERTO |
 | IATOS-025 | P1 | Jet privado y equipaje con precio inventado y "solicitud enviada" | B-04, D-17 | ABIERTO |
@@ -1811,3 +1814,49 @@ Formato por hallazgo: Origen · Reproducción · Causa raíz · Archivos · Corr
 - **Resultado:** PENDIENTE.
 - **Riesgo de regresión:** bajo.
 - **Estado final:** ABIERTO.
+
+## 5. Addendum 2026-10-22: hallazgos reportados por Lovable y decisiones comerciales
+
+Estos tres hallazgos se integran a la lista única; no son flujos aparte. Cada uno indica con qué hallazgo existente se relaciona.
+
+#### IATOS-111 · P1 · Al agotar la cuota gratuita el usuario ve un error técnico, no una explicación
+- **Origen:** IATOS-P1-FREE-01 (Lovable). Amplía IATOS-022 (A-13).
+- **Reproducción:** usuario gratis manda su 4.º mensaje del mes a Iato, o pide un 2.º análisis de viaje. Ve "Edge Function returned a non-2xx status code" o "Hubo un tropiezo".
+- **Causa raíz:** el servidor responde 402 con un cuerpo que el cliente no lee; no hay un código estable que distinga "límite comercial" de "falla técnica".
+- **Archivos:** `supabase/functions/_shared/quota.ts`, `_shared/entitlements.ts`, `concierge-chat/index.ts` (líneas de cuota), `src/lib/functionErrors.ts`, `src/pages/Concierge.tsx` (catch), `PlanTrip.tsx`, `EditTrip.tsx`.
+- **Corrección:** código estructurado `FREE_LIMIT_REACHED` con solo metadatos seguros (tipo de cuota, límite, usado, fecha de renovación solo si es mensual, upgrade disponible); fallas técnicas con otros códigos (`SERVICE_UNAVAILABLE`, `UNAUTHENTICATED`) que nunca muestran la invitación a pagar; diálogo con "Conocer IATOS PRO" y "Continuar con la versión gratuita". El análisis de cortesía se describe como de una sola vez, sin prometer renovación.
+- **Avance:** ya está en la rama el lector de errores con botón a PRO para PlanTrip y multidestino (`src/lib/functionErrors.ts`, 6 pruebas). En curso: el código estable, el diálogo y la integración en Iato.
+- **Prueba:** los 10 escenarios del addendum (cuota disponible, último permitido, primero después del límite, análisis agotado, PRO, trial, cortesía, renovación mensual, error real de proveedor, llamada directa a la función).
+- **Resultado:** PENDIENTE.
+- **Riesgo de regresión:** bajo.
+- **Estado final:** EN CURSO (FIXED_UNVERIFIED parcial).
+
+#### IATOS-112 · P1 · Un análisis que falla consume definitivamente la oportunidad gratuita
+- **Origen:** IATOS-P1-FREE-02 (Lovable). Sube de severidad a IATOS-047 (A-09) y se relaciona con A-11 (consumo no atómico).
+- **Reproducción:** usuario gratis pide su análisis; la IA o un proveedor falla (timeout, 500, datos insuficientes). No recibe viaje y ya no puede volver a intentarlo.
+- **Causa raíz:** la cuota se cuenta al empezar la solicitud y no existe forma de devolverla.
+- **Archivos:** `analizar-viaje/index.ts`, `logistics-plan/index.ts`, `consume_free_quota` (SQL), `_shared/quota.ts`.
+- **Corrección:** reserva → confirmación → liberación atómica e idempotente (estados RESERVED, COMMITTED, RELEASED, EXPIRED) con una clave por intento: la confirmación solo ocurre cuando el viaje válido quedó guardado; un reintento con la misma clave recupera el mismo viaje sin cobrar otra vez; una reserva abandonada expira sola.
+- **Avance en la rama:** consumo atómico (`UPDATE ... WHERE used < limit`) y validación antes de consumir, probados en Postgres local, incluida concurrencia. En curso: la reserva/confirmación/liberación.
+- **Consumos ya registrados:** primero un diagnóstico de solo lectura (`docs/ops/diagnostico-cuotas.sql`) y una propuesta de reparación auditable; no se tocarán contadores de producción sin autorización. Hoy `usage_limits` tiene 0 filas en producción (todos los usuarios son cortesía), así que no hay consumos incorrectos que reparar.
+- **Prueba:** los 12 escenarios del addendum (timeout, 500, error de IA, datos insuficientes, resultado parcial, fallo al guardar, dos solicitudes simultáneas, doble clic, reintento por conexión, recarga, error después de completar, abuso de reintentos).
+- **Resultado:** PENDIENTE.
+- **Riesgo de regresión:** medio (toca el flujo de análisis).
+- **Estado final:** EN CURSO.
+
+#### IATOS-113 · P2 · El selector de foto del avatar abre la cámara a la fuerza en el teléfono
+- **Origen:** IATOS-P2-AVATAR-01 (Lovable).
+- **Reproducción:** en iPhone o Android, onboarding o Perfil → crear avatar → tocar la zona de la foto: se abre la cámara frontal y no se puede elegir una selfie existente.
+- **Causa raíz:** el único `<input type="file">` tenía `capture="user"` (`src/components/AvatarCreator.tsx:246`).
+- **Corrección (rama, commit 4b9911c):** dos botones explícitos, "Elegir de mi galería" (sin `capture`) y "Tomar una foto" (con `capture="user"`); cancelar no hace nada; validación compartida de formato (JPG, PNG, WebP) y tamaño (8 MB); "Saltar por ahora" sigue disponible; etiquetas accesibles.
+- **Prueba:** `src/test/avatarCreator.test.tsx` (3 pruebas: solo la cámara fuerza captura, formatos y tamaño, cancelar) → pasan. Pendiente en dispositivo real: iPhone Safari, Android Chrome, escritorio, rechazar permiso de cámara.
+- **Resultado:** CORREGIDO EN RAMA; verificación en dispositivos pendiente (FIXED_UNVERIFIED).
+- **Riesgo de regresión:** bajo.
+- **Estado final:** CORREGIDO EN RAMA.
+
+### Decisiones comerciales tomadas por el dueño (2026-10-22)
+
+- **DEC-01 · Modelo GRATIS vs PRO ($99 MXN/mes)** — resuelve el sentido de IATOS-013 y IATOS-014. Límites propuestos, no definitivos: GRATIS = Travel DNA básico, 3 mensajes de Iato/mes, 1 análisis de cortesía (una sola vez), viajes guardados, edición manual, herramientas esenciales. PRO = 100 mensajes/mes, 10 análisis/mes, hasta 5 alertas de precio, seguimiento ampliado de vuelos, personalización avanzada, funciones premium. Fixer: acceso preferente sujeto a disponibilidad, sin prometer 24/7 ni ilimitado (afecta IATOS-030). Cuotas en el servidor. Antes de fijarlos: medir costos y recomendar ajustes (ver `IATOS_COSTOS_UNITARIOS.md` y `IATOS_PROPUESTA_PLANES_Y_PRUEBA.md`).
+- **DEC-02 · Prueba PRO de 30 días sin tarjeta y sin cobro automático** — resuelve IATOS-012 en la opción (b). Al terminar, vuelve a GRATIS conservando datos; la tarjeta solo se pide al contratar. Landing, onboarding, página PRO, checkout, correos y términos deben decir exactamente lo mismo. Antes de implementar: costo de la prueba y controles contra abuso.
+- **Estado:** se preparan diseño, implementación y pruebas en desarrollo; **no se activa nada en producción** (configuración comercial, cobros, suscripciones existentes) sin aprobación explícita.
+
