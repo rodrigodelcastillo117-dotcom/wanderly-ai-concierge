@@ -1,0 +1,116 @@
+[
+ {
+  "file": "01-key-inicio-390.jpg",
+  "width": 390,
+  "horizontalScroll": false
+ },
+ {
+  "file": "02-key-solo-lo-que-falta-390.jpg",
+  "width": 390,
+  "horizontalScroll": false
+ },
+ {
+  "width": 390,
+  "questions_asked_with_trip_in_context": [
+   "budget"
+  ]
+ },
+ {
+  "file": "03-key-tres-propuestas-390.jpg",
+  "width": 390,
+  "horizontalScroll": false
+ },
+ {
+  "file": "04-key-guardado-en-viaje-y-como-reservar-390.jpg",
+  "width": 390,
+  "horizontalScroll": false
+ },
+ {
+  "file": "05-key-perfect-48-hours-paris-390.jpg",
+  "width": 390,
+  "horizontalScroll": false
+ },
+ {
+  "file": "06-key-surprise-me-390.jpg",
+  "width": 390,
+  "horizontalScroll": false
+ },
+ {
+  "file": "07-for-you-con-viaje-390.jpg",
+  "width": 390,
+  "horizontalScroll": false
+ },
+ {
+  "file": "08-for-you-sin-viaje-editorial-390.jpg",
+  "width": 390,
+  "horizontalScroll": false
+ },
+ {
+  "width": 390,
+  "timings_ms": {
+   "submit_to_questions": 278,
+   "answers_to_three_proposals": 349,
+   "owner_example_submit_to_proposals": 179,
+   "first_option_since_page_open": 3473,
+   "world_ready_open_to_first_experience": 1476
+  },
+  "cost_line": "Armado en 0.0 s · sin IA generativa"
+ },
+ {
+  "file": "01-key-inicio-1440.jpg",
+  "width": 1440,
+  "horizontalScroll": false
+ },
+ {
+  "file": "02-key-solo-lo-que-falta-1440.jpg",
+  "width": 1440,
+  "horizontalScroll": false
+ },
+ {
+  "width": 1440,
+  "questions_asked_with_trip_in_context": [
+   "budget"
+  ]
+ },
+ {
+  "file": "03-key-tres-propuestas-1440.jpg",
+  "width": 1440,
+  "horizontalScroll": false
+ },
+ {
+  "file": "04-key-guardado-en-viaje-y-como-reservar-1440.jpg",
+  "width": 1440,
+  "horizontalScroll": false
+ },
+ {
+  "file": "05-key-perfect-48-hours-paris-1440.jpg",
+  "width": 1440,
+  "horizontalScroll": false
+ },
+ {
+  "file": "06-key-surprise-me-1440.jpg",
+  "width": 1440,
+  "horizontalScroll": false
+ },
+ {
+  "file": "07-for-you-con-viaje-1440.jpg",
+  "width": 1440,
+  "horizontalScroll": false
+ },
+ {
+  "file": "08-for-you-sin-viaje-editorial-1440.jpg",
+  "width": 1440,
+  "horizontalScroll": false
+ },
+ {
+  "width": 1440,
+  "timings_ms": {
+   "submit_to_questions": 157,
+   "answers_to_three_proposals": 410,
+   "owner_example_submit_to_proposals": 333,
+   "first_option_since_page_open": 3387,
+   "world_ready_open_to_first_experience": 1499
+  },
+  "cost_line": "Armado en 0.0 s · sin IA generativa"
+ }
+]

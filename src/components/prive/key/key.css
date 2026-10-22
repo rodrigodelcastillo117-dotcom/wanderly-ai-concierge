@@ -60,3 +60,4 @@
   padding-bottom: 0.4rem; overscroll-behavior-x: contain; }
 .pk-scroll > * { scroll-snap-align: start; }
 @media (min-width: 768px) { .pk-scroll { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; } }
+.pk-tier-photo figcaption { z-index: 3; } /* "Foto ilustrativa" siempre visible sobre el degradado */
