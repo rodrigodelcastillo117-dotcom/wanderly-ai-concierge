@@ -12,8 +12,10 @@ import { toast } from "sonner";
 import { computeSplit, hasPayments, parseSplitAmount } from "@/lib/split";
 import { convertedTotal, formatMoney, fxLabel } from "@/lib/fx";
 import { useFxTable } from "@/hooks/useFxTable";
+import { CurrencySelect } from "@/components/CurrencySelect";
+import { destinationCurrency } from "@/lib/currencies";
 
-const MONEDAS = ["MXN", "USD", "EUR", "GBP", "JPY", "CAD"] as const;
+// Monedas: el mismo catálogo que Gastos (lib/currencies), con la del destino sugerida.
 
 type Person = { id: string; name: string };
 type Expense = { id: string; payer_id: string; amount: number; currency?: string | null; description: string; created_at: string };
@@ -166,10 +168,8 @@ const TripSplit = () => {
               <Input aria-label="Descripción del gasto" placeholder="Descripción" value={desc} onChange={e => setDesc(e.target.value)} />
               <div className="flex gap-2">
                 <Input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label="Monto del gasto" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} />
-                <select aria-label="Moneda del gasto" value={currency} onChange={e => setCurrency(e.target.value)}
-                  className="bg-background border border-border rounded-md px-2 text-sm">
-                  {MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <CurrencySelect id="split-moneda" ariaLabel="Moneda del gasto" value={currency} onChange={setCurrency}
+                  suggested={destinationCurrency(trip)} used={expenses.map(e => e.currency || "MXN")} className="min-w-[9.5rem]" />
               </div>
             </div>
             <select aria-label="¿Quién pagó?" className="w-full bg-background border border-border rounded-md p-2 mb-3 text-sm" value={payer} onChange={e => setPayer(e.target.value)}>
@@ -189,7 +189,7 @@ const TripSplit = () => {
                 {enMxn && (
                   <span className="block text-[11px]">
                     ≈ {formatMoney(Math.round(enMxn.total), "MXN", 0)} en total
-                    {enMxn.unconvertedCount > 0 && ` (sin contar ${Object.keys(enMxn.unconverted).join(", ")}: no tenemos tipo de cambio)`}
+                    {enMxn.unconvertedCount > 0 && ` (sin contar ${Object.keys(enMxn.unconverted).join(", ")}: sin tipo de cambio disponible)`}
                     {" · "}{fxLabel(fx!)}. Los saldos se pagan en la moneda de cada gasto.
                   </span>
                 )}

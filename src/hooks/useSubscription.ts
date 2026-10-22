@@ -50,6 +50,15 @@ function withTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
   });
 }
 
+/**
+ * Evento para volver a leer el acceso (get_access_state) en todos los componentes montados que usan
+ * useSubscription; p. ej. el Concierge lo dispara tras cada mensaje para actualizar "te quedan N".
+ */
+export const ACCESS_CHANGED_EVENT = "iatos:access-changed";
+export function notifyAccessChanged() {
+  try { window.dispatchEvent(new Event(ACCESS_CHANGED_EVENT)); } catch { /* sin window (SSR/pruebas) */ }
+}
+
 export function useSubscription() {
   const { user } = useAuth();
   const uid = user?.id ?? null;
@@ -62,7 +71,8 @@ export function useSubscription() {
   const reqRef = useRef(0);
   useEffect(() => () => { reqRef.current += 1; }, []);
 
-  const refresh = useCallback(async () => {
+  // silent: relectura en segundo plano (tras un mensaje) sin pasar por "cargando" ni parpadear.
+  const refresh = useCallback(async (opts: { silent?: boolean } = {}) => {
     const req = ++reqRef.current;
     if (!uid) {
       setAccess(null);
@@ -71,7 +81,7 @@ export function useSubscription() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!opts.silent) setLoading(true);
     setError(null);
     try {
       const [{ data: state, error: stateErr }, { data: sub, error: subErr }] = await withTimeout(
@@ -102,6 +112,11 @@ export function useSubscription() {
   }, [uid]);
 
   useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    const onChange = () => { refresh({ silent: true }); };
+    window.addEventListener(ACCESS_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(ACCESS_CHANGED_EVENT, onChange);
+  }, [refresh]);
 
   const status = subscription?.status ?? null;
   // Una prueba vencida (p. ej. la de 30 días sin tarjeta) queda como 'trialing' en la fila, pero

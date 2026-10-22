@@ -1,0 +1,47 @@
+{
+ "vp": "d",
+ "conciergeHeader": "Inicio\nMis viajes\nCercanos\nFavoritos\nSocial\nSmart Spend\nConcierge\nActivar IATOS PRO\nIATOS PRIVÉ\nE\n\nE2E\n\nExplorador\n\nCerrar sesión\n\nCONCIERGE · PLAN GRATUITO\n\nIato te escucha\n\nPlan gratuito: te quedan 0 de 3 mensajes con Iato este mes. Conoce PRO\n\nDetectando tu ubicación real…\nViaje en contexto:\nAutomático (Iato decide)\nE2E PRUEBA Privacidad A (12 dic al 13 dic)\nE2E PRUEBA Puebla (12 dic al 14 dic)\nIato te preguntará cuál\n|\nMañana libre\n|\nAuto-refresh 60s\n|\nLo que Iato recuerda\nE\nE2E\nPERFIL EN CONSTRUCCIÓN · V1\nContactar Fixer\nConcierge\nMembers Only\nCONCIERGE\n\nBienvenido. Estoy listo para antic",
+ "concierge": {
+  "fns": [
+   {
+    "fn": "concierge-chat",
+    "status": 402,
+    "body": "{\"code\":\"FREE_LIMIT_REACHED\",\"quota\":\"concierge_monthly\",\"limit\":3,\"used\":3,\"renews_at\":\"2026-11-01T00:00:00+00:00\",\"upgrade_available\":true,\"message\":\"Has utilizado tus mensajes gratuitos de Iato de este mes. Se renuevan el 1 de noviembre de 2026. Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.\"}"
+   }
+  ],
+  "dialogs": [
+   "Usaste tus mensajes gratuitos\n\nHas utilizado tus mensajes gratuitos de Iato de este mes. Se renuevan el 1 de noviembre de 2026. Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.\n\nContinuar con la versión gratuita\nConocer IATOS PRO\nClose"
+  ],
+  "toasts": [],
+  "edgeErr": false,
+  "hasContinue": 1,
+  "hasPro": 1,
+  "dialogClosed": true
+ },
+ "analysis": {
+  "fns": [
+   {
+    "fn": "parsear-viaje",
+    "status": 200,
+    "body": "{\"destino\":\"Puebla\",\"pais_destino\":\"México\",\"destinations\":[\"Puebla\"],\"is_multi\":false,\"ciudad_origen\":\"Ciudad de México\",\"fecha_salida\":\"2026-12-12\",\"fecha_regreso\":\"2026-12-14\",\"num_viajeros\":2,\"presupuesto_objetivo\":null,\"notas\":\"Escapada de fin de semana para dos personas con salida desde CDMX.\"}"
+   },
+   {
+    "fn": "analizar-viaje",
+    "status": 402,
+    "body": "{\"code\":\"FREE_LIMIT_REACHED\",\"quota\":\"trip_analysis_once\",\"limit\":1,\"used\":1,\"renews_at\":null,\"upgrade_available\":true,\"message\":\"Ya usaste tu análisis gratuito de viaje (es de una sola vez). Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.\"}"
+   }
+  ],
+  "dialogs": [
+   "Usaste tu análisis gratuito\n\nYa usaste tu análisis gratuito de viaje (es de una sola vez). Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.\n\nContinuar con la versión gratuita\nConocer IATOS PRO\nClose"
+  ],
+  "toasts": [],
+  "path": "/dashboard/planear",
+  "edgeErr": false,
+  "hasContinue": 1,
+  "hasPro": 1
+ },
+ "guard": {
+  "concierge-chat": 1,
+  "analizar-viaje": 1
+ }
+}

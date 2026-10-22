@@ -170,6 +170,41 @@ export function resolveActiveTrip<T extends TripLike>(trips: T[], opts: ResolveO
   return { trip: null, reason: "ambiguous", candidates: pool };
 }
 
+// Palabras que pueden seguir a "viaje a/para/en" sin ser un lugar ("mi viaje a la playa" sí es
+// genérico: no se trata como destino desconocido).
+const NOT_A_PLACE = new Set([
+  "mi", "mis", "el", "la", "los", "las", "un", "una", "que", "donde", "otro", "otra", "este", "esta", "ese", "esa",
+  "playa", "montana", "ciudad", "pueblo", "extranjero", "europa", "asia", "africa", "sudamerica", "caribe",
+]);
+
+/**
+ * El mensaje nombra un destino que no está en ninguno de los viajes ("ayúdame con mi viaje a
+ * Japón" sin viaje a Japón). En ese caso NO se pregunta "¿a cuál te refieres?" listando viajes
+ * que no tienen nada que ver: Iato debe decir que no hay un viaje guardado a ese destino y
+ * ofrecer planearlo (hallazgo de producción R10, escenario "viaje a Japón").
+ */
+export function mentionsUntrackedPlace(text: string | null | undefined, trips: TripLike[]): boolean {
+  const msg = normalizeText(text);
+  if (!msg) return false;
+  const known = new Set<string>();
+  for (const t of Array.isArray(trips) ? trips : []) tripTerms(t).forEach((term) => known.add(term));
+  const isKnown = (place: string) => [...known].some((k) => containsWord(place, k) || containsWord(k, place));
+  // 1) País o ciudad conocida (COUNTRY_GROUPS) que no corresponde a ningún viaje.
+  for (const group of COUNTRY_GROUPS) {
+    for (const g of group) if (containsWord(msg, g) && !isKnown(g)) return true;
+  }
+  // 2) "viaje/vuelo/hotel a|para|en|hacia <Lugar>" con un lugar que no está en los viajes.
+  const m = msg.match(/\b(?:viaje|viajes|vuelo|vuelos|hotel|escapada|vacaciones)\s+(?:a|para|en|hacia|rumbo a)\s+([a-z0-9]+(?:\s+[a-z0-9]+)?)/);
+  if (m) {
+    const words = m[1].split(" ");
+    const first = words[0];
+    if (first.length >= 3 && !NOT_A_PLACE.has(first) && !/^\d+$/.test(first)) {
+      return !isKnown(first) && !isKnown(m[1]);
+    }
+  }
+  return false;
+}
+
 /** ¿La pregunta depende de un viaje concreto? ("mi vuelo", "mi hotel", "qué llevo"). */
 export function needsSpecificTrip(text: string | null | undefined): boolean {
   const msg = normalizeText(text);

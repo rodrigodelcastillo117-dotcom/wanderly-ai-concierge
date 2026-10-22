@@ -51,3 +51,13 @@ export function invitationStart(s: PriveStatus): { scene: "arrival" | "access" |
   if (!s.eligible) return { scene: "message", message: { kind: "NOT_ELIGIBLE" } };
   return { scene: "arrival" };
 }
+
+/**
+ * ¿Hay que preguntarle al servidor de quién es el enlace antes de mostrar el mensaje inicial?
+ * Una cuenta sin PRO (o sin antigüedad) que abre un enlace reenviado veía "Privé es parte de IATOS
+ * PRO" en vez de "Esta invitación es para otra cuenta". Con token pendiente se consulta
+ * accept_invitation: el servidor revisa el dueño del token ANTES que el plan y, para la dueña sin
+ * derecho vigente, devuelve NOT_PRO/NOT_ELIGIBLE sin cambiar nada (no consume la invitación).
+ */
+export const shouldProbeInvitationOwner = (kind: InvitationMessageKind | undefined, hasToken: boolean) =>
+  hasToken && (kind === "NOT_PRO" || kind === "NOT_ELIGIBLE");
