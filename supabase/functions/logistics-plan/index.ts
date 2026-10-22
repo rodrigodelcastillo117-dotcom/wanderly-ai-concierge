@@ -28,6 +28,7 @@ import { aiFetch } from "../_shared/ai.ts";
 import { forceEstimated, labelExperiences, markLive, pricingSources } from "./provenance.ts";
 import { buildLogisticsSnapshot } from "./snapshot.ts";
 import { saveQuoteSnapshot } from "../_shared/quotes.ts";
+import { hotelPriceRooms } from "../_shared/rooms.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -791,8 +792,9 @@ Entrega JSON con:
       const byTier = opts.find((h: any) => h.tier === selectedTier)
         ?? pickByTier([...opts].sort((a: any, b: any) => a.price_per_night_usd - b.price_per_night_usd), selectedTier);
       if (byTier) {
-        // Una habitación por cada 2 viajeros.
-        const rooms = Math.max(1, Math.ceil(viajeros / 2));
+        // Precio en vivo (hotels-search con adults = viajeros): ya es del grupo. Estimado: una
+        // habitación por cada 2 viajeros (hotelPriceRooms, mismo criterio que analizar-viaje).
+        const rooms = hotelPriceRooms(byTier, viajeros);
         hospedajeMxn += usdToMxn(Number(byTier.price_per_night_usd) * (Number(pd.nights) || 1) * rooms);
       }
       (pd.experiencias ?? []).forEach((e: any) => {

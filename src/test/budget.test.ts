@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 // Prueba el código REAL de analizar-viaje (antes este archivo probaba una copia de la lógica).
-import { detectExclusions, normalizarVuelos, reconcileBudget, roomsFor } from "../../supabase/functions/analizar-viaje/budget";
+import { detectExclusions, hotelPriceRooms, normalizarVuelos, reconcileBudget, roomsFor } from "../../supabase/functions/analizar-viaje/budget";
+import { computeTripDesglose, hotelPriceRooms as clientHotelPriceRooms } from "@/lib/quote";
 
 const analysis = (over: Record<string, unknown> = {}) => ({
   desglose_presupuesto: { vuelos: 50000, hospedaje: 20000, comida: 9000, tours: 5000, transporte_local: 2000, extras: 1000 },
@@ -94,5 +95,44 @@ describe("normalizarVuelos", () => {
     ]);
     expect(r).toHaveLength(1);
     expect(r[0]).toMatchObject({ precio_por_persona: 13000, fuente_precio: "estimado", aerolinea: "IB + A3" });
+  });
+});
+
+// Hallazgo R10 en producción (familia de 4 a Cancún, 5 noches): el precio del hotel venía en vivo
+// de Google Hotels pedido con adults=4 (ya es del grupo) y se multiplicaba otra vez por 2
+// habitaciones: hospedaje $106,460 en vez de $53,230.
+describe("R10: precio en vivo del grupo no se multiplica por habitaciones", () => {
+  const hoteles = [
+    { nombre: "Mayan Monkey", precio_por_noche: 2514, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO" },
+    { nombre: "JW Marriott", precio_por_noche: 10646, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO" },
+    { nombre: "Iberostar", precio_por_noche: 15636, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO" },
+  ];
+  it("4 viajeros, hotel medio en vivo de $10,646, 5 noches → $53,230 (antes $106,460)", () => {
+    const r = reconcileBudget(analysis({ hospedaje: hoteles }), { dias: 5, viajeros: 4 });
+    expect(r.rooms).toBe(2);
+    expect(r.roomsPrecio).toBe(1);
+    expect(r.desglose.hospedaje).toBe(53230);
+    expect(r.total).toBe(Object.values(r.desglose).reduce((s, v) => s + v, 0));
+  });
+  it("precio estimado sigue siendo por habitación doble (6 viajeros → 3 habitaciones)", () => {
+    const est = hoteles.map((h) => ({ ...h, fuente_precio: "estimado", estado_dato: "ESTIMADO" }));
+    const r = reconcileBudget(analysis({ hospedaje: est }), { dias: 5, viajeros: 6 });
+    expect(r.roomsPrecio).toBe(3);
+    expect(r.desglose.hospedaje).toBe(10646 * 5 * 3);
+  });
+  it("hotelPriceRooms: en vivo → 1; estimado o sin fuente → ceil(viajeros/2)", () => {
+    expect(hotelPriceRooms({ fuente_precio: "serpapi" }, 4)).toBe(1);
+    expect(hotelPriceRooms({ estado_dato: "CONSULTADO_EN_VIVO" }, 5)).toBe(1);
+    expect(hotelPriceRooms({ fuente_precio: "estimado" }, 4)).toBe(2);
+    expect(hotelPriceRooms({}, 3)).toBe(2);
+    expect(hotelPriceRooms(null, 1)).toBe(1);
+  });
+  it("el cliente (src/lib/quote) usa el mismo criterio", () => {
+    for (const h of [{ fuente_precio: "serpapi" }, { estado_dato: "VERIFICADO" }, { fuente_precio: "estimado" }, {}]) {
+      for (const n of [1, 2, 3, 4, 7]) expect(clientHotelPriceRooms(h, n)).toBe(hotelPriceRooms(h, n));
+    }
+    const trip = { desglose_presupuesto: {}, hospedaje_json: hoteles, vuelos_json: [], tours_json: [] };
+    const d = computeTripDesglose(trip, { selVuelo: -1, selHospedaje: 1, nochesHospedaje: 5, selTours: new Set() }, 4);
+    expect(d.hospedaje).toBe(53230);
   });
 });
