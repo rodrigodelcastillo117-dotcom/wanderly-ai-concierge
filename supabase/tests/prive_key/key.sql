@@ -85,13 +85,15 @@ SELECT public.t_ok('S1 guarda un plan válido', (public.prive_key_save(public.t_
       'start_iso', '2026-11-20T20:00:00-06:00', 'intent', 'cena', 'time_status', 'horario_por_confirmar',
       'name', 'Confirmado VIP', 'state', 'CONFIRMADO', 'status', 'reservado'),
     jsonb_build_object('experience_id', 'f0000000-0000-0000-0000-000000000002', 'start', '22:45', 'intent', 'lounge', 'transfer_min', 15))))->>'ok')::boolean);
+RESET ROLE;
 SELECT public.t_ok('S2 lo que manda el cliente de más (nombre, estado, "reservado") no se guarda',
-  (SELECT steps::text !~* '(Confirmado VIP|CONFIRMADO|reservado|"name")' FROM public.prive_key_plans WHERE user_id = auth.uid() ORDER BY created_at DESC LIMIT 1));
+  (SELECT steps::text !~* '(Confirmado VIP|CONFIRMADO|reservado|"name")' FROM public.prive_key_plans WHERE user_id = 'd0000000-0000-0000-0000-0000000000a1' ORDER BY created_at DESC LIMIT 1));
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
 SELECT public.t_ok('S3 experiencia inexistente: rechazo', public.prive_key_save(public.t_ps(), '{"mode":"key","tier":"insider","steps":[{"experience_id":"f0000000-0000-0000-0000-0000000000ff"}]}')->>'code' = 'UNKNOWN_EXPERIENCE');
 SELECT public.t_ok('S4 experiencia PENDIENTE: rechazo', public.prive_key_save(public.t_ps(), '{"mode":"key","tier":"insider","steps":[{"experience_id":"f0000000-0000-0000-0000-000000000003"}]}')->>'code' = 'UNKNOWN_EXPERIENCE');
 SELECT public.t_ok('S5 nivel o modo inventado: rechazo', public.prive_key_save(public.t_ps(), '{"mode":"vip","tier":"platinum","steps":[{"experience_id":"f0000000-0000-0000-0000-000000000001"}]}')->>'code' = 'INVALID');
 SELECT public.t_ok('S6 sin pasos: rechazo', public.prive_key_save(public.t_ps(), '{"mode":"key","tier":"signature","steps":[]}')->>'code' = 'INVALID');
-SELECT public.t_ok('S7 RLS: el dueño lee su plan directo', (SELECT count(*) FROM public.prive_key_plans) = 1);
+SELECT public.t_err('S7 ni el dueño lee la tabla directo (solo RPC)', $q$SELECT count(*) FROM public.prive_key_plans$q$, 'permission denied');
 
 -- ───────────── 3. Mis planes: nombres del catálogo y seguimiento honesto ─────────────
 SELECT public.t_ok('P1 el plan trae el nombre REAL del catálogo y estado propuesta',
@@ -127,7 +129,7 @@ SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-000
 -- ───────────── 5. Aislamiento entre miembros ─────────────
 SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a4', false);
 SELECT public.t_ok('I1 otro miembro no ve mis planes (RPC)', jsonb_array_length(public.prive_key_plans(public.t_ps('k4'))) = 0);
-SELECT public.t_ok('I2 otro miembro no ve mis planes (tabla)', (SELECT count(*) FROM public.prive_key_plans) = 0);
+SELECT public.t_err('I2 otro miembro no lee la tabla', $q$SELECT count(*) FROM public.prive_key_plans$q$, 'permission denied');
 SELECT public.t_ok('I3 otro miembro no puede mover mi plan a su viaje', public.prive_key_add_to_trip(public.t_ps('k4'), public.t_plan(), 'd0000000-0000-0000-0000-00000000aa04')->>'code' = 'NOT_FOUND');
 SELECT public.t_ok('I4 ni archivarlo', (public.prive_key_archive(public.t_ps('k4'), public.t_plan())->>'ok')::boolean = false);
 

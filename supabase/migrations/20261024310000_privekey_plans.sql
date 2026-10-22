@@ -35,10 +35,7 @@ CREATE INDEX IF NOT EXISTS prive_key_plans_user ON public.prive_key_plans (user_
 ALTER TABLE public.prive_key_plans ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.prive_key_plans FROM PUBLIC, anon, authenticated;
 GRANT ALL ON public.prive_key_plans TO service_role;
--- Lectura directa de lo propio (por si una pantalla lo necesita); escribir, solo con las RPC.
-GRANT SELECT ON public.prive_key_plans TO authenticated;
-DROP POLICY IF EXISTS prive_key_plans_own_select ON public.prive_key_plans;
-CREATE POLICY prive_key_plans_own_select ON public.prive_key_plans FOR SELECT TO authenticated USING (user_id = auth.uid());
+-- Sin privilegios directos (contrato Privé P56): se lee y escribe solo con las RPC prive_key_*.
 
 -- ─────────────────────────────── Recorrido (sin texto libre) ───────────────────────────────
 CREATE TABLE IF NOT EXISTS public.prive_key_events (

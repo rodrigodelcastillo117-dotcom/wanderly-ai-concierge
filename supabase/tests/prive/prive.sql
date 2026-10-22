@@ -649,7 +649,10 @@ SELECT pt.ok('P54 authenticated solo ejecuta prive_require, prive_status y las R
       AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
       AND p.proname NOT IN ('prive_teaser','prive_home','prive_destination','prive_universe','prive_experience','prive_search',
         'prive_for_you','prive_confirm_adult','prive_save','prive_saved','prive_add_to_trip','prive_track','prive_request_create',
-        'prive_request_cancel','prive_my_requests','prive_request_transition','admin_prive_requests','admin_prive_metrics')) = 'prive_require,prive_status',
+        'prive_request_cancel','prive_my_requests','prive_request_transition','admin_prive_requests','admin_prive_metrics',
+        -- The Privé Key (20261024310000): todas empiezan con prive_require(_ps); el panel valida public.admins.
+        'prive_key_save','prive_key_plans','prive_key_add_to_trip','prive_key_archive','prive_key_track','prive_key_taste_save',
+        'admin_prive_key_metrics')) = 'prive_require,prive_status',
   (SELECT string_agg(p.proname, ',' ORDER BY p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')));
 SELECT pt.ok('P55 todas las funciones Privé SECURITY DEFINER tienen search_path fijo',
