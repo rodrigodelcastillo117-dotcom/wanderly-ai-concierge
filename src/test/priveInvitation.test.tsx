@@ -251,3 +251,35 @@ describe("/prive/restablecer", () => {
     expect(await screen.findByRole("button", { name: "Pedir un enlace nuevo" })).toBeInTheDocument();
   });
 });
+
+// R10 Privé (ensayo en producción, 22-oct-2026): la cuenta gratuita A abrió el enlace reenviado de
+// otra persona y vio "Privé es parte de IATOS PRO" (sin preguntar al servidor), en vez de "Esta
+// invitación es para otra cuenta". El servidor ya respondía INVITATION_OTHER_ACCOUNT.
+describe("/prive/invitacion · enlace reenviado a una cuenta sin PRO", () => {
+  it("con token de otra cuenta muestra 'para otra cuenta' y olvida el token", async () => {
+    state.status = baseStatus({ is_pro: false, eligible: false, membership_status: "none" });
+    happyServer({ accept_invitation: { ok: false, code: "INVITATION_OTHER_ACCOUNT" } });
+    sessionStorage.setItem(PRIVE_INVITE_TOKEN_KEY, TOKEN);
+    renderAt("/prive/invitacion");
+    expect(await screen.findByTestId("prive-invite-msg-INVITATION_OTHER_ACCOUNT")).toBeTruthy();
+    expect(screen.queryByText(/Valentina/i)).toBeNull();
+    expect(api.access).toHaveBeenCalledWith("accept_invitation", { token: TOKEN });
+    expect(sessionStorage.getItem(PRIVE_INVITE_TOKEN_KEY)).toBeNull();
+  });
+
+  it("la dueña sin PRO vigente sigue viendo 'Privé es parte de IATOS PRO'", async () => {
+    state.status = baseStatus({ is_pro: false, eligible: false, membership_status: "invited" });
+    happyServer({ accept_invitation: { ok: false, code: "NOT_PRO" } });
+    sessionStorage.setItem(PRIVE_INVITE_TOKEN_KEY, TOKEN);
+    renderAt("/prive/invitacion");
+    expect(await screen.findByTestId("prive-invite-msg-NOT_PRO")).toBeTruthy();
+  });
+
+  it("sin token no se llama a accept_invitation", async () => {
+    state.status = baseStatus({ is_pro: false, eligible: false, membership_status: "none" });
+    happyServer();
+    renderAt("/prive/invitacion");
+    expect(await screen.findByTestId("prive-invite-msg-NOT_PRO")).toBeTruthy();
+    expect(api.access).not.toHaveBeenCalledWith("accept_invitation", expect.anything());
+  });
+});

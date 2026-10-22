@@ -548,7 +548,9 @@ Deno.serve(async (req) => {
     if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
     const body = (await req.json().catch(() => null)) as AnalisisRequest | null;
-    if (!body?.destino || !body?.ciudad_origen) {
+    // Solo espacios cuenta como vacío: antes pasaba esta validación, apartaba el análisis y fallaba
+    // después en resolver-fechas (R10; el cupo sí se liberaba, pero era trabajo inútil).
+    if (!body || !String(body.destino ?? "").trim() || !String(body.ciudad_origen ?? "").trim()) {
       return invalidRequestResponse(corsHeaders, "Faltan datos: indica el destino y tu ciudad de origen.");
     }
 
@@ -1102,7 +1104,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       breakdown: a.desglose_presupuesto,
       travelers: body.num_viajeros,
       nights: dias,
-      rooms: budget.rooms,
+      rooms: budget.roomsPrecio,
       dateFrom: body.fecha_salida,
       dateTo: body.fecha_regreso,
       fx: fxUsdInfo,

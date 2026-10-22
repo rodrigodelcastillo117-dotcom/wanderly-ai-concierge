@@ -7,12 +7,10 @@ import { toast } from "@/hooks/use-toast";
 import { track } from "@/lib/analytics";
 import { PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
+import { proStatusLabel } from "@/lib/proStatus";
 
 // Mismo texto que Landing, Términos y correos (src/lib/planCopy.ts).
 const BENEFITS = PRO_FEATURES;
-
-const fmtDate = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "—";
 
 export default function Pro() {
   const {
@@ -41,19 +39,8 @@ export default function Pro() {
     finally { setBusy(null); }
   };
 
-  const statusLabel = isComped
-    ? "PRO de cortesía · acceso permanente"
-    : isTrialing
-      ? subscription?.stripe_customer_id
-        ? `En periodo de prueba · ${trialDaysLeft ?? 0} días restantes`
-        : `Prueba gratis sin tarjeta · ${trialDaysLeft ?? 0} días restantes; al terminar vuelves al plan gratuito`
-      : subscription?.status === "past_due"
-        ? "Pago pendiente · actualiza tu tarjeta en “Gestionar suscripción” para recuperar PRO"
-        : subscription?.status === "active"
-        ? cancelAtPeriodEnd
-          ? `Activa hasta el ${fmtDate(subscription?.current_period_end)} (cancelación programada)`
-          : `Activa · se renueva el ${fmtDate(subscription?.current_period_end)}`
-        : "Versión gratuita";
+  // Incluye la prueba con cancelación programada (src/lib/proStatus.ts).
+  const statusLabel = proStatusLabel({ isComped, isTrialing, trialDaysLeft, cancelAtPeriodEnd, subscription });
 
   return (
     <DashboardLayout>

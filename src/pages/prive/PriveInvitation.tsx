@@ -21,7 +21,7 @@ import { PasswordCreator } from "@/components/prive/PasswordCreator";
 import { pickPassphrase } from "@/lib/privePassword";
 import { CEREMONY, SUPPORT_EMAIL, messageFor, tenureLine } from "@/lib/priveCopy";
 import { capturePriveTokenFromUrl, clearPendingToken, readPendingToken } from "@/lib/priveSession";
-import { invitationStart, type InvitationMessageKind } from "@/lib/priveView";
+import { invitationStart, shouldProbeInvitationOwner, type InvitationMessageKind } from "@/lib/priveView";
 import { CEREMONY_TIMINGS } from "@/components/prive/timings";
 import type { PriveResult, PriveStatus } from "@/lib/priveApi";
 
@@ -58,6 +58,16 @@ export default function PriveInvitation() {
       decided.current = true;
       const d = invitationStart(status);
       if (d.scene === "access") setResumed(true);
+      if (shouldProbeInvitationOwner(d.message?.kind, !!tokenRef.current)) {
+        // Enlace reenviado: primero se pregunta de quién es (no se activa nada sin derecho vigente).
+        void call("accept_invitation", { token: tokenRef.current }).then((r) => {
+          const other = !r.ok && r.code === "INVITATION_OTHER_ACCOUNT";
+          if (other) clearPendingToken("invite");
+          setMessage(other ? { kind: "INVITATION_OTHER_ACCOUNT" } : d.message ?? null);
+          setScene("message");
+        });
+        return;
+      }
       setMessage(d.message ?? null);
       setScene(d.scene);
     } else if (!loading && statusError) {
@@ -65,7 +75,7 @@ export default function PriveInvitation() {
       setMessage({ kind: "STATUS_ERROR" });
       setScene("message");
     }
-  }, [status, statusError, loading]);
+  }, [status, statusError, loading, call]);
 
   // 1 → 2 automático; siempre se puede saltar.
   useEffect(() => {

@@ -112,6 +112,18 @@ export function tripNights(trip: any, itineraryDays: number): number {
 
 export const roomsFor = (travelers: number) => Math.max(1, Math.ceil((Number(travelers) || 1) / 2));
 
+/**
+ * Habitaciones por las que se multiplica el precio por noche de un hotel (mismo criterio que
+ * supabase/functions/_shared/rooms.ts): un precio en vivo de Google Hotels se pidió para todos los
+ * viajeros y ya es del grupo (1); uno estimado es por habitación doble (ceil(viajeros/2)).
+ */
+export function hotelPriceRooms(hotel: any, travelers: number): number {
+  const fuente = String(hotel?.fuente_precio ?? hotel?.fuente ?? "").toLowerCase();
+  const estado = String(hotel?.estado_dato ?? "").toUpperCase();
+  const live = fuente === "serpapi" || estado === "CONSULTADO_EN_VIVO" || estado === "VERIFICADO";
+  return live ? 1 : roomsFor(travelers);
+}
+
 export type Selection = {
   /** -1 = sin selección (usa la cotización) · -2 = "ya lo tengo" (0) · ≥0 = opción elegida. */
   selVuelo: number;
@@ -121,8 +133,9 @@ export type Selection = {
 };
 
 /**
- * Desglose según las selecciones. Vuelos y tours por persona, hospedaje por habitación y noche
- * (habitaciones = ceil(viajeros/2), igual que el servidor). Sin tours seleccionados se usa el
+ * Desglose según las selecciones. Vuelos y tours por persona, hospedaje por noche × habitaciones
+ * (hotelPriceRooms: 1 si el precio en vivo ya es del grupo, ceil(viajeros/2) si es estimado; igual
+ * que el servidor). Sin tours seleccionados se usa el
  * renglón de la cotización.
  */
 export function computeTripDesglose(trip: any, sel: Selection, viajeros: number): Record<string, number> {
@@ -140,7 +153,7 @@ export function computeTripDesglose(trip: any, sel: Selection, viajeros: number)
     hospedaje: sel.selHospedaje === -2
       ? 0
       : hosp
-        ? (Number(hosp.precio_por_noche) || 0) * Math.max(0, Number(sel.nochesHospedaje) || 0) * roomsFor(n)
+        ? (Number(hosp.precio_por_noche) || 0) * Math.max(0, Number(sel.nochesHospedaje) || 0) * hotelPriceRooms(hosp, n)
         : Number(base.hospedaje) || 0,
     comida: Number(base.comida) || 0,
     tours: sel.selTours.size > 0 ? toursSum : Number(base.tours) || 0,

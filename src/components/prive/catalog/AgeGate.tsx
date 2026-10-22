@@ -14,7 +14,8 @@ export function AgeGate({ count, termsVersion, onConfirmed }: { count: number; t
       <p className="text-sm">Hay {count} experiencia{count === 1 ? "" : "s"} solo para mayores de edad (vida nocturna o casinos).</p>
       <p className={`text-xs ${PRIVE.muted}`}>Para verlas, confirma que tienes 18 años o más. Algunos lugares piden 21+ e identificación en la puerta.</p>
       {error && <p className="text-xs text-amber-300" role="alert">{error}</p>}
-      <Button size="sm" className={PRIVE.button} disabled={busy} onClick={async () => {
+      {/* A 390 px el texto en mayúsculas espaciadas no cabe en una línea: se parte en vez de salirse del panel. */}
+      <Button size="sm" className={`${PRIVE.button} h-auto min-h-[44px] w-full whitespace-normal py-3 text-center leading-snug sm:w-auto`} disabled={busy} onClick={async () => {
         setBusy(true); setError(null);
         try {
           const ok = await api.confirmAdult(termsVersion);

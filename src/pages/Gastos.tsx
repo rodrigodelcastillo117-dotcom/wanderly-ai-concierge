@@ -12,7 +12,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TripSavingsCalculator } from "@/components/TripSavingsCalculator";
 import { localISODate } from "@/lib/localDate";
 import { formatDateOnly } from "@/lib/dateUtils";
-import { convertedTotal, formatMoney, fxLabel, subtotalsByCurrency } from "@/lib/fx";
+import { convert, convertedTotal, formatMoney, fxLabel, subtotalsByCurrency } from "@/lib/fx";
+import { CurrencySelect } from "@/components/CurrencySelect";
+import { currencyName, destinationCurrency } from "@/lib/currencies";
+import { canonicalCategory, DEFAULT_EXPENSE_CATEGORY, EXPENSE_CATEGORIES } from "@/lib/expenseCategories";
 import { useFxTable } from "@/hooks/useFxTable";
 import { safeFileName, uploadProblem } from "@/lib/uploadRules";
 import { useActiveTrip } from "@/hooks/useActiveTrip";
@@ -22,8 +25,8 @@ import { isTripEnded, tripLabel } from "@/lib/activeTrip";
 const SmartSpendPanel = lazyWithRetry(() => import("@/components/SmartSpendPanel"));
 
 
-const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"] as const;
-const MONEDAS = ["MXN", "USD", "EUR"] as const;
+// Categorías y monedas: catálogos en lib/expenseCategories y lib/currencies (las filas con las
+// categorías viejas —Alojamiento, Gastronomía…— se muestran con su categoría nueva).
 
 type Expense = {
   id: string;
@@ -46,7 +49,7 @@ export const Gastos = () => {
   const [form, setForm] = useState({
     amount: "",
     currency: "MXN",
-    category: "Gastronomía",
+    category: DEFAULT_EXPENSE_CATEGORY,
     description: "",
     expense_date: localISODate(),
     file: null as File | null,
@@ -59,6 +62,9 @@ export const Gastos = () => {
   const tripOptions = active.trips.filter((t) => !isTripEnded(t, localISODate()) || t.id === active.trip?.id);
   const formTripId = form.trip_id !== undefined ? form.trip_id : active.trip?.id ?? "";
   const tripName = (id?: string | null) => active.trips.find((t) => t.id === id)?.destino ?? null;
+  // Moneda local del destino del viaje elegido: se sugiere arriba en el selector.
+  const formTrip = active.trips.find((t) => t.id === formTripId) ?? null;
+  const suggestedCurrency = destinationCurrency(formTrip);
 
   const load = async () => {
     if (!user) return;
@@ -136,6 +142,11 @@ export const Gastos = () => {
   const subtotals = subtotalsByCurrency(items);
   const currencies = Object.keys(subtotals);
   const enMxn = fx ? convertedTotal(items, "MXN", fx) : null;
+  // Vista previa en pesos del monto que se está capturando (o aviso si no hay tipo de cambio).
+  const formAmount = Number(form.amount);
+  const formCur = form.currency.toUpperCase();
+  const previewMxn = fx && formAmount > 0 && formCur !== "MXN" ? convert(formAmount, formCur, "MXN", fx) : null;
+  const categoryHint = EXPENSE_CATEGORIES.find((c) => c.value === form.category)?.hint;
 
   return (
     <DashboardLayout>
@@ -196,7 +207,7 @@ export const Gastos = () => {
             {currencies.length > 1 && enMxn && (
               <p className="text-xs text-muted-foreground mt-1">
                 ≈ {formatMoney(Math.round(enMxn.total), "MXN", 0)} en total
-                {enMxn.unconvertedCount > 0 && ` (sin contar ${Object.keys(enMxn.unconverted).join(", ")}: no tenemos tipo de cambio)`}
+                {enMxn.unconvertedCount > 0 && ` (sin contar ${Object.keys(enMxn.unconverted).join(", ")}: sin tipo de cambio disponible)`}
                 <span className="block text-[10px] text-muted-foreground/80">{fxLabel(fx!)}</span>
               </p>
             )}
@@ -219,18 +230,30 @@ export const Gastos = () => {
                 </div>
                 <div>
                   <label htmlFor="gasto-moneda" className="text-xs text-muted-foreground mb-1 block">Moneda</label>
-                  <select id="gasto-moneda" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    {MONEDAS.map((m) => <option key={m}>{m}</option>)}
-                  </select>
+                  <CurrencySelect id="gasto-moneda" value={form.currency} onChange={(c) => setForm({ ...form, currency: c })}
+                    suggested={suggestedCurrency} used={items.map((x) => x.currency)} />
+                  {suggestedCurrency && suggestedCurrency !== formCur && (
+                    <button type="button" onClick={() => setForm({ ...form, currency: suggestedCurrency })}
+                      className="mt-1 text-[11px] text-primary underline-offset-2 hover:underline">
+                      Usar {suggestedCurrency} ({currencyName(suggestedCurrency)}), la moneda de {formTrip?.destino}
+                    </button>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="gasto-categoria" className="text-xs text-muted-foreground mb-1 block">Categoría</label>
                   <select id="gasto-categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
+                    {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.value}</option>)}
                   </select>
+                  {categoryHint && <p className="text-[11px] text-muted-foreground mt-1">{categoryHint}</p>}
                 </div>
+                {formAmount > 0 && formCur !== "MXN" && fx && (
+                  <p className="sm:col-span-2 text-[11px] text-muted-foreground -mt-2" role="status">
+                    {previewMxn != null
+                      ? <>≈ {formatMoney(Math.round(previewMxn), "MXN", 0)} · {fxLabel(fx)}</>
+                      : <>Sin tipo de cambio disponible para {formCur}: el gasto se guarda en {formCur} y no se suma al total en pesos.</>}
+                  </p>
+                )}
                 <div>
                   <label htmlFor="gasto-fecha" className="text-xs text-muted-foreground mb-1 block">Fecha</label>
                   <Input id="gasto-fecha" type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
@@ -269,7 +292,7 @@ export const Gastos = () => {
             <div key={x.id} className="glass-card rounded-xl p-4 flex items-center gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary">{x.category}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary">{canonicalCategory(x.category)}</span>
                   {/* Fecha local: new Date("2026-10-01") es UTC y en México se mostraba el 30 sep. */}
                   <span className="text-xs text-muted-foreground">{formatDateOnly(x.expense_date)}</span>
                   {tripName(x.trip_id) && <span className="text-xs text-muted-foreground truncate">· {tripName(x.trip_id)}</span>}

@@ -5,9 +5,7 @@ import { formatMoney, fxLabel, summarizeSpend, type SpendItem } from "@/lib/fx";
 import { useFxTable } from "@/hooks/useFxTable";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
-
-const COLORS = ["#C9A961", "#E0C586", "#8b7355", "#6b5a45", "#3f3528"];
-const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"];
+import { categoryBreakdown, donutSlices } from "@/lib/expenseCategories";
 
 const SmartSpendPanel = () => {
   const { user } = useAuth();
@@ -28,7 +26,10 @@ const SmartSpendPanel = () => {
   );
 
   const delta = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0;
-  const data = CATEGORIAS.map((c) => ({ name: c, value: byCat[c] ?? 0 })).filter((d) => d.value > 0);
+  // Categorías vigentes (las filas viejas, p. ej. "Alojamiento", se suman a "Hospedaje"). Antes
+  // solo se dibujaban 5 categorías fijas y lo demás se perdía del desglose.
+  const data = useMemo(() => donutSlices(byCat), [byCat]);
+  const breakdown = useMemo(() => categoryBreakdown(byCat), [byCat]);
 
   return (
     <div>
@@ -46,7 +47,7 @@ const SmartSpendPanel = () => {
         {fx && items.length > 0 && (
           <p className="text-[11px] text-muted-foreground mt-2">
             En pesos mexicanos · {fxLabel(fx)}
-            {unconvertedCount > 0 && ` · ${unconvertedCount} gasto(s) sin convertir (${unconvertedCurrencies.join(", ")}: sin tipo de cambio)`}
+            {unconvertedCount > 0 && ` · ${unconvertedCount} gasto(s) sin convertir (${unconvertedCurrencies.join(", ")}: sin tipo de cambio disponible)`}
           </p>
         )}
       </div>
@@ -60,8 +61,8 @@ const SmartSpendPanel = () => {
             <div className="h-64">
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie data={data} dataKey="value" innerRadius={60} outerRadius={95} paddingAngle={2}>
-                    {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  <Pie data={data} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={data.length > 1 ? 2 : 0} stroke="hsl(var(--surface))" strokeWidth={2}>
+                    {data.map((d) => <Cell key={d.name} fill={d.color} />)}
                   </Pie>
                   <Tooltip
                     contentStyle={{ background: "hsl(var(--surface))", border: "1px solid hsl(var(--border))", borderRadius: 12 }}
@@ -74,26 +75,26 @@ const SmartSpendPanel = () => {
         </div>
         <div className="glass-card rounded-2xl p-6">
           <p className="text-xs text-primary tracking-[0.2em] uppercase mb-4">Desglose</p>
-          <div className="space-y-3">
-            {CATEGORIAS.map((c, i) => {
-              const v = byCat[c] ?? 0;
-              const pct = total > 0 ? (v / total) * 100 : 0;
-              return (
-                <div key={c}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ background: COLORS[i] }} />
-                      {c}
+          {breakdown.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-12 text-center">Sin gastos convertibles todavía.</p>
+          ) : (
+          <ul className="space-y-3">
+            {breakdown.map((c) => (
+                <li key={c.name}>
+                  <div className="flex justify-between text-sm mb-1 gap-3">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} aria-hidden="true" />
+                      <span className="truncate">{c.name}</span>
                     </span>
-                    <span className="text-muted-foreground">{pct.toFixed(0)}%</span>
+                    <span className="text-muted-foreground shrink-0">{formatMoney(Math.round(c.value), "MXN", 0)} · {c.pct.toFixed(0)}%</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-surface overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: COLORS[i] }} />
+                    <div className="h-full rounded-full" style={{ width: `${c.pct}%`, background: c.color }} />
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                </li>
+            ))}
+          </ul>
+          )}
         </div>
       </div>
     </div>
