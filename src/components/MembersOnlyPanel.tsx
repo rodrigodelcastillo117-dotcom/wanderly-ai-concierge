@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CityVideoCard } from "@/components/CityVideoCard";
 import { VenueDetailDialog } from "@/components/VenueDetailDialog";
+import { useSubscription } from "@/hooks/useSubscription";
+import { membersOnlySubtitle } from "@/lib/planCopy";
 
 const CATEGORIES: { id: string; emoji: string; label: string }[] = [
   { id: "cabaret", emoji: "🎭", label: "Cabaret" },
@@ -52,6 +54,7 @@ interface Props {
 
 export function MembersOnlyPanel({ onReserve }: Props) {
   const { user } = useAuth();
+  const { loading: subLoading, isPro } = useSubscription();
   const accessLoading = false;
   const confirmedAdult = true;
   const passwordUnlocked = true;
@@ -141,8 +144,9 @@ export function MembersOnlyPanel({ onReserve }: Props) {
           Nightlife Premium
         </div>
         <h2 className="font-fraunces text-3xl md:text-5xl text-foreground mb-2">Members Only</h2>
+        {/* Según el plan real; antes prometía a todas las cuentas que el Concierge PRO gestionaba sus reservas. */}
         <p className="text-primary text-base mb-6 font-fraunces italic">
-          Vida nocturna seleccionada — reservas gestionadas por tu Concierge PRO
+          {membersOnlySubtitle({ loading: subLoading, isPro })}
         </p>
 
         <div className="relative max-w-md">

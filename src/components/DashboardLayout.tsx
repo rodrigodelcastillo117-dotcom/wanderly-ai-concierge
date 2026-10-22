@@ -16,7 +16,8 @@ const links = [
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
-  { to: "/dashboard/concierge", icon: Crown, label: "Concierge Pro" },
+  // "Concierge", no "Concierge Pro": la pestaña está abierta a todas las cuentas.
+  { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
 ];
 
 // Barra inferior móvil: máximo 5 elementos (antes eran 7 con etiquetas de 9px y un
