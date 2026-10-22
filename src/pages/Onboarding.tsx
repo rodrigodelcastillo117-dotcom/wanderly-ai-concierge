@@ -115,7 +115,8 @@ const Onboarding = () => {
 
   // Hydrate from existing record
   useEffect(() => {
-    if (!status) return;
+    // Un estado "recordado" (useOnboardingStatus) aún no es del servidor: se espera a confirmarlo.
+    if (!status || status.provisional) return;
     if (status.completed_onboarding) {
       navigate("/dashboard", { replace: true });
       return;

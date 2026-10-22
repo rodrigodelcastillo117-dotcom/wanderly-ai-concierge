@@ -12,11 +12,30 @@ const DATA_CACHE = 'iatos-data-v1';
 const MAX_TRIP_ENTRIES = 8;
 const PRECACHE = ['/', '/manifest.webmanifest', '/favicon-32.png', '/icons/icon-192.png'];
 
+// Archivos del arranque que index.html pide (JS de entrada, modulepreload, CSS y tipografías): se
+// guardan al instalar para que la SEGUNDA visita abra sin red lenta de por medio. Antes solo se
+// guardaba lo que pasaba por el SW después de instalarse, y la primera carga quedaba fuera.
+const SHELL_ASSET = /(?:src|href)="(\/(?:assets|fonts)\/[^"?#]+\.(?:js|css|woff2))"/g;
+
+async function precacheShell(c) {
+  try {
+    const html = await c.match('/');
+    if (!html) return;
+    const text = await html.clone().text();
+    const urls = [...new Set([...text.matchAll(SHELL_ASSET)].map((m) => m[1]))];
+    // force-cache: lo que el navegador ya bajó en esta visita se toma de su caché HTTP (sin volver a
+    // descargarlo por la red móvil).
+    await Promise.all(urls.map((u) => c.add(typeof Request === 'function' ? new Request(u, { cache: 'force-cache' }) : u).catch(() => {})));
+  } catch {
+    /* opcional: la app funciona igual */
+  }
+}
+
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(SHELL_CACHE)
       // Nunca fallar la instalación por un recurso opcional.
-      .then((c) => Promise.all(PRECACHE.map((u) => c.add(u).catch(() => {}))))
+      .then((c) => Promise.all(PRECACHE.map((u) => c.add(u).catch(() => {}))).then(() => precacheShell(c)))
       .then(() => self.skipWaiting())
   );
 });
@@ -85,8 +104,8 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirst(req, SHELL_CACHE, '/', 0));
     return;
   }
-  // Bundles con hash generados por Vite.
-  if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
+  // Bundles con hash generados por Vite y tipografías versionadas (/fonts/*-vNN.woff2).
+  if (url.origin === self.location.origin && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/fonts/'))) {
     event.respondWith(cacheFirst(req));
     return;
   }
