@@ -1,3 +1,4 @@
+import { canonicalCategory, categoryColor } from "@/lib/expenseCategories";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Gift, Car, Wifi, Compass, Ship, UtensilsCrossed, TrainFront, Anchor, Receipt } from "lucide-react";
@@ -151,27 +152,15 @@ const DashboardHome = () => {
       setSpendUsd(totalUsd);
       setSpendDeltaPct(prevUsd > 0 ? Math.round(((totalUsd - prevUsd) / prevUsd) * 100) : null);
 
-      const palette: Record<string, string> = {
-        alojamiento: "hsl(41 47% 59%)",
-        hospedaje: "hsl(41 47% 59%)",
-        gastronomia: "hsl(41 60% 70%)",
-        comida: "hsl(41 60% 70%)",
-        restaurantes: "hsl(41 60% 70%)",
-        experiencias: "hsl(36 30% 60%)",
-        tours: "hsl(36 30% 60%)",
-        transporte: "hsl(0 0% 45%)",
-        vuelos: "hsl(0 0% 45%)",
-        otros: "hsl(0 0% 35%)",
-      };
-      const labelize = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
+      // Mismas categorías y colores que Smart Spend (las filas viejas caen en su categoría nueva).
       const groups: Record<string, number> = {};
       for (const e of thisMonth) {
-        const key = (e.category || "otros").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const key = canonicalCategory(e.category);
         groups[key] = (groups[key] ?? 0) + toUsd(Number(e.amount) || 0, e.currency || "MXN");
       }
       const sum = Object.values(groups).reduce((a, b) => a + b, 0);
       const cats = Object.entries(groups)
-        .map(([k, v]) => ({ label: labelize(k), pct: sum > 0 ? Math.round((v / sum) * 100) : 0, color: palette[k] ?? "hsl(0 0% 35%)" }))
+        .map(([k, v]) => ({ label: k, pct: sum > 0 ? Math.round((v / sum) * 100) : 0, color: categoryColor(k) }))
         .sort((a, b) => b.pct - a.pct)
         .slice(0, 5);
       setSpendCats(cats);

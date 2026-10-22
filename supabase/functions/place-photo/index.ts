@@ -1,7 +1,14 @@
 // Places API (New) - Photo proxy. Devuelve binario o JSON {url}.
+//
+// Cómo se usa desde la app (Cercanos): POST con la sesión del usuario y {ref, maxWidth, mode:"url"};
+// responde {url} con la dirección pública de la foto en googleusercontent (sin llave) y la app la
+// pone en <img>. Antes la app ponía ESTA función directo en <img src>, pero un <img> no manda el
+// header Authorization: la puerta de Supabase respondía 401 (JSON), Chrome lo bloqueaba (ORB) y la
+// tarjeta quedaba como un bloque oscuro vacío.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { isPhotoRef } from "../_shared/placePhotoRef.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -21,15 +28,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Parámetros por query (GET) o por cuerpo JSON (POST, lo que manda supabase.functions.invoke).
     const url = new URL(req.url);
-    const ref = url.searchParams.get("ref") ?? "";
-    const maxWidth = Math.min(Math.max(parseInt(url.searchParams.get("maxWidth") ?? "800", 10), 1), 4800);
-    const maxHeight = url.searchParams.get("maxHeight")
-      ? Math.min(Math.max(parseInt(url.searchParams.get("maxHeight")!, 10), 1), 4800)
+    let body: Record<string, unknown> = {};
+    if (req.method === "POST") {
+      try { body = (await req.json()) ?? {}; } catch { body = {}; }
+    }
+    const param = (k: string): string | null => {
+      const v = body[k] ?? url.searchParams.get(k);
+      return v == null ? null : String(v);
+    };
+    const ref = param("ref") ?? "";
+    const maxWidth = Math.min(Math.max(parseInt(param("maxWidth") ?? "800", 10) || 800, 1), 4800);
+    const maxHeight = param("maxHeight")
+      ? Math.min(Math.max(parseInt(param("maxHeight")!, 10) || 800, 1), 4800)
       : null;
-    const mode = url.searchParams.get("mode") ?? "binary"; // "binary" | "url"
+    const mode = param("mode") ?? "binary"; // "binary" | "url"
 
-    if (!ref) {
+    // Solo nombres de foto de Places ("places/<id>/photos/<id>"): `ref` va dentro de la URL del
+    // conector con nuestra llave, así que nada de "../", "?" ni otros endpoints.
+    if (!isPhotoRef(ref)) {
       return new Response(JSON.stringify({ error: "ref requerido (ej: places/XXX/photos/YYY)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -49,8 +67,8 @@ Deno.serve(async (req) => {
           status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ url: data.photoUri }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ url: typeof data?.photoUri === "string" ? data.photoUri : null }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "private, max-age=3600" },
       });
     }
 
