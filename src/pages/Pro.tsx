@@ -15,7 +15,7 @@ const fmtDate = (iso?: string | null) =>
 
 export default function Pro() {
   const {
-    loading, access, subscription, isPro, isTrialing, isComped,
+    loading, error, access, subscription, isPro, isTrialing, isComped,
     trialDaysLeft, cancelAtPeriodEnd, refresh, startCheckout, openPortal,
   } = useSubscription();
   const [busy, setBusy] = useState<"checkout" | "portal" | null>(null);
@@ -67,6 +67,16 @@ export default function Pro() {
         {loading ? (
           <div className="glass-card rounded-2xl p-10 flex justify-center">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div role="alert" className="glass-card rounded-2xl p-6 md:p-8 mb-6 text-center">
+            <p className="text-sm text-muted-foreground mb-4">{error} Revisa tu conexión e inténtalo de nuevo.</p>
+            <button
+              onClick={() => refresh()}
+              className="px-6 py-3 rounded-xl border border-border text-sm hover:border-primary/50 transition"
+            >
+              Reintentar
+            </button>
           </div>
         ) : (
           <>
