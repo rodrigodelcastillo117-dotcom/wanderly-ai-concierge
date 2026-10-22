@@ -333,7 +333,10 @@ type InboundEvent = {
 export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody: string): Promise<ApiResult> {
   // 1) Firma de Resend/Svix: sin firma válida no se lee nada.
   const sig = await verifySvixSignature(headers, rawBody, deps.config.inboundSecret, deps.now?.() ?? new Date());
-  if (!sig.ok) return fail(sig.reason === "secret_not_configured" ? 503 : 401, "INVALID_SIGNATURE", { reason: sig.reason });
+  if (sig.ok !== true) {
+    const reason = (sig as { reason: string }).reason;
+    return fail(reason === "secret_not_configured" ? 503 : 401, "INVALID_SIGNATURE", { reason });
+  }
   let event: InboundEvent;
   try { event = JSON.parse(rawBody); } catch { return fail(400, "BAD_JSON"); }
   if (event?.type !== "email.received" || !event.data?.email_id) return ok({ ignored: "event_type" });
