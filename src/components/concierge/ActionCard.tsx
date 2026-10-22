@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { localISODate } from "@/lib/localDate";
 import { readPriveSession } from "@/lib/priveSession";
 import { buildIcs, type ProposedAction, type CalendarEvent } from "../../../supabase/functions/concierge-chat/actions.ts";
+import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 
 // Tarjeta de acción de Iato (Concierge 2.0): "Iato propone, tú confirmas". El resumen lo arma el
 // servidor con los datos validados; al tocar Confirmar el servidor vuelve a validar permisos, viaje y
@@ -34,6 +35,8 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
   const [state, setState] = useState<State>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
+  // AUD-SEG-05: una clave por tarjeta; "Reintentar" manda la misma y el servidor no repite la acción.
+  const [idemKey] = useState(newIdemKey);
 
   const confirm = async () => {
     if (action.runs === "client") {
@@ -53,7 +56,7 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
       const ps = readPriveSession(sess.session?.user?.id)?.token;
       const { data, error } = await supabase.functions.invoke("concierge-chat", {
         headers: ps ? { "x-prive-session": ps } : undefined,
-        body: { mode: "action", action: { type: action.type, params: action.params }, trip_id: tripId ?? null, client_date: localISODate(), tz: browserTimeZone() },
+        body: { mode: "action", action: { type: action.type, params: action.params }, trip_id: tripId ?? null, client_date: localISODate(), tz: browserTimeZone(), idempotency_key: idemKey },
       });
       if (error) {
         const { readFunctionError } = await import("@/lib/functionErrors");

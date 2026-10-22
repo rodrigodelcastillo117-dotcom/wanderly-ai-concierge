@@ -16,6 +16,8 @@ export interface ExecDeps {
   db: any;
   callFunction: (name: string, body: unknown, headers?: Record<string, string>) => Promise<FnResponse>;
   priveSession?: string | null;
+  /** AUD-SEG-05: clave de idempotencia del cliente; se reenvía a concierge-action (no duplica la solicitud). */
+  idempotencyKey?: string | null;
 }
 
 export interface ExecResult { ok: boolean; message: string; code?: string; link?: string; data?: Record<string, unknown> }
@@ -116,6 +118,7 @@ export async function executeAction(type: unknown, params: unknown, ctx: ActionC
       const r = await d.callFunction("concierge-action", {
         type: typeMap[p.tipo] ?? "fixer_request", title: p.titulo, trip_id: p.trip_id ?? null,
         payload: { ...p, origen: "iato" },
+        ...(d.idempotencyKey ? { idempotency_key: d.idempotencyKey } : {}),
       });
       if (r.status !== 200 || !r.json?.ok) return fnError(r, "No pude enviar la solicitud al Fixer. Usa el botón Contactar Fixer.");
       const folio = String(r.json?.request?.id ?? "").slice(0, 8).toUpperCase();
@@ -135,6 +138,7 @@ export async function executeAction(type: unknown, params: unknown, ctx: ActionC
       const r = await d.callFunction("concierge-action", {
         type: "prive_request", title: p.nombre ? `Privé: ${p.nombre}` : "Solicitud Privé", trip_id: ctx.activeTripId,
         payload: { experience_id: p.experience_id, requested_for: p.fecha ? `${p.fecha}T20:00:00` : null, party_size: p.personas ?? null, preferences: p.preferencias ?? null, contact_method: "app" },
+        ...(d.idempotencyKey ? { idempotency_key: d.idempotencyKey } : {}),
       }, { "x-prive-session": d.priveSession });
       if (r.status !== 200 || !r.json?.ok) return fnError(r, "No pude enviar la solicitud Privé. Revisa que Privé siga desbloqueado.");
       return { ok: true, message: "Solicitud Privé enviada. Estado: solicitado. Aún no está reservado: el equipo te confirma cuando el lugar responda.", link: "/prive/solicitudes" };
