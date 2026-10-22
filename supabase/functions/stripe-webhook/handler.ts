@@ -14,6 +14,13 @@
 // - Una cuenta eliminada (deletion_requests) no recibe escrituras por eventos tardíos.
 
 import { handlePaymentEvent, PAYMENT_EVENTS, type PaymentDeps } from "./payments.ts";
+import {
+  invoiceNeedsRetrieve,
+  paidPeriodFromInvoice,
+  recordArgs,
+  type RecordPaidPeriodArgs,
+  type StripePaidInvoiceLike,
+} from "../_shared/prive-tenure.ts";
 
 export type StripeSubscriptionLike = {
   id: string;
@@ -62,6 +69,8 @@ export interface WebhookDeps extends Partial<Omit<PaymentDeps, "retrieveSubscrip
   retrieveSubscription(id: string): Promise<StripeSubscriptionLike>;
   retrieveInvoice(id: string): Promise<StripeInvoiceLike>;
   applySubscription(args: ApplyArgs): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  /** IATOS Privé: guarda el periodo PAGADO de la factura (antigüedad). Opcional: sin ella no se registra. */
+  recordPaidPeriod?(args: RecordPaidPeriodArgs): PromiseLike<{ data: unknown; error: { message: string } | null }>;
   // Reembolsos y disputas (payments.ts): si falta alguna dependencia y llega uno de esos eventos,
   // se responde 500 (Stripe reintenta) en lugar de ignorarlo.
 }
@@ -173,6 +182,11 @@ export async function handleStripeEvent(event: StripeEventLike, deps: WebhookDep
         if (!subId) return { status: 200, body: { received: true, ignored: "factura_sin_suscripcion" } };
         const sub = await deps.retrieveSubscription(subId);
         const r = await apply(deps, subscriptionArgs(sub, event.created), event.id);
+        if (deps.recordPaidPeriod && event.type !== "invoice.payment_failed") {
+          // Antigüedad de Privé: después de escribir la suscripción (así la base ya sabe de quién es).
+          const tenure = await recordTenure(deps, payload as StripePaidInvoiceLike, sub, event.id);
+          return { status: 200, body: { ...ok(r).body, tenure } };
+        }
         return ok(r);
       }
       case "charge.refunded":
@@ -186,6 +200,18 @@ export async function handleStripeEvent(event: StripeEventLike, deps: WebhookDep
     console.error("webhook handler error:", event.type, event.id, (e as Error).message);
     return { status: 500, body: { error: "handler_failed" } };
   }
+}
+
+/** Registra el periodo pagado de la factura (monto > 0). Un error de la base → 500 y Stripe reintenta. */
+async function recordTenure(deps: WebhookDeps, payload: StripePaidInvoiceLike, sub: StripeSubscriptionLike, eventId: string): Promise<string> {
+  let inv = payload;
+  if (invoiceNeedsRetrieve(inv)) inv = (await deps.retrieveInvoice(payload.id)) as unknown as StripePaidInvoiceLike;
+  const p = paidPeriodFromInvoice(inv);
+  if ("reason" in p) return p.reason;
+  const { data, error } = await deps.recordPaidPeriod!(recordArgs(p.period, sub.metadata?.supabase_user_id || null, "webhook"));
+  if (error) throw new Error(`prive_record_paid_period falló (${eventId}): ${error.message}`);
+  const r = (data ?? {}) as { recorded?: boolean; reason?: string };
+  return r.recorded ? "recorded" : (r.reason ?? "not_recorded");
 }
 
 function requirePaymentDeps(deps: WebhookDeps): PaymentDeps {
