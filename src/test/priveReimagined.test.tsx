@@ -308,6 +308,30 @@ describe("EXPLORE y universos", () => {
   });
 });
 
+describe("un solo botón de regresar en todo Privé (arriba a la izquierda)", () => {
+  // El dueño veía dos: "← IATOS" (barra) y "← IATOS Privé" (página). Ahora la barra tiene el único
+  // y sabe a dónde volver; ninguna página dibuja su propio "← …".
+  const arrows = (c: HTMLElement) => c.querySelectorAll("a svg.lucide-arrow-left").length;
+  it("portada y áreas principales: uno solo, que sale de Privé", async () => {
+    for (const [path, ready] of [["/prive/drops", "prive-drops-empty"], ["/prive/insider", "prive-insider-index"], ["/prive/explorar", "prive-twelve"]] as const) {
+      const { container, unmount } = renderAt(path);
+      await screen.findByTestId(ready);
+      expect(screen.getAllByTestId("prive-back")).toHaveLength(1);
+      expect(screen.getByTestId("prive-back")).toHaveAttribute("href", "/dashboard");
+      expect(arrows(container)).toBe(1);
+      unmount();
+    }
+  });
+  it("página interna: el mismo botón sube un nivel (universo → Explorar)", async () => {
+    const { container } = renderAt("/prive/universo/the_table?destino=paris");
+    await screen.findByTestId("prive-universe-hero");
+    const back = screen.getByTestId("prive-back");
+    expect(back).toHaveAttribute("href", "/prive/explorar");
+    expect(back).toHaveTextContent("Explorar");
+    expect(arrows(container)).toBe(1);
+  });
+});
+
 describe("MY PRIVÉ", () => {
   it("tarjeta, guardados con foto y las secciones de preferencias y seguridad", async () => {
     renderAt("/prive/mi");

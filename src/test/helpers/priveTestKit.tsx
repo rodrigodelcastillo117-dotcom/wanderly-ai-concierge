@@ -67,7 +67,9 @@ export const activeStatus = (over: Partial<PriveStatus> = {}): PriveStatus =>
     membership_status: "active",
     has_password: true,
     password_status: "active",
-    activated_at: "2026-10-22T18:30:00Z",
+    // Relativa a hoy: miembro activo desde hace 60 días (fuera de "Your World is Ready", que dura 30).
+    // Con una fecha fija, la prueba cambiaba de resultado el mismo día a las 18:30 UTC.
+    activated_at: new Date(Date.now() - 60 * 86_400_000).toISOString(),
     member_code: "IP-7KQM-X4TD",
     welcome_version_seen: 1,
     onboarding: { version: 1, step: 5, completed_at: "2026-10-22T18:40:00Z" },
