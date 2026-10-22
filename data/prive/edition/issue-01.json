@@ -1,0 +1,2491 @@
+{
+  "_comment": "THE PRIVATE EDITION · Nº 01 · Noviembre 2026. Fuente única del primer número: de aquí se genera la migración de siembra (scripts/edition/build-seed.mjs). Textos ORIGINALES redactados con asistencia de IA (Claude) a partir de las fuentes registradas; TODO nace en pending_review y no se publica hasta que el responsable editorial lo apruebe en /dashboard/admin/edicion. Fecha de cierre de investigación: 2026-10-22.",
+  "issue": {
+    "slug": "n01-noviembre-2026",
+    "number": 1,
+    "period_start": "2026-11-01",
+    "period_label": {
+      "es": "Noviembre 2026",
+      "en": "November 2026"
+    },
+    "title": {
+      "es": "La ciudad acelera",
+      "en": "The city accelerates"
+    },
+    "cover_line": {
+      "es": "Fórmula 1 y Día de Muertos en el mismo fin de semana · Mérida en el mapa de la guía · Mónaco después del Yacht Show",
+      "en": "Formula 1 and Day of the Dead on the same weekend · Mérida on the guide's map · Monaco after the Yacht Show"
+    },
+    "cover_image": "img_cdmx_angel_noche",
+    "cover_article": "cdmx-fin-de-semana-gran-premio",
+    "research_closed_at": "2026-10-22",
+    "status": "pending_review",
+    "plan": {
+      "frequency": {
+        "es": "Revista mensual. The World Brief se actualiza solo cuando hay fuentes nuevas verificadas; las oportunidades se actualizan según su vigencia, sin que eso cuente como número nuevo.",
+        "en": "Monthly magazine. The World Brief is updated only when there are new verified sources; opportunities are updated by validity, which does not count as a new issue."
+      },
+      "pillars": [
+        {
+          "es": "Portada: un acontecimiento con fecha cierta y acción real para el miembro (Gran Premio de la Ciudad de México).",
+          "en": "Cover: a dated event with a real action for the member (Mexico City Grand Prix)."
+        },
+        {
+          "es": "Reportajes: gastronomía y hoteles (Mérida y Guadalajara tras la Guía MICHELIN), náutica (Monaco Yacht Show).",
+          "en": "Features: dining and hotels (Mérida and Guadalajara after the MICHELIN Guide), yachting (Monaco Yacht Show)."
+        },
+        {
+          "es": "Breves con agenda: relojería (Watches and Wonders 2027), arte (Art Basel Miami Beach), golf (PGA Tour en Los Cabos).",
+          "en": "Short pieces with dates: watchmaking (Watches and Wonders 2027), art (Art Basel Miami Beach), golf (PGA Tour in Los Cabos)."
+        },
+        {
+          "es": "Explicadores (información, no asesoría): tasas del Banco de México; calendario europeo de la IA de alto riesgo.",
+          "en": "Explainers (information, not advice): Bank of Mexico rates; Europe's high-risk AI calendar."
+        },
+        {
+          "es": "The World Brief: seis hechos fechados con fuente primaria y corroboración.",
+          "en": "The World Brief: six dated facts with a primary source and corroboration."
+        }
+      ],
+      "not_covered": {
+        "es": "Este número no tiene todavía piezas de moda, belleza, superautos, aviación privada ni bienestar: preferimos un tema vacío a un texto sin fuentes. Quien los elija verá un aviso honesto en Mi Edición.",
+        "en": "This issue has no fashion, beauty, supercars, private aviation or wellness pieces yet: we prefer an empty topic to an unsourced text. Members who choose them will see an honest notice in My Edition."
+      },
+      "workflow": {
+        "es": "Investigación → fuentes → borrador asistido por IA → verificación → revisión editorial → maquetación → publicación. La IA redacta; no es autoridad factual.",
+        "en": "Research → sources → AI-assisted draft → verification → editorial review → layout → publication. AI drafts; it is not a factual authority."
+      }
+    }
+  },
+  "sources": [
+    {
+      "key": "f1_calendar_2026",
+      "kind": "fuente_primaria_oficial",
+      "entity": "Formula One World Championship Ltd. (formula1.com)",
+      "author": null,
+      "title": "F1 Schedule 2026",
+      "url": "https://www.formula1.com/en/racing/2026",
+      "published_at": null,
+      "consulted_at": "2026-10-22",
+      "data_used": "Ronda 19: Gran Premio de la Ciudad de México, 30 oct–1 nov 2026; EE. UU. 23–25 oct; São Paulo 6–8 nov.",
+      "reuse_rights": "Solo datos factuales citados con enlace. Textos, logotipos e imágenes de F1 con derechos reservados: no se reproducen.",
+      "attribution": "Fuente: Formula 1 (formula1.com)",
+      "distribution_restrictions": "No redistribuir contenido de la página; solo citar datos.",
+      "verification": "Consulta directa de la página oficial el 22-oct-2026."
+    },
+    {
+      "key": "f1_mexico_2026",
+      "kind": "fuente_primaria_oficial",
+      "entity": "Formula One World Championship Ltd. (formula1.com)",
+      "author": null,
+      "title": "Mexico City Grand Prix 2026 — horario y circuito",
+      "url": "https://www.formula1.com/en/racing/2026/mexico",
+      "published_at": null,
+      "consulted_at": "2026-10-22",
+      "data_used": "Horario de sesiones publicado en UTC (carrera 1 nov 20:00 UTC; calificación 31 oct 21:00 UTC; prácticas 30 oct 18:30 y 22:00, 31 oct 17:30), 71 vueltas, 4.304 km, 305.354 km, récord de vuelta 1:17.774 (Valtteri Bottas, 2021).",
+      "reuse_rights": "Datos factuales con enlace; sin reproducir textos ni imágenes.",
+      "attribution": "Fuente: Formula 1 (formula1.com)",
+      "distribution_restrictions": "Solo citar datos.",
+      "verification": "Consulta directa el 22-oct-2026. La conversión a hora del centro de México (UTC−6) es de la redacción; corroborada con el horario de DAZN (21:00 CET)."
+    },
+    {
+      "key": "mexicogp_home",
+      "kind": "fuente_primaria_oficial",
+      "entity": "MexicoGP · Corporación Interamericana de Entretenimiento (CIE), promotor del evento",
+      "author": null,
+      "title": "MexicoGP 2026 — boletos",
+      "url": "https://www.mexicogp.mx/",
+      "published_at": null,
+      "consulted_at": "2026-10-22",
+      "data_used": "Canal de boletos del promotor (enlaces a Ticketmaster: boletos generales, hospitalidades).",
+      "reuse_rights": "Datos factuales y enlace; marcas de F1 y del promotor con derechos reservados.",
+      "attribution": "Fuente: MexicoGP (CIE)",
+      "distribution_restrictions": "Solo enlace y datos.",
+      "verification": "Consulta directa el 22-oct-2026; el pie de página indica © 2026 CIE."
+    },
+    {
+      "key": "mexicogp_como_llegar",
+      "kind": "fuente_primaria_oficial",
+      "entity": "MexicoGP · CIE",
+      "author": null,
+      "title": "Cómo llegar al Autódromo Hermanos Rodríguez",
+      "url": "https://www.mexicogp.mx/como-llegar",
+      "published_at": null,
+      "consulted_at": "2026-10-22",
+      "data_used": "Metro Línea 9 (Velódromo, Ciudad Deportiva, Puebla); Metrobús Línea 2; autobuses perimetrales gratuitos con boleto de 7:00 a 20:00; Ticket2Ride $350 MXN por persona viaje redondo por día; acceso solo por la sección del boleto; recomendación de alejarse unas calles para pedir auto.",
+      "reuse_rights": "Datos factuales y una cita breve atribuida.",
+      "attribution": "Fuente: guía oficial MexicoGP",
+      "distribution_restrictions": "Solo citar.",
+      "verification": "Consulta directa el 22-oct-2026."
+    },
+    {
+      "key": "mercedes_altitud",
+      "kind": "material_comercial_proveedor",
+      "entity": "Mercedes-AMG Petronas F1 Team",
+      "author": null,
+      "title": "Mexico City Grand Prix — Everything you need to know",
+      "url": "https://www.mercedesamgf1.com/races/mexico-city-grand-prix-2024",
+      "published_at": null,
+      "consulted_at": "2026-10-22",
+      "data_used": "Altitud del circuito (unos 2,285 m; 'más de 2,200 m') y que es la sede más alta que visita el equipo.",
+      "reuse_rights": "Dato factual atribuido; sin reproducir texto ni imágenes.",
+      "attribution": "Fuente: Mercedes-AMG Petronas F1 Team",
+      "distribution_restrictions": "Solo citar.",
+      "verification": "Consulta directa el 22-oct-2026; la página es de la edición 2024 (dato geográfico estable); la página no muestra fecha de publicación."
+    },
+    {
+      "key": "expansion_desfile",
+      "kind": "medio_periodistico",
+      "entity": "Expansión Política",
+      "author": null,
+      "title": "Desfile de Día de Muertos CDMX: ruta, fecha y hora",
+      "url": "https://politica.expansion.mx/cdmx/2026/10/14/ruta-fecha-hora-tradicional-desfile-dia-de-muertos-cdmx",
+      "published_at": "2026-10-14",
+      "consulted_at": "2026-10-22",
+      "data_used": "Sábado 31 de octubre, 14:00; salida en Reforma a la altura de la Diana Cazadora, 5 de Mayo, llegada a la Plaza de la Constitución; diez años desde la primera edición; información del Gobierno de la CDMX.",
+      "reuse_rights": "Cita de hechos con atribución y enlace; no se reproduce el artículo.",
+      "attribution": "Fuente: Expansión",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; corroborado con Por Esto (17-oct-2026)."
+    },
+    {
+      "key": "porEsto_desfile",
+      "kind": "medio_periodistico",
+      "entity": "Por Esto!",
+      "author": null,
+      "title": "Desfile de Día de Muertos CDMX: fecha, horario y ruta",
+      "url": "https://www.poresto.com/entretenimiento/ocio/2026/10/17/desfile-dia-muertos-cdmx-fecha-horario-ruta-confirmada-recorrido-zocalo.html",
+      "published_at": "2026-10-17",
+      "consulted_at": "2026-10-22",
+      "data_used": "Corroboración: sábado 31 de octubre desde las 14:00, de la Diana Cazadora al Zócalo; acceso gratuito.",
+      "reuse_rights": "Cita de hechos con atribución.",
+      "attribution": "Fuente: Por Esto!",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "elrestaurante_michelin",
+      "kind": "medio_periodistico",
+      "entity": "El Restaurante",
+      "author": "Alfredo Espinola",
+      "title": "7 new MICHELIN Stars in Mexico",
+      "url": "https://elrestaurante.com/news/7-new-michelin-stars-in-mexico/",
+      "published_at": "2026-05-26",
+      "consulted_at": "2026-10-22",
+      "data_used": "Siete primeras estrellas (Gaba, La Once Mil, Huniik, barra de Huniik, Ixi'im, Alcalde, Xokol) con chefs; Pujol y Quintonil con dos estrellas; nuevas Estrellas Verdes (Damiana, Ixi'im, Xokol).",
+      "reuse_rights": "Cita de hechos con atribución; no se reproduce el artículo.",
+      "attribution": "Fuente: El Restaurante",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; lista corroborada con Riviera Maya News (21-may-2026). Los totales nacionales difieren entre medios y NO se publican."
+    },
+    {
+      "key": "rivieramaya_michelin",
+      "kind": "medio_periodistico",
+      "entity": "Riviera Maya News",
+      "author": null,
+      "title": "Michelin Guide awards first stars to seven restaurants in Jalisco, Yucatán and Mexico City",
+      "url": "https://www.rivieramayanews.mx/michelin-guide-awards-first-stars-to-seven-restaurants-in-jalisco-yucatan-and-mexico-city/",
+      "published_at": "2026-05-21",
+      "consulted_at": "2026-10-22",
+      "data_used": "Corroboración de las siete primeras estrellas y de su ubicación (Mérida, Chocholá, Guadalajara, Ciudad de México).",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: Riviera Maya News",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "adn40_ceremonia",
+      "kind": "medio_periodistico",
+      "entity": "ADN40",
+      "author": null,
+      "title": "Ceremonia Guía Michelin México 2026 en Jalisco",
+      "url": "https://www.adn40.mx/mexico/2026-03-25/ceremonia-guia-michelin-mexico-2026-jalisco/",
+      "published_at": "2026-03-25",
+      "consulted_at": "2026-10-22",
+      "data_used": "Ceremonia el miércoles 20 de mayo de 2026 en Guadalajara; estados nuevos: Jalisco, Puebla y Yucatán.",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: ADN40",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; la fecha coincide con Riviera Maya News."
+    },
+    {
+      "key": "michelin_keys_2026",
+      "kind": "fuente_primaria_oficial",
+      "entity": "Michelin (comunicado de prensa)",
+      "author": null,
+      "title": "MICHELIN Guide 2026 MICHELIN Key selection",
+      "url": "https://www.michelin.com/en/publications/products-and-services/michelin-guide-2026-michelin-key-selection",
+      "published_at": "2026-09-18",
+      "consulted_at": "2026-10-22",
+      "data_used": "470 hoteles nuevos en 79 destinos; total 2,832 (155 con tres Llaves, 657 con dos, 2,020 con una); Hotel Sevilla (Mérida) con su primera Llave por la restauración de un edificio histórico; Nekajui (Costa Rica) asciende a tres Llaves.",
+      "reuse_rights": "Comunicado de prensa: cita de datos con atribución.",
+      "attribution": "Fuente: Michelin",
+      "distribution_restrictions": "Solo enlace; no reproducir imágenes del comunicado.",
+      "verification": "Lectura directa el 22-oct-2026; cifras globales corroboradas con Outlook Traveller (19-sep-2026)."
+    },
+    {
+      "key": "outlook_keys",
+      "kind": "medio_periodistico",
+      "entity": "Outlook Traveller",
+      "author": "Rooplekha Das",
+      "title": "Michelin reveals its 2026 Key hotels, with 470 new additions worldwide",
+      "url": "https://www.outlooktraveller.com/News/michelin-reveals-its-2026-key-hotels-with-470-new-additions-worldwide",
+      "published_at": "2026-09-19",
+      "consulted_at": "2026-10-22",
+      "data_used": "Corroboración: 470 incorporaciones, 2,832 hoteles; Costa Rica con la única nueva propiedad de tres Llaves en América (Nekajui).",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: Outlook Traveller",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "mys_oficial",
+      "kind": "fuente_primaria_oficial",
+      "entity": "Monaco Yacht Show (organizador)",
+      "author": null,
+      "title": "Monaco Yacht Show",
+      "url": "https://www.monacoyachtshow.com/en/",
+      "published_at": null,
+      "consulted_at": "2026-10-22",
+      "data_used": "Más de 560 expositores; exhibición de 120 superyates; próxima edición del 22 al 25 de septiembre de 2027.",
+      "reuse_rights": "Datos factuales y enlace.",
+      "attribution": "Fuente: Monaco Yacht Show",
+      "distribution_restrictions": "Solo enlace; imágenes del organizador no autorizadas para este uso.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "yachtbuyer_mys",
+      "kind": "medio_periodistico",
+      "entity": "YachtBuyer",
+      "author": "Hermione Abadi",
+      "title": "Monaco Yacht Show 2026 opens with major debuts and a $2.5B brokerage fleet",
+      "url": "https://www.yachtbuyer.com/en/news/monaco-yacht-show-2026-opens-with-major-superyacht-debuts-and-a-high-value-fleet",
+      "published_at": "2026-09-23",
+      "consulted_at": "2026-10-22",
+      "data_used": "23–26 sep 2026 en Port Hercule; 117 superyates el día de apertura, 70 a la venta, ~2,500 millones de dólares en precios de lista; Leviathan (111 m, Oceanco), Nixie (102.4 m, Lürssen), Pangea (80 m, Amels), Silver Fox (72 m, Sanlorenzo), Amor à Vida (67.55 m, CRN, híbrido), Baglietto T60.",
+      "reuse_rights": "Cita de hechos con atribución.",
+      "attribution": "Fuente: YachtBuyer",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; fechas y escala corroboradas con el organizador y Monaco Life."
+    },
+    {
+      "key": "monacolife_mys",
+      "kind": "medio_periodistico",
+      "entity": "Monaco Life",
+      "author": "Cassandra Tanti",
+      "title": "Forty-three world premieres set for Monaco Yacht Show 2026",
+      "url": "https://monacolife.net/forty-three-world-premieres-set-for-monaco-yacht-show-2026/",
+      "published_at": "2026-07-23",
+      "consulted_at": "2026-10-22",
+      "data_used": "43 estrenos mundiales previstos; turnos de construcción comprometidos hasta 2028 y 2029.",
+      "reuse_rights": "Cita breve atribuida.",
+      "attribution": "Fuente: Monaco Life",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "ww_oficial",
+      "kind": "fuente_primaria_oficial",
+      "entity": "Watches and Wonders Geneva Foundation",
+      "author": null,
+      "title": "Watches and Wonders Geneva 2027",
+      "url": "https://www.watchesandwonders.com/",
+      "published_at": null,
+      "consulted_at": "2026-10-22",
+      "data_used": "Del 5 al 11 de abril de 2027; 75 marcas expositoras; 13 marcas nuevas.",
+      "reuse_rights": "Datos factuales y enlace.",
+      "attribution": "Fuente: Watches and Wonders",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "sjx_ww2027",
+      "kind": "medio_periodistico",
+      "entity": "Watches by SJX",
+      "author": null,
+      "title": "Watches & Wonders announces 2027 dates and new exhibitors",
+      "url": "https://watchesbysjx.com/2026/06/watches-wonders-2027-dates.html",
+      "published_at": "2026-06-23",
+      "consulted_at": "2026-10-22",
+      "data_used": "Sede Palexpo; lunes a jueves para profesionales, viernes a domingo con boleto para público; nuevos expositores Breitling, Gallet, Universal Genève y Damiani.",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: Watches by SJX",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "artbasel_mb",
+      "kind": "fuente_primaria_oficial",
+      "entity": "Art Basel",
+      "author": null,
+      "title": "Art Basel Miami Beach",
+      "url": "https://www.artbasel.com/miami-beach",
+      "published_at": null,
+      "consulted_at": "2026-10-22",
+      "data_used": "4–6 de diciembre de 2026, Miami Beach.",
+      "reuse_rights": "Datos factuales y enlace.",
+      "attribution": "Fuente: Art Basel",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "miamiliving_ab",
+      "kind": "medio_periodistico",
+      "entity": "Miami Living Magazine",
+      "author": null,
+      "title": "Art Basel Miami Beach 2026: the ultimate guide",
+      "url": "https://www.miamilivingmagazine.com/post/art-basel-miami-beach-2026-ultimate-guide",
+      "published_at": "2026-10-16",
+      "consulted_at": "2026-10-22",
+      "data_used": "Sede: Miami Beach Convention Center (1901 Convention Center Drive); días públicos 4–6 dic, 11:00–18:00; días por invitación desde el 2 dic.",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: Miami Living",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; la página muestra 'hace 6 días' (fecha aproximada)."
+    },
+    {
+      "key": "pgatour_wwt",
+      "kind": "fuente_primaria_oficial",
+      "entity": "PGA TOUR",
+      "author": null,
+      "title": "World Wide Technology Championship 2026",
+      "url": "https://www.pgatour.com/tournaments/2026/world-wide-technology-championship/R2026457/overview",
+      "published_at": null,
+      "consulted_at": "2026-10-22",
+      "data_used": "5–8 nov 2026; El Cardonal at Diamante, Los Cabos; bolsa de 6 millones de dólares; campeón defensor Ben Griffin (−29, 259).",
+      "reuse_rights": "Datos factuales y enlace.",
+      "attribution": "Fuente: PGA TOUR",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; fechas coinciden con Golf Channel."
+    },
+    {
+      "key": "banxico_anuncios",
+      "kind": "fuente_primaria_oficial",
+      "entity": "Banco de México",
+      "author": null,
+      "title": "Anuncios de las decisiones de política monetaria",
+      "url": "https://www.banxico.org.mx/publicaciones-y-prensa/anuncios-de-las-decisiones-de-politica-monetaria/anuncios-politica-monetaria-t.html",
+      "published_at": "2026-09-24",
+      "consulted_at": "2026-10-22",
+      "data_used": "2026: 5 feb sin cambio en 7.00%; 26 mar −25 pb; 7 may −25 pb; 25 jun, 6 ago y 24 sep sin cambio en 6.50%.",
+      "reuse_rights": "Información pública oficial; cita con atribución.",
+      "attribution": "Fuente: Banco de México",
+      "distribution_restrictions": "Ninguna para datos; enlazar al comunicado.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "bbva_agenda_2026",
+      "kind": "datos_publicos_autorizados",
+      "entity": "BBVA Research (con datos de Banco de México)",
+      "author": null,
+      "title": "Agenda Económica México – EEUU 2026",
+      "url": "https://www.bbvaresearch.com/wp-content/uploads/2026/03/AgendaEconomica_2026.pdf",
+      "published_at": "2026-03-01",
+      "consulted_at": "2026-10-22",
+      "data_used": "Calendario de anuncios de política monetaria de Banxico 2026: 5 nov y 17 dic, a las 13:00 de la Ciudad de México.",
+      "reuse_rights": "Documento público; cita de fechas con atribución.",
+      "attribution": "Fuente: BBVA Research, con datos de Banco de México",
+      "distribution_restrictions": "Solo citar.",
+      "verification": "PDF descargado y leído el 22-oct-2026; las fechas ya ocurridas coinciden con los anuncios oficiales de Banxico. Fecha de publicación aproximada (mes)."
+    },
+    {
+      "key": "klgates_omnibus",
+      "kind": "medio_periodistico",
+      "entity": "K&L Gates LLP (vía Mondaq)",
+      "author": "Sarah Pearce, Thomas Nietsch",
+      "title": "EU Digital Omnibus on AI enters into force",
+      "url": "https://www.mondaq.com/eu-digital-omnibus-on-ai-enters-into-force/1825722",
+      "published_at": "2026-08-03",
+      "consulted_at": "2026-10-22",
+      "data_used": "Reglamento (UE) 2026/1744 publicado en el DOUE el 24-jul-2026, en vigor el 27-jul-2026; alto riesgo del Anexo III pasa del 2-ago-2026 al 2-dic-2027; sistemas en productos regulados hasta el 2-ago-2028.",
+      "reuse_rights": "Cita de hechos con atribución.",
+      "attribution": "Fuente: K&L Gates (Mondaq)",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; corroborado con Sidley Austin (22-jun-2026). Se recomienda al editor confirmar en EUR-Lex antes de publicar."
+    },
+    {
+      "key": "sidley_omnibus",
+      "kind": "medio_periodistico",
+      "entity": "Sidley Austin LLP (Data Matters)",
+      "author": null,
+      "title": "EU lawmakers reach provisional agreement to delay key EU AI Act obligations",
+      "url": "https://datamatters.sidley.com/2026/06/22/eu-lawmakers-reach-provisional-agreement-to-delay-key-eu-ai-act-obligations/",
+      "published_at": "2026-06-22",
+      "consulted_at": "2026-10-22",
+      "data_used": "Acuerdo provisional del 7-may-2026; aprobación del Parlamento el 16-jun-2026; nuevas fechas 2-dic-2027 (Anexo III) y 2-ago-2028 (Anexo I); marcado de contenido generado por IA aplazado al 2-dic-2026 solo para sistemas ya en el mercado antes del 2-ago-2026.",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: Sidley Austin",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "inegi_evi_ago2026",
+      "kind": "fuente_primaria_oficial",
+      "entity": "INEGI",
+      "author": null,
+      "title": "Encuesta de Viajeros Internacionales (EVI), agosto de 2026 — Boletín 625/26",
+      "url": "https://www.inegi.org.mx/contenidos/saladeprensa/boletines/2026/ViajInternales/evi2026_10.pdf",
+      "published_at": "2026-10-14",
+      "consulted_at": "2026-10-22",
+      "data_used": "Agosto 2026: 7,985,700 viajeros internacionales (+1.3% anual); 3,768,784 turistas internacionales (−0.5%); gasto total +7.0%; gasto medio +5.6%; próxima publicación 12-nov-2026.",
+      "reuse_rights": "Información pública del INEGI; libre uso con cita de la fuente (términos de libre uso del INEGI).",
+      "attribution": "Fuente: INEGI, EVI",
+      "distribution_restrictions": "Ninguna con cita.",
+      "verification": "PDF oficial descargado y leído el 22-oct-2026; corroborado con La Crónica (14-oct-2026)."
+    },
+    {
+      "key": "cronica_inegi",
+      "kind": "medio_periodistico",
+      "entity": "La Crónica de Hoy",
+      "author": null,
+      "title": "México recibe 67.69 millones de viajeros internacionales de enero a agosto de 2026",
+      "url": "https://www.cronica.com.mx/nacional/2026/10/14/mexico-recibe-6769-millones-de-viajeros-internacionales-de-enero-a-agosto-de-2026/",
+      "published_at": "2026-10-14",
+      "consulted_at": "2026-10-22",
+      "data_used": "Corroboración de las cifras de agosto y del acumulado enero–agosto.",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: La Crónica",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Resultado de búsqueda con titular y fecha; las cifras usadas provienen del boletín oficial."
+    },
+    {
+      "key": "lvmh_q3_2026",
+      "kind": "fuente_primaria_oficial",
+      "entity": "LVMH Moët Hennessy Louis Vuitton (comunicado)",
+      "author": null,
+      "title": "Continued growth in the third quarter of 2026",
+      "url": "https://www.lvmh.com/en/publications/continued-growth-in-the-third-quarter-of-2026",
+      "published_at": "2026-10-12",
+      "consulted_at": "2026-10-22",
+      "data_used": "Ingresos de nueve meses: 57,100 millones de euros (−2% reportado, +2% orgánico); tercer trimestre +1% orgánico; Moda y Marroquinería −5%; Relojes y Joyería +6%; Distribución Selectiva +8%; Vinos y Licores +6%; menor dinamismo en China.",
+      "reuse_rights": "Comunicado financiero público; cita de cifras con atribución.",
+      "attribution": "Fuente: LVMH",
+      "distribution_restrictions": "Solo citar.",
+      "verification": "Lectura directa el 22-oct-2026; corroborado con FashionUnited."
+    },
+    {
+      "key": "fashionunited_lvmh",
+      "kind": "medio_periodistico",
+      "entity": "FashionUnited",
+      "author": null,
+      "title": "LVMH Q3 organic revenue growth slows amid China downturn",
+      "url": "https://fashionunited.uk/news/business/lvmh-q3-organic-revenue-growth-slows-amid-china-downturn/2026101390823",
+      "published_at": "2026-10-13",
+      "consulted_at": "2026-10-22",
+      "data_used": "Corroboración: +1% orgánico en el trimestre; 57,150 millones de euros en nueve meses; Moda y Marroquinería −5%.",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: FashionUnited",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; fecha inferida del identificador de la URL."
+    },
+    {
+      "key": "nobel_econ_2026",
+      "kind": "fuente_primaria_oficial",
+      "entity": "Fundación Nobel (nobelprize.org)",
+      "author": null,
+      "title": "The Sveriges Riksbank Prize in Economic Sciences in Memory of Alfred Nobel 2026",
+      "url": "https://www.nobelprize.org/prizes/economic-sciences/2026/summary/",
+      "published_at": "2026-10-12",
+      "consulted_at": "2026-10-22",
+      "data_used": "Laureados: Robert E. Hall y Michael Woodford; motivación: 'por los fundamentos microeconómicos de la estabilización macroeconómica'.",
+      "reuse_rights": "Cita de hechos con enlace.",
+      "attribution": "Fuente: The Nobel Prize",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "La página oficial respondió 403 al consultarla de forma automatizada; nombres y motivación corroborados con AAP (The Senior) y APA/Reuters del 12-oct-2026. El editor debe abrir el enlace oficial antes de aprobar."
+    },
+    {
+      "key": "aap_nobel",
+      "kind": "medio_periodistico",
+      "entity": "Australian Associated Press (vía The Senior)",
+      "author": null,
+      "title": "Americans Hall and Woodford win Nobel economics prize",
+      "url": "https://www.thesenior.com.au/story/9367197/americans-hall-and-woodford-win-nobel-economics-prize/",
+      "published_at": "2026-10-12",
+      "consulted_at": "2026-10-22",
+      "data_used": "Laureados, motivación textual y monto (12 millones de coronas suecas).",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: AAP",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; coincide con APA/Reuters."
+    },
+    {
+      "key": "apa_nobel",
+      "kind": "medio_periodistico",
+      "entity": "APA (con información de Reuters)",
+      "author": null,
+      "title": "2026 Nobel Prize in Economics laureates announced",
+      "url": "https://en.apa.az/europe/2026-nobel-prize-in-economics-laureates-announced-529516",
+      "published_at": "2026-10-12",
+      "consulted_at": "2026-10-22",
+      "data_used": "Corroboración de laureados, motivación y monto.",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: APA/Reuters",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "delta_jv",
+      "kind": "material_comercial_proveedor",
+      "entity": "Delta Air Lines (sala de prensa)",
+      "author": null,
+      "title": "U.S. Appeals Court vacates DOT order to unwind Delta/Aeromexico joint venture",
+      "url": "https://news.delta.com/us-appeals-court-vacates-dot-order-unwind-deltaaeromexico-joint-venture",
+      "published_at": "2026-08-21",
+      "consulted_at": "2026-10-22",
+      "data_used": "El Tribunal de Apelaciones del 11.º Circuito anuló la orden del DOT que terminaba la aprobación de la empresa conjunta Delta/Aeroméxico.",
+      "reuse_rights": "Comunicado de parte interesada; cita atribuida.",
+      "attribution": "Fuente: Delta Air Lines",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; corroborado con InsideFlyer (21-ago-2026). Es comunicado de una de las partes: se presenta como tal."
+    },
+    {
+      "key": "insideflyer_jv",
+      "kind": "medio_periodistico",
+      "entity": "InsideFlyer",
+      "author": null,
+      "title": "Delta and Aeromexico joint venture survives court challenge",
+      "url": "https://www.insideflyer.com/posts/delta-and-aeromexico-joint-venture-survives-court-challenge/",
+      "published_at": "2026-08-21",
+      "consulted_at": "2026-10-22",
+      "data_used": "El 11.º Circuito anuló la decisión del DOT; el DOT no explicó por qué redujo el análisis de 1,687 pares de ciudades a solo vuelos de la Ciudad de México; el DOT aún puede actuar con un caso nuevo.",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: InsideFlyer",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026."
+    },
+    {
+      "key": "md_tianguis2027",
+      "kind": "medio_periodistico",
+      "entity": "México Desconocido",
+      "author": null,
+      "title": "Presentan Tianguis Turístico México 2027: se celebrará en Puebla",
+      "url": "https://www.mexicodesconocido.com.mx/tianguis-turistico-mexico-2027.html",
+      "published_at": "2026-08-03",
+      "consulted_at": "2026-10-22",
+      "data_used": "Edición 51, del 9 al 12 de marzo de 2027 en Puebla (Centro Expositor); presentada el 3-ago-2026 por la Secretaría de Turismo y el gobierno de Puebla.",
+      "reuse_rights": "Cita de hechos.",
+      "attribution": "Fuente: México Desconocido",
+      "distribution_restrictions": "Solo enlace.",
+      "verification": "Lectura directa el 22-oct-2026; fechas coinciden con Milenio. Fecha de publicación aproximada (día de la presentación)."
+    }
+  ],
+  "images": [
+    {
+      "key": "img_cdmx_angel_noche",
+      "provider": "pexels",
+      "provider_id": "36642849",
+      "url": "https://images.pexels.com/photos/36642849/pexels-photo-36642849.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/dynamic-night-view-of-angel-of-independence-in-mexico-city-36642849/",
+      "photographer": "Israyosoy S.",
+      "photographer_url": "https://www.pexels.com/@israyosoy/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": true,
+      "depicts": {
+        "es": "El Ángel de la Independencia de noche con estelas de luz, Ciudad de México (fecha de la toma no indicada).",
+        "en": "The Angel of Independence at night with light trails, Mexico City (date of the shot not stated)."
+      },
+      "alt": {
+        "es": "Monumento del Ángel de la Independencia iluminado de noche, con estelas de luz de autos en Paseo de la Reforma",
+        "en": "The Angel of Independence lit at night, with car light trails on Paseo de la Reforma"
+      },
+      "focal": "50% 35%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026: título, autor, ubicación (Ciudad de México) y licencia 'Free' (Pexels License)."
+    },
+    {
+      "key": "img_f1_circuito",
+      "provider": "pexels",
+      "provider_id": "14079604",
+      "url": "https://images.pexels.com/photos/14079604/pexels-photo-14079604.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/formula-1-on-circuit-14079604/",
+      "photographer": "Jenda Kubeš",
+      "photographer_url": "https://www.pexels.com/@janncube/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": true,
+      "depicts": {
+        "es": "Un monoplaza de Fórmula 1 en movimiento frente al público en un circuito no identificado. No fue tomada en el Autódromo Hermanos Rodríguez ni implica relación con ningún equipo.",
+        "en": "A Formula 1 car in motion in front of spectators at an unidentified circuit. Not taken at the Autódromo Hermanos Rodríguez and implies no relationship with any team."
+      },
+      "alt": {
+        "es": "Monoplaza de Fórmula 1 desenfocado por la velocidad, con espectadores en primer plano",
+        "en": "Formula 1 car blurred by speed, with spectators in the foreground"
+      },
+      "focal": "50% 55%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026: autor, licencia Pexels. Se ven marcas en el auto: se rotula como ilustrativa y sin respaldo de marca."
+    },
+    {
+      "key": "img_desfile_muertos",
+      "provider": "pexels",
+      "provider_id": "29560099",
+      "url": "https://images.pexels.com/photos/29560099/pexels-photo-29560099.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/day-of-the-dead-parade-in-mexico-city-29560099/",
+      "photographer": "Mike The Fabrica",
+      "photographer_url": "https://www.pexels.com/@thefabricamike/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": true,
+      "depicts": {
+        "es": "Participante caracterizada de Catrina en un desfile de Día de Muertos de una edición anterior en la Ciudad de México.",
+        "en": "A participant dressed as La Catrina at a previous Day of the Dead parade in Mexico City."
+      },
+      "alt": {
+        "es": "Mujer con maquillaje de Catrina y tocado de flores rojas durante un desfile de Día de Muertos",
+        "en": "Woman with Catrina make-up and a red flower headdress during a Day of the Dead parade"
+      },
+      "focal": "50% 25%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026: ubicación CDMX, autor, licencia. Persona identificable en un evento público, retratada de forma respetuosa (licencia Pexels lo permite)."
+    },
+    {
+      "key": "img_merida_catedral",
+      "provider": "pexels",
+      "provider_id": "13688731",
+      "url": "https://images.pexels.com/photos/13688731/pexels-photo-13688731.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/cathedral-of-merida-yucatan-mexico-13688731/",
+      "photographer": "Edgar Rodrigo",
+      "photographer_url": "https://www.pexels.com/@edgar-rodrigo-235374482/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": false,
+      "depicts": {
+        "es": "Catedral de Mérida, Yucatán, vista desde la calle.",
+        "en": "Mérida Cathedral, Yucatán, seen from the street."
+      },
+      "alt": {
+        "es": "Torres de la Catedral de Mérida entre árboles, con una calle del centro histórico",
+        "en": "Towers of Mérida Cathedral among trees, with a street in the historic centre"
+      },
+      "focal": "50% 30%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026: ubicación Mérida, Yucatán; autor; licencia. Representa el lugar nombrado (no es ilustrativa)."
+    },
+    {
+      "key": "img_chile_nogada",
+      "provider": "pexels",
+      "provider_id": "27989311",
+      "url": "https://images.pexels.com/photos/27989311/pexels-photo-27989311.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/chile-en-nogada-27989311/",
+      "photographer": "Luis Merlos Vega",
+      "photographer_url": "https://www.pexels.com/@wicho/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": true,
+      "depicts": {
+        "es": "Un chile en nogada en plato de talavera, fotografiado en Lerma (Estado de México). No es un platillo de ninguno de los restaurantes mencionados.",
+        "en": "A chile en nogada on a Talavera plate, photographed in Lerma (State of Mexico). Not a dish from any restaurant mentioned."
+      },
+      "alt": {
+        "es": "Chile en nogada con granada y perejil sobre plato de talavera azul",
+        "en": "Chile en nogada with pomegranate and parsley on a blue Talavera plate"
+      },
+      "focal": "50% 50%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026: autor, ubicación, licencia."
+    },
+    {
+      "key": "img_monaco_puerto",
+      "provider": "pexels",
+      "provider_id": "32992932",
+      "url": "https://images.pexels.com/photos/32992932/pexels-photo-32992932.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/stunning-view-of-port-hercules-in-monaco-32992932/",
+      "photographer": "Reece t",
+      "photographer_url": "https://www.pexels.com/@reece-t-2153967253/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": false,
+      "depicts": {
+        "es": "Port Hercule, Mónaco, con yates atracados (fecha de la toma no indicada; no corresponde necesariamente al Yacht Show).",
+        "en": "Port Hercule, Monaco, with moored yachts (date of the shot not stated; not necessarily during the Yacht Show)."
+      },
+      "alt": {
+        "es": "Vista panorámica de Port Hercule en Mónaco con yates y montañas al fondo",
+        "en": "Panoramic view of Port Hercule in Monaco with yachts and mountains behind"
+      },
+      "focal": "50% 60%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026: ubicación Mónaco; autor; licencia."
+    },
+    {
+      "key": "img_yate_mar",
+      "provider": "pexels",
+      "provider_id": "9408818",
+      "url": "https://images.pexels.com/photos/9408818/pexels-photo-9408818.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/aerial-view-of-a-white-yacht-on-the-sea-9408818/",
+      "photographer": "Oriana Polito",
+      "photographer_url": "https://www.pexels.com/@oripolito/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": true,
+      "depicts": {
+        "es": "Un yate blanco en mar turquesa, ubicación no indicada. No es ninguno de los yates mencionados.",
+        "en": "A white yacht on turquoise water, location not stated. Not any of the yachts mentioned."
+      },
+      "alt": {
+        "es": "Vista aérea de un yate blanco sobre agua turquesa",
+        "en": "Aerial view of a white yacht on turquoise water"
+      },
+      "focal": "60% 50%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026."
+    },
+    {
+      "key": "img_reloj",
+      "provider": "pexels",
+      "provider_id": "1034065",
+      "url": "https://images.pexels.com/photos/1034065/pexels-photo-1034065.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/close-up-photography-of-wristwatch-1034065/",
+      "photographer": "Mat Brown",
+      "photographer_url": "https://www.pexels.com/@mat-brown-150387/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": true,
+      "depicts": {
+        "es": "Reloj analógico con números romanos y calendario; marca no identificada. No representa a ningún expositor.",
+        "en": "Analogue watch with Roman numerals and calendar; brand not identified. Does not represent any exhibitor."
+      },
+      "alt": {
+        "es": "Primer plano de un reloj de pulsera con esfera blanca, números romanos y fase lunar",
+        "en": "Close-up of a wristwatch with a white dial, Roman numerals and moon phase"
+      },
+      "focal": "30% 50%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026: sin marca descrita."
+    },
+    {
+      "key": "img_miami_ocean_drive",
+      "provider": "pexels",
+      "provider_id": "11457815",
+      "url": "https://images.pexels.com/photos/11457815/pexels-photo-11457815.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/landscape-photography-of-ocean-drive-miami-at-night-11457815/",
+      "photographer": "Luis Erives",
+      "photographer_url": "https://www.pexels.com/@luis-erives-1457235/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": true,
+      "depicts": {
+        "es": "Ocean Drive, Miami Beach, de noche. No es la sede de Art Basel ni una imagen de la feria.",
+        "en": "Ocean Drive, Miami Beach, at night. Not the Art Basel venue nor an image of the fair."
+      },
+      "alt": {
+        "es": "Hoteles art déco iluminados con neón en Ocean Drive, Miami Beach, de noche",
+        "en": "Neon-lit art deco hotels on Ocean Drive, Miami Beach, at night"
+      },
+      "focal": "50% 50%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026: ubicación Miami Beach; autor; licencia."
+    },
+    {
+      "key": "img_golf",
+      "provider": "pexels",
+      "provider_id": "6573665",
+      "url": "https://images.pexels.com/photos/6573665/pexels-photo-6573665.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/photo-of-golf-course-under-blue-sky-6573665/",
+      "photographer": "Kindel Media",
+      "photographer_url": "https://www.pexels.com/@kindelmedia/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": true,
+      "depicts": {
+        "es": "Un campo de golf con bunker y vista al mar; ubicación no indicada. No es El Cardonal at Diamante.",
+        "en": "A golf course with a bunker and sea view; location not stated. Not El Cardonal at Diamante."
+      },
+      "alt": {
+        "es": "Green y bunker de arena de un campo de golf frente al mar bajo cielo despejado",
+        "en": "Green and sand bunker of a seaside golf course under a clear sky"
+      },
+      "focal": "50% 60%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026."
+    },
+    {
+      "key": "img_cabo_costa",
+      "provider": "pexels",
+      "provider_id": "17415445",
+      "url": "https://images.pexels.com/photos/17415445/pexels-photo-17415445.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/aerial-view-of-the-coastline-of-cabo-san-lucas-in-mexico-17415445/",
+      "photographer": "Israel Torres",
+      "photographer_url": "https://www.pexels.com/@israwmx/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": false,
+      "depicts": {
+        "es": "Vista aérea de la costa de Cabo San Lucas, Baja California Sur.",
+        "en": "Aerial view of the Cabo San Lucas coastline, Baja California Sur."
+      },
+      "alt": {
+        "es": "Vista aérea de la costa de Cabo San Lucas con playa, hoteles y montañas",
+        "en": "Aerial view of the Cabo San Lucas coast with beach, hotels and mountains"
+      },
+      "focal": "50% 50%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026: ubicación Cabo San Lucas; autor; licencia."
+    },
+    {
+      "key": "img_ala_avion",
+      "provider": "pexels",
+      "provider_id": "6791741",
+      "url": "https://images.pexels.com/photos/6791741/pexels-photo-6791741.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "page_url": "https://www.pexels.com/photo/wing-of-aircraft-flying-over-clouds-at-sundown-6791741/",
+      "photographer": "Anastasiya Vragova",
+      "photographer_url": "https://www.pexels.com/@anastasiya-vragova-22991246/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "illustrative": true,
+      "depicts": {
+        "es": "Ala de un avión sobre nubes al atardecer vista desde la ventanilla; aerolínea no identificada.",
+        "en": "An aircraft wing over clouds at sunset seen from the window; airline not identified."
+      },
+      "alt": {
+        "es": "Ala de avión sobre un mar de nubes al atardecer, vista por la ventanilla",
+        "en": "Aircraft wing above a sea of clouds at sunset, seen through the window"
+      },
+      "focal": "50% 50%",
+      "allow_pdf": true,
+      "allow_offline": true,
+      "verification": "Página de Pexels consultada el 22-oct-2026."
+    }
+  ],
+  "articles": [
+    {
+      "slug": "carta-del-editor-n01",
+      "section": "carta",
+      "format": "letter",
+      "topics": [],
+      "kicker": {
+        "es": "Carta del editor",
+        "en": "Editor's letter"
+      },
+      "title": {
+        "es": "Una revista que se puede comprobar",
+        "en": "A magazine you can check"
+      },
+      "dek": {
+        "es": "Por qué el primer número de The Private Edition trae fechas, fuentes y pocas promesas.",
+        "en": "Why the first issue of The Private Edition comes with dates, sources and few promises."
+      },
+      "byline": {
+        "es": "Dirección editorial de IATOS Privé · borrador pendiente de firma",
+        "en": "IATOS Privé editorial direction · draft pending signature"
+      },
+      "hero_image": null,
+      "fact_status": "editorial",
+      "sensitive": false,
+      "fact_date": null,
+      "valid_until": null,
+      "destinations": [],
+      "sources": [],
+      "body": [
+        {
+          "t": "p",
+          "es": "Bienvenido al primer número de The Private Edition. Lo pensamos como una revista y no como un feed: tiene portada, índice, reportajes, breves y un cierre. Y tiene una regla que nos impusimos antes de escribir la primera línea: todo lo que afirmamos se puede comprobar.",
+          "en": "Welcome to the first issue of The Private Edition. We designed it as a magazine, not a feed: it has a cover, a table of contents, features, short pieces and a closing page. And it has a rule we set before writing the first line: everything we state can be checked."
+        },
+        {
+          "t": "p",
+          "es": "Cada texto termina con sus fuentes, la fecha en que las consultamos y lo que tomamos de ellas. Las fotografías llevan crédito y licencia; cuando una imagen es ilustrativa —un yate que no es el yate del que hablamos, un plato que no es de ese restaurante— lo decimos debajo de la foto.",
+          "en": "Every story ends with its sources, the date we consulted them and what we took from them. Photographs carry credit and licence; when an image is illustrative —a yacht that is not the yacht we write about, a dish that is not from that restaurant— we say so under the photo."
+        },
+        {
+          "t": "quote",
+          "es": "Preferimos una sección vacía a una página sin fuentes.",
+          "en": "We would rather have an empty section than a page without sources."
+        },
+        {
+          "t": "p",
+          "es": "Los borradores se preparan con ayuda de inteligencia artificial. La IA redacta; no decide qué es verdad. Un editor humano revisa, corrige y aprueba cada pieza antes de que llegue a usted, y si después encontramos un error, la corrección queda visible con su fecha.",
+          "en": "Drafts are prepared with the help of artificial intelligence. AI drafts; it does not decide what is true. A human editor reviews, corrects and approves every piece before it reaches you, and if we later find a mistake, the correction stays visible with its date."
+        },
+        {
+          "t": "p",
+          "es": "Este número se llama «La ciudad acelera» porque a finales de octubre la Ciudad de México recibe, el mismo fin de semana, a la Fórmula 1 y su desfile de Día de Muertos. También viajamos a Mérida y Guadalajara, que la Guía MICHELIN incorporó este año, y a Mónaco, donde terminó la 35.ª edición del Yacht Show. Cuando una historia puede convertirse en un plan, le ofrecemos el siguiente paso: explorar el destino en Privé, preguntarle a Iato o planear el viaje. Nunca le prometeremos una mesa o un lugar que no hayamos confirmado.",
+          "en": "This issue is called 'The city accelerates' because at the end of October Mexico City hosts, on the same weekend, Formula 1 and its Day of the Dead parade. We also travel to Mérida and Guadalajara, which the MICHELIN Guide added this year, and to Monaco, where the 35th Yacht Show has just closed. When a story can become a plan, we offer the next step: explore the destination in Privé, ask Iato or plan the trip. We will never promise you a table or a seat we have not confirmed."
+        },
+        {
+          "t": "p",
+          "es": "Su edición es suya: elija temas, ordene secciones, descárguela en PDF o para leer sin conexión en el avión. La revista es la misma para todos los miembros; lo que cambia es la selección y el orden, que usted controla.",
+          "en": "Your edition is yours: choose topics, reorder sections, download it as a PDF or for offline reading on the plane. The magazine is the same for every member; what changes is the selection and the order, which you control."
+        }
+      ],
+      "actions": []
+    },
+    {
+      "slug": "cdmx-fin-de-semana-gran-premio",
+      "section": "portada",
+      "format": "feature",
+      "topics": [
+        "formula_1",
+        "deportes",
+        "mexico",
+        "eventos_internacionales",
+        "cultura",
+        "experiencias_extraordinarias"
+      ],
+      "kicker": {
+        "es": "Portada · Fórmula 1 · México",
+        "en": "Cover · Formula 1 · Mexico"
+      },
+      "title": {
+        "es": "La ciudad acelera",
+        "en": "The city accelerates"
+      },
+      "dek": {
+        "es": "Del 30 de octubre al 1 de noviembre, el Gran Premio de la Ciudad de México y el desfile de Día de Muertos comparten fin de semana. Fechas, horarios y traslados, con fuentes oficiales.",
+        "en": "From 30 October to 1 November, the Mexico City Grand Prix and the Day of the Dead parade share a weekend. Dates, times and transport, from official sources."
+      },
+      "byline": {
+        "es": "Redacción IATOS Privé",
+        "en": "IATOS Privé newsroom"
+      },
+      "hero_image": "img_cdmx_angel_noche",
+      "fact_status": "mixed",
+      "sensitive": false,
+      "fact_date": "2026-10-22",
+      "valid_until": "2026-11-02",
+      "destinations": [
+        "cdmx"
+      ],
+      "sources": [
+        {
+          "key": "f1_calendar_2026",
+          "used_for": "Fechas y ronda"
+        },
+        {
+          "key": "f1_mexico_2026",
+          "used_for": "Horario y datos del circuito"
+        },
+        {
+          "key": "mercedes_altitud",
+          "used_for": "Altitud"
+        },
+        {
+          "key": "mexicogp_como_llegar",
+          "used_for": "Traslados"
+        },
+        {
+          "key": "mexicogp_home",
+          "used_for": "Canal oficial de boletos"
+        },
+        {
+          "key": "expansion_desfile",
+          "used_for": "Desfile: fecha, hora y ruta"
+        },
+        {
+          "key": "porEsto_desfile",
+          "used_for": "Desfile: corroboración y gratuidad"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "El calendario oficial de la Fórmula 1 para 2026 sitúa el Gran Premio de la Ciudad de México como la ronda 19 de la temporada: del viernes 30 de octubre al domingo 1 de noviembre, en el Autódromo Hermanos Rodríguez. Llega una semana después del Gran Premio de Estados Unidos (23 al 25 de octubre) y una antes del de São Paulo (6 al 8 de noviembre).",
+          "en": "Formula 1's official 2026 calendar places the Mexico City Grand Prix as round 19 of the season: Friday 30 October to Sunday 1 November, at the Autódromo Hermanos Rodríguez. It comes a week after the United States Grand Prix (23–25 October) and a week before São Paulo (6–8 November)."
+        },
+        {
+          "t": "p",
+          "es": "El trazado mide 4.304 kilómetros y la carrera se disputa a 71 vueltas, 305.354 kilómetros en total, según la ficha oficial. El récord de vuelta, 1:17.774, es de Valtteri Bottas desde 2021. La altitud explica buena parte de su carácter: el equipo Mercedes la sitúa en unos 2,285 metros sobre el nivel del mar y la describe como la sede más alta que visita en el año.",
+          "en": "The track is 4.304 kilometres long and the race runs over 71 laps, 305.354 kilometres in all, according to the official data sheet. The lap record, 1:17.774, has belonged to Valtteri Bottas since 2021. Altitude explains much of its character: the Mercedes team puts it at about 2,285 metres above sea level and describes it as the highest venue it visits all year."
+        },
+        {
+          "t": "facts",
+          "title": {
+            "es": "El fin de semana, en hora del centro de México",
+            "en": "The weekend, in Central Mexico time"
+          },
+          "items": [
+            {
+              "label": {
+                "es": "Viernes 30 oct",
+                "en": "Fri 30 Oct"
+              },
+              "value": {
+                "es": "Práctica 1, 12:30 · Práctica 2, 16:00",
+                "en": "Practice 1, 12:30 · Practice 2, 16:00"
+              }
+            },
+            {
+              "label": {
+                "es": "Sábado 31 oct",
+                "en": "Sat 31 Oct"
+              },
+              "value": {
+                "es": "Práctica 3, 11:30 · Calificación, 15:00",
+                "en": "Practice 3, 11:30 · Qualifying, 15:00"
+              }
+            },
+            {
+              "label": {
+                "es": "Domingo 1 nov",
+                "en": "Sun 1 Nov"
+              },
+              "value": {
+                "es": "Carrera, 14:00",
+                "en": "Race, 14:00"
+              }
+            },
+            {
+              "label": {
+                "es": "Nota",
+                "en": "Note"
+              },
+              "value": {
+                "es": "F1 publica el horario en UTC; la conversión a UTC−6 es nuestra. Confírmelo en la app oficial el día del evento.",
+                "en": "F1 publishes times in UTC; the conversion to UTC−6 is ours. Confirm on the official app on the day."
+              }
+            }
+          ]
+        },
+        {
+          "t": "h",
+          "es": "Cómo llegar sin perder la tarde",
+          "en": "Getting there without losing the afternoon"
+        },
+        {
+          "t": "p",
+          "es": "La guía oficial del promotor recomienda el transporte público: la Línea 9 del Metro, con las estaciones Velódromo, Ciudad Deportiva y Puebla a poca distancia de las puertas, y la Línea 2 del Metrobús. Dentro del perímetro circulan autobuses gratuitos entre accesos, de 7:00 a 20:00, para quien muestra su boleto. También existe un servicio privado, Ticket2Ride, con salidas desde zonas como Condesa, Santa Fe e Interlomas; el precio publicado es de 350 pesos por persona, viaje redondo, por cada día de evento.",
+          "en": "The promoter's official guide recommends public transport: Metro Line 9, with Velódromo, Ciudad Deportiva and Puebla stations a short walk from the gates, and Metrobús Line 2. Inside the perimeter, free buses run between gates from 7:00 to 20:00 for ticket holders. There is also a private shuttle, Ticket2Ride, departing from areas such as Condesa, Santa Fe and Interlomas; the published price is 350 pesos per person, return, per event day."
+        },
+        {
+          "t": "quote",
+          "es": "Los accesos sólo serán permitidos en la sección de tu boleto.",
+          "en": "Entry is only allowed through the section on your ticket.",
+          "cite": {
+            "es": "Guía oficial MexicoGP",
+            "en": "Official MexicoGP guide"
+          }
+        },
+        {
+          "t": "p",
+          "es": "Para el regreso, la misma guía sugiere caminar unas calles antes de pedir un auto por aplicación, porque la demanda y los cierres viales se concentran al terminar la carrera.",
+          "en": "For the return, the same guide suggests walking a few blocks before ordering a ride-hailing car, because demand and road closures peak when the race ends."
+        },
+        {
+          "t": "h",
+          "es": "El sábado, la ciudad también celebra",
+          "en": "On Saturday, the city also celebrates"
+        },
+        {
+          "t": "p",
+          "es": "El sábado 31 de octubre, el mismo día de la calificación, el Gobierno de la Ciudad de México programó el Gran Desfile de Día de Muertos a las 14:00. Saldrá de Paseo de la Reforma a la altura de la Glorieta de la Diana Cazadora, seguirá hacia el Centro Histórico por la calle 5 de Mayo y llegará a la Plaza de la Constitución, según la información difundida por la administración capitalina y recogida por Expansión y Por Esto. El acceso es gratuito y este año se cumplen diez años de la primera edición. La ruta definitiva y los cierres viales los publica la Secretaría de Seguridad Ciudadana.",
+          "en": "On Saturday 31 October, qualifying day, Mexico City's government scheduled the Grand Day of the Dead Parade for 14:00. It will start on Paseo de la Reforma at the Diana Cazadora roundabout, head into the Historic Centre along 5 de Mayo street and finish at the Plaza de la Constitución, according to information released by the city government and reported by Expansión and Por Esto. Admission is free, and this year marks ten years since the first parade. The final route and road closures are published by the city's Public Security Secretariat."
+        },
+        {
+          "t": "note",
+          "kind": "analysis",
+          "es": "Análisis editorial: el desfile (14:00, centro de la ciudad) y la calificación (15:00, oriente de la ciudad) se cruzan. Quien quiera ambos tendrá que elegir: ver el inicio del desfile en Reforma o llegar con tiempo al autódromo. Con cierres viales en Reforma, el Metro es la apuesta más predecible.",
+          "en": "Editorial analysis: the parade (14:00, city centre) and qualifying (15:00, east of the city) overlap. Anyone wanting both will have to choose: see the start of the parade on Reforma or arrive early at the circuit. With road closures on Reforma, the Metro is the most predictable bet."
+        },
+        {
+          "t": "img",
+          "image": "img_desfile_muertos",
+          "size": "half"
+        },
+        {
+          "t": "h",
+          "es": "Lo que no le prometemos",
+          "en": "What we do not promise"
+        },
+        {
+          "t": "p",
+          "es": "IATOS no vende boletos para el Gran Premio ni tiene acuerdos con el promotor. La venta oficial está en los canales que enlaza MexicoGP. Precios y disponibilidad cambian a diario, por eso no los publicamos aquí: si quiere organizar el fin de semana, Iato puede ayudarle a armar el plan con lo que sí está confirmado.",
+          "en": "IATOS does not sell Grand Prix tickets and has no agreement with the promoter. Official sales are on the channels linked by MexicoGP. Prices and availability change daily, so we do not publish them here: if you want to organise the weekend, Iato can help you build the plan with what is actually confirmed."
+        },
+        {
+          "t": "img",
+          "image": "img_f1_circuito",
+          "size": "full"
+        }
+      ],
+      "actions": [
+        {
+          "kind": "explore_destination",
+          "target": "cdmx",
+          "label": {
+            "es": "Explorar Ciudad de México en Privé",
+            "en": "Explore Mexico City in Privé"
+          }
+        },
+        {
+          "kind": "ask_iato",
+          "prompt": {
+            "es": "Quiero organizar el fin de semana del Gran Premio de la Ciudad de México (30 oct–1 nov). Ayúdame con traslados y una cena, sin inventar disponibilidad.",
+            "en": "I want to organise the Mexico City Grand Prix weekend (30 Oct–1 Nov). Help me with transport and a dinner, without inventing availability."
+          },
+          "label": {
+            "es": "Organizar el fin de semana con Iato",
+            "en": "Plan the weekend with Iato"
+          }
+        },
+        {
+          "kind": "plan_trip",
+          "target": "Ciudad de México",
+          "label": {
+            "es": "Planear un viaje a la Ciudad de México",
+            "en": "Plan a trip to Mexico City"
+          }
+        },
+        {
+          "kind": "official_link",
+          "url": "https://www.mexicogp.mx/",
+          "label": {
+            "es": "Boletos y guía oficial (MexicoGP)",
+            "en": "Tickets and official guide (MexicoGP)"
+          }
+        }
+      ]
+    },
+    {
+      "slug": "merida-guadalajara-mesa-mexicana",
+      "section": "reportajes",
+      "format": "feature",
+      "topics": [
+        "gastronomia",
+        "hoteles_y_villas",
+        "mexico",
+        "arquitectura_y_diseno",
+        "viajes_internacionales"
+      ],
+      "kicker": {
+        "es": "Gastronomía · Hoteles · México",
+        "en": "Dining · Hotels · Mexico"
+      },
+      "title": {
+        "es": "El sureste entra al mapa",
+        "en": "The southeast joins the map"
+      },
+      "dek": {
+        "es": "La Guía MICHELIN sumó Jalisco, Puebla y Yucatán en mayo; en septiembre, un hotel de Mérida recibió su primera Llave. Qué cambió y cómo leerlo antes de reservar.",
+        "en": "The MICHELIN Guide added Jalisco, Puebla and Yucatán in May; in September, a Mérida hotel received its first Key. What changed and how to read it before booking."
+      },
+      "byline": {
+        "es": "Redacción IATOS Privé",
+        "en": "IATOS Privé newsroom"
+      },
+      "hero_image": "img_merida_catedral",
+      "fact_status": "mixed",
+      "sensitive": false,
+      "fact_date": "2026-09-18",
+      "valid_until": null,
+      "destinations": [
+        "merida",
+        "guadalajara",
+        "cdmx"
+      ],
+      "sources": [
+        {
+          "key": "adn40_ceremonia",
+          "used_for": "Fecha, sede y estados nuevos"
+        },
+        {
+          "key": "elrestaurante_michelin",
+          "used_for": "Lista de estrellas y chefs"
+        },
+        {
+          "key": "rivieramaya_michelin",
+          "used_for": "Corroboración de la lista"
+        },
+        {
+          "key": "michelin_keys_2026",
+          "used_for": "Llaves 2026 y Hotel Sevilla"
+        },
+        {
+          "key": "outlook_keys",
+          "used_for": "Corroboración de cifras globales"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "El miércoles 20 de mayo de 2026, en Guadalajara, la Guía MICHELIN presentó su selección mexicana con tres estados que no estaban en el mapa: Jalisco, Puebla y Yucatán. La noche dejó siete restaurantes con su primera estrella, según el recuento de El Restaurante, coincidente con el de Riviera Maya News.",
+          "en": "On Wednesday 20 May 2026, in Guadalajara, the MICHELIN Guide presented its Mexican selection with three states that were not on the map: Jalisco, Puebla and Yucatán. The night left seven restaurants with their first star, according to El Restaurante's count, which matches Riviera Maya News."
+        },
+        {
+          "t": "facts",
+          "title": {
+            "es": "Primeras estrellas de 2026",
+            "en": "First stars of 2026"
+          },
+          "items": [
+            {
+              "label": {
+                "es": "Mérida",
+                "en": "Mérida"
+              },
+              "value": {
+                "es": "Huniik y la barra de Huniik (chef Roberto Solís)",
+                "en": "Huniik and the Huniik bar (chef Roberto Solís)"
+              }
+            },
+            {
+              "label": {
+                "es": "Chocholá, Yucatán",
+                "en": "Chocholá, Yucatán"
+              },
+              "value": {
+                "es": "Ixi'im (chef Luis Ronzón)",
+                "en": "Ixi'im (chef Luis Ronzón)"
+              }
+            },
+            {
+              "label": {
+                "es": "Guadalajara",
+                "en": "Guadalajara"
+              },
+              "value": {
+                "es": "Alcalde (Paco Ruano) · Xokol (Óscar Segundo y Xrysw Ruelas)",
+                "en": "Alcalde (Paco Ruano) · Xokol (Óscar Segundo and Xrysw Ruelas)"
+              }
+            },
+            {
+              "label": {
+                "es": "Ciudad de México",
+                "en": "Mexico City"
+              },
+              "value": {
+                "es": "Gaba (chef Víctor Toriz) · La Once Mil",
+                "en": "Gaba (chef Víctor Toriz) · La Once Mil"
+              }
+            }
+          ]
+        },
+        {
+          "t": "p",
+          "es": "En la cima no hubo cambios: Pujol, de Enrique Olvera, y Quintonil, de Jorge Vallejo, ambos en la Ciudad de México, conservaron sus dos estrellas. Xokol e Ixi'im recibieron además una Estrella Verde, la distinción que la guía reserva a prácticas sostenibles, igual que Damiana, en el Valle de Guadalupe.",
+          "en": "At the top nothing changed: Enrique Olvera's Pujol and Jorge Vallejo's Quintonil, both in Mexico City, kept their two stars. Xokol and Ixi'im also received a Green Star, the distinction the guide reserves for sustainable practices, as did Damiana in the Valle de Guadalupe."
+        },
+        {
+          "t": "note",
+          "kind": "context",
+          "es": "Los medios no coinciden en el total nacional de restaurantes con estrella después de la ceremonia; por eso no lo publicamos. Consulte la selección vigente en el sitio oficial de la guía.",
+          "en": "Outlets disagree on the national total of starred restaurants after the ceremony, so we do not publish it. Check the current selection on the guide's official site."
+        },
+        {
+          "t": "quote",
+          "es": "Una estrella reconoce una cocina; el viaje se decide por la ciudad entera.",
+          "en": "A star recognises a kitchen; the trip is decided by the whole city."
+        },
+        {
+          "t": "h",
+          "es": "La Llave de Mérida",
+          "en": "Mérida's Key"
+        },
+        {
+          "t": "p",
+          "es": "Cuatro meses después, el 18 de septiembre, Michelin publicó su selección mundial de hoteles con Llaves para 2026: 470 incorporaciones en 79 destinos y un total de 2,832 hoteles, de los cuales 155 tienen tres Llaves. En su comunicado, la compañía destaca en México a Hotel Sevilla, en Mérida, que recibe su primera Llave por la restauración creativa de un edificio histórico.",
+          "en": "Four months later, on 18 September, Michelin published its worldwide 2026 hotel Key selection: 470 additions across 79 destinations and 2,832 hotels in total, 155 of them with three Keys. In its press release, the company singles out Hotel Sevilla in Mérida, which receives its first Key for the creative restoration of a historic building."
+        },
+        {
+          "t": "p",
+          "es": "En el continente, la única propiedad nueva con tres Llaves fue Nekajui, a Ritz-Carlton Reserve, en Costa Rica, que subió desde dos, según el mismo comunicado y la cobertura de Outlook Traveller.",
+          "en": "In the Americas, the only new three-Key property was Nekajui, a Ritz-Carlton Reserve, in Costa Rica, promoted from two, according to the same release and Outlook Traveller's coverage."
+        },
+        {
+          "t": "img",
+          "image": "img_chile_nogada",
+          "size": "half"
+        },
+        {
+          "t": "note",
+          "kind": "analysis",
+          "es": "Lectura editorial: en cinco meses, Mérida sumó estrellas para Huniik y una primera Llave hotelera. Para un viaje de fin de semana, la ciudad ofrece hoy una combinación de mesa y hotel reconocidos que antes había que buscar en otras capitales.",
+          "en": "Editorial reading: in five months, Mérida gained stars for Huniik and a first hotel Key. For a weekend trip, the city now offers a combination of recognised table and hotel that used to require other capitals."
+        },
+        {
+          "t": "h",
+          "es": "Antes de reservar",
+          "en": "Before booking"
+        },
+        {
+          "t": "p",
+          "es": "Una distinción no garantiza mesa ni habitación. Reserve por los canales oficiales de cada restaurante y hotel; IATOS no tiene acuerdos con ninguno de los establecimientos mencionados. Si quiere armar el viaje, en Privé puede explorar Mérida y Guadalajara y pedirle a Iato que verifique el método de reserva de cada lugar.",
+          "en": "A distinction does not guarantee a table or a room. Book through each restaurant's and hotel's official channels; IATOS has no agreement with any of the establishments mentioned. To build the trip, you can explore Mérida and Guadalajara in Privé and ask Iato to check each place's booking method."
+        }
+      ],
+      "actions": [
+        {
+          "kind": "explore_destination",
+          "target": "merida",
+          "label": {
+            "es": "Explorar Mérida en Privé",
+            "en": "Explore Mérida in Privé"
+          }
+        },
+        {
+          "kind": "explore_destination",
+          "target": "guadalajara",
+          "label": {
+            "es": "Explorar Guadalajara en Privé",
+            "en": "Explore Guadalajara in Privé"
+          }
+        },
+        {
+          "kind": "explore_universe",
+          "target": "the_table",
+          "label": {
+            "es": "THE TABLE · cocina con fuentes",
+            "en": "THE TABLE · sourced dining"
+          }
+        },
+        {
+          "kind": "restaurants",
+          "target": "Mérida",
+          "label": {
+            "es": "Buscar restaurante y cómo reservar en Mérida",
+            "en": "Find a restaurant and how to book in Mérida"
+          }
+        },
+        {
+          "kind": "hotels",
+          "target": "Mérida",
+          "label": {
+            "es": "Comparar hoteles verificables en Mérida",
+            "en": "Compare verifiable hotels in Mérida"
+          }
+        }
+      ]
+    },
+    {
+      "slug": "monaco-yacht-show-2026",
+      "section": "reportajes",
+      "format": "feature",
+      "topics": [
+        "yates_y_embarcaciones",
+        "eventos_internacionales",
+        "experiencias_extraordinarias",
+        "viajes_internacionales"
+      ],
+      "kicker": {
+        "es": "Yates · Mónaco",
+        "en": "Yachts · Monaco"
+      },
+      "title": {
+        "es": "Port Hercule, en septiembre",
+        "en": "Port Hercule, in September"
+      },
+      "dek": {
+        "es": "La 35.ª edición del Monaco Yacht Show reunió 117 superyates el día de apertura y ya tiene fecha para 2027. Lo que se vio y lo que sigue.",
+        "en": "The 35th Monaco Yacht Show brought 117 superyachts together on opening day and already has dates for 2027. What was on show and what comes next."
+      },
+      "byline": {
+        "es": "Redacción IATOS Privé",
+        "en": "IATOS Privé newsroom"
+      },
+      "hero_image": "img_monaco_puerto",
+      "fact_status": "mixed",
+      "sensitive": false,
+      "fact_date": "2026-09-23",
+      "valid_until": null,
+      "destinations": [
+        "mc"
+      ],
+      "sources": [
+        {
+          "key": "mys_oficial",
+          "used_for": "Escala y fechas 2027"
+        },
+        {
+          "key": "yachtbuyer_mys",
+          "used_for": "Flota y estrenos"
+        },
+        {
+          "key": "monacolife_mys",
+          "used_for": "Estrenos previstos y turnos de construcción"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "Del 23 al 26 de septiembre de 2026, Port Hercule recibió la 35.ª edición del Monaco Yacht Show. El organizador anuncia más de 560 expositores y una exhibición de 120 superyates; el día de apertura, YachtBuyer contó 117 en el agua, 70 de ellos a la venta, con alrededor de 2,500 millones de dólares en precios de lista.",
+          "en": "From 23 to 26 September 2026, Port Hercule hosted the 35th Monaco Yacht Show. The organiser lists more than 560 exhibitors and a display of 120 superyachts; on opening day, YachtBuyer counted 117 on the water, 70 of them for sale, with around 2.5 billion dollars in asking prices."
+        },
+        {
+          "t": "p",
+          "es": "La pieza más esperada fue Nixie, de 102.4 metros, construida por Lürssen, en su debut mundial. Junto a ella se presentaron el Pangea de Amels (80 metros, el primer Amels 80 que se muestra en un salón), el Silver Fox de Sanlorenzo (72 metros, el primer 74Steel), Amor à Vida de CRN (67.55 metros, el primer superyate híbrido del astillero) y el Baglietto T60, el más grande que ha construido la marca. El yate más grande del puerto fue Leviathan, de 111 metros, entregado por Oceanco.",
+          "en": "The most anticipated arrival was Nixie, 102.4 metres, built by Lürssen, on her world debut. Alongside her came Amels' Pangea (80 metres, the first Amels 80 shown at a boat show), Sanlorenzo's Silver Fox (72 metres, the first 74Steel), CRN's Amor à Vida (67.55 metres, the yard's first hybrid superyacht) and the Baglietto T60, the largest the brand has built. The biggest yacht in port was Leviathan, 111 metres, delivered by Oceanco."
+        },
+        {
+          "t": "facts",
+          "title": {
+            "es": "En cifras",
+            "en": "In numbers"
+          },
+          "items": [
+            {
+              "label": {
+                "es": "Edición",
+                "en": "Edition"
+              },
+              "value": {
+                "es": "35.ª · 23–26 sep 2026",
+                "en": "35th · 23–26 Sep 2026"
+              }
+            },
+            {
+              "label": {
+                "es": "Superyates el día de apertura",
+                "en": "Superyachts on opening day"
+              },
+              "value": {
+                "es": "117 (70 a la venta)",
+                "en": "117 (70 for sale)"
+              }
+            },
+            {
+              "label": {
+                "es": "Expositores",
+                "en": "Exhibitors"
+              },
+              "value": {
+                "es": "Más de 560",
+                "en": "More than 560"
+              }
+            },
+            {
+              "label": {
+                "es": "Próxima edición",
+                "en": "Next edition"
+              },
+              "value": {
+                "es": "22–25 sep 2027",
+                "en": "22–25 Sep 2027"
+              }
+            }
+          ]
+        },
+        {
+          "t": "quote",
+          "es": "Los turnos de construcción de los grandes astilleros están comprometidos hasta 2028 y 2029.",
+          "en": "Build slots at the leading shipyards are committed through 2028 and 2029.",
+          "cite": {
+            "es": "Monaco Life, 23 de julio de 2026",
+            "en": "Monaco Life, 23 July 2026"
+          }
+        },
+        {
+          "t": "p",
+          "es": "Ese dato, publicado por Monaco Life antes del salón, explica por qué los yates ya entregados y disponibles concentran la atención: quien encarga hoy un casco nuevo en un astillero de primera línea espera, según la misma fuente, hasta 2028 o más.",
+          "en": "That point, published by Monaco Life before the show, explains why yachts already delivered and available draw so much attention: commissioning a new hull at a leading yard today means waiting, according to the same source, until 2028 or beyond."
+        },
+        {
+          "t": "img",
+          "image": "img_yate_mar",
+          "size": "full"
+        },
+        {
+          "t": "note",
+          "kind": "disclaimer",
+          "es": "Información, no recomendación de compra. Los precios de lista no son precios de cierre y pueden cambiar sin aviso.",
+          "en": "Information, not a purchase recommendation. Asking prices are not closing prices and can change without notice."
+        },
+        {
+          "t": "h",
+          "es": "2027",
+          "en": "2027"
+        },
+        {
+          "t": "p",
+          "es": "El organizador ya publicó la fecha de la próxima edición: del 22 al 25 de septiembre de 2027. Para quien prefiere el mar a los pantalanes, en Privé está la colección YACHT & SEA con experiencias náuticas verificadas por destino.",
+          "en": "The organiser has already published the next edition's dates: 22 to 25 September 2027. For those who prefer the open sea to the pontoons, Privé's YACHT & SEA collection lists verified nautical experiences by destination."
+        }
+      ],
+      "actions": [
+        {
+          "kind": "explore_destination",
+          "target": "mc",
+          "label": {
+            "es": "Explorar Mónaco en Privé",
+            "en": "Explore Monaco in Privé"
+          }
+        },
+        {
+          "kind": "explore_universe",
+          "target": "yacht_sea",
+          "label": {
+            "es": "YACHT & SEA · experiencias náuticas",
+            "en": "YACHT & SEA · nautical experiences"
+          }
+        },
+        {
+          "kind": "official_link",
+          "url": "https://www.monacoyachtshow.com/en/",
+          "label": {
+            "es": "Sitio oficial del Monaco Yacht Show",
+            "en": "Monaco Yacht Show official site"
+          }
+        }
+      ]
+    },
+    {
+      "slug": "watches-and-wonders-2027",
+      "section": "agenda",
+      "format": "short",
+      "topics": [
+        "relojes",
+        "joyeria",
+        "eventos_internacionales",
+        "moda"
+      ],
+      "kicker": {
+        "es": "Relojería · Ginebra",
+        "en": "Watchmaking · Geneva"
+      },
+      "title": {
+        "es": "Ginebra ya marcó la hora",
+        "en": "Geneva has set the time"
+      },
+      "dek": {
+        "es": "Watches and Wonders 2027 será del 5 al 11 de abril, con 75 marcas y 13 debutantes.",
+        "en": "Watches and Wonders 2027 runs 5–11 April, with 75 brands and 13 newcomers."
+      },
+      "byline": {
+        "es": "Redacción IATOS Privé",
+        "en": "IATOS Privé newsroom"
+      },
+      "hero_image": "img_reloj",
+      "fact_status": "verified_facts",
+      "sensitive": false,
+      "fact_date": "2026-06-23",
+      "valid_until": "2027-04-11",
+      "destinations": [
+        "ginebra"
+      ],
+      "sources": [
+        {
+          "key": "ww_oficial",
+          "used_for": "Fechas, número de marcas"
+        },
+        {
+          "key": "sjx_ww2027",
+          "used_for": "Sede, formato y nuevos expositores"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "El salón relojero más grande de Ginebra ya tiene fecha: del 5 al 11 de abril de 2027, en Palexpo. El sitio oficial enumera 75 marcas expositoras, 13 de ellas nuevas. Entre las incorporaciones anunciadas en junio están Breitling, Gallet y Universal Genève —el trío que encabeza Georges Kern— y la joyera italiana Damiani, según Watches by SJX.",
+          "en": "Geneva's largest watch fair has its dates: 5 to 11 April 2027, at Palexpo. The official site lists 75 exhibiting brands, 13 of them new. Newcomers announced in June include Breitling, Gallet and Universal Genève —the trio led by Georges Kern— and Italian jeweller Damiani, according to Watches by SJX."
+        },
+        {
+          "t": "p",
+          "es": "El formato se mantiene: de lunes a jueves, jornadas para profesionales con invitación; viernes, sábado y domingo, abierto al público con boleto. Las entradas se consultan en el sitio oficial.",
+          "en": "The format stays the same: Monday to Thursday for invited trade visitors; Friday to Sunday open to the public with a ticket. Check tickets on the official site."
+        }
+      ],
+      "actions": [
+        {
+          "kind": "explore_destination",
+          "target": "ginebra",
+          "label": {
+            "es": "Explorar Ginebra en Privé",
+            "en": "Explore Geneva in Privé"
+          }
+        },
+        {
+          "kind": "official_link",
+          "url": "https://www.watchesandwonders.com/",
+          "label": {
+            "es": "Sitio oficial de Watches and Wonders",
+            "en": "Watches and Wonders official site"
+          }
+        }
+      ]
+    },
+    {
+      "slug": "art-basel-miami-beach-2026",
+      "section": "agenda",
+      "format": "short",
+      "topics": [
+        "arte",
+        "cultura",
+        "eventos_internacionales",
+        "arquitectura_y_diseno"
+      ],
+      "kicker": {
+        "es": "Arte · Miami Beach",
+        "en": "Art · Miami Beach"
+      },
+      "title": {
+        "es": "Diciembre en Miami Beach",
+        "en": "December in Miami Beach"
+      },
+      "dek": {
+        "es": "Art Basel Miami Beach abre al público del 4 al 6 de diciembre de 2026.",
+        "en": "Art Basel Miami Beach opens to the public from 4 to 6 December 2026."
+      },
+      "byline": {
+        "es": "Redacción IATOS Privé",
+        "en": "IATOS Privé newsroom"
+      },
+      "hero_image": "img_miami_ocean_drive",
+      "fact_status": "verified_facts",
+      "sensitive": false,
+      "fact_date": "2026-10-16",
+      "valid_until": "2026-12-06",
+      "destinations": [
+        "miami-beach"
+      ],
+      "sources": [
+        {
+          "key": "artbasel_mb",
+          "used_for": "Fechas oficiales"
+        },
+        {
+          "key": "miamiliving_ab",
+          "used_for": "Sede, horario y días por invitación"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "La edición de Art Basel en Miami Beach será del 4 al 6 de diciembre de 2026, según el sitio oficial de la feria. Las jornadas públicas, de viernes a domingo, se celebran en el Miami Beach Convention Center, de 11:00 a 18:00, y los días por invitación comienzan el 2 de diciembre, según la guía publicada por Miami Living.",
+          "en": "Art Basel's Miami Beach edition runs from 4 to 6 December 2026, according to the fair's official site. The public days, Friday to Sunday, take place at the Miami Beach Convention Center from 11:00 to 18:00, and invitation-only days begin on 2 December, according to the guide published by Miami Living."
+        },
+        {
+          "t": "p",
+          "es": "Consulte entradas y condiciones de acceso en el sitio oficial de Art Basel. IATOS no tiene acuerdo con la feria ni ofrece acceso preferente.",
+          "en": "Check tickets and access conditions on Art Basel's official site. IATOS has no agreement with the fair and offers no preferential access."
+        }
+      ],
+      "actions": [
+        {
+          "kind": "explore_destination",
+          "target": "miami-beach",
+          "label": {
+            "es": "Explorar Miami Beach en Privé",
+            "en": "Explore Miami Beach in Privé"
+          }
+        },
+        {
+          "kind": "explore_universe",
+          "target": "culture_access",
+          "label": {
+            "es": "CULTURE & ACCESS",
+            "en": "CULTURE & ACCESS"
+          }
+        },
+        {
+          "kind": "official_link",
+          "url": "https://www.artbasel.com/miami-beach",
+          "label": {
+            "es": "Sitio oficial de Art Basel Miami Beach",
+            "en": "Art Basel Miami Beach official site"
+          }
+        }
+      ]
+    },
+    {
+      "slug": "pga-tour-los-cabos-2026",
+      "section": "agenda",
+      "format": "short",
+      "topics": [
+        "golf",
+        "deportes",
+        "mexico"
+      ],
+      "kicker": {
+        "es": "Golf · Los Cabos",
+        "en": "Golf · Los Cabos"
+      },
+      "title": {
+        "es": "El PGA Tour vuelve a Los Cabos",
+        "en": "The PGA Tour returns to Los Cabos"
+      },
+      "dek": {
+        "es": "El World Wide Technology Championship se juega del 5 al 8 de noviembre en El Cardonal at Diamante.",
+        "en": "The World Wide Technology Championship is played 5–8 November at El Cardonal at Diamante."
+      },
+      "byline": {
+        "es": "Redacción IATOS Privé",
+        "en": "IATOS Privé newsroom"
+      },
+      "hero_image": "img_cabo_costa",
+      "fact_status": "verified_facts",
+      "sensitive": false,
+      "fact_date": "2026-10-22",
+      "valid_until": "2026-11-08",
+      "destinations": [
+        "los-cabos"
+      ],
+      "sources": [
+        {
+          "key": "pgatour_wwt",
+          "used_for": "Fechas, campo, bolsa y campeón defensor"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "El circuito estadounidense regresa a Baja California Sur del 5 al 8 de noviembre de 2026 con el World Wide Technology Championship, en el campo El Cardonal at Diamante, en Los Cabos. La bolsa anunciada por el PGA Tour es de 6 millones de dólares. El campeón defensor es Ben Griffin, que en 2025 terminó con −29 y un total de 259 golpes.",
+          "en": "The US tour returns to Baja California Sur from 5 to 8 November 2026 with the World Wide Technology Championship, on the El Cardonal at Diamante course in Los Cabos. The purse announced by the PGA Tour is 6 million dollars. The defending champion is Ben Griffin, who finished at −29 with a 259 total in 2025."
+        },
+        {
+          "t": "img",
+          "image": "img_golf",
+          "size": "half"
+        },
+        {
+          "t": "p",
+          "es": "Para quien quiera combinarlo con unos días frente al mar, Los Cabos está en la sección de destinos de Privé, con experiencias verificadas y la colección SPORT & LEISURE.",
+          "en": "For anyone combining it with a few days by the sea, Los Cabos is in Privé's destinations, with verified experiences and the SPORT & LEISURE collection."
+        }
+      ],
+      "actions": [
+        {
+          "kind": "explore_destination",
+          "target": "los-cabos",
+          "label": {
+            "es": "Explorar Los Cabos en Privé",
+            "en": "Explore Los Cabos in Privé"
+          }
+        },
+        {
+          "kind": "explore_universe",
+          "target": "sport_leisure",
+          "label": {
+            "es": "SPORT & LEISURE",
+            "en": "SPORT & LEISURE"
+          }
+        },
+        {
+          "kind": "official_link",
+          "url": "https://www.pgatour.com/tournaments/2026/world-wide-technology-championship/R2026457/overview",
+          "label": {
+            "es": "Ficha oficial del torneo (PGA Tour)",
+            "en": "Official tournament page (PGA Tour)"
+          }
+        }
+      ]
+    },
+    {
+      "slug": "banxico-pausa-6-50",
+      "section": "explicadores",
+      "format": "explainer",
+      "topics": [
+        "finanzas_y_mercados",
+        "negocios",
+        "mexico",
+        "noticias_mundiales"
+      ],
+      "kicker": {
+        "es": "Finanzas · Explicador · Información, no asesoría",
+        "en": "Finance · Explainer · Information, not advice"
+      },
+      "title": {
+        "es": "La tasa en 6.50%: cómo leer la pausa",
+        "en": "Rates at 6.50%: how to read the pause"
+      },
+      "dek": {
+        "es": "El Banco de México recortó dos veces en la primavera y desde junio no ha movido su tasa objetivo. Qué es, qué sigue en el calendario y qué no significa.",
+        "en": "The Bank of Mexico cut twice in the spring and has not moved its target rate since June. What it is, what is next on the calendar and what it does not mean."
+      },
+      "byline": {
+        "es": "Redacción IATOS Privé",
+        "en": "IATOS Privé newsroom"
+      },
+      "hero_image": null,
+      "fact_status": "mixed",
+      "sensitive": true,
+      "fact_date": "2026-09-24",
+      "valid_until": "2026-11-05",
+      "destinations": [],
+      "sources": [
+        {
+          "key": "banxico_anuncios",
+          "used_for": "Decisiones de 2026"
+        },
+        {
+          "key": "bbva_agenda_2026",
+          "used_for": "Próximas fechas (5 nov, 17 dic)"
+        },
+        {
+          "key": "aap_nobel",
+          "used_for": "Contexto: Nobel de Economía 2026"
+        },
+        {
+          "key": "apa_nobel",
+          "used_for": "Corroboración del Nobel"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "La tasa objetivo es el nivel que el Banco de México fija para la tasa de interés interbancaria a un día: el precio al que los bancos se prestan dinero de un día para otro. A partir de ahí se encarecen o abaratan, con distinto ritmo, el crédito y el rendimiento del ahorro en pesos.",
+          "en": "The target rate is the level the Bank of Mexico sets for the overnight interbank interest rate: the price at which banks lend to each other from one day to the next. From there, credit and peso savings yields become more or less expensive, at different speeds."
+        },
+        {
+          "t": "facts",
+          "title": {
+            "es": "Las decisiones de 2026",
+            "en": "The 2026 decisions"
+          },
+          "items": [
+            {
+              "label": {
+                "es": "5 de febrero",
+                "en": "5 February"
+              },
+              "value": {
+                "es": "Sin cambio en 7.00%",
+                "en": "Unchanged at 7.00%"
+              }
+            },
+            {
+              "label": {
+                "es": "26 de marzo",
+                "en": "26 March"
+              },
+              "value": {
+                "es": "Baja de 25 puntos base",
+                "en": "25 basis-point cut"
+              }
+            },
+            {
+              "label": {
+                "es": "7 de mayo",
+                "en": "7 May"
+              },
+              "value": {
+                "es": "Baja de 25 puntos base, a 6.50%",
+                "en": "25 basis-point cut, to 6.50%"
+              }
+            },
+            {
+              "label": {
+                "es": "25 jun · 6 ago · 24 sep",
+                "en": "25 Jun · 6 Aug · 24 Sep"
+              },
+              "value": {
+                "es": "Sin cambio en 6.50%",
+                "en": "Unchanged at 6.50%"
+              }
+            }
+          ]
+        },
+        {
+          "t": "p",
+          "es": "Según los anuncios oficiales del banco central, la tasa terminó el primer semestre en 6.50% y así se ha mantenido en las tres reuniones siguientes. El próximo anuncio está previsto para el jueves 5 de noviembre a las 13:00 de la Ciudad de México, y el último del año para el 17 de diciembre, según el calendario que BBVA Research publica con datos del Banco de México.",
+          "en": "According to the central bank's official announcements, the rate ended the first half at 6.50% and has stayed there for the three meetings since. The next announcement is scheduled for Thursday 5 November at 13:00 Mexico City time, and the last of the year for 17 December, according to the calendar BBVA Research publishes with Bank of Mexico data."
+        },
+        {
+          "t": "h",
+          "es": "Un Nobel sobre este mismo oficio",
+          "en": "A Nobel about this very craft"
+        },
+        {
+          "t": "p",
+          "es": "El 12 de octubre, el premio de Ciencias Económicas en memoria de Alfred Nobel fue para Robert E. Hall y Michael Woodford «por los fundamentos microeconómicos de la estabilización macroeconómica», según AAP y APA/Reuters. Es, en buena medida, la teoría detrás de cómo los bancos centrales piensan decisiones como la de noviembre.",
+          "en": "On 12 October, the Prize in Economic Sciences in Memory of Alfred Nobel went to Robert E. Hall and Michael Woodford 'for microeconomic foundations of macroeconomic stabilisation', according to AAP and APA/Reuters. It is, to a large extent, the theory behind how central banks think about decisions like November's."
+        },
+        {
+          "t": "note",
+          "kind": "disclaimer",
+          "es": "Este texto es informativo y educativo. No es una recomendación de inversión, no anticipa la decisión del 5 de noviembre y no considera su situación personal. Para decisiones financieras, consulte a un asesor autorizado.",
+          "en": "This text is informational and educational. It is not an investment recommendation, does not anticipate the 5 November decision and does not consider your personal situation. For financial decisions, consult a licensed adviser."
+        }
+      ],
+      "actions": []
+    },
+    {
+      "slug": "ue-ia-alto-riesgo-2027",
+      "section": "explicadores",
+      "format": "explainer",
+      "topics": [
+        "inteligencia_artificial",
+        "tecnologia",
+        "negocios",
+        "noticias_mundiales"
+      ],
+      "kicker": {
+        "es": "Inteligencia artificial · Explicador",
+        "en": "Artificial intelligence · Explainer"
+      },
+      "title": {
+        "es": "Bruselas mueve el reloj de la IA de alto riesgo",
+        "en": "Brussels moves the clock on high-risk AI"
+      },
+      "dek": {
+        "es": "El llamado «Omnibus» de IA, en vigor desde el 27 de julio, aplazó a diciembre de 2027 las obligaciones para los sistemas de alto riesgo. Qué cambió y qué no.",
+        "en": "The so-called AI Omnibus, in force since 27 July, pushed obligations for high-risk systems to December 2027. What changed and what did not."
+      },
+      "byline": {
+        "es": "Redacción IATOS Privé",
+        "en": "IATOS Privé newsroom"
+      },
+      "hero_image": null,
+      "fact_status": "mixed",
+      "sensitive": false,
+      "fact_date": "2026-07-27",
+      "valid_until": null,
+      "destinations": [],
+      "sources": [
+        {
+          "key": "klgates_omnibus",
+          "used_for": "Reglamento, publicación, vigencia y nuevas fechas"
+        },
+        {
+          "key": "sidley_omnibus",
+          "used_for": "Acuerdo provisional, fechas y transparencia"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "La Unión Europea reformó el calendario de su Ley de Inteligencia Artificial. El Reglamento (UE) 2026/1744, conocido como Omnibus de IA, se publicó en el Diario Oficial el 24 de julio de 2026 y entró en vigor el 27 de julio, según el análisis del despacho K&L Gates. Había nacido de un acuerdo provisional entre Parlamento y Consejo el 7 de mayo.",
+          "en": "The European Union has reshaped the timetable of its Artificial Intelligence Act. Regulation (EU) 2026/1744, known as the AI Omnibus, was published in the Official Journal on 24 July 2026 and entered into force on 27 July, according to an analysis by law firm K&L Gates. It stemmed from a provisional agreement between Parliament and Council on 7 May."
+        },
+        {
+          "t": "facts",
+          "title": {
+            "es": "Las fechas que cambiaron",
+            "en": "The dates that changed"
+          },
+          "items": [
+            {
+              "label": {
+                "es": "Alto riesgo «autónomo» (Anexo III: empleo, educación, crédito…)",
+                "en": "Stand-alone high-risk (Annex III: employment, education, credit…)"
+              },
+              "value": {
+                "es": "Del 2 ago 2026 al 2 dic 2027",
+                "en": "From 2 Aug 2026 to 2 Dec 2027"
+              }
+            },
+            {
+              "label": {
+                "es": "IA integrada en productos regulados (Anexo I)",
+                "en": "AI embedded in regulated products (Annex I)"
+              },
+              "value": {
+                "es": "Hasta el 2 ago 2028",
+                "en": "Until 2 Aug 2028"
+              }
+            },
+            {
+              "label": {
+                "es": "Marcado de contenido generado por IA",
+                "en": "Marking AI-generated content"
+              },
+              "value": {
+                "es": "Gracia hasta el 2 dic 2026, solo para sistemas en el mercado antes del 2 ago 2026",
+                "en": "Grace until 2 Dec 2026, only for systems on the market before 2 Aug 2026"
+              }
+            }
+          ]
+        },
+        {
+          "t": "p",
+          "es": "Lo que no se aplazó, según K&L Gates: los deberes de transparencia siguen aplicando desde el 2 de agosto de 2026, con la única gracia descrita arriba para el marcado de contenido de sistemas que ya estaban en el mercado.",
+          "en": "What was not postponed, according to K&L Gates: transparency duties continue to apply from 2 August 2026, with the only grace period described above for marking content from systems already on the market."
+        },
+        {
+          "t": "note",
+          "kind": "analysis",
+          "es": "Por qué importa fuera de Europa: la ley alcanza a empresas de cualquier país que ofrezcan sistemas de IA en la Unión. Para una empresa mexicana con clientes europeos, el aplazamiento da tiempo, no una exención.",
+          "en": "Why it matters outside Europe: the law reaches companies from any country that offer AI systems in the Union. For a Mexican company with European clients, the delay buys time, not an exemption."
+        },
+        {
+          "t": "note",
+          "kind": "disclaimer",
+          "es": "Información general, no asesoría jurídica. Las fechas provienen de análisis de despachos; el texto oficial está en EUR-Lex.",
+          "en": "General information, not legal advice. Dates come from law-firm analyses; the official text is on EUR-Lex."
+        }
+      ],
+      "actions": []
+    },
+    {
+      "slug": "brief-nobel-economia-2026",
+      "section": "world_brief",
+      "format": "brief",
+      "topics": [
+        "noticias_mundiales",
+        "finanzas_y_mercados",
+        "negocios"
+      ],
+      "kicker": {
+        "es": "Ciencia económica",
+        "en": "Economic science"
+      },
+      "title": {
+        "es": "Nobel de Economía para Robert E. Hall y Michael Woodford",
+        "en": "Economics Nobel for Robert E. Hall and Michael Woodford"
+      },
+      "dek": {
+        "es": "12 de octubre de 2026",
+        "en": "12 October 2026"
+      },
+      "byline": {
+        "es": "The World Brief",
+        "en": "The World Brief"
+      },
+      "hero_image": null,
+      "fact_status": "verified_facts",
+      "sensitive": false,
+      "fact_date": "2026-10-12",
+      "valid_until": "2026-12-31",
+      "destinations": [],
+      "sources": [
+        {
+          "key": "nobel_econ_2026",
+          "used_for": "Fuente oficial (ver nota de verificación)"
+        },
+        {
+          "key": "aap_nobel",
+          "used_for": "Laureados, motivación y monto"
+        },
+        {
+          "key": "apa_nobel",
+          "used_for": "Corroboración"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "Hecho: el premio de Ciencias Económicas en memoria de Alfred Nobel 2026 fue para los estadounidenses Robert E. Hall y Michael Woodford «por los fundamentos microeconómicos de la estabilización macroeconómica». El premio es de 12 millones de coronas suecas.",
+          "en": "Fact: the 2026 Prize in Economic Sciences in Memory of Alfred Nobel went to Americans Robert E. Hall and Michael Woodford 'for microeconomic foundations of macroeconomic stabilisation'. The prize is worth 12 million Swedish kronor."
+        },
+        {
+          "t": "note",
+          "kind": "analysis",
+          "es": "Por qué importa: sus modelos están detrás de cómo los bancos centrales calibran tasas para suavizar ciclos. Ver el explicador sobre Banxico en este número.",
+          "en": "Why it matters: their models underpin how central banks calibrate rates to smooth cycles. See the Banxico explainer in this issue."
+        }
+      ],
+      "actions": []
+    },
+    {
+      "slug": "brief-lvmh-tercer-trimestre-2026",
+      "section": "world_brief",
+      "format": "brief",
+      "topics": [
+        "noticias_mundiales",
+        "finanzas_y_mercados",
+        "moda",
+        "relojes",
+        "joyeria",
+        "negocios"
+      ],
+      "kicker": {
+        "es": "Industria del lujo",
+        "en": "Luxury industry"
+      },
+      "title": {
+        "es": "LVMH crece 1% orgánico en el tercer trimestre; China pesa en la moda",
+        "en": "LVMH grows 1% organically in Q3; China weighs on fashion"
+      },
+      "dek": {
+        "es": "12 de octubre de 2026",
+        "en": "12 October 2026"
+      },
+      "byline": {
+        "es": "The World Brief",
+        "en": "The World Brief"
+      },
+      "hero_image": null,
+      "fact_status": "verified_facts",
+      "sensitive": false,
+      "fact_date": "2026-10-12",
+      "valid_until": "2027-01-31",
+      "destinations": [],
+      "sources": [
+        {
+          "key": "lvmh_q3_2026",
+          "used_for": "Cifras oficiales"
+        },
+        {
+          "key": "fashionunited_lvmh",
+          "used_for": "Corroboración"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "Hecho: LVMH reportó ingresos de 57,100 millones de euros en los primeros nueve meses de 2026 (−2% reportado, +2% orgánico). En el tercer trimestre el crecimiento orgánico fue de 1%: Moda y Marroquinería cayó 5%, mientras Relojes y Joyería y Vinos y Licores subieron 6% y Distribución Selectiva 8%. La empresa atribuye la moderación a un entorno menos dinámico en China.",
+          "en": "Fact: LVMH reported revenue of 57.1 billion euros for the first nine months of 2026 (−2% reported, +2% organic). Third-quarter organic growth was 1%: Fashion & Leather Goods fell 5%, while Watches & Jewelry and Wines & Spirits rose 6% and Selective Retailing 8%. The company attributes the slowdown to a less buoyant environment in China."
+        },
+        {
+          "t": "note",
+          "kind": "disclaimer",
+          "es": "Información, no recomendación sobre valores.",
+          "en": "Information, not a securities recommendation."
+        }
+      ],
+      "actions": []
+    },
+    {
+      "slug": "brief-inegi-viajeros-agosto-2026",
+      "section": "world_brief",
+      "format": "brief",
+      "topics": [
+        "mexico",
+        "viajes_internacionales",
+        "noticias_mundiales",
+        "negocios"
+      ],
+      "kicker": {
+        "es": "Turismo",
+        "en": "Tourism"
+      },
+      "title": {
+        "es": "México recibió 7.99 millones de viajeros internacionales en agosto",
+        "en": "Mexico received 7.99 million international travellers in August"
+      },
+      "dek": {
+        "es": "14 de octubre de 2026",
+        "en": "14 October 2026"
+      },
+      "byline": {
+        "es": "The World Brief",
+        "en": "The World Brief"
+      },
+      "hero_image": null,
+      "fact_status": "verified_facts",
+      "sensitive": false,
+      "fact_date": "2026-10-14",
+      "valid_until": "2026-11-12",
+      "destinations": [],
+      "sources": [
+        {
+          "key": "inegi_evi_ago2026",
+          "used_for": "Cifras oficiales"
+        },
+        {
+          "key": "cronica_inegi",
+          "used_for": "Corroboración"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "Hecho: según la Encuesta de Viajeros Internacionales del INEGI, en agosto de 2026 entraron al país 7,985,700 viajeros internacionales, 1.3% más que un año antes. De ellos, 3,768,784 fueron turistas que pernoctaron (−0.5%). El gasto total creció 7.0% y el gasto medio 5.6%. Son cifras preliminares; la próxima publicación es el 12 de noviembre.",
+          "en": "Fact: according to INEGI's International Travellers Survey, 7,985,700 international travellers entered Mexico in August 2026, 1.3% more than a year earlier. Of them, 3,768,784 were overnight tourists (−0.5%). Total spending grew 7.0% and average spending 5.6%. Figures are preliminary; the next release is on 12 November."
+        }
+      ],
+      "actions": []
+    },
+    {
+      "slug": "brief-banxico-24-septiembre",
+      "section": "world_brief",
+      "format": "brief",
+      "topics": [
+        "finanzas_y_mercados",
+        "mexico",
+        "negocios"
+      ],
+      "kicker": {
+        "es": "Economía",
+        "en": "Economy"
+      },
+      "title": {
+        "es": "Banxico mantiene su tasa en 6.50% por tercera reunión",
+        "en": "Banxico holds its rate at 6.50% for a third meeting"
+      },
+      "dek": {
+        "es": "24 de septiembre de 2026",
+        "en": "24 September 2026"
+      },
+      "byline": {
+        "es": "The World Brief",
+        "en": "The World Brief"
+      },
+      "hero_image": null,
+      "fact_status": "verified_facts",
+      "sensitive": true,
+      "fact_date": "2026-09-24",
+      "valid_until": "2026-11-05",
+      "destinations": [],
+      "sources": [
+        {
+          "key": "banxico_anuncios",
+          "used_for": "Decisión oficial"
+        },
+        {
+          "key": "bbva_agenda_2026",
+          "used_for": "Fecha del siguiente anuncio"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "Hecho: el 24 de septiembre, la Junta de Gobierno del Banco de México mantuvo sin cambio en 6.50% el objetivo para la tasa interbancaria a un día, igual que en junio y agosto. El siguiente anuncio está programado para el 5 de noviembre a las 13:00.",
+          "en": "Fact: on 24 September, the Bank of Mexico's Governing Board kept the overnight interbank target rate unchanged at 6.50%, as in June and August. The next announcement is scheduled for 5 November at 13:00."
+        },
+        {
+          "t": "note",
+          "kind": "disclaimer",
+          "es": "Información, no asesoría de inversión.",
+          "en": "Information, not investment advice."
+        }
+      ],
+      "actions": []
+    },
+    {
+      "slug": "brief-delta-aeromexico-tribunal",
+      "section": "world_brief",
+      "format": "brief",
+      "topics": [
+        "viajes_internacionales",
+        "negocios",
+        "mexico",
+        "noticias_mundiales"
+      ],
+      "kicker": {
+        "es": "Aviación",
+        "en": "Aviation"
+      },
+      "title": {
+        "es": "Un tribunal de EE. UU. mantiene viva la alianza Delta–Aeroméxico",
+        "en": "US court keeps the Delta–Aeroméxico alliance alive"
+      },
+      "dek": {
+        "es": "21 de agosto de 2026",
+        "en": "21 August 2026"
+      },
+      "byline": {
+        "es": "The World Brief",
+        "en": "The World Brief"
+      },
+      "hero_image": null,
+      "fact_status": "verified_facts",
+      "sensitive": false,
+      "fact_date": "2026-08-21",
+      "valid_until": "2026-12-31",
+      "destinations": [],
+      "sources": [
+        {
+          "key": "delta_jv",
+          "used_for": "Comunicado de la parte interesada"
+        },
+        {
+          "key": "insideflyer_jv",
+          "used_for": "Corroboración y razonamiento del tribunal"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "Hecho: el Tribunal de Apelaciones del 11.º Circuito anuló la orden del Departamento de Transporte de EE. UU. que ponía fin a la aprobación de la empresa conjunta entre Delta y Aeroméxico, que puede seguir operando. Según InsideFlyer, el tribunal señaló que el DOT no explicó por qué redujo su análisis de 1,687 pares de ciudades a los vuelos de la Ciudad de México; el DOT aún puede volver a actuar con un caso nuevo.",
+          "en": "Fact: the US Court of Appeals for the 11th Circuit vacated the Department of Transportation's order ending its approval of the Delta–Aeroméxico joint venture, which can keep operating. According to InsideFlyer, the court noted the DOT did not explain why it narrowed its analysis from 1,687 city pairs to Mexico City flights; the DOT may still act again with a new case."
+        },
+        {
+          "t": "note",
+          "kind": "context",
+          "es": "Una de las fuentes es el comunicado de Delta, parte interesada.",
+          "en": "One of the sources is Delta's press release, an interested party."
+        }
+      ],
+      "actions": []
+    },
+    {
+      "slug": "brief-desfile-dia-de-muertos-2026",
+      "section": "world_brief",
+      "format": "brief",
+      "topics": [
+        "mexico",
+        "cultura",
+        "eventos_internacionales"
+      ],
+      "kicker": {
+        "es": "Cultura · Ciudad de México",
+        "en": "Culture · Mexico City"
+      },
+      "title": {
+        "es": "Desfile de Día de Muertos: sábado 31 de octubre, 14:00",
+        "en": "Day of the Dead parade: Saturday 31 October, 14:00"
+      },
+      "dek": {
+        "es": "14 de octubre de 2026",
+        "en": "14 October 2026"
+      },
+      "byline": {
+        "es": "The World Brief",
+        "en": "The World Brief"
+      },
+      "hero_image": null,
+      "fact_status": "verified_facts",
+      "sensitive": false,
+      "fact_date": "2026-10-14",
+      "valid_until": "2026-10-31",
+      "destinations": [
+        "cdmx"
+      ],
+      "sources": [
+        {
+          "key": "expansion_desfile",
+          "used_for": "Fecha, hora y ruta"
+        },
+        {
+          "key": "porEsto_desfile",
+          "used_for": "Corroboración"
+        }
+      ],
+      "body": [
+        {
+          "t": "p",
+          "es": "Hecho: el Gran Desfile de Día de Muertos de la Ciudad de México será el sábado 31 de octubre a las 14:00, de la Diana Cazadora en Paseo de la Reforma al Zócalo, con entrada libre. Se cumplen diez años de la primera edición.",
+          "en": "Fact: Mexico City's Grand Day of the Dead Parade will be on Saturday 31 October at 14:00, from the Diana Cazadora on Paseo de la Reforma to the Zócalo, free of charge. It is ten years since the first edition."
+        }
+      ],
+      "actions": [
+        {
+          "kind": "explore_destination",
+          "target": "cdmx",
+          "label": {
+            "es": "Explorar Ciudad de México en Privé",
+            "en": "Explore Mexico City in Privé"
+          }
+        }
+      ]
+    },
+    {
+      "slug": "agenda-privada-n01",
+      "section": "agenda",
+      "format": "agenda",
+      "topics": [
+        "eventos_internacionales",
+        "experiencias_extraordinarias",
+        "viajes_internacionales"
+      ],
+      "kicker": {
+        "es": "Agenda",
+        "en": "Calendar"
+      },
+      "title": {
+        "es": "Fechas para apartar",
+        "en": "Dates to hold"
+      },
+      "dek": {
+        "es": "Lo que viene, con fecha oficial y fuente. Sin listas de espera inventadas.",
+        "en": "What is coming, with official dates and sources. No invented waiting lists."
+      },
+      "byline": {
+        "es": "Redacción IATOS Privé",
+        "en": "IATOS Privé newsroom"
+      },
+      "hero_image": null,
+      "fact_status": "verified_facts",
+      "sensitive": false,
+      "fact_date": "2026-10-22",
+      "valid_until": null,
+      "destinations": [],
+      "sources": [
+        {
+          "key": "f1_calendar_2026",
+          "used_for": "Gran Premio"
+        },
+        {
+          "key": "expansion_desfile",
+          "used_for": "Desfile"
+        },
+        {
+          "key": "pgatour_wwt",
+          "used_for": "Golf"
+        },
+        {
+          "key": "bbva_agenda_2026",
+          "used_for": "Banxico"
+        },
+        {
+          "key": "inegi_evi_ago2026",
+          "used_for": "INEGI"
+        },
+        {
+          "key": "artbasel_mb",
+          "used_for": "Art Basel"
+        },
+        {
+          "key": "md_tianguis2027",
+          "used_for": "Tianguis Turístico"
+        },
+        {
+          "key": "ww_oficial",
+          "used_for": "Watches and Wonders"
+        },
+        {
+          "key": "mys_oficial",
+          "used_for": "Monaco Yacht Show"
+        }
+      ],
+      "body": [
+        {
+          "t": "agenda",
+          "items": [
+            {
+              "date": "2026-10-30",
+              "end": "2026-11-01",
+              "es": "Gran Premio de la Ciudad de México · Autódromo Hermanos Rodríguez",
+              "en": "Mexico City Grand Prix · Autódromo Hermanos Rodríguez",
+              "source": "f1_calendar_2026"
+            },
+            {
+              "date": "2026-10-31",
+              "es": "Gran Desfile de Día de Muertos · Reforma–Zócalo, 14:00",
+              "en": "Grand Day of the Dead Parade · Reforma–Zócalo, 14:00",
+              "source": "expansion_desfile"
+            },
+            {
+              "date": "2026-11-05",
+              "es": "Anuncio de política monetaria del Banco de México, 13:00",
+              "en": "Bank of Mexico monetary policy announcement, 13:00",
+              "source": "bbva_agenda_2026"
+            },
+            {
+              "date": "2026-11-05",
+              "end": "2026-11-08",
+              "es": "World Wide Technology Championship · El Cardonal at Diamante, Los Cabos",
+              "en": "World Wide Technology Championship · El Cardonal at Diamante, Los Cabos",
+              "source": "pgatour_wwt"
+            },
+            {
+              "date": "2026-11-12",
+              "es": "INEGI publica la Encuesta de Viajeros Internacionales de septiembre",
+              "en": "INEGI publishes the September International Travellers Survey",
+              "source": "inegi_evi_ago2026"
+            },
+            {
+              "date": "2026-12-04",
+              "end": "2026-12-06",
+              "es": "Art Basel Miami Beach · días públicos",
+              "en": "Art Basel Miami Beach · public days",
+              "source": "artbasel_mb"
+            },
+            {
+              "date": "2027-03-09",
+              "end": "2027-03-12",
+              "es": "Tianguis Turístico México (51.ª edición) · Puebla",
+              "en": "Tianguis Turístico México (51st edition) · Puebla",
+              "source": "md_tianguis2027"
+            },
+            {
+              "date": "2027-04-05",
+              "end": "2027-04-11",
+              "es": "Watches and Wonders Geneva · Palexpo",
+              "en": "Watches and Wonders Geneva · Palexpo",
+              "source": "ww_oficial"
+            },
+            {
+              "date": "2027-09-22",
+              "end": "2027-09-25",
+              "es": "Monaco Yacht Show · Port Hercule",
+              "en": "Monaco Yacht Show · Port Hercule",
+              "source": "mys_oficial"
+            }
+          ]
+        }
+      ],
+      "actions": []
+    }
+  ]
+}
