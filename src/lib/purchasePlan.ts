@@ -14,6 +14,7 @@ import {
 import { isConfirmedBooking, type BookingLike } from "@/lib/bookingState";
 import { parseAviasalesSearch, parseBookingSearch, parseGoogleFlightsSearch } from "../../supabase/functions/_shared/booking/links.ts";
 import { airlineName } from "@/lib/airlines";
+import { codeServesCity } from "../../supabase/functions/_shared/airports.ts";
 
 export type PurchaseKind = "vuelo" | "hospedaje" | "auto" | "actividad" | "restaurante";
 export type PurchaseCategory = "flight" | "hotel" | "car" | "activity" | "restaurant";
@@ -183,7 +184,9 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
       const range = num(v?.precio_min) && num(v?.precio_max);
       const est = isEstimatedTripFlight(v);
       // Una fila con problemas usa SOLO las acciones locales (las del servidor pueden ser de antes del arreglo).
-      const actions = !bad && server.vuelos_json?.[i]?.length ? server.vuelos_json![i] : offer.actions;
+      // Y nunca un enlace cuyo destino no sea el del viaje (p. ej. MEX→BUH guardado como Roma).
+      const actions = (!bad && server.vuelos_json?.[i]?.length ? server.vuelos_json![i] : offer.actions)
+        .filter((a) => isGroundTripOption(v) || prefillMatchesTrip(a.url, trip) !== false);
       items.push(base({
         key: `vuelo:${i}:${norm(v?.aerolinea)}`, kind: "vuelo", category: "flight",
         title: isGroundTripOption(v) ? `${v?.modo === "auto" || v?.mode === "coche" ? "En auto" : "Autobús"} · ${v?.aerolinea ?? ""}`.trim()
@@ -270,6 +273,17 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     }));
   });
   return items;
+}
+
+/**
+ * ¿El destino precargado en un enlace de vuelo (Google Flights o Aviasales) es el del viaje? false si
+ * es otra ciudad; null si el enlace no lleva destino o la ciudad no se conoce.
+ */
+export function prefillMatchesTrip(url: string | null | undefined, trip: any): boolean | null {
+  if (!url) return null;
+  const dest = parseGoogleFlightsSearch(url)?.destination ?? parseAviasalesSearch(url)?.destination ?? null;
+  const first = tripFlightRoute(trip).cities[0];
+  return dest && first ? codeServesCity(dest, first) : null;
 }
 
 /**

@@ -4,7 +4,7 @@
 // MEX→BUH (Bucarest) de 65 h con Volaris, y se presentó igual en los 3 niveles. Una tarifa solo se
 // usa si sale del origen pedido y llega al destino pedido (o a otro aeropuerto de su área: CIA para
 // Roma), con una duración creíble para la distancia. Sin tarifa válida el vuelo queda por cotizar.
-import { cityAirports, codeServesCity, maxPlausibleHours } from "./airports.ts";
+import { airlineFitsRoute, cityAirports, codeServesCity, maxPlausibleHours } from "./airports.ts";
 
 export type FareRow = {
   origin?: string | null;
@@ -23,7 +23,7 @@ export type FareRow = {
   booking_link?: string | null;
 };
 
-export type FareProblem = "destino_distinto" | "origen_distinto" | "duracion_absurda";
+export type FareProblem = "destino_distinto" | "origen_distinto" | "duracion_absurda" | "aerolinea_no_opera_la_ruta";
 
 /** Origen y destino de un enlace /search/MEX3010BUH07111 de Aviasales (o del "link" de la API). */
 export function routeFromAviasalesLink(link: unknown): { origin: string; destination: string } | null {
@@ -59,6 +59,9 @@ export function fareProblems(row: FareRow, want: { origin: string; destination: 
   const back = Number(row.duration_back ?? row.duration_back_minutes) || 0;
   const total = Number(row.duration ?? row.duration_minutes) || 0;
   if (to1 > max || back > max || (!to1 && !back && total > 2 * max)) out.push("duracion_absurda");
+  // Una aerolínea regional fuera de su región (Volaris a Europa) no puede ser la de esta ruta.
+  const airline = String(row.airline ?? "").trim().toUpperCase();
+  if (/^[A-Z0-9]{2}$/.test(airline) && !airlineFitsRoute(airline, from, to)) out.push("aerolinea_no_opera_la_ruta");
   return out;
 }
 

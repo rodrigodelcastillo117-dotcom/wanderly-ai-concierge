@@ -25,7 +25,7 @@ describe("filtro de tarifas (travelpayouts-flights, logistics-plan, analizar-via
   });
 
   it("acepta otro aeropuerto del área metropolitana (CIA para Roma) y FCO", () => {
-    const times = { duration_minutes: 34 * 60, duration_to_minutes: 16 * 60, duration_back_minutes: 18 * 60 };
+    const times = { airline: "AF", duration_minutes: 34 * 60, duration_to_minutes: 16 * 60, duration_back_minutes: 18 * 60 };
     const fco = tpRow({ ...times, destination: "ROM", destination_airport: "FCO", booking_link: "https://www.aviasales.com/search/MEX2210ROM01112?marker=1" });
     const cia = tpRow({ ...times, destination: "ROM", destination_airport: "CIA", booking_link: "https://www.aviasales.com/search/MEX2210CIA01112?marker=1" });
     expect(fareProblems(fco, WANT_ROMA)).toEqual([]);
@@ -33,7 +33,7 @@ describe("filtro de tarifas (travelpayouts-flights, logistics-plan, analizar-via
   });
 
   it("descarta duraciones absurdas para la distancia (una ida de 50 h MEX→Roma)", () => {
-    const ok = tpRow({ destination: "ROM", destination_airport: "FCO", booking_link: null, duration_to_minutes: 16 * 60, duration_back_minutes: 18 * 60 });
+    const ok = tpRow({ airline: "AF", destination: "ROM", destination_airport: "FCO", booking_link: null, duration_to_minutes: 16 * 60, duration_back_minutes: 18 * 60 });
     expect(fareProblems(ok, WANT_ROMA)).toEqual([]);
     expect(fareProblems({ ...ok, duration_to_minutes: 50 * 60 }, WANT_ROMA)).toContain("duracion_absurda");
     // Una ruta corta (CDMX → Cancún): 20 h de ida es absurdo.
