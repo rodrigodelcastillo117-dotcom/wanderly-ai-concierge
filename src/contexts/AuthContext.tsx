@@ -7,11 +7,13 @@ import { captureRecoveryFromUrl, clearRecoveryFlag, hasRecoveryFlag, markRecover
 import { hasStoredSession, restoreOutcome, restoreRetryDelay, RESTORE_SLOW_MS } from "@/lib/authRestore";
 import { capturePriveTokenFromUrl, clearAllPriveState, readPriveSession } from "@/lib/priveSession";
 
-// Borra los viajes guardados para lectura offline (public/sw.js) al cerrar sesión,
+// Borra los viajes y las ediciones guardados para lectura offline (public/sw.js) al cerrar sesión,
 // para que otra persona en el mismo dispositivo no los vea.
 const clearOfflineTripCache = () => {
   try {
     if (typeof caches !== "undefined") void caches.delete("iatos-data-v1").catch(() => {});
+    // THE PRIVATE EDITION: ediciones descargadas para leer sin conexión (src/lib/priveEditionOffline.ts).
+    if (typeof caches !== "undefined") void caches.delete("iatos-edition-v1").catch(() => {});
     navigator.serviceWorker?.controller?.postMessage({ type: "iatos:clear-user-cache" });
   } catch {
     /* noop */

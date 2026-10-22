@@ -7,8 +7,11 @@
 // Estrategias: navegación y datos = red primero (siempre lo más fresco si hay red);
 // /assets/ = caché primero (los nombres llevan hash, nunca quedan viejos).
 // Al cerrar sesión la app pide borrar los datos guardados (mensaje iatos:clear-user-cache).
+// THE PRIVATE EDITION (piloto offline): la app guarda en EDITION_CACHE las ediciones descargadas (JSON +
+// imágenes con licencia) por usuario; el SW las conserva entre versiones y las borra al cerrar sesión.
 const SHELL_CACHE = 'iatos-shell-v1';
 const DATA_CACHE = 'iatos-data-v1';
+const EDITION_CACHE = 'iatos-edition-v1';
 const MAX_TRIP_ENTRIES = 8;
 const PRECACHE = ['/', '/manifest.webmanifest', '/favicon-32.png', '/icons/icon-192.png'];
 
@@ -24,14 +27,14 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('iatos-') && k !== SHELL_CACHE && k !== DATA_CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('iatos-') && k !== SHELL_CACHE && k !== DATA_CACHE && k !== EDITION_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'iatos:clear-user-cache') {
-    event.waitUntil(caches.delete(DATA_CACHE));
+    event.waitUntil(Promise.all([caches.delete(DATA_CACHE), caches.delete(EDITION_CACHE)]));
   }
 });
 

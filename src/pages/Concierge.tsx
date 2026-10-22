@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, Send, Sparkles, MapPin, Utensils, Car, Siren,
@@ -98,7 +98,13 @@ const Concierge = () => {
   }]);
   const [liveAction, setLiveAction] = useState<LiveAction>(null);
   const [showFlight, setShowFlight] = useState(false);
-  const [input, setInput] = useState("");
+  const location = useLocation();
+  // "Pregúntale a Iato" desde otra pantalla (p. ej. un artículo de The Private Edition) llega con el texto en
+  // state.prefill: se escribe en la caja para que la persona lo revise y lo envíe ella (nunca se envía solo).
+  const [input, setInput] = useState(() => {
+    const p = (location.state as { prefill?: unknown } | null)?.prefill;
+    return typeof p === "string" ? p.slice(0, 1000) : "";
+  });
   const [sending, setSending] = useState(false);
   // Modo exigente: apagado por omisión (usa el modelo más capaz: tarda un poco más y cuesta más).
   const [godMode, setGodMode] = useState(() => {

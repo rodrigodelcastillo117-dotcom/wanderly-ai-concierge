@@ -43,6 +43,17 @@ const PriveDestinationPage = lazyWithRetry(() => import("./pages/prive/PriveDest
 const PriveUniversePage = lazyWithRetry(() => import("./pages/prive/PriveUniversePage"));
 const PriveExperiencePage = lazyWithRetry(() => import("./pages/prive/PriveExperiencePage"));
 const PriveRequestsPage = lazyWithRetry(() => import("./pages/prive/PriveRequestsPage"));
+// ── THE PRIVATE EDITION (equipo edition): revista de Privé, lectura sin conexión y panel editorial ──
+const EditionRoot = lazyWithRetry(() => import("./pages/prive/edition/EditionRoot"));
+const EditionLatestIssue = lazyWithRetry(() => import("./pages/prive/edition/LatestIssuePage"));
+const EditionArticle = lazyWithRetry(() => import("./pages/prive/edition/ArticlePage"));
+const EditionMine = lazyWithRetry(() => import("./pages/prive/edition/MyEditionPage"));
+const EditionWorldBrief = lazyWithRetry(() => import("./pages/prive/edition/WorldBriefPage"));
+const EditionOpportunities = lazyWithRetry(() => import("./pages/prive/edition/OpportunitiesPage"));
+const EditionFlight = lazyWithRetry(() => import("./pages/prive/edition/FlightEditionPage"));
+const EditionLibrary = lazyWithRetry(() => import("./pages/prive/edition/LibraryPage"));
+const EditionOffline = lazyWithRetry(() => import("./pages/prive/edition/EditionOfflinePage"));
+const EditionAdmin = lazyWithRetry(() => import("./pages/prive/edition/EditionAdminPage"));
 // ── fin IATOS Privé · catálogo ──
 const LiveTrip = lazyWithRetry(() => import("./pages/LiveTrip"));
 const TripMap = lazyWithRetry(() => import("./pages/TripMap"));
@@ -145,8 +156,13 @@ const App = () => (
             <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
             <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
             <Route path="/dashboard/admin" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />
+            {/* Panel editorial de THE PRIVATE EDITION: el servidor exige public.admins en cada RPC. */}
+            <Route path="/dashboard/admin/edicion" element={<ProtectedRoute><EditionAdmin /></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/dashboard/members" element={<Navigate to="/dashboard/concierge?tab=members" replace />} />
+            {/* THE PRIVATE EDITION sin conexión: fuera de ProtectedRoute (en modo avión la sesión no se puede
+                renovar). No llama a la red; solo lee las copias que este usuario guardó en este dispositivo. */}
+            <Route path="/prive/edicion/sin-conexion" element={<EditionOffline />} />
             {/* Sin sesión de IATOS, ProtectedRoute manda a /auth y regresa aquí. El #t=… de la
                 invitación ya se quitó de la URL (priveSession.ts) y no viaja en state.from. */}
             <Route path="/prive" element={<ProtectedRoute><PriveRoot /></ProtectedRoute>}>
@@ -161,6 +177,17 @@ const App = () => (
               <Route path="experiencia/:slug" element={<PriveExperiencePage />} />
               <Route path="solicitudes" element={<PriveRequestsPage />} />
               {/* ── fin IATOS Privé · catálogo ── */}
+              {/* ── THE PRIVATE EDITION (equipo edition) ── */}
+              <Route path="edicion" element={<EditionRoot />}>
+                <Route index element={<EditionLatestIssue />} />
+                <Route path="numero/:issue" element={<EditionLatestIssue />} />
+                <Route path="articulo/:slug" element={<EditionArticle />} />
+                <Route path="mi-edicion" element={<EditionMine />} />
+                <Route path="briefing" element={<EditionWorldBrief />} />
+                <Route path="oportunidades" element={<EditionOpportunities />} />
+                <Route path="vuelo" element={<EditionFlight />} />
+                <Route path="biblioteca" element={<EditionLibrary />} />
+              </Route>
             </Route>
 
             <Route path="*" element={<NotFound />} />

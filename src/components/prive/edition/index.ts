@@ -1,8 +1,6 @@
 /**
- * edition — THE PRIVATE EDITION slot components consumed by other Privé teams
- * (FOR YOU page from prive-ux, INSIDER area from privevalor). Stubs first;
- * every export keeps a signature with NO required props.
+ * edition — THE PRIVATE EDITION: ranuras para otros equipos de Privé (contrato prive_reimagined_contract.md).
+ * <PrivateEditionTeaser /> va en FOR YOU (prive-ux) y en INSIDER (privevalor, con `destination` y
+ * variant="insider"). Sin props obligatorias; si no hay número publicado no renderiza nada.
  */
-export function PrivateEditionTeaser(_props: { destination?: string | null; variant?: "for-you" | "insider" } = {}) {
-  return null;
-}
+export { PrivateEditionTeaser } from "./PrivateEditionTeaser";
