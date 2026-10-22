@@ -158,7 +158,7 @@ DO $$ BEGIN
   BEGIN PERFORM public.prive_request_transition(gen_random_uuid(), 'cancelado', NULL, NULL, NULL, NULL); RAISE NOTICE 'FALLA SR1 prive_request_transition'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM public.booking_intent_confirm(gen_random_uuid(), '{}'::jsonb); RAISE NOTICE 'FALLA SR1 booking_intent_confirm'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
-SELECT 'OK SR1 funciones de equipo niegan a un usuario normal (sin avisos FALLA arriba)';
+SELECT 'OK SR1 funciones de equipo niegan a un usuario normal (ningún aviso de error arriba)';
 -- SR2: los oráculos de relación no responden por terceros.
 SELECT CASE WHEN NOT public.is_trip_owner('a7000000-0000-0000-0000-000000000001','a5000000-0000-0000-0000-000000000001')
              AND NOT public.has_trip_access('a7000000-0000-0000-0000-000000000001','a5000000-0000-0000-0000-000000000001')
@@ -169,4 +169,76 @@ SELECT CASE WHEN (public.get_access_state('a5000000-0000-0000-0000-000000000001'
 -- SR4: el perfil completo (correo, nacimiento) de otra cuenta no es legible.
 SELECT CASE WHEN count(*) = 0 THEN 'OK SR4 no se leen perfiles ajenos' ELSE 'FALLA SR4' END
   FROM profiles WHERE id <> 'a6000000-0000-0000-0000-000000000002'::uuid;
+RESET ROLE;
+
+-- ===== Fortalecimiento (CALIDAD_PRUEBAS.md, mutaciones M3/M3B que ninguna prueba detectaba) =====
+-- SX: lectura cruzada en las tablas personales. Antes nada fallaba si una política SELECT "own" se
+-- volvía USING (true) (mutación M3B en expenses).
+INSERT INTO ai_user_preferences(user_id) VALUES ('a5000000-0000-0000-0000-000000000001') ON CONFLICT DO NOTHING;
+INSERT INTO behavioral_insights(user_id,action) VALUES ('a5000000-0000-0000-0000-000000000001','x');
+INSERT INTO bookings(user_id,title,provider,category) VALUES ('a5000000-0000-0000-0000-000000000001','Hotel X','manual','hotel');
+INSERT INTO concierge_conversations(user_id) VALUES ('a5000000-0000-0000-0000-000000000001');
+INSERT INTO expenses(user_id,amount,category) VALUES ('a5000000-0000-0000-0000-000000000001',100,'comida');
+INSERT INTO fixer_escalations(user_id) VALUES ('a5000000-0000-0000-0000-000000000001');
+INSERT INTO notifications(user_id,title) VALUES ('a5000000-0000-0000-0000-000000000001','aviso privado');
+INSERT INTO push_subscriptions(user_id,endpoint,p256dh,auth) VALUES ('a5000000-0000-0000-0000-000000000001','https://push.example/a5','k','a');
+INSERT INTO recomendaciones(user_id) VALUES ('a5000000-0000-0000-0000-000000000001');
+INSERT INTO travel_moments(user_id,image_url) VALUES ('a5000000-0000-0000-0000-000000000001','https://x.example/a.jpg');
+INSERT INTO travel_profiles(user_id) VALUES ('a5000000-0000-0000-0000-000000000001') ON CONFLICT DO NOTHING;
+INSERT INTO user_vault_benefits(user_id) VALUES ('a5000000-0000-0000-0000-000000000001') ON CONFLICT DO NOTHING;
+INSERT INTO user_visits(user_id,place_name) VALUES ('a5000000-0000-0000-0000-000000000001','Lugar');
+INSERT INTO visited_places(user_id,name,place_id) VALUES ('a5000000-0000-0000-0000-000000000001','Lugar','pid-a5');
+CREATE TEMP VIEW aud_personal WITH (security_invoker = true) AS
+  SELECT 'ai_user_preferences' t, count(*) n FROM ai_user_preferences WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'behavioral_insights', count(*) FROM behavioral_insights WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'bookings', count(*) FROM bookings WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'concierge_conversations', count(*) FROM concierge_conversations WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'expenses', count(*) FROM expenses WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'fixer_escalations', count(*) FROM fixer_escalations WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'notifications', count(*) FROM notifications WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'push_subscriptions', count(*) FROM push_subscriptions WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'recomendaciones', count(*) FROM recomendaciones WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'travel_moments', count(*) FROM travel_moments WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'travel_profiles', count(*) FROM travel_profiles WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'user_vault_benefits', count(*) FROM user_vault_benefits WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'user_visits', count(*) FROM user_visits WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'visited_places', count(*) FROM visited_places WHERE user_id = 'a5000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'profiles', count(*) FROM profiles WHERE id = 'a5000000-0000-0000-0000-000000000001';
+GRANT SELECT ON aud_personal TO authenticated, anon;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','a5000000-0000-0000-0000-000000000001',false);
+SELECT CASE WHEN count(*) FILTER (WHERE n = 0) = 0 THEN 'OK SX1 el dueño ve sus ' || count(*) || ' tablas personales (flujo legítimo)'
+            ELSE 'FALLA SX1 el dueño no ve: ' || string_agg(t, ',') FILTER (WHERE n = 0) END FROM aud_personal;
+SELECT set_config('request.jwt.claim.sub','a6000000-0000-0000-0000-000000000002',false);
+SELECT CASE WHEN count(*) FILTER (WHERE n > 0) = 0
+             AND (SELECT count(*) FROM trips WHERE user_id = 'a5000000-0000-0000-0000-000000000001') = 0
+            THEN 'OK SX2 un extraño no lee ninguna de las ' || count(*) || ' tablas personales ajenas ni sus viajes'
+            ELSE 'FALLA SX2 lectura cruzada en: ' || coalesce(string_agg(t, ',') FILTER (WHERE n > 0), 'trips') END FROM aud_personal;
+SET ROLE anon; SELECT set_config('request.jwt.claim.role','anon',false); SELECT set_config('request.jwt.claim.sub','',false);
+DO $$ DECLARE v text; BEGIN
+  SELECT string_agg(t, ',') FILTER (WHERE n > 0) INTO v FROM aud_personal;
+  RAISE NOTICE '%', CASE WHEN v IS NULL THEN 'OK SX3 anon no lee ninguna tabla personal' ELSE 'FALLA SX3 anon lee: ' || v END;
+  BEGIN
+    PERFORM count(*) FROM trips;
+    RAISE NOTICE '%', CASE WHEN (SELECT count(*) FROM trips) = 0 THEN 'OK SX4 anon no lee viajes' ELSE 'FALLA SX4 anon lee viajes' END;
+  EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'OK SX4 anon no lee viajes [permiso negado]';
+  END;
+END $$;
+RESET ROLE; SELECT set_config('request.jwt.claim.role','authenticated',false);
+
+-- SC: una invitación PENDIENTE no da acceso al viaje (mutación M3: is_trip_collaborator sin
+-- status = 'accepted' pasaba todas las pruebas).
+INSERT INTO trip_collaborators(trip_id,user_id,role,invited_by,status) VALUES
+  ('a7000000-0000-0000-0000-000000000001','a6000000-0000-0000-0000-000000000002','editor','a5000000-0000-0000-0000-000000000001','pending')
+ON CONFLICT DO NOTHING;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','a6000000-0000-0000-0000-000000000002',false);
+SELECT CASE WHEN (SELECT count(*) FROM trips WHERE id = 'a7000000-0000-0000-0000-000000000001') = 0
+             AND (SELECT count(*) FROM trip_journal_entries WHERE trip_id = 'a7000000-0000-0000-0000-000000000001') = 0
+             AND NOT public.has_trip_access('a7000000-0000-0000-0000-000000000001', 'a6000000-0000-0000-0000-000000000002')
+            THEN 'OK SC1 invitación pendiente: no ve el viaje ni su diario' ELSE 'FALLA SC1 la invitación pendiente ya da acceso' END;
+UPDATE trips SET destino = 'cambiado por invitado pendiente' WHERE id = 'a7000000-0000-0000-0000-000000000001';
+SELECT public.aceptar_invitacion_viaje('a7000000-0000-0000-0000-000000000001');
+SELECT CASE WHEN (SELECT count(*) FROM trips WHERE id = 'a7000000-0000-0000-0000-000000000001' AND destino = 'Viaje del dueño') = 1
+            THEN 'OK SC2 al aceptar ve el viaje; antes de aceptar no pudo cambiarlo' ELSE 'FALLA SC2' END;
 RESET ROLE;
