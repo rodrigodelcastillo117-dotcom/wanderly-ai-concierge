@@ -3,6 +3,7 @@
 - **Fecha:** 2026-10-22.
 - **Código revisado:** rama `claude/iatos-world-class`, commit `f4c4c72` (66 commits sobre `origin/main` = `ae6d5c8`), en solo lectura.
   - Mientras se escribía este plan, el grupo de pagos fusionó su trabajo (`d550aac` → `f4c4c72`). Todo lo de aquí corresponde a `f4c4c72`.
+  - **Actualización 2026-10-22 (rama en `abaa74a`):** las listas de la sección 1 a) y b) se rehicieron contra `origin/main` (`ae6d5c8`): **35 migraciones nuevas** y **50 de 54 funciones** que hay que desplegar. Vitest: **737/737 en 106 archivos**. El estado vigente de cada hallazgo está en `IATOS_HALLAZGOS_PRIORIZADOS.md`, secciones 0 y 3; los estados de la sección 2 de este plan son de `f4c4c72` y varios ya avanzaron.
 - **Para quién es:**
   - los dos fundadores, para decidir y dar el GO en cada paso;
   - Sebastián Mathus (NEXTIA), para revisar el orden, los riesgos y las pruebas.
@@ -86,9 +87,11 @@ G-0 (respaldo) → G-1 (decisión de textos) → G-2 (revisar N-09) → a) migra
 
 ### a) Aplicar las migraciones en orden (con GO)
 
-Estas son las 11 migraciones `2026102213*.sql`: las 7 de `130000` a `133000` y las 4 de pagos, de `135000` a `135300`. **Ninguna está aplicada en producción.** La `20261022120000_security_p0_fixes.sql` ya está aplicada y verificada; no se vuelve a correr.
+Son **35 migraciones nuevas** respecto a `origin/main` (`git diff --name-only --diff-filter=A origin/main...HEAD -- supabase/migrations`). **Ninguna está aplicada en producción.** La `20261022120000_security_p0_fixes.sql` ya está en `main`, aplicada y verificada; no se vuelve a correr.
 
-**Cómo se aplican:** una por una en el SQL editor de Lovable Cloud, con su GO, y verificando cada una antes de pasar a la siguiente. Todas son idempotentes: lo probé hoy con una segunda pasada en local (`supabase/tests/ops/run.sh` → "ok" en las 11, en `f4c4c72`).
+**Orden:** el de su prefijo de fecha, que es el de la tabla (1 a 35). Varias dependen de las anteriores: por ejemplo, la 26 necesita la 7 y la 2, y la 34 vuelve a definir lo de la 21.
+
+**Cómo se aplican:** una por una en el SQL editor de Lovable Cloud, con su GO, y verificando cada una antes de pasar a la siguiente. Todas se declaran idempotentes. La segunda pasada en local la prueban `supabase/tests/ops/run.sh` (las 11 `2026102213*`) y `supabase/tests/cost/run.sh` (las 3 `20261022142*`); las demás se reproducen completas en cada suite, pero sin segunda pasada.
 
 | # | Archivo | Qué hace | ¿Las funciones viejas siguen funcionando? | Verificación inmediata (solo lectura) |
 |---|---|---|---|---|
@@ -103,8 +106,32 @@ Estas son las 11 migraciones `2026102213*.sql`: las 7 de `130000` a `133000` y l
 | 9 | `20261022135100_pay_plan_limits.sql` | Tablas `plan_limits` y `app_flags` (siembra con `pro_limits_enforced=false` y `trial_no_card_enabled=false`); `app_flag`, `quota_rule` y `quota_used`; vuelve a definir `reserve_quota`, `consume_free_quota` y `get_access_state` (`RETURNS jsonb`, igual que antes). | Sí, con los interruptores apagados: GRATIS 3/1 y PRO ilimitado, igual que hoy (SQL P1/P2 en local). Que el frontend viejo lea bien el `jsonb` de `get_access_state` es NO VERIFICADO campo por campo. | `SELECT key, value FROM app_flags;` → ambos `false`. |
 | 10 | `20261022135200_pay_trial_no_card.sql` | Tabla `trial_grants` (hash del correo), `normalize_email`, `email_trial_hash` y el trigger `on_auth_user_no_card_trial` **en `auth.users`** (`AFTER INSERT OR UPDATE OF email_confirmed_at`). | Sí: con el interruptor apagado, el trigger sale sin hacer nada (`:57`). Riesgo bajo, pero es un trigger en `auth.users`: una falla bloquearía los registros. Probado en local (T1). | Registrar una cuenta de prueba y confirmar su correo: no se crea ninguna fila en `trial_grants` ni en `subscriptions`. |
 | 11 | `20261022135300_pay_plan_limits_recommended.sql` | Vuelve a definir `is_pro`: un `trialing` sin `current_period_end` **deja de ser PRO**; `active` y `comped` no cambian. Agrega `effective_plan` y `plan_limit`; siembra los límites recomendados (solo aplican con los interruptores). | Sí: en vivo las 11 suscripciones son `comped` (no hay ningún `trialing`), así que nadie pierde PRO. | `SELECT count(*) FROM subscriptions WHERE status='trialing' AND current_period_end IS NULL;` **antes** de aplicar → debe ser 0. Después: `SELECT public.is_pro(<un usuario comped>);` → `true`. |
+| 12 | `20261022140000_e2efix_profiles_tier_default_free.sql` | `profiles.tier` vale `'free'` por omisión en cuentas nuevas. No cambia filas. | Sí: nada lee `tier` para dar acceso. | `SELECT column_default FROM information_schema.columns WHERE table_name='profiles' AND column_name='tier';` → `'free'`. |
+| 13 | `20261022141000_sec2_rate_limit_atomic.sql` | `check_rate_limit` atómico, con candado por sujeto y *bucket* (F-07). | Sí: misma firma. | Revisión 2 de `docs/ops/LEEME.md` (IP real en `rate_limits`). |
+| 14 | `20261022141100_sec2_trips_collab_columns.sql` | Trigger `trips_collab_columns_guard`: el colaborador solo edita el contenido del viaje. | Sí: el dueño y la llave de servicio no cambian. | Como colaborador de prueba, cambiar `current_quote_id` → error. |
+| 15 | `20261022141200_sec2_profiles_sensitive_columns.sql` | Trigger `profiles_guard_sensitive`: el cliente no cambia `email`, `invite_code`, `tier`, `id` ni `created_at`. Índice único de `invite_code` solo si no hay duplicados. | Sí: lo que la app edita sigue igual. | **Antes:** la consulta de duplicados de `invite_code` (LEEME, revisión 1). |
+| 16 | `20261022141300_sec2_friend_profiles.sql` | Quita `profiles_select_friends`; agrega `friend_profiles(p_ids)` (F-10). | **No del todo:** el frontend viejo lee perfiles de amigos de la tabla; tras aplicarla, Social y Compatibilidad dejan de ver nombres hasta publicar el frontend nuevo. Conviene aplicarla junto con el paso c). | `SELECT * FROM friend_profiles(ARRAY[<id de un amigo>]::uuid[]);` → solo 4 columnas. |
+| 17 | `20261022141400_sec2_storage_bucket_limits.sql` | 10 MB y lista de tipos en `recibos`, `journal-photos` y `travel-moments` (F-11). | Sí. | Revisión 3 de LEEME (Storage → cada bucket). |
+| 18 | `20261022141500_sec2_notifications_server_only.sql` | Quita `notifications_insert_trip_members` (F-19). | Sí: las notificaciones entre miembros ya salen de funciones del servidor. | `SELECT policyname FROM pg_policies WHERE tablename='notifications';` → sin esa política. |
+| 19 | `20261022141600_sec2_trip_id_checks.sql` | `trip_id` debe ser un viaje accesible en 8 tablas; FK NOT VALID en `concierge_requests` y `tracked_flights` (F-15). | Sí: no toca filas viejas. | Insertar una fila con un `trip_id` ajeno → error. |
+| 20 | `20261022141700_sec2_members_gate.sql` | `members_gate` con hash bcrypt, `unlock_members_access` y trigger que impide al cliente escribir `password_unlocked` (F-16). | Sí. | `SELECT has_function_privilege('authenticated','public.unlock_members_access(text)','EXECUTE');` → `true`; `members_gate` sin lectura para `authenticated`. |
+| 21 | `20261022141800_sec2_trip_access_oracles.sql` | `is_trip_owner`, `is_trip_collaborator` y `has_trip_access` solo responden sobre el propio usuario (F-17). | Sí: todos los llamadores pasan `auth.uid()`. | Con un JWT, `has_trip_access(<viaje>, <otro usuario>)` → `false`. |
+| 22 | `20261022141900_sec2_account_deletion_files.sql` | `account_deletion_files` incluye las fotos que otros subieron a los viajes del usuario (F-18). | Sí. | Ninguna inmediata. |
+| 23 | `20261022141950_sec2_stripe_refunds_and_revoke_comp.sql` | `stripe_payment_events`, `mark_subscription_cancel_at_period_end` y `revoke_comp` (A-14, A-18). | Sí: el webhook viejo no los usa. | `SELECT to_regclass('public.stripe_payment_events');` → no nulo. |
+| 24 | `20261022142000_cost_serp_cache_usage_log.sql` | `serp_cache`, `ai_usage_log`, `live_search_usage`, `live_search_take/refund`, `admin_cost_metrics` y `serp_burn_rate`. | Sí: solo agrega objetos. | `SELECT count(*) FROM serp_cache;` → 0. |
+| 25 | `20261022142100_cost_tracked_flights_unique.sql` | Borra solo duplicados **inactivos** sin fecha y agrega UNIQUE NULLS NOT DISTINCT (C-01). | Sí: hay 0 filas en vivo. | `\d tracked_flights` muestra la restricción. |
+| 26 | `20261022142200_cost_price_watch_claim.sql` | `claim_price_watches()` con `SKIP LOCKED`. | Sí: el cron nuevo tiene respaldo si falta. | `SELECT has_function_privilege('authenticated','public.claim_price_watches(integer,interval)','EXECUTE');` → `false`. |
+| 27 | `20261022143000_trip_selections_and_links.sql` | `trips.selections` y la regla de "actualiza la cotización" en `trips_quote_basis_guard` (E-12). Requiere la 7 y la 2. | Sí. | `information_schema.columns` → `trips.selections`. |
+| 28 | `20261022143100_trip_documents.sql` | Bucket **privado** `trip-documents` y tabla `trip_documents` con RLS. | Sí. | `SELECT public FROM storage.buckets WHERE id='trip-documents';` → `false`. |
+| 29 | `20261022143200_trip_split_currency.sql` | Moneda por gasto compartido, `CHECK (amount > 0) NOT VALID` y la FK de quien pagó deja de borrar en cascada (D-18). | Sí. | `information_schema.columns` → la columna de moneda. |
+| 30 | `20261022144000_public_plan_config.sql` | `public_plan_config()`, que solo expone si la prueba sin tarjeta está encendida. | Sí. | `SELECT public.public_plan_config();` → el interruptor en `false`. |
+| 31 | `20261022145000_profiles_tier_audit_sync.sql` | Bitácora, `sync_profile_tier` (en modo de prueba por omisión) y `revert_profile_tier`. **No cambia cuentas.** | Sí. | `SELECT count(*)` de la bitácora → 0. Correr la sincronización solo con autorización del dueño (DEC-05). |
+| 32 | `20261022146000_sec2_members_pro_access.sql` | Members Only = PRO: `members_access()`, `members_teaser()`, RLS de `nightlife_premium` y contraseña temporal con caducidad. | **No del todo:** los desbloqueos con la contraseña vieja dejan de contar. | **Antes:** la consulta "¿quién perdería el acceso?" de LEEME (sección Members Only). |
+| 33 | `20261022146100_sec2_stripe_payment_integrity.sql` | `revoke_paid_access`, bitácora de eventos de pago y aviso a administradores (DEC-08). | Sí: el webhook viejo no los usa. | Ninguna inmediata; ver `docs/ops/stripe-modo-prueba.md`. |
+| 34 | `20261022146200_sec2_deletion_requests.sql` | `deletion_requests` y `deletion_request_steps` (borrado reanudable, DEC-09). | Sí: el `delete-account` viejo no los usa. | La consulta de solicitudes pendientes de LEEME → 0 filas. |
+| 35 | `20261022146300_sec_concierge_requests_server_only.sql` | Quita al cliente INSERT, UPDATE y DELETE en `concierge_requests` (IATOS-114). | Sí: el `concierge-action` viejo ya escribe con la llave de servicio (NO VERIFICADO en la versión de producción). | `SELECT has_table_privilege('authenticated','public.concierge_requests','INSERT');` → `false`. |
 
-**Después de las 11:**
+**Después de las 35:**
 
 - **Decidir si se registran** en `supabase_migrations.schema_migrations` (IATOS-072). Hoy hay 35 registradas. **Decisión del dueño: sí.**
 - **Que la migración quede aplicada no enciende nada.** `pro_limits_enforced` y `trial_no_card_enabled` quedan en `false` hasta el GO del dueño (D6 y D7).
@@ -115,23 +142,26 @@ Supabase empaqueta cada función con sus importaciones. Por eso, una función cu
 
 Lo calculé recorriendo las importaciones desde cada `index.ts` contra `git diff --name-only origin/main..HEAD -- supabase/functions`. `_shared/rate-limit.ts` importa `entitlements.ts`, que cambió, así que casi todas quedan afectadas.
 
-**Cambió su propio código: 27 funciones**
+Recalculado en `abaa74a` recorriendo las importaciones relativas (también las transitivas) desde cada `index.ts`, contra `git diff --name-only origin/main...HEAD -- supabase/functions`. Cambiaron 32 módulos de `_shared/`; `rate-limit.ts` importa `entitlements.ts`, `quota.ts` y `reservation.ts`, así que casi todas quedan afectadas.
 
-`ai-tool`, `analizar-viaje`, `auditar-perfil`, `buscar-promociones`, `card-benefits-lookup`, `concierge-action`, `concierge-chat`, `editar-viaje-ai`, `flight-watch-cron`, `flights-search`, `health-check`, `hotels-search`, `logistics-plan`, `nightlife-discover`, `parse-trip-file`, `parsear-viaje`, `price-watch`, `price-watch-cron`, `recomendar-destinos`, `serpapi-quote`, `stripe-checkout`, `stripe-portal`, `stripe-webhook`, `suggest-packing`, `suggest-restaurants`, `track-flight`, `travelpayouts-flights`.
+**Cambió su propio código: 36 funciones** (una es nueva)
 
-**Solo cambió un `_shared/` que importa: 21 funciones**
+`account-deletion-retry` (**nueva**), `ai-tool`, `analizar-viaje`, `auditar-perfil`, `buscar-promociones`, `buscar-video`, `card-benefits-lookup`, `concierge-action`, `concierge-chat`, `delete-account`, `editar-viaje-ai`, `enviar-email-fixer`, `flight-status`, `flight-watch-cron`, `flights-search`, `health-check`, `hotels-search`, `logistics-plan`, `nightlife-discover`, `parse-trip-file`, `parsear-viaje`, `pexels-image`, `places-nearby`, `price-watch`, `price-watch-cron`, `recomendar-destinos`, `serpapi-quote`, `share-trip-notify`, `stripe-checkout`, `stripe-portal`, `stripe-webhook`, `suggest-packing`, `suggest-restaurants`, `track-flight`, `travelpayouts-flights`, `tripadvisor-search`.
 
-`analizar-preferencias-ruta`, `buscar-video`, `delete-account`, `email-bienvenida`, `enviar-email-fixer`, `evolucionar-dna`, `flight-status`, `generar-packing-list`, `generate-avatar`, `geocode`, `geocode-address`, `get-routes`, `nearby-places`, `pexels-image`, `place-details`, `place-photo`, `places-nearby`, `places-search`, `resolver-fechas`, `send-email`, `tripadvisor-search`.
+**Solo cambió un `_shared/` que importa: 14 funciones**
 
-**Sin cambios: 5 funciones**
+`analizar-preferencias-ruta`, `email-bienvenida`, `evolucionar-dna`, `generar-packing-list`, `generate-avatar`, `geocode`, `geocode-address`, `get-routes`, `nearby-places`, `place-details`, `place-photo`, `places-search`, `resolver-fechas`, `send-email`. Todas importan `rate-limit.ts` (y con él `entitlements.ts`, `quota.ts`, `reservation.ts`, `rate-limit-core.ts`); `email-bienvenida` y `send-email` también `email.ts` y `redact.ts`.
 
-`evaluar-logros`, `mark-visited`, `push-subscribe`, `share-trip-notify`, `update-food-dna`.
+**Sin cambios: 4 funciones**
 
-**Total a desplegar: 48 de 53.**
+`evaluar-logros`, `mark-visited`, `push-subscribe`, `update-food-dna`.
+
+**Total a desplegar: 50 de 54.**
 
 **Notas:**
 
-- **`send-email`** entra solo porque `_shared/email.ts` cambió un texto del correo de bienvenida. Su propio código es igual al de `origin/main`, que ya está en producción y verificado. **Hay que repetir las 4 verificaciones de F-04 después del despliegue** (ver d).
+- **`account-deletion-retry`** es nueva: `supabase/config.toml` le pone `verify_jwt = false` (usa la autenticación de cron) y hay que programarla (`docs/ops/LEEME.md`).
+- **`send-email`** entra solo porque cambiaron módulos de `_shared/` que importa (`email.ts`, `rate-limit.ts` y los que este importa). Su propio código es igual al de `origin/main`, que ya está en producción y verificado. **Hay que repetir las 4 verificaciones de F-04 después del despliegue** (ver d).
 - **Dependencias de esquema:**
 
 | Función | Necesita |
@@ -142,6 +172,12 @@ Lo calculé recorriendo las importaciones desde cada `index.ts` contra `git diff
 | `health-check` | `cron_health` (migración 6); si falta, solo avisa |
 | `analizar-viaje` y `editar-viaje-ai` | `trip_quotes` (migración 7); si falta, no rompen la cotización (`src/test/quoteSnapshot.test.ts`) |
 | `concierge-chat` (y el frontend del Concierge) | `profiles.active_trip_id` (migración 2). Según `IATOS_E2E_EVIDENCE.md` (N-03, B-12), el frontend de la rama contra el backend de PROD recibe **400** en `GET /rest/v1/profiles?select=active_trip_id`. |
+| `flights-search`, `hotels-search`, `serpapi-quote`, `tripadvisor-search`, `places-nearby`, `flight-status`, `pexels-image`, `buscar-video` | `serp_cache`, `live_search_take/refund` y `ai_usage_log` (migración 24) |
+| `price-watch-cron` | `claim_price_watches` (migración 26); si falta, usa la lectura anterior |
+| `nightlife-discover` y `concierge-action` (reservas de Members) | `members_access` (migración 32) |
+| `stripe-webhook` (reembolsos y disputas) | migraciones 23 y 33 |
+| `delete-account` y `account-deletion-retry` | `deletion_requests` (migración 34) y `account_deletion_files` (22) |
+| `share-trip-notify` | sin dependencia nueva de esquema; el frontend nuevo usa `friend_profiles` (migración 16) |
 | **`concierge-chat`, `analizar-viaje` y `logistics-plan`** | **`reserve_quota`, `commit_quota` y `release_quota` (migraciones 8, 9 y 11).** `reserveQuota` falla cerrado (`_shared/entitlements.ts:48-55`): **si se despliegan antes de las migraciones, todos los mensajes de Iato y todos los análisis se niegan, también para PRO.** |
 
 - **Secretos opcionales** que la versión nueva lee. Que existan es **NO VERIFICADO**:
@@ -149,8 +185,9 @@ Lo calculé recorriendo las importaciones desde cada `index.ts` contra `git diff
   - `FLIGHT_WATCH_MAX_CHECKS` (50 por omisión);
   - `TRAVELPAYOUTS_MARKER` (si falta, usa el público 533299);
   - `ANTHROPIC_MODEL`;
+  - `POSTHOG_PERSONAL_API_KEY` y `POSTHOG_PROJECT_ID` (borrado de cuenta en PostHog; sin ellos el paso queda en `pending_key`);
   - las llaves VAPID: si faltan, ya no truena; solo no manda push.
-- `supabase/config.toml` no cambió en la rama (revisado en `f4c4c72`), así que `verify_jwt` sigue igual.
+- `supabase/config.toml` solo agrega `[functions.account-deletion-retry] verify_jwt = false` (revisado en `abaa74a`); las demás funciones conservan su `verify_jwt`.
 
 ### c) Publicar el frontend
 
@@ -333,7 +370,7 @@ Las fechas son relativas al GO de la liberación. Las estimaciones son [SUPUESTO
 
 ### Días 0 a 30: liberar y estabilizar
 
-1. G-0, G-1 y G-2; migraciones 1 a 11; despliegue de las 48 funciones; frontend; lista V1 a V21. **Meta:** todo lo FIXED_IN_BRANCH pasa a DONE_VERIFIED_PROD.
+1. G-0, G-1 y G-2; migraciones 1 a 35; despliegue de las 50 funciones; frontend; lista V1 a V21. **Meta:** todo lo FIXED_IN_BRANCH pasa a DONE_VERIFIED_PROD.
 2. Desbloqueos del dueño: dominio de Resend (034), plan de SerpApi (015), registro de migraciones (072) y el secreto `HEALTH_ALERT_EMAIL`.
 3. CI con Vitest y las 4 suites SQL.
 4. Verificar en vivo las reservas de cuota (V7, V19, V20) con los interruptores **apagados**. Correr `docs/ops/diagnostico-cuotas.sql` (solo lectura) y decidir si hace falta la reparación propuesta.
@@ -363,7 +400,7 @@ Las fechas son relativas al GO de la liberación. Las estimaciones son [SUPUESTO
 | # | Decisión | Bloquea |
 |---|---|---|
 | D1 | G-1: qué textos comerciales se publican con la liberación | Publicar el frontend |
-| D2 | GO para cada migración (1 a 7) | Paso a) |
+| D2 | GO para cada migración (1 a 35) | Paso a) |
 | D3 | Registrar las migraciones en `schema_migrations` | IATOS-072 |
 | D4 | Plan de SerpApi | IATOS-015, la prueba sin tarjeta |
 | D5 | DNS de Resend | IATOS-034, la prueba sin tarjeta (empieza al confirmar el correo) |
