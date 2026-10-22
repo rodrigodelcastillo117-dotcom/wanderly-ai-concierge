@@ -1,7 +1,9 @@
 // Envía el correo de bienvenida al usuario autenticado (solo a su propio email).
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { sendEmail, welcomeEmail } from "../_shared/email.ts";
+import { sendEmail } from "../_shared/email.ts";
+import { welcomeEmail } from "../_shared/email-templates.ts";
+import { heroPhoto } from "../_shared/hero-photo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,8 +32,10 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { subject, html } = welcomeEmail(nombre);
-  const res = await sendEmail({ to, subject, html });
+  // Portada editorial (Pexels, con crédito); sin foto el correo usa su portada tipográfica.
+  const hero = await heroPhoto(Deno.env.get("WELCOME_HERO_QUERY") ?? "aerial coastline sunset travel", { fn: "email-bienvenida", userId: user.id });
+  const { subject, html, text } = welcomeEmail({ firstName: nombre, hero, siteUrl: Deno.env.get("SITE_URL") });
+  const res = await sendEmail({ to, subject, html, text });
 
   return new Response(JSON.stringify(res), {
     status: res.ok ? 200 : 502,

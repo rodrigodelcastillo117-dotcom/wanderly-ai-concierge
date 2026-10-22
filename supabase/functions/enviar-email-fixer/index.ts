@@ -47,13 +47,14 @@ Deno.serve(async (req: Request) => {
     const parsed = parseFixerPayload(await req.json().catch(() => null));
     if (!parsed.ok) return json(400, { code: "INVALID_REQUEST", error: parsed.error });
 
-    const { subject, html } = buildFixerEmail(parsed.value, { email: user.email ?? null, userId: user.id });
+    const { subject, html, text } = buildFixerEmail(parsed.value, { email: user.email ?? null, userId: user.id });
     const sent = await sendEmail({
       to: FIXER_EMAIL,
       from: FROM_ADDRESS,
       ...(user.email ? { replyTo: user.email } : {}),
       subject,
       html,
+      text,
     });
 
     if (!sent.ok) {

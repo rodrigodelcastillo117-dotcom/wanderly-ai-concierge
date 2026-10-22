@@ -8,6 +8,9 @@ import { isAuthorizedCron } from '../_shared/cron-auth.ts';
 import { FLIGHT_PUSH_OPTIONS, pushToUser } from '../_shared/push.ts';
 import { safeErrorMessage } from '../_shared/redact.ts';
 import { DEFAULT_OPTIONS, parseMaxChecks, runFlightWatch } from './runner.ts';
+import { sendEmail } from '../_shared/email.ts';
+import { flightUpdateEmail } from '../_shared/email-templates.ts';
+import { alertEmailsEnabled, alertRecipient } from '../_shared/alert-email.ts';
 import type { TrackedFlight } from './rules.ts';
 
 const json = (body: unknown, status = 200) =>
@@ -55,6 +58,20 @@ Deno.serve(async (req) => {
         return data != null;
       },
       push: (userId, payload) => pushToUser(admin, userId, payload, FLIGHT_PUSH_OPTIONS),
+      // Correo del aviso: apagado por defecto (ALERT_EMAILS_ENABLED, ver _shared/alert-email.ts).
+      email: alertEmailsEnabled()
+        ? async (f, change) => {
+          const to = await alertRecipient(admin, f.user_id);
+          if (!to) return;
+          const mail = flightUpdateEmail({
+            firstName: to.firstName, flight: f.flight, flightDate: f.flight_date, route: f.route,
+            changes: change.changes, status: change.status, checkedAt: new Date().toISOString(), url: change.url,
+            siteUrl: Deno.env.get('SITE_URL'),
+          });
+          const sent = await sendEmail({ to: to.email, subject: mail.subject, html: mail.html, text: mail.text });
+          if (!sent.ok) console.error('flight-watch-cron: correo de aviso no enviado', f.id);
+        }
+        : undefined,
       now: () => Date.now(),
       log: (...args) => console.error(...args),
     }, opts);

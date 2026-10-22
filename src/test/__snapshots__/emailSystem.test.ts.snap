@@ -1,0 +1,121 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`bienvenida, invitación, alertas y cuenta eliminada > alerta de precio: antes → ahora, ahorro, fuente y hora, cómo dejar de vigilar 1`] = `
+"IATOS · ALERTA DE PRECIO
+
+Tu vuelo a Barcelona bajó $2,460 MXN por persona.
+Antes: $18,420 MXN → Ahora: $15,960 MXN (por persona, viaje redondo)
+Ahorras $2,460 MXN por persona · $4,920 MXN en total
+Ruta: MEX → BCN · 2 adultos
+[EN VIVO · Aviasales · 14:04 h]
+
+Para comparar solo la baja de la tarifa, el precio de antes se convirtió con el tipo de cambio de hoy. Las tarifas cambian rápido y este precio no está apartado.
+
+Ver mi viaje: https://traveliatos.life/dashboard/viajes/7d0c3f7e-1111-4a2b-9c3d-5e6f7a8b9c0d
+Ver la tarifa: https://www.aviasales.com/search/x?marker=1
+
+Tu concierge, Iato
+
+—
+IATOS AI · traveliatos.life
+Recibes este aviso porque activaste la vigilancia de precio de este viaje.
+¿Dudas? Responde a este correo o escríbenos a hola@traveliatos.life.
+Dejar de vigilar este precio (desde tu viaje): https://traveliatos.life/dashboard/viajes/7d0c3f7e-1111-4a2b-9c3d-5e6f7a8b9c0d
+Nunca te pediremos tu contraseña ni datos de tarjeta por correo.
+"
+`;
+
+exports[`bienvenida, invitación, alertas y cuenta eliminada > bienvenida: tres pasos con enlace, texto plano y sin datos personales en enlaces 1`] = `
+"IATOS
+
+Valentina,
+Soy Iato, tu concierge.
+Planeo viajes completos —vuelos, hoteles, restaurantes y experiencias— y te muestro siempre qué es un precio consultado en vivo y qué es una estimación.
+
+TRES PRIMEROS PASOS
+1. Cotiza tu primer viaje: Dime a dónde y cuándo. Consulto vuelos y hoteles en vivo, estimo el resto y te digo de dónde sale cada cifra.
+   Planear un viaje: https://traveliatos.life/dashboard/planear
+2. Cuéntame cómo viajas: Tu ritmo, presupuesto, comida y tipo de hotel. Con eso afino cada recomendación para ti.
+   Completar mi perfil: https://traveliatos.life/onboarding/deep
+3. Guarda tus tarjetas y programas: En la Bóveda registro tus tarjetas y programas de lealtad para aprovechar salas, puntos y beneficios.
+   Abrir mi Bóveda: https://traveliatos.life/dashboard/perfil
+
+Entrar a IATOS: https://traveliatos.life/dashboard
+
+Mi promesa: nunca te mostraré una estimación como si fuera un precio en vivo.
+
+Tu concierge, Iato
+
+—
+IATOS AI · traveliatos.life
+Recibes este correo porque acabas de crear tu cuenta en IATOS.
+¿Dudas? Responde a este correo o escríbenos a hola@traveliatos.life.
+Nunca te pediremos tu contraseña ni datos de tarjeta por correo.
+"
+`;
+
+exports[`correos internos de operaciones > reserva Privé legible: tipo en español, hora del lugar y de CDMX, folio corto, sin JSON ni uuid 1`] = `
+"RESERVA PRIVÉ · Folio 4BE1C0DE
+Le Bernardin
+Nueva York, US
+
+Estado: Pendiente de confirmar — el cliente ve «solicitud recibida», no «reserva».
+Sugerido: confirma disponibilidad y escribe al cliente en menos de 2 horas.
+
+Fecha y hora: 14 de nov. de 2026, 20:00 h (hora del lugar) · 14 de nov. de 2026, 19:00 h (hora CDMX)
+Personas: 4
+Cliente: Valentina Ruiz
+Correo: valentina@correo.mx
+Prefiere: WhatsApp
+Preferencias: Aniversario
+Viaje: Sin viaje
+Fuente del lugar: https://www.le-bernardin.com/
+Recibida: 22 de oct. de 2026, 14:08 h (hora CDMX)
+
+Responder a este correo le escribe directo al cliente.
+Confirma disponibilidad y precio reales con el lugar antes de decir que está reservado.
+
+—
+IATOS AI · traveliatos.life
+Correo interno de operaciones de IATOS: llega al buzón del equipo cuando un cliente pide algo a un humano.
+"
+`;
+
+exports[`cotización: procedencia de cada renglón > texto plano estable (snapshot) 1`] = `
+"IATOS
+
+Rodrigo,
+Tu viaje a Tokio está cotizado.
+Consultamos tarifas en vivo y estimamos el resto. Cada cifra dice de dónde sale.
+
+Ruta: Ciudad de México → Tokio
+Fechas: 20 – 25 de mar. de 2027 (5 noches)
+Viajeros: 2 viajeros · 1 habitación
+
+DESGLOSE
+- Vuelos: $13,380 MXN [EN VIVO · Google Flights · 14:05 h] (para 2 personas)
+- Hospedaje: $106,460 MXN [EN VIVO · Google Hotels · 14:05 h] (5 noches × 1 habitación)
+- Experiencias: $6,000 MXN [ESTIMADO · cálculo de IATOS] (para 2 personas)
+- Comida: $20,000 MXN [ESTIMADO · cálculo de IATOS]
+- Transporte local: $4,000 MXN [ESTIMADO · cálculo de IATOS]
+- Extras: $5,000 MXN [ESTIMADO · cálculo de IATOS]
+
+TOTAL ESTIMADO: $154,840 MXN
+2 viajeros · 5 noches · ≈ $77,420 MXN por persona
+Cotizado hace 3 min · 22 de oct. de 2026, 14:05 h
+Válido hasta el 23 de oct. de 2026, 14:05 h · hora del centro de México
+
+«Estimado» es un cálculo de IATOS con precios de referencia del destino: no es una tarifa consultada en vivo y puede cambiar al reservar.
+
+Ver mi cotización: https://traveliatos.life/dashboard/viajes/7d0c3f7e-1111-4a2b-9c3d-5e6f7a8b9c0d
+Nada está reservado todavía. Los precios en vivo se sostienen 24 horas; al abrir tu cotización los volvemos a consultar.
+
+Tu concierge, Iato
+
+—
+IATOS AI · traveliatos.life
+Recibes este correo porque pediste esta cotización en IATOS.
+¿Dudas? Responde a este correo o escríbenos a hola@traveliatos.life.
+Nunca te pediremos tu contraseña ni datos de tarjeta por correo.
+"
+`;
