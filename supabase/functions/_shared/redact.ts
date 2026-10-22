@@ -24,3 +24,13 @@ export function redactSecrets(input: unknown, max = 200): string | undefined {
 /** Mensaje de un error desconocido, ya limpio. */
 export const safeErrorMessage = (e: unknown, max = 200) =>
   redactSecrets(e instanceof Error ? e.message : e, max) ?? "error desconocido";
+
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+
+/** Como redactSecrets y además tapa correos (F-18): para logs de proveedores que los incluyen
+ *  en sus mensajes de error (p. ej. Resend: "You can only send testing emails to …"). */
+export function redactPii(input: unknown, max = 200): string | undefined {
+  if (input == null) return undefined;
+  const raw = typeof input === "string" ? input : (() => { try { return JSON.stringify(input); } catch { return String(input); } })();
+  return redactSecrets(raw.replace(EMAIL, "[correo]"), max);
+}

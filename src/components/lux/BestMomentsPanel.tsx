@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Trash2, Loader2, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
+import { safeExtension, uploadProblem } from "@/lib/uploadRules";
 
 type Moment = {
   id: string;
@@ -39,7 +40,10 @@ export const BestMomentsPanel = () => {
     try {
       for (const file of Array.from(files)) {
         if (!file.type.startsWith("image/")) continue;
-        const ext = file.name.split(".").pop() || "jpg";
+        // El servidor también lo rechaza (límites del bucket); aquí se avisa con un mensaje claro.
+        const problem = uploadProblem("travel-moments", file);
+        if (problem) throw new Error(problem);
+        const ext = safeExtension(file.name);
         const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: upErr } = await supabase.storage.from("travel-moments").upload(path, file, { upsert: false });
         if (upErr) throw upErr;

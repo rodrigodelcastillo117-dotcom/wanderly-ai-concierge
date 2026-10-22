@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
 import { placePhotoUrl } from "@/lib/googleMaps";
+import { loadGoogleMaps } from "@/lib/googleMapsLoader";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { RoutesPanel } from "@/components/RoutesPanel";
 import { Button } from "@/components/ui/button";
@@ -118,6 +119,7 @@ const Cercanos = () => {
   const markers = useRef<Map<string, any>>(new Map());
   const userMarker = useRef<any>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   // Mismo viaje activo que Iato y el Dashboard (antes: el primero por fecha de salida).
   const active = useActiveTrip<any>();
   const activeTrip = active.trip;
@@ -146,18 +148,19 @@ const Cercanos = () => {
     })();
   }, [user]);
 
-  // Cargar script Maps
+  // Cargar Google Maps con el cargador único: solo marca "listo" cuando google.maps.Map ya es un
+  // constructor real (antes, a veces tronaba con "Map is not a constructor", N-01).
   useEffect(() => {
-    const key = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
-    const channel = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID;
-    if (!key) return;
-    if (window.google?.maps) { setMapReady(true); return; }
-    if (document.getElementById("gmaps-script")) return;
-    window.initMap = () => setMapReady(true);
-    const s = document.createElement("script");
-    s.id = "gmaps-script"; s.async = true;
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&loading=async&callback=initMap${channel ? `&channel=${channel}` : ""}`;
-    document.head.appendChild(s);
+    if (!import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY) return;
+    let alive = true;
+    loadGoogleMaps().then(
+      () => { if (alive) setMapReady(true); },
+      (e) => {
+        console.error("Google Maps", e);
+        if (alive) setMapError("No pudimos cargar el mapa. La lista de lugares sigue disponible; actualiza la página para reintentar.");
+      },
+    );
+    return () => { alive = false; };
   }, []);
 
   // Geolocalización
@@ -209,10 +212,18 @@ const Cercanos = () => {
     if (!mapReady || !mapRef.current) return;
     const center = userLoc ?? { lat: 19.4326, lng: -99.1332 };
     if (!mapObj.current) {
-      mapObj.current = new window.google.maps.Map(mapRef.current, {
-        center, zoom: 15, minZoom: 3, maxZoom: 19,
-        styles: DARK_STYLE, disableDefaultUI: true, zoomControl: true, gestureHandling: "greedy",
-      });
+      try {
+        mapObj.current = new window.google.maps.Map(mapRef.current, {
+          center, zoom: 15, minZoom: 3, maxZoom: 19,
+          styles: DARK_STYLE, disableDefaultUI: true, zoomControl: true, gestureHandling: "greedy",
+        });
+      } catch (e) {
+        // Nunca tumbar la pantalla por el mapa: se avisa y la lista sigue funcionando.
+        console.error("Google Maps", e);
+        setMapError("No pudimos mostrar el mapa. La lista de lugares sigue disponible.");
+        setMapReady(false);
+        return;
+      }
     } else if (userLoc) {
       mapObj.current.setCenter(center);
     }
@@ -323,7 +334,12 @@ const Cercanos = () => {
         </div>
 
         <div className="glass-card rounded-2xl overflow-hidden gold-border">
-          {hasKey ? (
+          {hasKey && mapError ? (
+            <div role="status" className="aspect-[16/9] flex flex-col items-center justify-center text-center p-8">
+              <MapPin className="w-10 h-10 text-primary mb-3" />
+              <p className="text-sm text-muted-foreground">{mapError}</p>
+            </div>
+          ) : hasKey ? (
             <div ref={mapRef} className="w-full aspect-[16/10] md:aspect-[16/9]" />
           ) : (
             <div className="aspect-[16/9] flex flex-col items-center justify-center text-center p-8">

@@ -4,6 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { confirmedDeletion } from "./validation.ts";
+import { cancelAllSubscriptions, stripeFetchDeps } from "./billing.ts";
 
 const respond = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
@@ -26,15 +27,23 @@ Deno.serve(async req => {
   let stage = "subscription";
   try {
     const { data: subscription, error: subscriptionError } = await admin.from("subscriptions")
-      .select("stripe_subscription_id,status").eq("user_id", user.id).maybeSingle();
+      .select("stripe_subscription_id,stripe_customer_id,status").eq("user_id", user.id).maybeSingle();
     if (subscriptionError) throw subscriptionError;
-    if (subscription?.stripe_subscription_id && subscription.status !== "canceled") {
+    // Se cancelan TODAS las suscripciones vivas del cliente en Stripe (no solo la guardada) y una
+    // que Stripe ya dio por cancelada o no encuentra no bloquea el borrado (billing.ts).
+    if (subscription?.stripe_subscription_id || subscription?.stripe_customer_id) {
       const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-      if (!stripeKey) return respond({ error: "billing_cancellation_unavailable" }, 503);
-      const cancellation = await fetch(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscription.stripe_subscription_id)}`, {
-        method: "DELETE", headers: { Authorization: `Bearer ${stripeKey}` },
-      });
-      if (!cancellation.ok) throw new Error("billing_cancellation_failed");
+      if (stripeKey) {
+        const outcome = await cancelAllSubscriptions(stripeFetchDeps(stripeKey), {
+          customerId: subscription.stripe_customer_id,
+          subscriptionId: subscription.stripe_subscription_id,
+        });
+        if (!outcome.ok) throw new Error("billing_cancellation_failed");
+      } else if (!["canceled", "incomplete_expired"].includes(String(subscription.status))) {
+        // Sin llave de Stripe solo se sigue si la fila ya estaba terminada (como antes): si puede
+        // haber un cobro vivo, no se borra la cuenta a ciegas.
+        return respond({ error: "billing_cancellation_unavailable" }, 503);
+      }
     }
     stage = "storage";
     // Requery after each batch: RPC responses are capped by the API row limit.

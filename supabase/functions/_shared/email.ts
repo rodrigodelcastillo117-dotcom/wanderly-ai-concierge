@@ -1,5 +1,9 @@
 // Envío de emails transaccionales vía el gateway de Resend de Lovable.
 // Uso server-side (edge functions): no requiere JWT de usuario.
+import { redactPii } from "./redact.ts";
+
+// Para importar las plantillas desde Vitest (Node) sin el runtime de Deno.
+declare const Deno: { env: { get(name: string): string | undefined } };
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 const FROM_DEFAULT = "IATOS AI <hola@traveliatos.life>";
@@ -51,16 +55,25 @@ export async function sendEmail(opts: {
     }
 
     if (!res.ok) {
-      console.error("sendEmail error", res.status, res.data);
-      return { ok: false, error: res.data?.message ?? `resend_${res.status}` };
+      // Resend incluye direcciones en sus mensajes de error: nunca se registran tal cual (F-18).
+      const error = redactPii(res.data?.message) ?? `resend_${res.status}`;
+      console.error("sendEmail error", res.status, error);
+      return { ok: false, error };
     }
     return { ok: true, id: res.data?.id };
   } catch (e) {
-    console.error("sendEmail exception", (e as Error).message);
-    return { ok: false, error: (e as Error).message };
+    const error = redactPii((e as Error).message) ?? "send_exception";
+    console.error("sendEmail exception", error);
+    return { ok: false, error };
   }
 }
 
+
+/** Asunto/encabezado en texto plano de una línea: sin caracteres de control ni saltos, recortado. */
+export function oneLine(v: unknown, max: number): string {
+  // deno-lint-ignore no-control-regex
+  return String(v ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
 
 /** Escapa texto de usuario antes de meterlo en el HTML de un correo. */
 export const escapeHtml = (v: unknown) =>

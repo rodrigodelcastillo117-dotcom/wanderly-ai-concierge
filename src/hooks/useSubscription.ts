@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { readFunctionError } from "@/lib/functionErrors";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,32 +36,70 @@ const daysLeft = (iso?: string | null) => {
   return Math.max(0, Math.ceil(ms / 86400000));
 };
 
+// Si el servidor no contesta en este tiempo, dejamos de esperar y ofrecemos "Reintentar"
+// (antes la tarjeta de /dashboard/pro podía quedarse girando para siempre, N-02).
+export const SUBSCRIPTION_TIMEOUT_MS = 12000;
+
+function withTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timeout")), ms);
+    Promise.resolve(p).then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
+}
+
 export function useSubscription() {
   const { user } = useAuth();
+  const uid = user?.id ?? null;
   const [access, setAccess] = useState<AccessState | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  // Solo la última consulta escribe el estado: una respuesta vieja que llega tarde no debe
+  // dejar la tarjeta en un estado intermedio.
+  const reqRef = useRef(0);
+  useEffect(() => () => { reqRef.current += 1; }, []);
 
   const refresh = useCallback(async () => {
-    if (!user) {
+    const req = ++reqRef.current;
+    if (!uid) {
       setAccess(null);
       setSubscription(null);
+      setError(null);
       setLoading(false);
       return;
     }
     setLoading(true);
-    const [{ data: state }, { data: sub }] = await Promise.all([
-      supabase.rpc("get_access_state", { _user_id: user.id }),
-      supabase
-        .from("subscriptions")
-        .select("status, plan, trial_end, current_period_end, cancel_at_period_end, stripe_customer_id")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-    ]);
-    setAccess((state as unknown as AccessState) ?? null);
-    setSubscription((sub as SubscriptionRow) ?? null);
-    setLoading(false);
-  }, [user]);
+    setError(null);
+    try {
+      const [{ data: state, error: stateErr }, { data: sub, error: subErr }] = await withTimeout(
+        Promise.all([
+          supabase.rpc("get_access_state", { _user_id: uid }),
+          supabase
+            .from("subscriptions")
+            .select("status, plan, trial_end, current_period_end, cancel_at_period_end, stripe_customer_id")
+            .eq("user_id", uid)
+            .maybeSingle(),
+        ]),
+        SUBSCRIPTION_TIMEOUT_MS,
+      );
+      if (req !== reqRef.current) return;
+      // Sin respuesta válida no adivinamos "versión gratuita": mostramos el error con "Reintentar".
+      if (stateErr || subErr || !state || typeof state !== "object") throw stateErr ?? subErr ?? new Error("sin datos");
+      setAccess(state as unknown as AccessState);
+      setSubscription((sub as SubscriptionRow) ?? null);
+    } catch (e) {
+      if (req !== reqRef.current) return;
+      console.error("useSubscription", e);
+      setError("No pudimos cargar el estado de tu membresía.");
+    } finally {
+      // Pase lo que pase, la última consulta siempre termina el "cargando".
+      if (req === reqRef.current) setLoading(false);
+    }
+    // Depende del id (no del objeto user, que cambia en cada refresh de token).
+  }, [uid]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -94,6 +132,7 @@ export function useSubscription() {
 
   return {
     loading,
+    error,
     access,
     subscription,
     isPro: Boolean(access?.is_pro),

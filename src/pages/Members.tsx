@@ -10,8 +10,16 @@ import { CityVideoCard } from "@/components/CityVideoCard";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 
-// Password gate (capa adicional sobre el 18+). Cambia este valor cuando quieras.
-const MEMBERS_PASSWORD = "iatos2026";
+// Password gate (capa adicional sobre el 18+). La contraseña ya NO vive en el código (cualquiera la
+// leía en el bundle): la compara el servidor con un hash (RPC unlock_members_access, con límite de
+// intentos) y es lo único que puede marcar password_unlocked. El dueño la fija con
+// set_members_password (docs/ops/LEEME.md).
+const UNLOCK_ERRORS: Record<string, string> = {
+  contrasena_incorrecta: "Contraseña incorrecta",
+  demasiados_intentos: "Demasiados intentos. Espera una hora e inténtalo de nuevo.",
+  no_configurado: "El acceso de miembros aún no está disponible.",
+  no_autenticado: "Tu sesión expiró. Vuelve a iniciar sesión.",
+};
 
 const CATEGORIES: { id: string; emoji: string; label: string }[] = [
   { id: "cabaret", emoji: "🎭", label: "Cabaret" },
@@ -123,24 +131,11 @@ export default function Members() {
   };
 
   const handleUnlockPassword = async () => {
-    if (!user) return;
-    if (pwInput.trim().toLowerCase() !== MEMBERS_PASSWORD) {
-      setPwError("Contraseña incorrecta");
-      return;
-    }
-    const { error } = await supabase
-      .from("nightlife_access")
-      .upsert(
-        {
-          user_id: user.id,
-          confirmed_adult: true,
-          password_unlocked: true,
-          password_unlocked_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
-    if (error) {
-      toast({ title: "Error", description: "No pudimos desbloquear el acceso. Intenta de nuevo.", variant: "destructive" });
+    if (!user || !pwInput.trim()) return;
+    const { data, error } = await supabase.rpc("unlock_members_access", { p_password: pwInput });
+    const r = (data ?? {}) as { ok?: boolean; error?: string };
+    if (error || !r.ok) {
+      setPwError(UNLOCK_ERRORS[r.error ?? ""] ?? "No pudimos desbloquear el acceso. Intenta de nuevo.");
       return;
     }
     setPasswordUnlocked(true);
