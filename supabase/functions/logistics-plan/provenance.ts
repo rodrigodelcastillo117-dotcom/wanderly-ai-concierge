@@ -68,3 +68,30 @@ export function pricingSources(flights: any[], perDestination: any[]) {
     })(),
   };
 }
+
+/**
+ * Vuelo estimado por el modelo (sin tarifa de un proveedor): no se afirma aerolínea ni "Directo".
+ * Caso 22-oct-2026: "Iberia · Directo · 15h 20m" MEX→Roma, inventado y presentado como dato.
+ */
+export function scrubEstimatedFlight<T extends Record<string, any>>(f: T): T {
+  const out: Record<string, any> = { ...f, fuente_precio: "estimado", estado_dato: "ESTIMADO" };
+  if ("mode" in out) out.provider = "Aerolínea por confirmar"; // arrival_options (vuelo interno)
+  else out.airline_suggested = "Aerolínea por confirmar"; // flights (internacional)
+  out.stops = "Escalas por confirmar";
+  delete out.scenic;
+  return out as T;
+}
+
+const sameOrigin = (from: unknown, origin: unknown) => {
+  const strip = (s: unknown) => norm(String(s ?? "").replace(/\(.*?\)/g, " ").split(",")[0]);
+  return !!strip(from) && strip(from) === strip(origin);
+};
+
+/**
+ * Formas de llegar a la PRIMERA ciudad: el vuelo internacional ya va en `flights`, y desde la ciudad
+ * de origen (otro continente) no se llega en coche ni en tren. Se quitan los vuelos y lo que "sale"
+ * del origen (p. ej. "Sixt / Hertz desde Ciudad de México (vía Aeropuerto FCO)").
+ */
+export function firstCityArrivals<T extends Record<string, any>>(options: T[] | unknown, origin: string): T[] {
+  return (Array.isArray(options) ? options : []).filter((o: any) => String(o?.mode ?? "") !== "vuelo" && !sameOrigin(o?.from, origin));
+}

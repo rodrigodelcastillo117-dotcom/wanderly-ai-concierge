@@ -5,6 +5,7 @@ import {
   ArrowRight, MapPin, Plus, X, Sparkles, Train, Mountain, Wallet,
   Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt, Wand2,
 } from "lucide-react";
+import { multiDestTripRows } from "@/lib/multiDestTrip";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -289,87 +290,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
       if (!data?.logistics) throw new Error("La IA no devolvió logística");
 
       const logistics = data.logistics;
-      // FX dinámico devuelto por la edge function (_shared/fx.ts). Nunca un valor fijo.
-      const USD_MXN = Number(logistics.fx_usd_mxn) > 0 ? Number(logistics.fx_usd_mxn) : 20.5;
-
-      // Aplanar per_destination → vuelos_json (incluye vuelos + trenes + buses + roadtrips por ciudad),
-      // hospedaje_json / restaurantes_json / tours_json para que TripDetail los agrupe por ciudad.
-      const vuelos_json: any[] = [];
-
-      // Vuelos internacionales (origen ↔ primera/última) primero, marcados con su ciudad destino
-      (logistics.flights ?? []).forEach((f: any, i: number) => {
-        const ciudad = f.to && validStops.includes(f.to) ? f.to : validStops[i === 0 ? 0 : validStops.length - 1];
-        vuelos_json.push({
-          tier: f.tier || "equilibrio",
-          mode: "vuelo",
-          aerolinea: f.airline_suggested || "Por confirmar",
-          duracion: f.duration || "",
-          escalas: f.stops || "Directo",
-          precio_por_persona: Math.round(Number(f.price_per_person_usd ?? 0) * USD_MXN),
-          fuente_precio: f.fuente_precio ?? "estimado",
-          booking_link: f.booking_link ?? null,
-          notas: f.notes ? `${f.from} → ${f.to} · ${f.notes}` : `${f.from} → ${f.to}`,
-          ciudad,
-          from: f.from,
-          to: f.to,
-        });
-      });
-
-      const hospedaje_json: any[] = [];
-      const restaurantes_json: any[] = [];
-      const tours_json: any[] = [];
-      (logistics.per_destination ?? []).forEach((pd: any) => {
-        // Arrival options para esta ciudad → entran a vuelos_json tagueados
-        (pd.arrival_options ?? []).forEach((opt: any) => {
-          vuelos_json.push({
-            tier: opt.tier || "equilibrio",
-            mode: opt.mode || "vuelo",
-            aerolinea: opt.provider || (opt.mode === "tren" ? "Tren de alta velocidad" : opt.mode),
-            duracion: opt.duration || "",
-            escalas: opt.scenic ? "Ruta escénica" : (opt.mode === "vuelo" ? "Directo" : opt.mode),
-            precio_por_persona: Math.round(Number(opt.price_per_person_usd ?? 0) * USD_MXN),
-            fuente_precio: opt.fuente_precio ?? "estimado",
-            notas: opt.notes ? `${opt.from} → ${pd.city} · ${opt.notes}` : `${opt.from} → ${pd.city}`,
-            ciudad: pd.city,
-            from: opt.from,
-            to: pd.city,
-          });
-        });
-        (pd.hospedaje ?? []).forEach((h: any) => {
-          hospedaje_json.push({
-            tipo: h.tipo || h.tier || "Hospedaje",
-            nombre: h.nombre,
-            barrio: h.barrio || pd.city,
-            rating: h.rating ?? 4.5,
-            precio_por_noche: Math.round(Number(h.price_per_night_usd ?? 0) * USD_MXN),
-            fuente_precio: h.fuente_precio ?? "estimado",
-            booking_link: h.booking_url ?? null,
-            por_que: h.por_que || "",
-            ciudad: pd.city,
-            tier: h.tier,
-          });
-        });
-        (pd.restaurantes ?? []).forEach((r: any) => {
-          restaurantes_json.push({
-            nombre: r.nombre,
-            cocina: r.cocina,
-            rango_precio: r.rango_precio || "$$",
-            por_que: r.por_que || "",
-            ciudad: pd.city,
-          });
-        });
-        (pd.experiencias ?? []).forEach((t: any) => {
-          tours_json.push({
-            nombre: t.nombre,
-            duracion: t.duracion || "",
-            precio_por_persona: Math.round(Number(t.price_per_person_usd ?? 0) * USD_MXN),
-            fuente: t.fuente ?? "estimado",
-            rating: t.rating ?? null,
-            por_que: t.por_que || "",
-            ciudad: pd.city,
-          });
-        });
-      });
+      // Filas del viaje: vuelos (solo vuelos), hoteles, restaurantes y experiencias por ciudad. Coche y
+      // tren quedan en el plan (logistics) y TripDetail los muestra como transporte por tierra.
+      const { vuelos_json, hospedaje_json, restaurantes_json, tours_json } = multiDestTripRows(logistics, validStops, origin);
 
       // itinerario_json: TripDetail espera un array de días.
       const itinerarioDays = (logistics.days ?? []).map((d: any) => ({
@@ -390,7 +313,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             user_id: user.id,
             destino: validStops.join(" → "),
             pais_destino: validStops[validStops.length - 1],
-            ciudad_origen: origin,
+            ciudad_origen: origin.trim(),
             fecha_salida: fechaSalida || null,
             fecha_regreso: fechaRegreso || null,
             num_viajeros: viajeros,

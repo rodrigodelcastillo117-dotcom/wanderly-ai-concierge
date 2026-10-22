@@ -25,7 +25,7 @@ import {
 } from "../_shared/reservation.ts";
 import { getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { aiFetch } from "../_shared/ai.ts";
-import { forceEstimated, labelExperiences, markLive, pricingSources } from "./provenance.ts";
+import { firstCityArrivals, forceEstimated, labelExperiences, markLive, pricingSources, scrubEstimatedFlight } from "./provenance.ts";
 import { buildLogisticsSnapshot } from "./snapshot.ts";
 import { saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { hotelPriceRooms } from "../_shared/rooms.ts";
@@ -629,7 +629,7 @@ VUELOS — ${tpFlightsBlock}
 ==========================================
 
 Entrega JSON con:
-1. flights: EXACTAMENTE 3 opciones (tier ahorro/equilibrio/premium) para el vuelo internacional ${body.origin} ⇄ ${body.destinations[0]} (round-trip). NO repitas la misma ruta más de una vez por tier. Si arriba hay datos en vivo, copia precio y booking_link exactos y pon fuente_precio="travelpayouts".
+1. flights: EXACTAMENTE 3 opciones (tier ahorro/equilibrio/premium) para el vuelo internacional ${body.origin} → ${body.destinations[0]} (regreso desde ${body.destinations[body.destinations.length - 1]}). NO repitas la misma ruta más de una vez por tier. Si arriba hay datos en vivo, copia precio y booking_link exactos y pon fuente_precio="travelpayouts". Sin datos en vivo NO inventes aerolínea ni digas "Directo": airline_suggested="Aerolínea por confirmar", stops="Escalas por confirmar".
 2. internal_transport: ${roadtripMode
   ? `tramos en COCHE/CAMPERVAN entre ciudades consecutivas (mode="coche", provider real, duración en horas, scenic=true, luggage_note con km y paradas). Añade pickup aeropuerto → primera ciudad y dropoff última → aeropuerto.`
   : `UN tramo por cada par consecutivo (${body.destinations.length - 1} tramos), sin duplicados. Europa <800km usa TREN. Inter-islas griegas usa FERRY.`} Marca fuente_precio="estimado" (no tenemos inventario en vivo de tierra).
@@ -679,7 +679,7 @@ EXPERIENCIAS — ${attrBlock}
 Entrega JSON con:
 - city: "${city}"
 - nights: ${cityNights}
-- arrival_options: 2-3 maneras de LLEGAR desde ${prevPoint}, sin duplicar la misma opción. ${roadtripMode
+- arrival_options: ${i === 0 ? `cómo ir del aeropuerto de llegada al centro de ${city} (tren, taxi o traslado). NO incluyas el vuelo desde ${prevPoint} (ya está en flights) ni renta de coche desde ${prevPoint}.` : `2-3 maneras de LLEGAR desde ${prevPoint}, sin duplicar la misma opción.`} Un vuelo sin datos en vivo lleva provider="Aerolínea por confirmar" (no inventes aerolínea ni "Directo"). ${roadtripMode
   ? `La PRINCIPAL es coche por carretera real con km, horas y 2-3 paradas escénicas en "notes".`
   : `Si es Europa <800km incluye tren real. Si son islas griegas incluye ferry real y vuelo Aegean/Sky Express.`} fuente_precio="estimado" salvo que se indique lo contrario.
 - hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium). Si hay datos en vivo arriba, los 3 DEBEN salir de esa lista (el más barato = ahorro, uno intermedio = equilibrio, el más caro/mejor = premium), copiando nombre, precio y booking_url exactos con fuente_precio="serpapi".
@@ -739,8 +739,9 @@ Entrega JSON con:
         "fuente_precio", "travelpayouts", liveConsultedAt, !!tpFlights.approximate_dates,
       );
     } else {
-      // Sin datos en vivo: lo que escribió el modelo es una estimación, diga lo que diga su etiqueta.
-      flights = forceEstimated(flights);
+      // Sin datos en vivo: lo que escribió el modelo es una estimación, diga lo que diga su etiqueta, y
+      // no se afirma aerolínea ni "Directo".
+      flights = forceEstimated(flights).map(scrubEstimatedFlight);
     }
 
     // Dedupe: mismo tramo + mismo tier nunca dos veces.
@@ -805,7 +806,10 @@ Entrega JSON con:
 
       const arrival_options = (() => {
         const seen = new Set<string>();
-        return forceEstimated(pd.arrival_options)
+        // Primera ciudad: sin el vuelo internacional (va en flights) ni coche/tren "desde" el origen.
+        const raw = i === 0 ? firstCityArrivals(pd.arrival_options, body.origin) : pd.arrival_options;
+        return forceEstimated(raw)
+          .map((o: any) => (o?.mode === "vuelo" ? scrubEstimatedFlight(o) : o))
           .filter((o: any) => {
             const key = `${(o.from ?? "").toLowerCase()}|${o.mode ?? ""}|${o.provider ?? ""}`;
             if (seen.has(key)) return false;

@@ -45,6 +45,7 @@ it("TripDetail pasa la insignia de los vuelos como badge visible (igual que los 
   const src = readFileSync(path.resolve(__dirname, "../pages/TripDetail.tsx"), "utf8");
   const flightCard = src.slice(src.indexOf("<ExpandableItemCard", src.indexOf("cityVuelos.map(")));
   const cardProps = flightCard.slice(0, flightCard.indexOf("\n                            >\n"));
-  expect(cardProps).toContain("title={v.aerolinea}");
+  // Punto 3 (caso Roma): el título no afirma la aerolínea de un estimado (flightAirlineLabel).
+  expect(cardProps).toContain("title={flightAirlineLabel(v)}");
   expect(cardProps).toMatch(/badge=\{<PriceSourceBadge source=\{v\.fuente_precio\} estado=\{v\.estado_dato\}/);
 });

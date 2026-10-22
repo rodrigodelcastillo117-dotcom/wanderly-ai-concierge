@@ -40,7 +40,9 @@ import { TripDocuments } from "@/components/TripDocuments";
 import { BookingActions } from "@/components/booking/BookingActions";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
-import { tripFlightProblems } from "@/lib/booking";
+import { isGroundTripOption, tripFlightProblems } from "@/lib/booking";
+import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightStopsLabel } from "@/lib/flightDisplay";
+import { groundOptionsForCity } from "@/lib/multiDestTrip";
 import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
@@ -654,7 +656,9 @@ const TripDetail = () => {
             // Tarifas de otra ruta (MEX→BUH presentada como Roma) o imposibles no se muestran.
             const cityVuelos = (isMulti
               ? (trip.vuelos_json ?? []).filter((v: any) => (v.ciudad || v.to) === cityKey || (v.ciudad || v.to) === city)
-              : (trip.vuelos_json ?? [])).filter((v: any) => tripFlightProblems(v, trip).length === 0);
+              : (trip.vuelos_json ?? [])).filter((v: any) => tripFlightProblems(v, trip).length === 0 && !(isMulti && isGroundTripOption(v)));
+            // Multi-destino: coche, tren, bus y ferry van aparte (no son vuelos), del plan guardado.
+            const cityGround = isMulti ? groundOptionsForCity(trip, cityKey) : [];
             const priceNum = (s: any) => {
               if (typeof s === "number") return s;
               if (typeof s !== "string") return 0;
@@ -678,7 +682,7 @@ const TripDetail = () => {
             ).slice().sort((a: any, b: any) => priceNum(a?.rango_precio) - priceNum(b?.rango_precio));
 
             const totalItems =
-              cityVuelos.length + cityHosp.length + cityDays.length + cityTours.length + cityRest.length;
+              cityVuelos.length + cityGround.length + cityHosp.length + cityDays.length + cityTours.length + cityRest.length;
 
             return (
               <div key={`${city}-${cityIdx}`}>
@@ -692,7 +696,7 @@ const TripDetail = () => {
               >
                 <div className="space-y-6">
                   {/* Cómo llegar */}
-                  {cityVuelos.length > 0 && (
+                  {(cityVuelos.length > 0 || cityGround.length > 0) && (
                     <SubBlock icon={isMulti ? RouteIcon : Plane} title={isMulti || cityVuelos.some(isGroundOption) ? "Cómo llegar" : "Vuelos sugeridos"}>
                       <div className="grid min-w-0 md:grid-cols-2 gap-3">
                         {cityVuelos.map((v: any) => {
@@ -711,12 +715,12 @@ const TripDetail = () => {
                                 stockQuery: v.modo === "autobus" ? "intercity bus highway" : v.modo === "auto" ? "car road trip highway" : flightBackdropQuery(0),
                                 icon: v.modo === "autobus" ? Bus : v.modo === "auto" ? Car : Plane,
                               }}
-                              overlay={!isGroundOption(v) ? (
+                              overlay={!isGroundOption(v) && !flightIsEstimate(v) ? (
                                 <div className="absolute left-3 bottom-3 z-[3]"><AirlineLogo airline={v.aerolinea} size={34} /></div>
                               ) : undefined}
                               eyebrow={v.tier}
-                              title={v.aerolinea}
-                              subtitle={`${v.duracion} · ${v.escalas}`}
+                              title={flightAirlineLabel(v)}
+                              subtitle={[flightDurationLabel(v), flightStopsLabel(v) ?? (isGroundOption(v) ? v.escalas : null)].filter(Boolean).join(" · ")}
                               price={flightPriceLabel(v)}
                               // Igual que en los hoteles, la procedencia del precio se ve sin abrir el detalle (N-07).
                               badge={<PriceSourceBadge source={v.fuente_precio} estado={v.estado_dato} consultadoAt={v.consultado_at ?? (quote?.created_at ?? trip.created_at)} approximateDates={v.approximate_dates} />}
@@ -735,6 +739,9 @@ const TripDetail = () => {
                             </ExpandableItemCard>
                           );
                         })}
+                        {cityGround.map((g: any, gi: number) => (
+                          <ArrivalOptionCard key={`tierra-${gi}`} option={g} active={false} quotedAt={quote?.created_at ?? trip.created_at} />
+                        ))}
                         {!isMulti && (
                           <SkipCard active={selVuelo === -2} onClick={() => setSelVuelo(selVuelo === -2 ? -1 : -2)}
                             title="Ya tengo vuelo" subtitle="O viajo por mi cuenta" />
@@ -1146,6 +1153,9 @@ const MODE_ICON: Record<string, any> = {
   vuelo: Plane,
   tren: Train,
   roadtrip: Car,
+  coche: Car,
+  auto: Car,
+  autobus: Bus,
   bus: Bus,
   ferry: Ship,
   vuelo_interno: Plane,
@@ -1154,7 +1164,10 @@ const MODE_ICON: Record<string, any> = {
 const MODE_LABEL: Record<string, string> = {
   vuelo: "Vuelo",
   tren: "Tren",
-  roadtrip: "Roadtrip",
+  roadtrip: "Road trip",
+  coche: "En coche",
+  auto: "En coche",
+  autobus: "Autobús",
   bus: "Bus",
   ferry: "Ferry",
   vuelo_interno: "Vuelo interno",
@@ -1170,13 +1183,18 @@ function flightPriceLabel(v: any): string {
   return `${fmtMXN(v.precio_por_persona)} / persona`;
 }
 
-const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any; active: boolean; onClick: () => void; quotedAt?: string | null }) => {
-  const Icon = MODE_ICON[option.mode] || Plane;
-  const modeLabel = MODE_LABEL[option.mode] || "Transporte";
+const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any; active: boolean; onClick?: () => void; quotedAt?: string | null }) => {
+  // Coche, tren, bus o ferry con su icono (antes un coche salía con avión: MODE_ICON no tenía "coche").
+  const mode = String(option.mode ?? option.modo ?? "vuelo");
+  const Icon = MODE_ICON[mode] || (isGroundTripOption(option) ? Car : Plane);
+  const modeLabel = MODE_LABEL[mode] || "Transporte";
+  const airline = flightAirlineLabel(option);
   return (
     <div
       onClick={onClick}
-      className={`relative rounded-xl p-5 cursor-pointer transition border ${
+      data-testid="arrival-option"
+      data-mode={mode}
+      className={`relative rounded-xl p-5 transition border ${onClick ? "cursor-pointer" : ""} ${
         active ? "border-primary ring-1 ring-primary/40 bg-primary/5" : "border-border/60 bg-surface/40 hover:border-primary/50"
       }`}
     >
@@ -1186,8 +1204,8 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any;
         </div>
       )}
       <div className="flex items-center gap-3 mb-3">
-        {airlineCode(option.aerolinea) ? (
-          // Vuelo con aerolínea conocida: su logo real (CDN de Travelpayouts) en ficha blanca.
+        {!isGroundTripOption(option) && !flightIsEstimate(option) && airlineCode(option.aerolinea) ? (
+          // Vuelo con aerolínea conocida (tarifa real): su logo real (CDN de Travelpayouts) en ficha blanca.
           <AirlineLogo airline={option.aerolinea} size={32} />
         ) : (
           <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center">
@@ -1196,7 +1214,7 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any;
         )}
         <div className="min-w-0">
           <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{modeLabel}{option.tier ? ` · ${option.tier}` : ""}</p>
-          <p className="font-medium text-sm">{option.aerolinea || option.provider}</p>
+          <p className="font-medium text-sm">{airline}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs mb-2">
@@ -1207,8 +1225,8 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any;
         )}
       </div>
       <div className="flex flex-wrap gap-2 mb-3 text-xs">
-        {option.duracion && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{option.duracion}</span>}
-        {option.escalas && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{option.escalas}</span>}
+        {flightDurationLabel(option) && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{flightDurationLabel(option)}</span>}
+        {flightStopsLabel(option) && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{flightStopsLabel(option)}</span>}
       </div>
       {option.precio_por_persona > 0 && (
         <p className="font-medium text-base">
@@ -1254,7 +1272,7 @@ const HotelCard = ({ hotel, city, trip, active, variant = 0, onClick, index, ser
       </div>
       <div className="p-5 bg-card">
         <p className="font-display text-lg mb-1 leading-tight">{hotel.nombre}</p>
-        <p className="text-xs text-muted-foreground mb-2">{hotel.barrio} · ★ {hotel.rating}</p>
+        <p className="text-xs text-muted-foreground mb-2">{[hotel.barrio, hotel.rating ? `★ ${hotel.rating}` : null].filter(Boolean).join(" · ")}</p>
         <p className="font-medium text-sm mb-2">
           {fmtMXN(hotel.precio_por_noche)}
           {/* Un precio en vivo ya es para todo el grupo; uno estimado es por habitación doble. */}
