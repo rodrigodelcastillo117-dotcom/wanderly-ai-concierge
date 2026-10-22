@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
@@ -38,6 +38,9 @@ export const mobileMoreNav = [
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend (gastos)" },
   { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
   { to: "/dashboard/pro", icon: Sparkles, label: "Plan IATOS PRO" },
+  // Entrada discreta a IATOS Privé: /prive muestra a cada cuenta lo que le corresponde (adelanto,
+  // progreso, invitación o candado), así que no se oculta a nadie.
+  { to: "/prive", icon: Gem, label: "IATOS Privé" },
   { to: "/dashboard/perfil", icon: User, label: "Mi perfil" },
 ];
 
@@ -135,8 +138,13 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                     : "Activar IATOS PRO"}
           </span>
         </Link>
-
-
+        <Link
+          to="/prive"
+          className="mx-2 mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] tracking-[0.18em] uppercase text-muted-foreground hover:text-primary transition"
+        >
+          <Gem className="w-3.5 h-3.5 text-primary/80 shrink-0" aria-hidden="true" />
+          <span className="truncate">IATOS Privé</span>
+        </Link>
 
         {/* User */}
         <button
