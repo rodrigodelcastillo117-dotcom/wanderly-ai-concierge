@@ -91,6 +91,25 @@ SELECT cron.schedule(
   $cmd$
 );
 
+-- 3b) Chequeo diario de servicios externos (IA, SerpApi, Travelpayouts, Stripe), 7:07 a.m.
+--     hora de CDMX. Guarda el resultado en health_checks y avisa por correo a los admins.
+SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'health-check-daily';
+SELECT cron.schedule(
+  'health-check-daily',
+  '7 13 * * *',
+  $cmd$
+  SELECT net.http_post(
+    url := 'https://uhkdewinscffhdonhhmt.supabase.co/functions/v1/health-check',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_shared_secret' LIMIT 1)
+    ),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+  $cmd$
+);
+
 -- 4) Acceso al panel de métricas (/dashboard/admin). CAMBIA EL CORREO.
 INSERT INTO public.admins (user_id)
 SELECT id FROM auth.users WHERE lower(email) = lower('TU-CORREO@ejemplo.com')
