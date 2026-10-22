@@ -2064,6 +2064,18 @@ export type Database = {
       }
       purge_account_data: { Args: { p_user_id: string }; Returns: Json }
       rechazar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
+      members_access: { Args: never; Returns: boolean }
+      members_access_state: { Args: never; Returns: Json }
+      members_teaser: {
+        Args: { p_ciudad?: string }
+        Returns: {
+          categoria: string
+          ciudad: string
+          ciudad_display: string | null
+          pais: string | null
+          venues: number
+        }[]
+      }
       unlock_members_access: { Args: { p_password: string }; Returns: Json }
       verify_cron_secret: { Args: { p_secret: string }; Returns: boolean }
     }

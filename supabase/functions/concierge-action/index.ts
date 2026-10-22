@@ -70,6 +70,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Reservas de Members Only: solo con derecho (PRO o contraseña temporal vigente), en el servidor.
+    if (body.type === "members_nightlife_reservation") {
+      const { data: entitled } = await supaUser.rpc("members_access");
+      if (entitled !== true) {
+        return new Response(JSON.stringify({ code: "MEMBERS_PRO_REQUIRED", error: "pro_required", message: "Members Only es exclusivo de IATOS PRO." }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const title = body.title.slice(0, 200);
     const payload = body.payload && typeof body.payload === "object" ? body.payload : {};
 

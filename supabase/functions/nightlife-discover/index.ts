@@ -63,13 +63,25 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: u } = await supabase.auth.getUser();
-
-    const __rl = await enforceRateLimit(req, "nightlife-discover", u.user!.id, { perMinute: 10, perHour: 80, ipPerMinute: 30 });
-    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
+    // Antes se leía u.user!.id antes de revisar la sesión (500 en lugar de 401).
     if (!u?.user) {
       return new Response(JSON.stringify({ error: "Sesión inválida" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const __rl = await enforceRateLimit(req, "nightlife-discover", u.user.id, { perMinute: 10, perHour: 80, ipPerMinute: 30 });
+    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
+
+    // Members Only es exclusivo de PRO (members_access = is_pro o contraseña temporal vigente):
+    // sin derecho no se gasta IA ni se devuelve contenido reservado.
+    const { data: entitled, error: accessErr } = await supabase.rpc("members_access");
+    if (accessErr || entitled !== true) {
+      return new Response(JSON.stringify({
+        code: "MEMBERS_PRO_REQUIRED",
+        error: "pro_required",
+        message: "Members Only es exclusivo de IATOS PRO.",
+      }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Verificar gate 18+

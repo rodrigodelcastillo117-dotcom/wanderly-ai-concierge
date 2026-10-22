@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CityVideoCard } from "@/components/CityVideoCard";
 import { VenueDetailDialog } from "@/components/VenueDetailDialog";
+import { MembersTeaser } from "@/components/MembersTeaser";
+import { fetchMembersAccess, type MembersAccess } from "@/lib/membersAccess";
 
 const CATEGORIES: { id: string; emoji: string; label: string }[] = [
   { id: "cabaret", emoji: "🎭", label: "Cabaret" },
@@ -52,9 +54,11 @@ interface Props {
 
 export function MembersOnlyPanel({ onReserve }: Props) {
   const { user } = useAuth();
-  const accessLoading = false;
-  const confirmedAdult = true;
-  const passwordUnlocked = true;
+  // Members Only es exclusivo de IATOS PRO: el servidor decide el acceso (members_access_state) y
+  // la RLS de nightlife_premium no devuelve lugares sin derecho. Antes este panel no tenía candado.
+  const [access, setAccess] = useState<MembersAccess | null>(null);
+  const refreshAccess = () => { fetchMembersAccess(supabase).then(setAccess); };
+  useEffect(() => { if (user) refreshAccess(); }, [user?.id]);
 
   const [city, setCity] = useState<string>("París");
   const [cityInput, setCityInput] = useState<string>("París");
@@ -65,7 +69,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
   const [detailVenue, setDetailVenue] = useState<Venue | null>(null);
 
   useEffect(() => {
-    if (!city) return;
+    if (!city || !access?.access) return;
     setLoadingVenues(true);
     (async () => {
       const { data, error } = await supabase
@@ -81,7 +85,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
       }
       setLoadingVenues(false);
     })();
-  }, [city]);
+  }, [city, access?.access]);
 
 
   const filteredVenues = useMemo(() => {
@@ -131,6 +135,13 @@ export function MembersOnlyPanel({ onReserve }: Props) {
   };
 
 
+
+  if (!access) {
+    return <div className="px-4 md:px-10 py-8 text-sm text-muted-foreground">Cargando…</div>;
+  }
+  if (!access.access) {
+    return <MembersTeaser passwordGate={access.passwordGate} onUnlocked={refreshAccess} />;
+  }
 
   // ============== CONTENIDO ==============
   return (

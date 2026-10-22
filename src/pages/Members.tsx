@@ -9,18 +9,13 @@ import { toast } from "@/hooks/use-toast";
 import { CityVideoCard } from "@/components/CityVideoCard";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
+import { MembersTeaser } from "@/components/MembersTeaser";
+import { fetchMembersAccess, NO_ACCESS, type MembersAccess } from "@/lib/membersAccess";
 
-// Password gate (capa adicional sobre el 18+). La contraseña ya NO vive en el código (cualquiera la
-// leía en el bundle): la compara el servidor con un hash (RPC unlock_members_access, con límite de
-// intentos) y es lo único que puede marcar password_unlocked. El dueño la fija con
-// set_members_password (docs/ops/LEEME.md).
-const UNLOCK_ERRORS: Record<string, string> = {
-  contrasena_incorrecta: "Contraseña incorrecta",
-  demasiados_intentos: "Demasiados intentos. Espera una hora e inténtalo de nuevo.",
-  no_configurado: "El acceso de miembros aún no está disponible.",
-  no_autenticado: "Tu sesión expiró. Vuelve a iniciar sesión.",
-};
-
+// Members Only es exclusivo de IATOS PRO (ronda sec2-b). Ya no hay contraseña compartida: el
+// acceso lo decide el servidor (members_access_state: PRO, prueba vigente o cortesía; o una
+// contraseña temporal con caducidad que el dueño puede encender) y la RLS de nightlife_premium no
+// devuelve lugares sin derecho. Sin acceso se muestra el adelanto (MembersTeaser).
 const CATEGORIES: { id: string; emoji: string; label: string }[] = [
   { id: "cabaret", emoji: "🎭", label: "Cabaret" },
   { id: "burlesque", emoji: "💃", label: "Burlesque" },
@@ -60,9 +55,7 @@ export default function Members() {
   const { user } = useAuth();
   const [accessLoading, setAccessLoading] = useState(true);
   const [confirmedAdult, setConfirmedAdult] = useState(false);
-  const [passwordUnlocked, setPasswordUnlocked] = useState(false);
-  const [pwInput, setPwInput] = useState("");
-  const [pwError, setPwError] = useState("");
+  const [access, setAccess] = useState<MembersAccess>(NO_ACCESS);
 
   const [city, setCity] = useState<string>("París");
   const [cityInput, setCityInput] = useState<string>("París");
@@ -75,20 +68,19 @@ export default function Members() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("nightlife_access")
-        .select("confirmed_adult, password_unlocked")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const [{ data }, state] = await Promise.all([
+        supabase.from("nightlife_access").select("confirmed_adult").eq("user_id", user.id).maybeSingle(),
+        fetchMembersAccess(supabase),
+      ]);
       setConfirmedAdult(!!data?.confirmed_adult);
-      setPasswordUnlocked(!!data?.password_unlocked);
+      setAccess(state);
       setAccessLoading(false);
     })();
   }, [user]);
 
   // Cargar venues cuando ya hay acceso completo
   useEffect(() => {
-    if (!confirmedAdult || !passwordUnlocked || !city) return;
+    if (!confirmedAdult || !access.access || !city) return;
     setLoadingVenues(true);
     (async () => {
       const { data, error } = await supabase
@@ -104,7 +96,7 @@ export default function Members() {
       }
       setLoadingVenues(false);
     })();
-  }, [city, confirmedAdult, passwordUnlocked]);
+  }, [city, confirmedAdult, access.access]);
 
   const filteredVenues = useMemo(() => {
     if (!activeCat) return venues;
@@ -128,18 +120,6 @@ export default function Members() {
       return;
     }
     setConfirmedAdult(true);
-  };
-
-  const handleUnlockPassword = async () => {
-    if (!user || !pwInput.trim()) return;
-    const { data, error } = await supabase.rpc("unlock_members_access", { p_password: pwInput });
-    const r = (data ?? {}) as { ok?: boolean; error?: string };
-    if (error || !r.ok) {
-      setPwError(UNLOCK_ERRORS[r.error ?? ""] ?? "No pudimos desbloquear el acceso. Intenta de nuevo.");
-      return;
-    }
-    setPasswordUnlocked(true);
-    setPwError("");
   };
 
   // ============== RENDER GATES ==============
@@ -187,39 +167,10 @@ export default function Members() {
     );
   }
 
-  if (!passwordUnlocked) {
+  if (!access.access) {
     return (
       <DashboardLayout>
-        <div className="min-h-[80vh] grid place-items-center p-6">
-          <div className="max-w-md w-full rounded-3xl border border-primary/30 bg-gradient-to-b from-black/80 to-black/60 backdrop-blur-2xl p-8 shadow-[0_30px_120px_-20px_rgba(201,169,97,0.35)]">
-            <div className="flex justify-center mb-6">
-              <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 grid place-items-center">
-                <Lock className="w-6 h-6 text-primary" />
-              </div>
-            </div>
-            <h2 className="font-fraunces text-2xl text-center mb-2">Acceso restringido</h2>
-            <p className="text-center text-muted-foreground text-sm mb-6">
-              Ingresa la contraseña de miembro para continuar.
-            </p>
-            <Input
-              type="password"
-              value={pwInput}
-              onChange={(e) => { setPwInput(e.target.value); setPwError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && handleUnlockPassword()}
-              placeholder="Contraseña"
-              className="h-12 rounded-xl border-primary/20 bg-black/40 text-center tracking-widest"
-            />
-            {pwError && (
-              <p className="text-destructive text-xs mt-2 text-center">{pwError}</p>
-            )}
-            <Button
-              onClick={handleUnlockPassword}
-              className="w-full mt-4 bg-gradient-gold text-primary-foreground hover:opacity-90 h-12 rounded-xl"
-            >
-              Desbloquear
-            </Button>
-          </div>
-        </div>
+        <MembersTeaser passwordGate={access.passwordGate} onUnlocked={() => { fetchMembersAccess(supabase).then(setAccess); }} />
       </DashboardLayout>
     );
   }

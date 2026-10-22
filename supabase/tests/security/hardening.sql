@@ -207,18 +207,25 @@ INSERT INTO nightlife_access(user_id,confirmed_adult,password_unlocked) VALUES (
   ON CONFLICT (user_id) DO UPDATE SET confirmed_adult=true, password_unlocked=true;
 SELECT CASE WHEN confirmed_adult AND NOT password_unlocked THEN 'OK M1 el cliente confirma 18+ pero no se auto-desbloquea' ELSE 'FALLA M1' END
   FROM nightlife_access WHERE user_id='f0000000-0000-0000-0000-00000000000f';
-SELECT 'OK M2 sin contraseña configurada: '||(unlock_members_access('loquesea')->>'error');
-DO $$ BEGIN PERFORM set_members_password('una-clave-larga'); RAISE NOTICE 'FALLA M3 el cliente fijó la contraseña';
+SELECT 'OK M2 sin contraseña temporal encendida: '||(unlock_members_access('loquesea')->>'error');
+DO $$ BEGIN PERFORM set_members_password('una-clave-larga-de-prueba', now() + interval '1 day'); RAISE NOTICE 'FALLA M3 el cliente fijó la contraseña';
 EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'OK M3 el cliente no puede fijar la contraseña'; END $$;
 DO $$ BEGIN PERFORM * FROM members_gate; RAISE NOTICE 'FALLA M4 el cliente lee el hash';
 EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'OK M4 el cliente no lee members_gate'; END $$;
 RESET ROLE;
-SET ROLE service_role; SELECT set_members_password('Clave-De-Prueba-Local'); RESET ROLE;
-SELECT CASE WHEN password_hash LIKE '$2%' AND password_hash NOT ILIKE '%clave%' THEN 'OK M5 se guarda solo un hash bcrypt' ELSE 'FALLA M5' END FROM members_gate;
+SET ROLE service_role;
+DO $$ BEGIN PERFORM set_members_password('Clave-De-Prueba-Local', NULL); RAISE NOTICE 'FALLA M5a contraseña sin caducidad aceptada';
+EXCEPTION WHEN raise_exception THEN RAISE NOTICE 'OK M5a la contraseña temporal exige caducidad'; END $$;
+DO $$ BEGIN PERFORM set_members_password('Clave-De-Prueba-Local', now() + interval '90 days'); RAISE NOTICE 'FALLA M5b caducidad de 90 días aceptada';
+EXCEPTION WHEN raise_exception THEN RAISE NOTICE 'OK M5b caducidad máxima de 30 días'; END $$;
+SELECT set_members_password('Clave-De-Prueba-Local', now() + interval '2 days');
+RESET ROLE;
+SELECT CASE WHEN password_hash LIKE '$2%' AND password_hash NOT ILIKE '%clave%' AND enabled THEN 'OK M5 se guarda solo un hash bcrypt, encendida' ELSE 'FALLA M5' END FROM members_gate;
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','f0000000-0000-0000-0000-00000000000f',false);
 SELECT CASE WHEN unlock_members_access('incorrecta')->>'error'='contrasena_incorrecta' THEN 'OK M6 contraseña incorrecta rechazada' ELSE 'FALLA M6' END;
 SELECT CASE WHEN (unlock_members_access('  clave-de-prueba-local ')->>'ok')::boolean THEN 'OK M7 contraseña correcta desbloquea' ELSE 'FALLA M7' END;
-SELECT CASE WHEN password_unlocked THEN 'OK M8 password_unlocked=true vía RPC' ELSE 'FALLA M8' END
+SELECT CASE WHEN password_unlocked AND password_access_expires_at BETWEEN now() + interval '1 day' AND now() + interval '3 days'
+            THEN 'OK M8 el desbloqueo caduca con la contraseña' ELSE 'FALLA M8' END
   FROM nightlife_access WHERE user_id='f0000000-0000-0000-0000-00000000000f';
 SELECT count(*) FILTER (WHERE r->>'error'='contrasena_incorrecta')||' intentos fallidos más' FROM (SELECT unlock_members_access('x') r FROM generate_series(1,8)) t;
 SELECT CASE WHEN unlock_members_access('clave-de-prueba-local')->>'error'='demasiados_intentos' THEN 'OK M9 más de 10 intentos/hora bloqueados' ELSE 'FALLA M9' END;
