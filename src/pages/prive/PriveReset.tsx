@@ -12,12 +12,16 @@ import { Monogram } from "@/components/prive/Monogram";
 import { PasswordCreator } from "@/components/prive/PasswordCreator";
 import { ReportCompromised } from "@/components/prive/ReportCompromised";
 import { maskEmail, messageFor } from "@/lib/priveCopy";
+import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import { capturePriveTokenFromUrl, clearPendingToken, clearPriveSession, readPendingToken } from "@/lib/priveSession";
 
 export default function PriveReset() {
   const { user } = useAuth();
   const { call, refresh, adoptSession } = usePriveAccess();
   const { rise, reduce } = usePriveMotion();
+  const t = usePriveT();
+  const lang = usePriveLang();
+  const T = t.reset;
   const [token, setToken] = useState<string | null>(null);
   const [phase, setPhase] = useState<"request" | "sent" | "form" | "done" | "invalid">("request");
   const [busy, setBusy] = useState(false);
@@ -39,7 +43,7 @@ export default function PriveReset() {
     const r = await call("request_reset");
     setBusy(false);
     if (r.ok) setPhase("sent");
-    else setError(messageFor(r.code));
+    else setError(messageFor(r.code, lang));
   };
 
   const complete = async (pw: string) => {
@@ -72,29 +76,23 @@ export default function PriveReset() {
       <Monogram size={56} className="mb-6" />
       <p className="prive-eyebrow mb-3">IATOS Privé</p>
       <h1 id="prive-reset-title" className="text-3xl sm:text-4xl mb-4">
-        {phase === "done" ? "Listo" : "Restablecer tu contraseña Privé"}
+        {phase === "done" ? T.done : T.title}
       </h1>
 
       {phase === "request" && (
         <div className="space-y-5">
-          <p className="text-sm prive-muted">
-            Te enviaremos un enlace a tu correo de IATOS{masked ? ` (${masked})` : ""}. Vence en 30 minutos y solo funciona con esta
-            cuenta. Tu contraseña de IATOS no cambia.
-          </p>
+          <p className="text-sm prive-muted">{T.requestBody(masked)}</p>
           {error && <p role="alert" className="text-sm text-[#f0b4a8]">{error}</p>}
           <button type="button" onClick={request} disabled={busy} className="prive-btn prive-btn-gold w-full sm:w-auto">
-            {busy ? "Enviando…" : "Enviarme el enlace"}
+            {busy ? t.common.sending : T.send}
           </button>
         </div>
       )}
 
       {phase === "sent" && (
         <div className="space-y-4" role="status">
-          <p className="text-sm prive-champagne">
-            Si tu membresía Privé está activa, te enviamos el enlace a tu correo{masked ? ` (${masked})` : ""}. Ábrelo en este mismo dispositivo
-            en los próximos 30 minutos.
-          </p>
-          <p className="text-sm prive-muted">¿No llega? Revisa la carpeta de spam o vuelve a pedirlo en unos minutos.</p>
+          <p className="text-sm prive-champagne">{T.sentBody(masked)}</p>
+          <p className="text-sm prive-muted">{T.notArriving}</p>
         </div>
       )}
 
@@ -102,22 +100,22 @@ export default function PriveReset() {
         <PasswordCreator
           onChosen={complete}
           onComplete={done}
-          submitLabel="Guardar contraseña nueva"
-          intro={<p className="text-sm prive-muted">Elige una contraseña Privé nueva. Al guardarla cerraremos tus sesiones Privé abiertas.</p>}
+          submitLabel={T.saveNew}
+          intro={<p className="text-sm prive-muted">{T.formIntro}</p>}
         />
       )}
 
       {phase === "invalid" && (
         <div className="space-y-5">
-          <p role="alert" className="text-sm prive-champagne">{messageFor("RESET_INVALID")}</p>
-          <button type="button" onClick={() => setPhase("request")} className="prive-btn prive-btn-gold">Pedir un enlace nuevo</button>
+          <p role="alert" className="text-sm prive-champagne">{messageFor("RESET_INVALID", lang)}</p>
+          <button type="button" onClick={() => setPhase("request")} className="prive-btn prive-btn-gold">{T.requestNew}</button>
         </div>
       )}
 
       {phase === "done" && (
         <div className="space-y-5" role="status">
-          <p className="text-sm prive-champagne">Tu contraseña Privé cambió. Por seguridad cerramos las demás sesiones Privé abiertas.</p>
-          <Link to="/prive" className="prive-btn prive-btn-gold">Entrar a IATOS Privé</Link>
+          <p className="text-sm prive-champagne">{T.changed}</p>
+          <Link to="/prive" className="prive-btn prive-btn-gold">{T.enter}</Link>
         </div>
       )}
 

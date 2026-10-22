@@ -12,10 +12,6 @@ Deno.serve(async (req) => {
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
 
-  const __rl = await enforceRateLimit(req, "pexels-image", __user.id, { perMinute: 30, perHour: 300, ipPerMinute: 80 });
-  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
-
-
   try {
     const url = new URL(req.url);
     let query = (url.searchParams.get('query') ?? '').trim();
@@ -39,21 +35,45 @@ Deno.serve(async (req) => {
       });
     }
 
+    // La caché compartida va ANTES del límite estricto: una foto ya guardada no gasta cuota de Pexels,
+    // y contarla en los 30/min hacía que una pantalla con muchas ciudades conocidas (bienvenida,
+    // lista de destinos) se quedara sin fotos por 429. Los aciertos tienen su propio límite, amplio.
     const store = dbCacheStore();
     const key = await cacheKey('pexels_photo', { query: query.toLowerCase() });
     const hit = await cacheGet(store, key);
     if (hit && freshnessOf(hit).fresh) {
+      const rlHit = await enforceRateLimit(req, "pexels-image-hit", __user.id, { perMinute: 120, perHour: 1200, ipPerMinute: 240 });
+      if (!rlHit.allowed) return rateLimitResponse(rlHit, corsHeaders);
       return new Response(JSON.stringify({ ...(hit.response as Record<string, unknown>), cached: true }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
       });
     }
 
+    const __rl = await enforceRateLimit(req, "pexels-image", __user.id, { perMinute: 30, perHour: 300, ipPerMinute: 80 });
+    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
+
     const res = await fetch(
       `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
       { headers: { Authorization: apiKey } },
     );
-    const data = await res.json();
+    // Pexels mismo puede fallar (cuota de 200/h o 20,000/mes de la llave, 5xx). Antes eso salía como
+    // 200 con image:null, igual que "no hay foto": el navegador lo recordaba toda la sesión y la tarjeta
+    // se quedaba vacía. Ahora: si hay copia vencida se sirve;
+    // si no, 503 + Retry-After, que el cliente trata como temporal y vuelve a pedir más tarde.
+    if (!res.ok) {
+      const retry = Number(res.headers.get('Retry-After')) || 60;
+      try { await res.body?.cancel(); } catch { /* sin cuerpo */ }
+      if (hit?.response && (hit.response as { image?: unknown }).image) {
+        return new Response(JSON.stringify({ ...(hit.response as Record<string, unknown>), cached: true, stale: true }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600' },
+        });
+      }
+      return new Response(JSON.stringify({ image: null, upstream_error: true, upstream_status: res.status }), {
+        status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(Math.min(3600, Math.max(1, retry))) },
+      });
+    }
+    const data = await res.json().catch(() => null);
     const photo = data?.photos?.[0];
     const image =
       photo?.src?.landscape ?? photo?.src?.large ?? photo?.src?.medium ?? null;
@@ -69,7 +89,7 @@ Deno.serve(async (req) => {
       alt: typeof photo?.alt === 'string' ? photo.alt.slice(0, 200) : null,
     };
     // Solo se guarda una respuesta válida de Pexels (también "sin foto": evita repetir la consulta).
-    if (res.ok) {
+    if (data && Array.isArray(data.photos)) {
       await cachePut(store, key, 'pexels_photo', result);
       await logUsage({ user_id: __user.id, function: 'pexels-image', provider: 'pexels', searches: 0 });
     }

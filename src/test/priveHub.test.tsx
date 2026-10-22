@@ -9,6 +9,8 @@ vi.mock("@/lib/priveApi", async (importOriginal) => {
   const { priveMock: m } = await import("./helpers/priveTestKit");
   return { ...actual, priveApi: m.api };
 });
+const loadStockPhoto = vi.fn(async (q: string) => ({ photo: { image: `https://images.pexels.com/${encodeURIComponent(q)}.jpg`, photographer: "Ana", page_url: null }, transient: false }));
+vi.mock("@/lib/stockPhoto", () => ({ loadStockPhoto: (q: string) => loadStockPhoto(q), cachedStockPhoto: () => undefined }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1", email: "v@example.com" }, signOut: vi.fn() }) }));
 
 import PriveRoot from "@/pages/prive/PriveRoot";
@@ -55,13 +57,14 @@ beforeEach(() => {
   api.access.mockClear();
   api.content.mockClear();
   api.illustrativePhoto.mockClear();
+  loadStockPhoto.mockClear();
 });
 
 describe("/prive: una pantalla por estado del servidor", () => {
   it("FREE → adelanto elegante con PRO, sin contenido reservado", async () => {
     setStatus(baseStatus({ is_pro: false }));
     renderAt();
-    expect(await screen.findByText(/There are places you visit/)).toBeInTheDocument();
+    expect(await screen.findByText(/Hay lugares que se visitan/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Conocer IATOS PRO" })).toHaveAttribute("href", "/dashboard/pro");
     expect(screen.getAllByText("En curaduría").length).toBe(12);
     expect(api.content).not.toHaveBeenCalled();
@@ -104,7 +107,7 @@ describe("/prive: una pantalla por estado del servidor", () => {
     state.statusOk = true;
     setStatus(baseStatus({ is_pro: false }));
     fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-    expect(await screen.findByText(/There are places you visit/)).toBeInTheDocument();
+    expect(await screen.findByText(/Hay lugares que se visitan/)).toBeInTheDocument();
   });
 });
 
@@ -117,7 +120,7 @@ describe("candado y sesión Privé", () => {
     expect(api.content).not.toHaveBeenCalled();
     fireEvent.change(input, { target: { value: "faro lento sobre bahía 1987" } });
     fireEvent.click(screen.getByRole("button", { name: "Ingresar" }));
-    expect(await screen.findByText("The World, Beyond Ordinary.")).toBeInTheDocument();
+    expect(await screen.findByText(/más allá de lo ordinario/i)).toBeInTheDocument();
     expect(api.access).toHaveBeenCalledWith("unlock", { password: "faro lento sobre bahía 1987" });
     const stored = JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!);
     expect(stored).toMatchObject({ token: SESSION_TOKEN, userId: "u1" });
@@ -224,7 +227,7 @@ describe("Grand Welcome", () => {
     setStatus(activeStatus({ welcome_version_seen: 1 }));
     withSession();
     renderAt("/prive", <ReplayButton />);
-    await screen.findByText("The World, Beyond Ordinary.");
+    await screen.findByText(/más allá de lo ordinario/i);
     expect(screen.queryByRole("dialog", { name: "Bienvenida a IATOS Privé" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "replay-test" }));
     expect(await screen.findByRole("dialog", { name: "Bienvenida a IATOS Privé" })).toBeInTheDocument();
@@ -250,13 +253,16 @@ describe("Grand Welcome", () => {
       renderAt();
       const dlg = await screen.findByRole("dialog", { name: "Bienvenida a IATOS Privé" });
       expect(dlg).toHaveAttribute("data-motion", "full");
-      expect(within(dlg).queryByText("WELCOME TO PRIVÉ")).toBeNull();
-      expect(api.illustrativePhoto).not.toHaveBeenCalled();
+      expect(within(dlg).queryByText("TE DAMOS LA BIENVENIDA A PRIVÉ")).toBeNull();
+      expect(loadStockPhoto).not.toHaveBeenCalled();
       await act(async () => { vi.advanceTimersByTime(800); });
-      expect(within(dlg).getByText("WELCOME TO PRIVÉ")).toBeInTheDocument();
+      // El temporizador de la primera escena se programa en un efecto que puede correr después de
+      // findByRole (antes fallaba de vez en cuando): se espera la escena en lugar de leerla de inmediato.
+      await waitFor(() => expect(within(dlg).getByText("TE DAMOS LA BIENVENIDA A PRIVÉ")).toBeInTheDocument());
       await act(async () => { vi.advanceTimersByTime(2400); });
-      expect(within(dlg).getByText("YOUR WORLD JUST GOT BIGGER.")).toBeInTheDocument();
-      expect(api.illustrativePhoto).toHaveBeenCalledTimes(6);
+      expect(within(dlg).getByText("TU MUNDO ACABA DE CRECER.")).toBeInTheDocument();
+      // Las seis fotos se piden por la fila compartida (stockPhoto), una consulta por ciudad.
+      await waitFor(() => expect(loadStockPhoto).toHaveBeenCalledTimes(6));
       // Cada escena programa la siguiente al renderizar: se avanza por tramos.
       for (let i = 0; i < 4; i++) await act(async () => { vi.advanceTimersByTime(2500); });
       expect(within(dlg).getByRole("button", { name: "Continuar" })).toBeInTheDocument();
@@ -273,15 +279,15 @@ describe("Grand Welcome", () => {
     renderAt();
     const dlg = await screen.findByRole("dialog", { name: "Bienvenida a IATOS Privé" });
     expect(dlg).toHaveAttribute("data-motion", "reduced");
-    expect(within(dlg).getByText("WELCOME TO PRIVÉ")).toBeInTheDocument();
-    expect(within(dlg).getByText("YOUR WORLD JUST GOT BIGGER.")).toBeInTheDocument();
+    expect(within(dlg).getByText("TE DAMOS LA BIENVENIDA A PRIVÉ")).toBeInTheDocument();
+    expect(within(dlg).getByText("TU MUNDO ACABA DE CRECER.")).toBeInTheDocument();
     expect(within(dlg).getByRole("button", { name: "Continuar" })).toBeInTheDocument();
     expect(within(dlg).getAllByRole("listitem").length).toBe(6);
   });
 });
 
 describe("guía de inicio", () => {
-  const onb = () => screen.findByRole("dialog", { name: /Tu mundo|Elegido para ti|Las 12 colecciones|Tu planeador|Reservas y Concierge|Tu membresía|WELCOME TO YOUR WORLD/ });
+  const onb = () => screen.findByRole("dialog", { name: /Tu mundo|Elegido para ti|Las 12 colecciones|Tu planeador|Reservas y Concierge|Tu membresía|TE DAMOS LA BIENVENIDA A TU MUNDO/ });
   const lastOnboardingSave = () => {
     const calls = api.access.mock.calls.filter(([a, b]) => a === "save_progress" && (b as { onboarding?: unknown }).onboarding);
     return (calls.at(-1)?.[1] as { onboarding?: Record<string, unknown> } | undefined)?.onboarding;
@@ -335,14 +341,14 @@ describe("guía de inicio", () => {
     expect(screen.getByText(/no garantiza reservas/)).toBeInTheDocument();
   });
 
-  it("al terminar: WELCOME TO YOUR WORLD. → EXPLORE PRIVÉ guarda completed_at", async () => {
+  it("al terminar: TE DAMOS LA BIENVENIDA A TU MUNDO. → EXPLORAR PRIVÉ guarda completed_at", async () => {
     setStatus(activeStatus({ onboarding: { version: 1, step: 5 } }));
     withSession();
     renderAt();
     await onb();
     fireEvent.click(screen.getByRole("button", { name: /Terminar/ }));
-    expect(screen.getByRole("heading", { name: "WELCOME TO YOUR WORLD." })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "EXPLORE PRIVÉ" }));
+    expect(screen.getByRole("heading", { name: "TE DAMOS LA BIENVENIDA A TU MUNDO." })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "EXPLORAR PRIVÉ" }));
     await waitFor(() => expect(screen.queryByTestId("prive-onboarding")).toBeNull());
     expect(lastOnboardingSave()).toMatchObject({ completed_at: expect.any(String) });
   });

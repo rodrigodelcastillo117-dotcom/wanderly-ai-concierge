@@ -7,6 +7,7 @@ import { useActiveTrip } from "@/hooks/useActiveTrip";
 import { tripLabel } from "@/lib/activeTrip";
 import { PriveLockedError, usePriveCatalog } from "@/lib/priveCatalogApi";
 import { zonedIso } from "../../../../supabase/functions/_shared/privePlanner";
+import { usePriveT } from "@/components/prive/PriveLang";
 
 export type TripItem = { experience_id: string; start_at?: string | null; template?: string | null; transfer_estimate_min?: number | null; name?: string };
 
@@ -19,6 +20,7 @@ export function AddToTripDialog({ items, open, onOpenChange, timeZone, onLocked,
   onLocked: (code: PriveLockedError["code"]) => void; askTime?: boolean;
 }) {
   const api = usePriveCatalog();
+  const T = usePriveT().catalog.trip;
   const { trips, trip, loading } = useActiveTrip({ enabled: open });
   const [tripId, setTripId] = useState<string>("");
   const [date, setDate] = useState("");
@@ -32,38 +34,38 @@ export function AddToTripDialog({ items, open, onOpenChange, timeZone, onLocked,
     try {
       const payload = items.map((it) => ({ ...it, start_at: it.start_at ?? (askTime && date ? zonedIso(date, time || "20:00", timeZone) : null) }));
       const r = await api.addToTrip(tripId, payload);
-      setMsg(r.ok ? `Agregado a tu viaje (${r.added}). Queda como plan sin reservar; para pedirlo usa "Solicitar".` : "No se pudo agregar al viaje.");
+      setMsg(r.ok ? T.added(r.added) : T.error);
     } catch (err) {
       if (err instanceof PriveLockedError) { onLocked(err.code); return; }
-      setMsg("No se pudo agregar al viaje.");
+      setMsg(T.error);
     } finally { setBusy(false); }
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Agregar a mi viaje</DialogTitle>
-          <DialogDescription>Se guarda en el expediente del viaje como plan, no como reserva.</DialogDescription>
+          <DialogTitle>{T.title}</DialogTitle>
+          <DialogDescription>{T.desc}</DialogDescription>
         </DialogHeader>
-        {loading ? <p className="text-sm">Cargando tus viajes…</p> : trips.length === 0 ? (
-          <p className="text-sm">Aún no tienes viajes. Crea uno en "Planear viaje" y vuelve aquí.</p>
+        {loading ? <p className="text-sm">{T.loading}</p> : trips.length === 0 ? (
+          <p className="text-sm">{T.none}</p>
         ) : (
           <div className="space-y-3">
             <div>
-              <Label htmlFor="pat-trip">Viaje</Label>
+              <Label htmlFor="pat-trip">{T.trip}</Label>
               <select id="pat-trip" className="mt-1 w-full rounded-md border bg-background p-2 text-sm" value={tripId} onChange={(x) => setTripId(x.target.value)}>
-                <option value="">Elige un viaje</option>
+                <option value="">{T.choose}</option>
                 {trips.map((t) => <option key={t.id} value={t.id}>{tripLabel(t)}</option>)}
               </select>
             </div>
             {askTime && (
               <div className="grid grid-cols-2 gap-2">
-                <div><Label htmlFor="pat-date">Día (opcional)</Label><Input id="pat-date" type="date" value={date} onChange={(x) => setDate(x.target.value)} /></div>
-                <div><Label htmlFor="pat-time">Hora sugerida</Label><Input id="pat-time" type="time" value={time} onChange={(x) => setTime(x.target.value)} /></div>
+                <div><Label htmlFor="pat-date">{T.day}</Label><Input id="pat-date" type="date" value={date} onChange={(x) => setDate(x.target.value)} /></div>
+                <div><Label htmlFor="pat-time">{T.time}</Label><Input id="pat-time" type="time" value={time} onChange={(x) => setTime(x.target.value)} /></div>
               </div>
             )}
             {msg && <p className="text-sm" role="status">{msg}</p>}
-            <Button className="w-full" disabled={!tripId || busy} onClick={save}>{busy ? "Guardando…" : "Guardar en el viaje"}</Button>
+            <Button className="w-full" disabled={!tripId || busy} onClick={save}>{busy ? T.saving : T.save}</Button>
           </div>
         )}
       </DialogContent>

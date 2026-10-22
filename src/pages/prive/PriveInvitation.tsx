@@ -19,7 +19,8 @@ import { Envelope } from "@/components/prive/Envelope";
 import { MemberCard } from "@/components/prive/MemberCard";
 import { PasswordCreator } from "@/components/prive/PasswordCreator";
 import { pickPassphrase } from "@/lib/privePassword";
-import { CEREMONY, SUPPORT_EMAIL, messageFor, tenureLine } from "@/lib/priveCopy";
+import { SUPPORT_EMAIL, messageFor } from "@/lib/priveCopy";
+import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import { capturePriveTokenFromUrl, clearPendingToken, readPendingToken } from "@/lib/priveSession";
 import { invitationStart, shouldProbeInvitationOwner, type InvitationMessageKind } from "@/lib/priveView";
 import { CEREMONY_TIMINGS } from "@/components/prive/timings";
@@ -34,6 +35,10 @@ export default function PriveInvitation() {
   const { signOut } = useAuth();
   const { status, statusError, loading, call, refresh, unlock, adoptSession } = usePriveAccess();
   const { reduce, fade, rise, scene: sceneAnim } = usePriveMotion();
+  const t = usePriveT();
+  const lang = usePriveLang();
+  const I = t.invitation;
+  const C = t.ceremony;
   const navigate = useNavigate();
   const [scene, setScene] = useState<Scene>("loading");
   const [message, setMessage] = useState<Message | null>(null);
@@ -120,7 +125,7 @@ export default function PriveInvitation() {
       setScene("message");
       return;
     }
-    setInlineError(messageFor(r.code));
+    setInlineError(messageFor(r.code, lang));
   };
 
   const resend = async () => {
@@ -133,7 +138,7 @@ export default function PriveInvitation() {
       tokenRef.current = null;
       setMessage({ kind: "RESENT", emailSent: r.data.email === "sent" });
     } else {
-      setInlineError(messageFor(r.code));
+      setInlineError(messageFor(r.code, lang));
     }
   };
 
@@ -182,23 +187,23 @@ export default function PriveInvitation() {
       <div className="absolute top-0 right-0 z-20 pt-[max(env(safe-area-inset-top),0.75rem)] pr-3 flex gap-1">
         {scene === "arrival" && (
           <button type="button" onClick={() => setScene("invitation")} className="min-h-[44px] px-4 text-xs tracking-[0.28em] uppercase prive-muted hover:text-[color:var(--pv-champagne)]">
-            Saltar
+            {t.common.skip}
           </button>
         )}
-        <Link to="/dashboard" aria-label="Salir de la invitación" className="w-11 h-11 flex items-center justify-center prive-muted hover:text-[color:var(--pv-champagne)]">
+        <Link to="/dashboard" aria-label={I.exitAria} className="w-11 h-11 flex items-center justify-center prive-muted hover:text-[color:var(--pv-champagne)]">
           <X className="w-5 h-5" aria-hidden="true" />
         </Link>
       </div>
 
       <AnimatePresence mode="wait">
         {scene === "loading" && (
-          <motion.div key="loading" {...sceneAnim()} className="flex-1 flex items-center justify-center" role="status" aria-label="Preparando tu invitación">
+          <motion.div key="loading" {...sceneAnim()} className="flex-1 flex items-center justify-center" role="status" aria-label={I.preparing}>
             <Monogram size={48} className="opacity-40" />
           </motion.div>
         )}
 
         {scene === "arrival" && (
-          <motion.section key="arrival" {...sceneAnim()} className="flex-1 flex flex-col items-center justify-center relative" aria-label="Llegada">
+          <motion.section key="arrival" {...sceneAnim()} className="flex-1 flex flex-col items-center justify-center relative" aria-label={I.arrival}>
             <motion.div {...fade(0.3, 1.6)}>
               <Monogram size={112} draw reduce={reduce} title="IATOS Privé" />
             </motion.div>
@@ -210,16 +215,16 @@ export default function PriveInvitation() {
               transition={reduce ? { duration: 0.08 } : { duration: 2.2, delay: 0.9, ease: EASE }}
               style={{ transformOrigin: "center" }}
             />
-            <motion.p {...fade(1.8, 1.2)} className="prive-eyebrow mt-28">{CEREMONY.brand}</motion.p>
+            <motion.p {...fade(1.8, 1.2)} className="prive-eyebrow mt-28">{C.brand}</motion.p>
           </motion.section>
         )}
 
         {(scene === "invitation" || scene === "reveal") && (
-          <motion.section key="envelope" {...sceneAnim()} className="flex-1 flex flex-col items-center justify-center gap-10 px-4 py-16" aria-label={scene === "reveal" ? "Tu invitación" : "La invitación"}>
+          <motion.section key="envelope" {...sceneAnim()} className="flex-1 flex flex-col items-center justify-center gap-10 px-4 py-16" aria-label={scene === "reveal" ? I.yourInvitation : I.theInvitation}>
             {scene === "invitation" && (
               <motion.div {...rise(0.1)} className="text-center space-y-2">
-                <p className="prive-eyebrow">{CEREMONY.brand}</p>
-                <p className="prive-display text-xl sm:text-2xl prive-champagne">A private invitation awaits you.</p>
+                <p className="prive-eyebrow">{C.brand}</p>
+                <p className="prive-display text-xl sm:text-2xl prive-champagne">{C.privateInvitation}</p>
               </motion.div>
             )}
             <motion.div {...(reduce ? fade() : { initial: { opacity: 0, y: 30, rotateX: 8 }, animate: { opacity: 1, y: 0, rotateX: 0 }, transition: { duration: 1.4, ease: EASE } })} className={scene === "reveal" ? "mt-24 sm:mt-32" : ""}>
@@ -228,25 +233,25 @@ export default function PriveInvitation() {
                 {scene === "reveal" && (<>
                 <Monogram size={34} ink="#8e7238" />
                 <p className="prive-serif text-[clamp(1.15rem,4.6vw,1.6rem)] tracking-[0.12em] mt-2 text-[#1b170f]" data-testid="prive-welcome-name">
-                  {firstName ? CEREMONY.welcomeName(firstName) : "WELCOME."}
+                  {firstName ? C.welcomeName(firstName) : C.welcomeAnon}
                 </p>
-                <p className="text-[clamp(0.55rem,2.2vw,0.7rem)] tracking-[0.22em] mt-2 text-[#5a4a2a]">{CEREMONY.unlocked}</p>
+                <p className="text-[clamp(0.55rem,2.2vw,0.7rem)] tracking-[0.22em] mt-2 text-[#5a4a2a]">{C.unlocked}</p>
                 </>)}
               </Envelope>
             </motion.div>
             {scene === "invitation" ? (
               <div className="flex flex-col items-center gap-4 min-h-[96px]">
                 <motion.button {...rise(0.8)} type="button" onClick={openInvitation} disabled={waiting} className="prive-btn prive-btn-gold" aria-busy={waiting}>
-                  {waiting ? "Abriendo…" : CEREMONY.openInvitation}
+                  {waiting ? I.opening : C.openInvitation}
                 </motion.button>
                 {inlineError && <p role="alert" className="text-sm text-[#f0b4a8] text-center max-w-sm">{inlineError}</p>}
               </div>
             ) : (
               <div className="min-h-[96px] flex flex-col items-center gap-3">
-                <h1 className="sr-only">{firstName ? CEREMONY.welcomeName(firstName) : "WELCOME."} {CEREMONY.unlocked}</h1>
+                <h1 className="sr-only">{firstName ? C.welcomeName(firstName) : C.welcomeAnon} {C.unlocked}</h1>
                 {showContinue && (
                   <motion.button {...rise()} type="button" onClick={() => setScene("access")} className="prive-btn prive-btn-ghost" autoFocus>
-                    Continuar
+                    {t.common.continue}
                   </motion.button>
                 )}
               </div>
@@ -257,24 +262,21 @@ export default function PriveInvitation() {
         {scene === "access" && (
           <motion.section key="access" {...sceneAnim()} className="flex-1 w-full max-w-md mx-auto px-4 py-16 sm:py-20" aria-labelledby="prive-access-title">
             <Monogram size={56} className="mb-6" />
-            <p className="prive-eyebrow mb-3">{resumed ? "Continúa donde te quedaste" : "Personal Access"}</p>
-            <h1 id="prive-access-title" className="text-3xl sm:text-4xl mb-3">Tu contraseña Privé</h1>
-            <p className="text-sm prive-muted mb-8">
-              Es personal y distinta de la de tu cuenta IATOS. Te la pediremos para entrar a Privé desde cada dispositivo.
-              Nadie de IATOS te la pedirá nunca.
-            </p>
-            <PasswordCreator onChosen={onChosen} onGenerate={onGenerate} onComplete={onPasswordDone} submitLabel="Crear mi contraseña" />
+            <p className="prive-eyebrow mb-3">{resumed ? I.resumed : I.personalAccess}</p>
+            <h1 id="prive-access-title" className="text-3xl sm:text-4xl mb-3">{I.passwordTitle}</h1>
+            <p className="text-sm prive-muted mb-8">{I.passwordBody}</p>
+            <PasswordCreator onChosen={onChosen} onGenerate={onGenerate} onComplete={onPasswordDone} submitLabel={I.createPassword} />
           </motion.section>
         )}
 
         {scene === "card" && (
           <motion.section key="card" {...sceneAnim()} className="flex-1 flex flex-col items-center justify-center gap-8 px-4 py-16" aria-labelledby="prive-card-title">
-            <h1 id="prive-card-title" className="sr-only">Tu tarjeta de miembro IATOS Privé</h1>
+            <h1 id="prive-card-title" className="sr-only">{I.cardTitle}</h1>
             <MemberCard firstName={firstName} status="active" activatedAt={status?.activated_at ?? null} memberCode={status?.member_code ?? null} reveal />
             <div className="min-h-[56px]">
               {showEnter && (
                 <motion.button {...rise()} type="button" onClick={() => navigate("/prive", { replace: true })} className="prive-btn prive-btn-gold" autoFocus>
-                  {CEREMONY.enter}
+                  {C.enter}
                 </motion.button>
               )}
             </div>
@@ -312,6 +314,10 @@ function InvitationMessage({ kind, emailSent, status, busy, error, onResend, onO
   onSwitchAccount: () => void;
   onRetry: () => void;
 }) {
+  const t = usePriveT();
+  const lang = usePriveLang();
+  const M = t.invitation.msg;
+  const msg = (c: Parameters<typeof messageFor>[0]) => messageFor(c, lang);
   const box = (title: string, body: React.ReactNode, actions?: React.ReactNode) => (
     <div className="max-w-md text-center" data-testid={`prive-invite-msg-${kind}`}>
       <Monogram size={64} className="mx-auto mb-8" />
@@ -321,59 +327,53 @@ function InvitationMessage({ kind, emailSent, status, busy, error, onResend, onO
       <div className="flex flex-col sm:flex-row gap-3 justify-center">{actions}</div>
     </div>
   );
-  const toPrive = <Link to="/prive" className="prive-btn prive-btn-gold">Ir a IATOS Privé</Link>;
+  const toPrive = <Link to="/prive" className="prive-btn prive-btn-gold">{t.common.goPrive}</Link>;
   switch (kind) {
     case "ALREADY_ACTIVE":
-      return box("Tu membresía ya está activa", <p>Ya abriste tu invitación. Entra a Privé con tu contraseña personal.</p>, toPrive);
+      return box(M.alreadyActiveTitle, <p>{M.alreadyActiveBody}</p>, toPrive);
     case "PASSWORD_ALREADY_SET":
-      return box("Tu contraseña ya estaba creada", <p>{messageFor("PASSWORD_ALREADY_SET")}</p>, (
+      return box(M.passwordSetTitle, <p>{msg("PASSWORD_ALREADY_SET")}</p>, (
         <>
           {toPrive}
-          <Link to="/prive/restablecer" className="prive-btn prive-btn-ghost">Restablecer</Link>
+          <Link to="/prive/restablecer" className="prive-btn prive-btn-ghost">{M.reset}</Link>
         </>
       ));
     case "INVITATION_OTHER_ACCOUNT":
-      return box("Esta invitación es para otra cuenta", <p>{messageFor("INVITATION_OTHER_ACCOUNT")}</p>, (
+      return box(M.otherAccountTitle, <p>{msg("INVITATION_OTHER_ACCOUNT")}</p>, (
         <>
-          <button type="button" onClick={onSwitchAccount} className="prive-btn prive-btn-gold">Cambiar de cuenta</button>
-          <Link to="/dashboard" className="prive-btn prive-btn-ghost">Volver a IATOS</Link>
+          <button type="button" onClick={onSwitchAccount} className="prive-btn prive-btn-gold">{M.switchAccount}</button>
+          <Link to="/dashboard" className="prive-btn prive-btn-ghost">{M.backToIatos}</Link>
         </>
       ));
     case "INVITATION_EXPIRED":
-      return box("Tu invitación venció", <p>{messageFor("INVITATION_EXPIRED")}</p>, (
-        <button type="button" onClick={onResend} disabled={busy} className="prive-btn prive-btn-gold">{busy ? "Enviando…" : "Enviarme una nueva"}</button>
+      return box(M.expiredTitle, <p>{msg("INVITATION_EXPIRED")}</p>, (
+        <button type="button" onClick={onResend} disabled={busy} className="prive-btn prive-btn-gold">{busy ? t.common.sending : M.sendNew}</button>
       ));
     case "RESENT":
-      return box("Listo", (
-        <p>
-          {emailSent
-            ? "Te enviamos una invitación nueva a tu correo. También puedes abrirla ahora mismo desde aquí."
-            : "Tu invitación nueva está lista. Ábrela ahora mismo desde aquí."}
-        </p>
-      ), (
-        <button type="button" onClick={onOpenAgain} className="prive-btn prive-btn-gold">Abrir ahora</button>
+      return box(M.resentTitle, <p>{emailSent ? M.resentSent : M.resentReady}</p>, (
+        <button type="button" onClick={onOpenAgain} className="prive-btn prive-btn-gold">{M.openNow}</button>
       ));
     case "NO_INVITATION":
-      return box("No encontramos tu invitación", <p>{messageFor("NO_INVITATION")}</p>, (
+      return box(M.noInvitationTitle, <p>{msg("NO_INVITATION")}</p>, (
         <>
-          <Link to="/prive" className="prive-btn prive-btn-ghost">Ver mi estado</Link>
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="prive-btn prive-btn-ghost">Escribir a soporte</a>
+          <Link to="/prive" className="prive-btn prive-btn-ghost">{M.seeStatus}</Link>
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="prive-btn prive-btn-ghost">{M.writeSupport}</a>
         </>
       ));
     case "NOT_PRO":
-      return box("Privé es parte de IATOS PRO", <p>{messageFor("NOT_PRO")}</p>, <Link to="/dashboard/pro" className="prive-btn prive-btn-gold">Ver mi plan</Link>);
+      return box(M.notProTitle, <p>{msg("NOT_PRO")}</p>, <Link to="/dashboard/pro" className="prive-btn prive-btn-gold">{M.seePlan}</Link>);
     case "NOT_ELIGIBLE":
-      return box("Aún no es momento", (
+      return box(M.notEligibleTitle, (
         <>
-          <p>{messageFor("NOT_ELIGIBLE")}</p>
-          {status && <p className="prive-champagne">{tenureLine(status.tenure_days, status.required_days)}.</p>}
+          <p>{msg("NOT_ELIGIBLE")}</p>
+          {status && <p className="prive-champagne">{t.tenure.line(status.tenure_days, status.required_days)}.</p>}
         </>
-      ), <Link to="/prive" className="prive-btn prive-btn-ghost">Ver mi progreso</Link>);
+      ), <Link to="/prive" className="prive-btn prive-btn-ghost">{M.seeProgress}</Link>);
     case "REVOKED":
-      return box("Tu membresía no está activa", <p>Si crees que es un error, escríbenos a <a className="prive-link" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>);
+      return box(M.revokedTitle, <p>{M.revokedBody} <a className="prive-link" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>);
     default:
-      return box("No pudimos abrir tu invitación", <p>{messageFor(kind === "STATUS_ERROR" ? "SERVICE_UNAVAILABLE" : kind)}</p>, (
-        <button type="button" onClick={onRetry} className="prive-btn prive-btn-ghost">Reintentar</button>
+      return box(M.failedTitle, <p>{msg(kind === "STATUS_ERROR" ? "SERVICE_UNAVAILABLE" : kind)}</p>, (
+        <button type="button" onClick={onRetry} className="prive-btn prive-btn-ghost">{t.common.retry}</button>
       ));
   }
 }

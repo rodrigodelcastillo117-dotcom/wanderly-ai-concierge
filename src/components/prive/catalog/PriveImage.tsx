@@ -1,54 +1,18 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { pexelsCredit } from "@/lib/priveCatalogView";
+import { PrivePhoto } from "@/components/prive/PrivePhoto";
 
-type Photo = { image: string | null; photographer?: string | null; photographer_url?: string | null; page_url?: string | null; alt?: string | null };
-const cache = new Map<string, Promise<Photo | null>>();
-
-// Foto de Pexels por la función pexels-image (caché compartida de 7 días). Se prueba cada consulta en
-// orden (curador → subcategoría + ciudad → universo) hasta que una traiga foto.
-async function fetchPhoto(queries: string[]): Promise<Photo | null> {
-  for (const q of queries) {
-    if (!cache.has(q)) {
-      cache.set(q, supabase.functions.invoke("pexels-image", { body: { query: q } })
-        .then(({ data, error }) => (error || !data?.image ? null : (data as Photo)))
-        .catch(() => null));
-    }
-    const p = await cache.get(q)!;
-    if (p?.image) return p;
-  }
-  return null;
-}
-
-export function PriveImage({ queries, illustrative = true, className = "", alt }: { queries: string[]; illustrative?: boolean; className?: string; alt: string }) {
-  const [photo, setPhoto] = useState<Photo | null>(null);
-  const key = queries.join("|");
-  useEffect(() => {
-    let alive = true;
-    void fetchPhoto(queries).then((p) => { if (alive) setPhoto(p); });
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+/**
+ * Foto de Pexels de una experiencia o destino (consultas en orden: curador → subcategoría + ciudad →
+ * universo). Pasa por PrivePhoto: fila y caché compartidas con el resto de IATOS (antes cada tarjeta
+ * llamaba a pexels-image por su cuenta y un 429 quedaba como "sin foto" hasta recargar), reintento
+ * de fallos temporales y respaldo de marca, nunca una caja vacía.
+ * `linkCredit`: crédito con enlaces a Pexels (portadas y fichas). En una tarjeta que ya es un enlace
+ * va como texto: un enlace dentro de otro abría Pexels en otra pestaña al tocar la tarjeta.
+ */
+export function PriveImage({ queries, illustrative = true, className = "", alt, label, linkCredit = true, eager = false }: {
+  queries: string[]; illustrative?: boolean; className?: string; alt: string; label?: string; linkCredit?: boolean; eager?: boolean;
+}) {
   return (
-    <figure className={`relative overflow-hidden bg-[color:var(--pv-surface)] ${className}`}>
-      {photo?.image
-        ? <img src={photo.image} alt={photo.alt || alt} loading="lazy" className="h-full w-full object-cover" />
-        : <div className="h-full w-full" aria-hidden="true" />}
-      {photo?.image && (
-        <figcaption className="absolute bottom-0 left-0 right-0 bg-black/55 px-2 py-0.5 text-[10px] text-[color:var(--pv-champagne)]">
-          <a href={photo.page_url || "https://www.pexels.com"} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
-            {pexelsCredit(null, illustrative)}
-          </a>
-          {photo.photographer && (
-            <>
-              {" · "}
-              <a href={photo.photographer_url || "https://www.pexels.com"} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
-                {photo.photographer}
-              </a>
-            </>
-          )}
-        </figcaption>
-      )}
-    </figure>
+    <PrivePhoto queries={queries} alt={alt} label={label ?? alt} illustrative={illustrative} className={className}
+      creditLinks={linkCredit} eager={eager} />
   );
 }

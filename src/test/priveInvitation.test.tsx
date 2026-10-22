@@ -71,7 +71,7 @@ function happyServer(over: Record<string, unknown> = {}) {
 
 const goToEnvelope = async () => {
   await act(async () => { await new Promise((r) => setTimeout(r, 950)); });
-  return screen.findByRole("button", { name: "OPEN INVITATION" });
+  return screen.findByRole("button", { name: "ABRIR INVITACIÓN" });
 };
 
 describe("/prive/invitacion", () => {
@@ -85,10 +85,10 @@ describe("/prive/invitacion", () => {
     expect(sessionStorage.getItem(PRIVE_INVITE_TOKEN_KEY)).toBe(TOKEN);
     expect(Object.keys({ ...localStorage }).filter((k) => k !== PRIVE_SESSION_KEY)).toEqual([]);
     // La revelación no existe en el DOM antes de que el servidor acepte.
-    expect(screen.queryByText("YOUR PRIVÉ MEMBERSHIP HAS BEEN UNLOCKED.")).toBeNull();
+    expect(screen.queryByText("TU MEMBRESÍA PRIVÉ ESTÁ ACTIVA.")).toBeNull();
     fireEvent.click(await goToEnvelope());
-    expect(await screen.findByTestId("prive-welcome-name")).toHaveTextContent("WELCOME, VALENTINA.");
-    expect(screen.getAllByText("YOUR PRIVÉ MEMBERSHIP HAS BEEN UNLOCKED.").length).toBeGreaterThan(0);
+    expect(await screen.findByTestId("prive-welcome-name")).toHaveTextContent("TE DAMOS LA BIENVENIDA, VALENTINA.");
+    expect(screen.getAllByText("TU MEMBRESÍA PRIVÉ ESTÁ ACTIVA.").length).toBeGreaterThan(0);
     expect(api.access).toHaveBeenCalledWith("accept_invitation", { token: TOKEN });
     // Aceptada: el token ya no se guarda.
     expect(sessionStorage.getItem(PRIVE_INVITE_TOKEN_KEY)).toBeNull();
@@ -102,7 +102,7 @@ describe("/prive/invitacion", () => {
     fireEvent.click(await goToEnvelope());
     expect(await screen.findByRole("heading", { name: "Esta invitación es para otra cuenta" })).toBeInTheDocument();
     expect(screen.getByText(/no corresponde a la cuenta con la que iniciaste sesión/)).toBeInTheDocument();
-    expect(screen.queryByText(/WELCOME,/)).toBeNull();
+    expect(screen.queryByText(/TE DAMOS LA BIENVENIDA,/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Cambiar de cuenta" }));
     await waitFor(() => expect(signOut).toHaveBeenCalled());
     expect(await screen.findByText("AUTH")).toBeInTheDocument();
@@ -124,7 +124,7 @@ describe("/prive/invitacion", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enviarme una nueva" }));
     await waitFor(() => expect(api.access).toHaveBeenCalledWith("resend_invitation", {}));
     fireEvent.click(await screen.findByRole("button", { name: "Abrir ahora" }));
-    fireEvent.click(await screen.findByRole("button", { name: "OPEN INVITATION" }));
+    fireEvent.click(await screen.findByRole("button", { name: "ABRIR INVITACIÓN" }));
     await screen.findByTestId("prive-welcome-name");
     expect(api.access).toHaveBeenLastCalledWith("accept_invitation", {});
   });
@@ -138,7 +138,7 @@ describe("/prive/invitacion", () => {
     happyServer();
     renderAt("/prive/invitacion");
     expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "OPEN INVITATION" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "ABRIR INVITACIÓN" })).toBeNull();
     if (heading === "Tu membresía ya está activa") expect(screen.getByRole("link", { name: "Ir a IATOS Privé" })).toHaveAttribute("href", "/prive");
   });
 
@@ -166,7 +166,7 @@ describe("/prive/invitacion", () => {
     expect(card.textContent).not.toContain(SESSION_TOKEN);
     expect(card).toHaveTextContent("IP-7KQM-X4TD");
     expect(screen.getByText(/Código ceremonial: es solo un adorno/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "ENTER IATOS PRIVÉ" }));
+    fireEvent.click(await screen.findByRole("button", { name: "ENTRAR A IATOS PRIVÉ" }));
     expect(await screen.findByText("HUB")).toBeInTheDocument();
   });
 

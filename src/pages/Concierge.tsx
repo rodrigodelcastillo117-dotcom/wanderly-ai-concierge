@@ -98,7 +98,8 @@ const Concierge = () => {
   }]);
   const [liveAction, setLiveAction] = useState<LiveAction>(null);
   const [showFlight, setShowFlight] = useState(false);
-  const [input, setInput] = useState("");
+  // ?ask=… (desde IATOS Privé: "Pregúntale a Iato") deja la pregunta escrita, sin enviarla.
+  const [input, setInput] = useState(() => (searchParams.get("ask") ?? "").slice(0, 400));
   const [sending, setSending] = useState(false);
   // Modo exigente: apagado por omisión (usa el modelo más capaz: tarda un poco más y cuesta más).
   const [godMode, setGodMode] = useState(() => {

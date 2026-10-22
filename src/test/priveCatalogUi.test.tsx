@@ -22,6 +22,7 @@ vi.mock("@/hooks/usePriveAccess", () => ({ usePriveAccess: () => access }));
 import { createPriveCatalogApi, PriveLockedError, type ContentFn, type PriveExperience } from "@/lib/priveCatalogApi";
 import { canRequest, imageQueries, labelWithEvidence, pexelsCredit, priceText } from "@/lib/priveCatalogView";
 import PriveDestinationPage from "@/pages/prive/PriveDestinationPage";
+import { __resetStockPhotos } from "@/lib/stockPhoto";
 import { ExperienceDetail } from "@/components/prive/catalog/ExperienceDetail";
 
 const exp = (over: Partial<PriveExperience> = {}): PriveExperience => ({
@@ -39,7 +40,8 @@ const unlocked = (data: unknown) => {
 beforeEach(() => {
   rpc.mockReset(); invoke.mockReset(); access.content.mockReset(); access.session = null;
   access.content.mockResolvedValue({ ok: false, code: "PRIVE_NO_SESSION" });
-  invoke.mockResolvedValue({ data: { image: "https://images.pexels.test/1.jpg", photographer: "Ana Foto", photographer_url: "https://www.pexels.com/@ana", page_url: "https://www.pexels.com/photo/1" }, error: null });
+  __resetStockPhotos();
+  invoke.mockResolvedValue({ data: { image: "https://images.pexels.com/1.jpg", photographer: "Ana Foto", photographer_url: "https://www.pexels.com/@ana", page_url: "https://www.pexels.com/photo/1" }, error: null });
 });
 
 describe("cliente del catálogo", () => {
@@ -79,7 +81,8 @@ describe("textos honestos", () => {
   });
   it("crédito de Pexels y orden de consultas de imagen", () => {
     expect(pexelsCredit("Ana")).toBe("Foto ilustrativa · Pexels · Ana");
-    expect(imageQueries(exp())).toEqual(["fine dining", "alta cocina Mónaco", "fine dining tasting menu plating"]);
+    // La ciudad va en inglés (Pexels busca mejor así) cuando el destino está en el índice.
+    expect(imageQueries(exp())).toEqual(["fine dining", "alta cocina Monaco", "fine dining tasting menu plating"]);
   });
   it("lo desactualizado o no disponible no se puede solicitar", () => {
     expect(canRequest({ state: "DESACTUALIZADO" })).toBe(false);
@@ -109,7 +112,8 @@ describe("página de destino", () => {
     });
     renderDest();
     expect(await screen.findByText("Fixture Mesa")).toBeInTheDocument();
-    expect(screen.getByTestId("prive-coverage")).toHaveTextContent("Selección en crecimiento");
+    // "Selección en crecimiento" era relleno: con cobertura parcial no se dice nada.
+    expect(screen.queryByTestId("prive-coverage")).toBeNull();
     expect(screen.getByText(/Por verificar: la última revisión tiene más de 90 días/)).toBeInTheDocument();
     expect(screen.getByTestId("prive-age-gate")).toHaveTextContent("Hay 2 experiencias");
     expect(screen.getByTestId("prive-planner")).toBeInTheDocument();
@@ -137,6 +141,8 @@ describe("ficha", () => {
     expect(screen.getByTestId("prive-label")).toHaveTextContent("Experiencia curada");
     expect(screen.getByText("guide.test")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Solicitar con Iato/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Agregar a mi viaje/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Pregúntale a Iato" })).toHaveAttribute("href", expect.stringMatching(/^\/dashboard\/concierge\?ask=/));
     expect(screen.getByText(/Solicitar no es reservar/)).toBeInTheDocument();
     expect(screen.getByText("Horario por confirmar")).toBeInTheDocument();
     expect(screen.getByText("Disponibilidad no consultada")).toBeInTheDocument();
@@ -144,7 +150,7 @@ describe("ficha", () => {
   it("desactualizada: sin Solicitar ni Agregar al viaje", () => {
     render(<MemoryRouter><ExperienceDetail e={exp({ state: "DESACTUALIZADO" })} onLocked={() => {}} /></MemoryRouter>);
     expect(screen.queryByRole("button", { name: /Solicitar con Iato/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Agregar al viaje/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Agregar a mi viaje/ })).toBeNull();
     expect(screen.getByText(/No se puede solicitar mientras esté por verificar/)).toBeInTheDocument();
   });
   it("casino: aviso de información práctica sin apuestas", () => {
@@ -162,7 +168,10 @@ describe("hub", () => {
     expect(sec.render({ total: 0, universes: [], destinations: [] })).toBeNull();
     render(<MemoryRouter>{sec.render({ total: 3, universes: [{ key: "the_table", count: 3 }],
       destinations: [{ slug: "mc", name: "Mónaco", region_group: "europa", kind: "country", coverage: "COBERTURA_PARCIAL", count: 3 }] })}</MemoryRouter>);
-    expect(screen.getByRole("link", { name: /Mónaco/ })).toHaveAttribute("href", "/prive/destino/mc");
-    expect(screen.getByRole("link", { name: /THE TABLE · 3/ })).toHaveAttribute("href", "/prive/universo/the_table");
+    // Mónaco aparece en Destacados y en su región (Europa): ambos enlaces van al destino.
+    const links = screen.getAllByRole("link", { name: /Mónaco/ });
+    expect(links.length).toBeGreaterThan(0);
+    for (const l of links) expect(l).toHaveAttribute("href", "/prive/destino/mc");
+    expect(screen.getByRole("link", { name: /The Art of Dining · El arte de la mesa · 3 experiencias/ })).toHaveAttribute("href", "/prive/universo/the_table");
   });
 });

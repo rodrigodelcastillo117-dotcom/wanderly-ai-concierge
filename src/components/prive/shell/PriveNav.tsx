@@ -1,0 +1,84 @@
+// Navegación de las seis áreas de IATOS Privé (Documento B §4): FOR YOU · THE KEY · PRIVÉ DROPS ·
+// INSIDER · EXPLORE · MY PRIVÉ. Escritorio: en la barra superior. Teléfono: barra inferior con cinco
+// (Para ti, The Key, Explorar, Drops, Mi Privé) e Insider en la barra superior, así las seis siguen a
+// un toque sin esconder funciones. Todo es navegación interna (misma pestaña).
+import { NavLink, Link } from "react-router-dom";
+import { BookOpen, Compass, Gem, KeyRound, Sparkles, UserRound } from "lucide-react";
+import { usePriveT } from "@/components/prive/PriveLang";
+
+export const PRIVE_AREAS = [
+  { key: "forYou", to: "/prive", end: true, icon: Sparkles },
+  { key: "key", to: "/prive/key", end: false, icon: KeyRound },
+  { key: "drops", to: "/prive/drops", end: false, icon: Gem },
+  { key: "insider", to: "/prive/insider", end: false, icon: BookOpen },
+  { key: "explore", to: "/prive/explorar", end: false, icon: Compass },
+  { key: "my", to: "/prive/mi", end: false, icon: UserRound },
+] as const;
+
+const EXPLORE_PATHS = ["/prive/explorar", "/prive/destino/", "/prive/universo/", "/prive/experiencia/"];
+const MY_PATHS = ["/prive/mi", "/prive/membresia", "/prive/solicitudes"];
+
+/** ¿Qué área está activa? (las fichas y destinos pertenecen a Explorar; solicitudes y membresía, a Mi Privé). */
+export function activeArea(pathname: string): (typeof PRIVE_AREAS)[number]["key"] | null {
+  if (EXPLORE_PATHS.some((p) => pathname.startsWith(p))) return "explore";
+  if (MY_PATHS.some((p) => pathname.startsWith(p))) return "my";
+  if (pathname.startsWith("/prive/key")) return "key";
+  if (pathname.startsWith("/prive/drops")) return "drops";
+  if (pathname.startsWith("/prive/insider")) return "insider";
+  if (pathname === "/prive" || pathname === "/prive/") return "forYou";
+  return null;
+}
+
+export function PriveTopNav({ pathname }: { pathname: string }) {
+  const t = usePriveT();
+  const area = activeArea(pathname);
+  return (
+    <nav aria-label={t.shell.navAria} className="hidden lg:block">
+      <ul className="flex items-center gap-1">
+        {PRIVE_AREAS.map((a) => (
+          <li key={a.key}>
+            <NavLink to={a.to} end={a.end} className={() => `prive-nav-link ${area === a.key ? "is-active" : ""}`} aria-current={area === a.key ? "page" : undefined}>
+              {t.shell[a.key]}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+export function PriveInsiderShortcut({ pathname }: { pathname: string }) {
+  const t = usePriveT();
+  const on = activeArea(pathname) === "insider";
+  return (
+    <Link to="/prive/insider" className={`lg:hidden inline-flex items-center gap-1.5 min-h-[44px] text-xs tracking-[0.2em] uppercase ${on ? "prive-champagne" : "prive-muted"}`} aria-current={on ? "page" : undefined}>
+      <BookOpen className="w-4 h-4" aria-hidden="true" />{t.shell.insider}
+    </Link>
+  );
+}
+
+const MOBILE = ["forYou", "key", "explore", "drops", "my"] as const;
+
+export function PriveBottomNav({ pathname }: { pathname: string }) {
+  const t = usePriveT();
+  const area = activeArea(pathname);
+  return (
+    <nav aria-label={t.shell.navAria} className="prive-bottom-nav lg:hidden" data-testid="prive-bottom-nav">
+      <ul className="grid grid-cols-5">
+        {MOBILE.map((k) => {
+          const a = PRIVE_AREAS.find((x) => x.key === k)!;
+          const Icon = a.icon;
+          const on = area === k;
+          return (
+            <li key={k}>
+              <NavLink to={a.to} end={a.end} className={() => `prive-bottom-link ${on ? "is-active" : ""}`} aria-current={on ? "page" : undefined}>
+                <Icon className="w-5 h-5" aria-hidden="true" strokeWidth={1.5} />
+                <span>{t.shell[k]}</span>
+              </NavLink>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
