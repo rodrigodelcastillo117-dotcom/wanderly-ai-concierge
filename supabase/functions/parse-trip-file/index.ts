@@ -160,9 +160,9 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        // gemini-2.5-flash: 3-5x más rápido que pro en extracción multimodal,
+        // Flash vigente: 3-5x más rápido que pro en extracción multimodal,
         // mantiene calidad alta en JSON estructurado de PDFs/imágenes.
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-flash-latest",
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: userParts },
