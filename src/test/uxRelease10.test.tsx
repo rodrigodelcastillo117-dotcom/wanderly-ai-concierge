@@ -158,6 +158,8 @@ describe("UX10-12 · Editar con IA: diálogo accesible, sobre la barra inferior 
     expect(dialog).toHaveAttribute("aria-modal", "true");
     // z-[100]: la barra inferior móvil es z-50 y quedaba encima de "Aplicar cambios".
     expect(dialog.parentElement?.className).toMatch(/z-\[100\]/);
+    // Y en un portal a <body>: dentro de la página el z-index quedaba atrapado en su contexto.
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
     await waitFor(() => expect(document.activeElement).toHaveAttribute("aria-label", "Cambios que quieres en tu viaje"));
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());

@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { Sparkles, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -59,7 +60,9 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
         <Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">Editar con IA</span>
       </button>
 
-      {open && (
+      {/* Portal a <body>: dentro de la página (con transformaciones de animación) el z-[100]
+          no salía de su contexto y la barra inferior móvil tapaba "Aplicar cambios". */}
+      {open && createPortal(
         <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-[max(1rem,env(safe-area-inset-bottom))]" onClick={() => !loading && setOpen(false)}>
           <div
             ref={dialogRef}
@@ -141,7 +144,8 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
               </p>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
