@@ -43,7 +43,8 @@ it("un vuelo estimado o viejo nunca se presenta como en vivo", () => {
 
 it("TripDetail pasa la insignia de los vuelos como badge visible (igual que los hoteles)", () => {
   const src = readFileSync(path.resolve(__dirname, "../pages/TripDetail.tsx"), "utf8");
-  const flightCard = src.slice(src.indexOf("imageQuery={`${v.aerolinea} airplane airline`}"));
-  const cardProps = flightCard.slice(0, flightCard.indexOf(">\n"));
+  const flightCard = src.slice(src.indexOf("<ExpandableItemCard", src.indexOf("cityVuelos.map(")));
+  const cardProps = flightCard.slice(0, flightCard.indexOf("\n                            >\n"));
+  expect(cardProps).toContain("title={v.aerolinea}");
   expect(cardProps).toMatch(/badge=\{<PriceSourceBadge source=\{v\.fuente_precio\} estado=\{v\.estado_dato\}/);
 });
