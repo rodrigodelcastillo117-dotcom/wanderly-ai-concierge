@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-10-22T16:15:06.492Z",
+  "base": "http://127.0.0.1:8093",
+  "files": [
+    "docs/iatos/evidencia/privevalor/drops__390x844.png",
+    "docs/iatos/evidencia/privevalor/drops-radar__390x844.png",
+    "docs/iatos/evidencia/privevalor/insider__390x844.png",
+    "docs/iatos/evidencia/privevalor/insider-monaco__390x844.png",
+    "docs/iatos/evidencia/privevalor/my-prive-slots__390x844.png",
+    "docs/iatos/evidencia/privevalor/my-prive-value__390x844.png",
+    "docs/iatos/evidencia/privevalor/preview-dia-47__390x844.png",
+    "docs/iatos/evidencia/privevalor/insider-en__390x844.png",
+    "docs/iatos/evidencia/privevalor/drops__1440x900.png",
+    "docs/iatos/evidencia/privevalor/drops-radar__1440x900.png",
+    "docs/iatos/evidencia/privevalor/insider__1440x900.png",
+    "docs/iatos/evidencia/privevalor/insider-monaco__1440x900.png",
+    "docs/iatos/evidencia/privevalor/my-prive-slots__1440x900.png",
+    "docs/iatos/evidencia/privevalor/my-prive-value__1440x900.png",
+    "docs/iatos/evidencia/privevalor/preview-dia-47__1440x900.png",
+    "docs/iatos/evidencia/privevalor/insider-en__1440x900.png"
+  ],
+  "blocked_hosts": [],
+  "problems": [],
+  "note": "Datos simulados desde data/prive/valor/2026-10 (verificados). Sin producción ni sesiones reales. Chromium emulado."
+}

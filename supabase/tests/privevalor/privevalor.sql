@@ -279,6 +279,15 @@ SELECT pv.ok('V15 U2 no borra entradas de U1', (public.prive_value_delete(pv.ps(
 SELECT pv.ok('V16 U2 no liga un beneficio del radar de U1', public.prive_value_save(pv.ps(2), jsonb_build_object('kind', 'potencial', 'title', 'Robo', 'radar_item_id', :'r1'))->>'code' = 'INVALID');
 RESET ROLE;
 
+SELECT pv.login(1); SET ROLE authenticated;
+SELECT (public.prive_radar_save(pv.ps(1), '{"program":"Programa temporal","benefit":"Beneficio temporal de prueba"}')->'item'->>'id') AS rtmp \gset
+SELECT public.prive_value_save(pv.ps(1), jsonb_build_object('kind', 'potencial', 'title', 'Potencial temporal', 'radar_item_id', :'rtmp'));
+SELECT pv.ok('V17 quitar un beneficio del radar con un potencial ligado: se borra el potencial, no falla',
+  (public.prive_radar_delete(pv.ps(1), :'rtmp')->>'ok')::boolean
+  AND pv.sq($q$SELECT NOT EXISTS (SELECT 1 FROM public.prive_value_entries WHERE title = 'Potencial temporal')
+              AND EXISTS (SELECT 1 FROM public.prive_value_entries WHERE kind = 'comprobado' AND user_id = pv.u(1))$q$));
+RESET ROLE;
+
 -- ═════════════ 6. Insider's Notebook + Before You Go ═════════════
 SELECT pv.login(1); SET ROLE authenticated;
 SELECT pv.ok('N01 índice: destinos con consejos y fecha de revisión',
@@ -353,6 +362,20 @@ SELECT pv.ok('Q02 panel del equipo: activación, Drops, radar, insider, pasaport
 SELECT pv.ok('Q03 el panel no trae correos, nombres ni ids de personas',
   public.admin_prive_product_metrics(30)::text !~* '(@example|Persona |d0000000-0000-0000-0000-00000000000)');
 RESET ROLE;
+
+-- ═════════════ 9. Borrar la cuenta borra todo lo de privevalor (y nada de otras cuentas) ═════════════
+SELECT count(*) AS u2_before FROM (SELECT 1 FROM public.prive_radar_items WHERE user_id = pv.u(2) UNION ALL SELECT 1 FROM public.prive_passport_entries WHERE user_id = pv.u(2)
+  UNION ALL SELECT 1 FROM public.prive_value_events WHERE user_id = pv.u(2)) x \gset
+SET ROLE service_role;
+SELECT public.purge_account_data(pv.u(1));
+RESET ROLE;
+SELECT pv.ok('Z01 purge_account_data: sin radar, valor, guardados, pasaporte ni eventos de U1',
+  NOT EXISTS (SELECT 1 FROM public.prive_radar_items WHERE user_id = pv.u(1)) AND NOT EXISTS (SELECT 1 FROM public.prive_value_entries WHERE user_id = pv.u(1))
+  AND NOT EXISTS (SELECT 1 FROM public.prive_saved_tips WHERE user_id = pv.u(1)) AND NOT EXISTS (SELECT 1 FROM public.prive_passport_entries WHERE user_id = pv.u(1))
+  AND NOT EXISTS (SELECT 1 FROM public.prive_value_events WHERE user_id = pv.u(1)));
+SELECT pv.ok('Z02 lo de U2 sigue intacto', (SELECT count(*) FROM (SELECT 1 FROM public.prive_radar_items WHERE user_id = pv.u(2) UNION ALL SELECT 1 FROM public.prive_passport_entries WHERE user_id = pv.u(2)
+  UNION ALL SELECT 1 FROM public.prive_value_events WHERE user_id = pv.u(2)) x) = :u2_before);
+SELECT pv.ok('Z03 el catálogo curado (Drops y consejos) no se toca', (SELECT count(*) FROM public.prive_drops WHERE import_batch = 'valor-2026-10') = 9);
 
 -- ═════════════ limpieza ═════════════
 DROP SCHEMA pv CASCADE;

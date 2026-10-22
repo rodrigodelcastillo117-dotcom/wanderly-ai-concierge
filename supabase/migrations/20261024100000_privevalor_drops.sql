@@ -24,7 +24,9 @@ CREATE OR REPLACE FUNCTION public.prive_has_card_number(_t text)
 RETURNS boolean LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT coalesce(regexp_replace(_t, '[\s.\-]', '', 'g') ~ '[0-9]{13,19}', false);
 $$;
-GRANT EXECUTE ON FUNCTION public.prive_has_card_number(text) TO authenticated, service_role;
+-- Solo la usan CHECK y RPC del servidor (dueño de las funciones): nadie más la necesita.
+REVOKE ALL ON FUNCTION public.prive_has_card_number(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.prive_has_card_number(text) TO service_role;
 
 -- Frases de urgencia/escasez falsas que nunca deben aparecer en una oportunidad.
 CREATE OR REPLACE FUNCTION public.prive_has_fake_urgency(_t text)

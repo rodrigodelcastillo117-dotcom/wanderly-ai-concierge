@@ -43,6 +43,9 @@ const PriveDestinationPage = lazyWithRetry(() => import("./pages/prive/PriveDest
 const PriveUniversePage = lazyWithRetry(() => import("./pages/prive/PriveUniversePage"));
 const PriveExperiencePage = lazyWithRetry(() => import("./pages/prive/PriveExperiencePage"));
 const PriveRequestsPage = lazyWithRetry(() => import("./pages/prive/PriveRequestsPage"));
+// ── IATOS Privé · privevalor (Privé Drops + Privilege Radar, Insider's Notebook) ──
+const PriveDropsPage = lazyWithRetry(() => import("./pages/prive/PriveDropsPage"));
+const PriveInsiderPage = lazyWithRetry(() => import("./pages/prive/PriveInsiderPage"));
 // ── fin IATOS Privé · catálogo ──
 const LiveTrip = lazyWithRetry(() => import("./pages/LiveTrip"));
 const TripMap = lazyWithRetry(() => import("./pages/TripMap"));
@@ -161,6 +164,10 @@ const App = () => (
               <Route path="experiencia/:slug" element={<PriveExperiencePage />} />
               <Route path="solicitudes" element={<PriveRequestsPage />} />
               {/* ── fin IATOS Privé · catálogo ── */}
+              {/* ── IATOS Privé · privevalor: el servidor exige la sesión Privé en cada RPC ── */}
+              <Route path="drops" element={<PriveDropsPage />} />
+              <Route path="insider" element={<PriveInsiderPage />} />
+              <Route path="insider/:destino" element={<PriveInsiderPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

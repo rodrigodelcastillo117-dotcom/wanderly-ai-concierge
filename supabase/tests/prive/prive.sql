@@ -649,7 +649,13 @@ SELECT pt.ok('P54 authenticated solo ejecuta prive_require, prive_status y las R
       AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
       AND p.proname NOT IN ('prive_teaser','prive_home','prive_destination','prive_universe','prive_experience','prive_search',
         'prive_for_you','prive_confirm_adult','prive_save','prive_saved','prive_add_to_trip','prive_track','prive_request_create',
-        'prive_request_cancel','prive_my_requests','prive_request_transition','admin_prive_requests','admin_prive_metrics')) = 'prive_require,prive_status',
+        'prive_request_cancel','prive_my_requests','prive_request_transition','admin_prive_requests','admin_prive_metrics',
+        -- privevalor (contrato prive_reimagined): RPC de contenido con prive_require(_ps), la vista previa
+        -- (solo registra un evento con auth.uid()) y el panel admin_* que valida public.admins por dentro.
+        'prive_drops','prive_drop','prive_radar','prive_radar_save','prive_radar_delete','prive_value_summary','prive_value_save',
+        'prive_value_delete','prive_insider_index','prive_insider','prive_before_you_go','prive_tip_save','prive_tip_add_to_trip',
+        'prive_passport','prive_passport_save','prive_passport_delete','prive_value_track','prive_preview_track',
+        'admin_prive_product_metrics')) = 'prive_require,prive_status',
   (SELECT string_agg(p.proname, ',' ORDER BY p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')));
 SELECT pt.ok('P55 todas las funciones Privé SECURITY DEFINER tienen search_path fijo',

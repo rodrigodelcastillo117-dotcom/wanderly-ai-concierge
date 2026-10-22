@@ -59,15 +59,29 @@ CREATE TABLE IF NOT EXISTS public.prive_value_entries (
                            AND coalesce(length(btrim(evidence_note)), 0) >= 3
     -- estimado: referencia con fuente; no hay evidencia del pago
     WHEN 'estimado'   THEN reference_amount IS NOT NULL AND coalesce(length(btrim(reference_source)), 0) >= 3
-    -- potencial: ligado a una oportunidad o a un beneficio del radar; montos solo con fuente
-    WHEN 'potencial'  THEN (drop_id IS NOT NULL OR radar_item_id IS NOT NULL)
-                           AND (reference_amount IS NULL OR coalesce(length(btrim(reference_source)), 0) >= 3)
+    -- potencial: montos solo con fuente. Que esté ligado a una oportunidad o a un beneficio del radar lo
+    -- exige prive_value_save (no un CHECK: al borrar el beneficio, el FK pone NULL y el trigger
+    -- prive_radar_orphan_potentials borra el potencial huérfano en vez de romper el borrado).
+    WHEN 'potencial'  THEN (reference_amount IS NULL OR coalesce(length(btrim(reference_source)), 0) >= 3)
     -- valor sin ahorro: experiencia organizada; nunca montos
     WHEN 'sin_ahorro' THEN reference_amount IS NULL AND currency IS NULL AND coalesce(length(btrim(non_monetary_note)), 0) >= 3
   END),
   CONSTRAINT prive_value_no_card_numbers CHECK (NOT public.prive_has_card_number(concat_ws(' ', title, reference_source, evidence_note, non_monetary_note)))
 );
 CREATE INDEX IF NOT EXISTS prive_value_user ON public.prive_value_entries (user_id, created_at DESC);
+
+-- Un ahorro potencial existe solo mientras exista el beneficio u oportunidad que lo origina.
+CREATE OR REPLACE FUNCTION public.prive_radar_orphan_potentials()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  DELETE FROM public.prive_value_entries
+   WHERE user_id = OLD.user_id AND kind = 'potencial' AND radar_item_id IS NULL AND drop_id IS NULL;
+  RETURN NULL;
+END $$;
+REVOKE ALL ON FUNCTION public.prive_radar_orphan_potentials() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS prive_radar_orphan_potentials ON public.prive_radar_items;
+CREATE TRIGGER prive_radar_orphan_potentials AFTER DELETE ON public.prive_radar_items
+  FOR EACH ROW EXECUTE FUNCTION public.prive_radar_orphan_potentials();
 
 ALTER TABLE public.prive_radar_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.prive_value_entries ENABLE ROW LEVEL SECURITY;
@@ -242,6 +256,9 @@ BEGIN
   SELECT id INTO v_drop FROM public.prive_drops_v
    WHERE id = CASE WHEN (_entry->>'drop_id') ~ '^[0-9a-f-]{36}$' THEN (_entry->>'drop_id')::uuid END
      AND effective_status IN ('activo','por_verificar','vencido');
+  IF _entry->>'kind' = 'potencial' AND v_radar IS NULL AND v_drop IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'INVALID');
+  END IF;
   BEGIN
     INSERT INTO public.prive_value_entries (user_id, kind, title, currency, reference_amount, paid_amount, reference_source,
       evidence_note, non_monetary_note, radar_item_id, drop_id, trip_id, occurred_on)
