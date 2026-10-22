@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react";
+import { scrubBreadcrumb, scrubSentryEvent } from "@/lib/piiScrub";
 
 /**
  * Monitoreo de errores de frontend.
@@ -20,8 +21,10 @@ export function initSentry() {
     environment: import.meta.env.MODE,
     integrations: [Sentry.browserTracingIntegration()],
     tracesSampleRate: 0.1,
-    // No enviamos PII automáticamente; el user se setea explícitamente al iniciar sesión.
+    // Sin PII (F-18): solo el id del usuario; correos y tokens se tapan en eventos y breadcrumbs.
     sendDefaultPii: false,
+    beforeSend: (event) => scrubSentryEvent(event),
+    beforeBreadcrumb: (crumb) => scrubBreadcrumb(crumb),
     ignoreErrors: [
       "ResizeObserver loop limit exceeded",
       "ResizeObserver loop completed with undelivered notifications",
@@ -30,9 +33,10 @@ export function initSentry() {
   });
 }
 
-export function setSentryUser(user: { id: string; email?: string | null } | null) {
+/** Solo el id interno del usuario (nunca el correo). */
+export function setSentryUser(user: { id: string } | null) {
   if (!sentryEnabled) return;
-  Sentry.setUser(user ? { id: user.id, email: user.email ?? undefined } : null);
+  Sentry.setUser(user ? { id: user.id } : null);
 }
 
 export { Sentry };

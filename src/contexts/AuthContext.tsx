@@ -45,8 +45,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!mounted) return;
       setSession(newSession);
       setUser(newSession?.user ?? null);
-      setSentryUser(newSession?.user ? { id: newSession.user.id, email: newSession.user.email } : null);
-      if (newSession?.user) identifyUser(newSession.user.id, { email: newSession.user.email });
+      // Telemetría solo con el id interno: el correo no sale a Sentry ni a PostHog (F-18).
+      setSentryUser(newSession?.user ? { id: newSession.user.id } : null);
+      if (newSession?.user) identifyUser(newSession.user.id);
       setLoading(false);
     };
 
