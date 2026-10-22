@@ -1,4 +1,5 @@
 // Reglas de stripe-checkout sin dependencias de Deno ni del SDK (se prueban con Vitest).
+import { EXPECTED_PRICE } from "../_shared/stripe-offer.ts";
 
 export type StoredSubscription = {
   status: string | null;
@@ -124,4 +125,70 @@ export async function planCheckout(
   const trialEndUnix = noCardTrialEnd(stored, now);
   if (trialEndUnix) return { kind: "create", trialDays: null, trialEndUnix };
   return { kind: "create", trialDays: trialEligible(stored, history) ? TRIAL_DAYS : null, trialEndUnix: null };
+}
+
+// ── AUD-08: lo que se cobra debe ser exactamente lo que se publica ─────────────────────────────
+// La regla vive en _shared/stripe-offer.ts (la usa también health-check?action=stripe_config).
+export { EXPECTED_PRICE, priceProblems, type StripePriceLike } from "../_shared/stripe-offer.ts";
+
+/** Parámetros de stripe.checkout.sessions.create (puro, para probarlo sin Stripe). */
+export function checkoutSessionParams(o: {
+  customerId: string;
+  userId: string;
+  priceId: string;
+  origin: string;
+  trialDays: number | null;
+  trialEndUnix?: number | null;
+}) {
+  return {
+    mode: "subscription" as const,
+    customer: o.customerId,
+    client_reference_id: o.userId,
+    line_items: [{ price: o.priceId, quantity: 1 }],
+    // Siempre en pesos: Adaptive Pricing (si el panel lo tiene encendido) convertía a USD.
+    currency: EXPECTED_PRICE.currency,
+    adaptive_pricing: { enabled: false },
+    subscription_data: {
+      ...(o.trialDays ? { trial_period_days: o.trialDays } : {}),
+      // Durante una prueba sin tarjeta: sin cobro hasta que termine (noCardTrialEnd).
+      ...(o.trialEndUnix ? { trial_end: o.trialEndUnix } : {}),
+      metadata: { supabase_user_id: o.userId },
+    },
+    // Con un precio "inclusive", Stripe Tax desglosa el IVA dentro de los $99 (no lo suma).
+    automatic_tax: { enabled: true },
+    customer_update: { address: "auto" as const },
+    allow_promotion_codes: true,
+    success_url: `${o.origin}/dashboard/pro?checkout=success`,
+    cancel_url: `${o.origin}/dashboard/pro?checkout=cancel`,
+    metadata: { supabase_user_id: o.userId },
+  };
+}
+
+/**
+ * Antes de abrir un checkout nuevo se expiran los que el cliente dejó abiertos (otra pestaña, doble
+ * clic): pagar los dos creaba DOS suscripciones y cobraba doble. Nunca bloquea el pago: si Stripe
+ * falla aquí, el webhook avisa a administradores de una segunda suscripción viva.
+ */
+export async function expireOpenSessions(
+  customerId: string,
+  listOpen: (customerId: string) => Promise<Array<{ id: string }>>,
+  expire: (sessionId: string) => Promise<unknown>,
+): Promise<{ expired: number; failed: number }> {
+  let open: Array<{ id: string }>;
+  try {
+    open = await listOpen(customerId);
+  } catch {
+    return { expired: 0, failed: 1 };
+  }
+  let expired = 0;
+  let failed = 0;
+  for (const s of open) {
+    try {
+      await expire(s.id);
+      expired++;
+    } catch {
+      failed++; // ya se pagó o expiró mientras tanto
+    }
+  }
+  return { expired, failed };
 }

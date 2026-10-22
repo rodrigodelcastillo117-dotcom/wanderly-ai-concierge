@@ -1,0 +1,19 @@
+# Lecturas HTTP públicas, 2026-10-22 (solo GET/POST de lectura con la llave pública anon que trae el frontend; la llave no se guarda)
+
+## GET https://uhkdewinscffhdonhhmt.supabase.co/auth/v1/settings
+{"disable_signup": false, "mailer_autoconfirm": true, "phone_autoconfirm": false}
+
+## POST /rest/v1/rpc/public_plan_config
+{"trial_no_card_enabled": false}
+
+## https://traveliatos.life (bundle index-DOKp3dhS.js y chunks)
+- "MXN al mes, IVA incluido": Legal-Dzr-ClQj.js index.js 
+- "sin tarjeta y sin cobro automático": index.js 
+- "al contratarlo por primera vez": index.js 
+- "100 mensajes con Iato al mes": index.js 
+- "Mensajes sin límite": Pro-D6hnic3T.js 
+- "Garantía de 7 días": Legal-Dzr-ClQj.js 
+- "Al cancelar conservas el acceso hasta el fin del periodo pagado": Legal-Dzr-ClQj.js 
+- "Si te reembolsamos un cargo completo": Legal-Dzr-ClQj.js 
+- "ilimitad": 
+- "sin límites": 

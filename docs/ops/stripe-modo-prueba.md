@@ -4,6 +4,11 @@ Runbook para el dueño **después de publicar** `stripe-webhook`, `delete-accoun
 `20261022146*`. Todo en **modo prueba** de Stripe (interruptor "Test mode" del Dashboard): ninguna
 tarjeta real, ningún cobro ni reembolso real. No lo corras en modo live.
 
+> Auditoría de cierre (2026-10-22): el procedimiento completo para pasar a cobro real (modo prueba →
+> live → compra real reembolsada → rollback) está en `docs/iatos/cierre/STRIPE_CERTIFICACION.md`.
+> Antes de los escenarios corre `health-check?action=stripe_config` (revisa precio, webhook, portal e
+> impuestos con la llave del servidor, solo lectura) y aplica la migración `20261024051500`.
+
 ## Antes de empezar
 
 1. En Stripe (modo prueba) → Developers → Webhooks → endpoint de prueba que apunta a

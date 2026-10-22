@@ -8,6 +8,7 @@ import { layout, sendEmail } from "../_shared/email.ts";
 import { redactSecrets } from "../_shared/redact.ts";
 import { allOk, runChecks } from "./checks.ts";
 import { probeGoogleApis } from "./googleProbe.ts";
+import { probeStripeConfig } from "./stripeProbe.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { alertEmail, alertRecipients, emailOutcome, jobHealth, shouldEmail, type CronHealth, type PreviousRun } from "./alerts.ts";
 
@@ -22,6 +23,13 @@ Deno.serve(async (req) => {
   //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=google_apis" -H "x-cron-secret: $CRON_SECRET"
   if (new URL(req.url).searchParams.get("action") === "google_apis") {
     return json(await probeGoogleApis(googleTransportFor("health-check", null)));
+  }
+
+  // Diagnóstico bajo demanda de Stripe para vender PRO (AUD-08): precio $99 MXN/mes IVA incluido,
+  // eventos y versión del webhook, portal y Stripe Tax. Solo lectura; no guarda ni manda correo.
+  //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=stripe_config" -H "x-cron-secret: $CRON_SECRET"
+  if (new URL(req.url).searchParams.get("action") === "stripe_config") {
+    return json(await probeStripeConfig({ stripeKey: Deno.env.get("STRIPE_SECRET_KEY"), priceId: Deno.env.get("STRIPE_PRICE_ID") }));
   }
 
   const env = (k: string) => Deno.env.get(k) ?? undefined;

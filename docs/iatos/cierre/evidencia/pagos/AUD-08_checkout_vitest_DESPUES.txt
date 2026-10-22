@@ -1,0 +1,36 @@
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: no duplicar suscripciones (A-05/A-08) > status comped → 409 sin llamar a Stripe 32ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: no duplicar suscripciones (A-05/A-08) > status active → 409 sin llamar a Stripe 1ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: no duplicar suscripciones (A-05/A-08) > status trialing → 409 sin llamar a Stripe 37ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: no duplicar suscripciones (A-05/A-08) > status past_due → 409 sin llamar a Stripe 1ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: no duplicar suscripciones (A-05/A-08) > past_due manda al portal con mensaje en español 0ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: no duplicar suscripciones (A-05/A-08) > si la fila dice cancelada pero Stripe tiene una viva, también bloquea 2ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: no duplicar suscripciones (A-05/A-08) > una fila active con periodo vencido no bloquea (webhook perdido) 0ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: prueba de 30 días solo la primera vez (A-04) > primera vez, sin customer: 30 días y no consulta Stripe 23ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: prueba de 30 días solo la primera vez (A-04) > customer creado en un checkout abandonado sigue teniendo su prueba 1ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: prueba de 30 días solo la primera vez (A-04) > quien canceló y vuelve paga desde el día 1 (sin otra prueba) 25ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout: prueba de 30 días solo la primera vez (A-04) > el historial de Stripe manda aunque la fila local esté vacía 1ms
+ ✓ src/test/stripeCheckout.test.ts > origin de regreso > acepta solo dominios propios 9ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout durante la prueba sin tarjeta (DEC-02) > prueba vigente: sin prueba extra de Stripe y el primer cobro espera a que termine 1ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout durante la prueba sin tarjeta (DEC-02) > si faltan menos de 48 h, usa el mínimo de Stripe: nunca cobra antes de que termine 0ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout durante la prueba sin tarjeta (DEC-02) > prueba ya vencida: cuenta como 'ya tuvo prueba' y se cobra desde el día 1 0ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout durante la prueba sin tarjeta (DEC-02) > con el interruptor apagado no existe la fila: la primera vez sigue siendo 30 días de Stripe 0ms
+ ✓ src/test/stripeCheckout.test.ts > stripe-checkout durante la prueba sin tarjeta (DEC-02) > una prueba de Stripe (con suscripción) no se confunde con la prueba sin tarjeta 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > la oferta esperada es la del texto comercial (planCopy) 7ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > un precio correcto no tiene problemas 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > moneda USD → se rechaza 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > monto distinto → se rechaza 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > IVA por fuera (Stripe Tax lo sumaría) → se rechaza 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > IVA sin especificar → se rechaza 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > anual → se rechaza 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > cada 3 meses → se rechaza 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > pago único → se rechaza 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > precio archivado → se rechaza 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > por uso (metered) → se rechaza 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > sin precio (id equivocado) → problema 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · parámetros de la sesión de Checkout > apaga Adaptive Pricing (siempre MXN), IVA automático y metadata de la cuenta 25ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · parámetros de la sesión de Checkout > prueba sin tarjeta en curso: trial_end y nunca trial_period_days 1ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · parámetros de la sesión de Checkout > sin prueba: ni trial_end ni trial_period_days 0ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · dos pestañas, dos checkouts: se cierran las sesiones abiertas anteriores > expira cada sesión abierta del cliente antes de crear la nueva 2ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · dos pestañas, dos checkouts: se cierran las sesiones abiertas anteriores > si una ya se pagó o expiró mientras tanto, no truena (se cuenta como fallida y se sigue) 1ms
+ ✓ src/test/stripeCheckoutOffer.test.ts > AUD-08 · dos pestañas, dos checkouts: se cierran las sesiones abiertas anteriores > si Stripe no deja listar, no bloquea el pago (el webhook avisa de un duplicado) 0ms
+      Tests  35 passed (35)

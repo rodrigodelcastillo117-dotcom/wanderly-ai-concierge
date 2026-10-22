@@ -12,6 +12,9 @@
 // - Reembolsos y disputas (charge.refunded, charge.dispute.created, charge.dispute.closed) los
 //   decide payments.ts: revocar el acceso pagado salvo otro derecho, registrar, avisar; nunca dan PRO.
 // - Una cuenta eliminada (deletion_requests) no recibe escrituras por eventos tardíos.
+// - AUD-05: 2xx solo cuando TODOS los efectos obligatorios quedaron aplicados (suscripción, periodo
+//   pagado, decisión de reembolso/disputa + antigüedad, aviso a administradores cuando es el efecto).
+//   Cada paso es idempotente, así que el reintento de Stripe converge al mismo estado final.
 
 import { handlePaymentEvent, PAYMENT_EVENTS, type PaymentDeps } from "./payments.ts";
 import {
@@ -128,6 +131,41 @@ async function apply(deps: WebhookDeps, args: ApplyArgs, eventId: string): Promi
   return r;
 }
 
+// Estados en que una suscripción de Stripe cobra (o cobrará).
+const CHARGING = new Set(["active", "trialing", "past_due"]);
+
+/**
+ * AUD-05: la base ignora (con razón) una SEGUNDA suscripción viva de la misma cuenta
+ * ('other_live_subscription', p. ej. dos checkouts pagados en dos pestañas). Pero Stripe la sigue
+ * cobrando: antes era un cobro doble invisible. Ahora se avisa a administradores una sola vez por
+ * suscripción (solo ids de Stripe). Si la campana no se guarda, 500 para que Stripe reintente.
+ */
+async function alertDuplicate(deps: WebhookDeps, r: ApplyResult, sub: StripeSubscriptionLike, eventId: string): Promise<void> {
+  if (!CHARGING.has(sub.status) || !deps.alertAdmins) return;
+  const customer = idOf(sub.customer) ?? "?";
+  let alert: { key: string; title: string; body: string } | null = null;
+  if (r.reason === "other_live_subscription") {
+    alert = {
+      key: `stripe:dup_sub:${sub.id}`,
+      title: "Posible cobro doble: segunda suscripción PRO viva",
+      body: `La cuenta ya tiene otra suscripción PRO viva. La suscripción ${sub.id} (cliente ${customer}) ` +
+        "no se aplicó en IATOS pero Stripe la sigue cobrando. Revisa en Stripe: cancela y reembolsa la duplicada (no la original).",
+    };
+  } else if (r.reason === "unknown_user") {
+    // Mejora (cierre): alguien paga y el webhook no sabe de qué cuenta es (suscripción creada fuera
+    // del checkout, sin metadata y con un cliente que IATOS no conoce): paga sin recibir PRO.
+    alert = {
+      key: `stripe:unknown_user:${sub.id}`,
+      title: "Pago de PRO sin cuenta de IATOS",
+      body: `La suscripción ${sub.id} (cliente ${customer}) cobra en Stripe pero no corresponde a ninguna cuenta de IATOS ` +
+        "(sin metadata supabase_user_id y cliente desconocido). Liga la cuenta o cancela y reembolsa en Stripe.",
+    };
+  }
+  if (!alert) return;
+  const status = await deps.alertAdmins(alert);
+  if (status === "fallido") throw new Error(`aviso a administradores falló (${eventId})`);
+}
+
 const ok = (r: ApplyResult): WebhookOutcome => ({
   status: 200,
   body: { received: true, applied: r.applied, reason: r.reason },
@@ -154,6 +192,7 @@ export async function handleStripeEvent(event: StripeEventLike, deps: WebhookDep
         if (!subId) return { status: 200, body: { received: true, ignored: "sin_suscripcion" } };
         const sub = await deps.retrieveSubscription(subId);
         const r = await apply(deps, subscriptionArgs(sub, event.created, userId), event.id);
+        await alertDuplicate(deps, r, sub, event.id);
         return ok(r);
       }
       case "customer.subscription.created":
@@ -163,6 +202,7 @@ export async function handleStripeEvent(event: StripeEventLike, deps: WebhookDep
         const payload = event.data.object as StripeSubscriptionLike;
         const sub = await deps.retrieveSubscription(payload.id);
         const r = await apply(deps, subscriptionArgs(sub, event.created), event.id);
+        await alertDuplicate(deps, r, sub, event.id);
         return ok(r);
       }
       case "customer.subscription.deleted": {
@@ -182,6 +222,7 @@ export async function handleStripeEvent(event: StripeEventLike, deps: WebhookDep
         if (!subId) return { status: 200, body: { received: true, ignored: "factura_sin_suscripcion" } };
         const sub = await deps.retrieveSubscription(subId);
         const r = await apply(deps, subscriptionArgs(sub, event.created), event.id);
+        await alertDuplicate(deps, r, sub, event.id);
         if (deps.recordPaidPeriod && event.type !== "invoice.payment_failed") {
           // Antigüedad de Privé: después de escribir la suscripción (así la base ya sabe de quién es).
           const tenure = await recordTenure(deps, payload as StripePaidInvoiceLike, sub, event.id);
@@ -216,8 +257,12 @@ async function recordTenure(deps: WebhookDeps, payload: StripePaidInvoiceLike, s
 
 function requirePaymentDeps(deps: WebhookDeps): PaymentDeps {
   const need = ["retrieveCharge", "cancelSubscriptionNow", "revokePaidAccess", "accessSnapshot", "findPaymentEvent",
-    "logPaymentEvent", "isDeletedCustomer", "alertAdmins"] as const;
+    "isDeletedCustomer", "alertAdmins"] as const;
   for (const k of need) if (typeof deps[k] !== "function") throw new Error(`dependencia ${k} no configurada`);
+  // El registro final: stripe_commit_payment_event (AUD-05) o, si no está, el upsert anterior.
+  if (typeof deps.commitPaymentEvent !== "function" && typeof deps.logPaymentEvent !== "function") {
+    throw new Error("dependencia commitPaymentEvent/logPaymentEvent no configurada");
+  }
   return deps as PaymentDeps;
 }
 

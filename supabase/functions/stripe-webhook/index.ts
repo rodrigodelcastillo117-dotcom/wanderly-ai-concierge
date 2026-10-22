@@ -84,6 +84,22 @@ Deno.serve(async (req) => {
       adminClient().from("stripe_payment_events").select("action").eq("event_id", eventId).maybeSingle(),
     logPaymentEvent: (row) =>
       adminClient().from("stripe_payment_events").upsert(row, { onConflict: "event_id", ignoreDuplicates: true }),
+    // AUD-05: registro + antigüedad en una transacción (llave = event_id). Si la migración
+    // 20261024051500 aún no está aplicada, se usa la ruta anterior (marcar y luego registrar).
+    commitPaymentEvent: async (row, tenureEvent, amountRefunded) => {
+      const db = adminClient();
+      const r = await db.rpc("stripe_commit_payment_event", { _row: row, _tenure_event: tenureEvent, _amount_refunded: amountRefunded });
+      if (!r.error || !/stripe_commit_payment_event|PGRST202|does not exist|Could not find the function/i.test(`${r.error.code ?? ""} ${r.error.message}`)) return r;
+      console.warn("stripe-webhook: stripe_commit_payment_event no existe todavía (migración 20261024051500 pendiente)");
+      let tenure: unknown = null;
+      if (tenureEvent && row.invoice_id) {
+        const m = missingRpcAsSkip(await db.rpc("prive_mark_paid_period", { _invoice_id: row.invoice_id, _event: tenureEvent, _amount_refunded: amountRefunded }), "prive_mark_paid_period", console.warn);
+        if (m.error) return m;
+        tenure = m.data;
+      }
+      const { error } = await db.from("stripe_payment_events").upsert(row, { onConflict: "event_id", ignoreDuplicates: true });
+      return { data: { logged: !error, duplicate: false, tenure }, error };
+    },
     isDeletedCustomer: async (customerId) => {
       const { data, error } = await adminClient().rpc("is_deleted_stripe_customer", { _customer_id: customerId });
       // Si la migración aún no está aplicada no hay cuentas registradas como borradas.

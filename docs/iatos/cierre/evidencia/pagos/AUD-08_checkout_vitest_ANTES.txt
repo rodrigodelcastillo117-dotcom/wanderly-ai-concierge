@@ -1,0 +1,5 @@
+⎯⎯⎯⎯⎯⎯ Failed Tests 18 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > la oferta esperada es la del texto comercial (planCopy)
+TypeError: Cannot read properties of undefined (reading 'unit_amount')
+ FAIL  src/test/stripeCheckoutOffer.test.ts > AUD-08 · el precio de Stripe debe coincidir con la oferta publicada > un precio correcto no tiene problemas
+TypeError: priceProblems is not a function
