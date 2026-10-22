@@ -1,4 +1,5 @@
 // Reglas de stripe-checkout sin dependencias de Deno ni del SDK (se prueban con Vitest).
+import { EXPECTED_PRICE } from "../_shared/stripe-offer.ts";
 
 export type StoredSubscription = {
   status: string | null;
@@ -127,45 +128,8 @@ export async function planCheckout(
 }
 
 // ── AUD-08: lo que se cobra debe ser exactamente lo que se publica ─────────────────────────────
-// La landing, /dashboard/pro, los términos y los correos dicen "$99 MXN al mes, IVA incluido"
-// (src/lib/planCopy.ts; una prueba verifica que coincida). Si el precio configurado en Stripe no es
-// ese (otra moneda, otro monto, IVA por fuera, otra periodicidad), el checkout NO se abre: cobrar
-// distinto a lo anunciado viola la LFPC (art. 7 Bis, precio total) y la confianza del cliente.
-export const EXPECTED_PRICE = {
-  currency: "mxn",
-  unit_amount: 9900,
-  tax_behavior: "inclusive",
-  interval: "month",
-  interval_count: 1,
-} as const;
-
-export type StripePriceLike = {
-  id?: string;
-  active?: boolean | null;
-  currency?: string | null;
-  unit_amount?: number | null;
-  tax_behavior?: string | null;
-  type?: string | null;
-  recurring?: { interval?: string | null; interval_count?: number | null; usage_type?: string | null } | null;
-} | null;
-
-/** Diferencias entre el precio de Stripe y la oferta publicada ([] = coincide). Sin datos personales. */
-export function priceProblems(price: StripePriceLike): string[] {
-  if (!price) return ["price: no existe"];
-  const p: string[] = [];
-  if (price.active === false) p.push("active: el precio está archivado");
-  if ((price.currency ?? "").toLowerCase() !== EXPECTED_PRICE.currency) p.push(`currency: ${price.currency} (se espera mxn)`);
-  if (price.unit_amount !== EXPECTED_PRICE.unit_amount) p.push(`unit_amount: ${price.unit_amount} (se espera ${EXPECTED_PRICE.unit_amount})`);
-  if (price.tax_behavior !== EXPECTED_PRICE.tax_behavior) p.push(`tax_behavior: ${price.tax_behavior} (se espera inclusive: IVA incluido)`);
-  if (!price.recurring || (price.type && price.type !== "recurring")) p.push("recurring: no es una suscripción");
-  else {
-    if (price.recurring.interval !== EXPECTED_PRICE.interval || (price.recurring.interval_count ?? 1) !== EXPECTED_PRICE.interval_count) {
-      p.push(`interval: ${price.recurring.interval_count ?? 1} ${price.recurring.interval} (se espera 1 month)`);
-    }
-    if (price.recurring.usage_type && price.recurring.usage_type !== "licensed") p.push(`usage_type: ${price.recurring.usage_type}`);
-  }
-  return p;
-}
+// La regla vive en _shared/stripe-offer.ts (la usa también health-check?action=stripe_config).
+export { EXPECTED_PRICE, priceProblems, type StripePriceLike } from "../_shared/stripe-offer.ts";
 
 /** Parámetros de stripe.checkout.sessions.create (puro, para probarlo sin Stripe). */
 export function checkoutSessionParams(o: {

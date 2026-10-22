@@ -79,7 +79,7 @@ describe("AUD-08 · parámetros de la sesión de Checkout", () => {
 describe("AUD-08 · dos pestañas, dos checkouts: se cierran las sesiones abiertas anteriores", () => {
   it("expira cada sesión abierta del cliente antes de crear la nueva", async () => {
     const list = vi.fn(async () => [{ id: "cs_1" }, { id: "cs_2" }]);
-    const expire = vi.fn(async () => {});
+    const expire = vi.fn(async (_id: string) => {});
     const r = await expireOpenSessions("cus_1", list, expire);
     expect(list).toHaveBeenCalledWith("cus_1");
     expect(expire.mock.calls.map((c) => c[0])).toEqual(["cs_1", "cs_2"]);
