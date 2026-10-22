@@ -70,7 +70,16 @@ export function clientIp(headers: { get(name: string): string | null }): string 
   return last ?? "unknown";
 }
 
-export type LimitOptions = { perMinute?: number; perHour?: number; ipPerMinute?: number };
+export type LimitOptions = {
+  perMinute?: number; perHour?: number; ipPerMinute?: number;
+  /**
+   * true = las tres cubetas se consultan a la vez (1 viaje a la base en lugar de 3 en serie; lo usa
+   * concierge-chat, donde cada ms cuenta antes del primer texto). El veredicto y su prioridad son los
+   * mismos (usuario/minuto → usuario/hora → IP); la diferencia es que una petición negada por una
+   * cubeta también suma en las otras (más estricto, nunca más permisivo).
+   */
+  parallel?: boolean;
+};
 
 /** Aplica los límites por usuario (minuto y hora) y por IP (minuto) en ese orden. */
 export async function evaluateRateLimit(
@@ -90,6 +99,15 @@ export async function evaluateRateLimit(
     // No se pudo verificar: las cubetas de pago se niegan; las baratas siguen.
     return failClosed ? { allowed: false, retryAfter: 30, scope: "unavailable" } : null;
   };
+
+  if (opts.parallel) {
+    const [m, h, i] = await Promise.all([
+      userId ? check(`user:${userId}`, `${bucket}:m`, { limit: perMinute, windowSeconds: 60 }, { allowed: false, retryAfter: 60, scope: "user" }) : null,
+      userId ? check(`user:${userId}`, `${bucket}:h`, { limit: perHour, windowSeconds: 3600 }, { allowed: false, retryAfter: 900, scope: "user" }) : null,
+      ip !== "unknown" ? check(`ip:${ip}`, `${bucket}:m`, { limit: ipPerMinute, windowSeconds: 60 }, { allowed: false, retryAfter: 60, scope: "ip" }) : null,
+    ]);
+    return m ?? h ?? i ?? { allowed: true, retryAfter: 0 };
+  }
 
   if (userId) {
     const m = await check(`user:${userId}`, `${bucket}:m`, { limit: perMinute, windowSeconds: 60 },

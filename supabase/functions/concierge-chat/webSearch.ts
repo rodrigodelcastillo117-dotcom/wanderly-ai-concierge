@@ -22,6 +22,11 @@ export interface WebSearchDeps {
   onLive?: (ok: boolean) => void | Promise<void>;
   timeoutMs?: number;
   now?: () => number;
+  /**
+   * Para registrar el costo y guardar en caché SIN detener la respuesta (Rendimiento: eran dos
+   * viajes a la base en serie antes de entregar el resultado al modelo). Sin esto, se espera.
+   */
+  background?: (p: Promise<unknown>) => void;
 }
 
 const host = (u: string) => {
@@ -119,7 +124,8 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
     return fb ?? { error: (e as Error)?.name === "AbortError" ? "timeout" : "tool_fetch_error" };
   }
   const billable = r.ok && !!r.json && typeof r.json === "object" && !(r.json as { error?: unknown }).error;
-  try { await deps.onLive?.(billable); } catch { /* registrar nunca rompe la búsqueda */ }
+  const live = Promise.resolve().then(() => deps.onLive?.(billable)).catch(() => { /* registrar nunca rompe la búsqueda */ });
+  if (deps.background) deps.background(live); else await live;
   if (!billable) {
     if (refund) await refund().catch(() => {});
     // SerpApi responde {error:"Google hasn't returned any results"} cuando no hay resultados.
@@ -128,6 +134,7 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
     return (await fallback("Google no respondió")) ?? { error: `http_${r.status}` };
   }
   const mapped = mapSerpOrganic(r.json);
-  await cachePut(deps.store, key, WEB_ENGINE, mapped);
+  const put = Promise.resolve(cachePut(deps.store, key, WEB_ENGINE, mapped)).catch(() => { /* la caché es opcional */ });
+  if (deps.background) deps.background(put); else await put;
   return { ok: true, source: "google_web", ...mapped, consulted_at: new Date(now()).toISOString() };
 }
