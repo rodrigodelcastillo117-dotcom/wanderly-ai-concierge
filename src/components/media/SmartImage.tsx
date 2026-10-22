@@ -5,6 +5,7 @@ import {
   cachedPlacePhoto, cachedResolvedPhoto, fetchPlacePhotoUrl, resolvePlacePhotoUrl, type PlaceLookup,
 } from "@/lib/placePhoto";
 import { cachedStockPhoto, getStockPhoto } from "@/lib/stockPhoto";
+import { sizedPhotoUrl } from "@/lib/imageSizing";
 
 /**
  * Imagen de una tarjeta (lugar, restaurante, hotel, experiencia, destino) con las reglas de origen
@@ -153,8 +154,18 @@ export function SmartImage(props: SmartImageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [res?.url, res === null]);
 
+  // La foto se pide al ancho de la caja (antes la portada del viaje llegaba a 1600 px / 364 KB).
+  // Si el servicio rechazara el tamaño, se reintenta una vez con la URL original antes de pasar a
+  // la siguiente fuente.
+  const [unsized, setUnsized] = useState<string | null>(null);
+  const src = res ? (unsized === res.url ? res.url : sizedPhotoUrl(res.url, w)) : null;
+
   const onError = () => {
     if (!res) return;
+    if (src !== res.url && unsized !== res.url) {
+      setUnsized(res.url);
+      return;
+    }
     const next = new Set(skip);
     next.add(stepOf(res.kind, props));
     setSkip(next);
@@ -175,8 +186,8 @@ export function SmartImage(props: SmartImageProps) {
       )}
       {res && (
         <img
-          key={res.url}
-          src={res.url}
+          key={src ?? res.url}
+          src={src ?? res.url}
           alt={alt}
           // Ya solo se resuelve al verse: "lazy" nativo dejaría fotos sin bajar (y la tarjeta oscura).
           loading={visible ? "eager" : "lazy"}
