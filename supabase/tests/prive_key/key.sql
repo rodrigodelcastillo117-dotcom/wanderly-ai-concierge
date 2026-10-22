@@ -39,7 +39,10 @@ BEGIN
     PERFORM public.prive_invite_user(u, 'tenure', 'system');
     r := public.prive_accept_invitation(u, NULL);
     r := public.prive_set_password(u, pw, 'ok');
-    r := public.prive_unlock(u, pw, NULL, NULL);
+    -- AUD-01: la sesión Privé va ligada a una sesión de Auth real (fila en auth.sessions; su session_id
+    -- viaja en request.jwt.claims cada vez que la persona "inicia sesión" abajo).
+    INSERT INTO auth.sessions (id, user_id) VALUES (('e5' || substr(u::text, 3))::uuid, u) ON CONFLICT DO NOTHING;
+    r := public.prive_unlock(u, pw, NULL, 'e5' || substr(u::text, 3));
     IF r->>'token' IS NULL THEN RAISE NOTICE 'FALLA SETUP sin sesión Privé para %: %', lbl, r; END IF;
     INSERT INTO public.t_tokens VALUES (lbl, r->>'token') ON CONFLICT (label) DO UPDATE SET token = EXCLUDED.token;
   END LOOP;
@@ -62,7 +65,7 @@ VALUES ('f0000000-0000-0000-0000-000000000003', 'cdmx-k-pendiente', public.t_des
 
 -- ───────────── 1. Sin sesión Privé no hay nada ─────────────
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.role', 'authenticated', false);
-SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a2', false);
+SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a2', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a2","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a2"}', false);
 SELECT public.t_err('K1 guardar sin sesión', $q$SELECT public.prive_key_save(NULL, '{"mode":"key","tier":"signature","steps":[{"experience_id":"f0000000-0000-0000-0000-000000000001"}]}')$q$, 'PRIVE_');
 SELECT public.t_err('K2 leer planes sin sesión', $q$SELECT public.prive_key_plans('x')$q$, 'PRIVE_');
 SELECT public.t_err('K3 al viaje sin sesión', $q$SELECT public.prive_key_add_to_trip(NULL, gen_random_uuid(), gen_random_uuid())$q$, 'PRIVE_');
@@ -72,12 +75,12 @@ SELECT public.t_err('K6 sesión ajena no sirve', $q$SELECT public.prive_key_plan
 SELECT public.t_err('K7 escribir la tabla directo', $q$INSERT INTO public.prive_key_plans(user_id, mode, tier, steps) VALUES (auth.uid(), 'key', 'signature', '[{}]')$q$, 'permission denied');
 SELECT public.t_err('K8 leer el recorrido directo', $q$SELECT count(*) FROM public.prive_key_events$q$, 'permission denied');
 SELECT public.t_err('K9 panel solo para el equipo', $q$SELECT public.admin_prive_key_metrics(30)$q$, 'solo el equipo');
-RESET ROLE; SET ROLE anon; SELECT set_config('request.jwt.claim.sub', '', false);
+RESET ROLE; SET ROLE anon; SELECT set_config('request.jwt.claim.sub', '', false), set_config('request.jwt.claims', '{}', false);
 SELECT public.t_err('K10 anon no ejecuta', $q$SELECT public.prive_key_plans('x')$q$, 'permission denied');
 RESET ROLE;
 
 -- ───────────── 2. Guardar: solo referencias del catálogo ─────────────
-SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_ok('S1 guarda un plan válido', (public.prive_key_save(public.t_ps(), jsonb_build_object('mode', 'key', 'tier', 'signature', 'wish', 'Aniversario en CDMX',
   'destination', 'cdmx', 'party_size', 2, 'budget', jsonb_build_object('amount', 10000, 'currency', 'MXN'),
   'steps', jsonb_build_array(
@@ -88,7 +91,7 @@ SELECT public.t_ok('S1 guarda un plan válido', (public.prive_key_save(public.t_
 RESET ROLE;
 SELECT public.t_ok('S2 lo que manda el cliente de más (nombre, estado, "reservado") no se guarda',
   (SELECT steps::text !~* '(Confirmado VIP|CONFIRMADO|reservado|"name")' FROM public.prive_key_plans WHERE user_id = 'd0000000-0000-0000-0000-0000000000a1' ORDER BY created_at DESC LIMIT 1));
-SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_ok('S3 experiencia inexistente: rechazo', public.prive_key_save(public.t_ps(), '{"mode":"key","tier":"insider","steps":[{"experience_id":"f0000000-0000-0000-0000-0000000000ff"}]}')->>'code' = 'UNKNOWN_EXPERIENCE');
 SELECT public.t_ok('S4 experiencia PENDIENTE: rechazo', public.prive_key_save(public.t_ps(), '{"mode":"key","tier":"insider","steps":[{"experience_id":"f0000000-0000-0000-0000-000000000003"}]}')->>'code' = 'UNKNOWN_EXPERIENCE');
 SELECT public.t_ok('S5 nivel o modo inventado: rechazo', public.prive_key_save(public.t_ps(), '{"mode":"vip","tier":"platinum","steps":[{"experience_id":"f0000000-0000-0000-0000-000000000001"}]}')->>'code' = 'INVALID');
@@ -105,7 +108,7 @@ RESET ROLE;
 CREATE OR REPLACE FUNCTION public.t_plan() RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT id FROM public.prive_key_plans WHERE user_id = 'd0000000-0000-0000-0000-0000000000a1' ORDER BY created_at LIMIT 1 $$;
 GRANT EXECUTE ON FUNCTION public.t_plan() TO authenticated;
-SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_ok('T1 viaje ajeno: no', public.prive_key_add_to_trip(public.t_ps(), public.t_plan(), 'd0000000-0000-0000-0000-00000000aa04')->>'code' = 'TRIP_NOT_FOUND');
 SELECT public.t_ok('T2 agrega los 2 pasos al viaje', (public.prive_key_add_to_trip(public.t_ps(), public.t_plan(), 'd0000000-0000-0000-0000-00000000aa01')->>'added')::int = 2);
 SELECT public.t_ok('T3 repetir no duplica', (public.prive_key_add_to_trip(public.t_ps(), public.t_plan(), 'd0000000-0000-0000-0000-00000000aa01')->>'already')::boolean);
@@ -115,7 +118,7 @@ SELECT public.t_ok('T4 en el itinerario como pendiente de Privé, nunca confirma
      FROM public.bookings WHERE trip_id = 'd0000000-0000-0000-0000-00000000aa01'));
 SELECT public.t_ok('T5 la hora sugerida del plan llega al viaje', (SELECT start_at = '2026-11-20T20:00:00-06:00'::timestamptz FROM public.bookings
   WHERE trip_id = 'd0000000-0000-0000-0000-00000000aa01' AND title = 'K Cena'));
-SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_ok('T6 seguimiento: en el viaje sin reservar',
   (SELECT p->>'status' = 'en_viaje' AND p->'steps'->0->>'follow_up' = 'en_viaje_sin_reservar' FROM jsonb_array_elements(public.prive_key_plans(public.t_ps())) p LIMIT 1));
 SELECT public.t_ok('T7 tras solicitarlo: estado real de la solicitud', (public.prive_request_create(public.t_ps(), 'f0000000-0000-0000-0000-000000000001')->>'ok')::boolean
@@ -124,17 +127,17 @@ RESET ROLE;
 -- Marcar "confirmado" SIN evidencia es imposible en la base (prive_confirm_has_evidence): The Key no puede mostrarlo.
 SELECT public.t_err('T8 "confirmado" sin evidencia lo bloquea la base', $q$UPDATE public.concierge_requests SET status = 'confirmado_externamente', external_confirmation = NULL
   WHERE user_id = 'd0000000-0000-0000-0000-0000000000a1'$q$, 'prive_confirm_has_evidence|solo cambia con prive_request_transition');
-SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a1"}', false);
 
 -- ───────────── 5. Aislamiento entre miembros ─────────────
-SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a4', false);
+SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a4', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a4","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a4"}', false);
 SELECT public.t_ok('I1 otro miembro no ve mis planes (RPC)', jsonb_array_length(public.prive_key_plans(public.t_ps('k4'))) = 0);
 SELECT public.t_err('I2 otro miembro no lee la tabla', $q$SELECT count(*) FROM public.prive_key_plans$q$, 'permission denied');
 SELECT public.t_ok('I3 otro miembro no puede mover mi plan a su viaje', public.prive_key_add_to_trip(public.t_ps('k4'), public.t_plan(), 'd0000000-0000-0000-0000-00000000aa04')->>'code' = 'NOT_FOUND');
 SELECT public.t_ok('I4 ni archivarlo', (public.prive_key_archive(public.t_ps('k4'), public.t_plan())->>'ok')::boolean = false);
 
 -- ───────────── 6. Recorrido sin texto libre ─────────────
-SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
+SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_ok('E1 evento válido', public.prive_key_track(public.t_ps(), 'first_option', '{"ms": 1840, "mode": "key", "destination": "cdmx", "wish": "texto privado"}'));
 SELECT public.t_ok('E2 evento inventado: no', NOT public.prive_key_track(public.t_ps(), 'reserva_confirmada'));
 SELECT public.t_ok('E3 recorrido del día 90', public.prive_key_track(public.t_ps(), 'world_ready_open', '{"ms": 95000}'));
@@ -144,13 +147,13 @@ SELECT public.t_ok('E5 no guarda texto libre ni ms absurdos',
   (SELECT bool_and(row_to_json(e)::text !~ 'texto privado') AND count(*) FILTER (WHERE event = 'first_option' AND ms IS NULL) = 1 FROM public.prive_key_events e));
 
 -- ───────────── 7. Gustos rápidos y consentimiento ─────────────
-SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_ok('G1 gustos sin permiso: se guardan', (public.prive_key_taste_save(public.t_ps(), '{"loves":["alta_cocina","noche","inventado"],"budget":"premium"}', false)->>'ok')::boolean);
 RESET ROLE;
 SELECT public.t_ok('G2 sin permiso, el Travel DNA NO ordena Privé', (public.prive_user_signals('d0000000-0000-0000-0000-0000000000a1')->>'dna_consent')::boolean = false);
 SELECT public.t_ok('G3 solo códigos conocidos', (SELECT estilo_comida = ARRAY['michelin'] AND actividades_tarde = ARRAY['nocturna'] AND nivel_presupuesto = 'premium'
   FROM public.ai_user_preferences WHERE user_id = 'd0000000-0000-0000-0000-0000000000a1'));
-SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_ok('G4 con permiso', (public.prive_key_taste_save(public.t_ps(), '{"loves":["mar"]}', true)->>'ok')::boolean);
 RESET ROLE;
 SELECT public.t_ok('G5 con permiso, ordena: afinidad a la mesa y a la noche',
@@ -166,9 +169,9 @@ SELECT public.t_ok('D2b y entonces el Travel DNA sí puede ordenar Privé', (pub
 SELECT public.t_ok('D3 dna_consent no booleano: inválido', public.prive_save_progress('d0000000-0000-0000-0000-0000000000a4', NULL, '{"dna_consent": "si"}')->>'code' = 'INVALID');
 
 -- ───────────── 9. Archivar y panel ─────────────
-SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false);
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_ok('A1 archivar lo quita de Mis planes', (public.prive_key_archive(public.t_ps(), public.t_plan())->>'ok')::boolean AND jsonb_array_length(public.prive_key_plans(public.t_ps())) = 0);
-SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a3', false);
+SELECT set_config('request.jwt.claim.sub', 'd0000000-0000-0000-0000-0000000000a3', false), set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a3","role":"authenticated","session_id":"e5000000-0000-0000-0000-0000000000a3"}', false);
 SELECT public.t_ok('M1 panel del equipo: tiempo a primera opción y recorrido de 2 minutos',
   (SELECT (m->>'first_option_ms_p50')::numeric = 1840 AND (m->>'world_ready_within_2min_pct')::numeric = 100 AND (m->>'plans_in_trips')::int = 1 AND (m->>'ai_cost_usd')::int = 0
      FROM public.admin_prive_key_metrics(30) m));

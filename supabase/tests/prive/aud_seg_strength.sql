@@ -27,10 +27,18 @@ END $$;
 GRANT USAGE ON SCHEMA ptseg TO authenticated; GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA ptseg TO authenticated;
 INSERT INTO auth.sessions (id, user_id) VALUES (ptseg.sid(299)::uuid, ptseg.u(22)) ON CONFLICT DO NOTHING;
 SELECT public.prive_unlock(ptseg.u(22), 'Veintidos-clave-22', NULL, ptseg.sid(299))->>'token' AS tseg \gset
+-- AUD-01 (grupo prive): toda sesión Privé va ligada a la sesión de Auth donde se abrió; el flujo
+-- legítimo es el dueño en ESA sesión de Auth. Una sesión sin ligar ya no autoriza.
+SELECT ptseg.ok('PS1 sesión Privé ligada a su sesión de Auth: su dueño entra (flujo legítimo)', ptseg.req_as(22, 299, :'tseg') = 'OK', ptseg.req_as(22, 299, :'tseg'));
 UPDATE prive_sessions SET auth_session_id = NULL WHERE token_hash = public.prive_sha256_hex(:'tseg');
-SELECT ptseg.ok('PS1 sesión Privé sin liga de Auth: su dueño entra (flujo legítimo)', ptseg.req_as(22, NULL, :'tseg') = 'OK', ptseg.req_as(22, NULL, :'tseg'));
-UPDATE prive_sessions SET credential_version = (SELECT version FROM prive_credentials WHERE user_id = ptseg.u(7))
+SELECT ptseg.ok('PS1b la misma sesión sin liga de Auth → PRIVE_SESSION_INVALID (AUD-01)', ptseg.req_as(22, NULL, :'tseg') = 'PRIVE_SESSION_INVALID', ptseg.req_as(22, NULL, :'tseg'));
+-- PS2 mide SOLO la defensa de la cuenta dueña del token: se neutralizan las otras dos. El token queda
+-- ligado a una sesión de Auth viva de la OTRA cuenta (7), con la versión de credencial de 7, y 7 lo usa
+-- desde esa sesión. Lo único que lo detiene es "s.user_id = v_uid" en prive_require (mutación M2).
+INSERT INTO auth.sessions (id, user_id) VALUES (ptseg.sid(298)::uuid, ptseg.u(7)) ON CONFLICT DO NOTHING;
+UPDATE prive_sessions SET credential_version = (SELECT version FROM prive_credentials WHERE user_id = ptseg.u(7)),
+       auth_session_id = ptseg.sid(298), last_seen_at = now()
  WHERE token_hash = public.prive_sha256_hex(:'tseg');
-SELECT ptseg.ok('PS2 el mismo token en OTRA cuenta (misma versión de credencial, sin liga de Auth) → PRIVE_SESSION_INVALID',
-  ptseg.req_as(7, NULL, :'tseg') = 'PRIVE_SESSION_INVALID', ptseg.req_as(7, NULL, :'tseg'));
+SELECT ptseg.ok('PS2 el mismo token en OTRA cuenta (misma versión de credencial, ligado a una sesión de Auth viva de esa cuenta) → PRIVE_SESSION_INVALID',
+  ptseg.req_as(7, 298, :'tseg') = 'PRIVE_SESSION_INVALID', ptseg.req_as(7, 298, :'tseg'));
 DROP SCHEMA ptseg CASCADE;

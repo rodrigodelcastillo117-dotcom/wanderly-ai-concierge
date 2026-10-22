@@ -29,11 +29,13 @@ CREATE FUNCTION pv.sq(_sql text) RETURNS boolean LANGUAGE plpgsql SECURITY DEFIN
 DECLARE v boolean; BEGIN EXECUTE _sql INTO v; RETURN v; END $$;
 CREATE FUNCTION pv.sid(_sql text) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE v uuid; BEGIN EXECUTE _sql INTO v; RETURN v; END $$;
+-- Sesión de Auth (auth.sessions) de la persona n: AUD-01 liga la sesión Privé a ella.
+CREATE FUNCTION pv.asid(n int) RETURNS text LANGUAGE sql IMMUTABLE AS $$ SELECT 'e5' || substr(pv.u(n)::text, 3) $$;
 -- Contexto de PostgREST para la persona n (NULL = sin sesión).
 CREATE FUNCTION pv.login(n int) RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claim.sub', CASE WHEN n IS NULL THEN '' ELSE pv.u(n)::text END, false),
          set_config('request.jwt.claim.role', 'authenticated', false),
-         set_config('request.jwt.claims', CASE WHEN n IS NULL THEN '{}' ELSE jsonb_build_object('sub', pv.u(n), 'role', 'authenticated')::text END, false) $$;
+         set_config('request.jwt.claims', CASE WHEN n IS NULL THEN '{}' ELSE jsonb_build_object('sub', pv.u(n), 'role', 'authenticated', 'session_id', pv.asid(n))::text END, false) $$;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pv TO anon, authenticated, service_role;
 
 -- ───────────── Personas y datos de prueba (como servidor) ─────────────
@@ -54,7 +56,8 @@ BEGIN
     PERFORM public.prive_invite_user(pv.u(k), 'tenure', 'system');
     r := public.prive_accept_invitation(pv.u(k), NULL);
     r := public.prive_set_password(pv.u(k), pw, 'ok');
-    r := public.prive_unlock(pv.u(k), pw, NULL, NULL);
+    INSERT INTO auth.sessions (id, user_id) VALUES (pv.asid(k)::uuid, pv.u(k)) ON CONFLICT DO NOTHING;
+    r := public.prive_unlock(pv.u(k), pw, NULL, pv.asid(k));
     IF r->>'token' IS NULL THEN RAISE NOTICE 'FALLA SETUP sin sesión Privé para U%: %', k, r; END IF;
     INSERT INTO pv.tokens VALUES (k, r->>'token') ON CONFLICT (n) DO UPDATE SET token = EXCLUDED.token;
   END LOOP;
