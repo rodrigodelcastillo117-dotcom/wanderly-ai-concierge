@@ -10,7 +10,7 @@ Este es el documento único para el dueño, el auditor externo (ChatGPT) y la re
 |---|---|
 | ¿La app funciona de punta a punta en producción? | **Sí.** Registro, plan, cotización con fuentes, viaje, Iato, gastos, cercanos, reservas, Members Only, Privé y correos están desplegados y verificados en vivo con cuentas sintéticas. |
 | ¿Hay problemas graves abiertos? | **No.** 0 P0 y 0 P1 abiertos en código. |
-| ¿Vender PRO a $99 MXN a gente que conocemos (lanzamiento por invitación)? | **GO.** |
+| ¿Vender PRO a $99 MXN a gente que conocemos (lanzamiento por invitación)? | **CONDICIONADO** (auditoría de cierre, AUD-08). Decía GO, pero Stripe sigue en modo prueba, no hay una compra real reembolsada y la confirmación de correo está apagada en Supabase Auth (`mailer_autoconfirm: true`, verificado el 2026-10-22). Pasa a GO solo al completar y firmar `cierre/STRIPE_CERTIFICACION.md` (Fases 0–3). |
 | ¿Abrir ventas masivas con publicidad? | **NO-GO todavía.** Faltan 4 cosas que solo el dueño puede hacer (sección 5). Sin ellas, las búsquedas en vivo se acaban a mitad de mes y los reembolsos no están probados. |
 | ¿Privé? | **GO como piloto**: 3 invitaciones enviadas (Rodrigo, Sofía, Carlo). Invitaciones automáticas generales siguen apagadas. |
 | ¿Reservas hechas por la IA? | **Código listo y apagado.** Se enciende después de configurar la recepción de correos en Resend y una prueba con un restaurante de prueba. |
@@ -55,7 +55,7 @@ Este es el documento único para el dueño, el auditor externo (ChatGPT) y la re
 
 1. **SerpApi:** contratar Developer (USD 75) o Production (USD 150). Sin esto, las búsquedas en vivo de vuelos y hoteles se acaban con ~15–20 usuarios activos.
 2. **Google Cloud:** habilitar Places API (New), Routes API, Geocoding y Time Zone; cuotas diarias y alerta de presupuesto; restringir la llave.
-3. **Stripe:** activar eventos `charge.refunded`, `charge.dispute.*`, `invoice.paid`; quitar "sin límites" de la descripción del producto; cobrar en MXN (hoy el precio adaptativo cobró en USD); hacer una compra real y reembolsarla.
+3. **Stripe:** activar eventos `charge.refunded`, `charge.dispute.*`, `invoice.paid`; quitar "sin límites" de la descripción del producto; cobrar en MXN (hoy el precio adaptativo cobró en USD; desde la auditoría de cierre el checkout apaga Adaptive Pricing y no abre si el precio no es $99 MXN/mes IVA incluido); hacer una compra real y reembolsarla. Procedimiento completo y verificación automática (`health-check?action=stripe_config`): `cierre/STRIPE_CERTIFICACION.md`.
 4. **Supabase Auth:** exigir confirmación de correo (requisito para la prueba gratis sin tarjeta) y pegar las plantillas de `docs/iatos/emails/auth/`.
 5. **Travelpayouts:** generar enlaces de afiliado válidos desde su panel para volver a cobrar comisión (hoy abrimos el proveedor directo porque el redirect daba error).
 6. **Resend Receiving** en `reply.traveliatos.life` + secreto `RESEND_INBOUND_SECRET`, para encender las reservas hechas por la IA.
