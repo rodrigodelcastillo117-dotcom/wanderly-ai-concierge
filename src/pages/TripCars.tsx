@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { discoverCarsLink, rentalcarsLink, kayakCarsLink } from "@/lib/affiliateLinks";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
+// roadtrip: devolución en otra ciudad (one-way) con búsqueda de Kayak que lleva ambas ciudades.
+import { isOneWay, kayakCarsUrl } from "@/lib/roadtrip";
 
 const TripCars = () => {
   // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
@@ -15,14 +17,18 @@ const TripCars = () => {
   const [city, setCity] = useState(params.get("city") ?? "");
   const [pickup, setPickup] = useState(params.get("pickup") ?? "");
   const [ret, setRet] = useState(params.get("return") ?? "");
+  const [dropoff, setDropoff] = useState(params.get("dropoff") ?? "");
+  const oneWay = !!city && !!dropoff && isOneWay({ pickup_city: city, dropoff_city: dropoff, pickup_date: pickup, dropoff_date: ret });
 
-  const providers = [
+  const providers = oneWay ? [
+    { name: "Kayak Cars", desc: `Recoges en ${city} y devuelves en ${dropoff} (búsqueda con ambas ciudades)`, url: () => kayakCarsUrl({ pickup_city: city, dropoff_city: dropoff, pickup_date: pickup, dropoff_date: ret }) ?? "" },
+  ] : [
     { name: "Discover Cars", desc: "Comparador en 145 países · cancelación gratis 48h", url: () => discoverCarsLink(city, pickup, ret) },
     { name: "Rentalcars.com", desc: "Inventario Booking Holdings · soporte en su sitio", url: () => rentalcarsLink(city, pickup, ret) },
     { name: "Kayak Cars", desc: "Meta-buscador con filtros por compañía y tipo", url: () => kayakCarsLink(city, pickup, ret) },
   ];
 
-  const canSearch = city && pickup && ret;
+  const canSearch = city && pickup && ret && (!oneWay || !!kayakCarsUrl({ pickup_city: city, dropoff_city: dropoff, pickup_date: pickup, dropoff_date: ret }));
 
   return (
     <DashboardLayout>
@@ -51,6 +57,15 @@ const TripCars = () => {
               <Input id="tripcars-devolver" type="date" value={ret} onChange={(e) => setRet(e.target.value)} />
             </div>
           </div>
+          <div>
+            <label htmlFor="tripcars-devolver-en" className="text-xs uppercase tracking-wide text-muted-foreground">Devolver en otra ciudad (opcional)</label>
+            <Input id="tripcars-devolver-en" value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Igual que la recogida" />
+          </div>
+          {oneWay && (
+            <p className="text-xs rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-3 py-2" data-testid="tripcars-one-way">
+              Devolver el auto en otra ciudad o país suele tener un cargo extra; el monto lo da la arrendadora al cotizar (IATOS no lo estima).
+            </p>
+          )}
         </div>
 
         <div className="grid md:grid-cols-3 gap-3">
@@ -59,7 +74,7 @@ const TripCars = () => {
               <h3 className="font-display text-lg mb-2">{p.name}</h3>
               <p className="text-xs text-muted-foreground mb-4">{p.desc}</p>
               <Button disabled={!canSearch} onClick={() => tripTool.track({
-                category: "car", provider: p.name, title: `Auto en ${city}`,
+                category: "car", provider: p.name, title: oneWay ? `Auto ${city} → ${dropoff}` : `Auto en ${city}`,
                 city, bookingUrl: p.url(), startAt: pickup || undefined,
               })} className="w-full">
                 <Search className="w-3 h-3 mr-1" /> Buscar <ExternalLink className="w-3 h-3 ml-1" />

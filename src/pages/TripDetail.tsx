@@ -42,6 +42,7 @@ import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
 import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
 import { TripNextStep } from "@/components/TripNextStep";
+import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
 
@@ -561,6 +562,11 @@ const TripDetail = () => {
 
         {/* Qué sigue: guardado, cuánto falta y UNA acción principal. */}
         <TripNextStep trip={trip} quote={quote} isOwner={isOwner} />
+
+        {/* roadtrip: tramos en coche, costos etiquetados, avisos por país y renta del auto. */}
+        {isMulti && logistics?.road_trip && (
+          <RoadTripPanel plan={logistics.road_trip} tripId={trip.id} returnCity={destinationsMulti[0] ?? null} />
+        )}
 
         {/* Herramientas del viaje: después del total y de "qué sigue" (antes iban primero y empujaban
             el precio fuera de la pantalla); en móvil, una fila deslizable. */}

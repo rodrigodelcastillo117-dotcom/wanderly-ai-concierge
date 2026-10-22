@@ -30,6 +30,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { toastFunctionError } from "@/lib/functionErrors";
 import { clearRequestKey, getRequestKey } from "@/lib/requestKey";
+// roadtrip: coche como modo entre paradas, vista previa estimada y panel del road trip.
+import { TransportModePicker } from "@/components/roadtrip/TransportModePicker";
+import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
+import { buildRoadTripPlan, resolveLegModes, type LegMode, type TransportMode } from "@/lib/roadtrip";
 
 
 type ConnStyle = "tiempo" | "paisaje" | "smart";
@@ -93,6 +97,12 @@ const MultiDestRoute = () => {
   const [emocionTexto, setEmocionTexto] = useState("");
 
   const [configOpen, setConfigOpen] = useState(false);
+  // roadtrip: ?modo=coche llega desde "Ideas de road trips" o desde Iato.
+  const seedMode = params.get("modo");
+  const [transportMode, setTransportMode] = useState<TransportMode | null>(
+    seedMode === "coche" || seedMode === "tren" || seedMode === "avion" || seedMode === "mixto" ? seedMode : null,
+  );
+  const [legModesSel, setLegModesSel] = useState<LegMode[]>([]);
 
 
   const [generating, setGenerating] = useState(false);
@@ -215,6 +225,18 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
 
   const canStart = origin.trim().length > 1 && validStops.length >= 2;
 
+  // roadtrip: modo por tramo efectivo y vista previa ESTIMADA (sin llamadas de API).
+  const legModes = useMemo(
+    () => (transportMode ? resolveLegModes(validStops.length, transportMode, legModesSel, "tren") : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transportMode, legModesSel, validStops.join("|")],
+  );
+  const roadPreview = useMemo(
+    () => (legModes.includes("coche") ? buildRoadTripPlan({ stops: validStops, legModes }) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [legModes, validStops.join("|")],
+  );
+
   const handleStart = () => {
     if (!canStart) {
       toast.error("Agrega un origen y al menos 2 destinos");
@@ -257,7 +279,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         fecha_salida: fechaSalida || undefined,
         fecha_regreso: fechaRegreso || undefined,
         num_viajeros: viajeros,
-        prefs: p,
+        prefs: transportMode ? { ...p, transport_mode: transportMode, leg_modes: legModes } : p,
       };
       const request_key = getRequestKey("logistics-plan", planArgs);
       const { data, error } = await supabase.functions.invoke("logistics-plan", {
@@ -536,6 +558,12 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
 
           </div>
 
+          {/* roadtrip: modo de transporte entre paradas (avión, tren, coche o mezcla por tramo) */}
+          {validStops.length >= 2 && (
+            <TransportModePicker stops={validStops} mode={transportMode} legModes={legModes}
+              onChange={(m, lm) => { setTransportMode(m); setLegModesSel(lm); }} />
+          )}
+
           {/* Status pill — phase indicator */}
           <div className="flex items-center justify-between flex-wrap gap-3 pt-2">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -565,6 +593,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             </Button>
           </div>
         </section>
+
+        {/* roadtrip: vista previa estimada de los tramos en coche, costos y avisos por país */}
+        {roadPreview && !generated && <RoadTripPanel plan={roadPreview} preview />}
 
         {/* Emoción del viaje — IATOS AI acopla a esta emoción */}
         <section className="rounded-2xl border border-border bg-background p-5 md:p-6 space-y-4">
@@ -741,6 +772,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                   })}
                 </div>
               )}
+
+              {/* roadtrip: tramos en coche con distancias de Google Maps, costos y renta del auto */}
+              <RoadTripPanel plan={generated.logistics.road_trip} tripId={generated.tripId ?? null} returnCity={validStops[0]} />
 
               {/* Transporte local */}
               {generated.logistics.local_transport_tips?.length > 0 && (
