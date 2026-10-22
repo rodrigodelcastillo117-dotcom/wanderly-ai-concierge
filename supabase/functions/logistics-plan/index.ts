@@ -9,7 +9,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { consumeQuota, quotaDeniedResponse } from "../_shared/entitlements.ts";
+import {
+  invalidRequestResponse,
+  quotaDeniedResponse,
+  reservationDeps,
+  serviceUnavailableResponse,
+} from "../_shared/entitlements.ts";
+import {
+  logisticsMeetsContract,
+  resolveRequestKey,
+  runWithReservation,
+  type WorkCtx,
+  type WorkResult,
+} from "../_shared/reservation.ts";
 import { getUsdMxnRate } from "../_shared/fx.ts";
 import { aiFetch } from "../_shared/ai.ts";
 
@@ -34,6 +46,8 @@ interface Body {
     roadtripStops?: boolean;
     luggageLogistics?: boolean;
   };
+  /** Llave de idempotencia por intento (sessionStorage del cliente). */
+  request_key?: string;
 }
 
 type Tier = "ahorro" | "equilibrio" | "premium";
@@ -360,26 +374,24 @@ Deno.serve(async (req) => {
   try {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("logistics-plan: LOVABLE_API_KEY missing");
+      return serviceUnavailableResponse(corsHeaders);
     }
 
     const body = (await req.json().catch(() => null)) as Body | null;
     if (!body?.origin || !Array.isArray(body?.destinations) || body.destinations.length < 1) {
-      return new Response(JSON.stringify({ error: "origin y destinations son requeridos" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return invalidRequestResponse(corsHeaders, "Faltan datos: indica tu ciudad de origen y al menos un destino.");
     }
 
-    // Gate PRO / cuota gratuita: el plan multi-ciudad es un análisis de viaje completo (IA + vuelos
-    // y hoteles en vivo), así que gasta la misma cuota que analizar-viaje (1 gratis de por vida).
-    // Antes no consumía nada y escribir "Madrid y Barcelona" en Planear daba análisis ilimitados.
-    // Va después de validar la entrada; si no se puede verificar el plan, se niega (503).
-    const quota = await consumeQuota(__user.id, "trip_analysis");
-    if (!quota.allowed) return quotaDeniedResponse(quota, "trip_analysis", corsHeaders);
+    // Cuota: el plan multi-ciudad es un análisis de viaje completo (IA + vuelos y hoteles en vivo),
+    // así que usa el mismo cupo que analizar-viaje. Se APARTA después de validar y solo se cobra si
+    // el plan cumple el contrato mínimo; aquí el servidor no crea el viaje (lo guarda el cliente),
+    // así que el plan se guarda en la reserva y un reintento con la misma llave lo recibe sin pagar.
+    const requestKey = resolveRequestKey(body.request_key, [
+      body.origin, body.destinations.join(">"), body.fecha_salida, body.fecha_regreso, body.num_viajeros,
+    ]);
+    // El cuerpo del plan se dejó sin re-indentar para no mover todo el diff.
+    const generarPlan = async (ctx: WorkCtx): Promise<WorkResult> => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
 
@@ -756,10 +768,12 @@ Entrega JSON con:
 
     if (!(totalMxn > 0)) {
       console.error("logistics-plan: desglose vacío", { destinos: cityList });
-      return new Response(JSON.stringify({
-        error: "no_pricing_available",
-        message: "No pudimos armar una cotización confiable ahora mismo. Intenta de nuevo en unos minutos.",
-      }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return {
+        ok: false,
+        reason: "insufficient_data",
+        response: serviceUnavailableResponse(corsHeaders,
+          "No pudimos armar una cotización confiable ahora mismo y no se descontó de tu plan. Intenta de nuevo en unos minutos."),
+      };
     }
 
     const logistics = {
@@ -785,16 +799,43 @@ Entrega JSON con:
       },
     };
 
-    return new Response(JSON.stringify({ logistics }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Contrato mínimo para cobrar: itinerario, total y logística en todas las ciudades.
+    const contrato = logisticsMeetsContract(logistics);
+    if (!contrato.ok) {
+      console.error("logistics-plan: plan parcial, no se cobra", contrato.missing);
+      return { ok: false, reason: `partial_result:${contrato.missing.join(",")}` };
+    }
+    if (!ctx.beginPersist()) return { ok: false, reason: "timeout_before_persist" };
+
+    return {
+      ok: true,
+      tripId: null,
+      result: logistics,
+      response: new Response(JSON.stringify({ logistics }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }),
+    };
+    };
+
+    const outcome = await runWithReservation(reservationDeps(__user.id, "trip_analysis"), requestKey, generarPlan);
+    if (outcome.type === "ok") return outcome.response;
+    if (outcome.type === "denied") return quotaDeniedResponse(outcome.quota, "trip_analysis", corsHeaders);
+    if (outcome.type === "replay") {
+      // Respuesta anterior perdida (red, recarga): se entrega el plan guardado sin cobrar de nuevo.
+      if (outcome.result) {
+        return new Response(JSON.stringify({ logistics: outcome.result, replay: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return serviceUnavailableResponse(corsHeaders, "Este plan ya se generó; búscalo en Mis viajes.");
+    }
+    console.warn("logistics-plan: plan no completado, cupo liberado", outcome.reason);
+    return outcome.response ?? serviceUnavailableResponse(corsHeaders);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "unknown";
-    console.error("logistics-plan error:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Detalle técnico solo en logs.
+    console.error("logistics-plan error:", e instanceof Error ? e.message : e);
+    return serviceUnavailableResponse(corsHeaders);
   }
 });

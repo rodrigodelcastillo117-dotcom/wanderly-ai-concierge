@@ -2,7 +2,20 @@
 // Flujo: Perplexity (sonar-pro) investiga precios reales -> Claude estructura el análisis premium.
 // FIX v3: Perplexity opcional — si falta la key, continúa sin contexto cualitativo (no 500).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { consumeQuota, quotaDeniedResponse } from "../_shared/entitlements.ts";
+import {
+  invalidRequestResponse,
+  quotaDeniedResponse,
+  reservationDeps,
+  serviceUnavailableResponse,
+  unauthenticatedResponse,
+} from "../_shared/entitlements.ts";
+import {
+  analysisMeetsContract,
+  resolveRequestKey,
+  runWithReservation,
+  type WorkCtx,
+  type WorkResult,
+} from "../_shared/reservation.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
 import { aiFetch } from "../_shared/ai.ts";
@@ -84,6 +97,8 @@ interface AnalisisRequest {
   presupuesto_objetivo?: number | null;
   notas_usuario?: string | null;
   trip_length_days?: number | null;
+  /** Llave de idempotencia por intento (sessionStorage del cliente). */
+  request_key?: string;
 }
 
 async function resolverFechasSiFaltan(
@@ -611,31 +626,20 @@ Deno.serve(async (req) => {
 
   try {
     if (!ANTHROPIC_API_KEY) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY no configurada" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // Detalle técnico solo en logs; al usuario, SERVICE_UNAVAILABLE.
+      console.error("analizar-viaje: ANTHROPIC_API_KEY no configurada");
+      return serviceUnavailableResponse(corsHeaders);
     }
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!authHeader) return unauthenticatedResponse(corsHeaders);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
 
     const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr || !userData.user) {
-      return new Response(JSON.stringify({ error: "Sesión inválida" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (userErr || !userData.user) return unauthenticatedResponse(corsHeaders);
     const user = userData.user;
 
     // Anti-abuso: análisis es caro (Claude + SerpApi + Perplexity)
@@ -646,17 +650,17 @@ Deno.serve(async (req) => {
 
     const body = (await req.json().catch(() => null)) as AnalisisRequest | null;
     if (!body?.destino || !body?.ciudad_origen) {
-      return new Response(JSON.stringify({ error: "Faltan datos requeridos" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return invalidRequestResponse(corsHeaders, "Faltan datos: indica el destino y tu ciudad de origen.");
     }
 
-    // Gate PRO / cuota gratuita (1 análisis de viaje gratis de por vida). Va DESPUÉS de validar:
-    // antes, un cuerpo incompleto respondía 400 pero ya había gastado el único análisis gratis.
-    // Si no se puede verificar el plan, se niega con 503 (no 402): no regalamos análisis por una caída.
-    const quota = await consumeQuota(user.id, "trip_analysis");
-    if (!quota.allowed) return quotaDeniedResponse(quota, "trip_analysis", corsHeaders);
+    // Cuota (IATOS-P1-FREE-02): después de validar se APARTA el análisis y solo se cobra si el viaje
+    // quedó guardado con un resultado completo; timeout, caída de la IA o de un proveedor, datos
+    // insuficientes, resultado parcial o error al guardar lo devuelven (_shared/reservation.ts).
+    const requestKey = resolveRequestKey(body.request_key, [
+      body.destino, body.ciudad_origen, body.fecha_salida, body.fecha_regreso, body.num_viajeros,
+    ]);
+    // El cuerpo del análisis se dejó sin re-indentar para no mover todo el diff.
+    const ejecutarAnalisis = async (ctx: WorkCtx): Promise<WorkResult> => {
 
     const { data: travelProfile } = await supabase
       .from("travel_profiles")
@@ -985,19 +989,14 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       if (gatewayResult instanceof Response) {
         const text = await gatewayResult.text();
         console.error("Gateway fallback error:", gatewayResult.status, text);
-        return new Response(JSON.stringify({ error: `AI gateway error ${gatewayResult.status}`, detail: text }), {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return { ok: false, reason: "ai_provider_error" };
       }
       a = gatewayResult;
     }
 
     if (!a || typeof a !== "object") {
-      return new Response(JSON.stringify({ error: "Respuesta inválida de IA" }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("analizar-viaje: respuesta inválida de IA");
+      return { ok: false, reason: "ai_invalid_response" };
     }
     a.vuelos = normalizarVuelos(a.vuelos);
     // Sub-regla 15.1: re-inyecta ?marker=... si Claude lo truncó al copiar el booking_link.
@@ -1050,10 +1049,12 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     } else if (!(Number(a.total_estimado) > 0)) {
       // Nunca guardar un viaje con total 0: es peor que un error visible.
       console.error("analizar-viaje: desglose vacío y total 0", { destino: body.destino });
-      return new Response(JSON.stringify({
-        error: "no_pricing_available",
-        message: "No pudimos armar una cotización confiable ahora mismo. Intenta de nuevo en unos minutos.",
-      }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return {
+        ok: false,
+        reason: "insufficient_data",
+        response: serviceUnavailableResponse(corsHeaders,
+          "No pudimos armar una cotización confiable ahora mismo y no se descontó de tu plan. Intenta de nuevo en unos minutos."),
+      };
     }
     // Trazabilidad de campos vacíos para monitoreo (no bloquea, pero queda en logs).
     const camposVacios = ["vuelos", "hospedaje", "restaurantes", "tours", "itinerario"]
@@ -1061,6 +1062,14 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     if (camposVacios.length) console.warn("analizar-viaje: campos vacíos", camposVacios, body.destino);
     enforceSources(a, tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : [], placesSource);
 
+    // Contrato mínimo para cobrar: sin itinerario, total o vuelos/hospedaje es un resultado parcial.
+    const contrato = analysisMeetsContract(a);
+    if (!contrato.ok) {
+      console.error("analizar-viaje: resultado parcial, no se guarda ni se cobra", contrato.missing, body.destino);
+      return { ok: false, reason: `partial_result:${contrato.missing.join(",")}` };
+    }
+    // Si ya se agotó el tiempo, no guardamos (la reserva ya se liberó).
+    if (!ctx.beginPersist()) return { ok: false, reason: "timeout_before_persist" };
 
     const { data: trip, error: insertErr } = await supabase
       .from("trips")
@@ -1093,12 +1102,9 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       .select()
       .single();
 
-    if (insertErr) {
+    if (insertErr || !trip) {
       console.error("Insert error:", insertErr);
-      return new Response(JSON.stringify({ error: insertErr.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return { ok: false, reason: "persist_failed" };
     }
 
     // Email de cotización lista (fire-and-forget: nunca bloquea la respuesta).
@@ -1123,7 +1129,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     }
 
 
-    return new Response(JSON.stringify({
+    return { ok: true, tripId: trip.id, response: new Response(JSON.stringify({
       trip,
       fuentes: investigacion.citations,
       travelpayouts: {
@@ -1147,12 +1153,30 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    }) };
+    };
+
+    const outcome = await runWithReservation(reservationDeps(user.id, "trip_analysis"), requestKey, ejecutarAnalisis);
+    if (outcome.type === "ok") return outcome.response;
+    if (outcome.type === "denied") return quotaDeniedResponse(outcome.quota, "trip_analysis", corsHeaders);
+    if (outcome.type === "replay") {
+      // La respuesta anterior se perdió (red, recarga): devolvemos el viaje ya guardado, sin cobrar.
+      const { data: saved } = outcome.tripId
+        ? await supabase.from("trips").select("*").eq("id", outcome.tripId).maybeSingle()
+        : { data: null };
+      if (saved) {
+        return new Response(JSON.stringify({ trip: saved, replay: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return serviceUnavailableResponse(corsHeaders, "Este análisis ya se hizo; búscalo en Mis viajes.");
+    }
+    console.warn("analizar-viaje: análisis no completado, cupo liberado", outcome.reason);
+    return outcome.response ?? serviceUnavailableResponse(corsHeaders);
   } catch (e: any) {
+    // Detalle técnico solo en logs.
     console.error("analizar-viaje error:", e);
-    return new Response(JSON.stringify({ error: e?.message ?? "Error desconocido" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return serviceUnavailableResponse(corsHeaders);
   }
 });
