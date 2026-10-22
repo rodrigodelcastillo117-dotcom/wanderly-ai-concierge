@@ -456,7 +456,7 @@ Deno.serve(async (req) => {
     const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords });
 
     const runTurn = async () => {
-      const { final, agent, prefetchMs, totalMs, leadMs } = await runConciergeTurn({
+      const { final, agent, prefetchMs, totalMs, lead, leadMs } = await runConciergeTurn({
         plan, route, config, breaker: sharedBreaker, execTool, toolTimeout, send, meta, stableSystem, dynamicSystem, leadAfterMs: wantsStream ? LEAD_AFTER_MS : undefined,
         contextMessage, history: clientMessages, userMessage: lastUserMsg, exigente,
         hasAnthropicKey: !!ANTHROPIC_API_KEY, hasLovableKey: !!LOVABLE_API_KEY,
@@ -482,6 +482,9 @@ Deno.serve(async (req) => {
         text: final.text, cards: final.cards, actions: final.actions,
         _tools_used: [...plan.prefetch.map((p) => p.name), ...agent.toolsUsed], _gaps: tripGaps, ...meta,
         _model_tier: route.tier, _provider: agent.provider,
+        // Frase de inicio que se mostró mientras corrían las herramientas (null = no hubo): la
+        // evaluación en vivo la usa para medir aparte el primer texto del modelo.
+        _lead: lead,
       };
 
       // 4) Uso, aprendizaje, memoria y cuota (la memoria se guarda en segundo plano). En streaming la

@@ -245,5 +245,8 @@ describe("index.ts: menos viajes en serie antes del primer evento y la respuesta
     expect(src.indexOf("await settle()", i)).toBeGreaterThan(i);
     expect(src).toMatch(/send\(\{ type: "reset", data: \{\} \}\);\s*send\(\{ type: "error"/);
     expect(src).toMatch(/leadAfterMs: wantsStream \? LEAD_AFTER_MS : undefined/);
+    // La respuesta dice qué frase de inicio se mostró: la evaluación en vivo mide aparte el primer texto del modelo.
+    expect(src).toMatch(/_lead: lead,/);
+    expect(readFileSync(join(__dirname, "../../scripts/concierge/eval_live.mjs"), "utf8")).toMatch(/primer_texto_modelo_p50_ms/);
   });
 });
