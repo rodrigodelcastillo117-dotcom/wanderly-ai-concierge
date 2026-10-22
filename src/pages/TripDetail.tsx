@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download, Radio, Map as MapIcon, Backpack, Cloud, Languages, BookHeart, Wallet, Sparkles, Pencil, Heart } from "lucide-react";
@@ -25,6 +25,12 @@ import santorini from "@/assets/hero-santorini.jpg";
 import { getYourGuideLink, viatorLink, googleMapsSearchLink, theforkLink, ensureAviasalesMarker, bookingLink } from "@/lib/affiliateLinks";
 import { logBookingClick, trackBookingClick } from "@/lib/trackBooking";
 import { computeTripDesglose, quoteStaleness, quoteValidity, staleQuoteMessage, tripNights, roomsFor, type QuoteSnapshot } from "@/lib/quote";
+import {
+  readLocalSelections, restoreSelections, sameSelections, serializeSelections, writeLocalSelections, type PersistedSelections,
+} from "@/lib/tripSelections";
+import { deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
+import { BookingStateBadge } from "@/components/BookingStateBadge";
+import { TripDocuments } from "@/components/TripDocuments";
 
 
 const fmtMXN = (n: number) =>
@@ -56,6 +62,12 @@ const TripDetail = () => {
   const [savingMeta, setSavingMeta] = useState(false);
   // Cotización vigente (snapshot inmutable de trip_quotes), si existe.
   const [quote, setQuote] = useState<QuoteSnapshot | null>(null);
+  // E-12: última selección guardada (en trips.selections o, si la columna aún no existe, local) y
+  // para qué viaje ya se restauró (no guardar antes de restaurar).
+  const [savedSel, setSavedSel] = useState<PersistedSelections | null>(null);
+  const restoredFor = useRef<string | null>(null);
+  // Reservas del viaje: reservado vs. cotizado se deriva de las confirmadas.
+  const [bookings, setBookings] = useState<BookingLike[]>([]);
 
   async function saveTripMeta(patch: Record<string, any>) {
     if (!trip?.id) return;
@@ -121,6 +133,22 @@ const TripDetail = () => {
     if (!id) return;
     const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
     setTrip(data);
+    if (data) {
+      // Con la columna, manda la base; sin ella (migración pendiente), el respaldo local.
+      const stored = ("selections" in (data as any)) ? (data as any).selections : readLocalSelections(id);
+      const r = restoreSelections(data, stored);
+      setSelVuelo(r.selVuelo);
+      setSelHospedaje(r.selHospedaje);
+      setNochesHospedaje(r.nochesHospedaje);
+      setSelTours(r.selTours);
+      setSavedSel(serializeSelections(data, r));
+      restoredFor.current = id;
+      void Promise.resolve(
+        supabase.from("bookings")
+          .select("trip_id, category, status, confirmation_code, partner_reference, title, subtitle")
+          .eq("trip_id", id),
+      ).then(({ data: bks }) => setBookings((bks as BookingLike[] | null) ?? [])).catch(() => setBookings([]));
+    }
     const quoteId = (data as any)?.current_quote_id;
     if (quoteId) {
       const { data: q, error: qErr } = await supabase.from("trip_quotes").select("*").eq("id", quoteId).maybeSingle();
@@ -174,6 +202,31 @@ const TripDetail = () => {
       setActiveCity((prev) => prev ?? cities[0]);
     }
   }, [trip]);
+
+  // Guarda la selección al cambiarla (E-12). El trigger trips_quote_basis_guard marca la
+  // cotización como "por actualizar" si difiere de la selección con que se cotizó.
+  useEffect(() => {
+    if (!trip?.id || restoredFor.current !== trip.id) return;
+    const next = serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours });
+    if (sameSelections(next, savedSel)) return;
+    const tripId = trip.id;
+    const timer = setTimeout(async () => {
+      setSavedSel(next);
+      const { data, error } = await supabase.from("trips").update({ selections: next as any }).eq("id", tripId)
+        .select("selections, quote_basis, quote_needs_update");
+      const row = Array.isArray(data) ? data[0] : null;
+      if (error || !row) {
+        // Columna aún no aplicada o sin permiso de edición: se conserva en este dispositivo.
+        writeLocalSelections(tripId, next);
+        setTrip((t: any) => (t && t.id === tripId ? { ...t, selections: next } : t));
+        return;
+      }
+      writeLocalSelections(tripId, null);
+      setTrip((t: any) => (t && t.id === tripId ? { ...t, ...row } : t));
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selVuelo, selHospedaje, nochesHospedaje, selTours, trip?.id, savedSel]);
 
   const handleDownloadPdf = async () => {
     if (!trip) return;
@@ -237,7 +290,8 @@ const TripDetail = () => {
   // Si el usuario cambió viajeros o fechas después de cotizar, el total guardado es para la base
   // anterior: se muestra para esa base (sin repartirlo entre el nuevo número de viajeros) y se
   // pide actualizar la cotización.
-  const staleness = quoteStaleness(trip, quote);
+  const currentSel = trip ? serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours }) : null;
+  const staleness = quoteStaleness(trip ? { ...trip, selections: currentSel } : trip, quote);
   const quoteTravelers = staleness.stale && staleness.basis ? staleness.basis.travelers : viajeros;
   const quoteNights = staleness.stale && staleness.basis?.dateFrom && staleness.basis?.dateTo
     ? tripNights({ fecha_salida: staleness.basis.dateFrom, fecha_regreso: staleness.basis.dateTo }, itinDays.length)
@@ -378,6 +432,8 @@ const TripDetail = () => {
       </div>
 
       <div className="max-w-5xl space-y-8 p-4 sm:p-6 md:p-12">
+        {/* Reservado vs. cotizado ("listo" no lo distingue): derivado de las reservas confirmadas. */}
+        <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} />
         {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -458,7 +514,8 @@ const TripDetail = () => {
               noches={quoteNights}
               viajeros={quoteTravelers}
               onUpdated={loadTrip}
-              staleMessage={staleness.stale && staleness.basis ? staleQuoteMessage(staleness.basis) : null}
+              staleMessage={staleness.stale && staleness.basis ? staleQuoteMessage(staleness.basis, staleness.reasons) : null}
+              selectionDesglose={currentSel ? computedDesglose : null}
               validityLabel={validity.label}
               validityExpired={validity.expired}
               fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatDateOnly(quote.fx_at)})` : null}
@@ -577,14 +634,14 @@ const TripDetail = () => {
                                   if (bookingUrl) {
                                     // Abre en el mismo gesto y registra el clic sin esperar (iOS).
                                     trackBookingClick({
-                                      category: "flight", provider: v.aerolinea || "Aviasales",
+                                      category: "flight", provider: v.aerolinea || "Aviasales", tripId: trip.id,
                                       title: `${trip.ciudad_origen ?? ""} → ${city}`.trim(),
                                       subtitle: `${v.tier ?? ""} · ${fmtMXN(v.precio_por_persona)} / persona`,
                                       bookingUrl: ensureAviasalesMarker(bookingUrl), city, startAt: trip.fecha_salida ?? undefined,
                                     });
                                     return;
                                   }
-                                  const u = `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "Mexico City")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida}&return=${trip.fecha_regreso}&travelers=${trip.num_viajeros ?? 1}&auto=1`;
+                                  const u = `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "Mexico City")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida}&return=${trip.fecha_regreso}&travelers=${trip.num_viajeros ?? 1}&auto=1&trip=${trip.id}`;
                                   window.location.href = u;
                                 }}
                                 className="mt-2 text-xs px-3 py-1.5 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition"
@@ -673,9 +730,9 @@ const TripDetail = () => {
                                 onToggle={() => toggleTour(i)}
                                 actions={[
                                   { label: "Reservar en GetYourGuide", href: getYourGuideLink(city, t.nombre), primary: true,
-                                    onClick: () => void logBookingClick({ category: "activity", provider: "GetYourGuide", title: t.nombre, city, bookingUrl: getYourGuideLink(city, t.nombre), startAt: trip.fecha_salida ?? undefined }) },
+                                    onClick: () => void logBookingClick({ tripId: trip.id, category: "activity", provider: "GetYourGuide", title: t.nombre, city, bookingUrl: getYourGuideLink(city, t.nombre), startAt: trip.fecha_salida ?? undefined }) },
                                   { label: "Ver en Viator", href: viatorLink(city, t.nombre),
-                                    onClick: () => void logBookingClick({ category: "activity", provider: "Viator", title: t.nombre, city, bookingUrl: viatorLink(city, t.nombre), startAt: trip.fecha_salida ?? undefined }) },
+                                    onClick: () => void logBookingClick({ tripId: trip.id, category: "activity", provider: "Viator", title: t.nombre, city, bookingUrl: viatorLink(city, t.nombre), startAt: trip.fecha_salida ?? undefined }) },
                                   { label: "Ubicación", href: googleMapsSearchLink(t.nombre, city) },
                                 ]}
                               >
@@ -712,7 +769,7 @@ const TripDetail = () => {
                                 actions={[
                                   { label: "Reservar / Ver", href: googleMapsSearchLink(cleanName, city), primary: true },
                                   { label: "TheFork", href: theforkLink(city, cleanName),
-                                    onClick: () => void logBookingClick({ category: "restaurant", provider: "TheFork", title: cleanName, city, bookingUrl: theforkLink(city, cleanName) }) },
+                                    onClick: () => void logBookingClick({ tripId: trip.id, category: "restaurant", provider: "TheFork", title: cleanName, city, bookingUrl: theforkLink(city, cleanName) }) },
                                 ]}
                               >
                                 <p className="italic">{r.por_que}</p>
@@ -752,7 +809,7 @@ const TripDetail = () => {
               {trip.cruceros_json.map((c: any, i: number) => {
                 const ahorro = Number(c.ahorro_vs_islas_independiente) || 0;
                 const dest = encodeURIComponent(c.puerto_salida?.includes("Atenas") || c.puerto_salida?.toLowerCase().includes("pir") ? "Greek Isles" : "Mediterranean");
-                const cruceroUrl = `/dashboard/cruceros?dest=${dest}${c.fecha_salida_sugerida ? `&depart=${c.fecha_salida_sugerida}` : ""}`;
+                const cruceroUrl = `/dashboard/cruceros?dest=${dest}${c.fecha_salida_sugerida ? `&depart=${c.fecha_salida_sugerida}` : ""}&trip=${trip.id}`;
                 return (
                   <div key={i} className="rounded-xl border border-border/60 bg-surface/40 p-4 md:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
@@ -856,6 +913,9 @@ const TripDetail = () => {
             </div>
           </details>
         )}
+
+        {/* Documentos del viaje: boletos, pasaporte, pólizas (bucket privado trip-documents). */}
+        <TripDocuments tripId={trip.id} ownerId={trip.user_id} />
 
       </div>
     </DashboardLayout>
@@ -1082,7 +1142,7 @@ const HotelCard = ({ hotel, city, trip, active, onClick }: { hotel: any; city: s
             const bookingUrl = hotel.booking_link || hotel.booking_url || hotel.cta_action
               || bookingLink(`${hotel.nombre} ${city}`, trip?.fecha_salida ?? "", trip?.fecha_regreso ?? "", trip?.num_viajeros ?? 2);
             trackBookingClick({
-              category: "hotel", provider: "Booking.com", title: hotel.nombre, subtitle: `${fmtMXN(hotel.precio_por_noche)} / noche`,
+              category: "hotel", provider: "Booking.com", tripId: trip?.id, title: hotel.nombre, subtitle: `${fmtMXN(hotel.precio_por_noche)} / noche`,
               bookingUrl, city, startAt: trip?.fecha_salida ?? undefined,
             });
           }}
