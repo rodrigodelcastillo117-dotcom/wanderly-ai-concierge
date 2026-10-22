@@ -122,7 +122,9 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
   }, [access?.access]);
   const allCities = useMemo(() => cityNames(cities, FEATURED_CITIES), [cities]);
   const counts = useMemo(() => new Map((cities ?? []).map((c) => [c.display, c.venues])), [cities]);
-  const ordered = useMemo(() => orderCities(allCities, preferredCities), [allCities, prefKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Tu ciudad y tu viaje primero; después la ciudad con la que abre el panel (París), para que la
+  // elegida de inicio se vea al principio del carrusel y no al final.
+  const ordered = useMemo(() => orderCities(allCities, [...preferredCities, DEFAULT_CITY]), [allCities, prefKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Si tu ciudad o tu viaje tienen curaduría, se abre ahí (mientras no hayas elegido otra).
   useEffect(() => {
