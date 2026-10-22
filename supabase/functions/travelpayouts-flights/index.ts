@@ -1,6 +1,8 @@
 // supabase/functions/travelpayouts-flights/index.ts
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { pricesForDatesUrl, resolveTpMarker } from "../_shared/tp-params.ts";
+import { aviasalesSearchLink } from "../_shared/travelpayouts.ts";
 // Consulta precios de vuelos via Travelpayouts/Aviasales v3 prices_for_dates.
 // Acepta IATA o nombre de ciudad (auto-resuelve via autocomplete Travelpayouts).
 
@@ -11,8 +13,8 @@ const corsHeaders = {
 };
 
 const TP_TOKEN = Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "";
-// Marker de afiliado Travelpayouts. Fallback hardcoded 533299 para NUNCA perder comisión.
-const TP_MARKER = (Deno.env.get("TRAVELPAYOUTS_MARKER") || TP_TOKEN.slice(0, 6) || "533299").trim() || "533299";
+// Marker de afiliado: el configurado o el público de IATOS (nunca derivado del token).
+const TP_MARKER = resolveTpMarker(Deno.env.get("TRAVELPAYOUTS_MARKER"));
 
 interface FlightsRequest {
   origin_iata?: string;
@@ -83,18 +85,8 @@ Deno.serve(async (req) => {
     const currency = (body.currency ?? "usd").toLowerCase();
 
     const fetchTp = async (departAt: string, returnAt?: string | null) => {
-      const params = new URLSearchParams({
-        origin,
-        destination,
-        departure_at: departAt,
-        currency,
-        sorting: "price",
-        direct: "false",
-        limit: "30",
-        token: TP_TOKEN,
-      });
-      if (returnAt) params.set("return_at", returnAt);
-      const url = `https://api.travelpayouts.com/aviasales/v3/prices_for_dates?${params.toString()}`;
+      // Viaje redondo → one_way=false (la API supone sencillo si no se le dice).
+      const url = pricesForDatesUrl({ origin, destination, departureAt: departAt, returnAt, currency, limit: 30, token: TP_TOKEN });
       const res = await fetch(url, {
         headers: { "X-Access-Token": TP_TOKEN, Accept: "application/json" },
       });
@@ -146,12 +138,13 @@ Deno.serve(async (req) => {
     }
 
 
-    const marker = (TP_MARKER && TP_MARKER.trim()) ? TP_MARKER.trim() : "533299";
+    const marker = TP_MARKER;
     const flights = data.data.slice(0, 20).map((f: any) => {
       const rawLink: string = f?.link ?? "";
       const bookingLink = rawLink
         ? `https://www.aviasales.com${rawLink}${rawLink.includes("?") ? "&" : "?"}marker=${marker}`
-        : `https://www.aviasales.com/search/${origin}${(body.departure_date ?? "").replaceAll("-", "").slice(2)}${destination}?marker=${marker}`;
+        // Link de búsqueda con el formato DDMM que espera Aviasales (antes salía YYMMDD).
+        : aviasalesSearchLink({ origin, destination, departureDate: body.departure_date, returnDate: body.return_date ?? null }, marker);
 
       return {
         airline: f?.airline ?? "",
@@ -182,6 +175,10 @@ Deno.serve(async (req) => {
       departure_date: body.departure_date,
       return_date: body.return_date ?? null,
       approximate_dates: approximate,
+      // Son precios de la caché de búsquedas de usuarios de Aviasales (hasta 48 h), no una
+      // consulta de inventario en tiempo real: quien los muestre debe decirlo.
+      cache_max_age_h: 48,
+      one_way: !body.return_date,
       flights,
     });
 
