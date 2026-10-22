@@ -43,6 +43,13 @@ const PriveDestinationPage = lazyWithRetry(() => import("./pages/prive/PriveDest
 const PriveUniversePage = lazyWithRetry(() => import("./pages/prive/PriveUniversePage"));
 const PriveExperiencePage = lazyWithRetry(() => import("./pages/prive/PriveExperiencePage"));
 const PriveRequestsPage = lazyWithRetry(() => import("./pages/prive/PriveRequestsPage"));
+// ── IATOS Privé · seis áreas (Documento B §4). EXPLORE y MY PRIVÉ son de prive-ux; THE KEY de privekey;
+// DROPS e INSIDER de privevalor (mientras tanto, páginas "en preparación" con la misma ruta). ──
+const PriveExplorePage = lazyWithRetry(() => import("./pages/prive/PriveExplorePage"));
+const PriveMyPage = lazyWithRetry(() => import("./pages/prive/PriveMyPage"));
+const PriveKeyPage = lazyWithRetry(() => import("./pages/prive/PriveKeyPage"));
+const PriveDropsPage = lazyWithRetry(() => import("./pages/prive/PriveDropsPage"));
+const PriveInsiderPage = lazyWithRetry(() => import("./pages/prive/PriveInsiderPage"));
 // ── fin IATOS Privé · catálogo ──
 const LiveTrip = lazyWithRetry(() => import("./pages/LiveTrip"));
 const TripMap = lazyWithRetry(() => import("./pages/TripMap"));
@@ -152,7 +159,14 @@ const App = () => (
             <Route path="/prive" element={<ProtectedRoute><PriveRoot /></ProtectedRoute>}>
               <Route index element={<PriveHub />} />
               <Route path="invitacion" element={<PriveInvitation />} />
+              {/* MY PRIVÉ: /prive/mi; /prive/membresia se conserva (mismas secciones, enlaces viejos y correos). */}
+              <Route path="mi" element={<PriveMyPage />} />
               <Route path="membresia" element={<PriveMembership />} />
+              <Route path="explorar" element={<PriveExplorePage />} />
+              <Route path="key" element={<PriveKeyPage />} />
+              <Route path="drops" element={<PriveDropsPage />} />
+              <Route path="insider" element={<PriveInsiderPage />} />
+              <Route path="insider/:destino" element={<PriveInsiderPage />} />
               <Route path="restablecer" element={<PriveReset />} />
               {/* ── IATOS Privé · catálogo (grupo catalog): dentro de PriveRoot (sesión, candado y estilo);
                   el servidor exige la sesión Privé en cada RPC ── */}

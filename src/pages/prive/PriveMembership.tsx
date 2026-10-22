@@ -20,7 +20,7 @@ import { clearPriveSession } from "@/lib/priveSession";
 import type { PriveStatus } from "@/lib/priveApi";
 import type { PriveView } from "@/lib/priveView";
 
-function cardStatus(view: PriveView | null): MemberCardStatus {
+export function cardStatus(view: PriveView | null): MemberCardStatus {
   if (view === "paused_pro") return "paused_pro";
   if (view === "paused_tenure") return "paused_tenure";
   if (view === "revoked") return "revoked";
@@ -85,7 +85,8 @@ function ChangePassword() {
   );
 }
 
-export default function PriveMembership() {
+/** `embedded`: dentro de MY PRIVÉ (/prive/mi), sin repetir el encabezado ni la tarjeta. */
+export default function PriveMembership({ embedded = false }: { embedded?: boolean } = {}) {
   const { loading, status, statusError, view, unlocked, call, refresh, patchStatus } = usePriveAccess();
   const { rise, reduce } = usePriveMotion();
   const t = usePriveT();
@@ -142,15 +143,18 @@ export default function PriveMembership() {
   const consent = status.onboarding.dna_consent;
 
   return (
-    <motion.div {...rise()} className="max-w-3xl mx-auto px-4 sm:px-6 pb-24" data-motion={reduce ? "reduced" : "full"}>
-      <header className="text-center py-10">
-        <p className="prive-eyebrow mb-3">IATOS Privé</p>
-        <h1 className="text-3xl sm:text-5xl">{M.title}</h1>
-      </header>
-
-      <div className="flex justify-center mb-10">
-        <MemberCard firstName={status.first_name} status={cardStatus(view)} activatedAt={status.activated_at} memberCode={status.member_code} />
-      </div>
+    <motion.div {...rise()} className={embedded ? "" : "max-w-3xl mx-auto px-4 sm:px-6 pb-24"} data-motion={reduce ? "reduced" : "full"}>
+      {!embedded && (
+        <>
+          <header className="text-center py-10">
+            <p className="prive-eyebrow mb-3">IATOS Privé</p>
+            <h1 className="text-3xl sm:text-5xl">{M.title}</h1>
+          </header>
+          <div className="flex justify-center mb-10">
+            <MemberCard firstName={status.first_name} status={cardStatus(view)} activatedAt={status.activated_at} memberCode={status.member_code} />
+          </div>
+        </>
+      )}
 
       {msg && <p role="status" className="text-center text-sm prive-champagne mb-6">{msg}</p>}
 

@@ -54,6 +54,7 @@ function buildSteps(t: PriveText, consent: boolean | null | undefined, setConsen
             {universesFor(t.lang).map((u) => (
               <li key={u.id} className="prive-champagne">
                 {u.name}
+                {u.sub && <span className="prive-muted"> · {u.sub}</span>}
                 {u.adult && <span className="prive-muted"> · 18+</span>}
               </li>
             ))}

@@ -23,8 +23,8 @@ const UNIVERSE_IDS: { id: UniverseId; adult?: boolean }[] = [
   { id: "private_stays" }, { id: "iconic_events" }, { id: "culture_access" }, { id: "wellness_escape" },
   { id: "adventure_elite" }, { id: "sport_leisure" }, { id: "celebrations" }, { id: "signature_mexico" },
 ];
-export const universesFor = (lang: PriveLang): { id: UniverseId; name: string; line: string; adult?: boolean }[] =>
-  UNIVERSE_IDS.map((u) => ({ ...u, name: PRIVE_TEXT[lang].universes[u.id].name, line: PRIVE_TEXT[lang].universes[u.id].line }));
+export const universesFor = (lang: PriveLang): { id: UniverseId; name: string; sub: string; line: string; adult?: boolean }[] =>
+  UNIVERSE_IDS.map((u) => ({ ...u, name: PRIVE_TEXT[lang].universes[u.id].name, sub: PRIVE_TEXT[lang].universes[u.id].sub, line: PRIVE_TEXT[lang].universes[u.id].line }));
 export const UNIVERSES = universesFor("es");
 
 /** Qué cuenta para los 90 días (texto llano, sin presión ni cuenta regresiva). */

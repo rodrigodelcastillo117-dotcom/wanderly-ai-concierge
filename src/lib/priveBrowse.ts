@@ -8,7 +8,7 @@
  */
 import type { PriveCoverage } from "@/lib/priveCatalogApi";
 import { PRIVE_DESTINATION_INDEX } from "@/lib/priveDestinationIndex";
-import type { PriveLang, RegionKey } from "@/lib/priveI18n";
+import { PRIVE_TEXT, type PriveLang, type RegionKey } from "@/lib/priveI18n";
 
 export type BrowseDestination = { slug: string; name: string; region_group: string | null; kind: string; coverage: PriveCoverage; count: number };
 
@@ -78,4 +78,32 @@ export function featuredDestinations(list: BrowseDestination[], n = 8): BrowseDe
     .sort((a, b) => (COVERAGE_RANK[a.d.coverage] ?? 9) - (COVERAGE_RANK[b.d.coverage] ?? 9) || b.d.count - a.d.count || a.i - b.i)
     .slice(0, n)
     .map((x) => x.d);
+}
+
+/**
+ * Relación geográfica correcta en una línea (Fase 3): Polanco → "Barrio de Ciudad de México";
+ * Montecarlo → "Zona de Mónaco"; Punta Mita → "En Riviera Nayarit"; Interlomas → "Área metropolitana
+ * de Ciudad de México"; Riviera Nayarit → "Región · México"; París → "Francia".
+ */
+export function placeLine(slug: string, lang: PriveLang): string {
+  const m = PRIVE_DESTINATION_INDEX[slug];
+  if (!m) return "";
+  const P = PRIVE_TEXT[lang].browse.place;
+  const nm = (s: string | null) => (s ? (lang === "en" ? PRIVE_DESTINATION_INDEX[s]?.en : PRIVE_DESTINATION_INDEX[s]?.es) ?? s : "");
+  const country = lang === "en" ? m.country_en : m.country_es;
+  if (m.parent) {
+    const parent = PRIVE_DESTINATION_INDEX[m.parent];
+    if (m.kind === "neighborhood") return parent?.kind === "country" ? P.zoneOf(nm(m.parent)) : P.neighborhood(nm(m.parent));
+    return P.within(nm(m.parent));
+  }
+  // La zona metropolitana solo para lo que no es su ciudad central (Interlomas sí; Ciudad de México no).
+  if (m.area && !normalizeQuery(m.area.es).includes(normalizeQuery(m.es))) return lang === "en" ? m.area.en : m.area.es;
+  if (m.kind === "region") return P.region(country);
+  if (m.kind === "country") return PRIVE_TEXT[lang].browse.regionNames[(m.group ?? "otras_regiones") as RegionKey] ?? "";
+  return country;
+}
+
+/** Todos los destinos del dueño desde el índice (sin conteos): para resolver búsquedas y viajes sin esperar a prive_home. */
+export function indexDestinations(): BrowseDestination[] {
+  return Object.entries(PRIVE_DESTINATION_INDEX).map(([slug, m]) => ({ slug, name: m.es, region_group: m.group, kind: m.kind, coverage: "SIN_COBERTURA_VERIFICADA" as PriveCoverage, count: 0 }));
 }

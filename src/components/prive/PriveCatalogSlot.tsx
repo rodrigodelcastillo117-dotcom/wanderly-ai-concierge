@@ -17,6 +17,8 @@ export type PriveHubSection = {
   id: string;
   /** Título fijo o según el idioma. */
   title: string | ((t: PriveText) => string);
+  /** Nombre accesible cuando el título visible va vacío. */
+  ariaLabel?: (t: PriveText) => string;
   rpc: string;
   args?: Record<string, unknown>;
   /** Devuelve null si los datos vienen vacíos (entonces se muestra "en curaduría"). */
@@ -70,9 +72,10 @@ export function PriveCatalogSlot({ sections = PRIVE_HUB_SECTIONS, onContent }: {
     <div className="space-y-10">
       {visible.map((l) => {
         const s = sections.find((x) => x.id === l.id)!;
+        const title = typeof s.title === "function" ? s.title(t) : s.title;
         return (
-          <section key={l.id} aria-labelledby={`prive-sec-${l.id}`}>
-            <h2 id={`prive-sec-${l.id}`} className="text-3xl sm:text-4xl mb-6">{typeof s.title === "function" ? s.title(t) : s.title}</h2>
+          <section key={l.id} {...(title ? { "aria-labelledby": `prive-sec-${l.id}` } : { "aria-label": s.ariaLabel?.(t) ?? l.id })}>
+            {title && <h2 id={`prive-sec-${l.id}`} className="text-3xl sm:text-4xl mb-6">{title}</h2>}
             {"node" in l ? l.node : <p role="alert" className="text-sm prive-muted">{messageFor(l.error, lang)}</p>}
           </section>
         );

@@ -27,7 +27,7 @@ export function UniverseTiles({ locked = false, counts }: { locked?: boolean; co
             data-universe={u.id}
           >
             <div className="flex items-start justify-between gap-3">
-              <p className="prive-serif text-lg sm:text-xl leading-tight">{u.name}</p>
+              <p className="prive-serif text-lg sm:text-xl leading-tight">{u.name}{u.sub && <span className="block text-[10px] tracking-[0.18em] uppercase prive-gold mt-1 font-sans">{u.sub}</span>}</p>
               {locked ? <Lock className="w-4 h-4 prive-muted shrink-0 mt-1" aria-label={t.common.locked} /> : null}
             </div>
             <div>

@@ -112,7 +112,8 @@ describe("página de destino", () => {
     });
     renderDest();
     expect(await screen.findByText("Fixture Mesa")).toBeInTheDocument();
-    expect(screen.getByTestId("prive-coverage")).toHaveTextContent("Selección en crecimiento");
+    // "Selección en crecimiento" era relleno: con cobertura parcial no se dice nada.
+    expect(screen.queryByTestId("prive-coverage")).toBeNull();
     expect(screen.getByText(/Por verificar: la última revisión tiene más de 90 días/)).toBeInTheDocument();
     expect(screen.getByTestId("prive-age-gate")).toHaveTextContent("Hay 2 experiencias");
     expect(screen.getByTestId("prive-planner")).toBeInTheDocument();
@@ -140,6 +141,8 @@ describe("ficha", () => {
     expect(screen.getByTestId("prive-label")).toHaveTextContent("Experiencia curada");
     expect(screen.getByText("guide.test")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Solicitar con Iato/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Agregar a mi viaje/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Pregúntale a Iato" })).toHaveAttribute("href", expect.stringMatching(/^\/dashboard\/concierge\?ask=/));
     expect(screen.getByText(/Solicitar no es reservar/)).toBeInTheDocument();
     expect(screen.getByText("Horario por confirmar")).toBeInTheDocument();
     expect(screen.getByText("Disponibilidad no consultada")).toBeInTheDocument();
@@ -147,7 +150,7 @@ describe("ficha", () => {
   it("desactualizada: sin Solicitar ni Agregar al viaje", () => {
     render(<MemoryRouter><ExperienceDetail e={exp({ state: "DESACTUALIZADO" })} onLocked={() => {}} /></MemoryRouter>);
     expect(screen.queryByRole("button", { name: /Solicitar con Iato/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Agregar al viaje/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Agregar a mi viaje/ })).toBeNull();
     expect(screen.getByText(/No se puede solicitar mientras esté por verificar/)).toBeInTheDocument();
   });
   it("casino: aviso de información práctica sin apuestas", () => {
@@ -169,6 +172,6 @@ describe("hub", () => {
     const links = screen.getAllByRole("link", { name: /Mónaco/ });
     expect(links.length).toBeGreaterThan(0);
     for (const l of links) expect(l).toHaveAttribute("href", "/prive/destino/mc");
-    expect(screen.getByRole("link", { name: /La Mesa · 3 experiencias/ })).toHaveAttribute("href", "/prive/universo/the_table");
+    expect(screen.getByRole("link", { name: /The Art of Dining · El arte de la mesa · 3 experiencias/ })).toHaveAttribute("href", "/prive/universo/the_table");
   });
 });

@@ -22,11 +22,11 @@ const UNIVERSE_QUERIES: { key: PriveUniverse; imageQuery: string }[] = [
   { key: "celebrations", imageQuery: "romantic dinner celebration candles" },
   { key: "signature_mexico", imageQuery: "mexican artisan craft workshop" },
 ];
-export type UniverseView = { key: PriveUniverse; title: string; name: string; es: string; imageQuery: string; note?: string };
+export type UniverseView = { key: PriveUniverse; title: string; name: string; sub: string; es: string; imageQuery: string; note?: string };
 /** Universos con título (mayúsculas), nombre, descripción y nota en el idioma pedido. `es` = descripción. */
 export const universesView = (lang: PriveLang = "es"): UniverseView[] => UNIVERSE_QUERIES.map((u) => {
   const t = PRIVE_TEXT[lang].universes[u.key];
-  return { key: u.key, imageQuery: u.imageQuery, name: t.name, title: t.name.toLocaleUpperCase(PRIVE_LOCALE[lang]), es: t.desc, ...(t.note ? { note: t.note } : {}) };
+  return { key: u.key, imageQuery: u.imageQuery, name: t.name, sub: t.sub, title: t.name.toLocaleUpperCase(PRIVE_LOCALE[lang]), es: t.desc, ...(t.note ? { note: t.note } : {}) };
 });
 export const UNIVERSES = universesView("es");
 export const universeMeta = (k: string, lang: PriveLang = "es") => universesView(lang).find((u) => u.key === k) ?? null;

@@ -2,12 +2,14 @@
 // en un carrusel de fotos. Cualquier destino queda a dos toques (pestaña + tarjeta, o escribir + tarjeta)
 // sin bajar una lista de 130 entradas. Teclado: pestañas con flechas/Inicio/Fin (patrón WAI-ARIA),
 // carriles con desplazamiento nativo y botones; foco visible; movimiento reducido respetado en CSS.
-import { useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
+import { Rail } from "./Rail";
+import { PriveForYou, PriveSpotlight } from "./PriveHomeLive";
 import { PrivePhoto } from "@/components/prive/PrivePhoto";
 import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
-import { browsable, displayName, featuredDestinations, groupByRegion, searchDestinations, type BrowseDestination } from "@/lib/priveBrowse";
+import { browsable, displayName, featuredDestinations, groupByRegion, placeLine, searchDestinations, type BrowseDestination } from "@/lib/priveBrowse";
 import { destinationPhotoQueries } from "@/lib/privePhoto";
 import { universesView } from "@/lib/priveCatalogView";
 import type { PriveUniverse } from "@/lib/priveCatalogApi";
@@ -30,53 +32,30 @@ export function DestinationCard({ d, large = false }: { d: BrowseDestination; la
       <PrivePhoto queries={destinationPhotoQueries(d.slug, d.name)} alt={t.common.photoAlt(name)} label={name}
         className={`prive-veil ${large ? "aspect-[4/5]" : "aspect-[3/4]"}`} creditClassName="is-inline">
         <div className="prive-dest-meta">
-          <p className={`prive-serif leading-tight ${large ? "text-2xl" : "text-lg sm:text-xl"}`}>{name}</p>
-          <p className="text-[10px] tracking-[0.22em] uppercase prive-gold mt-1">{t.common.experiences(d.count)}</p>
+          {/* Relación geográfica verificable en vez de relleno; el conteo, como dato secundario. */}
+          <p className="text-[10px] tracking-[0.22em] uppercase prive-gold">{placeLine(d.slug, lang)}</p>
+          <p className={`prive-serif leading-tight mt-1 ${large ? "text-2xl sm:text-[1.7rem]" : "text-lg sm:text-xl"}`}>{name}</p>
+          {d.count > 0 && <p className="text-[11px] prive-muted mt-1">{t.common.experiences(d.count)}</p>}
         </div>
       </PrivePhoto>
     </Link>
   );
 }
 
-/** Carril horizontal con deslizamiento (móvil) y botones anterior/siguiente (escritorio). */
-export function Rail({ label, heading, actions, large = false, children, testId }: {
-  label: string; heading?: ReactNode; actions?: ReactNode; large?: boolean; children: ReactNode; testId?: string;
-}) {
-  const t = usePriveT();
-  const ref = useRef<HTMLUListElement>(null);
-  const move = (dir: 1 | -1) => {
-    const el = ref.current;
-    if (!el) return;
-    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: reduce ? "auto" : "smooth" });
-  };
-  return (
-    <div className="space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0">{heading}</div>
-        <div className="flex items-center gap-2 shrink-0">
-          {actions}
-          <button type="button" className="prive-rail-btn hidden sm:inline-flex" onClick={() => move(-1)} aria-label={`${t.browse.prev}: ${label}`}><ChevronLeft className="w-4 h-4" aria-hidden="true" /></button>
-          <button type="button" className="prive-rail-btn hidden sm:inline-flex" onClick={() => move(1)} aria-label={`${t.browse.next}: ${label}`}><ChevronRight className="w-4 h-4" aria-hidden="true" /></button>
-        </div>
-      </div>
-      <ul ref={ref} className={`prive-rail ${large ? "prive-rail-lg" : ""}`} aria-label={label} data-testid={testId}>
-        {children}
-      </ul>
-    </div>
-  );
-}
+export { Rail };
 
-function RegionTabs({ groups }: { groups: { key: string; items: BrowseDestination[] }[] }) {
+/** Pestañas de región. `initialKey`/`onSelect` permiten guardar la región en la URL (volver con el mismo filtro). */
+export function RegionTabs({ groups, initialKey, onSelect }: { groups: { key: string; items: BrowseDestination[] }[]; initialKey?: string | null; onSelect?: (key: string) => void }) {
   const t = usePriveT();
   const lang = usePriveLang();
   const base = useId();
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(() => Math.max(0, groups.findIndex((g) => g.key === initialKey)));
   const [index, setIndex] = useState(false);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
-  const label = (k: string) => t.browse.regionNames[k as RegionKey] ?? k;
+  const label = (k: string) => (k === "destacados" ? t.browse.featuredTab : t.browse.regionNames[k as RegionKey] ?? k);
   const select = (i: number, focus = false) => {
     setActive(i);
+    if (groups[i]) onSelect?.(groups[i].key);
     setIndex(false);
     if (focus) tabs.current[i]?.focus();
   };
@@ -90,7 +69,7 @@ function RegionTabs({ groups }: { groups: { key: string; items: BrowseDestinatio
   };
   const g = groups[Math.min(active, groups.length - 1)];
   if (!g) return null;
-  const sorted = [...g.items].sort((a, b) => displayName(a, lang).localeCompare(displayName(b, lang), lang));
+  const sorted = g.key === "destacados" ? g.items : [...g.items].sort((a, b) => displayName(a, lang).localeCompare(displayName(b, lang), lang));
   return (
     <div>
       <div role="tablist" aria-label={t.browse.regions} className="prive-tabs" data-testid="prive-region-tabs">
@@ -145,14 +124,18 @@ function Collections({ universes }: { universes: { key: PriveUniverse; count: nu
     .sort((a, b) => Number(b.count > 0) - Number(a.count > 0));
   return (
     <section aria-labelledby="prive-collections-rail">
-      <Rail label={t.browse.collectionsTitle} testId="prive-collections"
-        heading={<h3 id="prive-collections-rail" className="text-2xl sm:text-3xl">{t.browse.collectionsTitle}</h3>}>
-        {list.map((u) => {
+      <Rail label={t.browse.collectionsTitle} large testId="prive-collections" heading={<>
+        <h2 id="prive-collections-rail" className="text-3xl sm:text-4xl">{t.browse.collectionsTitle}</h2>
+        <p className="text-xs prive-muted mt-1">{t.browse.collectionsSub}</p>
+      </>}>
+        {list.map((u, i) => {
           const body = (
-            <PrivePhoto queries={[u.imageQuery]} alt={t.common.photoAlt(u.name)} label={u.name} className="prive-veil aspect-[3/4]" creditClassName="is-inline">
+            <PrivePhoto queries={[u.imageQuery]} alt={t.common.photoAlt(u.name)} label={u.name} className="prive-veil aspect-[4/5]" creditClassName="is-inline">
               <div className="prive-dest-meta">
-                <p className="prive-serif text-lg sm:text-xl leading-tight">{u.name}</p>
-                <p className="text-[10px] tracking-[0.22em] uppercase prive-gold mt-1">{u.count > 0 ? t.common.experiences(u.count) : t.common.curating}</p>
+                <p className="text-[10px] tracking-[0.3em] prive-gold">{String(i + 1).padStart(2, "0")}</p>
+                <p className="prive-serif text-2xl sm:text-[1.75rem] leading-tight mt-1">{u.name}</p>
+                <p className="text-[12px] prive-champagne opacity-80 leading-snug mt-1 line-clamp-2">{u.es}</p>
+                <p className="text-[10px] tracking-[0.22em] uppercase prive-gold mt-2">{u.count > 0 ? t.common.experiences(u.count) : t.common.curating}</p>
               </div>
             </PrivePhoto>
           );
@@ -169,24 +152,31 @@ function Collections({ universes }: { universes: { key: PriveUniverse; count: nu
   );
 }
 
-export function DestinationBrowser({ data }: { data: CatalogHomeData }) {
+/**
+ * Inicio del catálogo Privé. Con `live` (hub real, con sesión Privé) agrega "Para ti" y la
+ * "Experiencia de la semana", que piden datos al servidor; sin `live` (pruebas) solo usa `data`.
+ * Orden editorial: ¿A dónde? → Para ti → Colecciones → Experiencia de la semana → Destinos
+ * (Destacados + una región a la vez). Nada es una cuadrícula larga: todo está a uno o dos gestos.
+ */
+export function DestinationBrowser({ data, live = false }: { data: CatalogHomeData; live?: boolean }) {
   const t = usePriveT();
   const lang = usePriveLang();
   const [q, setQ] = useState("");
   const [more, setMore] = useState(false);
   const inputId = useId();
   const list = useMemo(() => browsable(data.destinations), [data.destinations]);
-  const groups = useMemo(() => groupByRegion(list), [list]);
-  const featured = useMemo(() => featuredDestinations(list, 8), [list]);
+  const groups = useMemo(() => {
+    const featured = featuredDestinations(list, 8);
+    return [...(featured.length ? [{ key: "destacados", items: featured }] : []), ...groupByRegion(list)];
+  }, [list]);
   const results = useMemo(() => searchDestinations(list, q), [list, q]);
   const searching = q.trim().length > 0;
   const shown = more ? results : results.slice(0, SEARCH_LIMIT);
 
   return (
-    <div className="space-y-12" data-testid="prive-catalog-home" lang={lang === "en" ? "en" : "es-MX"}>
-      <div className="space-y-4">
-        <p className="text-sm prive-muted">{t.browse.summary(data.total, list.length)}</p>
-        <div role="search" className="prive-search">
+    <div className="space-y-16 sm:space-y-20" data-testid="prive-catalog-home" lang={lang === "en" ? "en" : "es-MX"}>
+      <div className="space-y-3">
+        <div role="search" className="prive-search prive-search-lg">
           <Search className="w-5 h-5 prive-gold shrink-0" aria-hidden="true" />
           <label htmlFor={inputId} className="sr-only">{t.browse.searchLabel}</label>
           <input id={inputId} type="search" inputMode="search" autoComplete="off" spellCheck={false} enterKeyHint="search"
@@ -200,6 +190,7 @@ export function DestinationBrowser({ data }: { data: CatalogHomeData }) {
             </button>
           )}
         </div>
+        <p className="text-xs prive-muted text-center">{t.browse.summary(data.total, list.length)}</p>
       </div>
 
       {searching ? (
@@ -220,27 +211,19 @@ export function DestinationBrowser({ data }: { data: CatalogHomeData }) {
         </section>
       ) : (
         <>
-          {featured.length > 0 && (
-            <section aria-labelledby="prive-featured">
-              <Rail label={t.browse.featured} large testId="prive-featured" heading={<>
-                <h3 id="prive-featured" className="text-2xl sm:text-3xl">{t.browse.featured}</h3>
-                <p className="text-xs prive-muted mt-1">{t.browse.featuredSub}</p>
-              </>}>
-                {featured.map((d) => <li key={d.slug}><DestinationCard d={d} large /></li>)}
-              </Rail>
-            </section>
-          )}
+          {live && <PriveForYou destinations={list} universes={data.universes} />}
+          <Collections universes={data.universes} />
+          {live && <PriveSpotlight />}
           {groups.length > 0 && (
-            <section aria-labelledby="prive-regions" className="space-y-4">
-              <h3 id="prive-regions" className="text-2xl sm:text-3xl">{t.browse.destinations}</h3>
+            <section aria-labelledby="prive-regions" className="space-y-5">
+              <h2 id="prive-regions" className="text-3xl sm:text-4xl">{t.browse.destinations}</h2>
               <RegionTabs groups={groups} />
             </section>
           )}
         </>
       )}
 
-      <Collections universes={data.universes} />
-      <p className="text-sm"><Link to="/prive/solicitudes" className="prive-gold underline-offset-2 hover:underline">{t.browse.myRequests}</Link></p>
+      <p className="text-sm text-center"><Link to="/prive/solicitudes" className="prive-gold underline-offset-2 hover:underline">{t.browse.myRequests}</Link></p>
     </div>
   );
 }

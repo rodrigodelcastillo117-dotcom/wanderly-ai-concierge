@@ -16,6 +16,8 @@ vi.mock("@/lib/priveApi", async (importOriginal) => {
   return { ...actual, priveApi: m.api };
 });
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1", email: "v@example.com" }, signOut: vi.fn() }) }));
+const tripState: { trip: null | { id: string; destino: string; fecha_salida: string; fecha_regreso: string } } = { trip: null };
+vi.mock("@/hooks/useActiveTrip", () => ({ useActiveTrip: () => ({ trips: tripState.trip ? [tripState.trip] : [], trip: tripState.trip, loading: false }) }));
 const invoke = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -41,8 +43,11 @@ import { PRIVE_SESSION_KEY } from "@/lib/priveSession";
 
 const { state, api } = priveMock;
 const home = priveHomeFixture();
-const ENGLISH_CEREMONY = Object.values(PRIVE_TEXT.en.ceremony).filter((v): v is string => typeof v === "string" && v !== "IATOS PRIVÉ");
-const ENGLISH_WORDS = /\b(WELCOME|EXPLORE|YOUR WORLD|JUST GOT BIGGER|Beyond Ordinary|There are places|OPEN INVITATION|ENTER IATOS|Skip|Continue|Some destinations|Illustrative photo|Featured|Where to\?)\b/;
+// Las marcas de Privé se quedan en inglés con subtítulo en español (nota del dueño): "The World, Beyond
+// Ordinary.", "Curated for You", los doce universos… Todo lo demás debe estar en español.
+const BRAND_LINES = new Set(["IATOS PRIVÉ", "The World, Beyond Ordinary."]);
+const ENGLISH_CEREMONY = Object.values(PRIVE_TEXT.en.ceremony).filter((v): v is string => typeof v === "string" && !BRAND_LINES.has(v));
+const ENGLISH_WORDS = /\b(WELCOME|EXPLORE|YOUR WORLD|JUST GOT BIGGER|There are places|Explore Your World|Ask Iato|See all|OPEN INVITATION|ENTER IATOS|Skip|Continue|Some destinations|Illustrative photo|Featured|Where to\?)\b/;
 
 const photo = (q: string) => ({ data: { image: `https://images.pexels.com/photos/${encodeURIComponent(q)}.jpeg`, photographer: "Ana Foto", page_url: "https://www.pexels.com/photo/1/" }, error: null });
 
@@ -217,25 +222,32 @@ describe("buscar y explorar sin lista infinita", { timeout: 20_000 }, () => {
   it("pestañas de región: una sola región a la vez, con flechas del teclado", () => {
     render(<MemoryRouter><PriveLangProvider><DestinationBrowser data={home} /></PriveLangProvider></MemoryRouter>);
     const tablist = screen.getByRole("tablist", { name: "Regiones" });
-    const tabs = within(tablist).getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent?.replace(/\d+$/, ""))).toEqual(["México", "Europa", "Norteamérica", "Medio Oriente", "Asia y Oceanía", "Otras regiones"]);
+    let tabs = within(tablist).getAllByRole("tab");
+    // Primero "Destacados" (lo verificado con más experiencias) y luego una pestaña por región.
+    expect(tabs.map((t) => t.textContent?.replace(/\d+$/, ""))).toEqual(["Destacados", "México", "Europa", "Norteamérica", "Medio Oriente", "Asia y Oceanía", "Otras regiones"]);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
-    expect(tabs[1]).toHaveAttribute("tabindex", "-1");
+    expect(within(screen.getByRole("tabpanel")).getAllByTestId("prive-dest-card")).toHaveLength(8);
+    fireEvent.click(tabs[1]);
+    tabs = within(tablist).getAllByRole("tab");
+    expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    expect(tabs[0]).toHaveAttribute("tabindex", "-1");
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveAttribute("aria-labelledby", tabs[0].id);
+    expect(panel).toHaveAttribute("aria-labelledby", tabs[1].id);
     const slugs = () => within(screen.getByRole("tabpanel")).getAllByTestId("prive-dest-card").map((a) => a.getAttribute("data-slug"));
     const mexico = home.destinations.filter((d) => d.region_group === "mexico" && d.kind !== "neighborhood").map((d) => d.slug);
     expect(slugs()).toEqual(mexico);
     expect(slugs()).not.toContain("paris");
-    fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
-    expect(within(tablist).getAllByRole("tab")[1]).toHaveAttribute("aria-selected", "true");
-    expect(document.activeElement).toBe(within(tablist).getAllByRole("tab")[1]);
+    fireEvent.keyDown(tabs[1], { key: "ArrowRight" });
+    expect(within(tablist).getAllByRole("tab")[2]).toHaveAttribute("aria-selected", "true");
+    expect(document.activeElement).toBe(within(tablist).getAllByRole("tab")[2]);
     expect(slugs()).toContain("paris");
     expect(slugs()).not.toContain("cdmx");
-    fireEvent.keyDown(within(tablist).getAllByRole("tab")[1], { key: "End" });
-    expect(within(tablist).getAllByRole("tab")[5]).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(within(tablist).getAllByRole("tab")[2], { key: "End" });
+    expect(within(tablist).getAllByRole("tab")[6]).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(within(tablist).getAllByRole("tab")[6], { key: "Home" });
+    expect(within(tablist).getAllByRole("tab")[0]).toHaveAttribute("aria-selected", "true");
     // "Ver todos (N)": índice compacto de la región, sin fotos.
-    fireEvent.click(within(tablist).getAllByRole("tab")[1]);
+    fireEvent.click(within(tablist).getAllByRole("tab")[2]);
     fireEvent.click(screen.getByRole("button", { name: /Ver todos \(\d+\)/ }));
     expect(screen.getByTestId("prive-region-index")).toBeInTheDocument();
     expect(within(screen.getByTestId("prive-region-index")).getByRole("link", { name: /Florencia/ })).toHaveAttribute("href", "/prive/destino/florencia");
@@ -258,8 +270,7 @@ describe("buscar y explorar sin lista infinita", { timeout: 20_000 }, () => {
   it("la página entera de destinos ya no dibuja las ~110 tarjetas: solo destacados + una región", () => {
     render(<MemoryRouter><PriveLangProvider><DestinationBrowser data={home} /></PriveLangProvider></MemoryRouter>);
     const cards = screen.getAllByTestId("prive-dest-card");
-    const mexico = home.destinations.filter((d) => d.region_group === "mexico" && d.kind !== "neighborhood").length;
-    expect(cards.length).toBeLessThanOrEqual(8 + mexico);
+    expect(cards.length).toBeLessThanOrEqual(8); // solo la pestaña abierta (Destacados)
     expect(browsable(home.destinations).length).toBeGreaterThan(90);
   });
   it("listas largas con «Ver más»", () => {
@@ -276,9 +287,18 @@ describe("buscar y explorar sin lista infinita", { timeout: 20_000 }, () => {
     render(<MemoryRouter><PriveLangProvider><DestinationBrowser data={home} /></PriveLangProvider></MemoryRouter>);
     expect(screen.getByRole("searchbox", { name: "Search a destination" })).toHaveAttribute("placeholder", "Where to?");
     expect(screen.getByRole("tab", { name: /Mexico/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Featured/ })).toHaveAttribute("aria-selected", "true");
     expect(screen.getAllByText("Mexico City").length).toBeGreaterThan(0);
   });
 });
+
+const EXPS = [
+  { id: "q1", slug: "quintonil", name: "Quintonil", universe: "the_table", subcategory: "alta_cocina", state: "CURADO", why: "Cocina mexicana de autor.",
+    destination: { slug: "cdmx", name: "Ciudad de México" }, accolades: [{ name: "Guía MICHELIN", year: 2026, url: "https://guide.michelin.com/x" }] },
+  { id: "q2", slug: "pujol", name: "Pujol", universe: "the_table", subcategory: "alta_cocina", state: "VERIFICADO", why: "Mole madre.",
+    destination: { slug: "cdmx", name: "Ciudad de México" } },
+  { id: "q3", slug: "viejo", name: "Bar Viejo", universe: "after_dark", subcategory: "bar", state: "DESACTUALIZADO", destination: { slug: "cdmx", name: "Ciudad de México" } },
+];
 
 describe("hub desbloqueado en español y navegación interna en la misma pestaña", { timeout: 20_000 }, () => {
   const renderHub = () => {
@@ -286,7 +306,10 @@ describe("hub desbloqueado en español y navegación interna en la misma pestañ
     state.statusOk = true;
     state.status = activeStatus();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (api.content as any).mockImplementation(async (fn: string) => (fn === "prive_home" ? { ok: true, data: home } : { ok: true, data: [] }));
+    (api.content as any).mockImplementation(async (fn: string) =>
+      fn === "prive_home" ? { ok: true, data: home }
+        : fn === "prive_universe" ? { ok: true, data: { found: true, universe: "the_table", experiences: EXPS, age_locked_count: 0, adult_confirmed: false } }
+          : fn === "prive_for_you" ? { ok: true, data: EXPS.slice(0, 2) } : { ok: true, data: [] });
     return render(
       <MemoryRouter initialEntries={["/prive"]}>
         <Routes><Route path="/prive" element={<PriveRoot />}><Route index element={<PriveHub />} /></Route></Routes>
@@ -297,15 +320,54 @@ describe("hub desbloqueado en español y navegación interna en la misma pestañ
 
   it("sin texto en inglés para quien usa español", async () => {
     const { container } = renderHub();
-    expect(await screen.findByText("El mundo, más allá de lo ordinario.")).toBeInTheDocument();
+    expect(await screen.findByText(/más allá de lo ordinario/i)).toBeInTheDocument();
     await screen.findByTestId("prive-catalog-home");
     const text = container.textContent ?? "";
     for (const line of ENGLISH_CEREMONY) expect(text).not.toContain(line);
     expect(text).not.toMatch(ENGLISH_WORDS);
     // Las colecciones van con conteo y foto dentro del explorador; no se duplican con las fichas estáticas.
     expect(screen.queryByRole("list", { name: "Las 12 colecciones" })).toBeNull();
-    expect(screen.getByRole("link", { name: /La Mesa · 40 experiencias/ })).toHaveAttribute("href", "/prive/universo/the_table");
+    expect(screen.getByRole("link", { name: /The Art of Dining · El arte de la mesa · 40 experiencias/ })).toHaveAttribute("href", "/prive/universo/the_table");
     expect(container.querySelector(".prive-root")).toHaveAttribute("lang", "es-MX");
+  });
+  it("portada cinematográfica con el nombre, Para ti, colecciones con foto y la experiencia de la semana", async () => {
+    tripState.trip = null;
+    renderHub();
+    const hero = await screen.findByTestId("prive-hero");
+    // Marca en inglés + subtítulo en español; propuesta personal; "Explora tu mundo" y "Pregúntale a Iato".
+    expect(within(hero).getByRole("heading", { level: 1 })).toHaveTextContent(/The World, Beyond Ordinary\.\s*El mundo, más allá de lo ordinario\./);
+    expect(within(hero).getByTestId("prive-hero-personal")).toHaveTextContent(/^Valentina, esta es tu selección/);
+    expect(within(hero).getByRole("link", { name: "Explora tu mundo" })).toHaveAttribute("href", "/prive/explorar");
+    expect(within(hero).getByRole("link", { name: "Pregúntale a Iato" })).toHaveAttribute("href", "/dashboard/concierge");
+    const forYou = await screen.findByTestId("prive-for-you");
+    expect(within(forYou).getByRole("heading", { name: /Curated for You\s*Elegido para ti/ })).toBeInTheDocument();
+    expect(within(forYou).getByText(/Selección editorial/)).toBeInTheDocument(); // sin viaje: no finge personalización
+    // Lo desactualizado no se recomienda.
+    expect(within(forYou).queryByText("Bar Viejo")).toBeNull();
+    expect(within(forYou).getAllByTestId("prive-exp-tile").length).toBe(2);
+    const spot = await screen.findByTestId("prive-spotlight");
+    expect(within(spot).getByText("Experiencia de la semana")).toBeInTheDocument();
+    expect(within(spot).getByRole("link")).toHaveAttribute("href", expect.stringMatching(/^\/prive\/experiencia\/(quintonil|pujol)$/));
+    const edit = screen.getByTestId("prive-edit");
+    for (const n of ["The Art of Dining", "Escape to the Sea", "Extraordinary Stays", "Signature Mexico"]) expect(within(edit).getByText(n)).toBeInTheDocument();
+    expect(within(edit).getByText("El arte de la mesa")).toBeInTheDocument();
+    // Los doce universos viven en Explorar, no duplicados en la portada.
+    expect(screen.queryByTestId("prive-twelve")).toBeNull();
+    expect(screen.getByRole("link", { name: /The Twelve Universes/ })).toHaveAttribute("href", "/prive/explorar");
+    expect(screen.queryByText(/Selección en crecimiento/)).toBeNull();
+  });
+  it("Para ti usa el viaje activo: prive_for_you con el destino y las fechas del viaje", async () => {
+    tripState.trip = { id: "t1", destino: "Ciudad de México, México", fecha_salida: "2026-11-12", fecha_regreso: "2026-11-16" };
+    renderHub();
+    const forYou = await screen.findByTestId("prive-for-you");
+    expect(within(forYou).getByText(/Para tu viaje a Ciudad de México/)).toBeInTheDocument();
+    const next = await screen.findByTestId("prive-next-journey");
+    expect(within(next).getByRole("heading", { name: "Tu próximo capítulo: Ciudad de México." })).toBeInTheDocument();
+    expect(within(next).getByRole("link", { name: "Explorar Ciudad de México" })).toHaveAttribute("href", "/prive/destino/cdmx");
+    expect(within(next).getByRole("link", { name: "Agregar al itinerario" })).toHaveAttribute("href", "/dashboard/viajes/t1");
+    expect(within(screen.getByTestId("prive-hero")).getByTestId("prive-hero-personal")).toHaveTextContent("Valentina, tu próximo capítulo: Ciudad de México.");
+    expect(api.content).toHaveBeenCalledWith("prive_for_you", expect.anything(), expect.objectContaining({ _destination: "cdmx", _from: "2026-11-12", _to: "2026-11-16" }));
+    tripState.trip = null;
   });
   it("ningún enlace interno abre otra pestaña y no hay enlaces dentro de enlaces", async () => {
     const { container } = renderHub();

@@ -112,11 +112,15 @@ export function createPriveCatalogApi(content: ContentFn, getToken: () => string
     teaser: () => plainRpc<{ universes: { key: PriveUniverse; count: number }[]; destinations: DestList; total: number }>("prive_teaser", {}),
     home: () => c<{ universes: { key: PriveUniverse; count: number }[]; destinations: DestList; total: number; adult_confirmed: boolean; adult_terms_version: string }>("prive_home"),
     destination: (slug: string) => c<PriveDestinationPage>("prive_destination", { _slug: slug }),
-    universe: (universe: PriveUniverse, destination?: string | null) =>
+    universe: (universe: PriveUniverse, destination?: string | null, limit?: number) =>
       c<{ found: boolean; universe: PriveUniverse; experiences: PriveExperience[]; age_locked_count: number; adult_confirmed: boolean; adult_terms_version?: string }>(
-        "prive_universe", { _universe: universe, _destination: destination ?? null }),
+        "prive_universe", limit ? { _universe: universe, _destination: destination ?? null, _limit: limit } : { _universe: universe, _destination: destination ?? null }),
+    /** Búsqueda estructurada (destinos + universos + palabras clave) de la selección publicable. */
+    search: (args: { _cities: string[]; _universes: string[] | null; _keywords: string[] | null; _per_universe?: number }) =>
+      c<{ available: boolean; adult_confirmed?: boolean; cities: { query: string; resolved: boolean; city?: { slug: string; name: string }; coverage?: PriveCoverage; items: PriveExperience[] }[] }>("prive_search", args),
     experience: (idOrSlug: string) => c<{ found: boolean; age_locked?: boolean; age_policy?: string; experience?: PriveExperience }>("prive_experience", { _id_or_slug: idOrSlug }),
-    forYou: (destination: string, from?: string | null, to?: string | null) => c<PriveExperience[]>("prive_for_you", { _destination: destination, _from: from ?? null, _to: to ?? null }),
+    forYou: (destination: string, from?: string | null, to?: string | null, limit?: number) =>
+      c<PriveExperience[]>("prive_for_you", limit ? { _destination: destination, _from: from ?? null, _to: to ?? null, _limit: limit } : { _destination: destination, _from: from ?? null, _to: to ?? null }),
     confirmAdult: (termsVersion: string) => c<boolean>("prive_confirm_adult", { _terms_version: termsVersion }),
     save: (experienceId: string, saved = true) => c<{ ok: boolean; saved?: boolean; code?: string }>("prive_save", { _experience_id: experienceId, _saved: saved }),
     saved: () => c<PriveExperience[]>("prive_saved"),

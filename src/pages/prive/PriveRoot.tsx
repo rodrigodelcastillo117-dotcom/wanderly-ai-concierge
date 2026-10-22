@@ -3,7 +3,8 @@
 import { Suspense, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { PriveProvider } from "@/hooks/usePriveAccess";
+import { PriveProvider, usePriveAccess } from "@/hooks/usePriveAccess";
+import { PriveBottomNav, PriveInsiderShortcut, PriveTopNav } from "@/components/prive/shell/PriveNav";
 import { Monogram } from "@/components/prive/Monogram";
 import { PriveLangProvider, usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import "@/components/prive/prive.css";
@@ -56,9 +57,19 @@ function PriveFrame() {
   }, []);
   return (
     <PriveProvider>
-      <div className="prive-root" lang={lang === "en" ? "en" : "es-MX"}>
+      <FrameInner immersive={immersive} pathname={pathname} lang={lang} t={t} />
+    </PriveProvider>
+  );
+}
+
+function FrameInner({ immersive, pathname, lang, t }: { immersive: boolean; pathname: string; lang: string; t: ReturnType<typeof usePriveT> }) {
+  const { view } = usePriveAccess();
+  // Las seis áreas solo para quien ya está dentro (con candado o sin membresía no hay a dónde ir).
+  const nav = !immersive && view === "unlocked";
+  return (
+      <div className={`prive-root ${nav ? "has-bottom-nav" : ""}`} lang={lang === "en" ? "en" : "es-MX"}>
         {!immersive && (
-          <header className="flex items-center justify-between px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-3">
+          <header className="relative z-30 flex items-center justify-between gap-4 px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-3">
             <Link to="/dashboard" className="inline-flex items-center gap-2 min-h-[44px] text-xs tracking-[0.2em] uppercase prive-muted hover:text-[color:var(--pv-champagne)]">
               <ArrowLeft className="w-4 h-4" aria-hidden="true" /> {t.common.back}
             </Link>
@@ -66,9 +77,16 @@ function PriveFrame() {
               <Monogram size={30} />
               <span className="prive-eyebrow hidden sm:inline">IATOS Privé</span>
             </Link>
-            <Link to="/prive/membresia" className="inline-flex items-center min-h-[44px] text-xs tracking-[0.2em] uppercase prive-muted hover:text-[color:var(--pv-champagne)]">
-              {t.common.membership}
-            </Link>
+            {nav ? (
+              <>
+                <PriveTopNav pathname={pathname} />
+                <PriveInsiderShortcut pathname={pathname} />
+              </>
+            ) : (
+              <Link to="/prive/membresia" className="inline-flex items-center min-h-[44px] text-xs tracking-[0.2em] uppercase prive-muted hover:text-[color:var(--pv-champagne)]">
+                {t.common.membership}
+              </Link>
+            )}
           </header>
         )}
         <main id="prive-main">
@@ -76,7 +94,7 @@ function PriveFrame() {
             <Outlet />
           </Suspense>
         </main>
+        {nav && <PriveBottomNav pathname={pathname} />}
       </div>
-    </PriveProvider>
   );
 }

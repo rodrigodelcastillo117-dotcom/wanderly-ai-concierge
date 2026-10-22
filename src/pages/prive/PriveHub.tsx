@@ -2,7 +2,7 @@
 // adelanto (sin PRO), progreso honesto (PRO < 90 días pagados), invitación lista, candado,
 // pausa, y el hub con los 12 universos. Ocultar no da acceso: el servidor revisa cada llamada.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock } from "lucide-react";
 import { usePriveAccess } from "@/hooks/usePriveAccess";
@@ -15,7 +15,10 @@ import { PriveCatalogSlot } from "@/components/prive/PriveCatalogSlot";
 import { GrandWelcome } from "@/components/prive/GrandWelcome";
 import { PriveOnboarding } from "@/components/prive/PriveOnboarding";
 import { MemberCard } from "@/components/prive/MemberCard";
-import { SUPPORT_EMAIL, WELCOME_VERSION, messageFor } from "@/lib/priveCopy";
+import { PriveHero, PriveHeroClub, PriveHeroEditorial } from "@/components/prive/PriveHero";
+import { PriveTripProvider } from "@/components/prive/home/context";
+import { HomeVariantProvider, parseVariant } from "@/components/prive/home/ForYouHome";
+import { SUPPORT_EMAIL, WELCOME_VERSION, formatDate, messageFor } from "@/lib/priveCopy";
 import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import { onboardingResumeStep, shouldAutoPlayWelcome } from "@/lib/priveOnboarding";
 import { PRO_PATH } from "@/lib/functionErrors";
@@ -176,35 +179,43 @@ function UnlockedHub({ s }: { s: PriveStatus }) {
   const { lock } = usePriveAccess();
   const { rise, reduce } = usePriveMotion();
   const t = usePriveT();
+  const lang = usePriveLang();
   const navigate = useNavigate();
-  // Con catálogo publicable, las colecciones (con conteo y foto) van dentro del explorador; las fichas
-  // estáticas "En curaduría" solo se ven mientras no hay nada que mostrar.
+  const [sp] = useSearchParams();
+  // Propuesta de portada (Fase 13): C por omisión; A y B se pueden ver con ?portada=a|b para comparar.
+  const variant = parseVariant(sp.get("portada"));
+  // Con catálogo publicable, el inicio trae sus colecciones; las fichas estáticas "En curaduría"
+  // solo se ven mientras no hay nada que mostrar.
   const [hasCatalog, setHasCatalog] = useState<boolean | null>(null);
   const onContent = useCallback((v: boolean) => setHasCatalog(v), []);
+  const hero = variant === "a" ? <PriveHeroEditorial firstName={s.first_name} />
+    : variant === "b" ? <PriveHeroClub firstName={s.first_name} memberSince={formatDate(s.activated_at, lang)} />
+      : <PriveHero firstName={s.first_name} />;
   return (
-    <motion.div {...rise()} className="max-w-6xl mx-auto px-4 sm:px-8 pb-24" data-testid="prive-hub" data-motion={reduce ? "reduced" : "full"}>
-      <section className="text-center pt-8 pb-10 sm:py-16">
-        <p className="prive-eyebrow mb-4">IATOS Privé</p>
-        <h1 className="prive-display text-[2.1rem] leading-[1.1] sm:text-6xl mb-5">{t.ceremony.tagline}</h1>
-        <p className="prive-champagne">{t.hub.hello(s.first_name)} {t.hub.yourSelection}</p>
-      </section>
-      <div className="prive-divider mb-10 sm:mb-12" />
-      <div className="mb-14">
-        <PriveCatalogSlot onContent={onContent} />
-      </div>
-      {hasCatalog === false && (
-        <section aria-labelledby="prive-collections">
-          <h2 id="prive-collections" className="text-2xl sm:text-3xl mb-6">{t.hub.collections}</h2>
-          <UniverseTiles />
-        </section>
-      )}
-      <div className="flex flex-wrap justify-center gap-3 mt-14">
-        <Link to="/prive/membresia" className="prive-btn prive-btn-ghost">{t.hub.myMembership}</Link>
-        <button type="button" className="prive-btn prive-btn-ghost" onClick={async () => { await lock(); navigate("/prive", { replace: true }); }}>
-          {t.hub.closePrive}
-        </button>
-      </div>
-    </motion.div>
+    <PriveTripProvider>
+      <HomeVariantProvider value={variant}>
+        <motion.div {...rise()} data-testid="prive-hub" data-motion={reduce ? "reduced" : "full"} data-variant={variant}>
+          {hero}
+          <div id="prive-home" className="max-w-6xl mx-auto px-4 sm:px-8 pb-24 scroll-mt-4">
+            <div className="relative z-20 mb-16">
+              <PriveCatalogSlot onContent={onContent} />
+            </div>
+            {hasCatalog === false && (
+              <section aria-labelledby="prive-collections">
+                <h2 id="prive-collections" className="text-2xl sm:text-3xl mb-6">{t.hub.collections}</h2>
+                <UniverseTiles />
+              </section>
+            )}
+            <div className="flex flex-wrap justify-center gap-3 mt-14">
+              <Link to="/prive/mi" className="prive-btn prive-btn-ghost">{t.hub.myMembership}</Link>
+              <button type="button" className="prive-btn prive-btn-ghost" onClick={async () => { await lock(); navigate("/prive", { replace: true }); }}>
+                {t.hub.closePrive}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </HomeVariantProvider>
+    </PriveTripProvider>
   );
 }
 
@@ -261,6 +272,12 @@ export default function PriveHub() {
     [patchStatus, call],
   );
 
+  // Se decide en el render (no en el efecto) para que el hub no alcance a pedir fotos un instante antes.
+  const overlayPending = overlay !== null || (view === "unlocked" && !!status && (
+    replay || replayGuide
+    || (!handled.current.welcome && shouldAutoPlayWelcome(status))
+    || (!handled.current.onboarding && onboardingResumeStep(status.onboarding) !== null)));
+
   if (loading && !status) {
     return <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-label={t.common.loadingPrive}><Monogram size={56} className="opacity-60" /></div>;
   }
@@ -286,9 +303,9 @@ export default function PriveHub() {
       {view === "revoked" && <Revoked />}
       {view === "must_reset" && <MustReset hard={status.password_status === "hard_locked"} />}
       {view === "locked" && <LockScreen />}
-      {/* Con la bienvenida o la guía abiertas, el hub espera oculto (display:none): sus tarjetas no piden
-          fotos detrás del velo y la fila de Pexels atiende primero a las seis ciudades de la bienvenida. */}
-      {view === "unlocked" && <div hidden={overlay !== null}><UnlockedHub s={status} /></div>}
+      {/* Con la bienvenida o la guía abiertas (o a punto de abrirse), el hub no se monta: sus fotos no
+          compiten detrás del velo y la fila de Pexels atiende primero a las seis ciudades de la bienvenida. */}
+      {view === "unlocked" && !overlayPending && <UnlockedHub s={status} />}
       {view === "unlocked" && overlay === "welcome" && (
         <GrandWelcome
           onDone={() => {

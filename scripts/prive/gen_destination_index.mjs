@@ -137,6 +137,11 @@ const countryOf = (r) => {
   return cur;
 };
 
+// Zona metropolitana a la que pertenece (Interlomas → Área metropolitana de Ciudad de México).
+const areaOf = (slug) => {
+  const a = rows.find((x) => x.kind === "area" && (x.members ?? []).includes(slug));
+  return a ? { es: a.name_es, en: a.name_en } : null;
+};
 const out = [];
 for (const r of rows) {
   if (!r.dest) continue; // solo lo que puede aparecer en prive_home
@@ -147,15 +152,15 @@ for (const r of rows) {
     .filter(Boolean).map((q) => q.slice(0, 100));
   const aliases = [...new Set([r.name_es, r.name_en, r.slug.replace(/-/g, " "), ...(r.aliases ?? [])].map(priveNorm).filter(Boolean))];
   const plain = (n) => n.replace(/ · (destinos destacados|featured destinations)$/, "");
-  out.push({ slug: r.slug, en, country_es: plain(country.name_es), country_en: plain(country.name_en), aliases, q: [...new Set(queries)] });
+  out.push({ slug: r.slug, es: plain(r.name_es), en, group: r.group ?? null, kind: r.kind, parent: r.parent && bySlug.get(r.parent)?.dest ? r.parent : null, area: areaOf(r.slug), country_es: plain(country.name_es), country_en: plain(country.name_en), aliases, q: [...new Set(queries)] });
 }
 out.sort((a, b) => a.slug.localeCompare(b.slug));
 
-const body = out.map((d) => `  ${JSON.stringify(d.slug)}: ${JSON.stringify({ en: d.en, country_es: d.country_es, country_en: d.country_en, aliases: d.aliases, q: d.q })},`).join("\n");
+const body = out.map((d) => `  ${JSON.stringify(d.slug)}: ${JSON.stringify({ es: d.es, en: d.en, group: d.group, kind: d.kind, parent: d.parent, area: d.area, country_es: d.country_es, country_en: d.country_en, aliases: d.aliases, q: d.q })},`).join("\n");
 const ts = `// GENERADO por scripts/prive/gen_destination_index.mjs desde scripts/prive/destinations.mjs. No editar a mano.
 // Nombre en inglés, país, alias normalizados (priveNorm) para la búsqueda y consultas de foto de Pexels
 // (en orden: curada → "<ciudad> <país>" → "<ciudad>") de cada destino de IATOS Privé.
-export type PriveDestinationMeta = { en: string; country_es: string; country_en: string; aliases: string[]; q: string[] };
+export type PriveDestinationMeta = { es: string; en: string; group: string | null; kind: string; parent: string | null; area: { es: string; en: string } | null; country_es: string; country_en: string; aliases: string[]; q: string[] };
 
 export const PRIVE_DESTINATION_INDEX: Record<string, PriveDestinationMeta> = {
 ${body}

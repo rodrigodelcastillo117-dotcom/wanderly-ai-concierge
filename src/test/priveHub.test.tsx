@@ -117,7 +117,7 @@ describe("candado y sesión Privé", () => {
     expect(api.content).not.toHaveBeenCalled();
     fireEvent.change(input, { target: { value: "faro lento sobre bahía 1987" } });
     fireEvent.click(screen.getByRole("button", { name: "Ingresar" }));
-    expect(await screen.findByText("El mundo, más allá de lo ordinario.")).toBeInTheDocument();
+    expect(await screen.findByText(/más allá de lo ordinario/i)).toBeInTheDocument();
     expect(api.access).toHaveBeenCalledWith("unlock", { password: "faro lento sobre bahía 1987" });
     const stored = JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!);
     expect(stored).toMatchObject({ token: SESSION_TOKEN, userId: "u1" });
@@ -207,7 +207,7 @@ describe("Grand Welcome", () => {
     setStatus(activeStatus({ welcome_version_seen: 1 }));
     withSession();
     renderAt("/prive", <ReplayButton />);
-    await screen.findByText("El mundo, más allá de lo ordinario.");
+    await screen.findByText(/más allá de lo ordinario/i);
     expect(screen.queryByRole("dialog", { name: "Bienvenida a IATOS Privé" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "replay-test" }));
     expect(await screen.findByRole("dialog", { name: "Bienvenida a IATOS Privé" })).toBeInTheDocument();
