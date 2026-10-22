@@ -33,8 +33,11 @@ describe("remitente verificado", () => {
     // A2-RES-01: sin sitio oficial en ese dominio, otra dirección no cuenta (se exige la exacta).
     expect(senderVerified("maria@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", pass)).toBe(false);
     // AUD-02: antes esto era true (SPF+DKIM sin DMARC para cualquier dirección del dominio). Ver aiReservationsSenderAuth.test.ts.
-    expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" })).toBe(true);
     expect(senderVerified("x@mail.casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" }, site)).toBe(false);
+    // A2-RES-06: sin resultado DMARC (campo ausente) ya no se verifica ni con la dirección exacta: falla cerrada
+    // (antes true). Con DMARC 'gray' explícito y DKIM pass, sí.
+    expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" })).toBe(false);
+    expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass", dmarc: "gray" })).toBe(true);
   });
   it("sin autenticación, con DMARC fallido u otro dominio → no verificado", () => {
     expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", null)).toBe(false);

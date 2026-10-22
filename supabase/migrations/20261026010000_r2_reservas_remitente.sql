@@ -1,4 +1,4 @@
--- Ronda r2 (segunda auditoría, grupo reservas) · A2-RES-01 (P1): remitente fuerte.
+-- Ronda r2 (segunda auditoría, grupo reservas) · A2-RES-01 (P1) y A2-RES-06 (P3): remitente fuerte.
 -- No edita migraciones aplicadas: las extiende. Idempotente. REQUIERE AUTORIZACIÓN DEL DUEÑO PARA
 -- APLICARSE EN PRODUCCIÓN. La función sigue apagada (app_flags.ai_reservations_enabled = false).
 --
@@ -60,7 +60,8 @@ BEGIN
   IF f !~ re OR v !~ re OR jsonb_typeof(_auth) IS DISTINCT FROM 'object' THEN RETURN false; END IF;
   dmarc := CASE WHEN jsonb_typeof(_auth->'dmarc') = 'string' THEN lower(btrim(_auth->>'dmarc')) END;
   dkim := CASE WHEN jsonb_typeof(_auth->'dkim') = 'string' THEN lower(btrim(_auth->>'dkim')) END;
-  IF dmarc IN ('fail', 'processing_failed') THEN RETURN false; END IF;
+  -- A2-RES-06: falla cerrada.
+  IF dmarc IS NULL OR dmarc NOT IN ('pass', 'gray') THEN RETURN false; END IF;
   -- La dirección exacta a la que escribimos: DMARC pass, o DKIM alineado (pass) sin DMARC fail.
   IF f = v THEN RETURN dmarc = 'pass' OR dkim = 'pass'; END IF;
   -- A2-RES-01: otro buzón del dominio solo si el dominio es propio del restaurante.

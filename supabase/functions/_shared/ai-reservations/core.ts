@@ -291,8 +291,9 @@ export function venueOwnsDomain(venueEmail: string | null | undefined, venueWebs
 export type AuthResults = { spf?: string; dkim?: string; dmarc?: string } | null | undefined;
 const AUTH_VALUES = new Set(["pass", "fail", "gray", "processing_failed", "unknown"]);
 const authValue = (v: unknown) => {
+  if (v === undefined || v === null) return "missing";
   const x = typeof v === "string" ? v.trim().toLowerCase() : "";
-  return AUTH_VALUES.has(x) ? x : "missing";
+  return AUTH_VALUES.has(x) ? x : "invalid";
 };
 
 export type SenderVerdict = {
@@ -323,15 +324,15 @@ export type SenderVerdict = {
 export function senderAuthentication(fromHeader: unknown, venueEmail: string | null | undefined, auth: AuthResults, venueWebsite?: string | null): SenderVerdict {
   const from = bareAddress(fromHeader);
   const venue = bareAddress(venueEmail);
-  const a = (auth && typeof auth === "object") ? auth as Record<string, unknown> : {};
+  const a = (auth && typeof auth === "object" && !Array.isArray(auth)) ? auth as Record<string, unknown> : {};
   const res = { spf: authValue(a.spf), dkim: authValue(a.dkim), dmarc: authValue(a.dmarc) };
   const owns = venueOwnsDomain(venue, venueWebsite);
   const out = (basis: SenderVerdict["basis"], reasons: string[]): SenderVerdict =>
     ({ verified: basis !== null, basis, from_address: from, from_domain: domainOf(from), auth: res, venue_owns_domain: owns, reasons });
   if (!from) return out(null, ["from_unparseable"]);
   if (!venue) return out(null, ["venue_email_missing"]);
-  if (!auth || typeof auth !== "object") return out(null, ["auth_missing"]);
-  if (res.dmarc === "fail" || res.dmarc === "processing_failed") return out(null, [`dmarc_${res.dmarc}`]);
+  if (!auth || typeof auth !== "object" || Array.isArray(auth)) return out(null, ["auth_missing"]);
+  if (res.dmarc !== "pass" && res.dmarc !== "gray") return out(null, [`dmarc_${res.dmarc}`]);
   const fd = domainOf(from)!;
   const vd = domainOf(venue)!;
   if (from === venue) {
