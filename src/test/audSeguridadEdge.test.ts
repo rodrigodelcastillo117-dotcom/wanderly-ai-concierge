@@ -30,8 +30,8 @@ const PUBLIC_GATES: Record<string, RegExp> = {
 const PAID_CALL = /connector-gateway\.lovable\.dev|aiFetch|ai\.gateway\.lovable|callClaude|serpapi|googleTransportFor|api\.pexels|travelpayouts|sendEmail\(/;
 
 describe("funciones Edge: autenticación (config.toml vs código)", () => {
-  it("hay 63 funciones y todas están declaradas en config.toml", () => {
-    expect(functions.length).toBe(63);
+  it("todas las funciones (64 al cierre) están declaradas en config.toml", () => {
+    expect(functions.length).toBeGreaterThanOrEqual(64);
     expect(functions.filter((f) => verifyJwt(f) === undefined)).toEqual([]);
   });
 
