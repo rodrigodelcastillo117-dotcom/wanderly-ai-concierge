@@ -4,7 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
-import { canWritePackingList, vaultSummary } from "./access.ts";
+import { canWritePackingList, loadPromptContext, vaultSummary } from "./access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -247,16 +247,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // AUD-SEG-03: el contexto es el de QUIEN LLAMA. Antes se leía el perfil completo, la bóveda de
-    // tarjetas y el ADN del dueño y un colaborador recibía una lista armada con los beneficios de
-    // tarjeta del dueño.
-    const [{ data: profile }, { data: vault }, { data: dnaPref }] = await Promise.all([
-      admin.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
-      admin.from("user_vault_benefits").select("*").eq("user_id", userId),
-      admin.from("ai_user_preferences").select("*").eq("user_id", userId).maybeSingle(),
-    ]);
+    // AUD-SEG-03: el contexto es el de QUIEN LLAMA (userId), no el del dueño (ver access.ts).
+    const { profile, vault, dnaPref } = await loadPromptContext(admin, trip, userId);
 
-    const userPrompt = buildUserPrompt(trip, profile, vault ?? [], dnaPref);
+    const userPrompt = buildUserPrompt(trip, profile, vault, dnaPref);
 
     const aiResp = await aiFetch({
       method: "POST",

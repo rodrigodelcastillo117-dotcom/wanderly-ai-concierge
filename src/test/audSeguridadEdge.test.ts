@@ -5,7 +5,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { isPaidBucket } from "../../supabase/functions/_shared/rate-limit-core";
-import { canWritePackingList, vaultSummary } from "../../supabase/functions/generar-packing-list/access";
+import { canWritePackingList, loadPromptContext, vaultSummary } from "../../supabase/functions/generar-packing-list/access";
 import { tripIdForTracking } from "../../supabase/functions/track-flight/rules";
 
 const FN_DIR = join(__dirname, "../../supabase/functions");
@@ -78,11 +78,64 @@ describe("generar-packing-list: datos y lista de quién (AUD-SEG-03)", () => {
     expect(canWritePackingList({ user_id: COLLAB }, OWNER, OWNER)).toBe(true);
     expect(canWritePackingList({ user_id: OWNER }, OWNER, OWNER)).toBe(true);
   });
-  it("el contexto del prompt (perfil, bóveda de tarjetas, ADN) es el de quien llama, no el del dueño", () => {
-    const src = sourceOf("generar-packing-list");
-    expect(src).not.toMatch(/\.eq\("id", trip\.user_id\)/);
-    expect(src).not.toMatch(/user_vault_benefits"\)\.select\("\*"\)\.eq\("user_id", trip\.user_id\)/);
-    expect(src).toMatch(/user_vault_benefits"\)\.select\([^)]*\)\.eq\("user_id", userId\)/);
+  // T-P2-6: antes esta prueba era una expresión regular sobre el texto de index.ts y sobrevivía a la
+  // mutación de la auditoría (perfil y ADN con trip.user_id). Ahora prueba el comportamiento de
+  // loadPromptContext con un cliente simulado que guarda cada consulta y sus filtros, y solo devuelve las
+  // filas que cumplen los filtros (como PostgREST con la llave de servicio, que no aplica RLS).
+  const fakeAdmin = () => {
+    const rows: Record<string, Record<string, unknown>[]> = {
+      profiles: [{ id: OWNER, full_name: "Dueña del viaje" }, { id: COLLAB, full_name: "Colaborador" }],
+      user_vault_benefits: [
+        { user_id: OWNER, credit_cards: [{ bank: "Amex", card_tier: "Platinum" }] },
+        { user_id: COLLAB, credit_cards: [{ bank: "BBVA", card_tier: "Azul" }] },
+      ],
+      ai_user_preferences: [{ user_id: OWNER, perfil_ia: { adn: "dueña" } }, { user_id: COLLAB, perfil_ia: { adn: "colaborador" } }],
+    };
+    const queries: { table: string; filters: [string, unknown][] }[] = [];
+    const from = (table: string) => {
+      const q = { table, filters: [] as [string, unknown][] };
+      queries.push(q);
+      const result = () => (rows[table] ?? []).filter((r) => q.filters.every(([c, v]) => r[c] === v));
+      const b = {
+        select: () => b,
+        eq: (c: string, v: unknown) => { q.filters.push([c, v]); return b; },
+        maybeSingle: async () => ({ data: result()[0] ?? null, error: null }),
+        then: (ok: (r: unknown) => unknown, ko?: (e: unknown) => unknown) => Promise.resolve({ data: result(), error: null }).then(ok, ko),
+      };
+      return b;
+    };
+    return { admin: { from }, queries };
+  };
+
+  it("un colaborador recibe SU perfil, SU bóveda y SU ADN, nunca los del dueño (comportamiento)", async () => {
+    const { admin, queries } = fakeAdmin();
+    const ctx = await loadPromptContext(admin, { user_id: OWNER }, COLLAB);
+    expect(ctx.profile).toEqual({ id: COLLAB, full_name: "Colaborador" });
+    expect(ctx.vault).toEqual([{ user_id: COLLAB, credit_cards: [{ bank: "BBVA", card_tier: "Azul" }] }]);
+    expect(ctx.dnaPref).toEqual({ user_id: COLLAB, perfil_ia: { adn: "colaborador" } });
+    // Las tres consultas, cada una filtrada por quien llama y por nada del dueño.
+    expect(queries.map((q) => q.table).sort()).toEqual(["ai_user_preferences", "profiles", "user_vault_benefits"]);
+    for (const q of queries) {
+      expect(q.filters.length).toBeGreaterThan(0);
+      expect(q.filters.every(([, v]) => v === COLLAB)).toBe(true);
+    }
+    expect(JSON.stringify(ctx)).not.toMatch(/Dueña|Amex|"dueña"/);
+  });
+
+  it("el dueño recibe su propio contexto; sin filas, el contexto queda vacío (no el de otro)", async () => {
+    const { admin } = fakeAdmin();
+    const own = await loadPromptContext(admin, { user_id: OWNER }, OWNER);
+    expect(own.profile).toEqual({ id: OWNER, full_name: "Dueña del viaje" });
+    const stranger = await loadPromptContext(admin, { user_id: OWNER }, "33333333-3333-4333-8333-333333333333");
+    expect(stranger).toEqual({ profile: null, vault: [], dnaPref: null });
+  });
+
+  it("index.ts arma el prompt solo con loadPromptContext(admin, trip, userId) y userId es el usuario autenticado", () => {
+    const index = readFileSync(join(FN_DIR, "generar-packing-list/index.ts"), "utf8");
+    expect(index).toMatch(/const userId = userData\.user\.id;/);
+    expect(index).toMatch(/await loadPromptContext\(admin, trip, userId\)/);
+    // Nada de leer perfil, bóveda o ADN por fuera de la función probada.
+    expect(index).not.toMatch(/from\("(profiles|user_vault_benefits|ai_user_preferences)"\)/);
   });
 });
 
