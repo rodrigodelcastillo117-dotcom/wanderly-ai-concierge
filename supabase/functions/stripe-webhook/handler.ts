@@ -37,6 +37,8 @@ export type StripeSubscriptionLike = {
   latest_invoice?: string | { id: string } | null;
   metadata?: Record<string, string> | null;
   items?: { data?: Array<{ current_period_end?: number | null; price?: { id?: string | null } | null }> } | null;
+  /** Cobro pausado desde el panel de Stripe (la suscripción sigue 'active' pero no cobra). */
+  pause_collection?: { behavior?: string | null; resumes_at?: number | null } | null;
   /** Tarjeta guardada (Checkout la deja aquí). Id o el objeto expandido. */
   default_payment_method?: string | { id: string; card?: { fingerprint?: string | null } | null } | null;
 };
@@ -153,6 +155,14 @@ export function tsToIso(v: number | null | undefined): string | null {
   return typeof v === "number" && v > 0 ? new Date(v * 1000).toISOString() : null;
 }
 
+/**
+ * D-P3-1 / N-06: con el cobro pausado (pause_collection) Stripe deja la suscripción 'active' pero no
+ * cobra: no es PRO pagado. Se escribe como 'paused' (is_pro no lo cuenta) hasta que se reanude.
+ */
+export function effectiveStatus(sub: Pick<StripeSubscriptionLike, "status" | "pause_collection">): string {
+  return sub.pause_collection && (sub.status === "active" || sub.status === "trialing") ? "paused" : sub.status;
+}
+
 /** Traduce una suscripción de Stripe a los argumentos de apply_stripe_subscription. */
 export function subscriptionArgs(
   sub: StripeSubscriptionLike,
@@ -164,7 +174,7 @@ export function subscriptionArgs(
     _user_id: sub.metadata?.supabase_user_id || fallbackUserId || null,
     _customer_id: idOf(sub.customer),
     _subscription_id: sub.id,
-    _status: sub.status,
+    _status: effectiveStatus(sub),
     _trial_end: tsToIso(sub.trial_end),
     // Desde la API 2025-03-31 el periodo vive en cada item, no en la suscripción.
     _current_period_end: tsToIso(sub.current_period_end ?? item?.current_period_end),

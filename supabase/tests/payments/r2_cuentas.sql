@@ -76,5 +76,50 @@ SELECT rc.ok('RC14 solo service_role reclama huellas (authenticated no ve la tab
   AND has_function_privilege('service_role', 'public.claim_trial_fingerprint(text, text, text)', 'EXECUTE'));
 DELETE FROM public.stripe_trial_fingerprints WHERE fingerprint LIKE 'fp_rc_%';
 
+-- ===================================================================== D-P3-1 / N-06 is_pro y antigüedad: solo el precio de PRO
+CREATE FUNCTION rc.mk(n int) RETURNS uuid LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO auth.users (id, email, email_confirmed_at, created_at) VALUES (rc.u(n), 'rc' || n || '@example.test', now(), now() - interval '1 day')
+  ON CONFLICT DO NOTHING;
+  RETURN rc.u(n);
+END $$;
+CREATE FUNCTION rc.apply(n int, st text, price text, cur text, period_end timestamptz, ev timestamptz DEFAULT now()) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT public.apply_stripe_subscription(rc.u(n), 'cus_rc' || n, 'sub_rc' || n, st, NULL, period_end, false, price, cur, ev) $$;
+SELECT rc.mk(20); SELECT rc.apply(20, 'active', 'price_pro_mxn', 'mxn', now() + interval '20 days');
+SELECT rc.ok('RC20 suscripción de Stripe activa en MXN con fecha de fin: PRO', public.is_pro(rc.u(20)) AND public.effective_plan(rc.u(20)) = 'pro');
+SELECT rc.mk(21); SELECT rc.apply(21, 'trialing', 'price_pro_mxn', 'usd', now() + interval '20 days');
+SELECT rc.ok('RC21 prueba de Stripe cobrada en USD (Adaptive Pricing, como la cuenta sintética B): no es PRO',
+  NOT public.is_pro(rc.u(21)) AND public.effective_plan(rc.u(21)) = 'free');
+-- Con precios registrados por el dueño, solo esos cuentan.
+INSERT INTO public.stripe_pro_prices (price_id, note) VALUES ('price_pro_mxn', 'prueba r2');
+SELECT rc.mk(22); SELECT rc.apply(22, 'active', 'price_otro_mxn', 'mxn', now() + interval '20 days');
+SELECT rc.ok('RC22 con stripe_pro_prices lleno: otro precio en MXN no es PRO; el registrado sí',
+  NOT public.is_pro(rc.u(22)) AND public.is_pro(rc.u(20)));
+DELETE FROM public.stripe_pro_prices WHERE note = 'prueba r2';
+SELECT rc.ok('RC23 con stripe_pro_prices vacío basta la moneda MXN', public.is_pro(rc.u(22)));
+-- Cortesía y prueba sin tarjeta (sin Stripe) no cambian.
+SELECT rc.mk(24);
+INSERT INTO public.subscriptions (user_id, status, plan, currency) VALUES (rc.u(24), 'comped', 'pro', 'USD');
+SELECT rc.mk(25);
+INSERT INTO public.subscriptions (user_id, status, plan, trial_end, current_period_end) VALUES (rc.u(25), 'trialing', 'pro', now() + interval '9 days', now() + interval '9 days');
+SELECT rc.ok('RC24 la cortesía (comped) y la prueba sin tarjeta siguen siendo PRO',
+  public.is_pro(rc.u(24)) AND public.is_pro(rc.u(25)) AND public.effective_plan(rc.u(25)) = 'trial');
+-- 'active' de Stripe sin fecha de fin: no es PRO indefinido.
+SELECT rc.mk(26); SELECT rc.apply(26, 'active', 'price_pro_mxn', 'mxn', NULL);
+SELECT rc.ok('RC25 Stripe active sin current_period_end: no es PRO', NOT public.is_pro(rc.u(26)));
+-- Antigüedad: solo la oferta (MXN ≥ $99.00).
+SELECT rc.mk(28);
+SELECT public.prive_record_paid_period(rc.u(28), 'in_rc28_mxn', 'sub_rc28', 'cus_rc28', now() - interval '95 days', now() - interval '35 days', 9900, 'mxn', 'test');
+SELECT public.prive_record_paid_period(rc.u(28), 'in_rc28_usd', 'sub_rc28', 'cus_rc28', now() - interval '35 days', now() - interval '5 days', 9900, 'usd', 'test');
+SELECT public.prive_record_paid_period(rc.u(28), 'in_rc28_bajo', 'sub_rc28', 'cus_rc28', now() - interval '5 days', now() + interval '25 days', 100, 'mxn', 'test');
+SELECT rc.ok('RC27 la antigüedad solo suma periodos en MXN de al menos $99 (60 de 95 días)',
+  public.prive_tenure_days(rc.u(28)) = 60, 'tenure=' || public.prive_tenure_days(rc.u(28)));
+
+-- (Al final: vuelve a aplicar la migración.) La migración conserva el PRO dado a mano ('active' sin Stripe ni fecha) como cortesía.
+SELECT rc.mk(27);
+INSERT INTO public.subscriptions (user_id, status, plan) VALUES (rc.u(27), 'active', 'pro');
+\ir ../../migrations/20261026170000_r2_cuentas_is_pro_price_period.sql
+SELECT rc.ok('RC26 PRO dado a mano (active sin Stripe ni fecha): la migración lo deja como comped y sigue siendo PRO',
+  rc.st(27) = 'comped' AND public.is_pro(rc.u(27)), rc.st(27));
 DROP SCHEMA rc CASCADE;
 DELETE FROM public.comp_grants WHERE email LIKE 'rc-%@example.test';

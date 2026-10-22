@@ -303,7 +303,8 @@ function subscriptionArgsFor(sub: StripeSubscriptionLike, eventCreated: number):
     _user_id: sub.metadata?.supabase_user_id || null,
     _customer_id: idOf(sub.customer),
     _subscription_id: sub.id,
-    _status: sub.status,
+    // D-P3-1: igual que effectiveStatus de handler.ts (cobro pausado = 'paused').
+    _status: sub.pause_collection && (sub.status === "active" || sub.status === "trialing") ? "paused" : sub.status,
     _trial_end: ts(sub.trial_end),
     _current_period_end: ts(sub.current_period_end ?? item?.current_period_end),
     _cancel_at_period_end: Boolean(sub.cancel_at_period_end),
