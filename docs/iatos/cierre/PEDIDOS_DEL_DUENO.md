@@ -5,11 +5,11 @@ Cada pedido tiene un equipo responsable y un estado. Nada se publica sin autoriz
 | # | Pedido | Equipo / rama | Estado |
 |---|---|---|---|
 | 1 | Auditoría independiente: AUD-01 sesiones Privé | aud-prive | En curso |
-| 2 | AUD-02/03/06 Reservas IA (remitente, confirmaciones ambiguas, evidencia) | aud-reservas | En curso |
-| 3 | AUD-04/07 enlaces de compra, dominios y phishing | aud-bridge | En curso |
+| 2 | AUD-02/03/06 Reservas IA (remitente, confirmaciones ambiguas, evidencia) | aud-reservas | VERIFICADO (3/3 + 8 hallazgos nuevos corregidos); en deploy urgente; función sigue APAGADA |
+| 3 | AUD-04/07 enlaces de compra, dominios y phishing | aud-bridge | VERIFICADO; en deploy urgente |
 | 4 | AUD-05/08 Stripe atómico/idempotente + certificación comercial | aud-pagos | En curso |
 | 5 | Fase 2 seguridad completa + Fase 3 calidad de pruebas | aud-seguridad | En curso |
-| 6 | Fase 2 Iato, cotizaciones, operación | aud-iato | En curso |
+| 6 | Fase 2 Iato, cotizaciones, operación | aud-iato | 8 hallazgos VERIFICADOS, 11 refutados; en deploy urgente |
 | 7 | Fase 4 rendimiento: Iato < 4 s al primer texto, carga en 3G, peso inicial | rendimiento | En curso |
 | 8 | NEW-01 invitación pendiente tras revocar concesión | aud-prive | En curso |
 | 9 | Privé en el idioma de cada persona | wc-prive-ux | En curso |
