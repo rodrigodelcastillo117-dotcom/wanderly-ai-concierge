@@ -9,7 +9,10 @@
 import { type AiReservationRow, splitQuotedReply, type VenueLanguage } from "./core.ts";
 import { refMarker, requestFingerprint } from "./templates.ts";
 
-export const RULES_VERSION = "aud03-v1";
+// r2-v1 (A2-RES-02/03): vetos de negación y cancelación, números en letra hasta 20, horas en palabras,
+// números sin explicar con la cita del hilo, fechas dd/mm ambiguas. La base (ai_res_rules_versions)
+// solo acepta confirmaciones decididas con esta versión o posterior.
+export const RULES_VERSION = "r2-v1";
 
 /** Minúsculas, sin acentos, comillas rectas y espacios simples (para comparar texto escrito a mano). */
 export const fold = (s: unknown) => String(s ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
@@ -115,6 +118,20 @@ export const CONFIRM_RE = new RegExp([
 
 export const PAYMENT_RE = /\b(tarjeta|deposito|anticipo|prepago|garantia|garantizar|pago|cargo|card|deposit|prepay(?:ment)?|payment|guarantee|pre-?authori[sz]ation|preautorizacion|carte (?:bancaire|de credit|de paiement)|acompte|prepaiement|paiement|empreinte bancaire|garantie|garantir)\b/;
 export const PENDING_RE = /\b(pendiente|por confirmar|confirmacion final|confirmacion definitiva|le confirmaremos|les confirmaremos|confirmaremos|en espera|pending|to be confirmed|tbc|final confirmation|will confirm|we'll confirm|en attente|a confirmer|confirmation finale|confirmation definitive|nous vous confirmerons|vous confirmerons)\b/;
+// A2-RES-02 · Negación de la propia confirmación ("no está confirmada", "aún no hemos reservado",
+// "not confirmed yet", "we have not confirmed", "n'est pas confirmée", "não está confirmada"): una
+// palabra de negación seguida, en la misma frase y a menos de cinco palabras, de una raíz de
+// confirmar/reservar/apartar. Gana aunque el modelo diga "confirmed" (misma regla en SQL:
+// public.ai_res_reply_vetoes).
+const NEGATOR = "(?:no|nao|not|never|nunca|jamas|jamais|pas|non|sin|sem|without|ne|cannot|unable|n'[a-z]+|[a-z]+n't)";
+const CONFIRM_STEM = "(?:confirm|reserv|apart|agend|registr|book|held|hold)";
+export const NEGATED_CONFIRM_RE = new RegExp(`(?<![a-z0-9'])${NEGATOR}(?:[^\\S\\n]+[^\\s.,;:!?¿¡]+){0,4}?[^\\S\\n]+${CONFIRM_STEM}`);
+// A2-RES-02 · Cancelación ("su reserva fue cancelada", "has been cancelled", "annulée", "cancelamento").
+// Las frases de política ("política de cancelación", "free cancellation", "en caso de cancelación") no cuentan.
+const CANCEL_POLICY_RE = /\b(?:(?:politica|politique|policy|condiciones|conditions|terminos|terms|reglas|regles|en caso de|in case of|en cas d'|em caso de)\s+(?:de\s+|d'|of\s+)?(?:cancelacion|cancellation|annulation|cancelamento)|(?:cancelacion|cancellation|annulation|cancelamento)\s+(?:policy|politica|politique|fee|fees|cargo|frais|taxa|terms|gratuita|gratis|gratuite|gratuito|sin costo|sans frais|free)|free cancellation)\b/g;
+export const CANCELLED_RE = /\b(?:cancelad[oa]s?|cancelamos|cancelou|cancel+ed|cancel+ing|cancelacion|cancellation|annulee?s?|annulons|annule|annulation|anulad[oa]s?|anulamos|anulacion|cancelamento|desmarcad[oa]s?)\b/;
+export const cancelMentioned = (folded: string) => CANCELLED_RE.test(folded.replace(CANCEL_POLICY_RE, " "));
+
 const HEDGES: Array<[string, RegExp]> = [
   ["question", /[?¿]/],
   ["but", /\b(pero|sin embargo|but|however|mais|cependant|toutefois)\b/],
@@ -123,6 +140,7 @@ const HEDGES: Array<[string, RegExp]> = [
   ["pending", PENDING_RE],
   ["request", /\b(necesitamos|necesitariamos|requerimos|favor de|le pedimos|les pedimos|por favor (?:confirm|envi|mand|indiqu|respond)\w*|podrian? (?:enviar|mandar|confirmar|indicar)|we need|we require|please (?:send|provide|confirm|let us know)|could you|kindly|nous avons besoin|merci de (?:nous )?(?:envoyer|confirmer|indiquer)|pourriez-vous|veuillez)\b/],
   ["condition", /\b(sujet[oa] a|subject to|sous reserve|siempre y cuando|as long as|a condition que|condicionad[oa]|lista de espera|wait ?list|liste d'attente)\b/],
+  ["negated_confirmation", NEGATED_CONFIRM_RE],
 ];
 
 const NAME_LEAD = /\b(?:a nombre de|bajo el nombre de|under the name(?: of)?|in the name of|au nom de)\s+((?:[a-z'-]+\s?){1,4})/g;
@@ -210,6 +228,7 @@ export function analyzeReply(text: string, opts: { receivedAt?: string | null; t
     return words.join(" ");
   }).filter(Boolean);
   const hedges = HEDGES.filter(([, re]) => re.test(full)).map(([id]) => id);
+  if (cancelMentioned(full)) hedges.push("cancellation");
   return {
     text: full, times, parties, dates, relative, weekdays, names, hedges,
     pending: PENDING_RE.test(full), payment: PAYMENT_RE.test(full), explicitConfirmation: CONFIRM_RE.test(full),
@@ -308,6 +327,8 @@ export function ambiguousReasonEs(why: string | null | undefined): string | null
     hedge_pending: "El restaurante dice que la confirmación sigue pendiente.",
     hedge_request: "El restaurante pide algo antes de confirmar.",
     hedge_condition: "El restaurante pone condiciones (lista de espera, \u201csujeto a\u201d…).",
+    hedge_negated_confirmation: "El restaurante dice que la reserva NO está confirmada o que no la apartó.",
+    hedge_cancellation: "El correo habla de una cancelación.",
     model_not_held: "La respuesta no dice que la mesa quedó apartada.",
     evidence_incomplete: "Al correo le faltan datos del proveedor para usarlo como comprobante.",
     classification_unavailable: "No pudimos leer la respuesta automáticamente.",

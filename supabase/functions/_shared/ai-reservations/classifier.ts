@@ -263,6 +263,17 @@ function conditionsFor(
   };
 }
 const missingConditions = (c: Conditions) => (Object.keys(c) as Array<keyof Conditions>).filter((k) => c[k].basis === null);
+/** ¿La cita aparece en el texto empezando y terminando en límites de palabra? */
+function quoteOnWordBoundaries(quote: string, text: string): boolean {
+  const q = fold(quote), t = fold(text);
+  if (q.length < 4) return false;
+  for (let i = t.indexOf(q); i >= 0; i = t.indexOf(q, i + 1)) {
+    const before = i === 0 ? "" : t[i - 1];
+    const after = t[i + q.length] ?? "";
+    if (!/[a-z0-9]/.test(before) && !/[a-z0-9]/.test(after)) return true;
+  }
+  return false;
+}
 
 export function decideReply(row: DecideRow, cls: Classification | null, ctx: DecideContext): ReplyDecision {
   const base = {
@@ -294,7 +305,13 @@ export function decideReply(row: DecideRow, cls: Classification | null, ctx: Dec
 
   const [reqDate, reqTime] = row.requested_local.split("T");
   const code = validConfirmationCode(cls.confirmation_code, ctx.replyText, { ...row, ref_code: row.ref_code });
-  const confirmQuote = quotes.find((q) => CONFIRM_RE.test(fold(q))) ?? null;
+  // A2-RES-02: la cita que confirma debe empezar y terminar en límites de palabra (no "está confirmada"
+  // recortado de "no está confirmada"; esa negación además la veta el texto completo).
+  const confirmQuote = quotes.find((q) => CONFIRM_RE.test(fold(q)) && quoteOnWordBoundaries(q, ctx.replyText)) ?? null;
+  const vetoes = [
+    ...(a.hedges.includes("negated_confirmation") ? ["negated_confirmation"] : []),
+    ...(a.hedges.includes("cancellation") ? ["cancellation"] : []),
+  ];
   const altBase = { verified_sender: true, inbound_email_id: ctx.inboundEmailId, from_domain: ctx.fromDomain ?? undefined };
 
   /** ¿Un horario propuesto puede quedar "apartado" (y confirmarse solo cuando el usuario lo acepte)? */
@@ -306,6 +323,7 @@ export function decideReply(row: DecideRow, cls: Classification | null, ctx: Dec
     if (!confirmQuote) fails.push("no_explicit_confirmation");
     if (a.pending) fails.push("pending_language");
     if (a.hedges.includes("condition")) fails.push("conditional_language");
+    fails.push(...vetoes);
     return { held: fails.length === 0, conditions: c, fails };
   };
 

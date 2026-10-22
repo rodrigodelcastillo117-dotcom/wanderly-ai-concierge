@@ -143,6 +143,12 @@ describe("AUD-06 · reglas de TypeScript = reglas de la base", () => {
     const domains = [...body.matchAll(/'([a-z0-9.-]+\.[a-z]+)'/g)].map((m) => m[1]).sort();
     expect(domains).toEqual([...FREEMAIL].sort());
   });
+  it("A2-RES-02: la versión de reglas de evidence.ts es una de las que acepta la base (ai_res_rules_versions)", async () => {
+    const { RULES_VERSION } = await import("../../supabase/functions/_shared/ai-reservations/evidence");
+    const sql = readFileSync("supabase/migrations/20261026020000_r2_reservas_vetos.sql", "utf8");
+    const body = sql.slice(sql.indexOf("FUNCTION public.ai_res_rules_versions"), sql.indexOf("$$;", sql.indexOf("FUNCTION public.ai_res_rules_versions")));
+    expect([...body.matchAll(/'([a-z0-9.-]+)'/g)].map((m) => m[1])).toContain(RULES_VERSION);
+  });
 });
 
 describe("utilidades", () => {

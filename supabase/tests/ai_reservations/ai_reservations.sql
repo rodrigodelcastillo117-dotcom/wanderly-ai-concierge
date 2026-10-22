@@ -64,7 +64,7 @@ $$;
 CREATE FUNCTION rt.dec(conf jsonb, model text DEFAULT 'claude-test-model') RETURNS jsonb LANGUAGE sql AS $$
   SELECT jsonb_build_object('outcome', 'confirmed', 'excerpt', conf->>'quote', 'inbound_email_id', conf->>'inbound_email_id',
     'from_domain', 'casaoaxaca.com.mx', 'verified_sender', true, 'quotes', jsonb_build_array(conf->>'quote'), 'claude_calls', 1,
-    'confirmation', conf, 'log', jsonb_build_object('model', model, 'rules_version', 'test', 'classifier', jsonb_build_object('outcome', 'confirmed')))
+    'confirmation', conf, 'log', jsonb_build_object('model', model, 'rules_version', 'r2-v1', 'classifier', jsonb_build_object('outcome', 'confirmed')))
 $$;
 -- Crea y "envía" una solicitud (usuario n, lugar y correo propios para no chocar con los límites).
 CREATE FUNCTION rt.sent(n int, place text, email text) RETURNS uuid LANGUAGE plpgsql AS $$
@@ -250,7 +250,7 @@ SELECT (public.ai_reservation_inbound_claim('msg_evt_30', 'em_30', :'tok3', 'cas
 SELECT public.ai_reservation_inbound_attach(:'inb3', rt.ev('em_30', 'reservas@casaoaxaca.com.mx', rt.pass(),
   'A las 20:30 no hay lugar. Les apartamos una mesa a las 21:15 para 4 personas.', '<m30@casaoaxaca.com.mx>')) IS NOT NULL AS x \gset
 SELECT public.ai_reservation_apply_reply(:'id3', :'inb3', jsonb_build_object('outcome', 'alternative_offered', 'excerpt', 'Les apartamos 21:15',
-  'inbound_email_id', 'em_30', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'test'),
+  'inbound_email_id', 'em_30', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'r2-v1'),
   'alternatives', jsonb_build_array(jsonb_build_object('local', to_char((now() AT TIME ZONE 'America/Mexico_City') + interval '2 days', 'YYYY-MM-DD') || 'T21:15',
     'held', true, 'verified_sender', true, 'inbound_email_id', 'em_30', 'inbound_id', :'inb3', 'quote', 'Les apartamos una mesa a las 21:15', 'from_domain', 'casaoaxaca.com.mx',
     'contradictions', '[]'::jsonb,
@@ -434,7 +434,7 @@ SELECT (public.ai_reservation_inbound_claim('msg_evt_66', 'em_66', :'tok66', 'ca
 SELECT public.ai_reservation_inbound_attach(:'inb66', rt.ev('em_66', 'reservas@casa66.mx', '{"spf":"pass","dkim":"gray","dmarc":"gray"}',
   'Les apartamos una mesa para 4 personas a las 21:15.', '<m66@casa66.mx>')) IS NOT NULL AS x \gset
 SELECT public.ai_reservation_apply_reply(:'id66', :'inb66', jsonb_build_object('outcome', 'alternative_offered', 'excerpt', 'Les apartamos 21:15',
-  'inbound_email_id', 'em_66', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'test'),
+  'inbound_email_id', 'em_66', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'r2-v1'),
   'alternatives', jsonb_build_array(jsonb_build_object('local', to_char((now() AT TIME ZONE 'America/Mexico_City') + interval '2 days', 'YYYY-MM-DD') || 'T21:15',
     'held', true, 'verified_sender', true, 'inbound_email_id', 'em_66', 'inbound_id', :'inb66', 'quote', 'Les apartamos una mesa para 4 personas a las 21:15',
     'contradictions', '[]'::jsonb,

@@ -543,7 +543,9 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
   const after = applied.data.reservation as AiReservationRow;
   // 5) Correo al usuario (el aviso en la app lo deja la base de datos en cada transición).
   switch (decision.outcome) {
-    case "confirmed": await sendUserConfirmation(deps, after); break;
+    // Defensa en profundidad (A2-RES-02): el correo "confirmó tu reserva" sale solo si la BASE dejó la
+    // reserva en confirmed (no basta con lo que decidió TypeScript).
+    case "confirmed": if (after?.status === "confirmed") await sendUserConfirmation(deps, after); break;
     case "alternative_offered":
     case "declined":
     case "needs_info":
