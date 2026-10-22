@@ -3,7 +3,7 @@
 import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { adminClient } from "../_shared/entitlements.ts";
-import { planCheckout } from "./logic.ts";
+import { checkoutSessionParams, expireOpenSessions, planCheckout, priceProblems, type StripePriceLike } from "./logic.ts";
 import { safeOrigin } from "../_shared/origin.ts";
 
 const corsHeaders = {
@@ -60,6 +60,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    // AUD-08: el precio de Stripe debe ser la oferta publicada ($99 MXN al mes, IVA incluido). Se revisa
+    // ANTES de crear nada en Stripe; si no coincide, no se abre el pago (falla cerrado).
+    const problems = priceProblems(await stripe.prices.retrieve(STRIPE_PRICE_ID).catch(() => null) as unknown as StripePriceLike);
+    if (problems.length) {
+      console.error("stripe-checkout: el precio configurado no coincide con la oferta publicada:", STRIPE_PRICE_ID, problems.join("; "));
+      return new Response(JSON.stringify({
+        error: "price_mismatch",
+        message: "No pudimos abrir el pago en este momento. Intenta de nuevo más tarde; no se hizo ningún cargo.",
+      }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     let customerId = existing?.stripe_customer_id ?? null;
     if (!customerId) {
       // La llave de idempotencia evita dos customers si el usuario da doble clic (24 h en Stripe).
@@ -75,24 +86,18 @@ Deno.serve(async (req) => {
       if (upErr) throw new Error(`guardar customer: ${upErr.message}`);
     }
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      client_reference_id: user.id,
-      line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
-      subscription_data: {
-        ...(plan.trialDays ? { trial_period_days: plan.trialDays } : {}),
-        // Durante una prueba sin tarjeta: sin cobro hasta que termine (logic.ts noCardTrialEnd).
-        ...(plan.trialEndUnix ? { trial_end: plan.trialEndUnix } : {}),
-        metadata: { supabase_user_id: user.id },
-      },
-      automatic_tax: { enabled: true },
-      customer_update: { address: "auto" },
-      allow_promotion_codes: true,
-      success_url: `${origin}/dashboard/pro?checkout=success`,
-      cancel_url: `${origin}/dashboard/pro?checkout=cancel`,
-      metadata: { supabase_user_id: user.id },
-    });
+    // Dos pestañas = dos checkouts = dos suscripciones cobradas: se cierran las sesiones abiertas.
+    const ex = await expireOpenSessions(
+      customerId,
+      async (customer) => (await stripe.checkout.sessions.list({ customer, status: "open", limit: 10 })).data,
+      (id) => stripe.checkout.sessions.expire(id),
+    );
+    if (ex.failed) console.warn("stripe-checkout: no se pudieron expirar sesiones abiertas", ex);
+
+    const session = await stripe.checkout.sessions.create(checkoutSessionParams({
+      customerId, userId: user.id, priceId: STRIPE_PRICE_ID, origin,
+      trialDays: plan.trialDays, trialEndUnix: plan.trialEndUnix ?? null,
+    }));
 
     return new Response(JSON.stringify({ url: session.url, trial_days: plan.trialDays ?? 0 }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

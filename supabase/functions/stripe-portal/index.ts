@@ -54,7 +54,8 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("stripe-portal error:", (e as Error).message);
-    return new Response(JSON.stringify({ error: "portal_failed", message: (e as Error).message }), {
+    // Sin el mensaje crudo de Stripe (puede traer ids internos): solo un texto para la persona.
+    return new Response(JSON.stringify({ error: "portal_failed", message: "No pudimos abrir el portal de pagos. Intenta de nuevo en unos minutos." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

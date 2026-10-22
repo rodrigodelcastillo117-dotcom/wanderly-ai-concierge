@@ -125,3 +125,106 @@ export async function planCheckout(
   if (trialEndUnix) return { kind: "create", trialDays: null, trialEndUnix };
   return { kind: "create", trialDays: trialEligible(stored, history) ? TRIAL_DAYS : null, trialEndUnix: null };
 }
+
+// ── AUD-08: lo que se cobra debe ser exactamente lo que se publica ─────────────────────────────
+// La landing, /dashboard/pro, los términos y los correos dicen "$99 MXN al mes, IVA incluido"
+// (src/lib/planCopy.ts; una prueba verifica que coincida). Si el precio configurado en Stripe no es
+// ese (otra moneda, otro monto, IVA por fuera, otra periodicidad), el checkout NO se abre: cobrar
+// distinto a lo anunciado viola la LFPC (art. 7 Bis, precio total) y la confianza del cliente.
+export const EXPECTED_PRICE = {
+  currency: "mxn",
+  unit_amount: 9900,
+  tax_behavior: "inclusive",
+  interval: "month",
+  interval_count: 1,
+} as const;
+
+export type StripePriceLike = {
+  id?: string;
+  active?: boolean | null;
+  currency?: string | null;
+  unit_amount?: number | null;
+  tax_behavior?: string | null;
+  type?: string | null;
+  recurring?: { interval?: string | null; interval_count?: number | null; usage_type?: string | null } | null;
+} | null;
+
+/** Diferencias entre el precio de Stripe y la oferta publicada ([] = coincide). Sin datos personales. */
+export function priceProblems(price: StripePriceLike): string[] {
+  if (!price) return ["price: no existe"];
+  const p: string[] = [];
+  if (price.active === false) p.push("active: el precio está archivado");
+  if ((price.currency ?? "").toLowerCase() !== EXPECTED_PRICE.currency) p.push(`currency: ${price.currency} (se espera mxn)`);
+  if (price.unit_amount !== EXPECTED_PRICE.unit_amount) p.push(`unit_amount: ${price.unit_amount} (se espera ${EXPECTED_PRICE.unit_amount})`);
+  if (price.tax_behavior !== EXPECTED_PRICE.tax_behavior) p.push(`tax_behavior: ${price.tax_behavior} (se espera inclusive: IVA incluido)`);
+  if (!price.recurring || (price.type && price.type !== "recurring")) p.push("recurring: no es una suscripción");
+  else {
+    if (price.recurring.interval !== EXPECTED_PRICE.interval || (price.recurring.interval_count ?? 1) !== EXPECTED_PRICE.interval_count) {
+      p.push(`interval: ${price.recurring.interval_count ?? 1} ${price.recurring.interval} (se espera 1 month)`);
+    }
+    if (price.recurring.usage_type && price.recurring.usage_type !== "licensed") p.push(`usage_type: ${price.recurring.usage_type}`);
+  }
+  return p;
+}
+
+/** Parámetros de stripe.checkout.sessions.create (puro, para probarlo sin Stripe). */
+export function checkoutSessionParams(o: {
+  customerId: string;
+  userId: string;
+  priceId: string;
+  origin: string;
+  trialDays: number | null;
+  trialEndUnix?: number | null;
+}) {
+  return {
+    mode: "subscription" as const,
+    customer: o.customerId,
+    client_reference_id: o.userId,
+    line_items: [{ price: o.priceId, quantity: 1 }],
+    // Siempre en pesos: Adaptive Pricing (si el panel lo tiene encendido) convertía a USD.
+    currency: EXPECTED_PRICE.currency,
+    adaptive_pricing: { enabled: false },
+    subscription_data: {
+      ...(o.trialDays ? { trial_period_days: o.trialDays } : {}),
+      // Durante una prueba sin tarjeta: sin cobro hasta que termine (noCardTrialEnd).
+      ...(o.trialEndUnix ? { trial_end: o.trialEndUnix } : {}),
+      metadata: { supabase_user_id: o.userId },
+    },
+    // Con un precio "inclusive", Stripe Tax desglosa el IVA dentro de los $99 (no lo suma).
+    automatic_tax: { enabled: true },
+    customer_update: { address: "auto" as const },
+    allow_promotion_codes: true,
+    success_url: `${o.origin}/dashboard/pro?checkout=success`,
+    cancel_url: `${o.origin}/dashboard/pro?checkout=cancel`,
+    metadata: { supabase_user_id: o.userId },
+  };
+}
+
+/**
+ * Antes de abrir un checkout nuevo se expiran los que el cliente dejó abiertos (otra pestaña, doble
+ * clic): pagar los dos creaba DOS suscripciones y cobraba doble. Nunca bloquea el pago: si Stripe
+ * falla aquí, el webhook avisa a administradores de una segunda suscripción viva.
+ */
+export async function expireOpenSessions(
+  customerId: string,
+  listOpen: (customerId: string) => Promise<Array<{ id: string }>>,
+  expire: (sessionId: string) => Promise<unknown>,
+): Promise<{ expired: number; failed: number }> {
+  let open: Array<{ id: string }>;
+  try {
+    open = await listOpen(customerId);
+  } catch {
+    return { expired: 0, failed: 1 };
+  }
+  let expired = 0;
+  let failed = 0;
+  for (const s of open) {
+    try {
+      await expire(s.id);
+      expired++;
+    } catch {
+      failed++; // ya se pagó o expiró mientras tanto
+    }
+  }
+  return { expired, failed };
+}
