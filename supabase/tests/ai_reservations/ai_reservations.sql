@@ -38,6 +38,43 @@ $$;
 CREATE FUNCTION rt.flag(v boolean) RETURNS void LANGUAGE sql AS $$
   UPDATE public.app_flags SET value = to_jsonb(v) WHERE key = 'ai_reservations_enabled' $$;
 CREATE FUNCTION rt.consent() RETURNS jsonb LANGUAGE sql AS $$ SELECT '{"confirmed": true, "share_contact": false, "cc_user": false, "text": "Confirmar: escribiremos a Casa Oaxaca en tu nombre"}'::jsonb $$;
+-- AUD-06: evidencia del correo recibido tal como la registra ai_reservation_inbound_attach (los
+-- datos vienen del proveedor, no del modelo) y la confirmación completa que arma decideReply().
+CREATE FUNCTION rt.ev(email_id text, from_addr text, auth jsonb, reply text, mid text, quoted boolean DEFAULT false,
+  method text DEFAULT 'reply_token', body_hash text DEFAULT repeat('a', 64)) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object('provider', 'resend', 'provider_email_id', email_id, 'message_id', mid, 'received_at', now(),
+    'from_address', from_addr, 'auth', auth, 'reply_text', reply, 'body_sha256', body_hash, 'raw_sha256', repeat('b', 64),
+    'raw_pointer', 'resend:emails/receiving/' || email_id, 'linkage', jsonb_build_object('method', method, 'quoted_request', quoted),
+    'sender', jsonb_build_object('verified', true, 'basis', 'dmarc_aligned'))
+$$;
+CREATE FUNCTION rt.pass() RETURNS jsonb LANGUAGE sql AS $$ SELECT '{"spf":"pass","dkim":"pass","dmarc":"pass"}'::jsonb $$;
+CREATE FUNCTION rt.conds(res uuid, basis text DEFAULT 'stated', party int DEFAULT NULL) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object(
+    'date', jsonb_build_object('value', split_part(r.requested_local, 'T', 1), 'basis', basis),
+    'time', jsonb_build_object('value', split_part(r.requested_local, 'T', 2), 'basis', basis),
+    'party_size', jsonb_build_object('value', coalesce(party, r.party_size), 'basis', basis),
+    'name', jsonb_build_object('value', r.customer_name, 'basis', 'reply_token'))
+  FROM public.ai_reservations r WHERE r.id = res
+$$;
+CREATE FUNCTION rt.conf(res uuid, inbound uuid, email_id text, quote text, code text DEFAULT NULL, conds jsonb DEFAULT NULL) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object('channel', 'venue_email', 'inbound_id', inbound, 'inbound_email_id', email_id, 'quote', quote,
+    'verified_sender', true, 'from_domain', 'casaoaxaca.com.mx', 'code', code, 'conditions', coalesce(conds, rt.conds(res)),
+    'contradictions', '[]'::jsonb, 'linkage', jsonb_build_object('method', 'reply_token', 'quoted_request', false))
+$$;
+CREATE FUNCTION rt.dec(conf jsonb, model text DEFAULT 'claude-test-model') RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object('outcome', 'confirmed', 'excerpt', conf->>'quote', 'inbound_email_id', conf->>'inbound_email_id',
+    'from_domain', 'casaoaxaca.com.mx', 'verified_sender', true, 'quotes', jsonb_build_array(conf->>'quote'), 'claude_calls', 1,
+    'confirmation', conf, 'log', jsonb_build_object('model', model, 'rules_version', 'test', 'classifier', jsonb_build_object('outcome', 'confirmed')))
+$$;
+-- Crea y "envía" una solicitud (usuario n, lugar y correo propios para no chocar con los límites).
+CREATE FUNCTION rt.sent(n int, place text, email text) RETURNS uuid LANGUAGE plpgsql AS $$
+DECLARE v uuid;
+BEGIN
+  v := (public.ai_reservation_create_intent(rt.u(n), rt.intent(n, place, email)))->>'id';
+  PERFORM public.ai_reservation_claim_send(v, rt.u(n), rt.consent());
+  PERFORM public.ai_reservation_mark_sent(v, 'request', true, 're_' || n, NULL);
+  RETURN v;
+END $$;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rt TO anon, authenticated, service_role;
 
 SELECT count(*) FROM (SELECT rt.mk_user(n) FROM generate_series(1, 6) n) t;
@@ -162,11 +199,11 @@ SELECT rt.ok('R25 "confirmed" sin remitente verificado o sin cita → CHECK lo r
 
 SELECT rt.as_service(); SET ROLE service_role;
 SELECT public.ai_reservation_apply_reply(:'id1', :'inb1', '{"outcome":"ignored","excerpt":"Fuera de la oficina","quotes":[]}') AS ap_ign \gset
-SELECT public.ai_reservation_apply_reply(:'id1', :'inb1', jsonb_build_object('outcome', 'confirmed', 'excerpt', 'Con gusto confirmamos su reserva para 4 personas',
-  'inbound_email_id', 'em_1', 'from_domain', 'casaoaxaca.com.mx', 'verified_sender', true, 'quotes', '["Con gusto confirmamos su reserva para 4 personas"]'::jsonb,
-  'claude_calls', 1,
-  'confirmation', jsonb_build_object('channel', 'venue_email', 'inbound_email_id', 'em_1', 'quote', 'Con gusto confirmamos su reserva para 4 personas',
-    'verified_sender', true, 'code', 'MX-4821'))) AS ap_ok \gset
+-- AUD-06: la confirmación necesita la evidencia del proveedor (Message-ID, huellas, SPF/DKIM/DMARC, texto
+-- original) registrada antes, y condiciones aceptadas + decisión con modelo (ver R44–R57).
+SELECT public.ai_reservation_inbound_attach(:'inb1', rt.ev('em_1', 'reservas@casaoaxaca.com.mx', rt.pass(),
+  'Con gusto confirmamos su reserva para 4 personas. Su número de confirmación es MX-4821.', '<m1@casaoaxaca.com.mx>')) IS NOT NULL AS x \gset
+SELECT public.ai_reservation_apply_reply(:'id1', :'inb1', rt.dec(rt.conf(:'id1', :'inb1', 'em_1', 'Con gusto confirmamos su reserva para 4 personas', 'MX-4821'))) AS ap_ok \gset
 RESET ROLE;
 SELECT rt.ok('R26 respuesta automática no cambia el estado', (:'ap_ign'::jsonb)->>'status' = 'sent');
 SELECT rt.ok('R27 confirmación escrita verificada → confirmed + constancia en bookings + aviso con quién confirmó',
@@ -210,9 +247,16 @@ SELECT public.ai_reservation_claim_send(:'id3', rt.u(3), rt.consent()) IS NOT NU
 SELECT public.ai_reservation_mark_sent(:'id3', 'request', true, 're_3', NULL) IS NOT NULL AS x \gset
 SELECT reply_token AS tok3 FROM ai_reservations WHERE id = :'id3' \gset
 SELECT (public.ai_reservation_inbound_claim('msg_evt_30', 'em_30', :'tok3', 'casaoaxaca.com.mx'))->>'inbound_id' AS inb3 \gset
+SELECT public.ai_reservation_inbound_attach(:'inb3', rt.ev('em_30', 'reservas@casaoaxaca.com.mx', rt.pass(),
+  'A las 20:30 no hay lugar. Les apartamos una mesa a las 21:15 para 4 personas.', '<m30@casaoaxaca.com.mx>')) IS NOT NULL AS x \gset
 SELECT public.ai_reservation_apply_reply(:'id3', :'inb3', jsonb_build_object('outcome', 'alternative_offered', 'excerpt', 'Les apartamos 21:15',
+  'inbound_email_id', 'em_30', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'test'),
   'alternatives', jsonb_build_array(jsonb_build_object('local', to_char((now() AT TIME ZONE 'America/Mexico_City') + interval '2 days', 'YYYY-MM-DD') || 'T21:15',
-    'held', true, 'verified_sender', true, 'inbound_email_id', 'em_30', 'quote', 'Les apartamos una mesa a las 21:15', 'from_domain', 'casaoaxaca.com.mx')))) AS ap3 \gset
+    'held', true, 'verified_sender', true, 'inbound_email_id', 'em_30', 'inbound_id', :'inb3', 'quote', 'Les apartamos una mesa a las 21:15', 'from_domain', 'casaoaxaca.com.mx',
+    'contradictions', '[]'::jsonb,
+    'conditions', jsonb_build_object('date', jsonb_build_object('value', to_char((now() AT TIME ZONE 'America/Mexico_City') + interval '2 days', 'YYYY-MM-DD'), 'basis', 'stated'),
+      'time', jsonb_build_object('value', '21:15', 'basis', 'stated'), 'party_size', jsonb_build_object('value', 4, 'basis', 'stated'),
+      'name', jsonb_build_object('basis', 'reply_token')))))) AS ap3 \gset
 SELECT public.ai_reservation_claim_alternative(:'id3', rt.u(3), 5) AS alt_bad \gset
 SELECT public.ai_reservation_claim_alternative(:'id3', rt.u(3), 0) AS alt_ok \gset
 SELECT public.ai_reservation_mark_sent(:'id3', 'alternative', true, 're_3b', NULL) AS ms3 \gset
@@ -276,5 +320,147 @@ SELECT rt.ok('R43 borrar la cuenta borra sus reservas IA, historial y correos re
   :'purge3' = 'OK' AND NOT EXISTS (SELECT 1 FROM ai_reservations WHERE user_id = rt.u(3))
   AND NOT EXISTS (SELECT 1 FROM ai_reservation_events WHERE reservation_id = :'id3')
   AND NOT EXISTS (SELECT 1 FROM ai_reservation_inbound WHERE id = :'inb3'), :'purge3');
+
+-- ===================================================================== AUD-06 · evidencia de la confirmación
+-- Una confirmación solo vale con evidencia del PROVEEDOR guardada en ai_reservation_inbound (Message-ID,
+-- huellas del correo, autenticación SPF/DKIM/DMARC, texto original, ligadura con la solicitud) y una
+-- decisión registrada con el modelo. El texto que produce la IA (cita, "verified_sender": true) no basta.
+SELECT rt.flag(true);
+SET ROLE service_role;
+SELECT rt.sent(6, 'ChIJ_place_00000061', 'reservas@casa61.mx') AS id61 \gset
+SELECT rt.sent(6, 'ChIJ_place_00000062', 'reservas@casaoaxaca.com.mx') AS id62 \gset
+SELECT reply_token AS tok61 FROM ai_reservations WHERE id = :'id61' \gset
+SELECT reply_token AS tok62 FROM ai_reservations WHERE id = :'id62' \gset
+SELECT (public.ai_reservation_inbound_claim('msg_evt_61', 'em_61', :'tok61', 'casa61.mx'))->>'inbound_id' AS inb61 \gset
+SELECT (public.ai_reservation_inbound_claim('msg_evt_62', 'em_62', :'tok62', 'casaoaxaca.com.mx'))->>'inbound_id' AS inb62 \gset
+-- R45: lo mismo que antes bastaba (cita + verified_sender:true escritos por el servicio/IA), sin evidencia del proveedor.
+SELECT rt.try(format($q$SELECT public.ai_reservation_apply_reply(%L, %L, '{"outcome":"confirmed","excerpt":"Confirmamos su reserva","inbound_email_id":"em_62","verified_sender":true,"quotes":["Confirmamos su reserva"],"confirmation":{"channel":"venue_email","inbound_email_id":"em_62","quote":"Confirmamos su reserva","verified_sender":true}}')$q$, :'id62', :'inb62')) AS ai_only \gset
+RESET ROLE;
+SELECT rt.ok('R45 confirmación con solo texto de IA (cita + verified_sender) sin evidencia del proveedor → rechazada',
+  :'ai_only' LIKE '23514%' AND (SELECT status FROM ai_reservations WHERE id = :'id62') = 'sent', :'ai_only');
+
+SET ROLE service_role;
+SELECT public.ai_reservation_inbound_attach(:'inb61', rt.ev('em_61', 'reservas@casa61.mx', rt.pass(),
+  'Con gusto confirmamos su reserva para 4 personas. Su número de confirmación es MX-6161.', '<m61@casa61.mx>')) AS att61 \gset
+SELECT public.ai_reservation_apply_reply(:'id61', :'inb61', rt.dec(rt.conf(:'id61', :'inb61', 'em_61', 'Con gusto confirmamos su reserva para 4 personas', 'MX-6161'))) AS ap61 \gset
+RESET ROLE;
+SELECT rt.ok('R44 con evidencia completa del proveedor → confirmed; queda la decisión con el modelo, el historial con el correo y la evidencia sellada',
+  (:'att61'::jsonb)->>'ok' = 'true' AND (:'ap61'::jsonb)->>'status' = 'confirmed'
+  AND (SELECT message_id_hash ~ '^[0-9a-f]{64}$' AND body_sha256 = repeat('a', 64) AND provider = 'resend' AND auth->>'dmarc' = 'pass'
+         AND from_address = 'reservas@casa61.mx' AND provider_received_at IS NOT NULL AND reply_text LIKE 'Con gusto%' AND attached_at IS NOT NULL
+       FROM ai_reservation_inbound WHERE id = :'inb61')
+  AND EXISTS (SELECT 1 FROM ai_reservation_decisions WHERE inbound_id = :'inb61' AND reservation_id = :'id61' AND decision = 'confirmed' AND model = 'claude-test-model')
+  AND EXISTS (SELECT 1 FROM ai_reservation_events WHERE reservation_id = :'id61' AND kind = 'transition' AND to_status = 'confirmed'
+              AND data->>'inbound_id' = :'inb61' AND data->>'email_id' = 'em_61')
+  AND (SELECT confirmation->'db_checks'->>'version' = 'aud06-v1' AND confirmation_code = 'MX-6161' FROM ai_reservations WHERE id = :'id61'), :'ap61');
+
+-- Casos negativos sobre id62 (sigue en "sent"): cada intento falla completo y no cambia nada.
+SET ROLE service_role;
+SELECT public.ai_reservation_inbound_attach(:'inb62', rt.ev('em_62', 'reservas@casaoaxaca.com.mx', rt.pass(),
+  'Confirmamos su reserva para 4 personas. Folio de confirmación AB-7788.', '<m62@casaoaxaca.com.mx>')) AS att62 \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb62',
+  rt.dec(rt.conf(:'id62', :'inb62', 'em_62', 'Su mesa está confirmada para las 20:30')))) AS bad_quote \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb62',
+  rt.dec(rt.conf(:'id62', :'inb62', 'em_62', 'Confirmamos su reserva', NULL, rt.conds(:'id62', 'stated', 3))))) AS bad_party \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb62',
+  rt.dec(rt.conf(:'id62', :'inb62', 'em_62', 'Confirmamos su reserva', NULL, rt.conds(:'id62', 'thread_quote'))))) AS bad_link \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb62',
+  rt.dec(rt.conf(:'id62', :'inb62', 'em_62', 'Confirmamos su reserva') - 'conditions'))) AS no_conds \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb62',
+  rt.dec(rt.conf(:'id62', :'inb62', 'em_62', 'Confirmamos su reserva') || '{"contradictions":["time_contradiction"]}'))) AS contra \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb62',
+  rt.dec(rt.conf(:'id62', :'inb62', 'em_62', 'Confirmamos su reserva', 'ZZ-0001')))) AS bad_code \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb62',
+  rt.dec(rt.conf(:'id62', :'inb62', 'em_62', 'Confirmamos su reserva'), ''))) AS no_model \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb61',
+  rt.dec(rt.conf(:'id62', :'inb61', 'em_61', 'Con gusto confirmamos su reserva para 4 personas')))) AS other_inb \gset
+RESET ROLE;
+SELECT rt.ok('R46 la cita debe estar en el texto original guardado del proveedor', :'bad_quote' LIKE '23514%', :'bad_quote');
+SELECT rt.ok('R47 condiciones: personas distintas, ligadura "cita del hilo" sin cita real, o sin condiciones → rechazada',
+  :'bad_party' LIKE '23514%' AND :'bad_link' LIKE '23514%' AND :'no_conds' LIKE '23514%', :'bad_party' || ' | ' || :'bad_link' || ' | ' || :'no_conds');
+SELECT rt.ok('R48 con contradicciones registradas → rechazada', :'contra' LIKE '23514%', :'contra');
+SELECT rt.ok('R49 número de confirmación que no está en el correo → rechazado', :'bad_code' LIKE '23514%', :'bad_code');
+SELECT rt.ok('R50 sin decisión registrada con el id del modelo → rechazada', :'no_model' LIKE '23514%', :'no_model');
+SELECT rt.ok('R51 el correo de otra reserva no sirve como evidencia', :'other_inb' NOT LIKE 'OK%', :'other_inb');
+
+-- R52: la autenticación guardada (del proveedor) manda, no lo que diga el servicio.
+SET ROLE service_role;
+SELECT (public.ai_reservation_inbound_claim('msg_evt_63', 'em_63', :'tok62', 'casaoaxaca.com.mx'))->>'inbound_id' AS inb63 \gset
+SELECT public.ai_reservation_inbound_attach(:'inb63', rt.ev('em_63', 'reservas@casaoaxaca.com.mx', '{"spf":"pass","dkim":"pass","dmarc":"fail"}',
+  'Confirmamos su reserva para 4 personas.', '<m63@casaoaxaca.com.mx>')) IS NOT NULL AS x \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb63',
+  rt.dec(rt.conf(:'id62', :'inb63', 'em_63', 'Confirmamos su reserva')))) AS dmarc_fail \gset
+SELECT (public.ai_reservation_inbound_claim('msg_evt_64', 'em_64', :'tok62', 'casa-oaxaca.com.mx'))->>'inbound_id' AS inb64 \gset
+SELECT public.ai_reservation_inbound_attach(:'inb64', rt.ev('em_64', 'reservas@casa-oaxaca.com.mx', rt.pass(),
+  'Confirmamos su reserva para 4 personas.', '<m64@casa-oaxaca.com.mx>')) IS NOT NULL AS x \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb64',
+  rt.dec(rt.conf(:'id62', :'inb64', 'em_64', 'Confirmamos su reserva')))) AS lookalike \gset
+RESET ROLE;
+SELECT rt.ok('R52 DMARC fail o dominio parecido en la evidencia del proveedor → rechazada aunque el servicio diga verified_sender',
+  :'dmarc_fail' LIKE '23514%' AND :'lookalike' LIKE '23514%' AND (SELECT status FROM ai_reservations WHERE id = :'id62') = 'sent', :'dmarc_fail' || ' | ' || :'lookalike');
+
+-- R53/R54: repetición. El mismo Message-ID con otro evento y otro email_id; el mismo evento con otro email_id.
+SET ROLE service_role;
+SELECT (public.ai_reservation_inbound_claim('msg_evt_65', 'em_65', :'tok62', 'casaoaxaca.com.mx'))->>'inbound_id' AS inb65 \gset
+SELECT public.ai_reservation_inbound_attach(:'inb65', rt.ev('em_65', 'reservas@casaoaxaca.com.mx', rt.pass(),
+  'Confirmamos su reserva para 4 personas. Folio de confirmación AB-7788.', ' <M62@casaoaxaca.com.mx> ')) AS att65 \gset
+SELECT public.ai_reservation_inbound_claim('msg_evt_62', 'em_62_bis', :'tok62', 'casaoaxaca.com.mx') AS same_evt \gset
+SELECT public.ai_reservation_inbound_claim('msg_evt_65', 'em_65', :'tok62', 'casaoaxaca.com.mx') AS dup_again \gset
+SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'id62', :'inb65',
+  rt.dec(rt.conf(:'id62', :'inb65', 'em_65', 'Confirmamos su reserva para 4 personas')))) AS dup_apply \gset
+RESET ROLE;
+SELECT rt.ok('R53 el mismo Message-ID (otro evento, otro email_id) → duplicate y no puede confirmar',
+  (:'att65'::jsonb)->>'duplicate' = 'true' AND (SELECT status FROM ai_reservation_inbound WHERE id = :'inb65') = 'duplicate'
+  AND (:'dup_again'::jsonb)->>'state' = 'duplicate' AND :'dup_apply' NOT LIKE 'OK%', :'att65' || ' | ' || :'dup_apply');
+SELECT rt.ok('R54 el mismo evento de Svix con otro email_id → duplicate', (:'same_evt'::jsonb)->>'state' = 'duplicate', :'same_evt');
+
+-- R55: la evidencia no se reescribe.
+SET ROLE service_role;
+SELECT public.ai_reservation_inbound_attach(:'inb62', rt.ev('em_62', 'reservas@casaoaxaca.com.mx', rt.pass(),
+  'Otro texto distinto.', '<m62@casaoaxaca.com.mx>', false, 'reply_token', repeat('c', 64))) AS reattach \gset
+SELECT rt.try(format($q$UPDATE public.ai_reservation_inbound SET reply_text = 'Confirmamos todo' WHERE id = %L$q$, :'inb62')) AS ev_update \gset
+SELECT rt.try(format($q$UPDATE public.ai_reservation_decisions SET model = 'otro' WHERE inbound_id = %L$q$, :'inb61')) AS dec_update \gset
+SELECT rt.try(format($q$UPDATE public.ai_reservation_events SET note = 'x' WHERE reservation_id = %L$q$, :'id61')) AS evt_update \gset
+RESET ROLE;
+SELECT rt.ok('R55 evidencia, decisiones e historial no se reescriben (ni con service_role)',
+  (:'reattach'::jsonb)->>'code' = 'EVIDENCE_MISMATCH' AND :'ev_update' NOT LIKE 'OK%' AND :'dec_update' NOT LIKE 'OK%' AND :'evt_update' NOT LIKE 'OK%',
+  :'reattach' || ' | ' || :'ev_update' || ' | ' || :'dec_update' || ' | ' || :'evt_update');
+
+-- R56: un alterno "apartado" sin evidencia fuerte del proveedor no se confirma solo al aceptarlo.
+SET ROLE service_role;
+SELECT rt.sent(6, 'ChIJ_place_00000066', 'reservas@casa66.mx') AS id66 \gset
+SELECT reply_token AS tok66 FROM ai_reservations WHERE id = :'id66' \gset
+SELECT (public.ai_reservation_inbound_claim('msg_evt_66', 'em_66', :'tok66', 'casa66.mx'))->>'inbound_id' AS inb66 \gset
+SELECT public.ai_reservation_inbound_attach(:'inb66', rt.ev('em_66', 'reservas@casa66.mx', '{"spf":"pass","dkim":"gray","dmarc":"gray"}',
+  'Les apartamos una mesa para 4 personas a las 21:15.', '<m66@casa66.mx>')) IS NOT NULL AS x \gset
+SELECT public.ai_reservation_apply_reply(:'id66', :'inb66', jsonb_build_object('outcome', 'alternative_offered', 'excerpt', 'Les apartamos 21:15',
+  'inbound_email_id', 'em_66', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'test'),
+  'alternatives', jsonb_build_array(jsonb_build_object('local', to_char((now() AT TIME ZONE 'America/Mexico_City') + interval '2 days', 'YYYY-MM-DD') || 'T21:15',
+    'held', true, 'verified_sender', true, 'inbound_email_id', 'em_66', 'inbound_id', :'inb66', 'quote', 'Les apartamos una mesa para 4 personas a las 21:15',
+    'contradictions', '[]'::jsonb,
+    'conditions', jsonb_build_object('date', jsonb_build_object('value', to_char((now() AT TIME ZONE 'America/Mexico_City') + interval '2 days', 'YYYY-MM-DD'), 'basis', 'stated'),
+      'time', jsonb_build_object('value', '21:15', 'basis', 'stated'), 'party_size', jsonb_build_object('value', 4, 'basis', 'stated'),
+      'name', jsonb_build_object('basis', 'reply_token')))))) IS NOT NULL AS x \gset
+SELECT public.ai_reservation_claim_alternative(:'id66', rt.u(6), 0) AS alt66 \gset
+SELECT public.ai_reservation_mark_sent(:'id66', 'alternative', true, 're_66b', NULL) AS ms66 \gset
+RESET ROLE;
+SELECT rt.ok('R56 alterno "apartado" con autenticación débil (solo SPF) → no held, queda "sent" esperando confirmación escrita',
+  (:'alt66'::jsonb)->>'held' = 'false' AND (:'ms66'::jsonb)->>'status' = 'sent', :'alt66' || ' | ' || :'ms66');
+
+-- R57: la regla de remitente fuerte en SQL es la misma que en TypeScript (lo prueba también Vitest).
+SELECT rt.ok('R57 remitente fuerte (SQL): DMARC alineado o dirección exacta + DKIM; nunca SPF solo, dominios parecidos ni From ambiguos',
+  public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', rt.pass())
+  AND public.ai_res_sender_strong('maria@mail.casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"dmarc":"pass"}')
+  AND public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"gray","dkim":"pass","dmarc":"gray"}')
+  AND NOT public.ai_res_sender_strong('maria@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"pass","dkim":"pass","dmarc":"gray"}')
+  AND NOT public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"pass","dkim":"pass","dmarc":"fail"}')
+  AND NOT public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"pass","dkim":"gray","dmarc":"gray"}')
+  AND NOT public.ai_res_sender_strong('"reservas@casaoaxaca.com.mx"@evil.test', 'reservas@casaoaxaca.com.mx', rt.pass())
+  AND NOT public.ai_res_sender_strong('reservas@casaoaxaca.com.mx@evil.test', 'reservas@casaoaxaca.com.mx', rt.pass())
+  AND NOT public.ai_res_sender_strong('x@com.mx', 'reservas@casaoaxaca.com.mx', rt.pass())
+  AND NOT public.ai_res_sender_strong('x@casaoaxaca.com', 'reservas@mx.casaoaxaca.com', rt.pass())
+  AND NOT public.ai_res_sender_strong('atacante@gmail.com', 'casaoaxaca@gmail.com', rt.pass())
+  AND public.ai_res_sender_strong('casaoaxaca@gmail.com', 'casaoaxaca@gmail.com', '{"dkim":"pass","dmarc":"gray"}')
+  AND NOT public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', NULL));
 
 DROP SCHEMA rt CASCADE;

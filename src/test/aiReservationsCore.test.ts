@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  AI_RESERVATION_STATUSES, cronDecision, extractReplyToken, fallbackOptions, redactExcerpt, replyAddress, senderVerified,
+  AI_RESERVATION_STATUSES, cronDecision, FREEMAIL, extractReplyToken, fallbackOptions, redactExcerpt, replyAddress, senderVerified,
   statusLabel, toBridgeState, TRANSITIONS,
 } from "../../supabase/functions/_shared/ai-reservations/core";
 import { signLink, signSvix, verifyLink, verifySvixSignature } from "../../supabase/functions/_shared/ai-reservations/signature";
@@ -127,6 +127,15 @@ describe("estados", () => {
       if (s !== "confirmed") expect(l).not.toMatch(/^confirmada/i);
       expect(l.toLowerCase()).not.toContain("mesa confirmada");
     }
+  });
+});
+
+describe("AUD-06 · reglas de TypeScript = reglas de la base", () => {
+  it("la lista de correos gratuitos de core.ts es la misma que ai_res_freemail_domains() (SQL)", () => {
+    const sql = readFileSync("supabase/migrations/20261024170000_aud_reservas_evidence.sql", "utf8");
+    const body = sql.slice(sql.indexOf("FUNCTION public.ai_res_freemail_domains"), sql.indexOf("FUNCTION public.ai_res_sender_strong"));
+    const domains = [...body.matchAll(/'([a-z0-9.-]+\.[a-z]+)'/g)].map((m) => m[1]).sort();
+    expect(domains).toEqual([...FREEMAIL].sort());
   });
 });
 

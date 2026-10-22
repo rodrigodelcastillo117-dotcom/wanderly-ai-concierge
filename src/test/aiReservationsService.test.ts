@@ -183,6 +183,7 @@ function setup(flag = true) {
     contact: { googlePlace: google, fetchPage },
     profile: async () => ({ name: "Ana López", email: "ana@cliente.test" }),
     receivedEmail: vi.fn(async () => received),
+    fetchRaw: vi.fn(async () => new TextEncoder().encode("From: reservas@casaoaxaca.com.mx\r\n\r\nCon gusto confirmamos").buffer as ArrayBuffer),
     config: { appUrl: "https://traveliatos.life/dashboard/reservas#reservas-ia", functionUrl: "https://fn.test/functions/v1/ai-reservations", linkSecret: "link-secret", inboundSecret: SECRET },
     now: () => NOW,
   };
@@ -447,5 +448,51 @@ describe("AUD-02 · remitente de la respuesta, de punta a punta", () => {
     t.setReceived({ authentication: { spf: "pass", dkim: "pass", dmarc: "fail" } });
     const w = await webhook(token);
     expect((await handleInbound(t.deps, w.headers, w.body)).body).toMatchObject({ outcome: "unverified" });
+  });
+});
+
+describe("AUD-06 · evidencia y repetición", () => {
+  it("el mismo Message-ID con otro evento de Svix y otro email_id no se procesa dos veces", async () => {
+    const t = setup();
+    const { token } = await sentReservation(t);
+    const a = await webhook(token, "msg_evt_1", "em_1");
+    const b = await webhook(token, "msg_evt_2", "em_2");
+    expect((await handleInbound(t.deps, a.headers, a.body)).body).toMatchObject({ outcome: "confirmed" });
+    expect((await handleInbound(t.deps, b.headers, b.body)).body).toMatchObject({ ok: true, duplicate: true });
+    expect(t.model).toHaveBeenCalledTimes(1);
+    expect(t.state.calls.filter((c) => c.startsWith("apply:"))).toHaveLength(1);
+  });
+  it("se guarda la identidad del proveedor, el Message-ID, las huellas del correo, la autenticación y la ligadura con la solicitud", async () => {
+    const t = setup();
+    const { token } = await sentReservation(t);
+    const w = await webhook(token);
+    await handleInbound(t.deps, w.headers, w.body);
+    const e = t.state.attached[0];
+    expect(e).toMatchObject({
+      provider: "resend", provider_email_id: "em_1", message_id: "<CAF1234@mail.casaoaxaca.com.mx>",
+      received_at: "2026-11-02T18:00:00Z", from_address: "reservas@casaoaxaca.com.mx",
+      auth: { spf: "pass", dkim: "pass", dmarc: "pass" }, linkage: { method: "reply_token" },
+      sender: { verified: true, basis: "dmarc_aligned" }, raw_pointer: "resend:emails/receiving/em_1",
+    });
+    expect(e.body_sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(e.raw_sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(e.reply_text).toContain("Con gusto confirmamos su reserva para 4 personas");
+  });
+  it("la decisión guarda la salida del clasificador con el modelo, las reglas y el id del correo recibido", async () => {
+    const t = setup();
+    const { token } = await sentReservation(t);
+    const w = await webhook(token);
+    await handleInbound(t.deps, w.headers, w.body);
+    const d = t.state.applied[0];
+    expect(d.log).toMatchObject({ model: "claude-sonnet-5-5", rules_version: expect.any(String), classifier: { outcome: "confirmed" } });
+    expect(d.confirmation).toMatchObject({ inbound_id: "msg_evt_1", inbound_email_id: "em_1", contradictions: [],
+      conditions: { date: { basis: "stated" }, time: { basis: "stated" }, party_size: { basis: "stated" }, name: { basis: "stated" } } });
+  });
+  it("sin Message-ID ni fecha de recepción del proveedor no hay confirmación (queda para revisión)", async () => {
+    const t = setup();
+    const { token } = await sentReservation(t);
+    t.setReceived({ message_id: null });
+    const w = await webhook(token);
+    expect((await handleInbound(t.deps, w.headers, w.body)).body).toMatchObject({ outcome: "ambiguous", why: "evidence_incomplete" });
   });
 });
