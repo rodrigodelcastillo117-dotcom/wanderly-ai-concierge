@@ -23,6 +23,12 @@ $PSQL -At -d "$DB" -f "$DIR/prive.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' 
 $PSQL -At -d "$DB" -f "$DIR/aud_session.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
 $PSQL -At -d "$DB" -f "$DIR/aud_seg_strength.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
 # Segunda auditoría (r2, grupo cuentas): casos del auditor (aud2_prive.sql) y regresiones propias.
+# aud_session.sql vuelve a incluir (\ir) 20261024020000 y 20261024030000 a mitad de la suite, que
+# redefinen prive_sweep: antes de estas pruebas se vuelven a aplicar las migraciones r2 (idempotentes).
+for f in "$DIR"/../../migrations/20261026*_r2_cuentas_*.sql; do
+  out=$($PSQL -v ON_ERROR_STOP=1 -d "$DB" -f "$f" 2>&1 >/dev/null | grep ERROR | head -1)
+  [ -n "$out" ] && echo "FALLA migración $(basename "$f") no es idempotente: $out"
+done
 $PSQL -At -d "$DB" -f "$DIR/aud2_prive.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
 $PSQL -At -d "$DB" -f "$DIR/r2_cuentas_prive.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
 $PSQL -At -d "$DB" -f "$DIR/aud2_sweep.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'

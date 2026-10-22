@@ -54,6 +54,8 @@ SELECT a4.ok('SW1c al volver el esquema, las mismas sesiones vuelven a servir', 
 DELETE FROM auth.sessions WHERE id = 'b4000000-0000-0000-0000-000000000002'::uuid;
 SELECT public.prive_sweep() AS sw2 \gset
 SELECT a4.ok('SW2 con el esquema sano, cierra solo la sesión cuya sesión de Auth ya no existe',
-  (:'sw2'::jsonb->>'sessions_auth_gone')::int = 1 AND (:'sw2'::jsonb->>'auth_check') = 'ok' AND a4.live() = 2, :'sw2');
+  (:'sw2'::jsonb->>'sessions_auth_gone')::int >= 1 AND (:'sw2'::jsonb->>'auth_check') = 'ok' AND a4.live() = 2
+  AND (SELECT revoke_reason FROM public.prive_sessions WHERE user_id = a4.u(2)) = 'auth_session_gone'
+  AND a4.req(1) = 'OK' AND a4.req(3) = 'OK', :'sw2');
 DROP TABLE a4_tokens;
 DROP SCHEMA a4 CASCADE;
