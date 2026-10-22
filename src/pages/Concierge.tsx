@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { RichCard, type ConciergeCard } from "@/components/concierge/ConciergeCards";
 import { IatoMemoryPanel } from "@/components/concierge/IatoMemoryPanel";
+import { SafeMarkdown } from "@/components/concierge/SafeMarkdown";
 import { TripContextSelector, type ContextTrip } from "@/components/concierge/TripContextSelector";
 import { resolveActiveTrip, tripLabel, type ActiveTripReason } from "@/lib/activeTrip";
 import { localISODate } from "@/lib/localDate";
@@ -542,7 +543,8 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled }: {
                 )}
               </div>
             )}
-            {msg.text}
+            {/* Iato responde en Markdown: se interpreta un subconjunto seguro (N-05). */}
+            {isUser ? msg.text : <SafeMarkdown text={msg.text} />}
           </div>
         )}
         {!isUser && msg.tripReason === "ambiguous" && (msg.tripCandidates?.length ?? 0) > 0 && (
