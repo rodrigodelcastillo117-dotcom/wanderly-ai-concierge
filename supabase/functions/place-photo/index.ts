@@ -9,6 +9,9 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { isPhotoRef } from "../_shared/placePhotoRef.ts";
+import { googleTransportFor } from "../_shared/google-runtime.ts";
+import { dbCacheStore } from "../_shared/serpRuntime.ts";
+import { resolvePlacePhoto } from "../_shared/place-photo-resolve.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -43,7 +46,25 @@ Deno.serve(async (req) => {
     const maxHeight = param("maxHeight")
       ? Math.min(Math.max(parseInt(param("maxHeight")!, 10) || 800, 1), 4800)
       : null;
-    const mode = param("mode") ?? "binary"; // "binary" | "url"
+    const mode = param("mode") ?? "binary"; // "binary" | "url" | "resolve"
+
+    // Lugar sin foto guardada (hotel del análisis, venue de Members, card del concierge): se busca su
+    // ficha en Google y se devuelve {url} solo si el lugar encontrado se llama igual. Sin coincidencia
+    // → {url:null} y la app usa una foto ilustrativa marcada como tal.
+    if (mode === "resolve") {
+      const t = googleTransportFor("place-photo", __user.id);
+      if (!t) {
+        return new Response(JSON.stringify({ url: null, reason: "no_disponible" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const out = await resolvePlacePhoto(t, {
+        name: param("name"), city: param("city"), placeId: param("placeId"), maxWidth,
+      }, dbCacheStore());
+      return new Response(JSON.stringify(out), {
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "private, max-age=3600" },
+      });
+    }
 
     // Solo nombres de foto de Places ("places/<id>/photos/<id>"): `ref` va dentro de la URL del
     // conector con nuestra llave, así que nada de "../", "?" ni otros endpoints.

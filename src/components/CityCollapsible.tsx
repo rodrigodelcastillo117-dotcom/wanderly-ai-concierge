@@ -1,79 +1,11 @@
-import { useEffect, useState, ReactNode } from "react";
+import { useState, ReactNode } from "react";
 import { ChevronDown, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
+import { SmartImage } from "@/components/media/SmartImage";
 
-// Tiny in-memory cache so we don't re-fetch Pexels for the same city
-const imgCache = new Map<string, string | null>();
-const inflight = new Map<string, Promise<string | null>>();
-
-type PexelsResult = { image: string | null; failed: boolean; rateLimited: boolean };
-
-// Tras un 429 no se pide nada más por un minuto: el detalle de un viaje tiene decenas de tarjetas
-// y, con los dos reintentos por tarjeta, una sola carga llegaba a 42 llamadas (límite: 30/min),
-// todas rechazadas.
-let blockedUntil = 0;
-export const __resetCityImageBlock = () => { blockedUntil = 0; imgCache.clear(); inflight.clear(); };
-
-const fetchPexels = async (q: string): Promise<PexelsResult> => {
-  if (Date.now() < blockedUntil) return { image: null, failed: true, rateLimited: true };
-  try {
-    const { data, error } = await supabase.functions.invoke("pexels-image", {
-      body: { query: q },
-    });
-    if (error) {
-      const status = (error as { context?: { status?: number } })?.context?.status;
-      if (status === 429) blockedUntil = Date.now() + 60_000;
-      return { image: null, failed: true, rateLimited: status === 429 };
-    }
-    return { image: (data?.image as string) ?? null, failed: false, rateLimited: false };
-  } catch {
-    return { image: null, failed: true, rateLimited: false };
-  }
-};
-
-/**
- * Busca la foto de una consulta. Las consultas más cortas solo se intentan cuando el servidor
- * contestó bien pero sin foto; si la llamada falló (límite, red, servidor), reintentar con otra
- * consulta solo triplicaba el tráfico.
- */
-export async function resolveCityImage(query: string, fetcher: (q: string) => Promise<PexelsResult> = fetchPexels): Promise<string | null> {
-  const first = await fetcher(query);
-  if (first.image || first.failed) return first.image;
-  const short = query.split(/\s+/).slice(0, 2).join(" ").trim();
-  if (short && short !== query) {
-    const r = await fetcher(short);
-    if (r.image || r.failed) return r.image;
-  }
-  const word = query.split(/\s+/)[0]?.trim();
-  if (word && word !== query && word !== short) return (await fetcher(word)).image;
-  return null;
-}
-
-export const useCityImage = (query: string): string | null => {
-  const [url, setUrl] = useState<string | null>(imgCache.get(query) ?? null);
-
-  useEffect(() => {
-    let alive = true;
-    if (imgCache.has(query)) {
-      setUrl(imgCache.get(query) ?? null);
-      return;
-    }
-    const existing = inflight.get(query);
-    const p =
-      existing ??
-      resolveCityImage(query);
-    inflight.set(query, p);
-    p.then((result) => {
-      imgCache.set(query, result);
-      inflight.delete(query);
-      if (alive) setUrl(result);
-    });
-    return () => { alive = false; };
-  }, [query]);
-
-  return url;
-};
+// La foto del encabezado es ilustrativa (Pexels) y va marcada: SmartImage la pide una sola vez por
+// sesión (memoria + sessionStorage) dentro del presupuesto por minuto de src/lib/stockPhoto.ts.
+// Antes cada tarjeta del viaje pedía su foto con hasta dos reintentos y sin caché entre cargas.
 
 interface CityCollapsibleProps {
   city: string;
@@ -103,7 +35,6 @@ export const CityCollapsible = ({
     if (isControlled) onToggle?.();
     else setOpenLocal((o) => !o);
   };
-  const img = useCityImage(imageQuery || `${city} landmark travel`);
 
   return (
     <div className="rounded-2xl overflow-hidden border border-border/60 bg-card scroll-mt-24 max-w-full">
@@ -112,13 +43,14 @@ export const CityCollapsible = ({
         onClick={toggle}
         className="relative w-full h-32 md:h-36 group text-left overflow-hidden"
       >
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-          style={{
-            backgroundImage: img
-              ? `url(${img})`
-              : "linear-gradient(135deg, hsl(var(--primary) / 0.25), hsl(var(--surface)))",
-          }}
+        <SmartImage
+          alt=""
+          stockQuery={imageQuery || `${city} landmark travel`}
+          eager
+          icon={MapPin}
+          className="!absolute inset-0"
+          imgClassName="group-hover:scale-105"
+          captionPosition="bottom-right"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/55 to-background/25" />
 

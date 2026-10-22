@@ -6,7 +6,7 @@ import path from "node:path";
 import { render, screen } from "@testing-library/react";
 import { vi, it, expect } from "vitest";
 
-vi.mock("@/components/CityCollapsible", () => ({ useCityImage: () => null }));
+vi.mock("@/components/media/SmartImage", () => ({ SmartImage: () => null }));
 vi.mock("framer-motion", () => {
   const strip = (p: any) => { const { initial, animate, exit, transition, ...r } = p; return r; };
   const motion = new Proxy({}, { get: (_t, tag: string) => (p: any) => React.createElement(tag, strip(p)) });
@@ -21,7 +21,7 @@ const now = new Date("2026-10-22T03:00:00Z");
 it("la insignia de procedencia del vuelo se ve sin abrir el detalle", () => {
   render(
     <ExpandableItemCard
-      imageQuery="Aeromexico airplane"
+      image={{ stockQuery: "airplane wing above clouds" }}
       title="Aeroméxico"
       subtitle="5 h 27 min · 1 escala"
       price="$3,696 / persona"

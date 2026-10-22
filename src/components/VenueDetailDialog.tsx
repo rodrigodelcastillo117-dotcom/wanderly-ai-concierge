@@ -1,7 +1,8 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { MapPin, ExternalLink, CalendarCheck, X, Sparkles } from "lucide-react";
 import { MembersVenueMeta } from "@/components/MembersVenueMeta";
-import { venueEmoji, type MembersVenue } from "@/lib/membersVenues";
+import type { MembersVenue } from "@/lib/membersVenues";
+import { VenueImage } from "@/components/media/VenueImage";
 
 interface Venue {
   id: string;
@@ -40,22 +41,21 @@ export function VenueDetailDialog<V extends Venue>({ venue, open, onClose, onRes
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl border-primary/30 bg-gradient-to-b from-black/95 to-black/80 backdrop-blur-2xl p-0 overflow-hidden">
-        <div className="relative p-8">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 grid place-items-center rounded-full bg-black/40 border border-primary/20 text-muted-foreground hover:text-foreground transition"
-            aria-label="Cerrar"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 w-8 h-8 grid place-items-center rounded-full bg-black/60 backdrop-blur border border-primary/20 text-muted-foreground hover:text-foreground transition"
+          aria-label="Cerrar"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <VenueImage venue={venue} size="hero" className="h-52 sm:h-60 w-full" />
+        <div className="relative p-8 pt-6">
           <div className="flex items-center gap-2 text-primary text-[10px] tracking-[0.22em] uppercase mb-3">
             <Sparkles className="w-3 h-3" />
             {venue.ciudad_display}
           </div>
 
           <div className="flex items-start gap-4 mb-4">
-            <div className="text-5xl">{venueEmoji(venue)}</div>
             <div className="flex-1 min-w-0">
               <h3 className="font-fraunces text-3xl text-foreground leading-tight">{venue.nombre}</h3>
               {venue.por_que && (

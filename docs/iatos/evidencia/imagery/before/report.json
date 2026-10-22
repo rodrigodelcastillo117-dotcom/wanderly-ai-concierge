@@ -1,0 +1,145 @@
+{
+  "home_390": {
+    "viewport": 1,
+    "calls": 3,
+    "by": {
+      "buscar-video": 3
+    },
+    "imgs": {
+      "total": 18,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "trips_390": {
+    "viewport": 3,
+    "calls": 3,
+    "by": {
+      "buscar-video": 2,
+      "pexels-image": 1
+    },
+    "imgs": {
+      "total": 3,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "trip_390": {
+    "viewport": 14,
+    "calls": 14,
+    "by": {
+      "pexels-image": 14
+    },
+    "imgs": {
+      "total": 2,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "trip_open_390": {
+    "viewport": 14,
+    "calls": 14,
+    "by": {
+      "pexels-image": 14
+    },
+    "imgs": {
+      "total": 2,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "trip_revisit_390": {
+    "calls": 14,
+    "by": {
+      "pexels-image": 14
+    }
+  },
+  "reservas_390": {
+    "viewport": 0,
+    "calls": 0,
+    "by": {},
+    "imgs": {
+      "total": 1,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "errors_390": [],
+  "home_1440": {
+    "viewport": 2,
+    "calls": 3,
+    "by": {
+      "buscar-video": 3
+    },
+    "imgs": {
+      "total": 19,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "trips_1440": {
+    "viewport": 3,
+    "calls": 3,
+    "by": {
+      "buscar-video": 2,
+      "pexels-image": 1
+    },
+    "imgs": {
+      "total": 3,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "trip_1440": {
+    "viewport": 14,
+    "calls": 14,
+    "by": {
+      "pexels-image": 14
+    },
+    "imgs": {
+      "total": 2,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "trip_open_1440": {
+    "viewport": 14,
+    "calls": 14,
+    "by": {
+      "pexels-image": 14
+    },
+    "imgs": {
+      "total": 2,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "trip_revisit_1440": {
+    "calls": 14,
+    "by": {
+      "pexels-image": 14
+    }
+  },
+  "reservas_1440": {
+    "viewport": 0,
+    "calls": 0,
+    "by": {},
+    "imgs": {
+      "total": 1,
+      "broken": [],
+      "ilustrativa": 0,
+      "google": 0
+    }
+  },
+  "errors_1440": [],
+  "tripId": "92a52e51-e159-4a70-b5cf-3e35914a5da4"
+}

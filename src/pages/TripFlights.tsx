@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plane, Search, ExternalLink, Loader2 } from "lucide-react";
+import { AirlineLogo } from "@/components/media/AirlineLogo";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,13 +161,8 @@ const TripFlights = () => {
           {results.map((f, i) => (
             <div key={i} className="glass-card rounded-xl p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex items-center gap-3 md:w-48">
-                {f.airline_logo ? (
-                  <img src={f.airline_logo} alt={f.airline} className="w-10 h-10 rounded object-contain bg-white p-1" />
-                ) : (
-                  <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
-                    <Plane className="w-5 h-5 text-primary" />
-                  </div>
-                )}
+                {/* Logo real: el de Google Flights o, si no viene, el del CDN de Travelpayouts. */}
+                <AirlineLogo airline={f.airline} logoUrl={f.airline_logo} size={40} shape="square" />
                 <div>
                   <div className="text-sm font-medium">{f.airline}</div>
                   <div className="text-[11px] text-muted-foreground">{f.stops === 0 ? "Directo" : `${f.stops} escala${f.stops > 1 ? "s" : ""}`}</div>

@@ -5,6 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Heart, Trash2 } from "lucide-react";
 import { logInsight } from "@/lib/insights";
 import { motion } from "framer-motion";
+import { SmartImage } from "@/components/media/SmartImage";
+import { destinationQuery } from "@/lib/categoryImagery";
+import { isSafeStockUrl } from "@/lib/stockPhoto";
 
 type Reco = {
   id: string;
@@ -71,11 +74,17 @@ const Favoritos = () => {
                 className="relative glass-card rounded-2xl overflow-hidden group"
               >
                 <div className="relative aspect-[4/5]">
-                  {it.imagen_url ? (
-                    <img src={it.imagen_url} alt={it.titulo ?? ""} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                  ) : (
-                    <div className="w-full h-full bg-surface" />
-                  )}
+                  {/* La imagen guardada; si no hay, una ilustrativa del destino. Las de Pexels van marcadas. */}
+                  <SmartImage
+                    alt={it.titulo ?? ""}
+                    imageUrl={it.imagen_url}
+                    imageKind={isSafeStockUrl(it.imagen_url) ? "stock" : "real"}
+                    stockQuery={it.titulo ? destinationQuery(it.titulo) : null}
+                    icon={Heart}
+                    className="!absolute inset-0"
+                    imgClassName="group-hover:scale-105"
+                    captionClassName={it.match_score ? "top-12 left-3" : "top-3 left-3"}
+                  />
                   <div className="absolute inset-0 bg-gradient-overlay" />
                   <button onClick={() => unsave(it)} aria-label="Quitar de favoritos"
                     className="absolute top-3 right-3 p-2 rounded-full bg-background/70 backdrop-blur hover:bg-destructive/80 transition">

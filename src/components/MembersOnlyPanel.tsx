@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CityVideoCard } from "@/components/CityVideoCard";
 import { VenueDetailDialog } from "@/components/VenueDetailDialog";
+import { VenueImage } from "@/components/media/VenueImage";
 import { MembersTeaser } from "@/components/MembersTeaser";
 import { fetchMembersAccess, type MembersAccess } from "@/lib/membersAccess";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -226,14 +227,15 @@ export function MembersOnlyPanel({ onReserve }: Props) {
               <article
                 key={v.id}
                 onClick={() => setDetailVenue(v)}
-                className="cursor-pointer rounded-2xl border border-primary/15 bg-gradient-to-b from-black/60 to-black/30 backdrop-blur-xl p-6 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_20px_60px_-20px_rgba(201,169,97,0.3)]"
+                className="group cursor-pointer overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-b from-black/60 to-black/30 backdrop-blur-xl hover:border-primary/40 transition-all duration-300 hover:shadow-[0_20px_60px_-20px_rgba(201,169,97,0.3)]"
               >
-                <div className="flex items-start gap-4 mb-3">
-                  <div className="text-4xl">{venueEmoji(v)}</div>
-                  <div className="flex-1 min-w-0">
+                {/* Foto real del venue (Google, solo si encuentra ESE lugar); si no, una foto
+                    ilustrativa de su categoría (speakeasy, jazz…), marcada como tal. */}
+                <VenueImage venue={v} className="h-44 w-full" />
+                <div className="p-6 pt-4">
+                <div className="mb-3 min-w-0">
                     <h4 className="font-fraunces text-xl text-foreground leading-tight">{v.nombre}</h4>
                     {v.por_que && <p className="text-primary text-xs mt-1 leading-snug">{v.por_que}</p>}
-                  </div>
                 </div>
 
                 <MembersVenueMeta venue={v} />
@@ -286,6 +288,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                       <ExternalLink className="w-3.5 h-3.5" /> Sitio oficial
                     </a>
                   )}
+                </div>
                 </div>
               </article>
             ))}

@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { BookmarkCheck, ExternalLink, Calendar, MapPin, MousePointerClick } from "lucide-react";
+import {
+  BookmarkCheck, ExternalLink, Calendar, MapPin, MousePointerClick, UtensilsCrossed, TrainFront, Ship, Plane, Hotel, Car,
+  Compass, Wifi, Shield,
+} from "lucide-react";
+import { SmartImage } from "@/components/media/SmartImage";
+import { AirlineLogo } from "@/components/media/AirlineLogo";
+import { airlineCode } from "@/lib/airlines";
+import { bookingCategoryQuery, isSpecificVenueTitle } from "@/lib/categoryImagery";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +27,7 @@ type Booking = {
   start_at: string | null;
   status: string;
   confirmation_code?: string | null;
+  image_url?: string | null;
   partner_reference?: string | null;
   created_at: string;
 };
@@ -35,6 +43,39 @@ const labels: Record<string, string> = {
   esim: "eSIM",
   insurance: "Seguro",
   other: "Otro",
+};
+
+/**
+ * Imagen de cada reserva: vuelo → logo real de la aerolínea; hotel/restaurante/actividad con nombre
+ * propio → su foto real de Google (si la encuentra) o la que guardó el socio; si no, una foto
+ * ilustrativa de la categoría, marcada como tal.
+ */
+function BookingMedia({ b, index }: { b: Booking; index: number }) {
+  const airline = b.category === "flight" ? [b.provider, b.title, b.subtitle].find((v) => airlineCode(v)) ?? null : null;
+  if (airline) {
+    return (
+      <div className="w-14 h-14 sm:w-20 sm:h-20 shrink-0 rounded-xl bg-white flex items-center justify-center ring-1 ring-white/10">
+        <AirlineLogo airline={airline} size={40} shape="square" className="!shadow-none !ring-0" />
+      </div>
+    );
+  }
+  return (
+    <SmartImage
+      alt=""
+      imageUrl={b.image_url ?? null}
+      lookup={isSpecificVenueTitle(b.category, b.title) ? { name: b.title, city: b.city } : null}
+      stockQuery={bookingCategoryQuery(b.category, b.city, index)}
+      size="thumb"
+      icon={CATEGORY_ICON[b.category] ?? BookmarkCheck}
+      className="w-14 h-14 sm:w-20 sm:h-20 shrink-0 rounded-xl ring-1 ring-white/10"
+      captionPosition="bottom-left"
+    />
+  );
+}
+
+const CATEGORY_ICON: Record<string, typeof BookmarkCheck> = {
+  restaurant: UtensilsCrossed, train: TrainFront, ferry: Ship, flight: Plane, hotel: Hotel, car: Car,
+  activity: Compass, esim: Wifi, insurance: Shield,
 };
 
 const Reservas = () => {
@@ -57,9 +98,10 @@ const Reservas = () => {
 
   const { confirmed, visits } = splitBookings(items);
 
-  const renderItem = (b: Booking, kind: "confirmed" | "visit") => (
-    <div key={b.id} className="glass-card rounded-2xl p-4 border border-white/10">
+  const renderItem = (b: Booking, kind: "confirmed" | "visit", index = 0) => (
+    <div key={b.id} className="glass-card rounded-2xl p-3 sm:p-4 border border-white/10">
       <div className="flex items-start justify-between gap-3">
+        <BookingMedia b={b} index={index} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <Badge variant="outline" className="text-xs">{labels[b.category] ?? b.category}</Badge>
@@ -114,7 +156,7 @@ const Reservas = () => {
                 la confirmación de tu compra te llega por correo del propio socio.
               </div>
             ) : (
-              confirmed.map((b) => renderItem(b, "confirmed"))
+              confirmed.map((b, i) => renderItem(b, "confirmed", i))
             )}
           </section>
         )}
@@ -133,7 +175,7 @@ const Reservas = () => {
                 Cuando abras un socio (vuelos, trenes, restaurantes, tours…) lo verás aquí para retomarlo.
               </div>
             ) : (
-              visits.map((b) => renderItem(b, "visit"))
+              visits.map((b, i) => renderItem(b, "visit", i))
             )}
           </section>
         )}
