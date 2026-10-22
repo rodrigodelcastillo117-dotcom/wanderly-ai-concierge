@@ -44,6 +44,36 @@ export type Database = {
         }
         Relationships: []
       }
+      action_idempotency: {
+        Row: {
+          created_at: string
+          idem_key: string
+          response: Json | null
+          scope: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          idem_key: string
+          response?: Json | null
+          scope: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          idem_key?: string
+          response?: Json | null
+          scope?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       admins: {
         Row: {
           created_at: string
@@ -626,6 +656,188 @@ export type Database = {
           note?: string | null
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      avatar_image_usage: {
+        Row: {
+          created_at: string
+          id: number
+          images: number
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          images: number
+          kind: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          images?: number
+          kind?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      avatar_profiles: {
+        Row: {
+          base_path: string | null
+          created_at: string
+          current_path: string | null
+          current_url: string | null
+          likeness_score: number | null
+          model: string | null
+          updated_at: string
+          user_id: string
+          version: number
+          visible_keys: string[]
+        }
+        Insert: {
+          base_path?: string | null
+          created_at?: string
+          current_path?: string | null
+          current_url?: string | null
+          likeness_score?: number | null
+          model?: string | null
+          updated_at?: string
+          user_id: string
+          version?: number
+          visible_keys?: string[]
+        }
+        Update: {
+          base_path?: string | null
+          created_at?: string
+          current_path?: string | null
+          current_url?: string | null
+          likeness_score?: number | null
+          model?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: number
+          visible_keys?: string[]
+        }
+        Relationships: []
+      }
+      avatar_souvenirs: {
+        Row: {
+          attempts: number
+          emoji: string
+          error: string | null
+          fuente: string
+          id: string
+          likeness_score: number | null
+          lugar: string
+          model: string | null
+          nombre: string
+          pais: string | null
+          prompt: string
+          slot: string
+          souvenir_key: string
+          status: string
+          trip_end: string | null
+          trip_id: string | null
+          trip_key: string
+          trip_label: string
+          unlocked_at: string
+          updated_at: string
+          user_id: string
+          visible: boolean
+        }
+        Insert: {
+          attempts?: number
+          emoji?: string
+          error?: string | null
+          fuente?: string
+          id?: string
+          likeness_score?: number | null
+          lugar: string
+          model?: string | null
+          nombre: string
+          pais?: string | null
+          prompt?: string
+          slot?: string
+          souvenir_key: string
+          status?: string
+          trip_end?: string | null
+          trip_id?: string | null
+          trip_key: string
+          trip_label?: string
+          unlocked_at?: string
+          updated_at?: string
+          user_id: string
+          visible?: boolean
+        }
+        Update: {
+          attempts?: number
+          emoji?: string
+          error?: string | null
+          fuente?: string
+          id?: string
+          likeness_score?: number | null
+          lugar?: string
+          model?: string | null
+          nombre?: string
+          pais?: string | null
+          prompt?: string
+          slot?: string
+          souvenir_key?: string
+          status?: string
+          trip_end?: string | null
+          trip_id?: string | null
+          trip_key?: string
+          trip_label?: string
+          unlocked_at?: string
+          updated_at?: string
+          user_id?: string
+          visible?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avatar_souvenirs_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      avatar_variants: {
+        Row: {
+          created_at: string
+          diferencias: string[]
+          id: string
+          likeness_score: number | null
+          model: string | null
+          origen: string
+          status: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diferencias?: string[]
+          id?: string
+          likeness_score?: number | null
+          model?: string | null
+          origen?: string
+          status?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diferencias?: string[]
+          id?: string
+          likeness_score?: number | null
+          model?: string | null
+          origen?: string
+          status?: string
+          storage_path?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1314,6 +1526,546 @@ export type Database = {
           id?: string
           transport_private_usd?: number
           transport_public_usd?: number
+        }
+        Relationships: []
+      }
+      edition_article_sources: {
+        Row: {
+          article_id: string
+          source_id: string
+          used_for: string | null
+        }
+        Insert: {
+          article_id: string
+          source_id: string
+          used_for?: string | null
+        }
+        Update: {
+          article_id?: string
+          source_id?: string
+          used_for?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edition_article_sources_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "edition_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edition_article_sources_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "edition_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edition_articles: {
+        Row: {
+          actions: Json
+          approved_at: string | null
+          approved_by_label: string | null
+          body: Json
+          byline: Json
+          corrected_at: string | null
+          correction_note: string | null
+          created_at: string
+          dek: Json
+          destinations: string[]
+          drafted_by: string
+          editor_notes: string | null
+          fact_date: string | null
+          fact_status: string
+          format: string
+          hero_image_id: string | null
+          id: string
+          issue_id: string
+          kicker: Json
+          published_at: string | null
+          reading_minutes: number
+          retracted_at: string | null
+          retraction_note: string | null
+          scheduled_for: string | null
+          section: string
+          sensitive: boolean
+          slug: string
+          sort_order: number
+          status: string
+          title: Json
+          topics: string[]
+          updated_at: string
+          valid_until: string | null
+          version: number
+          word_count: number
+        }
+        Insert: {
+          actions?: Json
+          approved_at?: string | null
+          approved_by_label?: string | null
+          body: Json
+          byline?: Json
+          corrected_at?: string | null
+          correction_note?: string | null
+          created_at?: string
+          dek?: Json
+          destinations?: string[]
+          drafted_by?: string
+          editor_notes?: string | null
+          fact_date?: string | null
+          fact_status: string
+          format: string
+          hero_image_id?: string | null
+          id?: string
+          issue_id: string
+          kicker?: Json
+          published_at?: string | null
+          reading_minutes?: number
+          retracted_at?: string | null
+          retraction_note?: string | null
+          scheduled_for?: string | null
+          section: string
+          sensitive?: boolean
+          slug: string
+          sort_order?: number
+          status?: string
+          title: Json
+          topics?: string[]
+          updated_at?: string
+          valid_until?: string | null
+          version?: number
+          word_count?: number
+        }
+        Update: {
+          actions?: Json
+          approved_at?: string | null
+          approved_by_label?: string | null
+          body?: Json
+          byline?: Json
+          corrected_at?: string | null
+          correction_note?: string | null
+          created_at?: string
+          dek?: Json
+          destinations?: string[]
+          drafted_by?: string
+          editor_notes?: string | null
+          fact_date?: string | null
+          fact_status?: string
+          format?: string
+          hero_image_id?: string | null
+          id?: string
+          issue_id?: string
+          kicker?: Json
+          published_at?: string | null
+          reading_minutes?: number
+          retracted_at?: string | null
+          retraction_note?: string | null
+          scheduled_for?: string | null
+          section?: string
+          sensitive?: boolean
+          slug?: string
+          sort_order?: number
+          status?: string
+          title?: Json
+          topics?: string[]
+          updated_at?: string
+          valid_until?: string | null
+          version?: number
+          word_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edition_articles_hero_image_id_fkey"
+            columns: ["hero_image_id"]
+            isOneToOne: false
+            referencedRelation: "edition_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edition_articles_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "edition_issues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edition_downloads: {
+        Row: {
+          article_count: number
+          bytes: number | null
+          created_at: string
+          duration_ms: number | null
+          format: string
+          id: number
+          image_count: number
+          issue_id: string | null
+          kind: string
+          language: string | null
+          user_id: string
+        }
+        Insert: {
+          article_count?: number
+          bytes?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          format: string
+          id?: never
+          image_count?: number
+          issue_id?: string | null
+          kind: string
+          language?: string | null
+          user_id: string
+        }
+        Update: {
+          article_count?: number
+          bytes?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          format?: string
+          id?: never
+          image_count?: number
+          issue_id?: string | null
+          kind?: string
+          language?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edition_downloads_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "edition_issues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edition_images: {
+        Row: {
+          allow_offline: boolean
+          allow_pdf: boolean
+          alt_en: string | null
+          alt_es: string
+          created_at: string
+          depicts_en: string | null
+          depicts_es: string
+          focal: string | null
+          id: string
+          illustrative: boolean
+          key: string
+          license: string | null
+          license_note: string | null
+          license_reviewed_at: string | null
+          license_status: string
+          license_url: string | null
+          page_url: string | null
+          photographer: string | null
+          photographer_url: string | null
+          provider: string
+          provider_id: string | null
+          updated_at: string
+          url: string
+          verification: string | null
+        }
+        Insert: {
+          allow_offline?: boolean
+          allow_pdf?: boolean
+          alt_en?: string | null
+          alt_es: string
+          created_at?: string
+          depicts_en?: string | null
+          depicts_es: string
+          focal?: string | null
+          id?: string
+          illustrative: boolean
+          key: string
+          license?: string | null
+          license_note?: string | null
+          license_reviewed_at?: string | null
+          license_status?: string
+          license_url?: string | null
+          page_url?: string | null
+          photographer?: string | null
+          photographer_url?: string | null
+          provider: string
+          provider_id?: string | null
+          updated_at?: string
+          url: string
+          verification?: string | null
+        }
+        Update: {
+          allow_offline?: boolean
+          allow_pdf?: boolean
+          alt_en?: string | null
+          alt_es?: string
+          created_at?: string
+          depicts_en?: string | null
+          depicts_es?: string
+          focal?: string | null
+          id?: string
+          illustrative?: boolean
+          key?: string
+          license?: string | null
+          license_note?: string | null
+          license_reviewed_at?: string | null
+          license_status?: string
+          license_url?: string | null
+          page_url?: string | null
+          photographer?: string | null
+          photographer_url?: string | null
+          provider?: string
+          provider_id?: string | null
+          updated_at?: string
+          url?: string
+          verification?: string | null
+        }
+        Relationships: []
+      }
+      edition_issues: {
+        Row: {
+          approved_at: string | null
+          approved_by_label: string | null
+          cover_article_slug: string | null
+          cover_image_id: string | null
+          cover_line: Json
+          created_at: string
+          id: string
+          number: number
+          period_label: Json
+          period_start: string
+          plan: Json
+          published_at: string | null
+          research_closed_at: string | null
+          retracted_at: string | null
+          retraction_note: string | null
+          scheduled_for: string | null
+          slug: string
+          status: string
+          title: Json
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by_label?: string | null
+          cover_article_slug?: string | null
+          cover_image_id?: string | null
+          cover_line?: Json
+          created_at?: string
+          id?: string
+          number: number
+          period_label: Json
+          period_start: string
+          plan?: Json
+          published_at?: string | null
+          research_closed_at?: string | null
+          retracted_at?: string | null
+          retraction_note?: string | null
+          scheduled_for?: string | null
+          slug: string
+          status?: string
+          title: Json
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by_label?: string | null
+          cover_article_slug?: string | null
+          cover_image_id?: string | null
+          cover_line?: Json
+          created_at?: string
+          id?: string
+          number?: number
+          period_label?: Json
+          period_start?: string
+          plan?: Json
+          published_at?: string | null
+          research_closed_at?: string | null
+          retracted_at?: string | null
+          retraction_note?: string | null
+          scheduled_for?: string | null
+          slug?: string
+          status?: string
+          title?: Json
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edition_issues_cover_image_id_fkey"
+            columns: ["cover_image_id"]
+            isOneToOne: false
+            referencedRelation: "edition_images"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edition_member_prefs: {
+        Row: {
+          consented_at: string | null
+          edition_kind: string
+          excluded: string[]
+          interests: Json
+          language: string
+          personalization_consent: boolean
+          reading_minutes: number
+          section_order: string[]
+          show_name_on_cover: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consented_at?: string | null
+          edition_kind?: string
+          excluded?: string[]
+          interests?: Json
+          language?: string
+          personalization_consent?: boolean
+          reading_minutes?: number
+          section_order?: string[]
+          show_name_on_cover?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consented_at?: string | null
+          edition_kind?: string
+          excluded?: string[]
+          interests?: Json
+          language?: string
+          personalization_consent?: boolean
+          reading_minutes?: number
+          section_order?: string[]
+          show_name_on_cover?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      edition_reviews: {
+        Row: {
+          action: string
+          created_at: string
+          diff: Json | null
+          entity: string
+          entity_key: string
+          id: number
+          note: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          diff?: Json | null
+          entity: string
+          entity_key: string
+          id?: never
+          note?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          diff?: Json | null
+          entity?: string
+          entity_key?: string
+          id?: never
+          note?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      edition_saves: {
+        Row: {
+          article_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edition_saves_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "edition_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edition_sources: {
+        Row: {
+          attribution: string
+          author: string | null
+          consulted_at: string
+          created_at: string
+          data_used: string
+          distribution_restrictions: string | null
+          entity: string
+          id: string
+          key: string
+          kind: string
+          link_checked_at: string | null
+          link_http: number | null
+          link_status: string
+          published_at: string | null
+          reuse_rights: string
+          title: string
+          updated_at: string
+          url: string
+          verification: string
+        }
+        Insert: {
+          attribution: string
+          author?: string | null
+          consulted_at: string
+          created_at?: string
+          data_used: string
+          distribution_restrictions?: string | null
+          entity: string
+          id?: string
+          key: string
+          kind: string
+          link_checked_at?: string | null
+          link_http?: number | null
+          link_status?: string
+          published_at?: string | null
+          reuse_rights: string
+          title: string
+          updated_at?: string
+          url: string
+          verification: string
+        }
+        Update: {
+          attribution?: string
+          author?: string | null
+          consulted_at?: string
+          created_at?: string
+          data_used?: string
+          distribution_restrictions?: string | null
+          entity?: string
+          id?: string
+          key?: string
+          kind?: string
+          link_checked_at?: string | null
+          link_http?: number | null
+          link_status?: string
+          published_at?: string | null
+          reuse_rights?: string
+          title?: string
+          updated_at?: string
+          url?: string
+          verification?: string
         }
         Relationships: []
       }
@@ -2229,6 +2981,144 @@ export type Database = {
           },
         ]
       }
+      prive_drops: {
+        Row: {
+          benefit_en: string | null
+          benefit_es: string
+          commercial_relationship: string
+          conditions_en: string | null
+          conditions_es: string | null
+          created_at: string
+          curation_notes: string | null
+          curation_status: string
+          destination_id: string | null
+          discount_pct: number | null
+          drop_type: string
+          eligibility_en: string | null
+          eligibility_es: string | null
+          id: string
+          import_batch: string | null
+          interests: string[]
+          last_verified_at: string
+          link_url: string
+          offer_price: number | null
+          partner_benefit_id: string | null
+          price_currency: string | null
+          price_source_url: string | null
+          program_match: string[]
+          provider_name: string
+          provider_url: string | null
+          reference_price: number | null
+          restrictions_en: string | null
+          restrictions_es: string | null
+          slug: string
+          source_name: string | null
+          source_url: string
+          title_en: string | null
+          title_es: string
+          universes: string[]
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+          verified_by: string
+        }
+        Insert: {
+          benefit_en?: string | null
+          benefit_es: string
+          commercial_relationship?: string
+          conditions_en?: string | null
+          conditions_es?: string | null
+          created_at?: string
+          curation_notes?: string | null
+          curation_status?: string
+          destination_id?: string | null
+          discount_pct?: number | null
+          drop_type: string
+          eligibility_en?: string | null
+          eligibility_es?: string | null
+          id?: string
+          import_batch?: string | null
+          interests?: string[]
+          last_verified_at: string
+          link_url: string
+          offer_price?: number | null
+          partner_benefit_id?: string | null
+          price_currency?: string | null
+          price_source_url?: string | null
+          program_match?: string[]
+          provider_name: string
+          provider_url?: string | null
+          reference_price?: number | null
+          restrictions_en?: string | null
+          restrictions_es?: string | null
+          slug: string
+          source_name?: string | null
+          source_url: string
+          title_en?: string | null
+          title_es: string
+          universes?: string[]
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+          verified_by: string
+        }
+        Update: {
+          benefit_en?: string | null
+          benefit_es?: string
+          commercial_relationship?: string
+          conditions_en?: string | null
+          conditions_es?: string | null
+          created_at?: string
+          curation_notes?: string | null
+          curation_status?: string
+          destination_id?: string | null
+          discount_pct?: number | null
+          drop_type?: string
+          eligibility_en?: string | null
+          eligibility_es?: string | null
+          id?: string
+          import_batch?: string | null
+          interests?: string[]
+          last_verified_at?: string
+          link_url?: string
+          offer_price?: number | null
+          partner_benefit_id?: string | null
+          price_currency?: string | null
+          price_source_url?: string | null
+          program_match?: string[]
+          provider_name?: string
+          provider_url?: string | null
+          reference_price?: number | null
+          restrictions_en?: string | null
+          restrictions_es?: string | null
+          slug?: string
+          source_name?: string | null
+          source_url?: string
+          title_en?: string | null
+          title_es?: string
+          universes?: string[]
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+          verified_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_drops_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "prive_destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_drops_partner_benefit_id_fkey"
+            columns: ["partner_benefit_id"]
+            isOneToOne: false
+            referencedRelation: "prive_partner_benefits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prive_events: {
         Row: {
           created_at: string
@@ -2662,6 +3552,86 @@ export type Database = {
         }
         Relationships: []
       }
+      prive_insider_tips: {
+        Row: {
+          before_you_go: boolean
+          body_en: string | null
+          body_es: string
+          category: string
+          created_at: string
+          destination_id: string
+          id: string
+          import_batch: string | null
+          months: number[] | null
+          rank: number
+          slug: string
+          source_checked_at: string
+          source_name: string
+          source_url: string
+          status: string
+          title_en: string | null
+          title_es: string
+          traveler_types: string[]
+          updated_at: string
+          valid_until: string | null
+          verified_by: string
+        }
+        Insert: {
+          before_you_go?: boolean
+          body_en?: string | null
+          body_es: string
+          category: string
+          created_at?: string
+          destination_id: string
+          id?: string
+          import_batch?: string | null
+          months?: number[] | null
+          rank?: number
+          slug: string
+          source_checked_at: string
+          source_name: string
+          source_url: string
+          status?: string
+          title_en?: string | null
+          title_es: string
+          traveler_types?: string[]
+          updated_at?: string
+          valid_until?: string | null
+          verified_by: string
+        }
+        Update: {
+          before_you_go?: boolean
+          body_en?: string | null
+          body_es?: string
+          category?: string
+          created_at?: string
+          destination_id?: string
+          id?: string
+          import_batch?: string | null
+          months?: number[] | null
+          rank?: number
+          slug?: string
+          source_checked_at?: string
+          source_name?: string
+          source_url?: string
+          status?: string
+          title_en?: string | null
+          title_es?: string
+          traveler_types?: string[]
+          updated_at?: string
+          valid_until?: string | null
+          verified_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_insider_tips_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "prive_destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prive_invitations: {
         Row: {
           accepted_at: string | null
@@ -2727,6 +3697,101 @@ export type Database = {
           ip_hash?: string
         }
         Relationships: []
+      }
+      prive_key_events: {
+        Row: {
+          created_at: string
+          destination_slug: string | null
+          event: string
+          id: number
+          mode: string | null
+          ms: number | null
+          plan_id: string | null
+          tier: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          destination_slug?: string | null
+          event: string
+          id?: never
+          mode?: string | null
+          ms?: number | null
+          plan_id?: string | null
+          tier?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          destination_slug?: string | null
+          event?: string
+          id?: never
+          mode?: string | null
+          ms?: number | null
+          plan_id?: string | null
+          tier?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      prive_key_plans: {
+        Row: {
+          budget: Json | null
+          created_at: string
+          destination_slug: string | null
+          id: string
+          mode: string
+          party_size: number | null
+          plan_group: string | null
+          status: string
+          steps: Json
+          tier: string
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+          wish: string | null
+        }
+        Insert: {
+          budget?: Json | null
+          created_at?: string
+          destination_slug?: string | null
+          id?: string
+          mode: string
+          party_size?: number | null
+          plan_group?: string | null
+          status?: string
+          steps: Json
+          tier: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+          wish?: string | null
+        }
+        Update: {
+          budget?: Json | null
+          created_at?: string
+          destination_slug?: string | null
+          id?: string
+          mode?: string
+          party_size?: number | null
+          plan_group?: string | null
+          status?: string
+          steps?: Json
+          tier?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+          wish?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_key_plans_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prive_membership_events: {
         Row: {
@@ -2966,6 +4031,73 @@ export type Database = {
         }
         Relationships: []
       }
+      prive_passport_entries: {
+        Row: {
+          created_at: string
+          destination_id: string | null
+          experience_id: string | null
+          happened_on: string | null
+          id: string
+          kind: string
+          note: string | null
+          place_label: string | null
+          title: string
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          destination_id?: string | null
+          experience_id?: string | null
+          happened_on?: string | null
+          id?: string
+          kind: string
+          note?: string | null
+          place_label?: string | null
+          title: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          destination_id?: string | null
+          experience_id?: string | null
+          happened_on?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+          place_label?: string | null
+          title?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_passport_entries_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "prive_destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_passport_entries_experience_id_fkey"
+            columns: ["experience_id"]
+            isOneToOne: false
+            referencedRelation: "prive_experiences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_passport_entries_experience_id_fkey"
+            columns: ["experience_id"]
+            isOneToOne: false
+            referencedRelation: "prive_experiences_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prive_password_resets: {
         Row: {
           created_at: string
@@ -2993,6 +4125,118 @@ export type Database = {
         }
         Relationships: []
       }
+      prive_radar_items: {
+        Row: {
+          benefit_es: string
+          conditions_note: string | null
+          created_at: string
+          drop_id: string | null
+          id: string
+          program_label: string
+          source_url: string | null
+          state: string
+          trip_id: string | null
+          updated_at: string
+          used_at: string | null
+          user_id: string
+          verification_note: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          benefit_es: string
+          conditions_note?: string | null
+          created_at?: string
+          drop_id?: string | null
+          id?: string
+          program_label: string
+          source_url?: string | null
+          state?: string
+          trip_id?: string | null
+          updated_at?: string
+          used_at?: string | null
+          user_id: string
+          verification_note?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          benefit_es?: string
+          conditions_note?: string | null
+          created_at?: string
+          drop_id?: string | null
+          id?: string
+          program_label?: string
+          source_url?: string | null
+          state?: string
+          trip_id?: string | null
+          updated_at?: string
+          used_at?: string | null
+          user_id?: string
+          verification_note?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_radar_items_drop_id_fkey"
+            columns: ["drop_id"]
+            isOneToOne: false
+            referencedRelation: "prive_drops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_radar_items_drop_id_fkey"
+            columns: ["drop_id"]
+            isOneToOne: false
+            referencedRelation: "prive_drops_live"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_radar_items_drop_id_fkey"
+            columns: ["drop_id"]
+            isOneToOne: false
+            referencedRelation: "prive_drops_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prive_saved_tips: {
+        Row: {
+          added_to_trip_at: string | null
+          created_at: string
+          tip_id: string
+          trip_id: string | null
+          user_id: string
+        }
+        Insert: {
+          added_to_trip_at?: string | null
+          created_at?: string
+          tip_id: string
+          trip_id?: string | null
+          user_id: string
+        }
+        Update: {
+          added_to_trip_at?: string | null
+          created_at?: string
+          tip_id?: string
+          trip_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_saved_tips_tip_id_fkey"
+            columns: ["tip_id"]
+            isOneToOne: false
+            referencedRelation: "prive_insider_tips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_saved_tips_tip_id_fkey"
+            columns: ["tip_id"]
+            isOneToOne: false
+            referencedRelation: "prive_insider_tips_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prive_sessions: {
         Row: {
           auth_session_id: string | null
@@ -3001,6 +4245,7 @@ export type Database = {
           expires_at: string
           id: string
           last_seen_at: string
+          remember: boolean
           revoke_reason: string | null
           revoked_at: string | null
           token_hash: string
@@ -3013,6 +4258,7 @@ export type Database = {
           expires_at: string
           id?: string
           last_seen_at?: string
+          remember?: boolean
           revoke_reason?: string | null
           revoked_at?: string | null
           token_hash: string
@@ -3025,10 +4271,130 @@ export type Database = {
           expires_at?: string
           id?: string
           last_seen_at?: string
+          remember?: boolean
           revoke_reason?: string | null
           revoked_at?: string | null
           token_hash?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      prive_value_entries: {
+        Row: {
+          created_at: string
+          currency: string | null
+          drop_id: string | null
+          evidence_note: string | null
+          id: string
+          kind: string
+          non_monetary_note: string | null
+          occurred_on: string | null
+          paid_amount: number | null
+          radar_item_id: string | null
+          reference_amount: number | null
+          reference_source: string | null
+          savings_amount: number | null
+          title: string
+          trip_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          drop_id?: string | null
+          evidence_note?: string | null
+          id?: string
+          kind: string
+          non_monetary_note?: string | null
+          occurred_on?: string | null
+          paid_amount?: number | null
+          radar_item_id?: string | null
+          reference_amount?: number | null
+          reference_source?: string | null
+          savings_amount?: number | null
+          title: string
+          trip_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          drop_id?: string | null
+          evidence_note?: string | null
+          id?: string
+          kind?: string
+          non_monetary_note?: string | null
+          occurred_on?: string | null
+          paid_amount?: number | null
+          radar_item_id?: string | null
+          reference_amount?: number | null
+          reference_source?: string | null
+          savings_amount?: number | null
+          title?: string
+          trip_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_value_entries_drop_id_fkey"
+            columns: ["drop_id"]
+            isOneToOne: false
+            referencedRelation: "prive_drops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_value_entries_drop_id_fkey"
+            columns: ["drop_id"]
+            isOneToOne: false
+            referencedRelation: "prive_drops_live"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_value_entries_drop_id_fkey"
+            columns: ["drop_id"]
+            isOneToOne: false
+            referencedRelation: "prive_drops_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_value_entries_radar_item_id_fkey"
+            columns: ["radar_item_id"]
+            isOneToOne: false
+            referencedRelation: "prive_radar_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prive_value_events: {
+        Row: {
+          created_at: string
+          destination_id: string | null
+          event: string
+          id: number
+          ref_id: string | null
+          state: string | null
+          surface: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          destination_id?: string | null
+          event: string
+          id?: never
+          ref_id?: string | null
+          state?: string | null
+          surface?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          destination_id?: string | null
+          event?: string
+          id?: never
+          ref_id?: string | null
+          state?: string | null
+          surface?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -3864,6 +5230,38 @@ export type Database = {
           },
         ]
       }
+      trip_import_refs: {
+        Row: {
+          created_at: string
+          id: string
+          ref: string
+          trip_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ref: string
+          trip_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ref?: string
+          trip_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_import_refs_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_journal_entries: {
         Row: {
           author_id: string
@@ -4105,16 +5503,20 @@ export type Database = {
           destino: string
           fecha_regreso: string | null
           fecha_salida: string | null
+          fuente: string
           hospedaje_json: Json | null
           id: string
           itinerario_json: Json | null
           match_score: number | null
           moneda: string | null
           num_viajeros: number | null
+          pagado_moneda: string | null
+          pagado_total: number | null
           pais_destino: string | null
           presupuesto_objetivo: number | null
           quote_basis: Json | null
           quote_needs_update: boolean
+          realizado: boolean
           restaurantes_json: Json | null
           selections: Json | null
           status: string | null
@@ -4138,16 +5540,20 @@ export type Database = {
           destino: string
           fecha_regreso?: string | null
           fecha_salida?: string | null
+          fuente?: string
           hospedaje_json?: Json | null
           id?: string
           itinerario_json?: Json | null
           match_score?: number | null
           moneda?: string | null
           num_viajeros?: number | null
+          pagado_moneda?: string | null
+          pagado_total?: number | null
           pais_destino?: string | null
           presupuesto_objetivo?: number | null
           quote_basis?: Json | null
           quote_needs_update?: boolean
+          realizado?: boolean
           restaurantes_json?: Json | null
           selections?: Json | null
           status?: string | null
@@ -4171,16 +5577,20 @@ export type Database = {
           destino?: string
           fecha_regreso?: string | null
           fecha_salida?: string | null
+          fuente?: string
           hospedaje_json?: Json | null
           id?: string
           itinerario_json?: Json | null
           match_score?: number | null
           moneda?: string | null
           num_viajeros?: number | null
+          pagado_moneda?: string | null
+          pagado_total?: number | null
           pais_destino?: string | null
           presupuesto_objetivo?: number | null
           quote_basis?: Json | null
           quote_needs_update?: boolean
+          realizado?: boolean
           restaurantes_json?: Json | null
           selections?: Json | null
           status?: string | null
@@ -4459,6 +5869,122 @@ export type Database = {
           },
         ]
       }
+      vault_files: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          mime: string
+          side: string
+          size: number
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          mime: string
+          side: string
+          size: number
+          storage_path: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          mime?: string
+          side?: string
+          size?: number
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_files_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "vault_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vault_items: {
+        Row: {
+          benefits: string[]
+          benefits_unverified: boolean
+          contact_phone: string | null
+          country_code: string | null
+          created_at: string
+          entries: string | null
+          expires_on: string | null
+          holder_name: string | null
+          id: string
+          issuer: string | null
+          kind: string
+          notes: string | null
+          number: string | null
+          program_id: string | null
+          section: string
+          tier: string | null
+          tier_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          valid_from: string | null
+          visa_type: string | null
+        }
+        Insert: {
+          benefits?: string[]
+          benefits_unverified?: boolean
+          contact_phone?: string | null
+          country_code?: string | null
+          created_at?: string
+          entries?: string | null
+          expires_on?: string | null
+          holder_name?: string | null
+          id?: string
+          issuer?: string | null
+          kind: string
+          notes?: string | null
+          number?: string | null
+          program_id?: string | null
+          section: string
+          tier?: string | null
+          tier_id?: string | null
+          title: string
+          updated_at?: string
+          user_id?: string
+          valid_from?: string | null
+          visa_type?: string | null
+        }
+        Update: {
+          benefits?: string[]
+          benefits_unverified?: boolean
+          contact_phone?: string | null
+          country_code?: string | null
+          created_at?: string
+          entries?: string | null
+          expires_on?: string | null
+          holder_name?: string | null
+          id?: string
+          issuer?: string | null
+          kind?: string
+          notes?: string | null
+          number?: string | null
+          program_id?: string | null
+          section?: string
+          tier?: string | null
+          tier_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          valid_from?: string | null
+          visa_type?: string | null
+        }
+        Relationships: []
+      }
       visited_places: {
         Row: {
           address: string | null
@@ -4550,6 +6076,118 @@ export type Database = {
           status?: string | null
         }
         Relationships: []
+      }
+      prive_drops_live: {
+        Row: {
+          benefit_en: string | null
+          benefit_es: string | null
+          commercial_relationship: string | null
+          conditions_en: string | null
+          conditions_es: string | null
+          destination_id: string | null
+          destination_name_en: string | null
+          destination_name_es: string | null
+          destination_slug: string | null
+          discount_pct: number | null
+          drop_type: string | null
+          effective_status: string | null
+          eligibility_en: string | null
+          eligibility_es: string | null
+          id: string | null
+          interests: string[] | null
+          last_verified_at: string | null
+          link_url: string | null
+          offer_price: number | null
+          price_currency: string | null
+          price_source_url: string | null
+          program_match: string[] | null
+          provider_name: string | null
+          provider_url: string | null
+          reference_price: number | null
+          restrictions_en: string | null
+          restrictions_es: string | null
+          slug: string | null
+          source_name: string | null
+          source_url: string | null
+          title_en: string | null
+          title_es: string | null
+          universes: string[] | null
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_drops_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "prive_destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prive_drops_v: {
+        Row: {
+          benefit_en: string | null
+          benefit_es: string | null
+          commercial_relationship: string | null
+          conditions_en: string | null
+          conditions_es: string | null
+          created_at: string | null
+          curation_notes: string | null
+          curation_status: string | null
+          destination_id: string | null
+          destination_name_en: string | null
+          destination_name_es: string | null
+          destination_slug: string | null
+          discount_pct: number | null
+          drop_type: string | null
+          effective_status: string | null
+          eligibility_en: string | null
+          eligibility_es: string | null
+          id: string | null
+          import_batch: string | null
+          interests: string[] | null
+          last_verified_at: string | null
+          link_url: string | null
+          local_today: string | null
+          local_tz: string | null
+          offer_price: number | null
+          partner_benefit_id: string | null
+          price_currency: string | null
+          price_source_url: string | null
+          program_match: string[] | null
+          provider_name: string | null
+          provider_url: string | null
+          reference_price: number | null
+          restrictions_en: string | null
+          restrictions_es: string | null
+          slug: string | null
+          source_name: string | null
+          source_url: string | null
+          title_en: string | null
+          title_es: string | null
+          universes: string[] | null
+          updated_at: string | null
+          valid_from: string | null
+          valid_until: string | null
+          verified_by: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_drops_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "prive_destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prive_drops_partner_benefit_id_fkey"
+            columns: ["partner_benefit_id"]
+            isOneToOne: false
+            referencedRelation: "prive_partner_benefits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prive_experiences_v: {
         Row: {
@@ -4918,6 +6556,45 @@ export type Database = {
           },
         ]
       }
+      prive_insider_tips_v: {
+        Row: {
+          before_you_go: boolean | null
+          body_en: string | null
+          body_es: string | null
+          category: string | null
+          created_at: string | null
+          destination_id: string | null
+          destination_name_en: string | null
+          destination_name_es: string | null
+          destination_slug: string | null
+          id: string | null
+          import_batch: string | null
+          months: number[] | null
+          rank: number | null
+          root_id: string | null
+          slug: string | null
+          source_checked_at: string | null
+          source_name: string | null
+          source_url: string | null
+          stale: boolean | null
+          status: string | null
+          title_en: string | null
+          title_es: string | null
+          traveler_types: string[] | null
+          updated_at: string | null
+          valid_until: string | null
+          verified_by: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_insider_tips_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "prive_destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prive_nightlife_compat: {
         Row: {
           active: boolean | null
@@ -5026,6 +6703,19 @@ export type Database = {
         }[]
       }
       aceptar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
+      action_idem_claim: {
+        Args: { _key: string; _scope: string; _user_id: string }
+        Returns: Json
+      }
+      action_idem_finish: {
+        Args: {
+          _key: string
+          _response: Json
+          _scope: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       admin_cost_metrics: { Args: { _days?: number }; Returns: Json }
       admin_grant_prive: {
         Args: {
@@ -5037,7 +6727,9 @@ export type Database = {
         Returns: Json
       }
       admin_metrics: { Args: never; Returns: Json }
+      admin_prive_key_metrics: { Args: { _days?: number }; Returns: Json }
       admin_prive_metrics: { Args: { _days?: number }; Returns: Json }
+      admin_prive_product_metrics: { Args: { _days?: number }; Returns: Json }
       admin_prive_requests: { Args: { _status?: string }; Returns: Json }
       admin_restore_prive: {
         Args: { _actor: string; _reason: string; _user: string }
@@ -5179,6 +6871,26 @@ export type Database = {
           _user_id: string
         }
         Returns: Json
+      }
+      avatar_claim_trip: {
+        Args: {
+          p_fuente: string
+          p_souvenir: Json
+          p_trip: string
+          p_user: string
+        }
+        Returns: string
+      }
+      avatar_take_images: {
+        Args: { p_kind: string; p_max: number; p_n: number; p_user: string }
+        Returns: number
+      }
+      avatar_trips_due: {
+        Args: { p_limit?: number }
+        Returns: {
+          trip_id: string
+          user_id: string
+        }[]
       }
       booking_intent_apply_external: {
         Args: {
@@ -5325,6 +7037,117 @@ export type Database = {
         Args: { p_revoke_unlocks?: boolean }
         Returns: Json
       }
+      edition_admin_article_correct: {
+        Args: { _note: string; _patch: Json; _slug: string }
+        Returns: Json
+      }
+      edition_admin_article_transition: {
+        Args: {
+          _action: string
+          _label?: string
+          _note?: string
+          _slug: string
+          _when?: string
+        }
+        Returns: Json
+      }
+      edition_admin_article_update: {
+        Args: { _note?: string; _patch: Json; _slug: string }
+        Returns: Json
+      }
+      edition_admin_image_license: {
+        Args: { _decision: string; _key: string; _note?: string }
+        Returns: Json
+      }
+      edition_admin_issue_transition: {
+        Args: {
+          _action: string
+          _label?: string
+          _note?: string
+          _slug: string
+          _when?: string
+        }
+        Returns: Json
+      }
+      edition_admin_overview: { Args: never; Returns: Json }
+      edition_admin_preview: { Args: { _issue_slug?: string }; Returns: Json }
+      edition_admin_require: { Args: never; Returns: string }
+      edition_article_checks: { Args: { _article_id: string }; Returns: Json }
+      edition_article_image_keys: {
+        Args: { _body: Json; _hero: string }
+        Returns: string[]
+      }
+      edition_article_json: {
+        Args: {
+          _admin?: boolean
+          _full?: boolean
+          a: Database["public"]["Tables"]["edition_articles"]["Row"]
+        }
+        Returns: Json
+      }
+      edition_body_words: { Args: { _body: Json }; Returns: number }
+      edition_image_json: {
+        Args: {
+          _admin?: boolean
+          i: Database["public"]["Tables"]["edition_images"]["Row"]
+        }
+        Returns: Json
+      }
+      edition_images_map: {
+        Args: { _admin?: boolean; _keys: string[] }
+        Returns: Json
+      }
+      edition_interest_keys: { Args: never; Returns: string[] }
+      edition_is_admin: { Args: never; Returns: boolean }
+      edition_is_live: {
+        Args: { _scheduled_for: string; _status: string }
+        Returns: boolean
+      }
+      edition_issue_checks: { Args: { _issue_id: string }; Returns: Json }
+      edition_issue_json: {
+        Args: {
+          _admin?: boolean
+          i: Database["public"]["Tables"]["edition_issues"]["Row"]
+        }
+        Returns: Json
+      }
+      edition_log_review: {
+        Args: {
+          _action: string
+          _actor: string
+          _diff?: Json
+          _entity: string
+          _key: string
+          _note: string
+        }
+        Returns: undefined
+      }
+      edition_raise: {
+        Args: { _code: string; _detail?: string }
+        Returns: undefined
+      }
+      edition_reader_body: { Args: { _body: Json }; Returns: Json }
+      edition_record_link_check: {
+        Args: { _http?: number; _key: string; _status: string }
+        Returns: boolean
+      }
+      edition_section_keys: { Args: never; Returns: string[] }
+      edition_source_json: {
+        Args: {
+          _admin?: boolean
+          _used_for?: string
+          s: Database["public"]["Tables"]["edition_sources"]["Row"]
+        }
+        Returns: Json
+      }
+      edition_sources_to_check: {
+        Args: { _limit?: number }
+        Returns: {
+          key: string
+          url: string
+        }[]
+      }
+      edition_today: { Args: never; Returns: string }
       effective_plan: { Args: { _user_id: string }; Returns: string }
       email_trial_hash: { Args: { _email: string }; Returns: string }
       ensure_ai_prefs: { Args: { p_user: string }; Returns: undefined }
@@ -5344,6 +7167,10 @@ export type Database = {
       has_trip_access: {
         Args: { p_trip: string; p_user: string }
         Returns: boolean
+      }
+      import_past_trip: {
+        Args: { p_refs: string[]; p_trip: Json }
+        Returns: Json
       }
       invitar_amigo_viaje: {
         Args: { p_friend_id: string; p_trip_id: string }
@@ -5503,6 +7330,10 @@ export type Database = {
         Args: { _sid: string; _user: string }
         Returns: boolean
       }
+      prive_before_you_go: {
+        Args: { _ps: string; _trip?: string }
+        Returns: Json
+      }
       prive_benefit_active: { Args: { _id: string }; Returns: boolean }
       prive_booking_category: { Args: { _universe: string }; Returns: string }
       prive_change_password: {
@@ -5544,6 +7375,62 @@ export type Database = {
       prive_destination: { Args: { _ps: string; _slug: string }; Returns: Json }
       prive_destination_coverage: { Args: { _dest: string }; Returns: Json }
       prive_destination_root: { Args: { _id: string }; Returns: string }
+      prive_drop: { Args: { _ps: string; _slug: string }; Returns: Json }
+      prive_drop_json: {
+        Args: {
+          _reasons?: string[]
+          d: Database["public"]["Views"]["prive_drops_v"]["Row"]
+        }
+        Returns: Json
+      }
+      prive_drops: {
+        Args: {
+          _destination?: string
+          _interests?: string[]
+          _limit?: number
+          _ps: string
+          _types?: string[]
+        }
+        Returns: Json
+      }
+      prive_drops_import_batch: {
+        Args: { p_batch: string; p_dry_run?: boolean; p_rows: Json }
+        Returns: Json
+      }
+      prive_edition_article: {
+        Args: { _ps: string; _slug: string }
+        Returns: Json
+      }
+      prive_edition_issue: {
+        Args: { _ps: string; _slug?: string }
+        Returns: Json
+      }
+      prive_edition_library: { Args: { _ps: string }; Returns: Json }
+      prive_edition_log_download: {
+        Args: {
+          _article_count?: number
+          _bytes?: number
+          _duration_ms?: number
+          _format: string
+          _image_count?: number
+          _issue: string
+          _kind: string
+          _language?: string
+          _ps: string
+        }
+        Returns: boolean
+      }
+      prive_edition_prefs: { Args: { _ps: string }; Returns: Json }
+      prive_edition_prefs_save: {
+        Args: { _prefs: Json; _ps: string }
+        Returns: Json
+      }
+      prive_edition_save: {
+        Args: { _ps: string; _saved?: boolean; _slug: string }
+        Returns: Json
+      }
+      prive_edition_saved: { Args: { _ps: string }; Returns: Json }
+      prive_edition_world_brief: { Args: { _ps: string }; Returns: Json }
       prive_entitled: { Args: { _user: string }; Returns: boolean }
       prive_evaluate_eligibility: {
         Args: { _limit: number }
@@ -5578,7 +7465,11 @@ export type Database = {
         }
         Returns: Json
       }
+      prive_founding_cutoff: { Args: never; Returns: string }
+      prive_has_card_number: { Args: { _t: string }; Returns: boolean }
+      prive_has_fake_urgency: { Args: { _t: string }; Returns: boolean }
       prive_has_grant: { Args: { _user: string }; Returns: boolean }
+      prive_has_percent: { Args: { _t: string }; Returns: boolean }
       prive_hash_password: { Args: { _pw: string }; Returns: string }
       prive_home: { Args: { _ps: string }; Returns: Json }
       prive_hours_ok: { Args: { _h: Json }; Returns: boolean }
@@ -5586,12 +7477,39 @@ export type Database = {
         Args: { p_batch: string; p_dry_run?: boolean; p_rows: Json }
         Returns: Json
       }
+      prive_insider: {
+        Args: { _destination: string; _ps: string }
+        Returns: Json
+      }
+      prive_insider_import_batch: {
+        Args: { p_batch: string; p_dry_run?: boolean; p_rows: Json }
+        Returns: Json
+      }
+      prive_insider_index: { Args: { _ps: string }; Returns: Json }
       prive_invite_user: {
         Args: { _actor: string; _basis: string; _user: string }
         Returns: string
       }
       prive_is_adult: { Args: { _uid: string }; Returns: boolean }
       prive_is_eligible: { Args: { _user: string }; Returns: boolean }
+      prive_key_add_to_trip: {
+        Args: { _plan_id: string; _ps: string; _trip_id: string }
+        Returns: Json
+      }
+      prive_key_archive: {
+        Args: { _plan_id: string; _ps: string }
+        Returns: Json
+      }
+      prive_key_plans: { Args: { _ps: string }; Returns: Json }
+      prive_key_save: { Args: { _plan: Json; _ps: string }; Returns: Json }
+      prive_key_taste_save: {
+        Args: { _consent: boolean; _ps: string; _taste: Json }
+        Returns: Json
+      }
+      prive_key_track: {
+        Args: { _event: string; _props?: Json; _ps: string }
+        Returns: boolean
+      }
       prive_legacy_https: { Args: { _w: string }; Returns: string }
       prive_lock_session: {
         Args: { _token_hash: string; _user: string }
@@ -5614,9 +7532,32 @@ export type Database = {
         Args: { _amount_refunded: number; _event: string; _invoice_id: string }
         Returns: Json
       }
+      prive_member_destinations: {
+        Args: { _uid: string }
+        Returns: {
+          destination_id: string
+          why: string
+        }[]
+      }
+      prive_member_trips: { Args: { _uid: string }; Returns: Json }
       prive_my_requests: { Args: never; Returns: Json }
       prive_new_member_code: { Args: never; Returns: string }
       prive_norm: { Args: { t: string }; Returns: string }
+      prive_passport: { Args: { _ps: string }; Returns: Json }
+      prive_passport_delete: {
+        Args: { _id: string; _ps: string }
+        Returns: Json
+      }
+      prive_passport_json: {
+        Args: {
+          p: Database["public"]["Tables"]["prive_passport_entries"]["Row"]
+        }
+        Returns: Json
+      }
+      prive_passport_save: {
+        Args: { _entry: Json; _ps: string }
+        Returns: Json
+      }
       prive_password_matches: {
         Args: { _hash: string; _pw: string }
         Returns: boolean
@@ -5633,6 +7574,21 @@ export type Database = {
         }
         Returns: Json
       }
+      prive_preview_track: { Args: { _event: string }; Returns: boolean }
+      prive_program_matches: {
+        Args: { _match: string[]; _norm: string }
+        Returns: boolean
+      }
+      prive_radar: {
+        Args: { _destination?: string; _ps: string }
+        Returns: Json
+      }
+      prive_radar_delete: { Args: { _id: string; _ps: string }; Returns: Json }
+      prive_radar_json: {
+        Args: { i: Database["public"]["Tables"]["prive_radar_items"]["Row"] }
+        Returns: Json
+      }
+      prive_radar_save: { Args: { _item: Json; _ps: string }; Returns: Json }
       prive_random_token: { Args: never; Returns: string }
       prive_record_attempt: {
         Args: {
@@ -5660,6 +7616,10 @@ export type Database = {
       }
       prive_register_failure: {
         Args: { _ip_hash: string; _kind: string; _user: string }
+        Returns: Json
+      }
+      prive_remember_session: {
+        Args: { _session_id: string; _user: string }
         Returns: Json
       }
       prive_report_compromised: { Args: { _user: string }; Returns: Json }
@@ -5737,6 +7697,10 @@ export type Database = {
         }
         Returns: Json
       }
+      prive_session_idle_limit: {
+        Args: { _remember: boolean }
+        Returns: string
+      }
       prive_set_password: {
         Args: { _breach_check: string; _password: string; _user: string }
         Returns: Json
@@ -5748,6 +7712,21 @@ export type Database = {
       prive_sweep: { Args: never; Returns: Json }
       prive_teaser: { Args: never; Returns: Json }
       prive_tenure_days: { Args: { _user: string }; Returns: number }
+      prive_tip_add_to_trip: {
+        Args: { _ps: string; _tip: string; _trip: string }
+        Returns: Json
+      }
+      prive_tip_json: {
+        Args: {
+          _uid: string
+          t: Database["public"]["Views"]["prive_insider_tips_v"]["Row"]
+        }
+        Returns: Json
+      }
+      prive_tip_save: {
+        Args: { _ps: string; _saved?: boolean; _tip: string }
+        Returns: Json
+      }
       prive_track: {
         Args: {
           _destination?: string
@@ -5759,6 +7738,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      prive_trip_destination: { Args: { _destino: string }; Returns: string }
       prive_universe: {
         Args: {
           _destination?: string
@@ -5778,6 +7758,51 @@ export type Database = {
         Returns: Json
       }
       prive_user_signals: { Args: { _uid: string }; Returns: Json }
+      prive_value_delete: { Args: { _id: string; _ps: string }; Returns: Json }
+      prive_value_json: {
+        Args: { v: Database["public"]["Tables"]["prive_value_entries"]["Row"] }
+        Returns: Json
+      }
+      prive_value_log: {
+        Args: {
+          _dest?: string
+          _event: string
+          _ref?: string
+          _state?: string
+          _surface?: string
+          _uid: string
+        }
+        Returns: undefined
+      }
+      prive_value_save: { Args: { _entry: Json; _ps: string }; Returns: Json }
+      prive_value_summary: { Args: { _ps: string }; Returns: Json }
+      prive_value_track: {
+        Args: {
+          _destination?: string
+          _event: string
+          _ps: string
+          _ref?: string
+          _surface?: string
+        }
+        Returns: boolean
+      }
+      prive_vault_programs: {
+        Args: { _uid: string }
+        Returns: {
+          kind: string
+          label: string
+          norm: string
+          tier: string
+        }[]
+      }
+      prive_withdraw_invitation: {
+        Args: { _actor: string; _reason: string; _user: string }
+        Returns: boolean
+      }
+      pro_paid_period_lock: {
+        Args: { _invoice_id: string }
+        Returns: undefined
+      }
       public_plan_config: { Args: never; Returns: Json }
       purge_account_data: { Args: { p_user_id: string }; Returns: Json }
       quota_rule: {
@@ -5845,6 +7870,14 @@ export type Database = {
         Returns: undefined
       }
       start_account_deletion: { Args: { _account_id: string }; Returns: string }
+      stripe_commit_payment_event: {
+        Args: { _amount_refunded: number; _row: Json; _tenure_event: string }
+        Returns: Json
+      }
+      stripe_payment_tenure_event: {
+        Args: { _action: string; _dispute_status: string; _type: string }
+        Returns: string
+      }
       stripe_sub_is_live: {
         Args: { _period_end: string; _status: string; _subscription_id: string }
         Returns: boolean
@@ -5873,6 +7906,11 @@ export type Database = {
       trip_document_path_trip: { Args: { p_name: string }; Returns: string }
       trip_quotes_line_items_valid: { Args: { items: Json }; Returns: boolean }
       unlock_members_access: { Args: { p_password: string }; Returns: Json }
+      vault_benefits_ok: { Args: { p: string[] }; Returns: boolean }
+      vault_path_item: { Args: { p_name: string }; Returns: string }
+      vault_path_owner: { Args: { p_name: string }; Returns: string }
+      vault_sync_legacy: { Args: { p_user_id: string }; Returns: undefined }
+      vault_try_date: { Args: { p: string }; Returns: string }
       verify_cron_secret: { Args: { p_secret: string }; Returns: boolean }
     }
     Enums: {
