@@ -249,7 +249,7 @@ const DashboardHome = () => {
             if (q.length < 5) return;
             navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
           }}
-          className="animate-fade-up space-y-4"
+          className="animate-rise space-y-4"
         >
           <div className="flex flex-row items-center gap-2 md:gap-5">
             <h1 className="font-display text-xl md:text-4xl leading-[1.1] tracking-tight shrink-0">
@@ -318,8 +318,9 @@ const DashboardHome = () => {
 
             </div>
           </div>
-          {/* Ejemplos de un toque: solo llenan el campo (nada se analiza sin "Analizar"). */}
-          {concierge.trim().length === 0 && hasTrips && (
+          {/* Ejemplos de un toque: solo llenan el campo (nada se analiza sin "Analizar"). También mientras
+              cargan los viajes: si aparecieran después empujarían toda la página (CLS). */}
+          {concierge.trim().length === 0 && (hasTrips || active.loading) && (
             <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap" aria-label="Ejemplos para escribir tu viaje">
               {EXAMPLE_PROMPTS.map((ex) => (
                 <button key={ex} type="button" onClick={() => pickExample(ex)}
@@ -359,10 +360,10 @@ const DashboardHome = () => {
         {/* HERO — cinematic Santorini-style sunset */}
         {/* Para quien aún no tiene viajes la guía de arriba ya es la portada: sin video duplicado. */}
         {/* Mientras carga se reserva su lugar: si apareciera después empujaría 340 px todo lo de abajo. */}
+        {/* Sin animación de entrada: es la imagen principal (LCP). Con opacidad 0 al inicio el navegador
+            la contaba 0.7 s tarde, y desplazada 20 px se medía más chica que la del siguiente reel. */}
         {(hasTrips || active.loading) && (
-        <section
-          className="animate-fade-up"
-        >
+        <section>
           <div
             className="relative rounded-[28px] overflow-hidden premium-shadow group cursor-pointer ring-1 ring-white/[0.05]"
             onClick={() => navigate("/dashboard/planear?mode=emocion")}

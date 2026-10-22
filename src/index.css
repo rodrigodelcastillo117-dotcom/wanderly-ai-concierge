@@ -172,6 +172,16 @@
   .animate-scale-in {
     animation: scaleIn 0.5s var(--transition-smooth);
   }
+  /* Entrada de lo que está arriba del todo (candidato a LCP): solo se desliza, sin pasar por
+     opacidad 0. Con fadeUp el navegador no contaba el texto/la imagen principal como pintados hasta
+     terminar la animación (+0.7 s de LCP medido en 3G; Rendimiento, cierre 2026-10). */
+  .animate-rise {
+    animation: rise 0.7s var(--transition-smooth);
+  }
+  @keyframes rise {
+    from { transform: translateY(20px); }
+    to { transform: translateY(0); }
+  }
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -205,7 +215,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .reveal { opacity: 1; transform: none; transition: none; }
-    .animate-fade-up, .animate-fade-in, .animate-scale-in { animation: none; }
+    .animate-fade-up, .animate-fade-in, .animate-scale-in, .animate-rise { animation: none; }
   }
 }
 

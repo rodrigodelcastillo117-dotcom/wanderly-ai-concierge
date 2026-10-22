@@ -175,6 +175,19 @@ describe("inicio sin saltos de diseño", () => {
     // Imágenes de abajo del pliegue con prioridad baja; el hero con prioridad alta y sin lazy.
     expect(home).toMatch(/fallbackImage=\{tulum640\} lowPriority/);
     expect(home).toMatch(/fallbackSrcSet=\{fallbackSrcSet\(HERO_REELS\[reelIdx\]\.fallback\)\}[\s\S]{0,80}priority/);
+    // Los ejemplos de un toque también reservan su fila mientras cargan los viajes.
+    expect(home).toMatch(/concierge\.trim\(\)\.length === 0 && \(hasTrips \|\| active\.loading\) && \(/);
+  });
+
+  it("lo que puede ser LCP no entra desde opacidad 0 (eso lo retrasaba 0.7 s): solo se desliza o no se anima", () => {
+    const css = read("src/index.css");
+    const rise = /@keyframes rise \{([^}]+\}[^}]+)\}/.exec(css)![1];
+    expect(rise).not.toMatch(/opacity/);
+    expect(css).toMatch(/\.animate-fade-up, \.animate-fade-in, \.animate-scale-in, \.animate-rise \{ animation: none; \}/);
+    expect(read("src/pages/Landing.tsx")).toMatch(/<div className="max-w-3xl animate-rise">/);
+    expect(read("src/components/TripCommandCenter.tsx")).toMatch(/className="animate-rise relative overflow-hidden/);
+    const home = read("src/pages/DashboardHome.tsx");
+    expect(home).toMatch(/\{\(hasTrips \|\| active\.loading\) && \(\n\s*<section>/);
   });
 });
 
