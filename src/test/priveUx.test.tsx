@@ -17,7 +17,18 @@ vi.mock("@/lib/priveApi", async (importOriginal) => {
 });
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1", email: "v@example.com" }, signOut: vi.fn() }) }));
 const tripState: { trip: null | { id: string; destino: string; fecha_salida: string; fecha_regreso: string } } = { trip: null };
-vi.mock("@/hooks/useActiveTrip", () => ({ useActiveTrip: () => ({ trips: tripState.trip ? [tripState.trip] : [], trip: tripState.trip, loading: false }) }));
+const TRIPS = () => (tripState.trip ? [tripState.trip] : []);
+vi.mock("@/hooks/useActiveTrip", async () => {
+  // La misma forma que el hook real (trips, trip, resolved, loading…), con la regla real de viaje activo.
+  const { resolveActiveTrip } = await import("@/lib/activeTrip");
+  return {
+    useActiveTrip: () => {
+      const trips = TRIPS();
+      const resolved = resolveActiveTrip(trips, { pinnedId: null, todayLocal: "2026-10-22" });
+      return { trips, trip: resolved.trip, resolved, loading: false, pinnedId: null, pin: async () => ({ ok: true }) };
+    },
+  };
+});
 const invoke = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -30,6 +41,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 import { langFromTag, PRIVE_TEXT, resolvePriveLang } from "@/lib/priveI18n";
 import { browsable, featuredDestinations, groupByRegion, normalizeQuery, searchDestinations } from "@/lib/priveBrowse";
 import { destinationPhotoQueries, loadPrivePhoto } from "@/lib/privePhoto";
+import { __resetForYouCache } from "@/components/prive/key/useForYouData";
 import { __resetStockPhotos, cachedStockPhoto, loadStockPhoto } from "@/lib/stockPhoto";
 import { messageFor } from "@/lib/priveCopy";
 import { PRIVE_DESTINATION_INDEX } from "@/lib/priveDestinationIndex";
@@ -58,6 +70,7 @@ function setBrowserLanguages(langs: string[]) {
 
 beforeEach(() => {
   __resetStockPhotos();
+  __resetForYouCache(); // caché de 60 s de las ranuras de privekey: cada prueba con sus propios datos
   invoke.mockReset();
   invoke.mockImplementation(async (_fn: string, opts: { body: { query: string } }) => photo(opts.body.query));
   localStorage.clear();
@@ -341,12 +354,20 @@ describe("hub desbloqueado en español y navegación interna en la misma pestañ
     expect(within(hero).getByTestId("prive-hero-personal")).toHaveTextContent(/^Valentina, esta es tu selección/);
     expect(within(hero).getByRole("link", { name: "Explora tu mundo" })).toHaveAttribute("href", "/prive/explorar");
     expect(within(hero).getByRole("link", { name: "Pregúntale a Iato" })).toHaveAttribute("href", "/dashboard/concierge");
-    const forYou = await screen.findByTestId("prive-for-you");
-    expect(within(forYou).getByRole("heading", { name: /Curated for You\s*Elegido para ti/ })).toBeInTheDocument();
-    expect(within(forYou).getByText(/Selección editorial/)).toBeInTheDocument(); // sin viaje: no finge personalización
+    // "Curated for You" es ahora la ranura real de privekey (CuratedForYou, antes prive-for-you de prive-ux):
+    // marca en inglés como antetítulo + título en español; sin viaje lo dice (no finge personalización).
+    const forYou = await screen.findByTestId("pk-curated");
+    expect(within(forYou).getByText("CURATED FOR YOU")).toBeInTheDocument();
+    expect(within(forYou).getByRole("heading", { name: "Seleccionado para ti" })).toBeInTheDocument();
+    expect(await within(forYou).findByTestId("pk-personalization")).toHaveTextContent("Selección editorial verificada · aún no personalizada");
+    expect(forYou).toHaveAttribute("data-personalization", "editorial");
     // Lo desactualizado no se recomienda.
     expect(within(forYou).queryByText("Bar Viejo")).toBeNull();
-    expect(within(forYou).getAllByTestId("prive-exp-tile").length).toBe(2);
+    expect(await within(forYou).findAllByTestId("pk-tile")).toHaveLength(2);
+    // Sin viaje, "Your Next Journey" invita a planear uno (no inventa un destino).
+    const next = await screen.findByTestId("pk-next-journey");
+    expect(within(next).getByRole("heading", { name: "Tu próximo viaje" })).toBeInTheDocument();
+    expect(within(next).getByRole("link", { name: "Planear un viaje" })).toHaveAttribute("href", "/dashboard/planear");
     const spot = await screen.findByTestId("prive-spotlight");
     expect(within(spot).getByText("Experiencia de la semana")).toBeInTheDocument();
     expect(within(spot).getByRole("link")).toHaveAttribute("href", expect.stringMatching(/^\/prive\/experiencia\/(quintonil|pujol)$/));
@@ -361,12 +382,16 @@ describe("hub desbloqueado en español y navegación interna en la misma pestañ
   it("Para ti usa el viaje activo: prive_for_you con el destino y las fechas del viaje", async () => {
     tripState.trip = { id: "t1", destino: "Ciudad de México, México", fecha_salida: "2026-11-12", fecha_regreso: "2026-11-16" };
     renderHub();
-    const forYou = await screen.findByTestId("prive-for-you");
-    expect(within(forYou).getByText(/Para tu viaje a Ciudad de México/)).toBeInTheDocument();
-    const next = await screen.findByTestId("prive-next-journey");
+    // Ranuras reales de privekey: CuratedForYou dice que está priorizado por el viaje; YourNextJourney lleva al
+    // destino, a "Para tus fechas" con las fechas del viaje y al itinerario (antes "Agregar al itinerario").
+    const forYou = await screen.findByTestId("pk-curated");
+    expect(await within(forYou).findByTestId("pk-personalization")).toHaveTextContent(/^Priorizado para tu viaje: .*Ciudad de México/);
+    expect(forYou).toHaveAttribute("data-personalization", "trip");
+    const next = await screen.findByTestId("pk-next-journey");
     expect(within(next).getByRole("heading", { name: "Tu próximo capítulo: Ciudad de México." })).toBeInTheDocument();
     expect(within(next).getByRole("link", { name: "Explorar Ciudad de México" })).toHaveAttribute("href", "/prive/destino/cdmx");
-    expect(within(next).getByRole("link", { name: "Agregar al itinerario" })).toHaveAttribute("href", "/dashboard/viajes/t1");
+    expect(within(next).getByRole("link", { name: "Ver experiencias para mis fechas" })).toHaveAttribute("href", "/prive/destino/cdmx?desde=2026-11-12&hasta=2026-11-16#para-tus-fechas");
+    expect(within(next).getByRole("link", { name: "Ver mi itinerario" })).toHaveAttribute("href", "/dashboard/viajes/t1");
     expect(within(screen.getByTestId("prive-hero")).getByTestId("prive-hero-personal")).toHaveTextContent("Valentina, tu próximo capítulo: Ciudad de México.");
     expect(api.content).toHaveBeenCalledWith("prive_for_you", expect.anything(), expect.objectContaining({ _destination: "cdmx", _from: "2026-11-12", _to: "2026-11-16" }));
     tripState.trip = null;

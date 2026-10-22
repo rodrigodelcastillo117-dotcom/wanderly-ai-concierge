@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { usePriveCatalog, type PriveExperience } from "@/lib/priveCatalogApi";
 import { usePriveT } from "@/components/prive/PriveLang";
 import { FeaturedExperienceCard } from "@/components/prive/home/defaults";
@@ -18,6 +19,14 @@ export function MoreInDestination({ slug, city, excludeId, from, to, id, title }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, from, to]);
   const list = (items ?? []).filter((e) => e.id !== excludeId && e.state !== "DESACTUALIZADO");
+  // Enlace con ancla (p. ej. "Ver experiencias para mis fechas" → #para-tus-fechas): la sección llega después
+  // de su carga, así que el navegador no puede saltar solo; se desplaza cuando ya existe.
+  const { hash } = useLocation();
+  const ready = list.length > 0;
+  useEffect(() => {
+    if (!ready || !id || hash !== `#${id}`) return;
+    document.getElementById(id)?.scrollIntoView?.({ block: "start" });
+  }, [ready, id, hash]);
   if (!list.length) return null;
   return (
     <section id={id} aria-labelledby={`${id ?? "more"}-title`} className="scroll-mt-24" data-testid="prive-more-in">

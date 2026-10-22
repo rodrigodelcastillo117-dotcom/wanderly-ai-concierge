@@ -42,7 +42,8 @@ export default function PriveMyPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-8 pb-24 space-y-14" data-testid="prive-my">
       <header className="pt-6 grid lg:grid-cols-[1fr_auto] gap-8 items-end">
         <BrandTitle as="h1" brand={t.my.brand} sub={t.my.title !== t.my.brand ? t.my.title : ""} />
-        {status && active && (
+        {/* Con sesión Privé la tarjeta la dibuja THE PRIVÉ PASSPORT (privevalor); aquí solo si está cerrado. */}
+        {status && active && !unlocked && (
           <MemberCard firstName={status.first_name} status={cardStatus(view)} activatedAt={status.activated_at} memberCode={status.member_code} />
         )}
       </header>

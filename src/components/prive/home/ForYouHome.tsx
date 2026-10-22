@@ -8,7 +8,8 @@ import { createContext, useContext, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { CuratedForYou, PriveKeyLauncher, YourNextJourney, YourWorldIsReady } from "@/components/prive/key";
-import { DropsTeaser, PrivateEditTeaser } from "@/components/prive/value";
+import { DropsTeaser } from "@/components/prive/value";
+import { PrivateEditionTeaser } from "@/components/prive/edition";
 import { featuredDestinations } from "@/lib/priveBrowse";
 import { usePriveT } from "@/components/prive/PriveLang";
 import { PriveSpotlight } from "@/components/prive/catalog/PriveHomeLive";
@@ -55,7 +56,7 @@ export function ForYouHome() {
       <PriveKeyLauncher key="k" />,
       <PriveSpotlight key="sp" />,
       <FeaturedDestinations key="fd" destinations={destinations} />,
-      <PrivateEditTeaser key="pe" />,
+      <PrivateEditionTeaser key="pe" />,
       <DropsTeaser key="dr" />,
       <div key="u">{toUniverses}{requests}</div>,
     ],
@@ -67,7 +68,7 @@ export function ForYouHome() {
       <YourNextJourney key="nj" />,
       <PriveKeyLauncher key="k" />,
       <FeaturedDestinations key="fd" destinations={destinations} />,
-      <PrivateEditTeaser key="pe" />,
+      <PrivateEditionTeaser key="pe" />,
       <div key="u">{toUniverses}{requests}</div>,
     ],
     b: [

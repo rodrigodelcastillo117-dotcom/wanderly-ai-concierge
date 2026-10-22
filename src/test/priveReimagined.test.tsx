@@ -14,7 +14,18 @@ vi.mock("@/lib/priveApi", async (importOriginal) => {
   return { ...actual, priveApi: m.api };
 });
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1", email: "v@example.com" }, signOut: vi.fn() }) }));
-vi.mock("@/hooks/useActiveTrip", () => ({ useActiveTrip: () => ({ trips: [], trip: null, loading: false }) }));
+const TRIPS = () => [] as { id: string }[];
+vi.mock("@/hooks/useActiveTrip", async () => {
+  // La misma forma que el hook real (trips, trip, resolved, loading…), con la regla real de viaje activo.
+  const { resolveActiveTrip } = await import("@/lib/activeTrip");
+  return {
+    useActiveTrip: () => {
+      const trips = TRIPS();
+      const resolved = resolveActiveTrip(trips, { pinnedId: null, todayLocal: "2026-10-22" });
+      return { trips, trip: resolved.trip, resolved, loading: false, pinnedId: null, pin: async () => ({ ok: true }) };
+    },
+  };
+});
 const invoke = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -29,6 +40,7 @@ import { parseSearch, searchArgs } from "@/lib/priveSearch";
 import { placeLine } from "@/lib/priveBrowse";
 import { activeArea, PRIVE_AREAS } from "@/components/prive/shell/PriveNav";
 import { askIatoHref } from "@/lib/priveLinks";
+import { __resetForYouCache } from "@/components/prive/key/useForYouData";
 import { __resetStockPhotos } from "@/lib/stockPhoto";
 import { PRIVE_SESSION_KEY } from "@/lib/priveSession";
 import PriveRoot from "@/pages/prive/PriveRoot";
@@ -78,6 +90,7 @@ const renderAt = (path: string) => {
 
 beforeEach(() => {
   __resetStockPhotos();
+  __resetForYouCache(); // caché de 60 s de las ranuras de privekey: cada prueba con sus propios datos
   localStorage.clear();
   sessionStorage.clear();
   motionState.reduce = true;
@@ -98,6 +111,14 @@ beforeEach(() => {
       const items = EXPS.filter((e) => cities.includes(e.destination.slug) && (!kw.length || args._universes || kw.some((k) => e.name.toLowerCase().includes(k))));
       return { ok: true, data: { available: true, cities: cities.map((c) => ({ query: c, resolved: true, city: { slug: c, name: c === "paris" ? "París" : c }, items: items.filter((e) => e.destination.slug === c) })) } };
     }
+    // privevalor (wave2): Drops sin oportunidades vigentes, radar vacío, un cuaderno Insider, sin viaje próximo.
+    if (fn === "prive_drops") return { ok: true, data: { items: [], expired_recent: 0, destination_found: true } };
+    if (fn === "prive_radar") return { ok: true, data: { programs: [], items: [], suggestions: [] } };
+    if (fn === "prive_insider_index") return { ok: true, data: { destinations: [{ slug: "cdmx", es: "Ciudad de México", en: "Mexico City", tips: 6, before_you_go: 5, last_checked: "2026-10-01" }], saved: 0, trips: [] } };
+    if (fn === "prive_before_you_go") return { ok: true, data: { trip: null } };
+    if (fn === "prive_passport") return { ok: true, data: { member: { first_name: "Valentina", member_code: "IP-7KQM-X4TD", member_since: "2026-06-01", tenure_days: 143, status: "active", founding_member: false },
+      stats: { visitado: 0, experiencia: 0, favorito: 0, deseo: 0, recuerdo: 0, countries: 0 }, entries: [] } };
+    if (fn === "prive_value_summary") return { ok: true, data: { totals: {}, entries: [], organized_plans: 0, radar: { posible: 0, por_comprobar: 0 } } };
     return { ok: true, data: [] };
   });
 });
@@ -176,12 +197,30 @@ describe("navegación de seis áreas", () => {
     await screen.findByText(/Hay lugares que se visitan/);
     expect(screen.queryByTestId("prive-bottom-nav")).toBeNull();
   });
-  it("The Key, Drops e Insider existen (ranuras de los otros equipos) y nunca son una página vacía", async () => {
-    for (const [path, brand] of [["/prive/key", "The Privé Key"], ["/prive/drops", "Privé Drops"], ["/prive/insider", "The Insider's Notebook"]] as const) {
-      const { unmount } = renderAt(path);
-      const soon = await screen.findByTestId("prive-coming-soon");
-      expect(within(soon).getByRole("heading", { level: 1 })).toHaveTextContent(brand);
-      expect(within(soon).getByRole("link", { name: "Pregúntale a Iato" })).toHaveAttribute("href", "/dashboard/concierge");
+  it("The Key, Drops e Insider existen (páginas reales de los otros equipos) y nunca son una página vacía", async () => {
+    // Antes eran stubs (prive-coming-soon con "Pregúntale a Iato"); con wave2 son las páginas reales de privekey y
+    // privevalor. Equivalente: cada una abre con su marca como h1 y con contenido útil aunque no haya datos.
+    {
+      const { unmount } = renderAt("/prive/key");
+      const page = await screen.findByTestId("prive-key-page");
+      expect(within(page).getByRole("heading", { level: 1 })).toHaveTextContent(/The Privé Key/i);
+      expect(within(page).getByTestId("pk-studio")).toBeInTheDocument();
+      expect(within(page).getByRole("textbox")).toBeInTheDocument(); // se puede pedir algo de inmediato
+      unmount();
+    }
+    {
+      const { unmount } = renderAt("/prive/drops");
+      expect(await screen.findByRole("heading", { level: 1, name: /Privé Drops/i })).toBeInTheDocument();
+      // Sin oportunidades vigentes: lo dice y ofrece contenido editorial, no una página en blanco.
+      expect(await screen.findByTestId("prive-drops-empty")).toHaveTextContent(/\S/);
+      expect(api.content).toHaveBeenCalledWith("prive_drops", expect.anything(), expect.objectContaining({ _limit: 60 }));
+      unmount();
+    }
+    {
+      const { unmount } = renderAt("/prive/insider");
+      expect(await screen.findByRole("heading", { level: 1, name: /The Insider's Notebook/i })).toBeInTheDocument();
+      const index = await screen.findByTestId("prive-insider-index");
+      expect(within(index).getByRole("link", { name: /Ciudad de México/ })).toHaveAttribute("href", "/prive/insider/cdmx");
       unmount();
     }
     // Las ranuras del contrato existen sin props obligatorias.
@@ -272,7 +311,18 @@ describe("MY PRIVÉ", () => {
     renderAt("/prive/mi");
     await screen.findByTestId("prive-my");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/My Privé/);
-    expect(screen.getByTestId("prive-member-card")).toBeInTheDocument();
+    // Antes: la MemberCard de prive-ux. Con wave2 y sesión Privé abierta, la tarjeta la dibuja THE PRIVÉ PASSPORT
+    // (privevalor, prive_passport): mismo nombre y número de miembro, una sola tarjeta (no dos).
+    const passport = await screen.findByTestId("prive-passport");
+    const card = await within(passport).findByTestId("prive-passport-card");
+    expect(card).toHaveTextContent("Valentina");
+    expect(within(card).getByTestId("prive-member-number")).toHaveTextContent("IP-7KQM-X4TD");
+    expect(screen.queryByTestId("prive-member-card")).toBeNull();
+    // THE VALUE OF YOUR PRIVÉ (prive_value_summary): sin registros no inventa ahorros.
+    const value = await screen.findByTestId("prive-value");
+    expect(within(value).getByRole("heading", { name: /The Value of Your Privé/i })).toBeInTheDocument();
+    await within(value).findByTestId("prive-value-comprobado");
+    expect(within(value).queryAllByTestId("prive-value-amount")).toHaveLength(0);
     const saved = await screen.findByTestId("prive-my-saved");
     expect(await within(saved).findByText("Quintonil")).toBeInTheDocument();
     expect(within(saved).getByRole("button", { name: "Guardado" })).toHaveAttribute("aria-pressed", "true");

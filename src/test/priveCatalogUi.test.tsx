@@ -2,7 +2,7 @@
 // estados honestos (DESACTUALIZADO en gris y sin "Solicitar"), etiquetas solo con evidencia, crédito
 // de Pexels, cobertura calculada y declaración 18+.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 const rpc = vi.fn();
@@ -14,7 +14,20 @@ vi.mock("@/integrations/supabase/client", () => ({
     from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }) }),
   },
 }));
-vi.mock("@/hooks/useActiveTrip", () => ({ useActiveTrip: () => ({ trips: [], trip: null, loading: false }) }));
+// Las ranuras reales de FOR YOU (privekey, edition) leen la cuenta con useAuth.
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1", email: "v@example.com" }, signOut: vi.fn() }) }));
+const TRIPS = () => [] as { id: string }[];
+vi.mock("@/hooks/useActiveTrip", async () => {
+  // La misma forma que el hook real (trips, trip, resolved, loading…), con la regla real de viaje activo.
+  const { resolveActiveTrip } = await import("@/lib/activeTrip");
+  return {
+    useActiveTrip: () => {
+      const trips = TRIPS();
+      const resolved = resolveActiveTrip(trips, { pinnedId: null, todayLocal: "2026-10-22" });
+      return { trips, trip: resolved.trip, resolved, loading: false, pinnedId: null, pin: async () => ({ ok: true }) };
+    },
+  };
+});
 // usePriveAccess (grupo ui): content() no llama sin sesión y devuelve {ok, data} o {ok:false, code}.
 const access = { session: null as null | { token: string }, content: vi.fn() };
 vi.mock("@/hooks/usePriveAccess", () => ({ usePriveAccess: () => access }));
@@ -119,6 +132,27 @@ describe("página de destino", () => {
     expect(screen.getByTestId("prive-planner")).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText(/Foto ilustrativa · Pexels/).length).toBeGreaterThan(0));
   });
+  it("llegar con las fechas del viaje (#para-tus-fechas) pide prive_for_you con esas fechas y lleva a la sección", async () => {
+    // Enlace "Ver experiencias para mis fechas" de Your Next Journey (privekey): la sección carga después, así
+    // que el salto al ancla lo hace la propia sección cuando ya existe.
+    access.session = { token: "tok" };
+    access.content.mockImplementation(async (fn: string) => fn === "prive_for_you"
+      ? { ok: true, data: [exp({ id: "e9", slug: "mc-fechas", name: "Fixture En Tus Fechas" })] }
+      : { ok: true, data: { found: true, destination: { slug: "mc", name: "Mónaco", kind: "country", timezone: "Europe/Monaco" }, experiences: [exp()], age_locked_count: 0 } });
+    const scroll = vi.fn();
+    const prev = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    try {
+      render(<MemoryRouter initialEntries={["/prive/destino/mc?desde=2026-11-12&hasta=2026-11-16#para-tus-fechas"]}>
+        <Routes><Route path="/prive/destino/:slug" element={<PriveDestinationPage />} /></Routes></MemoryRouter>);
+      const sec = await screen.findByTestId("prive-more-in");
+      expect(sec).toHaveAttribute("id", "para-tus-fechas");
+      expect(within(sec).getByText("Fixture En Tus Fechas")).toBeInTheDocument();
+      expect(access.content).toHaveBeenCalledWith("prive_for_you", expect.objectContaining({ _destination: "mc", _from: "2026-11-12", _to: "2026-11-16" }));
+      await waitFor(() => expect(scroll).toHaveBeenCalled());
+      expect(scroll.mock.contexts[0]).toBe(sec);
+    } finally { Element.prototype.scrollIntoView = prev; }
+  });
   it("destino sin contenido verificado: lo dice, sin inventar", async () => {
     unlocked({ found: true, destination: { slug: "mascate", name: "Mascate", kind: "locality" },
       coverage: { level: "SIN_COBERTURA_VERIFICADA", publicables: 0, verificadas: 0, universos: 0 }, experiences: [], age_locked_count: 0 });
@@ -168,10 +202,13 @@ describe("hub", () => {
     expect(sec.render({ total: 0, universes: [], destinations: [] })).toBeNull();
     render(<MemoryRouter>{sec.render({ total: 3, universes: [{ key: "the_table", count: 3 }],
       destinations: [{ slug: "mc", name: "Mónaco", region_group: "europa", kind: "country", coverage: "COBERTURA_PARCIAL", count: 3 }] })}</MemoryRouter>);
-    // Mónaco aparece en Destacados y en su región (Europa): ambos enlaces van al destino.
+    // Mónaco aparece en Destacados y en su región (Europa): esos enlaces van al destino. Con wave2 la sección
+    // también monta el acceso a The Privé Key (privekey), cuyo ejemplo "Estoy en Mónaco…" abre The Key con la petición.
     const links = screen.getAllByRole("link", { name: /Mónaco/ });
-    expect(links.length).toBeGreaterThan(0);
-    for (const l of links) expect(l).toHaveAttribute("href", "/prive/destino/mc");
+    const dest = links.filter((l) => !l.getAttribute("href")!.startsWith("/prive/key"));
+    expect(dest.length).toBeGreaterThan(0);
+    for (const l of dest) expect(l).toHaveAttribute("href", "/prive/destino/mc");
+    for (const l of links.filter((x) => !dest.includes(x))) expect(l.getAttribute("href")).toMatch(/^\/prive\/key\?w=Estoy%20en%20M%C3%B3naco/);
     expect(screen.getByRole("link", { name: /The Art of Dining · El arte de la mesa · 3 experiencias/ })).toHaveAttribute("href", "/prive/universo/the_table");
   });
 });

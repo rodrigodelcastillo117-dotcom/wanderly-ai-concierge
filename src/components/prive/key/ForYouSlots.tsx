@@ -110,6 +110,15 @@ const fmtRange = (from: string | null, to: string | null, lang: KeyLang) => {
   return from && to ? `${f(from)} – ${f(to)}` : from ? f(from) : "";
 };
 
+/** Ficha del destino con "Para tus fechas" (prive_for_you con ?desde/&hasta del viaje). */
+export const datesHref = (slug: string, from: string | null, to: string | null) => {
+  const q = new URLSearchParams();
+  if (from) q.set("desde", from);
+  if (to) q.set("hasta", to);
+  const qs = q.toString();
+  return `/prive/destino/${slug}${qs ? `?${qs}` : ""}#para-tus-fechas`;
+};
+
 /** "Your Next Journey": el viaje activo correcto; sin viaje (o con empate), una invitación honesta. */
 export function YourNextJourney() {
   const lang = useKeyLang();
@@ -126,7 +135,7 @@ export function YourNextJourney() {
           <p className="text-sm prive-champagne"><CalendarDays className="mr-1 inline h-4 w-4" aria-hidden="true" />{fmtRange(source.from, source.to, lang) || source.label}</p>
           <div className="flex flex-wrap gap-2">
             <Link to={`/prive/destino/${source.destination.slug}`} className="prive-btn prive-btn-gold"><Compass className="mr-2 h-4 w-4" aria-hidden="true" />{en ? `Explore ${city}` : `Explorar ${city}`}</Link>
-            <Link to={`/prive/destino/${source.destination.slug}`} className="prive-btn prive-btn-ghost">{en ? "Experiences for my dates" : "Ver experiencias para mis fechas"}</Link>
+            <Link to={datesHref(source.destination.slug, source.from, source.to)} className="prive-btn prive-btn-ghost">{en ? "Experiences for my dates" : "Ver experiencias para mis fechas"}</Link>
             <Link to={keyHref(en ? `Plan a special night in ${city}` : `Organiza una noche especial en ${city}`)} className="prive-btn prive-btn-ghost">
               <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />{en ? "Plan a night" : "Organizar una noche"}</Link>
             <Link to={`/dashboard/viajes/${source.trip.id}`} className="prive-btn prive-btn-ghost">{en ? "My itinerary" : "Ver mi itinerario"}</Link>
