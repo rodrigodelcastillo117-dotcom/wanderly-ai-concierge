@@ -32,7 +32,10 @@ vi.mock("@/integrations/supabase/client", () => {
   };
   return { supabase: { from, storage, functions: { invoke: h.invoke } } };
 });
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" }, loading: false }) }));
+// Usuario estable (como el del AuthContext real): un objeto nuevo en cada render volvía a cargar la
+// lista sin parar.
+const authUser = vi.hoisted(() => ({ id: "u1" }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: authUser, loading: false }) }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 
@@ -57,7 +60,9 @@ describe("Mejores momentos", () => {
     render(<BestMomentsPanel />);
     const input = await screen.findByLabelText("Elegir fotos de tus mejores momentos");
     await waitFor(() => expect(screen.getByText("Sube fotos de tus mejores viajes")).toBeInTheDocument());
-    const file = new File([new Uint8Array([1, 2, 3])], "IMG_1234.jpg", { type: "image/jpeg" });
+    // JPEG mínimo válido: desde T-P2-2 la foto se limpia (EXIF/GPS) antes de subir, como en la Bóveda.
+    const jpegBytes = [0xff, 0xd8, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0x12, 0x34, 0xff, 0xd9];
+    const file = new File([new Uint8Array(jpegBytes)], "IMG_1234.jpg", { type: "image/jpeg" });
     fireEvent.change(input, { target: { files: [file] } });
 
     const select = await screen.findByLabelText("¿De qué viaje es?");

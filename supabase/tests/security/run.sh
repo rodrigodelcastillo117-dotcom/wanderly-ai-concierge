@@ -23,4 +23,8 @@ $PSQL -X -d "$DB" -f "$DIR/taste_profile.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ER
 $PSQL -d "$DB" -f "$DIR/profiles_tier.sql" 2>&1 | grep -E 'T[0-9]|denied' | sed 's/^ *//'
 $PSQL -X -d "$DB" -f "$DIR/action_idempotency.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
 $PSQL -X -d "$DB" -f "$DIR/aud_seguridad.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | grep -v 'violates row-level security'
+# Segunda auditoría, grupo privacidad (T-P2-2 y siguientes).
+for t in "$DIR"/r2_privacidad_*.sql; do
+  [ -f "$t" ] && $PSQL -X -d "$DB" -f "$t" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
+done
 "$DIR/concurrent_rate_limit.sh" "$DB"

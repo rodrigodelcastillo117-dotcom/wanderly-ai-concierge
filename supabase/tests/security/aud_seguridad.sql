@@ -46,6 +46,9 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- tocan filas de friendships donde la persona es parte; regenerar solo cambia su propio código.
   ('responder_solicitud_amistad'),('cancelar_solicitud_amistad'),('bloquear_usuario'),('desbloquear_usuario'),
   ('quitar_amigo'),('solicitudes_amistad'),('regenerar_codigo_invitacion'),
+  -- 20261026020000 (T-P2-2): solo responde por p_uid con has_trip_access y la entrada del diario; la usa la
+  -- política de journal-photos.
+  ('journal_photo_visible'),
   -- Integración final (wave2), revisadas una por una en SEGURIDAD.md §"Wave2":
   -- Privé Valor/Key (privevalor_*, privekey_plans): todas empiezan con prive_require(_ps); user_id siempre el de la sesión;
   -- los *_add_to_trip / *_save con trip_id exigen has_trip_access.
@@ -95,9 +98,12 @@ SELECT CASE WHEN count(*) = 0 THEN 'OK SG7 escrituras con trip_id exigen acceso 
              OR has_table_privilege('authenticated', to_regclass('public.' || quote_ident(p.tablename)), 'UPDATE'), false)
    AND coalesce(p.with_check, p.qual, '') !~ '(has_trip_access|is_trip_owner)';
 
-SELECT CASE WHEN count(*) FILTER (WHERE NOT public) = 2 AND count(*) FILTER (WHERE id IN ('recibos','trip-documents') AND public) = 0
-            THEN 'OK SG8 recibos y trip-documents son privados' ELSE 'FALLA SG8' END
-  FROM storage.buckets WHERE id IN ('recibos','trip-documents','journal-photos','travel-moments');
+-- T-P2-2: journal-photos también es privado (enlace firmado); travel-moments sigue público solo por el
+-- avatar que ven los amigos (los momentos nuevos van a travel-moments-private).
+SELECT CASE WHEN count(*) FILTER (WHERE NOT public) = 4
+             AND count(*) FILTER (WHERE id IN ('recibos','trip-documents','journal-photos','travel-moments-private') AND public) = 0
+            THEN 'OK SG8 recibos, trip-documents, journal-photos y travel-moments-private son privados' ELSE 'FALLA SG8' END
+  FROM storage.buckets WHERE id IN ('recibos','trip-documents','journal-photos','travel-moments','travel-moments-private');
 
 -- ===== Datos: dueño (a5), colaborador expulsado (a6) y extraño (a6…2) =====
 INSERT INTO auth.users(id,email,email_confirmed_at) VALUES

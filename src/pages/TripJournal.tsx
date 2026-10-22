@@ -9,9 +9,10 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
-import { safeExtension, uploadProblem } from "@/lib/uploadRules";
+import { JOURNAL_BUCKET, journalPhotoPath, preparePhotoFile, signPhotoPaths } from "@/lib/photoUpload";
 
-type Entry = { id: string; created_at: string; text: string; photo_url: string | null; author_id: string };
+// photo_path: ruta en journal-photos (bucket PRIVADO); la foto se muestra con un enlace firmado.
+type Entry = { id: string; created_at: string; text: string; photo_path: string | null; author_id: string };
 
 const TripJournal = () => {
   const { id } = useParams();
@@ -23,6 +24,7 @@ const TripJournal = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [signed, setSigned] = useState<Map<string, string>>(new Map());
   const tipDiario = useTooltipShown("diario");
 
   useEffect(() => {
@@ -37,7 +39,10 @@ const TripJournal = () => {
         .select("*")
         .eq("trip_id", id)
         .order("created_at", { ascending: false });
-      setEntries((es as Entry[]) || []);
+      const list = (es as unknown as Entry[]) || [];
+      const urls = await signPhotoPaths(supabase as never, JOURNAL_BUCKET, list.map((e) => e.photo_path));
+      setEntries(list);
+      setSigned(urls);
     })();
   }, [id]);
 
@@ -52,25 +57,27 @@ const TripJournal = () => {
     if (!draft.trim() || !id || !userId) return;
     setSaving(true);
     try {
-      let photo_url: string | null = null;
+      let photo_path: string | null = null;
       if (file) {
-        // El servidor también lo rechaza (límites del bucket); aquí se avisa con un mensaje claro.
-        const problem = uploadProblem("journal-photos", file);
-        if (problem) throw new Error(problem);
-        const ext = safeExtension(file.name);
-        const path = `${userId}/${id}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("journal-photos").upload(path, file, { upsert: false });
+        // Igual que la Bóveda: JPEG reescrito sin EXIF/GPS (lanza con un mensaje claro si no se puede).
+        const clean = await preparePhotoFile(file);
+        photo_path = journalPhotoPath(userId, id);
+        const { error: upErr } = await supabase.storage.from(JOURNAL_BUCKET)
+          .upload(photo_path, clean, { contentType: "image/jpeg", upsert: false });
         if (upErr) throw upErr;
-        const { data: pub } = supabase.storage.from("journal-photos").getPublicUrl(path);
-        photo_url = pub.publicUrl;
       }
       const { data, error } = await supabase
         .from("trip_journal_entries")
-        .insert({ trip_id: id, author_id: userId, text: draft.trim(), photo_url })
+        .insert({ trip_id: id, author_id: userId, text: draft.trim(), photo_path } as never)
         .select()
         .single();
-      if (error) throw error;
-      setEntries([data as Entry, ...entries]);
+      if (error) {
+        // Sin entrada la foto no se vería: no se deja huérfana.
+        if (photo_path) await supabase.storage.from(JOURNAL_BUCKET).remove([photo_path]);
+        throw error;
+      }
+      if (photo_path && preview) setSigned((m) => new Map(m).set(photo_path!, preview));
+      setEntries([data as unknown as Entry, ...entries]);
       setDraft(""); setFile(null); setPreview(null);
     } catch (e: any) {
       toast.error(e.message || "No se pudo guardar");
@@ -79,9 +86,15 @@ const TripJournal = () => {
     }
   };
 
+  // Borrar la entrada también borra su foto del almacenamiento (antes quedaba pública para siempre).
   const remove = async (entryId: string) => {
     const prev = entries;
+    const entry = entries.find((e) => e.id === entryId);
     setEntries(entries.filter(e => e.id !== entryId));
+    if (entry?.photo_path) {
+      const { error: objErr } = await supabase.storage.from(JOURNAL_BUCKET).remove([entry.photo_path]);
+      if (objErr) { setEntries(prev); toast.error("No se pudo borrar la foto. Intenta de nuevo."); return; }
+    }
     const { error } = await supabase.from("trip_journal_entries").delete().eq("id", entryId);
     if (error) { setEntries(prev); toast.error("No se pudo borrar"); }
   };
@@ -125,7 +138,7 @@ const TripJournal = () => {
                   <button onClick={() => remove(e.id)} aria-label="Eliminar esta entrada del diario" className="text-muted-foreground hover:text-destructive p-2 -m-2"><Trash2 className="w-4 h-4" aria-hidden="true" /></button>
                 )}
               </div>
-              {e.photo_url && <img src={e.photo_url} className="rounded-xl mb-3 max-h-64 w-full object-cover" alt="" />}
+              {e.photo_path && signed.get(e.photo_path) && <img src={signed.get(e.photo_path)} className="rounded-xl mb-3 max-h-64 w-full object-cover" alt="" />}
               <p className="text-sm whitespace-pre-line">{e.text}</p>
             </motion.div>
           ))}

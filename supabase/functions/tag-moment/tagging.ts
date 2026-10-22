@@ -10,6 +10,15 @@
 //   - No identifica personas ni describe rasgos físicos.
 
 export const BUCKET = "travel-moments";
+/** Momentos nuevos (T-P2-2): bucket privado, ruta {uid}/{uuid}.jpg guardada en image_path. */
+export const PRIVATE_BUCKET = "travel-moments-private";
+
+/** Dónde leer la foto del momento: image_path (privado) o, en momentos viejos, la URL pública. */
+export function momentSource(m: { image_path?: unknown; image_url?: unknown }): { bucket: string; path: string | null } {
+  const p = typeof m.image_path === "string" && m.image_path ? m.image_path : null;
+  if (p) return { bucket: PRIVATE_BUCKET, path: p };
+  return { bucket: BUCKET, path: storagePathFromUrl(m.image_url) };
+}
 export const VISION_MODEL = "google/gemini-flash-latest";
 export const DEFAULT_USER_DAILY_CAP = 30;
 export const DEFAULT_GLOBAL_DAILY_CAP = 1000;

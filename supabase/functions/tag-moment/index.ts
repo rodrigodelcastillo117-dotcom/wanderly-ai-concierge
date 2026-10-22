@@ -12,8 +12,8 @@ import { logUsage } from "../_shared/serpRuntime.ts";
 import { refreshTasteProfile } from "../_shared/tasteProfileStore.ts";
 import { tasteToday } from "../_shared/tasteProfile.ts";
 import {
-  BUCKET, capCheck, DEFAULT_GLOBAL_DAILY_CAP, DEFAULT_USER_DAILY_CAP, intEnv, MAX_IMAGE_BYTES, mimeFor, ownsPath,
-  parseVisionTags, storagePathFromUrl, toBase64, visionBody, VISION_MODEL,
+  capCheck, DEFAULT_GLOBAL_DAILY_CAP, DEFAULT_USER_DAILY_CAP, intEnv, MAX_IMAGE_BYTES, mimeFor, momentSource, ownsPath,
+  parseVisionTags, toBase64, visionBody, VISION_MODEL,
 } from "./tagging.ts";
 
 const corsHeaders = {
@@ -27,11 +27,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-async function readImage(admin: any, path: string): Promise<Uint8Array | null> {
+async function readImage(admin: any, bucket: string, path: string): Promise<Uint8Array | null> {
   // Primero la versión reducida (transformación de imágenes de Storage); si no está disponible, el original.
   for (const opts of [{ transform: { width: 768, height: 768, resize: "contain", quality: 70 } }, undefined]) {
     try {
-      const { data, error } = await admin.storage.from(BUCKET).download(path, opts as any);
+      const { data, error } = await admin.storage.from(bucket).download(path, opts as any);
       if (error || !data) continue;
       const bytes = new Uint8Array(await data.arrayBuffer());
       if (bytes.byteLength > 0 && bytes.byteLength <= MAX_IMAGE_BYTES) return bytes;
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
   // RLS: solo sus propios momentos.
   const { data: moment } = await supabase.from("travel_moments")
-    .select("id, user_id, image_url, ai_tags, ai_tag_status").eq("id", momentId).eq("user_id", uid).maybeSingle();
+    .select("id, user_id, image_url, image_path, ai_tags, ai_tag_status").eq("id", momentId).eq("user_id", uid).maybeSingle();
   if (!moment) return json({ error: "No encontramos ese momento" }, 404);
 
   const admin = adminClient();
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       .eq("id", momentId).eq("user_id", uid);
 
   const apiKey = Deno.env.get("LOVABLE_API_KEY") || Deno.env.get("GEMINI_API_KEY");
-  const path = storagePathFromUrl(moment.image_url);
+  const { bucket, path } = momentSource(moment);
   if (!apiKey || !ownsPath(path, uid)) {
     await setStatus("skipped");
     return finish("skipped", { reason: apiKey ? "foreign_path" : "no_key" });
@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
     return finish("skipped", { reason: cap.reason });
   }
 
-  const bytes = await readImage(admin, path!);
+  const bytes = await readImage(admin, bucket, path!);
   if (!bytes) {
     await setStatus("skipped");
     return finish("skipped", { reason: "image_unavailable" });

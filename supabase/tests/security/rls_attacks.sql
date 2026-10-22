@@ -4,6 +4,8 @@ RESET ROLE;
 INSERT INTO auth.users(id,email) VALUES ('aaaaaaaa-0000-0000-0000-00000000000a','owner@example.test'),('bbbbbbbb-0000-0000-0000-00000000000b','attacker@example.test'),('cccccccc-0000-0000-0000-00000000000c','friend@example.test');
 INSERT INTO storage.buckets(id,name,public) VALUES ('journal-photos','journal-photos',true),('travel-moments','travel-moments',true) ON CONFLICT DO NOTHING;
 INSERT INTO trips(id,user_id,destino) VALUES ('11111111-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-00000000000a','Paris');
+-- T-P2-2: la foto del diario es de una entrada (photo_path); sin entrada, los miembros no la ven.
+INSERT INTO trip_journal_entries(trip_id,author_id,text,photo_path) VALUES ('11111111-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-00000000000a','Torre Eiffel','aaaaaaaa-0000-0000-0000-00000000000a/11111111-0000-0000-0000-000000000001/x.jpg');
 INSERT INTO storage.objects(bucket_id,name) VALUES ('journal-photos','aaaaaaaa-0000-0000-0000-00000000000a/11111111-0000-0000-0000-000000000001/x.jpg'),('travel-moments','aaaaaaaa-0000-0000-0000-00000000000a/m.jpg'),('travel-moments','avatars/aaaaaaaa-0000-0000-0000-00000000000a/v2.png');
 -- ATAQUES (atacante b)
 SET ROLE anon; SELECT 'A1 anon ve objetos: '||count(*) FROM storage.objects; RESET ROLE;
