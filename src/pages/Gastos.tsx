@@ -14,6 +14,8 @@ import { localISODate } from "@/lib/localDate";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { convertedTotal, formatMoney, fxLabel, subtotalsByCurrency } from "@/lib/fx";
 import { useFxTable } from "@/hooks/useFxTable";
+import { useActiveTrip } from "@/hooks/useActiveTrip";
+import { isTripEnded, tripLabel } from "@/lib/activeTrip";
 
 
 const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"] as const;
@@ -27,6 +29,7 @@ type Expense = {
   description: string | null;
   expense_date: string;
   receipt_url: string | null;
+  trip_id?: string | null;
 };
 
 export const Gastos = () => {
@@ -43,7 +46,15 @@ export const Gastos = () => {
     description: "",
     expense_date: localISODate(),
     file: null as File | null,
+    // undefined = aún no elegido: se usa el viaje activo. "" = sin viaje.
+    trip_id: undefined as string | undefined,
   });
+
+  // El gasto se liga al viaje activo (el mismo que Iato y el Dashboard), y se puede cambiar.
+  const active = useActiveTrip<any>();
+  const tripOptions = active.trips.filter((t) => !isTripEnded(t, localISODate()) || t.id === active.trip?.id);
+  const formTripId = form.trip_id !== undefined ? form.trip_id : active.trip?.id ?? "";
+  const tripName = (id?: string | null) => active.trips.find((t) => t.id === id)?.destino ?? null;
 
   const load = async () => {
     if (!user) return;
@@ -82,6 +93,7 @@ export const Gastos = () => {
         description: form.description || null,
         expense_date: form.expense_date,
         receipt_url,
+        trip_id: formTripId || null,
       });
       if (error) throw error;
       await logInsight("planned", "expense", form.category, { amount: form.amount });
@@ -204,6 +216,14 @@ export const Gastos = () => {
                   <Input type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
+                  <label htmlFor="gasto-viaje" className="text-xs text-muted-foreground mb-1 block">Viaje</label>
+                  <select id="gasto-viaje" value={formTripId} onChange={(e) => setForm({ ...form, trip_id: e.target.value })}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">Sin viaje</option>
+                    {tripOptions.map((t) => <option key={t.id} value={t.id}>{tripLabel(t)}</option>)}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
                   <label className="text-xs text-muted-foreground mb-1 block">Descripción</label>
                   <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Cena en Le Jules Verne" />
                 </div>
@@ -232,6 +252,7 @@ export const Gastos = () => {
                   <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary">{x.category}</span>
                   {/* Fecha local: new Date("2026-10-01") es UTC y en México se mostraba el 30 sep. */}
                   <span className="text-xs text-muted-foreground">{formatDateOnly(x.expense_date)}</span>
+                  {tripName(x.trip_id) && <span className="text-xs text-muted-foreground truncate">· {tripName(x.trip_id)}</span>}
                 </div>
                 <p className="text-sm truncate">{x.description ?? "—"}</p>
               </div>

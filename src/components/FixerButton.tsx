@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveTrip } from "@/hooks/useActiveTrip";
 
 // Datos del Fixer (números visibles + email backend)
 const FIXER_WHATSAPP_DIGITS = "525543580077";
@@ -93,8 +94,12 @@ function construirMensajeFixer({
   return mensaje;
 }
 
-export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant = "header" }: FixerButtonProps) => {
+export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = "", variant = "header" }: FixerButtonProps) => {
   const { user } = useAuth();
+  // Sin viaje explícito (null = "sin viaje" a propósito), el Fixer recibe el viaje activo único
+  // (profiles.active_trip_id + resolveActiveTrip), el mismo del que habla Iato.
+  const fallback = useActiveTrip({ enabled: tripProp === undefined });
+  const trip: Trip = tripProp !== undefined ? tripProp : (fallback.trip as Trip);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"urgencia" | "detalle">("urgencia");
   const [urgencia, setUrgencia] = useState<Urgencia | null>(null);
