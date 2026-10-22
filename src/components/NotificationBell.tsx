@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { notificationTarget } from "@/lib/notificationTarget";
 
 type Notification = {
   id: string;
@@ -21,19 +22,28 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
+  // Total real de no leídas (no solo entre las 20 que se muestran).
+  const [unread, setUnread] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
-
-  const unread = items.filter((n) => !n.read).length;
 
   const load = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    setItems((data as Notification[]) || []);
+    const [{ data }, { count, error: countError }] = await Promise.all([
+      supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("read", false),
+    ]);
+    const list = (data as Notification[]) || [];
+    setItems(list);
+    setUnread(countError || count == null ? list.filter((n) => !n.read).length : count);
   };
 
   useEffect(() => {
@@ -73,9 +83,8 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
       await supabase.from("notifications").update({ read: true }).eq("id", n.id);
     }
     setOpen(false);
-    if (n.related_id && (n.type === "trip_updated" || n.type === "trip_accepted" || n.type === "trip_rejected" || n.type === "price_drop")) {
-      navigate(`/dashboard/viajes/${n.related_id}`);
-    }
+    const target = notificationTarget(n);
+    if (target) navigate(target);
     load();
   };
 
