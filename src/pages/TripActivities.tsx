@@ -71,10 +71,11 @@ const TripActivities = () => {
           <label htmlFor="tripactivities-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
           <Input id="tripactivities-destino" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Roma, Tokio, Cancún…" />
           <Tabs value={cat} onValueChange={(v) => setCat(v as any)}>
+            {/* A 320 px "Restaurantes" no cabía en su tercio y se encimaba con "Atracciones". */}
             <TabsList className="w-full grid grid-cols-3">
-              <TabsTrigger value="attractions">Atracciones</TabsTrigger>
-              <TabsTrigger value="restaurants">Restaurantes</TabsTrigger>
-              <TabsTrigger value="hotels">Hoteles</TabsTrigger>
+              <TabsTrigger value="attractions" className="px-1 text-xs sm:px-3 sm:text-sm">Atracciones</TabsTrigger>
+              <TabsTrigger value="restaurants" className="px-1 text-xs sm:px-3 sm:text-sm">Restaurantes</TabsTrigger>
+              <TabsTrigger value="hotels" className="px-1 text-xs sm:px-3 sm:text-sm">Hoteles</TabsTrigger>
             </TabsList>
           </Tabs>
           <Button onClick={buscar} disabled={loading || !city} className="w-full">

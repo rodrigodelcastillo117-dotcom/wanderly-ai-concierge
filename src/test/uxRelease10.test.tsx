@@ -215,3 +215,12 @@ describe("UX10-05b · más objetivos táctiles de 40 px", () => {
     expect(read("src/components/Tooltip.tsx")).toMatch(/aria-label="Cerrar"\n\s+className="shrink-0 -mr-3 -mt-3 w-10 h-10/);
   });
 });
+
+describe("UX10-14 · actividades a 320 px", () => {
+  it("las tres pestañas usan texto y relleno compactos en móvil", () => {
+    const src = read("src/pages/TripActivities.tsx");
+    for (const v of ["attractions", "restaurants", "hotels"]) {
+      expect(src).toContain(`<TabsTrigger value="${v}" className="px-1 text-xs sm:px-3 sm:text-sm">`);
+    }
+  });
+});
