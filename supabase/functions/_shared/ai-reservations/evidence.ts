@@ -288,7 +288,10 @@ export function analyzeReply(text: string, opts: { receivedAt?: string | null; t
 /** ¿Alguna mención de fecha (absoluta o relativa resuelta) es exactamente este día? */
 export function dateStated(a: ReplyAnalysis, ymd: string): boolean {
   const mmdd = ymd.slice(5);
-  return a.dates.some((d) => d.candidates.includes(ymd) || d.candidates.includes(mmdd)) || a.relative.some((r) => r.date === ymd);
+  // A2-RES-09: "3/11" puede ser 3-nov o 11-mar; una fecha con dos lecturas válidas y distintas no
+  // cuenta como escrita (tampoco contradice si una de las dos coincide).
+  return a.dates.some((d) => new Set(d.candidates.map((c) => c.slice(-5))).size === 1 && (d.candidates.includes(ymd) || d.candidates.includes(mmdd)))
+    || a.relative.some((r) => r.date === ymd);
 }
 
 /**
