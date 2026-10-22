@@ -13,6 +13,7 @@ import { derivePriveView, invitationStart, tenureFraction } from "@/lib/priveVie
 import { createPriveApi, normalizeStatus, priveCodeFromRpcError } from "@/lib/priveApi";
 import { onboardingResumeStep, shouldAutoPlayWelcome, onboardingCompleted, onboardingSkipped } from "@/lib/priveOnboarding";
 import { ceremonialCode, tenureLine, CODE_MESSAGES, maskEmail } from "@/lib/priveCopy";
+import { notificationTarget } from "@/lib/notificationTarget";
 import { activeStatus, baseStatus } from "./helpers/priveTestKit";
 
 beforeEach(() => {
@@ -219,6 +220,19 @@ describe("priveApi (cliente tipado)", () => {
     expect(invoke).toHaveBeenLastCalledWith("prive-access", { body: { action: "lock" } });
   });
 
+  it("INVALID (400) e INTERNAL (500) de la rama core tienen traducción", async () => {
+    const ctx = (status: number, body: unknown) => ({ status, clone: () => ({ text: async () => JSON.stringify(body) }) });
+    const invoke = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: { name: "FunctionsHttpError", context: ctx(400, { ok: false, code: "INVALID", detail: "password" }) } })
+      .mockResolvedValueOnce({ data: null, error: { name: "FunctionsHttpError", context: ctx(500, { ok: false, code: "INTERNAL" }) } })
+      .mockResolvedValueOnce({ data: { ok: false, code: "EMAIL_UNAVAILABLE" }, error: null });
+    const api = createPriveApi(mkClient({ invoke }));
+    expect((await api.access("unlock")).code).toBe("INVALID_REQUEST");
+    expect((await api.access("unlock")).code).toBe("SERVICE_UNAVAILABLE");
+    expect((await api.access("request_reset")).code).toBe("EMAIL_UNAVAILABLE");
+  });
+
   it("foto ilustrativa: solo https, nunca lanza", async () => {
     const invoke = vi
       .fn()
@@ -229,5 +243,14 @@ describe("priveApi (cliente tipado)", () => {
     expect(await api.illustrativePhoto("Paris")).toEqual({ image: "https://images.pexels.com/x.jpg", photographer: "Ana" });
     expect(await api.illustrativePhoto("Paris")).toBeNull();
     expect(await api.illustrativePhoto("Paris")).toBeNull();
+  });
+});
+
+describe("avisos de la app (notifications.type = 'prive')", () => {
+  it("la invitación abre la ceremonia; los avisos de seguridad, la membresía", () => {
+    expect(notificationTarget({ type: "prive", related_id: null, title: "Tu invitación a IATOS Privé está lista" })).toBe("/prive/invitacion");
+    expect(notificationTarget({ type: "prive", related_id: null })).toBe("/prive/invitacion");
+    expect(notificationTarget({ type: "prive", related_id: null, title: "Cambiaste tu contraseña Privé" })).toBe("/prive/membresia");
+    expect(notificationTarget({ type: "trip_updated", related_id: "t1" })).toBe("/dashboard/viajes/t1");
   });
 });

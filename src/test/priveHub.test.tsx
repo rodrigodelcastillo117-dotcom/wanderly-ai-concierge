@@ -343,6 +343,8 @@ describe("membresía", () => {
     expect(await screen.findByTestId("prive-membership-status")).toHaveTextContent("Pausada porque tu PRO terminó");
     expect(screen.getByTestId("prive-member-card")).toHaveTextContent("Pausada · tu PRO terminó");
     expect(screen.queryByRole("button", { name: "Cerrar todas mis sesiones Privé" })).toBeNull();
+    // Sin PRO el servidor devuelve antigüedad 0: no se muestra como dato.
+    expect(screen.queryByText("Días de PRO pagado")).toBeNull();
   });
 
   it("desbloqueada: cambiar contraseña, reportar, cerrar sesiones, términos y ayuda", async () => {

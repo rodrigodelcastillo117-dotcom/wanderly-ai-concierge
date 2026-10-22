@@ -153,7 +153,8 @@ export default function PriveMembership() {
             <div><dt className="prive-muted">Membresía</dt><dd className="prive-champagne" data-testid="prive-membership-status">{statusText(view, status)}</dd></div>
             <div><dt className="prive-muted">Acceso por</dt><dd className="prive-champagne">{basis}</dd></div>
             <div><dt className="prive-muted">Miembro desde</dt><dd className="prive-champagne">{formatDateEs(status.activated_at) ?? "—"}</dd></div>
-            <div><dt className="prive-muted">Días de PRO pagado</dt><dd className="prive-champagne">{status.tenure_days}</dd></div>
+            {/* Sin PRO vigente el servidor no calcula la antigüedad (devuelve 0): no se muestra un 0 engañoso. */}
+            {status.is_pro && <div><dt className="prive-muted">Días de PRO pagado</dt><dd className="prive-champagne">{status.tenure_days}</dd></div>}
           </dl>
         </Section>
 

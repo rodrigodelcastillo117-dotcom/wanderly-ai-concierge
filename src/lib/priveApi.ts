@@ -205,6 +205,9 @@ export function createPriveApi(client: InvokeClient) {
           const b = await readErrorBody(e.context);
           const code = asCode(b?.code);
           if (code) return { ok: false, code, lockedUntil: str(b?.locked_until) };
+          // Códigos genéricos de la rama core: INVALID (400) e INTERNAL (500).
+          if (b?.code === "INVALID") return { ok: false, code: "INVALID_REQUEST" };
+          if (b?.code === "INTERNAL") return { ok: false, code: "SERVICE_UNAVAILABLE" };
           if (status === 401) return { ok: false, code: "UNAUTHENTICATED" };
           if (status === 429) return { ok: false, code: "RATE_LIMITED", lockedUntil: str(b?.locked_until) };
           if (status === 400) return { ok: false, code: "INVALID_REQUEST" };
