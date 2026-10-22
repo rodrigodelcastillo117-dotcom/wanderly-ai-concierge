@@ -212,7 +212,7 @@ SELECT rt.try(format('SELECT public.ai_reservation_apply_reply(%L, %L, %L)', :'i
   rt.dec(rt.conf(:'id101', :'i101', 'em_101', 'Confirmamos su reserva para 4 personas')))) AS second \gset
 RESET ROLE;
 SELECT rt.ok('R2-A9 un inbound ya decidido no admite otra decisión (ambiguous y luego confirmed → rechazado)',
-  :'first' = 'venue_replied' AND :'second' NOT LIKE 'OK%' AND (SELECT status FROM ai_reservations WHERE id = :'id101') = 'venue_replied'
+  :'first' = 'venue_replied' AND :'second' LIKE '22023%ya tiene una decisión%' AND (SELECT status FROM ai_reservations WHERE id = :'id101') = 'venue_replied'
   AND (SELECT count(*) FROM ai_reservation_decisions WHERE inbound_id = :'i101') = 1, :'second');
 
 -- ── A10 vetos léxicos en SQL (mismas frases que Vitest) ──
