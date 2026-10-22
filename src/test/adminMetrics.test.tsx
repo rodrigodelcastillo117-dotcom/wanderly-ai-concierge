@@ -3,7 +3,15 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 const rpc = vi.fn();
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
+const lastCheck = {
+  ran_at: "2026-10-22T13:07:00Z", ok: true,
+  results: [{ name: "Pagos (Stripe)", ok: true, warn: "Stripe está en modo de prueba" }],
+};
+const healthQuery = { select: () => healthQuery, order: () => healthQuery, limit: () => healthQuery,
+  maybeSingle: () => Promise.resolve({ data: lastCheck, error: null }) };
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: { rpc: (...a: unknown[]) => rpc(...a), from: () => healthQuery },
+}));
 vi.mock("@/components/DashboardLayout", () => ({
   DashboardLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
@@ -42,6 +50,8 @@ describe("AdminMetrics", () => {
     expect(screen.getByText("Vuelos")).toBeInTheDocument();
     expect(screen.getByText("Cortesía")).toBeInTheDocument();
     expect(screen.getAllByRole("img")).toHaveLength(3);
+    expect(await screen.findByText("Estado de los servicios")).toBeInTheDocument();
+    expect(screen.getByText("Stripe está en modo de prueba")).toBeInTheDocument();
   });
 
   it("shows an access message for non-admins", async () => {

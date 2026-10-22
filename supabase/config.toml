@@ -159,3 +159,6 @@ verify_jwt = true
 
 [functions.price-watch-cron]
 verify_jwt = false
+
+[functions.health-check]
+verify_jwt = false

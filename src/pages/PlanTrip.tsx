@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
 import { parseTripFallback } from "@/lib/parseTripFallback";
+import { AnalysisProgress } from "@/components/AnalysisProgress";
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
@@ -28,13 +29,6 @@ const EMOCIONES: Array<{ key: string; label: string; sub: string; Icon: any }> =
 ];
 
 
-const LOADING_MESSAGES = [
-  "Buscando vuelos óptimos…",
-  "Identificando hoteles que matchean tu estilo…",
-  "Curando restaurantes para tu paladar…",
-  "Diseñando tu itinerario día por día…",
-  "Calculando presupuesto real en MXN…",
-];
 
 const PlanTrip = () => {
   const { user } = useAuth();
@@ -59,7 +53,6 @@ const PlanTrip = () => {
   const [analizando, setAnalizando] = useState(false);
   const [interpretando, setInterpretando] = useState(false);
   const [eligiendoDestino, setEligiendoDestino] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -105,11 +98,6 @@ const PlanTrip = () => {
 
 
 
-  useEffect(() => {
-    if (!analizando) return;
-    const i = setInterval(() => setLoadingMsg((m) => (m + 1) % LOADING_MESSAGES.length), 2400);
-    return () => clearInterval(i);
-  }, [analizando]);
 
   const runAnalisis = async (args: {
     destino: string;
@@ -382,39 +370,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   if (analizando) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
-          <motion.div
-            animate={{ scale: [1, 1.1, 1], opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 2.4, repeat: Infinity }}
-            className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center mb-8 gold-glow"
-          >
-            <Sparkles className="w-7 h-7 text-primary-foreground" />
-          </motion.div>
-          <h2 className="font-display text-3xl md:text-5xl mb-6">
-            Analizando tu viaje a <span className="gold-text italic">{destino}</span>
-          </h2>
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={loadingMsg}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="text-muted-foreground text-lg"
-            >
-              {LOADING_MESSAGES[loadingMsg]}
-            </motion.p>
-          </AnimatePresence>
-          <div className="mt-12 flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <motion.div
-                key={i}
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.2 }}
-                className="w-2 h-2 rounded-full bg-primary"
-              />
-            ))}
-          </div>
-        </div>
+        <AnalysisProgress destino={destino} />
       </DashboardLayout>
     );
   }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Download, Loader2, RefreshCw, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ServiceHealthCard } from "@/components/ServiceHealthCard";
 import { Button } from "@/components/ui/button";
 
 type Weekly = { week: string; signups: number; trips: number; bookings: number };
@@ -178,6 +179,8 @@ const AdminMetrics = () => {
             <Button variant="outline" size="sm" onClick={download}><Download className="w-3.5 h-3.5 mr-1.5" />Descargar</Button>
           </div>
         </div>
+
+        <ServiceHealthCard />
 
         <Section title="Usuarios">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

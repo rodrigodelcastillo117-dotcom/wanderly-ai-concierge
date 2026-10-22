@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calculator, PiggyBank, AlertTriangle, CheckCircle2, Plane, Wallet } from "lucide-react";
 
-type Trip = {
+export type Trip = {
   id: string;
   destino: string;
   pais_destino: string | null;
@@ -46,7 +46,7 @@ const VAR_FIELDS: { key: string; label: string }[] = [
 
 const STORAGE_KEY = "iatos_savings_calc_v1";
 
-type State = {
+export type State = {
   tripId: string;
   sueldo: string;
   extras: string;
@@ -55,7 +55,7 @@ type State = {
   variables: Record<string, string>;
 };
 
-const defaultState = (): State => ({
+export const defaultState = (): State => ({
   tripId: "",
   sueldo: "",
   extras: "",
@@ -69,6 +69,61 @@ const sum = (obj: Record<string, string>) =>
 
 const fmtMoney = (n: number, currency = "MXN") =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
+
+export type SavingsState = "pagado" | "sin_ingresos" | "sin_costo" | "sin_fecha" | "ok" | "ajustado" | "imposible";
+
+const today = () => {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+/** Un viaje se puede financiar si no tiene fecha o sale hoy o después. */
+export const isUpcoming = (t: Pick<Trip, "fecha_salida">, now = today()) =>
+  !t.fecha_salida || new Date(t.fecha_salida + "T00:00:00") >= now;
+
+export function computeSavings(state: State, trip: Trip | null, now = new Date()) {
+  const sueldo = Number(state.sueldo) || 0;
+  const extras = Number(state.extras) || 0;
+  const patrimonio = Number(state.patrimonio) || 0;
+  const fijos = sum(state.fijos);
+  const variables = sum(state.variables);
+  const ingreso = sueldo + extras;
+  const capacidadAhorro = ingreso - fijos - variables;
+
+  const costoViaje = Number(trip?.total_estimado ?? 0);
+  const faltante = Math.max(0, costoViaje - patrimonio);
+
+  let meses = 0;
+  let fechaViaje: Date | null = null;
+  if (trip?.fecha_salida) {
+    fechaViaje = new Date(trip.fecha_salida + "T00:00:00");
+    meses = (fechaViaje.getFullYear() - now.getFullYear()) * 12 + (fechaViaje.getMonth() - now.getMonth());
+    if (fechaViaje.getDate() < now.getDate()) meses -= 1;
+    meses = Math.max(0, meses);
+  }
+
+  // Sale este mes: hay que tener todo ya, así que cuenta como un solo mes.
+  const ahorroRequerido = faltante / Math.max(1, meses);
+  const ratio = capacidadAhorro > 0 ? ahorroRequerido / capacidadAhorro : Infinity;
+
+  let estado: SavingsState = "ok";
+  if (costoViaje === 0) estado = "sin_costo";
+  else if (faltante === 0) estado = "pagado";
+  else if (!fechaViaje) estado = "sin_fecha";
+  else if (ingreso === 0) estado = "sin_ingresos";
+  else if (capacidadAhorro <= 0 || ratio > 1) estado = "imposible";
+  else if (ratio > 0.7) estado = "ajustado";
+
+  // Sugerencia automática de recortes para llegar al ahorro requerido
+  const recorteSugerido = estado === "imposible" ? ahorroRequerido - Math.max(0, capacidadAhorro) : 0;
+
+  return {
+    ingreso, sueldo, extras, patrimonio, fijos, variables,
+    capacidadAhorro, costoViaje, faltante, meses, fechaViaje,
+    ahorroRequerido, ratio, estado, recorteSugerido,
+    currency: trip?.moneda || "MXN",
+  };
+}
 
 export const TripSavingsCalculator = () => {
   const { user } = useAuth();
@@ -99,58 +154,15 @@ export const TripSavingsCalculator = () => {
       .eq("user_id", user.id)
       .order("fecha_salida", { ascending: true })
       .then(({ data }) => {
-        const list = (data ?? []) as Trip[];
+        const list = ((data ?? []) as Trip[]).filter((t) => isUpcoming(t));
         setTrips(list);
-        setState(s => s.tripId ? s : { ...s, tripId: list[0]?.id ?? "" });
+        setState(s => list.some((t) => t.id === s.tripId) ? s : { ...s, tripId: list[0]?.id ?? "" });
       });
   }, [user]);
 
   const trip = trips.find(t => t.id === state.tripId) ?? null;
 
-  const computed = useMemo(() => {
-    const sueldo = Number(state.sueldo) || 0;
-    const extras = Number(state.extras) || 0;
-    const patrimonio = Number(state.patrimonio) || 0;
-    const fijos = sum(state.fijos);
-    const variables = sum(state.variables);
-    const ingreso = sueldo + extras;
-    const capacidadAhorro = ingreso - fijos - variables;
-
-    const costoViaje = Number(trip?.total_estimado ?? 0);
-    const faltante = Math.max(0, costoViaje - patrimonio);
-
-    let meses = 0;
-    let fechaViaje: Date | null = null;
-    if (trip?.fecha_salida) {
-      fechaViaje = new Date(trip.fecha_salida + "T00:00:00");
-      const now = new Date();
-      meses = (fechaViaje.getFullYear() - now.getFullYear()) * 12 + (fechaViaje.getMonth() - now.getMonth());
-      if (fechaViaje.getDate() < now.getDate()) meses -= 1;
-      meses = Math.max(0, meses);
-    }
-
-    const ahorroRequerido = meses > 0 ? faltante / meses : faltante;
-    const ratio = capacidadAhorro > 0 ? ahorroRequerido / capacidadAhorro : Infinity;
-
-    let estado: "ok" | "ajustado" | "imposible" | "pagado" | "sin_fecha" = "ok";
-    if (faltante === 0 && costoViaje > 0) estado = "pagado";
-    else if (!fechaViaje) estado = "sin_fecha";
-    else if (capacidadAhorro <= 0 || ratio > 1) estado = "imposible";
-    else if (ratio > 0.7) estado = "ajustado";
-
-    // Sugerencia automática de recortes para llegar al ahorro requerido
-    let recorteSugerido = 0;
-    if (estado === "imposible" && fechaViaje && meses > 0) {
-      recorteSugerido = ahorroRequerido - Math.max(0, capacidadAhorro);
-    }
-
-    return {
-      ingreso, sueldo, extras, patrimonio, fijos, variables,
-      capacidadAhorro, costoViaje, faltante, meses, fechaViaje,
-      ahorroRequerido, ratio, estado, recorteSugerido,
-      currency: trip?.moneda || "MXN",
-    };
-  }, [state, trip]);
+  const computed = useMemo(() => computeSavings(state, trip), [state, trip]);
 
   const setFijo = (k: string, v: string) => setState(s => ({ ...s, fijos: { ...s.fijos, [k]: v } }));
   const setVar = (k: string, v: string) => setState(s => ({ ...s, variables: { ...s.variables, [k]: v } }));
@@ -172,7 +184,7 @@ export const TripSavingsCalculator = () => {
 
       {trips.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">
-          Crea un viaje primero para calcular cuánto necesitas ahorrar.
+          Planea un viaje próximo para calcular cuánto necesitas ahorrar cada mes.
         </p>
       ) : (
         <>
@@ -211,9 +223,9 @@ export const TripSavingsCalculator = () => {
 
           {/* Ingresos + patrimonio */}
           <div className="grid md:grid-cols-3 gap-3 mb-6">
-            <NumField label="Sueldo neto mensual" value={state.sueldo} onChange={(v) => setState(s => ({ ...s, sueldo: v }))} placeholder="35000" />
-            <NumField label="Otros ingresos / freelance" value={state.extras} onChange={(v) => setState(s => ({ ...s, extras: v }))} placeholder="5000" />
-            <NumField label="Patrimonio / ahorro actual" value={state.patrimonio} onChange={(v) => setState(s => ({ ...s, patrimonio: v }))} placeholder="20000" hint="Lo que ya tienes para el viaje" />
+            <NumField label="Sueldo neto mensual" value={state.sueldo} onChange={(v) => setState(s => ({ ...s, sueldo: v }))} placeholder="Ej. 35000" />
+            <NumField label="Otros ingresos / freelance" value={state.extras} onChange={(v) => setState(s => ({ ...s, extras: v }))} placeholder="Ej. 5000" />
+            <NumField label="Patrimonio / ahorro actual" value={state.patrimonio} onChange={(v) => setState(s => ({ ...s, patrimonio: v }))} placeholder="Ej. 20000" hint="Lo que ya tienes para el viaje" />
           </div>
 
           {/* Fijos */}
@@ -248,7 +260,10 @@ export const TripSavingsCalculator = () => {
               <Stat label="Ingreso mensual" value={fmtMoney(computed.ingreso, computed.currency)} />
               <Stat label="Gastos totales" value={fmtMoney(computed.fijos + computed.variables, computed.currency)} />
               <Stat label="Capacidad de ahorro" value={fmtMoney(computed.capacidadAhorro, computed.currency)} accent={computed.capacidadAhorro > 0 ? "good" : "bad"} />
-              <Stat label={computed.meses > 0 ? `Meses al viaje` : "Sin fecha"} value={computed.meses > 0 ? `${computed.meses}` : "—"} />
+              <Stat
+                label={computed.fechaViaje ? "Meses al viaje" : "Sin fecha"}
+                value={computed.fechaViaje ? (computed.meses > 0 ? `${computed.meses}` : "Este mes") : "—"}
+              />
             </div>
 
             <div className="rounded-xl bg-background/40 border border-border p-4 md:p-5">
@@ -259,7 +274,14 @@ export const TripSavingsCalculator = () => {
                   body={`Tu patrimonio (${fmtMoney(computed.patrimonio, computed.currency)}) cubre el viaje (${fmtMoney(computed.costoViaje, computed.currency)}). Reserva con calma.`}
                 />
               )}
-              {computed.estado === "sin_fecha" && computed.costoViaje > 0 && (
+              {computed.estado === "sin_ingresos" && (
+                <Verdict
+                  icon={<Wallet className="w-6 h-6 text-primary" />}
+                  title="Escribe tu sueldo para calcular"
+                  body={`Te faltan ${fmtMoney(computed.faltante, computed.currency)} para el viaje. Con tu sueldo neto y tus gastos del mes te digo cuánto apartar cada mes.`}
+                />
+              )}
+              {computed.estado === "sin_fecha" && (
                 <Verdict
                   icon={<AlertTriangle className="w-6 h-6 text-amber-400" />}
                   title="Falta fijar fecha de salida"
@@ -270,7 +292,7 @@ export const TripSavingsCalculator = () => {
                 <Verdict
                   icon={<CheckCircle2 className="w-6 h-6 text-emerald-400" />}
                   title={`Ahorra ${fmtMoney(computed.ahorroRequerido, computed.currency)} cada mes`}
-                  body={`Durante ${computed.meses} meses para juntar los ${fmtMoney(computed.faltante, computed.currency)} que te faltan. Tu capacidad real es ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes — vas holgado (${(computed.ratio * 100).toFixed(0)}% de tu margen).`}
+                  body={`${computed.meses > 0 ? `Durante ${computed.meses} ${computed.meses === 1 ? "mes" : "meses"}` : "Este mes, antes de la salida,"} para juntar los ${fmtMoney(computed.faltante, computed.currency)} que te faltan. Tu capacidad real es ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes — vas holgado (${(computed.ratio * 100).toFixed(0)}% de tu margen).`}
                 />
               )}
               {computed.estado === "ajustado" && (
@@ -293,7 +315,7 @@ export const TripSavingsCalculator = () => {
                   body = `Tus gastos (${fmtMoney(computed.fijos + computed.variables, computed.currency)}/mes) superan tus ingresos (${fmtMoney(computed.ingreso, computed.currency)}/mes) por ${fmtMoney(Math.abs(computed.capacidadAhorro), computed.currency)}. Primero genera margen positivo recortando variables o subiendo ingresos; después volvemos a calcular el viaje.`;
                 } else if (variablesTotal < computed.recorteSugerido * 0.5) {
                   // No hay de dónde recortar — empuja mover fecha
-                  body = `Con tu margen de ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes y solo ${computed.meses} ${computed.meses === 1 ? "mes" : "meses"} hasta la salida, no alcanza. La salida más realista: mueve la fecha ${mesesExtra} ${mesesExtra === 1 ? "mes" : "meses"} adelante (${mesesNecesarios} meses ahorrando ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes ≈ ${fmtMoney(computed.capacidadAhorro * mesesNecesarios, computed.currency)}).`;
+                  body = `Con tu margen de ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes y ${computed.meses > 0 ? `solo ${computed.meses} ${computed.meses === 1 ? "mes" : "meses"}` : "menos de un mes"} hasta la salida, no alcanza. La salida más realista: mueve la fecha ${mesesExtra} ${mesesExtra === 1 ? "mes" : "meses"} adelante (${mesesNecesarios} meses ahorrando ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes ≈ ${fmtMoney(computed.capacidadAhorro * mesesNecesarios, computed.currency)}).`;
                 } else {
                   body = `Necesitas ahorrar ${fmtMoney(computed.ahorroRequerido, computed.currency)}/mes pero tu margen real es ${fmtMoney(computed.capacidadAhorro, computed.currency)}/mes. Opciones: recorta hasta ${fmtMoney(recorteRealista, computed.currency)}/mes en variables, sube ingresos, o mueve la salida ${mesesExtra} ${mesesExtra === 1 ? "mes" : "meses"} adelante.`;
                 }
@@ -306,12 +328,7 @@ export const TripSavingsCalculator = () => {
                   />
                 );
               })()}
-              {computed.costoViaje === 0 && (
-                <p className="text-sm text-muted-foreground">Este viaje todavía no tiene costo estimado. Termina de planearlo y vuelve.</p>
-              )}
-
-
-              {computed.costoViaje === 0 && (
+              {computed.estado === "sin_costo" && (
                 <p className="text-sm text-muted-foreground">Este viaje todavía no tiene costo estimado. Termina de planearlo y vuelve.</p>
               )}
             </div>
@@ -336,7 +353,8 @@ const NumField = ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder || "0"}
-        className={`w-full rounded-lg bg-background/60 border border-border pl-6 pr-2 ${compact ? "py-1.5 text-sm" : "py-2.5"} focus:border-primary outline-none`}
+        aria-label={label}
+        className={`w-full rounded-lg bg-background/60 border border-border pl-6 pr-2 placeholder:text-muted-foreground/50 placeholder:italic ${compact ? "py-1.5 text-sm" : "py-2.5"} focus:border-primary outline-none`}
       />
     </div>
     {hint && <span className="block text-[10px] text-muted-foreground mt-0.5">{hint}</span>}
