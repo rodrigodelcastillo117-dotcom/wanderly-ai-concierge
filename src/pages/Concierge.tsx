@@ -20,6 +20,7 @@ import { IatoMemoryPanel } from "@/components/concierge/IatoMemoryPanel";
 import { TripContextSelector, type ContextTrip } from "@/components/concierge/TripContextSelector";
 import { resolveActiveTrip, tripLabel, type ActiveTripReason } from "@/lib/activeTrip";
 import { localISODate } from "@/lib/localDate";
+import { ConciergeHeading } from "@/components/concierge/ConciergeHeading";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -330,10 +331,8 @@ const Concierge = () => {
         <div className="px-4 md:px-8 pt-6 pb-3 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
-              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
-                <Crown className="w-3 h-3" /> CONCIERGE PRO
-              </p>
-              <h1 className="font-display text-2xl md:text-3xl leading-tight">Concierge PRO te escucha</h1>
+              {/* Encabezado según el plan real: a cuentas gratis ya no les dice "Concierge PRO". */}
+              <ConciergeHeading />
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
                   {weather ? `${weather.place} · ${weather.temp}°C` : "Detectando tu ubicación real…"}
