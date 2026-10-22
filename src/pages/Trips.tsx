@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Pencil, Users, Sparkles, Plus, Trash2 } from "lucide-react";
+import { Pencil, Users, Sparkles, Plus, Trash2, LogOut, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -21,21 +21,28 @@ import { toast } from "sonner";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { useNavigate } from "react-router-dom";
 import santorini from "@/assets/hero-santorini.jpg";
+import { deleteOwnedTrip, leaveSharedTrip, MEMBERSHIP_MESSAGES } from "@/lib/tripMembership";
 
 const cache = new Map<string, string | null>();
 
-const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void }) => {
+const TripCard = ({ t, userId, onDeleted }: { t: any; userId: string; onDeleted: (id: string) => void }) => {
   const [deleting, setDeleting] = useState(false);
+  // Un viaje compartido conmigo no es mío: no puedo borrarlo, solo salir de él.
+  const isShared = !!t.shared;
 
   const handleDelete = async () => {
     setDeleting(true);
-    const { error } = await supabase.from("trips").delete().eq("id", t.id);
-    if (error) {
-      toast.error("No pudimos eliminar el viaje. Intenta de nuevo.");
+    const res = isShared ? await leaveSharedTrip(supabase, t.id, userId) : await deleteOwnedTrip(supabase, t.id);
+    if (!res.ok) {
+      toast.error(
+        res.reason === "not_allowed"
+          ? isShared ? MEMBERSHIP_MESSAGES.leaveNotAllowed : MEMBERSHIP_MESSAGES.deleteNotAllowed
+          : MEMBERSHIP_MESSAGES.error,
+      );
       setDeleting(false);
       return;
     }
-    toast.success("Viaje eliminado");
+    toast.success(isShared ? MEMBERSHIP_MESSAGES.left : MEMBERSHIP_MESSAGES.deleted);
     onDeleted(t.id);
   };
 
@@ -78,29 +85,31 @@ const TripCard = ({ t, onDeleted }: { t: any; onDeleted: (id: string) => void })
           aria-label="Editar viaje"
           className="p-2 rounded-full bg-background/60 backdrop-blur hover:bg-primary/20 text-muted-foreground hover:text-primary transition"
         >
-          <Pencil className="w-3.5 h-3.5" />
+          <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
         </Link>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <button
-              aria-label="Eliminar viaje"
+              aria-label={isShared ? `Salir del viaje a ${t.destino}` : `Eliminar viaje a ${t.destino}`}
               disabled={deleting}
               className="p-2 rounded-full bg-background/60 backdrop-blur hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              {isShared ? <LogOut className="w-3.5 h-3.5" aria-hidden="true" /> : <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />}
             </button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar este viaje?</AlertDialogTitle>
+              <AlertDialogTitle>{isShared ? "¿Salir de este viaje?" : "¿Eliminar este viaje?"}</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta acción no se puede deshacer. Se borrará todo el análisis de "{t.destino}".
+                {isShared
+                  ? `Dejarás de ver "${t.destino}". El viaje no se borra: el dueño y los demás colaboradores lo conservan.`
+                  : `Esta acción no se puede deshacer. Se borrará "${t.destino}" con su diario, packing y gastos divididos.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Eliminar
+                {isShared ? "Salir del viaje" : "Eliminar"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -138,26 +147,42 @@ const Trips = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<any[]>([]);
+  // Sin estos estados, "Aún no has guardado ningún viaje" aparecía mientras cargaba o si fallaba la red.
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
     (async () => {
-      const [own, collab] = await Promise.all([
-        supabase.from("trips").select("*").eq("user_id", user.id),
-        supabase.from("trip_collaborators").select("trip_id").eq("user_id", user.id),
-      ]);
-      const sharedIds = (collab.data ?? []).map((c: any) => c.trip_id);
-      let shared: any[] = [];
-      if (sharedIds.length) {
-        const { data } = await supabase.from("trips").select("*").in("id", sharedIds);
-        shared = (data ?? []).map((t: any) => ({ ...t, shared: true }));
+      try {
+        const [own, collab] = await Promise.all([
+          supabase.from("trips").select("*").eq("user_id", user.id),
+          supabase.from("trip_collaborators").select("trip_id").eq("user_id", user.id),
+        ]);
+        if (own.error) throw own.error;
+        const sharedIds = (collab.data ?? []).map((c: any) => c.trip_id);
+        let shared: any[] = [];
+        if (sharedIds.length) {
+          const { data } = await supabase.from("trips").select("*").in("id", sharedIds);
+          shared = (data ?? []).map((t: any) => ({ ...t, shared: true }));
+        }
+        const all = [...(own.data ?? []), ...shared].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+        if (!cancelled) setTrips(all);
+      } catch (e) {
+        console.error("Trips: no se pudieron cargar", e);
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      const all = [...(own.data ?? []), ...shared].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
-      setTrips(all);
     })();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user?.id, reloadKey]);
 
   return (
     <DashboardLayout>
@@ -182,7 +207,20 @@ const Trips = () => {
           </div>
         </section>
 
-        {trips.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5" aria-busy="true" aria-label="Cargando tus viajes">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="glass-card rounded-2xl h-[268px] animate-pulse" />
+            ))}
+          </div>
+        ) : loadError ? (
+          <div className="glass-card rounded-3xl p-8 md:p-12 text-center" role="alert">
+            <p className="text-muted-foreground mb-5">No pudimos cargar tus viajes. Revisa tu conexión.</p>
+            <Button onClick={() => setReloadKey((k) => k + 1)} variant="outline" className="rounded-2xl">
+              <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" /> Reintentar
+            </Button>
+          </div>
+        ) : trips.length === 0 ? (
           <div className="glass-card rounded-3xl p-8 md:p-12 text-center">
             <p className="text-muted-foreground mb-5">Aún no has guardado ningún viaje.</p>
             <Button onClick={() => navigate("/dashboard/planear")} className="bg-gradient-gold text-primary-foreground gold-glow rounded-2xl">
@@ -192,7 +230,7 @@ const Trips = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {trips.map((t) => (
-              <TripCard key={t.id} t={t} onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
+              <TripCard key={t.id} t={t} userId={user!.id} onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
 
             ))}
           </div>
