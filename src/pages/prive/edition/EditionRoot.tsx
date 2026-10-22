@@ -1,7 +1,8 @@
 // THE PRIVATE EDITION · marco de /prive/edicion/* (dentro de PriveRoot: sesión Privé, candado y estilo).
 // Navegación de seis áreas: Latest Issue · My Edition · World Briefing · Privé Opportunities · Flight Edition · Library.
-import { Link, NavLink, Outlet } from "react-router-dom";
-import { ArrowLeft, WifiOff } from "lucide-react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { WifiOff } from "lucide-react";
+import { usePriveBack } from "@/components/prive/shell/PriveBack";
 import { EditionProvider, useEdition } from "@/components/prive/edition/EditionContext";
 import { PriveLocked } from "@/components/prive/catalog/PriveLocked";
 import { useOnline } from "@/components/prive/edition/Magazine";
@@ -21,6 +22,10 @@ function Frame() {
   const { lang, setLang, locked, loading, error, reload } = useEdition();
   const online = useOnline();
   const T = editionText(lang);
+  // Portada de la revista: el botón de la barra sale de Privé. Dentro (artículo, secciones): sube a la revista.
+  const { pathname } = useLocation();
+  const inside = !/^\/prive\/edicion\/?$/.test(pathname);
+  usePriveBack(inside ? "/prive/edicion" : null, inside ? T.brand : null);
   if (locked) return <PriveLocked code={locked} />;
   return (
     <div className="ped" lang={lang}>
@@ -31,9 +36,8 @@ function Frame() {
         </div>
       )}
       <div className="flex items-center justify-between gap-3 px-4 sm:px-8 pt-1 pb-2">
-        <Link to="/prive" className="inline-flex items-center gap-1 min-h-[44px] text-xs tracking-[0.2em] uppercase text-[color:var(--ped-muted)] hover:text-[color:var(--ped-champagne)]">
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Privé
-        </Link>
+        {/* El regreso vive en la barra de Privé (un solo botón): desde un artículo o sección sube a la revista. */}
+        <span aria-hidden="true" className="w-11" />
         <Link to="/prive/edicion" className="text-center leading-tight">
           <span className="ped-masthead block text-[0.95rem] sm:text-lg text-[color:var(--ped-champagne)]">{T.brand}</span>
           <span className="hidden sm:block text-[0.7rem] italic text-[color:var(--ped-muted)]" style={{ fontFamily: "var(--ped-display)" }}>{T.taglineSub}</span>
