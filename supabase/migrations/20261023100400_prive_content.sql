@@ -78,10 +78,18 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
 $$;
 
 -- Señales del usuario para "Para ti" (fórmula fija, sin IA). Ver MODELO_DE_DATOS §4.1.
+-- Consentimiento: el Travel DNA (preferencias y lo que el usuario hizo en Privé) SOLO se usa si el
+-- miembro dijo que sí en la bienvenida (prive_memberships.onboarding.dna_consent = true). Sin eso, el
+-- orden depende solo de calidad, viaje y novedad.
 CREATE OR REPLACE FUNCTION public.prive_user_signals(_uid uuid)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
-DECLARE p record; aff jsonb := '{}'::jsonb; lvl int; h record;
+DECLARE p record; aff jsonb := '{}'::jsonb; lvl int; h record; v_consent boolean;
 BEGIN
+  v_consent := coalesce((SELECT (m.onboarding->>'dna_consent')::boolean FROM public.prive_memberships m WHERE m.user_id = _uid), false);
+  IF NOT v_consent THEN
+    RETURN jsonb_build_object('budget_level', NULL, 'affinity', '{}'::jsonb, 'dna_consent', false,
+      'opened_recently', '[]'::jsonb);
+  END IF;
   SELECT nivel_presupuesto, coalesce(estilo_comida, '{}') AS comida, coalesce(actividades_tarde, '{}') AS tarde
     INTO p FROM public.ai_user_preferences WHERE user_id = _uid;
   IF FOUND THEN
@@ -101,7 +109,7 @@ BEGIN
             GROUP BY e.universe LOOP
     aff := aff || jsonb_build_object(h.universe, least(30, coalesce((aff->>h.universe)::int, 0) + least(10, 3 * h.n::int)));
   END LOOP;
-  RETURN jsonb_build_object('budget_level', lvl, 'affinity', aff,
+  RETURN jsonb_build_object('budget_level', lvl, 'affinity', aff, 'dna_consent', true,
     'opened_recently', coalesce((SELECT jsonb_agg(DISTINCT experience_id) FROM public.prive_events
        WHERE user_id = _uid AND event = 'detail_open' AND created_at > now() - interval '30 days' AND experience_id IS NOT NULL), '[]'));
 END $$;

@@ -24,6 +24,7 @@ import { localISODate } from "@/lib/localDate";
 import { ConciergeHeading } from "@/components/concierge/ConciergeHeading";
 import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
 import { loadConversation } from "@/lib/conciergeHistory";
+import { readPriveSession } from "@/lib/priveSession";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -250,6 +251,8 @@ const Concierge = () => {
       }
 
       const { data, error } = await supabase.functions.invoke("concierge-chat", {
+        // Sesión Privé (si está desbloqueada): Iato la usa para search_prive; el servidor la valida.
+        headers: (() => { const ps = readPriveSession(sess.session?.user?.id)?.token; return ps ? { "x-prive-session": ps } : undefined; })(),
         body: {
           messages: next.filter(m => m.id !== "welcome").map(m => ({ role: m.role, content: m.text })),
           god_mode: godMode,

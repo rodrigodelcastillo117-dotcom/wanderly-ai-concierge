@@ -38,6 +38,12 @@ const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
 const Social = lazyWithRetry(() => import("./pages/Social"));
 const Gastos = lazyWithRetry(() => import("./pages/Gastos"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound.tsx"));
+// ── IATOS Privé · catálogo (grupo catalog). El hub /prive y su candado los pone el grupo ui. ──
+const PriveDestinationPage = lazyWithRetry(() => import("./pages/prive/PriveDestinationPage"));
+const PriveUniversePage = lazyWithRetry(() => import("./pages/prive/PriveUniversePage"));
+const PriveExperiencePage = lazyWithRetry(() => import("./pages/prive/PriveExperiencePage"));
+const PriveRequestsPage = lazyWithRetry(() => import("./pages/prive/PriveRequestsPage"));
+// ── fin IATOS Privé · catálogo ──
 const LiveTrip = lazyWithRetry(() => import("./pages/LiveTrip"));
 const TripMap = lazyWithRetry(() => import("./pages/TripMap"));
 const TripPacking = lazyWithRetry(() => import("./pages/TripPacking"));
@@ -148,6 +154,13 @@ const App = () => (
               <Route path="invitacion" element={<PriveInvitation />} />
               <Route path="membresia" element={<PriveMembership />} />
               <Route path="restablecer" element={<PriveReset />} />
+              {/* ── IATOS Privé · catálogo (grupo catalog): dentro de PriveRoot (sesión, candado y estilo);
+                  el servidor exige la sesión Privé en cada RPC ── */}
+              <Route path="destino/:slug" element={<PriveDestinationPage />} />
+              <Route path="universo/:key" element={<PriveUniversePage />} />
+              <Route path="experiencia/:slug" element={<PriveExperiencePage />} />
+              <Route path="solicitudes" element={<PriveRequestsPage />} />
+              {/* ── fin IATOS Privé · catálogo ── */}
             </Route>
 
             <Route path="*" element={<NotFound />} />

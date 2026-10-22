@@ -257,6 +257,15 @@ SELECT public.t_ok('M14b en el viaje quedan como pendientes, sin folio (no reser
 SELECT public.t_ok('M15 la ficha trae la evidencia de la etiqueta y el crédito de imagen ilustrativa',
   (public.prive_experience(public.t_ps(), 'mc-t-yacht')->'experience'->'label_evidence'->>'operator') = 'T Yacht Charter SARL'
   AND (public.prive_experience(public.t_ps(), 'mc-t-yacht')->'experience'->'image'->>'illustrative')::boolean);
+SELECT public.t_ok('M16a sin consentimiento de Travel DNA no se usan preferencias',
+  (SELECT x->'score'->'reasons' FROM jsonb_array_elements(public.prive_destination(public.t_ps(), 'mc')->'experiences') x WHERE x->>'slug' = 'mc-t-louis-xv')::text !~ 'dna:');
+RESET ROLE;
+INSERT INTO public.ai_user_preferences (user_id, estilo_comida) VALUES ('c0000000-0000-0000-0000-0000000000a1', '{michelin}')
+  ON CONFLICT (user_id) DO UPDATE SET estilo_comida = '{michelin}';
+UPDATE public.prive_memberships SET onboarding = coalesce(onboarding, '{}'::jsonb) || '{"dna_consent": true}' WHERE user_id = 'c0000000-0000-0000-0000-0000000000a1';
+SET ROLE authenticated;
+SELECT public.t_ok('M16b con consentimiento, el gusto Michelin sube The Table (razón dna:the_table)',
+  (SELECT x->'score'->'reasons' FROM jsonb_array_elements(public.prive_destination(public.t_ps(), 'mc')->'experiences') x WHERE x->>'slug' = 'mc-t-louis-xv')::text ~ 'dna:the_table');
 SELECT public.t_ok('M16 prive_track ignora eventos que solo escribe el servidor', public.prive_track(public.t_ps(), 'request_confirmed') = false);
 
 -- ───────────── 8. Solicitudes: transiciones solo del servidor ─────────────

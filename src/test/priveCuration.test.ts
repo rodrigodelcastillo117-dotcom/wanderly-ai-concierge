@@ -1,9 +1,8 @@
 // Cargador de la curaduría de IATOS Privé (scripts/prive/curation-lib.mjs): validación estricta,
 // estados honestos, temporada, enlaces de juego y normalización de destinos (lista exacta del dueño).
 import { describe, expect, it } from "vitest";
-// @ts-expect-error módulo .mjs sin tipos (script de Node)
+// Módulos .mjs del cargador (scripts de Node, JS sin tipos).
 import { dedupeKey, mapBatch, mapEntry, parseSeason, resolveCity, summarize } from "../../scripts/prive/curation-lib.mjs";
-// @ts-expect-error módulo .mjs sin tipos (script de Node)
 import { aliasMap, allDestinations, OWNER_ORDER, priveNorm } from "../../scripts/prive/destinations.mjs";
 
 const TODAY = "2026-10-22";
@@ -175,7 +174,7 @@ describe("destinos: lista exacta del dueño y normalización", () => {
     expect(() => aliasMap()).not.toThrow();
   });
   it("Montecarlo es barrio de Mónaco; Polanco y Roma-Condesa de la CDMX; Punta Mita en Riviera Nayarit", () => {
-    const by = new Map(allDestinations().map((d: any) => [d.slug, d]));
+    const by = new Map<string, any>(allDestinations().map((d: any) => [d.slug, d]));
     expect(by.get("monaco-monte-carlo")).toMatchObject({ kind: "neighborhood", parent: "mc" });
     expect(by.get("cdmx-polanco")).toMatchObject({ kind: "neighborhood", parent: "cdmx" });
     expect(by.get("cdmx-roma-condesa")).toMatchObject({ kind: "neighborhood", parent: "cdmx" });
