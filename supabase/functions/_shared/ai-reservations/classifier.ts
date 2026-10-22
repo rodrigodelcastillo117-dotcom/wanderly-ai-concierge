@@ -232,6 +232,8 @@ export type DecideContext = {
   linkage?: Linkage | null;
   /** Fecha de recepción del proveedor: resuelve "mañana"/"hoy" en la zona del lugar. */
   receivedAt?: string | null;
+  /** A2-RES-08: el correo no traía parte de texto (solo HTML): nunca confirma ni aparta solo. */
+  htmlOnly?: boolean;
 };
 
 type DecideRow = Pick<AiReservationRow, "requested_local" | "party_size"> &
@@ -312,6 +314,7 @@ export function decideReply(row: DecideRow, cls: Classification | null, ctx: Dec
   const vetoes = [
     ...(a.hedges.includes("negated_confirmation") ? ["negated_confirmation"] : []),
     ...(a.hedges.includes("cancellation") ? ["cancellation"] : []),
+    ...(ctx.htmlOnly ? ["html_only"] : []),
   ];
   const altBase = { verified_sender: true, inbound_email_id: ctx.inboundEmailId, from_domain: ctx.fromDomain ?? undefined };
 
@@ -362,6 +365,7 @@ export function decideReply(row: DecideRow, cls: Classification | null, ctx: Dec
     if (!confirmQuote) failures.push("no_explicit_confirmation");
     if (cls.alternatives.length) failures.push("alternatives_listed");
     if (cls.info_requested) failures.push("info_requested");
+    if (ctx.htmlOnly) failures.push("html_only");
     // A2-RES-03: si algún dato se toma de nuestra solicitud citada, el restaurante no puede haber
     // escrito números (personas u horas) que no se explican: podrían ser un cambio que no leímos.
     if (usesThreadQuote(conditions) && a.looseNumbers.length) failures.push("unexplained_numbers");

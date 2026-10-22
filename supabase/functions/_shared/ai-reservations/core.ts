@@ -376,9 +376,46 @@ export function stripQuotedReply(text: string): string {
   return splitQuotedReply(text).reply;
 }
 
-/** HTML de un correo → texto plano (sin scripts ni estilos), para cuando no viene versión texto. */
+// A2-RES-08 · Elementos que el lector no ve: su texto no cuenta como escrito por el restaurante.
+const HIDDEN_STYLE = /(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0(?:\.0+)?(?:px|pt|em|rem|%)?\s*(?:!important)?\s*(?:;|$)|max-height\s*:\s*0(?:px)?\s*(?:!important)?\s*(?:;|$)|opacity\s*:\s*0(?:\.0+)?\s*(?:!important)?\s*(?:;|$)|mso-hide\s*:\s*all)/i;
+const VOID_TAGS = new Set(["br", "hr", "img", "input", "meta", "link", "area", "base", "col", "embed", "source", "track", "wbr"]);
+
+/** Quita del HTML los elementos ocultos (style display:none, visibility:hidden, font-size:0,
+ * max-height:0, opacity:0, mso-hide:all; atributo hidden o aria-hidden="true"; <template>) con todo
+ * lo que contienen, respetando el anidamiento de etiquetas. */
+export function stripHiddenHtml(html: string): string {
+  const h = String(html ?? "").replace(/<!--[\s\S]*?-->/g, " ").replace(/<template[\s\S]*?<\/template>/gi, " ");
+  const tagRe = /<\/?([a-zA-Z][a-zA-Z0-9-]*)\b[^>]*>/g;
+  let out = "";
+  let last = 0;
+  let hiddenDepth = 0; // >0: dentro de un elemento oculto
+  let hiddenTag = "";
+  for (let m = tagRe.exec(h); m; m = tagRe.exec(h)) {
+    const tag = m[1].toLowerCase();
+    const isClose = m[0].startsWith("</");
+    const selfClosing = /\/>$/.test(m[0]) || VOID_TAGS.has(tag);
+    if (hiddenDepth === 0) {
+      out += h.slice(last, m.index);
+      last = m.index + m[0].length;
+      const attrs = m[0];
+      const style = /\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs);
+      const hidden = !isClose && ((style && HIDDEN_STYLE.test(style[1] ?? style[2] ?? "")) || /\shidden(?:\s|=|>|\/)/i.test(attrs) || /\saria-hidden\s*=\s*["']?true/i.test(attrs));
+      if (hidden && !selfClosing) { hiddenDepth = 1; hiddenTag = tag; continue; }
+      if (hidden) continue;
+      out += m[0];
+    } else {
+      last = m.index + m[0].length;
+      if (tag !== hiddenTag || selfClosing) continue;
+      hiddenDepth += isClose ? -1 : 1;
+    }
+  }
+  if (hiddenDepth === 0) out += h.slice(last);
+  return out;
+}
+
+/** HTML de un correo → texto plano (sin scripts, estilos ni texto oculto), para cuando no viene versión texto. */
 export function htmlToText(html: string, keepQuoted = false): string {
-  const h = String(html ?? "");
+  const h = stripHiddenHtml(String(html ?? ""));
   return (keepQuoted ? h : h.replace(/<blockquote[\s\S]*$/i, "")) // lo citado suele ir en <blockquote>
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, " ")
     .replace(/<br\s*\/?>/gi, "\n")

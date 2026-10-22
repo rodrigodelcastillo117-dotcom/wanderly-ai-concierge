@@ -509,6 +509,7 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
       : null;
     decision = decideReply(row, cls, {
       replyText, fullText, verifiedSender: verified, fromDomain: domainOf(fromAddr), inboundEmailId: emailId, linkage, receivedAt,
+      htmlOnly: !hasText,
     });
     if (!replyText) decision = { ...decision, outcome: "ignored", why: "empty_body", claude_calls: 0 };
     if (!deps.callModel) decision.claude_calls = 0;

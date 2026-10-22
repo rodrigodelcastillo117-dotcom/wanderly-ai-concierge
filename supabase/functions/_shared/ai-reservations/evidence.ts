@@ -384,6 +384,7 @@ export function ambiguousReasonEs(why: string | null | undefined): string | null
     hedge_negated_confirmation: "El restaurante dice que la reserva NO está confirmada o que no la apartó.",
     hedge_cancellation: "El correo habla de una cancelación.",
     unexplained_numbers: "El correo menciona números (personas u horas) que no pudimos comprobar contra tu solicitud.",
+    html_only: "La respuesta llegó solo en formato HTML; no la tomamos como confirmación automática.",
     model_not_held: "La respuesta no dice que la mesa quedó apartada.",
     evidence_incomplete: "Al correo le faltan datos del proveedor para usarlo como comprobante.",
     classification_unavailable: "No pudimos leer la respuesta automáticamente.",
