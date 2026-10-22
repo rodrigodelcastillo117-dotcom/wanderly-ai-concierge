@@ -6,9 +6,10 @@
 import {
   type AiReservationRow, type AiReservationStatus, bareAddress, confirmPrompt, cronDecision, DEFAULT_FROM_ADDRESS,
   DEFAULT_LIMITS, DEFAULT_REPLY_DOMAIN, domainOf, extractReplyToken, formatLocal, htmlToText, isLocalDateTime, type Limits,
-  replyAddress, senderVerified, statusLabel, stripQuotedReply, toBridgeState,
+  replyAddress, senderAuthentication, type SenderVerdict, statusLabel, stripQuotedReply, toBridgeState,
 } from "./core.ts";
 import { ClassifierUnavailable, classifyReply, decideReply, type ModelCall, type ReplyDecision } from "./classifier.ts";
+import { ambiguousReasonEs, quotedRequestLinked } from "./evidence.ts";
 import { type ContactDeps, discoverVenueContact } from "./contact.ts";
 import { signLink, verifyLink, verifySvixSignature } from "./signature.ts";
 import {
@@ -21,14 +22,38 @@ export type Db = {
   rpc<T = unknown>(fn: string, args?: Record<string, unknown>): Promise<RpcResult<T>>;
 };
 export type OutgoingMail = { to: string | string[]; subject: string; html: string; text: string; from?: string; replyTo?: string };
+/** Lo que usamos de GET /emails/receiving/{id} de Resend (forma documentada, consultada 2026-10-22). */
 export type ReceivedEmail = {
+  id?: string;
   from?: string;
+  to?: unknown[];
   subject?: string;
   text?: string | null;
   html?: string | null;
   created_at?: string;
+  /** Calculados por el servidor que recibe ('pass' | 'fail' | 'gray' | 'processing_failed' | 'unknown'); null en correos viejos. */
   authentication?: { spf?: string; dkim?: string; dmarc?: string } | null;
+  message_id?: string | null;
+  reply_to?: unknown;
+  headers?: Record<string, unknown> | null;
+  raw?: { download_url?: string; expires_at?: string } | null;
 };
+
+/**
+ * AUD-02 · Veredicto del remitente con lo que dio el proveedor. Además de la regla de
+ * senderAuthentication(), el From del webhook, el del correo descargado y el encabezado From crudo
+ * deben ser la MISMA dirección: si discrepan, no se puede saber quién escribió → no verificado.
+ */
+export function inboundSenderVerdict(webhookFrom: unknown, content: ReceivedEmail, venueEmail: string | null): SenderVerdict {
+  const v = senderAuthentication(content.from ?? webhookFrom, venueEmail, content.authentication);
+  const reasons = [...v.reasons];
+  const h = content.headers && typeof content.headers === "object" ? content.headers as Record<string, unknown> : null;
+  const headerFrom = h ? (h.from ?? h.From) : undefined;
+  if (webhookFrom != null && String(webhookFrom).trim() && bareAddress(webhookFrom) !== v.from_address) reasons.push("webhook_from_mismatch");
+  if (headerFrom != null && String(headerFrom).trim() && bareAddress(headerFrom) !== v.from_address) reasons.push("header_from_mismatch");
+  if (reasons.length === v.reasons.length) return v;
+  return { ...v, verified: false, basis: null, reasons };
+}
 
 export type ServiceDeps = {
   db: Db;
@@ -37,6 +62,8 @@ export type ServiceDeps = {
   contact: ContactDeps;
   profile(userId: string): Promise<{ name: string | null; email: string | null }>;
   receivedEmail(emailId: string): Promise<ReceivedEmail | null>;
+  /** Descarga el .eml original (raw.download_url de Resend) para guardar su SHA-256 como evidencia. Opcional. */
+  fetchRaw?(url: string): Promise<ArrayBuffer | null>;
   config: {
     replyDomain?: string;
     fromAddress?: string;
@@ -317,11 +344,53 @@ async function sendUserUpdate(deps: ServiceDeps, row: AiReservationRow, kind: Pa
   const mail = userUpdateEmail(kind, {
     ...row,
     excerpt: d?.excerpt ?? row.venue_reply_excerpt,
-    info: d?.info_requested ?? null,
+    info: kind === "ambiguous" ? ambiguousReasonEs(d?.why) : d?.info_requested ?? null,
     alternatives: (d?.alternatives ?? row.alternatives ?? []).map((a) => formatLocal(a.local, "es")),
     appUrl: deps.config.appUrl,
   });
   await deps.sendEmail({ to, ...mail, from: "IATOS Reservas <" + (deps.config.fromAddress ?? DEFAULT_FROM_ADDRESS) + ">" }).catch(() => null);
+}
+
+// ───────────────────────────── Evidencia del correo (AUD-06) ─────────────────────────────
+async function sha256Hex(data: ArrayBuffer | string): Promise<string> {
+  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
+  const h = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Lo que se guarda del correo recibido ANTES de clasificarlo (ai_reservation_inbound_attach): datos
+ * del proveedor, no del modelo. El cuerpo se guarda como huella (SHA-256 de texto + HTML tal como
+ * llegaron) y, del texto, solo lo que escribió el restaurante. El .eml no se guarda: su huella y el
+ * puntero al correo en Resend permiten comprobarlo mientras Resend lo conserve.
+ */
+export async function inboundEvidence(
+  deps: ServiceDeps, emailId: string, content: ReceivedEmail, sender: SenderVerdict, replyText: string,
+  linkage: { method: string; quoted_request: boolean },
+): Promise<Record<string, unknown>> {
+  let rawSha: string | null = null;
+  const rawUrl = content.raw?.download_url;
+  if (deps.fetchRaw && typeof rawUrl === "string" && /^https:\/\//.test(rawUrl)) {
+    const raw = await deps.fetchRaw(rawUrl).catch(() => null);
+    if (raw && raw.byteLength > 0) rawSha = await sha256Hex(raw);
+  }
+  const replyTo = Array.isArray(content.reply_to) ? content.reply_to.map(String).join(", ") : content.reply_to ? String(content.reply_to) : null;
+  const mid = typeof content.message_id === "string" && content.message_id.trim() ? content.message_id.trim().slice(0, 998) : null;
+  return {
+    provider: "resend",
+    provider_email_id: emailId,
+    message_id: mid,
+    received_at: typeof content.created_at === "string" ? content.created_at : null,
+    from_address: sender.from_address,
+    reply_to: replyTo ? replyTo.slice(0, 500) : null,
+    auth: sender.auth,
+    reply_text: replyText.slice(0, 8000),
+    body_sha256: await sha256Hex(`${content.text ?? ""}\n\u0000\n${content.html ?? ""}`),
+    raw_sha256: rawSha,
+    raw_pointer: `resend:emails/receiving/${emailId}`,
+    linkage,
+    sender: { verified: sender.verified, basis: sender.basis, reasons: sender.reasons },
+  };
 }
 
 // ───────────────────────────── Webhook de correo recibido ─────────────────────────────
@@ -369,21 +438,55 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
     await deps.db.rpc("ai_reservation_inbound_finish", { _inbound_id: inboundId, _status: "failed", _outcome: "fetch_failed" });
     return fail(500, "FETCH_FAILED"); // Resend reintenta; el reintento reclama la fila 'failed'
   }
-  const fromAddr = bareAddress(content.from ?? d.from);
-  const verified = senderVerified(fromAddr, row.venue_email, content.authentication);
-  const replyText = stripQuotedReply(content.text?.trim() ? content.text : htmlToText(content.html ?? ""));
+  const sender = inboundSenderVerdict(d.from, content, row.venue_email);
+  const fromAddr = sender.from_address;
+  const verified = sender.verified;
+  const hasText = !!content.text?.trim();
+  const replyText = stripQuotedReply(hasText ? content.text! : htmlToText(content.html ?? ""));
+  // El correo completo, con lo citado: sirve para comprobar que cita nuestra solicitud exacta (AUD-03).
+  const fullText = hasText ? content.text! : htmlToText(content.html ?? "", true);
+  const linkage = token ? "reply_token" as const : "ref_subject" as const;
+  const receivedAt = typeof content.created_at === "string" ? content.created_at : null;
+
+  // 3b) Evidencia del proveedor, sellada antes de gastar Claude. El mismo Message-ID (aunque llegue
+  //     con otro evento de Svix y otro email_id) no se procesa dos veces.
+  const evidence = await inboundEvidence(deps, emailId, content, sender, replyText, {
+    method: linkage, quoted_request: quotedRequestLinked(fullText, row),
+  });
+  const attached = await deps.db.rpc<Record<string, unknown>>("ai_reservation_inbound_attach", { _inbound_id: inboundId, _e: evidence });
+  if (attached.error || !attached.data || attached.data.ok !== true) {
+    await deps.db.rpc("ai_reservation_inbound_finish", { _inbound_id: inboundId, _status: "failed", _outcome: "evidence_failed" });
+    return fail(500, "EVIDENCE_FAILED", { reason: attached.data?.code ?? null });
+  }
+  if (attached.data.duplicate === true) return ok({ duplicate: true, reason: "message_id" });
+  const evidenceComplete = !!evidence.message_id && !!receivedAt && Number.isFinite(Date.parse(receivedAt));
 
   // 4) Clasificación (Claude) + decisión con reglas verificables.
   let decision: ReplyDecision;
   try {
     const cls = replyText && deps.callModel
       ? await classifyReply(deps.callModel, {
-        reservation: row, replyText, subject: String(content.subject ?? d.subject ?? ""), receivedAt: content.created_at ?? new Date().toISOString(),
+        reservation: row, replyText, subject: String(content.subject ?? d.subject ?? ""), receivedAt: receivedAt ?? new Date().toISOString(),
       })
       : null;
-    decision = decideReply(row, cls, { replyText, verifiedSender: verified, fromDomain: domainOf(fromAddr), inboundEmailId: emailId });
+    decision = decideReply(row, cls, {
+      replyText, fullText, verifiedSender: verified, fromDomain: domainOf(fromAddr), inboundEmailId: emailId, linkage, receivedAt,
+    });
     if (!replyText) decision = { ...decision, outcome: "ignored", why: "empty_body", claude_calls: 0 };
     if (!deps.callModel) decision.claude_calls = 0;
+    // Sin Message-ID o sin fecha de recepción del proveedor no hay evidencia suficiente: no se confirma
+    // ni se aparta nada; queda para revisión (la base de datos lo exige igual).
+    if (!evidenceComplete) {
+      if (decision.outcome === "confirmed") {
+        const { confirmation: _c, ...rest } = decision;
+        decision = { ...rest, outcome: "ambiguous", why: "evidence_incomplete" };
+      }
+      decision.alternatives = decision.alternatives?.map((a) => ({ ...a, held: false }));
+    }
+    // Cada evidencia apunta al correo exacto guardado en ai_reservation_inbound.
+    if (decision.confirmation) decision.confirmation = { ...decision.confirmation, inbound_id: inboundId };
+    decision.alternatives = decision.alternatives?.map((a) => ({ ...a, inbound_id: inboundId }));
+    decision.log = { ...(decision.log ?? {}), sender: evidence.sender, evidence_complete: evidenceComplete };
   } catch (e) {
     await deps.db.rpc("ai_reservation_inbound_finish", { _inbound_id: inboundId, _status: "failed", _outcome: "classifier_unavailable" });
     if (e instanceof ClassifierUnavailable) return fail(500, "CLASSIFIER_UNAVAILABLE");

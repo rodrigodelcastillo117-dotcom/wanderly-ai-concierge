@@ -32,6 +32,11 @@ export type Alternative = {
   quote?: string;
   code?: string | null;
   from_domain?: string;
+  /** AUD-03/AUD-06: id del correo recibido en ai_reservation_inbound y cómo quedó aceptada cada condición. */
+  inbound_id?: string;
+  conditions?: Record<string, unknown>;
+  contradictions?: string[];
+  stated_party_size?: number | null;
 };
 
 /** Fila tal como la devuelven las funciones internas (ai_reservation_json_internal). */
@@ -177,41 +182,102 @@ export function extractReplyToken(addresses: unknown[], domain = DEFAULT_REPLY_D
   return null;
 }
 
-/** Dirección "pelona" de un encabezado From ("Nombre <a@b.com>" → a@b.com), en minúsculas. */
+// Dirección de correo estricta (ASCII, una sola @, dominio con etiquetas válidas). Un From con IDN
+// sin convertir, comillas, comentarios o varias @ no se interpreta: se trata como no verificable.
+const ADDR_RE = /^[a-z0-9._%+'-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
+/**
+ * Dirección "pelona" de un encabezado From ("Nombre <a@b.com>" → a@b.com), en minúsculas.
+ * AUD-02: devuelve null si el encabezado es ambiguo (varios buzones, varias @, parte local entre
+ * comillas, comentarios, saltos de línea, caracteres no ASCII). Nunca "adivina" un dominio: antes
+ * '"reservas@casa.mx"@evil.test' se leía como reservas@casa.mx.
+ */
 export function bareAddress(from: unknown): string | null {
-  const s = String(from ?? "");
-  const m = /<([^<>@\s]+@[^<>\s]+)>/.exec(s) ?? /([^\s<>"']+@[^\s<>"']+)/.exec(s);
-  return m ? m[1].toLowerCase().replace(/[.,;]+$/, "") : null;
+  const s = String(from ?? "").trim();
+  if (!s || s.length > 400 || /[\r\n\0]/.test(s)) return null;
+  const angles = s.match(/<[^<>]*>/g);
+  let cand: string;
+  if (angles) {
+    // Exactamente un <…>, al final, y sin otra @ fuera de comillas en el nombre visible.
+    if (angles.length !== 1 || !/>\s*$/.test(s)) return null;
+    const display = s.slice(0, s.lastIndexOf("<")).replace(/"[^"]*"/g, "");
+    if (/[<>,;]/.test(display) || /@/.test(display)) return null;
+    cand = angles[0].slice(1, -1).trim();
+  } else {
+    cand = s;
+  }
+  cand = cand.toLowerCase();
+  return ADDR_RE.test(cand) ? cand : null;
 }
-const FREEMAIL = new Set([
+export const FREEMAIL = new Set([
   "gmail.com", "googlemail.com", "hotmail.com", "hotmail.es", "hotmail.fr", "outlook.com", "outlook.es", "outlook.fr",
   "live.com", "live.com.mx", "msn.com", "yahoo.com", "yahoo.com.mx", "yahoo.es", "yahoo.fr", "icloud.com", "me.com",
   "aol.com", "proton.me", "protonmail.com", "gmx.com", "gmx.de", "orange.fr", "free.fr", "laposte.net", "prodigy.net.mx",
 ]);
-export const domainOf =(email: string | null | undefined) => (email ? email.split("@")[1]?.toLowerCase() ?? null : null);
+export const domainOf = (email: string | null | undefined) => {
+  if (!email) return null;
+  const i = email.lastIndexOf("@");
+  return i > 0 ? email.slice(i + 1).toLowerCase() : null;
+};
+
+/** Resultados de autenticación tal como los da Resend (GET /emails/receiving/{id} → authentication). */
+export type AuthResults = { spf?: string; dkim?: string; dmarc?: string } | null | undefined;
+const AUTH_VALUES = new Set(["pass", "fail", "gray", "processing_failed", "unknown"]);
+const authValue = (v: unknown) => {
+  const x = typeof v === "string" ? v.trim().toLowerCase() : "";
+  return AUTH_VALUES.has(x) ? x : "missing";
+};
+
+export type SenderVerdict = {
+  verified: boolean;
+  /** dmarc_aligned: DMARC pass con el From en el dominio del restaurante. exact_address_dkim: misma dirección + DKIM alineado. */
+  basis: "dmarc_aligned" | "exact_address_dkim" | null;
+  from_address: string | null;
+  from_domain: string | null;
+  auth: { spf: string; dkim: string; dmarc: string };
+  reasons: string[];
+};
 
 /**
- * ¿El correo viene de verdad del restaurante? Mismo dominio (o subdominio) que el correo al que le
- * escribimos, y el proveedor de correo lo autenticó (DMARC, o SPF y DKIM). Si no hay datos de
- * autenticación, NO se considera verificado: la respuesta se muestra, pero no confirma nada.
+ * AUD-02 · ¿El correo viene de verdad del restaurante? Solo con autenticación fuerte y verificable:
+ *   (a) DMARC 'pass' (el proveedor comprobó SPF o DKIM ALINEADO con el dominio del From) y el From es
+ *       el dominio exacto al que escribimos o un subdominio suyo; o
+ *   (b) el From es exactamente la dirección a la que escribimos y DKIM 'pass' (para Resend, 'pass'
+ *       implica que el dominio firmante coincide con el del From; si no, reporta 'gray'), sin DMARC 'fail'.
+ * SPF solo nunca basta (autentica el sobre, no el From). DMARC 'fail' o 'processing_failed' siempre
+ * descarta. Dominio padre, sufijo público, parecidos (guiones, otro TLD, IDN/punycode) → no.
+ * En correos gratuitos (gmail, hotmail…) el dominio lo comparte cualquiera: se exige la misma dirección.
+ * Si algo falta o no se entiende, NO se considera verificado: la respuesta se muestra, pero no confirma.
  */
-export function senderVerified(
-  fromAddress: string | null,
-  venueEmail: string | null,
-  auth: { spf?: string; dkim?: string; dmarc?: string } | null | undefined,
-): boolean {
-  const fd = domainOf(fromAddress);
-  const vd = domainOf(venueEmail);
-  if (!fd || !vd) return false;
-  // En correos gratuitos (gmail, hotmail…) el dominio lo comparte cualquiera: ahí se exige la misma dirección.
+export function senderAuthentication(fromHeader: unknown, venueEmail: string | null | undefined, auth: AuthResults): SenderVerdict {
+  const from = bareAddress(fromHeader);
+  const venue = bareAddress(venueEmail);
+  const a = (auth && typeof auth === "object") ? auth as Record<string, unknown> : {};
+  const res = { spf: authValue(a.spf), dkim: authValue(a.dkim), dmarc: authValue(a.dmarc) };
+  const out = (basis: SenderVerdict["basis"], reasons: string[]): SenderVerdict =>
+    ({ verified: basis !== null, basis, from_address: from, from_domain: domainOf(from), auth: res, reasons });
+  if (!from) return out(null, ["from_unparseable"]);
+  if (!venue) return out(null, ["venue_email_missing"]);
+  if (!auth || typeof auth !== "object") return out(null, ["auth_missing"]);
+  if (res.dmarc === "fail" || res.dmarc === "processing_failed") return out(null, [`dmarc_${res.dmarc}`]);
+  const fd = domainOf(from)!;
+  const vd = domainOf(venue)!;
+  const exact = from === venue;
   if (FREEMAIL.has(vd) || FREEMAIL.has(fd)) {
-    if (fromAddress!.toLowerCase() !== venueEmail!.toLowerCase()) return false;
-  } else {
-    const sameDomain = fd === vd || fd.endsWith(`.${vd}`) || vd.endsWith(`.${fd}`);
-    if (!sameDomain) return false;
+    if (!exact) return out(null, ["freemail_address_mismatch"]);
+    if (res.dmarc === "pass") return out("dmarc_aligned", []);
+    if (res.dkim === "pass") return out("exact_address_dkim", []);
+    return out(null, ["no_aligned_authentication"]);
   }
-  const pass = (v?: string) => String(v ?? "").toLowerCase() === "pass";
-  return pass(auth?.dmarc) || (pass(auth?.spf) && pass(auth?.dkim));
+  if (!(fd === vd || fd.endsWith(`.${vd}`))) return out(null, ["domain_mismatch"]);
+  if (res.dmarc === "pass") return out("dmarc_aligned", []);
+  if (exact && res.dkim === "pass") return out("exact_address_dkim", []);
+  return out(null, [exact ? "no_aligned_authentication" : "address_not_exact_without_dmarc"]);
+}
+
+/** Atajo booleano (compatibilidad): true solo con autenticación fuerte (ver senderAuthentication). */
+export function senderVerified(fromAddress: string | null, venueEmail: string | null, auth: AuthResults): boolean {
+  return senderAuthentication(fromAddress, venueEmail, auth).verified;
 }
 
 // ───────────────────────────── Texto de la respuesta ─────────────────────────────
@@ -226,23 +292,26 @@ const QUOTE_MARKERS = [
   /^\s*— IATOS · Ref R-[A-Z0-9]{6} —/, // nuestra propia marca al final de cada correo
 ];
 
+/** Separa lo que escribió el lugar (reply) de lo citado (quoted: nuestro correo original, si lo citó). */
+export function splitQuotedReply(text: string): { reply: string; quoted: string } {
+  const lines = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
+  const i = lines.findIndex((line) => QUOTE_MARKERS.some((re) => re.test(line)));
+  const reply = (i < 0 ? lines : lines.slice(0, i)).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return { reply, quoted: i < 0 ? "" : lines.slice(i).join("\n") };
+}
+
 /** Quita el mensaje citado (nuestro correo original) para clasificar solo lo que escribió el lugar. */
 export function stripQuotedReply(text: string): string {
-  const out: string[] = [];
-  for (const line of String(text ?? "").replace(/\r\n?/g, "\n").split("\n")) {
-    if (QUOTE_MARKERS.some((re) => re.test(line))) break;
-    out.push(line);
-  }
-  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return splitQuotedReply(text).reply;
 }
 
 /** HTML de un correo → texto plano (sin scripts ni estilos), para cuando no viene versión texto. */
-export function htmlToText(html: string): string {
-  return String(html ?? "")
+export function htmlToText(html: string, keepQuoted = false): string {
+  const h = String(html ?? "");
+  return (keepQuoted ? h : h.replace(/<blockquote[\s\S]*$/i, "")) // lo citado suele ir en <blockquote>
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, " ")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|li|tr|h[1-6]|blockquote)>/gi, "\n")
-    .replace(/<blockquote[\s\S]*$/i, "") // lo citado suele ir en <blockquote>
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
