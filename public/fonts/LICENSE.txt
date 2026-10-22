@@ -1,0 +1,3 @@
+Manrope (c) The Manrope Project Authors y Fraunces (c) The Fraunces Project Authors.
+Archivos tomados sin cambios de Google Fonts (subconjuntos latin y latin-ext).
+Licencia: SIL Open Font License 1.1 — https://openfontlicense.org

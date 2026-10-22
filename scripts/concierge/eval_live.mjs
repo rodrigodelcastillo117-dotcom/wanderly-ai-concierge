@@ -59,6 +59,7 @@ async function rest(token, method, path, body) {
 async function ask(token, { message, tripId, exigente = false, coords = null, intent, history = [] }) {
   const t0 = performance.now();
   let firstStatus = null, firstText = null;
+  const deltas = [];
   const steps = [];
   const res = await fetch(`${URL_BASE}/functions/v1/concierge-chat`, {
     method: "POST",
@@ -83,12 +84,15 @@ async function ask(token, { message, tripId, exigente = false, coords = null, in
       const data = JSON.parse(/data: (.*)/s.exec(raw)?.[1] ?? "{}");
       const at = Math.round(performance.now() - t0);
       if (type === "status") { firstStatus ??= at; steps.push(`${data.state}: ${data.text}`); }
-      if (type === "delta") firstText ??= at;
+      if (type === "delta") { firstText ??= at; deltas.push({ at, text: data.text }); }
       if (type === "final") final = data;
       if (type === "error") error = data;
     }
   }
-  return { reply: final, error, steps, timing: { firstStatus, firstText, total: Math.round(performance.now() - t0) } };
+  // Primer texto del MODELO: si hubo frase de inicio (final._lead), el primer delta que no es ella.
+  const lead = final?._lead ?? null;
+  const firstModelText = (lead ? deltas.find((d, i) => !(i === 0 && d.text === lead) && d.text !== lead) : deltas[0])?.at ?? null;
+  return { reply: final, error, steps, timing: { firstStatus, firstText, firstModelText, total: Math.round(performance.now() - t0) } };
 }
 
 const SCENARIOS = (ids) => [
@@ -143,6 +147,7 @@ async function main() {
     console.log("\nResumen:", JSON.stringify({
       pasan: results.filter((r) => r.pass).length, total: results.length,
       primer_paso_p50_ms: p50(results.map((r) => r.timing?.firstStatus)), primer_texto_p50_ms: p50(results.map((r) => r.timing?.firstText)),
+      primer_texto_p95_ms: p95(results.map((r) => r.timing?.firstText)), primer_texto_modelo_p50_ms: p50(results.map((r) => r.timing?.firstModelText)),
       total_p95_ms: p95(results.map((r) => r.timing?.total)),
     }));
     process.exitCode = results.every((r) => r.pass) ? 0 : 1;

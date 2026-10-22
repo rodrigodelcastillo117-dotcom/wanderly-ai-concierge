@@ -62,7 +62,7 @@ const Landing = () => {
         <div className="absolute inset-0 bg-gradient-radial-gold opacity-60" />
 
         <div className="container relative z-10 mx-auto pt-32 pb-28">
-          <div className="max-w-3xl animate-fade-up">
+          <div className="max-w-3xl animate-rise">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card text-sm mb-6">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
               <span className="text-muted-foreground">Tu concierge de viajes con IA</span>

@@ -34,10 +34,17 @@ export const VENDOR_GROUPS: [string, (pkg: string) => boolean][] = [
     "clsx", "prop-types", "react-is", "object-assign", "@babel/runtime", "tslib", "tiny-invariant",
   ].includes(p)],
   ["vendor-supabase", (p) => p.startsWith("@supabase/") || p === "iceberg-js"],
-  // Radix y lo que importa (el bloqueo de scroll y aria-hidden de los diálogos).
-  ["vendor-radix", (p) => p.startsWith("@radix-ui/") || p.startsWith("@floating-ui/") || p.startsWith("react-remove-scroll") || [
-    "aria-hidden", "react-style-singleton", "use-callback-ref", "use-sidecar", "get-nonce", "detect-node-es",
-  ].includes(p)],
+  // Solo el Slot de Radix (lo usa <Button>, que está en la landing y en todas las pantallas).
+  // Rendimiento (cierre 2026-10): antes TODO Radix + Floating UI iba en un solo chunk que entraba
+  // al paquete inicial (≈39 KB gzip: diálogos, selects, slider, tooltip…) aunque la landing solo
+  // usa el Slot. El resto de Radix se deja a Rollup: cada pantalla baja solo los componentes que
+  // usa. No crea ciclos: esos paquetes solo dependen de vendor-core y de este grupo, que no
+  // importa a nadie fuera de vendor-core (regla 1); la guarda de abajo lo comprueba en cada build.
+  ["vendor-radix", (p) => ["@radix-ui/react-slot", "@radix-ui/react-compose-refs"].includes(p)],
+  // Íconos de lucide (Rendimiento, cierre 2026-10): cada ícono que comparten varias pantallas salía
+  // en su propio archivo de ~1 KB (67 archivos, ~22 KB gzip sumando la cabecera de cada uno). Juntos
+  // pesan ~8 KB gzip y se descargan una vez: el inicio pasa de ~51 a ~20 archivos JS.
+  ["vendor-icons", (p) => p === "lucide-react"],
   ["vendor-motion", (p) => ["framer-motion", "motion-dom", "motion-utils"].includes(p)],
   // Hoja compartida por las gráficas (recharts) y el globo (three-globe): la familia d3 completa y
   // sus únicas dependencias. Ningún paquete de aquí importa algo fuera de este grupo.

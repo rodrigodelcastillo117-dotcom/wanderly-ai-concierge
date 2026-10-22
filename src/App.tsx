@@ -1,9 +1,7 @@
 import { Suspense } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { LazyToaster } from "@/components/ui/toaster-lazy";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { OnboardingProvider } from "@/hooks/useOnboardingStatus";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -15,25 +13,26 @@ import { lazyWithRetry } from "@/lib/lazyRetry";
 import Landing from "./pages/Landing";
 import { FreeLimitDialogLazyHost } from "@/components/FreeLimitDialogLazy";
 import { Navigate } from "react-router-dom";
+import { loadAuth, loadConcierge, loadDashboardHome, loadTripDetail, loadTrips } from "@/lib/routeChunks";
 
 // Code-splitting: todo lo que no es la landing se carga bajo demanda por ruta.
 // El bundle único pesaba >4.4MB; esto reparte el peso en chunks por página.
-const Auth = lazyWithRetry(() => import("./pages/Auth"));
+const Auth = lazyWithRetry(loadAuth);
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const Onboarding = lazyWithRetry(() => import("./pages/Onboarding"));
 const OnboardingDeep = lazyWithRetry(() => import("./pages/OnboardingDeep"));
-const DashboardHome = lazyWithRetry(() => import("./pages/DashboardHome"));
+const DashboardHome = lazyWithRetry(loadDashboardHome);
 const PlanTrip = lazyWithRetry(() => import("./pages/PlanTrip"));
-const TripDetail = lazyWithRetry(() => import("./pages/TripDetail"));
+const TripDetail = lazyWithRetry(loadTripDetail);
 const EditTrip = lazyWithRetry(() => import("./pages/EditTrip"));
-const Trips = lazyWithRetry(() => import("./pages/Trips"));
+const Trips = lazyWithRetry(loadTrips);
 const ImportPastTrip = lazyWithRetry(() => import("./pages/ImportPastTrip"));
 const MultiDestRoute = lazyWithRetry(() => import("./pages/MultiDestRoute"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Discover = lazyWithRetry(() => import("./pages/Discover"));
 const Pro = lazyWithRetry(() => import("./pages/Pro"));
 const AdminMetrics = lazyWithRetry(() => import("./pages/AdminMetrics"));
-const Concierge = lazyWithRetry(() => import("./pages/Concierge"));
+const Concierge = lazyWithRetry(loadConcierge);
 const Cercanos = lazyWithRetry(() => import("./pages/Cercanos"));
 const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
 const Social = lazyWithRetry(() => import("./pages/Social"));
@@ -103,13 +102,9 @@ const RouteFallback = () => (
   </div>
 );
 
-const queryClient = new QueryClient();
-
 const App = () => (
   <AppErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
+      <LazyToaster />
       <Sonner theme="dark" />
       <BrowserRouter>
         <ScrollToTop />
@@ -214,8 +209,6 @@ const App = () => (
           </OnboardingProvider>
         </AuthProvider>
       </BrowserRouter>
-    </TooltipProvider>
-    </QueryClientProvider>
   </AppErrorBoundary>
 );
 

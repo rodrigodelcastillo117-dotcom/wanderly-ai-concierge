@@ -26,7 +26,9 @@ import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
 import patagonia from "@/assets/destination-patagonia.jpg";
 import tulum from "@/assets/destination-tulum.jpg";
+import tulum640 from "@/assets/destination-tulum-640.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
+import santorini960 from "@/assets/hero-santorini-960.jpg";
 import { daysFromToday, formatLocalDate, localISODate } from "@/lib/localDate";
 import { convert, fetchFxTable, fxLabel } from "@/lib/fx";
 import { ACTIVE_TRIP_COLUMNS, useActiveTrip } from "@/hooks/useActiveTrip";
@@ -76,6 +78,15 @@ const tileSrcSet = (img: string) =>
   img.startsWith("https://images.unsplash.com/")
     ? `${img.replace(/([?&])w=\d+/, "$1w=320")} 320w, ${img} 600w`
     : undefined;
+
+// La foto de respaldo de Santorini existe también a 960 px (la usa la landing): el móvil no baja la
+// de 1920 px (207 KB) para una caja de 390.
+const SANTORINI_SRCSET = `${santorini960} 960w, ${santorini} 1920w`;
+const fallbackSrcSet = (img: string) => (img === santorini ? SANTORINI_SRCSET : undefined);
+// En el teléfono el hero va detrás de un degradado oscuro: con "320px" un teléfono de densidad 2–3
+// elige la de 960 px (65 KB) y no la de 1920 (207 KB). En tableta/escritorio, ancho completo.
+// vite.routePreload.ts precarga la misma imagen con estos mismos sizes (deben coincidir).
+const HERO_SIZES = "(min-width: 768px) 100vw, 320px";
 
 const HERO_REELS = [
   { query: "santorini sunset cinematic luxury travel aerial", fallback: santorini, label: "Santorini" },
@@ -238,7 +249,7 @@ const DashboardHome = () => {
             if (q.length < 5) return;
             navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
           }}
-          className="animate-fade-up space-y-4"
+          className="animate-rise space-y-4"
         >
           <div className="flex flex-row items-center gap-2 md:gap-5">
             <h1 className="font-display text-xl md:text-4xl leading-[1.1] tracking-tight shrink-0">
@@ -307,8 +318,9 @@ const DashboardHome = () => {
 
             </div>
           </div>
-          {/* Ejemplos de un toque: solo llenan el campo (nada se analiza sin "Analizar"). */}
-          {concierge.trim().length === 0 && hasTrips && (
+          {/* Ejemplos de un toque: solo llenan el campo (nada se analiza sin "Analizar"). También mientras
+              cargan los viajes: si aparecieran después empujarían toda la página (CLS). */}
+          {concierge.trim().length === 0 && (hasTrips || active.loading) && (
             <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap" aria-label="Ejemplos para escribir tu viaje">
               {EXAMPLE_PROMPTS.map((ex) => (
                 <button key={ex} type="button" onClick={() => pickExample(ex)}
@@ -323,7 +335,9 @@ const DashboardHome = () => {
 
         {/* Centro de mando del viaje activo, guía del primer viaje o selector si hay empate. */}
         {active.loading ? (
-          <div aria-busy="true" aria-label="Cargando tu viaje" className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-8 space-y-3">
+          // Alto reservado ≈ el del centro de mando ya cargado (CLS: antes el esqueleto medía ~180 px y la
+          // tarjeta real ~470 en el móvil, y todo lo de abajo saltaba al llegar el viaje).
+          <div aria-busy="true" aria-label="Cargando tu viaje" className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-8 space-y-3 min-h-[460px] md:min-h-[340px]">
             <div className="h-3 w-28 rounded bg-white/[0.06] motion-safe:animate-pulse" />
             <div className="h-10 w-2/3 rounded-xl bg-white/[0.06] motion-safe:animate-pulse" />
             <div className="h-6 w-40 rounded-lg bg-white/[0.05] motion-safe:animate-pulse" />
@@ -345,10 +359,11 @@ const DashboardHome = () => {
 
         {/* HERO — cinematic Santorini-style sunset */}
         {/* Para quien aún no tiene viajes la guía de arriba ya es la portada: sin video duplicado. */}
-        {hasTrips && (
-        <section
-          className="animate-fade-up"
-        >
+        {/* Mientras carga se reserva su lugar: si apareciera después empujaría 340 px todo lo de abajo. */}
+        {/* Sin animación de entrada: es la imagen principal (LCP). Con opacidad 0 al inicio el navegador
+            la contaba 0.7 s tarde, y desplazada 20 px se medía más chica que la del siguiente reel. */}
+        {(hasTrips || active.loading) && (
+        <section>
           <div
             className="relative rounded-[28px] overflow-hidden premium-shadow group cursor-pointer ring-1 ring-white/[0.05]"
             onClick={() => navigate("/dashboard/planear?mode=emocion")}
@@ -360,6 +375,9 @@ const DashboardHome = () => {
               <DestinationVideo
                 query={HERO_REELS[reelIdx].query}
                 fallbackImage={HERO_REELS[reelIdx].fallback}
+                fallbackSrcSet={fallbackSrcSet(HERO_REELS[reelIdx].fallback)}
+                sizes={HERO_SIZES}
+                priority
                 alt={`Inicia tu travesía en ${HERO_REELS[reelIdx].label}`}
                 className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-[1200ms]"
               />
@@ -452,7 +470,7 @@ const DashboardHome = () => {
                   className="animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-pointer group rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <div className="relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-white/[0.05]">
-                    <DestinationVideo query={d.image_query} fallbackImage={santorini} alt={d.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
+                    <DestinationVideo query={d.image_query} fallbackImage={santorini960} lowPriority alt={d.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
                     <IllustrativeCaption className="top-11 left-3" />
                     <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-primary/30 text-primary text-[10px] font-medium tracking-wider">
@@ -666,7 +684,7 @@ const DashboardHome = () => {
             </div>
 
             <div className="relative rounded-2xl overflow-hidden h-[170px] md:h-[320px] group cursor-pointer ring-1 ring-white/[0.05] w-full" onClick={() => navigate("/dashboard/descubre")}>
-              <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum} alt="Escapadas románticas" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
+              <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum640} lowPriority alt="Escapadas románticas" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
               {/* Antes era un botón "Siguiente" sin acción; la tarjeta entera abre Descubre. */}
               <span aria-hidden="true" className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center">
@@ -718,6 +736,8 @@ const DashboardHome = () => {
                     alt=""
                     loading="lazy"
                     decoding="async"
+                    // Al final de la página: en red lenta no compite con la imagen principal.
+                    {...{ fetchpriority: "low" }}
                     width={600}
                     height={450}
                     className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 group-hover:scale-105 transition-all duration-500"

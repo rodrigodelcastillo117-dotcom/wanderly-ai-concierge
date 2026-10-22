@@ -14,6 +14,9 @@ export type OnboardingState = {
   travel_dna_seed: string | null;
 };
 
+/** Estado que ve la app; `provisional` = recordado en este dispositivo, aún sin confirmar con el servidor. */
+export type OnboardingStatusValue = OnboardingState & { provisional?: boolean };
+
 const defaults = (uid: string): OnboardingState => ({
   user_id: uid,
   completed_onboarding: false,
@@ -25,13 +28,28 @@ const defaults = (uid: string): OnboardingState => ({
   travel_dna_seed: null,
 });
 
+// Rendimiento (cierre 2026-10): quien ya terminó el onboarding en este dispositivo no espera la
+// consulta a user_onboarding_state para ver su pantalla (en 3G eran ~0.8–1.5 s de spinner en cada
+// apertura). Se recuerda SOLO "terminado" (por usuario); la consulta se hace igual en segundo plano
+// y, si el servidor dijera otra cosa, la guardia redirige como siempre.
+const DONE_KEY = (uid: string) => `iatos_onb_done_v1:${uid}`;
+export function cachedOnboardingDone(uid: string): boolean {
+  try { return localStorage.getItem(DONE_KEY(uid)) === "1"; } catch { return false; }
+}
+function rememberOnboardingDone(uid: string, done: boolean) {
+  try {
+    if (done) localStorage.setItem(DONE_KEY(uid), "1");
+    else localStorage.removeItem(DONE_KEY(uid));
+  } catch { /* sin almacenamiento: se consulta siempre */ }
+}
+
 // El estado vive en un solo proveedor: la guardia de rutas y la pantalla de onboarding tenían
 // cada una su copia, y al terminar el onboarding la guardia seguía viendo "incompleto" y
 // rebotaba entre /onboarding y /dashboard hasta recargar la página.
 function useOnboardingState() {
   const { user } = useAuth();
   const uid = user?.id ?? null;
-  const [status, setStatus] = useState<OnboardingState | null>(null);
+  const [status, setStatus] = useState<OnboardingStatusValue | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -40,12 +58,24 @@ function useOnboardingState() {
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
-    const { data } = await supabase
+    if (cachedOnboardingDone(uid)) {
+      // Ya lo terminó aquí antes: la pantalla se muestra mientras se confirma con el servidor.
+      setStatus((s) => (s?.user_id === uid ? s : { ...defaults(uid), completed_onboarding: true, current_step: 5, provisional: true }));
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+    const { data, error } = await supabase
       .from("user_onboarding_state")
       .select("*")
       .eq("user_id", uid)
       .maybeSingle();
+    // Sin red (o error del servidor) y ya terminado aquí: se queda como está; un fallo pasajero no
+    // debe mandar de vuelta al onboarding a quien ya lo hizo.
+    if (error && cachedOnboardingDone(uid)) {
+      setIsLoading(false);
+      return;
+    }
 
     if (!data) {
       // Backfill: if this user already has trips or a travel_profile,
@@ -67,8 +97,11 @@ function useOnboardingState() {
         .select("*")
         .eq("user_id", uid)
         .maybeSingle();
-      setStatus(fresh ? ({ ...seed, ...(fresh as any) }) : seed);
+      const next = fresh ? ({ ...seed, ...(fresh as any) }) : seed;
+      rememberOnboardingDone(uid, !!next.completed_onboarding);
+      setStatus(next);
     } else {
+      rememberOnboardingDone(uid, !!data.completed_onboarding);
       setStatus({
         ...defaults(uid),
         ...data,
@@ -119,6 +152,7 @@ function useOnboardingState() {
         .maybeSingle();
       if (error) return false;
       if (upd) setStatus((s) => (s ? { ...s, ...(upd as any) } : s));
+      rememberOnboardingDone(user.id, true);
       track("onboarding_completed");
       // Correo de bienvenida (solo al propio usuario, fire-and-forget).
       void supabase.functions.invoke("email-bienvenida", { body: {} }).catch(() => {});

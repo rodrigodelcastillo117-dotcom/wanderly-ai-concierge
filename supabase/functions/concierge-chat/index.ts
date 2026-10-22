@@ -75,6 +75,9 @@ const TOOL_TIMEOUTS: Record<string, number> = {
   check_flight_status: 9000, search_flights: 14000, search_hotels: 14000, search_places: 8000,
   search_nearby: 7000, web_search: 8000, search_attractions: 8000, search_members_venues: 5000, search_prive: 8000,
 };
+/** Frase de inicio (planner.leadSentence) si las herramientas previstas siguen corriendo a los 700 ms. */
+const LEAD_AFTER_MS = 700;
+
 const toolTimeout = (name: string, args: Record<string, unknown>) => (TOOL_TIMEOUTS[name] ?? 8000) + (name === "search_places" && args.details ? 2000 : 0);
 
 async function callFn(name: string, body: unknown, authHeader: string, timeoutMs: number, extra: Record<string, string> = {}) {
@@ -167,7 +170,13 @@ const tripSummary = (t: any) => ({
 
 // Configuración de modelos (app_flags) con caché corta por instancia: una lectura por minuto.
 let cfgCache: { at: number; models: unknown } | null = null;
-async function runtimeConfig(userId: string): Promise<{ models: unknown; exigente: { limit: number | null; used: number } }> {
+const CFG_TTL_MS = 60_000;
+async function runtimeConfig(userId: string, needExigente: boolean): Promise<{ models: unknown; exigente: { limit: number | null; used: number } }> {
+  // Rendimiento: el tope de Modo exigente solo importa si lo pidió; para un mensaje normal basta la
+  // configuración de modelos en caché (1 min) y no se gasta un viaje a la base antes del primer texto.
+  if (!needExigente && cfgCache && Date.now() - cfgCache.at < CFG_TTL_MS) {
+    return { models: cfgCache.models, exigente: { limit: null, used: 0 } };
+  }
   try {
     const { data, error } = await withTimeout(Promise.resolve(adminClient().rpc("concierge_runtime_config", { _user_id: userId })), 1500) as any;
     if (error || !data || typeof data !== "object") throw new Error(error?.message ?? "sin datos");
@@ -176,7 +185,7 @@ async function runtimeConfig(userId: string): Promise<{ models: unknown; exigent
     return { models: data.models, exigente: { limit, used: Number(data.exigente?.used) || 0 } };
   } catch (e) {
     // Migración sin aplicar o base lenta: defaults/entorno, sin tope de exigente (como hoy).
-    if (!cfgCache || Date.now() - cfgCache.at > 60_000) console.warn("concierge_runtime_config:", (e as Error)?.message);
+    if (!cfgCache || Date.now() - cfgCache.at > CFG_TTL_MS) console.warn("concierge_runtime_config:", (e as Error)?.message);
     return { models: cfgCache?.models ?? null, exigente: { limit: null, used: 0 } };
   }
 }
@@ -300,8 +309,14 @@ Deno.serve(async (req) => {
     if (!u?.user) return fail("UNAUTHENTICATED");
     const userId = u.user.id;
 
-    // Anti-abuso: límite de ritmo por usuario e IP (aplica también a PRO)
-    const rl = await enforceRateLimit(req, "concierge-chat", userId, { perMinute: 10, perHour: 120, ipPerMinute: 30 });
+    // Anti-abuso: límite de ritmo por usuario e IP (aplica también a PRO). Rendimiento: las tres
+    // cubetas a la vez y, en paralelo, la configuración de modelos (lectura): antes eran 4 viajes a la
+    // base en serie antes de empezar.
+    const exigenteRequested = !!body.god_mode;
+    const [rl, rc] = await Promise.all([
+      enforceRateLimit(req, "concierge-chat", userId, { perMinute: 10, perHour: 120, ipPerMinute: 30, parallel: true }),
+      runtimeConfig(userId, exigenteRequested),
+    ]);
     if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
     // B-10: solo user/assistant del cliente, máximo 10 mensajes de 4000 caracteres.
@@ -312,17 +327,18 @@ Deno.serve(async (req) => {
 
     // Configuración (modelos + tope de Modo exigente). Si el tope del día se alcanzó, se responde en
     // modo normal y se dice: nunca se bloquea el mensaje por eso.
-    const rc = await runtimeConfig(userId);
     const config = resolveModelConfig(envMap(), rc.models);
-    const exigenteRequested = !!body.god_mode;
     const exigenteCapped = exigenteRequested && rc.exigente.limit !== null && rc.exigente.used >= rc.exigente.limit;
     const exigente = exigenteRequested && !exigenteCapped;
 
     // Cuota: se APARTA el mensaje y solo se cobra si Iato responde de verdad (commit al final).
     // Un mensaje exigente cuenta como 1 mensaje (llave "x:" para contar el tope diario opcional).
-    const quota = await reserveQuota(userId, "concierge", `${exigente ? "x" : "s"}:${crypto.randomUUID()}`);
-    if (!quota.allowed) return quotaDeniedResponse(quota, "concierge", corsHeaders);
-    quotaReservation = quota.reservation_id;
+    // Rendimiento: la reserva y la lectura del contexto (solo lecturas con la sesión del usuario) van
+    // a la vez. La reserva se anota en cuanto llega para que cualquier error posterior la libere.
+    const quotaP = reserveQuota(userId, "concierge", `${exigente ? "x" : "s"}:${crypto.randomUUID()}`).then((q) => {
+      if (q.allowed) quotaReservation = q.reservation_id;
+      return q;
+    });
 
     // B-16: "hoy" en la zona del usuario, no en UTC.
     const today = resolveToday({ clientDate: body.client_date, tz: body.tz });
@@ -335,7 +351,7 @@ Deno.serve(async (req) => {
 
     // Contexto: viajes, bóveda, preferencias, perfil, travel_profiles, viaje fijado y la caché del
     // perfil de gustos (una lectura; solo se recalcula si cambió una señal).
-    const [{ data: tripRows }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }, pinnedRes, tasteCache] = await Promise.all([
+    const contextP = Promise.all([
       supabase.from("trips").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(25),
       supabase.from("user_vault_benefits").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("ai_user_preferences").select("*").eq("user_id", userId).maybeSingle(),
@@ -344,6 +360,11 @@ Deno.serve(async (req) => {
       supabase.from("profiles").select("active_trip_id").eq("id", userId).maybeSingle(),
       readTasteCache(supabase, userId),
     ]);
+    // Se espera la reserva aunque el contexto falle, para que el catch de abajo la libere.
+    const [quota, ctxRes] = await Promise.all([quotaP, contextP.then((v) => ({ ok: true as const, v }), (e) => ({ ok: false as const, e }))]);
+    if (!ctxRes.ok) throw ctxRes.e;
+    if (!quota.allowed) return quotaDeniedResponse(quota, "concierge", corsHeaders);
+    const [{ data: tripRows }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }, pinnedRes, tasteCache] = ctxRes.v;
     // Si hay que recalcular, corre en paralelo con lo demás y tiene 700 ms; si tarda más, se usa el
     // perfil anterior y el nuevo se guarda en segundo plano para el siguiente mensaje.
     const tastePromise = getTasteProfile({ db: supabase, cache: adminClient(), userId, todayISO: tasteToday(), cached: tasteCache, timeoutMs: 700 })
@@ -353,12 +374,9 @@ Deno.serve(async (req) => {
 
     // Viajes compartidos (colaborador): si el elegido o el fijado no es propio, se carga por id (RLS).
     const trips: any[] = [...(tripRows ?? [])];
-    for (const id of [explicitId, pinnedId]) {
-      if (id && !trips.some((t) => t.id === id)) {
-        const { data: shared } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
-        if (shared) trips.push(shared);
-      }
-    }
+    const missing = [...new Set([explicitId, pinnedId])].filter((id): id is string => !!id && !trips.some((t) => t.id === id));
+    const shared = await Promise.all(missing.map((id) => supabase.from("trips").select("*").eq("id", id).maybeSingle()));
+    for (const { data } of shared) if (data) trips.push(data);
 
     const resolution = resolveActiveTrip(trips, { explicitId, pinnedId, todayLocal: todayISO, mentionedText: lastUserMsg });
     const trip = resolution.trip;
@@ -402,14 +420,22 @@ Deno.serve(async (req) => {
     }
 
     // Reservas de los viajes vigentes. Solo las CONFIRMADAS cuentan para lo faltante y para "reservado".
+    // Rendimiento: reservas y memoria de la conversación a la vez (antes, en serie).
     let bookings: any[] = [];
     let bookingsAll: any[] = [];
     const bookingTripIds = [...new Set([trip?.id, ...viajesVigentes.map((t: any) => t.id)].filter(Boolean))];
+    const trip_id_activo = trip?.id ?? null;
+    const convQuery = supabase.from("concierge_conversations").select("*").eq("user_id", userId);
+    const [bksRes, convRes] = await Promise.all([
+      bookingTripIds.length
+        ? supabase.from("bookings")
+          .select("trip_id, category, provider, status, title, subtitle, city, start_at, end_at, price_amount, price_currency, confirmation_code, partner_reference, booking_url")
+          .in("trip_id", bookingTripIds).order("start_at", { ascending: true })
+        : Promise.resolve({ data: [] as any[] }),
+      trip_id_activo ? convQuery.eq("trip_id", trip_id_activo).maybeSingle() : convQuery.is("trip_id", null).maybeSingle(),
+    ]);
     if (bookingTripIds.length) {
-      const { data: bks } = await supabase.from("bookings")
-        .select("trip_id, category, provider, status, title, subtitle, city, start_at, end_at, price_amount, price_currency, confirmation_code, partner_reference, booking_url")
-        .in("trip_id", bookingTripIds).order("start_at", { ascending: true });
-      bookingsAll = bks ?? [];
+      bookingsAll = (bksRes as any)?.data ?? [];
       bookings = trip?.id ? bookingsAll.filter((b: any) => b.trip_id === trip.id) : [];
     }
     const tripBookings = trip ? tripBookingContext(trip, bookings) : null;
@@ -474,11 +500,7 @@ Deno.serve(async (req) => {
     }
 
     // ═══ Memoria ═══
-    const trip_id_activo = trip?.id ?? null;
-    const convQuery = supabase.from("concierge_conversations").select("*").eq("user_id", userId);
-    const { data: convPrevia } = await (trip_id_activo
-      ? convQuery.eq("trip_id", trip_id_activo).maybeSingle()
-      : convQuery.is("trip_id", null).maybeSingle());
+    const convPrevia = (convRes as any)?.data ?? null;
     const prevMessages: any[] = Array.isArray(convPrevia?.messages) ? convPrevia!.messages : [];
     const memoria = buildMemoryData(convPrevia, clientMessages);
 
@@ -496,8 +518,8 @@ Deno.serve(async (req) => {
     const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords });
 
     const runTurn = async () => {
-      const { final, agent, prefetchMs, totalMs } = await runConciergeTurn({
-        plan, route, config, breaker: sharedBreaker, execTool, toolTimeout, send, meta, stableSystem, dynamicSystem,
+      const { final, agent, prefetchMs, totalMs, lead, leadMs } = await runConciergeTurn({
+        plan, route, config, breaker: sharedBreaker, execTool, toolTimeout, send, meta, stableSystem, dynamicSystem, leadAfterMs: wantsStream ? LEAD_AFTER_MS : undefined,
         contextMessage, history: clientMessages, userMessage: lastUserMsg, exigente,
         hasAnthropicKey: !!ANTHROPIC_API_KEY, hasLovableKey: !!LOVABLE_API_KEY,
         callModel: makeModelCaller({
@@ -514,7 +536,7 @@ Deno.serve(async (req) => {
       if (final.dropped.cards.length || final.dropped.actions.length) console.warn("concierge_dropped", JSON.stringify(final.dropped));
       console.log("concierge_latency", JSON.stringify({
         user_id: userId, tier: route.tier, provider: agent.provider, model: agent.model, prefetch_ms: prefetchMs,
-        first_text_ms: agent.firstTextMs, total_ms: totalMs, tools: agent.toolsUsed, prefetch: plan.prefetch.map((p) => p.name),
+        lead_ms: leadMs, first_text_ms: agent.firstTextMs, total_ms: totalMs, tools: agent.toolsUsed, prefetch: plan.prefetch.map((p) => p.name),
         failures: agent.failures, rerouted: agent.rerouted, guards: final.guards, breaker: sharedBreaker.snapshot(),
         taste: taste.source, taste_chars: gustos.length,
       }));
@@ -523,15 +545,21 @@ Deno.serve(async (req) => {
         text: final.text, cards: final.cards, actions: final.actions,
         _tools_used: [...plan.prefetch.map((p) => p.name), ...agent.toolsUsed], _gaps: tripGaps, ...meta,
         _model_tier: route.tier, _provider: agent.provider,
+        // Frase de inicio que se mostró mientras corrían las herramientas (null = no hubo): la
+        // evaluación en vivo la usa para medir aparte el primer texto del modelo.
+        _lead: lead,
       };
 
-      // 4) Uso, aprendizaje, memoria y cuota (la memoria se guarda en segundo plano).
-      await Promise.all(agent.usage.map((x) => logUsage(usageEntry(userId, x))));
-      logInsight(supabase, userId, lastUserMsg, reply._tools_used).catch(() => {});
-      bg(persistConversation({ supabase, userId, tripId: trip_id_activo, convPrevia, prevMessages, lastUserMsg, replyText: final.text }));
-      if (quotaReservation) await commitQuota(quotaReservation); // Iato respondió: ahora sí cuenta
-      quotaReservation = undefined;
-      return reply;
+      // 4) Uso, aprendizaje, memoria y cuota (la memoria se guarda en segundo plano). En streaming la
+      // respuesta final se manda ANTES de esto (settle): el usuario no espera 2 escrituras en la base.
+      const settle = async () => {
+        await Promise.all(agent.usage.map((x) => logUsage(usageEntry(userId, x))));
+        logInsight(supabase, userId, lastUserMsg, reply._tools_used).catch(() => {});
+        bg(persistConversation({ supabase, userId, tripId: trip_id_activo, convPrevia, prevMessages, lastUserMsg, replyText: final.text }));
+        if (quotaReservation) await commitQuota(quotaReservation); // Iato respondió: ahora sí cuenta
+        quotaReservation = undefined;
+      };
+      return { reply, settle };
     };
 
     const onTurnError = async (e: unknown): Promise<{ code: ChatErrorCode; status: number }> => {
@@ -552,7 +580,9 @@ Deno.serve(async (req) => {
 
     if (!wantsStream) {
       try {
-        return json(await runTurn());
+        const { reply, settle } = await runTurn();
+        await settle();
+        return json(reply);
       } catch (e) {
         const { code } = await onTurnError(e);
         return fail(code);
@@ -563,11 +593,16 @@ Deno.serve(async (req) => {
       async start(c) {
         controller = c;
         try {
-          const reply = await runTurn();
+          const { reply, settle } = await runTurn();
           send({ type: "final", data: reply });
+          // La app ya tiene la respuesta; uso y cuota se registran antes de cerrar el stream (la app
+          // relee "te quedan N mensajes" al cerrarse, así que el conteo sigue siendo el correcto).
+          await settle().catch((e) => console.warn("concierge settle", redactPii((e as Error)?.message ?? e, 200)));
         } catch (e) {
           const { code, status } = await onTurnError(e);
           const { body: eb } = chatError(code);
+          // Si ya se veía la frase de inicio (o un texto a medias), se borra: la app muestra el error.
+          send({ type: "reset", data: {} });
           send({ type: "error", data: { code: eb.code, message: eb.message, status } });
         } finally {
           try { c.close(); } catch { /* ya cerrado */ }
@@ -603,7 +638,7 @@ function makeExecTool(c: { supabase: any; authHeader: string; userId: string; pr
     if (name === "web_search") {
       const store = dbCacheStore();
       return runWebSearch(args, {
-        fetchImpl: fetch, serpKey: SERPAPI_KEY, store, gate: liveSearchGateFor(c.userId), brake: accountBrake(store), timeoutMs: TOOL_TIMEOUTS.web_search - 500,
+        fetchImpl: fetch, serpKey: SERPAPI_KEY, store, gate: liveSearchGateFor(c.userId), brake: accountBrake(store), timeoutMs: TOOL_TIMEOUTS.web_search - 500, background: bg,
         onLive: (ok) => (ok ? logUsage({ user_id: c.userId, function: "concierge-chat", provider: "serpapi", model: "google_web", searches: 1 }) : undefined),
       });
     }

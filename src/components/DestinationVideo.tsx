@@ -5,13 +5,20 @@ import { useInView } from "@/hooks/useInView";
 interface DestinationVideoProps {
   query: string;
   fallbackImage?: string;
+  /** Variantes de la imagen de respaldo (srcset con anchos "w") para no bajar 1920 px en el móvil. */
+  fallbackSrcSet?: string;
+  sizes?: string;
+  /** Arriba del todo (candidata a LCP): se pide de inmediato y con prioridad alta, sin lazy. */
+  priority?: boolean;
+  /** Abajo del pliegue: prioridad baja para no competir con la imagen principal en red lenta. */
+  lowPriority?: boolean;
   alt?: string;
   className?: string;
 }
 
 // Caché, deduplicación, presupuesto por minuto y pausa tras 429 viven en src/lib/videoSearch.ts
 // (compartidos con CityVideoCard). Solo se pide el video cuando la tarjeta está por verse (N-04).
-export const DestinationVideo = ({ query, fallbackImage, alt, className }: DestinationVideoProps) => {
+export const DestinationVideo = ({ query, fallbackImage, fallbackSrcSet, sizes, priority = false, lowPriority = false, alt, className }: DestinationVideoProps) => {
   const [data, setData] = useState<VideoResult | null>(() => cachedVideo(query) ?? null);
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref);
@@ -50,8 +57,12 @@ export const DestinationVideo = ({ query, fallbackImage, alt, className }: Desti
     <img
       ref={ref as RefObject<HTMLImageElement>}
       src={data?.poster ?? fallbackImage}
+      srcSet={data?.poster ? undefined : fallbackSrcSet}
+      sizes={data?.poster || !fallbackSrcSet ? undefined : sizes}
       alt={alt}
-      loading="lazy"
+      loading={priority ? "eager" : "lazy"}
+      decoding="async"
+      {...(priority ? { fetchpriority: "high" } : lowPriority ? { fetchpriority: "low" } : {})}
       className={className}
     />
   );

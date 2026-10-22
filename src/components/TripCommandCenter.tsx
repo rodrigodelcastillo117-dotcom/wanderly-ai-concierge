@@ -101,7 +101,7 @@ export function TripCommandCenter({ trip, today }: Props) {
   return (
     <section
       aria-labelledby="command-center-title"
-      className="animate-fade-up relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.12] via-white/[0.02] to-transparent p-5 md:p-8"
+      className="animate-rise relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.12] via-white/[0.02] to-transparent p-5 md:p-8"
     >
       {/* Portada del destino a sangre completa, oscurecida para que el texto se lea: la foto real
           del viaje si existe; si no, una ilustrativa del destino (marcada). */}
