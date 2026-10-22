@@ -13,28 +13,24 @@ import { lazyWithRetry } from "@/lib/lazyRetry";
 import Landing from "./pages/Landing";
 import { FreeLimitDialogLazyHost } from "@/components/FreeLimitDialogLazy";
 import { Navigate } from "react-router-dom";
+import { loadAuth, loadConcierge, loadDashboardHome, loadTripDetail, loadTrips } from "@/lib/routeChunks";
 
 // Code-splitting: todo lo que no es la landing se carga bajo demanda por ruta.
 // El bundle único pesaba >4.4MB; esto reparte el peso en chunks por página.
-const loadAuth = () => import("./pages/Auth");
 const Auth = lazyWithRetry(loadAuth);
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const Onboarding = lazyWithRetry(() => import("./pages/Onboarding"));
 const OnboardingDeep = lazyWithRetry(() => import("./pages/OnboardingDeep"));
-const loadDashboardHome = () => import("./pages/DashboardHome");
 const DashboardHome = lazyWithRetry(loadDashboardHome);
 const PlanTrip = lazyWithRetry(() => import("./pages/PlanTrip"));
-const loadTripDetail = () => import("./pages/TripDetail");
 const TripDetail = lazyWithRetry(loadTripDetail);
 const EditTrip = lazyWithRetry(() => import("./pages/EditTrip"));
-const loadTrips = () => import("./pages/Trips");
 const Trips = lazyWithRetry(loadTrips);
 const MultiDestRoute = lazyWithRetry(() => import("./pages/MultiDestRoute"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Discover = lazyWithRetry(() => import("./pages/Discover"));
 const Pro = lazyWithRetry(() => import("./pages/Pro"));
 const AdminMetrics = lazyWithRetry(() => import("./pages/AdminMetrics"));
-const loadConcierge = () => import("./pages/Concierge");
 const Concierge = lazyWithRetry(loadConcierge);
 const Cercanos = lazyWithRetry(() => import("./pages/Cercanos"));
 const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
@@ -79,27 +75,6 @@ const PriveHub = lazyWithRetry(() => import("./pages/prive/PriveHub"));
 const PriveInvitation = lazyWithRetry(() => import("./pages/prive/PriveInvitation"));
 const PriveMembership = lazyWithRetry(() => import("./pages/prive/PriveMembership"));
 const PriveReset = lazyWithRetry(() => import("./pages/prive/PriveReset"));
-
-/**
- * Pantalla de la URL con la que se abre la app: su chunk se pide en cuanto arranca el JS, en paralelo
- * con la sesión y el estado de onboarding. Antes se pedía hasta que ProtectedRoute terminaba esas
- * consultas (en 3G: ~1–2 s de espera en serie antes de empezar a bajar la pantalla).
- */
-const INITIAL_ROUTE_CHUNKS: [RegExp, () => Promise<unknown>][] = [
-  [/^\/dashboard\/?$/, loadDashboardHome],
-  [/^\/dashboard\/viajes\/?$/, loadTrips],
-  [/^\/dashboard\/viajes\/[^\/]+\/?$/, loadTripDetail],
-  [/^\/dashboard\/concierge\/?$/, loadConcierge],
-  [/^\/auth\/?$/, loadAuth],
-];
-
-export function preloadInitialRoute(pathname: string): boolean {
-  const hit = INITIAL_ROUTE_CHUNKS.find(([re]) => re.test(pathname));
-  if (!hit) return false;
-  // Si falla, el lazy() de la ruta lo vuelve a intentar (y recarga una vez si el hash ya no existe).
-  void hit[1]().catch(() => {});
-  return true;
-}
 
 const RouteFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">

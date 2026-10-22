@@ -5,7 +5,8 @@ import { applyConsent } from "./lib/consent";
 import { installExternalLinkHandler } from "./lib/externalLinks";
 import { watchForNewVersion } from "./lib/versionCheck";
 import { toast } from "sonner";
-import App, { preloadInitialRoute } from "./App.tsx";
+import App from "./App.tsx";
+import { preloadInitialRoute } from "./lib/routeChunks";
 import "./index.css";
 
 initSentry();

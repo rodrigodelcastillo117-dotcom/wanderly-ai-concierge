@@ -119,14 +119,16 @@ describe("precarga de la pantalla inicial desde el HTML", () => {
     expect(runScript("/dashboard/gastos")).toEqual([]);
   });
 
-  it("la tabla del build coincide con la de App.tsx (import() en tiempo de ejecución)", () => {
-    const app = read("src/App.tsx");
-    for (const [re, page] of INITIAL_ROUTE_PAGES) {
+  it("la tabla del build coincide con la de la app (import() en tiempo de ejecución)", async () => {
+    const { INITIAL_ROUTE_CHUNKS } = await import("@/lib/routeChunks");
+    const chunks = read("src/lib/routeChunks.ts");
+    expect(INITIAL_ROUTE_CHUNKS.map(([re]) => re.source.replace(/\\\//g, "/"))).toEqual(INITIAL_ROUTE_PAGES.map(([re]) => re));
+    INITIAL_ROUTE_PAGES.forEach(([, page], i) => {
       const name = page.replace(/^src\/pages\/|\.tsx$/g, "");
-      expect(app, page).toContain(`const load${name} = () => import("./pages/${name}");`);
-      const escaped = re.replace(/\//g, "\\/");
-      expect(app, re).toContain(`[/${escaped}/, load${name}]`);
-    }
+      expect(chunks).toContain(`export const load${name} = () => import("@/pages/${name}");`);
+      expect(INITIAL_ROUTE_CHUNKS[i][1].name).toBe(`load${name}`);
+      expect(read("src/App.tsx")).toContain(`lazyWithRetry(load${name})`);
+    });
     expect(read("src/main.tsx")).toMatch(/preloadInitialRoute\(window\.location\.pathname\)/);
   });
 
