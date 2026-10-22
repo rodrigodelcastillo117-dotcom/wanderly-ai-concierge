@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Shield, ExternalLink, CheckCircle2 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { trackBookingClick } from "@/lib/trackBooking";
+import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 
 // Sin calificaciones numéricas ni códigos de descuento: no tenemos fuente verificada
 // para mostrarlos (antes: "4.7/5 Trustpilot", "15% OFF con código IATOS").
@@ -39,10 +39,13 @@ const PARTNERS = [
 ];
 
 const Insurance = () => {
+  // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
+  const tripTool = useTripTool();
   const navigate = useNavigate();
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
+        <TripToolBanner tool={tripTool} />
         <div className="flex items-start gap-3">
           <Shield className="w-8 h-8 text-primary mt-1" />
           <div>
@@ -67,7 +70,7 @@ const Insurance = () => {
                   </li>
                 ))}
               </ul>
-              <Button onClick={() => trackBookingClick({
+              <Button onClick={() => tripTool.track({
                 category: "insurance", provider: p.name, title: `Seguro de viaje — ${p.name}`,
                 subtitle: p.tagline, bookingUrl: p.url,
               })} className="w-full" size="sm">

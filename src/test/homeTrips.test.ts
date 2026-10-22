@@ -21,11 +21,30 @@ describe("homeTrips", () => {
     expect(r.list.map((t) => t.id)).toEqual(["en-curso", "proximo"]);
   });
 
-  it("sin viaje en curso: 'próximo' es el que sale en ≤7 días; los pasados no salen", () => {
-    const r = homeTrips(trips.filter((t) => t.id !== "en-curso"), today);
+  it("sin viaje en curso y con un solo vigente: 'próximo' si sale en ≤7 días; los pasados no salen", () => {
+    const r = homeTrips(trips.filter((t) => t.id !== "en-curso" && t.id !== "lejano"), today);
     expect(r.active).toBeNull();
     expect(r.upcoming?.id).toBe("proximo");
+    expect(r.list.map((t) => t.id)).toEqual(["proximo"]);
+    // Uno solo pero lejano: no es "próximo viaje" (sí sale en la lista).
+    const far = homeTrips(trips.filter((t) => t.id === "lejano"), today);
+    expect(far.upcoming).toBeNull();
+    expect(far.list.map((t) => t.id)).toEqual(["lejano"]);
+  });
+
+  it("dos vigentes sin viaje fijado: no adivina (mismo resolveActiveTrip que Iato) y pide elegir", () => {
+    const r = homeTrips(trips.filter((t) => t.id !== "en-curso"), today);
+    expect(r.active).toBeNull();
+    expect(r.upcoming).toBeNull();
+    expect(r.resolved.reason).toBe("ambiguous");
     expect(r.list.map((t) => t.id)).toEqual(["proximo", "lejano"]);
+  });
+
+  it("el viaje fijado (profiles.active_trip_id) manda, aunque haya otro en curso o salga lejos", () => {
+    const r = homeTrips(trips, today, "lejano");
+    expect(r.active).toBeNull();
+    expect(r.upcoming?.id).toBe("lejano");
+    expect(r.list.map((t) => t.id)).toEqual(["lejano", "en-curso"]);
   });
 
   it("el último día del viaje todavía cuenta como en curso; el día siguiente ya no", () => {

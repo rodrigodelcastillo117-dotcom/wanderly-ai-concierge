@@ -21,7 +21,9 @@ import { makeToolExecutor, todayLine, TOOL_TIMEOUT_MS } from "./tools.ts";
 import { resolveToday, sanitizeClientMessages } from "./guard.ts";
 import { buildContextMessage, buildMemoryData, buildSystemContent, capSummary } from "./prompt.ts";
 import { finalizeReply, parseModelJson, runConciergeLoop, type ModelMessage } from "./loop.ts";
-import { asArray, buildRequestIntelligence, compactItem, computeTripGaps, ensureTransferUsesKnownData } from "./context.ts";
+import {
+  asArray, buildRequestIntelligence, compactItem, computeTripGaps, ensureTransferUsesKnownData, tripBookingContext, tripListBookingState,
+} from "./context.ts";
 import { chatError, type ChatErrorCode, modelHttpErrorCode, toolErrorCode } from "./errors.ts";
 import { redactPii } from "../_shared/redact.ts";
 
@@ -304,14 +306,20 @@ Deno.serve(async (req) => {
       return json({ text: buildTripQuestion(resolution.candidates), cards: [], _tools_used: [], _gaps: [], ...tripMeta });
     }
 
-    // Reservas reales (transfers, restaurantes, tours ya pagados) para detectar lo FALTANTE
+    // Reservas de los viajes vigentes. Solo las CONFIRMADAS cuentan para lo faltante (un clic a un
+    // seguro no es haberlo contratado) y para decir "reservado" en vez de "cotizado".
     let bookings: any[] = [];
-    if (trip?.id) {
+    let bookingsAll: any[] = [];
+    const bookingTripIds = [...new Set([trip?.id, ...viajesVigentes.map((t: any) => t.id)].filter(Boolean))];
+    if (bookingTripIds.length) {
       const { data: bks } = await supabase.from("bookings")
-        .select("category, provider, status, title, subtitle, city, start_at, end_at, price_amount, price_currency, confirmation_code, booking_url")
-        .eq("trip_id", trip.id).order("start_at", { ascending: true });
-      bookings = bks ?? [];
+        .select("trip_id, category, provider, status, title, subtitle, city, start_at, end_at, price_amount, price_currency, confirmation_code, partner_reference, booking_url")
+        .in("trip_id", bookingTripIds).order("start_at", { ascending: true });
+      bookingsAll = bks ?? [];
+      bookings = trip?.id ? bookingsAll.filter((b: any) => b.trip_id === trip.id) : [];
     }
+    const tripBookings = trip ? tripBookingContext(trip, bookings) : null;
+    const confirmedBookings = tripBookings?.reservas_confirmadas_bookings ?? [];
 
     // ═══ Datos del usuario (no confiables: van en el mensaje de CONTEXTO, no en el sistema) ═══
     const perfilIA = (tprof as any)?.perfil_ia ?? (prefs as any)?.perfil_ia ?? null;
@@ -337,7 +345,8 @@ Deno.serve(async (req) => {
     // Lista compacta de viajes vigentes; el viaje en contexto se detalla aparte.
     const viajes = viajesVigentes.map((tr: any) => {
       const base: Record<string, unknown> = {
-        ...tripSummary(tr), origen: tr.ciudad_origen ?? undefined, viajeros: tr.num_viajeros ?? undefined, status: tr.status ?? undefined,
+        ...tripSummary(tr), origen: tr.ciudad_origen ?? undefined, viajeros: tr.num_viajeros ?? undefined,
+        estado_reservas: tripListBookingState(tr, bookingsAll),
       };
       if (trip && tr.id === trip.id) return { ...base, detalle: "ver <viaje_en_contexto>" };
       const vuelos = asArray(tr.vuelos_json).slice(0, 8).map((v: any) => compactItem({
@@ -352,12 +361,12 @@ Deno.serve(async (req) => {
     });
 
     // === CAPA 4 — GAPS DEL VIAJE (determinista) ===
-    const tripGaps = trip ? computeTripGaps(trip, bookings, todayISO) : [];
+    const tripGaps = trip ? computeTripGaps(trip, confirmedBookings, todayISO) : [];
 
     let requestIntel: any = null;
     let viajeEnContexto: Record<string, unknown> | null = null;
     if (trip) {
-      requestIntel = buildRequestIntelligence(trip, lastUserMsg, bookings);
+      requestIntel = buildRequestIntelligence(trip, lastUserMsg, confirmedBookings);
       viajeEnContexto = {
         id: trip.id,
         destino: trip.destino,
@@ -366,19 +375,21 @@ Deno.serve(async (req) => {
         fecha_salida: trip.fecha_salida,
         fecha_regreso: trip.fecha_regreso,
         num_viajeros: trip.num_viajeros,
-        status: trip.status,
+        // Sin trips.status ("listo" no distingue cotizado de reservado): estado derivado de bookings.
+        estado_reservas: tripBookings?.estado_reservas,
         presupuesto_objetivo: trip.presupuesto_objetivo,
         total_estimado: trip.total_estimado,
         moneda: trip.moneda,
         itinerario: trip.itinerario_json ?? null,
-        vuelos: trip.vuelos_json ?? null,
-        hospedaje: trip.hospedaje_json ?? null,
+        vuelos: tripBookings?.vuelos ?? null,
+        hospedaje: tripBookings?.hospedaje ?? null,
         restaurantes: trip.restaurantes_json ?? null,
-        tours: trip.tours_json ?? null,
-        cruceros: trip.cruceros_json ?? null,
+        tours: tripBookings?.tours ?? null,
+        cruceros: tripBookings?.cruceros ?? null,
         tips_personalizados: trip.tips_personalizados ?? null,
         analisis_ai: trip.analisis_ai ?? null,
-        reservas_confirmadas_bookings: bookings,
+        reservas_confirmadas_bookings: confirmedBookings,
+        clics_a_socios_sin_confirmar: tripBookings?.clics_a_socios_sin_confirmar ?? 0,
         datos_relevantes_para_la_peticion_actual: requestIntel,
       };
     }

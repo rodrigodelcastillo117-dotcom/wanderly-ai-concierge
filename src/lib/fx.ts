@@ -68,6 +68,28 @@ export function fxLabel(table: FxTable): string {
   return `Tipo de cambio de respaldo aproximado (${shortDate(table.asOf)}); sin conexión a la tasa en vivo`;
 }
 
+/** Fecha de la tasa que publica open.er-api.com (time_last_update_utc). null si no viene. */
+export function providerUpdatedAt(json: unknown): Date | null {
+  const raw = (json as { time_last_update_utc?: unknown; time_last_update_unix?: unknown } | null) ?? null;
+  if (typeof raw?.time_last_update_unix === "number") {
+    const d = new Date(raw.time_last_update_unix * 1000);
+    if (Number.isFinite(d.getTime())) return d;
+  }
+  if (typeof raw?.time_last_update_utc === "string") {
+    const d = new Date(raw.time_last_update_utc);
+    if (Number.isFinite(d.getTime())) return d;
+  }
+  return null;
+}
+
+/** Texto del conversor: fuente + fecha del proveedor, y si es el último guardado (sin conexión). */
+export function converterRateLabel(source: string, asOf: Date | null, cached: boolean): string {
+  const when = asOf ? shortDate(asOf.toISOString()) : "fecha desconocida";
+  return cached
+    ? `Tipo de cambio de respaldo: último de ${source} guardado en este dispositivo (${when})`
+    : `Tipo de cambio de ${source} (actualizado ${when})`;
+}
+
 function readCached(): FxTable | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

@@ -16,6 +16,11 @@ type Props = {
   /** Tipo de cambio con que se cotizó, si se conoce. */
   fxNote?: string | null;
   onRequote?: () => void;
+  /**
+   * Desglose con las selecciones del usuario (vuelo, hotel, experiencias) cuando eligió algo
+   * distinto de la cotización. null = sin selección: se muestra la cotización guardada.
+   */
+  selectionDesglose?: Record<string, number> | null;
 };
 
 const fmtMXN = (n: number) =>
@@ -26,7 +31,7 @@ const fmtMXN = (n: number) =>
  * cotización lo rebasa se informa la diferencia (antes se mostraba el presupuesto como si fuera
  * el precio y se decía que la IA "ajustaba la selección", sin ajustar nada).
  */
-export function tripTotals(trip: any, viajeros: number) {
+export function tripTotals(trip: any, viajeros: number, selectionDesglose?: Record<string, number> | null) {
   const vuelos: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
   const hoteles: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
   const cruceros: any[] = Array.isArray(trip?.cruceros_json) ? trip.cruceros_json : [];
@@ -55,17 +60,23 @@ export function tripTotals(trip: any, viajeros: number) {
   }, 0);
 
   const itemSubtotal = totalVuelos + totalHoteles + totalCruceros;
-  const total = sumNumber(trip?.total_estimado) || explicitBreakdownTotal || itemSubtotal;
+  const quotedTotal = sumNumber(trip?.total_estimado) || explicitBreakdownTotal || itemSubtotal;
+  // Con selección del usuario (E-12) el total es el de su selección; la cotización guardada se
+  // conserva aparte para decir de cuánto era.
+  const fromSelection = !!selectionDesglose && Object.keys(selectionDesglose).length > 0;
+  const total = fromSelection
+    ? Object.values(selectionDesglose!).reduce((s: number, v) => s + sumNumber(v), 0)
+    : quotedTotal;
   const presupuesto = sumNumber(trip?.presupuesto_objetivo);
   const excedente = presupuesto > 0 && total > presupuesto ? total - presupuesto : 0;
   const porPersona = viajeros > 0 ? total / viajeros : total;
-  return { total, porPersona, presupuesto, excedente };
+  return { total, porPersona, presupuesto, excedente, quotedTotal, fromSelection };
 }
 
-export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, fxNote, onRequote }: Props) {
+export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, fxNote, onRequote, selectionDesglose }: Props) {
 
 
-  const { total, porPersona, presupuesto, excedente } = tripTotals(trip, viajeros);
+  const { total, porPersona, presupuesto, excedente, quotedTotal, fromSelection } = tripTotals(trip, viajeros, selectionDesglose);
 
   const [showAnalisis, setShowAnalisis] = useState(false);
 
@@ -97,7 +108,9 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
         {viajeros} {viajeros === 1 ? "persona" : "personas"} · {noches} noches
       </p>
       <p className="text-[11px] text-muted-foreground/80 mb-2 italic">
-        Total de la cotización guardada; no se agregan extras automáticos.
+        {fromSelection
+          ? `Total con tu selección de vuelo, hotel o experiencias (estimado con los precios de la cotización de ${fmtMXN(quotedTotal)}).`
+          : "Total de la cotización guardada; no se agregan extras automáticos."}
       </p>
       {validityLabel && (
         <p className={`text-[11px] mb-2 inline-flex items-center gap-1 ${validityExpired ? "text-amber-500" : "text-muted-foreground"}`}>
@@ -109,7 +122,9 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
         <div role="alert" className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-500 flex flex-col sm:flex-row sm:items-center gap-2">
           <span className="flex items-start gap-2 flex-1">
             <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{staleMessage}. El total y el precio por persona de arriba son los de esa cotización.</span>
+            <span>{staleMessage}. {fromSelection
+              ? "El total de arriba ya suma tu selección; los precios se confirman al actualizar la cotización."
+              : "El total y el precio por persona de arriba son los de esa cotización."}</span>
           </span>
           {onRequote && (
             <button type="button" onClick={onRequote}

@@ -1,5 +1,8 @@
 // Contexto del viaje para el concierge: datos relevantes a la petición, faltantes (gaps) y el
 // guardarraíl de transfers aeropuerto → hotel. Lógica pura (sin Deno), probada en Vitest.
+import {
+  deriveTripBookingState, isConfirmedBooking, itemBookingState, type ItemKind,
+} from "../_shared/bookingState.ts";
 
 export const normText = (value: unknown) => String(value ?? "")
   .toLowerCase()
@@ -23,6 +26,41 @@ export function extractTripCities(trip: any): string[] {
   return [...cities];
 }
 
+
+// ═══ Reservado vs. cotizado ═══
+// trips.status vale "listo" tanto para una cotización como para un viaje pagado. Iato recibe el
+// estado DERIVADO de bookings, por elemento, para no llamar "tu vuelo" a una opción cotizada.
+export const BOOKING_STATE_RULE =
+  "estado_reserva por elemento: 'reservado' = hay una reserva confirmada (puedes decir 'tu vuelo', 'tu hotel'); " +
+  "'cotizado' = opción que cotizó IATOS y NO está reservada (di 'la opción de vuelo cotizada' o 'el hotel sugerido', nunca 'tu vuelo' ni 'tu reserva'); " +
+  "'segun_tu_archivo' = viene del archivo del usuario, sin verificar (di 'según tu archivo'). Un clic a un socio no es una reserva.";
+
+const tagItems = (kind: ItemKind, items: unknown, confirmed: any[]) => {
+  const list = asArray(items);
+  if (!list.length) return items ?? null;
+  return list.map((it) => ({ ...it, estado_reserva: itemBookingState(kind, it, list, confirmed) }));
+};
+
+/** Campos de reservas para <viaje_en_contexto>: elementos etiquetados y solo reservas confirmadas. */
+export function tripBookingContext(trip: any, bookings: any[]) {
+  const all = asArray(bookings);
+  const confirmed = all.filter(isConfirmedBooking);
+  const summary = deriveTripBookingState(trip, all);
+  return {
+    estado_reservas: { estado: summary.estado, por_tipo: summary.por_tipo, regla: BOOKING_STATE_RULE },
+    vuelos: tagItems("vuelo", trip?.vuelos_json, confirmed),
+    hospedaje: tagItems("hospedaje", trip?.hospedaje_json, confirmed),
+    tours: tagItems("tour", trip?.tours_json, confirmed),
+    cruceros: tagItems("crucero", trip?.cruceros_json, confirmed),
+    reservas_confirmadas_bookings: confirmed,
+    clics_a_socios_sin_confirmar: summary.clics_sin_confirmar,
+  };
+}
+
+/** Estado corto para la lista de viajes vigentes ("Reservado", "Cotizado · sin reservar"…). */
+export function tripListBookingState(trip: any, bookings: any[]) {
+  return deriveTripBookingState(trip, asArray(bookings).filter((b) => b?.trip_id === trip?.id)).label;
+}
 
 export function buildRequestIntelligence(trip: any, userMsg: string, bookings: any[]) {
   if (!trip) return null;

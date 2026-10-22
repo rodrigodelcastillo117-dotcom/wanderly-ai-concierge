@@ -26,6 +26,9 @@ import tulum from "@/assets/destination-tulum.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
 import { daysFromToday, formatLocalDate, localISODate } from "@/lib/localDate";
 import { convert, fetchFxTable, fxLabel } from "@/lib/fx";
+import { ACTIVE_TRIP_COLUMNS, useActiveTrip } from "@/hooks/useActiveTrip";
+import { ActiveTripPicker } from "@/components/ActiveTripPicker";
+import { withTripParam } from "@/lib/tripLink";
 
 
 
@@ -88,7 +91,9 @@ const DashboardHome = () => {
   const { recos: aiRecos, loading: recosLoading } = useAIRecommendations();
   const [name, setName] = useState("");
 
-  const [trips, setTrips] = useState<any[]>([]);
+  // Viaje activo único (el mismo que Iato, Cercanos y Gastos): viajes propios y compartidos +
+  // profiles.active_trip_id. Antes eran "los 2 últimos creados".
+  const active = useActiveTrip<any>({ columns: `${ACTIVE_TRIP_COLUMNS}, cover_image_url` });
   // Favoritos persistidos (los mismos de Descubre y Favoritos), no un estado local.
   const { saved: favorites, pending: favPending, toggle: toggleFav } = useSavedDestinations();
   const [concierge, setConcierge] = useState("");
@@ -116,16 +121,6 @@ const DashboardHome = () => {
         .eq("id", user.id)
         .maybeSingle();
       setName(profile?.full_name?.split(" ")[0] ?? "viajero");
-
-      // Por fecha de salida (no por fecha de creación) y solo las columnas que se muestran:
-      // homeTrips() elige el viaje en curso y los próximos.
-      const { data: t } = await supabase
-        .from("trips")
-        .select("id, destino, pais_destino, fecha_salida, fecha_regreso, cover_image_url")
-        .eq("user_id", user.id)
-        .order("fecha_salida", { ascending: true })
-        .limit(50);
-      setTrips(t ?? []);
 
       // ───── Smart Spend real (gastos del mes actual vs mes anterior) ─────
       const now = new Date();
@@ -212,8 +207,9 @@ const DashboardHome = () => {
   const today = now.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const time = now.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase().replace(/\./g, "");
 
-  // Viaje activo / próximo / lista, por fechas locales (antes: los 2 últimos creados).
-  const { active: activeTrip, upcoming: upcomingTrip, list: upcomingList } = homeTrips(trips, localISODate(now));
+  // Viaje activo / próximo / lista: homeTrips reparte lo que decide resolveActiveTrip con
+  // profiles.active_trip_id (un solo selector en toda la app). Con empate, el selector pide escoger.
+  const { active: activeTrip, upcoming: upcomingTrip, list: upcomingList } = homeTrips(active.trips, localISODate(now), active.pinnedId);
 
 
 
@@ -489,6 +485,10 @@ const DashboardHome = () => {
                 Ver todos <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
+            {active.trips.length > 1 && (
+              <ActiveTripPicker trips={active.trips} pinnedId={active.pinnedId} resolved={active.resolved}
+                onChange={(id) => { void active.pin(id); }} className="mb-4 flex-wrap" />
+            )}
             {upcomingList.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">Aún no tienes viajes planeados.</p>
             ) : (
@@ -680,7 +680,7 @@ const DashboardHome = () => {
               ].map(({ icon: Icon, label, sub, to, img }) => (
                 <button
                   key={label}
-                  onClick={() => navigate(to)}
+                  onClick={() => navigate(withTripParam(to, active.trip?.id))}
                   className="relative overflow-hidden aspect-[4/3] rounded-xl border border-white/[0.08] hover:border-primary/50 transition-all text-left group"
                 >
                   <img

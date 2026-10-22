@@ -23,6 +23,7 @@ import { resolveActiveTrip, tripLabel, type ActiveTripReason } from "@/lib/activ
 import { localISODate } from "@/lib/localDate";
 import { ConciergeHeading } from "@/components/concierge/ConciergeHeading";
 import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
+import { loadConversation } from "@/lib/conciergeHistory";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -102,6 +103,9 @@ const Concierge = () => {
     try { return localStorage.getItem(PIN_KEY) || null; } catch { return null; }
   });
   const [refreshTick, setRefreshTick] = useState(0);
+  const [tripsLoaded, setTripsLoaded] = useState(false);
+  // E-13: viaje cuyo historial ya se cargó (undefined = ninguno todavía; null = "sin viaje").
+  const historyFor = useRef<string | null | undefined>(undefined);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [weather, setWeather] = useState<{ temp: number; place: string } | null>(null);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -125,6 +129,7 @@ const Concierge = () => {
       .limit(50)
       .then(({ data }) => {
         setTrips((data as ContextTrip[]) ?? []);
+        setTripsLoaded(true);
         setLastRefresh(new Date());
       });
     // Si la columna aún no existe (migración pendiente) se conserva la elección local y no se
@@ -140,6 +145,23 @@ const Concierge = () => {
     [trips, pinnedId, todayLocal],
   );
   const trip = tripContext.trip;
+
+  // E-13: al abrir (o recargar) el chat se muestra la última conversación del viaje activo, que
+  // concierge-chat ya guarda en concierge_conversations. Solo si el usuario aún no escribió nada.
+  useEffect(() => {
+    if (!user || !allowed || !tripsLoaded) return;
+    const key = trip?.id ?? null;
+    if (historyFor.current === key) return;
+    historyFor.current = key;
+    loadConversation(supabase, user.id, key).then((restored) => {
+      // Si mientras tanto cambió el viaje en contexto, esta respuesta ya no aplica.
+      if (historyFor.current !== key) return;
+      // Al cambiar de viaje se reemplaza el historial mostrado; nunca se pisa lo que el usuario ya escribió.
+      setMessages((prev) => (prev.some((m) => m.role === "user" && !m.id.startsWith("hist-"))
+        ? prev
+        : [...prev.filter((m) => m.id === "welcome"), ...restored]));
+    });
+  }, [user?.id, allowed, tripsLoaded, trip?.id]);
 
   const pinTrip = async (id: string | null) => {
     setPinnedId(id);

@@ -88,13 +88,13 @@ describe("TripSplit", () => {
     expect(screen.getByText("Cena")).toBeInTheDocument();
   });
 
-  it("quitar a una persona con gastos pide confirmación; si cancela, no se borra", async () => {
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  // D-18: la base ya no borra en cascada los pagos de la persona (20261022143200); quitar a alguien
+  // con gastos se impide y se explica, en vez de confirmar y borrar sus pagos.
+  it("quitar a una persona con gastos no la borra ni borra sus pagos; se explica por qué", async () => {
     renderSplit();
     await screen.findByText("Cena");
     fireEvent.click(screen.getByRole("button", { name: "Quitar a Ana" }));
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("También se borrará su gasto"));
+    expect(toastError).toHaveBeenCalledWith("Ana tiene pagos registrados", expect.anything());
     expect(calls.deletes).toHaveLength(0);
-    confirm.mockRestore();
   });
 });
