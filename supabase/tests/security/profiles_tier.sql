@@ -10,7 +10,7 @@ SELECT 'T2 la vista previa no escribió: '||tier FROM public.profiles WHERE id='
 SELECT batch_id AS b FROM public.sync_profile_tier(false) WHERE profile_id='d2000000-0000-0000-0000-000000000002' \gset
 SELECT 'T3 tras aplicar: '||(SELECT tier FROM public.profiles WHERE id='d2000000-0000-0000-0000-000000000002')||' / pro sigue '||(SELECT tier FROM public.profiles WHERE id='d1000000-0000-0000-0000-000000000001');
 SELECT 'T4 acceso intacto: is_pro(pro)='||public.is_pro('d1000000-0000-0000-0000-000000000001')||' is_pro(free)='||public.is_pro('d2000000-0000-0000-0000-000000000002');
-SELECT 'T5 bitácora: '||count(*)||' fila(s) old='||max(old_tier)||' new='||max(new_tier) FROM public.profiles_tier_audit WHERE batch_id=:'b';
+SELECT 'T5 bitácora: '||count(*)||' fila(s) old='||max(old_tier)||' new='||max(new_tier) FROM public.profiles_tier_audit WHERE batch_id=:'b' AND profile_id='d2000000-0000-0000-0000-000000000002';
 SELECT 'T6 revertidos: '||public.revert_profile_tier(:'b');
 SELECT 'T7 tras revertir: '||tier FROM public.profiles WHERE id='d2000000-0000-0000-0000-000000000002';
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','d2000000-0000-0000-0000-000000000002',false);
