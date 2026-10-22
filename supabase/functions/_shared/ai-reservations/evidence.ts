@@ -279,3 +279,40 @@ export function validConfirmationCode(code: string | null | undefined, replyText
   const before = fold(text.slice(Math.max(0, m.index - 60), m.index));
   return CODE_LEAD.test(before) ? c : null;
 }
+
+// ───────────────────────────── Motivo legible (para el usuario) ─────────────────────────────
+const FIELD_ES: Record<string, string> = { date: "la fecha", time: "la hora", party_size: "para cuántas personas", name: "a nombre de quién" };
+/**
+ * Por qué una respuesta NO se tomó como confirmación, en una frase para el usuario (es-MX). Solo
+ * describe lo que comprobaron las reglas; nunca afirma que haya lugar.
+ */
+export function ambiguousReasonEs(why: string | null | undefined): string | null {
+  const w = String(why ?? "");
+  if (w.startsWith("conditions_not_confirmed:")) {
+    const fields = w.split(":")[1].split(",").map((f) => FIELD_ES[f]).filter(Boolean);
+    return fields.length ? `El restaurante no confirmó ${fields.join(", ")}.` : null;
+  }
+  const map: Record<string, string> = {
+    no_explicit_confirmation: "La respuesta no dice explícitamente que la reserva quedó hecha (por ejemplo, solo habla de disponibilidad).",
+    no_verbatim_quote: "No encontramos en el correo una frase que confirme la reserva.",
+    party_size_mismatch: "El correo menciona otro número de personas.",
+    time_mismatch: "El correo menciona otra hora.",
+    date_mismatch: "El correo menciona otra fecha.",
+    weekday_mismatch: "El correo menciona otro día de la semana.",
+    name_mismatch: "El correo menciona otro nombre.",
+    relative_date_unresolved: "El correo usa una fecha relativa (\u201cmañana\u201d, \u201choy\u201d) que no pudimos ubicar.",
+    hedge_question: "El restaurante hace una pregunta antes de confirmar.",
+    hedge_but: "El restaurante pone una condición o un \u201cpero\u201d.",
+    hedge_unfortunately: "El restaurante dice que algo no se puede.",
+    hedge_negation: "El restaurante dice que algo no está disponible.",
+    hedge_pending: "El restaurante dice que la confirmación sigue pendiente.",
+    hedge_request: "El restaurante pide algo antes de confirmar.",
+    hedge_condition: "El restaurante pone condiciones (lista de espera, \u201csujeto a\u201d…).",
+    model_not_held: "La respuesta no dice que la mesa quedó apartada.",
+    evidence_incomplete: "Al correo le faltan datos del proveedor para usarlo como comprobante.",
+    classification_unavailable: "No pudimos leer la respuesta automáticamente.",
+  };
+  if (map[w]) return map[w];
+  if (/^stated_\w+_unsupported$/.test(w)) return "Lo que entendimos del correo no coincide con lo que dice textualmente.";
+  return null;
+}

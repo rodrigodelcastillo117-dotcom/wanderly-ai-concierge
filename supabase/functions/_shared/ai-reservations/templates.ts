@@ -265,7 +265,7 @@ export function userUpdateEmail(kind: UpdateKind, r: Pick<AiReservationRow, "ven
     needs_info: [`${v} pide más información`, `${r.info ?? "Revisa su respuesta en la app."} Aún no es una reserva.`],
     payment_required: [`${v} pide una garantía o pago`, "IATOS nunca comparte datos de tarjeta. Si quieres seguir, hazlo directamente con el restaurante. Aún no es una reserva."],
     unverified: [`${v} respondió · revísalo tú`, "Recibimos una respuesta, pero no pudimos verificar que venga del restaurante, así que no la tomamos como confirmación. Aún no es una reserva confirmada."],
-    ambiguous: [`${v} respondió · revísalo tú`, "Recibimos una respuesta que no pudimos interpretar con certeza. Aún no es una reserva confirmada."],
+    ambiguous: [`${v} respondió · revísalo tú`, `Recibimos una respuesta que no podemos tomar como confirmación.${r.info ? ` ${r.info}` : ""} Aún no es una reserva confirmada.`],
     expired: [`${v} no respondió a tiempo`, `Tu solicitud para el ${when} venció sin confirmación. Puedes llamar al restaurante o pedir ayuda al Fixer.`],
     late: [`${v} respondió tarde`, "Llegó una respuesta después de que la solicitud se cerró. Revísala y, si te interesa, confirma directamente con el restaurante."],
   };

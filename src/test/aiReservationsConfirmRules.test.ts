@@ -6,7 +6,8 @@
 // ligadas a nuestra solicitud exacta (respuesta en nuestro hilo que cita la solicitud sin cambios).
 import { describe, expect, it } from "vitest";
 import { decideReply, parseClassification } from "../../supabase/functions/_shared/ai-reservations/classifier";
-import { venueRequestEmail } from "../../supabase/functions/_shared/ai-reservations/templates";
+import { userUpdateEmail, venueRequestEmail } from "../../supabase/functions/_shared/ai-reservations/templates";
+import { ambiguousReasonEs } from "../../supabase/functions/_shared/ai-reservations/evidence";
 
 const row = {
   requested_local: "2026-11-03T20:30", party_size: 4, customer_name: "Ana López", ref_code: "R-ABC234",
@@ -175,5 +176,19 @@ describe("AUD-03 · alternos 'apartados' que el modelo inventa", () => {
     const d = decide("Les apartamos una mesa para 4 personas a las 21:15 con una tarjeta de garantía.", { outcome: "alternative_offered",
       alternatives: [{ date: null, time: "21:15", note: null }] });
     expect(d.outcome).toBe("payment_required");
+  });
+});
+
+describe("Mejora · el usuario sabe por qué no se tomó como confirmación", () => {
+  it("motivo concreto en el correo de 'revísalo tú'", () => {
+    const d = decide("Confirmamos su reserva el 3 de noviembre a las 20:30.", { stated_party_size: null, stated_name: null });
+    expect(d.outcome).toBe("ambiguous");
+    expect(ambiguousReasonEs(d.why)).toBe("El restaurante no confirmó para cuántas personas.");
+    expect(ambiguousReasonEs(decide("Tenemos disponibilidad.", { stated_date: null, stated_time: null, stated_party_size: null, stated_name: null }).why))
+      .toMatch(/no dice explícitamente/);
+    const mail = userUpdateEmail("ambiguous", { ...row, excerpt: null, info: ambiguousReasonEs(d.why), appUrl: "https://x.test" });
+    expect(mail.text).toContain("no confirmó para cuántas personas");
+    expect(mail.text).toContain("Aún no es una reserva confirmada");
+    expect(ambiguousReasonEs("algo_desconocido")).toBeNull();
   });
 });

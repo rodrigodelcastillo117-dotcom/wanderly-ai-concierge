@@ -9,7 +9,7 @@ import {
   replyAddress, senderAuthentication, type SenderVerdict, statusLabel, stripQuotedReply, toBridgeState,
 } from "./core.ts";
 import { ClassifierUnavailable, classifyReply, decideReply, type ModelCall, type ReplyDecision } from "./classifier.ts";
-import { quotedRequestLinked } from "./evidence.ts";
+import { ambiguousReasonEs, quotedRequestLinked } from "./evidence.ts";
 import { type ContactDeps, discoverVenueContact } from "./contact.ts";
 import { signLink, verifyLink, verifySvixSignature } from "./signature.ts";
 import {
@@ -344,7 +344,7 @@ async function sendUserUpdate(deps: ServiceDeps, row: AiReservationRow, kind: Pa
   const mail = userUpdateEmail(kind, {
     ...row,
     excerpt: d?.excerpt ?? row.venue_reply_excerpt,
-    info: d?.info_requested ?? null,
+    info: kind === "ambiguous" ? ambiguousReasonEs(d?.why) : d?.info_requested ?? null,
     alternatives: (d?.alternatives ?? row.alternatives ?? []).map((a) => formatLocal(a.local, "es")),
     appUrl: deps.config.appUrl,
   });
