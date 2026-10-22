@@ -1,0 +1,250 @@
+{
+ "landing": {
+  "lcpMs": 4048,
+  "lcpEl": "H1.font-display text-5xl md:text-7xl lg:tex",
+  "fcpMs": 3348,
+  "cls": 0.006,
+  "dclMs": 3018,
+  "loadMs": 3026,
+  "ttiApproxMs": 3320,
+  "longTasks": 3,
+  "jsKB": 207,
+  "jsFiles": 6,
+  "totalKB": 589,
+  "requests": 21,
+  "heavy": [
+   {
+    "kb": 97,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/destination-bora-DBBzpAdU.jpg"
+   },
+   {
+    "kb": 78,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/destination-kyoto-Zr88PkOd.jpg"
+   },
+   {
+    "kb": 66,
+    "type": "Font",
+    "status": 200,
+    "url": "fonts.gstatic.com/s/fraunces/v38/6NU78FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0KxC9TeA.woff2"
+   },
+   {
+    "kb": 65,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/hero-santorini-960-ZGTLr018.jpg"
+   },
+   {
+    "kb": 56,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-core-BY7LFO8Z.js"
+   },
+   {
+    "kb": 52,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-supabase-ByMszko7.js"
+   },
+   {
+    "kb": 47,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/index-BnriLFFh.js"
+   },
+   {
+    "kb": 33,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-radix-CK9UyZMh.js"
+   },
+   {
+    "kb": 26,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/iatos-logo-320-CDnlEvkM.png"
+   },
+   {
+    "kb": 25,
+    "type": "Font",
+    "status": 200,
+    "url": "fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggexSg.woff2"
+   }
+  ],
+  "shots": [
+   {
+    "t": 1000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 2500,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 4000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 6000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 9000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 13000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   }
+  ],
+  "guard": [],
+  "count": {
+   "buscarVideo": 0,
+   "pexels": 0,
+   "s429": []
+  }
+ },
+ "dashboard": {
+  "lcpMs": 15108,
+  "lcpEl": "VIDEO.w-full h-full object-cover group-hover:s",
+  "fcpMs": 6520,
+  "cls": 0.155,
+  "dclMs": 3366,
+  "loadMs": 3378,
+  "ttiApproxMs": 10530,
+  "longTasks": 12,
+  "jsKB": 249,
+  "jsFiles": 36,
+  "totalKB": 1680,
+  "requests": 107,
+  "heavy": [
+   {
+    "kb": 364,
+    "type": "Image",
+    "status": 200,
+    "url": "lh3.googleusercontent.com/grass-cs/AABkmLesQpU3kb-JSQXs51sFhhZlaHu0LS-o0dooWNpHmdHLldIpjXTCOyifIm4cm"
+   },
+   {
+    "kb": 207,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/hero-santorini-6PyvMmg-.jpg"
+   },
+   {
+    "kb": 165,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/destination-tulum-CK3UTv47.jpg"
+   },
+   {
+    "kb": 141,
+    "type": "Image",
+    "status": 200,
+    "url": "images.pexels.com/videos/32640395/4k-drone-4k-drone-footage-4k-drone-shot-4k-drone-video-32640395.jp"
+   },
+   {
+    "kb": 86,
+    "type": "Image",
+    "status": 200,
+    "url": "images.pexels.com/videos/10259437/adventure-aerial-aerial-footage-aerial-photography-10259437.jpeg"
+   },
+   {
+    "kb": 66,
+    "type": "Font",
+    "status": 200,
+    "url": "fonts.gstatic.com/s/fraunces/v38/6NU78FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0KxC9TeA.woff2"
+   },
+   {
+    "kb": 56,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-core-BY7LFO8Z.js"
+   },
+   {
+    "kb": 52,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-supabase-ByMszko7.js"
+   },
+   {
+    "kb": 50,
+    "type": "Image",
+    "status": 200,
+    "url": "images.pexels.com/videos/11563618/desert-drone-dunes-epic-11563618.jpeg"
+   },
+   {
+    "kb": 48,
+    "type": "Image",
+    "status": 200,
+    "url": "images.unsplash.com/photo-1551918120-9739cb430c6d"
+   }
+  ],
+  "shots": [
+   {
+    "t": 1000,
+    "pulse": 0,
+    "spin": 1,
+    "text": 0
+   },
+   {
+    "t": 2500,
+    "pulse": 0,
+    "spin": 1,
+    "text": 0
+   },
+   {
+    "t": 4000,
+    "pulse": 0,
+    "spin": 1,
+    "text": 0
+   },
+   {
+    "t": 6000,
+    "pulse": 4,
+    "spin": 0,
+    "text": 1048
+   },
+   {
+    "t": 9000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1385
+   },
+   {
+    "t": 13000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1385
+   }
+  ],
+  "guard": [
+   "buscar-video GET",
+   "recomendar-destinos POST",
+   "buscar-video GET",
+   "buscar-video GET",
+   "buscar-video GET"
+  ],
+  "count": {
+   "buscarVideo": 8,
+   "pexels": 0,
+   "s429": [
+    "buscar-video"
+   ]
+  }
+ }
+}

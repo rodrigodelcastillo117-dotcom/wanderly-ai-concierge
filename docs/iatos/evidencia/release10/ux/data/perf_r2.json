@@ -1,0 +1,247 @@
+{
+ "landing": {
+  "lcpMs": 4288,
+  "lcpEl": "H1.font-display text-5xl md:text-7xl lg:tex",
+  "fcpMs": 3576,
+  "cls": 0.006,
+  "dclMs": 3309,
+  "loadMs": 3317,
+  "ttiApproxMs": 3545,
+  "longTasks": 3,
+  "jsKB": 207,
+  "jsFiles": 6,
+  "totalKB": 590,
+  "requests": 21,
+  "heavy": [
+   {
+    "kb": 97,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/destination-bora-DBBzpAdU.jpg"
+   },
+   {
+    "kb": 78,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/destination-kyoto-Zr88PkOd.jpg"
+   },
+   {
+    "kb": 66,
+    "type": "Font",
+    "status": 200,
+    "url": "fonts.gstatic.com/s/fraunces/v38/6NU78FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0KxC9TeA.woff2"
+   },
+   {
+    "kb": 65,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/hero-santorini-960-ZGTLr018.jpg"
+   },
+   {
+    "kb": 56,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-core-BY7LFO8Z.js"
+   },
+   {
+    "kb": 52,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-supabase-ByMszko7.js"
+   },
+   {
+    "kb": 47,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/index-BnriLFFh.js"
+   },
+   {
+    "kb": 34,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-radix-CK9UyZMh.js"
+   },
+   {
+    "kb": 26,
+    "type": "Image",
+    "status": 200,
+    "url": "traveliatos.life/assets/iatos-logo-320-CDnlEvkM.png"
+   },
+   {
+    "kb": 25,
+    "type": "Font",
+    "status": 200,
+    "url": "fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggexSg.woff2"
+   }
+  ],
+  "shots": [
+   {
+    "t": 1000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 2500,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 4000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 6000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 9000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   },
+   {
+    "t": 13000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1594
+   }
+  ],
+  "guard": [],
+  "count": {
+   "buscarVideo": 0,
+   "pexels": 0,
+   "s429": []
+  }
+ },
+ "dashboard": {
+  "lcpMs": 4892,
+  "lcpEl": "IMG.w-full h-full object-cover group-hover:s",
+  "fcpMs": 4740,
+  "cls": 0.155,
+  "dclMs": 3095,
+  "loadMs": 3100,
+  "ttiApproxMs": 7928,
+  "longTasks": 5,
+  "jsKB": 207,
+  "jsFiles": 36,
+  "totalKB": 934,
+  "requests": 100,
+  "heavy": [
+   {
+    "kb": 364,
+    "type": "Image",
+    "status": 200,
+    "url": "lh3.googleusercontent.com/grass-cs/AABkmLesQpU3kb-JSQXs51sFhhZlaHu0LS-o0dooWNpHmdHLldIpjXTCOyifIm4cm"
+   },
+   {
+    "kb": 66,
+    "type": "Font",
+    "status": 200,
+    "url": "fonts.gstatic.com/s/fraunces/v38/6NU78FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0KxC9TeA.woff2"
+   },
+   {
+    "kb": 56,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-core-BY7LFO8Z.js"
+   },
+   {
+    "kb": 52,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-supabase-ByMszko7.js"
+   },
+   {
+    "kb": 48,
+    "type": "Image",
+    "status": 200,
+    "url": "images.unsplash.com/photo-1551918120-9739cb430c6d"
+   },
+   {
+    "kb": 47,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/index-BnriLFFh.js"
+   },
+   {
+    "kb": 33,
+    "type": "Script",
+    "status": 200,
+    "url": "traveliatos.life/assets/vendor-radix-CK9UyZMh.js"
+   },
+   {
+    "kb": 32,
+    "type": "Image",
+    "status": 200,
+    "url": "images.unsplash.com/photo-1526304640581-d334cdbbf45e"
+   },
+   {
+    "kb": 26,
+    "type": "Image",
+    "status": 200,
+    "url": "images.unsplash.com/photo-1488646953014-85cb44e25828"
+   },
+   {
+    "kb": 25,
+    "type": "Font",
+    "status": 200,
+    "url": "fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggexSg.woff2"
+   }
+  ],
+  "shots": [
+   {
+    "t": 1000,
+    "pulse": 0,
+    "spin": 1,
+    "text": 0
+   },
+   {
+    "t": 2500,
+    "pulse": 0,
+    "spin": 1,
+    "text": 0
+   },
+   {
+    "t": 4000,
+    "pulse": 0,
+    "spin": 1,
+    "text": 0
+   },
+   {
+    "t": 6000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1385
+   },
+   {
+    "t": 9000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1385
+   },
+   {
+    "t": 13000,
+    "pulse": 0,
+    "spin": 0,
+    "text": 1385
+   }
+  ],
+  "guard": [
+   "buscar-video GET",
+   "recomendar-destinos POST"
+  ],
+  "count": {
+   "buscarVideo": 2,
+   "pexels": 0,
+   "s429": [
+    "buscar-video"
+   ]
+  }
+ }
+}
