@@ -35,7 +35,7 @@ const corsHeaders = {
 };
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-const ANTHROPIC_MODEL = (Deno.env.get("ANTHROPIC_MODEL") ?? "claude-3-5-sonnet-20241022").trim();
+const ANTHROPIC_MODEL = (Deno.env.get("ANTHROPIC_MODEL") ?? "").trim();
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
 const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
@@ -66,15 +66,11 @@ async function getUsdMxnRate(): Promise<number> {
   }
 }
 
+// Los modelos Claude 3.x y Sonnet 4 ya están retirados (el chequeo diario lo detectó en oct 2026).
+const CURRENT_CLAUDE_MODEL = "claude-sonnet-5-5";
 const CLAUDE_MODEL_FALLBACKS = [
   ANTHROPIC_MODEL,
-  "claude-sonnet-4-20250514",
-  "claude-3-7-sonnet-20250219",
-  "claude-3-5-sonnet-latest",
-  "claude-3-5-sonnet-20241022",
-  "claude-3-5-sonnet-20240620",
-  "claude-3-sonnet-20240229",
-  "claude-3-haiku-20240307",
+  CURRENT_CLAUDE_MODEL,
 ].filter((model, index, arr) => model && arr.indexOf(model) === index);
 
 
@@ -525,14 +521,23 @@ async function callClaudeWithFallback(payload: Record<string, unknown>) {
   let lastStatus = 0;
 
   for (const model of CLAUDE_MODEL_FALLBACKS) {
+    const current = model === CURRENT_CLAUDE_MODEL;
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "x-api-key": ANTHROPIC_API_KEY!,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
+        // Si Claude Sonnet 5.5 declina por política, el servidor reintenta en otro modelo.
+        ...(current ? { "anthropic-beta": "server-side-fallback-2026-07-01" } : {}),
       },
-      body: JSON.stringify({ ...payload, model }),
+      body: JSON.stringify({
+        ...payload,
+        model,
+        // Sonnet 5.5: sin razonamiento extendido para no alargar la espera; respuesta en una sola
+        // llamada a la herramienta. Solo se manda a ese modelo (otros rechazan estos campos).
+        ...(current ? { thinking: { type: "between_tools" }, output_config: { effort: "medium" }, fallbacks: "default" } : {}),
+      }),
     });
 
     if (res.ok) {
@@ -950,12 +955,13 @@ REGLAS DE FUENTES:
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
+    // Los modelos actuales no aceptan forzar la herramienta ni temperature: se pide en el prompt y,
+    // si no llega la llamada a la herramienta, se usa el análisis de respaldo (Gemini) de abajo.
     const claudePayload = {
-      max_tokens: 8000,
-      temperature: 0,
-      system: systemFinal,
+      max_tokens: 16000,
+      system: `${systemFinal}\n\nEntrega SIEMPRE el resultado llamando a la herramienta "entregar_analisis_viaje", sin texto adicional.`,
       tools: [TOOL_SCHEMA],
-      tool_choice: { type: "tool", name: "entregar_analisis_viaje" },
+      tool_choice: { type: "auto" },
       messages: [{ role: "user", content: userPrompt }],
     };
     const claudeRes = await callClaudeWithFallback(claudePayload);

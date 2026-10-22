@@ -46,7 +46,7 @@ export function runChecks(k: Keys, f: Fetch = fetch): Promise<CheckResult[]> {
       const r = await withTimeout(f, "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${k.geminiKey}` },
-        body: JSON.stringify({ model: "gemini-2.5-flash-lite", messages: [{ role: "user", content: "Responde solo: OK" }] }),
+        body: JSON.stringify({ model: "gemini-2.5-flash", messages: [{ role: "user", content: "Responde solo: OK" }] }),
       });
       return r.ok ? { ok: true } : { ok: false, detail: `HTTP ${r.status}` };
     }),
@@ -62,7 +62,7 @@ export function runChecks(k: Keys, f: Fetch = fetch): Promise<CheckResult[]> {
     }),
     timed("Análisis de viaje (Claude)", async () => {
       if (!k.anthropicKey) return { ok: false, detail: "Falta ANTHROPIC_API_KEY" };
-      const model = k.anthropicModel || "claude-sonnet-4-20250514";
+      const model = k.anthropicModel || "claude-sonnet-5-5";
       const r = await withTimeout(f, "https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": k.anthropicKey, "anthropic-version": "2023-06-01" },
