@@ -1,0 +1,227 @@
+{
+ "when": "2026-10-22T15:59:01.968Z",
+ "base": "http://127.0.0.1:8095",
+ "results": [
+  {
+   "name": "portada visible (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "portada personal con nombre y nota honesta (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en portada (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "índice con piezas (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "fuentes y acciones del artículo (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en artículo (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en mi-edicion (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en briefing (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en oportunidades (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en biblioteca (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "World Brief con breves fechados y con fuente (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "Flight Edition con el viaje a CDMX (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin errores de JavaScript (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "panel: licencias con su estado (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "panel: vista previa marcada como demostración (390)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "portada visible (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "portada personal con nombre y nota honesta (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en portada (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "índice con piezas (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "doble página en escritorio (foto | título)",
+   "ok": true,
+   "detail": "columnas=2"
+  },
+  {
+   "name": "fuentes y acciones del artículo (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en artículo (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en mi-edicion (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en briefing (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en oportunidades (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin scroll horizontal en biblioteca (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "World Brief con breves fechados y con fuente (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "Flight Edition con el viaje a CDMX (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "sin errores de JavaScript (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "panel: licencias con su estado (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "panel: vista previa marcada como demostración (1440)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "Service Worker activo y controlando la página",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "copia offline guardada (artículos + imágenes)",
+   "ok": true,
+   "detail": "Lista para modo avión: 14 piezas, 11 imágenes, 3690 KB en este dispositivo"
+  },
+  {
+   "name": "Cache Storage contiene la edición",
+   "ok": true,
+   "detail": "entradas=13"
+  },
+  {
+   "name": "sin red no se descarga ni se reserva (botones deshabilitados)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "modo avión: la app abre la copia sin red",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "modo avión: índice de la copia",
+   "ok": true,
+   "detail": "piezas=14"
+  },
+  {
+   "name": "modo avión: las fotos se ven (blob: local, naturalWidth > 0)",
+   "ok": true,
+   "detail": "[{\"src\":\"blob:\",\"w\":1600},{\"src\":\"blob:\",\"w\":1600},{\"src\":\"blob:\",\"w\":1600}]"
+  },
+  {
+   "name": "modo avión: From Page to Experience deshabilitado (no reservar sin red)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "modo avión: fecha de generación visible",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "modo avión: recargar la app sin red sigue funcionando",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "al volver la red: aviso de conexión",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "cerrar sesión borra las ediciones guardadas del dispositivo",
+   "ok": true,
+   "detail": "entradas=0"
+  },
+  {
+   "name": "sin errores de JavaScript en el piloto offline",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "rpc_calls": 90
+}

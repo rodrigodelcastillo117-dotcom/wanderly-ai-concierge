@@ -88,7 +88,8 @@
 @media (min-width: 1024px) {
   /* Doble página: foto a sangre a la izquierda, título a la derecha. */
   .ped-opener.has-photo { grid-template-columns: 1.08fr 1fr; min-height: min(88vh, 860px); }
-  .ped-opener.has-photo .ped-opener-photo img { height: 100%; aspect-ratio: auto; }
+  .ped-opener.has-photo .ped-opener-photo, .ped-opener.has-photo .ped-opener-photo > div { height: 100%; }
+  .ped-opener.has-photo .ped-opener-photo img { height: 100%; min-height: min(88vh, 860px); aspect-ratio: auto; }
   .ped-opener.has-photo .ped-opener-text { display: flex; flex-direction: column; justify-content: flex-end; padding: 3rem clamp(2rem, 4vw, 5rem) 3rem; border-left: 1px solid var(--ped-line); }
   .ped-opener-text { padding: 3rem 0 1rem; }
 }

@@ -649,7 +649,11 @@ SELECT pt.ok('P54 authenticated solo ejecuta prive_require, prive_status y las R
       AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
       AND p.proname NOT IN ('prive_teaser','prive_home','prive_destination','prive_universe','prive_experience','prive_search',
         'prive_for_you','prive_confirm_adult','prive_save','prive_saved','prive_add_to_trip','prive_track','prive_request_create',
-        'prive_request_cancel','prive_my_requests','prive_request_transition','admin_prive_requests','admin_prive_metrics')) = 'prive_require,prive_status',
+        'prive_request_cancel','prive_my_requests','prive_request_transition','admin_prive_requests','admin_prive_metrics',
+        -- THE PRIVATE EDITION (equipo edition): lectura del miembro; cada una empieza con prive_require(_ps)
+        -- (lo comprueba E43 en supabase/tests/edition/edition.sql).
+        'prive_edition_library','prive_edition_issue','prive_edition_article','prive_edition_world_brief','prive_edition_prefs',
+        'prive_edition_prefs_save','prive_edition_save','prive_edition_saved','prive_edition_log_download')) = 'prive_require,prive_status',
   (SELECT string_agg(p.proname, ',' ORDER BY p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')));
 SELECT pt.ok('P55 todas las funciones Privé SECURITY DEFINER tienen search_path fijo',

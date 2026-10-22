@@ -255,3 +255,12 @@ SELECT et.ok('E41 retirar el número completo deja solo avisos',
 SELECT et.ok('E42 ninguna tabla de contenido tiene columna user_id (borrar a un editor no borra artículos)',
   NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'user_id'
               AND table_name IN ('edition_sources','edition_images','edition_issues','edition_articles','edition_article_sources')));
+SELECT et.ok('E43 toda RPC prive_edition_* empieza con v_uid := public.prive_require(_ps) (sin sesión Privé no sale nada)',
+  (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_edition\_%') = 9
+  AND NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_edition\_%'
+    AND (regexp_replace(p.prosrc, '^\s*DECLARE[^;]*(;[^;]*)*?BEGIN\s*', '', 's') !~ '^v_uid := public\.prive_require\(_ps\);' OR NOT p.prosecdef
+         OR NOT EXISTS (SELECT 1 FROM unnest(p.proconfig) c WHERE c LIKE 'search_path=%'))));
+SELECT et.ok('E44 funciones del panel: no las ejecuta anon; las de edición exigen admins por dentro',
+  NOT has_function_privilege('anon', 'public.edition_admin_overview()', 'EXECUTE')
+  AND (SELECT bool_and(p.prosrc LIKE '%edition_admin_require()%') FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname LIKE 'edition\_admin\_%' AND p.proname <> 'edition_admin_require'));

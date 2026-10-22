@@ -36,7 +36,7 @@ function Frame() {
         </Link>
         <Link to="/prive/edicion" className="text-center leading-tight">
           <span className="ped-masthead block text-[0.95rem] sm:text-lg text-[color:var(--ped-champagne)]">{T.brand}</span>
-          <span className="block text-[0.7rem] italic text-[color:var(--ped-muted)]" style={{ fontFamily: "var(--ped-display)" }}>{T.taglineSub}</span>
+          <span className="hidden sm:block text-[0.7rem] italic text-[color:var(--ped-muted)]" style={{ fontFamily: "var(--ped-display)" }}>{T.taglineSub}</span>
         </Link>
         <div role="group" aria-label={lang === "en" ? "Language" : "Idioma"} className="flex rounded-full border border-[color:var(--ped-line)]">
           {(["es", "en"] as const).map((l) => (
