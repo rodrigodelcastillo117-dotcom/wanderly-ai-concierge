@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchFriendProfiles } from "@/lib/friendProfiles";
 import { Users, Heart } from "lucide-react";
 
 type Amigo = {
@@ -16,12 +17,10 @@ export const CompatibilityPanel = () => {
 
   useEffect(() => {
     (async () => {
-      const { data: rows } = await supabase.from("mis_amigos" as any).select("amigo_id");
-      const ids = ((rows ?? []) as any[]).map(r => r.amigo_id);
-      if (!ids.length) { setLoading(false); return; }
-      const { data: profs } = await supabase
-        .from("profiles").select("id, full_name, avatar_url").in("id", ids);
-      const base: Amigo[] = (profs ?? []).map((p: any) => ({
+      // Solo nombre y avatar de amistades aceptadas (RPC friend_profiles, F-10).
+      const profs = await fetchFriendProfiles(supabase);
+      if (!profs.length) { setLoading(false); return; }
+      const base: Amigo[] = profs.map((p) => ({
         amigo_id: p.id, full_name: p.full_name, avatar_url: p.avatar_url, score: null, detalles: [],
       }));
       setAmigos(base);

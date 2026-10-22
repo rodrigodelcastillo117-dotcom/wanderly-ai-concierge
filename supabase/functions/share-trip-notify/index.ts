@@ -1,4 +1,11 @@
+// Avisa en la campana a amigos aceptados que alguien les compartió un viaje.
+// F-19: el texto lo arma el servidor con una plantilla fija (template.ts); el cliente solo manda
+// datos acotados (destinos, fechas, ruta interna). Límite de frecuencia y respuestas con códigos.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { safeOrigin } from "../_shared/origin.ts";
+import { redactPii } from "../_shared/redact.ts";
+import { buildShareNotification, parseShareBody } from "./template.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,12 +17,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-type Body = {
-  friend_ids: string[];
-  title?: string;
-  message: string;
-  url?: string;
-};
+const json = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -27,59 +30,40 @@ Deno.serve(async (req) => {
     });
     const { data: userData, error: userErr } = await supaUser.auth.getUser();
     if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "invalid_user" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json(401, { code: "UNAUTHENTICATED", error: "invalid_user" });
     }
     const senderId = userData.user.id;
 
-    const body = (await req.json()) as Body;
-    const friendIds = (body.friend_ids ?? []).filter(Boolean);
-    if (!friendIds.length || !body.message) {
-      return new Response(JSON.stringify({ error: "missing_fields" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Cada llamada escribe en la campana de hasta 20 personas: límite contra spam.
+    const rl = await enforceRateLimit(req, "share-trip-notify", senderId, { perMinute: 5, perHour: 30, ipPerMinute: 15 });
+    if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
+
+    const input = parseShareBody(await req.json().catch(() => null));
+    if (!input) return json(400, { code: "INVALID_REQUEST", error: "missing_fields" });
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Verify friendship — sender must have each recipient in mis_amigos view
+    // Solo amigos aceptados del remitente (mis_amigos con SU sesión; ya no se pueden falsificar).
     const { data: misAmigos } = await supaUser.from("mis_amigos").select("amigo_id");
-    const allowed = new Set((misAmigos ?? []).map((r: any) => r.amigo_id));
-    const validIds = friendIds.filter((id) => allowed.has(id));
-    if (!validIds.length) {
-      return new Response(JSON.stringify({ error: "no_valid_friends" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const allowed = new Set((misAmigos ?? []).map((r: { amigo_id: string }) => r.amigo_id));
+    const validIds = input.friendIds.filter((id) => allowed.has(id));
+    if (!validIds.length) return json(403, { code: "FORBIDDEN", error: "no_valid_friends" });
 
-    // Get sender name for the title
+    // Nombre del remitente para el título (su propio perfil).
     const { data: senderProfile } = await admin
       .from("profiles").select("full_name, username").eq("id", senderId).maybeSingle();
-    const senderName =
-      (senderProfile as any)?.full_name ||
-      (senderProfile as any)?.username ||
-      "Un amigo";
+    const senderName = (senderProfile as { full_name?: string | null; username?: string | null } | null)?.full_name
+      || (senderProfile as { username?: string | null } | null)?.username
+      || "Un amigo";
 
-    const title = body.title ?? `${senderName} te compartió un viaje ✈️`;
-    const fullBody = body.url ? `${body.message}\n${body.url}` : body.message;
-
-    const rows = validIds.map((uid) => ({
-      user_id: uid,
-      type: "social",
-      title,
-      body: fullBody,
-      read: false,
-    }));
+    const { title, body } = buildShareNotification(senderName, input, safeOrigin(req.headers.get("origin")));
+    const rows = validIds.map((uid) => ({ user_id: uid, type: "social", title, body, read: false }));
     const { error } = await admin.from("notifications").insert(rows);
     if (error) throw error;
 
-    return new Response(JSON.stringify({ ok: true, sent: rows.length }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json(200, { ok: true, sent: rows.length });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("share-trip-notify error", redactPii((e as Error)?.message ?? e));
+    return json(500, { code: "INTERNAL_ERROR", error: "internal_error" });
   }
 });

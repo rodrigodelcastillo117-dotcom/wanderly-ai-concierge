@@ -1,23 +1,30 @@
 // Rate limiting anti-abuso. Complementa (no reemplaza) las cuotas gratuitas de usage_limits:
 // usage_limits controla el modelo de negocio (free vs PRO); esto controla el volumen por minuto/hora
 // incluso para usuarios PRO, y por IP para frenar abuso desde una misma red.
+//
+// - El conteo lo hace check_rate_limit en una sola sentencia con candado por sujeto+cubeta
+//   (migración 20261022141000): dos peticiones simultáneas ya no pasan las dos.
+// - La IP sale de encabezados de la plataforma, no del primer X-Forwarded-For (ver clientIp).
+// - Si la verificación falla, las cubetas de APIs de pago se niegan (503) y las baratas siguen.
+// La lógica pura vive en rate-limit-core.ts (probada en src/test/rateLimit.test.ts).
 import { adminClient } from "./entitlements.ts";
+import {
+  clientIp as clientIpFromHeaders,
+  evaluateRateLimit,
+  type HitFn,
+  type LimitOptions,
+  rateLimitBody,
+  type RateLimitVerdict,
+} from "./rate-limit-core.ts";
 
-export type RateRule = { limit: number; windowSeconds: number };
-
-export type RateLimitVerdict = {
-  allowed: boolean;
-  retryAfter: number;
-  scope?: "user" | "ip";
-};
+export type { RateLimitVerdict, RateRule } from "./rate-limit-core.ts";
+export { isPaidBucket, PAID_BUCKETS } from "./rate-limit-core.ts";
 
 export function clientIp(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-for") ?? "";
-  const ip = fwd.split(",")[0]?.trim();
-  return ip || req.headers.get("cf-connecting-ip") || "unknown";
+  return clientIpFromHeaders(req.headers);
 }
 
-async function hit(subject: string, bucket: string, rule: RateRule): Promise<boolean> {
+const hit: HitFn = async (subject, bucket, rule) => {
   try {
     const { data, error } = await adminClient().rpc("check_rate_limit", {
       _subject: subject,
@@ -27,64 +34,40 @@ async function hit(subject: string, bucket: string, rule: RateRule): Promise<boo
     });
     if (error) {
       console.error("check_rate_limit error:", error.message);
-      return true; // fail-open ante fallo de infraestructura
+      return null;
     }
-    return Boolean((data as { allowed?: boolean } | null)?.allowed ?? true);
+    const allowed = (data as { allowed?: unknown } | null)?.allowed;
+    return typeof allowed === "boolean" ? allowed : null;
   } catch (e) {
     console.error("check_rate_limit exception:", (e as Error).message);
-    return true;
+    return null;
   }
-}
+};
 
 /**
  * Verifica límites por usuario y (opcionalmente) por IP.
  * Ejemplo: enforceRateLimit(req, "concierge-chat", userId, { perMinute: 10, perHour: 120, ipPerMinute: 30 })
  */
-export async function enforceRateLimit(
+export function enforceRateLimit(
   req: Request,
   bucket: string,
   userId: string | null,
-  opts: { perMinute?: number; perHour?: number; ipPerMinute?: number } = {},
+  opts: LimitOptions = {},
 ): Promise<RateLimitVerdict> {
-  const { perMinute = 10, perHour = 100, ipPerMinute = 40 } = opts;
-
-  if (userId) {
-    if (!(await hit(`user:${userId}`, `${bucket}:m`, { limit: perMinute, windowSeconds: 60 }))) {
-      return { allowed: false, retryAfter: 60, scope: "user" };
-    }
-    if (!(await hit(`user:${userId}`, `${bucket}:h`, { limit: perHour, windowSeconds: 3600 }))) {
-      return { allowed: false, retryAfter: 900, scope: "user" };
-    }
-  }
-
-  const ip = clientIp(req);
-  if (ip !== "unknown") {
-    if (!(await hit(`ip:${ip}`, `${bucket}:m`, { limit: ipPerMinute, windowSeconds: 60 }))) {
-      return { allowed: false, retryAfter: 60, scope: "ip" };
-    }
-  }
-
-  return { allowed: true, retryAfter: 0 };
+  return evaluateRateLimit(hit, bucket, userId, clientIp(req), opts);
 }
 
 export function rateLimitResponse(
   verdict: RateLimitVerdict,
   corsHeaders: Record<string, string> = {},
 ) {
-  return new Response(
-    JSON.stringify({
-      error: "rate_limited",
-      scope: verdict.scope ?? "user",
-      retry_after: verdict.retryAfter,
-      message: "Demasiadas solicitudes en poco tiempo. Espera un momento e inténtalo de nuevo.",
-    }),
-    {
-      status: 429,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-        "Retry-After": String(verdict.retryAfter),
-      },
+  const { status, body } = rateLimitBody(verdict);
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "Retry-After": String(verdict.retryAfter),
     },
-  );
+  });
 }
