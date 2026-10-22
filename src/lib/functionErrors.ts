@@ -1,21 +1,41 @@
-// Traduce los errores de supabase.functions.invoke a un mensaje claro para el usuario.
-// supabase-js solo dice "Edge Function returned a non-2xx status code"; el cuerpo real (por ejemplo
-// el 402 de "agotaste tu análisis gratis" con su upgrade_url) viene en error.context, que es el
-// Response de fetch. Aquí lo leemos para mostrar el mensaje del servidor y, si toca, el botón a PRO.
+// Traduce los errores de supabase.functions.invoke a algo claro para el usuario.
+// supabase-js solo dice "Edge Function returned a non-2xx status code"; el cuerpo real viene en
+// error.context (el Response de fetch). Aquí lo leemos y decidimos por `code` (contrato estable de
+// supabase/functions/_shared/quota.ts), nunca por el texto técnico: los mensajes internos
+// (errores de base, de proveedores, stack traces) jamás llegan al usuario.
+//   FREE_LIMIT_REACHED   → diálogo de límite (FreeLimitDialog), con o sin oferta de PRO
+//   SERVICE_UNAVAILABLE  → "intenta de nuevo", sin venta de PRO
+//   UNAUTHENTICATED      → sesión expirada
+//   ANALYSIS_IN_PROGRESS → "ya está en proceso"
 import { toast } from "sonner";
+import { openFreeLimitDialog } from "@/lib/freeLimitStore";
 
 export const PRO_PATH = "/dashboard/pro";
+
+export type QuotaName = "concierge_monthly" | "trip_analysis_once" | "trip_analysis_monthly";
+
+export type FreeLimitInfo = {
+  quota: QuotaName;
+  limit: number | null;
+  used: number | null;
+  renewsAt: string | null;
+  upgradeAvailable: boolean;
+};
 
 export type FunctionErrorInfo = {
   status: number | null;
   code: string | null;
   message: string;
-  /** Ruta interna a la que mandar al usuario para activar PRO (solo en 402). */
+  /** Ruta interna para activar PRO (solo si el límite es del plan gratuito). */
   upgradeUrl: string | null;
   needsUpgrade: boolean;
+  /** Presente solo con FREE_LIMIT_REACHED. */
+  freeLimit: FreeLimitInfo | null;
 };
 
 const GENERIC_SUPABASE = /edge function returned a non-2xx status code|failed to send a request to the edge function|relay error/i;
+
+const QUOTAS: QuotaName[] = ["concierge_monthly", "trip_analysis_once", "trip_analysis_monthly"];
 
 type ResponseLike = { status?: number; clone?: () => ResponseLike; json?: () => Promise<unknown>; text?: () => Promise<string> };
 
@@ -38,65 +58,95 @@ async function readBody(ctx: ResponseLike): Promise<Record<string, unknown> | nu
   return null;
 }
 
-// Un código tipo "checkout_failed" no se le muestra al usuario; una frase ("Faltan datos requeridos") sí.
-const isHumanText = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0 && /\s/.test(v.trim());
+export function formatRenewal(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  // En UTC: la cuota se renueva a las 00:00 UTC del día 1.
+  return d.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
 
-// Solo rutas internas: el cuerpo viene del servidor, pero no queremos abrir redirecciones externas.
-const internalPath = (v: unknown): string | null =>
-  typeof v === "string" && v.startsWith("/") && !v.startsWith("//") ? v : null;
+/** Texto del aviso de límite. Mismo texto que el servidor (supabase/functions/_shared/quota.ts). */
+export function freeLimitCopy(info: FreeLimitInfo): string {
+  const fecha = formatRenewal(info.renewsAt) ?? "próximo mes";
+  // Un plan de pago que llega a su límite no recibe oferta de "mejorar".
+  if (!info.upgradeAvailable) return `Llegaste al límite mensual de tu plan; se renueva el ${fecha}.`;
+  const pro = "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, sujeto a las condiciones vigentes.";
+  if (info.quota === "concierge_monthly") {
+    return `Has utilizado tus mensajes gratuitos de Iato de este mes. Se renuevan el ${fecha}. ${pro}`;
+  }
+  // El análisis gratuito es de una sola vez: nunca se promete renovación.
+  return `Ya usaste tu análisis gratuito de viaje (es de una sola vez). ${pro}`;
+}
+
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+function parseFreeLimit(body: Record<string, unknown> | null, status: number | null): FreeLimitInfo | null {
+  if (body?.code === "FREE_LIMIT_REACHED") {
+    const quota = QUOTAS.includes(body.quota as QuotaName) ? (body.quota as QuotaName) : "trip_analysis_once";
+    return {
+      quota,
+      limit: num(body.limit),
+      used: num(body.used),
+      renewsAt: quota === "trip_analysis_once" ? null : typeof body.renews_at === "string" ? body.renews_at : null,
+      upgradeAvailable: body.upgrade_available !== false,
+    };
+  }
+  // 402 de una versión anterior del servidor (upgrade_required): mismo diálogo.
+  if (status === 402 || body?.error === "upgrade_required") {
+    const quota: QuotaName = body?.kind === "concierge" ? "concierge_monthly" : "trip_analysis_once";
+    return { quota, limit: null, used: null, renewsAt: null, upgradeAvailable: true };
+  }
+  return null;
+}
+
+// Mensajes del servidor que sí se muestran: los de códigos del contrato (texto curado en
+// _shared/quota.ts) y el `message` de respuestas de negocio (409 de checkout, 429 de ritmo).
+// Nunca `error` ni `detail`, que pueden traer texto técnico.
+const SAFE_CODES = new Set(["SERVICE_UNAVAILABLE", "ANALYSIS_IN_PROGRESS", "INVALID_REQUEST"]);
+const isText = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
 
 export async function readFunctionError(error: unknown, fallback: string): Promise<FunctionErrorInfo> {
   const err = (error ?? {}) as { message?: unknown; name?: unknown; context?: unknown };
   const ctx = err.context as ResponseLike | undefined;
   const status = ctx && typeof ctx.status === "number" ? ctx.status : null;
   const body = status !== null && ctx ? await readBody(ctx) : null;
-  const code = typeof body?.error === "string" ? body.error : null;
+  const code = typeof body?.code === "string" ? body.code : null;
 
-  if (status === 402 || code === "upgrade_required") {
+  const freeLimit = parseFreeLimit(body, status);
+  if (freeLimit) {
     return {
       status,
-      code,
-      message: isHumanText(body?.message)
-        ? body!.message as string
-        : "Llegaste al límite del plan gratuito. Activa IATOS PRO para seguir sin límites.",
-      upgradeUrl: internalPath(body?.upgrade_url) ?? PRO_PATH,
-      needsUpgrade: true,
+      code: "FREE_LIMIT_REACHED",
+      message: freeLimitCopy(freeLimit),
+      upgradeUrl: freeLimit.upgradeAvailable ? PRO_PATH : null,
+      needsUpgrade: freeLimit.upgradeAvailable,
+      freeLimit,
     };
   }
 
   let message: string;
-  if (isHumanText(body?.message)) message = body!.message as string;
-  else if (isHumanText(body?.error)) message = body!.error as string;
-  else if (status === 429) message = "Demasiadas solicitudes en poco tiempo. Espera un momento e inténtalo de nuevo.";
-  else if (status === 401) message = "Tu sesión expiró. Vuelve a iniciar sesión.";
+  if (status === 401 || code === "UNAUTHENTICATED") message = "Tu sesión expiró. Vuelve a iniciar sesión.";
+  else if (code && SAFE_CODES.has(code) && isText(body?.message)) message = body!.message as string;
+  else if (status === 503 || code === "SERVICE_UNAVAILABLE") message = "El servicio no está disponible en este momento. Intenta de nuevo en unos minutos.";
+  else if (status === 429) message = isText(body?.message) ? (body!.message as string) : "Demasiadas solicitudes en poco tiempo. Espera un momento e inténtalo de nuevo.";
+  else if (status === 409 && isText(body?.message)) message = body!.message as string;
   else if (err.name === "FunctionsFetchError") message = "No pudimos conectar con el servidor. Revisa tu internet e intenta de nuevo.";
-  else if (typeof err.message === "string" && err.message && !GENERIC_SUPABASE.test(err.message)) message = err.message;
+  // Errores lanzados por la propia pantalla (sin respuesta HTTP), p. ej. "Sin resultado".
+  else if (status === null && isText(err.message) && !GENERIC_SUPABASE.test(err.message)) message = err.message;
   else message = fallback;
 
-  return { status, code, message, upgradeUrl: null, needsUpgrade: false };
+  return { status, code, message, upgradeUrl: null, needsUpgrade: false, freeLimit: null };
 }
 
 /**
- * Muestra el error de una edge function como toast. Si es un 402 (cuota o PRO), agrega el botón
- * "Ver IATOS PRO". Devuelve la info por si la pantalla quiere reaccionar (p. ej. no reintentar).
+ * Muestra el error de una edge function. FREE_LIMIT_REACHED abre el diálogo de límite ("Conocer
+ * IATOS PRO" solo en el plan gratuito); lo demás, un toast simple sin venta de PRO. Devuelve la info
+ * por si la pantalla quiere reaccionar (p. ej. no agregar "hubo un tropiezo" al chat).
  */
-export async function toastFunctionError(
-  error: unknown,
-  fallback: string,
-  navigate?: (path: string) => void,
-): Promise<FunctionErrorInfo> {
+export async function toastFunctionError(error: unknown, fallback: string): Promise<FunctionErrorInfo> {
   const info = await readFunctionError(error, fallback);
-  if (info.needsUpgrade) {
-    const url = info.upgradeUrl ?? PRO_PATH;
-    toast.error(info.message, {
-      duration: 12000,
-      action: {
-        label: "Ver IATOS PRO",
-        onClick: () => (navigate ? navigate(url) : window.location.assign(url)),
-      },
-    });
-  } else {
-    toast.error(info.message);
-  }
+  if (info.freeLimit) openFreeLimitDialog(info.freeLimit);
+  else toast.error(info.message);
   return info;
 }

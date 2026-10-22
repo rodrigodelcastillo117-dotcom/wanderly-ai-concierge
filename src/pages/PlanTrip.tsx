@@ -10,6 +10,7 @@ import { track } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { toastFunctionError } from "@/lib/functionErrors";
+import { clearRequestKey, getRequestKey } from "@/lib/requestKey";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
 import { parseTripFallback } from "@/lib/parseTripFallback";
@@ -112,7 +113,9 @@ const PlanTrip = () => {
     setDestino(args.destino);
     setAnalizando(true);
     try {
-      const { data, error } = await supabase.functions.invoke("analizar-viaje", { body: args });
+      // Misma llave al reintentar o recargar: si el viaje ya se guardó, no se cobra otro análisis.
+      const request_key = getRequestKey("analizar-viaje", args);
+      const { data, error } = await supabase.functions.invoke("analizar-viaje", { body: { ...args, request_key } });
       if (error) throw error;
       if (!data?.trip?.id) throw new Error("Sin resultado");
       track("trip_quoted", {
@@ -120,11 +123,12 @@ const PlanTrip = () => {
         viajeros: args.num_viajeros,
         total_estimado: data.trip.total_estimado ?? null,
       });
+      clearRequestKey("analizar-viaje");
       navigate(`/dashboard/viajes/${data.trip.id}`);
     } catch (e: any) {
       console.error(e);
-      // 402 = ya usó su análisis gratis: mensaje claro con botón a PRO (no "non-2xx status code").
-      await toastFunctionError(e, "No pudimos generar el análisis. Intenta de nuevo.", navigate);
+      // Límite del plan → diálogo con "Conocer IATOS PRO"; fallo técnico → "intenta de nuevo".
+      await toastFunctionError(e, "No pudimos generar el análisis. Intenta de nuevo.");
       setAnalizando(false);
     }
   };
