@@ -83,7 +83,7 @@ describe("/prive/invitacion", () => {
     await waitFor(() => expect(window.location.hash).toBe(""));
     expect(window.location.href).not.toContain(TOKEN);
     expect(sessionStorage.getItem(PRIVE_INVITE_TOKEN_KEY)).toBe(TOKEN);
-    expect(localStorage.length).toBe(0);
+    expect(Object.keys({ ...localStorage }).filter((k) => k !== PRIVE_SESSION_KEY)).toEqual([]);
     // La revelación no existe en el DOM antes de que el servidor acepte.
     expect(screen.queryByText("YOUR PRIVÉ MEMBERSHIP HAS BEEN UNLOCKED.")).toBeNull();
     fireEvent.click(await goToEnvelope());
@@ -154,11 +154,11 @@ describe("/prive/invitacion", () => {
     expect(out).toHaveTextContent(PASSPHRASE);
     expect(screen.getByText(/Solo la verás esta vez/)).toBeInTheDocument();
     // La primera sesión la abrió el servidor; la frase no queda en ningún almacenamiento.
-    await waitFor(() => expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).not.toBeNull());
+    await waitFor(() => expect(localStorage.getItem(PRIVE_SESSION_KEY)).not.toBeNull());
     expect(api.access).not.toHaveBeenCalledWith("unlock", expect.anything());
     const everything = JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage });
     expect(everything).not.toContain(PASSPHRASE);
-    expect(JSON.parse(sessionStorage.getItem(PRIVE_SESSION_KEY)!).token).toBe(SESSION_TOKEN);
+    expect(JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!).token).toBe(SESSION_TOKEN);
     fireEvent.click(screen.getByRole("button", { name: "La guardé" }));
     const card = await screen.findByTestId("prive-member-card");
     // Ya no está en pantalla ni en el DOM.
@@ -199,7 +199,7 @@ describe("/prive/invitacion", () => {
     fireEvent.click(screen.getByRole("button", { name: "Crear mi contraseña" }));
     expect(await screen.findByTestId("prive-member-card")).toBeInTheDocument();
     expect(api.access).toHaveBeenCalledWith("unlock", { password: "faro lento sobre bahía 1987" });
-    expect(JSON.parse(sessionStorage.getItem(PRIVE_SESSION_KEY)!).token).toBe(SESSION_TOKEN);
+    expect(JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!).token).toBe(SESSION_TOKEN);
     expect(JSON.stringify({ ...sessionStorage }) + JSON.stringify({ ...localStorage })).not.toContain("faro lento");
   });
 
@@ -227,7 +227,7 @@ describe("/prive/restablecer", () => {
   it("con token (#t=): lo quita de la URL, guarda la nueva y cierra la sesión local", async () => {
     state.status = activeStatus();
     happyServer();
-    sessionStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: SESSION_TOKEN, expiresAt: futureIso(), userId: "u1" }));
+    localStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: SESSION_TOKEN, expiresAt: futureIso(), userId: "u1" }));
     window.history.replaceState(null, "", "/prive/restablecer#t=resetTOKEN_0123456789abc");
     renderAt("/prive/restablecer");
     await waitFor(() => expect(window.location.hash).toBe(""));
@@ -236,7 +236,7 @@ describe("/prive/restablecer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar contraseña nueva" }));
     expect(await screen.findByText(/Tu contraseña Privé cambió/)).toBeInTheDocument();
     expect(api.access).toHaveBeenCalledWith("complete_reset", { token: "resetTOKEN_0123456789abc", new_password: "otra frase muy segura 2026" });
-    expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
     expect(sessionStorage.getItem(PRIVE_RESET_TOKEN_KEY)).toBeNull();
   });
 

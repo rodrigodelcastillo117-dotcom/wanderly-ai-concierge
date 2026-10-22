@@ -27,7 +27,7 @@ describe("health checks", () => {
   it("flags a down service and a missing key as failures", async () => {
     const r = await runChecks({ ...keys, stripeKey: undefined }, fakeFetch({ generativelanguage: () => json({}, 500) }));
     expect(allOk(r)).toBe(false);
-    expect(r.find((x) => x.name.includes("Gemini"))).toMatchObject({ ok: false, detail: expect.stringMatching(/^HTTP 500/) });
+    expect(r.find((x) => x.name.includes("Gemini"))).toMatchObject({ ok: false, detail: expect.stringMatching(/HTTP 500/) });
     expect(r.find((x) => x.name.includes("Stripe"))).toMatchObject({ ok: false, detail: "Falta STRIPE_SECRET_KEY" });
   });
 

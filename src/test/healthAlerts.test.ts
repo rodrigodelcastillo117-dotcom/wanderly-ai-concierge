@@ -155,3 +155,19 @@ describe("admin card staleness (C-12)", () => {
     expect(isHealthStale(null, t)).toBe(false);
   });
 });
+
+describe("chequeo de IA en palabras (sin JSON crudo)", () => {
+  it("Gemini saturado (503) es AVISO porque Iato usa Claude; nunca pega el JSON del proveedor", async () => {
+    const { runChecks } = await import("../../supabase/functions/health-check/checks");
+    const f = (async (url: string) => {
+      if (url.includes("generativelanguage")) return new Response(JSON.stringify([{ error: { code: 503, message: "This model is currently experiencing high demand." } }]), { status: 503 });
+      return new Response(JSON.stringify({ total_searches_left: 5000 }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const res = await runChecks({ geminiKey: "g", lovableKey: "l", anthropicKey: "a" } as any, f);
+    const gem = res.find((r) => r.name === "IA de respaldo (Gemini)")!;
+    expect(gem.ok).toBe(true);
+    expect(gem.warn).toMatch(/saturado/);
+    expect(gem.warn).toMatch(/Claude/);
+    expect(JSON.stringify(res)).not.toMatch(/high demand|"code"/);
+  });
+});

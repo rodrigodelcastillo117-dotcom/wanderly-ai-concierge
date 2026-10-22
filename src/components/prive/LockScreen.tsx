@@ -7,6 +7,7 @@ import { usePriveMotion } from "@/components/prive/motion";
 import { usePriveAccess } from "@/hooks/usePriveAccess";
 import { formatLockedUntil, messageFor } from "@/lib/priveCopy";
 import { PRIVE_PW_MAX } from "@/lib/privePassword";
+import { PriveUsernameField } from "@/components/prive/PriveUsernameField";
 
 /** Candado de Privé: la contraseña individual abre una sesión Privé que el servidor emite y vigila. */
 export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
@@ -17,6 +18,7 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hard, setHard] = useState(false);
+  const [wrongCount, setWrongCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const id = useId();
   const statusLock = formatLockedUntil(status?.locked_until);
@@ -40,6 +42,7 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
     } else {
       setHard(r.code === "HARD_LOCKED" || r.code === "MUST_RESET");
       setError(messageFor(r.code));
+      if (r.code === "WRONG_PASSWORD") setWrongCount((n) => n + 1);
     }
     setPw("");
     inputRef.current?.focus();
@@ -58,6 +61,7 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
         <p role="status" className="text-sm prive-champagne mb-5">Por seguridad pausamos los intentos. Podrás intentarlo de nuevo {statusLock}.</p>
       )}
       <form onSubmit={submit} className="space-y-4 text-left" noValidate>
+        <PriveUsernameField />
         <label htmlFor={`${id}-pw`} className="block text-sm prive-champagne">Contraseña Privé</label>
         <div className="relative">
           <input
@@ -84,6 +88,11 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
           </button>
         </div>
         {error && <p id={`${id}-err`} role="alert" className="text-sm text-[#f0b4a8]">{error}</p>}
+        {wrongCount > 0 && (
+          <p className="text-xs prive-muted" data-testid="prive-autofill-hint">
+            Si tu navegador llenó el campo solo, puede ser la contraseña de tu cuenta IATOS: bórrala y escribe tu contraseña Privé (la que creaste al aceptar la invitación).
+          </p>
+        )}
         <button type="submit" disabled={!pw || busy} className="prive-btn prive-btn-gold w-full">
           {busy ? "Verificando…" : "Ingresar"}
         </button>

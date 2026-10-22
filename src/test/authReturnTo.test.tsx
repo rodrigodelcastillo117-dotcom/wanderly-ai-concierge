@@ -43,6 +43,13 @@ describe("Auth regresa a la ruta pedida", () => {
     await waitFor(() => expect(loc).toBe("/dashboard"));
   });
 
+  it("quien abrió el correo de invitación Privé vuelve a su invitación, no al inicio", async () => {
+    sessionStorage.setItem("iatos.prive.invite_token", "inviteTOKEN_0123456789abc");
+    renderAuthWithFrom(undefined);
+    await waitFor(() => expect(loc).toBe("/prive/invitacion"));
+    sessionStorage.clear();
+  });
+
   it("una URL externa en state.from se ignora", async () => {
     renderAuthWithFrom("//evil.example/phish");
     await waitFor(() => expect(loc).toBe("/dashboard"));
