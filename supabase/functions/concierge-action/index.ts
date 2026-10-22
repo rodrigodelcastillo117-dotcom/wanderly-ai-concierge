@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { sendEmail } from "../_shared/email.ts";
+import { escapeHtml, sendEmail } from "../_shared/email.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,9 +15,24 @@ const FIXER_EMAIL = Deno.env.get("FIXER_EMAIL") || "hola@traveliatos.life";
 const FROM_ADDRESS = Deno.env.get("FIXER_FROM_ADDRESS") || "IATOS Fixer <hola@traveliatos.life>";
 
 type Body = {
-  type: "reservation" | "pickup" | "transport" | "jet" | "alert";
+  // reservation | pickup | transport | jet | alert | members_nightlife_reservation …
+  type: string;
   title: string;
+  trip_id?: string | null;
   payload?: Record<string, unknown>;
+};
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Texto honesto (B-04): esto crea una SOLICITUD que revisa un humano; no es una reserva ni
+// confirma disponibilidad o precio. Antes decía "Jet privado solicitado ✦" y el botón "✓ Enviado".
+const labelByType: Record<string, string> = {
+  reservation: "Solicitud de mesa recibida",
+  pickup: "Solicitud de cotización de equipaje recibida",
+  transport: "Solicitud de transporte recibida",
+  jet: "Solicitud de cotización de jet privado recibida",
+  alert: "Alerta recibida",
+  members_nightlife_reservation: "Solicitud de reserva recibida",
 };
 
 Deno.serve(async (req) => {
@@ -42,25 +58,40 @@ Deno.serve(async (req) => {
     }
     const userId = userData.user.id;
 
-    const body = (await req.json()) as Body;
-    if (!body?.type || !body?.title) {
+    // Cada solicitud manda un correo a una persona: límite para que nadie lo use para spam.
+    const rl = await enforceRateLimit(req, "concierge-action", userId, { perMinute: 5, perHour: 30, ipPerMinute: 15 });
+    if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
+
+    const body = (await req.json().catch(() => null)) as Body | null;
+    if (!body?.type || !body?.title || !/^[a-z_]{2,40}$/.test(String(body.type)) || typeof body.title !== "string") {
       return new Response(JSON.stringify({ error: "missing_fields" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const title = body.title.slice(0, 200);
+    const payload = body.payload && typeof body.payload === "object" ? body.payload : {};
+
+    // Solo se liga a un viaje al que el usuario tiene acceso (RLS de trips con su propio token).
+    let tripId: string | null = null;
+    if (typeof body.trip_id === "string" && UUID.test(body.trip_id)) {
+      const { data: t } = await supaUser.from("trips").select("id").eq("id", body.trip_id).maybeSingle();
+      tripId = t?.id ?? null;
+    }
+
     // Service client for inserts (RLS still respected via explicit user_id)
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // 1) Insert concierge_request (status = processing)
+    // 1) Insert concierge_request (status = pending: espera respuesta humana)
     const { data: reqRow, error: reqErr } = await admin
       .from("concierge_requests")
       .insert({
         user_id: userId,
+        trip_id: tripId,
         type: body.type,
-        title: body.title,
-        payload: body.payload ?? {},
-        status: "processing",
+        title,
+        payload,
+        status: "pending",
       })
       .select()
       .single();
@@ -72,25 +103,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const labelByType: Record<string, string> = {
-      reservation: "Mesa solicitada",
-      pickup: "Solicitud de equipaje preparada",
-      transport: "Transporte solicitado",
-      jet: "Jet privado solicitado",
-      alert: "Alerta atendida",
-    };
-
     // 2) Insert immediate "received" notification
     await admin.from("notifications").insert({
       user_id: userId,
       type: body.type,
-      title: `${labelByType[body.type] ?? "Solicitud recibida"} ✦`,
-      body: `Tu concierge está procesando: ${body.title}.`,
+      title: labelByType[body.type] ?? "Solicitud recibida",
+      body: `Un humano revisará "${title}" y te responderá con disponibilidad y precio. Todavía no es una reserva.`,
       related_id: reqRow.id,
     });
 
     // 3) Notifica a un humano por email — sin esto la solicitud se queda en
-    // "processing" para siempre y nadie la atiende de verdad.
+    // "pending" para siempre y nadie la atiende de verdad.
+    let humanNotified = false;
     try {
       const { data: profile } = await admin
         .from("profiles")
@@ -99,22 +123,26 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const userEmail = userData.user.email ?? "sin email";
       const subject = `[IATOS Concierge] ${labelByType[body.type] ?? body.type} — ${profile?.full_name ?? userEmail}`;
+      // Todo lo que viene del cliente se escapa antes de ir al HTML del correo.
       const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;padding:20px">
-        <h2>${labelByType[body.type] ?? "Nueva solicitud de concierge"}</h2>
-        <p><b>Cliente:</b> ${profile?.full_name ?? "Sin nombre"} (${userEmail})</p>
-        <p><b>Tipo:</b> ${body.type}</p>
-        <p><b>Título:</b> ${body.title}</p>
-        <p><b>Detalle:</b> ${JSON.stringify(body.payload ?? {})}</p>
-        <p style="color:#888;font-size:12px">concierge_requests.id = ${reqRow.id}</p>
+        <h2>${escapeHtml(labelByType[body.type] ?? "Nueva solicitud de concierge")}</h2>
+        <p><b>Cliente:</b> ${escapeHtml(profile?.full_name ?? "Sin nombre")} (${escapeHtml(userEmail)})</p>
+        <p><b>Tipo:</b> ${escapeHtml(body.type)}</p>
+        <p><b>Título:</b> ${escapeHtml(title)}</p>
+        <p><b>Viaje:</b> ${escapeHtml(tripId ?? "sin viaje")}</p>
+        <p><b>Detalle:</b> ${escapeHtml(JSON.stringify(payload).slice(0, 4000))}</p>
+        <p>Responder al cliente con disponibilidad y precio reales. El cliente ve esto como "solicitud recibida", no como reserva.</p>
+        <p style="color:#888;font-size:12px">concierge_requests.id = ${escapeHtml(reqRow.id)}</p>
       </body></html>`;
       const sent = await sendEmail({ to: FIXER_EMAIL, from: FROM_ADDRESS, replyTo: userEmail, subject, html });
+      humanNotified = !!sent.ok;
       if (!sent.ok) console.error("concierge-action: no se pudo notificar al humano", sent.error);
     } catch (notifyErr) {
       console.error("concierge-action: error notificando al humano", notifyErr);
     }
 
     return new Response(
-      JSON.stringify({ ok: true, request: reqRow, confirmation_required: true }),
+      JSON.stringify({ ok: true, request: { id: reqRow.id, status: reqRow.status }, human_notified: humanNotified, confirmation_required: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
