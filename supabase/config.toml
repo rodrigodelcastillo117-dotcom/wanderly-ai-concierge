@@ -178,3 +178,16 @@ verify_jwt = false
 # IATOS Privé: respaldo de antigüedad desde Stripe (manual, dry_run por defecto); autenticación de cron interna
 [functions.prive-tenure-backfill]
 verify_jwt = false
+
+# Reservas IA (canal correo). JWT validado DENTRO de la función (getAuthUser) en todo POST;
+# verify_jwt = false solo para el enlace firmado del .ics que va en el correo de confirmación.
+[functions.ai-reservations]
+verify_jwt = false
+
+# Reservas IA: webhook de Resend Receiving; exige firma Svix (RESEND_INBOUND_SECRET), falla cerrada
+[functions.reservations-inbound]
+verify_jwt = false
+
+# Reservas IA (pg_cron): recordatorio único y vencimientos; autenticación de cron interna
+[functions.ai-reservations-cron]
+verify_jwt = false
