@@ -115,13 +115,34 @@ export function tenureEventFor(eventType: string, opts: { fullRefund?: boolean; 
 
 type RpcOutcome = { data: unknown; error: { message: string; code?: string } | null };
 
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * D-P3-5: ¿el error dice EXACTAMENTE que la función llamada (`fn`) no existe? Solo dos formas:
+ *   - PostgREST, la función no está en su caché: code PGRST202, "Could not find the function public.fn(…)".
+ *   - Postgres, la función de nivel superior no existe: code 42883, "function public.fn(…) does not exist".
+ * Antes bastaba con que el mensaje contuviera el nombre de la función o "does not exist": los RAISE
+ * propios de la función (que empiezan con su nombre) o una tabla interna inexistente se tomaban como
+ * "migración pendiente" y el webhook respondía 200 sin aplicar nada.
+ */
+export function isMissingFunctionError(error: { message?: string | null; code?: string | null } | null | undefined, fn: string): boolean {
+  if (!error) return false;
+  const msg = String(error.message ?? "");
+  const name = `(?:public\\.)?${escapeRe(fn)}`;
+  // PostgREST: "Could not find the function public.fn(_a, _b) in the schema cache" (o "… without parameters").
+  if (error.code === "PGRST202") return new RegExp(`^Could not find the function ${name}(?=\\(|\\s|$)`, "i").test(msg);
+  if (error.code === "42883") return new RegExp(`^function ${name}\\([^)]*\\) does not exist$`, "i").test(msg);
+  return false;
+}
+
 /**
  * Si la función se publicó antes que la migración de Privé, la RPC no existe: no es motivo para que
  * Stripe reintente para siempre (el acceso PRO ya quedó escrito). Se registra y se sigue; el
- * respaldo (prive-tenure-backfill) recupera esas facturas después.
+ * respaldo (prive-tenure-backfill) recupera esas facturas después. Cualquier otro error sigue siendo
+ * error (D-P3-5).
  */
 export function missingRpcAsSkip(r: RpcOutcome, fn: string, warn: (...a: unknown[]) => void = () => {}): RpcOutcome {
-  if (r.error && new RegExp(`${fn}|PGRST202|does not exist|Could not find the function`, "i").test(`${r.error.code ?? ""} ${r.error.message}`)) {
+  if (isMissingFunctionError(r.error, fn)) {
     warn(`stripe-webhook: ${fn} no existe todavía (migración de Privé pendiente)`);
     return { data: { recorded: false, applied: false, reason: "migration_pending" }, error: null };
   }

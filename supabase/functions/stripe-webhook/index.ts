@@ -6,7 +6,7 @@ import { adminClient } from "../_shared/entitlements.ts";
 import { escapeHtml, layout, sendEmail } from "../_shared/email.ts";
 import { isAlreadyGone } from "../_shared/stripe-billing.ts";
 import { redactPii } from "../_shared/redact.ts";
-import { missingRpcAsSkip } from "../_shared/prive-tenure.ts";
+import { isMissingFunctionError, missingRpcAsSkip } from "../_shared/prive-tenure.ts";
 import { deliverAdminAlert } from "./alerts.ts";
 import { invoiceForPaymentIntentWith } from "./lookups.ts";
 import type { AdminAlert, StripeChargeLike } from "./payments.ts";
@@ -109,7 +109,8 @@ Deno.serve(async (req) => {
     commitPaymentEvent: async (row, tenureEvent, amountRefunded) => {
       const db = adminClient();
       const r = await db.rpc("stripe_commit_payment_event", { _row: row, _tenure_event: tenureEvent, _amount_refunded: amountRefunded });
-      if (!r.error || !/stripe_commit_payment_event|PGRST202|does not exist|Could not find the function/i.test(`${r.error.code ?? ""} ${r.error.message}`)) return r;
+      // D-P3-5: solo el error exacto de "la función no existe" activa la ruta anterior.
+      if (!isMissingFunctionError(r.error, "stripe_commit_payment_event")) return r;
       console.warn("stripe-webhook: stripe_commit_payment_event no existe todavía (migración 20261024051500 pendiente)");
       let tenure: unknown = null;
       if (tenureEvent && row.invoice_id) {
@@ -123,7 +124,7 @@ Deno.serve(async (req) => {
     isDeletedCustomer: async (customerId) => {
       const { data, error } = await adminClient().rpc("is_deleted_stripe_customer", { _customer_id: customerId });
       // Si la migración aún no está aplicada no hay cuentas registradas como borradas.
-      if (error && /is_deleted_stripe_customer|PGRST202|does not exist/i.test(`${error.code ?? ""} ${error.message}`)) return false;
+      if (isMissingFunctionError(error, "is_deleted_stripe_customer")) return false;
       if (error) throw new Error(error.message);
       return data === true;
     },
