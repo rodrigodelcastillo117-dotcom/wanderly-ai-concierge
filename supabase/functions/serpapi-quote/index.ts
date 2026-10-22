@@ -1,9 +1,10 @@
 // serpapi-quote — Pricing engine
 // Modo actual:
-//   ENABLED=true  → consulta SerpApi en vivo (Google Flights + Google Hotels).
-//                   Consume créditos SerpApi reales en cada request. Si SerpApi
-//                   falla o no devuelve datos, cae automáticamente al estimador
-//                   de IA (Gemini) como fallback.
+//   ENABLED=true  → consulta SerpApi (Google Flights + Google Hotels) a través de la caché compartida
+//                   (vuelos 6 h, hoteles 12 h). Con trip_id, la cotización del viaje se guarda 24 h y
+//                   solo se vuelve a consultar cuando el usuario pide "Actualizar precio" (refresh),
+//                   como máximo una vez al día; cada búsqueda real gasta de la bolsa de búsquedas en
+//                   vivo del plan. Si SerpApi no trae nada se dice "no disponible" (nunca se inventa).
 //   ENABLED=false → salta SerpApi por completo y estima con IA (Gemini) usando
 //                   conocimiento de Google Flights, Kayak, Skyscanner, Booking
 //                   y precios históricos. Sin costo de SerpApi.
@@ -99,7 +100,7 @@ async function aiIata(apiKey: string, city: string): Promise<string | null> {
   } catch { return null; }
 }
 
-async function serpFlights(key: string, dep: string, arr: string, outbound: string, ret: string, travelers: number) {
+async function serpFlights(key: string, dep: string, arr: string, outbound: string, ret: string, travelers: number, doFetch: typeof fetch = fetch) {
   const u = new URL(SERPAPI);
   u.searchParams.set("engine", "google_flights");
   u.searchParams.set("departure_id", dep);
@@ -112,7 +113,7 @@ async function serpFlights(key: string, dep: string, arr: string, outbound: stri
   u.searchParams.set("hl", "es");
   u.searchParams.set("sort_by", "2"); // 2 = lowest price
   u.searchParams.set("api_key", key);
-  const r = await fetch(u.toString());
+  const r = await doFetch(u.toString());
   if (!r.ok) throw new Error(`flights ${r.status}`);
   const j = await r.json();
   // Combina todas las opciones y elige la MÁS BARATA real
@@ -137,7 +138,7 @@ async function serpFlights(key: string, dep: string, arr: string, outbound: stri
   };
 }
 
-async function serpHotels(key: string, city: string, checkin: string, checkout: string, travelers: number, nights: number) {
+async function serpHotels(key: string, city: string, checkin: string, checkout: string, travelers: number, nights: number, doFetch: typeof fetch = fetch) {
   const u = new URL(SERPAPI);
   u.searchParams.set("engine", "google_hotels");
   u.searchParams.set("q", `${city} hotels`);
@@ -149,7 +150,7 @@ async function serpHotels(key: string, city: string, checkin: string, checkout: 
   u.searchParams.set("sort_by", "3");
   u.searchParams.set("min_rating", "8");
   u.searchParams.set("api_key", key);
-  const r = await fetch(u.toString());
+  const r = await doFetch(u.toString());
   if (!r.ok) throw new Error(`hotels ${r.status}`);
   const j = await r.json();
   const nightsSafe = Math.max(1, nights);
@@ -266,6 +267,15 @@ CRITICAL: price_per_person_usd es POR PERSONA, no total. Sé realista, no barato
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
+import { adminClient } from "../_shared/entitlements.ts";
+import { cacheGet, cacheKey, cacheProvenance, cachePut } from "../_shared/serpCache.ts";
+import { dbCacheStore, liveSearchGateFor, serpFetchFor } from "../_shared/serpRuntime.ts";
+import { FAIR_USE_EMPTY, liveSearchLimitBody } from "../_shared/liveSearch.ts";
+import { decideQuote, decorateCachedQuote, quoteKeyParams, REFRESH_FAILED, REFRESH_TOO_SOON } from "./quoteCache.ts";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -329,9 +339,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = (await req.json()) as Body;
+    const body = (await req.json()) as Body & { trip_id?: string; refresh?: boolean };
     const travelers = Math.max(1, body.travelers ?? 1);
     const nights = Math.max(1, body.nights ?? 1);
+    const tripId = typeof body.trip_id === "string" && UUID.test(body.trip_id) ? body.trip_id : null;
+    const refresh = body.refresh === true;
+
+    // Cotización guardada del viaje (24 h). Solo para quien tiene acceso al viaje.
+    const store = dbCacheStore();
+    let quoteKey: string | null = null;
+    let saved: Awaited<ReturnType<typeof cacheGet>> = null;
+    if (tripId) {
+      const { data: access, error: accessErr } = await adminClient().rpc("has_trip_access", { p_trip: tripId, p_user: __user.id });
+      if (accessErr) console.error("serpapi-quote: has_trip_access", accessErr.message);
+      else if (!access) return jsonResponse({ code: "TRIP_NOT_FOUND", message: "No encontramos ese viaje." }, 404);
+      if (!accessErr) {
+        quoteKey = await cacheKey("trip_quote", quoteKeyParams(tripId, body as unknown as Record<string, unknown>));
+        saved = await cacheGet(store, quoteKey);
+        const d = decideQuote(saved, refresh);
+        if (d.action === "serve" && saved) {
+          return jsonResponse(decorateCachedQuote(saved, Date.now(), d.refreshBlocked ? { aviso: REFRESH_TOO_SOON } : {}));
+        }
+      }
+    }
 
     // Resolver IATA
     let depCode = quickIata(body.origin);
@@ -339,21 +369,32 @@ Deno.serve(async (req) => {
     if (!depCode && lovableKey) depCode = await aiIata(lovableKey, body.origin);
     if (!arrCode && lovableKey) arrCode = await aiIata(lovableKey, body.destination);
 
+    // Cada búsqueda real gasta de la bolsa del usuario; un acierto de la caché compartida, no.
+    const serp = serpFetchFor("serpapi-quote", __user.id, liveSearchGateFor(__user.id));
+
     const flightsPromise = (depCode && arrCode)
-      ? serpFlights(serpKey, depCode, arrCode, body.depart, body.return_date, travelers).catch((e) => {
+      ? serpFlights(serpKey, depCode, arrCode, body.depart, body.return_date, travelers, serp.fetch).catch((e) => {
           console.error("flights err:", e.message); return null;
         })
       : Promise.resolve(null);
 
-    const hotelsPromise = serpHotels(serpKey, body.destination, body.depart, body.return_date, travelers, nights)
+    const hotelsPromise = serpHotels(serpKey, body.destination, body.depart, body.return_date, travelers, nights, serp.fetch)
       .catch((e) => { console.error("hotels err:", e.message); return null; });
 
     const [flight, hotel] = await Promise.all([flightsPromise, hotelsPromise]);
     const source = "serpapi";
+    const denied = serp.trace.denied;
+    const limitBody = denied && !denied.soft ? liveSearchLimitBody(denied.info) : null;
 
     // Si SerpApi no trajo nada se dice "no disponible". Antes se sustituía por una estimación de
     // IA (aerolínea, hotel y precios inventados) mostrada como la cotización del viaje.
-    if (!flight && !hotel) return noPricingResponse();
+    if (!flight && !hotel) {
+      // Hay una cotización anterior: se muestra con su fecha real, nunca como "en vivo".
+      if (saved) return jsonResponse(decorateCachedQuote(saved, Date.now(), { aviso: limitBody?.message ?? (denied ? FAIR_USE_EMPTY : REFRESH_FAILED) }));
+      if (limitBody) return jsonResponse(limitBody, 402);
+      if (denied) return jsonResponse({ code: "SERVICE_UNAVAILABLE", error: "no_pricing_available", message: FAIR_USE_EMPTY }, 503);
+      return noPricingResponse();
+    }
 
     const flights_total = flight?.price_usd ?? 0;
     const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
@@ -362,8 +403,10 @@ Deno.serve(async (req) => {
     if (total_usd <= 0) return noPricingResponse();
     const fxRate = await getUsdMxnRate();
     const total_mxn = Math.round(total_usd * fxRate);
+    // Fecha real de los precios (si salieron de la caché compartida, la de esa consulta).
+    const prov = cacheProvenance(serp.trace);
 
-    return new Response(JSON.stringify({
+    const quote = {
       flight, hotel,
       breakdown: {
         flights_usd: flights_total,
@@ -375,8 +418,19 @@ Deno.serve(async (req) => {
       total_usd, total_mxn, fx_rate: fxRate, source,
       // Qué partes se pudieron consultar: si falta una, el total es parcial.
       components: { flight: !!flight, hotel: !!hotel },
-      fetched_at: new Date().toISOString(),
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      fetched_at: prov.fetched_at,
+      estado_dato: prov.estado_dato,
+      precio_guardado: prov.precio_guardado,
+    };
+    // Solo se guarda como cotización del viaje si los precios son vigentes.
+    if (quoteKey && !prov.precio_guardado) await cachePut(store, quoteKey, "trip_quote", quote);
+
+    return jsonResponse({
+      ...quote,
+      cached: false,
+      can_refresh: false,
+      ...(denied ? { aviso: limitBody?.message ?? FAIR_USE_EMPTY } : {}),
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown";
     console.error("serpapi-quote error:", msg);
