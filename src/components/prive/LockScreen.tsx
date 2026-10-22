@@ -38,7 +38,8 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
     }
     if (r.code === "LOCKED" || r.code === "RATE_LIMITED") {
       const when = formatLockedUntil(r.lockedUntil);
-      setError(when ? `${messageFor(r.code)} Podrás intentarlo de nuevo ${when}.` : messageFor(r.code));
+      // "07:55 a.m." ya trae punto: no se agrega otro ("a.m..").
+      setError(when ? `${messageFor(r.code)} Podrás intentarlo de nuevo ${when}${when.endsWith(".") ? "" : "."}` : messageFor(r.code));
     } else {
       setHard(r.code === "HARD_LOCKED" || r.code === "MUST_RESET");
       setError(messageFor(r.code));
@@ -58,7 +59,7 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
       </p>
       {notice && <p role="status" className="text-sm prive-champagne mb-5">{notice}</p>}
       {statusLock && !error && (
-        <p role="status" className="text-sm prive-champagne mb-5">Por seguridad pausamos los intentos. Podrás intentarlo de nuevo {statusLock}.</p>
+        <p role="status" className="text-sm prive-champagne mb-5">Por seguridad pausamos los intentos. Podrás intentarlo de nuevo {statusLock}{statusLock.endsWith(".") ? "" : "."}</p>
       )}
       <form onSubmit={submit} className="space-y-4 text-left" noValidate>
         <PriveUsernameField />
@@ -98,10 +99,15 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
         </button>
       </form>
       <p className="mt-6 text-sm">
-        <Link to="/prive/restablecer" className={hard ? "prive-btn prive-btn-ghost" : "prive-link"}>
-          ¿Olvidaste tu contraseña Privé?
+        {/* Después de 2 intentos fallidos el restablecimiento pasa a ser el botón principal: nadie
+            debe quedarse atorado frente al candado. */}
+        <Link to="/prive/restablecer" className={hard || wrongCount >= 2 ? "prive-btn prive-btn-ghost" : "prive-link"} data-testid="prive-reset-link">
+          {wrongCount >= 2 ? "Restablecer mi contraseña Privé por correo" : "¿Olvidaste tu contraseña Privé?"}
         </Link>
       </p>
+      {wrongCount >= 2 && (
+        <p className="mt-3 text-xs prive-muted">Te mandamos un enlace a tu correo para crear una nueva. Si no lo ves en unos minutos, revisa spam o promociones.</p>
+      )}
     </motion.section>
   );
 }

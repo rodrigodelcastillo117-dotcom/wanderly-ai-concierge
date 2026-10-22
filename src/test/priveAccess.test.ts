@@ -126,6 +126,17 @@ describe("contraseña", () => {
   });
 });
 
+describe("contraseña canónica (el dueño quedó fuera con su propia contraseña)", () => {
+  it("un espacio al final o un acento compuesto distinto no cambian la contraseña: se guarda y se compara igual", async () => {
+    const nfd = "Bahía-de-mi-alma-1987".normalize("NFD");
+    await run({ action: "set_password", password: `  ${nfd} ` });
+    expect(calls[0]).toEqual(["prive_set_password", { _user: UID, _password: "Bahía-de-mi-alma-1987".normalize("NFC"), _breach_check: "ok" }]);
+    calls.length = 0;
+    await run({ action: "unlock", password: "Bahía-de-mi-alma-1987 " });
+    expect(calls[0][1]).toMatchObject({ _password: "Bahía-de-mi-alma-1987".normalize("NFC") });
+  });
+});
+
 describe("desbloqueo y sesiones", () => {
   it("desbloquear: pasa ip_hash y session_id de Auth; devuelve la sesión Privé", async () => {
     const out = await run({ action: "unlock", password: "Una-frase-muy-propia-77" });
