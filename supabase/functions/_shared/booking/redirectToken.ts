@@ -8,8 +8,15 @@
 // destino guardado cambia, o se intenta salir por la vía "confiable" con un destino que entró por la
 // estricta, booking-go no redirige.
 
+// A2-T1 (segunda auditoría): el token lleva `n`, cuántas veces se había abierto la intención al firmarlo,
+// y booking-go solo lo acepta mientras redirect_count < n + MAX_TOKEN_USES. Así un enlace filtrado no
+// sirve indefinidamente durante los 30 minutos, pero "volver a abrir" (el mismo botón, unas cuantas
+// veces) sigue funcionando; para más, la app pide otro token (start_booking con la misma selección).
+// Una petición HEAD no consume usos (booking-go no la marca como salida).
+
 const enc = new TextEncoder();
 export const REDIRECT_TTL_MS = 30 * 60 * 1000;
+export const MAX_TOKEN_USES = 3;
 
 function b64url(bytes: Uint8Array): string {
   let s = "";
@@ -29,7 +36,8 @@ async function hmac(secret: string, msg: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(msg)));
 }
 
-export type RedirectClaims = { i: string; u: string; o: string; x: number; h?: string; t?: "a" | "s" };
+export type RedirectClaims = { i: string; u: string; o: string; x: number; h?: string; t?: "a" | "s"; n?: number };
+const validUses = (n: unknown) => n === undefined || (Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 100000);
 
 /** Huella del destino: base64url(SHA-256(url)). */
 export async function targetHash(url: string): Promise<string> {
@@ -42,6 +50,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function signRedirect(secret: string, claims: Omit<RedirectClaims, "x">, nowMs = Date.now(), ttlMs = REDIRECT_TTL_MS): Promise<string | null> {
   if (!secret || !UUID.test(claims.i) || !UUID.test(claims.u)) return null;
   if (claims.h !== undefined && (!HASH.test(claims.h) || (claims.t !== "a" && claims.t !== "s"))) return null;
+  if (!validUses(claims.n)) return null;
   const body = b64url(enc.encode(JSON.stringify({ ...claims, x: nowMs + ttlMs })));
   return `${body}.${b64url(await hmac(secret, body))}`;
 }
@@ -67,6 +76,7 @@ export async function verifyRedirect(secret: string, token: unknown, nowMs = Dat
   }
   if (!claims || !UUID.test(String(claims.i)) || !UUID.test(String(claims.u)) || typeof claims.x !== "number") return { ok: false, reason: "formato" };
   if (claims.h !== undefined && (!HASH.test(String(claims.h)) || (claims.t !== "a" && claims.t !== "s"))) return { ok: false, reason: "formato" };
+  if (!validUses(claims.n)) return { ok: false, reason: "formato" };
   if (claims.x <= nowMs) return { ok: false, reason: "vencido" };
   return { ok: true, claims };
 }

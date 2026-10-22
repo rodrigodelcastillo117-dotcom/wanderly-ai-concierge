@@ -25,13 +25,20 @@ export type ProviderInfo = {
    * /travel/clk): solo vale si lo dio una API del servidor (SerpApi), nunca de la IA ni del cliente.
    */
   redirector?: "wrapper" | "opaque";
+  /**
+   * Hosts exactos permitidos cuando el dominio aloja servicios de terceros (google.com: sites.google.com
+   * y docs.google.com publican páginas de cualquiera). Sin esto vale cualquier subdominio.
+   */
+  hosts?: string[];
   /** Por qué este dominio es legítimo (AUD-04: ninguna entrada sin justificación). */
   why: string;
 };
 
-const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"] } = {}): ProviderInfo =>
+const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"]; hosts?: string[] } = {}): ProviderInfo =>
   ({ domain, provider, label, kind, why, ...extra });
 
+// Endurecimiento O1 (segunda auditoría): Google solo en sus hosts propios; sites.google.com/maps/… no es Maps.
+const GOOGLE_HOSTS = ["www.google.com", "google.com"];
 const AIRLINE = (name: string) => `Sitio oficial de ${name}: destino del botón "Sitio de la aerolínea" (EV-AIRLINE-HOME) y de airline_buy_url de flights-search.`;
 const OT = "Sitio público de OpenTable para el país (opentable.com/r/<lugar>): enlaces curados del catálogo Privé y de la IA validados por nombre (EV-OPENTABLE-SEARCH).";
 const FORK = "Sitio público de TheFork (grupo Tripadvisor) por país, usado por restaurantes del catálogo Privé (EV-PRIVE-CATALOG).";
@@ -44,8 +51,8 @@ const FORK = "Sitio público de TheFork (grupo Tripadvisor) por país, usado por
 export const PROVIDERS: ProviderInfo[] = [
   // Vuelos
   P("aviasales.com", "aviasales", "Aviasales", "metasearch", "Buscador de Travelpayouts (marker 533299): formato /search/ documentado en EV-AVIASALES-SEARCH.", { paths: /^\/search\// }),
-  P("google.com", "google_flights", "Google Flights", "metasearch", "Búsqueda de Google Flights de SerpApi (EV-GFLIGHTS-SERP-URL); /travel/flights solamente.", { paths: /^\/travel\/flights(\/|\?|$)/ }),
-  P("google.com", "google_flights", "Google Flights", "metasearch", "booking_request de Google Flights vía SerpApi (EV-GFLIGHTS-BOOKING-REQUEST, bandera apagada): redirect opaco.", { paths: /^\/travel\/clk\//, redirector: "opaque" }),
+  P("google.com", "google_flights", "Google Flights", "metasearch", "Búsqueda de Google Flights de SerpApi (EV-GFLIGHTS-SERP-URL); /travel/flights solamente.", { paths: /^\/travel\/flights(\/|\?|$)/, hosts: GOOGLE_HOSTS }),
+  P("google.com", "google_flights", "Google Flights", "metasearch", "booking_request de Google Flights vía SerpApi (EV-GFLIGHTS-BOOKING-REQUEST, bandera apagada): redirect opaco.", { paths: /^\/travel\/clk\//, redirector: "opaque", hosts: GOOGLE_HOSTS }),
   P("skyscanner.com.mx", "skyscanner", "Skyscanner", "metasearch", "Buscador que arma src/lib/affiliateLinks.ts (skyscannerLink) para México."),
   P("kayak.com", "kayak", "Kayak", "metasearch", "Buscador que arma src/lib/affiliateLinks.ts (kayakFlightsLink, kayakCarsLink)."),
   P("aeromexico.com", "aeromexico", "Aeroméxico", "airline", AIRLINE("Aeroméxico")),
@@ -67,9 +74,9 @@ export const PROVIDERS: ProviderInfo[] = [
   P("booking.com", "booking", "Booking.com", "ota", "Búsqueda searchresults.html que arma IATOS (EV-BOOKING-SEARCH) y páginas de hotel; dominio único de Booking.com."),
   P("airbnb.com", "airbnb", "Airbnb", "ota", "Búsqueda /s/<ciudad>/homes que arma src/lib/affiliateLinks.ts (airbnbLink)."),
   // Google Hotels (enlaces de precios que devuelve SerpApi: google.com/aclk) y Maps
-  P("google.com", "google_hotels", "Google Hotels", "metasearch", "Enlaces de precio de Google Hotels vía SerpApi (EV-GHOTELS-PRICE-LINK): clic de anuncio, redirect opaco.", { paths: /^\/aclk(\?|$)/, redirector: "opaque" }),
-  P("google.com", "google_hotels", "Google Hotels", "metasearch", "Ficha de Google Hotels (/travel/hotels) de SerpApi.", { paths: /^\/travel\/hotels(\/|\?|$)/ }),
-  P("google.com", "google_maps", "Google Maps", "maps", "Google Maps URLs oficiales (EV-MAPS-URLS): /maps/search/?api=1 y /maps/dir/?api=1.", { paths: /^\/maps(\/|\?|$)/ }),
+  P("google.com", "google_hotels", "Google Hotels", "metasearch", "Enlaces de precio de Google Hotels vía SerpApi (EV-GHOTELS-PRICE-LINK): clic de anuncio, redirect opaco.", { paths: /^\/aclk(\?|$)/, redirector: "opaque", hosts: GOOGLE_HOSTS }),
+  P("google.com", "google_hotels", "Google Hotels", "metasearch", "Ficha de Google Hotels (/travel/hotels) de SerpApi.", { paths: /^\/travel\/hotels(\/|\?|$)/, hosts: GOOGLE_HOSTS }),
+  P("google.com", "google_maps", "Google Maps", "maps", "Google Maps URLs oficiales (EV-MAPS-URLS): /maps/search/?api=1 y /maps/dir/?api=1.", { paths: /^\/maps(\/|\?|$)/, hosts: [...GOOGLE_HOSTS, "maps.google.com"] }),
   // Restaurantes: sistemas públicos de reserva (no requieren ser socio para abrir su página pública)
   P("opentable.com", "opentable", "OpenTable", "restaurant_booking", OT),
   P("opentable.com.mx", "opentable", "OpenTable", "restaurant_booking", OT),
@@ -135,8 +142,11 @@ function brands(): Array<[string, "long" | "token"]> {
   if (BRANDS) return BRANDS;
   const m = new Map<string, "long" | "token">();
   for (const p of PROVIDERS) {
-    const label = (pslRegistrableDomain(p.domain) ?? p.domain).split(".")[0];
+    const reg = pslRegistrableDomain(p.domain) ?? p.domain;
+    const label = reg.split(".")[0];
     if (label.length >= 3) m.set(label, TOKEN_ONLY.has(label) ? "token" : "long"); // aa, wa, tp: demasiado cortas
+    // A2-F2: con etiqueta corta, la marca es el dominio sin puntos ("tp-media.com" imita a tp.media).
+    else m.set(reg.replace(/\./g, ""), reg === "tp.media" ? "long" : "token");
   }
   for (const [b, mode] of EXTRA_BRANDS) m.set(b, mode);
   return (BRANDS = [...m.entries()]);
@@ -162,6 +172,7 @@ export function providerFor(host: string, pathname = "/"): ProviderInfo | null {
   const h = host.toLowerCase();
   for (const p of PROVIDERS) {
     if (!hostMatches(h, p.domain)) continue;
+    if (p.hosts && !p.hosts.includes(h)) continue;
     if (p.paths && !p.paths.test(pathname)) continue;
     return p;
   }
@@ -185,6 +196,8 @@ function basicCheck(raw: unknown): { ok: true; u: URL; reason?: undefined } | { 
   if (u.username || u.password) return { ok: false, reason: "credenciales_en_url" };
   if (u.port && u.port !== "443") return { ok: false, reason: "puerto" };
   const host = u.hostname.toLowerCase();
+  // A2: un FQDN con punto final ("www.google.com.") no coincide con la lista y saltaba la regla de proveedores.
+  if (host.endsWith(".")) return { ok: false, reason: "host_no_publico" };
   if (!host.includes(".") || IPV4.test(host) || host.startsWith("[") || /(^|\.)(localhost|local|internal|lan|home|corp)\.?$/.test(host)) {
     return { ok: false, reason: "host_no_publico" };
   }
@@ -193,10 +206,15 @@ function basicCheck(raw: unknown): { ok: true; u: URL; reason?: undefined } | { 
   return { ok: true, u };
 }
 
-/** Variantes de la etiqueta con las sustituciones típicas de phishing (0→o, 1→l/i, rn→m, vv→w…). */
+/**
+ * Variantes de la etiqueta con las sustituciones típicas de phishing (0→o, 1→l/i, rn→m, vv→w…).
+ * A2-F2: también l↔i ("vlator" → viator, "googIe" → google) y sin guiones ("air-bnb" → airbnb).
+ */
 function skeletons(label: string): string[] {
   const base = label.replace(/0/g, "o").replace(/3/g, "e").replace(/5/g, "s").replace(/4/g, "a").replace(/7/g, "t").replace(/rn/g, "m").replace(/vv/g, "w");
-  return [...new Set([label, base.replace(/1/g, "l"), base.replace(/1/g, "i")])];
+  const v = [label, base.replace(/1/g, "l"), base.replace(/1/g, "i")];
+  const li = v.flatMap((x) => [x.replace(/l/g, "i"), x.replace(/i/g, "l")]);
+  return [...new Set([...v, ...li].flatMap((x) => [x, x.replace(/-/g, "")]))];
 }
 
 /** Distancia de edición ≤ 1 (sustitución, inserción, borrado o transposición de dos letras). */
@@ -232,17 +250,26 @@ export function looksLikeBrandImpersonation(host: string): boolean {
       if (sk === b || sub.includes(b)) return true;
       if (mode === "token") {
         if (words.includes(b) && (hasBait || words.length === 1)) return true;
+        // A2-F2: marca pegada a una palabra de phishing ("deltaairlines", "vuelosdelta").
+        if (words.some((w) => (w.startsWith(b) && PHISHING_WORDS.has(w.slice(b.length))) || (w.endsWith(b) && PHISHING_WORDS.has(w.slice(0, -b.length))))) return true;
+        // A2-F2: una letra de más o de menos ("reesy", "resyy"), misma inicial; no sustituciones
+        // ("rosy", "della" son nombres reales).
+        if (b.length >= 4 && (hasBait || words.length === 1) && words.some((w) => w[0] === b[0] && w.length !== b.length && withinOneEdit(w, b))) return true;
         continue;
       }
       if (sk.includes(b)) return true;
-      if (b.length >= 7 && words.some((w) => w[0] === b[0] && withinOneEdit(w, b))) return true;
+      // A2-F2: a una letra de diferencia desde 5 letras (antes 7: "googie", "vlator" no se veían).
+      if (b.length >= 5 && words.some((w) => w[0] === b[0] && withinOneEdit(w, b))) return true;
     }
   }
   return false;
 }
 
-/** Barras, barras invertidas o puntos codificados en la ruta (%2F, %5C, %2E): para saltar una ruta permitida. */
-const ENCODED_PATH_TRICK = /%(2f|5c|2e)/i;
+/**
+ * Barras, barras invertidas o puntos codificados en la ruta (%2F, %5C, %2E), también con doble o triple
+ * codificación (%252F, %25252E; endurecimiento O2): para saltar una ruta permitida.
+ */
+const ENCODED_PATH_TRICK = /%(?:25)*(2f|5c|2e)/i;
 
 /**
  * URL permitida para el nivel ESTRICTO. Un redirect "wrapper" (tp.media) solo si su destino `u`

@@ -26,12 +26,18 @@ describe("token de respuesta por reserva", () => {
 
 describe("remitente verificado", () => {
   const pass = { spf: "pass", dkim: "pass", dmarc: "pass" };
-  it("mismo dominio (o subdominio) + DMARC pass = verificado; SPF y DKIM sin DMARC solo con la dirección exacta (AUD-02)", () => {
-    expect(senderVerified("maria@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", pass)).toBe(true);
-    expect(senderVerified("x@mail.casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass", dmarc: "pass" })).toBe(true);
+  it("mismo dominio (o subdominio) + DMARC pass = verificado si el dominio es el del sitio oficial; SPF y DKIM sin DMARC no bastan (AUD-02, A2-RES-01/06)", () => {
+    const site = "https://casaoaxaca.com.mx/";
+    expect(senderVerified("maria@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", pass, site)).toBe(true);
+    expect(senderVerified("x@mail.casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass", dmarc: "pass" }, site)).toBe(true);
+    // A2-RES-01: sin sitio oficial en ese dominio, otra dirección no cuenta (se exige la exacta).
+    expect(senderVerified("maria@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", pass)).toBe(false);
     // AUD-02: antes esto era true (SPF+DKIM sin DMARC para cualquier dirección del dominio). Ver aiReservationsSenderAuth.test.ts.
-    expect(senderVerified("x@mail.casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" })).toBe(false);
-    expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" })).toBe(true);
+    expect(senderVerified("x@mail.casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" }, site)).toBe(false);
+    // A2-RES-06: sin resultado DMARC (campo ausente) ya no se verifica ni con la dirección exacta: falla cerrada
+    // (antes true). Con DMARC 'gray' explícito y DKIM pass, sí.
+    expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" })).toBe(false);
+    expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass", dmarc: "gray" })).toBe(true);
   });
   it("sin autenticación, con DMARC fallido u otro dominio → no verificado", () => {
     expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", null)).toBe(false);
@@ -131,11 +137,17 @@ describe("estados", () => {
 });
 
 describe("AUD-06 · reglas de TypeScript = reglas de la base", () => {
-  it("la lista de correos gratuitos de core.ts es la misma que ai_res_freemail_domains() (SQL)", () => {
-    const sql = readFileSync("supabase/migrations/20261024170000_aud_reservas_evidence.sql", "utf8");
+  it("la lista de buzones compartidos de core.ts es la misma que ai_res_freemail_domains() (SQL, última definición: r2)", () => {
+    const sql = readFileSync("supabase/migrations/20261026010000_r2_reservas_remitente.sql", "utf8");
     const body = sql.slice(sql.indexOf("FUNCTION public.ai_res_freemail_domains"), sql.indexOf("FUNCTION public.ai_res_sender_strong"));
     const domains = [...body.matchAll(/'([a-z0-9.-]+\.[a-z]+)'/g)].map((m) => m[1]).sort();
     expect(domains).toEqual([...FREEMAIL].sort());
+  });
+  it("A2-RES-02: la versión de reglas de evidence.ts es una de las que acepta la base (ai_res_rules_versions)", async () => {
+    const { RULES_VERSION } = await import("../../supabase/functions/_shared/ai-reservations/evidence");
+    const sql = readFileSync("supabase/migrations/20261026020000_r2_reservas_vetos.sql", "utf8");
+    const body = sql.slice(sql.indexOf("FUNCTION public.ai_res_rules_versions"), sql.indexOf("$$;", sql.indexOf("FUNCTION public.ai_res_rules_versions")));
+    expect([...body.matchAll(/'([a-z0-9.-]+)'/g)].map((m) => m[1])).toContain(RULES_VERSION);
   });
 });
 

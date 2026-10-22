@@ -41,9 +41,12 @@ CREATE FUNCTION rt.consent() RETURNS jsonb LANGUAGE sql AS $$ SELECT '{"confirme
 -- AUD-06: evidencia del correo recibido tal como la registra ai_reservation_inbound_attach (los
 -- datos vienen del proveedor, no del modelo) y la confirmación completa que arma decideReply().
 CREATE FUNCTION rt.ev(email_id text, from_addr text, auth jsonb, reply text, mid text, quoted boolean DEFAULT false,
-  method text DEFAULT 'reply_token', body_hash text DEFAULT repeat('a', 64)) RETURNS jsonb LANGUAGE sql AS $$
+  method text DEFAULT 'reply_token', body_hash text DEFAULT NULL) RETURNS jsonb LANGUAGE sql AS $$
+  -- r2 (A2-RES-12): la huella del cuerpo sale del texto, como en el servicio (antes una constante para todos:
+  -- con la deduplicación por cuerpo, correos distintos habrían parecido el mismo).
   SELECT jsonb_build_object('provider', 'resend', 'provider_email_id', email_id, 'message_id', mid, 'received_at', now(),
-    'from_address', from_addr, 'auth', auth, 'reply_text', reply, 'body_sha256', body_hash, 'raw_sha256', repeat('b', 64),
+    'from_address', from_addr, 'auth', auth, 'reply_text', reply,
+    'body_sha256', coalesce(body_hash, encode(sha256(convert_to(reply, 'UTF8')), 'hex')), 'raw_sha256', repeat('b', 64),
     'raw_pointer', 'resend:emails/receiving/' || email_id, 'linkage', jsonb_build_object('method', method, 'quoted_request', quoted),
     'sender', jsonb_build_object('verified', true, 'basis', 'dmarc_aligned'))
 $$;
@@ -64,7 +67,7 @@ $$;
 CREATE FUNCTION rt.dec(conf jsonb, model text DEFAULT 'claude-test-model') RETURNS jsonb LANGUAGE sql AS $$
   SELECT jsonb_build_object('outcome', 'confirmed', 'excerpt', conf->>'quote', 'inbound_email_id', conf->>'inbound_email_id',
     'from_domain', 'casaoaxaca.com.mx', 'verified_sender', true, 'quotes', jsonb_build_array(conf->>'quote'), 'claude_calls', 1,
-    'confirmation', conf, 'log', jsonb_build_object('model', model, 'rules_version', 'test', 'classifier', jsonb_build_object('outcome', 'confirmed')))
+    'confirmation', conf, 'log', jsonb_build_object('model', model, 'rules_version', 'r2-v1', 'classifier', jsonb_build_object('outcome', 'confirmed')))
 $$;
 -- Crea y "envía" una solicitud (usuario n, lugar y correo propios para no chocar con los límites).
 CREATE FUNCTION rt.sent(n int, place text, email text) RETURNS uuid LANGUAGE plpgsql AS $$
@@ -198,7 +201,9 @@ SELECT rt.ok('R25 "confirmed" sin remitente verificado o sin cita → CHECK lo r
   :'no_ev' LIKE '23514%' AND :'no_quote' LIKE '23514%' AND (SELECT status FROM ai_reservations WHERE id = :'id1') = 'sent', :'no_ev');
 
 SELECT rt.as_service(); SET ROLE service_role;
-SELECT public.ai_reservation_apply_reply(:'id1', :'inb1', '{"outcome":"ignored","excerpt":"Fuera de la oficina","quotes":[]}') AS ap_ign \gset
+-- A2-RES-12: cada correo recibido tiene UNA decisión; la respuesta automática es otro correo (su propio inbound).
+SELECT (public.ai_reservation_inbound_claim('msg_evt_1ign', 'em_1ign', :'tok1', 'casaoaxaca.com.mx'))->>'inbound_id' AS inb1ign \gset
+SELECT public.ai_reservation_apply_reply(:'id1', :'inb1ign', '{"outcome":"ignored","excerpt":"Fuera de la oficina","quotes":[]}') AS ap_ign \gset
 -- AUD-06: la confirmación necesita la evidencia del proveedor (Message-ID, huellas, SPF/DKIM/DMARC, texto
 -- original) registrada antes, y condiciones aceptadas + decisión con modelo (ver R44–R57).
 SELECT public.ai_reservation_inbound_attach(:'inb1', rt.ev('em_1', 'reservas@casaoaxaca.com.mx', rt.pass(),
@@ -250,7 +255,7 @@ SELECT (public.ai_reservation_inbound_claim('msg_evt_30', 'em_30', :'tok3', 'cas
 SELECT public.ai_reservation_inbound_attach(:'inb3', rt.ev('em_30', 'reservas@casaoaxaca.com.mx', rt.pass(),
   'A las 20:30 no hay lugar. Les apartamos una mesa a las 21:15 para 4 personas.', '<m30@casaoaxaca.com.mx>')) IS NOT NULL AS x \gset
 SELECT public.ai_reservation_apply_reply(:'id3', :'inb3', jsonb_build_object('outcome', 'alternative_offered', 'excerpt', 'Les apartamos 21:15',
-  'inbound_email_id', 'em_30', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'test'),
+  'inbound_email_id', 'em_30', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'r2-v1'),
   'alternatives', jsonb_build_array(jsonb_build_object('local', to_char((now() AT TIME ZONE 'America/Mexico_City') + interval '2 days', 'YYYY-MM-DD') || 'T21:15',
     'held', true, 'verified_sender', true, 'inbound_email_id', 'em_30', 'inbound_id', :'inb3', 'quote', 'Les apartamos una mesa a las 21:15', 'from_domain', 'casaoaxaca.com.mx',
     'contradictions', '[]'::jsonb,
@@ -346,7 +351,7 @@ SELECT public.ai_reservation_apply_reply(:'id61', :'inb61', rt.dec(rt.conf(:'id6
 RESET ROLE;
 SELECT rt.ok('R44 con evidencia completa del proveedor → confirmed; queda la decisión con el modelo, el historial con el correo y la evidencia sellada',
   (:'att61'::jsonb)->>'ok' = 'true' AND (:'ap61'::jsonb)->>'status' = 'confirmed'
-  AND (SELECT message_id_hash ~ '^[0-9a-f]{64}$' AND body_sha256 = repeat('a', 64) AND provider = 'resend' AND auth->>'dmarc' = 'pass'
+  AND (SELECT message_id_hash ~ '^[0-9a-f]{64}$' AND body_sha256 = encode(sha256(convert_to(reply_text, 'UTF8')), 'hex') AND provider = 'resend' AND auth->>'dmarc' = 'pass'
          AND from_address = 'reservas@casa61.mx' AND provider_received_at IS NOT NULL AND reply_text LIKE 'Con gusto%' AND attached_at IS NOT NULL
        FROM ai_reservation_inbound WHERE id = :'inb61')
   AND EXISTS (SELECT 1 FROM ai_reservation_decisions WHERE inbound_id = :'inb61' AND reservation_id = :'id61' AND decision = 'confirmed' AND model = 'claude-test-model')
@@ -434,7 +439,7 @@ SELECT (public.ai_reservation_inbound_claim('msg_evt_66', 'em_66', :'tok66', 'ca
 SELECT public.ai_reservation_inbound_attach(:'inb66', rt.ev('em_66', 'reservas@casa66.mx', '{"spf":"pass","dkim":"gray","dmarc":"gray"}',
   'Les apartamos una mesa para 4 personas a las 21:15.', '<m66@casa66.mx>')) IS NOT NULL AS x \gset
 SELECT public.ai_reservation_apply_reply(:'id66', :'inb66', jsonb_build_object('outcome', 'alternative_offered', 'excerpt', 'Les apartamos 21:15',
-  'inbound_email_id', 'em_66', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'test'),
+  'inbound_email_id', 'em_66', 'log', jsonb_build_object('model', 'claude-test-model', 'rules_version', 'r2-v1'),
   'alternatives', jsonb_build_array(jsonb_build_object('local', to_char((now() AT TIME ZONE 'America/Mexico_City') + interval '2 days', 'YYYY-MM-DD') || 'T21:15',
     'held', true, 'verified_sender', true, 'inbound_email_id', 'em_66', 'inbound_id', :'inb66', 'quote', 'Les apartamos una mesa para 4 personas a las 21:15',
     'contradictions', '[]'::jsonb,
@@ -450,7 +455,9 @@ SELECT rt.ok('R56 alterno "apartado" con autenticación débil (solo SPF) → no
 -- R57: la regla de remitente fuerte en SQL es la misma que en TypeScript (lo prueba también Vitest).
 SELECT rt.ok('R57 remitente fuerte (SQL): DMARC alineado o dirección exacta + DKIM; nunca SPF solo, dominios parecidos ni From ambiguos',
   public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', rt.pass())
-  AND public.ai_res_sender_strong('maria@mail.casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"dmarc":"pass"}')
+  -- A2-RES-01: otro buzón o subdominio solo con dominio propio (= sitio oficial); sin sitio, no.
+  AND public.ai_res_sender_strong('maria@mail.casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"dmarc":"pass"}', 'https://www.casaoaxaca.com.mx/')
+  AND NOT public.ai_res_sender_strong('maria@mail.casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"dmarc":"pass"}')
   AND public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"gray","dkim":"pass","dmarc":"gray"}')
   AND NOT public.ai_res_sender_strong('maria@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"pass","dkim":"pass","dmarc":"gray"}')
   AND NOT public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"pass","dkim":"pass","dmarc":"fail"}')

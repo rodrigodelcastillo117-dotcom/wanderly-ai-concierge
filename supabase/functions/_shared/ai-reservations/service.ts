@@ -35,22 +35,60 @@ export type ReceivedEmail = {
   authentication?: { spf?: string; dkim?: string; dmarc?: string } | null;
   message_id?: string | null;
   reply_to?: unknown;
-  headers?: Record<string, unknown> | null;
+  headers?: Record<string, unknown> | Array<Record<string, unknown>> | null;
   raw?: { download_url?: string; expires_at?: string } | null;
 };
+
+/**
+ * A2-RES-07 · Encabezados From del correo descargado, sin importar la forma en que lleguen: objeto
+ * ({from}, {From}, {FROM}…) o lista ([{name, value}]). Devuelve la lista de valores From encontrados
+ * (puede tener 0, 1 o varios), o null si `headers` existe pero no se puede leer.
+ */
+export function headerFromValues(headers: unknown): string[] | null {
+  if (headers === undefined || headers === null) return [];
+  const vals: unknown[] = [];
+  if (Array.isArray(headers)) {
+    for (const h of headers) {
+      if (!h || typeof h !== "object" || Array.isArray(h)) return null;
+      const o = h as Record<string, unknown>;
+      const name = o.name ?? o.key;
+      if (typeof name !== "string") return null;
+      if (name.trim().toLowerCase() === "from") vals.push(o.value);
+    }
+  } else if (typeof headers === "object") {
+    for (const [k, v] of Object.entries(headers as Record<string, unknown>)) {
+      if (k.trim().toLowerCase() === "from") vals.push(v);
+    }
+  } else {
+    return null;
+  }
+  const out: string[] = [];
+  for (const v of vals) {
+    if (Array.isArray(v)) { for (const x of v) { if (typeof x !== "string") return null; out.push(x); } }
+    else if (typeof v === "string") out.push(v);
+    else return null;
+  }
+  return out;
+}
 
 /**
  * AUD-02 · Veredicto del remitente con lo que dio el proveedor. Además de la regla de
  * senderAuthentication(), el From del webhook, el del correo descargado y el encabezado From crudo
  * deben ser la MISMA dirección: si discrepan, no se puede saber quién escribió → no verificado.
+ * A2-RES-07: si el correo trae encabezados, debe haber exactamente UN From legible (sin importar
+ * mayúsculas ni si llegan como lista); si no, no se verifica.
+ * A2-RES-01: venueWebsite (el sitio oficial guardado en la reserva) decide si el dominio es del lugar.
  */
-export function inboundSenderVerdict(webhookFrom: unknown, content: ReceivedEmail, venueEmail: string | null): SenderVerdict {
-  const v = senderAuthentication(content.from ?? webhookFrom, venueEmail, content.authentication);
+export function inboundSenderVerdict(webhookFrom: unknown, content: ReceivedEmail, venueEmail: string | null, venueWebsite?: string | null): SenderVerdict {
+  const v = senderAuthentication(content.from ?? webhookFrom, venueEmail, content.authentication, venueWebsite);
   const reasons = [...v.reasons];
-  const h = content.headers && typeof content.headers === "object" ? content.headers as Record<string, unknown> : null;
-  const headerFrom = h ? (h.from ?? h.From) : undefined;
   if (webhookFrom != null && String(webhookFrom).trim() && bareAddress(webhookFrom) !== v.from_address) reasons.push("webhook_from_mismatch");
-  if (headerFrom != null && String(headerFrom).trim() && bareAddress(headerFrom) !== v.from_address) reasons.push("header_from_mismatch");
+  if (content.headers !== undefined && content.headers !== null) {
+    const froms = headerFromValues(content.headers);
+    if (froms === null) reasons.push("header_from_unreadable");
+    else if (froms.length !== 1) reasons.push(froms.length === 0 ? "header_from_missing" : "header_from_multiple");
+    else if (bareAddress(froms[0]) !== v.from_address) reasons.push("header_from_mismatch");
+  }
   if (reasons.length === v.reasons.length) return v;
   return { ...v, verified: false, basis: null, reasons };
 }
@@ -438,7 +476,7 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
     await deps.db.rpc("ai_reservation_inbound_finish", { _inbound_id: inboundId, _status: "failed", _outcome: "fetch_failed" });
     return fail(500, "FETCH_FAILED"); // Resend reintenta; el reintento reclama la fila 'failed'
   }
-  const sender = inboundSenderVerdict(d.from, content, row.venue_email);
+  const sender = inboundSenderVerdict(d.from, content, row.venue_email, row.venue_website);
   const fromAddr = sender.from_address;
   const verified = sender.verified;
   const hasText = !!content.text?.trim();
@@ -471,6 +509,7 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
       : null;
     decision = decideReply(row, cls, {
       replyText, fullText, verifiedSender: verified, fromDomain: domainOf(fromAddr), inboundEmailId: emailId, linkage, receivedAt,
+      htmlOnly: !hasText,
     });
     if (!replyText) decision = { ...decision, outcome: "ignored", why: "empty_body", claude_calls: 0 };
     if (!deps.callModel) decision.claude_calls = 0;
@@ -505,7 +544,9 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
   const after = applied.data.reservation as AiReservationRow;
   // 5) Correo al usuario (el aviso en la app lo deja la base de datos en cada transición).
   switch (decision.outcome) {
-    case "confirmed": await sendUserConfirmation(deps, after); break;
+    // Defensa en profundidad (A2-RES-02): el correo "confirmó tu reserva" sale solo si la BASE dejó la
+    // reserva en confirmed (no basta con lo que decidió TypeScript).
+    case "confirmed": if (after?.status === "confirmed") await sendUserConfirmation(deps, after); break;
     case "alternative_offered":
     case "declined":
     case "needs_info":

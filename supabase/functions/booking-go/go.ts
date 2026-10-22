@@ -5,10 +5,10 @@
 // sitio oficial). Un token sin huella (anterior a AUD-04) solo sale por la lista estricta. Nunca lee
 // una URL de la petición. Cualquier falla regresa a IATOS con un aviso, no a un dominio externo.
 import { checkAllowlisted, checkTrustedSource } from "../_shared/booking/allowlist.ts";
-import { targetHash, verifyRedirect } from "../_shared/booking/redirectToken.ts";
+import { MAX_TOKEN_USES, targetHash, verifyRedirect } from "../_shared/booking/redirectToken.ts";
 import { DEFAULT_ORIGIN, safeOrigin } from "../_shared/origin.ts";
 
-type Target = { ok: boolean; target_url?: string; trip_id?: string | null; code?: string } | null;
+type Target = { ok: boolean; target_url?: string; trip_id?: string | null; code?: string; redirect_count?: number } | null;
 
 export type GoDeps = {
   secret: string;
@@ -40,8 +40,13 @@ export async function resolveGo(url: string, deps: GoDeps): Promise<GoResult> {
   };
   // Primero se revisa sin marcar: un destino bloqueado no deja la intención como "salió al proveedor".
   if (deps.peekTarget) {
-    const pre = await verdict(await deps.peekTarget(claims.i, claims.u));
+    const peeked = await deps.peekTarget(claims.i, claims.u);
+    const pre = await verdict(peeked);
     if ("status" in pre) return pre;
+    // A2-T1: un token firmado con `n` sirve para MAX_TOKEN_USES salidas; después regresa a IATOS.
+    if (typeof claims.n === "number" && typeof peeked?.redirect_count === "number" && peeked.redirect_count >= claims.n + MAX_TOKEN_USES) {
+      return back(origin, "enlace_usado", peeked.trip_id ?? null);
+    }
   }
   const post = await verdict(await deps.markRedirected(claims.i, claims.u));
   if ("status" in post) return post;

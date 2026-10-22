@@ -100,6 +100,24 @@ describe("AUD-03 · el modelo dice 'confirmed' pero la respuesta no lo sostiene"
     const d = decide("Tenemos disponibilidad.", { evidence_quotes: ["Confirmamos su reserva para 4 personas"] });
     expect(d.outcome).toBe("ambiguous");
   });
+  it("cita inventada (sin fixture): en nuestro hilo todo lo demás confirmaría, pero la frase del modelo no está escrita → ambiguous", () => {
+    // r2: armada sin el fixture grabado. Respuesta en nuestro hilo que cita la solicitud sin cambios
+    // (fecha, hora y personas ligadas a la solicitud) y el modelo sin datos "afirmados": lo ÚNICO que
+    // falta es que la frase de confirmación esté escrita por el restaurante.
+    const nulls = { stated_date: null, stated_time: null, stated_party_size: null, stated_name: null };
+    const thread = (reply: string) => ({ fullText: reply + quoted("es") });
+    // Control: con la frase escrita, la ligadura con la solicitud citada (quotedRequestLinked) confirma.
+    const ok = decide("Confirmamos su reserva. Los esperamos.", { ...nulls, evidence_quotes: ["Confirmamos su reserva."] }, thread("Confirmamos su reserva. Los esperamos."));
+    expect(ok.outcome).toBe("confirmed");
+    expect(ok.confirmation).toMatchObject({ linkage: { quoted_request: true }, conditions: { party_size: { basis: "thread_quote" } } });
+    // La misma respuesta sin la frase, con el modelo inventándola (o copiándola de nuestro propio correo citado).
+    for (const invented of ["Confirmamos su reserva.", "Su reserva está confirmada", "Ana López vía IATOS"]) {
+      const d = decide("Gracias, los esperamos.", { ...nulls, evidence_quotes: [invented] }, thread("Gracias, los esperamos."));
+      expect(d.outcome, invented).toBe("ambiguous");
+      expect(d.quotes, invented).toEqual([]);
+      expect(d.why, invented).toBe("no_verbatim_quote");
+    }
+  });
 });
 
 describe("AUD-03 · número de confirmación: nunca inventado", () => {

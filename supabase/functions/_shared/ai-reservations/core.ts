@@ -209,75 +209,146 @@ export function bareAddress(from: unknown): string | null {
   cand = cand.toLowerCase();
   return ADDR_RE.test(cand) ? cand : null;
 }
-export const FREEMAIL = new Set([
-  "gmail.com", "googlemail.com", "hotmail.com", "hotmail.es", "hotmail.fr", "outlook.com", "outlook.es", "outlook.fr",
-  "live.com", "live.com.mx", "msn.com", "yahoo.com", "yahoo.com.mx", "yahoo.es", "yahoo.fr", "icloud.com", "me.com",
-  "aol.com", "proton.me", "protonmail.com", "gmx.com", "gmx.de", "orange.fr", "free.fr", "laposte.net", "prodigy.net.mx",
+/**
+ * A2-RES-01 · Dominios de buzón COMPARTIDO: cualquiera abre una cuenta ahí, así que DMARC pass solo
+ * prueba que el correo salió de ESA cuenta, no del restaurante. Con ellos se exige la dirección exacta.
+ * Lista amplia y mantenida (gratuitos, proveedores de internet y de hosting de correo). La misma lista
+ * vive en SQL (public.ai_res_freemail_domains, migración 20261026010000_r2_reservas_*); una prueba
+ * de Vitest exige que coincidan. Aunque un dominio falte aquí, la heurística venueOwnsDomain() lo
+ * trata como compartido si no coincide con el sitio web oficial del lugar.
+ */
+export const SHARED_MAILBOX_DOMAINS = new Set([
+  // Google, Microsoft, Yahoo, Apple, AOL
+  "gmail.com", "googlemail.com",
+  "hotmail.com", "hotmail.es", "hotmail.fr", "hotmail.it", "hotmail.de", "hotmail.co.uk", "hotmail.com.mx", "hotmail.com.ar",
+  "hotmail.com.br", "hotmail.cl", "hotmail.be", "hotmail.ca",
+  "outlook.com", "outlook.es", "outlook.fr", "outlook.it", "outlook.de", "outlook.com.mx", "outlook.com.ar", "outlook.com.br",
+  "outlook.cl", "outlook.co.uk", "outlook.pt",
+  "live.com", "live.com.mx", "live.fr", "live.it", "live.co.uk", "live.de", "live.nl", "live.be", "live.ca", "live.com.ar",
+  "live.cl", "live.com.pt", "msn.com", "windowslive.com", "passport.com",
+  "yahoo.com", "yahoo.com.mx", "yahoo.es", "yahoo.fr", "yahoo.it", "yahoo.de", "yahoo.co.uk", "yahoo.com.ar", "yahoo.com.br",
+  "yahoo.ca", "yahoo.cl", "yahoo.com.co", "yahoo.com.pe", "yahoo.com.ve", "yahoo.co.jp", "ymail.com", "rocketmail.com",
+  "icloud.com", "me.com", "mac.com", "aol.com", "aol.fr", "aim.com",
+  // Correo cifrado y de pago
+  "proton.me", "protonmail.com", "protonmail.ch", "pm.me", "tutanota.com", "tuta.io", "fastmail.com", "hey.com",
+  "mailbox.org", "posteo.de", "hushmail.com", "zoho.com", "zohomail.com",
+  // Alemania, Austria, Suiza, Europa del Este
+  "gmx.com", "gmx.de", "gmx.net", "gmx.at", "gmx.ch", "gmx.fr", "gmx.es", "web.de", "t-online.de", "freenet.de", "arcor.de",
+  "mail.com", "email.com", "usa.com", "seznam.cz", "wp.pl", "o2.pl", "onet.pl", "interia.pl", "abv.bg",
+  "yandex.ru", "yandex.com", "ya.ru", "mail.ru", "inbox.ru", "list.ru", "bk.ru", "rambler.ru",
+  // Francia
+  "orange.fr", "wanadoo.fr", "free.fr", "laposte.net", "sfr.fr", "neuf.fr", "bbox.fr", "numericable.fr", "club-internet.fr",
+  "aliceadsl.fr", "cegetel.net",
+  // Italia, España, Portugal
+  "libero.it", "virgilio.it", "tiscali.it", "alice.it", "tin.it", "email.it", "fastwebnet.it",
+  "telefonica.net", "movistar.es", "ono.com", "terra.es", "sapo.pt",
+  // México y Latinoamérica
+  "prodigy.net.mx", "infinitummail.com", "telmexmail.com", "terra.com.mx", "terra.com.br", "uol.com.br", "bol.com.br",
+  "ig.com.br", "globo.com", "arnet.com.ar", "fibertel.com.ar", "speedy.com.ar",
+  // Reino Unido, EE. UU., Canadá, Oceanía
+  "btinternet.com", "sky.com", "talktalk.net", "virginmedia.com", "ntlworld.com", "comcast.net", "verizon.net", "att.net",
+  "sbcglobal.net", "bellsouth.net", "cox.net", "charter.net", "earthlink.net", "juno.com", "optonline.net", "shaw.ca",
+  "rogers.com", "sympatico.ca", "videotron.ca", "bigpond.com", "optusnet.com.au", "xtra.co.nz",
+  // Asia
+  "qq.com", "163.com", "126.com", "sina.com", "naver.com", "daum.net", "hanmail.net", "rediffmail.com",
+  // Otros
+  "lycos.com", "inbox.com",
 ]);
+/** Compatibilidad: nombre anterior de la lista (AUD-02). */
+export const FREEMAIL = SHARED_MAILBOX_DOMAINS;
 export const domainOf = (email: string | null | undefined) => {
   if (!email) return null;
   const i = email.lastIndexOf("@");
   return i > 0 ? email.slice(i + 1).toLowerCase() : null;
 };
 
+/**
+ * Host del sitio web oficial del lugar, sin "www." ni punto final, en minúsculas. Solo https, ASCII,
+ * sin credenciales (la misma expresión que public.ai_res_site_host en SQL). null si no se entiende.
+ */
+export function siteHost(website: string | null | undefined): string | null {
+  const m = /^https:\/\/([a-z0-9.-]+)(?::\d{1,5})?(?:[/?#]|$)/.exec(String(website ?? "").trim().toLowerCase());
+  if (!m) return null;
+  const h = m[1].replace(/\.$/, "").replace(/^www\./, "");
+  return h.includes(".") && !h.startsWith(".") && !h.includes("..") ? h : null;
+}
+
+/**
+ * A2-RES-01 · ¿El dominio del correo del restaurante es SUYO? Solo si no es un buzón compartido y es el
+ * mismo dominio de su sitio web oficial (o un subdominio de él: reservas@mail.casa.mx con casa.mx).
+ * Sin sitio web, o con un sitio en otro dominio, se trata como compartido: se exige la dirección exacta.
+ * Misma regla que public.ai_res_venue_owns_domain en SQL.
+ */
+export function venueOwnsDomain(venueEmail: string | null | undefined, venueWebsite: string | null | undefined): boolean {
+  const vd = domainOf(bareAddress(venueEmail));
+  const site = siteHost(venueWebsite);
+  if (!vd || !site) return false;
+  if (SHARED_MAILBOX_DOMAINS.has(vd) || SHARED_MAILBOX_DOMAINS.has(site)) return false;
+  return vd === site || vd.endsWith(`.${site}`);
+}
+
 /** Resultados de autenticación tal como los da Resend (GET /emails/receiving/{id} → authentication). */
 export type AuthResults = { spf?: string; dkim?: string; dmarc?: string } | null | undefined;
 const AUTH_VALUES = new Set(["pass", "fail", "gray", "processing_failed", "unknown"]);
 const authValue = (v: unknown) => {
+  if (v === undefined || v === null) return "missing";
   const x = typeof v === "string" ? v.trim().toLowerCase() : "";
-  return AUTH_VALUES.has(x) ? x : "missing";
+  return AUTH_VALUES.has(x) ? x : "invalid";
 };
 
 export type SenderVerdict = {
   verified: boolean;
-  /** dmarc_aligned: DMARC pass con el From en el dominio del restaurante. exact_address_dkim: misma dirección + DKIM alineado. */
+  /** dmarc_aligned: DMARC pass (dirección exacta, o dominio propio del restaurante). exact_address_dkim: misma dirección + DKIM alineado. */
   basis: "dmarc_aligned" | "exact_address_dkim" | null;
   from_address: string | null;
   from_domain: string | null;
   auth: { spf: string; dkim: string; dmarc: string };
+  /** A2-RES-01: el dominio del correo del restaurante es suyo (coincide con su sitio oficial y no es compartido). */
+  venue_owns_domain?: boolean;
   reasons: string[];
 };
 
 /**
- * AUD-02 · ¿El correo viene de verdad del restaurante? Solo con autenticación fuerte y verificable:
- *   (a) DMARC 'pass' (el proveedor comprobó SPF o DKIM ALINEADO con el dominio del From) y el From es
- *       el dominio exacto al que escribimos o un subdominio suyo; o
- *   (b) el From es exactamente la dirección a la que escribimos y DKIM 'pass' (para Resend, 'pass'
- *       implica que el dominio firmante coincide con el del From; si no, reporta 'gray'), sin DMARC 'fail'.
- * SPF solo nunca basta (autentica el sobre, no el From). DMARC 'fail' o 'processing_failed' siempre
- * descarta. Dominio padre, sufijo público, parecidos (guiones, otro TLD, IDN/punycode) → no.
- * En correos gratuitos (gmail, hotmail…) el dominio lo comparte cualquiera: se exige la misma dirección.
+ * AUD-02 + A2-RES-01 · ¿El correo viene de verdad del restaurante? Solo con autenticación fuerte:
+ *   (a) la MISMA dirección a la que escribimos, con DMARC 'pass' o con DKIM 'pass' (para Resend, 'pass'
+ *       implica que el dominio firmante coincide con el del From) y DMARC 'gray'; o
+ *   (b) otra dirección del dominio del restaurante (o de un subdominio suyo) con DMARC 'pass', SOLO si
+ *       el dominio es propio del restaurante (venueOwnsDomain: coincide con su sitio web oficial y no es
+ *       un buzón compartido). En un buzón compartido (gmail, live.fr, wanadoo.fr…) o si el dominio no
+ *       coincide con el sitio, cualquiera puede tener una cuenta con DMARC pass: se exige la dirección exacta.
+ * DMARC con cualquier valor que no sea 'pass' o 'gray' (fail, processing_failed, unknown, ausente o un
+ * valor inesperado) descarta: falla cerrada (A2-RES-06). SPF solo nunca basta. Dominio padre, sufijo
+ * público, parecidos (guiones, otro TLD, IDN/punycode) → no.
  * Si algo falta o no se entiende, NO se considera verificado: la respuesta se muestra, pero no confirma.
  */
-export function senderAuthentication(fromHeader: unknown, venueEmail: string | null | undefined, auth: AuthResults): SenderVerdict {
+export function senderAuthentication(fromHeader: unknown, venueEmail: string | null | undefined, auth: AuthResults, venueWebsite?: string | null): SenderVerdict {
   const from = bareAddress(fromHeader);
   const venue = bareAddress(venueEmail);
-  const a = (auth && typeof auth === "object") ? auth as Record<string, unknown> : {};
+  const a = (auth && typeof auth === "object" && !Array.isArray(auth)) ? auth as Record<string, unknown> : {};
   const res = { spf: authValue(a.spf), dkim: authValue(a.dkim), dmarc: authValue(a.dmarc) };
+  const owns = venueOwnsDomain(venue, venueWebsite);
   const out = (basis: SenderVerdict["basis"], reasons: string[]): SenderVerdict =>
-    ({ verified: basis !== null, basis, from_address: from, from_domain: domainOf(from), auth: res, reasons });
+    ({ verified: basis !== null, basis, from_address: from, from_domain: domainOf(from), auth: res, venue_owns_domain: owns, reasons });
   if (!from) return out(null, ["from_unparseable"]);
   if (!venue) return out(null, ["venue_email_missing"]);
-  if (!auth || typeof auth !== "object") return out(null, ["auth_missing"]);
-  if (res.dmarc === "fail" || res.dmarc === "processing_failed") return out(null, [`dmarc_${res.dmarc}`]);
+  if (!auth || typeof auth !== "object" || Array.isArray(auth)) return out(null, ["auth_missing"]);
+  if (res.dmarc !== "pass" && res.dmarc !== "gray") return out(null, [`dmarc_${res.dmarc}`]);
   const fd = domainOf(from)!;
   const vd = domainOf(venue)!;
-  const exact = from === venue;
-  if (FREEMAIL.has(vd) || FREEMAIL.has(fd)) {
-    if (!exact) return out(null, ["freemail_address_mismatch"]);
+  if (from === venue) {
     if (res.dmarc === "pass") return out("dmarc_aligned", []);
     if (res.dkim === "pass") return out("exact_address_dkim", []);
     return out(null, ["no_aligned_authentication"]);
   }
+  if (!owns) return out(null, [SHARED_MAILBOX_DOMAINS.has(vd) || SHARED_MAILBOX_DOMAINS.has(fd) ? "shared_mailbox_address_mismatch" : "address_not_exact_domain_not_owned"]);
   if (!(fd === vd || fd.endsWith(`.${vd}`))) return out(null, ["domain_mismatch"]);
   if (res.dmarc === "pass") return out("dmarc_aligned", []);
-  if (exact && res.dkim === "pass") return out("exact_address_dkim", []);
-  return out(null, [exact ? "no_aligned_authentication" : "address_not_exact_without_dmarc"]);
+  return out(null, ["address_not_exact_without_dmarc"]);
 }
 
 /** Atajo booleano (compatibilidad): true solo con autenticación fuerte (ver senderAuthentication). */
-export function senderVerified(fromAddress: string | null, venueEmail: string | null, auth: AuthResults): boolean {
-  return senderAuthentication(fromAddress, venueEmail, auth).verified;
+export function senderVerified(fromAddress: string | null, venueEmail: string | null, auth: AuthResults, venueWebsite?: string | null): boolean {
+  return senderAuthentication(fromAddress, venueEmail, auth, venueWebsite).verified;
 }
 
 // ───────────────────────────── Texto de la respuesta ─────────────────────────────
@@ -305,9 +376,46 @@ export function stripQuotedReply(text: string): string {
   return splitQuotedReply(text).reply;
 }
 
-/** HTML de un correo → texto plano (sin scripts ni estilos), para cuando no viene versión texto. */
+// A2-RES-08 · Elementos que el lector no ve: su texto no cuenta como escrito por el restaurante.
+const HIDDEN_STYLE = /(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0(?:\.0+)?(?:px|pt|em|rem|%)?\s*(?:!important)?\s*(?:;|$)|max-height\s*:\s*0(?:px)?\s*(?:!important)?\s*(?:;|$)|opacity\s*:\s*0(?:\.0+)?\s*(?:!important)?\s*(?:;|$)|mso-hide\s*:\s*all)/i;
+const VOID_TAGS = new Set(["br", "hr", "img", "input", "meta", "link", "area", "base", "col", "embed", "source", "track", "wbr"]);
+
+/** Quita del HTML los elementos ocultos (style display:none, visibility:hidden, font-size:0,
+ * max-height:0, opacity:0, mso-hide:all; atributo hidden o aria-hidden="true"; <template>) con todo
+ * lo que contienen, respetando el anidamiento de etiquetas. */
+export function stripHiddenHtml(html: string): string {
+  const h = String(html ?? "").replace(/<!--[\s\S]*?-->/g, " ").replace(/<template[\s\S]*?<\/template>/gi, " ");
+  const tagRe = /<\/?([a-zA-Z][a-zA-Z0-9-]*)\b[^>]*>/g;
+  let out = "";
+  let last = 0;
+  let hiddenDepth = 0; // >0: dentro de un elemento oculto
+  let hiddenTag = "";
+  for (let m = tagRe.exec(h); m; m = tagRe.exec(h)) {
+    const tag = m[1].toLowerCase();
+    const isClose = m[0].startsWith("</");
+    const selfClosing = /\/>$/.test(m[0]) || VOID_TAGS.has(tag);
+    if (hiddenDepth === 0) {
+      out += h.slice(last, m.index);
+      last = m.index + m[0].length;
+      const attrs = m[0];
+      const style = /\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs);
+      const hidden = !isClose && ((style && HIDDEN_STYLE.test(style[1] ?? style[2] ?? "")) || /\shidden(?:\s|=|>|\/)/i.test(attrs) || /\saria-hidden\s*=\s*["']?true/i.test(attrs));
+      if (hidden && !selfClosing) { hiddenDepth = 1; hiddenTag = tag; continue; }
+      if (hidden) continue;
+      out += m[0];
+    } else {
+      last = m.index + m[0].length;
+      if (tag !== hiddenTag || selfClosing) continue;
+      hiddenDepth += isClose ? -1 : 1;
+    }
+  }
+  if (hiddenDepth === 0) out += h.slice(last);
+  return out;
+}
+
+/** HTML de un correo → texto plano (sin scripts, estilos ni texto oculto), para cuando no viene versión texto. */
 export function htmlToText(html: string, keepQuoted = false): string {
-  const h = String(html ?? "");
+  const h = stripHiddenHtml(String(html ?? ""));
   return (keepQuoted ? h : h.replace(/<blockquote[\s\S]*$/i, "")) // lo citado suele ir en <blockquote>
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, " ")
     .replace(/<br\s*\/?>/gi, "\n")
@@ -321,13 +429,17 @@ export function htmlToText(html: string, keepQuoted = false): string {
 }
 
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+// A2-RES-13: enlaces (con esquema, www. o un dominio con ruta) → "[enlace]". El extracto lo reenviamos
+// desde IATOS al usuario: un enlace del remitente (verificado o no) nunca debe llegar clicable.
+const URL_RE = /\b(?:(?:https?|ftp):\/\/|www\.)[^\s<>"'()]+|\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z]{2,}\/[^\s<>"'()]*/gi;
 const CARD_RE = /\b(?:\d[ -]?){13,19}\b/g;
 const PHONE_RE = /\+?\d[\d\s().-]{7,}\d/g;
 
-/** Extracto para guardar y mostrar: sin correos, teléfonos ni números tipo tarjeta, recortado. */
+/** Extracto para guardar y mostrar: sin correos, enlaces, teléfonos ni números tipo tarjeta, recortado. */
 export function redactExcerpt(text: string, max = 600): string {
   const t = String(text ?? "")
     .replace(EMAIL_RE, "[correo]")
+    .replace(URL_RE, "[enlace]")
     .replace(CARD_RE, "[número]")
     // Un teléfono tiene 9+ dígitos; una fecha ISO ("2026-11-03 20") no es un teléfono.
     .replace(PHONE_RE, (m) => (/^\d{4}-\d{2}-\d{2}/.test(m) || m.replace(/\D/g, "").length < 9 ? m : "[teléfono]"))

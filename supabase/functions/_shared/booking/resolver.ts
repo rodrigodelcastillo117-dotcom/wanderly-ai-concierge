@@ -128,7 +128,9 @@ function check(c: LinkCandidate): UrlVerdict {
   // Lo que escribió la IA o mandó el cliente solo puede salir a dominios de la lista blanca y nunca
   // por un redirect opaco (google.com/aclk, /travel/clk) cuyo destino final no se ve (AUD-04).
   const untrusted = UNTRUSTED.includes(c.trust);
-  const v = untrusted ? checkUntrusted(c.url) : checkTrustedSource(c.url);
+  let v = untrusted ? checkUntrusted(c.url) : checkTrustedSource(c.url);
+  // A2: un dato editable del viaje (google_places) tampoco puede salir por un redirect opaco.
+  if (c.trust === "google_places" && v.ok && v.provider?.redirector === "opaque") v = { ok: false, reason: "redirect_sin_destino_visible" };
   // tp.media/click responde 400 (ver links.ts): se abre su destino, que también pasó la lista blanca.
   if (v.ok && v.provider?.redirector === "wrapper") return untrusted ? checkUntrusted(unwrapAffiliate(v.url)) : checkAllowlisted(unwrapAffiliate(v.url));
   return v;
@@ -140,7 +142,7 @@ function check(c: LinkCandidate): UrlVerdict {
  * verificado (AUD-04). Se ofrece igual (no se bloquean sitios reales), con su dominio a la vista.
  */
 function editableTripData(c: LinkCandidate, v: UrlVerdict): boolean {
-  return v.ok && v.trust === "trusted_source" && c.trust === "google_places";
+  return v.ok && c.trust === "google_places";
 }
 
 function preservesNotes(p: Preserves, product: ProductType): string[] {

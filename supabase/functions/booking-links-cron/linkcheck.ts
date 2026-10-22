@@ -52,6 +52,28 @@ async function readCapped(res: Response, max = SCAN_MAX_BYTES): Promise<string> 
   return new TextDecoder().decode(all);
 }
 
+/**
+ * A2-F3 · robots.txt sin seguir saltos a ciegas: redirect "manual" y cada salto se valida igual que la
+ * página (https, sin IP ni host interno, sin puerto raro, y el MISMO dominio registrable). Si un salto
+ * no pasa, robots.txt se trata como ausente: no se pide nada inseguro. Máximo 3 saltos.
+ */
+export async function fetchRobots(origin: string, doFetch: typeof fetch): Promise<string | null> {
+  const home = registrableDomain(new URL(origin).hostname);
+  let current = `${origin}/robots.txt`;
+  for (let hop = 0; hop < 4; hop++) {
+    const r = await doFetch(current, { headers: { "User-Agent": SCAN_USER_AGENT }, redirect: "manual", signal: AbortSignal.timeout(8000) });
+    const loc = r.status >= 300 && r.status < 400 ? r.headers.get("location") : null;
+    if (!loc) return r.ok ? await readCapped(r, 200_000) : null;
+    if (hop === 3) return null;
+    let next: string;
+    try { next = new URL(loc, current).toString(); } catch { return null; }
+    const v = checkTrustedSource(next);
+    if (!v.ok || home === null || registrableDomain(new URL(v.url).hostname) !== home) return null;
+    current = v.url;
+  }
+  return null;
+}
+
 export async function checkOne(link: DueLink, doFetch: typeof fetch, now = Date.now()): Promise<LinkVerdict> {
   const base = { id: link.id, http_status: null as number | null, final_host: null as string | null, findings: {} as LinkVerdict["findings"], error: null as string | null,
     checked_at: new Date(now).toISOString(), expires_at: new Date(now + SCAN_TTL_DAYS * 86400_000).toISOString() };
@@ -59,8 +81,7 @@ export async function checkOne(link: DueLink, doFetch: typeof fetch, now = Date.
   if (!safe.ok) return { ...base, status: "unknown", error: `inseguro:${safe.reason}` };
   const u = new URL(safe.url);
   try {
-    const robots = await doFetch(`${u.origin}/robots.txt`, { headers: { "User-Agent": SCAN_USER_AGENT }, redirect: "follow", signal: AbortSignal.timeout(8000) })
-      .then(async (r) => (r.ok ? await readCapped(r, 200_000) : null)).catch(() => null);
+    const robots = await fetchRobots(u.origin, doFetch).catch(() => null);
     if (!robotsAllows(robots, u.pathname + u.search)) return { ...base, status: "robots_disallowed" };
     let current = safe.url;
     let res: Response | null = null;

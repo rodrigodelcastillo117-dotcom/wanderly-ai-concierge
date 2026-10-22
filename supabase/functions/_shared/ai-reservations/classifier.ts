@@ -232,6 +232,8 @@ export type DecideContext = {
   linkage?: Linkage | null;
   /** Fecha de recepción del proveedor: resuelve "mañana"/"hoy" en la zona del lugar. */
   receivedAt?: string | null;
+  /** A2-RES-08: el correo no traía parte de texto (solo HTML): nunca confirma ni aparta solo. */
+  htmlOnly?: boolean;
 };
 
 type DecideRow = Pick<AiReservationRow, "requested_local" | "party_size"> &
@@ -263,6 +265,18 @@ function conditionsFor(
   };
 }
 const missingConditions = (c: Conditions) => (Object.keys(c) as Array<keyof Conditions>).filter((k) => c[k].basis === null);
+const usesThreadQuote = (c: Conditions) => c.date.basis === "thread_quote" || c.time.basis === "thread_quote" || c.party_size.basis === "thread_quote";
+/** ¿La cita aparece en el texto empezando y terminando en límites de palabra? */
+function quoteOnWordBoundaries(quote: string, text: string): boolean {
+  const q = fold(quote), t = fold(text);
+  if (q.length < 4) return false;
+  for (let i = t.indexOf(q); i >= 0; i = t.indexOf(q, i + 1)) {
+    const before = i === 0 ? "" : t[i - 1];
+    const after = t[i + q.length] ?? "";
+    if (!/[a-z0-9]/.test(before) && !/[a-z0-9]/.test(after)) return true;
+  }
+  return false;
+}
 
 export function decideReply(row: DecideRow, cls: Classification | null, ctx: DecideContext): ReplyDecision {
   const base = {
@@ -294,7 +308,14 @@ export function decideReply(row: DecideRow, cls: Classification | null, ctx: Dec
 
   const [reqDate, reqTime] = row.requested_local.split("T");
   const code = validConfirmationCode(cls.confirmation_code, ctx.replyText, { ...row, ref_code: row.ref_code });
-  const confirmQuote = quotes.find((q) => CONFIRM_RE.test(fold(q))) ?? null;
+  // A2-RES-02: la cita que confirma debe empezar y terminar en límites de palabra (no "está confirmada"
+  // recortado de "no está confirmada"; esa negación además la veta el texto completo).
+  const confirmQuote = quotes.find((q) => CONFIRM_RE.test(fold(q)) && quoteOnWordBoundaries(q, ctx.replyText)) ?? null;
+  const vetoes = [
+    ...(a.hedges.includes("negated_confirmation") ? ["negated_confirmation"] : []),
+    ...(a.hedges.includes("cancellation") ? ["cancellation"] : []),
+    ...(ctx.htmlOnly ? ["html_only"] : []),
+  ];
   const altBase = { verified_sender: true, inbound_email_id: ctx.inboundEmailId, from_domain: ctx.fromDomain ?? undefined };
 
   /** ¿Un horario propuesto puede quedar "apartado" (y confirmarse solo cuando el usuario lo acepte)? */
@@ -306,6 +327,8 @@ export function decideReply(row: DecideRow, cls: Classification | null, ctx: Dec
     if (!confirmQuote) fails.push("no_explicit_confirmation");
     if (a.pending) fails.push("pending_language");
     if (a.hedges.includes("condition")) fails.push("conditional_language");
+    fails.push(...vetoes);
+    if (usesThreadQuote(c) && a.looseNumbers.length) fails.push("unexplained_numbers");
     return { held: fails.length === 0, conditions: c, fails };
   };
 
@@ -342,6 +365,10 @@ export function decideReply(row: DecideRow, cls: Classification | null, ctx: Dec
     if (!confirmQuote) failures.push("no_explicit_confirmation");
     if (cls.alternatives.length) failures.push("alternatives_listed");
     if (cls.info_requested) failures.push("info_requested");
+    if (ctx.htmlOnly) failures.push("html_only");
+    // A2-RES-03: si algún dato se toma de nuestra solicitud citada, el restaurante no puede haber
+    // escrito números (personas u horas) que no se explican: podrían ser un cambio que no leímos.
+    if (usesThreadQuote(conditions) && a.looseNumbers.length) failures.push("unexplained_numbers");
     const missing = missingConditions(conditions);
     if (missing.length) failures.push(`conditions_not_confirmed:${missing.join(",")}`);
     if (failures.length) return fin({ outcome: "ambiguous", why: failures[0] }, { ...facts, failures, conditions });

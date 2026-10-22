@@ -8,25 +8,31 @@
 //   - dmarc 'gray' = SPF o DKIM pasaron pero el dominio no tiene política DMARC (o p=none).
 //   - SPF autentica el sobre (Return-Path), nunca el From: solo no prueba nada.
 //   No hay dominio d= ni selector: la alineación DKIM solo se puede leer de que dkim = 'pass'.
-// Regla: cuenta como verificado SOLO (a) DMARC 'pass' con el From en el dominio del restaurante (o un
-// subdominio suyo), o (b) el From es exactamente la dirección a la que escribimos y DKIM 'pass' (firma
-// alineada) sin DMARC 'fail'. Todo lo demás → la respuesta se muestra, pero no confirma nada.
+// Regla: cuenta como verificado SOLO (a) el From es exactamente la dirección a la que escribimos, con
+// DMARC 'pass' o con DKIM 'pass' (firma alineada) y DMARC 'gray'; o (b) A2-RES-01: otra dirección del
+// dominio del restaurante (o un subdominio suyo) con DMARC 'pass', SOLO si ese dominio es propio del
+// restaurante (= el de su sitio web oficial y no un buzón compartido). DMARC distinto de pass/gray
+// (o ausente) descarta. Todo lo demás → la respuesta se muestra, pero no confirma nada.
 import { describe, expect, it } from "vitest";
 import { bareAddress, domainOf, senderVerified } from "../../supabase/functions/_shared/ai-reservations/core";
 
 const VENUE = "reservas@casaoaxaca.com.mx";
 const ALL = { spf: "pass", dkim: "pass", dmarc: "pass" };
-const verified = (from: string, auth: unknown, venue = VENUE) => senderVerified(bareAddress(from), venue, auth as never);
+const SITE = "https://www.casaoaxaca.com.mx/";
+const verified = (from: string, auth: unknown, venue = VENUE, site: string | null = null) => senderVerified(bareAddress(from), venue, auth as never, site);
 
 describe("AUD-02 · correo legítimo", () => {
   it("dirección exacta con DMARC pass", () => {
     expect(verified("Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>", ALL)).toBe(true);
   });
-  it("otra dirección del mismo dominio con DMARC pass (alineado al dominio del restaurante)", () => {
-    expect(verified("María <maria@casaoaxaca.com.mx>", { spf: "gray", dkim: "pass", dmarc: "pass" })).toBe(true);
+  it("otra dirección del mismo dominio con DMARC pass (alineado al dominio del restaurante, que es el de su sitio oficial)", () => {
+    expect(verified("María <maria@casaoaxaca.com.mx>", { spf: "gray", dkim: "pass", dmarc: "pass" }, VENUE, SITE)).toBe(true);
+    // A2-RES-01: sin sitio oficial en ese dominio, el dominio no se da por propio → dirección exacta.
+    expect(verified("María <maria@casaoaxaca.com.mx>", { spf: "gray", dkim: "pass", dmarc: "pass" })).toBe(false);
   });
   it("subdominio del restaurante con DMARC pass", () => {
-    expect(verified("x@mail.casaoaxaca.com.mx", { spf: "pass", dkim: "pass", dmarc: "pass" })).toBe(true);
+    expect(verified("x@mail.casaoaxaca.com.mx", { spf: "pass", dkim: "pass", dmarc: "pass" }, VENUE, SITE)).toBe(true);
+    expect(verified("x@mail.casaoaxaca.com.mx", { spf: "pass", dkim: "pass", dmarc: "pass" })).toBe(false);
   });
   it("dirección exacta con DKIM alineado aunque el dominio no publique DMARC (gray)", () => {
     expect(verified("reservas@casaoaxaca.com.mx", { spf: "gray", dkim: "pass", dmarc: "gray" })).toBe(true);
