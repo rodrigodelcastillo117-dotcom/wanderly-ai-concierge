@@ -440,7 +440,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
           </p>
         </header>
 
-        <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
+        {/* grid-cols-1 (minmax(0,1fr)) en móvil: sin él la columna implícita crecía al ancho del contenido
+            y la tarjeta quedaba cortada a la derecha (390 px de pantalla, 634 px de columna). */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
           <div className="space-y-8 min-w-0">
 
         {/* Stops builder */}

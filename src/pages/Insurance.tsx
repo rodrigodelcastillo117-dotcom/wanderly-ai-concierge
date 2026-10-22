@@ -11,7 +11,7 @@ const PARTNERS = [
   {
     name: "Heymondo",
     tagline: "Cobertura médica hasta 10M USD · COVID incluido",
-    perks: ["Sin franquicia", "Atención 24/7 en español", "App con asistencia médica por video"],
+    perks: ["Sin franquicia", "Asistencia en español (según tu póliza)", "App con asistencia médica por video"],
     url: "https://www.heymondo.com/?agencia_id=23021",
     color: "from-emerald-500/20 to-emerald-500/5",
   },

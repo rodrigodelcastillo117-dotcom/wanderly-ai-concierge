@@ -22,7 +22,9 @@ const Landing = () => {
       {/* NAV */}
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/60 border-b border-border/40">
         <div className="container mx-auto flex items-center justify-between gap-2 py-4 px-4">
-          <img src={iatosLogo} alt="IATOS" className="h-8 md:h-10 w-auto object-contain shrink-0" />
+          {/* El logo puede encogerse (min-w-0): a 320 px los dos botones no cabían y "Empezar gratis"
+              quedaba cortado fuera de la pantalla. */}
+          <img src={iatosLogo} alt="IATOS" className="h-8 md:h-10 w-auto min-w-0 shrink object-contain object-left" />
           <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
             <Button variant="ghost" onClick={() => navigate("/auth")} className="px-2 md:px-4 text-xs md:text-sm">
               Iniciar sesión

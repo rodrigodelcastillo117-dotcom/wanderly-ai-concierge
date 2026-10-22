@@ -25,6 +25,7 @@ import { ConciergeHeading } from "@/components/concierge/ConciergeHeading";
 import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
 import { loadConversation } from "@/lib/conciergeHistory";
 import { readPriveSession } from "@/lib/priveSession";
+import { conciergeLocationLabel, GEO_GIVE_UP_MS, type LocationState } from "@/lib/conciergeLocation";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -109,6 +110,7 @@ const Concierge = () => {
   const historyFor = useRef<string | null | undefined>(undefined);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [weather, setWeather] = useState<{ temp: number; place: string } | null>(null);
+  const [geoState, setGeoState] = useState<LocationState>("pending");
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recRef = useRef<any>(null);
@@ -182,7 +184,11 @@ const Concierge = () => {
   // Real-time geolocation + weather (Open-Meteo, no key). Refresh on tick.
   useEffect(() => {
     if (!allowed) return;
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoState("unavailable"); return; }
+    // Si nadie contesta el aviso de permiso, el navegador no llama a ningún callback (el timeout
+    // de abajo solo corre con permiso): pasado un rato se dice "no disponible". Si luego llega la
+    // ubicación, el clima la reemplaza.
+    const giveUp = window.setTimeout(() => setGeoState((s) => (s === "pending" ? "unavailable" : s)), GEO_GIVE_UP_MS);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
@@ -198,11 +204,14 @@ const Concierge = () => {
             temp: Math.round(w?.current?.temperature_2m ?? 0),
             place: g?.city || g?.locality || g?.principalSubdivision || "Tu ubicación",
           });
-        } catch {/* noop */}
+          setGeoState("ok");
+        } catch { setGeoState((s) => (s === "ok" ? s : "unavailable")); }
       },
-      () => {/* permission denied — silent */},
+      // Permiso negado o sin señal: se dice, en vez de "Detectando…" para siempre.
+      () => setGeoState((s) => (s === "ok" ? s : "unavailable")),
       { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },
     );
+    return () => window.clearTimeout(giveUp);
   }, [allowed, refreshTick]);
 
   // Realtime in-app notifications
@@ -348,6 +357,23 @@ const Concierge = () => {
   }
   if (!allowed) return null;
 
+  // Un solo botón, dos lugares: renglón propio en sm+ y primer atajo de la fila en móvil.
+  const godModeToggle = (
+    <button
+      type="button"
+      aria-pressed={godMode}
+      onClick={() => setGodMode(g => !g)}
+      className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full border transition text-xs ${
+        godMode
+          ? "border-primary bg-gradient-gold text-primary-foreground shadow-[0_0_24px_-4px_hsl(var(--primary)/0.7)]"
+          : "border-border text-muted-foreground hover:border-primary/40"
+      }`}
+    >
+      <Crown className={`w-3.5 h-3.5 ${godMode ? "animate-pulse" : ""}`} />
+      Modo exigente <span className="hidden sm:inline">· opciones VIP</span>
+    </button>
+  );
+
   return (
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
@@ -359,7 +385,7 @@ const Concierge = () => {
               <ConciergeHeading />
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
-                  {weather ? `${weather.place} · ${weather.temp}°C` : "Detectando tu ubicación real…"}
+                  {conciergeLocationLabel(geoState, weather)}
                 </span>
                 <TripContextSelector
                   trips={trips}
@@ -440,7 +466,7 @@ const Concierge = () => {
         ) : (
           <>
         {/* CHAT STREAM */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
+        <div ref={scrollRef} tabIndex={0} role="region" aria-label="Conversación con Iato" className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40">
 
           {messages.map(m => (
             <MessageBubble key={m.id} msg={m} trips={trips} onChooseTrip={chooseTripAndRetry} disabled={sending} />
@@ -456,24 +482,19 @@ const Concierge = () => {
         </div>
 
         {/* SMART CHIPS + INPUT */}
-        <div className="px-4 md:px-8 pb-6 pt-3 border-t border-border bg-background/80 backdrop-blur">
-          {/* Modo exigente (god_mode en el servidor): prioriza opciones premium; no reserva por sí solo */}
-          <div className="flex items-center justify-end mb-2">
-            <button
-              onClick={() => setGodMode(g => !g)}
-              className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full border transition text-xs ${
-                godMode
-                  ? "border-primary bg-gradient-gold text-primary-foreground shadow-[0_0_24px_-4px_hsl(var(--primary)/0.7)]"
-                  : "border-border text-muted-foreground hover:border-primary/40"
-              }`}
-            >
-              <Crown className={`w-3.5 h-3.5 ${godMode ? "animate-pulse" : ""}`} />
-              Modo exigente <span className="hidden sm:inline">· opciones VIP</span>
-            </button>
+        <div className="px-4 md:px-8 pb-3 sm:pb-6 pt-3 border-t border-border bg-background/80 backdrop-blur">
+          {/* Modo exigente (god_mode en el servidor): prioriza opciones premium; no reserva por sí solo.
+              En móvil va como primer atajo de la fila (su renglón propio restaba 40 px al chat). */}
+          <div className="hidden sm:flex items-center justify-end mb-2">
+            {godModeToggle}
           </div>
 
-          {/* Quick chips — wrap to show all options at once */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
+          {/* Atajos: en móvil una sola fila con desplazamiento horizontal. En tres filas empujaban el
+              compositor debajo de la barra inferior en pantallas de 667 px de alto (iPhone SE/8). */}
+          <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap sm:overflow-visible items-center gap-2 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="sm:hidden shrink-0">
+              {godModeToggle}
+            </div>
             {QUICK_CHIPS.map((c) => (
               <button
                 key={c.label}
@@ -486,7 +507,7 @@ const Concierge = () => {
                   else sendText(c.label);
                 }}
                 disabled={sending}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition"
+                className="flex shrink-0 whitespace-nowrap items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition"
               >
                 <c.icon className="w-3.5 h-3.5 text-primary" />
                 {c.label}
@@ -506,6 +527,7 @@ const Concierge = () => {
                 }
               }}
               placeholder={listening ? "Escuchando…" : "Háblame o escribe lo que necesitas…"}
+              aria-label="Mensaje para Iato"
               className="flex-1 min-h-[44px] max-h-32 border-0 bg-transparent resize-none focus-visible:ring-0"
             />
             <button
@@ -516,12 +538,14 @@ const Concierge = () => {
                   : "bg-gradient-gold text-primary-foreground gold-glow hover:opacity-90"
               }`}
               title="Mantén pulsado para dictar"
+              aria-label={listening ? "Detener dictado" : "Dictar por voz"}
             >
               <Mic className="w-5 h-5" />
             </button>
             <button
               onClick={() => sendText(input)}
               disabled={!input.trim() || sending}
+              aria-label="Enviar mensaje"
               className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40"
             >
               <Send className="w-5 h-5" />

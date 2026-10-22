@@ -7,17 +7,48 @@ import { supabase } from "@/integrations/supabase/client";
 const imgCache = new Map<string, string | null>();
 const inflight = new Map<string, Promise<string | null>>();
 
-const fetchPexels = async (q: string): Promise<string | null> => {
+type PexelsResult = { image: string | null; failed: boolean; rateLimited: boolean };
+
+// Tras un 429 no se pide nada más por un minuto: el detalle de un viaje tiene decenas de tarjetas
+// y, con los dos reintentos por tarjeta, una sola carga llegaba a 42 llamadas (límite: 30/min),
+// todas rechazadas.
+let blockedUntil = 0;
+export const __resetCityImageBlock = () => { blockedUntil = 0; imgCache.clear(); inflight.clear(); };
+
+const fetchPexels = async (q: string): Promise<PexelsResult> => {
+  if (Date.now() < blockedUntil) return { image: null, failed: true, rateLimited: true };
   try {
     const { data, error } = await supabase.functions.invoke("pexels-image", {
       body: { query: q },
     });
-    if (error) return null;
-    return (data?.image as string) ?? null;
+    if (error) {
+      const status = (error as { context?: { status?: number } })?.context?.status;
+      if (status === 429) blockedUntil = Date.now() + 60_000;
+      return { image: null, failed: true, rateLimited: status === 429 };
+    }
+    return { image: (data?.image as string) ?? null, failed: false, rateLimited: false };
   } catch {
-    return null;
+    return { image: null, failed: true, rateLimited: false };
   }
 };
+
+/**
+ * Busca la foto de una consulta. Las consultas más cortas solo se intentan cuando el servidor
+ * contestó bien pero sin foto; si la llamada falló (límite, red, servidor), reintentar con otra
+ * consulta solo triplicaba el tráfico.
+ */
+export async function resolveCityImage(query: string, fetcher: (q: string) => Promise<PexelsResult> = fetchPexels): Promise<string | null> {
+  const first = await fetcher(query);
+  if (first.image || first.failed) return first.image;
+  const short = query.split(/\s+/).slice(0, 2).join(" ").trim();
+  if (short && short !== query) {
+    const r = await fetcher(short);
+    if (r.image || r.failed) return r.image;
+  }
+  const word = query.split(/\s+/)[0]?.trim();
+  if (word && word !== query && word !== short) return (await fetcher(word)).image;
+  return null;
+}
 
 export const useCityImage = (query: string): string | null => {
   const [url, setUrl] = useState<string | null>(imgCache.get(query) ?? null);
@@ -31,21 +62,7 @@ export const useCityImage = (query: string): string | null => {
     const existing = inflight.get(query);
     const p =
       existing ??
-      (async () => {
-        // Primary query
-        let result = await fetchPexels(query);
-        // Fallback 1: first two words (usually the place name)
-        if (!result) {
-          const short = query.split(/\s+/).slice(0, 2).join(" ").trim();
-          if (short && short !== query) result = await fetchPexels(short);
-        }
-        // Fallback 2: just the first word
-        if (!result) {
-          const first = query.split(/\s+/)[0]?.trim();
-          if (first && first !== query) result = await fetchPexels(first);
-        }
-        return result;
-      })();
+      resolveCityImage(query);
     inflight.set(query, p);
     p.then((result) => {
       imgCache.set(query, result);
