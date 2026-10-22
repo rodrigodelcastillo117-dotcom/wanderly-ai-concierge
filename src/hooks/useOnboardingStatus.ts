@@ -127,7 +127,11 @@ function useOnboardingState() {
     [user]
   );
 
-  return { status, isLoading, markStepComplete, markOnboardingComplete, reload: load };
+  // Mientras el estado no sea del usuario actual (recién llegó la sesión y el efecto de carga aún
+  // no corre) seguimos "cargando": si no, la guardia montaba la página un instante, la desmontaba
+  // al empezar la carga y la volvía a montar, y la página perdía lo que estaba haciendo (N-09).
+  const stale = uid !== null && status?.user_id !== uid;
+  return { status, isLoading: isLoading || stale, markStepComplete, markOnboardingComplete, reload: load };
 }
 
 type OnboardingApi = ReturnType<typeof useOnboardingState>;

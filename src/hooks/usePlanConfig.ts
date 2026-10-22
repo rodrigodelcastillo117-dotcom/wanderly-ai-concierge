@@ -11,7 +11,8 @@ let inflight: Promise<TrialMode> | null = null;
 export function loadTrialMode(): Promise<TrialMode> {
   if (cached) return Promise.resolve(cached);
   if (!inflight) {
-    inflight = Promise.resolve(supabase.rpc("public_plan_config" as never))
+    // new Promise: si el cliente lanza en vez de rechazar, también cae al texto "card".
+    inflight = new Promise<{ data: unknown; error: unknown }>((resolve) => resolve(supabase.rpc("public_plan_config" as never) as never))
       .then(({ data, error }: { data: unknown; error: unknown }) => {
         const on = !error && !!(data as { trial_no_card_enabled?: boolean } | null)?.trial_no_card_enabled;
         cached = on ? "no_card" : "card";

@@ -31,3 +31,11 @@ describe("loadTrialMode", () => {
     expect(rpc).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("loadTrialMode robustness", () => {
+  it("falls back to the card copy when the client throws synchronously", async () => {
+    __resetTrialMode();
+    rpc.mockImplementation(() => { throw new TypeError("rpc is not a function"); });
+    expect(await loadTrialMode()).toBe("card");
+  });
+});
