@@ -1,0 +1,61 @@
+/* THE PRIVÉ KEY — estilos propios (equipo privekey). Usa los tokens --pv-* de prive.css (prive-root). */
+.pk-hero {
+  position: relative; overflow: hidden; border-radius: 22px; padding: clamp(1.25rem, 4vw, 3rem);
+  background:
+    radial-gradient(120% 90% at 85% 0%, rgba(201, 169, 97, 0.22), transparent 60%),
+    radial-gradient(80% 70% at 0% 100%, rgba(232, 220, 194, 0.08), transparent 60%),
+    linear-gradient(160deg, #17161a 0%, #0b0b0c 70%);
+  border: 1px solid var(--pv-line);
+}
+.pk-hero::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(115deg, transparent 0 46%, rgba(232, 220, 194, 0.05) 50%, transparent 54%); }
+.pk-key-mark { width: 44px; height: 44px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--pv-line-strong); color: var(--pv-gold); background: rgba(201, 169, 97, 0.06); }
+.pk-textarea {
+  width: 100%; min-height: 6.5rem; resize: vertical; border-radius: 16px; padding: 1rem 1.1rem; font-size: 1.05rem; line-height: 1.5;
+  background: rgba(255, 255, 255, 0.03); color: var(--pv-text); border: 1px solid var(--pv-line-strong);
+}
+.pk-textarea::placeholder { color: var(--pv-muted); }
+.pk-textarea:focus { outline: none; border-color: var(--pv-gold); box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.18); }
+.pk-chip {
+  display: inline-flex; align-items: center; gap: 0.4rem; min-height: 40px; padding: 0.45rem 0.9rem; border-radius: 999px; font-size: 0.85rem;
+  border: 1px solid var(--pv-line-strong); color: var(--pv-champagne); background: transparent; transition: background 0.2s, border-color 0.2s;
+}
+.pk-chip:hover { background: rgba(201, 169, 97, 0.08); }
+.pk-chip[aria-pressed="true"], .pk-chip[aria-checked="true"] { background: rgba(201, 169, 97, 0.16); border-color: var(--pv-gold); color: var(--pv-text); }
+.pk-example { text-align: left; font-size: 0.85rem; color: var(--pv-champagne); border-bottom: 1px dashed var(--pv-line-strong); padding: 0.2rem 0; }
+.pk-example:hover { color: var(--pv-text); border-bottom-color: var(--pv-gold); }
+
+.pk-tier { position: relative; border-radius: 22px; overflow: hidden; border: 1px solid var(--pv-line); background: linear-gradient(180deg, #121214, #0b0b0c); }
+.pk-tier[data-tier="signature"] { border-color: rgba(201, 169, 97, 0.5); }
+.pk-tier-photo { position: relative; aspect-ratio: 16 / 9; background: linear-gradient(150deg, #24201a, #0e0d0c); }
+.pk-tier-photo .pk-fallback { position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 1rem; color: var(--pv-champagne);
+  background: radial-gradient(90% 80% at 80% 10%, rgba(201, 169, 97, 0.25), transparent 60%), linear-gradient(160deg, #1f1b15, #0b0b0c); }
+.pk-tier-photo figure { position: absolute; inset: 0; }
+.pk-tier-photo::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to top, rgba(7, 7, 7, 0.92), rgba(7, 7, 7, 0) 60%); }
+.pk-tier-head { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 1rem 1.1rem; }
+.pk-tier-title { font-family: var(--pv-serif); letter-spacing: 0.24em; font-size: 0.95rem; color: var(--pv-gold); }
+.pk-timeline { position: relative; margin-left: 0.4rem; padding-left: 1.1rem; border-left: 1px solid var(--pv-line-strong); }
+.pk-timeline > li { position: relative; padding-bottom: 1rem; }
+.pk-timeline > li::before { content: ""; position: absolute; left: calc(-1.1rem - 5px); top: 0.35rem; width: 9px; height: 9px; border-radius: 999px;
+  background: var(--pv-gold); box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.18); }
+.pk-time { font-variant-numeric: tabular-nums; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.8rem; color: var(--pv-gold); }
+.pk-transfer { font-size: 0.72rem; color: var(--pv-muted); margin: -0.4rem 0 0.6rem; }
+.pk-badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid var(--pv-line-strong); color: var(--pv-champagne); }
+.pk-badge-warn { border-color: rgba(251, 191, 36, 0.45); color: #fcd58a; }
+.pk-badge-ok { border-color: rgba(134, 239, 172, 0.4); color: #bbf7d0; }
+.pk-list { display: grid; gap: 0.25rem; font-size: 0.8rem; }
+.pk-list li { display: flex; gap: 0.5rem; }
+.pk-list li::before { content: "·"; color: var(--pv-gold); }
+.pk-skeleton { border-radius: 22px; min-height: 18rem; background: linear-gradient(100deg, #111 20%, #1a1918 40%, #111 60%); background-size: 200% 100%;
+  animation: pk-shimmer 1.6s linear infinite; border: 1px solid var(--pv-line); }
+@keyframes pk-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .pk-skeleton { animation: none; } }
+.pk-card { border-radius: 18px; border: 1px solid var(--pv-line); background: linear-gradient(180deg, #121214, #0c0c0d); overflow: hidden; }
+.pk-card-photo { position: relative; aspect-ratio: 4 / 3; background: linear-gradient(150deg, #24201a, #0e0d0c); }
+.pk-card-photo figure { position: absolute; inset: 0; }
+.pk-scroll { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(15rem, 80%); gap: 0.9rem; overflow-x: auto; scroll-snap-type: x mandatory;
+  padding-bottom: 0.4rem; overscroll-behavior-x: contain; }
+.pk-scroll > * { scroll-snap-align: start; }
+@media (min-width: 768px) { .pk-scroll { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; } }

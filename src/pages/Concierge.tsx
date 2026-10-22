@@ -98,7 +98,8 @@ const Concierge = () => {
   }]);
   const [liveAction, setLiveAction] = useState<LiveAction>(null);
   const [showFlight, setShowFlight] = useState(false);
-  const [input, setInput] = useState("");
+  // ?ask=… (p. ej. desde The Privé Key): llena el campo con la pregunta; NUNCA la envía sola (la persona decide).
+  const [input, setInput] = useState(() => (searchParams.get("ask") ?? "").slice(0, 400));
   const [sending, setSending] = useState(false);
   // Modo exigente: apagado por omisión (usa el modelo más capaz: tarda un poco más y cuesta más).
   const [godMode, setGodMode] = useState(() => {

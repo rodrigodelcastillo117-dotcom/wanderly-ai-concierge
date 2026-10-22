@@ -43,6 +43,8 @@ const PriveDestinationPage = lazyWithRetry(() => import("./pages/prive/PriveDest
 const PriveUniversePage = lazyWithRetry(() => import("./pages/prive/PriveUniversePage"));
 const PriveExperiencePage = lazyWithRetry(() => import("./pages/prive/PriveExperiencePage"));
 const PriveRequestsPage = lazyWithRetry(() => import("./pages/prive/PriveRequestsPage"));
+// ── IATOS Privé · THE KEY (equipo privekey) ──
+const PriveKeyPage = lazyWithRetry(() => import("./pages/prive/PriveKeyPage"));
 // ── fin IATOS Privé · catálogo ──
 const LiveTrip = lazyWithRetry(() => import("./pages/LiveTrip"));
 const TripMap = lazyWithRetry(() => import("./pages/TripMap"));
@@ -160,6 +162,7 @@ const App = () => (
               <Route path="universo/:key" element={<PriveUniversePage />} />
               <Route path="experiencia/:slug" element={<PriveExperiencePage />} />
               <Route path="solicitudes" element={<PriveRequestsPage />} />
+              <Route path="key" element={<PriveKeyPage />} />
               {/* ── fin IATOS Privé · catálogo ── */}
             </Route>
 
