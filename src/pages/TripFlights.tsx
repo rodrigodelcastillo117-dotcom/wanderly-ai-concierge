@@ -12,6 +12,8 @@ import { toastFunctionError } from "@/lib/functionErrors";
 import { googleFlightsLink, skyscannerLink, kayakFlightsLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
+import { BookingActions } from "@/components/booking/BookingActions";
+import { offerFromFlightResult } from "@/lib/booking";
 
 interface FlightResult {
   price_usd: number;
@@ -24,6 +26,7 @@ interface FlightResult {
   arrival: { id?: string; time?: string };
   buy_url: string;
   airline_buy_url: string;
+  booking_token?: string | null;
 }
 
 const TripFlights = () => {
@@ -45,6 +48,8 @@ const TripFlights = () => {
   const [source, setSource] = useState<string>("");
   const [meta, setMeta] = useState<any>(null);
   const [consultedAt, setConsultedAt] = useState<string | null>(null);
+  // Búsqueda exacta de Google Flights que devolvió SerpApi (ruta, fechas y pasajeros).
+  const [gfUrl, setGfUrl] = useState<string | null>(null);
   // El servidor marca OBSOLETO un precio guardado (uso justo); nunca se presenta como "en vivo".
   const [estadoDato, setEstadoDato] = useState<string | null>(null);
   // Link de búsqueda (sin precio) cuando el proveedor en vivo no respondió.
@@ -68,6 +73,7 @@ const TripFlights = () => {
       setResults(list);
       setMeta(data.meta);
       setConsultedAt(data.consulted_at ?? null);
+      setGfUrl(data.google_flights_url ?? null);
       setEstadoDato(data.estado_dato ?? null);
       // Límite de búsquedas en vivo del plan: se muestra lo que sí hubo y el aviso.
       if (data.aviso_limite) toast.info(data.aviso_limite);
@@ -191,22 +197,12 @@ const TripFlights = () => {
               <div className="md:w-48 text-right space-y-1">
                 <div className="font-display text-2xl gold-text">${f.price_per_person_usd}</div>
                 <div className="text-[11px] text-muted-foreground">USD / persona</div>
-                <div className="flex flex-col gap-1 mt-2">
-                  <Button size="sm" onClick={() => tripTool.track({
-                    category: "flight", provider: f.airline, title: `${origin} → ${destination}`,
-                    subtitle: `$${f.price_per_person_usd} USD / persona`, city: destination,
-                    bookingUrl: ensureAviasalesMarker(f.buy_url), startAt: depart || undefined,
-                  })} className="w-full">
-                    Reservar <ExternalLink className="w-3 h-3 ml-1" />
-                  </Button>
-                  <button onClick={() => tripTool.track({
-                    category: "flight", provider: f.airline, title: `${origin} → ${destination}`,
-                    subtitle: `$${f.price_per_person_usd} USD / persona`, city: destination,
-                    bookingUrl: ensureAviasalesMarker(f.airline_buy_url), startAt: depart || undefined,
-                  })} className="text-[11px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline">
-                    Comprar en {f.airline}
-                  </button>
-                </div>
+                {/* Booking Bridge: "Buscar este vuelo" (búsqueda) ≠ "Comprar esta oferta" (solo si es exacta). */}
+                <BookingActions className="mt-2" tripId={tripTool.tripId} max={2}
+                  offer={offerFromFlightResult(f, { dep_iata: meta?.dep_iata, arr_iata: meta?.arr_iata, depart, return_date: returnDate || null, travelers, consulted_at: consultedAt,
+                      source, google_flights_url: gfUrl })}
+                  source={{ type: "flight_result", result: f, meta: { dep_iata: meta?.dep_iata, arr_iata: meta?.arr_iata, depart, return_date: returnDate || null, travelers, consulted_at: consultedAt,
+                      source, google_flights_url: gfUrl }, trip_id: tripTool.tripId }} />
               </div>
             </div>
           ))}

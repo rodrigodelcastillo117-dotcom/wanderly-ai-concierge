@@ -179,6 +179,17 @@ verify_jwt = false
 [functions.prive-tenure-backfill]
 verify_jwt = false
 
+[functions.booking-bridge]
+verify_jwt = true
+
+# salida firmada al proveedor: la autoriza el token HMAC (ver booking-go/go.ts), no un JWT
+[functions.booking-go]
+verify_jwt = false
+
+# cron: valida CRON_SECRET internamente, no JWT de usuario
+[functions.booking-links-cron]
+verify_jwt = false
+
 # Reservas IA (canal correo). JWT validado DENTRO de la función (getAuthUser) en todo POST;
 # verify_jwt = false solo para el enlace firmado del .ics que va en el correo de confirmación.
 [functions.ai-reservations]
