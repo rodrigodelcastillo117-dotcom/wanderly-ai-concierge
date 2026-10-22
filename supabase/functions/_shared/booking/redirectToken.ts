@@ -3,6 +3,10 @@
 // booking-bridge firma {intención, usuario, origen de la app, caducidad} con HMAC-SHA256 usando una
 // llave derivada de la service key (el cliente nunca la tiene). booking-go solo redirige si la firma
 // es válida, no venció, y entonces usa la URL GUARDADA en la intención (nunca una URL del cliente).
+// Desde el cierre de auditoría (AUD-04) el token lleva también la huella SHA-256 del destino que se
+// guardó (`h`) y el nivel con el que pasó (`t`: "a" lista estricta, "s" fuente del servidor): si el
+// destino guardado cambia, o se intenta salir por la vía "confiable" con un destino que entró por la
+// estricta, booking-go no redirige.
 
 const enc = new TextEncoder();
 export const REDIRECT_TTL_MS = 30 * 60 * 1000;
@@ -25,12 +29,19 @@ async function hmac(secret: string, msg: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(msg)));
 }
 
-export type RedirectClaims = { i: string; u: string; o: string; x: number };
+export type RedirectClaims = { i: string; u: string; o: string; x: number; h?: string; t?: "a" | "s" };
+
+/** Huella del destino: base64url(SHA-256(url)). */
+export async function targetHash(url: string): Promise<string> {
+  return b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(url))));
+}
+const HASH = /^[A-Za-z0-9_-]{43}$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function signRedirect(secret: string, claims: Omit<RedirectClaims, "x">, nowMs = Date.now(), ttlMs = REDIRECT_TTL_MS): Promise<string | null> {
   if (!secret || !UUID.test(claims.i) || !UUID.test(claims.u)) return null;
+  if (claims.h !== undefined && (!HASH.test(claims.h) || (claims.t !== "a" && claims.t !== "s"))) return null;
   const body = b64url(enc.encode(JSON.stringify({ ...claims, x: nowMs + ttlMs })));
   return `${body}.${b64url(await hmac(secret, body))}`;
 }
@@ -55,6 +66,7 @@ export async function verifyRedirect(secret: string, token: unknown, nowMs = Dat
     return { ok: false, reason: "formato" };
   }
   if (!claims || !UUID.test(String(claims.i)) || !UUID.test(String(claims.u)) || typeof claims.x !== "number") return { ok: false, reason: "formato" };
+  if (claims.h !== undefined && (!HASH.test(String(claims.h)) || (claims.t !== "a" && claims.t !== "s"))) return { ok: false, reason: "formato" };
   if (claims.x <= nowMs) return { ok: false, reason: "vencido" };
   return { ok: true, claims };
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useBookingExitNotice } from "@/lib/bookingExit";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download, Radio, Map as MapIcon, Backpack, Cloud, Languages, BookHeart, Wallet, Sparkles, Pencil, Heart } from "lucide-react";
@@ -48,6 +49,7 @@ const fmtMXN = (n: number) =>
   `$${Number(n).toLocaleString("es-MX", { maximumFractionDigits: 0 })} MXN`;
 
 const TripDetail = () => {
+  useBookingExitNotice(); // motivo con el que booking-go regresó a IATOS (AUD-04)
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
