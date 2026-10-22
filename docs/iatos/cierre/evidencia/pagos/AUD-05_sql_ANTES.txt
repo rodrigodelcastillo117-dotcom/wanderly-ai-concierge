@@ -1,0 +1,31 @@
+OK AP01 el mismo evento dos veces: una fila, mismo estado, PRO una sola vez
+OK AP02 invoice.paid + invoice.payment_succeeded de la misma factura: un solo periodo pagado
+OK AP03 updated antes que created: el viejo se ignora (stale_event) y queda active
+OK AP04 invoice.paid antes del checkout: PRO desde el primero, el checkout no duplica fila ni periodo
+OK AP05 sin metadata: se aplica a la cuenta dueña del customer
+OK AP06 periodos encimados: se cuentan una vez (50 días, no 60)
+OK AP07 reembolso total: sin PRO, periodo reembolsado; reintento idempotente; el invoice.paid viejo no revive nada
+FALLA AP08 reembolso total registrado antes que el periodo: el periodo nace "refunded" y no cuenta para Privé periodo=paid dias=20
+FALLA AP09 disputa abierta antes del periodo: nace "disputed"; al ganarse vuelve a "paid" al_registrar=paid final=paid
+FALLA AP10 disputa perdida antes del periodo: nace "dispute_lost" paid
+FALLA AP11 reembolso parcial antes del periodo: "partially_refunded" (sigue contando) con su monto paid
+OK AP12 una decisión "cuenta_eliminada_sin_cambios" no se reaplica
+ERROR:  function public.stripe_commit_payment_event(jsonb, unknown, unknown) does not exist
+ERROR:  function public.stripe_commit_payment_event(jsonb, unknown, unknown) does not exist
+ERROR:  syntax error at or near ":"
+ERROR:  function public.stripe_commit_payment_event(jsonb, unknown, integer) does not exist
+ERROR:  function public.stripe_commit_payment_event(jsonb, unknown, integer) does not exist
+ERROR:  syntax error at or near ":"
+ERROR:  function public.stripe_commit_payment_event(jsonb, unknown, integer) does not exist
+ERROR:  function public.stripe_commit_payment_event(jsonb, unknown, integer) does not exist
+FALLA AP15 falla antes de confirmar: nada queda a medias (ni registro ni marca); el reintento aplica una vez antes=paid filas=0
+ERROR:  function "public.stripe_commit_payment_event(jsonb, text, integer)" does not exist
+OK AP17 reintento tras falla entre suscripción y periodo: aplica igual, una fila y un periodo
+OK AP18 cancelación programada: PRO hasta el fin del periodo; al terminar, sin PRO
+OK AP19 periodo vencido sin renovación: sin PRO; una suscripción nueva sí se aplica
+OK AP20 reactivación: sigue PRO y sin cancelación programada
+OK AP21 segunda suscripción viva (dos checkouts): no pisa la primera (other_live_subscription → el webhook avisa)
+OK CC1 apply_stripe_subscription simultáneo sin fila previa: una fila active (s1=true s2=true)
+OK CC2 periodo pagado simultáneo: una sola fila
+FALLA CC3 periodo=paid dias=1 (s2=no_period)
+FALLA CC4 stripe_commit_payment_event no existe (migración 20261024010000 sin aplicar)

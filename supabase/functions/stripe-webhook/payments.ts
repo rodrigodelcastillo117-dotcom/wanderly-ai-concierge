@@ -11,7 +11,9 @@
 //   charge.dispute.closed lost → igual que un reembolso total (y aviso a administradores).
 //   charge.dispute.closed won  → se vuelve a leer la suscripción en Stripe y se escribe su estado real.
 // Garantías:
-//   * Idempotencia: si el event_id ya está en stripe_payment_events, no se hace nada otra vez.
+//   * Idempotencia: si el event_id ya está en stripe_payment_events, no se hace nada otra vez. El
+//     registro se escribe AL FINAL y en la misma transacción que la antigüedad (AUD-05): un 500
+//     nunca deja el evento "hecho" con efectos pendientes, y el reintento repite pasos idempotentes.
 //   * Fuera de orden: la decisión usa el estado VIVO de Stripe (factura vigente de la suscripción) y
 //     revoke_paid_access sube stripe_event_created, así un invoice.paid viejo que llegue después del
 //     reembolso se ignora ('stale_event'); además la suscripción ya está cancelada en Stripe.
@@ -90,7 +92,16 @@ export interface PaymentDeps {
   alertAdmins(alert: AdminAlert): Promise<string>;
   /** IATOS Privé: el periodo de esa factura deja de contar (o vuelve a contar) para la antigüedad. Opcional. */
   markPaidPeriod?(args: { _invoice_id: string; _event: TenureEvent; _amount_refunded: number | null }): DbResult;
+  /**
+   * AUD-05: último paso en UNA transacción (stripe_commit_payment_event): guarda la decisión con
+   * event_id como llave y ajusta la antigüedad de la factura. Si existe, sustituye a
+   * markPaidPeriod + logPaymentEvent (que quedan para compatibilidad).
+   */
+  commitPaymentEvent?(row: PaymentEventRow, tenureEvent: TenureEvent | null, amountRefunded: number | null): DbResult;
 }
+
+/** Resultado de stripe_commit_payment_event. */
+export type CommitResult = { logged?: boolean; duplicate?: boolean; action?: string | null; tenure?: { applied?: boolean; reason?: string; after?: string } | null };
 
 export const PAYMENT_EVENTS = new Set(["charge.refunded", "charge.dispute.created", "charge.dispute.closed"]);
 
@@ -224,18 +235,18 @@ export async function handlePaymentEvent(event: StripeEventLike, deps: PaymentDe
     }
   }
 
+  // AUD-05: en una disputa el aviso a administradores ES el efecto obligatorio (hay plazo para
+  // responder en Stripe). Si la campana no se pudo guardar, no se marca el evento como hecho: 500 y
+  // Stripe reintenta (el aviso lleva llave por evento, así que el reintento no lo duplica).
+  if (isDispute && alertStatus === "fallido") {
+    throw new Error(`aviso a administradores falló (${event.id}); se reintentará`);
+  }
+
   // Antigüedad de Privé: el periodo pagado por ESA factura deja de contar (reembolso total, disputa
   // abierta o perdida) o vuelve a contar (disputa ganada), aunque no sea la factura vigente.
   let tenure: string | null = null;
   const tenureEvent = tenureEventFor(event.type, { fullRefund, disputeStatus: dispute?.status ?? null });
-  if (deps.markPaidPeriod && ctx.invoiceId && tenureEvent && !deletedCustomer) {
-    const m = await deps.markPaidPeriod({ _invoice_id: ctx.invoiceId, _event: tenureEvent, _amount_refunded: charge.amount_refunded ?? null });
-    if (m.error) throw new Error(`prive_mark_paid_period falló (${event.id}): ${m.error.message}`);
-    const r = (m.data ?? {}) as { applied?: boolean; reason?: string; after?: string };
-    tenure = r.after ? `${tenureEvent}:${r.after}` : (r.reason ?? tenureEvent);
-  }
-
-  const { error } = await deps.logPaymentEvent({
+  const row: PaymentEventRow = {
     event_id: event.id,
     type: event.type,
     charge_id: charge.id ?? null,
@@ -254,8 +265,29 @@ export async function handlePaymentEvent(event: StripeEventLike, deps: PaymentDe
     after_state: decision.after,
     alert_status: alertStatus,
     event_created: iso(event.created),
-  });
-  if (error) throw new Error(`stripe_payment_events falló (${event.id}): ${error.message}`);
+  };
+  const tenureFor = deletedCustomer ? null : tenureEvent;
+
+  if (deps.commitPaymentEvent) {
+    // Registro + antigüedad en una sola transacción, con candado por factura: un invoice.paid que se
+    // registre al mismo tiempo, antes o después, siempre ve la decisión (ver la migración 20261024051500).
+    const { data, error } = await deps.commitPaymentEvent(row, tenureFor, charge.amount_refunded ?? null);
+    if (error) throw new Error(`stripe_commit_payment_event falló (${event.id}): ${error.message}`);
+    const r = (data ?? {}) as CommitResult;
+    if (r.duplicate) return { status: 200, body: { received: true, duplicate: true, action: r.action ?? null } };
+    if (tenureFor && ctx.invoiceId && r.tenure) {
+      tenure = r.tenure.after ? `${tenureFor}:${r.tenure.after}` : (r.tenure.reason ?? tenureFor);
+    }
+  } else {
+    if (deps.markPaidPeriod && ctx.invoiceId && tenureFor) {
+      const m = await deps.markPaidPeriod({ _invoice_id: ctx.invoiceId, _event: tenureFor, _amount_refunded: charge.amount_refunded ?? null });
+      if (m.error) throw new Error(`prive_mark_paid_period falló (${event.id}): ${m.error.message}`);
+      const r = (m.data ?? {}) as { applied?: boolean; reason?: string; after?: string };
+      tenure = r.after ? `${tenureFor}:${r.after}` : (r.reason ?? tenureFor);
+    }
+    const { error } = await deps.logPaymentEvent(row);
+    if (error) throw new Error(`stripe_payment_events falló (${event.id}): ${error.message}`);
+  }
   // Sin datos personales: ids de Stripe y la decisión.
   console.warn("webhook: pago", event.type, event.id, charge.id, decision.action);
   return { status: 200, body: { received: true, action: decision.action, ...(tenure ? { tenure } : {}) } };

@@ -1,0 +1,35 @@
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 A · evento repetido y doble entrega > invoice.paid entregado dos veces: una fila, un periodo pagado, mismo estado 62ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 A · evento repetido y doble entrega > invoice.paid + invoice.payment_succeeded de la MISMA factura: un solo periodo 29ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 A · evento repetido y doble entrega > charge.refunded repetido: la segunda entrega es duplicado y no repite cancelación ni registro 34ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 A · evento repetido y doble entrega > disputa perdida repetida: un solo aviso y una sola revocación 30ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 B · dos entregas del mismo evento al mismo tiempo > invoice.paid × 2 en paralelo: una fila, un periodo 20ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 B · dos entregas del mismo evento al mismo tiempo > charge.refunded × 2 en paralelo: un registro, periodo reembolsado, sin PRO; cancelar dos veces en Stripe es inocuo 21ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 B · dos entregas del mismo evento al mismo tiempo > charge.dispute.created × 2 en paralelo: un aviso (llave por evento), periodo en disputa 24ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 C · fuera de orden > subscription.updated (nuevo) antes que subscription.created (viejo): queda el estado vivo 80ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 C · fuera de orden > invoice.paid antes que checkout.session.completed: PRO desde el invoice.paid, el checkout no duplica 9ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 C · fuera de orden > suscripción sin metadata (creada fuera del checkout): se encuentra a la persona por su customer 5ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 C · fuera de orden > invoice.paid viejo que llega DESPUÉS del reembolso: no regresa el PRO ni el periodo 23ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 C · fuera de orden > reembolso procesado ANTES de que se registre el periodo pagado: al registrarse nace 'refunded' 26ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 C · fuera de orden > carrera: el invoice.paid termina mientras el reembolso va entre sus efectos y su registro → el periodo queda 'refunded' 36ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 C · fuera de orden > disputa cerrada (ganada) ANTES que su charge.dispute.created: el periodo no queda 'en disputa' para siempre 26ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > invoice.paid falla en retrieveSubscription 30ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > invoice.paid falla en applySubscription 14ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > invoice.paid falla en recordPaidPeriod 20ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > invoice.paid sin renglones en el payload: si falla la lectura de la factura, 500 y luego converge 20ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en findPaymentEvent 36ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en retrieveInvoice 43ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en retrieveSubscription 55ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en isDeletedCustomer 39ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en cancelSubscriptionNow 43ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en revokePaidAccess 85ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en tenure 46ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en ledger 42ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > disputa perdida: si la campana de administradores no se guarda, 500 (Stripe reintenta) y luego un solo aviso 24ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > disputa abierta: la campana fallida tampoco se marca como completa 22ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > un 500 nunca deja el evento registrado como hecho; un 200 siempre lo deja 59ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > cancel_at_period_end: conserva PRO hasta el fin del periodo; al borrarse la suscripción, sin PRO 12ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > periodo vencido sin renovación (Stripe no avisó): deja de ser PRO 13ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > reactivación (quitar la cancelación programada desde el portal): sigue PRO y sin la marca 26ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > nueva suscripción tras una cancelada: se aplica (no es 'otra suscripción viva') 14ms
+ ✓ src/test/stripeAtomicity.test.ts > AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > segunda suscripción pagada mientras la primera vive (dos checkouts): no se ignora en silencio, se avisa a administradores una vez 16ms
+      Tests  34 passed (34)

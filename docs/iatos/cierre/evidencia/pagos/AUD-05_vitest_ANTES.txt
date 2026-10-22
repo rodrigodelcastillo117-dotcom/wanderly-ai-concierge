@@ -1,0 +1,56 @@
+   ✓ AUD-05 A · evento repetido y doble entrega > invoice.paid entregado dos veces: una fila, un periodo pagado, mismo estado 30ms
+   ✓ AUD-05 A · evento repetido y doble entrega > invoice.paid + invoice.payment_succeeded de la MISMA factura: un solo periodo 31ms
+   ✓ AUD-05 A · evento repetido y doble entrega > charge.refunded repetido: la segunda entrega es duplicado y no repite cancelación ni registro 19ms
+   ✓ AUD-05 A · evento repetido y doble entrega > disputa perdida repetida: un solo aviso y una sola revocación 26ms
+   ✓ AUD-05 B · dos entregas del mismo evento al mismo tiempo > invoice.paid × 2 en paralelo: una fila, un periodo 17ms
+   ✓ AUD-05 B · dos entregas del mismo evento al mismo tiempo > charge.refunded × 2 en paralelo: un registro, periodo reembolsado, sin PRO; cancelar dos veces en Stripe es inocuo 21ms
+   ✓ AUD-05 B · dos entregas del mismo evento al mismo tiempo > charge.dispute.created × 2 en paralelo: un aviso (llave por evento), periodo en disputa 28ms
+   ✓ AUD-05 C · fuera de orden > subscription.updated (nuevo) antes que subscription.created (viejo): queda el estado vivo 14ms
+   ✓ AUD-05 C · fuera de orden > invoice.paid antes que checkout.session.completed: PRO desde el invoice.paid, el checkout no duplica 9ms
+   ✓ AUD-05 C · fuera de orden > suscripción sin metadata (creada fuera del checkout): se encuentra a la persona por su customer 6ms
+   ✓ AUD-05 C · fuera de orden > invoice.paid viejo que llega DESPUÉS del reembolso: no regresa el PRO ni el periodo 72ms
+   ✓ AUD-05 C · fuera de orden > reembolso procesado ANTES de que se registre el periodo pagado: al registrarse nace 'refunded' 41ms
+   × AUD-05 C · fuera de orden > carrera: el invoice.paid termina mientras el reembolso va entre sus efectos y su registro → el periodo queda 'refunded' 62ms
+   × AUD-05 C · fuera de orden > disputa cerrada (ganada) ANTES que su charge.dispute.created: el periodo no queda 'en disputa' para siempre 35ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > invoice.paid falla en retrieveSubscription 13ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > invoice.paid falla en applySubscription 63ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > invoice.paid falla en recordPaidPeriod 21ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > invoice.paid sin renglones en el payload: si falla la lectura de la factura, 500 y luego converge 17ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en findPaymentEvent 45ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en retrieveInvoice 34ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en retrieveSubscription 39ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en isDeletedCustomer 42ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en cancelSubscriptionNow 55ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en revokePaidAccess 44ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en tenure 44ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > charge.refunded falla en ledger 57ms
+   × AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > disputa perdida: si la campana de administradores no se guarda, 500 (Stripe reintenta) y luego un solo aviso 30ms
+   × AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > disputa abierta: la campana fallida tampoco se marca como completa 38ms
+   ✓ AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > un 500 nunca deja el evento registrado como hecho; un 200 siempre lo deja 66ms
+   ✓ AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > cancel_at_period_end: conserva PRO hasta el fin del periodo; al borrarse la suscripción, sin PRO 12ms
+   ✓ AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > periodo vencido sin renovación (Stripe no avisó): deja de ser PRO 11ms
+   ✓ AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > reactivación (quitar la cancelación programada desde el portal): sigue PRO y sin la marca 24ms
+   ✓ AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > nueva suscripción tras una cancelada: se aplica (no es 'otra suscripción viva') 15ms
+   × AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > segunda suscripción pagada mientras la primera vive (dos checkouts): no se ignora en silencio, se avisa a administradores una vez 10ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/test/stripeAtomicity.test.ts > AUD-05 C · fuera de orden > carrera: el invoice.paid termina mientras el reembolso va entre sus efectos y su registro → el periodo queda 'refunded'
+AssertionError: expected 'paid' to be 'refunded' // Object.is equality
+Expected: "refunded"
+Received: "paid"
+ FAIL  src/test/stripeAtomicity.test.ts > AUD-05 C · fuera de orden > disputa cerrada (ganada) ANTES que su charge.dispute.created: el periodo no queda 'en disputa' para siempre
+AssertionError: expected 'disputed' to be 'paid' // Object.is equality
+Expected: "paid"
+Received: "disputed"
+ FAIL  src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > disputa perdida: si la campana de administradores no se guarda, 500 (Stripe reintenta) y luego un solo aviso
+AssertionError: expected [ 200 ] to deeply equal [ 500, 200 ]
+- Expected
++ Received
+ FAIL  src/test/stripeAtomicity.test.ts > AUD-05 D · falla en cada paso → 500, y el reintento converge al estado de una corrida limpia > disputa abierta: la campana fallida tampoco se marca como completa
+AssertionError: expected 200 to be 500 // Object.is equality
+- Expected
++ Received
+ FAIL  src/test/stripeAtomicity.test.ts > AUD-05 E · cancelación programada, vencimiento, reactivación, suscripción duplicada > segunda suscripción pagada mientras la primera vive (dos checkouts): no se ignora en silencio, se avisa a administradores una vez
+AssertionError: expected [] to deeply equal [ 'stripe:dup_sub:sub_aud_dup' ]
+- Expected
++ Received
+      Tests  5 failed | 29 passed (34)
