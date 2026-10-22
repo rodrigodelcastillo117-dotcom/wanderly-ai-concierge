@@ -155,9 +155,14 @@ export default function Social() {
     }
   }
 
-  const copy = (txt: string, label: string) => {
-    navigator.clipboard.writeText(txt);
-    toast.success(`${label} copiado`);
+  // writeText es una promesa: sin permiso (o en http) falla y antes igual decía "copiado".
+  const copy = async (txt: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(txt);
+      toast.success(`${label} copiado`);
+    } catch {
+      toast.error(`No se pudo copiar. Mantén presionado el ${label.toLowerCase()} para copiarlo.`);
+    }
   };
 
   return (

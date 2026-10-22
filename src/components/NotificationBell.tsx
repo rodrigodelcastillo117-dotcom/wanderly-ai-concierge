@@ -88,10 +88,20 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
     load();
   };
 
+  // Evita aceptar/rechazar dos veces con un doble toque, y no lleva al viaje si falló.
+  const [responding, setResponding] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const respondInvite = async (n: Notification, accept: boolean) => {
-    if (!n.related_id) return;
+    if (!n.related_id || responding) return;
+    setResponding(n.id);
+    setInviteError(null);
     const fn = accept ? "aceptar_invitacion_viaje" : "rechazar_invitacion_viaje";
-    await supabase.rpc(fn as any, { p_trip_id: n.related_id });
+    const { error } = await supabase.rpc(fn as any, { p_trip_id: n.related_id });
+    setResponding(null);
+    if (error) {
+      setInviteError(n.id);
+      return;
+    }
     await load();
     if (accept) {
       setOpen(false);
@@ -155,17 +165,24 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
                     <div className="flex gap-2 mt-3 ml-11">
                       <button
                         onClick={() => respondInvite(n, true)}
-                        className="flex-1 px-3 py-1.5 rounded-full bg-gradient-gold text-primary-foreground text-[11px] font-medium tracking-wide hover:opacity-90 transition"
+                        disabled={responding === n.id}
+                        className="disabled:opacity-50 flex-1 px-3 py-1.5 rounded-full bg-gradient-gold text-primary-foreground text-[11px] font-medium tracking-wide hover:opacity-90 transition"
                       >
                         Aceptar viaje
                       </button>
                       <button
                         onClick={() => respondInvite(n, false)}
-                        className="flex-1 px-3 py-1.5 rounded-full border border-white/10 text-muted-foreground text-[11px] hover:text-foreground hover:bg-white/[0.04] transition"
+                        disabled={responding === n.id}
+                        className="disabled:opacity-50 flex-1 px-3 py-1.5 rounded-full border border-white/10 text-muted-foreground text-[11px] hover:text-foreground hover:bg-white/[0.04] transition"
                       >
                         Rechazar
                       </button>
                     </div>
+                  )}
+                  {n.type === "trip_invite" && inviteError === n.id && (
+                    <p role="alert" className="mt-2 ml-11 text-[11px] text-destructive">
+                      No se pudo responder la invitación. Intenta de nuevo.
+                    </p>
                   )}
                 </div>
               ))

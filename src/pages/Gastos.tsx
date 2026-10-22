@@ -96,9 +96,20 @@ export const Gastos = () => {
     }
   };
 
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  // Borrar pide confirmación y revisa el resultado: antes el gasto desaparecía aunque el borrado
+  // fallara (y volvía al recargar).
   const remove = async (id: string) => {
-    await supabase.from("expenses").delete().eq("id", id);
-    setItems((s) => s.filter((x) => x.id !== id));
+    if (removingId) return;
+    if (!window.confirm("¿Eliminar este gasto? No se puede deshacer.")) return;
+    setRemovingId(id);
+    try {
+      const { error } = await supabase.from("expenses").delete().eq("id", id);
+      if (error) { toast.error("No se pudo eliminar el gasto. Intenta de nuevo."); return; }
+      setItems((s) => s.filter((x) => x.id !== id));
+    } finally {
+      setRemovingId(null);
+    }
   };
 
   // Nunca se suman monedas distintas como si fueran una: subtotal por moneda y, aparte, el total
@@ -238,8 +249,8 @@ export const Gastos = () => {
               <div className="text-right">
                 <p className="font-display text-lg">{formatMoney(Number(x.amount), x.currency)}</p>
               </div>
-              <button onClick={() => remove(x.id)} className="text-muted-foreground hover:text-destructive p-2">
-                <Trash2 className="w-4 h-4" />
+              <button onClick={() => remove(x.id)} disabled={removingId === x.id} aria-label={`Eliminar gasto ${x.description ?? x.category ?? ""}`.trim()} className="text-muted-foreground hover:text-destructive p-2 disabled:opacity-40">
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           ))}
