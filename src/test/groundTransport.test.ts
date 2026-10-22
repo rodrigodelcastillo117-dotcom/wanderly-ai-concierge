@@ -3,7 +3,8 @@
 import { describe, it, expect } from "vitest";
 import {
   applyShortTripRules, detectShortTrip, findCity, groundSearchLinks, isReasonableShortFlight,
-  parseDurationMinutes, parseStops, shortTripPromptBlock, shortTripTransportTotal,
+  groundDoorToDoor, parseDurationMinutes, parseStops, shortFlightVerdict, shortTripPromptBlock,
+  shortTripTransportTotal, travelerPrefs,
 } from "../../supabase/functions/analizar-viaje/groundTransport.ts";
 
 describe("detectShortTrip", () => {
@@ -43,14 +44,39 @@ describe("vuelos razonables", () => {
     expect(parseStops("")).toBeNull();
   });
 
-  it("máx. 1 escala y < 3 × el tiempo de manejo; sin datos, no se afirma", () => {
+  it("caso real CDMX→Puebla (Google Flights, 22-oct-2026): los vuelos con escala de 4h15–5h27 ya no pasan", () => {
     const t = detectShortTrip("Ciudad de México", "Puebla")!;
-    expect(isReasonableShortFlight(1, Math.round(3 * t.approxDriveHours * 60) + 1, t.approxDriveHours)).toBe(false);
-    expect(isReasonableShortFlight(0, 60, 2)).toBe(true);
-    expect(isReasonableShortFlight(1, 327, 1.8)).toBe(false); // 5 h 27 > 5.4 h
-    expect(isReasonableShortFlight(2, 120, 2)).toBe(false);
+    const none = travelerPrefs("");
+    for (const minutes of [257, 327, 255]) {
+      const v = shortFlightVerdict(1, minutes, t, none);
+      expect(v.show).toBe(false);
+      expect(v.doorToDoorMin!).toBeGreaterThan(groundDoorToDoor(t).bus * 2);
+    }
+    // Con la regla anterior (< 3 × manejo) los de 4h15 y 4h17 sí pasaban: por eso se cambió.
+    expect(255 < 3 * t.approxDriveHours * 60).toBe(true);
+  });
+
+  it("prioriza el directo cuando compite puerta a puerta; con escala solo con ventaja o si lo piden", () => {
+    const t = { origin: "A", destination: "B", approxRoadKm: 300, approxDriveHours: 4 }; // ~4 h por carretera
+    const none = travelerPrefs("");
+    expect(shortFlightVerdict(0, 60, t, none).show).toBe(true); // 1 h + aeropuertos, compite
+    expect(shortFlightVerdict(1, 150, t, none).show).toBe(false); // con escala, sin ventaja
+    expect(shortFlightVerdict(1, 150, t, travelerPrefs("no me importa hacer escala")).show).toBe(true);
+    expect(shortFlightVerdict(1, 150, t, travelerPrefs("vuelo sin escalas")).show).toBe(false);
+    const short = detectShortTrip("CDMX", "Puebla")!;
+    expect(shortFlightVerdict(0, 50, short, none).show).toBe(false); // directo más lento que el auto
+    expect(shortFlightVerdict(0, 50, short, travelerPrefs("quiero ir en avión")).show).toBe(true);
+  });
+
+  it("sin datos de duración o escalas no se afirma nada; NaN cuenta como sin dato", () => {
     expect(isReasonableShortFlight(null, 60, 2)).toBe(false);
     expect(isReasonableShortFlight(0, null, 2)).toBe(false);
+    expect(isReasonableShortFlight(Number(undefined), 60, 4)).toBe(false);
+  });
+
+  it("lee preferencias del viajero de sus notas", () => {
+    expect(travelerPrefs("Queremos algo cómodo y en avión")).toMatchObject({ comfort: true, wantsFlight: true, acceptsStops: false });
+    expect(travelerPrefs("lo más barato posible")).toMatchObject({ budget: true });
   });
 });
 
@@ -63,7 +89,7 @@ describe("applyShortTripRules", () => {
       { tier: "ahorro", modo: "autobus", aerolinea: "Autobús ADO", duracion: "2 h", escalas: "Directo", precio_por_persona: 900, precio_min: 500, precio_max: 400, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO", consultado_at: "x", booking_link: "https://inventado.example" },
       { tier: "equilibrio", aerolinea: "Viva Aerobus", duracion: "7h 05m", escalas: "1 escala", precio_por_persona: 6801, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO" },
       { tier: "premium", aerolinea: "Aeroméxico", duracion: "1h 0m", escalas: "Directo", precio_por_persona: 3000, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO" },
-    ], t, links);
+    ], t, links, travelerPrefs("quiero ir en avión")); // el directo de 1 h solo se muestra porque lo pidió
     expect(out.map((v) => v.tier)).toEqual(["ahorro", "premium"]);
     const bus = out[0];
     expect(bus).toMatchObject({ modo: "autobus", fuente_precio: "estimado", estado_dato: "ESTIMADO", precio_min: 400, precio_max: 500, booking_link: links.bus });
@@ -109,10 +135,11 @@ describe("ligas y prompt", () => {
 
   it("el prompt pide terrestre estimado con rango y limita los vuelos", () => {
     const p = shortTripPromptBlock(detectShortTrip("CDMX", "Puebla")!);
-    expect(p).toMatch(/NO fuerces vuelos/);
+    expect(p).toMatch(/PUERTA A PUERTA/);
+    expect(p).toMatch(/DIRECTOS/);
     expect(p).toMatch(/fuente_precio="estimado"/);
     expect(p).toMatch(/precio_min y precio_max/);
-    expect(p).toMatch(/máximo 1 escala/);
-    expect(p).toMatch(/aprox\./);
+    expect(p).toMatch(/aprox/);
+    expect(shortTripPromptBlock(detectShortTrip("CDMX", "Puebla")!, travelerPrefs("barato"))).toMatch(/ahorro = autobús/);
   });
 });
