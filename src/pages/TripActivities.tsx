@@ -65,8 +65,8 @@ const TripActivities = () => {
         </div>
 
         <div className="glass-card rounded-xl p-4 md:p-5 space-y-3">
-          <label className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
-          <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Roma, Tokio, Cancún…" />
+          <label htmlFor="tripactivities-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
+          <Input id="tripactivities-destino" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Roma, Tokio, Cancún…" />
           <Tabs value={cat} onValueChange={(v) => setCat(v as any)}>
             <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="attractions">Atracciones</TabsTrigger>

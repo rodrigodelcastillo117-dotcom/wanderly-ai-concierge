@@ -44,8 +44,8 @@ const Restaurantes = () => {
         </div>
 
         <div className="glass-card rounded-xl p-4 md:p-5 space-y-3">
-          <label className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad</label>
-          <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Roma, CDMX, París…" />
+          <label htmlFor="restaurantes-ciudad" className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad</label>
+          <Input id="restaurantes-ciudad" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Roma, CDMX, París…" />
         </div>
 
         <div className="grid md:grid-cols-2 gap-3">

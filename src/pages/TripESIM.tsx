@@ -45,8 +45,8 @@ const TripESIM = () => {
         </div>
 
         <div className="glass-card rounded-xl p-4 md:p-5">
-          <label className="text-xs uppercase tracking-wide text-muted-foreground">País destino</label>
-          <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Spain, Japan, Mexico…" />
+          <label htmlFor="tripesim-pais-destino" className="text-xs uppercase tracking-wide text-muted-foreground">País destino</label>
+          <Input id="tripesim-pais-destino" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Spain, Japan, Mexico…" />
         </div>
 
         <div className="grid md:grid-cols-3 gap-3">

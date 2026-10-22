@@ -425,8 +425,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         {/* Stops builder */}
         <section className="rounded-3xl border border-border bg-card p-6 md:p-8 space-y-5 premium-shadow">
           <div>
-            <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block">Ciudad de origen</label>
-            <OriginPicker value={origin} onChange={setOrigin} />
+            <label id="ruta-origen" className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block">Ciudad de origen</label>
+            <OriginPicker labelId="ruta-origen" value={origin} onChange={setOrigin} />
           </div>
 
           <div>

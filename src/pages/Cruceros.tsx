@@ -88,8 +88,8 @@ const Cruceros = () => {
         <div className="glass-card rounded-xl p-4 md:p-5 space-y-3">
           <div className="grid md:grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
-              <select
+              <label htmlFor="cruceros-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
+              <select id="cruceros-destino"
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -100,12 +100,12 @@ const Cruceros = () => {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Salida</label>
-              <Input type="date" value={depart} onChange={(e) => setDepart(e.target.value)} />
+              <label htmlFor="cruceros-salida" className="text-xs uppercase tracking-wide text-muted-foreground">Salida</label>
+              <Input id="cruceros-salida" type="date" value={depart} onChange={(e) => setDepart(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Regreso (opcional)</label>
-              <Input type="date" value={ret} onChange={(e) => setRet(e.target.value)} />
+              <label htmlFor="cruceros-regreso-opcional" className="text-xs uppercase tracking-wide text-muted-foreground">Regreso (opcional)</label>
+              <Input id="cruceros-regreso-opcional" type="date" value={ret} onChange={(e) => setRet(e.target.value)} />
             </div>
           </div>
           <p className="text-xs text-muted-foreground">

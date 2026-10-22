@@ -486,6 +486,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                 })}
               </div>
               <Input
+                aria-label="Otra emoción"
                 placeholder="¿Otra emoción? Cuéntanos con tus palabras…"
                 value={emocionLibre}
                 onChange={(e) => setEmocionLibre(e.target.value)}
@@ -527,6 +528,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               </div>
               {!surpriseDestino && (
                 <Input
+                  aria-label="Destino que tienes en mente"
                   placeholder="ej. Tokio, Barcelona, Oaxaca, Patagonia…"
                   value={destinoEmocion}
                   onChange={(e) => setDestinoEmocion(e.target.value)}
@@ -564,10 +566,10 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               </div>
               {grupoPreset === "custom" && (
                 <div className="pt-2">
-                  <label className="text-xs text-muted-foreground mb-2 block">
+                  <label id="plantrip-viajeros-emocion" className="text-xs text-muted-foreground mb-2 block">
                     Número de viajeros: <span className="text-foreground font-medium">{numViajeros}</span>
                   </label>
-                  <Slider value={[numViajeros]} onValueChange={(v) => setNumViajeros(v[0])} min={1} max={12} step={1} />
+                  <Slider aria-labelledby="plantrip-viajeros-emocion" value={[numViajeros]} onValueChange={(v) => setNumViajeros(v[0])} min={1} max={12} step={1} />
                 </div>
               )}
               {grupoPreset === "pareja" && (
@@ -611,12 +613,12 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               {!surpriseDates && (
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1.5 block">Salida</label>
-                    <Input type="date" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} className="bg-input border-border h-12" />
+                    <label htmlFor="plantrip-salida" className="text-xs text-muted-foreground mb-1.5 block">Salida</label>
+                    <Input id="plantrip-salida" type="date" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} className="bg-input border-border h-12" />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1.5 block">Regreso</label>
-                    <Input type="date" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} className="bg-input border-border h-12" />
+                    <label htmlFor="plantrip-regreso" className="text-xs text-muted-foreground mb-1.5 block">Regreso</label>
+                    <Input id="plantrip-regreso" type="date" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} className="bg-input border-border h-12" />
                   </div>
                 </div>
               )}
@@ -626,8 +628,8 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                 </p>
               )}
               <div>
-                <label className="text-xs text-muted-foreground mb-1.5 block">Ciudad de salida</label>
-                <OriginPicker value={ciudadOrigen} onChange={setCiudadOrigen} />
+                <label id="plantrip-origen-emocion" className="text-xs text-muted-foreground mb-1.5 block">Ciudad de salida</label>
+                <OriginPicker labelId="plantrip-origen-emocion" value={ciudadOrigen} onChange={setCiudadOrigen} />
               </div>
             </div>
 
@@ -674,6 +676,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               <div className="relative">
                 <Input
                   autoFocus
+                  aria-label="¿A dónde quieres ir?"
                   placeholder="París · o · Roma → Florencia → Venecia"
                   value={destino}
                   onChange={(e) => setDestino(e.target.value)}
@@ -715,22 +718,22 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       render: () => (
         <div className="space-y-5">
           <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Ciudad de salida</label>
-            <OriginPicker value={ciudadOrigen} onChange={setCiudadOrigen} />
+            <label id="plantrip-origen" className="text-sm text-muted-foreground mb-2 block">Ciudad de salida</label>
+            <OriginPicker labelId="plantrip-origen" value={ciudadOrigen} onChange={setCiudadOrigen} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-muted-foreground mb-2 block">Salida</label>
-              <Input type="date" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} className="bg-input border-border h-12" />
+              <label htmlFor="plantrip-salida-2" className="text-sm text-muted-foreground mb-2 block">Salida</label>
+              <Input id="plantrip-salida-2" type="date" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} className="bg-input border-border h-12" />
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-2 block">Regreso</label>
-              <Input type="date" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} className="bg-input border-border h-12" />
+              <label htmlFor="plantrip-regreso-2" className="text-sm text-muted-foreground mb-2 block">Regreso</label>
+              <Input id="plantrip-regreso-2" type="date" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} className="bg-input border-border h-12" />
             </div>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-3 block">Número de viajeros: <span className="text-foreground font-medium">{numViajeros}</span></label>
-            <Slider value={[numViajeros]} onValueChange={(v) => setNumViajeros(v[0])} min={1} max={10} step={1} />
+            <label id="plantrip-viajeros" className="text-sm text-muted-foreground mb-3 block">Número de viajeros: <span className="text-foreground font-medium">{numViajeros}</span></label>
+            <Slider aria-labelledby="plantrip-viajeros" value={[numViajeros]} onValueChange={(v) => setNumViajeros(v[0])} min={1} max={10} step={1} />
           </div>
         </div>
       ),
@@ -749,6 +752,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
             )}
           </div>
           <Slider
+            aria-label="Presupuesto objetivo en MXN"
             value={[presupuesto ?? 30000]}
             onValueChange={(v) => setPresupuesto(v[0])}
             min={5000}
