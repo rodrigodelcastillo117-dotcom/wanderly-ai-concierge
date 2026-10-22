@@ -1,0 +1,54 @@
+{
+ "landing320": {
+  "ctaRight": 340,
+  "vw": 320
+ },
+ "ruta390": {
+  "colW": 634,
+  "colRight": 658,
+  "vw": 390
+ },
+ "ruta768": {
+  "colW": 673,
+  "colRight": 713,
+  "vw": 768
+ },
+ "concierge320x568": {
+  "composerBottom": 754,
+  "navTop": 490,
+  "composerCovered": true,
+  "chatH": 48,
+  "loc": "Detectando tu ubicación real…"
+ },
+ "concierge375x667": {
+  "composerBottom": 688,
+  "navTop": 589,
+  "composerCovered": true,
+  "chatH": 48,
+  "loc": "Detectando tu ubicación real…"
+ },
+ "concierge390x844": {
+  "composerBottom": 735,
+  "navTop": 766,
+  "composerCovered": false,
+  "chatH": 96,
+  "loc": "Detectando tu ubicación real…"
+ },
+ "notif390": {
+  "left": -54,
+  "right": 286,
+  "vw": 390
+ },
+ "fixer": {
+  "role": false,
+  "focusInside": false,
+  "sujeto": false,
+  "closed": false,
+  "focus": "Fixer"
+ },
+ "editarIA": {
+  "applyHitTarget": "path",
+  "role": false,
+  "closedByEsc": false
+ }
+}

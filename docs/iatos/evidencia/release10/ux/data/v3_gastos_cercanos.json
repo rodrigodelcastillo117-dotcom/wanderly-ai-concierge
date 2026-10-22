@@ -1,0 +1,338 @@
+{
+ "ver": "assets/index-CiYkY-YR.js",
+ "w320": {
+  "finalPath": "/dashboard/gastos",
+  "tabs": [
+   "Lista|x21-116|sw95>cw95",
+   "Smart Spend|x116-222|sw105>cw105",
+   "Calculadora de viaje|x222-363|sw141>cw141"
+  ],
+  "smart": {
+   "text": "E Gastos Registra, categoriza y analiza cada gasto de tu viaje. Lista Smart Spend Calculadora de viaje ESTE MES $0 MXN POR CATEGORÍA Aún no hay datos. Registra tu primer gasto. DESGLOSE Sin gastos convertibles todavía. Inicio Viajes Planear Concierge Más",
+   "boundary": false
+  },
+  "calc": "ok",
+  "nuevo": null,
+  "nuevoAudit": {
+   "hs": false,
+   "small": [
+    "a.flex.items-center 98x28",
+    "button.ml-1.w-9 \"Mi perfil\" 36x36",
+    "input.h-8.w-full \"Buscar moneda\" 238x32"
+   ],
+   "tech": [],
+   "clipped": []
+  },
+  "errs": [],
+  "guard": []
+ },
+ "w390": {
+  "finalPath": "/dashboard/gastos",
+  "tabs": [
+   "Lista|x21-116|sw95>cw95",
+   "Smart Spend|x116-227|sw111>cw111",
+   "Calculadora de viaje|x227-369|sw142>cw142"
+  ],
+  "smart": {
+   "text": "E Gastos Registra, categoriza y analiza cada gasto de tu viaje. Lista Smart Spend Calculadora de viaje ESTE MES $0 MXN POR CATEGORÍA Aún no hay datos. Registra tu primer gasto. DESGLOSE Sin gastos convertibles todavía. Inicio Viajes Planear Concierge Más",
+   "boundary": false
+  },
+  "calc": "ok",
+  "nuevo": null,
+  "nuevoAudit": {
+   "hs": false,
+   "small": [
+    "a.flex.items-center 98x28",
+    "button.ml-1.w-9 \"Mi perfil\" 36x36",
+    "input.h-8.w-full \"Buscar moneda\" 308x32"
+   ],
+   "tech": [],
+   "clipped": []
+  },
+  "errs": [],
+  "guard": []
+ },
+ "w1440": {
+  "finalPath": "/dashboard/gastos",
+  "tabs": [
+   "Lista|x245-340|sw95>cw95",
+   "Smart Spend|x340-487|sw147>cw147",
+   "Calculadora de viaje|x487-681|sw193>cw193"
+  ],
+  "smart": {
+   "text": "Inicio Mis viajes Cercanos Favoritos Social Smart Spend Concierge Activar IATOS PRO IATOS PRIVÉ E E2E Explorador Cerrar sesión Gastos Registra, categoriza y analiza cada gasto de tu viaje. Lista Smart Spend Calculadora de viaje ESTE MES $0 MXN POR CATEGORÍA Aún no hay datos. Registra tu pri",
+   "boundary": false
+  },
+  "calc": "ok",
+  "nuevo": null,
+  "nuevoAudit": {
+   "hs": false,
+   "tech": [],
+   "clipped": []
+  },
+  "errs": [],
+  "guard": []
+ },
+ "cercanos": {
+  "calls": {
+   "nearby-places 200": 1,
+   "place-photo 200": 1
+  },
+  "hs": false,
+  "small": [
+   "a.flex.items-center 98x28",
+   "button.ml-1.w-9 \"Mi perfil\" 36x36",
+   "button.px-3.py-1.5 \"Restaurantes\" 99x28",
+   "button.px-3.py-1.5 \"Cafés\" 57x28",
+   "button.px-3.py-1.5 \"Bares\" 56x28",
+   "button.px-3.py-1.5 \"Atracciones\" 90x28",
+   "div \"Banyan Tree Puebla\" 36x36",
+   "div \"Santóua Gastrobar\" 36x36"
+  ],
+  "tech": [],
+  "banned": [],
+  "clipped": [],
+  "imgs": [
+   {
+    "ok": true,
+    "src": "https://traveliatos.life/assets/iatos-logo-320-CDnlEvkM.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22"
+   }
+  ],
+  "imgs2": [
+   {
+    "ok": true,
+    "src": "https://traveliatos.life/assets/iatos-logo-320-CDnlEvkM.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.googleapis.com/maps/vt"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "https://maps.gstatic.com/mapfiles/transparent.png"
+   },
+   {
+    "ok": true,
+    "src": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22"
+   },
+   {
+    "ok": true,
+    "src": "https://lh3.googleusercontent.com/grass-cs/AABkmLcJ9EKY3V9MhHh2ATCYsEG"
+   }
+  ],
+  "text": "E Cercanos Lugares reales cerca de tu ubicación. Viaje activo: Elige tu viaje activo E2E PRUEBA Privacidad A (12 dic al 13 dic) E2E PRUEBA Puebla (12 dic al 14 dic) tienes varios viajes: elige uno Restaurantes Cafés Bares Atracciones Datos del mapa ©2026 Google, INEGI Términos Por visitar Visitado Para ti HOTEL Banyan Tree Puebla 4.7 Abierto ahora BAR Santóua Gastrobar 4.7 $$ · Moderado Cerrado RESTAURANTE DE FUSIÓN La Casa del Mendrugo 4.7 $$ · Moderado Cerrado HOTEL CASAREYNA Hotel - Restaurante 4.6 RESTAURANTE MEXICANO Mural de los Poblanos 4.6 $$$ · Caro Cerrado HOTEL C",
+  "guard": []
+ }
+}

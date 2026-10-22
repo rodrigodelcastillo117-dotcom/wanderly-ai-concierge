@@ -10,7 +10,7 @@ Entorno: https://traveliatos.life con Playwright (Chromium de /opt/pw-browsers, 
 |---|---|---|---|
 | V1 | `assets/index-CMK6gH6h.js` | b04ad9e | Barrido de rutas (7 anchos), Privé/Members (1ª pasada), axe, teclado |
 | V2 | `assets/index-BnriLFFh.js` | 0e50f1e (Members Only) | Privé/Members (2ª pasada), red lenta, censo de funciones, verificación prod vs local, 429 de fotos |
-| V3 | ver sección «Re-verificación tras la publicación» | — | Gastos, Cercanos, Smart Spend |
+| V3 | `assets/index-CiYkY-YR.js` (publicado 08:32 UTC) | main con Smart Spend, Gastos y Cercanos | Gastos, Smart Spend, Cercanos y re-verificación de todos los defectos de la tabla |
 
 El cambio V1→V2 ocurrió entre las 07:05 y las 07:44 UTC; la pasada de «botones muertos» quedó a caballo entre
 ambas. Las diferencias entre V1 y V2 son solo de Members Only (UI de `members_venues`); el adelanto para free se
@@ -25,14 +25,14 @@ de red abortaba en el navegador las funciones de SerpApi/IA/pagos/correos/borrad
 
 | Estado | Filas |
 |---|---|
-| PASS | 27 |
-| FAIL | 24 |
+| PASS | 22 |
+| FAIL | 19 |
 | BLOCKED | 0 |
-| NOT_RUN | 2 |
+| NOT_RUN | 1 |
 | NOT_APPLICABLE | 0 |
 
-Defectos: **P0 0 · P1 1 · P2 12 · P3 12**. Ninguno de seguridad.
-Corregidos en la rama (con prueba): 15 · parcial: 1 · sin corregir: 9 (P3 casi todos, o decisión del dueño).
+Defectos: **P0 0 · P1 2 · P2 11 · P3 14** (un P1 ya lo corrigió otro grupo en V3). Ninguno de seguridad.
+Corregidos en la rama (con prueba): 13 · parcial: 1 · sin corregir: 12 (P3 casi todos, perf, o decisión del dueño). En V3 los 13 corregidos aquí siguen presentes en producción (`data/verificacion_prod_v3.json`).
 
 ### Incidente de la propia prueba (leer primero)
 Al reproducir el texto técnico de «Editar con IA» con una respuesta 503 simulada, la ruta simulada quedó
@@ -71,8 +71,10 @@ abortado en el navegador (no se creó sesión). Correos: 0.
 | UX10-17 | P3 | Concierge ≤412 | Siguen < 40 px: «Auto-refresh 60s» 105×16, «Lo que Iato recuerda» 121×16, selector «Viaje en contexto» 256×25; el aviso «Iato te preguntará cuál» queda en una columna de ~40 px. | NO CORREGIDO (va con la decisión de UX10-03). | barrido |
 | UX10-18 | P3 | Varias, ≤412 | Otros < 40 px: puntos del carrusel 6×4, iconos editar/borrar de Mis viajes 30×30, «Buscar con voz» 28×28, «¿Olvidaste tu contraseña?» 20 px de alto, enlaces legales del pie 17 px. | NO CORREGIDO. | barrido, axe `target-size` |
 | UX10-10 | P3 | Selector de viaje del Concierge | Un viaje sin fechas se muestra «SEC-TEST-A-own (? al ?)». | CORREGIDO («(sin fechas)»; está en `_shared/activeTrip.ts`, también lo usa `concierge-chat`). | «UX10-10» |
-| UX10-14 | P3 | /dashboard/actividades a 320 | Pestañas encimadas: «AtraccionesRestaurantes». | NO CORREGIDO. | img |
-| UX10-15 | P3 | /dashboard/gastos a 320 | Tercera pestaña recortada: «Calculad… de viaj». | NO CORREGIDO; re-verificar con V3. | img |
+| UX10-14 | P3 | /dashboard/actividades a 320 | Pestañas encimadas: «AtraccionesRestaurantes» («Restaurantes» pide 86 px en un tercio de 82). | CORREGIDO (texto y relleno compactos en móvil; local: 82/82 px). | «UX10-14» |
+| UX10-15 | P3 | /dashboard/gastos a 320 y 390 | Tercera pestaña recortada: «Calculad… de viaj» (borde 363 px a 320). **Sigue igual en V3.** | NO CORREGIDO (Gastos lo cambió otro grupo hoy; no se tocó para no chocar). | `img/V3_gastos_320_pestanas.jpg` |
+| UX10-26 | P1 | /dashboard/gastos → pestaña «Smart Spend» (V2) | Pantalla «Algo no cargó bien» en 320/390/1440; consola `TypeError: lN(...).x is not a function` en `vendor-3d-Cj9XNtF5.js`. | CORREGIDO por otro grupo (446c434): en **V3 abre bien** en los 3 anchos y sin errores de consola. | `img/V2_smartspend_390_error.jpg`, `img/V3_smartspend_390_ok.jpg` |
+| UX10-27 | P3 | /dashboard/cercanos (V3, 390) | Chips de categoría de 28 px de alto; el aviso «tienes varios viajes: elige uno» queda en una columna angosta junto al selector (mismo patrón que el Concierge). | NO CORREGIDO. | `img/V3_cercanos_390.jpg` |
 | UX10-19 | P3 | /dashboard/viajes/:id/clima | Con un destino que no se geolocaliza: «No se pudieron determinar los destinos.» sin acción (callejón sin salida). | NO CORREGIDO. | hoja 320 c |
 | UX10-20 | P3 | /prive | Titular en inglés («There are places you visit. And there are worlds you enter.») en una app es-MX. | DECISIÓN DEL DUEÑO (marca). | PRV-01 |
 | UX10-21 | P3 | /prive/invitacion (free que nunca tuvo PRO) | «Tu plan PRO no está activo en este momento» sugiere que lo tuvo. | NO CORREGIDO. | PRV-02 |
@@ -148,12 +150,16 @@ Columnas: ID · Requisito · Entrada exacta · Entorno · Versión · Esperado �
 | COPY-06 | Fixer dice «sujeto a disponibilidad» | Landing, Términos, Reembolsos, Pro, diálogo del Fixer | prod | V1 | En todas | Landing/Términos/Reembolsos/Pro sí; el diálogo del Fixer y su tooltip no (prometían WhatsApp y «humano premium») | `barrido.json` (`fixer`), `img/UX10-07_prod*` | FAIL | UX10-07 (P2) | 529b3b4 | prueba |
 | COPY-07 | Textos en es-MX | Capturas | prod | V1 | Español | Titular de Privé en inglés; ejemplos en inglés en eSIM/Ferries; fecha con mayúsculas de título | hojas 320 | FAIL | UX10-20, 23, 24 (P3) | — | — |
 | COPY-08 | Sin marcadores crudos | Capturas | prod | V1 | Sin «?», «undefined» | «(? al ?)» en el selector de viaje | `prive.json` (texto Members) | FAIL | UX10-10 (P3) | 529b3b4 | prueba |
-| COPY-09 | Re-verificar Gastos / Cercanos / Smart Spend tras la publicación | — | prod | V3 | — | ver sección siguiente | — | NOT_RUN | — | — | — |
+| V3-01 | Smart Spend no se rompe | /dashboard/smart-spend → /dashboard/gastos, clic en «Smart Spend» y «Calculadora de viaje» a 320/390/1440 | prod | V2 y V3 | Abre sin error | V2: «Algo no cargó bien» en los 3 anchos. V3: abre bien, 0 errores de consola | `data/v2_gastos_smartspend.json`, `data/v3_gastos_cercanos.json` | PASS (V3) | UX10-26 (P1, V2) | 446c434 (otro grupo) | — |
+| V3-02 | Gastos: monedas | «Nuevo gasto» a 320/390/1440 (solo abrir, no guardar) | prod | V3 | Buscador de moneda en español | «Buscar moneda o país», «MXN · Peso mexicano», categorías; sin texto técnico | `img/V3_nuevo_gasto_390.jpg` | PASS | — | — | — |
+| V3-03 | Gastos a 320 | Pestañas | prod | V3 | Caben | «Calculadora de viaje» sigue recortada (borde 363 px) | `img/V3_gastos_320_pestanas.jpg` | FAIL | UX10-15 (P3) | — | — |
+| V3-04 | Cercanos: fotos reales | /dashboard/cercanos a 390 con ubicación simulada (Puebla 19.0414, −98.2063); 1 llamada a `nearby-places` (Google Maps, no SerpApi) y 1 a `place-photo` | prod | V3 | Lugares reales con foto real, sin texto técnico | 200/200; lista con tipo, rating y precio en español («$$ · Moderado», «Abierto ahora/Cerrado»); la ficha muestra foto con crédito «Foto: Google»; 0 imágenes rotas; 0 texto técnico | `img/V3_cercanos_390.jpg`, `img/V3_cercanos_detalle_390_foto.jpg` | PASS | (UX10-27 P3) | — | — |
+| V3-05 | Defectos de esta tabla siguen en V3 | `verify.js` sobre V3 | prod | V3 | — | Landing 320, ruta 390, Concierge 375×667/320×568, ubicación, notificaciones, Fixer y «Editar con IA»: mismos valores que en V2 | `data/verificacion_prod_v3.json` | FAIL | UX10-01…12 | 529b3b4, a986d42 | local OK |
 | COPY-10 | Contraste y copia de Members en la UI nueva (PRO) | — | — | — | — | Requiere una cuenta PRO; B la está usando otro grupo | — | NOT_RUN | — | — | — |
 
 ## Re-verificación tras la publicación (V3)
 
-(Se completa abajo cuando prod publique el nuevo frontend: Smart Spend, monedas de Gastos, fotos de Cercanos.)
+Publicación detectada a las 08:32 UTC (`index-CiYkY-YR.js`). Resultados en las filas V3-01…V3-05 de la sección 5. Resumen: Smart Spend ya no se rompe (antes sí, P1); monedas de Gastos y fotos de Cercanos funcionan; las pestañas de Gastos siguen recortadas a 320; todos los defectos corregidos en esta rama siguen presentes en producción hasta que se publique la rama. La rama se fusiona sin conflictos con `origin/main` b5571ce (`git merge-tree`).
 
 ## Commits de la rama `claude/wc-r10-ux`
 
@@ -162,9 +168,10 @@ Columnas: ID · Requisito · Entrada exacta · Entorno · Versión · Esperado �
 | 529b3b4 | UX10-01…13: maquetación, diálogos accesibles, copia honesta, ubicación, fotos sin amplificar errores |
 | a986d42 | UX10-12: diálogo de «Editar con IA» en portal (la barra inferior seguía encima) |
 | 5108217 | UX10-05b: «Volver» y cierre de consejos a 40 px |
+| 3e45424 | UX10-14: pestañas de Actividades a 320 px |
 
-Pruebas: `src/test/uxRelease10.test.tsx` (20 casos; con el código anterior fallan los que corresponden).
-`npx vitest run`: 125 archivos, 1030 pruebas, todo pasa. `npx tsc --noEmit -p tsconfig.app.json`: OK.
+Pruebas: `src/test/uxRelease10.test.tsx` (21 casos; con el código anterior fallan los que corresponden).
+`npx vitest run`: 125 archivos, 1031 pruebas, todo pasa. `npx tsc --noEmit -p tsconfig.app.json`: OK.
 `deno check supabase/functions/concierge-chat/index.ts`: OK. `npm run build`: OK.
 
 Funciones de Supabase afectadas: `supabase/functions/_shared/activeTrip.ts` (texto de `tripLabel`), que usa
@@ -181,7 +188,7 @@ Funciones de Supabase afectadas: `supabase/functions/_shared/activeTrip.ts` (tex
 - UX10-16: dashboard pesado en red lenta (servir `hero-santorini` de 960 px en móvil, reservar alto de las
   tarjetas para bajar CLS 0.155, skeleton en vez del spinner de ruta, revisar la imagen de 364 KB de
   googleusercontent).
-- UX10-14/15/17/18/19/21–25 (P3).
+- UX10-15/17/18/19/21–25/27 (P3).
 - Otros `toast.error(e?.message ?? …)` (≈30 sitios: Compare, Gastos, TripTranslator, TripPacking, Cercanos,
   MembersOnlyPanel, EditableBudget, TripDetail PDF…) pueden mostrar «Edge Function returned a non-2xx status
   code» si su función falla; no se reprodujeron en prod (habría que provocar fallos reales). Conviene pasarlos por

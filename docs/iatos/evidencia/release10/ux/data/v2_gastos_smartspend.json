@@ -1,0 +1,77 @@
+{
+ "ver": "assets/index-BnriLFFh.js",
+ "w320": {
+  "finalPath": "/dashboard/gastos",
+  "tabs": [
+   "Lista|x21-116|sw95>cw95",
+   "Smart Spend|x116-222|sw105>cw105",
+   "Calculadora de viaje|x222-363|sw141>cw141"
+  ],
+  "smart": {
+   "text": "IATOS AI Algo no cargó bien Tuvimos un problema mostrando esta pantalla. Recarga para intentar de nuevo — tu información no se perdió. Recargar",
+   "boundary": true
+  },
+  "nuevo": null,
+  "nuevoAudit": {
+   "hs": false,
+   "small": [
+    "a.flex.items-center 98x28",
+    "button.ml-1.w-9 \"Mi perfil\" 36x36"
+   ],
+   "tech": [],
+   "clipped": []
+  },
+  "errs": [
+   "TypeError: lN(...).x is not a function\n    at e.oO (https://traveliatos.life/assets/vendor-3d-Cj9XNtF5.js:4119:5867)\n    at e.set (https://traveliatos.life/asse"
+  ],
+  "guard": []
+ },
+ "w390": {
+  "finalPath": "/dashboard/gastos",
+  "tabs": [
+   "Lista|x21-116|sw95>cw95",
+   "Smart Spend|x116-227|sw111>cw111",
+   "Calculadora de viaje|x227-369|sw142>cw142"
+  ],
+  "smart": {
+   "text": "IATOS AI Algo no cargó bien Tuvimos un problema mostrando esta pantalla. Recarga para intentar de nuevo — tu información no se perdió. Recargar",
+   "boundary": true
+  },
+  "nuevo": null,
+  "nuevoAudit": {
+   "hs": false,
+   "small": [
+    "a.flex.items-center 98x28",
+    "button.ml-1.w-9 \"Mi perfil\" 36x36"
+   ],
+   "tech": [],
+   "clipped": []
+  },
+  "errs": [
+   "TypeError: lN(...).x is not a function\n    at e.oO (https://traveliatos.life/assets/vendor-3d-Cj9XNtF5.js:4119:5867)\n    at e.set (https://traveliatos.life/asse"
+  ],
+  "guard": []
+ },
+ "w1440": {
+  "finalPath": "/dashboard/gastos",
+  "tabs": [
+   "Lista|x245-340|sw95>cw95",
+   "Smart Spend|x340-487|sw147>cw147",
+   "Calculadora de viaje|x487-681|sw193>cw193"
+  ],
+  "smart": {
+   "text": "IATOS AI Algo no cargó bien Tuvimos un problema mostrando esta pantalla. Recarga para intentar de nuevo — tu información no se perdió. Recargar",
+   "boundary": true
+  },
+  "nuevo": null,
+  "nuevoAudit": {
+   "hs": false,
+   "tech": [],
+   "clipped": []
+  },
+  "errs": [
+   "TypeError: lN(...).x is not a function\n    at e.oO (https://traveliatos.life/assets/vendor-3d-Cj9XNtF5.js:4119:5867)\n    at e.set (https://traveliatos.life/asse"
+  ],
+  "guard": []
+ }
+}
