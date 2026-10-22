@@ -1,5 +1,6 @@
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plane, Search, ExternalLink, Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -27,7 +28,11 @@ interface FlightResult {
 const TripFlights = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [origin, setOrigin] = useState(params.get("origin") ?? "Mexico City");
+  // Origen: el de la URL, si no la ciudad de origen del perfil (antes siempre "Mexico City",
+  // en inglés y aunque la persona viva en otra ciudad). Se respeta lo que ya haya escrito.
+  const { user } = useAuth();
+  const [origin, setOrigin] = useState(params.get("origin") ?? "");
+  const originTouched = useRef(Boolean(params.get("origin")));
   const [destination, setDestination] = useState(params.get("destination") ?? "");
   const [depart, setDepart] = useState(params.get("depart") ?? "");
   const [returnDate, setReturnDate] = useState(params.get("return") ?? "");
@@ -72,6 +77,15 @@ const TripFlights = () => {
   };
 
   useEffect(() => {
+    if (!user || originTouched.current) return;
+    supabase.from("profiles").select("ciudad_origen").eq("id", user.id).maybeSingle()
+      .then(({ data }) => {
+        if (originTouched.current) return;
+        setOrigin((data as { ciudad_origen?: string | null } | null)?.ciudad_origen || "CDMX");
+      });
+  }, [user]);
+
+  useEffect(() => {
     if (params.get("auto") === "1" && destination && depart) search();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -88,7 +102,7 @@ const TripFlights = () => {
           <div className="grid md:grid-cols-2 gap-3">
             <div>
               <label htmlFor="tripflights-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
-              <Input id="tripflights-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ciudad de México" />
+              <Input id="tripflights-origen" value={origin} onChange={(e) => { originTouched.current = true; setOrigin(e.target.value); }} placeholder="Ciudad de México" />
             </div>
             <div>
               <label htmlFor="tripflights-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>

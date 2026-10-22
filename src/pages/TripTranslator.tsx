@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Languages, Volume2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -32,10 +32,14 @@ const TripTranslator = () => {
   const [customInput, setCustomInput] = useState("");
   const tipTrad = useTooltipShown("traductor");
 
+  // null = cargando; false = no existe o no tienes acceso (antes .single() fallaba en silencio y
+  // la pantalla quedaba vacía, sin título ni explicación).
+  const [found, setFound] = useState<boolean | null>(null);
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("trips").select("*").eq("id", id).single();
+      const { data, error } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
       setTrip(data);
+      setFound(!error && !!data);
     })();
   }, [id]);
 
@@ -126,6 +130,19 @@ const TripTranslator = () => {
     }
     return Array.from(map.entries());
   }, [phrases]);
+
+  if (found === false) {
+    return (
+      <DashboardLayout>
+        <div className="p-6 md:p-10 max-w-3xl mx-auto text-center space-y-4">
+          <Languages className="w-8 h-8 text-primary mx-auto" aria-hidden="true" />
+          <h1 className="font-display text-2xl">No encontramos este viaje</h1>
+          <p className="text-sm text-muted-foreground">Puede que se haya eliminado o que ya no tengas acceso.</p>
+          <Button asChild variant="outline"><Link to="/dashboard/viajes">Ir a Mis viajes</Link></Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
