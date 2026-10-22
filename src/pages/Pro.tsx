@@ -6,6 +6,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
 import { track } from "@/lib/analytics";
 import { PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
+import { useTrialCopy } from "@/hooks/usePlanConfig";
 
 // Mismo texto que Landing, Términos y correos (src/lib/planCopy.ts).
 const BENEFITS = PRO_FEATURES;
@@ -19,6 +20,7 @@ export default function Pro() {
     trialDaysLeft, cancelAtPeriodEnd, refresh, startCheckout, openPortal,
   } = useSubscription();
   const [busy, setBusy] = useState<"checkout" | "portal" | null>(null);
+  const { copy: trial } = useTrialCopy();
   const [params, setParams] = useSearchParams();
 
   useEffect(() => {
@@ -148,9 +150,7 @@ export default function Pro() {
             </div>
 
             <p className="text-[11px] text-muted-foreground">
-              La tarjeta solo se pide al contratar PRO; la prueba gratis no la necesita. Si contratas durante tu prueba, el primer
-              cargo se hace cuando termina. PRO se renueva cada mes hasta que canceles desde “Gestionar suscripción”. El cobro lo
-              procesa Stripe; IATOS AI no almacena tu tarjeta.
+              {trial.checkoutNote}
             </p>
             <p className="text-[11px] text-muted-foreground mt-2 flex flex-wrap gap-x-3 gap-y-1">
               Al continuar aceptas los

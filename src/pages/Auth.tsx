@@ -10,11 +10,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { claimPendingReferral } from "@/lib/referral";
-import { TRIAL_LINE } from "@/lib/planCopy";
+import { useTrialCopy } from "@/hooks/usePlanConfig";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { copy: trial } = useTrialCopy();
   const { user, signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">(searchParams.get("mode") === "signup" ? "signup" : "login");
   const [email, setEmail] = useState("");
@@ -112,7 +113,7 @@ const Auth = () => {
               {mode === "signup" ? "Crea tu cuenta" : "Bienvenido de vuelta"}
             </h1>
             <p className="text-muted-foreground text-sm">
-              {mode === "signup" ? `${TRIAL_LINE}.` : "Tu próximo viaje te espera."}
+              {mode === "signup" ? trial.signup : "Tu próximo viaje te espera."}
             </p>
           </div>
 

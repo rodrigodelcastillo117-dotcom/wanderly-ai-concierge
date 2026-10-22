@@ -7,10 +7,12 @@ import kyoto from "@/assets/destination-kyoto.jpg";
 import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
 import iatosLogo from "@/assets/iatos-logo.png";
-import { AFTER_TRIAL_LINE, PRICE_LINE, PRO_FEATURES, TRIAL_CONDITIONS, TRIAL_CTA, TRIAL_LINE } from "@/lib/planCopy";
+import { PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
+import { useTrialCopy } from "@/hooks/usePlanConfig";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { copy: trial } = useTrialCopy();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -66,7 +68,7 @@ const Landing = () => {
                 onClick={() => navigate("/auth?mode=signup")}
                 className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow text-base h-14 px-8"
               >
-                {TRIAL_CTA}
+                {trial.cta}
                 <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
               <Button
@@ -78,7 +80,7 @@ const Landing = () => {
                 Ver cómo funciona
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-6 tracking-wide uppercase">{TRIAL_LINE}</p>
+            <p className="text-xs text-muted-foreground mt-6 tracking-wide uppercase">{trial.line}</p>
           </motion.div>
         </div>
       </section>
@@ -193,7 +195,7 @@ const Landing = () => {
               <span className="font-display text-6xl">$99</span>
               <span className="text-muted-foreground">MXN / mes · IVA incluido</span>
             </div>
-            <p className="text-sm text-muted-foreground mt-3">{TRIAL_LINE}. {AFTER_TRIAL_LINE}</p>
+            <p className="text-sm text-muted-foreground mt-3">{trial.line}. {trial.after}</p>
           </div>
           <div className="space-y-3 mb-8">
             {PRO_FEATURES.map((f) => (
@@ -210,9 +212,9 @@ const Landing = () => {
             onClick={() => navigate("/auth?mode=signup")}
             className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-14"
           >
-            {TRIAL_CTA}
+            {trial.cta}
           </Button>
-          <p className="text-[11px] text-muted-foreground text-center mt-3">{TRIAL_CONDITIONS}</p>
+          <p className="text-[11px] text-muted-foreground text-center mt-3">{trial.conditions}</p>
         </motion.div>
       </section>
 

@@ -1,7 +1,18 @@
 import { Link } from "react-router-dom";
 import { openCookieSettings } from "@/lib/consent";
 import iatosLogo from "@/assets/iatos-logo.png";
-import { AFTER_TRIAL_LINE, FREE_FEATURES, PRICE_LINE, PRO_FEATURES, TRIAL_CONDITIONS, TRIAL_LINE } from "@/lib/planCopy";
+import { FREE_FEATURES, PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
+import { useTrialCopy } from "@/hooks/usePlanConfig";
+
+// La prueba se describe según cómo funcione hoy (con o sin tarjeta), igual que en la landing.
+const TrialTermsItem = () => {
+  const { copy } = useTrialCopy();
+  return <li>Prueba: {copy.line}. {copy.conditions} {copy.after}</li>;
+};
+const TrialPolicyItems = () => {
+  const { copy } = useTrialCopy();
+  return <>{copy.policy.map((t) => <li key={t}>{t}</li>)}</>;
+};
 
 const UPDATED = "24 de agosto de 2026";
 const CONTACT = "hola@traveliatos.life";
@@ -50,7 +61,7 @@ export const Terminos = () => (
       <h2>4. Suscripción IATOS PRO</h2>
       <ul>
         <li>Precio: {PRICE_LINE}.</li>
-        <li>Prueba: {TRIAL_LINE}. {TRIAL_CONDITIONS} {AFTER_TRIAL_LINE}</li>
+        <TrialTermsItem />
         <li>Al contratar PRO, el cobro mensual se realiza a través de Stripe y se renueva cada mes hasta que canceles. IATOS AI no almacena los datos de tu tarjeta.</li>
         <li>Puedes cancelar en cualquier momento desde el portal de facturación en /dashboard/pro. Al cancelar conservas el acceso hasta el fin del periodo pagado.</li>
         <li>Plan gratuito: {FREE_FEATURES.join("; ")}.</li>
@@ -156,10 +167,7 @@ export const Reembolsos = () => (
     <section>
       <h2>2. Periodo de prueba de 30 días</h2>
       <ul>
-        <li><strong>{TRIAL_LINE}.</strong> {TRIAL_CONDITIONS}</li>
-        <li>No necesitas tarjeta para la prueba y no se genera ningún cargo durante ni después de ella.</li>
-        <li>{AFTER_TRIAL_LINE}</li>
-        <li>Si contratas PRO durante la prueba, el primer cargo se hace cuando termina la prueba; si lo contratas después, el primer cargo es al contratar.</li>
+        <TrialPolicyItems />
       </ul>
     </section>
     <section>
