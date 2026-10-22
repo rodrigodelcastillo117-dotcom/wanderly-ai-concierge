@@ -397,6 +397,18 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         if (tErr) console.error(tErr);
         else {
           tripId = trip?.id;
+          // Snapshot inmutable de la cotización (trip_quotes, solo service role): el servidor lo arma
+          // con el plan que él generó para esta llave. Si falla, el viaje queda igual que antes.
+          if (tripId) {
+            try {
+              const { data: snap, error: snapErr } = await supabase.functions.invoke("logistics-plan", {
+                body: { action: "snapshot", trip_id: tripId, request_key },
+              });
+              if (snapErr || !snap?.ok) console.warn("logistics-plan snapshot no guardado", snapErr?.message ?? snap?.error);
+            } catch (e) {
+              console.warn("logistics-plan snapshot no guardado", (e as Error)?.message);
+            }
+          }
           clearRequestKey("logistics-plan");
         }
       }

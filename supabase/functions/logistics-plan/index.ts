@@ -25,6 +25,8 @@ import {
 import { getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { forceEstimated, labelExperiences, markLive, pricingSources } from "./provenance.ts";
+import { buildLogisticsSnapshot } from "./snapshot.ts";
+import { saveQuoteSnapshot } from "../_shared/quotes.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,6 +51,9 @@ interface Body {
   };
   /** Llave de idempotencia por intento (sessionStorage del cliente). */
   request_key?: string;
+  /** "snapshot": guardar en trip_quotes la cotización del plan ya generado (ver saveSnapshot). */
+  action?: string;
+  trip_id?: string;
 }
 
 type Tier = "ahorro" | "equilibrio" | "premium";
@@ -364,6 +369,46 @@ function invokeFn(name: string, authHeader: string, payload: unknown) {
     .catch((e) => ({ error: String(e?.message ?? e) }));
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const jsonResponse = (payload: unknown, status = 200) =>
+  new Response(JSON.stringify(payload), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+/**
+ * Snapshot inmutable (trip_quotes) del plan multi-ciudad que el cliente acaba de guardar como viaje.
+ * Solo se usa el plan que este servidor generó y guardó en quota_reservations.result para ESA llave
+ * del mismo usuario, y solo para un viaje suyo con el mismo total. Idempotente: si el viaje ya
+ * tiene cotización vigente, la devuelve.
+ */
+async function saveSnapshot(userId: string, body: Body): Promise<Response> {
+  const tripId = typeof body.trip_id === "string" && UUID.test(body.trip_id) ? body.trip_id : null;
+  const requestKey = resolveRequestKey(body.request_key, []);
+  if (!tripId || !requestKey.startsWith("c:")) return invalidRequestResponse(corsHeaders, "Falta el viaje o la llave del plan.");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!serviceKey) return serviceUnavailableResponse(corsHeaders);
+  const admin = createClient(SUPABASE_URL, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  try {
+    const [{ data: reservation }, { data: trip }] = await Promise.all([
+      admin.from("quota_reservations").select("status, result")
+        .eq("user_id", userId).eq("kind", "trip_analysis").eq("request_key", requestKey).maybeSingle(),
+      admin.from("trips").select("id, user_id, total_estimado, num_viajeros, fecha_salida, fecha_regreso, current_quote_id")
+        .eq("id", tripId).maybeSingle(),
+    ]);
+    if (!trip || trip.user_id !== userId) return jsonResponse({ ok: false, error: "trip_not_found" }, 404);
+    if (trip.current_quote_id) return jsonResponse({ ok: true, quote_id: trip.current_quote_id, replay: true });
+    if (reservation?.status !== "COMMITTED" || !reservation?.result) return jsonResponse({ ok: false, error: "plan_not_found" }, 409);
+    const built = buildLogisticsSnapshot(reservation.result, trip, userId);
+    if (!built.ok) {
+      console.warn("logistics-plan snapshot rechazado:", (built as { reason: string }).reason);
+      return jsonResponse({ ok: false, error: (built as { reason: string }).reason }, 409);
+    }
+    const quote = await saveQuoteSnapshot(admin, built.row);
+    return quote ? jsonResponse({ ok: true, quote_id: quote.id, valid_until: quote.valid_until }) : jsonResponse({ ok: false, error: "snapshot_failed" }, 503);
+  } catch (e) {
+    console.error("logistics-plan snapshot error:", e instanceof Error ? e.message : e);
+    return serviceUnavailableResponse(corsHeaders);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __user = await getAuthUser(req);
@@ -373,13 +418,16 @@ Deno.serve(async (req) => {
   if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
   try {
+    const body = (await req.json().catch(() => null)) as Body | null;
+    // Paso 2 del cliente: con el viaje ya guardado, el snapshot de su cotización (sin IA ni cuota).
+    if (body?.action === "snapshot") return await saveSnapshot(__user.id, body);
+
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {
       console.error("logistics-plan: LOVABLE_API_KEY missing");
       return serviceUnavailableResponse(corsHeaders);
     }
 
-    const body = (await req.json().catch(() => null)) as Body | null;
     if (!body?.origin || !Array.isArray(body?.destinations) || body.destinations.length < 1) {
       return invalidRequestResponse(corsHeaders, "Faltan datos: indica tu ciudad de origen y al menos un destino.");
     }
@@ -799,6 +847,10 @@ Entrega JSON con:
       fx_is_fallback: fxInfo.is_fallback,
       quoted_at: new Date().toISOString(),
       rooms: Math.max(1, Math.ceil(viajeros / 2)),
+      // Base de la cotización para trip_quotes (viajeros y fechas con que se calculó).
+      travelers: viajeros,
+      date_from: body.fecha_salida ?? null,
+      date_to: body.fecha_regreso ?? null,
     };
 
     // Contrato mínimo para cobrar: itinerario, total y logística en todas las ciudades.
