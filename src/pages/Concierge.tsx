@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, Send, Sparkles, MapPin, Utensils, Car, Siren,
@@ -98,8 +98,14 @@ const Concierge = () => {
   }]);
   const [liveAction, setLiveAction] = useState<LiveAction>(null);
   const [showFlight, setShowFlight] = useState(false);
-  // ?ask=… (desde IATOS Privé: "Pregúntale a Iato") deja la pregunta escrita, sin enviarla.
-  const [input, setInput] = useState(() => (searchParams.get("ask") ?? "").slice(0, 400));
+  const location = useLocation();
+  // Pregunta escrita desde otra pantalla, NUNCA enviada sola (la persona la revisa y la envía):
+  // ?ask=… (IATOS Privé: "Pregúntale a Iato", The Privé Key) o state.prefill (The Private Edition).
+  const [input, setInput] = useState(() => {
+    const p = (location.state as { prefill?: unknown } | null)?.prefill;
+    if (typeof p === "string" && p.trim()) return p.slice(0, 1000);
+    return (searchParams.get("ask") ?? "").slice(0, 400);
+  });
   const [sending, setSending] = useState(false);
   // Modo exigente: apagado por omisión (usa el modelo más capaz: tarda un poco más y cuesta más).
   const [godMode, setGodMode] = useState(() => {
