@@ -6,6 +6,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
 import { track } from "@/lib/analytics";
 import { PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
+import { useTrialCopy } from "@/hooks/usePlanConfig";
 
 // Mismo texto que Landing, Términos y correos (src/lib/planCopy.ts).
 const BENEFITS = PRO_FEATURES;
@@ -15,10 +16,11 @@ const fmtDate = (iso?: string | null) =>
 
 export default function Pro() {
   const {
-    loading, access, subscription, isPro, isTrialing, isComped,
+    loading, error, access, subscription, isPro, isTrialing, isComped,
     trialDaysLeft, cancelAtPeriodEnd, refresh, startCheckout, openPortal,
   } = useSubscription();
   const [busy, setBusy] = useState<"checkout" | "portal" | null>(null);
+  const { copy: trial } = useTrialCopy();
   const [params, setParams] = useSearchParams();
 
   useEffect(() => {
@@ -68,6 +70,16 @@ export default function Pro() {
           <div className="glass-card rounded-2xl p-10 flex justify-center">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
+        ) : error ? (
+          <div role="alert" className="glass-card rounded-2xl p-6 md:p-8 mb-6 text-center">
+            <p className="text-sm text-muted-foreground mb-4">{error} Revisa tu conexión e inténtalo de nuevo.</p>
+            <button
+              onClick={() => refresh()}
+              className="px-6 py-3 rounded-xl border border-border text-sm hover:border-primary/50 transition"
+            >
+              Reintentar
+            </button>
+          </div>
         ) : (
           <>
             <div className="glass-card rounded-2xl p-6 md:p-8 mb-6">
@@ -89,11 +101,11 @@ export default function Pro() {
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="rounded-xl border border-border/60 bg-surface/40 p-4">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Concierge este mes</p>
-                    <p className="text-sm">{access.concierge_remaining} de {access.concierge_limit} mensajes gratis</p>
+                    <p className="text-sm">{access.concierge_limit == null ? "Mensajes sin límite" : `${access.concierge_remaining ?? 0} de ${access.concierge_limit} mensajes gratis`}</p>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-surface/40 p-4">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Análisis de viaje</p>
-                    <p className="text-sm">{access.trips_remaining} de {access.trips_limit} gratis</p>
+                    <p className="text-sm">{access.trips_limit == null ? "Sin límite" : `${access.trips_remaining ?? 0} de ${access.trips_limit} gratis`}</p>
                   </div>
                 </div>
               )}
@@ -148,9 +160,7 @@ export default function Pro() {
             </div>
 
             <p className="text-[11px] text-muted-foreground">
-              La tarjeta solo se pide al contratar PRO; la prueba gratis no la necesita. Si contratas durante tu prueba, el primer
-              cargo se hace cuando termina. PRO se renueva cada mes hasta que canceles desde “Gestionar suscripción”. El cobro lo
-              procesa Stripe; IATOS AI no almacena tu tarjeta.
+              {trial.checkoutNote}
             </p>
             <p className="text-[11px] text-muted-foreground mt-2 flex flex-wrap gap-x-3 gap-y-1">
               Al continuar aceptas los

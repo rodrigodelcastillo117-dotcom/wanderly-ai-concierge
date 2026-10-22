@@ -1,0 +1,16 @@
+-- profiles.tier: valor por defecto 'free' (observación de docs/iatos/IATOS_E2E_EVIDENCE.md, sección 9.1).
+--
+-- Por qué: la migración 20260529075926 cambió el valor por defecto a 'pro', así que toda cuenta nueva
+-- queda con tier='pro' aunque el servidor la trate como gratis (el acceso real lo decide
+-- public.is_pro / get_access_state, con suscripciones y regalos de PRO; ningún código lee
+-- profiles.tier para dar acceso). Cualquier lectura futura de tier se equivocaría.
+--
+-- Solo cambia el valor por defecto para cuentas NUEVAS. NO se tocan filas existentes: decidir si
+-- se corrigen es del dueño. Diagnóstico de solo lectura (correrlo a mano en el SQL editor):
+--
+--   SELECT count(*) AS dicen_pro_sin_serlo
+--   FROM public.profiles p
+--   WHERE p.tier = 'pro' AND NOT public.is_pro(p.id);
+--
+-- Idempotente: se puede volver a correr sin efecto adicional.
+ALTER TABLE public.profiles ALTER COLUMN tier SET DEFAULT 'free';

@@ -33,6 +33,83 @@ const EMOCIONES: Array<{ key: string; label: string; sub: string; Icon: any }> =
 
 
 
+type AnalisisArgs = {
+  destino: string;
+  ciudad_origen: string;
+  fecha_salida: string;
+  fecha_regreso: string;
+  num_viajeros: number;
+  presupuesto_objetivo?: number | null;
+  notas_usuario?: string | null;
+};
+
+type Interpretacion = { kind: "ruta"; qs: string } | { kind: "analisis"; args: AnalisisArgs };
+
+// Una sola interpretación (parsear-viaje, de pago) por frase aunque la página se monte dos veces.
+const pendingInterpretations = new Map<string, Promise<Interpretacion>>();
+
+async function interpretarFrase(q: string, userId: string): Promise<Interpretacion> {
+  // Trae ciudad_origen del perfil para fallback
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("ciudad_origen")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const hoy = new Date();
+  const defaultSalida = new Date(hoy.getTime() + 30 * 86400000).toISOString().slice(0, 10);
+  const defaultRegreso = new Date(hoy.getTime() + 37 * 86400000).toISOString().slice(0, 10);
+
+  // Detección rápida cliente — si parece multi, vamos directo al builder de ruta.
+  const fastIntent = detectRouteIntent(q);
+  if (fastIntent.mode === "multi" && fastIntent.destinations.length >= 2) {
+    const qs = new URLSearchParams({
+      origin: prof?.ciudad_origen || "Ciudad de México",
+      destinos: fastIntent.destinations.join("|"),
+      fecha_salida: defaultSalida,
+      fecha_regreso: defaultRegreso,
+      viajeros: "2",
+      auto: "1",
+    });
+    return { kind: "ruta", qs: qs.toString() };
+  }
+
+  const { data, error } = await supabase.functions.invoke("parsear-viaje", {
+    body: { prompt: q },
+  });
+  if (error) throw error;
+
+  const origen = data?.ciudad_origen || prof?.ciudad_origen || "Ciudad de México";
+
+  // Si la IA detectó multi-destino (>=2 ciudades reales), redirigir al builder de ruta.
+  const aiDestinations: string[] = Array.isArray(data?.destinations) ? data.destinations.filter(Boolean) : [];
+  if (data?.is_multi && aiDestinations.length >= 2) {
+    const qs = new URLSearchParams({
+      origin: origen,
+      destinos: aiDestinations.join("|"),
+      fecha_salida: data?.fecha_salida || defaultSalida,
+      fecha_regreso: data?.fecha_regreso || defaultRegreso,
+      viajeros: String(Number(data?.num_viajeros) || 2),
+      auto: "1",
+    });
+    if (data?.presupuesto_objetivo) qs.set("presupuesto", String(data.presupuesto_objetivo));
+    return { kind: "ruta", qs: qs.toString() };
+  }
+
+  return {
+    kind: "analisis",
+    args: {
+      destino: data?.destino || q.slice(0, 60),
+      ciudad_origen: origen,
+      fecha_salida: data?.fecha_salida || defaultSalida,
+      fecha_regreso: data?.fecha_regreso || defaultRegreso,
+      num_viajeros: Number(data?.num_viajeros) || 2,
+      presupuesto_objetivo: data?.presupuesto_objetivo ?? null,
+      notas_usuario: q,
+    },
+  };
+}
+
 const PlanTrip = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -130,16 +207,8 @@ const PlanTrip = () => {
   // Evita dobles envíos (doble clic, efecto que se repite) mientras hay un análisis en curso.
   const inFlightRef = useRef(false);
 
-  const runAnalisis = async (args: {
-    destino: string;
-    ciudad_origen: string;
-    fecha_salida: string;
-    fecha_regreso: string;
-    num_viajeros: number;
-    presupuesto_objetivo?: number | null;
-    notas_usuario?: string | null;
-  }, intentFp?: string) => {
-    if (inFlightRef.current) return;
+  const runAnalisis = async (args: AnalisisArgs, intentFp?: string): Promise<boolean> => {
+    if (inFlightRef.current) return false;
     inFlightRef.current = true;
     let ok = false;
     setDestino(args.destino);
@@ -172,6 +241,7 @@ const PlanTrip = () => {
       // Si falló, liberamos la intención para que el usuario pueda reintentar.
       if (!ok && intentFp) releaseIntent(intentFp);
     }
+    return ok;
   };
 
   const analizar = () => {
@@ -276,88 +346,68 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
 
 
 
-  // Flujo de búsqueda en lenguaje natural: ?q=... viene del Inicio
+  // Flujo de búsqueda en lenguaje natural: ?q=... viene del Inicio.
+  //
+  // Por qué así (N-08/N-09): el efecto puede correr dos veces (StrictMode) o la página puede
+  // desmontarse y volver a montarse mientras se interpreta (la guardia de rutas parpadea al
+  // cargar el onboarding). Antes, el primer montaje reclamaba la intención y limpiaba la URL, y al
+  // cancelarse soltaba el resultado: el segundo montaje ya no veía ?q (o la veía "en curso") y el
+  // usuario se quedaba con el formulario vacío, sin aviso y sin su frase. Ahora la interpretación
+  // es una sola promesa por frase (módulo) que cualquier montaje retoma, y la URL se limpia hasta
+  // que un montaje vivo toma el resultado.
   useEffect(() => {
     const q = params.get("q");
     if (!q || !user) return;
     const fp = intentFingerprint("q", q);
-    consumeUrlIntent();
-    if (handlePriorIntent(claimIntent(fp))) return;
+    let pending = pendingInterpretations.get(fp);
+    if (!pending) {
+      const claim = claimIntent(fp);
+      if (claim.status !== "claimed") {
+        consumeUrlIntent();
+        handlePriorIntent(claim);
+        return;
+      }
+      pending = interpretarFrase(q, user.id);
+      pendingInterpretations.set(fp, pending);
+    }
     let cancelled = false;
+    setInterpretando(true);
     (async () => {
-      setInterpretando(true);
       try {
-        // Trae ciudad_origen del perfil para fallback
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("ciudad_origen")
-          .eq("id", user.id)
-          .maybeSingle();
+        const r = await pending;
+        // Otro montaje (el que sigue vivo) retoma la misma promesa: aquí no se suelta nada.
+        if (cancelled) return;
+        pendingInterpretations.delete(fp);
+        consumeUrlIntent();
 
-        // Detección rápida cliente — si parece multi, vamos directo al builder de ruta.
-        const fastIntent = detectRouteIntent(q);
-        if (fastIntent.mode === "multi" && fastIntent.destinations.length >= 2) {
-          const hoy = new Date();
-          const defaultSalida = new Date(hoy.getTime() + 30 * 86400000).toISOString().slice(0, 10);
-          const defaultRegreso = new Date(hoy.getTime() + 37 * 86400000).toISOString().slice(0, 10);
-          const qs = new URLSearchParams({
-            origin: prof?.ciudad_origen || "Ciudad de México",
-            destinos: fastIntent.destinations.join("|"),
-            fecha_salida: defaultSalida,
-            fecha_regreso: defaultRegreso,
-            viajeros: "2",
-            auto: "1",
-          });
+        if (r.kind === "ruta") {
           releaseIntent(fp);
-          if (!cancelled) navigate(`/dashboard/ruta?${qs.toString()}`, { replace: true });
-          return;
-        }
-
-        const { data, error } = await supabase.functions.invoke("parsear-viaje", {
-          body: { prompt: q },
-        });
-        if (cancelled) { releaseIntent(fp); return; }
-        if (error) throw error;
-
-        const origen = data?.ciudad_origen || prof?.ciudad_origen || "Ciudad de México";
-        const hoy = new Date();
-        const defaultSalida = new Date(hoy.getTime() + 30 * 86400000).toISOString().slice(0, 10);
-        const defaultRegreso = new Date(hoy.getTime() + 37 * 86400000).toISOString().slice(0, 10);
-
-        // Si la IA detectó multi-destino (>=2 ciudades reales), redirigir al builder de ruta.
-        const aiDestinations: string[] = Array.isArray(data?.destinations) ? data.destinations.filter(Boolean) : [];
-        if (data?.is_multi && aiDestinations.length >= 2) {
-          const qs = new URLSearchParams({
-            origin: origen,
-            destinos: aiDestinations.join("|"),
-            fecha_salida: data?.fecha_salida || defaultSalida,
-            fecha_regreso: data?.fecha_regreso || defaultRegreso,
-            viajeros: String(Number(data?.num_viajeros) || 2),
-            auto: "1",
-          });
-          if (data?.presupuesto_objetivo) qs.set("presupuesto", String(data.presupuesto_objetivo));
-          releaseIntent(fp);
-          if (!cancelled) navigate(`/dashboard/ruta?${qs.toString()}`, { replace: true });
+          navigate(`/dashboard/ruta?${r.qs}`, { replace: true });
           return;
         }
 
         setInterpretando(false);
-        await runAnalisis({
-          destino: data?.destino || q.slice(0, 60),
-          ciudad_origen: origen,
-          fecha_salida: data?.fecha_salida || defaultSalida,
-          fecha_regreso: data?.fecha_regreso || defaultRegreso,
-          num_viajeros: Number(data?.num_viajeros) || 2,
-          presupuesto_objetivo: data?.presupuesto_objetivo ?? null,
-          notas_usuario: q,
-        }, fp);
+        const args = r.args;
+        const ok = await runAnalisis(args, fp);
+        if (!ok) {
+          // Sin análisis (límite del plan o falla): la frase se queda en el campo y lo ya
+          // interpretado queda prellenado para editarlo o planear a mano.
+          setDestino(q);
+          setCiudadOrigen((prev) => prev || args.ciudad_origen);
+          setFechaSalida(args.fecha_salida);
+          setFechaRegreso(args.fecha_regreso);
+          setNumViajeros(args.num_viajeros);
+          if (args.presupuesto_objetivo != null) setPresupuesto(args.presupuesto_objetivo);
+        }
       } catch (e: any) {
-        releaseIntent(fp);
         if (cancelled) return;
+        pendingInterpretations.delete(fp);
+        releaseIntent(fp);
+        consumeUrlIntent();
         console.error(e);
         // Sin IA: rescatar lo que se pueda de la frase para no perderla.
         const fb = parseTripFallback(q);
-        if (fb.destino) setDestino(fb.destino);
+        setDestino(fb.destino || q);
         if (fb.fechaSalida) setFechaSalida(fb.fechaSalida);
         if (fb.fechaRegreso) setFechaRegreso(fb.fechaRegreso);
         if (fb.viajeros) setNumViajeros(fb.viajeros);

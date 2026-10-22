@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { cachedVideo, getDestinationVideo } from "@/lib/videoSearch";
+import { useInView } from "@/hooks/useInView";
 
 interface Props {
   city: string;
@@ -7,55 +8,45 @@ interface Props {
   onClick: () => void;
 }
 
-// Cache simple en memoria por sesión para no re-fetchar
-const cache = new Map<string, { url: string | null; poster: string | null }>();
+// Query muy específica por ciudad para evitar resultados duplicados entre ciudades.
+const queryFor = (city: string) => `${city} city skyline night aerial landmark cinematic`;
 
+// La caché, la deduplicación y el freno tras un 429 son compartidos (src/lib/videoSearch.ts), y
+// solo se pide el video cuando la tarjeta está por verse (N-04). Antes cada tarjeta llamaba por
+// su cuenta, con la URL de producción escrita a mano.
 export function CityVideoCard({ city, active, onClick }: Props) {
-  const [src, setSrc] = useState<string | null>(null);
-  const [poster, setPoster] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initial = cachedVideo(queryFor(city));
+  const [src, setSrc] = useState<string | null>(initial?.url ?? null);
+  const [poster, setPoster] = useState<string | null>(initial?.poster ?? null);
+  const [loading, setLoading] = useState(!initial);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cardRef = useRef<HTMLButtonElement>(null);
+  const inView = useInView(cardRef);
 
   useEffect(() => {
+    const q = queryFor(city);
+    const cached = cachedVideo(q);
+    if (cached) {
+      setSrc(cached.url);
+      setPoster(cached.poster);
+      setLoading(false);
+      return;
+    }
+    if (!inView) return;
     let cancelled = false;
-    (async () => {
-      if (cache.has(city)) {
-        const c = cache.get(city)!;
-        setSrc(c.url);
-        setPoster(c.poster);
-        setLoading(false);
-        return;
-      }
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setLoading(false); return; }
-        // Query muy específica por ciudad para evitar resultados duplicados entre ciudades
-        const url = `https://uhkdewinscffhdonhhmt.supabase.co/functions/v1/buscar-video?q=${encodeURIComponent(
-          `${city} city skyline night aerial landmark cinematic`,
-        )}`;
-        const r = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-        });
-        const json = await r.json();
-        if (cancelled) return;
-        cache.set(city, { url: json.url ?? null, poster: json.poster ?? null });
-        setSrc(json.url ?? null);
-        setPoster(json.poster ?? null);
-
-      } catch {
-        // ignore
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    setLoading(true);
+    void getDestinationVideo(q).then((r) => {
+      if (cancelled) return;
+      setSrc(r.url);
+      setPoster(r.poster);
+      setLoading(false);
+    });
     return () => { cancelled = true; };
-  }, [city]);
+  }, [city, inView]);
 
   return (
     <button
+      ref={cardRef}
       onClick={onClick}
       className={`group relative overflow-hidden rounded-2xl border h-36 flex items-end p-3 transition-all duration-300 ${
         active

@@ -42,7 +42,8 @@
 | 02:49 | `d550aac` | **392/392 en 59 archivos** (coincide con la cifra reportada antes) | `security`, `trip_quotes`, `ops` y `payments` pasan |
 | 03:08 | **`f4c4c72` (vigente)** | **434/434 en 62 archivos** | Las mismas más `quota_reservations`, `plan_limits`, `trial_no_card` y `plan_limits_recommended`: todas pasan |
 
-- `npx tsc --noEmit -p tsconfig.app.json`: 0 errores (medido en `d550aac`; en `f4c4c72` **no lo volví a correr**).
+- `npx tsc --noEmit -p tsconfig.app.json`: 0 errores, en `d550aac` y en `dff3bcc`. `dff3bcc` es un commit de solo documentos posterior a `f4c4c72`, así que el código es el mismo.
+- **Evidencia E2E de otra sesión:** [IATOS_E2E_EVIDENCE.md](./IATOS_E2E_EVIDENCE.md), con Playwright contra PROD y contra un build local de la rama de 02:20 a 03:10 UTC. **No la volví a ejecutar.** Este plan la cita como evidencia de terceros, con su ID (C5, D4b, N-09…).
 - Detalle en `IATOS_TEST_MATRIX.md`, secciones 0 y 3.
 
 > **Nota sobre la medición.** Una corrida anterior (02:4x UTC) coincidió con una fusión temporal en el mismo directorio y dio 383 pruebas con 4 archivos que no cargaron. No se cuenta.
@@ -56,7 +57,7 @@
 **Orden obligatorio:**
 
 ```
-G-0 (respaldo) → G-1 (decisión de textos) → a) migraciones → b) funciones → c) frontend → d) verificación → (si algo falla) e) rollback
+G-0 (respaldo) → G-1 (decisión de textos) → G-2 (revisar N-09) → a) migraciones → b) funciones → c) frontend → d) verificación → (si algo falla) e) rollback
 ```
 
 **Por qué en ese orden:**
@@ -74,9 +75,14 @@ G-0 (respaldo) → G-1 (decisión de textos) → a) migraciones → b) funciones
 
 **Opciones para G-1:**
 
-- **(a)** Publicar el frontend junto con encender `trial_no_card_enabled`. Requiere antes: dominio de Resend verificado (034), plan de SerpApi (015), controles contra abuso y el GO del dueño (DEC-02). Hoy no se cumple.
+- **(a)** Publicar el frontend junto con encender `trial_no_card_enabled`. Requiere antes: confirmación de correo exigida en Auth (G-3), dominio de Resend verificado (034), plan de SerpApi (015), controles contra abuso y el GO del dueño (DEC-02). Hoy no se cumple.
 - **(b) Recomendada.** Publicar ya las correcciones del frontend, pero con `planCopy.ts` ajustado a lo que existe hoy: sin prueba sin tarjeta, y límites de PRO solo si `pro_limits_enforced` está encendido. Es un cambio S en la rama, que debe pasar `src/test/planCopy.test.ts`.
 - **(c)** No hay una tercera opción segura.
+
+| # | Compuerta | Por qué | Quién | Estado |
+|---|---|---|---|---|
+| **G-2** | **Revisar a mano la posible regresión N-09** antes de publicar el frontend. Según `IATOS_E2E_EVIDENCE.md` (H-4), en `f4c4c72` un usuario GRATIS sin análisis disponible abre `/dashboard/planear?q=…`, nunca se llama a `analizar-viaje`, no aparece ningún aviso y la frase se pierde. En `8393649` sí aparecía el aviso con "Ver IATOS PRO". | Puede ser la regresión de un flujo central de conversión | Ingeniería | OPEN (NO VERIFICADO por mí) |
+| **G-3** | **Exigir la confirmación de correo en Supabase Auth antes de encender la prueba sin tarjeta.** Según `IATOS_E2E_EVIDENCE.md` (Cuentas, y 9.2 IATOS-055), el registro devuelve sesión y `email_confirmed_at` de inmediato. El trigger `on_auth_user_no_card_trial` se dispara con `email_confirmed_at`, así que con la configuración actual **cualquier correo inventado recibiría 30 días de PRO al registrarse**: el control 4 de la propuesta (empezar al confirmar el correo) no protege nada. | Abuso y costo de la prueba | **Dueño: sí** (configuración de Auth y Resend verificado, IATOS-034) | OPEN. No bloquea esta liberación mientras `trial_no_card_enabled=false` |
 
 ### a) Aplicar las migraciones en orden (con GO)
 
@@ -135,7 +141,7 @@ Lo calculé recorriendo las importaciones desde cada `index.ts` contra `git diff
 | `price-watch` y `price-watch-cron` | columnas de la migración 5 y `notify_once` |
 | `health-check` | `cron_health` (migración 6); si falta, solo avisa |
 | `analizar-viaje` y `editar-viaje-ai` | `trip_quotes` (migración 7); si falta, no rompen la cotización (`src/test/quoteSnapshot.test.ts`) |
-| `concierge-chat` | `profiles.active_trip_id` (migración 2) |
+| `concierge-chat` (y el frontend del Concierge) | `profiles.active_trip_id` (migración 2). Según `IATOS_E2E_EVIDENCE.md` (N-03, B-12), el frontend de la rama contra el backend de PROD recibe **400** en `GET /rest/v1/profiles?select=active_trip_id`. |
 | **`concierge-chat`, `analizar-viaje` y `logistics-plan`** | **`reserve_quota`, `commit_quota` y `release_quota` (migraciones 8, 9 y 11).** `reserveQuota` falla cerrado (`_shared/entitlements.ts:48-55`): **si se despliegan antes de las migraciones, todos los mensajes de Iato y todos los análisis se niegan, también para PRO.** |
 
 - **Secretos opcionales** que la versión nueva lee. Que existan es **NO VERIFICADO**:
@@ -164,7 +170,7 @@ Lo calculé recorriendo las importaciones desde cada `index.ts` contra `git diff
 | V4 | health-check nuevo | Revisar la fila nueva de `health_checks` después de la corrida diaria | Incluye la revisión de tareas y `email_status` lleno. Con el dominio sin verificar se espera `failed` o `no_recipient` si `HEALTH_ALERT_EMAIL` no es la dirección dueña de Resend | ~1 |
 | V5 | Iato con herramientas | Cuenta de prueba: "vuelos CDMX a Madrid del 10 al 18 de diciembre" | Se dibuja una tarjeta de vuelo con precio, moneda e insignia de origen; no aparece un error de parseo | 1 a 2 |
 | V6 | Iato elige el viaje | Cuenta con 2 viajes próximos: "¿a qué hora sale mi vuelo?" | Pregunta cuál viaje, con botones de destino | 0 |
-| V7 | Cuota GRATIS en Iato | Mandar el 4.º mensaje del mes | Mensaje claro con el enlace a PRO, no "non-2xx" (con la rama actual el diálogo completo de IATOS-111 aún no existe) | 0 |
+| V7 | Cuota GRATIS en Iato | Mandar el 4.º mensaje del mes | Diálogo de límite con la fecha de renovación, "Conocer IATOS PRO" y "Continuar con la versión gratuita" (no "non-2xx"); respuesta 402 `FREE_LIMIT_REACHED` | 0 |
 | V8 | Análisis para 6 viajeros | PlanTrip con 6 viajeros y 5 noches | El hospedaje usa 3 habitaciones; aparece una fila nueva en `trip_quotes`; TripDetail muestra "Cotizado el … · válido hasta …" | 3 a 4 |
 | V9 | Re-analizar conserva los datos | En el viaje de V8: una entrada de diario y una de equipaje, luego Editar → cambiar fechas → Re-analizar | Mismo `trips.id`; el diario y el equipaje siguen ahí; aparece una segunda versión en `trip_quotes` | 3 a 4 |
 | V10 | Total del viaje | Viaje con presupuesto menor que la cotización | Se muestra el total real y "Excede tu presupuesto por $X" | 0 |
@@ -176,6 +182,9 @@ Lo calculé recorriendo las importaciones desde cada `index.ts` contra `git diff
 | V16 | Stripe en modo prueba | Evento de prueba desde el panel o el CLI de Stripe hacia el webhook | 200, la fila se actualiza y queda `stripe_event_created` | 0 |
 | V17 | Cookies | Ventana privada, rechazar | No se carga PostHog ni el script de Travelpayouts (pestaña de red) | 0 |
 | V18 | Seguridad sigue igual | Repetir el listado anónimo de `travel-moments` y una URL pública de avatar | `[]` y 200 | 0 |
+| V19 | Interruptores apagados | Registrar una cuenta nueva y confirmar el correo | Ninguna fila en `trial_grants` ni en `subscriptions`; la cuenta queda en GRATIS; `SELECT key, value FROM app_flags;` → ambos `false` | 0 |
+| V21 | N-09 resuelto | Cuenta GRATIS sin análisis disponible: abrir `/dashboard/planear?q=Fin de semana en Puebla…` | Aparece el diálogo de límite (o un aviso), sin llamar a `analizar-viaje` y sin perder la frase | 0 |
+| V20 | Iato no cobra una aclaración | Con la cuenta de V6, hacer la pregunta ambigua | Iato pregunta "¿cuál viaje?" y el contador de mensajes no sube (`get_access_state`) | 0 |
 
 Todo lo que no esté en esta tabla sigue **NO VERIFICADO de punta a punta en producción** después de la liberación (ver `IATOS_TEST_MATRIX.md`, sección 7).
 
@@ -183,7 +192,7 @@ Todo lo que no esté en esta tabla sigue **NO VERIFICADO de punta a punta en pro
 
 | Capa | Cómo se vuelve atrás | Notas |
 |---|---|---|
-| **Migraciones** | **No se revierten.** Son aditivas: agregan columnas, tablas, índices y funciones, y las funciones viejas son compatibles con el esquema nuevo (sección a). | **Matiz honesto:** no son 100% aditivas. Reemplazan con `CREATE OR REPLACE` `consume_free_quota`, `apply_comp_grant` y `verify_cron_secret`, y agregan triggers a `trips`, `profiles` y `trip_collaborators`. Si un trigger causara problemas, se quita sin perder datos: `DROP TRIGGER trips_quote_basis_guard ON public.trips;` · `DROP TRIGGER profiles_guard_active_trip ON public.profiles;` · `DROP TRIGGER clear_active_trip_on_collab_removed ON public.trip_collaborators;`. Para volver a la `consume_free_quota` anterior hay que tomar su definición del respaldo G-0. |
+| **Migraciones** | **No se revierten.** Son aditivas: agregan columnas, tablas, índices y funciones, y las funciones viejas son compatibles con el esquema nuevo (sección a). | **Matiz honesto:** no son 100% aditivas. Reemplazan con `CREATE OR REPLACE` `consume_free_quota`, `apply_comp_grant` y `verify_cron_secret`, y, en las de pagos, también `reserve_quota`, `get_access_state` e `is_pro`. Agregan triggers a `trips`, `profiles`, `trip_collaborators` y **`auth.users`** (`on_auth_user_no_card_trial`). Si un trigger causara problemas, se quita sin perder datos: `DROP TRIGGER trips_quote_basis_guard ON public.trips;` · `DROP TRIGGER profiles_guard_active_trip ON public.profiles;` · `DROP TRIGGER clear_active_trip_on_collab_removed ON public.trip_collaborators;` · `DROP TRIGGER on_auth_user_no_card_trial ON auth.users;`. Los interruptores se apagan con `UPDATE app_flags SET value='false'::jsonb WHERE key IN ('pro_limits_enforced','trial_no_card_enabled');`. Para volver a `consume_free_quota` o `is_pro` anteriores hay que tomar su definición del respaldo G-0. **Si se regresan las funciones a `ae6d5c8`, las migraciones nuevas pueden quedarse:** las funciones viejas solo usan `consume_free_quota`, `is_pro` y `check_rate_limit`, que conservan su firma. |
 | **Funciones** | Volver a desplegar con Lovable las funciones del commit anterior (`origin/main` = `ae6d5c8`). | `ae6d5c8` ya incluye el `send-email` corregido, así que el *rollback* no reabre F-04. **No regresar `send-email` a una versión anterior a `629c946`.** |
 | **Frontend** | Volver a publicar `main` (`ae6d5c8`). | Incluye `InviteFriendDialog`, que manda solo `trip_id`/`friend_id`. |
 
@@ -206,12 +215,12 @@ Cada renglón agrupa IDs de `IATOS_HALLAZGOS_PRIORIZADOS.md`. El estado sale de 
 |---|---|---|---|---|---|---|
 | 001, 002, 003 (listado), 016, 017 (BD) | Colaborador falso, amistad falsa, listado de buckets, cambio de dueño, escritura directa de vuelos | P0 de privacidad | S | — | no | **DONE_VERIFIED_PROD** (2026-10-22) |
 | 004 | `send-email` solo para invitaciones verificadas | P0: *phishing* con la marca | S | — | no | **DONE_VERIFIED_PROD** (sin prueba automática del *handler*) |
-| REL | Secuencia de liberación (sección 1) | Nada de lo FIXED_IN_BRANCH le sirve al usuario hasta desplegarlo | M | G-0, G-1 | **sí** | OPEN |
+| REL | Secuencia de liberación (sección 1) | Nada de lo FIXED_IN_BRANCH le sirve al usuario hasta desplegarlo | M | G-0, G-1, G-2 | **sí** | OPEN |
 | 003 (mejora) | Hacer privado `journal-photos` y servir *signed URLs* | Las URL públicas individuales siguen abiertas | M | — | no | OPEN (hoy hay 0 objetos) |
 | 052 | Limitar las columnas de `profiles` que edita el usuario | Puede editar cualquier columna, incluido el correo al que se manda la cotización | M | — | no | OPEN |
 | 053 | Que los amigos vean solo un perfil reducido | Exposición de datos personales | S | — | no | OPEN |
 | 054 | Validar tipo y tamaño de los uploads en el servidor | Abuso de storage. El avatar solo se valida en el cliente | M | — | no | OPEN |
-| 048 | Cuotas y límites que fallan cerrado; IP de confianza en lugar de `X-Forwarded-For` | Abuso y evasión de límites | S | — | no | IN_PROGRESS: `trip_analysis` y `isPro` fallan cerrado (`src/test/quota.test.ts`); `concierge`, `check_rate_limit` y `clientIp` siguen abiertos |
+| 048 | Cuotas y límites que fallan cerrado; IP de confianza en lugar de `X-Forwarded-For` | Abuso y evasión de límites | S | — | no | IN_PROGRESS: `trip_analysis`, `concierge` (vía `reserveQuota`) e `isPro` fallan cerrado (`quota.test.ts`, `reservation.test.ts`); `check_rate_limit` (falla abierto) y `clientIp` siguen OPEN |
 | 029 | Protección contra *prompt injection* y URLs inseguras | Un colaborador podía darle órdenes a Iato | M | — | no | IN_PROGRESS: concierge FIXED_IN_BRANCH (`iatoEvals` E-15/E-16, `conciergeCards`); otras funciones de IA NO VERIFICADO |
 | 051 | Escapar HTML y limitar la frecuencia de los correos al staff | Inyección en correos internos | S | — | no | IN_PROGRESS: `concierge-action` FIXED_IN_BRANCH (sin prueba del *handler*); `enviar-email-fixer` sin cambios (OPEN) |
 | 070 | Redactar secretos en errores guardados o enviados | Fuga de llaves | S | — | no | FIXED_IN_BRANCH (`healthAlerts.test.ts`, `flightWatchRules.test.ts`) |
@@ -237,6 +246,8 @@ Cada renglón agrupa IDs de `IATOS_HALLAZGOS_PRIORIZADOS.md`. El estado sale de 
 | 009, 037, 063 | Habitaciones = ⌈viajeros/2⌉; respetar "ya tengo vuelo" y "sin hotel"; total = suma del desglose; las pruebas ahora prueban el código real | P0: hospedaje de grupos | S | REL | no | FIXED_IN_BRANCH (`budget.test.ts`, 13) |
 | 010, 073, 074, 082 | Nunca sumar monedas distintas; FX con fuente y fecha; fechas locales | P0: Gastos mezclaba monedas | M | REL | no | FIXED_IN_BRANCH (`fx.test.ts`, 10) |
 | 026, 057 | El servidor decide la procedencia; Travelpayouts no dice "en vivo"; insignias honestas | Confianza en el precio | M | REL | no | FIXED_IN_BRANCH (`tripSources`, `logisticsProvenance`, `provenance`, `priceSourceBadge`) |
+| N-07 | Las tarjetas de vuelo del análisis no muestran ninguna etiqueta de procedencia en PROD (`IATOS_E2E_EVIDENCE.md`, D5) | El usuario no sabe qué tan confiable es el precio del vuelo | S | REL | no | OPEN (si la rama ya lo corrige: NO VERIFICADO; no se vio en el build de la rama) |
+| N-06 | Trayecto corto (CDMX→Puebla): solo cotiza vuelos con escalas de 4 a 5 h, sin opción terrestre (`IATOS_E2E_EVIDENCE.md`, D5) | Recomendación sin sentido que encarece el viaje (46% del total) | M | — | no | OPEN |
 | 027 | `editar-viaje-ai` no puede conservar "en vivo" | Precio falso tras editar | S | REL | no | FIXED_IN_BRANCH (`editReconcile.test.ts`) |
 | 024 | Las búsquedas fallidas dicen "no disponible" y no inventan resultados | Precios inventados con botón de compra | S | REL | no | FIXED_IN_BRANCH (`liveSearchFallback.test.ts`; `iatoEvals` E-07/E-08) |
 | 080, 035, 075 | *Snapshot* inmutable de la cotización; aviso de "cotización desactualizada" al cambiar viajeros o fechas; desglose por selección | Trazabilidad | M | migración 7 | no | FIXED_IN_BRANCH (`quoteSnapshot`, `quote`; SQL `trip_quotes.sql`). Que las selecciones se guarden (parte de 035): NO VERIFICADO |
@@ -287,6 +298,10 @@ Cada renglón agrupa IDs de `IATOS_HALLAZGOS_PRIORIZADOS.md`. El estado sale de 
 | 097 | Campana de notificaciones | Conteo falso | S | REL | no | FIXED_IN_BRANCH (`notificationBell.test.tsx`) |
 | 089 | Textos que prometían funciones inexistentes | Confianza | S | REL | no | FIXED_IN_BRANCH (`ad78b5d`; `planCopy.test.ts`). **Ver G-1:** el texto nuevo de la prueba es a su vez una promesa sin respaldo en esta rama |
 | 083, 084, 086, 103, 104, 105 | *Deep link* del login, cierre de sesión a los 4.5 s, controles falsos en Inicio, rendimiento, doble envío, "Volver" que sale de la app | Pulido de flujos | M | — | no | OPEN (104: parcial, porque PlanTrip y Onboarding ya bloquean el doble envío) |
+| N-01 | Cercanos se cae a veces: `window.google.maps.Map is not a constructor` (`IATOS_E2E_EVIDENCE.md`, sección 9.1) | Pantalla de error intermitente en PROD y en la rama | S | — | no | OPEN |
+| N-02, N-05 | `/dashboard/pro` se queda en spinner a veces (rama); las respuestas de Iato muestran Markdown sin interpretar | Pulido | S | — | no | OPEN |
+| N-04, N-08 | Docenas de `buscar-video` por carga con 429; `parsear-viaje` se llama 2 veces por cada `?q=` | Costo y rendimiento (relacionado con 103) | S | — | no | OPEN |
+| N-09 | Posible regresión en `f4c4c72`: PlanTrip con `?q=` y sin cuota no muestra nada | Flujo de conversión | S | — | no | OPEN (compuerta G-2) |
 
 ### Fase E · Comercial (cobrar bien)
 
@@ -296,12 +311,12 @@ Cada renglón agrupa IDs de `IATOS_HALLAZGOS_PRIORIZADOS.md`. El estado sale de 
 | 019, 045 | El webhook reintenta ante errores de la base; eventos en orden; `invoice.paid` | Un pago sin PRO | M | migración 1 | no | FIXED_IN_BRANCH (`stripeWebhook.test.ts`; SQL `payments.sql` S1-S8) |
 | 046, 055 (parte) | La cortesía no pisa un pago; la cortesía exige correo confirmado | Conflictos de estado | S | migración 1 | no (055, configuración de Auth: **sí**) | FIXED_IN_BRANCH (SQL `payments.sql` S6, C1-C3) |
 | 092 | Cuota de análisis atómica | Dos análisis gratis en paralelo | S | migración 1 | no | FIXED_IN_BRANCH (SQL `payments/run.sh` concurrencia) |
-| 021, 047 | El multidestino consume cuota; se valida antes de consumir | Evadir la cuota; gastarla con una petición inválida | S | REL | no | FIXED_IN_BRANCH (`quota.test.ts` cubre la lógica pura; el consumo dentro de `logistics-plan` no tiene prueba del *handler*) |
-| 022, 111 | Un 402 legible; diálogo "Conocer IATOS PRO / Continuar gratis"; código estable `FREE_LIMIT_REACHED` | El usuario veía un error técnico | M | — | no | IN_PROGRESS: lector y botón en PlanTrip y multidestino FIXED_IN_BRANCH (`functionErrors.test.ts`); diálogo e Iato EN DESARROLLO en `claude/wc-pay` (`freeLimitDialog.test.tsx`, no ejecutada por mí) |
-| 112 | Reservar, confirmar y liberar: un análisis fallido no gasta la oportunidad gratuita | El usuario pierde su única oportunidad | L | migraciones `1350xx` | no | IN_PROGRESS (EN DESARROLLO en `claude/wc-pay`: `quota_reservations.sql` R1-R12, `reservation.test.ts`, `requestKey.test.ts`; no ejecutadas por mí, no integradas) |
-| 013, 014 (DEC-01) | Límites por plan en el servidor (`plan_limits`, `pro_limits_enforced`) | Beneficios PRO abiertos a cualquiera; costo sin control | L | 112 | **sí** (aprobar los valores) | IN_PROGRESS (EN DESARROLLO: `plan_limits.sql` P1-P7, `plan_limits_recommended.sql` L1-L6; los topes de alertas, vuelos y búsquedas en vivo solo están sembrados) |
-| 012 (DEC-02) | Prueba de 30 días sin tarjeta y sin cobro automático (`trial_grants`, `trial_no_card_enabled`) | Lo que decidió el dueño | L | 013, 034, 015 | **sí** (GO para encenderla) | IN_PROGRESS: textos FIXED_IN_BRANCH (`planCopy.test.ts`) **por delante del comportamiento** (G-1); lógica EN DESARROLLO (`trial_no_card.sql` T1-T8) |
-| ABUSO | Controles contra abuso: Turnstile, correos desechables, velocidad por IP o dispositivo, consultas de detección | Costo de la prueba sin tarjeta | M | 012 | **sí** | OPEN (normalización y hash del correo: EN DESARROLLO) |
+| 021, 047 | El multidestino consume cuota; se valida antes de consumir; solo se cobra un resultado válido y guardado | Evadir la cuota; gastarla con una petición inválida | S | REL, migraciones 8-11 | no | FIXED_IN_BRANCH (`quota.test.ts`, `reservation.test.ts`; sin prueba del *handler* completo) |
+| 022, 111 | Un 402 legible; diálogo "Conocer IATOS PRO / Continuar gratis"; código estable `FREE_LIMIT_REACHED`; las fallas técnicas no invitan a pagar | El usuario veía un error técnico | M | REL, migraciones 8-11 | no | FIXED_IN_BRANCH (`functionErrors.test.ts` 13, `freeLimitDialog.test.tsx` 3, `quota.test.ts` 10; SQL `quota_reservations.sql` F1-F10). En un dispositivo real: NO VERIFICADO |
+| 112 | Reservar, confirmar y liberar: un análisis o un mensaje fallido no gasta la cuota gratuita | El usuario pierde su única oportunidad | L | migraciones 8-11 | no | FIXED_IN_BRANCH (`reservation.test.ts` 17, `requestKey.test.ts` 5; SQL `quota_reservations.sql` R1-R12, M1-M4 y concurrencia de `reserve_quota`). Los consumos ya registrados: diagnóstico de solo lectura en `docs/ops/diagnostico-cuotas.sql` (no se ha corrido en producción; según `IATOS_E2E_EVIDENCE.md`, sección 11, la única cuenta con consumos es la de prueba FREE A: 3 mensajes y 1 análisis exitoso) |
+| 013, 014 (DEC-01) | Límites por plan en el servidor (`plan_limits`, `pro_limits_enforced`) | Beneficios PRO abiertos a cualquiera; costo sin control | L | 112 | **sí** (aprobar los valores y encender) | IN_PROGRESS: tabla, interruptor y límites de mensajes y análisis en la rama y apagados (SQL `plan_limits.sql` P1-P7, `plan_limits_recommended.sql` L1-L7); los topes de alertas, vuelos y búsquedas en vivo solo están sembrados; la protección de Members, bóveda y logística (013) sigue OPEN |
+| 012 (DEC-02) | Prueba de 30 días sin tarjeta y sin cobro automático (`trial_grants`, `trial_no_card_enabled`) | Lo que decidió el dueño | L | 013, 034, 015, ABUSO | **sí** (GO para encenderla) | IN_PROGRESS: lógica en la rama y apagada (SQL `trial_no_card.sql` T1-T8; `stripeCheckout.test.ts` DEC-02); textos FIXED_IN_BRANCH (`planCopy.test.ts`) **por delante del comportamiento** (G-1); faltan los correos de los días 0, 23, 28 y 30 y el proceso nocturno de fin de prueba |
+| ABUSO | Controles contra abuso: Turnstile, correos desechables, velocidad por IP o dispositivo, consultas de detección | Costo de la prueba sin tarjeta | M | 012 | **sí** | IN_PROGRESS: una prueba por correo normalizado con hash, que sobrevive al borrar la cuenta (T3/T4); Turnstile, correos desechables, velocidad y detección siguen OPEN |
 | 011 | Stripe en modo real, `tax_behavior: inclusive` y una compra real reembolsada | Hoy no se puede cobrar | S | REL | **sí** | BLOCKED |
 | 049 | Reembolsos y disputas | Acceso tras un reembolso | M | 011 | **sí** | BLOCKED |
 | 050 | Borrar la cuenta sin que lo bloquee el estado de facturación | Derecho de borrado | S | — | no | OPEN |
@@ -318,10 +333,10 @@ Las fechas son relativas al GO de la liberación. Las estimaciones son [SUPUESTO
 
 ### Días 0 a 30: liberar y estabilizar
 
-1. G-0 y G-1; migraciones 1 a 7; despliegue de las 48 funciones; frontend; lista V1 a V18. **Meta:** todo lo FIXED_IN_BRANCH pasa a DONE_VERIFIED_PROD.
+1. G-0, G-1 y G-2; migraciones 1 a 11; despliegue de las 48 funciones; frontend; lista V1 a V21. **Meta:** todo lo FIXED_IN_BRANCH pasa a DONE_VERIFIED_PROD.
 2. Desbloqueos del dueño: dominio de Resend (034), plan de SerpApi (015), registro de migraciones (072) y el secreto `HEALTH_ALERT_EMAIL`.
 3. CI con Vitest y las 4 suites SQL.
-4. Integrar `claude/wc-pay`: reservas, `plan_limits` y `app_flags`, todo **apagado**. Correr sus suites, aplicar sus 4 migraciones con GO y desplegar.
+4. Verificar en vivo las reservas de cuota (V7, V19, V20) con los interruptores **apagados**. Correr `docs/ops/diagnostico-cuotas.sql` (solo lectura) y decidir si hace falta la reparación propuesta.
 5. Cerrar 052, 053 y 054, y `clientIp` (048).
 6. `ai_usage_log` (USAGE), para medir antes de encender límites o la prueba.
 
@@ -356,4 +371,5 @@ Las fechas son relativas al GO de la liberación. Las estimaciones son [SUPUESTO
 | D7 | Cuándo encender `trial_no_card_enabled` | IATOS-012 |
 | D8 | Stripe en modo real, IVA incluido y fecha | IATOS-011 |
 | D9 | Horario y canal del Fixer | IATOS-030 |
+| D11 | G-3: exigir la confirmación de correo en Supabase Auth antes de encender la prueba sin tarjeta | IATOS-012, 055 |
 | D10 | Reembolsos, revisión legal de cookies, configuración de Auth (confirmar el correo), programas de Travelpayouts | 049, 056, 055, 077 |
