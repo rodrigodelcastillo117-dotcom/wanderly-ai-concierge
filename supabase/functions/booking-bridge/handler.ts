@@ -15,6 +15,8 @@ import {
   venueFromTripPlace,
 } from "../_shared/booking/offers.ts";
 import type { RecheckResult } from "../_shared/booking/recheck.ts";
+// roadtrip (cambio mínimo, ver docs/iatos/cierre2/ROADTRIP.md): renta de auto del road trip.
+import { offerFromCarRental } from "../_shared/booking/carRental.ts";
 import { type FollowUpOutcome, followUpTarget, intentStatusText, type Verification } from "../_shared/booking/states.ts";
 import type { ActionKind, BookingAction, BookingOffer, IntentState } from "../_shared/booking/types.ts";
 
@@ -92,7 +94,11 @@ type Source =
   | { type: "flight_result"; result: FlightResultLike; meta: FlightSearchMeta; trip_id?: string | null }
   | { type: "hotel_result"; result: HotelResultLike; meta: HotelSearchMeta; trip_id?: string | null }
   | { type: "venue"; name: string; city?: string | null; country?: string | null; prive_slug?: string | null;
-      product_type?: "restaurant" | "experience" | "tour" | "event"; trip_id?: string | null };
+      product_type?: "restaurant" | "experience" | "tour" | "event"; trip_id?: string | null }
+  // roadtrip: búsqueda de auto de renta con ciudades y fechas (sin URL del cliente: la arma carRental.ts).
+  | { type: "car_rental"; pickup_city: string; dropoff_city: string | null; pickup_date: string; dropoff_date: string; trip_id?: string | null };
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 function parseSource(s: any): Source | null {
   if (!s || typeof s !== "object") return null;
@@ -104,6 +110,10 @@ function parseSource(s: any): Source | null {
   }
   if (s.type === "hotel_result" && s.result && typeof s.result === "object" && s.meta && typeof s.meta === "object") {
     return { type: "hotel_result", result: s.result, meta: s.meta, trip_id: UUID.test(String(s.trip_id)) ? s.trip_id : null };
+  }
+  if (s.type === "car_rental" && str(s.pickup_city) && ISO_DAY.test(String(s.pickup_date)) && ISO_DAY.test(String(s.dropoff_date))) {
+    return { type: "car_rental", pickup_city: str(s.pickup_city, 80), dropoff_city: str(s.dropoff_city, 80) || null,
+      pickup_date: String(s.pickup_date), dropoff_date: String(s.dropoff_date), trip_id: UUID.test(String(s.trip_id)) ? s.trip_id : null };
   }
   if (s.type === "venue" && str(s.name)) {
     const pt = ["restaurant", "experience", "tour", "event"].includes(s.product_type) ? s.product_type : "restaurant";
@@ -172,6 +182,9 @@ async function buildOffer(src: Source, deps: BridgeDeps, draft: Draft | null): P
       adults: Number(src.meta.adults) || 1, consulted_at: str(src.meta.consulted_at, 40) || null, source: src.meta.source === "serpapi" ? "serpapi" : null };
     // El sitio del hotel lo manda el cliente: offerFromHotelResult lo trata como "client" (lista blanca).
     return { offer: offerFromHotelResult(h, { ...meta, source: null }, { trip, now }), trip };
+  }
+  if (src.type === "car_rental") {
+    return { offer: offerFromCarRental({ ...src, trip_id: trip?.id ?? null }, { now }), trip };
   }
   const venue = await deps.venueLookup({ name: src.name, city: src.city, slug: src.prive_slug });
   const country = venue?.country ?? countryIso(src.country) ?? countryIso(trip?.pais_destino);

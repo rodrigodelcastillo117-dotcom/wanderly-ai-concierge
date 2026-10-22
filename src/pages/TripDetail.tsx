@@ -43,6 +43,7 @@ import { useTripOffers, type TripOfferActions } from "@/components/booking/useTr
 import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
+import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
 
@@ -568,6 +569,11 @@ const TripDetail = () => {
         {(trip as any).fuente !== "documento" && hasQuotedTotal && (
           <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours}
             serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null} />
+        )}
+
+        {/* roadtrip: tramos en coche, costos etiquetados, avisos por país y renta del auto. */}
+        {isMulti && logistics?.road_trip && (
+          <RoadTripPanel plan={logistics.road_trip} tripId={trip.id} returnCity={destinationsMulti[0] ?? null} />
         )}
 
         {/* Herramientas del viaje: después del total y de "qué sigue" (antes iban primero y empujaban

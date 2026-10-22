@@ -13,11 +13,15 @@
 //     TripAdvisor); esas llamadas se redirigen a web_search.
 
 import { normText } from "./context.ts";
+import { detectRoadTrip } from "../_shared/roadtrip/plan.ts";
+import { roadTripTurn } from "./roadtrip.ts";
 
 export type Intent =
   | "human" | "emergency" | "flight_disruption" | "missed_connection" | "flight_status" | "flight_compare"
   | "hotel_change" | "dining_near_hotel" | "dining" | "transport" | "prive_night" | "trip_overview"
-  | "place_fact" | "expense" | "packing" | "price_alert" | "create_trip" | "itinerary_add" | "luggage" | "members_followup" | "plan";
+  | "place_fact" | "expense" | "packing" | "price_alert" | "create_trip" | "itinerary_add" | "luggage" | "members_followup" | "plan"
+  // roadtrip: "quiero hacer un road trip por la Toscana en 7 días".
+  | "road_trip";
 
 export const CHIP_INTENTS: readonly Intent[] = [
   "dining_near_hotel", "transport", "emergency", "flight_status", "luggage", "members_followup", "trip_overview",
@@ -51,6 +55,9 @@ export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   const out = new Set<Intent>();
   if (typeof chipIntent === "string" && (CHIP_INTENTS as readonly string[]).includes(chipIntent)) out.add(chipIntent as Intent);
   for (const [intent, re] of RULES) if (re.test(m)) out.add(intent);
+  // roadtrip: road trip / "en coche" / región curada con palabra de ruta.
+  const rt = detectRoadTrip(message);
+  if (rt.isRoadTrip || (rt.route && /\b(ruta|recorrido|recorrer|vuelta)\b/.test(m))) out.add("road_trip");
   // "cenar cerca de mi hotel" ya es dining_near_hotel.
   if (out.has("dining_near_hotel")) out.delete("dining");
   // Privé con plan / noche → planeación.
@@ -312,6 +319,14 @@ export function planTurn(i: PlanInput): TurnPlan {
       plan.cards.push(transportCard(dest));
     }
     plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "transport", titulo: `Traslado privado${dest ? ` a ${dest.name}` : ""}`, detalle: i.message.slice(0, 300), ...(tripId ? { trip_id: tripId } : {}) } });
+  }
+
+  if (has("road_trip")) {
+    const rt = roadTripTurn(i.message);
+    if (rt) {
+      plan.notes.push(...rt.notes);
+      plan.cards.push(...rt.cards);
+    }
   }
 
   if (has("prive_night")) {

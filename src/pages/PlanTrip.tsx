@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
-import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles, Route as RouteIcon, Heart, Mountain, Palmtree, Star, Utensils, PartyPopper, MoreHorizontal, Flower2, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles, Route as RouteIcon, Heart, Mountain, Palmtree, Star, Utensils, PartyPopper, MoreHorizontal, Flower2, Lock, Car } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -23,6 +23,9 @@ import { claimIntent, completeIntent, intentFingerprint, releaseIntent } from "@
 import { analysisSummaryOf, datePresets, EXAMPLE_PROMPTS, looksLikeSentence, understandPlanText } from "@/lib/planDefaults";
 import { formatLocalDate } from "@/lib/localDate";
 import { fetchFriendProfiles } from "@/lib/friendProfiles";
+// roadtrip: "road trip por la Toscana" va a la ruta de varios destinos con el coche elegido.
+import { detectRoadTrip, routePlannerPath } from "@/lib/roadtrip";
+import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
 
 const EMOCIONES: Array<{ key: string; label: string; sub: string; Icon: any }> = [
   { key: "Inspiración",  label: "Inspiración",  sub: "Quiero descubrir\nalgo nuevo",        Icon: Heart },
@@ -63,6 +66,15 @@ async function interpretarFrase(q: string, userId: string): Promise<Interpretaci
   const hoy = new Date();
   const defaultSalida = new Date(hoy.getTime() + 30 * 86400000).toISOString().slice(0, 10);
   const defaultRegreso = new Date(hoy.getTime() + 37 * 86400000).toISOString().slice(0, 10);
+
+  // roadtrip: road trip por una región curada → ruta en coche con sus paradas (sin IA ni costo).
+  const rt = detectRoadTrip(q);
+  if (rt.isRoadTrip && rt.route) {
+    const qs = new URLSearchParams(routePlannerPath(rt.route, rt.days).split("?")[1]);
+    qs.set("origin", prof?.ciudad_origen || "Ciudad de México");
+    qs.set("viajeros", "2");
+    return { kind: "ruta", qs: qs.toString() };
+  }
 
   // Detección rápida cliente — si parece multi, vamos directo al builder de ruta.
   const fastIntent = detectRouteIntent(q);
@@ -157,6 +169,7 @@ const PlanTrip = () => {
   // "Planear juntos" desde el perfil de un amigo (?con=<id>): al guardarse el viaje se le invita
   // con invitar_amigo_viaje (el servidor vuelve a comprobar la amistad).
   const conParam = params.get("con");
+  const [showRoadTrips, setShowRoadTrips] = useState(false);
   const [companion, setCompanion] = useState<{ id: string; name: string } | null>(null);
   useEffect(() => {
     if (!user || !conParam || !/^[0-9a-f-]{36}$/i.test(conParam)) { setCompanion(null); return; }
@@ -307,6 +320,19 @@ const PlanTrip = () => {
 
   const analizar = () => {
     if (!destino || !fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+
+    // roadtrip: road trip por una región curada → ruta en coche con sus paradas y estas fechas.
+    const rt = detectRoadTrip(destino);
+    if (rt.isRoadTrip && rt.route) {
+      const qs = new URLSearchParams(routePlannerPath(rt.route, rt.days).split("?")[1]);
+      qs.set("origin", ciudadOrigen);
+      qs.set("fecha_salida", fechaSalida);
+      qs.set("fecha_regreso", fechaRegreso);
+      qs.set("viajeros", String(numViajeros));
+      if (presupuesto != null) qs.set("presupuesto", String(presupuesto));
+      navigate(`/dashboard/ruta?${qs.toString()}`);
+      return;
+    }
 
     // Detección single vs multi al confirmar.
     const intent = detectRouteIntent(destino);
@@ -797,6 +823,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
           const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
           const sentence = !isMulti && looksLikeSentence(destino);
           const understood = sentence ? understandPlanText(destino) : null;
+          const roadTrip = detectRoadTrip(destino);
           return (
             <div className="space-y-3">
               <div className="relative">
@@ -828,7 +855,13 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                       : "Viaje a un solo destino"}
                 </div>
               )}
-              {sentence && !understood && (
+              {roadTrip.route && (
+                <Link to={routePlannerPath(roadTrip.route, roadTrip.days)} data-testid="plan-roadtrip-chip"
+                  className="ml-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border bg-primary/10 border-primary/40 text-primary">
+                  <Car className="w-3.5 h-3.5" aria-hidden="true" /> Road trip en coche: {roadTrip.route.name} →
+                </Link>
+              )}
+              {sentence && !understood && !roadTrip.route && (
                 <p className="text-xs text-amber-400/90" role="status">
                   No reconocimos el destino en tu frase. Escribe solo la ciudad o el país (p. ej. «Oaxaca»); las fechas y los viajeros van en el siguiente paso.
                 </p>
@@ -843,6 +876,15 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                         {ex}
                       </button>
                     ))}
+                  </div>
+                  {/* roadtrip: inspiración con rutas curadas de sitios oficiales. Plegada: las fotos de
+                      Pexels se piden solo si el usuario la abre (presupuesto de imágenes). */}
+                  <div className="pt-6">
+                    <button type="button" onClick={() => setShowRoadTrips((v) => !v)} aria-expanded={showRoadTrips} data-testid="plan-roadtrip-ideas-toggle"
+                      className="min-h-[44px] inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 text-sm text-primary hover:bg-primary/15 transition">
+                      <Car className="w-4 h-4" aria-hidden="true" /> {showRoadTrips ? "Ocultar ideas de road trips" : "Ideas de road trips en coche por Europa"}
+                    </button>
+                    {showRoadTrips && <RoadTripIdeas limit={4} className="pt-4" />}
                   </div>
                 </div>
               )}

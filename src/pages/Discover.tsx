@@ -8,6 +8,8 @@ import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { useSavedDestinations } from "@/hooks/useSavedDestinations";
 
 import santorini from "@/assets/hero-santorini.jpg";
+// roadtrip: ideas de road trips curadas (fuente oficial por ruta).
+import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
 
 const Discover = () => {
   const navigate = useNavigate();
@@ -106,6 +108,8 @@ const Discover = () => {
             })}
           </div>
         )}
+
+        <RoadTripIdeas className="mt-12" title="Road trips por Europa" />
       </div>
     </DashboardLayout>
   );
