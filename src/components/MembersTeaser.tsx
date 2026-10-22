@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMembersTeaser, summarizeTeaser, UNLOCK_ERRORS, type TeaserSummary } from "@/lib/membersAccess";
 import { PRO_PATH } from "@/lib/functionErrors";
+import { PriveEntryLink } from "@/components/PriveEntryLink";
 
 const CATEGORY_LABELS: Record<string, string> = {
   cabaret: "🎭 Cabaret", burlesque: "💃 Burlesque", members_club: "🥃 Members Club", speakeasy: "🍸 Speakeasy",
@@ -53,6 +54,7 @@ export function MembersTeaser({ passwordGate, onUnlocked }: Props) {
         <Sparkles className="w-3.5 h-3.5" /> Nightlife Premium
       </div>
       <h2 className="font-fraunces text-3xl md:text-5xl text-foreground mb-2">Members Only</h2>
+      <PriveEntryLink />
       <p className="text-muted-foreground mb-6">
         Vida nocturna seleccionada con reservas gestionadas por tu Concierge. Es exclusivo de IATOS PRO:
         aquí ves un adelanto de lo que incluye.

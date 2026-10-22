@@ -10,6 +10,7 @@ import { MembersTeaser } from "@/components/MembersTeaser";
 import { fetchMembersAccess, type MembersAccess } from "@/lib/membersAccess";
 import { useSubscription } from "@/hooks/useSubscription";
 import { membersOnlySubtitle } from "@/lib/planCopy";
+import { PriveEntryLink } from "@/components/PriveEntryLink";
 
 const CATEGORIES: { id: string; emoji: string; label: string }[] = [
   { id: "cabaret", emoji: "🎭", label: "Cabaret" },
@@ -155,6 +156,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
           Nightlife Premium
         </div>
         <h2 className="font-fraunces text-3xl md:text-5xl text-foreground mb-2">Members Only</h2>
+        <PriveEntryLink />
         {/* Según el plan real; antes prometía a todas las cuentas que el Concierge PRO gestionaba sus reservas. */}
         <p className="text-primary text-base mb-6 font-fraunces italic">
           {membersOnlySubtitle({ loading: subLoading, isPro })}

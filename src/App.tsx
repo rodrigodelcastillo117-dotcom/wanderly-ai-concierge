@@ -63,6 +63,13 @@ const Terminos = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ defa
 const Privacidad = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Privacidad })));
 const Cookies = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Cookies })));
 const Reembolsos = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Reembolsos })));
+// IATOS Privé: cada pantalla en su propio chunk (la ceremonia y la bienvenida no pesan en el hub ni
+// en el resto de la app). PriveRoot trae el estado Privé, la tipografía y el CSS propio.
+const PriveRoot = lazyWithRetry(() => import("./pages/prive/PriveRoot"));
+const PriveHub = lazyWithRetry(() => import("./pages/prive/PriveHub"));
+const PriveInvitation = lazyWithRetry(() => import("./pages/prive/PriveInvitation"));
+const PriveMembership = lazyWithRetry(() => import("./pages/prive/PriveMembership"));
+const PriveReset = lazyWithRetry(() => import("./pages/prive/PriveReset"));
 
 const RouteFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -134,6 +141,14 @@ const App = () => (
             <Route path="/dashboard/admin" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/dashboard/members" element={<Navigate to="/dashboard/concierge?tab=members" replace />} />
+            {/* Sin sesión de IATOS, ProtectedRoute manda a /auth y regresa aquí. El #t=… de la
+                invitación ya se quitó de la URL (priveSession.ts) y no viaja en state.from. */}
+            <Route path="/prive" element={<ProtectedRoute><PriveRoot /></ProtectedRoute>}>
+              <Route index element={<PriveHub />} />
+              <Route path="invitacion" element={<PriveInvitation />} />
+              <Route path="membresia" element={<PriveMembership />} />
+              <Route path="restablecer" element={<PriveReset />} />
+            </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>
