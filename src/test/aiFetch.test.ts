@@ -55,7 +55,7 @@ describe("aiFetch", () => {
       .mockResolvedValueOnce(ok());
     const res = await aiFetch(init({ model: "google/gemini-2.5-pro", messages: [] }));
     expect(res.ok).toBe(true);
-    expect([call(0).body.model, call(1).body.model]).toEqual(["gemini-2.5-pro", "gemini-2.5-flash"]);
+    expect([call(0).body.model, call(1).body.model]).toEqual(["gemini-2.5-pro", "gemini-flash-latest"]);
     expect(call(2).url).toBe(LOVABLE);
     expect(call(2).body.model).toBe("google/gemini-2.5-pro");
   });

@@ -36,6 +36,9 @@ async function timed(name: string, fn: () => Promise<Omit<CheckResult, "name" | 
   }
 }
 
+/** Primeras líneas del error del proveedor, para saber qué pasó sin entrar a los logs. */
+const errText = async (r: Response) => (await r.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 200);
+
 const withTimeout = (f: Fetch, url: string, init: RequestInit = {}) =>
   f(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
 
@@ -46,9 +49,9 @@ export function runChecks(k: Keys, f: Fetch = fetch): Promise<CheckResult[]> {
       const r = await withTimeout(f, "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${k.geminiKey}` },
-        body: JSON.stringify({ model: "gemini-2.5-flash", messages: [{ role: "user", content: "Responde solo: OK" }] }),
+        body: JSON.stringify({ model: "gemini-flash-latest", messages: [{ role: "user", content: "Responde solo: OK" }] }),
       });
-      return r.ok ? { ok: true } : { ok: false, detail: `HTTP ${r.status}` };
+      return r.ok ? { ok: true } : { ok: false, detail: `HTTP ${r.status}: ${await errText(r)}` };
     }),
     timed("IA de respaldo (Lovable)", async () => {
       if (!k.lovableKey) return { ok: false, detail: "Falta LOVABLE_API_KEY" };

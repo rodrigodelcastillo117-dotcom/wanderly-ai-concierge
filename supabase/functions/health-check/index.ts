@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
   if (insertErr) console.error("health-check: no se pudo guardar", insertErr.message);
 
   let emailed = false;
+  let emailError: string | undefined;
   if (needsAttention(results)) {
     const { data: admins } = await db.from("admins").select("user_id");
     const emails: string[] = [];
@@ -58,8 +59,9 @@ Deno.serve(async (req) => {
         html: layout(subject, `<p>El chequeo diario encontró lo siguiente:</p><ul>${rows}</ul><p>El detalle está en Perfil → Panel de métricas.</p>`),
       });
       emailed = res.ok;
+      emailError = res.error;
     }
   }
 
-  return json({ ok, emailed, results });
+  return json({ ok, emailed, emailError, results });
 });

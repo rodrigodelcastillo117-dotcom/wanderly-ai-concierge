@@ -14,7 +14,9 @@ declare const Deno: { env: { get(key: string): string | undefined } };
 
 const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const GEMINI_FALLBACK_MODEL = "gemini-2.5-flash";
+// Alias que Google mantiene apuntando a su modelo Flash vigente: los nombres fijos (2.5-flash,
+// 2.5-flash-lite) se retiran y devuelven 404.
+const GEMINI_FALLBACK_MODEL = "gemini-flash-latest";
 
 type ChatBody = Record<string, unknown> & { model?: string; modalities?: unknown; tool_choice?: unknown };
 
@@ -48,7 +50,7 @@ export async function aiFetch(init: RequestInit): Promise<Response> {
 
   if (geminiKey && body && model.startsWith("google/") && !wantsImage) {
     const attempts: ChatBody[] = [{ ...body, model: model.slice("google/".length) }];
-    // Modelo pro o preview sin cuota/disponibilidad → flash.
+    // Modelo retirado, pro sin cuota o preview no disponible → el Flash vigente.
     if (attempts[0].model !== GEMINI_FALLBACK_MODEL) attempts.push({ ...attempts[0], model: GEMINI_FALLBACK_MODEL });
     // Algunas formas de tool_choice ("forzar esta función") no las acepta el endpoint compatible.
     if (body.tool_choice && typeof body.tool_choice === "object") {
