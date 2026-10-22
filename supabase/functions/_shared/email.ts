@@ -20,6 +20,11 @@ export async function sendEmail(opts: {
   text?: string;
   from?: string;
   replyTo?: string;
+  /**
+   * Encabezados extra (Resend `headers`). Solo nombres X-… o conocidos y valores de una línea: un
+   * valor con salto de línea se descarta (no se puede inyectar otro encabezado).
+   */
+  headers?: Record<string, string>;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -28,6 +33,7 @@ export async function sendEmail(opts: {
     return { ok: false, error: "email_not_configured" };
   }
 
+  const headers = safeHeaders(opts.headers);
   const post = async (from: string) => {
     const r = await fetch(`${GATEWAY_URL}/emails`, {
       method: "POST",
@@ -43,6 +49,7 @@ export async function sendEmail(opts: {
         html: opts.html,
         ...(opts.text ? { text: opts.text } : {}),
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+        ...(headers ? { headers } : {}),
       }),
     });
     const data = await r.json().catch(() => ({}));
@@ -72,6 +79,18 @@ export async function sendEmail(opts: {
   }
 }
 
+/** Encabezados seguros: nombre tipo token RFC 5322 y valor de una sola línea (≤ 200). */
+export function safeHeaders(h: Record<string, string> | undefined): Record<string, string> | undefined {
+  if (!h) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(h)) {
+    if (!/^[A-Za-z][A-Za-z0-9-]{1,63}$/.test(k)) continue;
+    const val = String(v ?? "");
+    if (!val || /[\r\n]/.test(val) || val.length > 200) continue;
+    out[k] = val;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 // Utilidades de texto (comparten implementación con el sistema de correo premium).
 export { escapeHtml, oneLine } from "./email-format.ts";
