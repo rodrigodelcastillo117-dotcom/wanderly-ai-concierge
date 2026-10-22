@@ -403,7 +403,7 @@ const Concierge = () => {
                     `Quiero reservar en ${v.nombre} (${v.ciudad_display}) — ${v.categoria}. ` +
                     (v.dress_code ? `Dress code: ${v.dress_code}. ` : "") +
                     (v.precio_estimado ? `Rango: ${v.precio_estimado}. ` : "") +
-                    `Por favor consigue la mejor mesa/horario disponible para esta semana, confírmame opciones y procede a reservar.`,
+                    `Ayúdame a encontrar la mejor mesa u horario para esta semana: dame opciones con enlace para reservar o dime si conviene pedírselo a un humano.`,
                   );
                 }, 250);
               }}
@@ -429,7 +429,7 @@ const Concierge = () => {
 
         {/* SMART CHIPS + INPUT */}
         <div className="px-4 md:px-8 pb-6 pt-3 border-t border-border bg-background/80 backdrop-blur">
-          {/* God Mode toggle on its own row */}
+          {/* Modo exigente (god_mode en el servidor): prioriza opciones premium; no reserva por sí solo */}
           <div className="flex items-center justify-end mb-2">
             <button
               onClick={() => setGodMode(g => !g)}
@@ -440,7 +440,7 @@ const Concierge = () => {
               }`}
             >
               <Crown className={`w-3.5 h-3.5 ${godMode ? "animate-pulse" : ""}`} />
-              God Mode <span className="hidden sm:inline">· Caza-Reservas VIP</span>
+              Modo exigente <span className="hidden sm:inline">· opciones VIP</span>
             </button>
           </div>
 
