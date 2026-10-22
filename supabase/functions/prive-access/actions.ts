@@ -222,6 +222,8 @@ export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, dep
       }
 
       case "request_reset": {
+        // Sin correo no hay a dónde mandar el enlace: no se gasta un token ni uno de los 3 intentos por hora.
+        if (!ctx.user.email) return fail("EMAIL_UNAVAILABLE");
         const { data, error } = await deps.rpc("prive_request_reset", { _user: uid });
         if (error) {
           const m = error.message.trim();
@@ -229,7 +231,6 @@ export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, dep
           if (m === "NO_PASSWORD") return fail("NO_PASSWORD");
           throw new Internal(`prive_request_reset: ${m}`);
         }
-        if (!ctx.user.email) return fail("EMAIL_UNAVAILABLE");
         const sent = await deps.sendResetEmail(ctx.user, String(data));
         // El token nunca vuelve al navegador: solo viaja por correo.
         return sent ? ok({ email: "sent" }) : fail("EMAIL_UNAVAILABLE");

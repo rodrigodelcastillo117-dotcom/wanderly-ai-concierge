@@ -337,3 +337,17 @@ describe("mantener mi sesión en este dispositivo (30 días)", () => {
     expect((await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: "yes" })).status).toBe(400);
   });
 });
+
+describe("restablecer: siempre hay salida y sin gastar intentos en vano", () => {
+  it("cuenta sin correo: EMAIL_UNAVAILABLE sin emitir token (no consume el límite de 3 por hora)", async () => {
+    const out = await handlePriveAction({ action: "request_reset" }, { ...ctx, user: { id: UID, email: null } }, deps());
+    expect(out.body).toEqual({ ok: false, code: "EMAIL_UNAVAILABLE" });
+    expect(calls).toEqual([]);
+  });
+
+  it("bloqueo total: pedir el enlace no exige sesión Privé (solo la de IATOS)", async () => {
+    rpcImpl.prive_request_reset = () => okData(TOKEN);
+    expect((await run({ action: "request_reset" })).body).toEqual({ ok: true, email: "sent" });
+    expect(userCalls).toEqual([]);
+  });
+});
