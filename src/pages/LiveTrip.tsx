@@ -145,7 +145,7 @@ const LiveTrip = () => {
           <QuickAction icon={BookHeart} label="Diario" sublabel="Memorias" onClick={() => navigate(`/dashboard/viajes/${trip.id}/diario`)} />
           <QuickAction icon={Users} label="Split" sublabel="Gastos" onClick={() => navigate(`/dashboard/viajes/${trip.id}/split`)} />
           <QuickAction icon={Phone} label="SOS" sublabel="Emergencias" danger onClick={() => setSosOpen(true)} />
-          <QuickAction icon={Crown} label="Concierge" sublabel="24/7" gold onClick={() => navigate("/dashboard/concierge")} />
+          <QuickAction icon={Crown} label="Concierge" sublabel="IA" gold onClick={() => navigate("/dashboard/concierge")} />
         </div>
 
 

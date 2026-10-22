@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Crown, Lock } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
+import { PRICE_LINE } from "@/lib/planCopy";
 
 type Props = {
   children: React.ReactNode;
@@ -36,7 +37,7 @@ export const ProGate = ({ children, soft = false, title, description }: Props) =
               <Link to="/dashboard/pro" className="text-primary underline underline-offset-2">
                 Activa IATOS PRO
               </Link>{" "}
-              para acceso ilimitado.
+              para más mensajes y análisis cada mes.
             </p>
           </div>
         </div>
@@ -52,7 +53,7 @@ export const ProGate = ({ children, soft = false, title, description }: Props) =
       </div>
       <h2 className="font-display text-2xl mb-2">{title ?? "Función exclusiva de IATOS PRO"}</h2>
       <p className="text-sm text-muted-foreground mb-6">
-        {description ?? "Activa tu membresía para desbloquear esta experiencia. 30 días de prueba, luego $99 MXN al mes."}
+        {description ?? `Disponible en IATOS PRO: ${PRICE_LINE}.`}
       </p>
       <Link
         to="/dashboard/pro"

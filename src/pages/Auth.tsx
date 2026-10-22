@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { claimPendingReferral } from "@/lib/referral";
+import { TRIAL_LINE } from "@/lib/planCopy";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -111,7 +112,7 @@ const Auth = () => {
               {mode === "signup" ? "Crea tu cuenta" : "Bienvenido de vuelta"}
             </h1>
             <p className="text-muted-foreground text-sm">
-              {mode === "signup" ? "30 días gratis. Sin compromisos." : "Tu próximo viaje te espera."}
+              {mode === "signup" ? `${TRIAL_LINE}.` : "Tu próximo viaje te espera."}
             </p>
           </div>
 

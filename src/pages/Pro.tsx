@@ -5,15 +5,10 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
 import { track } from "@/lib/analytics";
+import { PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
 
-const BENEFITS = [
-  "Concierge Iato ilimitado (chat, transfers, reservas y logística)",
-  "Análisis de viaje ilimitados con precios reales en vivo",
-  "Cotizaciones verificadas de vuelos y hoteles (Google Flights / Google Hotels)",
-  "Members Only: acceso a venues premium en 18+ ciudades",
-  "Fixer humano para peticiones especiales",
-  "Bóveda de beneficios y promociones de tus tarjetas",
-];
+// Mismo texto que Landing, Términos y correos (src/lib/planCopy.ts).
+const BENEFITS = PRO_FEATURES;
 
 const fmtDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "—";
@@ -30,7 +25,7 @@ export default function Pro() {
     const c = params.get("checkout");
     if (!c) return;
     if (c === "success") track("checkout_completed", { plan: "pro_mensual" });
-    if (c === "success") toast({ title: "¡Bienvenido a IATOS PRO!", description: "Tu membresía quedó activa. Disfruta el acceso ilimitado." });
+    if (c === "success") toast({ title: "¡Gracias por contratar IATOS PRO!", description: "Estamos confirmando tu pago con Stripe; tu membresía se activa en unos segundos." });
     if (c === "cancel") toast({ title: "Checkout cancelado", description: "No se realizó ningún cargo." });
     params.delete("checkout");
     setParams(params, { replace: true });
@@ -47,7 +42,9 @@ export default function Pro() {
   const statusLabel = isComped
     ? "PRO de cortesía · acceso permanente"
     : isTrialing
-      ? `En periodo de prueba · ${trialDaysLeft ?? 0} días restantes`
+      ? subscription?.stripe_customer_id
+        ? `En periodo de prueba · ${trialDaysLeft ?? 0} días restantes`
+        : `Prueba gratis sin tarjeta · ${trialDaysLeft ?? 0} días restantes; al terminar vuelves al plan gratuito`
       : subscription?.status === "past_due"
         ? "Pago pendiente · actualiza tu tarjeta en “Gestionar suscripción” para recuperar PRO"
         : subscription?.status === "active"
@@ -64,7 +61,7 @@ export default function Pro() {
           IATOS <span className="gold-text">PRO</span>
         </h1>
         <p className="text-muted-foreground mb-8 max-w-xl">
-          Tu concierge de viajes sin límites. 30 días de prueba y después $99 MXN al mes. Cancela cuando quieras.
+          Más mensajes con Iato, más análisis de viaje y alertas de precio. {PRICE_LINE}. Cancela cuando quieras.
         </p>
 
         {loading ? (
@@ -84,7 +81,7 @@ export default function Pro() {
                 </div>
                 <div className="text-right">
                   <p className="font-display text-3xl gold-text leading-none">$99</p>
-                  <p className="text-[11px] text-muted-foreground">MXN / mes</p>
+                  <p className="text-[11px] text-muted-foreground">MXN / mes · IVA incluido</p>
                 </div>
               </div>
 
@@ -145,14 +142,15 @@ export default function Pro() {
                   className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-gold text-primary-foreground text-sm font-medium disabled:opacity-60"
                 >
                   {busy === "checkout" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
-                  Empezar 30 días de prueba
+                  Contratar IATOS PRO
                 </button>
               )}
             </div>
 
             <p className="text-[11px] text-muted-foreground">
-              Se requiere tarjeta para iniciar la prueba. No se te cobra nada durante los primeros 30 días y puedes cancelar
-              en cualquier momento desde “Gestionar suscripción”. El cobro lo procesa Stripe; IATOS AI no almacena tu tarjeta.
+              La tarjeta solo se pide al contratar PRO; la prueba gratis no la necesita. Si contratas durante tu prueba, el primer
+              cargo se hace cuando termina. PRO se renueva cada mes hasta que canceles desde “Gestionar suscripción”. El cobro lo
+              procesa Stripe; IATOS AI no almacena tu tarjeta.
             </p>
             <p className="text-[11px] text-muted-foreground mt-2 flex flex-wrap gap-x-3 gap-y-1">
               Al continuar aceptas los

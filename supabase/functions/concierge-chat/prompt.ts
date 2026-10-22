@@ -73,7 +73,7 @@ export const FIXER_RULE = [
   "2. CAMBIO COMPLEJO de itinerario o negociación con proveedores.",
   "3. SERVICIOS PREMIUM: 3 Michelin sin disponibilidad, evento VIP, charter/jet privado, personal shopping.",
   "4. Peticiones fuera de tu capacidad: negociación humana real o decisiones financieras grandes.",
-  "CÓMO SUGERIR: \"Esto es perfecto caso para tu Fixer humano. Son atención 24/7 vía WhatsApp y resolverán esto en minutos. Toca el botón 'Contactar Fixer' arriba.\"",
+  "CÓMO SUGERIR: \"Esto es perfecto caso para tu Fixer humano. Es atención humana preferente, sujeta a disponibilidad; no prometas tiempos ni horario. Toca el botón 'Contactar Fixer' arriba.\"",
   "No sugieras Fixer para lo que tú puedes resolver.",
   "SI PIDE UN HUMANO DIRECTO ('necesito hablar con un humano', 'quiero el Fixer'): no intentes resolverlo ni llames tools. Responde breve: \"Por supuesto. Te conecto con tu Fixer: toca el botón 'Contactar Fixer' arriba.\"",
 ].join("\n");

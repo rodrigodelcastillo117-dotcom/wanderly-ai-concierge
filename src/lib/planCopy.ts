@@ -1,0 +1,50 @@
+// Única fuente de los textos comerciales de IATOS (precio, prueba, qué incluye cada plan).
+// Landing, registro, página PRO, avisos de PRO, términos y correos leen de aquí para decir
+// exactamente lo mismo (decisiones DEC-01 y DEC-02 del dueño, 2026-10-22). Si cambian los
+// límites aprobados, se cambian aquí y en la tabla plan_limits del servidor.
+
+export const PRO_PRICE_MXN = 99;
+
+/** "$99 MXN al mes, IVA incluido". */
+export const PRICE_LINE = `$${PRO_PRICE_MXN} MXN al mes, IVA incluido`;
+
+export const TRIAL_DAYS = 30;
+
+/** Promesa de la prueba: sin tarjeta y sin cobro automático. */
+export const TRIAL_LINE = `${TRIAL_DAYS} días de IATOS PRO gratis, sin tarjeta y sin cobro automático`;
+
+/** Qué pasa al terminar la prueba. */
+export const AFTER_TRIAL_LINE =
+  "Al terminar, vuelves al plan gratuito con todos tus viajes y datos. Solo te pedimos tarjeta si decides contratar PRO.";
+
+/** Botón principal de registro. */
+export const TRIAL_CTA = `Probar PRO ${TRIAL_DAYS} días gratis`;
+
+/** La prueba se activa al confirmar el correo, una sola vez por persona. */
+export const TRIAL_CONDITIONS = "La prueba empieza al confirmar tu correo y es una por persona.";
+
+export const FIXER_LINE = "Acceso preferente al Fixer humano, sujeto a disponibilidad";
+
+export const FREE_FEATURES = [
+  "Travel DNA básico",
+  "3 mensajes con Iato al mes",
+  "1 análisis completo de viaje de cortesía (una sola vez)",
+  "Tus viajes guardados y edición manual",
+  "Herramientas esenciales del viaje",
+] as const;
+
+export const PRO_FEATURES = [
+  "100 mensajes con Iato al mes",
+  "10 análisis completos de viaje al mes",
+  "Hasta 5 alertas de precio",
+  "Seguimiento de hasta 4 vuelos a la vez",
+  "Personalización avanzada con tu Travel DNA completo",
+  FIXER_LINE,
+] as const;
+
+/** Durante la prueba los topes son menores que en PRO (uso justo, ver docs/iatos/IATOS_PROPUESTA_PLANES_Y_PRUEBA.md). */
+export const TRIAL_FEATURES = [
+  "Funciones de IATOS PRO durante 30 días",
+  "50 mensajes con Iato y 5 análisis completos de viaje",
+  "Hasta 2 alertas de precio y 2 vuelos con seguimiento",
+] as const;

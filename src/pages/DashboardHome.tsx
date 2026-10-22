@@ -672,7 +672,7 @@ const DashboardHome = () => {
                 { icon: Gift, label: "Beneficios", sub: "PRO", to: "/dashboard/beneficios", img: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&q=70&auto=format&fit=crop" },
                 { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar", img: "https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=70&auto=format&fit=crop" },
                 { icon: ArrowLeftRight, label: "Conversor", sub: "Moneda", to: "/dashboard/convertidor", img: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&q=70&auto=format&fit=crop" },
-                { icon: Crown, label: "Concierge", sub: "IA 24/7", to: "/dashboard/concierge", img: "https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=70&auto=format&fit=crop" },
+                { icon: Crown, label: "Concierge", sub: "Tu concierge IA", to: "/dashboard/concierge", img: "https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=70&auto=format&fit=crop" },
                 { icon: MapPin, label: "Cerca", sub: "De mí", to: "/dashboard/cercanos", img: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600&q=70&auto=format&fit=crop" },
                 { icon: Ship, label: "Cruceros", sub: "Islas", to: "/dashboard/cruceros", img: "https://images.unsplash.com/photo-1548574505-5e239809ee19?w=600&q=70&auto=format&fit=crop" },
                 { icon: UtensilsCrossed, label: "Restaurantes", sub: "Mesas", to: "/dashboard/restaurantes", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=70&auto=format&fit=crop" },
