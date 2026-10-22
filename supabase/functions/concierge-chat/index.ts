@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
+import { todayLine, toolArgs } from "./tools.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,7 +145,7 @@ async function callTool(name: string, args: any, authHeader: string): Promise<an
     const r = await fetch(`${FN_URL}/${fn}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: authHeader, apikey: SUPABASE_ANON_KEY },
-      body: JSON.stringify(args),
+      body: JSON.stringify(toolArgs(name, args ?? {})),
     });
     const j = await r.json().catch(() => ({ error: "json parse" }));
     // recortar para no saturar contexto
@@ -807,7 +808,7 @@ Deno.serve(async (req) => {
     ].join("\n");
 
     // Orden: 1) master prompt, 2) contexto usuario, 3) contexto viaje activo (Capa 1), 4) memoria (Capa 2), 5) regla Fixer (Capa 7), 6) SYSTEM
-    const systemContent = [masterPrompt, userContextBlock, multiTripBlock, tripContextBlock, gapsBlock, memoryBlock, fixerRuleBlock, SYSTEM]
+    const systemContent = [todayLine(todayISO), masterPrompt, userContextBlock, multiTripBlock, tripContextBlock, gapsBlock, memoryBlock, fixerRuleBlock, SYSTEM]
       .filter((s) => s && s.length > 0)
       .join("\n\n---\n\n");
 
