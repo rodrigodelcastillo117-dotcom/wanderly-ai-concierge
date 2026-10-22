@@ -1,0 +1,137 @@
+OK P01 PRO con 89 días pagados: no elegible, sin invitación
+OK P02 PRO con 90 días pagados: elegible e invitado una vez
+OK P03 re-correr el cron no duplica invitación, aviso ni correo
+OK P04 los días de prueba gratis no cuentan
+OK P05 periodos discontinuos sumados sin contar dos veces lo encimado (y sin días futuros)
+OK P05b febrero cuenta sus 28 días reales (feb+mar+abr = 89, no 90)
+OK P05c al pagar mayo llega a 120 y es elegible
+OK P06 reembolso total quita sus días y pausa el acceso
+OK P06b reembolso parcial: el periodo sigue contando
+OK P07 disputa abierta excluye el periodo; ganada lo restaura
+OK P08 disputa perdida: el periodo deja de contar y no vuelve
+OK P08b disputa ganada de un periodo con reembolso parcial vuelve a "partially_refunded" si lo era
+OK P09 cancelar la renovación con periodo pagado vigente conserva el acceso
+OK P10 PRO terminado: PRIVE_NOT_PRO aunque la sesión Privé siga viva y la contraseña sea correcta
+OK P10b el barrido cierra las sesiones de quien ya no es PRO
+OK P11 reactivar PRO devuelve Privé sin repetir 90 días ni otra invitación
+OK P12 revocación por fraude: bloquea aunque haya PRO y 90 días; el cron no re-invita
+OK P12b fraude antes de la invitación: la membresía nace revocada y nunca se invita
+OK P12c restaurar por administrador devuelve el acceso (queda en la bitácora)
+OK P13 cuenta vieja con facturas respaldadas (por cliente de Stripe): 121 días sin contar dos veces, sin duplicar al re-correr, invitada
+OK P13b una factura ya ligada a otra cuenta no se mueve
+OK P14 concesión con PRO (cortesía): invitada con base "grant" sin antigüedad pagada
+OK P15 concesión sin PRO: no se invita y prive_require responde PRIVE_NOT_PRO
+OK P15b al volverse PRO, el cron lo invita por la concesión
+OK P16 concesión por correo: se aplica al registrarse y al cambiar el correo
+OK P17 la concesión vence: el acceso se pausa (PRIVE_NOT_ELIGIBLE) y el barrido cierra la sesión
+OK P18 revocar la concesión cierra sus sesiones y pausa el acceso
+OK P19 reenviar la invitación: la anterior deja de servir y queda una sola viva
+OK P20 invitación reenviada usada por otra cuenta: INVITATION_OTHER_ACCOUNT y registrada
+OK P21 la dueña sí la acepta con el enlace (y aceptar dos veces es inofensivo)
+OK P22 enlace de invitación caducado: INVITATION_EXPIRED
+OK P22b el barrido revoca la caducada y la persona puede pedir otra
+OK P22c reenviar tiene tope: 3 por día
+OK P23 correo fallido: reintento en 15 min y no antes
+OK P23b al quinto intento fallido deja de reintentar
+OK P23c aceptar sin token desde el aviso de la app funciona (el token no es la autoridad)
+OK P23d sin PRO no se acepta; sin 90 días tampoco
+OK P24 sesión válida en su sesión de Auth
+OK P25 otra sesión de Auth (session_id distinto) → PRIVE_SESSION_INVALID
+OK P25b JWT sin session_id con una sesión ligada → PRIVE_SESSION_INVALID
+OK P26 otro dispositivo desbloquea de nuevo sin bloqueo; las dos sesiones Privé valen a la vez
+OK P27 sesión de Auth cerrada o vencida → PRIVE_SESSION_INVALID
+OK P28 "cerrar todas" mata las dos sesiones y avisa
+OK P29 la sexta sesión Privé revoca la más vieja (máximo 5 vivas)
+OK P30 sesión Privé vencida (12 h) → PRIVE_SESSION_EXPIRED
+OK P30b inactiva más de 2 h → PRIVE_SESSION_EXPIRED
+OK P30c usarla renueva la inactividad (last_seen_at)
+OK P31 token de sesión de OTRA cuenta → PRIVE_SESSION_INVALID
+OK P32 sin token o sin sesión de IATOS → PRIVE_NO_SESSION
+OK P33 prive_require funciona dentro de una RPC STABLE
+OK P33b y en una transacción de solo lectura
+OK P34 bloquear la sesión de este dispositivo → PRIVE_SESSION_INVALID
+OK P35 contraseña incorrecta → WRONG_PASSWORD y cuenta un fallo
+OK P36 la contraseña de OTRO miembro en mi cuenta no sirve (y la propia sí, y reinicia el contador)
+OK P37 escalera de bloqueos 5→1 min, 8→5 min, 10→15 min, 12→60 min, 15→bloqueo total
+OK P37b bloqueado: la correcta también se rechaza (LOCKED) sin contar otro fallo
+OK P38 bloqueo total: cierra sesiones, avisa y ni la correcta entra
+OK P38b el bloqueo total no se quita solo con el tiempo
+OK P38c solo el restablecimiento por correo quita el bloqueo total
+OK P38d entrar tras ≥ 5 fallos recientes avisa "nuevo acceso a Privé"
+OK P39 bloqueo por ip_hash entre cuentas: el fallo 31 bloquea la IP 60 min, también para otra cuenta con la clave correcta
+OK P40 "mi contraseña está comprometida": debe restablecer y se cierran las sesiones
+OK P41 antes de activar: PRIVE_NOT_ACTIVATED para fijar contraseña o entrar
+OK P42 contraseña filtrada (HIBP) o débil se rechaza al fijarla
+OK P43 fijar la contraseña: bcrypt costo 12; la segunda vez PASSWORD_ALREADY_SET
+OK P43b más de 72 bytes nunca entra (bcrypt truncaría)
+OK P44 cambiar la contraseña: la anterior equivocada cuenta como fallo; al cambiar se cierran las sesiones
+OK P45 el token de restablecimiento de OTRA cuenta no sirve
+OK P45b una contraseña débil no gasta el token
+OK P46 restablecer: el token sirve UNA vez y quita el "debe restablecer"
+OK P47 el token de restablecimiento vence a los 30 minutos
+OK P48 máximo 3 restablecimientos por hora
+OK P48b no se restablece una contraseña que no existe
+OK P49 prive_status: solo las claves del contrato y ningún secreto (hash, token ni correo)
+OK P49b prive_status de una cuenta gratis: is_pro=false, 0 días, sin membresía
+OK P49c el primer nombre viene del perfil (el HTML se escapa al usarlo en el correo)
+OK P50 guardar progreso: solo claves conocidas, la versión de bienvenida no retrocede y requiere membresía
+OK P51 prive_log_event: un evento válido se guarda, uno fuera de la lista no rompe nada
+OK P52 el barrido purga intentos de más de 30 días
+OK P53 anon no ejecuta ninguna función Privé
+OK P54 authenticated solo ejecuta prive_require, prive_status y las RPC de catálogo del contrato
+OK P55 todas las funciones Privé SECURITY DEFINER tienen search_path fijo
+OK P56 tablas Privé: RLS encendida y sin privilegios para anon/authenticated
+OK P57 authenticated: 35 llamadas directas a funciones y tablas internas denegadas
+OK P58 anon no ejecuta prive_status ni prive_require
+OK P59 53 contraseñas/tokens emitidos: ninguno en claro en 485 columnas de public y auth
+OK P60 las contraseñas están como bcrypt y los tokens como SHA-256
+OK P61 la bitácora de membresía no guarda correos de usuarios
+OK P62 borrar la cuenta borra su membresía, contraseña, sesiones e intentos
+OK S01 sesión de Auth viva + sesión Privé vigente → OK
+OK S01b control: con una sesión válida las RPC de contenido pasan prive_require (la prueba S11 no es vacía)
+OK S02 sesión de Auth cerrada (JWT sin vencer) → PRIVE_SESSION_INVALID
+OK S03 cierre global: las sesiones Privé de todos los dispositivos dejan de valer
+OK S04 cuenta suspendida → PRIVE_SESSION_INVALID y no puede desbloquear; al vencer la suspensión vuelve a entrar
+OK S05 cuenta borrada (deleted_at) → PRIVE_SESSION_INVALID
+OK S05b cuenta eliminada: el JWT que sobrevive no abre nada y no quedan sesiones
+OK S06 sesión de Auth vencida (not_after) → PRIVE_SESSION_INVALID
+OK S07 sin SELECT en auth.sessions → se niega (fail closed)
+OK S07b sin USAGE en el esquema auth → se niega con el código del contrato (no un error 500)
+OK S08 auth.sessions no existe → se niega (fail closed)
+OK S08b columna faltante en auth.sessions → se niega (fail closed)
+OK S08c al recuperar la tabla la sesión legítima sigue sirviendo (no se bloqueó a nadie)
+OK S09 desbloquear sin session_id de Auth no emite sesión Privé
+OK S09b sesión Privé sin ligar → PRIVE_SESSION_INVALID con cualquier JWT (con o sin session_id)
+OK S09c desbloquear con un session_id que no existe (o de otra cuenta) no emite sesión
+OK S10 la sesión Privé no se hereda a otro inicio de sesión; desbloquear en el nuevo sí
+OK S11 token Privé de una sesión de Auth cerrada: todas las RPC con _ps → PRIVE_SESSION_INVALID
+OK S11b token Privé sin ligar: todas las RPC → PRIVE_SESSION_INVALID
+OK S11c cuenta suspendida: todas las RPC → PRIVE_SESSION_INVALID
+OK S11d sesión Privé bloqueada (lock): todas las RPC → PRIVE_SESSION_INVALID
+OK S11e sesión Privé inactiva > 2 h: todas las RPC → PRIVE_SESSION_EXPIRED
+OK S12 PRO terminado: prive_require → PRIVE_NOT_PRO con la sesión Privé vieja y la de Auth viva
+OK S12b PRO terminado: la contraseña correcta no abre sesión
+OK S12c PRO terminado: todas las RPC de contenido → PRIVE_NOT_PRO
+OK S12d suscripción cancelada en Stripe (status canceled) → PRIVE_NOT_PRO
+OK S13 authenticated sin ser admin: 10 RPC de administración negadas
+OK S13b anon y authenticated no tienen EXECUTE en las RPC admin_* de Privé ni en prive_sweep/prive_auth_session_alive
+OK N01 revocar la concesión revoca la invitación pendiente y retira la membresía "invited" (auditado)
+OK N01b idempotente: revocar otra vez no duplica nada
+OK N01c el enlace de la invitación revocada no se acepta, no fija contraseña y no se vuelve a enviar
+OK N01d al cumplir 90 días: el enlace viejo da INVITATION_EXPIRED y el cron crea una invitación nueva por antigüedad
+OK N02 si sigue cumpliendo por antigüedad, revocar la concesión no le quita la invitación
+OK N03 concesión vencida con invitación pendiente: el barrido revoca la invitación y retira la membresía
+OK N04 el barrido no toca membresías activas ni invitaciones de quien sí cumple
+OK N05 la limpieza de la migración retira solo la invitación de la concesión revocada; la vigente sigue
+OK T01 solicitud Privé con el viaje de otra cuenta → TRIP_NOT_FOUND y no se crea nada
+OK T02 con su propio viaje, con uno compartido con ella (colaboradora) o sin viaje → se crea a su nombre
+OK R01 recordar: la sesión vence a los 30 días, avisa en la app y queda en la bitácora
+OK R02 recordada: 3 h sin uso no la cierran (ni prive_require ni el barrido)
+OK R03 recordada: 8 días sin uso → PRIVE_SESSION_EXPIRED
+OK R03b recordada: a los 30 días vence aunque se use
+OK R04 recordada: cerrar sesión en IATOS la invalida al instante
+OK R05 recordada: sin PRO → PRIVE_NOT_PRO; "cerrar todas mis sesiones" la cierra
+OK R06 solo se recuerda una sesión recién abierta y propia
+OK R07 sin elegir "recordar" la sesión sigue en 12 h / 2 h
+OK L01 bloqueo total → restablecer por correo → entra con la nueva; el enlace no sirve dos veces
+OK X01 members_requires_prive=true NO cambia members_access (bandera solo informativa; ver PRIVE.md)

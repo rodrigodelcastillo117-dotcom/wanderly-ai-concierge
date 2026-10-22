@@ -1,0 +1,138 @@
+NOTICE:  database "audprive_f_security" does not exist, skipping
+FALLÓ 20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql: psql:/home/user/wt-aud-prive/supabase/migrations/20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql:45: ERROR:  extension "pg_cron" is not available
+A1 anon ve objetos: 0
+bbbbbbbb-0000-0000-0000-00000000000b | authenticated
+A2 atacante ve objetos ajenos: 0
+psql:/home/user/wt-aud-prive/supabase/tests/security/rls_attacks.sql:13: ERROR:  permission denied for table trip_collaborators
+psql:/home/user/wt-aud-prive/supabase/tests/security/rls_attacks.sql:14: ERROR:  permission denied for table trip_collaborators
+A3 atacante ve viaje ajeno: 0
+psql:/home/user/wt-aud-prive/supabase/tests/security/rls_attacks.sql:16: ERROR:  permission denied for table friendships
+A4 atacante ve perfil ajeno: 0
+psql:/home/user/wt-aud-prive/supabase/tests/security/rls_attacks.sql:18: ERROR:  permission denied for table tracked_flights
+A5 vuelos insertados directo: 0
+cccccccc-0000-0000-0000-00000000000c
+L1 agregar amigo por código: {"ok": true, "amigo_id": "aaaaaaaa-0000-0000-0000-00000000000a"}
+L1b amistades: 1 accepted
+aaaaaaaa-0000-0000-0000-00000000000a
+L2 invitar: {"ok": true}
+L2b dueño ve sus fotos: 3
+cccccccc-0000-0000-0000-00000000000c
+L3 aceptar: {"ok": true}
+L4 colaborador ve viaje: 1
+L4b colaborador ve foto del diario: 1
+L5 colaborador editó: Paris y Lyon
+psql:/home/user/wt-aud-prive/supabase/tests/security/rls_attacks.sql:35: ERROR:  Solo el dueño del viaje puede cambiar ese dato
+CONTEXT:  PL/pgSQL function trips_collab_columns_guard() line 17 at RAISE
+L6 dueño tras intento: aaaaaaaa-0000-0000-0000-00000000000a
+aaaaaaaa-0000-0000-0000-00000000000a
+L7 colaboradores tras remover: 0
+OK C2 colaborador no puede cambiar current_quote_id
+OK C3 colaborador no puede cambiar quote_basis
+OK C4 colaborador no puede cambiar created_at
+OK C1 colaborador edita contenido (destino, itinerario, tips)
+OK C5 colaborador no cambia status (se conserva)
+OK C6 el dueño sí cambia status
+OK P2 no puede cambiar email
+OK P3 no puede cambiar invite_code
+OK P4 no puede cambiar tier
+OK P5 el cliente no inserta perfiles
+OK P1 edición normal del perfil (avatar, nombre, viaje activo, food_dna)
+OK P6 índice único de invite_code creado
+OK F1 el amigo ya no lee la fila completa del perfil
+OK F2 friend_profiles da nombre/usuario/avatar del amigo
+OK F3 friend_profiles solo expone id, full_name, username, avatar_url
+OK F4 un no-amigo no obtiene perfiles
+OK F5 anon no puede ejecutar friend_profiles
+OK S1 recibos/journal-photos/travel-moments con 10 MB y sin HTML/SVG
+OK S2 recibos acepta PDF
+OK N1 un miembro no inserta notificaciones a otros
+OK N2 notificación propia sí
+OK N3 notify_trip_updated sigue notificando al dueño
+OK T1 packing_lists con viaje ajeno rechazado
+OK T2 bookings con viaje ajeno rechazado
+OK T3 expenses con viaje ajeno rechazado
+OK T4 concierge_requests con viaje ajeno rechazado
+OK T5 UPDATE a viaje ajeno rechazado
+OK T6 gasto sin viaje y en viaje propio sí
+OK T7 el colaborador sí registra reservas del viaje compartido
+OK O1 un tercero no averigua quién es dueño/colaborador
+OK O2 sobre sí mismo sí responde
+OK O3 el colaborador conserva su acceso (RLS)
+OK O4 service role recibe la respuesta real
+OK O5a el colaborador fija el viaje compartido como activo
+OK O5 quitar colaborador limpia su viaje activo
+OK M1 el cliente confirma 18+ pero no se auto-desbloquea
+OK M2 sin contraseña temporal encendida: no_configurado
+OK M3 el cliente no puede fijar la contraseña
+OK M4 el cliente no lee members_gate
+OK M5a la contraseña temporal exige caducidad
+OK M5b caducidad máxima de 30 días
+OK M5 se guarda solo un hash bcrypt, encendida
+OK M6 contraseña incorrecta rechazada
+OK M7 contraseña correcta desbloquea
+OK M8 el desbloqueo caduca con la contraseña
+OK M9 más de 10 intentos/hora bloqueados
+OK R1 límite 2: pasa, pasa, se niega
+OK R2 la llamada negada no se cuenta
+OK R3 solo service_role ejecuta check_rate_limit
+OK D1 incluye recibos y fotos de otros miembros en SUS viajes, no ajenas
+OK B1 reembolso marca cancel_at_period_end
+OK B2 sin fila no crea nada
+OK B3 revoke_comp quita la cortesía
+OK B4 sigue activa hasta fin de periodo, sin renovar
+OK B5 tras revoke_comp ya no es PRO ni está en la lista
+OK B6 subscriptions sin filas nuevas por reembolsos
+OK B7 revoke_comp solo para service_role
+OK B8 stripe_payment_events solo servidor
+OK MB0 la consulta de "quién pierde acceso" lista solo al desbloqueado sin PRO
+OK MB1 gratis: sin acceso y RLS no devuelve lugares
+OK MB2 gratis: el adelanto da ciudades, categorías y conteos (sin inactivos)
+OK MB3 el adelanto no expone nombre, dirección, sitio ni coordenadas
+OK MB4 estado gratis: access=false
+OK MB5 PRO pagado: acceso completo
+OK MB6 cortesía (comped): acceso
+OK MB7 prueba vigente: acceso
+OK MB8 prueba vencida: sin acceso
+OK MB9 desbloqueo heredado sin caducidad (contraseña comprometida): ya no cuenta
+OK MB10 el cliente no puede ponerse caducidad
+OK MB11 contraseña temporal vigente: acceso hasta su caducidad
+OK MB12 apagar la contraseña corta los accesos que dio
+OK MB13 anon no ejecuta members_teaser
+OK PB1 reembolso total sin otro derecho: sin acceso (before/after)
+OK PB2 reembolso total con cortesía autorizada: conserva acceso
+OK PB3 fila comped intacta
+OK PB4 reembolso de otra suscripción del mismo cliente: no toca la vigente
+OK PB5 sin fila: no crea nada
+OK PB6 invoice.paid tardío (anterior al reembolso) no devuelve PRO
+OK PB7 aviso a admins una sola vez por evento
+OK PB8 tras todo, la cuenta reembolsada sigue sin PRO
+OK PB9 revoke_paid_access/notify_admins solo service_role
+OK DB1 solicitud única con 5 pasos y el cliente de Stripe guardado
+OK DB2 el purge borra la suscripción pero conserva la bitácora de borrado y de pagos
+OK DB3 el webhook reconoce el cliente de una cuenta borrada
+OK DB4 webhook tardío con metadata de la cuenta borrada: no escribe
+OK DB5 webhook tardío solo con customer: no escribe
+OK DB6 reembolso tardío de la cuenta borrada: no crea filas
+OK DB7 otra cuenta no puede adoptar el cliente de una cuenta borrada
+OK DB8 nada recreado para la cuenta borrada
+OK DB9 deletion_requests/steps solo service_role
+OK CR1 el usuario no puede cambiar el estado [permission denied]
+OK CR2 el usuario no puede insertar [permission denied]
+OK CR3 el usuario sigue viendo su solicitud
+OK CR4 el servidor sí actualiza el estado
+D1 el dueño borra el viaje con chat [1]: 1
+D2 conversaciones del viaje borrado [0]: 0
+D3 las generales se conservan intactas [colab general|general]: colab general|general
+D4 borra viaje sin general [1]: 1
+D5 el chat queda como general [solo viaje]: solo viaje
+D6 authenticated no ejecuta la función [f]: false
+T1 vista previa (1 cambio: free sigue en pro): 1
+T2 la vista previa no escribió: pro
+T3 tras aplicar: free / pro sigue pro
+T4 acceso intacto: is_pro(pro)=true is_pro(free)=false
+T5 bitácora: 1 fila(s) old=pro new=free
+T6 revertidos: 6
+T7 tras revertir: pro
+psql:/home/user/wt-aud-prive/supabase/tests/security/profiles_tier.sql:17: ERROR:  permission denied for function sync_profile_tier
+psql:/home/user/wt-aud-prive/supabase/tests/security/profiles_tier.sql:18: ERROR:  permission denied for table profiles_tier_audit
+OK R4 CONCURRENCIA check_rate_limit: sesión 1 permitida, sesión 2 simultánea negada, 1 golpe

@@ -363,6 +363,43 @@ SELECT aud.ok('N05 la limpieza de la migración retira solo la invitación de la
   AND (SELECT revoked_at IS NULL FROM prive_invitations WHERE user_id = aud.u(18)));
 \ir ../../migrations/20261024030000_aud_prive_remember_device.sql
 
+-- ===================================================================== T · solicitud Privé con el viaje de OTRA cuenta
+-- (reportado por aud-iato: concierge-chat → concierge-action reenvía trip_id sin revisar). La RPC
+-- prive_request_create corre con el JWT de quien pide y debe negar un viaje ajeno.
+INSERT INTO public.prive_experiences (id, slug, destination_id, universe, subcategory, name, website, sources, why_fact_es, data_state, verified_at, operating_status, commercial_label)
+VALUES ('e1000000-0000-0000-0000-000000000001', 'aud-t-mesa', (SELECT id FROM prive_destinations WHERE slug = 'mc'), 'the_table', 'alta_cocina', 'Aud Mesa',
+  'https://example.test/aud', '["https://example.test/aud"]', 'Hecho de prueba con fuente.', 'VERIFICADO', now() - interval '1 day', 'abierto', 'EXPERIENCIA_CURADA')
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.trips (id, user_id, destino) VALUES
+  ('fa1d0000-0000-0000-0000-000000000001', aud.u(1), 'Mónaco (de U1)'),
+  ('fa1d0000-0000-0000-0000-000000000002', aud.u(2), 'Mónaco (de U2)'),
+  ('fa1d0000-0000-0000-0000-000000000003', aud.u(2), 'Mónaco (U2 comparte con U1)') ON CONFLICT DO NOTHING;
+INSERT INTO public.trip_collaborators (trip_id, user_id, invited_by, status) VALUES ('fa1d0000-0000-0000-0000-000000000003', aud.u(1), aud.u(2), 'accepted') ON CONFLICT DO NOTHING;
+CREATE FUNCTION aud.req_create(n int, sid int, ps text, trip uuid) RETURNS text LANGUAGE plpgsql AS $$
+DECLARE v jsonb;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', aud.u(n)::text, true), set_config('request.jwt.claim.role', 'authenticated', true),
+          set_config('request.jwt.claims', jsonb_build_object('sub', aud.u(n), 'role', 'authenticated', 'session_id', aud.sid(sid))::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN
+    v := public.prive_request_create(ps, 'e1000000-0000-0000-0000-000000000001', now() + interval '10 days', 2, NULL, 'app', trip, NULL);
+  EXCEPTION WHEN OTHERS THEN v := jsonb_build_object('ok', false, 'code', SQLERRM);
+  END;
+  RESET ROLE;
+  RETURN coalesce(v->>'code', CASE WHEN (v->>'ok')::boolean THEN 'OK' END);
+END $$;
+GRANT EXECUTE ON FUNCTION aud.req_create(int, int, text, uuid) TO authenticated;
+SELECT aud.ok('T01 solicitud Privé con el viaje de otra cuenta → TRIP_NOT_FOUND y no se crea nada',
+  aud.req_create(1, 101, :'t1', 'fa1d0000-0000-0000-0000-000000000002') = 'TRIP_NOT_FOUND'
+  AND NOT EXISTS (SELECT 1 FROM concierge_requests WHERE trip_id = 'fa1d0000-0000-0000-0000-000000000002'),
+  aud.req_create(1, 101, :'t1', 'fa1d0000-0000-0000-0000-000000000002'));
+SELECT aud.ok('T02 con su propio viaje, con uno compartido con ella (colaboradora) o sin viaje → se crea a su nombre',
+  aud.req_create(1, 101, :'t1', 'fa1d0000-0000-0000-0000-000000000001') = 'OK'
+  AND aud.req_create(1, 101, :'t1', 'fa1d0000-0000-0000-0000-000000000003') = 'OK'
+  AND aud.req_create(1, 101, :'t1', NULL) = 'OK'
+  AND NOT EXISTS (SELECT 1 FROM concierge_requests WHERE type = 'prive_request' AND user_id <> aud.u(1) AND experience_id = 'e1000000-0000-0000-0000-000000000001'),
+  aud.req_create(1, 101, :'t1', NULL));
+
 -- ===================================================================== R · "mantener mi sesión en este dispositivo (30 días)"
 CREATE FUNCTION aud.remember(n int, tok text) RETURNS jsonb LANGUAGE plpgsql AS $$
 DECLARE r jsonb;

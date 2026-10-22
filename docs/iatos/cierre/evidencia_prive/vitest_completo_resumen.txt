@@ -1,0 +1,18 @@
+⎯⎯⎯⎯⎯⎯ Failed Tests 15 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  9 failed | 154 passed (163)
+      Tests  15 failed | 1520 passed (1535)
+ FAIL  src/test/bookingActionsUi.test.tsx > BookingActions > una búsqueda dice 'Buscar este vuelo' (nunca 'Comprar') y abre el aviso antes de salir
+ FAIL  src/test/dashboardActiveTrip.test.tsx > Inicio: viaje activo único > el viaje fijado manda (mismo que Iato); las herramientas reciben ?trip=
+ FAIL  src/test/godtierHome.test.tsx > Inicio sin viajes: guía del primer viaje > franja compacta que explica qué pasa, sin video duplicado, y los ejemplos solo llenan el campo
+ FAIL  src/test/godtierHome.test.tsx > Inicio sin viajes: guía del primer viaje > recomendaciones vacías y gastos vacíos explican qué hacer (sin $0.00 gigante)
+ FAIL  src/test/godtierHome.test.tsx > Inicio con viaje: centro de mando > un borrador sin cotización pide cotizar; mientras carga no muestra una acción equivocada
+ FAIL  src/test/godtierPlan.test.tsx > los ejemplos llenan el campo y los atajos de fechas ponen salida y regreso
+ FAIL  src/test/membersMore.test.tsx > Members Only con la curaduría > panel del Concierge: pide members_venues con la ciudad, muestra fuente y barrio; no lee la tabla
+ FAIL  src/test/priveEntry.test.tsx > el menú lateral y 'Más' llevan a /prive
+ FAIL  src/test/priveHub.test.tsx > Grand Welcome > con movimiento completo empieza en negro y avanza por escenas; las fotos se piden después
+ FAIL  src/test/priveHub.test.tsx > guía de inicio > el consentimiento del Travel DNA se guarda; reservas: cinco etiquetas sin prometer nada
+ FAIL  src/test/priveHub.test.tsx > guía de inicio > al terminar: WELCOME TO YOUR WORLD. → EXPLORE PRIVÉ guarda completed_at
+ FAIL  src/test/priveInvitation.test.tsx > /prive/invitacion > el token #t= se quita de la URL al llegar y se envía solo al aceptar
+ FAIL  src/test/priveInvitation.test.tsx > /prive/invitacion > invitación de otra cuenta: mensaje genérico y cambio de cuenta
+ FAIL  src/test/priveInvitation.test.tsx > /prive/invitacion > frase generada: se muestra una vez, nunca se guarda y la tarjeta no muestra credenciales
+ FAIL  src/test/tripSplitLive.test.tsx > Modo viaje: el Concierge habla de este viaje > abrir el Concierge fija este viaje como activo

@@ -47,7 +47,7 @@ cada visita: prive-access › unlock → sesión Privé → prive_require en cad
 |---|---|---|---|---|---|
 | Invitación | 32 bytes aleatorios (base64url, 43 caracteres) | Solo en el **fragmento** `#t=` del enlace | SHA-256 | 30 días | Puntero; acepta solo la cuenta dueña |
 | Restablecimiento | 32 bytes | Fragmento `#t=` de `/prive/restablecer` | SHA-256 | 30 minutos | **Uno** |
-| Sesión Privé | 32 bytes | Respuesta de `unlock`; el navegador lo guarda en `sessionStorage` | SHA-256 | 12 h absolutas, 2 h sin uso | Hasta que vence, se bloquea o cambia la contraseña |
+| Sesión Privé | 32 bytes | Respuesta de `unlock`; el navegador lo guarda en `localStorage` + cookie de sesión del navegador (sin el token; la sesión normal no sobrevive al cierre del navegador) | SHA-256 | 12 h absolutas, 2 h sin uso; "mantener mi sesión": 30 días, 7 días sin uso | Hasta que vence, se bloquea, cambia la contraseña o se cierra la sesión de IATOS |
 
 - El **fragmento** (`#…`) no lo manda el navegador a ningún servidor, ni queda en bitácoras ni en el encabezado Referer. La app lo lee y lo borra de la barra de direcciones.
 - Todos se generan con `gen_random_bytes` (pgcrypto) dentro de la base. El de invitación se **regenera en cada envío** de correo: un enlace de un envío fallido anterior deja de servir.

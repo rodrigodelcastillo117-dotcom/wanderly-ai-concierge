@@ -1,0 +1,63 @@
+OK Q1 trip_analysis: 1 permitido, el 2o negado, contador=1
+OK Q2 concierge: 3 permitidos, el 4o negado, mes nuevo reinicia (quedan 2)
+OK Q3 PRO: permitido sin descontar
+OK Q4 tipo desconocido negado
+OK Q5 solo service_role puede ejecutar las funciones de pago y cuota
+OK S1 evento inicial crea la fila trialing
+OK S2 evento más nuevo se aplica (active)
+OK S3 evento viejo (past_due tardío) ignorado; sigue active
+OK S4 deleted de otra suscripción no toca la viva (búsqueda por customer)
+OK S5 cancelación propia aplicada; nueva suscripción tras cancelar sí se aplica
+OK S6 fila comped intacta ante eventos de Stripe
+OK S7 usuario desconocido y cuenta borrada no truenan
+OK S8 al terminar la suscripción pagada, quien está en comp_grants queda comped
+OK C1 cortesía solo con correo confirmado
+OK C2 la cortesía no pisa una suscripción pagada viva
+OK C3 apply_comp_grants_now respeta suscripciones pagadas vivas
+OK F1 gratis con cupo: permitido (usado 1 de 3)
+OK F2 tercer mensaje (el último) permitido, quedan 0
+OK F3 cuarto mensaje negado: limit=3 used=3 renews_at=2026-11-01T00:00:00+00:00
+OK F8 mes nuevo: el contador se reinicia (usado 1 de 3)
+OK F5 PRO activo, F6 en prueba, F7 cortesía: ilimitado y sin gastar el cupo gratuito
+OK R1 análisis fallido liberado: contador sigue en 0
+OK R2 reintento con la misma llave reutiliza la reserva
+OK R3 doble clic y R4 petición simultánea: in_progress, una sola reserva viva
+OK R5 confirmado: trips_analyzed_used=1 y get_access_state.trips_remaining=0
+OK R6 reintento tras conexión perdida devuelve el viaje guardado (sin cobrar de nuevo)
+OK R7 error tras completar no deshace ni duplica el cobro
+OK F4 análisis de una sola vez agotado: limit=1 used=1 renews_at=null
+OK R8 llave derivada sin repetición de viaje viejo
+OK R9 30 llaves nuevas: 1 reserva viva, 1 confirmación
+OK R10 PRO: máximo 3 análisis en curso a la vez
+OK R11 reserva caída caduca y no quema el beneficio
+OK R12 el uso anterior a la migración se respeta
+OK M1 aclaración de viaje / error del modelo no gasta mensaje gratis
+OK M2 3 respuestas cuentan; la 4a: quota_exceeded concierge_monthly renews_at=2026-11-01T00:00:00+00:00
+OK M3 mes nuevo: contador reiniciado a 1
+OK M4 PRO: mensajes sin contar
+OK F10 sin acceso del cliente a reservas, contadores ni funciones de cuota
+OK F10 llamada directa como usuario autenticado: permission denied
+OK P1 semilla propuesta (FREE 3/1, PRO 100/10) e interruptores apagados
+OK P2 interruptor apagado: PRO ilimitado (12 análisis y 105 mensajes); access_state sin límites
+OK P3 interruptor encendido: PRO limitado a 10/100 al mes, quota *_monthly y upgrade_available=false
+OK P4 PRO: uso del mes anterior no cuenta
+OK P5 límite gratuito leído de plan_limits (5), también en get_access_state
+OK P6 NULL = ilimitado; sin fila se usa el límite de siempre (3)
+OK P7 límites e interruptores solo para el servidor
+OK T1 interruptor apagado: sin prueba, plan gratuito
+OK T2 encendido: al confirmar el correo, 30 días de PRO sin tarjeta ni Stripe; se registra solo el hash
+OK T3 mismo correo normalizado: sin segunda prueba
+OK T4 borrar y recrear la cuenta: sin nueva prueba (el registro sobrevive sin user_id)
+OK T5 correo con cortesía: comped, sin consumir prueba
+OK T6 prueba vencida: plan gratuito, sin cobro y con sus viajes
+OK T7 contratar después de la prueba: el webhook guarda la suscripción de Stripe
+OK T8 trial_grants solo para el servidor
+OK L1 trialing sin current_period_end ya no es PRO; active sin fecha sigue igual
+OK L2 valores recomendados sembrados (FREE/PRO/TRIAL, 5 tipos)
+OK L3 prueba sin tarjeta: 5 análisis en los 30 días, quota trip_analysis_trial, puede contratar PRO
+OK L4 prueba de Stripe con tarjeta cuenta como PRO
+OK L5 PRO con interruptor: máx. 3 análisis al día (trip_analysis_daily, renueva mañana)
+OK L6 plan_limit(): free price_watches=0, pro live_searches suave y sin aplicar, trial tracked_flights=2
+OK L7 re-correr la migración respeta los límites editados por el dueño
+OK CONCURRENCIA trip_analysis: sesión 1 permitida, sesión 2 simultánea negada, contador=1
+OK CONCURRENCIA reserve_quota: sesión 1 reservada, sesión 2 simultánea in_progress
