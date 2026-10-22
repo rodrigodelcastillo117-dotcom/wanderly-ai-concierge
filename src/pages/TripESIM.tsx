@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { airaloLink, holaflyLink } from "@/lib/affiliateLinks";
-import { trackBookingClick } from "@/lib/trackBooking";
+import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 
 const PROVIDERS = [
   {
@@ -29,6 +29,8 @@ const PROVIDERS = [
 ];
 
 const TripESIM = () => {
+  // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
+  const tripTool = useTripTool();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [country, setCountry] = useState(params.get("country") ?? "");
@@ -36,6 +38,7 @@ const TripESIM = () => {
   return (
     <DashboardLayout>
       <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 space-y-6">
+        <TripToolBanner tool={tripTool} />
         <div className="flex items-start gap-3">
           <Wifi className="w-8 h-8 text-primary mt-1" />
           <div>
@@ -57,7 +60,7 @@ const TripESIM = () => {
               <div className="text-[11px] px-2 py-1.5 rounded bg-primary/10 text-primary border border-primary/20 mb-3">
                 {p.perk}
               </div>
-              <Button onClick={() => trackBookingClick({
+              <Button onClick={() => tripTool.track({
                 category: "esim", provider: p.name, title: `eSIM ${country || ""}`.trim(),
                 country, bookingUrl: p.link(country),
               })} className="w-full">

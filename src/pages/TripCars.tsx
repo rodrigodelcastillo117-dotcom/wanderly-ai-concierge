@@ -5,9 +5,11 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { discoverCarsLink, rentalcarsLink, kayakCarsLink } from "@/lib/affiliateLinks";
-import { trackBookingClick } from "@/lib/trackBooking";
+import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 
 const TripCars = () => {
+  // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
+  const tripTool = useTripTool();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [city, setCity] = useState(params.get("city") ?? "");
@@ -25,6 +27,7 @@ const TripCars = () => {
   return (
     <DashboardLayout>
       <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 space-y-6">
+        <TripToolBanner tool={tripTool} />
         <div className="flex items-start gap-3">
           <Car className="w-8 h-8 text-primary mt-1" />
           <div>
@@ -55,7 +58,7 @@ const TripCars = () => {
             <div key={p.name} className="glass-card rounded-2xl p-5 border border-white/10 hover:border-primary/40 transition-all">
               <h3 className="font-display text-lg mb-2">{p.name}</h3>
               <p className="text-xs text-muted-foreground mb-4">{p.desc}</p>
-              <Button disabled={!canSearch} onClick={() => trackBookingClick({
+              <Button disabled={!canSearch} onClick={() => tripTool.track({
                 category: "car", provider: p.name, title: `Auto en ${city}`,
                 city, bookingUrl: p.url(), startAt: pickup || undefined,
               })} className="w-full">

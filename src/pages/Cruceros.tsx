@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { vacationsToGoLink, cruiseDirectLink, cruiseCriticLink } from "@/lib/affiliateLinks";
-import { trackBookingClick } from "@/lib/trackBooking";
+import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import DestinationVideo from "@/components/DestinationVideo";
 
 const DESTINOS = [
@@ -24,6 +24,8 @@ const DESTINOS = [
 ];
 
 const Cruceros = () => {
+  // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
+  const tripTool = useTripTool();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [destination, setDestination] = useState(params.get("dest") ?? "Greek Isles");
@@ -52,7 +54,7 @@ const Cruceros = () => {
 
   function reservar(name: string, url: string) {
     if (!destination) return toast.error("Selecciona destino");
-    trackBookingClick({
+    tripTool.track({
       category: "activity",
       provider: name,
       title: `Crucero ${destination}`,
@@ -65,6 +67,7 @@ const Cruceros = () => {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
+        <TripToolBanner tool={tripTool} />
         <div className="relative w-full h-48 md:h-72 rounded-2xl overflow-hidden border border-white/10">
           <DestinationVideo
             query={`cruise ship ${destination || "ocean"}`}

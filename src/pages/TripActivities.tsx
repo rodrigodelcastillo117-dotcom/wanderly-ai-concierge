@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getYourGuideLink, viatorLink, tripadvisorLink, openTableLink } from "@/lib/affiliateLinks";
-import { trackBookingClick } from "@/lib/trackBooking";
+import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 
 type TAResult = {
   id: string; name: string; address: string; rating: number | null;
@@ -18,6 +18,8 @@ type TAResult = {
 };
 
 const TripActivities = () => {
+  // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
+  const tripTool = useTripTool();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [city, setCity] = useState(params.get("city") ?? "");
@@ -56,6 +58,7 @@ const TripActivities = () => {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
+        <TripToolBanner tool={tripTool} />
         <div className="flex items-start gap-3">
           <Sparkles className="w-8 h-8 text-primary mt-1" />
           <div>
@@ -127,7 +130,7 @@ const TripActivities = () => {
               <div key={s.name} className="glass-card rounded-2xl p-5 border border-white/10 hover:border-primary/40 transition-all">
                 <h3 className="font-display text-lg mb-2">{s.name}</h3>
                 <p className="text-xs text-muted-foreground mb-4">{s.desc}</p>
-                <Button disabled={!city} onClick={() => trackBookingClick({
+                <Button disabled={!city} onClick={() => tripTool.track({
                   category: s.category, provider: s.name, title: `${s.name} — ${city}`,
                   city, bookingUrl: s.link(),
                 })} variant="outline" className="w-full">

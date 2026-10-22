@@ -10,6 +10,8 @@ export type TrackBookingInput = {
   country?: string;
   startAt?: string;
   imageUrl?: string;
+  /** Viaje al que pertenece el clic (E-22). Solo si la pantalla sabe de qué viaje se trata. */
+  tripId?: string | null;
 };
 
 /**
@@ -51,6 +53,7 @@ export function logBookingClick(b: TrackBookingInput): Promise<void> {
         country: b.country ?? null,
         start_at: b.startAt ?? null,
         image_url: b.imageUrl ?? null,
+        trip_id: b.tripId ?? null,
         status: "pending",
       });
       if (error) console.warn("No se pudo registrar el clic de reserva:", error.message);
