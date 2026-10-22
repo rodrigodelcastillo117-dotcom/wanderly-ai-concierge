@@ -14,31 +14,12 @@ import { BackButton } from "@/components/BackButton";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 
-// Números de emergencia por país (datos reales básicos)
-const EMERGENCY_NUMBERS: Record<string, { policia: string; ambulancia: string; bomberos: string }> = {
-  "México": { policia: "911", ambulancia: "911", bomberos: "911" },
-  "Estados Unidos": { policia: "911", ambulancia: "911", bomberos: "911" },
-  "España": { policia: "112", ambulancia: "112", bomberos: "112" },
-  "Francia": { policia: "17", ambulancia: "15", bomberos: "18" },
-  "Italia": { policia: "113", ambulancia: "118", bomberos: "115" },
-  "Reino Unido": { policia: "999", ambulancia: "999", bomberos: "999" },
-  "Japón": { policia: "110", ambulancia: "119", bomberos: "119" },
-  "Grecia": { policia: "100", ambulancia: "166", bomberos: "199" },
-  "Tailandia": { policia: "191", ambulancia: "1669", bomberos: "199" },
-  "Indonesia": { policia: "110", ambulancia: "118", bomberos: "113" },
-  "Brasil": { policia: "190", ambulancia: "192", bomberos: "193" },
-  "Argentina": { policia: "911", ambulancia: "107", bomberos: "100" },
-  "Colombia": { policia: "123", ambulancia: "125", bomberos: "119" },
-  "Perú": { policia: "105", ambulancia: "106", bomberos: "116" },
-  "Marruecos": { policia: "19", ambulancia: "15", bomberos: "15" },
-  "Turquía": { policia: "155", ambulancia: "112", bomberos: "110" },
-};
-
-const getEmergency = (pais?: string) => {
-  if (!pais) return { policia: "112", ambulancia: "112", bomberos: "112" };
-  const k = Object.keys(EMERGENCY_NUMBERS).find(c => pais.toLowerCase().includes(c.toLowerCase()));
-  return k ? EMERGENCY_NUMBERS[k] : { policia: "112", ambulancia: "112", bomberos: "112" };
-};
+import {
+  getEmergency,
+  UNKNOWN_EMERGENCY_TEXT,
+  EMERGENCY_SOURCE_NOTE,
+  UNKNOWN_EMERGENCY_SOURCE_NOTE,
+} from "@/lib/emergencyNumbers";
 
 const LiveTrip = () => {
   const { id } = useParams();
@@ -100,7 +81,7 @@ const LiveTrip = () => {
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
       <BackButton floating fallback={`/dashboard/viajes/${trip.id}`} />
-      <FeatureTooltip id="live" icon="🎙️" text="Modo en-viaje. Iato te avisa de retrasos, sugiere bares cerca, te recuerda confirmar reservas." shouldShow={tipLive.shouldShow} onDismiss={tipLive.dismiss} />
+      <FeatureTooltip id="live" icon="🎙️" text="Modo en-viaje: tu plan de hoy, accesos rápidos y números de emergencia en un solo lugar." shouldShow={tipLive.shouldShow} onDismiss={tipLive.dismiss} />
       {/* Ambient glow */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 -right-40 w-[520px] h-[520px] rounded-full bg-primary/[0.08] blur-[140px]" />
@@ -245,14 +226,27 @@ const LiveTrip = () => {
               </div>
               <div>
                 <h3 className="text-lg font-semibold">Emergencias</h3>
-                <p className="text-xs text-foreground/60">{trip.pais_destino ?? "Local"}</p>
+                <p className="text-xs text-foreground/60">{emergency.country ?? trip.pais_destino ?? "País no indicado"}</p>
               </div>
             </div>
-            <div className="space-y-2">
-              <SosBtn label="Policía" number={emergency.policia} />
-              <SosBtn label="Ambulancia" number={emergency.ambulancia} />
-              <SosBtn label="Bomberos" number={emergency.bomberos} />
-            </div>
+            {emergency.verified && emergency.numbers ? (
+              <div className="space-y-2">
+                <SosBtn label="Policía" number={emergency.numbers.policia} />
+                <SosBtn label="Ambulancia" number={emergency.numbers.ambulancia} />
+                <SosBtn label="Bomberos" number={emergency.numbers.bomberos} />
+                <p className="text-xs text-foreground/60 pt-1">{EMERGENCY_SOURCE_NOTE}</p>
+              </div>
+            ) : (
+              // País fuera de la lista: no presentamos ningún número como dato confirmado.
+              <div className="space-y-2">
+                <p role="alert" className="text-sm text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                  {UNKNOWN_EMERGENCY_TEXT}
+                </p>
+                <SosBtn label="112 (mayoría de Europa)" number="112" />
+                <SosBtn label="911 (EE. UU.)" number="911" />
+                <p className="text-xs text-foreground/60 pt-1">{UNKNOWN_EMERGENCY_SOURCE_NOTE}</p>
+              </div>
+            )}
             <Button variant="ghost" className="w-full mt-4" onClick={() => setSosOpen(false)}>Cerrar</Button>
           </motion.div>
         </div>
