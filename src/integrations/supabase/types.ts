@@ -937,6 +937,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active_trip_id: string | null
           avatar_url: string | null
           ciudad_origen: string | null
           created_at: string
@@ -955,6 +956,7 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          active_trip_id?: string | null
           avatar_url?: string | null
           ciudad_origen?: string | null
           created_at?: string
@@ -973,6 +975,7 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          active_trip_id?: string | null
           avatar_url?: string | null
           ciudad_origen?: string | null
           created_at?: string
