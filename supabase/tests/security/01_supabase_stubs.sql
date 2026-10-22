@@ -9,6 +9,14 @@ CREATE TABLE auth.users (
   raw_user_meta_data jsonb DEFAULT '{}'::jsonb, raw_app_meta_data jsonb DEFAULT '{}'::jsonb,
   email_confirmed_at timestamptz, last_sign_in_at timestamptz, updated_at timestamptz DEFAULT now(), phone text
 );
+-- Como en Supabase (GoTrue): suspensión, borrado suave y sesiones de Auth (cerrar sesión borra la
+-- fila; borrar la cuenta borra sus sesiones). Las usa prive_auth_session_alive.
+ALTER TABLE auth.users ADD COLUMN banned_until timestamptz, ADD COLUMN deleted_at timestamptz;
+CREATE TABLE auth.sessions (
+  id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(), not_after timestamptz,
+  refreshed_at timestamp, aal text, user_agent text, ip inet, tag text
+);
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.role', true), '') $$;
 CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;

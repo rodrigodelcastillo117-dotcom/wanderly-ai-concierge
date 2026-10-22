@@ -16,5 +16,5 @@ for f in "$MIG"/*.sql; do
 done
 # prive_require es la real del grupo core (20261023090100). auth.sessions existe en Supabase pero no
 # en los stubs locales: prive_auth_session_alive la usa (igual que supabase/tests/prive/run.sh).
-$PSQL -d "$DB" -c "CREATE TABLE IF NOT EXISTS auth.sessions (id uuid PRIMARY KEY, user_id uuid, not_after timestamptz, created_at timestamptz DEFAULT now())" >/dev/null
+$PSQL -d "$DB" -c "CREATE TABLE IF NOT EXISTS auth.sessions (id uuid PRIMARY KEY, user_id uuid, not_after timestamptz, created_at timestamptz DEFAULT now())" >/dev/null 2>&1
 $PSQL -X -d "$DB" -f "$DIR/catalog.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'

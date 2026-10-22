@@ -88,9 +88,16 @@ async function checkNewPassword(deps: PriveAccessDeps, pw: unknown): Promise<{ p
   return { breach };
 }
 
+/** Sin sesión de Auth comprobable no hay sesión Privé (AUD-01): "vuelve a iniciar sesión". */
+const authSessionInvalid = () => fail("UNAUTHENTICATED", {}, 401);
+
 /** Abre una sesión Privé (después de fijar, cambiar o restablecer la contraseña). */
 async function openSession(deps: PriveAccessDeps, ctx: PriveRequestCtx, password: string): Promise<ActionOutcome> {
+  // AUD-01: una sesión Privé siempre queda ligada al session_id del JWT. Sin él (JWT raro, de servicio
+  // o manipulado) no se emite; la base lo vuelve a comprobar contra auth.sessions.
+  if (!ctx.authSessionId) return authSessionInvalid();
   const r = await call(deps, "prive_unlock", { _user: ctx.user.id, _password: password, _ip_hash: ctx.ipHash, _auth_session_id: ctx.authSessionId });
+  if (r.reason === "AUTH_SESSION_INVALID") return authSessionInvalid();
   if (r.ok === true) {
     if (r.notice === "new_access") await deps.sendNotice("new_access", ctx.user);
     return ok({ prive_session: r.token, expires_at: r.expires_at });

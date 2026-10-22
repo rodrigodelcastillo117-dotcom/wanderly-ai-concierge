@@ -244,3 +244,58 @@ describe("nunca registra secretos", () => {
     expect(text).not.toContain("valentina@example.test");
   });
 });
+
+// AUD-01 (cierre de auditoría): la función de Edge nunca abre una sesión Privé sin la sesión de Auth
+// del JWT, y si la base no puede validar la sesión Privé (o la de Auth) no hace nada sensible.
+describe("AUD-01 · sesión de Auth: falla cerrado", () => {
+  const noSid = { ...ctx, authSessionId: null };
+  const runNoSid = (body: unknown) => handlePriveAction(body, noSid, deps());
+
+  it("desbloquear con un JWT sin session_id → 401 UNAUTHENTICATED sin llamar a la base", async () => {
+    expect(await runNoSid({ action: "unlock", password: "Una-frase-muy-propia-77" }))
+      .toEqual({ status: 401, body: { ok: false, code: "UNAUTHENTICATED" } });
+    expect(calls).toEqual([]);
+  });
+
+  it("la base no puede comprobar la sesión de Auth (cerrada, suspendida, ilegible) → 401, sin token", async () => {
+    rpcImpl.prive_unlock = () => okData({ ok: false, reason: "AUTH_SESSION_INVALID" });
+    const out = await run({ action: "unlock", password: "Una-frase-muy-propia-77" });
+    expect(out).toEqual({ status: 401, body: { ok: false, code: "UNAUTHENTICATED" } });
+    expect(JSON.stringify(out)).not.toContain(PS);
+  });
+
+  it("ninguna acción entrega una sesión Privé sin session_id de Auth (fijar, cambiar, restablecer)", async () => {
+    rpcImpl.prive_set_password = () => okData({ ok: true });
+    rpcImpl.prive_change_password = () => okData({ ok: true });
+    rpcImpl.prive_complete_reset = () => okData({ ok: true });
+    const outs = [
+      await runNoSid({ action: "set_password", password: "Una-frase-muy-propia-77" }),
+      await runNoSid({ action: "change_password", prive_session: PS, old_password: "Una-frase-muy-propia-77", new_password: "Otra-frase-muy-propia-88" }),
+      await runNoSid({ action: "complete_reset", token: TOKEN, new_password: "Otra-frase-muy-propia-88" }),
+    ];
+    for (const o of outs) expect(o.body).not.toHaveProperty("prive_session");
+    expect(calls.map(([fn]) => fn)).not.toContain("prive_unlock");
+  });
+
+  it("token Privé viejo: cada acción que lo exige se detiene con el código de la base y no toca nada", async () => {
+    for (const code of ["PRIVE_SESSION_INVALID", "PRIVE_SESSION_EXPIRED", "PRIVE_NOT_PRO", "PRIVE_NOT_ELIGIBLE", "PRIVE_REVOKED"]) {
+      calls = [];
+      userRpcImpl.prive_require = () => ({ data: null, error: { message: code, code: "P0001" } });
+      for (const action of ["change_password", "revoke_sessions", "save_progress"]) {
+        const out = await run({ action, prive_session: PS, old_password: "Una-frase-muy-propia-77", new_password: "Otra-frase-muy-propia-88", welcome_version: 1 });
+        expect(out).toEqual({ status: 200, body: { ok: false, code } });
+      }
+      expect(calls).toEqual([]);
+    }
+  });
+
+  it("si prive_require falla por otra causa (permisos, red) → 500 INTERNAL y nada con service_role", async () => {
+    userRpcImpl.prive_require = () => ({ data: null, error: { message: "permission denied for schema auth", code: "42501" } });
+    for (const action of ["change_password", "revoke_sessions", "save_progress"]) {
+      const out = await run({ action, prive_session: PS, old_password: "Una-frase-muy-propia-77", new_password: "Otra-frase-muy-propia-88" });
+      expect(out).toEqual({ status: 500, body: { ok: false, code: "INTERNAL" } });
+    }
+    expect(calls).toEqual([]);
+    expect(JSON.stringify(logs)).not.toContain(PS);
+  });
+});
