@@ -9,7 +9,7 @@ import { adminClient } from "../_shared/entitlements.ts";
 import { clientIp, enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { hibpCheck, ipHash, jwtSessionId } from "../_shared/prive-core.ts";
-import { priveNoticeEmail, priveResetEmail } from "../_shared/prive-email.ts";
+import { PRIVE_FROM, priveNoticeEmail, priveReplyTo, priveResetEmail } from "../_shared/prive-email.ts";
 import { type ClaimedInvitation, sendDueInvitations } from "../_shared/prive-invite-sender.ts";
 import { redactSecrets } from "../_shared/redact.ts";
 import { handlePriveAction, type PriveAccessDeps } from "./actions.ts";
@@ -26,6 +26,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 const SITE_URL = Deno.env.get("SITE_URL") ?? "https://traveliatos.life";
 const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") ?? undefined;
+// Buzón que sí recibe (opcional). Sin él, los correos salen sin Reply-To (hoy hola@ no tiene MX).
+const REPLY_TO = priveReplyTo(Deno.env.get("PRIVE_REPLY_TO"));
 const IP_SALT = Deno.env.get("PRIVE_IP_SALT") ?? "";
 let warnedNoSalt = false;
 
@@ -79,8 +81,8 @@ Deno.serve(async (req) => {
     sendNotice: async (kind, u, extra) => {
       try {
         if (!u.email || !emailReady()) return false;
-        const mail = priveNoticeEmail({ kind, firstName: await firstName(u.id), siteUrl: SITE_URL, supportEmail: SUPPORT_EMAIL, resetToken: extra?.resetToken });
-        const r = await sendEmail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text });
+        const mail = priveNoticeEmail({ kind, firstName: await firstName(u.id), siteUrl: SITE_URL, supportEmail: SUPPORT_EMAIL, resetToken: extra?.resetToken, replyTo: REPLY_TO });
+        const r = await sendEmail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text, from: PRIVE_FROM, ...(REPLY_TO ? { replyTo: REPLY_TO } : {}) });
         return r.ok;
       } catch (e) {
         console.warn("prive-access: aviso no enviado", kind, redactSecrets((e as Error).message));
@@ -90,8 +92,8 @@ Deno.serve(async (req) => {
     sendResetEmail: async (u, token) => {
       try {
         if (!u.email || !emailReady()) return false;
-        const mail = priveResetEmail({ firstName: await firstName(u.id), token, siteUrl: SITE_URL, supportEmail: SUPPORT_EMAIL });
-        return (await sendEmail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text })).ok;
+        const mail = priveResetEmail({ firstName: await firstName(u.id), token, siteUrl: SITE_URL, supportEmail: SUPPORT_EMAIL, replyTo: REPLY_TO });
+        return (await sendEmail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text, from: PRIVE_FROM, ...(REPLY_TO ? { replyTo: REPLY_TO } : {}) })).ok;
       } catch {
         return false;
       }
@@ -105,6 +107,7 @@ Deno.serve(async (req) => {
           send: (m) => sendEmail(m),
           siteUrl: SITE_URL,
           supportEmail: SUPPORT_EMAIL,
+          replyTo: REPLY_TO,
           warn: (...a) => console.warn(...a),
         }, 1, uid);
         return s.sent > 0 ? "sent" : s.claimed > 0 ? "failed" : "none";
