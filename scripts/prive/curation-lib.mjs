@@ -134,7 +134,7 @@ export function mapAge(raw, universe) {
   else if (t && !/todas las edades|all ages|^todas$/.test(t)) note = `Edad: ${raw}`;
   if (NIGHT_UNIVERSES.has(universe) && policy === "todas") {
     policy = "18+";
-    note = note ?? (t ? `Edad según la fuente: ${raw}` : null);
+    note = "La fuente no indica una edad mínima; IATOS lo marca 18+ por ser vida nocturna o casino.";
   }
   if (policy !== "todas" && t && !/^(18|21)\+$/.test(t.trim())) note = note ?? `Según la fuente: ${raw}`;
   return { policy, note };
