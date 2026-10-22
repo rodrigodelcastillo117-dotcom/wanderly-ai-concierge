@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+import { useSavedDestinations } from "@/hooks/useSavedDestinations";
+import { homeTrips } from "@/lib/homeTrips";
 import { VoiceInput } from "@/components/VoiceInput";
 import tileTrenes from "@/assets/tools/tile-trenes.png";
 import tileFerries from "@/assets/tools/tile-ferries.png";
@@ -81,8 +83,12 @@ const DashboardHome = () => {
   const [name, setName] = useState("");
 
   const [trips, setTrips] = useState<any[]>([]);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  // Favoritos persistidos (los mismos de Descubre y Favoritos), no un estado local.
+  const { saved: favorites, pending: favPending, toggle: toggleFav } = useSavedDestinations();
   const [concierge, setConcierge] = useState("");
+  // La tarjeta del Concierge tiene su propio texto: compartía el estado con el buscador de
+  // arriba y escribir aquí abría el panel "Tu idea de viaje".
+  const [conciergeCard, setConciergeCard] = useState("");
   const [tick, setTick] = useState(0);
   const [reelIdx, setReelIdx] = useState(0);
   const [reelFading, setReelFading] = useState(false);
@@ -105,12 +111,14 @@ const DashboardHome = () => {
         .maybeSingle();
       setName(profile?.full_name?.split(" ")[0] ?? "viajero");
 
+      // Por fecha de salida (no por fecha de creación) y solo las columnas que se muestran:
+      // homeTrips() elige el viaje en curso y los próximos.
       const { data: t } = await supabase
         .from("trips")
-        .select("*")
+        .select("id, destino, pais_destino, fecha_salida, fecha_regreso, cover_image_url")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(2);
+        .order("fecha_salida", { ascending: true })
+        .limit(50);
       setTrips(t ?? []);
 
       // ───── Smart Spend real (gastos del mes actual vs mes anterior) ─────
@@ -186,38 +194,20 @@ const DashboardHome = () => {
         setReelFading(false);
       }, 600);
     };
-    rotate(); // start immediately so first change is at 10s
+    // Sin rotate() inmediato: saltaba el primer reel a los 600 ms.
     reelTimer.current = setInterval(rotate, REEL_DURATION);
     return () => {
       if (reelTimer.current) clearInterval(reelTimer.current);
     };
   }, []);
 
-  const toggleFav = (n: string) => {
-    setFavorites((prev) => {
-      const next = new Set(prev);
-      next.has(n) ? next.delete(n) : next.add(n);
-      return next;
-    });
-  };
 
   const now = new Date();
   const today = now.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const time = now.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase().replace(/\./g, "");
 
-  // Viaje activo: hoy entre fecha_salida y fecha_regreso
-  const activeTrip = trips.find((t) => {
-    if (!t.fecha_salida || !t.fecha_regreso) return false;
-    const s = new Date(t.fecha_salida + "T00:00:00").getTime();
-    const e = new Date(t.fecha_regreso + "T23:59:59").getTime();
-    const n = Date.now();
-    return n >= s && n <= e;
-  });
-  const upcomingTrip = !activeTrip ? trips.find((t) => {
-    if (!t.fecha_salida) return false;
-    const s = new Date(t.fecha_salida + "T00:00:00").getTime();
-    return s > Date.now() && s - Date.now() < 7 * 86400000;
-  }) : null;
+  // Viaje activo / próximo / lista, por fechas locales (antes: los 2 últimos creados).
+  const { active: activeTrip, upcoming: upcomingTrip, list: upcomingList } = homeTrips(trips, localISODate(now));
 
 
 
@@ -451,7 +441,15 @@ const DashboardHome = () => {
                   transition={{ duration: 0.4, delay: i * 0.05 }}
                   whileHover={{ y: -4 }}
                   onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}${d.country ? `&pais=${encodeURIComponent(d.country)}` : ""}&autoCheapest=1`)}
-                  className="cursor-pointer group"
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Planear viaje a ${d.name}`}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+                    e.preventDefault();
+                    navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}${d.country ? `&pais=${encodeURIComponent(d.country)}` : ""}&autoCheapest=1`);
+                  }}
+                  className="cursor-pointer group rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <div className="relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-white/[0.05]">
                     <DestinationVideo query={d.image_query} fallbackImage={santorini} alt={d.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
@@ -460,8 +458,10 @@ const DashboardHome = () => {
                       {d.score}% MATCH
                     </div>
                     <button
-                      onClick={(e) => { e.stopPropagation(); toggleFav(d.name); }}
-                      aria-label="Favorito"
+                      onClick={(e) => { e.stopPropagation(); toggleFav(d); }}
+                      disabled={favPending.has(d.name)}
+                      aria-label={favorites.has(d.name) ? `Quitar ${d.name} de favoritos` : `Guardar ${d.name} en favoritos`}
+                      aria-pressed={favorites.has(d.name)}
                       className="absolute top-3 right-3 p-2 rounded-full bg-black/55 backdrop-blur-md hover:bg-black/75 transition"
                     >
                       <Heart className={`w-3.5 h-3.5 ${favorites.has(d.name) ? "fill-primary text-primary" : "text-white/90"}`} />
@@ -496,11 +496,11 @@ const DashboardHome = () => {
                 Ver todos <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
-            {trips.length === 0 ? (
+            {upcomingList.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">Aún no tienes viajes planeados.</p>
             ) : (
               <div className="space-y-2.5 mb-5">
-                {trips.map((t) => {
+                {upcomingList.map((t) => {
                   // Días de calendario locales (new Date("YYYY-MM-DD") es UTC y corría un día).
                   // Un viaje en curso o pasado ya no dice "EN 0D".
                   const days = daysFromToday(t.fecha_salida);
@@ -621,12 +621,13 @@ const DashboardHome = () => {
               </div>
             </div>
             <form
-              onSubmit={(e) => { e.preventDefault(); if (concierge.trim()) navigate(`/dashboard/planear?q=${encodeURIComponent(concierge)}`); }}
+              onSubmit={(e) => { e.preventDefault(); if (conciergeCard.trim()) navigate(`/dashboard/planear?q=${encodeURIComponent(conciergeCard)}`); }}
               className="relative w-full"
             >
               <Input
-                value={concierge}
-                onChange={(e) => setConcierge(e.target.value)}
+                value={conciergeCard}
+                onChange={(e) => setConciergeCard(e.target.value)}
+                aria-label="Escribe tu solicitud al Concierge"
                 placeholder="Escribe tu solicitud…"
                 className="pr-12 h-11 md:h-12 rounded-2xl bg-white/[0.03] border-white/[0.08] focus-visible:ring-primary/40 text-sm w-full"
               />
@@ -647,20 +648,16 @@ const DashboardHome = () => {
             <div className="relative rounded-2xl overflow-hidden h-[170px] md:h-[320px] group cursor-pointer ring-1 ring-white/[0.05] w-full" onClick={() => navigate("/dashboard/descubre")}>
               <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum} alt="Escapadas románticas" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-              <button className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center hover:bg-black/75 transition" aria-label="Siguiente">
+              {/* Antes era un botón "Siguiente" sin acción; la tarjeta entera abre Descubre. */}
+              <span aria-hidden="true" className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center">
                 <ChevronRight className="w-4 h-4" />
-              </button>
+              </span>
               <div className="absolute bottom-3 left-3 right-3">
                 <h3 className="font-display text-xl md:text-2xl mb-0.5 leading-tight">Escapadas <span className="italic gold-text font-light">románticas</span></h3>
                 <p className="text-[10px] md:text-[11px] text-white/70 tracking-wide">Destinos perfectos para conectar</p>
               </div>
             </div>
 
-            <div className="flex justify-center gap-1.5 mt-3">
-              <span className="w-6 h-1 rounded-full bg-primary" />
-              <span className="w-1 h-1 rounded-full bg-muted" />
-              <span className="w-1 h-1 rounded-full bg-muted" />
-            </div>
           </section>
 
 
