@@ -564,11 +564,12 @@ const TripDetail = () => {
                               title={v.aerolinea}
                               subtitle={`${v.duracion} · ${v.escalas}`}
                               price={`${fmtMXN(v.precio_por_persona)} / persona`}
+                              // Igual que en los hoteles, la procedencia del precio se ve sin abrir el detalle (N-07).
+                              badge={<PriceSourceBadge source={v.fuente_precio} estado={v.estado_dato} consultadoAt={v.consultado_at ?? (quote?.created_at ?? trip.created_at)} approximateDates={v.approximate_dates} />}
                               active={active}
                               selectable
                               onToggle={() => setSelVuelo(active ? -1 : i)}
                             >
-                              <PriceSourceBadge source={v.fuente_precio} estado={v.estado_dato} consultadoAt={v.consultado_at ?? (quote?.created_at ?? trip.created_at)} approximateDates={v.approximate_dates} className="mb-2" />
                               {v.notas && <p>{v.notas}</p>}
                               <button
                                 onClick={(e) => {

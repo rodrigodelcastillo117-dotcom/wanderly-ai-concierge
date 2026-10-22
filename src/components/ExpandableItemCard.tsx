@@ -22,6 +22,8 @@ interface ExpandableItemCardProps {
   onToggle?: () => void;
   defaultOpen?: boolean;
   actions?: ExpandableItemCardAction[];
+  /** Siempre visible bajo el precio (p. ej. PriceSourceBadge): la procedencia no se esconde en el detalle. */
+  badge?: ReactNode;
   children?: ReactNode; // detalle expandido (por qué, notas, etc.)
 }
 
@@ -36,6 +38,7 @@ export const ExpandableItemCard = ({
   onToggle,
   defaultOpen = false,
   actions,
+  badge,
   children,
 }: ExpandableItemCardProps) => {
 
@@ -87,6 +90,7 @@ export const ExpandableItemCard = ({
           <p className="font-display text-base sm:text-lg leading-tight break-words" title={title}>{title}</p>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
           {price && <p className="text-xs text-primary font-medium break-words">{price}</p>}
+          {badge && <div className="pt-0.5">{badge}</div>}
         </div>
 
         {/* Toggle detalle */}
