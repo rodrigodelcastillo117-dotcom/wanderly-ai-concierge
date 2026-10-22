@@ -179,6 +179,10 @@ const App = () => (
               <Route path="experiencia/:slug" element={<PriveExperiencePage />} />
               <Route path="solicitudes" element={<PriveRequestsPage />} />
               {/* ── fin IATOS Privé · catálogo ── */}
+              {/* ── IATOS Privé · privevalor: el servidor exige la sesión Privé en cada RPC ── */}
+              <Route path="drops" element={<PriveDropsPage />} />
+              <Route path="insider" element={<PriveInsiderPage />} />
+              <Route path="insider/:destino" element={<PriveInsiderPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
