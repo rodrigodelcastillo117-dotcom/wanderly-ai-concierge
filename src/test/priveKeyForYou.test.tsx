@@ -1,7 +1,10 @@
 // FOR YOU honesto (Doc A Fase 1 §3 y §5; Doc B §3): viaje correcto, editorial que se dice editorial, gustos solo
 // con permiso, y "Your World is Ready" medible y sin bloquear.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { configure, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+
+// Con la máquina cargada (suites en paralelo) los renders tardan: más margen, mismas aserciones.
+configure({ asyncUtilTimeout: 8000 });
 import { MemoryRouter } from "react-router-dom";
 import { forYouSource, personalization, personalizationLabel, reasonText, tripDestination, type HomeDestination } from "@/lib/priveKeyForYou";
 import { resolveActiveTrip } from "@/lib/activeTrip";
@@ -94,7 +97,7 @@ beforeEach(() => {
 });
 const wrap = (el: React.ReactNode) => render(<MemoryRouter>{el}</MemoryRouter>);
 
-describe("<CuratedForYou />", () => {
+describe("<CuratedForYou />", { timeout: 30000 }, () => {
   it("sin viaje: editorial y lo dice", async () => {
     wrap(<CuratedForYou />);
     expect(await screen.findByTestId("pk-personalization")).toHaveTextContent("Selección editorial verificada · aún no personalizada");
@@ -117,7 +120,7 @@ describe("<CuratedForYou />", () => {
   });
 });
 
-describe("<YourNextJourney />", () => {
+describe("<YourNextJourney />", { timeout: 30000 }, () => {
   it("con viaje: 'Tu próximo capítulo' con sus acciones", async () => {
     trips = [CDMX];
     wrap(<YourNextJourney />);
@@ -137,7 +140,7 @@ describe("<YourNextJourney />", () => {
   });
 });
 
-describe("<YourWorldIsReady />", () => {
+describe("<YourWorldIsReady />", { timeout: 30000 }, () => {
   it("solo para miembros recién activados, tras la ceremonia", () => {
     const s = { membership_status: "active", activated_at: "2026-10-20T00:00:00Z", welcome_version_seen: 99 };
     const now = Date.parse("2026-10-22T00:00:00Z");

@@ -33,7 +33,7 @@ export interface KeyResponse extends Partial<KeyResult> {
 
 export interface SavedPlanStep {
   experience_id: string; date?: string; start?: string; end?: string; start_iso?: string; intent?: string; transfer_min?: number;
-  experience?: Record<string, any> | null; follow_up: string; available: boolean;
+  experience?: { id?: string; slug?: string; name?: string; age_locked?: boolean; [k: string]: unknown } | null; follow_up: string; available: boolean;
 }
 export interface SavedPlan {
   id: string; mode: KeyMode; tier: KeyProposal["tier"]; wish?: string | null; destination?: string | null; party_size?: number | null;

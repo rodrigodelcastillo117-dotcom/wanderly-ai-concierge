@@ -47,7 +47,8 @@ export interface PriveKeyDeps {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max) : "");
+const stripControl = (t: string) => [...t].map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? " " : c)).join("");
+const str = (v: unknown, max: number) => (typeof v === "string" ? stripControl(v).trim().slice(0, max) : "");
 
 /** Respuestas estructuradas del cliente (botones de las preguntas). Nunca texto libre largo. */
 export function parseAnswers(raw: unknown): KeyAnswers {

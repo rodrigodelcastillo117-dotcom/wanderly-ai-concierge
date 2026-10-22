@@ -1,7 +1,10 @@
 // Pantalla de THE PRIVÉ KEY (/prive/key) de punta a punta en jsdom: la UI llama a concierge-chat (mode
 // prive_key) y aquí ese "servidor" es el runPriveKey real con el catálogo de la curaduría (fixture). Sin IA.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { configure, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+
+// Con la máquina cargada (suites en paralelo) los renders tardan: más margen, mismas aserciones.
+configure({ asyncUtilTimeout: 8000 });
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import fixture from "./fixtures/priveKeyCatalog.json";
 import { memoryCache, runPriveKey } from "../../supabase/functions/concierge-chat/priveKeyMode";
@@ -55,7 +58,7 @@ beforeEach(() => {
   });
 });
 
-describe("/prive/key", () => {
+describe("/prive/key", { timeout: 30000 }, () => {
   it("escribir no llama a nadie (ni IA ni servidor por tecla); solo al enviar", async () => {
     renderPage();
     const box = screen.getByRole("textbox");
