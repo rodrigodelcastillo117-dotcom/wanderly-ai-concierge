@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
     return respond({ error: "no_fare", message: "Aún no hay tarifas publicadas para esta ruta y fecha." }, 422);
   }
 
-  const price = Math.round(fare.priceUsd * (await getUsdMxnRate()));
+  const fx = await getUsdMxnRate();
+  const price = Math.round(fare.priceUsd * fx);
   const adults = Math.min(9, Math.max(1, Number(trip.num_viajeros) || 1));
 
   const { data: watch, error } = await admin
@@ -88,6 +89,11 @@ Deno.serve(async (req) => {
       baseline_price_mxn: price,
       baseline_approximate: fare.approximateDates,
       baseline_source: fare.source,
+      // Se compara en la moneda del proveedor (USD): un cambio del dólar no es una baja de precio.
+      baseline_currency: "USD",
+      baseline_amount_original: fare.priceUsd,
+      last_amount_original: fare.priceUsd,
+      last_alert_amount_original: null,
       last_price_mxn: price,
       lowest_price_mxn: fare.approximateDates ? null : price,
       booking_link: fare.bookingLink,
@@ -102,7 +108,7 @@ Deno.serve(async (req) => {
 
   await admin.from("price_watch_checks").insert({
     watch_id: watch.id, user_id: user.id, price_mxn: price, approximate_dates: fare.approximateDates,
-    source: fare.source,
+    source: fare.source, amount_original: fare.priceUsd, currency: "USD", fx_rate: fx,
   });
 
   return respond({ ok: true, watch });
