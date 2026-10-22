@@ -250,7 +250,9 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
       const state: IntentState = a.mode === "REQUEST" ? "REQUESTED"
         : a.kind === "save_for_later" ? "SELECTED"
         : expired && body?.ack_price_may_change !== true ? "PRICE_RECHECK_REQUIRED" : "READY_TO_BOOK";
-      const web = !!a.url && a.url.startsWith("https://");
+      // Los canales (wa.me, mailto:, tel:, sms:) los abre el propio teléfono del usuario en el mismo
+      // toque; no pasan por booking-go.
+      const web = !!a.url && a.url.startsWith("https://") && !["whatsapp", "email", "sms", "phone"].includes(a.kind);
       let conciergeId: string | null = null;
 
       if (a.kind === "prive_request") {
