@@ -185,6 +185,8 @@ function basicCheck(raw: unknown): { ok: true; u: URL; reason?: undefined } | { 
   if (u.username || u.password) return { ok: false, reason: "credenciales_en_url" };
   if (u.port && u.port !== "443") return { ok: false, reason: "puerto" };
   const host = u.hostname.toLowerCase();
+  // A2: un FQDN con punto final ("www.google.com.") no coincide con la lista y saltaba la regla de proveedores.
+  if (host.endsWith(".")) return { ok: false, reason: "host_no_publico" };
   if (!host.includes(".") || IPV4.test(host) || host.startsWith("[") || /(^|\.)(localhost|local|internal|lan|home|corp)\.?$/.test(host)) {
     return { ok: false, reason: "host_no_publico" };
   }
