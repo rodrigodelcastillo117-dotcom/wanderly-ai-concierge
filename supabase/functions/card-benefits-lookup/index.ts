@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       signal: ctrl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-flash-latest",
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: `Búsqueda del usuario: "${query}". Devuelve hasta 6 tarjetas reales que coincidan con sus beneficios actuales para viaje.` },

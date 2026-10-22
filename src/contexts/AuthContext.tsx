@@ -3,11 +3,29 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { setSentryUser } from "@/lib/sentry";
 import { identifyUser, resetAnalytics, track } from "@/lib/analytics";
+import { captureRecoveryFromUrl, clearRecoveryFlag, hasRecoveryFlag, markRecovery } from "@/lib/passwordRecovery";
+
+// Borra los viajes guardados para lectura offline (public/sw.js) al cerrar sesión,
+// para que otra persona en el mismo dispositivo no los vea.
+const clearOfflineTripCache = () => {
+  try {
+    if (typeof caches !== "undefined") void caches.delete("iatos-data-v1").catch(() => {});
+    navigator.serviceWorker?.controller?.postMessage({ type: "iatos:clear-user-cache" });
+  } catch {
+    /* noop */
+  }
+};
+
+// Capturamos `type=recovery` en cuanto se evalúa este módulo (parte del bundle
+// inicial): Supabase borra el hash tras validar el token y /reset-password es lazy.
+captureRecoveryFromUrl();
 
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  /** true si esta pestaña llegó por un enlace de recuperación de contraseña aún vigente. */
+  passwordRecovery: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
@@ -19,6 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState<boolean>(() => hasRecoveryFlag());
 
   useEffect(() => {
     let mounted = true;
@@ -36,8 +55,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, 4500);
 
     // Listener primero — mantiene la sesión sincronizada (refresh automático, login, logout explícito)
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    // Este listener se registra al montar la app (no la página lazy), así que sí
+    // recibe PASSWORD_RECOVERY, que Supabase emite una sola vez.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       window.clearTimeout(timeoutId);
+      if (event === "PASSWORD_RECOVERY") {
+        markRecovery();
+        if (mounted) setPasswordRecovery(true);
+      } else if (event === "SIGNED_OUT") {
+        clearRecoveryFlag();
+        clearOfflineTripCache();
+        if (mounted) setPasswordRecovery(false);
+      }
       finishAuth(newSession);
     });
 
@@ -83,12 +112,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    clearRecoveryFlag();
+    setPasswordRecovery(false);
+    clearOfflineTripCache();
     await supabase.auth.signOut({ scope: "local" });
     resetAnalytics();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, passwordRecovery, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

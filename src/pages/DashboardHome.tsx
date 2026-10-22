@@ -23,6 +23,7 @@ import patagonia from "@/assets/destination-patagonia.jpg";
 import tulum from "@/assets/destination-tulum.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
 import { localISODate } from "@/lib/localDate";
+import { convert, fetchFxTable, fxLabel } from "@/lib/fx";
 
 
 
@@ -90,6 +91,9 @@ const DashboardHome = () => {
   const [spendUsd, setSpendUsd] = useState(0);
   const [spendDeltaPct, setSpendDeltaPct] = useState<number | null>(null);
   const [spendCats, setSpendCats] = useState<{ label: string; pct: number; color: string }[]>([]);
+  // De dónde salió el tipo de cambio y de cuándo es; y gastos que no se pudieron convertir.
+  const [spendFxLabel, setSpendFxLabel] = useState<string | null>(null);
+  const [spendUnconverted, setSpendUnconverted] = useState<string[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -119,23 +123,16 @@ const DashboardHome = () => {
         .eq("user_id", user.id)
         .gte("expense_date", startPrev);
 
-      // Tipo de cambio en vivo (mismo patrón que Currency.tsx: open.er-api.com, sin key, con fallback si falla)
-      const FX_FALLBACK: Record<string, number> = { USD: 1, MXN: 1 / 18.5, EUR: 1.08, GBP: 1.27 };
-      let FX: Record<string, number> = FX_FALLBACK;
-      try {
-        const r = await fetch("https://open.er-api.com/v6/latest/USD").then((res) => res.json());
-        if (r?.rates) {
-          // r.rates está en "1 USD = X moneda" (ej. MXN: 18.5); invertimos para obtener "1 moneda = X USD"
-          const live: Record<string, number> = { USD: 1 };
-          for (const [code, perUsd] of Object.entries(r.rates as Record<string, number>)) {
-            if (typeof perUsd === "number" && perUsd > 0) live[code] = 1 / perUsd;
-          }
-          FX = live;
-        }
-      } catch {
-        // offline o API caída: usamos el fallback estático, no bloquea el dashboard
-      }
-      const toUsd = (a: number, c: string) => a * (FX[c?.toUpperCase()] ?? FX_FALLBACK[c?.toUpperCase()] ?? 1);
+      // Tipo de cambio en vivo (open.er-api.com) o, si no responde, uno de respaldo con su fecha.
+      // Una moneda sin tasa no se toma 1:1: se deja fuera y se avisa.
+      const fx = await fetchFxTable();
+      setSpendFxLabel(exps && exps.length ? fxLabel(fx) : null);
+      const missing = new Set<string>();
+      const toUsd = (a: number, c: string) => {
+        const v = convert(a, c || "MXN", "USD", fx);
+        if (v == null) { missing.add(String(c || "").toUpperCase()); return 0; }
+        return v;
+      };
 
       const thisMonth = (exps ?? []).filter((e) => e.expense_date >= startThis);
       const prevMonth = (exps ?? []).filter((e) => e.expense_date < startThis);
@@ -169,6 +166,7 @@ const DashboardHome = () => {
         .sort((a, b) => b.pct - a.pct)
         .slice(0, 5);
       setSpendCats(cats);
+      setSpendUnconverted([...missing]);
     })();
   }, [user]);
 
@@ -557,6 +555,12 @@ const DashboardHome = () => {
                   <><span className={spendDeltaPct >= 0 ? "text-primary" : "text-emerald-400"}>{spendDeltaPct >= 0 ? "+" : ""}{spendDeltaPct}%</span> vs mes anterior · USD</>
                 ) : spendUsd > 0 ? "USD · primer mes con gastos" : "Aún sin gastos registrados · USD"}
               </p>
+              {spendFxLabel && (
+                <p className="text-[10px] text-muted-foreground/80 -mt-4 mb-4">
+                  {spendFxLabel}
+                  {spendUnconverted.length > 0 && ` · sin convertir (sin tasa): ${spendUnconverted.join(", ")}`}
+                </p>
+              )}
               <div className="flex items-center gap-5 min-w-0">
                 <SpendDonut segments={spendCats.length ? spendCats : [{ label: "Sin datos", pct: 0, color: "hsl(0 0% 25%)" }]} />
                 <ul className="flex-1 space-y-2 text-sm">
@@ -668,7 +672,7 @@ const DashboardHome = () => {
                 { icon: Gift, label: "Beneficios", sub: "PRO", to: "/dashboard/beneficios", img: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&q=70&auto=format&fit=crop" },
                 { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar", img: "https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=70&auto=format&fit=crop" },
                 { icon: ArrowLeftRight, label: "Conversor", sub: "Moneda", to: "/dashboard/convertidor", img: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&q=70&auto=format&fit=crop" },
-                { icon: Crown, label: "Concierge", sub: "IA 24/7", to: "/dashboard/concierge", img: "https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=70&auto=format&fit=crop" },
+                { icon: Crown, label: "Concierge", sub: "Tu concierge IA", to: "/dashboard/concierge", img: "https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=70&auto=format&fit=crop" },
                 { icon: MapPin, label: "Cerca", sub: "De mí", to: "/dashboard/cercanos", img: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600&q=70&auto=format&fit=crop" },
                 { icon: Ship, label: "Cruceros", sub: "Islas", to: "/dashboard/cruceros", img: "https://images.unsplash.com/photo-1548574505-5e239809ee19?w=600&q=70&auto=format&fit=crop" },
                 { icon: UtensilsCrossed, label: "Restaurantes", sub: "Mesas", to: "/dashboard/restaurantes", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=70&auto=format&fit=crop" },

@@ -22,8 +22,9 @@ import {
   type WorkCtx,
   type WorkResult,
 } from "../_shared/reservation.ts";
-import { getUsdMxnRate } from "../_shared/fx.ts";
+import { getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { aiFetch } from "../_shared/ai.ts";
+import { forceEstimated, labelExperiences, markLive, pricingSources } from "./provenance.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -447,7 +448,8 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
     }
 
     const selectedTier: Tier = tierFromPresupuesto(presupuestoRango);
-    const fxUsd = await getUsdMxnRate();
+    const fxInfo = await getUsdMxnRateInfo();
+    const fxUsd = fxInfo.rate;
 
     const nights = body.fecha_salida && body.fecha_regreso
       ? Math.max(1, Math.round((new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / 86400000))
@@ -613,6 +615,7 @@ Entrega JSON con:
       });
 
     const [globalData, ...cityData] = await Promise.all([globalPromise, ...cityPromises]);
+    const liveConsultedAt = tpFlights?.consulted_at ?? new Date().toISOString();
 
     // ───── Post-proceso: vuelos reales + dedupe ─────
     let flights: any[] = Array.isArray(globalData.flights) ? globalData.flights : [];
@@ -633,15 +636,19 @@ Entrega JSON con:
         booking_link: f.booking_link ?? null,
         fuente_precio: "travelpayouts",
         notes: tpFlights.approximate_dates
-          ? "Tarifa real de inventario; la fecha exacta puede variar unos días."
-          : "Tarifa real de inventario consultada hoy.",
+          ? "Tarifa de referencia de Aviasales para fechas cercanas del mismo mes (no tu fecha exacta)."
+          : "Tarifa de referencia de Aviasales (búsquedas de las últimas 48 h); se confirma al reservar.",
       });
       const ahorro = sorted[0];
       const equilibrio = sorted[Math.floor(sorted.length / 2)] ?? ahorro;
       const premium = sorted[sorted.length - 1] ?? equilibrio;
-      flights = [pick(ahorro, "ahorro"), pick(equilibrio, "equilibrio"), pick(premium, "premium")];
+      flights = markLive(
+        [pick(ahorro, "ahorro"), pick(equilibrio, "equilibrio"), pick(premium, "premium")],
+        "fuente_precio", "travelpayouts", liveConsultedAt, !!tpFlights.approximate_dates,
+      );
     } else {
-      flights = flights.map((f) => ({ ...f, fuente_precio: f.fuente_precio ?? "estimado" }));
+      // Sin datos en vivo: lo que escribió el modelo es una estimación, diga lo que diga su etiqueta.
+      flights = forceEstimated(flights);
     }
 
     // Dedupe: mismo tramo + mismo tier nunca dos veces.
@@ -655,8 +662,8 @@ Entrega JSON con:
 
     const internalTransport = (() => {
       const seen = new Set<string>();
-      return (Array.isArray(globalData.internal_transport) ? globalData.internal_transport : [])
-        .map((l: any) => ({ ...l, fuente_precio: l.fuente_precio ?? "estimado" }))
+      // Nunca se consulta a un proveedor de trenes/ferris/buses aquí: siempre es estimado.
+      return forceEstimated(globalData.internal_transport)
         .filter((l: any) => {
           const key = `${(l.from ?? "").toLowerCase()}|${(l.to ?? "").toLowerCase()}|${l.mode ?? ""}`;
           if (seen.has(key)) return false;
@@ -694,21 +701,19 @@ Entrega JSON con:
         const topPool = maxClass > 0 ? sorted.filter((h: any) => (Number(h.hotel_class) || 0) === maxClass) : sorted;
         const top = topPool[topPool.length - 1] ?? sorted[sorted.length - 1] ?? mid;
         const built = [build(cheap, "ahorro"), build(mid, "equilibrio"), build(top, "premium")].filter(Boolean);
-        if (built.length) hospedaje = built;
-
+        hospedaje = built.length
+          ? markLive(built, "fuente_precio", "serpapi", live?.hotels?.consulted_at ?? liveConsultedAt)
+          : forceEstimated(hospedaje);
       } else {
-        hospedaje = hospedaje.map((h: any) => ({ ...h, fuente_precio: h.fuente_precio ?? "estimado" }));
+        hospedaje = forceEstimated(hospedaje);
       }
 
-      const experiencias = (Array.isArray(pd.experiencias) ? pd.experiencias : []).map((e: any) => ({
-        ...e,
-        fuente: e.fuente ?? "estimado",
-      }));
+      const attrLive = live?.attractions?.ok === true && Array.isArray(live?.attractions?.results) ? live.attractions.results : null;
+      const experiencias = labelExperiences(pd.experiencias, attrLive);
 
       const arrival_options = (() => {
         const seen = new Set<string>();
-        return (Array.isArray(pd.arrival_options) ? pd.arrival_options : [])
-          .map((o: any) => ({ ...o, fuente_precio: o.fuente_precio ?? "estimado" }))
+        return forceEstimated(pd.arrival_options)
           .filter((o: any) => {
             const key = `${(o.from ?? "").toLowerCase()}|${o.mode ?? ""}|${o.provider ?? ""}`;
             if (seen.has(key)) return false;
@@ -788,15 +793,12 @@ Entrega JSON con:
       desglose_presupuesto: desglose,
       total_estimado_mxn: totalMxn,
       total_estimado_usd: Math.round(totalMxn / fxUsd),
-      pricing_sources: {
-        vuelos: tpLive ? "travelpayouts" : "estimado",
-        hospedaje: perDestination.some((pd: any) => (pd.hospedaje ?? []).some((h: any) => h.fuente_precio === "serpapi"))
-          ? "serpapi"
-          : "estimado",
-        experiencias: perDestination.some((pd: any) => (pd.experiencias ?? []).some((e: any) => e.fuente === "tripadvisor"))
-          ? "tripadvisor"
-          : "estimado",
-      },
+      pricing_sources: pricingSources(flights, perDestination),
+      fx_source: fxInfo.source,
+      fx_at: fxInfo.fetched_at,
+      fx_is_fallback: fxInfo.is_fallback,
+      quoted_at: new Date().toISOString(),
+      rooms: Math.max(1, Math.ceil(viajeros / 2)),
     };
 
     // Contrato mínimo para cobrar: itinerario, total y logística en todas las ciudades.

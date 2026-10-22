@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
+import { openCookieSettings } from "@/lib/consent";
 import iatosLogo from "@/assets/iatos-logo.png";
+import { AFTER_TRIAL_LINE, FREE_FEATURES, PRICE_LINE, PRO_FEATURES, TRIAL_CONDITIONS, TRIAL_LINE } from "@/lib/planCopy";
 
 const UPDATED = "24 de agosto de 2026";
 const CONTACT = "hola@traveliatos.life";
@@ -47,11 +49,12 @@ export const Terminos = () => (
     <section>
       <h2>4. Suscripción IATOS PRO</h2>
       <ul>
-        <li>Precio: $99 MXN mensuales, con 30 días de prueba gratis al activar la suscripción con tarjeta.</li>
-        <li>El cobro se realiza a través de Stripe. IATOS AI no almacena los datos de tu tarjeta.</li>
+        <li>Precio: {PRICE_LINE}.</li>
+        <li>Prueba: {TRIAL_LINE}. {TRIAL_CONDITIONS} {AFTER_TRIAL_LINE}</li>
+        <li>Al contratar PRO, el cobro mensual se realiza a través de Stripe y se renueva cada mes hasta que canceles. IATOS AI no almacena los datos de tu tarjeta.</li>
         <li>Puedes cancelar en cualquier momento desde el portal de facturación en /dashboard/pro. Al cancelar conservas el acceso hasta el fin del periodo pagado.</li>
-        <li>Si cancelas durante el periodo de prueba, no se genera ningún cargo.</li>
-        <li>La versión gratuita incluye un cupo limitado de mensajes al Concierge y de análisis de viaje.</li>
+        <li>Plan gratuito: {FREE_FEATURES.join("; ")}.</li>
+        <li>IATOS PRO incluye: {PRO_FEATURES.join("; ")}. Los límites se aplican por cuenta y pueden ajustarse con aviso previo.</li>
       </ul>
     </section>
     <section>
@@ -128,11 +131,14 @@ export const Cookies = () => (
         <li><strong>Preferencias:</strong> recordar ajustes como tu ciudad de origen o los tooltips ya vistos.</li>
         <li><strong>Diagnóstico:</strong> registros anónimos de errores (Sentry) para detectar fallas.</li>
         <li><strong>Afiliados:</strong> al hacer clic en un enlace de reserva, el proveedor final puede colocar su propia cookie de atribución. Esa cookie se rige por la política del proveedor.</li>
+        <li><strong>Analítica y medición (solo si aceptas):</strong> PostHog (uso de la app) y el script de Travelpayouts (medición de conversiones de afiliado). No se cargan hasta que eliges "Aceptar" en el aviso de cookies.</li>
       </ul>
     </section>
     <section>
       <h2>2. Cómo controlarlas</h2>
-      <p>Puedes borrar el almacenamiento del sitio desde la configuración de tu navegador. Ten en cuenta que al hacerlo se cerrará tu sesión.</p>
+      <p>Puedes cambiar tu elección cuando quieras:{" "}
+        <button type="button" onClick={openCookieSettings} className="text-primary underline">Cambiar preferencias de cookies</button>.
+        También puedes borrar el almacenamiento del sitio desde tu navegador (se cerrará tu sesión).</p>
     </section>
     <section>
       <h2>3. Contacto</h2>
@@ -142,17 +148,18 @@ export const Cookies = () => (
 );
 
 export const Reembolsos = () => (
-  <Shell title="Política de Reembolsos y Cancelación" description="Suscripción IATOS PRO — $99 MXN al mes">
+  <Shell title="Política de Reembolsos y Cancelación" description="Suscripción IATOS PRO — $99 MXN al mes, IVA incluido">
     <section>
       <h2>1. Qué estás contratando</h2>
-      <p>IATOS PRO es una suscripción digital de $99 MXN mensuales que te da acceso ilimitado al Concierge Iato, análisis de viaje con precios en vivo, Members Only y Fixer humano. Es un servicio de software: <strong>no incluye vuelos, hoteles, tours ni seguros</strong>. Esas reservas las haces tú directamente con el proveedor final a través de los enlaces que te entregamos.</p>
+      <p>IATOS PRO es una suscripción digital de {PRICE_LINE}. Incluye: {PRO_FEATURES.join("; ")}. Es un servicio de software: <strong>no incluye vuelos, hoteles, tours ni seguros</strong>. Esas reservas las haces tú directamente con el proveedor final a través de los enlaces que te entregamos.</p>
     </section>
     <section>
       <h2>2. Periodo de prueba de 30 días</h2>
       <ul>
-        <li>Al activar la suscripción se requiere una tarjeta, pero <strong>no se genera ningún cargo durante los primeros 30 días</strong>.</li>
-        <li>Si cancelas antes de que termine la prueba, no se te cobra nada.</li>
-        <li>Al terminar la prueba se realiza el primer cargo de $99 MXN y a partir de ahí se renueva automáticamente cada mes.</li>
+        <li><strong>{TRIAL_LINE}.</strong> {TRIAL_CONDITIONS}</li>
+        <li>No necesitas tarjeta para la prueba y no se genera ningún cargo durante ni después de ella.</li>
+        <li>{AFTER_TRIAL_LINE}</li>
+        <li>Si contratas PRO durante la prueba, el primer cargo se hace cuando termina la prueba; si lo contratas después, el primer cargo es al contratar.</li>
       </ul>
     </section>
     <section>

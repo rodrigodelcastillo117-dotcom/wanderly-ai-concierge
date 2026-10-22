@@ -86,4 +86,31 @@ describe("aiFetch", () => {
     await aiFetch(init({ model: "google/gemini-2.5-flash-image", messages: [], modalities: ["image", "text"] }));
     expect(call(0).url).toBe(LOVABLE);
   });
+
+  it("al caer a Lovable traduce el alias gemini-flash-latest a un nombre que publica el gateway", async () => {
+    // Sin llave de Gemini: directo a Lovable.
+    fetchMock.mockResolvedValue(ok());
+    await aiFetch(init({ model: "google/gemini-flash-latest", messages: [] }));
+    expect(call(0).url).toBe(LOVABLE);
+    expect(call(0).body.model).toBe("google/gemini-2.5-flash");
+    expect(call(0).headers["Lovable-API-Key"]).toBe("lov");
+
+    // Con llave: Gemini directo con el alias (un solo intento, sin 404 de por medio) y, si falla, Lovable traducido.
+    env.GEMINI_API_KEY = "g-key";
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce(new Response("down", { status: 503 })).mockResolvedValueOnce(ok());
+    await aiFetch(init({ model: "google/gemini-flash-latest", messages: [] }));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(call(0).url).toBe(GEMINI);
+    expect(call(0).body.model).toBe("gemini-flash-latest");
+    expect(call(1).url).toBe(LOVABLE);
+    expect(call(1).body.model).toBe("google/gemini-2.5-flash");
+  });
+
+  it("otros modelos llegan a Lovable sin cambios", async () => {
+    fetchMock.mockResolvedValue(ok());
+    await aiFetch(init({ model: "google/gemini-2.5-pro", messages: [] }));
+    expect(call(0).body.model).toBe("google/gemini-2.5-pro");
+  });
 });
+

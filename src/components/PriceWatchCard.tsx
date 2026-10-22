@@ -159,7 +159,7 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
       )}
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-        <PriceSourceBadge source={watch.baseline_source} />
+        <PriceSourceBadge source={watch.baseline_source} consultadoAt={watch.last_checked_at} />
         <div className="flex-1" />
         <button type="button" onClick={() => call("stop")} disabled={busy} className="text-xs text-muted-foreground hover:text-foreground transition">
           Dejar de vigilar

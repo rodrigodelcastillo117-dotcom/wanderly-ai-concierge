@@ -149,7 +149,7 @@ export function welcomeEmail(nombre?: string | null) {
   </p>
   <ul style="font-size:14px;line-height:1.9;color:#cfc9bd;padding-left:18px">
     <li>Cotiza un viaje completo con vuelos y hoteles reales.</li>
-    <li>Pídeme transfers, restaurantes y experiencias 24/7.</li>
+    <li>Pídeme ideas de transfers, restaurantes y experiencias cuando quieras.</li>
     <li>Guarda tus tarjetas y programas de lealtad en la Bóveda para exprimir beneficios.</li>
   </ul>
   <a href="https://traveliatos.life/dashboard"

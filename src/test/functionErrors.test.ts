@@ -23,7 +23,7 @@ describe("IATOS-P1-FREE-01: el frontend reconoce el código, no el texto", () =>
     expect(info).toMatchObject({ code: "FREE_LIMIT_REACHED", needsUpgrade: true, upgradeUrl: "/dashboard/pro" });
     expect(info.freeLimit).toEqual({ quota: "concierge_monthly", limit: 3, used: 3, renewsAt: "2026-11-01T00:00:00+00:00", upgradeAvailable: true });
     expect(info.message).toBe("Has utilizado tus mensajes gratuitos de Iato de este mes. Se renuevan el 1 de noviembre de 2026. " +
-      "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, sujeto a las condiciones vigentes.");
+      "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.");
     expect(info.message).not.toMatch(/non-2xx|tropiezo/);
   });
 
@@ -115,5 +115,16 @@ describe("límites recomendados: prueba sin tarjeta y tope diario", () => {
       renews_at: "2026-10-23T00:00:00Z", upgrade_available: false }), "x");
     expect(info.message).toBe("Llegaste al límite diario de tu plan; se renueva el 23 de octubre de 2026.");
     expect(info.needsUpgrade).toBe(false);
+  });
+});
+
+describe("textos del aviso de límite alineados con planCopy", () => {
+  it("usan PRICE_LINE y ninguna frase prohibida", async () => {
+    const { PRICE_LINE } = await import("@/lib/planCopy");
+    const all = (["concierge_monthly", "trip_analysis_once", "concierge_trial", "trip_analysis_daily"] as const)
+      .flatMap((quota) => [true, false].map((upgradeAvailable) =>
+        freeLimitCopy({ quota, limit: 1, used: 1, renewsAt: "2026-11-01T00:00:00Z", upgradeAvailable })));
+    expect(all.filter((t) => t.includes("IATOS PRO por")).every((t) => t.includes(PRICE_LINE))).toBe(true);
+    for (const t of all) expect(t).not.toMatch(/ilimitad|24\/7|con tarjeta|se requiere (una )?tarjeta|renueva automáticamente/i);
   });
 });

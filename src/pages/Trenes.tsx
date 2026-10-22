@@ -48,16 +48,16 @@ const Trenes = () => {
         <div className="glass-card rounded-xl p-4 md:p-5 space-y-3">
           <div className="grid md:grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
-              <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="París" />
+              <label htmlFor="trenes-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
+              <Input id="trenes-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="París" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
-              <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Ámsterdam" />
+              <label htmlFor="trenes-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
+              <Input id="trenes-destino" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Ámsterdam" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Fecha</label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <label htmlFor="trenes-fecha" className="text-xs uppercase tracking-wide text-muted-foreground">Fecha</label>
+              <Input id="trenes-fecha" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
           </div>
         </div>

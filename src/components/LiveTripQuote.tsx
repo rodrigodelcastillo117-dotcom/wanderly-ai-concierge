@@ -55,9 +55,12 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
     >
       <div className="flex flex-col items-start justify-between gap-2 mb-3 sm:flex-row sm:gap-4">
         <p className="text-xs tracking-[0.2em] uppercase text-primary">
-          Inversión total · grupo de {travelers} {travelers === 1 ? "persona" : "personas"}
+          {q && (!q.flight || !q.hotel)
+            ? `Cotización parcial (${!q.flight ? "sin vuelo" : "sin hotel"}) · grupo de ${travelers} ${travelers === 1 ? "persona" : "personas"}`
+            : `Inversión total · grupo de ${travelers} ${travelers === 1 ? "persona" : "personas"}`}
         </p>
-        {q && <PriceSourceBadge source={q.source ?? "serpapi"} />}
+        {/* Sin fuente declarada no se asume "en vivo". */}
+        {q && <PriceSourceBadge source={q.source} consultadoAt={q.fetched_at} />}
       </div>
       <motion.p className="font-display text-4xl sm:text-5xl md:text-6xl gold-text mb-2 break-words leading-tight">
         {rounded as any}

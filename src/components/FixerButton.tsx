@@ -132,7 +132,9 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
   const abrirMailtoFallback = (nombre: string) => {
     const subject = `[IATOS Fixer ${(urgencia ?? "media").toUpperCase()}] ${nombre} - ${motivo.slice(0, 50)}`;
     const url = `mailto:${FIXER_EMAIL_FALLBACK}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(buildEmailBody(nombre))}`;
-    window.open(url, "_blank");
+    // Se llama después de un await (falló el envío): un window.open ahí ya no tiene el gesto del
+    // usuario e iOS lo bloquea. Un mailto: con location no abre ventana y no se bloquea.
+    window.location.href = url;
   };
 
   const handleSubmit = async () => {
@@ -355,10 +357,10 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <label htmlFor="fixerbutton-mensaje-opcional" className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                       Mensaje opcional
                     </label>
-                    <Textarea
+                    <Textarea id="fixerbutton-mensaje-opcional"
                       value={motivo}
                       onChange={(e) => setMotivo(e.target.value)}
                       placeholder="Ej. Mi vuelo se canceló y necesito reubicación esta noche."

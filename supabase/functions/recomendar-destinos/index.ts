@@ -165,7 +165,7 @@ Recomienda 8 destinos del mundo que CLARAMENTE encajen con este perfil específi
         "Lovable-API-Key": LOVABLE_API_KEY,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-flash-latest",
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: userPrompt },

@@ -29,23 +29,23 @@ const TripCars = () => {
           <Car className="w-8 h-8 text-primary mt-1" />
           <div>
             <h1 className="font-display text-3xl md:text-4xl">Renta de auto</h1>
-            <p className="text-sm text-muted-foreground mt-1">Compara precios reales en los 3 mejores comparadores</p>
+            <p className="text-sm text-muted-foreground mt-1">Compara precios en 3 comparadores (el precio final lo da cada sitio)</p>
           </div>
         </div>
 
         <div className="glass-card rounded-xl p-4 md:p-6 space-y-3">
           <div className="grid md:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad / Aeropuerto</label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Madrid" />
+              <label htmlFor="tripcars-ciudad-aeropuerto" className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad / Aeropuerto</label>
+              <Input id="tripcars-ciudad-aeropuerto" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Madrid" />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Recoger</label>
-              <Input type="date" value={pickup} onChange={(e) => setPickup(e.target.value)} />
+              <label htmlFor="tripcars-recoger" className="text-xs uppercase tracking-wide text-muted-foreground">Recoger</label>
+              <Input id="tripcars-recoger" type="date" value={pickup} onChange={(e) => setPickup(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Devolver</label>
-              <Input type="date" value={ret} onChange={(e) => setRet(e.target.value)} />
+              <label htmlFor="tripcars-devolver" className="text-xs uppercase tracking-wide text-muted-foreground">Devolver</label>
+              <Input id="tripcars-devolver" type="date" value={ret} onChange={(e) => setRet(e.target.value)} />
             </div>
           </div>
         </div>

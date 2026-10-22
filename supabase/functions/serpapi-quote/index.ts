@@ -85,7 +85,7 @@ async function aiIata(apiKey: string, city: string): Promise<string | null> {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "google/gemini-flash-latest",
         messages: [
           { role: "system", content: "Respondes SOLO el código IATA de 3 letras del aeropuerto principal de la ciudad. Sin texto extra." },
           { role: "user", content: city },
@@ -348,19 +348,11 @@ Deno.serve(async (req) => {
     const hotelsPromise = serpHotels(serpKey, body.destination, body.depart, body.return_date, travelers, nights)
       .catch((e) => { console.error("hotels err:", e.message); return null; });
 
-    let [flight, hotel] = await Promise.all([flightsPromise, hotelsPromise]);
-    let source = "serpapi";
+    const [flight, hotel] = await Promise.all([flightsPromise, hotelsPromise]);
+    const source = "serpapi";
 
-    // Fallback IA si SerpAPI no devolvió nada (sin créditos / error)
-    if (!flight && !hotel && lovableKey) {
-      try {
-        const est = await aiEstimate(lovableKey, body);
-        flight = est.flight as any;
-        hotel = est.hotel as any;
-        source = "ai-fallback";
-      } catch (e) { console.error("ai fallback err:", (e as Error).message); }
-    }
-
+    // Si SerpApi no trajo nada se dice "no disponible". Antes se sustituía por una estimación de
+    // IA (aerolínea, hotel y precios inventados) mostrada como la cotización del viaje.
     if (!flight && !hotel) return noPricingResponse();
 
     const flights_total = flight?.price_usd ?? 0;
@@ -381,6 +373,8 @@ Deno.serve(async (req) => {
         buffer_usd: 0,
       },
       total_usd, total_mxn, fx_rate: fxRate, source,
+      // Qué partes se pudieron consultar: si falta una, el total es parcial.
+      components: { flight: !!flight, hotel: !!hotel },
       fetched_at: new Date().toISOString(),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

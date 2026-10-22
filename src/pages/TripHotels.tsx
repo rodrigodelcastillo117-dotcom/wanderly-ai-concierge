@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { bookingLink, airbnbLink } from "@/lib/affiliateLinks";
 import { trackBookingClick } from "@/lib/trackBooking";
+import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 
 interface HotelResult {
   name: string;
@@ -33,6 +34,9 @@ const TripHotels = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<HotelResult[]>([]);
   const [source, setSource] = useState("");
+  const [consultedAt, setConsultedAt] = useState<string | null>(null);
+  // Link de búsqueda (sin precio) cuando Google Hotels no respondió.
+  const [unavailableUrl, setUnavailableUrl] = useState<string | null>(null);
 
   const search = async () => {
     if (!city || !checkin || !checkout) {
@@ -41,15 +45,22 @@ const TripHotels = () => {
     }
     setLoading(true);
     setResults([]);
+    setUnavailableUrl(null);
     try {
       const { data, error } = await supabase.functions.invoke("hotels-search", {
         body: { city, checkin, checkout, adults, hotel_class: hotelClass },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Error");
-      setResults(data.results ?? []);
-      setSource(data.source);
-      if ((data.results ?? []).length === 0) toast.info("Sin resultados");
+      const list = data.results ?? [];
+      setResults(list);
+      setConsultedAt(data.consulted_at ?? null);
+      if (data.disponible === false || list.length === 0) {
+        setSource("");
+        setUnavailableUrl(data.booking_url ?? bookingLink(city, checkin, checkout, adults));
+      } else {
+        setSource(data.source);
+      }
     } catch (e: any) {
       toast.error(e.message ?? "Error buscando hoteles");
     } finally {
@@ -67,18 +78,18 @@ const TripHotels = () => {
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
         <div>
           <h1 className="font-display text-3xl md:text-4xl">Hoteles reales</h1>
-          <p className="text-sm text-muted-foreground mt-1">Precios en vivo · reserva directa con Booking.com</p>
+          <p className="text-sm text-muted-foreground mt-1">Tarifas consultadas al momento en Google Hotels · reserva con Booking.com</p>
         </div>
 
         <div className="glass-card rounded-xl p-4 md:p-6 space-y-3">
           <div className="grid md:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad</label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Madrid" />
+              <label htmlFor="triphotels-ciudad" className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad</label>
+              <Input id="triphotels-ciudad" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Madrid" />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Categoría</label>
-              <select value={hotelClass} onChange={(e) => setHotelClass(e.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <label htmlFor="triphotels-categoria" className="text-xs uppercase tracking-wide text-muted-foreground">Categoría</label>
+              <select id="triphotels-categoria" value={hotelClass} onChange={(e) => setHotelClass(e.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">Todos</option>
                 <option value="3">3 estrellas</option>
                 <option value="4">4 estrellas</option>
@@ -87,16 +98,16 @@ const TripHotels = () => {
               </select>
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Check-in</label>
-              <Input type="date" value={checkin} onChange={(e) => setCheckin(e.target.value)} />
+              <label htmlFor="triphotels-check-in" className="text-xs uppercase tracking-wide text-muted-foreground">Check-in</label>
+              <Input id="triphotels-check-in" type="date" value={checkin} onChange={(e) => setCheckin(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Check-out</label>
-              <Input type="date" value={checkout} onChange={(e) => setCheckout(e.target.value)} />
+              <label htmlFor="triphotels-check-out" className="text-xs uppercase tracking-wide text-muted-foreground">Check-out</label>
+              <Input id="triphotels-check-out" type="date" value={checkout} onChange={(e) => setCheckout(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Adultos</label>
-              <Input type="number" min={1} max={8} value={adults} onChange={(e) => setAdults(Number(e.target.value))} />
+              <label htmlFor="triphotels-adultos" className="text-xs uppercase tracking-wide text-muted-foreground">Adultos</label>
+              <Input id="triphotels-adultos" type="number" min={1} max={8} value={adults} onChange={(e) => setAdults(Number(e.target.value))} />
             </div>
           </div>
           <Button onClick={search} disabled={loading} className="w-full">
@@ -105,7 +116,17 @@ const TripHotels = () => {
           </Button>
         </div>
 
-        {source && <PriceSourceBadge source={source === "serpapi" ? "google_hotels" : source} />}
+        {source && <PriceSourceBadge source={source === "serpapi" ? "google_hotels" : source} consultadoAt={consultedAt} />}
+
+        {unavailableUrl !== null && results.length === 0 && (
+          <LiveSearchUnavailable
+            providerLabel="Booking.com"
+            onSearch={() => trackBookingClick({
+              category: "hotel", provider: "Booking.com", title: `Hoteles en ${city}`,
+              city, bookingUrl: unavailableUrl, startAt: checkin || undefined,
+            })}
+          />
+        )}
 
         <div className="grid md:grid-cols-2 gap-3">
           {results.map((h, i) => (

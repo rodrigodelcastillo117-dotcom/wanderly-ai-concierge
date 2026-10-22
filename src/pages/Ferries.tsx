@@ -72,20 +72,20 @@ const Ferries = () => {
         <div className="glass-card rounded-xl p-4 md:p-5 space-y-3">
           <div className="grid md:grid-cols-4 gap-3">
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Puerto origen</label>
-              <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Athens (Piraeus)" />
+              <label htmlFor="ferries-puerto-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Puerto origen</label>
+              <Input id="ferries-puerto-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Athens (Piraeus)" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Puerto destino</label>
-              <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Mykonos" />
+              <label htmlFor="ferries-puerto-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Puerto destino</label>
+              <Input id="ferries-puerto-destino" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Mykonos" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Fecha</label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <label htmlFor="ferries-fecha" className="text-xs uppercase tracking-wide text-muted-foreground">Fecha</label>
+              <Input id="ferries-fecha" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Pasajeros</label>
-              <Input type="number" min={1} max={20} value={passengers} onChange={(e) => setPassengers(Number(e.target.value))} />
+              <label htmlFor="ferries-pasajeros" className="text-xs uppercase tracking-wide text-muted-foreground">Pasajeros</label>
+              <Input id="ferries-pasajeros" type="number" min={1} max={20} value={passengers} onChange={(e) => setPassengers(Number(e.target.value))} />
             </div>
           </div>
           <p className="text-xs text-muted-foreground">

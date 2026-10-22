@@ -119,7 +119,9 @@ const DEFAULT_LIMIT: Record<QuotaKind, number> = { concierge: 3, trip_analysis: 
 /** Texto para el usuario según el límite alcanzado. El frontend usa el mismo texto (functionErrors.ts). */
 export function freeLimitMessage(quota: QuotaName, renewsAt: string | null, upgradeAvailable: boolean): string {
   const fecha = formatRenewal(renewsAt) ?? (quota.endsWith("_daily") ? "mañana" : "próximo mes");
-  const pro = "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, sujeto a las condiciones vigentes.";
+  // Mismo texto que el diálogo del frontend, que toma el precio de src/lib/planCopy.ts (PRICE_LINE);
+  // una prueba (functionErrors.test) verifica que coincidan.
+  const pro = "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.";
   // Un plan de pago que llega a su límite no recibe oferta de "mejorar".
   if (!upgradeAvailable) {
     return quota.endsWith("_daily")

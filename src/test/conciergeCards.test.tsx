@@ -85,7 +85,9 @@ describe("RichCard (B-02)", () => {
     const open = vi.spyOn(window, "open").mockReturnValue({} as Window);
     render(<RichCard card={SAMPLE.transport} />);
     fireEvent.click(screen.getByRole("button", { name: /Buscar Blacklane/ }));
-    expect(open).toHaveBeenCalledWith("https://www.google.com/search?q=Blacklane", "_blank", "noopener,noreferrer");
+    // ActionButton abre sin "noopener" en features (con él window.open siempre devuelve null y el
+    // respaldo navegaba también esta pestaña) y corta `opener` a mano.
+    expect(open).toHaveBeenCalledWith("https://www.google.com/search?q=Blacklane", "_blank");
     open.mockRestore();
   });
 });

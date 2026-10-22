@@ -9,6 +9,7 @@
 //   ANALYSIS_IN_PROGRESS → "ya está en proceso"
 import { toast } from "sonner";
 import { openFreeLimitDialog } from "@/lib/freeLimitStore";
+import { PRICE_LINE } from "@/lib/planCopy";
 
 export const PRO_PATH = "/dashboard/pro";
 
@@ -77,7 +78,8 @@ export function formatRenewal(iso: string | null | undefined): string | null {
 export function freeLimitCopy(info: FreeLimitInfo): string {
   const q = info.quota;
   const fecha = formatRenewal(info.renewsAt) ?? (q.endsWith("_daily") ? "mañana" : "próximo mes");
-  const pro = "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, sujeto a las condiciones vigentes.";
+  // Precio desde la fuente única de textos comerciales (planCopy).
+  const pro = `Puedes seguir usando las funciones gratuitas o activar IATOS PRO por ${PRICE_LINE}, sujeto a las condiciones vigentes.`;
   // Un plan de pago que llega a su límite no recibe oferta de "mejorar".
   if (!info.upgradeAvailable) {
     return q.endsWith("_daily")
@@ -116,7 +118,7 @@ function parseFreeLimit(body: Record<string, unknown> | null, status: number | n
 // Mensajes del servidor que sí se muestran: los de códigos del contrato (texto curado en
 // _shared/quota.ts) y el `message` de respuestas de negocio (409 de checkout, 429 de ritmo).
 // Nunca `error` ni `detail`, que pueden traer texto técnico.
-const SAFE_CODES = new Set(["SERVICE_UNAVAILABLE", "ANALYSIS_IN_PROGRESS", "INVALID_REQUEST"]);
+const SAFE_CODES = new Set(["SERVICE_UNAVAILABLE", "ANALYSIS_IN_PROGRESS", "INVALID_REQUEST", "TRIP_NOT_FOUND"]);
 const isText = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
 
 export async function readFunctionError(error: unknown, fallback: string): Promise<FunctionErrorInfo> {

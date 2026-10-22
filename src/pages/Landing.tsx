@@ -7,6 +7,7 @@ import kyoto from "@/assets/destination-kyoto.jpg";
 import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
 import iatosLogo from "@/assets/iatos-logo.png";
+import { AFTER_TRIAL_LINE, PRICE_LINE, PRO_FEATURES, TRIAL_CONDITIONS, TRIAL_CTA, TRIAL_LINE } from "@/lib/planCopy";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ const Landing = () => {
               <span className="gold-text italic">Experiencia premium.</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10 leading-relaxed">
-              Tu concierge de IA que conoce tus gustos, cotiza con números reales y diseña cada experiencia desde $99 MXN al mes.
+              Tu concierge de IA que conoce tus gustos, cotiza con números reales y diseña cada experiencia. Empieza gratis; PRO cuesta {PRICE_LINE}.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
@@ -65,7 +66,7 @@ const Landing = () => {
                 onClick={() => navigate("/auth?mode=signup")}
                 className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow text-base h-14 px-8"
               >
-                Empezar gratis 30 días
+                {TRIAL_CTA}
                 <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
               <Button
@@ -77,7 +78,7 @@ const Landing = () => {
                 Ver cómo funciona
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-6 tracking-wide uppercase">Sin tarjeta los primeros 30 días · Cancela cuando quieras</p>
+            <p className="text-xs text-muted-foreground mt-6 tracking-wide uppercase">{TRIAL_LINE}</p>
           </motion.div>
         </div>
       </section>
@@ -114,7 +115,7 @@ const Landing = () => {
             {
               n: "03",
               icon: Wallet,
-              title: "Planes premium ilimitados",
+              title: "Planes completos con datos reales",
               desc: "Análisis completos con vuelos, hospedaje, itinerarios día por día y presupuestos reales en MXN.",
             },
           ].map((step, i) => (
@@ -190,19 +191,12 @@ const Landing = () => {
             <p className="text-sm tracking-[0.2em] uppercase text-primary mb-3">IATOS AI Premium</p>
             <div className="flex items-baseline justify-center gap-2">
               <span className="font-display text-6xl">$99</span>
-              <span className="text-muted-foreground">MXN / mes</span>
+              <span className="text-muted-foreground">MXN / mes · IVA incluido</span>
             </div>
-            <p className="text-sm text-muted-foreground mt-3">Primer mes gratis · Cancela cuando quieras</p>
+            <p className="text-sm text-muted-foreground mt-3">{TRIAL_LINE}. {AFTER_TRIAL_LINE}</p>
           </div>
           <div className="space-y-3 mb-8">
-            {[
-              "Análisis de viaje ilimitados",
-              "Itinerarios día por día generados por IA",
-              "Presupuestos reales desglosados",
-              "Recomendaciones personalizadas a tu perfil",
-              "Tips y curaduría tipo concierge",
-              "Guarda y exporta tus viajes",
-            ].map((f) => (
+            {PRO_FEATURES.map((f) => (
               <div key={f} className="flex items-center gap-3 text-sm">
                 <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
                   <Check className="w-3 h-3 text-primary" />
@@ -216,8 +210,9 @@ const Landing = () => {
             onClick={() => navigate("/auth?mode=signup")}
             className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-14"
           >
-            Empezar gratis 30 días
+            {TRIAL_CTA}
           </Button>
+          <p className="text-[11px] text-muted-foreground text-center mt-3">{TRIAL_CONDITIONS}</p>
         </motion.div>
       </section>
 

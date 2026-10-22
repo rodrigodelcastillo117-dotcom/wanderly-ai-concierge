@@ -434,8 +434,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         {/* Stops builder */}
         <section className="rounded-3xl border border-border bg-card p-6 md:p-8 space-y-5 premium-shadow">
           <div>
-            <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block">Ciudad de origen</label>
-            <OriginPicker value={origin} onChange={setOrigin} />
+            <label id="ruta-origen" className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block">Ciudad de origen</label>
+            <OriginPicker labelId="ruta-origen" value={origin} onChange={setOrigin} />
           </div>
 
           <div>
@@ -525,7 +525,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {isVeteran ? (
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-primary">
-                  <Sparkles className="w-3 h-3" /> God Mode activado · {tripsCount} viajes aprendidos
+                  <Sparkles className="w-3 h-3" aria-hidden="true" /> Perfil aprendido de {tripsCount} viajes
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border">
@@ -653,7 +653,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                             ${Math.round(f.price_per_person_usd)} USD / persona
                           </span>
                         )}
-                        <PriceSourceBadge source={f.fuente_precio} />
+                        <PriceSourceBadge source={f.fuente_precio} estado={f.estado_dato} consultadoAt={f.consultado_at} approximateDates={f.approximate_dates} />
 
                       </div>
                       {f.notes && <p className="text-xs text-muted-foreground mt-2">{f.notes}</p>}
@@ -696,7 +696,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                               ${Math.round(leg.price_per_person_usd)} USD / persona
                             </span>
                           )}
-                          <PriceSourceBadge source={leg.fuente_precio} />
+                          <PriceSourceBadge source={leg.fuente_precio} estado={leg.estado_dato} consultadoAt={leg.consultado_at} approximateDates={leg.approximate_dates} />
 
                           {leg.luggage_note && (
                             <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary inline-flex items-center gap-1.5">
@@ -788,7 +788,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                             <div className="flex items-center gap-2">
                               <span className="text-xs uppercase tracking-widest text-muted-foreground">{h.tier}</span>
                               <span className="text-foreground">{h.nombre}</span>
-                              <PriceSourceBadge source={h.fuente_precio} />
+                              <PriceSourceBadge source={h.fuente_precio} estado={h.estado_dato} consultadoAt={h.consultado_at} approximateDates={h.approximate_dates} />
                             </div>
                             {h.price_per_night_usd != null && (
                               <span className="text-xs text-primary whitespace-nowrap">
@@ -806,7 +806,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                               className="px-2.5 py-1 rounded-full bg-surface border border-border text-xs inline-flex items-center gap-1.5"
                             >
                               {e.nombre}
-                              <PriceSourceBadge source={e.fuente} />
+                              <PriceSourceBadge source={e.fuente} estado={e.estado_dato} consultadoAt={e.consultado_at} approximateDates={e.approximate_dates} />
                             </span>
                           ))}
                         </div>

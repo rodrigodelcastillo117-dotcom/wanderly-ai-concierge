@@ -95,7 +95,7 @@ const TripJournal = () => {
         </div>
 
         <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6 space-y-3">
-          <Textarea placeholder="¿Qué viviste hoy?" value={draft} onChange={e => setDraft(e.target.value)} rows={3} />
+          <Textarea aria-label="Entrada del diario" placeholder="¿Qué viviste hoy?" value={draft} onChange={e => setDraft(e.target.value)} rows={3} />
           {preview && <img src={preview} className="rounded-xl max-h-48 object-cover" alt="" />}
           <div className="flex items-center gap-2 flex-wrap">
             <label className="cursor-pointer inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
@@ -118,7 +118,7 @@ const TripJournal = () => {
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="text-xs text-primary">{new Date(e.created_at).toLocaleString("es-MX")}</div>
                 {(e.author_id === userId || trip?.user_id === userId) && (
-                  <button onClick={() => remove(e.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => remove(e.id)} aria-label="Eliminar esta entrada del diario" className="text-muted-foreground hover:text-destructive p-2 -m-2"><Trash2 className="w-4 h-4" aria-hidden="true" /></button>
                 )}
               </div>
               {e.photo_url && <img src={e.photo_url} className="rounded-xl mb-3 max-h-64 w-full object-cover" alt="" />}

@@ -32,7 +32,7 @@ describe("IATOS-P1-FREE-01: contrato FREE_LIMIT_REACHED", () => {
     expect(Object.keys(body).sort()).toEqual(["code", "limit", "message", "quota", "renews_at", "upgrade_available", "used"]);
     expect(body).toMatchObject({ code: "FREE_LIMIT_REACHED", quota: "concierge_monthly", limit: 3, used: 3, upgrade_available: true });
     expect(body.message).toBe("Has utilizado tus mensajes gratuitos de Iato de este mes. Se renuevan el 1 de noviembre de 2026. " +
-      "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, sujeto a las condiciones vigentes.");
+      "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.");
   });
 
   it("(4) análisis de una sola vez: renews_at null y nunca promete renovación", () => {

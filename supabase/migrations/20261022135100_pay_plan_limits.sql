@@ -51,7 +51,9 @@ GRANT EXECUTE ON FUNCTION public.app_flag(text) TO service_role;
 -- Regla vigente para un usuario: plan, periodo y límite (NULL = ilimitado).
 -- Si falta la fila del plan gratuito se usan los valores de siempre (3 / 1): borrar una fila por
 -- error nunca deja el plan gratuito ilimitado. Una fila con limit_value NULL sí lo hace, a propósito.
-CREATE OR REPLACE FUNCTION public.quota_rule(_user_id uuid, _kind text)
+-- DROP antes de crear: 20261022135300 cambia sus columnas y re-correr esta migración no debe fallar.
+DROP FUNCTION IF EXISTS public.quota_rule(uuid, text);
+CREATE FUNCTION public.quota_rule(_user_id uuid, _kind text)
 RETURNS TABLE (plan text, period text, limit_value int, enforced boolean)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 #variable_conflict use_column

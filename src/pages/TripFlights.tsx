@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { googleFlightsLink, skyscannerLink, kayakFlightsLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
 import { trackBookingClick } from "@/lib/trackBooking";
+import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 
 interface FlightResult {
   price_usd: number;
@@ -35,6 +36,9 @@ const TripFlights = () => {
   const [results, setResults] = useState<FlightResult[]>([]);
   const [source, setSource] = useState<string>("");
   const [meta, setMeta] = useState<any>(null);
+  const [consultedAt, setConsultedAt] = useState<string | null>(null);
+  // Link de búsqueda (sin precio) cuando el proveedor en vivo no respondió.
+  const [unavailableUrl, setUnavailableUrl] = useState<string | null>(null);
 
   const search = async () => {
     if (!destination || !depart) {
@@ -43,16 +47,23 @@ const TripFlights = () => {
     }
     setLoading(true);
     setResults([]);
+    setUnavailableUrl(null);
     try {
       const { data, error } = await supabase.functions.invoke("flights-search", {
         body: { origin, destination, depart, return_date: returnDate, travelers, type: returnDate ? "round" : "oneway" },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Error");
-      setResults(data.results ?? []);
-      setSource(data.source);
+      const list = data.results ?? [];
+      setResults(list);
       setMeta(data.meta);
-      if ((data.results ?? []).length === 0) toast.info("Sin resultados — prueba con otras fechas");
+      setConsultedAt(data.consulted_at ?? null);
+      if (data.disponible === false || list.length === 0) {
+        setSource("");
+        setUnavailableUrl(data.search_url ?? data.google_flights_url ?? "");
+      } else {
+        setSource(data.source);
+      }
     } catch (e: any) {
       toast.error(e.message ?? "Error buscando vuelos");
     } finally {
@@ -70,30 +81,30 @@ const TripFlights = () => {
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
         <div>
           <h1 className="font-display text-3xl md:text-4xl">Vuelos reales</h1>
-          <p className="text-sm text-muted-foreground mt-1">Precios en vivo de Google Flights · compra directa con tu aerolínea</p>
+          <p className="text-sm text-muted-foreground mt-1">Tarifas consultadas al momento en Google Flights o, si no responde, en la caché de Aviasales</p>
         </div>
 
         <div className="glass-card rounded-xl p-4 md:p-6 space-y-3">
           <div className="grid md:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
-              <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ciudad de México" />
+              <label htmlFor="tripflights-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
+              <Input id="tripflights-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ciudad de México" />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
-              <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Madrid" />
+              <label htmlFor="tripflights-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
+              <Input id="tripflights-destino" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Madrid" />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Salida</label>
-              <Input type="date" value={depart} onChange={(e) => setDepart(e.target.value)} />
+              <label htmlFor="tripflights-salida" className="text-xs uppercase tracking-wide text-muted-foreground">Salida</label>
+              <Input id="tripflights-salida" type="date" value={depart} onChange={(e) => setDepart(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Regreso (opcional)</label>
-              <Input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
+              <label htmlFor="tripflights-regreso-opcional" className="text-xs uppercase tracking-wide text-muted-foreground">Regreso (opcional)</label>
+              <Input id="tripflights-regreso-opcional" type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Viajeros</label>
-              <Input type="number" min={1} max={9} value={travelers} onChange={(e) => setTravelers(Number(e.target.value))} />
+              <label htmlFor="tripflights-viajeros" className="text-xs uppercase tracking-wide text-muted-foreground">Viajeros</label>
+              <Input id="tripflights-viajeros" type="number" min={1} max={9} value={travelers} onChange={(e) => setTravelers(Number(e.target.value))} />
             </div>
           </div>
           <Button onClick={search} disabled={loading} className="w-full">
@@ -103,13 +114,23 @@ const TripFlights = () => {
         </div>
         {source && (
           <div className="flex items-center gap-2 flex-wrap">
-            <PriceSourceBadge source={source === "serpapi" ? "google_flights" : source} />
+            <PriceSourceBadge source={source === "serpapi" ? "google_flights" : source} consultadoAt={consultedAt} />
             {meta && (
               <span className="text-xs text-muted-foreground">{meta.dep_iata} → {meta.arr_iata}</span>
             )}
           </div>
         )}
 
+
+        {unavailableUrl !== null && results.length === 0 && (
+          <LiveSearchUnavailable
+            providerLabel="Aviasales"
+            onSearch={unavailableUrl ? () => trackBookingClick({
+              category: "flight", provider: "Aviasales", title: `${origin} → ${destination}`,
+              city: destination, bookingUrl: ensureAviasalesMarker(unavailableUrl), startAt: depart || undefined,
+            }) : undefined}
+          />
+        )}
 
         <div className="space-y-3">
           {results.map((f, i) => (

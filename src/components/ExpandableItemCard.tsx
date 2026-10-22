@@ -7,6 +7,8 @@ export interface ExpandableItemCardAction {
   label: string;
   href: string;
   primary?: boolean;
+  /** Se llama al abrir el link (p. ej. para registrar el clic de afiliado); no lo bloquea. */
+  onClick?: () => void;
 }
 
 interface ExpandableItemCardProps {
@@ -121,7 +123,7 @@ export const ExpandableItemCard = ({
                         href={a.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); a.onClick?.(); }}
                         className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition ${
                           a.primary
                             ? "bg-primary/15 hover:bg-primary/25 text-primary border-primary/40"
