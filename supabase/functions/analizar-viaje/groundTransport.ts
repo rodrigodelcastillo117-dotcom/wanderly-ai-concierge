@@ -234,7 +234,8 @@ export function groundSearchLinks(origin: string, destination: string, date?: st
   const p = new URLSearchParams({ fromCity: origin, toCity: destination, adults: "1", marker: TP_MARKER });
   if (date) p.set("outboundDate", date);
   const omio = `https://www.omio.com/search?${p.toString()}`;
-  const bus = `https://tp.media/click?${new URLSearchParams({ marker: `${TP_MARKER}.bus`, u: omio }).toString()}`;
+  // tp.media/click responde 400 desde 2026-10 (ver src/lib/affiliateLinks.ts): enlace directo a Omio.
+  const bus = omio;
   const car = `https://www.google.com/maps/dir/?${new URLSearchParams({ api: "1", origin, destination, travelmode: "driving" }).toString()}`;
   return { bus, car };
 }

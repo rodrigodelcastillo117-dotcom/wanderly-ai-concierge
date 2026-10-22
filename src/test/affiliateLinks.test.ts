@@ -12,11 +12,10 @@ import {
 } from "@/lib/affiliateLinks";
 
 describe("monetización: links de afiliado", () => {
-  it("tpDeepLink incluye el marker y la URL destino", () => {
+  it("tpDeepLink abre el proveedor directo (tp.media/click responde 400 y dejaba al usuario en un error)", () => {
     const url = tpDeepLink("https://ejemplo.com/hotel?x=1", "hotels");
-    expect(url).toContain("tp.media/click");
-    expect(url).toContain(`marker=${TP_MARKER}.hotels`);
-    expect(url).toContain(encodeURIComponent("https://ejemplo.com/hotel?x=1"));
+    expect(url).toBe("https://ejemplo.com/hotel?x=1");
+    expect(url).not.toContain("tp.media");
   });
 
   it("withMarker es idempotente", () => {

@@ -126,10 +126,9 @@ describe("applyShortTripRules", () => {
 });
 
 describe("ligas y prompt", () => {
-  it("Omio con afiliado Travelpayouts para autobús y Google Maps para auto", () => {
+  it("Omio directo para autobús (sin el redirect tp.media roto) y Google Maps para auto", () => {
     const l = groundSearchLinks("Ciudad de México", "Puebla", "2026-12-12");
-    expect(l.bus).toMatch(/^https:\/\/tp\.media\/click\?/);
-    expect(decodeURIComponent(l.bus)).toContain("https://www.omio.com/search?fromCity=Ciudad+de+M");
+    expect(l.bus).toMatch(/^https:\/\/www\.omio\.com\/search\?fromCity=Ciudad\+de\+M/);
     expect(l.car).toMatch(/^https:\/\/www\.google\.com\/maps\/dir\/\?api=1/);
   });
 

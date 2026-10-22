@@ -5,15 +5,16 @@
 export const TP_MARKER = "533299";
 
 /**
- * Envuelve una URL de partner en el redirect de Travelpayouts para atribuir
- * la comisión. `subId` permite medir qué vertical convierte mejor.
+ * Enlace de salida a un partner. Antes envolvía la URL en el redirect tp.media/click, pero ese
+ * redirect responde 400 ("source_type is empty") desde 2026-10: el usuario caía en una página de
+ * error y no se registraba ninguna comisión. Ahora abre el proveedor directo (el script Drive de
+ * Travelpayouts en index.html sigue etiquetando los enlaces salientes que reconoce). Para volver a
+ * cobrar por redirect hay que generar los enlaces desde el panel de Travelpayouts (decisión BB-02).
+ * `subId` se conserva en la firma para medir verticales cuando haya enlaces válidos.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function tpDeepLink(targetUrl: string, subId?: string): string {
-  const p = new URLSearchParams({
-    marker: subId ? `${TP_MARKER}.${subId}` : TP_MARKER,
-    u: targetUrl,
-  });
-  return `https://tp.media/click?${p.toString()}`;
+  return targetUrl;
 }
 
 /** Agrega el marker de Travelpayouts a una URL de partner. Idempotente. */
