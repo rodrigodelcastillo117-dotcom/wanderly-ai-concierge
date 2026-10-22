@@ -1,5 +1,6 @@
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plane, Search, ExternalLink, Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { toastFunctionError } from "@/lib/functionErrors";
 import { googleFlightsLink, skyscannerLink, kayakFlightsLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
@@ -29,7 +31,11 @@ const TripFlights = () => {
   const tripTool = useTripTool();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [origin, setOrigin] = useState(params.get("origin") ?? "Mexico City");
+  // Origen: el de la URL, si no la ciudad de origen del perfil (antes siempre "Mexico City",
+  // en inglés y aunque la persona viva en otra ciudad). Se respeta lo que ya haya escrito.
+  const { user } = useAuth();
+  const [origin, setOrigin] = useState(params.get("origin") ?? "");
+  const originTouched = useRef(Boolean(params.get("origin")));
   const [destination, setDestination] = useState(params.get("destination") ?? "");
   const [depart, setDepart] = useState(params.get("depart") ?? "");
   const [returnDate, setReturnDate] = useState(params.get("return") ?? "");
@@ -39,6 +45,8 @@ const TripFlights = () => {
   const [source, setSource] = useState<string>("");
   const [meta, setMeta] = useState<any>(null);
   const [consultedAt, setConsultedAt] = useState<string | null>(null);
+  // El servidor marca OBSOLETO un precio guardado (uso justo); nunca se presenta como "en vivo".
+  const [estadoDato, setEstadoDato] = useState<string | null>(null);
   // Link de búsqueda (sin precio) cuando el proveedor en vivo no respondió.
   const [unavailableUrl, setUnavailableUrl] = useState<string | null>(null);
 
@@ -60,6 +68,9 @@ const TripFlights = () => {
       setResults(list);
       setMeta(data.meta);
       setConsultedAt(data.consulted_at ?? null);
+      setEstadoDato(data.estado_dato ?? null);
+      // Límite de búsquedas en vivo del plan: se muestra lo que sí hubo y el aviso.
+      if (data.aviso_limite) toast.info(data.aviso_limite);
       if (data.disponible === false || list.length === 0) {
         setSource("");
         setUnavailableUrl(data.search_url ?? data.google_flights_url ?? "");
@@ -67,11 +78,21 @@ const TripFlights = () => {
         setSource(data.source);
       }
     } catch (e: any) {
-      toast.error(e.message ?? "Error buscando vuelos");
+      // FREE_LIMIT_REACHED (búsquedas en vivo del día) abre el diálogo de límite.
+      await toastFunctionError(e, "No pudimos buscar vuelos. Intenta de nuevo.");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!user || originTouched.current) return;
+    supabase.from("profiles").select("ciudad_origen").eq("id", user.id).maybeSingle()
+      .then(({ data }) => {
+        if (originTouched.current) return;
+        setOrigin((data as { ciudad_origen?: string | null } | null)?.ciudad_origen || "CDMX");
+      });
+  }, [user]);
 
   useEffect(() => {
     if (params.get("auto") === "1" && destination && depart) search();
@@ -91,7 +112,7 @@ const TripFlights = () => {
           <div className="grid md:grid-cols-2 gap-3">
             <div>
               <label htmlFor="tripflights-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
-              <Input id="tripflights-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ciudad de México" />
+              <Input id="tripflights-origen" value={origin} onChange={(e) => { originTouched.current = true; setOrigin(e.target.value); }} placeholder="Ciudad de México" />
             </div>
             <div>
               <label htmlFor="tripflights-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
@@ -117,7 +138,7 @@ const TripFlights = () => {
         </div>
         {source && (
           <div className="flex items-center gap-2 flex-wrap">
-            <PriceSourceBadge source={source === "serpapi" ? "google_flights" : source} consultadoAt={consultedAt} />
+            <PriceSourceBadge source={source === "serpapi" ? "google_flights" : source} estado={estadoDato} consultadoAt={consultedAt} />
             {meta && (
               <span className="text-xs text-muted-foreground">{meta.dep_iata} → {meta.arr_iata}</span>
             )}

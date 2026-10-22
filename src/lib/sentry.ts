@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/react";
 import { scrubBreadcrumb, scrubSentryEvent } from "@/lib/piiScrub";
 
 /**
@@ -8,35 +7,61 @@ import { scrubBreadcrumb, scrubSentryEvent } from "@/lib/piiScrub";
  * Pega aquí el DSN de tu proyecto de Sentry (Settings → Projects → Client Keys)
  * o define VITE_SENTRY_DSN. Mientras esté vacío, Sentry queda desactivado y la app
  * funciona normal.
+ *
+ * @sentry/react (~70 kB comprimido) se descarga con import() solo si hay DSN: antes iba en el
+ * paquete inicial de todas las visitas aunque estuviera desactivado (E-23). Lo que llega antes
+ * de que termine de cargar (usuario, errores) se guarda y se envía al cargar.
  */
+type SentryModule = typeof import("@sentry/react");
+
 export const SENTRY_DSN: string =
   (import.meta.env.VITE_SENTRY_DSN as string | undefined) ?? "";
 
 export const sentryEnabled = Boolean(SENTRY_DSN);
 
-export function initSentry() {
-  if (!sentryEnabled) return;
-  Sentry.init({
-    dsn: SENTRY_DSN,
-    environment: import.meta.env.MODE,
-    integrations: [Sentry.browserTracingIntegration()],
-    tracesSampleRate: 0.1,
-    // Sin PII (F-18): solo el id del usuario; correos y tokens se tapan en eventos y breadcrumbs.
-    sendDefaultPii: false,
-    beforeSend: (event) => scrubSentryEvent(event),
-    beforeBreadcrumb: (crumb) => scrubBreadcrumb(crumb),
-    ignoreErrors: [
-      "ResizeObserver loop limit exceeded",
-      "ResizeObserver loop completed with undelivered notifications",
-      "Failed to fetch dynamically imported module",
-    ],
-  });
+let sentry: SentryModule | null = null;
+let pendingUser: { id: string } | null | undefined;
+const pendingErrors: { error: unknown; extra?: Record<string, unknown> }[] = [];
+
+export function initSentry(load: () => Promise<SentryModule> = () => import("@sentry/react")) {
+  if (!sentryEnabled || sentry) return;
+  load()
+    .then((S) => {
+      S.init({
+        dsn: SENTRY_DSN,
+        environment: import.meta.env.MODE,
+        integrations: [S.browserTracingIntegration()],
+        tracesSampleRate: 0.1,
+        // Sin PII (F-18): solo el id del usuario; correos y tokens se tapan en eventos y breadcrumbs.
+        sendDefaultPii: false,
+        beforeSend: (event) => scrubSentryEvent(event),
+        beforeBreadcrumb: (crumb) => scrubBreadcrumb(crumb),
+        ignoreErrors: [
+          "ResizeObserver loop limit exceeded",
+          "ResizeObserver loop completed with undelivered notifications",
+          "Failed to fetch dynamically imported module",
+        ],
+      });
+      sentry = S;
+      if (pendingUser !== undefined) S.setUser(pendingUser);
+      for (const e of pendingErrors.splice(0)) S.captureException(e.error, e.extra ? { extra: e.extra } : undefined);
+    })
+    .catch(() => {
+      /* sin monitoreo: la app sigue igual */
+    });
 }
 
 /** Solo el id interno del usuario (nunca el correo). */
 export function setSentryUser(user: { id: string } | null) {
   if (!sentryEnabled) return;
-  Sentry.setUser(user ? { id: user.id } : null);
+  const u = user ? { id: user.id } : null;
+  if (sentry) sentry.setUser(u);
+  else pendingUser = u;
 }
 
-export { Sentry };
+/** Reporta un error (p. ej. desde AppErrorBoundary). No-op sin DSN. */
+export function captureException(error: unknown, extra?: Record<string, unknown>) {
+  if (!sentryEnabled) return;
+  if (sentry) sentry.captureException(error, extra ? { extra } : undefined);
+  else if (pendingErrors.length < 20) pendingErrors.push({ error, extra });
+}

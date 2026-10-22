@@ -380,7 +380,7 @@ const NumField = ({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder || "0"}
         aria-label={label}
-        className={`w-full rounded-lg bg-background/60 border border-border pl-6 pr-2 placeholder:text-muted-foreground/50 placeholder:italic ${compact ? "py-1.5 text-sm" : "py-2.5"} focus:border-primary outline-none`}
+        className={`w-full rounded-lg bg-background/60 border border-border pl-6 pr-2 placeholder:text-muted-foreground placeholder:italic ${compact ? "py-1.5 text-sm" : "py-2.5"} focus:border-primary outline-none`}
       />
     </div>
     {hint && <span className="block text-[10px] text-muted-foreground mt-0.5">{hint}</span>}

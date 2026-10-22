@@ -7,9 +7,16 @@ import { trackBookingClick } from "@/lib/trackBooking";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { localISODatePlus } from "@/lib/localDate";
+import { toastFunctionError } from "@/lib/functionErrors";
+import { priceWatchView } from "@/lib/priceWatchView";
 
 type Watch = Tables<"price_watches">;
-type Check = Pick<Tables<"price_watch_checks">, "price_mxn" | "checked_at" | "approximate_dates" | "source">;
+// amount_original / currency: monto en la moneda del proveedor (migración 20261022132200; aún no
+// están en los tipos generados).
+type Check = Pick<Tables<"price_watch_checks">, "price_mxn" | "checked_at" | "approximate_dates" | "source"> & {
+  amount_original?: number | null;
+  currency?: string | null;
+};
 
 const mxn = (n: number | null | undefined) =>
   n == null ? "—" : `$${Math.round(Number(n)).toLocaleString("es-MX")}`;
@@ -53,11 +60,11 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
     if (w) {
       const { data: c } = await supabase
         .from("price_watch_checks")
-        .select("price_mxn,checked_at,approximate_dates,source")
+        .select("price_mxn,checked_at,approximate_dates,source,amount_original,currency")
         .eq("watch_id", w.id)
         .order("checked_at", { ascending: false })
         .limit(30);
-      setChecks((c ?? []).reverse());
+      setChecks(((c ?? []) as unknown as Check[]).reverse());
     } else {
       setChecks([]);
     }
@@ -75,9 +82,13 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("price-watch", { body: { action, trip_id: tripId } });
-      if (error || data?.error) {
-        const msg = data?.message ?? "No pudimos actualizar la alerta. Intenta de nuevo.";
-        toast.error(msg);
+      if (error) {
+        // FREE_LIMIT_REACHED (alertas incluidas en PRO o máximo del plan) abre el diálogo de límite.
+        await toastFunctionError(error, "No pudimos actualizar la alerta. Intenta de nuevo.");
+        return;
+      }
+      if (data?.error) {
+        toast.error(data?.message ?? "No pudimos actualizar la alerta. Intenta de nuevo.");
         return;
       }
       toast.success(action === "start" ? "Te avisaremos si baja el precio" : "Alerta desactivada");
@@ -96,7 +107,7 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
         <div className="flex-1 min-w-0">
           <p className="font-medium">Vigila el precio de tus vuelos</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Revisamos cada día la tarifa real de tu ruta y te avisamos si baja. Gratis.
+            Revisamos cada día la tarifa real de tu ruta y te avisamos si baja.
           </p>
         </div>
         <Button onClick={() => call("start")} disabled={busy} className="bg-gradient-gold text-primary-foreground hover:opacity-90 shrink-0">
@@ -106,13 +117,13 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
     );
   }
 
-  const baseline = Number(watch.baseline_price_mxn);
-  const current = watch.last_price_mxn == null ? null : Number(watch.last_price_mxn);
-  const delta = current == null ? 0 : current - baseline;
+  // Comparación en la moneda del proveedor (como el servidor): un cambio del dólar no es una baja.
+  const view = priceWatchView(watch as Parameters<typeof priceWatchView>[0], checks);
+  const baseline = view.baselineMxn;
+  const current = view.currentMxn;
+  const delta = view.deltaMxn;
   const down = delta < 0;
-  const exact = checks
-    .filter((c) => !c.approximate_dates && c.source === watch.baseline_source)
-    .map((c) => Number(c.price_mxn));
+  const exact = view.points;
   const route = `${watch.origin_iata} → ${watch.destination_iata}`;
 
   return (
@@ -136,10 +147,12 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
         </div>
         <div className="rounded-lg bg-surface/60 p-2.5">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Más bajo</p>
-          <p className="font-display text-lg">{mxn(watch.lowest_price_mxn)}</p>
+          <p className="font-display text-lg">{mxn(view.lowestMxn)}</p>
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground -mt-2 text-center">MXN por persona, viaje redondo</p>
+      <p className="text-[11px] text-muted-foreground -mt-2 text-center">
+        MXN por persona, viaje redondo{view.sameCurrency ? ` · comparado en ${view.currency}, al tipo de cambio de hoy` : ""}
+      </p>
 
       {current != null && delta !== 0 && (
         <div className={`flex items-center gap-2 text-sm ${down ? "text-emerald-400" : "text-muted-foreground"}`}>

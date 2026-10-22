@@ -133,10 +133,76 @@ export function parseStops(v: unknown): number | null {
   return null;
 }
 
-/** Un vuelo es razonable para un trayecto corto con máx. 1 escala y duración < 3 × manejo. */
-export function isReasonableShortFlight(stops: number | null, minutes: number | null, driveHours: number): boolean {
-  if (stops === null || minutes === null) return false; // sin datos no se puede afirmar
-  return stops <= 1 && minutes < 3 * driveHours * 60;
+// Tiempo puerta a puerta (supuestos documentados, se muestran como aproximados): un vuelo
+// doméstico suma ~60 min para llegar al aeropuerto, ~90 min de documentación y seguridad, y
+// ~45 min para salir y llegar al centro. El autobús suma ~45 min de terminal y va ~15 % más
+// lento que el auto. Se revisó contra un caso real (CDMX→Puebla, 22-oct-2026): Google Flights
+// solo dio vuelos con escala de 4h15–5h27; con la regla anterior (< 3 × manejo = 5.7 h) los tres
+// pasaban, aunque puerta a puerta son ~7.5 h contra ~2.5 h en autobús.
+export const FLIGHT_OVERHEAD_MIN = 60 + 90 + 45;
+const BUS_SLOWDOWN = 1.15;
+const BUS_OVERHEAD_MIN = 45;
+/** Un directo se muestra si puerta a puerta no tarda más de 25 % sobre la mejor opción terrestre. */
+const DIRECT_MAX_RATIO = 1.25;
+/** Con preferencia por comodidad, un directo se tolera hasta 50 % más lento. */
+const DIRECT_MAX_RATIO_COMFORT = 1.5;
+/** Uno con escala solo con ventaja comprobable: al menos 20 % más rápido puerta a puerta. */
+const STOPS_MAX_RATIO = 0.8;
+
+export type TravelerPrefs = {
+  /** El usuario pidió volar ("en avión", "vuelo"). */
+  wantsFlight: boolean;
+  /** Aceptó o pidió explícitamente escalas o conexiones. */
+  acceptsStops: boolean;
+  comfort: boolean;
+  budget: boolean;
+};
+
+export function travelerPrefs(notes: unknown): TravelerPrefs {
+  const n = norm(notes);
+  return {
+    wantsFlight: /\b(en avion|volar|vuelo|vuelos|volando)\b/.test(n),
+    acceptsStops: /\b(escala|escalas|conexion|conexiones)\b/.test(n) && !/\bsin escalas?\b/.test(n),
+    comfort: /\b(comodo|comoda|comodidad|lujo|premium)\b/.test(n),
+    budget: /\b(barato|barata|economico|economica|ahorrar|low cost)\b/.test(n),
+  };
+}
+
+/** Estimaciones puerta a puerta por modo, en minutos (aproximadas). */
+export function groundDoorToDoor(t: ShortTrip) {
+  const car = Math.round(t.approxDriveHours * 60);
+  const bus = Math.round(t.approxDriveHours * 60 * BUS_SLOWDOWN + BUS_OVERHEAD_MIN);
+  return { car, bus, best: Math.min(car, bus) };
+}
+
+export type FlightVerdict = { show: boolean; doorToDoorMin: number | null; reason: string };
+
+/**
+ * ¿Mostrar este vuelo en un trayecto corto? Prioriza directos cuando tienen sentido; uno con escala
+ * solo si es claramente más rápido puerta a puerta o si el usuario lo pidió. Sin datos, no se afirma.
+ */
+export function shortFlightVerdict(stops: number | null, minutes: number | null, t: ShortTrip, prefs: TravelerPrefs): FlightVerdict {
+  if (stops === null || minutes === null) return { show: false, doorToDoorMin: null, reason: "sin duración o escalas" };
+  const d2d = minutes + FLIGHT_OVERHEAD_MIN;
+  const ground = groundDoorToDoor(t).best;
+  if (stops === 0) {
+    const limit = ground * (prefs.comfort ? DIRECT_MAX_RATIO_COMFORT : DIRECT_MAX_RATIO);
+    if (d2d <= limit) return { show: true, doorToDoorMin: d2d, reason: "directo competitivo puerta a puerta" };
+    if (prefs.wantsFlight) return { show: true, doorToDoorMin: d2d, reason: "directo: el usuario pidió volar" };
+    return { show: false, doorToDoorMin: d2d, reason: "directo más lento que ir por carretera" };
+  }
+  if (d2d <= ground * STOPS_MAX_RATIO) return { show: true, doorToDoorMin: d2d, reason: "con escala pero más rápido puerta a puerta" };
+  if (prefs.acceptsStops) return { show: true, doorToDoorMin: d2d, reason: "con escala: el usuario lo pidió" };
+  return { show: false, doorToDoorMin: d2d, reason: "con escala sin ventaja comprobable" };
+}
+
+const NO_PREFS: TravelerPrefs = { wantsFlight: false, acceptsStops: false, comfort: false, budget: false };
+
+/** Compatibilidad: decisión sin preferencias del usuario. */
+export function isReasonableShortFlight(stops: number | null, minutes: number | null, driveHours: number, prefs: TravelerPrefs = NO_PREFS): boolean {
+  if (stops !== null && !Number.isFinite(stops)) stops = null; // Number(undefined) = NaN: sin dato
+  const approxRoadKm = Math.round(driveHours * AVG_ROAD_KMH);
+  return shortFlightVerdict(stops, minutes, { origin: "", destination: "", approxRoadKm, approxDriveHours: driveHours }, prefs).show;
 }
 
 /** Ligas de búsqueda: Omio (afiliado Travelpayouts, autobuses) y la ruta en Google Maps (auto). */
@@ -150,12 +216,20 @@ export function groundSearchLinks(origin: string, destination: string, date?: st
 }
 
 /** Texto para el prompt del modelo cuando el trayecto es corto. */
-export function shortTripPromptBlock(t: ShortTrip): string {
-  return `TRAYECTO CORTO POR CARRETERA (${t.origin} → ${t.destination}, aprox. ${t.approxRoadKm} km, unas ${t.approxDriveHours} h de manejo; cifras aproximadas)
-- NO fuerces vuelos. En "vuelos" propone primero transporte terrestre: autobús (y/o auto propio o rentado) con modo="autobus" o modo="auto".
-- Esas opciones terrestres son ESTIMACIONES: pon fuente_precio="estimado", precio_min y precio_max (rango por persona, viaje redondo, en MXN) y precio_por_persona dentro de ese rango. No digas que es un precio en vivo ni inventes horarios exactos; en notas indica que el precio real se confirma en el buscador.
-- Los vuelos de las listas solo se pueden usar si tienen máximo 1 escala y duran menos de ${Math.round(3 * t.approxDriveHours * 10) / 10} h en total; si ninguno cumple, no propongas vuelos.
-- Sugerencia de tiers: ahorro = autobús, equilibrio = autobús de lujo o auto, premium = vuelo razonable (si existe) o auto/traslado privado.`;
+export function shortTripPromptBlock(t: ShortTrip, prefs: TravelerPrefs = NO_PREFS): string {
+  const g = groundDoorToDoor(t);
+  const h = (m: number) => `${Math.round((m / 60) * 10) / 10} h`;
+  const order = prefs.budget
+    ? "ahorro = autobús, equilibrio = autobús de lujo o auto, premium = vuelo directo si conviene o traslado privado"
+    : prefs.comfort
+      ? "ahorro = autobús de lujo, equilibrio = auto o traslado privado, premium = vuelo directo si conviene"
+      : "ahorro = autobús, equilibrio = autobús de lujo o auto, premium = vuelo directo si conviene o auto/traslado privado";
+  return `TRAYECTO CORTO POR CARRETERA (${t.origin} → ${t.destination}, aprox. ${t.approxRoadKm} km; cifras aproximadas)
+- Compara por TIEMPO PUERTA A PUERTA, precio, comodidad y lo que pidió el viajero. Referencias aproximadas: auto ~${h(g.car)}, autobús ~${h(g.bus)} (incluye terminal); un vuelo suma ~${h(FLIGHT_OVERHEAD_MIN)} de aeropuertos al tiempo de vuelo.
+- Prioriza vuelos DIRECTOS cuando tengan sentido. Las listas de vuelos ya vienen filtradas por el servidor: usa solo los que aparecen; si no queda ninguno, no propongas vuelos.
+- Las opciones terrestres (modo="autobus" o modo="auto") son ESTIMACIONES: fuente_precio="estimado", precio_min y precio_max (rango por persona, viaje redondo, en MXN) y precio_por_persona dentro de ese rango. No inventes horarios ni digas que es precio en vivo; en notas indica que el precio real se confirma en el buscador.
+- En notas de cada opción escribe su tiempo puerta a puerta aproximado.
+- Sugerencia de tiers según lo que pidió el viajero: ${order}.`;
 }
 
 const GROUND_WORDS = /\b(autobus|bus|camion|auto propio|auto rentado|renta de auto|coche|carro|manejando|carretera|ado|estrella roja|primera plus|etn)\b/;
@@ -174,10 +248,10 @@ const pos = (v: unknown) => (Number(v) > 0 ? Math.round(Number(v)) : null);
 /**
  * Aplica las reglas de trayecto corto a las opciones de "vuelos" ya normalizadas y con fuente:
  * - terrestres: siempre "estimado", con la liga de búsqueda del servidor (no la del modelo);
- * - vuelos: solo los razonables;
+ * - vuelos: solo los que convienen puerta a puerta o que el usuario pidió (shortFlightVerdict);
  * - si no queda ninguna opción terrestre, agrega una sin precio (solo la liga), para no inventar.
  */
-export function applyShortTripRules(vuelos: any[], t: ShortTrip, links: { bus: string; car: string }): any[] {
+export function applyShortTripRules(vuelos: any[], t: ShortTrip, links: { bus: string; car: string }, prefs: TravelerPrefs = NO_PREFS): any[] {
   const out: any[] = [];
   for (const v of Array.isArray(vuelos) ? vuelos : []) {
     if (!v || typeof v !== "object") continue;
@@ -205,9 +279,8 @@ export function applyShortTripRules(vuelos: any[], t: ShortTrip, links: { bus: s
       out.push(g);
       continue;
     }
-    if (isReasonableShortFlight(parseStops(v.escalas), parseDurationMinutes(v.duracion), t.approxDriveHours)) {
-      out.push({ ...v, modo: "avion" });
-    }
+    const verdict = shortFlightVerdict(parseStops(v.escalas), parseDurationMinutes(v.duracion), t, prefs);
+    if (verdict.show) out.push({ ...v, modo: "avion", puerta_a_puerta_min: verdict.doorToDoorMin });
   }
   if (!out.some((v) => v.modo === "autobus" || v.modo === "auto")) {
     const used = new Set(out.map((v) => v.tier));

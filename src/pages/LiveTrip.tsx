@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { BackButton } from "@/components/BackButton";
+import { formatLocalDate } from "@/lib/localDate";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { useActiveTrip } from "@/hooks/useActiveTrip";
@@ -145,7 +146,7 @@ const LiveTrip = () => {
             <Clock className="w-5 h-5 text-primary shrink-0" />
             <div className="text-sm">
               <div className="font-semibold text-foreground">Aún no empieza</div>
-              <div className="text-foreground/60">Tu viaje comienza el {new Date(trip.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "long" })}.</div>
+              <div className="text-foreground/60">Tu viaje comienza el {formatLocalDate(trip.fecha_salida, { day: "numeric", month: "long" })}.</div>
             </div>
           </div>
         )}
@@ -163,7 +164,7 @@ const LiveTrip = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <QuickAction icon={Navigation} label="Mapa" sublabel="Día por día" onClick={() => navigate(`/dashboard/viajes/${trip.id}/mapa`)} />
           <QuickAction icon={Luggage} label="Packing" sublabel="Checklist" onClick={() => navigate(`/dashboard/viajes/${trip.id}/packing`)} />
-          <QuickAction icon={Cloud} label="Clima" sublabel="14 días" onClick={() => navigate(`/dashboard/viajes/${trip.id}/clima`)} />
+          <QuickAction icon={Cloud} label="Clima" sublabel="Pronóstico" onClick={() => navigate(`/dashboard/viajes/${trip.id}/clima`)} />
           <QuickAction icon={Languages} label="Traductor" sublabel="Frases clave" onClick={() => navigate(`/dashboard/viajes/${trip.id}/traductor`)} />
           <QuickAction icon={BookHeart} label="Diario" sublabel="Memorias" onClick={() => navigate(`/dashboard/viajes/${trip.id}/diario`)} />
           <QuickAction icon={Users} label="Split" sublabel="Gastos" onClick={() => navigate(`/dashboard/viajes/${trip.id}/split`)} />

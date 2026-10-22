@@ -10,12 +10,17 @@
 //   400 INVALID_REQUEST      faltan datos
 
 export type QuotaKind = "concierge" | "trip_analysis";
+/** Tipos de plan_limits que no usan reservas: alertas y vuelos activos, búsquedas en vivo. */
+export type PlanLimitKind = "price_watches" | "tracked_flights" | "live_searches";
 export type QuotaName =
   | "concierge_monthly" | "trip_analysis_once" | "trip_analysis_monthly"
   // Límites recomendados (20261022135300): prueba sin tarjeta y tope diario de PRO.
-  | "concierge_trial" | "trip_analysis_trial" | "concierge_daily" | "trip_analysis_daily";
+  | "concierge_trial" | "trip_analysis_trial" | "concierge_daily" | "trip_analysis_daily"
+  // Grupo cost (20261022142000): activos a la vez y bolsa de búsquedas en vivo.
+  | "price_watches_active" | "tracked_flights_active"
+  | "live_searches_daily" | "live_searches_monthly" | "live_searches_trial";
 
-/** Solo los límites mensuales y diarios se renuevan; los de una vez y los de la prueba, no. */
+/** Solo los límites mensuales y diarios se renuevan; los de una vez, de la prueba y activos, no. */
 export const quotaRenews = (q: QuotaName) => q.endsWith("_monthly") || q.endsWith("_daily");
 
 export type QuotaReason =
@@ -114,14 +119,42 @@ export type FreeLimitBody = {
   message: string;
 };
 
-const DEFAULT_LIMIT: Record<QuotaKind, number> = { concierge: 3, trip_analysis: 1 };
+const DEFAULT_LIMIT: Record<QuotaKind | PlanLimitKind, number> = {
+  concierge: 3, trip_analysis: 1, price_watches: 0, tracked_flights: 1, live_searches: 5,
+};
+const DEFAULT_QUOTA: Record<QuotaKind | PlanLimitKind, QuotaName> = {
+  concierge: "concierge_monthly", trip_analysis: "trip_analysis_once", price_watches: "price_watches_active",
+  tracked_flights: "tracked_flights_active", live_searches: "live_searches_daily",
+};
 
-/** Texto para el usuario según el límite alcanzado. El frontend usa el mismo texto (functionErrors.ts). */
-export function freeLimitMessage(quota: QuotaName, renewsAt: string | null, upgradeAvailable: boolean): string {
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Texto para el usuario según el límite alcanzado. El frontend usa el mismo texto (functionErrors.ts).
+ * `limit` solo se usa en los límites de activos y de búsquedas en vivo.
+ */
+export function freeLimitMessage(quota: QuotaName, renewsAt: string | null, upgradeAvailable: boolean, limit: number | null = null): string {
   const fecha = formatRenewal(renewsAt) ?? (quota.endsWith("_daily") ? "mañana" : "próximo mes");
   // Mismo texto que el diálogo del frontend, que toma el precio de src/lib/planCopy.ts (PRICE_LINE);
   // una prueba (functionErrors.test) verifica que coincidan.
   const pro = "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.";
+  const n = typeof limit === "number" && limit >= 0 ? limit : null;
+  if (quota === "price_watches_active") {
+    if (upgradeAvailable && !n) return `Las alertas de precio están incluidas en IATOS PRO. ${pro}`;
+    const tope = n ? `Ya tienes ${plural(n, "alerta de precio activa", "alertas de precio activas")}, el máximo de tu plan.` : "Llegaste al máximo de alertas de precio de tu plan.";
+    return `${tope} Desactiva una para activar otra.${upgradeAvailable ? ` ${pro}` : ""}`;
+  }
+  if (quota === "tracked_flights_active") {
+    const tope = n ? `Ya sigues ${plural(n, "vuelo", "vuelos")} a la vez, el máximo de tu plan.` : "Llegaste al máximo de vuelos seguidos de tu plan.";
+    return `${tope} Deja de seguir uno para agregar otro.${upgradeAvailable ? ` ${pro}` : ""}`;
+  }
+  if (quota.startsWith("live_searches_") && upgradeAvailable) {
+    const cuantas = n ? `tus ${plural(n, "búsqueda", "búsquedas")} en vivo` : "tus búsquedas en vivo";
+    if (quota === "live_searches_trial") return `Usaste ${cuantas} de tu prueba gratuita de IATOS PRO. ${pro}`;
+    return quota === "live_searches_daily"
+      ? `Usaste ${cuantas} de hoy (vuelos y hoteles); se renuevan el ${fecha}. ${pro}`
+      : `Usaste ${cuantas} de este mes (vuelos y hoteles); se renuevan el ${fecha}. ${pro}`;
+  }
   // Un plan de pago que llega a su límite no recibe oferta de "mejorar".
   if (!upgradeAvailable) {
     return quota.endsWith("_daily")
@@ -137,19 +170,19 @@ export function freeLimitMessage(quota: QuotaName, renewsAt: string | null, upgr
 }
 
 /** Cuerpo del 402. Si la base no mandó los datos (migración sin aplicar) usa los límites gratuitos. */
-export function freeLimitBody(kind: QuotaKind, q: Partial<QuotaResult> = {}, now = new Date()): FreeLimitBody {
-  const quota: QuotaName = q.quota ?? (kind === "concierge" ? "concierge_monthly" : "trip_analysis_once");
+export function freeLimitBody(kind: QuotaKind | PlanLimitKind, q: Partial<QuotaResult> = {}, now = new Date()): FreeLimitBody {
+  const quota: QuotaName = q.quota ?? DEFAULT_QUOTA[kind];
   const limit = typeof q.limit === "number" ? q.limit : DEFAULT_LIMIT[kind];
   const used = typeof q.used === "number" ? q.used : limit;
   const renews_at = quotaRenews(quota) ? (q.renews_at ?? (quota.endsWith("_daily") ? null : nextMonthStartIso(now))) : null;
   const upgrade_available = q.upgrade_available ?? true;
   return {
     code: "FREE_LIMIT_REACHED", quota, limit, used, renews_at, upgrade_available,
-    message: freeLimitMessage(quota, renews_at, upgrade_available),
+    message: freeLimitMessage(quota, renews_at, upgrade_available, limit),
   };
 }
 
-export function freeLimitResponse(kind: QuotaKind, q: Partial<QuotaResult> = {}, corsHeaders: Record<string, string> = {}) {
+export function freeLimitResponse(kind: QuotaKind | PlanLimitKind, q: Partial<QuotaResult> = {}, corsHeaders: Record<string, string> = {}) {
   return json(402, freeLimitBody(kind, q), corsHeaders);
 }
 

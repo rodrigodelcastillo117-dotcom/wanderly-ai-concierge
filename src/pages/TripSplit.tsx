@@ -30,6 +30,10 @@ const TripSplit = () => {
   const [payer, setPayer] = useState("");
   const [currency, setCurrency] = useState<string>("MXN");
   const fx = useFxTable();
+  // Evita el doble envío: un segundo toque mientras se guarda creaba un gasto/persona duplicado.
+  const [savingPerson, setSavingPerson] = useState(false);
+  const [savingExp, setSavingExp] = useState(false);
+  const [removing, setRemoving] = useState<Set<string>>(new Set());
   const tipSplit = useTooltipShown("split");
 
   useEffect(() => {
@@ -46,47 +50,78 @@ const TripSplit = () => {
     })();
   }, [id]);
 
+  const markRemoving = (rid: string, on: boolean) =>
+    setRemoving(prev => { const next = new Set(prev); on ? next.add(rid) : next.delete(rid); return next; });
+
   const addPerson = async () => {
     const n = newName.trim();
-    if (!n || !id) return;
-    setNewName("");
-    const { data, error } = await supabase.from("trip_split_people").insert({ trip_id: id, name: n }).select().single();
-    if (!error && data) setPeople(prev => [...prev, data as Person]);
-    else toast.error("No se pudo agregar");
+    if (!n || !id || savingPerson) return;
+    setSavingPerson(true);
+    try {
+      const { data, error } = await supabase.from("trip_split_people").insert({ trip_id: id, name: n }).select().single();
+      if (!error && data) {
+        setPeople(prev => [...prev, data as Person]);
+        setNewName("");
+      } else toast.error("No se pudo agregar");
+    } finally {
+      setSavingPerson(false);
+    }
   };
 
   // Quitar a alguien ya no borra lo que pagó (cambiaba los saldos de todos): primero sus gastos.
   const removePerson = async (pid: string) => {
+    if (removing.has(pid)) return;
     const person = people.find(p => p.id === pid);
+    // La base ya no borra en cascada los pagos de la persona (migración 20261022143200): con pagos
+    // registrados no se puede quitar y se explica por qué.
     if (hasPayments(pid, expenses)) {
       toast.error(`${person?.name ?? "Esta persona"} tiene pagos registrados`, { description: "Borra primero sus gastos para quitarla." });
       return;
     }
-    const { error } = await supabase.from("trip_split_people").delete().eq("id", pid);
-    if (error) { toast.error("No se pudo quitar"); return; }
-    setPeople(prev => prev.filter(p => p.id !== pid));
+    markRemoving(pid, true);
+    try {
+      const { error } = await supabase.from("trip_split_people").delete().eq("id", pid);
+      if (error) { toast.error("No se pudo quitar. Intenta de nuevo."); return; }
+      setPeople(prev => prev.filter(p => p.id !== pid));
+    } finally {
+      markRemoving(pid, false);
+    }
   };
 
   const addExp = async () => {
+    if (savingExp) return;
     const a = parseSplitAmount(amount);
     if (!payer || !desc.trim() || !id) return;
     if (a == null) { toast.error("El monto debe ser mayor a 0"); return; }
-    const row = { trip_id: id, payer_id: payer, amount: a, description: desc.trim(), currency };
-    let { data, error } = await supabase.from("trip_split_expenses").insert(row).select().single();
-    if (error && currency === "MXN") {
-      // Sin la columna currency (migración 20261022143200 pendiente) un gasto en MXN se guarda igual.
-      ({ data, error } = await supabase.from("trip_split_expenses")
-        .insert({ trip_id: id, payer_id: payer, amount: a, description: desc.trim() }).select().single());
+    setSavingExp(true);
+    try {
+      const row = { trip_id: id, payer_id: payer, amount: a, description: desc.trim(), currency };
+      let { data, error } = await supabase.from("trip_split_expenses").insert(row).select().single();
+      if (error && currency === "MXN") {
+        // Sin la columna currency (migración 20261022143200 pendiente) un gasto en MXN se guarda igual.
+        ({ data, error } = await supabase.from("trip_split_expenses")
+          .insert({ trip_id: id, payer_id: payer, amount: a, description: desc.trim() }).select().single());
+      }
+      if (!error && data) {
+        setExpenses(prev => [data as Expense, ...prev]);
+        setAmount(""); setDesc("");
+      } else toast.error("No se pudo guardar");
+    } finally {
+      setSavingExp(false);
     }
-    if (!error && data) {
-      setExpenses(prev => [data as Expense, ...prev]);
-      setAmount(""); setDesc("");
-    } else toast.error("No se pudo guardar");
   };
 
   const removeExp = async (eid: string) => {
-    setExpenses(prev => prev.filter(x => x.id !== eid));
-    await supabase.from("trip_split_expenses").delete().eq("id", eid);
+    if (removing.has(eid)) return;
+    markRemoving(eid, true);
+    try {
+      // Antes se quitaba de la lista sin revisar el resultado: si fallaba, volvía al recargar.
+      const { error } = await supabase.from("trip_split_expenses").delete().eq("id", eid);
+      if (error) { toast.error("No se pudo eliminar el gasto. Intenta de nuevo."); return; }
+      setExpenses(prev => prev.filter(x => x.id !== eid));
+    } finally {
+      markRemoving(eid, false);
+    }
   };
 
   // Saldos y "cómo saldar" por moneda (nunca se mezclan MXN y EUR como si fueran lo mismo).
@@ -112,13 +147,13 @@ const TripSplit = () => {
           <h2 className="font-medium mb-3">Personas</h2>
           <div className="flex gap-2 mb-3">
             <Input aria-label="Nombre de la persona" placeholder="Nombre" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && addPerson()} />
-            <Button onClick={addPerson} className="shrink-0" aria-label="Agregar persona"><Plus className="w-4 h-4" aria-hidden="true" /></Button>
+            <Button onClick={addPerson} disabled={savingPerson || !newName.trim()} className="shrink-0" aria-label="Agregar persona"><Plus className="w-4 h-4" aria-hidden="true" /></Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {people.map(p => (
               <span key={p.id} className="px-3 py-1.5 rounded-full bg-primary/10 text-sm flex items-center gap-2">
                 {p.name}
-                <button onClick={() => removePerson(p.id)} aria-label={`Quitar a ${p.name}`} className="p-1.5 -m-1.5"><Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" aria-hidden="true" /></button>
+                <button onClick={() => removePerson(p.id)} disabled={removing.has(p.id)} aria-label={`Quitar a ${p.name}`} className="p-1.5 -m-1.5"><Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" aria-hidden="true" /></button>
               </span>
             ))}
           </div>
@@ -130,18 +165,18 @@ const TripSplit = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
               <Input aria-label="Descripción del gasto" placeholder="Descripción" value={desc} onChange={e => setDesc(e.target.value)} />
               <div className="flex gap-2">
-                <Input type="number" min="0.01" step="0.01" aria-label="Monto del gasto" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} />
+                <Input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label="Monto del gasto" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} />
                 <select aria-label="Moneda del gasto" value={currency} onChange={e => setCurrency(e.target.value)}
                   className="bg-background border border-border rounded-md px-2 text-sm">
                   {MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
             </div>
-            <select className="w-full bg-background border border-border rounded-md p-2 mb-3 text-sm" value={payer} onChange={e => setPayer(e.target.value)}>
+            <select aria-label="¿Quién pagó?" className="w-full bg-background border border-border rounded-md p-2 mb-3 text-sm" value={payer} onChange={e => setPayer(e.target.value)}>
               <option value="">¿Quién pagó?</option>
               {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <Button onClick={addExp} className="w-full"><Receipt className="w-4 h-4 mr-2" /> Agregar gasto</Button>
+            <Button onClick={addExp} disabled={savingExp} aria-busy={savingExp} className="w-full"><Receipt className="w-4 h-4 mr-2" aria-hidden="true" /> {savingExp ? "Guardando…" : "Agregar gasto"}</Button>
           </div>
         )}
 
@@ -200,7 +235,7 @@ const TripSplit = () => {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-sm font-medium">{formatMoney(Number(e.amount), e.currency || "MXN")}</span>
-                      <button onClick={() => removeExp(e.id)} aria-label={`Eliminar gasto ${e.description ?? ""}`.trim()} className="p-2 -m-2"><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" aria-hidden="true" /></button>
+                      <button onClick={() => removeExp(e.id)} disabled={removing.has(e.id)} aria-label={`Eliminar gasto ${e.description ?? ""}`.trim()} className="p-2 -m-2"><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" aria-hidden="true" /></button>
                     </div>
                   </div>
                 );

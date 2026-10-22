@@ -470,6 +470,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                     </span>
                     <MapPin className="w-4 h-4 text-primary/70" />
                     <Input
+                      aria-label={`Parada ${i + 1}`}
                       value={s}
                       onChange={(e) =>
                         setStops((arr) => arr.map((x, idx) => (idx === i ? e.target.value : x)))
@@ -494,6 +495,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             >
               <div className="relative flex-1">
                 <Input
+                  aria-label="Agregar ciudad o pedir un cambio a la IA"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder='Agrega una ciudad (ej. "Kioto") o pide a IA: "quita Praga y agrega Roma"'
@@ -571,6 +573,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             </h3>
           </div>
           <Input
+            aria-label="Emoción del viaje"
             value={emocionTexto}
             onChange={(e) => setEmocionTexto(e.target.value)}
             placeholder='ej. quiero sentir libertad total y aventura'

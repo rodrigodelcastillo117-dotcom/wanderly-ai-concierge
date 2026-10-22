@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { subscribePush, trackFlight } from "@/lib/pushNotifications";
 import { localISODate } from "@/lib/localDate";
+import { toastFunctionError } from "@/lib/functionErrors";
 
 type FlightInfo = {
   status?: string;
@@ -52,7 +53,8 @@ export const FlightStatusDialog = ({
         });
       }
     } catch (e: any) {
-      toast.error(e?.message ?? "Error activando alertas");
+      // Límite del plan → diálogo de límite; regla del plan gratuito (solo hoy o mañana) → su texto.
+      await toastFunctionError(e, "No pudimos activar el seguimiento. Intenta de nuevo.");
     } finally { setTracking(false); }
   };
 
@@ -108,6 +110,7 @@ export const FlightStatusDialog = ({
 
             <div className="flex gap-2 mb-4">
               <Input
+                aria-label="Número de vuelo"
                 placeholder="Número de vuelo (ej. AF179, AM2)"
                 value={flight}
                 onChange={(e) => setFlight(e.target.value.toUpperCase())}

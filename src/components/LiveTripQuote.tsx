@@ -5,6 +5,7 @@ import { useLiveQuote, type LiveQuote } from "@/hooks/useLiveQuote";
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 
 type Props = {
+  tripId?: string;
   origin?: string;
   destination?: string;
   depart?: string;
@@ -17,9 +18,9 @@ type Props = {
 const fmtMXN = (n: number) =>
   `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 
-export function LiveTripQuote({ origin, destination, depart, return_date, nights, travelers, fallbackMxn }: Props) {
-  const { data, loading, error } = useLiveQuote({
-    origin, destination, depart, return_date, nights, travelers, enabled: true,
+export function LiveTripQuote({ tripId, origin, destination, depart, return_date, nights, travelers, fallbackMxn }: Props) {
+  const { data, loading, error, refresh, refreshing } = useLiveQuote({
+    tripId, origin, destination, depart, return_date, nights, travelers, enabled: true,
   });
 
   const display = useMotionValue(0);
@@ -59,8 +60,8 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
             ? `Cotización parcial (${!q.flight ? "sin vuelo" : "sin hotel"}) · grupo de ${travelers} ${travelers === 1 ? "persona" : "personas"}`
             : `Inversión total · grupo de ${travelers} ${travelers === 1 ? "persona" : "personas"}`}
         </p>
-        {/* Sin fuente declarada no se asume "en vivo". */}
-        {q && <PriceSourceBadge source={q.source} consultadoAt={q.fetched_at} />}
+        {/* Sin fuente declarada no se asume "en vivo"; el servidor marca OBSOLETO un precio guardado. */}
+        {q && <PriceSourceBadge source={q.source} estado={q.estado_dato} consultadoAt={q.fetched_at} />}
       </div>
       <motion.p className="font-display text-4xl sm:text-5xl md:text-6xl gold-text mb-2 break-words leading-tight">
         {rounded as any}
@@ -122,9 +123,32 @@ export function LiveTripQuote({ origin, destination, depart, return_date, nights
         </div>
       )}
 
+      {q?.aviso && <p className="text-xs text-amber-500 mt-3">{q.aviso}</p>}
+
+      {q && tripId && (
+        <div className="mt-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+          {q.can_refresh ? (
+            <button
+              type="button"
+              onClick={refresh}
+              disabled={refreshing}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-primary/50 px-4 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10 disabled:opacity-60"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              Actualizar precio
+            </button>
+          ) : null}
+          <p className="text-[11px] text-muted-foreground">
+            {q.can_refresh
+              ? "Consultarlo de nuevo usa una búsqueda en vivo de tu plan."
+              : "El precio en vivo de este viaje se actualiza como máximo una vez al día."}
+          </p>
+        </div>
+      )}
+
       {!q && error && (
         <p className="text-xs text-muted-foreground mt-2">
-          No pudimos cotizar en tiempo real. Mostrando estimación basada en tus selecciones.
+          {error} Mostrando estimación basada en tus selecciones.
         </p>
       )}
     </motion.div>

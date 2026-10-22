@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { toastFunctionError } from "@/lib/functionErrors";
 import { bookingLink, airbnbLink } from "@/lib/affiliateLinks";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
@@ -37,6 +38,8 @@ const TripHotels = () => {
   const [results, setResults] = useState<HotelResult[]>([]);
   const [source, setSource] = useState("");
   const [consultedAt, setConsultedAt] = useState<string | null>(null);
+  // El servidor marca OBSOLETO un precio guardado (uso justo); nunca se presenta como "en vivo".
+  const [estadoDato, setEstadoDato] = useState<string | null>(null);
   // Link de búsqueda (sin precio) cuando Google Hotels no respondió.
   const [unavailableUrl, setUnavailableUrl] = useState<string | null>(null);
 
@@ -57,6 +60,9 @@ const TripHotels = () => {
       const list = data.results ?? [];
       setResults(list);
       setConsultedAt(data.consulted_at ?? null);
+      setEstadoDato(data.estado_dato ?? null);
+      // Límite de búsquedas en vivo del plan: se muestra lo que sí hubo y el aviso.
+      if (data.aviso_limite) toast.info(data.aviso_limite);
       if (data.disponible === false || list.length === 0) {
         setSource("");
         setUnavailableUrl(data.booking_url ?? bookingLink(city, checkin, checkout, adults));
@@ -64,7 +70,8 @@ const TripHotels = () => {
         setSource(data.source);
       }
     } catch (e: any) {
-      toast.error(e.message ?? "Error buscando hoteles");
+      // FREE_LIMIT_REACHED (búsquedas en vivo del día) abre el diálogo de límite.
+      await toastFunctionError(e, "No pudimos buscar hoteles. Intenta de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -119,7 +126,7 @@ const TripHotels = () => {
           </Button>
         </div>
 
-        {source && <PriceSourceBadge source={source === "serpapi" ? "google_hotels" : source} consultadoAt={consultedAt} />}
+        {source && <PriceSourceBadge source={source === "serpapi" ? "google_hotels" : source} estado={estadoDato} consultadoAt={consultedAt} />}
 
         {unavailableUrl !== null && results.length === 0 && (
           <LiveSearchUnavailable

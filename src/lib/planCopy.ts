@@ -49,6 +49,49 @@ export const TRIAL_FEATURES = [
   "Hasta 2 alertas de precio y 2 vuelos con seguimiento",
 ] as const;
 
+// ── Encabezados que dependen del plan (IATOS-089 / IATOS-013) ──────────────────────────────
+// El Concierge y Members Only decían "Concierge PRO te escucha" y "reservas gestionadas por tu
+// Concierge PRO" también a cuentas gratis, y prometían reservar (Iato busca y da enlaces; una
+// solicitud de mesa la atiende el equipo y la confirma cada lugar).
+
+export type PlanView = {
+  /** Aún se está leyendo el acceso: texto neutro, sin afirmar ningún plan. */
+  loading?: boolean;
+  isPro: boolean;
+  isTrialing?: boolean;
+  trialDaysLeft?: number | null;
+  /** Mensajes con Iato que le quedan este periodo (null = sin tope). */
+  remaining?: number | null;
+  limit?: number | null;
+};
+
+export type ConciergeHeader = { eyebrow: string; title: string; note: string | null; showUpgrade: boolean };
+
+export function conciergeHeaderCopy(v: PlanView): ConciergeHeader {
+  if (v.loading) return { eyebrow: "CONCIERGE", title: "Iato te escucha", note: null, showUpgrade: false };
+  if (v.isPro && v.isTrialing) {
+    const days = v.trialDaysLeft;
+    return {
+      eyebrow: "CONCIERGE PRO · PRUEBA",
+      title: "Concierge PRO te escucha",
+      note: days != null ? `Prueba de IATOS PRO: ${days === 1 ? "te queda 1 día" : `te quedan ${days} días`}.` : "Estás en la prueba de IATOS PRO.",
+      showUpgrade: false,
+    };
+  }
+  if (v.isPro) return { eyebrow: "CONCIERGE PRO", title: "Concierge PRO te escucha", note: null, showUpgrade: false };
+  const quota =
+    v.remaining != null && v.limit != null
+      ? `Plan gratuito: te quedan ${v.remaining} de ${v.limit} mensajes con Iato este mes.`
+      : "Plan gratuito: mensajes con Iato limitados cada mes.";
+  return { eyebrow: "CONCIERGE · PLAN GRATUITO", title: "Iato te escucha", note: quota, showUpgrade: true };
+}
+
+export function membersOnlySubtitle(v: PlanView): string {
+  const base = "Vida nocturna seleccionada. Pide tu mesa y nuestro equipo te ayuda a gestionarla; la confirmación depende de cada lugar.";
+  if (v.loading) return base;
+  return v.isPro ? `${base} ${FIXER_LINE}.` : `${base} Con IATOS PRO: ${FIXER_LINE.charAt(0).toLowerCase()}${FIXER_LINE.slice(1)}.`;
+}
+
 /**
  * Cómo funciona la prueba hoy. "no_card" = DEC-02 encendido (app_flags.trial_no_card_enabled);
  * "card" = la prueba de 30 días se activa al contratar en Stripe (comportamiento mientras el

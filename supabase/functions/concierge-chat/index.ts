@@ -13,7 +13,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { commitQuota, quotaDeniedResponse, releaseQuota, reserveQuota } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { aiFetch } from "../_shared/ai.ts";
+import { aiFetch, aiFetchDetailed } from "../_shared/ai.ts";
+import { logUsage } from "../_shared/serpRuntime.ts";
+import { usageFromChat, type UsageEntry } from "../_shared/usage.ts";
 import { buildTripQuestion, needsSpecificTrip, resolveActiveTrip } from "../_shared/activeTrip.ts";
 import { makeToolExecutor, todayLine, TOOL_TIMEOUT_MS } from "./tools.ts";
 import { resolveToday, sanitizeClientMessages } from "./guard.ts";
@@ -425,14 +427,19 @@ Deno.serve(async (req) => {
     ];
 
     class ModelHttpError extends Error { constructor(public status: number, public detail: string) { super(`AI ${status}`); } }
+    // Tokens que reporta cada llamada al modelo (si la respuesta trae `usage`), para ai_usage_log.
+    const modelUsage: UsageEntry[] = [];
+    const flushUsage = () => Promise.all(modelUsage.splice(0).map(logUsage));
     const callModel = async (msgs: ModelMessage[], opts: { toolChoice: "auto" | "none" }) => {
-      const res = await aiFetch({
+      const { res, provider, model } = await aiFetchDetailed({
         method: "POST",
         headers: { "Content-Type": "application/json", "Lovable-API-Key": LOVABLE_API_KEY },
         body: JSON.stringify({ model: "google/gemini-flash-latest", messages: msgs, tools: TOOLS, tool_choice: opts.toolChoice }),
       });
       if (!res.ok) throw new ModelHttpError(res.status, await res.text());
       const data = await res.json();
+      const tokens = usageFromChat(data);
+      if (tokens) modelUsage.push({ user_id: u.user.id, function: "concierge-chat", provider, model: typeof data?.model === "string" ? data.model : model, ...tokens });
       return data?.choices?.[0]?.message ?? null;
     };
     const execTool = makeToolExecutor((name, mapped) => callTool(name, mapped, authHeader), { todayISO, coords });
@@ -441,6 +448,7 @@ Deno.serve(async (req) => {
     try {
       loop = await runConciergeLoop(messages, callModel, execTool);
     } catch (e) {
+      await flushUsage(); // lo que el modelo sí alcanzó a cobrar
       await releaseQuota(quotaReservation, "model_error"); // sin respuesta del modelo no se cobra
       if (e instanceof ModelHttpError) {
         // El cuerpo del proveedor solo va al log (recortado y sin secretos ni correos).
@@ -450,6 +458,7 @@ Deno.serve(async (req) => {
       throw e;
     }
     const { finalText, toolsUsed, toolRuns } = loop;
+    await flushUsage();
 
     // Log para aprendizaje
     logInsight(supabase, u.user.id, lastUserMsg, toolsUsed).catch(() => {});

@@ -83,13 +83,17 @@ describe("Inicio: viaje activo único", () => {
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/dashboard/vuelos?trip=${LIMA}`));
   });
 
-  it("sin la columna en producción usa la elección local, y lista los próximos (no solo 2)", async () => {
+  it("sin la columna en producción usa la elección local; la lista pone primero el viaje activo", async () => {
     db.profileError = { code: "42703", message: "column does not exist" };
     db.trips[0] = { ...db.trips[0], fecha_salida: localISODatePlus(10), fecha_regreso: localISODatePlus(12) };
     localStorage.setItem("iatos_concierge_trip", PARIS);
     renderHome();
     expect(await screen.findByText("Próximo viaje")).toBeInTheDocument();
     expect(screen.getAllByText("París").length).toBeGreaterThan(0);
-    await waitFor(() => expect(screen.getAllByText(/^EN \d+D$/)).toHaveLength(3));
+    // Lista de Inicio (2 lugares): el viaje activo (París, fijado) y el más cercano por fecha (Roma).
+    await waitFor(() => expect(screen.getAllByText(/^EN \d+D$/)).toHaveLength(2));
+    const list = screen.getByText("Mis próximos viajes").closest("section")!;
+    const hrefs = [...list.querySelectorAll("a[href^='/dashboard/viajes/']")].map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual([`/dashboard/viajes/${PARIS}`, `/dashboard/viajes/${ROMA}`]);
   });
 });

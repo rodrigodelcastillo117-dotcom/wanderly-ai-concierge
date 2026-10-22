@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import iatosLogo from "@/assets/iatos-logo.png";
+// Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
+import iatosLogo from "@/assets/iatos-logo-320.png";
 import AvatarCreator from "@/components/AvatarCreator";
 
 
@@ -237,6 +238,7 @@ const OnboardingDeep = () => {
       render: () => (
         <div className="space-y-3">
           <Textarea
+            aria-label="Tu mejor viaje y por qué"
             placeholder="Ej: Tres semanas mochileando por Vietnam — la comida callejera de Hanoi, durmiendo en juncos en Halong Bay, perderme en Hoi An al atardecer. Me sentí completamente vivo y libre."
             value={a.mejor_viaje_descripcion}
             onChange={(e) => setA({ ...a, mejor_viaje_descripcion: e.target.value })}

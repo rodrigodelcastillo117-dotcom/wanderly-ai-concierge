@@ -2,7 +2,9 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { enforceRateLimit, rateLimitResponse } from '../_shared/rate-limit.ts';
-import { MAX_ACTIVE_PER_USER, normalizeFlight, trackError } from './rules.ts';
+import { freePlanDateError, HARD_CAP_ACTIVE_PER_USER, normalizeFlight, trackError } from './rules.ts';
+import { planLimit, serviceUnavailableResponse } from '../_shared/entitlements.ts';
+import { activeLimitDecision } from '../_shared/planGate.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -20,7 +22,8 @@ Deno.serve(async (req) => {
     if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
     const { flight, flight_date, route, trip_id, active = true, today } = await req.json();
-    const bad = (msg: string) => new Response(JSON.stringify({ error: msg }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // code + message: la app muestra el texto tal cual (src/lib/functionErrors.ts); error por compatibilidad.
+    const bad = (msg: string) => new Response(JSON.stringify({ code: 'INVALID_REQUEST', message: msg, error: msg }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (typeof flight !== 'string' || !flight.trim()) return bad('flight requerido');
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -40,12 +43,30 @@ Deno.serve(async (req) => {
     const why = trackError({ flight, flight_date }, todayISO);
     if (why) return bad(why);
 
-    const { data: existing } = await admin.from('tracked_flights').select('id')
+    // Límite del plan (plan_limits.tracked_flights). Si no se puede leer, se niega con 503: no se
+    // regala seguimiento (cada vuelo consulta SerpApi) ni se culpa al usuario.
+    const rule = await planLimit(u.user.id, 'tracked_flights');
+    if (!rule) return serviceUnavailableResponse(corsHeaders);
+    // Plan gratuito ("básico"): solo el día del vuelo (hoy o mañana del usuario).
+    if (rule.plan === 'free') {
+      const dayRule = freePlanDateError(flight_date, todayISO);
+      if (dayRule) return new Response(JSON.stringify({ code: 'INVALID_REQUEST', message: dayRule, error: 'free_day_of_flight_only' }), {
+        status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Seguir otra vez un vuelo que ya está activo no cuenta como uno nuevo; reactivar uno apagado sí.
+    const { data: existing } = await admin.from('tracked_flights').select('id, active')
       .eq('user_id', u.user.id).eq('flight', code).eq('flight_date', flight_date).maybeSingle();
-    if (!existing) {
-      const { count } = await admin.from('tracked_flights').select('id', { count: 'exact', head: true })
+    if (!existing?.active) {
+      const { count, error: countErr } = await admin.from('tracked_flights').select('id', { count: 'exact', head: true })
         .eq('user_id', u.user.id).eq('active', true);
-      if ((count ?? 0) >= MAX_ACTIVE_PER_USER) return bad(`Puedes seguir hasta ${MAX_ACTIVE_PER_USER} vuelos a la vez`);
+      if (countErr) return serviceUnavailableResponse(corsHeaders);
+      const gate = activeLimitDecision('tracked_flights', rule, count ?? 0, HARD_CAP_ACTIVE_PER_USER);
+      if (!gate.allowed) {
+        if (gate.kind === 'unavailable') return serviceUnavailableResponse(corsHeaders);
+        return new Response(JSON.stringify(gate.body), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     const { error } = await admin.from('tracked_flights').upsert({

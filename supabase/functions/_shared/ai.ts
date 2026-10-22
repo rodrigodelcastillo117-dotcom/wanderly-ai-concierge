@@ -54,7 +54,10 @@ function callGemini(key: string, body: ChatBody, signal?: AbortSignal | null): P
 /** Decide si un error de Gemini amerita reintentar con otra variante de la petición. */
 const retryable = (status: number) => status === 400 || status === 404 || status === 429 || status >= 500;
 
-export async function aiFetch(init: RequestInit): Promise<Response> {
+/** Respuesta + quién respondió de verdad (para registrar el costo en ai_usage_log). */
+export type AiFetchResult = { res: Response; provider: "gemini" | "lovable"; model: string };
+
+export async function aiFetchDetailed(init: RequestInit): Promise<AiFetchResult> {
   const geminiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
   const body = parseBody(init);
   const model = typeof body?.model === "string" ? body.model : "";
@@ -73,7 +76,7 @@ export async function aiFetch(init: RequestInit): Promise<Response> {
     for (const attempt of attempts) {
       try {
         const res = await callGemini(geminiKey, attempt, init.signal);
-        if (res.ok) return res;
+        if (res.ok) return { res, provider: "gemini", model: String(attempt.model) };
         const detail = await res.text().catch(() => "");
         console.warn(`gemini ${attempt.model} → ${res.status}: ${detail.slice(0, 300)}`);
         if (!retryable(res.status)) break;
@@ -84,5 +87,11 @@ export async function aiFetch(init: RequestInit): Promise<Response> {
     }
   }
 
-  return fetch(LOVABLE_URL, lovableInit(init, body));
+  const lovable = lovableInit(init, body);
+  const lovableModel = parseBody(lovable)?.model;
+  return { res: await fetch(LOVABLE_URL, lovable), provider: "lovable", model: typeof lovableModel === "string" ? lovableModel : model };
+}
+
+export async function aiFetch(init: RequestInit): Promise<Response> {
+  return (await aiFetchDetailed(init)).res;
 }

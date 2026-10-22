@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { splitBookings } from "@/lib/bookingKinds";
-import { formatDateOnly } from "@/lib/dateUtils";
+import { formatInstant } from "@/lib/localDate";
 
 type Booking = {
   id: string;
@@ -64,7 +64,7 @@ const Reservas = () => {
             <Badge variant="outline" className="text-xs">{labels[b.category] ?? b.category}</Badge>
             <span className="text-xs text-muted-foreground">{b.provider}</span>
             {kind === "visit" && (
-              <span className="text-xs text-muted-foreground">· Visitado el {formatDateOnly(b.created_at)}</span>
+              <span className="text-xs text-muted-foreground">· Visitado el {formatInstant(b.created_at)}</span>
             )}
             {kind === "confirmed" && b.confirmation_code && (
               <span className="text-xs text-primary">· Confirmación {b.confirmation_code}</span>
@@ -73,7 +73,7 @@ const Reservas = () => {
           <h3 className="font-display text-base truncate">{b.title}</h3>
           <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
             {b.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" aria-hidden="true" />{b.city}</span>}
-            {b.start_at && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" aria-hidden="true" />{formatDateOnly(b.start_at)}</span>}
+            {b.start_at && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" aria-hidden="true" />{formatInstant(b.start_at)}</span>}
           </div>
         </div>
         {b.booking_url && (

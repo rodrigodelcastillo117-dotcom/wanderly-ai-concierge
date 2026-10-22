@@ -4,6 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { serpFetchFor } from "../_shared/serpRuntime.ts";
 
 const KEY = Deno.env.get("TRIPADVISOR_API_KEY");
 const SERP_KEY = Deno.env.get("SERPAPI_PRIVATE_KEY");
@@ -15,7 +16,7 @@ const GOOGLE_QUERY: Record<string, string> = {
   hotels: "hoteles en",
 };
 
-async function googleMapsSearch(body: Body) {
+async function googleMapsSearch(body: Body, doFetch: typeof fetch = fetch) {
   const prefix = body.category ? GOOGLE_QUERY[body.category] ?? "" : "";
   const params = new URLSearchParams({
     engine: "google_maps",
@@ -24,7 +25,7 @@ async function googleMapsSearch(body: Body) {
     hl: "es",
     api_key: SERP_KEY!,
   });
-  const r = await getJSON(`https://serpapi.com/search.json?${params.toString()}`);
+  const r = await getJSON(`https://serpapi.com/search.json?${params.toString()}`, doFetch);
   if (!r.ok) return null;
   const places = (r.data?.local_results ?? []) as any[];
   return places
@@ -59,8 +60,8 @@ type Body = {
   withDetails?: boolean;
 };
 
-async function getJSON(url: string) {
-  const r = await fetch(url, { headers: { accept: "application/json", referer: "https://iatos-ai.lovable.app" } });
+async function getJSON(url: string, doFetch: typeof fetch = fetch) {
+  const r = await doFetch(url, { headers: { accept: "application/json", referer: "https://iatos-ai.lovable.app" } });
   const t = await r.text();
   try { return { ok: r.ok, status: r.status, data: JSON.parse(t) }; }
   catch { return { ok: false, status: r.status, data: { raw: t } }; }
@@ -83,7 +84,8 @@ Deno.serve(async (req) => {
 
     const googleFallback = async (reason: string, status: number, detail: unknown) => {
       if (SERP_KEY) {
-        const places = await googleMapsSearch(body);
+        // Google Maps vía SerpApi con la caché compartida (7 días): los lugares casi no cambian.
+        const places = await googleMapsSearch(body, serpFetchFor("tripadvisor-search", __user.id).fetch);
         if (places && places.length > 0) {
           return new Response(JSON.stringify({ ok: true, source: "google_maps", results: places }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } });
