@@ -1,57 +1,52 @@
-import { BadgeCheck, Sparkles, Star } from "lucide-react";
+import { AlertTriangle, BadgeCheck, CircleSlash, Clock, HelpCircle, Sparkles, Star } from "lucide-react";
+import { provenanceOf, type ProvenanceInput } from "@/lib/provenance";
 
-/** Fuentes que consideramos "precio verificado en vivo" (API de inventario real). */
-const LIVE_SOURCES = new Set([
-  "serpapi",
-  "serpapi-hotels",
-  "google_hotels",
-  "google_flights",
-  "travelpayouts",
-  "aviasales",
-]);
+/** Compatibilidad: true solo si el precio es de un proveedor en vivo y está vigente ahora. */
+export const isLivePrice = (source?: string | null, consultadoAt?: string | Date | null) =>
+  provenanceOf({ source, consultadoAt }).state === "CONSULTADO_EN_VIVO";
 
-/** Fuentes que son un lugar real y curado (rating/reseñas reales) aunque el precio no venga de un motor en vivo. */
-const CURATED_SOURCES = new Set(["tripadvisor", "google_maps"]);
+type Props = ProvenanceInput & { className?: string; now?: Date };
 
-const LABELS: Record<string, string> = {
-  serpapi: "Precio verificado en vivo · Google",
-  "serpapi-hotels": "Precio verificado en vivo · Google Hotels",
-  google_hotels: "Precio verificado en vivo · Google Hotels",
-  google_flights: "Precio verificado en vivo · Google Flights",
-  travelpayouts: "Precio verificado en vivo · Aviasales",
-  aviasales: "Precio verificado en vivo · Aviasales",
-  tripadvisor: "Curado con reseñas reales · TripAdvisor",
-  google_maps: "Curado con reseñas reales · Google",
-};
+/**
+ * Insignia del origen del precio. Siempre se muestra (sin fuente dice "Sin fuente") y nunca dice
+ * "en vivo" para estimaciones, precios viejos (>24 h) o pendientes de verificar.
+ */
+export function PriceSourceBadge({ className = "", now, ...input }: Props) {
+  const p = provenanceOf(input, now);
+  const curated = p.state === "ESTIMADO" && /Reseñas reales/.test(p.label);
 
-export const isLivePrice = (source?: string | null) => Boolean(source && LIVE_SOURCES.has(source));
-export const isCurated = (source?: string | null) => Boolean(source && CURATED_SOURCES.has(source));
+  const tone =
+    p.state === "CONSULTADO_EN_VIVO" || p.state === "CONFIRMADO"
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : p.state === "OBSOLETO" || p.state === "PENDIENTE_DE_VERIFICACION"
+        ? "border-amber-500/30 bg-amber-500/10 text-amber-500"
+        : curated
+          ? "border-sky-500/30 bg-sky-500/10 text-sky-400"
+          : "border-border bg-surface/60 text-muted-foreground";
 
-export function PriceSourceBadge({ source, className = "" }: { source?: string | null; className?: string }) {
-  if (!source) return null;
-  const live = isLivePrice(source);
-  const curated = !live && isCurated(source);
-  const label = live || curated ? (LABELS[source] ?? "Precio verificado en vivo") : "Estimado por IA";
+  const Icon =
+    p.state === "CONSULTADO_EN_VIVO" || p.state === "CONFIRMADO"
+      ? BadgeCheck
+      : p.state === "OBSOLETO"
+        ? Clock
+        : p.state === "PENDIENTE_DE_VERIFICACION"
+          ? AlertTriangle
+          : p.state === "NO_DISPONIBLE"
+            ? CircleSlash
+            : curated
+              ? Star
+              : p.label === "Sin fuente"
+                ? HelpCircle
+                : Sparkles;
 
   return (
     <span
-      title={
-        live
-          ? "Tarifa consultada en tiempo real con el proveedor"
-          : curated
-            ? "Lugar real con reseñas verificadas; el precio es una aproximación"
-            : "Aproximación generada por IA; puede variar al reservar"
-      }
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] tracking-wide ${
-        live
-          ? "border-primary/30 bg-primary/10 text-primary"
-          : curated
-            ? "border-sky-500/30 bg-sky-500/10 text-sky-400"
-            : "border-border bg-surface/60 text-muted-foreground"
-      } ${className}`}
+      title={p.detail}
+      data-estado={p.state}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] tracking-wide ${tone} ${className}`}
     >
-      {live ? <BadgeCheck className="w-3 h-3" /> : curated ? <Star className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-      {label}
+      <Icon className="w-3 h-3 shrink-0" />
+      {p.label}
     </span>
   );
 }

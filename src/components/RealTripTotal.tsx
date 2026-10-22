@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Receipt, Lightbulb, ChevronDown } from "lucide-react";
+import { Receipt, Lightbulb, ChevronDown, AlertTriangle, Clock, RefreshCw } from "lucide-react";
 
 type Props = {
   trip: any;
   noches: number;
+  /** Viajeros con los que se calculó el total (no los actuales si el usuario los cambió). */
   viajeros: number;
   onUpdated?: () => void;
+  /** "Cotización para N viajeros del …; actualiza la cotización" cuando cambiaron viajeros/fechas. */
+  staleMessage?: string | null;
+  /** Fecha de la cotización y vigencia. */
+  validityLabel?: string | null;
+  validityExpired?: boolean;
+  /** Tipo de cambio con que se cotizó, si se conoce. */
+  fxNote?: string | null;
+  onRequote?: () => void;
 };
 
 const fmtMXN = (n: number) =>
@@ -53,7 +62,7 @@ export function tripTotals(trip: any, viajeros: number) {
   return { total, porPersona, presupuesto, excedente };
 }
 
-export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
+export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, fxNote, onRequote }: Props) {
 
 
   const { total, porPersona, presupuesto, excedente } = tripTotals(trip, viajeros);
@@ -88,8 +97,28 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
         {viajeros} {viajeros === 1 ? "persona" : "personas"} · {noches} noches
       </p>
       <p className="text-[11px] text-muted-foreground/80 mb-2 italic">
-        Calculado solo con los importes de la cotización y tus selecciones; no se agregan extras automáticos.
+        Total de la cotización guardada; no se agregan extras automáticos.
       </p>
+      {validityLabel && (
+        <p className={`text-[11px] mb-2 inline-flex items-center gap-1 ${validityExpired ? "text-amber-500" : "text-muted-foreground"}`}>
+          <Clock className="w-3 h-3 shrink-0" /> {validityLabel}
+        </p>
+      )}
+      {fxNote && <p className="text-[10px] text-muted-foreground/80 mb-2">{fxNote}</p>}
+      {staleMessage && (
+        <div role="alert" className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-500 flex flex-col sm:flex-row sm:items-center gap-2">
+          <span className="flex items-start gap-2 flex-1">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{staleMessage}. El total y el precio por persona de arriba son los de esa cotización.</span>
+          </span>
+          {onRequote && (
+            <button type="button" onClick={onRequote}
+              className="inline-flex items-center justify-center gap-1 rounded-full border border-amber-500/50 px-3 py-1.5 text-[11px] font-medium hover:bg-amber-500/10 shrink-0">
+              <RefreshCw className="w-3 h-3" /> Actualizar cotización
+            </button>
+          )}
+        </div>
+      )}
       {excedente > 0 && (
         <p className="text-xs text-amber-500 mb-2" role="status">
           Esta cotización rebasa tu presupuesto de {fmtMXN(presupuesto)} por {fmtMXN(excedente)}. Puedes editar el
