@@ -50,6 +50,19 @@ describe("BookingActions", () => {
     expect(bridgeMock).toHaveBeenCalledWith("start_booking", expect.objectContaining({ action_kind: "equivalent_search", consent: true, source: src }));
   });
 
+  it("A2-T1: después de abrir la salida firmada pide un enlace nuevo (misma llave) para que volver a abrir no se agote", async () => {
+    bridgeMock.mockResolvedValueOnce({ ok: true, intent: { id: "i1", state: "READY_TO_BOOK" }, go_url: "https://x.supabase.co/functions/v1/booking-go?t=abc" })
+      .mockResolvedValueOnce({ ok: true, replay: true, intent: { id: "i1", state: "REDIRECTED_TO_PROVIDER" }, go_url: "https://x.supabase.co/functions/v1/booking-go?t=def" });
+    render(<BookingActions offer={flight} source={src} tripId={TRIP.id} />);
+    fireEvent.click(screen.getByRole("button", { name: /Buscar este vuelo · Aviasales/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Guardar en mi viaje" }));
+    await waitFor(() => expect(screen.getByRole("link", { name: /Continuar en Aviasales/ }).getAttribute("href")).toContain("t=abc"));
+    fireEvent.click(screen.getByRole("link", { name: /Continuar en Aviasales/ }));
+    await waitFor(() => expect(screen.getByRole("link", { name: /Continuar en Aviasales/ }).getAttribute("href")).toContain("t=def"));
+    expect(bridgeMock).toHaveBeenCalledTimes(2);
+    expect(bridgeMock.mock.calls[1]).toEqual(["start_booking", expect.objectContaining({ idempotency_key: "bk-test-key-123", consent: true, source: src })]);
+  });
+
   it("restaurante con WhatsApp verificado: mensaje editable y enlace wa.me con el texto", async () => {
     const venue = { name: "Casa X", city: "Tulum", country: "MX", booking_url: "https://wa.me/529841234567", source: "prive_catalog" as const };
     const offer = offerFromVenue(venue, "restaurant", { draft: { venue: "Casa X", product_type: "restaurant", lang: "es" } });

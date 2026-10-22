@@ -48,7 +48,8 @@ export type BridgeDeps = {
   recheckFlight(q: Parameters<typeof import("../_shared/booking/recheck.ts").recheckFlight>[0]): Promise<RecheckResult>;
   recheckHotel(q: Parameters<typeof import("../_shared/booking/recheck.ts").recheckHotel>[0]): Promise<RecheckResult>;
   /** URL de booking-go firmada para la intención, atada al destino guardado y a su nivel (AUD-04). */
-  goUrl(intentId: string, target: { url: string; tier: SignTier }): Promise<string | null>;
+  /** `uses`: cuántas veces se había abierto ya la intención (redirect_count) al firmar (A2-T1). */
+  goUrl(intentId: string, target: { url: string; tier: SignTier; uses?: number }): Promise<string | null>;
   /** Destino guardado de una intención del usuario (service role, filtrado por dueño) y la fuente de su acción. */
   intentTarget(intentId: string): Promise<{ target_url: string | null; action_trust: string | null } | null>;
   priveSession?: string | null;
@@ -338,7 +339,7 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
           party: draft?.party_size ?? offer.traveler_count, state: "REQUESTED", user_label: deps.userLabel, message: draft?.notes ?? null, intent_id: intent.id });
         await deps.notifyTeam(mail.subject, mail.html).catch(() => false);
       }
-      const go = canSign && tier && intent.state !== "PRICE_RECHECK_REQUIRED" ? await deps.goUrl(intent.id, { url: a.url!, tier }) : null;
+      const go = canSign && tier && intent.state !== "PRICE_RECHECK_REQUIRED" ? await deps.goUrl(intent.id, { url: a.url!, tier, uses: Number(intent.redirect_count ?? 0) || 0 }) : null;
       return ok({
         intent: withStatus(intent), replay: !!data.replay, existing: !!data.existing,
         go_url: go, direct_url: isWeb && !canSign ? a.url : null,
@@ -358,7 +359,7 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
       // Se firma el destino que quedó guardado, con el nivel de la fuente de su acción (AUD-04).
       const stored = await deps.intentTarget(body.intent_id);
       const tier = signTier(stored?.target_url ?? null, stored?.action_trust);
-      return ok({ intent: withStatus(data.intent), go_url: tier ? await deps.goUrl(body.intent_id, { url: stored!.target_url!, tier }) : null });
+      return ok({ intent: withStatus(data.intent), go_url: tier ? await deps.goUrl(body.intent_id, { url: stored!.target_url!, tier, uses: Number(data.intent?.redirect_count ?? 0) || 0 }) : null });
     }
 
     case "recheck_price": {

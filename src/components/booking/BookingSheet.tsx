@@ -160,6 +160,12 @@ export function BookingSheet({ open, onOpenChange, offer, action, source, tripId
                 onClick={(e) => {
                   if (blocked || !href) { e.preventDefault(); return; }
                   setLeft(true);
+                  // A2-T1: cada enlace firmado sirve unas pocas veces; después de abrirlo se pide uno nuevo
+                  // (misma selección, misma llave de idempotencia) para que "volver a abrir" nunca se agote.
+                  if (consent && goUrl && intent) {
+                    void bridge("start_booking", { source, action_kind: action.kind, idempotency_key: keyRef.current, consent: true })
+                      .then((r) => { if (r?.ok && r.go_url) setGoUrl(r.go_url); }).catch(() => undefined);
+                  }
                   // Sin intención guardada: se registra el clic como antes (no es una reserva).
                   if (!(consent && goUrl)) {
                     void logBookingClick({ category: CATEGORY[offer.product_type] ?? "other", provider: action.processor, title: offer.title,

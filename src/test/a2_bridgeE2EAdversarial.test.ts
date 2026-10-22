@@ -98,7 +98,7 @@ function setup(o: Opts = {}) {
     // Igual que booking-bridge/index.ts: el token lleva la huella del destino y su nivel (AUD-04).
     goUrl: async (intentId, target) => {
       const t = await signRedirect(SECRET, { i: intentId, u: USER, o: "https://traveliatos.life", h: await targetHash(target.url),
-        t: target.tier === "trusted_source" ? "s" : "a" }, o.now ?? NOW);
+        t: target.tier === "trusted_source" ? "s" : "a", n: target.uses ?? 0 }, o.now ?? NOW);
       return `https://example.supabase.co/functions/v1/booking-go?t=${encodeURIComponent(t!)}`;
     },
     intentTarget: async (id) => {
@@ -182,7 +182,6 @@ describe("A2 · token de booking-go", () => {
     expect(reasons.slice(0, MAX_TOKEN_USES)).toEqual(Array(MAX_TOKEN_USES).fill("ok"));
     expect(reasons.slice(MAX_TOKEN_USES)).toEqual(["enlace_usado", "enlace_usado"]);
     expect(t.store.intents[0].redirect_count).toBe(MAX_TOKEN_USES);
-    // HEAD (previsualizadores) no consume usos.
     // "Volver a abrir" desde la app (la misma selección) pide un token nuevo y vuelve a servir.
     const again = await t.call("start_booking", { source: tripItem("hospedaje_json", 0), action_kind: "equivalent_search", idempotency_key: k, consent: true });
     expect(again.body.go_url).toBeTruthy();

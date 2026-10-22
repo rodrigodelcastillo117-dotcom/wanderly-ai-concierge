@@ -107,7 +107,8 @@ Deno.serve(async (req) => {
       recheckHotel: (q) => recheckHotel(q, { serpKey, serpFetch: serp.fetch }),
       // El token queda atado al destino guardado (huella SHA-256) y a su nivel de confianza (AUD-04).
       goUrl: async (intentId, target) => {
-        const t = await signRedirect(SERVICE_KEY, { i: intentId, u: userId, o: origin, h: await targetHash(target.url), t: target.tier === "trusted_source" ? "s" : "a" });
+        const t = await signRedirect(SERVICE_KEY, { i: intentId, u: userId, o: origin, h: await targetHash(target.url), t: target.tier === "trusted_source" ? "s" : "a",
+          n: target.uses ?? 0 });
         return t ? `${SUPABASE_URL}/functions/v1/booking-go?t=${encodeURIComponent(t)}` : null;
       },
       intentTarget: async (id) => {
