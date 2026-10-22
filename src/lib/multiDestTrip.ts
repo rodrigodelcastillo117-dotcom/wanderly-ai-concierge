@@ -8,11 +8,19 @@
 //  - un vuelo estimado (sin tarifa de un proveedor) no nombra aerolínea ni dice "Directo".
 import { mainAirport } from "../../supabase/functions/_shared/airports.ts";
 import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { airportCityName } from "../../supabase/functions/_shared/airports.ts";
+import { layoverCodesFromAviasalesLink } from "../../supabase/functions/_shared/fareGuard.ts";
+
+/** Ciudades de escala de la tarifa: las que mandó logistics-plan o las del enlace de Aviasales. */
+const defaultLayovers: LayoverFn = (link) => {
+  const codes = layoverCodesFromAviasalesLink(link);
+  return codes ? codes.map(airportCityName) : null;
+};
 
 const isEstimated = (fuente: unknown) => String(fuente ?? "estimado").toLowerCase() !== "travelpayouts" && String(fuente ?? "estimado").toLowerCase() !== "serpapi";
 const isFlightMode = (m: unknown) => !m || m === "vuelo" || m === "vuelo_interno";
 
-/** Ciudades de escala de un enlace de Aviasales (token t: "…MEXCUNMADOTP…"). Se completa en el punto 7. */
+/** Ciudades de escala de un enlace de Aviasales (token t: "…MEXCUNMADOTP…"). */
 export type LayoverFn = (link: string | null | undefined, origin: string | null, destination: string | null) => string[] | null;
 
 export function multiDestTripRows(logistics: any, stops: string[], origin: string, opts: { layovers?: LayoverFn } = {}) {
@@ -27,13 +35,13 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
     const to = f?.to && stops.some((s) => sameCity(s, f.to)) ? f.to : stops[0];
     const dep = f?.dep_iata ?? mainAirport(f?.from ?? originClean);
     const arr = f?.arr_iata ?? mainAirport(to);
-    const escalasCiudades = !est && opts.layovers ? opts.layovers(f?.booking_link, dep, arr) : null;
+    const escalasCiudades = est ? null : Array.isArray(f?.layovers) ? f.layovers : (opts.layovers ?? defaultLayovers)(f?.booking_link, dep, arr);
     vuelos_json.push({
       tier: f?.tier || "equilibrio",
       mode: "vuelo",
       aerolinea: est ? "Aerolínea por confirmar" : f?.airline_suggested || "Aerolínea por confirmar",
       duracion: f?.duration || "",
-      escalas: est ? "Escalas por confirmar" : f?.stops || "Escalas por confirmar",
+      escalas: est ? "Escalas por confirmar" : escalasCiudades ? (escalasCiudades.length ? `Escalas: ${escalasCiudades.join(" · ")}` : "Directo") : "Escalas por confirmar",
       ...(escalasCiudades ? { escalas_ciudades: escalasCiudades } : {}),
       precio_por_persona: mxn(f?.price_per_person_usd),
       fuente_precio: est ? "estimado" : f.fuente_precio,

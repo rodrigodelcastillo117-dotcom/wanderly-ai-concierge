@@ -84,3 +84,25 @@ export function knownCityCode(input: unknown): string | null {
   return cityAirports(raw)?.metro ?? null;
 }
 
+
+/**
+ * Ciudades de escala de la ida, leídas del token `t` de un enlace de Aviasales (la ruta va escrita
+ * como códigos seguidos: "…MEXCUNMADOTP…" = MEX → Cancún → Madrid → OTP). null si el enlace no la trae
+ * o no se puede leer con seguridad: entonces se dice "Escalas por confirmar", nunca un número suelto.
+ */
+export function layoverCodesFromAviasalesLink(link: unknown): string[] | null {
+  let t: string | null = null;
+  try { t = new URL(String(link ?? "")).searchParams.get("t"); } catch { return null; }
+  const route = routeFromAviasalesLink(link);
+  if (!t || !route) return null;
+  const runs = t.match(/[A-Z]{6,}/g) ?? [];
+  for (const run of runs) {
+    if (run.length % 3 !== 0) continue;
+    const codes = run.match(/.{3}/g)!;
+    const startsAtOrigin = codes[0] === route.origin || codeServesCity(codes[0], route.origin) === true;
+    const last = codes[codes.length - 1];
+    const endsAtDest = last === route.destination || codeServesCity(last, route.destination) === true || cityAirports(last)?.metro === route.destination;
+    if (startsAtOrigin && endsAtDest) return codes.slice(1, -1);
+  }
+  return null;
+}

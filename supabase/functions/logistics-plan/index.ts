@@ -33,7 +33,8 @@ import { hotelPriceRooms } from "../_shared/rooms.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { computeRoute } from "../_shared/google-routes.ts";
 import { legModesFor, planRoadTrip, roadTripPromptBlock } from "./roadtrip.ts";
-import { filterFares } from "../_shared/fareGuard.ts";
+import { filterFares, layoverCodesFromAviasalesLink } from "../_shared/fareGuard.ts";
+import { airportCityName } from "../_shared/airports.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -723,7 +724,15 @@ Entrega JSON con:
         duration: f.duration_to_minutes ? `${Math.floor(f.duration_to_minutes / 60)}h${f.duration_to_minutes % 60 ? ` ${f.duration_to_minutes % 60}m` : ""}` : "",
         dep_iata: f.origin_airport ?? tpFlights.origin ?? null,
         arr_iata: f.destination_airport ?? tpFlights.destination ?? null,
-        stops: Number(f.stops) > 0 ? `${f.stops} escala(s)` : "Directo",
+        // Escalas con sus ciudades (de la ruta del enlace); sin ellas, "Escalas por confirmar".
+        ...(() => {
+          const codes = layoverCodesFromAviasalesLink(f.booking_link);
+          const cities = codes ? codes.map(airportCityName) : null;
+          return {
+            stops: cities ? (cities.length ? `Escalas: ${cities.join(" · ")}` : "Directo") : "Escalas por confirmar",
+            ...(cities ? { layovers: cities } : {}),
+          };
+        })(),
         price_per_person_usd: Math.round(Number(f.price)),
         booking_link: f.booking_link ?? null,
         fuente_precio: "travelpayouts",
