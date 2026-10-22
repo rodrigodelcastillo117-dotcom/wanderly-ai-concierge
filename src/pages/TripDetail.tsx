@@ -15,7 +15,6 @@ import { RealTripTotal } from "@/components/RealTripTotal";
 import { InviteFriendDialog } from "@/components/InviteFriendDialog";
 import { PriceWatchCard } from "@/components/PriceWatchCard";
 import { useAuth } from "@/contexts/AuthContext";
-import { generateTripPDF } from "@/lib/tripPdf";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { formatInstant } from "@/lib/localDate";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -195,6 +194,8 @@ const TripDetail = () => {
     if (!trip) return;
     setGeneratingPdf(true);
     try {
+      // jsPDF (+ autotable, html2canvas) solo se descarga al pedir el PDF, no al abrir el viaje.
+      const { generateTripPDF } = await import("@/lib/tripPdf");
       await generateTripPDF(trip, { selVuelo, selHospedaje, nochesEfectivas, selTours }, { desglose: computedDesglose, total: computedTotal });
       toast.success("PDF descargado");
     } catch (e: any) {
