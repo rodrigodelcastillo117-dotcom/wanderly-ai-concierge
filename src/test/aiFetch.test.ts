@@ -62,13 +62,17 @@ describe("aiFetch", () => {
 
   it("retries a forced function call as 'required' if Gemini rejects it", async () => {
     env.GEMINI_API_KEY = "g-key";
-    fetchMock.mockResolvedValueOnce(new Response("bad tool_choice", { status: 400 })).mockResolvedValueOnce(ok());
+    fetchMock
+      .mockResolvedValueOnce(new Response("bad tool_choice", { status: 400 }))
+      .mockResolvedValueOnce(new Response("bad tool_choice", { status: 400 }))
+      .mockResolvedValueOnce(ok());
     await aiFetch(init({
       model: "google/gemini-2.5-flash", messages: [], tools: [],
       tool_choice: { type: "function", function: { name: "x" } },
     }));
-    expect(call(1).url).toBe(GEMINI);
-    expect(call(1).body.tool_choice).toBe("required");
+    expect(call(1).body.model).toBe("gemini-flash-latest");
+    expect(call(2).url).toBe(GEMINI);
+    expect(call(2).body.tool_choice).toBe("required");
   });
 
   it("does not retry on auth errors and keeps image generation on Lovable", async () => {
