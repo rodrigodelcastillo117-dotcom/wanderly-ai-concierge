@@ -21,7 +21,7 @@ export function useSavedDestinations() {
   useEffect(() => {
     if (!user) return;
     supabase.from("recomendaciones").select("titulo").eq("user_id", user.id).eq("guardado", true)
-      .then(({ data }) => setSaved(new Set((data ?? []).map((r: any) => r.titulo))));
+      .then(({ data }) => setSaved(new Set((data ?? []).map((r: { titulo: string }) => r.titulo))));
   }, [user]);
 
   const toggleNow = useCallback(async (d: AIRecommendation, isSaved: boolean) => {
