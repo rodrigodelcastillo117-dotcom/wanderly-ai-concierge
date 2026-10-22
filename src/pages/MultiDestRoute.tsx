@@ -28,6 +28,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { toastFunctionError } from "@/lib/functionErrors";
 
 
 type ConnStyle = "tiempo" | "paisaje" | "smart";
@@ -401,7 +402,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
       }
     } catch (e: any) {
       console.error(e);
-      toast.error(e?.message ?? "No pudimos generar la ruta");
+      // 402 = ya usó su análisis gratis: mensaje claro con botón a PRO (no "non-2xx status code").
+      await toastFunctionError(e, "No pudimos generar la ruta", navigate);
     } finally {
       setGenerating(false);
     }

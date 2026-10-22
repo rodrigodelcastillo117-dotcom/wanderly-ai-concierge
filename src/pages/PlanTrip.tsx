@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { track } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { toastFunctionError } from "@/lib/functionErrors";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
 import { parseTripFallback } from "@/lib/parseTripFallback";
@@ -122,7 +123,8 @@ const PlanTrip = () => {
       navigate(`/dashboard/viajes/${data.trip.id}`);
     } catch (e: any) {
       console.error(e);
-      toast.error(e?.message ?? "No pudimos generar el análisis. Intenta de nuevo.");
+      // 402 = ya usó su análisis gratis: mensaje claro con botón a PRO (no "non-2xx status code").
+      await toastFunctionError(e, "No pudimos generar el análisis. Intenta de nuevo.", navigate);
       setAnalizando(false);
     }
   };
