@@ -97,7 +97,7 @@ const EditTrip = () => {
       toast.success("Viaje re-analizado");
       navigate(`/dashboard/viajes/${data.trip.id}`);
     } catch (e: any) {
-      toast.error(e?.message ?? "No pudimos re-analizar el viaje.");
+      await (await import("@/lib/functionErrors")).toastFunctionError(e, "No pudimos re-analizar el viaje.");
       setReanalyzing(false);
     }
   };
