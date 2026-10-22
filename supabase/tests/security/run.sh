@@ -17,5 +17,6 @@ done
 $PSQL -d "$DB" -f "$DIR/rls_attacks.sql" 2>&1 | grep -v '^$' | grep -v 'set_config\|^ *|' | sed 's/^ *//'
 $PSQL -X -d "$DB" -f "$DIR/hardening.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
 $PSQL -X -d "$DB" -f "$DIR/round_b.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
+$PSQL -X -d "$DB" -f "$DIR/concierge_requests.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
 $PSQL -d "$DB" -f "$DIR/profiles_tier.sql" 2>&1 | grep -E 'T[0-9]|denied' | sed 's/^ *//'
 "$DIR/concurrent_rate_limit.sh" "$DB"
