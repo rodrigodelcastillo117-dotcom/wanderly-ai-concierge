@@ -6,6 +6,7 @@ import {
   Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt, Wand2,
 } from "lucide-react";
 import { multiDestTripRows } from "@/lib/multiDestTrip";
+import { countryForStops } from "@/lib/booking";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -312,7 +313,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
           .insert({
             user_id: user.id,
             destino: validStops.join(" → "),
-            pais_destino: validStops[validStops.length - 1],
+            // País de la primera ciudad ("Italia"), nunca el nombre de la última ciudad ("Venecia").
+            pais_destino: countryForStops(validStops),
             ciudad_origen: origin.trim(),
             fecha_salida: fechaSalida || null,
             fecha_regreso: fechaRegreso || null,

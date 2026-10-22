@@ -1,3 +1,4 @@
+import { countryForStops } from "@/lib/booking";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Paperclip, Loader2 } from "lucide-react";
@@ -82,7 +83,8 @@ export function TripFileUpload({ size = "md" }: Props) {
         .insert({
           user_id: user.id,
           destino,
-          pais_destino: destinations[destinations.length - 1] ?? destino,
+          // País del primer destino (no el nombre de la última ciudad); null si no se reconoce.
+          pais_destino: countryForStops(destinations.length ? destinations : [destino]),
           ciudad_origen: data.ciudad_origen ?? null,
           fecha_salida: data.fecha_salida ?? null,
           fecha_regreso: data.fecha_regreso ?? null,

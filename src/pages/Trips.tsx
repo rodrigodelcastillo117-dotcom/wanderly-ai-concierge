@@ -1,3 +1,4 @@
+import { tripCountryLabel } from "@/lib/booking";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Pencil, Users, Sparkles, Plus, Trash2, LogOut, RefreshCw, MapPin, FileUp } from "lucide-react";
@@ -113,7 +114,7 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
         </SmartImage>
         <div className="p-5">
-          <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{t.pais_destino}</p>
+          <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{tripCountryLabel(t)}</p>
           <h3 className="font-display text-2xl mb-2 group-hover:text-primary transition">{t.destino}</h3>
           {/* "listo" no distingue cotizado de reservado: se deriva de las reservas confirmadas. */}
           <div className="mb-3 flex items-center gap-2 flex-wrap">

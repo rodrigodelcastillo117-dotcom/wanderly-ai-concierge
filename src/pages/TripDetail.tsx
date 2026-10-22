@@ -40,7 +40,7 @@ import { TripDocuments } from "@/components/TripDocuments";
 import { BookingActions } from "@/components/booking/BookingActions";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
-import { isGroundTripOption, tripFlightProblems } from "@/lib/booking";
+import { isGroundTripOption, tripCountryLabel, tripFlightProblems } from "@/lib/booking";
 import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightStopsLabel } from "@/lib/flightDisplay";
 import { groundOptionsForCity } from "@/lib/multiDestTrip";
 import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
@@ -434,7 +434,7 @@ const TripDetail = () => {
               <Star className="w-3 h-3 fill-current" /> {trip.match_score}% match con tu perfil
             </div>
           )}
-          <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{trip.pais_destino}</p>
+          <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{tripCountryLabel(trip)}</p>
           <h1 className="font-display text-3xl min-[380px]:text-4xl sm:text-5xl md:text-7xl leading-tight mb-3 md:mb-4 break-words">{trip.destino}</h1>
           <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
             <Popover open={editingDates} onOpenChange={setEditingDates}>

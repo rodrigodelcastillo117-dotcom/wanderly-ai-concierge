@@ -159,3 +159,26 @@ export function stayForCity(trip: TripRouteLike | null | undefined, city: unknow
   if (!city) return null;
   return cityStays(trip).find((s) => sameCity(s.city, city)) ?? null;
 }
+
+/**
+ * País que se guarda en trips.pais_destino para una lista de ciudades: el de la primera ciudad
+ * (Roma → Florencia → Venecia = "Italia"; Madrid → París = "España", el del primer destino, como
+ * esperan quienes lo usan: moneda, eSIM, teléfono). null si la ciudad no se reconoce: nunca el
+ * nombre de una ciudad (antes se guardaba "Venecia").
+ */
+export function countryForStops(stops: unknown[]): string | null {
+  for (const s of stops ?? []) {
+    const c = cityAirports(s);
+    if (c) return c.country;
+    if (String(s ?? "").trim()) return null;
+  }
+  return null;
+}
+
+/** País para mostrar: corrige viajes guardados con una ciudad en pais_destino ("Venecia" → "Italia"). */
+export function tripCountryLabel(trip: (TripRouteLike & { pais_destino?: string | null }) | null | undefined): string | null {
+  const p = String(trip?.pais_destino ?? "").trim();
+  const cities = tripDestinations(trip);
+  if (p && !cities.some((c) => sameCity(c, p))) return p;
+  return countryForStops(cities) ?? (p && !cityAirports(p) ? p : null);
+}

@@ -12,4 +12,4 @@ export { intentStatusText, TERMINAL_STATES, type FollowUpOutcome, type Verificat
 export { draftRequest, langForCountry, REQUEST_LANGS, type RequestLang } from "../../supabase/functions/_shared/booking/messages.ts";
 export { countryIso, mailtoLink, normalizePhone, smsLink, telLink, whatsappLink } from "../../supabase/functions/_shared/booking/channels.ts";
 export { PRICE_MAY_CHANGE, type BookingAction, type BookingOffer, type IntentState, type ProductType } from "../../supabase/functions/_shared/booking/types.ts";
-export { tripDestinations, tripFlightRoute, tripFlightSearches, fareMatchesTrip, unresolvedCityLabel, tripCountry, type TripFlightRoute } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+export { countryForStops, tripCountryLabel, tripDestinations, tripFlightRoute, tripFlightSearches, fareMatchesTrip, unresolvedCityLabel, tripCountry, type TripFlightRoute } from "../../supabase/functions/_shared/booking/tripRoute.ts";
