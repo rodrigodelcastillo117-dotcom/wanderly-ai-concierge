@@ -71,6 +71,8 @@ export function lineStateFor(item: any, now: Date, fxIsFallback: boolean): LineS
   const estado = String(item?.estado_dato ?? "").toUpperCase();
   if (estado === "CONFIRMADO") return "PAGADO";
   if (estado === "PENDIENTE_DE_VERIFICACION") return "PENDIENTE";
+  // Precio real pero guardado (vencido): hay que volver a consultarlo antes de reservar.
+  if (estado === "OBSOLETO") return "PENDIENTE";
   if (estado === "CONSULTADO_EN_VIVO") {
     // Con tipo de cambio de respaldo el monto en MXN no está verificado aunque la tarifa sí.
     if (fxIsFallback) return "ESTIMADO";
@@ -101,6 +103,16 @@ export type SnapshotInput = {
   currency?: string;
   now?: Date;
 };
+
+/** Suma por estado de los renglones que entran al total. */
+export function totalsByState(lines: Pick<LineItem, "state" | "amount">[]): Partial<Record<LineState, number>> {
+  const out: Partial<Record<LineState, number>> = {};
+  for (const l of lines) {
+    if (!STATES_IN_TOTAL.includes(l.state)) continue;
+    out[l.state] = (out[l.state] ?? 0) + l.amount;
+  }
+  return out;
+}
 
 export function buildQuoteSnapshot(input: SnapshotInput): QuoteRow {
   const now = input.now ?? new Date();
@@ -162,7 +174,9 @@ export function buildQuoteSnapshot(input: SnapshotInput): QuoteRow {
     fx_source: input.fx.source,
     fx_at: input.fx.fetched_at,
     fx_is_fallback: input.fx.is_fallback,
-    sources: input.sources ?? {},
+    // Cuánto del total es precio cotizado (proveedor, vigente), estimado o por verificar: el total
+    // es la suma de renglones y se presenta con las mismas etiquetas que sus partes.
+    sources: { ...(input.sources ?? {}), total_por_estado: totalsByState(lines) },
     valid_until: new Date(validUntil).toISOString(),
   };
 }

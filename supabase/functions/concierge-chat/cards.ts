@@ -8,7 +8,7 @@
 import { slimToolResult } from "./tools.ts";
 import { neutralizeDeep } from "./guard.ts";
 
-export const CARD_TYPES = ["flight", "hotel", "attraction", "restaurant", "transport", "alert", "luggage", "jet"] as const;
+export const CARD_TYPES = ["flight", "hotel", "attraction", "restaurant", "place", "source", "transport", "alert", "luggage", "jet"] as const;
 export type CardType = typeof CARD_TYPES[number];
 
 /**
@@ -21,6 +21,9 @@ export type CardType = typeof CARD_TYPES[number];
  *   "en vivo".
  */
 export type EstadoDato = "CONSULTADO_EN_VIVO" | "NO_VERIFICADO" | "SOLICITUD_HUMANA" | "OBSOLETO";
+
+/** Botón de una card: cómo llegar, pedir un Uber, llamar, sitio o reservar. Solo https: o tel:. */
+export interface CardLink { kind: "directions" | "ride" | "call" | "website" | "maps" | "booking"; label: string; url: string }
 
 export interface ConciergeCard {
   type: CardType;
@@ -45,6 +48,7 @@ export interface ConciergeCard {
   estado_dato?: EstadoDato;
   consultado_at?: string;
   price_note?: string;
+  links?: CardLink[];
 }
 
 /** Solo https: (nada de javascript:, data:, http:, ni URLs con usuario/contraseña). */
@@ -83,7 +87,7 @@ function dropAiItems(value: unknown): unknown {
   return value;
 }
 
-const SEARCH_TOOLS = new Set(["search_flights", "search_hotels", "search_attractions", "search_nearby"]);
+const SEARCH_TOOLS = new Set(["search_flights", "search_hotels", "search_attractions", "search_nearby", "search_places", "web_search", "search_members_venues"]);
 
 export interface ToolUnavailable { disponible: false; motivo: string; fuente?: string; error?: string }
 
@@ -103,17 +107,24 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
   // se le dice tal cual, sin presentarlo como falla del proveedor.
   if (r.code === "FREE_LIMIT_REACHED" || r.limite_uso_justo === true) {
     const detalle = typeof r.message === "string" ? r.message : typeof r.motivo === "string" ? r.motivo : "";
-    return { disponible: false, error: "limite_del_plan", motivo: `${LIMIT_MOTIVO_PREFIX}. ${detalle}`.trim().slice(0, 400) };
+    return { disponible: false, estado: "limite_del_plan", error: "limite_del_plan", motivo: `${LIMIT_MOTIVO_PREFIX}. ${detalle}`.trim().slice(0, 400) };
+  }
+  if (r.code === "MEMBERS_PRO_REQUIRED") {
+    return { disponible: false, estado: "sin_acceso", motivo: "Members Only es de IATOS PRO: dilo así y no menciones lugares de esa selección." };
   }
   if (r.error === "timeout") {
-    return { disponible: false, error: "timeout", motivo: "El proveedor tardó demasiado en responder; la búsqueda en vivo no está disponible ahora." };
+    return { disponible: false, estado: "no_respondio", error: "timeout", motivo: "El servicio tardó demasiado en responder; no hay datos en vivo ahora." };
+  }
+  if (r.error === "no_configurado") {
+    return { disponible: false, estado: "no_respondio", error: "no_configurado", motivo: "Esta búsqueda no está disponible en este momento." };
   }
   if (r.error || r.ok === false) {
-    return { disponible: false, error: String(r.error ?? "error").slice(0, 160), motivo: "El proveedor no respondió; la búsqueda en vivo no está disponible ahora." };
+    return { disponible: false, estado: "no_respondio", error: String(r.error ?? "error").slice(0, 160), motivo: "El servicio no respondió; no hay datos en vivo ahora." };
   }
   if (isAiSource(r.source) || isAiSource(r.provider)) {
     return {
       disponible: false,
+      estado: "no_respondio",
       fuente: "ai-fallback",
       motivo: "La búsqueda en vivo no está disponible ahora. El proveedor solo devolvió estimaciones de IA y no se pueden mostrar como opciones reales.",
     };
@@ -122,14 +133,19 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
   if (SEARCH_TOOLS.has(name)) {
     const lists = Object.values(cleaned).filter(Array.isArray) as unknown[][];
     if (!lists.some((l) => l.length > 0)) {
-      return { disponible: false, fuente: typeof r.source === "string" ? r.source : undefined, motivo: "La búsqueda en vivo no trajo resultados para esos datos." };
+      return { disponible: false, estado: "sin_resultados", fuente: typeof r.source === "string" ? r.source : undefined, motivo: "La búsqueda funcionó pero no trajo resultados para esos datos." };
     }
   }
   const out: Record<string, unknown> = {
     disponible: true,
+    estado: "ok",
     ...(slimToolResult(neutralizeDeep(cleaned, 400)) as Record<string, unknown>),
   };
-  if (r.precio_guardado === true || r.estado_dato === "OBSOLETO") {
+  if (name === "web_search" && r.source === "wikipedia") {
+    out.nota_fuente = typeof r.nota_fuente === "string" ? r.nota_fuente : "Respaldo de Wikipedia: información general, dilo así.";
+  } else if ((r.precio_guardado === true || r.estado_dato === "OBSOLETO") && name === "web_search") {
+    out.nota_fuente = `Resultados guardados (consultados ${typeof r.consulted_at === "string" ? r.consulted_at : "antes"}), no de este momento: dilo así.`;
+  } else if (r.precio_guardado === true || r.estado_dato === "OBSOLETO") {
     const at = typeof r.consulted_at === "string" ? r.consulted_at : "fecha desconocida";
     out.nota_fuente = `Precios GUARDADOS (consultados ${at}), no en vivo, por el uso justo de búsquedas del plan: dilo así y sugiere verificarlos antes de reservar.`;
   }
@@ -149,6 +165,14 @@ export interface Evidence {
   ratings: { tool: string; value: number }[];
   available: Record<string, boolean>;
   unavailable: Record<string, string>;
+  /** estado de cada herramienta que no trajo datos: sin_resultados | no_respondio | limite_del_plan. */
+  unavailableState: Record<string, string>;
+  /** Lugares devueltos por Google Maps / cercanos (para enlaces de cómo llegar, Uber y llamar). */
+  places: EvidencePlace[];
+  /** Enlaces devueltos por web_search (solo esos pueden ir en una card "source"). */
+  webLinks: Set<string>;
+  /** Experiencias Privé mostradas en este turno (solo esas se pueden solicitar). */
+  priveIds: Set<string>;
   /** Dominios de los enlaces https que trajeron las herramientas de este turno (sin "www."). */
   hosts: string[];
 }
@@ -170,6 +194,50 @@ export function hostBacked(url: string, ev: Pick<Evidence, "hosts">): boolean {
   return known.some((k) => host === k || host.endsWith(`.${k}`));
 }
 
+export interface EvidencePlace {
+  name: string; address?: string; lat?: number; lng?: number; placeId?: string; phone?: string;
+  website?: string; mapsUrl?: string; rating?: number; openNow?: boolean | null; hours?: string[];
+}
+
+const normName = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+function collectPlaces(tool: string, res: Record<string, unknown>, out: EvidencePlace[]) {
+  if (!["search_places", "search_nearby", "search_attractions", "search_members_venues"].includes(tool)) return;
+  const lists: unknown[] = [];
+  for (const v of Object.values(res)) if (Array.isArray(v)) lists.push(...v);
+  if (res.details && typeof res.details === "object") lists.unshift(res.details);
+  for (const x of lists) {
+    const o = x as Record<string, any>;
+    const name = typeof o?.name === "string" ? o.name : typeof o?.nombre === "string" ? o.nombre : "";
+    if (!name) continue;
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+    const lat = num(o.lat ?? o.latitude ?? o.gps_coordinates?.latitude);
+    const lng = num(o.lng ?? o.longitude ?? o.gps_coordinates?.longitude);
+    const entry: EvidencePlace = {
+      name, address: typeof (o.address ?? o.formatted_address) === "string" ? (o.address ?? o.formatted_address) : undefined,
+      lat, lng, placeId: typeof (o.id ?? o.place_id) === "string" ? (o.id ?? o.place_id) : undefined,
+      phone: typeof o.phone === "string" ? o.phone : undefined,
+      website: safeHttpsUrl(o.website), mapsUrl: safeHttpsUrl(o.maps_url ?? o.google_maps_url ?? o.web_url ?? o.url),
+      rating: num(o.rating), openNow: typeof o.open_now === "boolean" ? o.open_now : null,
+      hours: Array.isArray(o.opening_hours) ? o.opening_hours.map(String).slice(0, 7) : undefined,
+    };
+    // El mismo lugar en la búsqueda y en el detalle: se combinan (el detalle trae teléfono y horario).
+    const same = out.find((x) => normName(x.name) === normName(name));
+    if (same) {
+      for (const [k, v] of Object.entries(entry)) if (v !== undefined && v !== null && (same as any)[k] == null) (same as any)[k] = v;
+    } else out.push(entry);
+  }
+}
+
+/** Lugar de la evidencia que corresponde al título de una card (mismo nombre normalizado o contenido). */
+export function matchPlace(title: string, places: EvidencePlace[]): EvidencePlace | null {
+  const t = normName(title);
+  if (t.length < 3) return null;
+  return places.find((p) => normName(p.name) === t)
+    ?? places.find((p) => { const n = normName(p.name); return n.length >= 4 && (t.includes(n) || n.includes(t)); })
+    ?? null;
+}
+
 const PRICE_KEY = /(^|_)(price|precio|nightly|total|amount|rate|tarifa|costo|cost)(_|$)|_usd$/i;
 const RATING_KEY = /^(rating|overall_rating|calificacion)$/i;
 
@@ -182,7 +250,7 @@ const DEFAULT_SOURCE: Record<string, string> = {
 };
 
 export function collectEvidence(runs: ToolRun[]): Evidence {
-  const ev: Evidence = { prices: [], ratings: [], available: {}, unavailable: {}, hosts: [] };
+  const ev: Evidence = { prices: [], ratings: [], available: {}, unavailable: {}, hosts: [], unavailableState: {}, places: [], webLinks: new Set(), priveIds: new Set() };
   const hosts = new Set<string>();
   const addHost = (v: string) => {
     if (!/^https:\/\//i.test(v)) return;
@@ -192,11 +260,24 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
   for (const run of runs) {
     const res = run.result ?? {};
     if (res.disponible === false) {
-      if (!ev.available[run.name]) ev.unavailable[run.name] = String(res.motivo ?? "no disponible");
+      if (!ev.available[run.name]) {
+        ev.unavailable[run.name] = String(res.motivo ?? "no disponible");
+        ev.unavailableState[run.name] = String(res.estado ?? (/no trajo resultados/.test(String(res.motivo ?? "")) ? "sin_resultados" : "no_respondio"));
+      }
       continue;
     }
     ev.available[run.name] = true;
     delete ev.unavailable[run.name];
+    delete ev.unavailableState[run.name];
+    collectPlaces(run.name, res, ev.places);
+    if (run.name === "web_search") {
+      for (const r of Array.isArray(res.results) ? res.results : []) { const u = safeHttpsUrl((r as any)?.link); if (u) ev.webLinks.add(u); }
+      const al = safeHttpsUrl((res.answer as any)?.link);
+      if (al) ev.webLinks.add(al);
+    }
+    if (run.name === "search_prive") {
+      for (const c of Array.isArray(res.cities) ? res.cities : []) for (const it of (c as any)?.items ?? []) if (typeof it?.id === "string") ev.priveIds.add(it.id);
+    }
     const topSource = typeof res.source === "string" ? res.source : DEFAULT_SOURCE[run.name] ?? run.name;
     const at = typeof res.consulted_at === "string" && Number.isFinite(Date.parse(res.consulted_at)) ? res.consulted_at : undefined;
     const stale = res.precio_guardado === true || res.estado_dato === "OBSOLETO";
@@ -231,7 +312,8 @@ const PRICE_TOOLS: Partial<Record<CardType, string[]>> = {
   flight: ["search_flights"],
   hotel: ["search_hotels"],
   attraction: ["search_attractions"],
-  restaurant: ["search_attractions", "search_nearby"],
+  restaurant: ["search_attractions", "search_nearby", "search_places"],
+  place: ["search_places", "search_nearby"],
   transport: [],
 };
 
@@ -298,9 +380,18 @@ export function validateCards(raw: unknown, ev: Evidence, consultadoAt: string =
       if (!body) { out.dropped.push({ type, reason: "alerta_sin_texto" }); continue; }
       card.body = body;
     }
+    if (type === "place" || type === "source") {
+      const body = str(r.body ?? r.snippet, 500);
+      if (body) card.body = body;
+    }
     // Enlaces: https y con un dominio que salió de una herramienta de este turno (o de IATOS).
     const cta = safeHttpsUrl(r.cta_action);
     if (cta && hostBacked(cta, ev)) card.cta_action = cta;
+    // Fuente web: el enlace tiene que ser uno de los resultados de web_search de este turno.
+    if (type === "source") {
+      if (!cta || !ev.webLinks.has(cta)) { out.dropped.push({ type, reason: "fuente_sin_respaldo" }); continue; }
+      try { card.subtitle = card.subtitle ?? new URL(cta).hostname.replace(/^www\./, ""); } catch { /* ya validada */ }
+    }
     const img = safeHttpsUrl(r.image_url);
     if (img && hostBacked(img, ev)) card.image_url = img;
 
@@ -347,25 +438,92 @@ const TOOL_LABEL: Record<string, string> = {
   search_hotels: "hoteles",
   search_attractions: "lugares",
   search_nearby: "lugares cercanos",
+  search_places: "Google Maps",
+  web_search: "Google",
   check_flight_status: "estado del vuelo",
+  search_members_venues: "Members Only",
 };
 
-const ALREADY_HONEST = /no (est[aá]|esta) disponible|no disponible|no (pude|pudimos|logr[eé]|tengo|hay)|sin resultados|no (encontr|tra)|no (me )?respondi|fuera de servicio|no se pudo/i;
+const ALREADY_HONEST = /no (est[aá]|esta) disponible|no disponible|no (pude|pudimos|logr[eé]|tengo|hay)|sin resultados|no (encontr|tra)|no (me )?respondi|fuera de servicio|no se pudo|l[ií]mite de b[uú]squedas/i;
 
 /**
- * Si una búsqueda de este turno no estuvo disponible (ai-fallback, vacía, error o timeout) y el
- * texto del modelo no lo dice, se antepone una frase honesta. Determinista.
+ * Si una búsqueda de este turno no trajo datos y el texto del modelo no lo dice, se antepone una frase
+ * honesta que distingue los casos: no encontró resultados / el servicio no respondió / límite del plan.
  */
 export function enforceAvailabilityHonesty(text: string, ev: Evidence): string {
   const missing = Object.keys(ev.unavailable).filter((t) => TOOL_LABEL[t] && !ev.available[t]);
   if (!missing.length || ALREADY_HONEST.test(text)) return text;
-  const names = missing.map((t) => TOOL_LABEL[t]).join(" y ");
-  if (missing.every((t) => ev.unavailable[t].startsWith(LIMIT_MOTIVO_PREFIX))) {
-    return `Llegaste al límite de búsquedas en vivo de tu plan para ${names}, así que no te muestro opciones como si fueran reales. ${text}`.trim();
-  }
-  const anyEmpty = missing.some((t) => /no trajo resultados/.test(ev.unavailable[t]));
-  const line = anyEmpty && missing.length === 1
-    ? `La búsqueda en vivo de ${names} no trajo resultados, así que no te muestro opciones inventadas.`
-    : `La búsqueda en vivo de ${names} no está disponible en este momento, así que no te muestro opciones como si fueran reales.`;
-  return `${line} ${text}`.trim();
+  const state = (t: string) => ev.unavailableState?.[t] ?? (/no trajo resultados/.test(ev.unavailable[t]) ? "sin_resultados" : "no_respondio");
+  const names = (list: string[]) => list.map((t) => TOOL_LABEL[t]).join(" y ");
+  const limit = missing.filter((t) => state(t) === "limite_del_plan" || ev.unavailable[t].startsWith(LIMIT_MOTIVO_PREFIX));
+  const empty = missing.filter((t) => !limit.includes(t) && state(t) === "sin_resultados");
+  const estimate = missing.filter((t) => !limit.includes(t) && !empty.includes(t) && /estimaciones/.test(ev.unavailable[t]));
+  const noAccess = missing.filter((t) => state(t) === "sin_acceso");
+  const down = missing.filter((t) => !limit.includes(t) && !empty.includes(t) && !estimate.includes(t) && !noAccess.includes(t));
+  const lines: string[] = [];
+  if (noAccess.length) lines.push(`${names(noAccess)} es parte de IATOS PRO, así que no te muestro esa selección.`);
+  if (estimate.length) lines.push(`La búsqueda en vivo de ${names(estimate)} no está disponible en este momento (solo hubo estimaciones), así que no te muestro opciones como si fueran reales.`);
+  if (limit.length) lines.push(`Llegaste al límite de búsquedas en vivo de tu plan para ${names(limit)}, así que no te muestro opciones como si fueran reales.`);
+  if (empty.length) lines.push(`La búsqueda de ${names(empty)} no encontró resultados, así que no te muestro opciones inventadas.`);
+  if (down.length) lines.push(`El servicio de ${names(down)} no respondió en este momento, así que no te muestro datos como si fueran reales.`);
+  return `${lines.join(" ")} ${text}`.trim();
+}
+
+const telUrl = (phone: string | undefined) => {
+  const digits = String(phone ?? "").replace(/[^\d+]/g, "");
+  return digits.replace(/\D/g, "").length >= 7 ? `tel:${digits}` : undefined;
+};
+
+/** Enlace seguro de una card: https (sin usuario/contraseña) o tel:. */
+export function safeCardLink(l: unknown): CardLink | null {
+  const o = l as Partial<CardLink> | null;
+  const kinds: CardLink["kind"][] = ["directions", "ride", "call", "website", "maps", "booking"];
+  if (!o || !kinds.includes(o.kind as CardLink["kind"]) || typeof o.label !== "string") return null;
+  const url = o.kind === "call" ? (typeof o.url === "string" && /^tel:\+?\d{7,15}$/.test(o.url) ? o.url : undefined) : safeHttpsUrl(o.url);
+  if (!url) return null;
+  return { kind: o.kind as CardLink["kind"], label: o.label.slice(0, 40), url };
+}
+
+/**
+ * Botones de cada card a partir de la EVIDENCIA (nunca del texto del modelo): cómo llegar, Uber,
+ * llamar, sitio y reservar. Un restaurante sin socio conectado recibe el mejor camino honesto:
+ * sitio del lugar, búsqueda prellenada en OpenTable y su ficha de Google Maps.
+ */
+export function enrichCardLinks(
+  cards: ConciergeCard[], ev: Evidence,
+  builders: {
+    directions: (p: { lat?: number; lng?: number; name?: string; address?: string; placeId?: string }) => string;
+    ride: (p: { lat?: number; lng?: number; name?: string; address?: string }) => string;
+    booking: (v: { name: string; city?: string; website?: string; mapsUrl?: string; date?: string; party?: number }) => CardLink[];
+  },
+  ctx: { date?: string; party?: number; city?: string } = {},
+): ConciergeCard[] {
+  return cards.map((c) => {
+    const keep = (c.links ?? []).map(safeCardLink).filter(Boolean) as CardLink[];
+    if (!["restaurant", "attraction", "place", "hotel"].includes(c.type)) return keep.length ? { ...c, links: keep } : c;
+    const p = matchPlace(c.title, ev.places);
+    const links: CardLink[] = [...keep];
+    const add = (l: CardLink | null) => { if (l && !links.some((x) => x.kind === l.kind)) links.push(l); };
+    if (p && (p.lat !== undefined || p.address)) {
+      const target = { lat: p.lat, lng: p.lng, name: p.name, address: p.address, placeId: p.placeId };
+      add({ kind: "directions", label: "Cómo llegar", url: builders.directions(target) });
+      add({ kind: "ride", label: "Pedir Uber", url: builders.ride(target) });
+    }
+    if (p?.phone) { const t = telUrl(p.phone); if (t) add({ kind: "call", label: "Llamar", url: t }); }
+    if (c.type === "restaurant") {
+      for (const l of builders.booking({ name: c.title, city: ctx.city, website: p?.website, mapsUrl: p?.mapsUrl, date: ctx.date, party: ctx.party })) add(safeCardLink(l));
+    } else {
+      if (p?.website) add({ kind: "website", label: "Sitio oficial", url: p.website });
+      if (p?.mapsUrl) add({ kind: "maps", label: "Ver en Google Maps", url: p.mapsUrl });
+    }
+    const out: ConciergeCard = { ...c };
+    if (links.length) out.links = links.slice(0, 5);
+    if (p && c.type === "place") {
+      if (!out.subtitle && p.address) out.subtitle = p.address.slice(0, 160);
+      if (!out.meta && p.hours?.length) out.meta = p.hours.slice(0, 2).join(" · ").slice(0, 200);
+      if (!out.cta_action && p.mapsUrl) { out.cta_action = p.mapsUrl; out.cta_label = out.cta_label ?? "Ver en Google Maps"; }
+      out.fuente = out.fuente ?? "google_maps";
+    }
+    return out;
+  });
 }

@@ -1,7 +1,7 @@
 // Sin framer-motion: la landing es la primera página y debe cargar ligera (E-23).
 import { Reveal } from "@/components/Reveal";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Sparkles, Compass, Wallet, Check } from "lucide-react";
+import { ArrowRight, Sparkles, Compass, Wallet, Check, Receipt, BadgeCheck, FolderHeart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroImg from "@/assets/hero-santorini.jpg";
 import heroImg960 from "@/assets/hero-santorini-960.jpg";
@@ -10,7 +10,15 @@ import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
 // Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
 import iatosLogo from "@/assets/iatos-logo-320.png";
-import { PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
+import { PRICE_LINE, PRO_FEATURES, PRO_PRICE_MXN } from "@/lib/planCopy";
+
+// Qué gana el usuario, en concreto (antes el hero decía "Cualquier viaje. Experiencia premium." y no
+// quedaba claro qué hace la app). Solo funciones que existen hoy y sin prometer precios.
+const LANDING_BENEFITS = [
+  { icon: Receipt, title: "Un total claro en pesos", text: "Vuelos, hospedaje, comida y experiencias en un solo número, por persona y por grupo." },
+  { icon: BadgeCheck, title: "Sabes qué precio es real", text: "Cada precio dice si se consultó en vivo con el proveedor o si es una estimación." },
+  { icon: FolderHeart, title: "Todo tu viaje en un lugar", text: "Itinerario, documentos, lista de equipaje y gastos compartidos, guardados en Mis viajes." },
+] as const;
 import { useTrialCopy } from "@/hooks/usePlanConfig";
 
 const Landing = () => {
@@ -22,7 +30,9 @@ const Landing = () => {
       {/* NAV */}
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/60 border-b border-border/40">
         <div className="container mx-auto flex items-center justify-between gap-2 py-4 px-4">
-          <img src={iatosLogo} alt="IATOS" className="h-8 md:h-10 w-auto object-contain shrink-0" />
+          {/* El logo puede encogerse (min-w-0): a 320 px los dos botones no cabían y "Empezar gratis"
+              quedaba cortado fuera de la pantalla. */}
+          <img src={iatosLogo} alt="IATOS" className="h-8 md:h-10 w-auto min-w-0 shrink object-contain object-left" />
           <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
             <Button variant="ghost" onClick={() => navigate("/auth")} className="px-2 md:px-4 text-xs md:text-sm">
               Iniciar sesión
@@ -51,19 +61,19 @@ const Landing = () => {
         <div className="absolute inset-0 bg-gradient-overlay" />
         <div className="absolute inset-0 bg-gradient-radial-gold opacity-60" />
 
-        <div className="container relative z-10 mx-auto pt-32 pb-20">
+        <div className="container relative z-10 mx-auto pt-32 pb-28">
           <div className="max-w-3xl animate-fade-up">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card text-sm mb-6">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="text-muted-foreground">IA personal de viajes premium</span>
+              <span className="text-muted-foreground">Tu concierge de viajes con IA</span>
             </div>
             <h1 className="font-display text-5xl md:text-7xl lg:text-8xl leading-[0.95] mb-6">
-              Cualquier viaje.
+              Planea tu viaje.
               <br />
-              <span className="gold-text italic">Experiencia premium.</span>
+              <span className="gold-text italic">Conoce el costo antes de decidir.</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10 leading-relaxed">
-              Tu concierge de IA que conoce tus gustos, cotiza con números reales y diseña cada experiencia. Empieza gratis; PRO cuesta {PRICE_LINE}.
+              Dinos a dónde y cuándo: IATOS consulta vuelos y hoteles, arma tu itinerario y te da el total en pesos, marcando qué precio se consultó en vivo y cuál es estimado. Empieza gratis; PRO cuesta {PRICE_LINE}.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
@@ -88,6 +98,24 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* QUÉ GANAS — se entiende en 10 segundos, justo debajo del primer botón. */}
+      <section aria-labelledby="que-ganas" className="container mx-auto -mt-16 md:-mt-24 relative z-10 pb-8">
+        <h2 id="que-ganas" className="sr-only">Qué ganas con IATOS</h2>
+        <ul className="grid gap-3 md:grid-cols-3 md:gap-5">
+          {LANDING_BENEFITS.map((b) => (
+            <li key={b.title} className="glass-card rounded-2xl p-5 md:p-6 flex gap-4">
+              <span className="w-10 h-10 shrink-0 rounded-full bg-primary/15 flex items-center justify-center" aria-hidden>
+                <b.icon className="w-5 h-5 text-primary" />
+              </span>
+              <span className="min-w-0">
+                <span className="block font-display text-xl leading-tight">{b.title}</span>
+                <span className="block text-sm text-muted-foreground mt-1 leading-relaxed">{b.text}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {/* CÓMO FUNCIONA */}
       <section id="como-funciona" className="py-32 container mx-auto">
         <Reveal className="max-w-2xl mb-20">
@@ -108,14 +136,14 @@ const Landing = () => {
             {
               n: "02",
               icon: Compass,
-              title: "La IA aprende",
-              desc: "Tu perfil entrena un consultor personal que entiende exactamente qué te emociona y qué te aburre.",
+              title: "La IA te conoce",
+              desc: "Tus respuestas personalizan destinos, hoteles y experiencias para tu estilo de viaje.",
             },
             {
               n: "03",
               icon: Wallet,
-              title: "Planes completos con datos reales",
-              desc: "Análisis completos con vuelos, hospedaje, itinerarios día por día y presupuestos reales en MXN.",
+              title: "Un plan completo y honesto",
+              desc: "Vuelos, hospedaje, itinerario día por día y presupuesto en MXN, con la procedencia de cada precio.",
             },
           ].map((step, i) => (
             <Reveal
@@ -138,7 +166,7 @@ const Landing = () => {
       <section className="py-32 bg-surface/30">
         <div className="container mx-auto">
           <div className="max-w-2xl mb-16">
-            <p className="text-primary text-sm tracking-[0.2em] uppercase mb-4">Sin límites</p>
+            <p className="text-primary text-sm tracking-[0.2em] uppercase mb-4">Destinos</p>
             <h2 className="font-display text-4xl md:text-6xl leading-tight">
               Donde quiera que sueñes ir.
             </h2>
@@ -176,9 +204,9 @@ const Landing = () => {
 
         <Reveal className="max-w-md mx-auto glass-card gold-border rounded-3xl p-10 premium-shadow">
           <div className="text-center mb-8">
-            <p className="text-sm tracking-[0.2em] uppercase text-primary mb-3">IATOS AI Premium</p>
+            <p className="text-sm tracking-[0.2em] uppercase text-primary mb-3">IATOS PRO</p>
             <div className="flex items-baseline justify-center gap-2">
-              <span className="font-display text-6xl">$99</span>
+              <span className="font-display text-6xl">${PRO_PRICE_MXN}</span>
               <span className="text-muted-foreground">MXN / mes · IVA incluido</span>
             </div>
             <p className="text-sm text-muted-foreground mt-3">{trial.line}. {trial.after}</p>

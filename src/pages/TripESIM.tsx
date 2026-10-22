@@ -16,7 +16,7 @@ const PROVIDERS = [
   },
   {
     name: "Holafly",
-    desc: "Datos ilimitados en 170+ destinos. Mantiene tu WhatsApp activo.",
+    desc: "Planes por destino en 170+ países; revisa en su sitio el límite de datos de cada plan.",
     perk: "5% OFF con código HOLAFLY5",
     link: (c: string) => holaflyLink(c),
   },

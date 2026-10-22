@@ -68,13 +68,14 @@ export function priveStatusToIntent(status: string): IntentState | null {
 }
 
 /**
- * Reservas IA v1 (grupo reservas, tabla ai_reservations) → intención. Contrato propuesto en
- * docs/iatos/IATOS_BOOKING_BRIDGE.md §Integración reservas; un estado desconocido queda pendiente
- * (nunca confirmado).
+ * Reservas IA v1 (grupo reservas, tabla ai_reservations) → intención. Igual que su toBridgeState
+ * (_shared/ai-reservations/core.ts) salvo needs_user sin motivo, que aquí queda pendiente; un estado
+ * desconocido queda pendiente (nunca confirmado) y "confirmed" exige evidencia en la base.
  */
 export function reservasStatusToIntent(status: string): IntentState {
   switch (String(status ?? "").toLowerCase()) {
     case "draft": case "borrador": return "SELECTED";
+    case "awaiting_user_ok": return "READY_TO_BOOK"; // el usuario aún no confirma el envío
     case "queued": case "sent": case "enviada": case "enviado": case "requested": return "REQUESTED";
     case "awaiting_reply": case "replied": case "respondida": case "alternative_offered": case "otra_hora": case "needs_user": return "PENDING_CONFIRMATION";
     case "confirmed": case "confirmada": return "CONFIRMED"; // solo si el flujo de reservas guardó la respuesta del lugar (evidencia)

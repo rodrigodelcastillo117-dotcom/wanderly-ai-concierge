@@ -90,7 +90,7 @@ export function MembersTeaser({ passwordGate, onUnlocked }: Props) {
           <ul className="flex flex-wrap gap-2 mb-8" aria-label="Categorías">
             {groupCategories(summary.categories).map(([cat, n]) => (
               <li key={cat} className="px-4 py-2 rounded-full text-xs border border-primary/20 text-muted-foreground">
-                {CATEGORY_LABELS[cat] ?? cat} <span className="opacity-60">({n})</span>
+                {CATEGORY_LABELS[cat] ?? cat} <span className="text-muted-foreground">({n})</span>
               </li>
             ))}
           </ul>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Receipt, Lightbulb, ChevronDown, AlertTriangle, Clock, RefreshCw } from "lucide-react";
+import { Receipt, Lightbulb, ChevronDown, AlertTriangle, Clock, RefreshCw, BadgeCheck, Sparkles } from "lucide-react";
+import type { QuoteTrust } from "@/lib/quoteTrust";
 
 type Props = {
   trip: any;
@@ -21,6 +22,8 @@ type Props = {
    * distinto de la cotización. null = sin selección: se muestra la cotización guardada.
    */
   selectionDesglose?: Record<string, number> | null;
+  /** Cuánto de la cotización se consultó en vivo y cuánto es estimado (trip_quotes.line_items). */
+  trust?: QuoteTrust | null;
 };
 
 const fmtMXN = (n: number) =>
@@ -73,7 +76,7 @@ export function tripTotals(trip: any, viajeros: number, selectionDesglose?: Reco
   return { total, porPersona, presupuesto, excedente, quotedTotal, fromSelection };
 }
 
-export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, fxNote, onRequote, selectionDesglose }: Props) {
+export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, fxNote, onRequote, selectionDesglose, trust }: Props) {
 
 
   const { total, porPersona, presupuesto, excedente, quotedTotal, fromSelection } = tripTotals(trip, viajeros, selectionDesglose);
@@ -88,12 +91,16 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
     >
       <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
         <p className="text-xs tracking-[0.2em] uppercase text-primary">
-          Inversión real · grupo de {viajeros} {viajeros === 1 ? "persona" : "personas"}
+          Total de tu viaje · {viajeros} {viajeros === 1 ? "persona" : "personas"}
         </p>
-        <span className="text-[10px] tracking-widest uppercase text-muted-foreground inline-flex items-center gap-1">
-          <Receipt className="w-3 h-3 text-primary" />
-          {excedente > 0 ? "rebasa tu presupuesto" : "cotización base respetada"}
-        </span>
+        {/* Solo se habla de presupuesto si el usuario puso uno ("cotización base respetada" no
+            le decía nada a nadie). */}
+        {presupuesto > 0 && (
+          <span className={`text-[10px] tracking-widest uppercase inline-flex items-center gap-1 ${excedente > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+            <Receipt className="w-3 h-3 text-primary" />
+            {excedente > 0 ? "Rebasa tu presupuesto" : "Dentro de tu presupuesto"}
+          </span>
+        )}
       </div>
 
       {/* Costo por persona protagonista */}
@@ -139,6 +146,40 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
           Esta cotización rebasa tu presupuesto de {fmtMXN(presupuesto)} por {fmtMXN(excedente)}. Puedes editar el
           viaje (fechas, hotel o actividades) para acercarlo.
         </p>
+      )}
+
+      {/* Qué está verificado y qué es estimado (de los renglones de la cotización guardada). */}
+      {trust && (
+        <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/20 p-3 sm:p-4" aria-label="Qué tan confiable es este total">
+          {trust.known ? (
+            <>
+              <div className="flex h-2 w-full overflow-hidden rounded-full bg-white/[0.06]" aria-hidden>
+                {trust.verified > 0 && <span className="h-full bg-primary" style={{ width: `${(trust.verified / (trust.verified + trust.estimated + trust.toVerify)) * 100}%` }} />}
+                {trust.toVerify > 0 && <span className="h-full bg-amber-500/80" style={{ width: `${(trust.toVerify / (trust.verified + trust.estimated + trust.toVerify)) * 100}%` }} />}
+                {trust.estimated > 0 && <span className="h-full bg-white/25" style={{ width: `${(trust.estimated / (trust.verified + trust.estimated + trust.toVerify)) * 100}%` }} />}
+              </div>
+              <p className="mt-2 text-xs text-foreground/90">{fromSelection ? "De la cotización guardada: " : ""}{trust.summary}</p>
+              <ul className="mt-2 grid gap-1 sm:grid-cols-2 text-[11px] text-muted-foreground">
+                {trust.lines.map((l) => (
+                  <li key={l.category} className="flex items-center justify-between gap-2" data-trust={l.trust}>
+                    <span className="inline-flex items-center gap-1.5 min-w-0">
+                      {l.trust === "verificado"
+                        ? <BadgeCheck className="w-3 h-3 text-primary shrink-0" aria-hidden />
+                        : l.trust === "por_verificar"
+                          ? <Clock className="w-3 h-3 text-amber-500 shrink-0" aria-hidden />
+                          : <Sparkles className="w-3 h-3 shrink-0" aria-hidden />}
+                      <span className="truncate">{l.label}</span>
+                      <span className="text-muted-foreground/70">· {l.trust === "verificado" ? "en vivo" : l.trust === "por_verificar" ? "por verificar" : "estimado"}</span>
+                    </span>
+                    <span className="text-foreground/80 tabular-nums">{fmtMXN(l.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">{trust.summary}</p>
+          )}
+        </div>
       )}
 
       {/* Análisis del concierge integrado en la misma tarjeta */}

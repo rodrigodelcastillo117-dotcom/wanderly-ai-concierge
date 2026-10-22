@@ -75,6 +75,10 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
   return (
     <div className="min-h-screen flex w-full bg-background relative overflow-x-hidden">
+      {/* Teclado y lectores de pantalla: saltar la navegación e ir directo al contenido. */}
+      <a href="#contenido" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground">
+        Saltar al contenido
+      </a>
       {/* Ambient gold glow */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 -left-40 w-[520px] h-[520px] rounded-full bg-primary/[0.06] blur-[140px]" />
@@ -89,8 +93,19 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           <img src={iatosLogo} alt="IATOS" className="w-full max-w-[130px] h-auto object-contain drop-shadow-[0_0_24px_rgba(201,169,97,0.18)]" />
         </Link>
 
+        {/* Acción principal también en escritorio (en móvil es el botón dorado del centro). */}
+        <NavLink
+          to="/dashboard/planear"
+          className={({ isActive }) =>
+            `mx-2 mt-3 mb-1 flex items-center justify-center gap-2 min-h-[44px] rounded-xl bg-gradient-gold text-primary-foreground text-[13px] font-medium tracking-wide shadow-[0_8px_24px_-8px_hsl(41_47%_59%/0.6)] hover:opacity-90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isActive ? "ring-1 ring-primary/60" : ""}`
+          }
+        >
+          <Plus className="w-4 h-4" strokeWidth={2.25} aria-hidden="true" />
+          Planear viaje
+        </NavLink>
+
         {/* Nav */}
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        <nav aria-label="Secciones" className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {links.map((l) => (
             <NavLink
               key={l.to}
@@ -175,7 +190,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
       {/* Main */}
       <main
-        className={`flex-1 min-w-0 overflow-x-hidden lg:pb-0 lg:pl-[200px] relative ${
+        id="contenido"
+        tabIndex={-1}
+        className={`focus:outline-none flex-1 min-w-0 overflow-x-hidden lg:pb-0 lg:pl-[200px] relative ${
           isChatRoute
             ? "flex flex-col h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-hidden pb-[calc(76px+env(safe-area-inset-bottom))]"
             : "pb-32"
@@ -183,8 +200,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       >
         {/* Mobile top bar — notifications + profile avatar */}
         <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
-          <Link to="/dashboard" className="flex items-center">
-            <img src={iatosLogo} alt="IATOS" className="h-7 w-auto object-contain" />
+          <Link to="/dashboard" className="flex items-center min-h-10" aria-label="IATOS, inicio">
+            <img src={iatosLogo} alt="" className="h-7 w-auto object-contain" />
           </Link>
           <div className="flex items-center gap-1">
             <NotificationBell />
@@ -198,7 +215,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <button
               onClick={() => navigate("/dashboard/perfil")}
               aria-label="Mi perfil"
-              className="ml-1 w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition overflow-hidden"
+              className="ml-1 w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition overflow-hidden"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />

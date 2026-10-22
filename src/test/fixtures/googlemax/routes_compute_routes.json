@@ -1,0 +1,4 @@
+{
+  "_nota": "Respuesta de Routes API directions/v2:computeRoutes con máscara routes.duration,routes.staticDuration,routes.distanceMeters, formato documentado (https://developers.google.com/maps/documentation/routes/compute_route_directions). No es una grabación en vivo.",
+  "routes": [{ "distanceMeters": 134500, "duration": "8280s", "staticDuration": "8280s" }]
+}

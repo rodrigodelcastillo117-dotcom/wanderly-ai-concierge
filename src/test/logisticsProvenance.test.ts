@@ -12,9 +12,11 @@ describe("logistics-plan: el modelo no decide qué es 'en vivo' (B-05)", () => {
     expect(flights.every((f) => f.estado_dato === "ESTIMADO" && !("consultado_at" in f))).toBe(true);
   });
 
-  it("lo armado con la lista del proveedor se marca en vivo con su hora; fechas aproximadas → estimado", () => {
-    const live = markLive([{ tier: "ahorro" }], "fuente_precio", "travelpayouts", "2026-10-22T10:00:00Z");
-    expect(live[0]).toMatchObject({ fuente_precio: "travelpayouts", consultado_at: "2026-10-22T10:00:00Z", estado_dato: "CONSULTADO_EN_VIVO" });
+  it("lo armado con la lista del proveedor lleva su hora; Travelpayouts (caché ≤48 h) y fechas aproximadas → estimado", () => {
+    const live = markLive([{ tier: "ahorro" }], "fuente_precio", "serpapi", "2026-10-22T10:00:00Z");
+    expect(live[0]).toMatchObject({ fuente_precio: "serpapi", consultado_at: "2026-10-22T10:00:00Z", estado_dato: "CONSULTADO_EN_VIVO" });
+    const tp = markLive([{ tier: "ahorro" }], "fuente_precio", "travelpayouts", "2026-10-22T10:00:00Z");
+    expect(tp[0]).toMatchObject({ fuente_precio: "travelpayouts", consultado_at: "2026-10-22T10:00:00Z", estado_dato: "ESTIMADO" });
     const approx = markLive([{ tier: "ahorro" }], "fuente_precio", "travelpayouts", "2026-10-22T10:00:00Z", true);
     expect(approx[0]).toMatchObject({ approximate_dates: true, estado_dato: "ESTIMADO" });
   });

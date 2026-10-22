@@ -394,7 +394,7 @@ END $$;
 CREATE OR REPLACE FUNCTION public.booking_reservas_status_to_intent(_s text)
 RETURNS text LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE lower(coalesce(_s, ''))
-    WHEN 'draft' THEN 'SELECTED' WHEN 'borrador' THEN 'SELECTED'
+    WHEN 'draft' THEN 'SELECTED' WHEN 'borrador' THEN 'SELECTED' WHEN 'awaiting_user_ok' THEN 'READY_TO_BOOK'
     WHEN 'queued' THEN 'REQUESTED' WHEN 'sent' THEN 'REQUESTED' WHEN 'enviada' THEN 'REQUESTED' WHEN 'enviado' THEN 'REQUESTED' WHEN 'requested' THEN 'REQUESTED'
     WHEN 'confirmed' THEN 'CONFIRMED' WHEN 'confirmada' THEN 'CONFIRMED'
     WHEN 'declined' THEN 'FAILED' WHEN 'rechazada' THEN 'FAILED' WHEN 'no_availability' THEN 'FAILED' WHEN 'sin_disponibilidad' THEN 'FAILED'

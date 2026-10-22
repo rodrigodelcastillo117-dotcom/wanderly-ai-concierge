@@ -1,0 +1,418 @@
+[
+ {
+  "w": 390,
+  "route": "/",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/auth",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/dashboard",
+  "serious": [
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "help": "Elements must have their visible text as part of their accessible name",
+    "n": 4,
+    "nodes": [
+     {
+      "target": "div[aria-label=\"Planear viaje a Islas Lofoten\"]",
+      "html": "<div role=\"link\" tabindex=\"0\" aria-label=\"Planear viaje a Islas Lofoten\" class=\"animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-po",
+      "why": "Text inside the element is not included in the accessible name"
+     },
+     {
+      "target": "div[aria-label=\"Planear viaje a Comporta\"]",
+      "html": "<div role=\"link\" tabindex=\"0\" aria-label=\"Planear viaje a Comporta\" class=\"animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-pointer",
+      "why": "Text inside the element is not included in the accessible name"
+     },
+     {
+      "target": "div[aria-label=\"Planear viaje a Sossusvlei\"]",
+      "html": "<div role=\"link\" tabindex=\"0\" aria-label=\"Planear viaje a Sossusvlei\" class=\"animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-point",
+      "why": "Text inside the element is not included in the accessible name"
+     },
+     {
+      "target": "div[aria-label=\"Planear viaje a Hokkaido\"]",
+      "html": "<div role=\"link\" tabindex=\"0\" aria-label=\"Planear viaje a Hokkaido\" class=\"animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-pointer",
+      "why": "Text inside the element is not included in the accessible name"
+     }
+    ]
+   },
+   {
+    "id": "target-size",
+    "impact": "serious",
+    "help": "All touch targets must be 24px large, or leave sufficient space",
+    "n": 12,
+    "nodes": [
+     {
+      "target": ".bg-primary",
+      "html": "<button class=\"h-1 rounded-full transition-all duration-300 w-5 bg-primary\" aria-label=\"Reel 1\"></button>",
+      "why": "Target has insufficient size (20px by 4px, should be at least 24px by 24px)"
+     },
+     {
+      "target": "button[aria-label=\"Reel 2\"]",
+      "html": "<button class=\"h-1 rounded-full transition-all duration-300 w-1.5 bg-white/30 hover:bg-white/50\" aria-label=\"Reel 2\"></button>",
+      "why": "Target has insufficient size (6px by 4px, should be at least 24px by 24px)"
+     },
+     {
+      "target": "button[aria-label=\"Reel 3\"]",
+      "html": "<button class=\"h-1 rounded-full transition-all duration-300 w-1.5 bg-white/30 hover:bg-white/50\" aria-label=\"Reel 3\"></button>",
+      "why": "Target has insufficient size (6px by 4px, should be at least 24px by 24px)"
+     },
+     {
+      "target": "button[aria-label=\"Reel 4\"]",
+      "html": "<button class=\"h-1 rounded-full transition-all duration-300 w-1.5 bg-white/30 hover:bg-white/50\" aria-label=\"Reel 4\"></button>",
+      "why": "Target has insufficient size (6px by 4px, should be at least 24px by 24px)"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/dashboard/concierge",
+  "serious": [
+   {
+    "id": "button-name",
+    "impact": "critical",
+    "help": "Buttons must have discernible text",
+    "n": 1,
+    "nodes": [
+     {
+      "target": ".border-primary\\/40",
+      "html": "<button disabled=\"\" class=\"shrink-0 w-12 h-12 rounded-full flex items-center justify-center border border-primary/40 text-primary hover:bg-primary/10 disabled:o",
+      "why": "Element does not have inner text that is visible to screen readers"
+     }
+    ]
+   },
+   {
+    "id": "scrollable-region-focusable",
+    "impact": "serious",
+    "help": "Scrollable region must have keyboard access",
+    "n": 1,
+    "nodes": [
+     {
+      "target": ".py-6",
+      "html": "<div class=\"flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5\">",
+      "why": "Element should have focusable content"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/dashboard/planear",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/dashboard/pro",
+  "serious": [
+   {
+    "id": "target-size",
+    "impact": "serious",
+    "help": "All touch targets must be 24px large, or leave sufficient space",
+    "n": 2,
+    "nodes": [
+     {
+      "target": "a[href$=\"terminos\"]",
+      "html": "<a class=\"text-primary hover:underline\" href=\"/terminos\">Términos y Condiciones</a>",
+      "why": "Target has insufficient size (120.7px by 16.5px, should be at least 24px by 24px)"
+     },
+     {
+      "target": "a[href$=\"reembolsos\"]",
+      "html": "<a class=\"text-primary hover:underline\" href=\"/reembolsos\">Política de Reembolsos</a>",
+      "why": "Target has insufficient size (117.3px by 16.5px, should be at least 24px by 24px)"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/prive",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/prive/invitacion",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/dashboard/viajes",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/dashboard/viajes/:id",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/dashboard/concierge?tab=members",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 390,
+  "route": "/dashboard/perfil",
+  "serious": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "n": 1,
+    "nodes": [
+     {
+      "target": ".bg-destructive",
+      "html": "<button class=\"inline-flex items-ce...\">",
+      "why": "Element has insufficient color contrast of 4.25 (foreground color: #f4f1eb, background color: #dc2828, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+     }
+    ]
+   },
+   {
+    "id": "scrollable-region-focusable",
+    "impact": "serious",
+    "help": "Scrollable region must have keyboard access",
+    "n": 1,
+    "nodes": [
+     {
+      "target": ".overflow-x-auto",
+      "html": "<div class=\"flex gap-1.5 overflow-x-auto no-scrollbar\">",
+      "why": "Element should have focusable content"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/auth",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/dashboard",
+  "serious": [
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "help": "Elements must have their visible text as part of their accessible name",
+    "n": 4,
+    "nodes": [
+     {
+      "target": "div[aria-label=\"Planear viaje a Islas Lofoten\"]",
+      "html": "<div role=\"link\" tabindex=\"0\" aria-label=\"Planear viaje a Islas Lofoten\" class=\"animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-po",
+      "why": "Text inside the element is not included in the accessible name"
+     },
+     {
+      "target": "div[aria-label=\"Planear viaje a Comporta\"]",
+      "html": "<div role=\"link\" tabindex=\"0\" aria-label=\"Planear viaje a Comporta\" class=\"animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-pointer",
+      "why": "Text inside the element is not included in the accessible name"
+     },
+     {
+      "target": "div[aria-label=\"Planear viaje a Sossusvlei\"]",
+      "html": "<div role=\"link\" tabindex=\"0\" aria-label=\"Planear viaje a Sossusvlei\" class=\"animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-point",
+      "why": "Text inside the element is not included in the accessible name"
+     },
+     {
+      "target": "div[aria-label=\"Planear viaje a Hokkaido\"]",
+      "html": "<div role=\"link\" tabindex=\"0\" aria-label=\"Planear viaje a Hokkaido\" class=\"animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-pointer",
+      "why": "Text inside the element is not included in the accessible name"
+     }
+    ]
+   },
+   {
+    "id": "target-size",
+    "impact": "serious",
+    "help": "All touch targets must be 24px large, or leave sufficient space",
+    "n": 12,
+    "nodes": [
+     {
+      "target": ".bg-primary",
+      "html": "<button class=\"h-1 rounded-full transition-all duration-300 w-5 bg-primary\" aria-label=\"Reel 1\"></button>",
+      "why": "Target has insufficient size (20px by 4px, should be at least 24px by 24px)"
+     },
+     {
+      "target": "button[aria-label=\"Reel 2\"]",
+      "html": "<button class=\"h-1 rounded-full transition-all duration-300 w-1.5 bg-white/30 hover:bg-white/50\" aria-label=\"Reel 2\"></button>",
+      "why": "Target has insufficient size (6px by 4px, should be at least 24px by 24px)"
+     },
+     {
+      "target": "button[aria-label=\"Reel 3\"]",
+      "html": "<button class=\"h-1 rounded-full transition-all duration-300 w-1.5 bg-white/30 hover:bg-white/50\" aria-label=\"Reel 3\"></button>",
+      "why": "Target has insufficient size (6px by 4px, should be at least 24px by 24px)"
+     },
+     {
+      "target": "button[aria-label=\"Reel 4\"]",
+      "html": "<button class=\"h-1 rounded-full transition-all duration-300 w-1.5 bg-white/30 hover:bg-white/50\" aria-label=\"Reel 4\"></button>",
+      "why": "Target has insufficient size (6px by 4px, should be at least 24px by 24px)"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/dashboard/concierge",
+  "serious": [
+   {
+    "id": "button-name",
+    "impact": "critical",
+    "help": "Buttons must have discernible text",
+    "n": 1,
+    "nodes": [
+     {
+      "target": ".border-primary\\/40",
+      "html": "<button disabled=\"\" class=\"shrink-0 w-12 h-12 rounded-full flex items-center justify-center border border-primary/40 text-primary hover:bg-primary/10 disabled:o",
+      "why": "Element does not have inner text that is visible to screen readers"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/dashboard/planear",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/dashboard/pro",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/prive",
+  "serious": [
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "help": "Elements must have their visible text as part of their accessible name",
+    "n": 1,
+    "nodes": [
+     {
+      "target": "a[aria-label=\"IATOS Privé, inicio\"]",
+      "html": "<a class=\"inline-flex items-center gap-2 min-h-[44px]\" aria-label=\"IATOS Privé, inicio\" href=\"/prive\">",
+      "why": "Text inside the element is not included in the accessible name"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/prive/invitacion",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/dashboard/viajes",
+  "serious": [],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/dashboard/viajes/:id",
+  "serious": [
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "help": "Elements must have their visible text as part of their accessible name",
+    "n": 1,
+    "nodes": [
+     {
+      "target": ".shadow-lg",
+      "html": "<button class=\"inline-flex shrink-0 items-center gap-2 rounded-full bg-primary/90 px-2.5 py-2 text-sm font-medium text-primary-foreground shadow-lg transition h",
+      "why": "Text inside the element is not included in the accessible name"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/dashboard/concierge?tab=members",
+  "serious": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "n": 9,
+    "nodes": [
+     {
+      "target": ".border-primary\\/20.py-2.rounded-full:nth-child(1) > .opacity-60",
+      "html": "<span class=\"opacity-60\">(175)</span>",
+      "why": "Element has insufficient color contrast of 3.41 (foreground color: #65656a, background color: #0a0a0a, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+     },
+     {
+      "target": ".border-primary\\/20.py-2.rounded-full:nth-child(2) > .opacity-60",
+      "html": "<span class=\"opacity-60\">(32)</span>",
+      "why": "Element has insufficient color contrast of 3.41 (foreground color: #65656a, background color: #0a0a0a, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+     },
+     {
+      "target": ".border-primary\\/20.py-2.rounded-full:nth-child(3) > .opacity-60",
+      "html": "<span class=\"opacity-60\">(50)</span>",
+      "why": "Element has insufficient color contrast of 3.41 (foreground color: #65656a, background color: #0a0a0a, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+     },
+     {
+      "target": ".border-primary\\/20.py-2.rounded-full:nth-child(4) > .opacity-60",
+      "html": "<span class=\"opacity-60\">(37)</span>",
+      "why": "Element has insufficient color contrast of 3.41 (foreground color: #65656a, background color: #0a0a0a, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ },
+ {
+  "w": 1440,
+  "route": "/dashboard/perfil",
+  "serious": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "n": 1,
+    "nodes": [
+     {
+      "target": ".bg-destructive",
+      "html": "<button class=\"inline-flex items-ce...\">",
+      "why": "Element has insufficient color contrast of 4.25 (foreground color: #f4f1eb, background color: #dc2828, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+     }
+    ]
+   }
+  ],
+  "minor": []
+ }
+]

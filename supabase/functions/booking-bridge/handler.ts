@@ -12,6 +12,7 @@ import { langForCountry, REQUEST_LANGS, type RequestLang } from "../_shared/book
 import {
   type FlightResultLike, type FlightSearchMeta, type HotelResultLike, type HotelSearchMeta, offerFromFlightResult, offerFromHotelResult,
   offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, offerFromVenue, type TripLike, type VenueInfo,
+  venueFromTripPlace,
 } from "../_shared/booking/offers.ts";
 import type { RecheckResult } from "../_shared/booking/recheck.ts";
 import { type FollowUpOutcome, followUpTarget, intentStatusText, type Verification } from "../_shared/booking/states.ts";
@@ -137,7 +138,9 @@ async function buildOffer(src: Source, deps: BridgeDeps, draft: Draft | null): P
     const city = str(item?.ciudad) || trip!.destino || null;
     const country = countryIso(trip!.pais_destino);
     if (src.col === "vuelos_json") return { offer: offerFromTripFlight(item, { trip: trip!, city, index: src.index, now, flags }), trip };
-    const venue = await deps.venueLookup({ name: name.replace(` · ${city}`, ""), city });
+    // Catálogo Privé primero; si no está, los datos de Google Places que el viaje ya trae (googlemax).
+    const venue = (await deps.venueLookup({ name: name.replace(` · ${city}`, ""), city }))
+      ?? (src.col === "restaurantes_json" ? venueFromTripPlace(item, city, trip!.pais_destino) : null);
     const vCountry = venue?.country ?? country;
     const product = src.col === "restaurantes_json" ? "restaurant" : src.col === "hospedaje_json" ? "hotel" : "tour";
     const ctx = { trip: trip!, city, index: src.index, now, venue, country: vCountry,
@@ -252,7 +255,11 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
         : expired && body?.ack_price_may_change !== true ? "PRICE_RECHECK_REQUIRED" : "READY_TO_BOOK";
       // Los canales (wa.me, mailto:, tel:, sms:) los abre el propio teléfono del usuario en el mismo
       // toque; no pasan por booking-go.
-      const web = !!a.url && a.url.startsWith("https://") && !["whatsapp", "email", "sms", "phone"].includes(a.kind);
+      const isWeb = !!a.url && a.url.startsWith("https://") && !["whatsapp", "email", "sms", "phone"].includes(a.kind);
+      // booking-go solo firma destinos de la lista blanca o de fuentes que el usuario NO puede editar
+      // (catálogo y escaneo de sitios oficiales). Un sitio que viene de trips.*_json (editable por su
+      // dueño) se abre directo en el cliente: así nadie puede fabricar un enlace de IATOS a otro dominio.
+      const web = isWeb && (checkAllowlisted(a.url).ok || a.trust === "curated_catalog" || a.trust === "official_site_scan");
       let conciergeId: string | null = null;
 
       if (a.kind === "prive_request") {
@@ -275,7 +282,7 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
         _p: {
           idempotency_key: key, offer_id: offer.offer_id, trip_id: built.trip?.id ?? null, product_type: offer.product_type, provider: offer.provider,
           provider_offer_id: offer.provider_offer_id, action_kind: a.kind, booking_mode: a.mode, state, title: offer.title,
-          target_url: web ? a.url : null, target_host: web ? a.host : null, processor: a.processor, channel: web ? "web" : CHANNEL[a.kind] ?? "none",
+          target_url: web ? a.url : null, target_host: isWeb ? a.host : null, processor: a.processor, channel: web ? "web" : CHANNEL[a.kind] ?? "none",
           offer: snapshot(offer, a, draft ? { request: { date: draft.date, time: draft.time, party_size: draft.party_size, lang: draft.lang ?? null } } : {}),
           price: offer.price, currency: offer.currency, price_checked_at: offer.price_checked_at, offer_expires_at: offer.offer_expires_at,
           consent: true, concierge_request_id: conciergeId,
@@ -295,7 +302,7 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
       const go = web && intent.state !== "PRICE_RECHECK_REQUIRED" ? await deps.goUrl(intent.id) : null;
       return ok({
         intent: withStatus(intent), replay: !!data.replay, existing: !!data.existing,
-        go_url: go, target_host: a.host, processor: a.processor, disclosures: a.disclosures, preserves: a.preserves,
+        go_url: go, direct_url: isWeb && !web ? a.url : null, target_host: a.host, processor: a.processor, disclosures: a.disclosures, preserves: a.preserves,
         // Canales: el cliente abre su propio enlace (wa.me / mailto / tel) en el mismo toque.
         channel: a.channel ?? null,
         needs_price_ack: intent.state === "PRICE_RECHECK_REQUIRED",

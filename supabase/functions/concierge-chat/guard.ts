@@ -130,3 +130,80 @@ export function resolveToday(input: { clientDate?: unknown; tz?: unknown }, now:
   }
   return { todayISO: utc, tz: null, source: "utc" };
 }
+
+// ═══ Honestidad de la respuesta (Concierge 2.0) ═══
+// Caso real (producción): "¿dónde está la Centurion dentro de la T1 de CDMX?" → Iato usó TripAdvisor,
+// dijo "La búsqueda en vivo de lugares no está disponible en este momento" (falso: sí corrió, no
+// encontró nada) y luego dio "dos salas… entre las puertas 8 y 11" como si fuera un dato confirmado.
+// Estas revisiones corren DESPUÉS del modelo y son deterministas.
+
+/** Herramientas que respaldan datos prácticos (ubicación, horario, puerta, teléfono). */
+export const FACT_TOOLS = ["web_search", "search_places", "search_nearby", "check_flight_status", "search_members_venues", "search_prive"] as const;
+
+/** Afirmaciones concretas que necesitan fuente: puertas, salas, pisos, horarios, teléfonos, ubicaciones. */
+const PRECISE_FACT = new RegExp([
+  String.raw`\bpuertas?\s+(?:[A-Z]?\d{1,3})`,
+  String.raw`\b(?:dos|tres|cuatro|cinco|\d+)\s+(?:salas|lounges|accesos|niveles|pisos|terminales)\b`,
+  String.raw`\b(?:piso|nivel|planta)\s+\d+\b`,
+  String.raw`\b(?:abre|cierra|abierto|horario)\b[^.\n]{0,25}\b\d{1,2}(?::\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?|h|hrs)?\b`,
+  String.raw`\bde\s+\d{1,2}:\d{2}\s*(?:a|-)\s*\d{1,2}:\d{2}\b`,
+  String.raw`\+?\d{2,3}[\s-]?\d{3,4}[\s-]?\d{4}\b`,
+  String.raw`\b(?:se encuentra|est[aá] ubicad[ao]|queda|est[aá])\s+(?:en|junto a|frente a|cerca de|despu[eé]s de|antes de)\s+(?:la|el|los|las)?\s*(?:zona|puerta|sala|terminal|nivel|piso|filtro|pasillo|[aá]rea|ala)\b`,
+].join("|"), "i");
+
+/** El texto ya avisa que el dato no está verificado o de dónde salió. */
+const LABELLED = /sin verificar|informaci[oó]n general|no (?:pude|pudimos|logr[eé]) (?:confirmar|verificar)|verif[ií]ca(?:lo)?|conf[ií]rma(?:lo)? (?:con|en|antes)|seg[uú]n (?:tu|su) (?:archivo|pdf|viaje|itinerario|reserva)|seg[uú]n (?:google|la aerol[ií]nea|el aeropuerto|wikipedia|tripadvisor|members only)/i;
+
+export const UNVERIFIED_PREFIX = "Según información general, sin verificar en vivo:";
+
+const lowerFirst = (t: string) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
+
+/**
+ * Si el texto afirma datos concretos (puertas, salas, horarios, teléfonos, ubicación exacta) y en este
+ * turno ninguna herramienta de datos prácticos trajo resultados, se etiqueta como información general
+ * sin verificar. Si ya lo dice, no se toca.
+ */
+export function labelUnverifiedFacts(text: string, availableTools: Record<string, boolean>): string {
+  const t = String(text ?? "").trim();
+  if (!t || !PRECISE_FACT.test(t) || LABELLED.test(t)) return t;
+  if (FACT_TOOLS.some((k) => availableTools[k])) return t;
+  return `${UNVERIFIED_PREFIX} ${lowerFirst(t)}`;
+}
+
+/**
+ * Corrige el motivo de una falla: si las búsquedas de este turno sí corrieron y solo no encontraron
+ * resultados, el texto no puede decir que "no está disponible" o que "no respondió".
+ */
+export function correctFailureClaims(text: string, states: Record<string, string>): string {
+  const vals = Object.values(states ?? {});
+  if (!vals.length || vals.some((v) => v !== "sin_resultados")) return text;
+  return String(text ?? "")
+    .replace(/\b(la\s+)?b[uú]squeda(\s+en\s+vivo)?((?:\s+de)\s+[^.,;:\n]{1,40}?)?\s+no\s+est[aá]\s+disponible(\s+en\s+este\s+momento|\s+ahora)?/gi,
+      (_m, la: string | undefined, _v, de: string | undefined) => `${la ? (la[0] === "L" ? "La " : "la ") : ""}búsqueda${de ?? ""} no encontró resultados`)
+    .replace(/\bel\s+servicio(\s+de\s+[^.,;:\n]{1,40}?)?\s+no\s+respondi[oó](\s+en\s+este\s+momento)?/gi,
+      (_m, de: string | undefined) => `la búsqueda${de ?? ""} no encontró resultados`);
+}
+
+const FIRST_PERSON_BOOKING = /\b(?:ya\s+)?(?:te\s+|les\s+)?(?:reservé|hice\s+(?:la|tu|su)\s+reserva(?:ci[oó]n)?|confirmé\s+(?:tu|la|su)\s+(?:mesa|reserva(?:ci[oó]n)?|habitaci[oó]n|lugar)|(?:te|les)\s+aparté)(?![\wáéíóúñ])/i;
+const STATE_BOOKING = /\b(?:tu|la|su)\s+(?:mesa|reserva(?:ci[oó]n)?|habitaci[oó]n|cena)\s+(?:ya\s+)?(?:est[aá]|qued[oó])\s+(?:confirmad[ao]|reservad[ao]|list[ao]|apartad[ao])\b|\breserva(?:ci[oó]n)?\s+confirmada\b/i;
+
+export const NOT_BOOKED_LINE = "Aún no está reservado: Iato no puede reservar directamente. Te dejo el camino más corto para hacerlo o pedírselo al Fixer.";
+
+/**
+ * Iato no tiene contratos ni APIs de reserva: nunca dice "reservé" ni "tu mesa está confirmada". Las
+ * frases que lo afirman se quitan y se agrega la aclaración. Con reservas confirmadas reales en el viaje,
+ * "tu hotel está reservado" es válido; "te reservé…" nunca.
+ */
+export function enforceNoFakeBooking(text: string, opts: { hasConfirmedBookings?: boolean } = {}): string {
+  const t = String(text ?? "");
+  const sentences = t.split(/(?<=[.!?])\s+/);
+  let changed = false;
+  const kept = sentences.filter((s) => {
+    const bad = FIRST_PERSON_BOOKING.test(s) || (!opts.hasConfirmedBookings && STATE_BOOKING.test(s));
+    if (bad) changed = true;
+    return !bad;
+  });
+  if (!changed) return t;
+  const rest = kept.join(" ").trim();
+  return `${NOT_BOOKED_LINE}${rest ? ` ${rest}` : ""}`;
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles, Route as RouteIcon, Heart, Mountain, Palmtree, Star, Utensils, PartyPopper, MoreHorizontal, Flower2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,8 @@ import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
 import { claimIntent, completeIntent, intentFingerprint, releaseIntent } from "@/lib/autoIntent";
+import { analysisSummaryOf, datePresets, EXAMPLE_PROMPTS, looksLikeSentence, understandPlanText } from "@/lib/planDefaults";
+import { formatLocalDate } from "@/lib/localDate";
 
 const EMOCIONES: Array<{ key: string; label: string; sub: string; Icon: any }> = [
   { key: "Inspiración",  label: "Inspiración",  sub: "Quiero descubrir\nalgo nuevo",        Icon: Heart },
@@ -110,6 +113,16 @@ async function interpretarFrase(q: string, userId: string): Promise<Interpretaci
   };
 }
 
+/** "Oaxaca · 12 dic – 16 dic · 2 personas" (solo lo que se entendió). */
+function describeUnderstood(u: { destino: string | null; fechaSalida: string | null; fechaRegreso: string | null; viajeros: number | null }): string {
+  const parts = [u.destino ?? ""];
+  if (u.fechaSalida && u.fechaRegreso) {
+    parts.push(`${formatLocalDate(u.fechaSalida, { day: "numeric", month: "short" })} – ${formatLocalDate(u.fechaRegreso, { day: "numeric", month: "short" })}`);
+  }
+  if (u.viajeros) parts.push(`${u.viajeros} ${u.viajeros === 1 ? "persona" : "personas"}`);
+  return parts.filter(Boolean).join(" · ");
+}
+
 const PlanTrip = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -133,17 +146,28 @@ const PlanTrip = () => {
   const [analizando, setAnalizando] = useState(false);
   const [interpretando, setInterpretando] = useState(false);
   const [eligiendoDestino, setEligiendoDestino] = useState(false);
+  const reduceMotion = usePrefersReducedMotion();
+  // Ya se leyó el perfil (con o sin ciudad de origen): sin esto, una tarjeta de destino con
+  // ?autoCheapest=1 se quedaba esperando una ciudad que nunca llegaba y no decía nada.
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  // Aviso en el paso de fechas: qué entendimos de la frase o por qué falta un dato.
+  const [stepNotice, setStepNotice] = useState<string | null>(null);
+  const [analysisSummary, setAnalysisSummary] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("profiles")
-      .select("ciudad_origen")
-      .eq("id", user.id)
-      .maybeSingle()
+    Promise.resolve(
+      supabase
+        .from("profiles")
+        .select("ciudad_origen")
+        .eq("id", user.id)
+        .maybeSingle(),
+    )
       .then(({ data }) => {
         if (data?.ciudad_origen) setCiudadOrigen(data.ciudad_origen);
-      });
+      })
+      .catch(() => {})
+      .finally(() => setProfileLoaded(true));
   }, [user?.id]);
 
   // Quita de la URL las intenciones de un solo uso (?q, ?autoCheapest) en cuanto se
@@ -174,7 +198,17 @@ const PlanTrip = () => {
   useEffect(() => {
     if (autoFiredRef.current) return;
     if (params.get("autoCheapest") !== "1") return;
-    if (!destino || !ciudadOrigen) return;
+    if (!destino) return;
+    if (!ciudadOrigen) {
+      if (!profileLoaded) return;
+      // Sin ciudad de salida no se puede cotizar: en vez de no hacer nada, se lleva al paso de
+      // fechas con el destino puesto y se dice qué falta.
+      autoFiredRef.current = true;
+      consumeUrlIntent();
+      setStep(1);
+      setStepNotice(`Para cotizar ${destino} necesitamos tu ciudad de salida. Elígela y revisa las fechas.`);
+      return;
+    }
     autoFiredRef.current = true;
     const fp = intentFingerprint("cheap", destino);
     consumeUrlIntent();
@@ -199,7 +233,7 @@ const PlanTrip = () => {
       num_viajeros: 2,
       presupuesto_objetivo: null,
     }, fp);
-  }, [destino, ciudadOrigen, params]);
+  }, [destino, ciudadOrigen, params, profileLoaded]);
 
 
 
@@ -212,6 +246,7 @@ const PlanTrip = () => {
     inFlightRef.current = true;
     let ok = false;
     setDestino(args.destino);
+    setAnalysisSummary(analysisSummaryOf(args));
     setAnalizando(true);
     try {
       // Misma llave al reintentar o recargar: si el viaje ya se guardó, no se cobra otro análisis.
@@ -339,7 +374,8 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       });
     } catch (e: any) {
       console.error(e);
-      toast.error(e?.message ?? "No pudimos elegir un destino. Intenta de nuevo.");
+      // Mensaje humano: el texto técnico del error (red, servidor) no se muestra.
+      await toastFunctionError(e, "No pudimos elegir un destino. Intenta de nuevo o escribe uno tú.");
       setEligiendoDestino(false);
     }
   };
@@ -432,7 +468,9 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       <DashboardLayout>
         <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
           <motion.div
-            animate={{ rotate: 360 }}
+            role="status"
+            aria-label="Interpretando tu viaje"
+            animate={reduceMotion ? undefined : { rotate: 360 }}
             transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
             className="w-14 h-14 rounded-full border-2 border-primary/30 border-t-primary mb-8"
           />
@@ -450,7 +488,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       <DashboardLayout>
         <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
           <motion.div
-            animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+            animate={reduceMotion ? undefined : { scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
             transition={{ duration: 2.2, repeat: Infinity }}
             className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center mb-8 gold-glow"
           >
@@ -474,7 +512,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   if (analizando) {
     return (
       <DashboardLayout>
-        <AnalysisProgress destino={destino} />
+        <AnalysisProgress destino={destino} summary={analysisSummary} />
       </DashboardLayout>
     );
   }
@@ -684,7 +722,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               )}
               {surpriseDates && (
                 <p className="text-xs text-primary/90 italic flex items-start gap-1.5">
-                  <Sparkles className="w-3 h-3 mt-0.5 shrink-0" /> IATOS recomendará la mejor temporada — menos multitudes, mejor clima y mejor precio.
+                  <Sparkles className="w-3 h-3 mt-0.5 shrink-0" /> IATOS propondrá fechas según la temporada y cotizará con ellas; podrás cambiarlas después.
                 </p>
               )}
               <div>
@@ -726,11 +764,13 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     : {
         icon: MapPin,
         title: "¿A dónde quieres ir?",
-        sub: "Un destino ('Tokio') o una travesía ('México → Madrid → París'). IATOS AI detecta el modo.",
+        sub: "Un destino ('Tokio'), una travesía ('Roma → Florencia') o tu idea completa ('Oaxaca del 12 al 16 de diciembre, 2 personas').",
         canNext: () => destino.trim().length > 1,
         render: () => {
           const intent = detectRouteIntent(destino);
           const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
+          const sentence = !isMulti && looksLikeSentence(destino);
+          const understood = sentence ? understandPlanText(destino) : null;
           return (
             <div className="space-y-3">
               <div className="relative">
@@ -757,7 +797,27 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   {isMulti ? <RouteIcon className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
                   {isMulti
                     ? `Travesía multi-destino · ${intent.destinations.length} ciudades`
-                    : "Viaje a un solo destino"}
+                    : understood
+                      ? `Entendimos: ${describeUnderstood(understood)}`
+                      : "Viaje a un solo destino"}
+                </div>
+              )}
+              {sentence && !understood && (
+                <p className="text-xs text-amber-400/90" role="status">
+                  No reconocimos el destino en tu frase. Escribe solo la ciudad o el país (p. ej. «Oaxaca»); las fechas y los viajeros van en el siguiente paso.
+                </p>
+              )}
+              {destino.trim().length === 0 && (
+                <div className="pt-2">
+                  <p className="text-xs text-muted-foreground mb-2">O empieza con un ejemplo:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {EXAMPLE_PROMPTS.map((ex) => (
+                      <button key={ex} type="button" onClick={() => setDestino(ex)}
+                        className="min-h-[40px] rounded-full border border-border bg-surface/60 px-3.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                        {ex}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -777,9 +837,28 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       canNext: () => !!fechaSalida && !!fechaRegreso && fechaRegreso > fechaSalida && !!ciudadOrigen,
       render: () => (
         <div className="space-y-5">
+          {stepNotice && (
+            <p role="status" className="rounded-xl border border-primary/30 bg-primary/[0.06] px-3 py-2.5 text-sm text-foreground/90">{stepNotice}</p>
+          )}
           <div>
             <label id="plantrip-origen" className="text-sm text-muted-foreground mb-2 block">Ciudad de salida</label>
             <OriginPicker labelId="plantrip-origen" value={ciudadOrigen} onChange={setCiudadOrigen} />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground mb-2" id="plantrip-atajos">Atajos de fechas</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-labelledby="plantrip-atajos">
+              {datePresets().map((p) => {
+                const on = fechaSalida === p.salida && fechaRegreso === p.regreso;
+                return (
+                  <button key={p.key} type="button" aria-pressed={on}
+                    onClick={() => { setFechaSalida(p.salida); setFechaRegreso(p.regreso); }}
+                    className={`min-h-[44px] rounded-2xl border px-3.5 py-1.5 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${on ? "bg-primary/10 border-primary text-foreground" : "bg-surface/60 border-border text-muted-foreground hover:border-primary/40"}`}>
+                    <span className="block leading-tight">{p.label}</span>
+                    <span className="block text-[11px] opacity-70">{p.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -834,6 +913,22 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   const current = stepsConfig[step];
   const Icon = current.icon;
 
+  // Paso 1 → 2: si escribió una frase ("Oaxaca del 12 al 16 de diciembre, 2 personas") se
+  // interpreta aquí, sin IA ni costo, y se prellenan fechas y viajeros (antes la frase entera
+  // viajaba como destino al análisis).
+  const goNext = () => {
+    if (step === 0 && !isEmocionMode) {
+      const u = understandPlanText(destino);
+      if (u?.destino) {
+        setDestino(u.destino);
+        if (u.fechaSalida && u.fechaRegreso) { setFechaSalida(u.fechaSalida); setFechaRegreso(u.fechaRegreso); }
+        if (u.viajeros) setNumViajeros(u.viajeros);
+        setStepNotice(`Entendimos: ${describeUnderstood(u)}. Revisa y ajusta lo que necesites.`);
+      }
+    }
+    setStep(step + 1);
+  };
+
   return (
     <DashboardLayout>
       <div className="min-h-screen flex flex-col">
@@ -850,7 +945,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         )}
 
         <main className="flex-1 px-4 md:px-6 py-6 md:py-10">
-          <div className="w-full max-w-6xl mx-auto grid lg:grid-cols-[1fr_360px] gap-6 md:gap-10 items-start">
+          <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 md:gap-10 items-start">
             <div className="w-full max-w-xl mx-auto lg:mx-0">
               <AnimatePresence mode="wait">
                 <motion.div key={step} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }}>
@@ -884,7 +979,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                     ? isEmocionMode
                       ? elegirDestinoYAnalizar()
                       : analizar()
-                    : setStep(step + 1)
+                    : goNext()
                 }
                 disabled={!current.canNext()}
                 className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow rounded-2xl h-auto py-4 flex flex-col gap-0.5"
@@ -910,12 +1005,13 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               {isEmocionMode && step === 0 && (
                 <p className="text-center text-[11px] text-muted-foreground mt-5 inline-flex items-center justify-center gap-2 w-full tracking-wide">
                   <Lock className="w-3 h-3" />
-                  100% Personalizado · Privado · Inteligente
+                  Revisas todo antes de reservar; nada se compra sin ti
                 </p>
               )}
 
               {stepsConfig.length > 1 && (
-                <div className="flex justify-center gap-2 mt-8">
+                <div className="flex items-center justify-center gap-2 mt-8" aria-label={`Paso ${step + 1} de ${stepsConfig.length}`}>
+                  <span className="text-[11px] text-muted-foreground mr-1">Paso {step + 1} de {stepsConfig.length}</span>
                   {stepsConfig.map((_, i) => (
                     <div
                       key={i}

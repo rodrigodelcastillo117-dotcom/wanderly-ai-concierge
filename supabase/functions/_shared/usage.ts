@@ -25,7 +25,14 @@ type Price = { input: number; output: number; cacheRead?: number; cacheWrite?: n
 export function tokenPrice(provider: string, model?: string | null): Price | null {
   const p = provider.toLowerCase();
   const m = String(model ?? "").toLowerCase();
-  if (p === "anthropic") return { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 };
+  if (p === "anthropic") {
+    // Tarifas del API de Claude (skill claude-api, tabla de modelos consultada 2026-10-06). Lectura de
+    // caché = 0.1× de la entrada (0.05× en Opus 5.5); escritura de 5 min = 1.25×.
+    if (m.includes("haiku-5-5")) return { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 };
+    if (m.includes("opus-5-5")) return { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 };
+    // Sonnet 5.5 / Sonnet 5 y desconocidos: el precio de Sonnet (el modelo por defecto de las funciones).
+    return { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 };
+  }
   if (p === "gemini" || p === "lovable") {
     if (m.includes("flash-lite")) return { input: 0.1, output: 0.4 };
     if (m.includes("pro")) return { input: 1.25, output: 10 };

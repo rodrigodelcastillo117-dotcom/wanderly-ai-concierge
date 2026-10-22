@@ -7,6 +7,10 @@ import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 import { safeErrorMessage } from "../_shared/redact.ts";
 import { decide, formatMxn, priceDedupKey } from "./rules.ts";
 import { serpFetchFor } from "../_shared/serpRuntime.ts";
+import { sendEmail } from "../_shared/email.ts";
+import { priceDropEmail } from "../_shared/email-templates.ts";
+import { heroPhoto } from "../_shared/hero-photo.ts";
+import { alertEmailsEnabled, alertRecipient } from "../_shared/alert-email.ts";
 
 // Las dos fuentes (Travelpayouts y Google Flights vía SerpApi) se consultan en dólares.
 const PROVIDER_CURRENCY = "USD";
@@ -141,6 +145,26 @@ Deno.serve(async (req) => {
         if (inserted != null) {
           await pushToUser(admin, w.user_id, { title, body, url: `/dashboard/viajes/${w.trip_id}` }, PRICE_PUSH_OPTIONS);
           summary.alerts++;
+          // Correo (apagado por defecto, ver _shared/alert-email.ts): antes/ahora, fuente y hora.
+          if (alertEmailsEnabled()) {
+            try {
+              const to = await alertRecipient(admin, w.user_id);
+              if (to) {
+                const mail = priceDropEmail({
+                  firstName: to.firstName, tripId: w.trip_id, destination: destino,
+                  originCode: w.origin_iata, destinationCode: w.destination_iata,
+                  dateFrom: w.departure_date, dateTo: w.return_date, adults: w.adults ?? 1, currency: "MXN",
+                  before, now: price, source: fare.source, checkedAt, bookingUrl: fare.bookingLink,
+                  hero: destino === "tu destino" ? null : await heroPhoto(destino, { fn: "price-watch-cron", userId: w.user_id }),
+                  siteUrl: Deno.env.get("SITE_URL"),
+                });
+                const sent = await sendEmail({ to: to.email, subject: mail.subject, html: mail.html, text: mail.text });
+                if (!sent.ok) console.error("price-watch-cron: correo de alerta no enviado", w.id);
+              }
+            } catch (e) {
+              console.error("price-watch-cron: correo de alerta", w.id, safeErrorMessage(e));
+            }
+          }
         }
         update.last_alert_at = checkedAt;
         update.last_alert_price_mxn = price;

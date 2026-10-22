@@ -5,7 +5,9 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
-import { sendEmail, tripInviteEmail } from "../_shared/email.ts";
+import { sendEmail } from "../_shared/email.ts";
+import { tripInviteEmail } from "../_shared/email-templates.ts";
+import { heroPhoto } from "../_shared/hero-photo.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const json = (body: unknown, status = 200) =>
@@ -27,7 +29,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const { data: trip } = await admin
-      .from('trips').select('id, user_id, destino, fecha_salida, fecha_regreso').eq('id', trip_id).maybeSingle();
+      .from('trips').select('id, user_id, destino, ciudad_origen, fecha_salida, fecha_regreso, num_viajeros').eq('id', trip_id).maybeSingle();
     if (!trip || trip.user_id !== user.id) return json({ error: 'forbidden' }, 403);
 
     const { data: collab } = await admin
@@ -41,15 +43,20 @@ Deno.serve(async (req) => {
     const { data: profs } = await admin.from('profiles').select('id, full_name').in('id', [user.id, friend_id]);
     const name = (id: string) => profs?.find((p) => p.id === id)?.full_name ?? null;
 
-    const { subject, html } = tripInviteEmail({
-      invitado: name(friend_id),
-      anfitrion: name(user.id),
-      destino: trip.destino ?? 'tu próximo destino',
-      fechaSalida: trip.fecha_salida,
-      fechaRegreso: trip.fecha_regreso,
+    const destino = trip.destino ?? 'tu próximo destino';
+    const { subject, html, text } = tripInviteEmail({
+      guestName: name(friend_id),
+      hostName: name(user.id),
+      destination: destino,
+      origin: trip.ciudad_origen ?? null,
+      dateFrom: trip.fecha_salida,
+      dateTo: trip.fecha_regreso,
+      travelers: trip.num_viajeros ?? null,
       tripId: trip.id,
+      hero: await heroPhoto(trip.destino, { fn: 'send-email', userId: user.id }),
+      siteUrl: Deno.env.get('SITE_URL'),
     });
-    const res = await sendEmail({ to, subject, html });
+    const res = await sendEmail({ to, subject, html, text });
     if (!res.ok) return json({ error: res.error || 'Resend error' }, 502);
     return json({ ok: true, id: res.id });
   } catch (e) {

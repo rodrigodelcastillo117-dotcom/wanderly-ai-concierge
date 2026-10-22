@@ -103,6 +103,294 @@ export type Database = {
           },
         ]
       }
+      ai_reservation_events: {
+        Row: {
+          actor: string
+          created_at: string
+          data: Json | null
+          from_status: string | null
+          id: number
+          kind: string
+          note: string | null
+          reservation_id: string
+          to_status: string | null
+        }
+        Insert: {
+          actor: string
+          created_at?: string
+          data?: Json | null
+          from_status?: string | null
+          id?: never
+          kind: string
+          note?: string | null
+          reservation_id: string
+          to_status?: string | null
+        }
+        Update: {
+          actor?: string
+          created_at?: string
+          data?: Json | null
+          from_status?: string | null
+          id?: never
+          kind?: string
+          note?: string | null
+          reservation_id?: string
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_reservation_events_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_reservation_inbound: {
+        Row: {
+          attempts: number
+          email_id: string
+          from_domain: string | null
+          id: string
+          outcome: string | null
+          processed_at: string | null
+          provider_event_id: string
+          received_at: string
+          reservation_id: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          email_id: string
+          from_domain?: string | null
+          id?: string
+          outcome?: string | null
+          processed_at?: string | null
+          provider_event_id: string
+          received_at?: string
+          reservation_id?: string | null
+          status: string
+        }
+        Update: {
+          attempts?: number
+          email_id?: string
+          from_domain?: string | null
+          id?: string
+          outcome?: string | null
+          processed_at?: string | null
+          provider_event_id?: string
+          received_at?: string
+          reservation_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_reservation_inbound_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_reservations: {
+        Row: {
+          alternatives: Json | null
+          attempts: number
+          bridge_offer_id: string | null
+          chosen_alternative: Json | null
+          claude_calls: number
+          closed_at: string | null
+          confirmation: Json | null
+          confirmation_code: string | null
+          confirmed_at: string | null
+          consent: Json | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          evidence: Json
+          expires_at: string | null
+          id: string
+          idempotency_key: string | null
+          last_error: string | null
+          notes: string | null
+          party_size: number
+          reason: string | null
+          ref_code: string
+          reminder_sent_at: string | null
+          reply_token: string
+          request_id: string | null
+          requested_for: string
+          requested_local: string
+          send_lock_at: string | null
+          sent_at: string | null
+          source: string
+          status: string
+          status_changed_at: string
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+          user_options: Json | null
+          venue_address: string | null
+          venue_booking_url: string | null
+          venue_city: string | null
+          venue_country: string | null
+          venue_email: string | null
+          venue_email_source: Json | null
+          venue_experience_id: string | null
+          venue_language: string
+          venue_maps_url: string | null
+          venue_name: string
+          venue_phone: string | null
+          venue_place_id: string | null
+          venue_replied_at: string | null
+          venue_reply_excerpt: string | null
+          venue_timezone: string
+          venue_website: string | null
+        }
+        Insert: {
+          alternatives?: Json | null
+          attempts?: number
+          bridge_offer_id?: string | null
+          chosen_alternative?: Json | null
+          claude_calls?: number
+          closed_at?: string | null
+          confirmation?: Json | null
+          confirmation_code?: string | null
+          confirmed_at?: string | null
+          consent?: Json | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          evidence?: Json
+          expires_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          last_error?: string | null
+          notes?: string | null
+          party_size: number
+          reason?: string | null
+          ref_code: string
+          reminder_sent_at?: string | null
+          reply_token: string
+          request_id?: string | null
+          requested_for: string
+          requested_local: string
+          send_lock_at?: string | null
+          sent_at?: string | null
+          source?: string
+          status?: string
+          status_changed_at?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+          user_options?: Json | null
+          venue_address?: string | null
+          venue_booking_url?: string | null
+          venue_city?: string | null
+          venue_country?: string | null
+          venue_email?: string | null
+          venue_email_source?: Json | null
+          venue_experience_id?: string | null
+          venue_language?: string
+          venue_maps_url?: string | null
+          venue_name: string
+          venue_phone?: string | null
+          venue_place_id?: string | null
+          venue_replied_at?: string | null
+          venue_reply_excerpt?: string | null
+          venue_timezone: string
+          venue_website?: string | null
+        }
+        Update: {
+          alternatives?: Json | null
+          attempts?: number
+          bridge_offer_id?: string | null
+          chosen_alternative?: Json | null
+          claude_calls?: number
+          closed_at?: string | null
+          confirmation?: Json | null
+          confirmation_code?: string | null
+          confirmed_at?: string | null
+          consent?: Json | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          evidence?: Json
+          expires_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          last_error?: string | null
+          notes?: string | null
+          party_size?: number
+          reason?: string | null
+          ref_code?: string
+          reminder_sent_at?: string | null
+          reply_token?: string
+          request_id?: string | null
+          requested_for?: string
+          requested_local?: string
+          send_lock_at?: string | null
+          sent_at?: string | null
+          source?: string
+          status?: string
+          status_changed_at?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+          user_options?: Json | null
+          venue_address?: string | null
+          venue_booking_url?: string | null
+          venue_city?: string | null
+          venue_country?: string | null
+          venue_email?: string | null
+          venue_email_source?: Json | null
+          venue_experience_id?: string | null
+          venue_language?: string
+          venue_maps_url?: string | null
+          venue_name?: string
+          venue_phone?: string | null
+          venue_place_id?: string | null
+          venue_replied_at?: string | null
+          venue_reply_excerpt?: string | null
+          venue_timezone?: string
+          venue_website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_reservations_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_reservations_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_reservations_venue_experience_id_fkey"
+            columns: ["venue_experience_id"]
+            isOneToOne: false
+            referencedRelation: "prive_experiences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_reservations_venue_experience_id_fkey"
+            columns: ["venue_experience_id"]
+            isOneToOne: false
+            referencedRelation: "prive_experiences_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_usage_log: {
         Row: {
           cost_estimate_usd: number
@@ -4265,6 +4553,15 @@ export type Database = {
       }
     }
     Functions: {
+      _ai_res_actor: {
+        Args: { _actor: string; _note: string }
+        Returns: undefined
+      }
+      _ai_res_booking: {
+        Args: { r: Database["public"]["Tables"]["ai_reservations"]["Row"] }
+        Returns: undefined
+      }
+      _ai_res_enabled: { Args: never; Returns: boolean }
       _deploy_apply: { Args: { p_from: string; p_to: string }; Returns: string }
       _trip_check_is_foreign: { Args: { p_user: string }; Returns: boolean }
       access_snapshot: { Args: { _user_id: string }; Returns: Json }
@@ -4302,6 +4599,88 @@ export type Database = {
         Returns: Json
       }
       agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
+      ai_reservation_apply_reply: {
+        Args: { _d: Json; _id: string; _inbound_id: string }
+        Returns: Json
+      }
+      ai_reservation_claim_alternative: {
+        Args: { _id: string; _index: number; _user_id: string }
+        Returns: Json
+      }
+      ai_reservation_claim_reminder: { Args: { _id: string }; Returns: Json }
+      ai_reservation_claim_send: {
+        Args: { _consent: Json; _id: string; _user_id: string }
+        Returns: Json
+      }
+      ai_reservation_create_intent: {
+        Args: { _p: Json; _user_id: string }
+        Returns: Json
+      }
+      ai_reservation_due: { Args: { _limit?: number }; Returns: Json }
+      ai_reservation_inbound_claim: {
+        Args: {
+          _email_id: string
+          _event_id: string
+          _from_address?: string
+          _from_domain: string
+          _ref_code?: string
+          _token: string
+        }
+        Returns: Json
+      }
+      ai_reservation_inbound_finish: {
+        Args: { _inbound_id: string; _outcome?: string; _status: string }
+        Returns: undefined
+      }
+      ai_reservation_json: {
+        Args: { _r: Database["public"]["Tables"]["ai_reservations"]["Row"] }
+        Returns: Json
+      }
+      ai_reservation_json_internal: {
+        Args: { _r: Database["public"]["Tables"]["ai_reservations"]["Row"] }
+        Returns: Json
+      }
+      ai_reservation_limits: { Args: never; Returns: Json }
+      ai_reservation_list_for_user: {
+        Args: { _id?: string; _user_id: string }
+        Returns: Json
+      }
+      ai_reservation_mark_sent: {
+        Args: {
+          _error?: string
+          _id: string
+          _kind: string
+          _ok: boolean
+          _provider_id?: string
+        }
+        Returns: Json
+      }
+      ai_reservation_notice: {
+        Args: {
+          _code: string
+          _local: string
+          _party: number
+          _reason: string
+          _status: string
+          _venue: string
+        }
+        Returns: string[]
+      }
+      ai_reservation_transition: {
+        Args: {
+          _actor: string
+          _confirmation?: Json
+          _id: string
+          _note?: string
+          _to: string
+          _user_id?: string
+        }
+        Returns: Json
+      }
+      ai_reservation_transition_ok: {
+        Args: { _from: string; _to: string }
+        Returns: boolean
+      }
       app_flag: { Args: { _key: string }; Returns: boolean }
       apply_comp_grants_now: {
         Args: never
@@ -4410,6 +4789,7 @@ export type Database = {
         Returns: Json
       }
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
+      concierge_runtime_config: { Args: { _user_id: string }; Returns: Json }
       consume_free_quota: {
         Args: { _kind: string; _user_id: string }
         Returns: Json
@@ -4474,6 +4854,25 @@ export type Database = {
       }
       members_access: { Args: never; Returns: boolean }
       members_access_state: { Args: never; Returns: Json }
+      members_category: { Args: { _sub: string }; Returns: string }
+      members_cities: {
+        Args: never
+        Returns: {
+          ciudad: string
+          ciudad_display: string
+          pais: string
+          venues: number
+        }[]
+      }
+      members_scope: {
+        Args: { p_ciudad: string }
+        Returns: {
+          city_ids: string[]
+          neighborhood_id: string
+          q: string
+          root_id: string
+        }[]
+      }
       members_teaser: {
         Args: { p_ciudad?: string }
         Returns: {
@@ -4482,6 +4881,64 @@ export type Database = {
           ciudad_display: string
           pais: string
           venues: number
+        }[]
+      }
+      members_venue_pool: {
+        Args: never
+        Returns: {
+          address: string
+          age_policy: string
+          categoria: string
+          city_id: string
+          city_key: string
+          ciudad_display: string
+          descripcion: string
+          dress_code: string
+          effective_label: string
+          effective_state: string
+          emoji: string
+          fuente: string
+          id: string
+          neighborhood: string
+          neighborhood_id: string
+          nombre: string
+          pais: string
+          por_que: string
+          precio_estimado: string
+          reserva_requerida: boolean
+          season_state: string
+          source_url: string
+          tags: string[]
+          verified_at: string
+          website: string
+        }[]
+      }
+      members_venues: {
+        Args: { p_ciudad: string }
+        Returns: {
+          address: string
+          age_policy: string
+          categoria: string
+          ciudad: string
+          ciudad_display: string
+          descripcion: string
+          dress_code: string
+          effective_label: string
+          effective_state: string
+          emoji: string
+          fuente: string
+          id: string
+          neighborhood: string
+          nombre: string
+          pais: string
+          por_que: string
+          precio_estimado: string
+          reserva_requerida: boolean
+          season_state: string
+          source_url: string
+          tags: string[]
+          verified_at: string
+          website: string
         }[]
       }
       normalize_email: { Args: { _email: string }; Returns: string }
@@ -4848,6 +5305,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      serp_global_used: { Args: { _period?: string }; Returns: number }
       set_members_password: {
         Args: { p_expires_at: string; p_password: string }
         Returns: undefined
@@ -4884,43 +5342,6 @@ export type Database = {
       }
       trip_document_path_trip: { Args: { p_name: string }; Returns: string }
       trip_quotes_line_items_valid: { Args: { items: Json }; Returns: boolean }
-      members_venues: {
-        Args: { p_ciudad: string }
-        Returns: {
-          address: string | null
-          age_policy: string | null
-          categoria: string
-          ciudad: string
-          ciudad_display: string
-          descripcion: string | null
-          dress_code: string | null
-          effective_label: string | null
-          effective_state: string | null
-          emoji: string | null
-          fuente: string
-          id: string
-          neighborhood: string | null
-          nombre: string
-          pais: string | null
-          por_que: string | null
-          precio_estimado: string | null
-          reserva_requerida: boolean
-          season_state: string | null
-          source_url: string | null
-          tags: string[] | null
-          verified_at: string | null
-          website: string | null
-        }[]
-      }
-      members_cities: {
-        Args: never
-        Returns: {
-          ciudad: string
-          ciudad_display: string
-          pais: string | null
-          venues: number
-        }[]
-      }
       unlock_members_access: { Args: { p_password: string }; Returns: Json }
       verify_cron_secret: { Args: { p_secret: string }; Returns: boolean }
     }

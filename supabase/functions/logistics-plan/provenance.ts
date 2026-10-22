@@ -26,25 +26,33 @@ export function forceEstimated<T extends Record<string, any>>(items: T[] | unkno
   });
 }
 
-/** Marca como consultado en vivo lo que se armó con la lista del proveedor de este request. */
+/**
+ * Marca lo que se armó con la lista del proveedor de este request. Travelpayouts es caché de
+ * búsquedas de otros viajeros (hasta 48 h): queda como precio de referencia ESTIMADO, nunca "en vivo".
+ */
 export function markLive<T extends Record<string, any>>(items: T[], field: string, source: string, consultadoAt: string, approximate = false): T[] {
+  const reference = source === "travelpayouts";
   return items.map((x: any) => ({
     ...x,
     [field]: source,
     consultado_at: consultadoAt,
-    ...(approximate ? { approximate_dates: true, estado_dato: "ESTIMADO" } : { estado_dato: "CONSULTADO_EN_VIVO" }),
+    ...(approximate ? { approximate_dates: true } : {}),
+    estado_dato: approximate || reference ? "ESTIMADO" : "CONSULTADO_EN_VIVO",
   }));
 }
 
+const PLACE_SOURCES = new Set(["tripadvisor", "google_places", "google_maps"]);
+
 /**
- * Experiencias: el nombre y rating solo cuentan como TripAdvisor si el lugar está en la lista de
- * atracciones que TripAdvisor devolvió en este request. El precio siempre es una estimación.
+ * Experiencias: el nombre y rating solo cuentan como reales si el lugar está en la lista de
+ * atracciones que tripadvisor-search devolvió en este request (TripAdvisor o, si no responde,
+ * Google Places / Google Maps: `source`). El precio siempre es una estimación.
  */
-export function labelExperiences(items: unknown, attractions: Array<{ name?: string }> | null): any[] {
+export function labelExperiences(items: unknown, attractions: Array<{ name?: string }> | null, source = "tripadvisor"): any[] {
   return (Array.isArray(items) ? items : []).map((e: any) => {
-    const real = !!attractions?.length && e?.fuente === "tripadvisor" && attractions.some((a) => samePlace(a?.name, e?.nombre ?? e?.name));
-    const out = { ...e, fuente: real ? "tripadvisor" : "estimado", estado_dato: "ESTIMADO" };
-    if (!real) { out.rating = e?.fuente === "tripadvisor" ? null : e?.rating ?? null; }
+    const real = !!attractions?.length && PLACE_SOURCES.has(e?.fuente) && attractions.some((a) => samePlace(a?.name, e?.nombre ?? e?.name));
+    const out = { ...e, fuente: real ? source : "estimado", estado_dato: "ESTIMADO" };
+    if (!real) { out.rating = PLACE_SOURCES.has(e?.fuente) ? null : e?.rating ?? null; }
     return out;
   });
 }
@@ -54,6 +62,9 @@ export function pricingSources(flights: any[], perDestination: any[]) {
   return {
     vuelos: flights.some((f) => f?.fuente_precio === "travelpayouts") ? "travelpayouts" : "estimado",
     hospedaje: perDestination.some((pd) => (pd?.hospedaje ?? []).some((h: any) => h?.fuente_precio === "serpapi")) ? "serpapi" : "estimado",
-    experiencias: perDestination.some((pd) => (pd?.experiencias ?? []).some((e: any) => e?.fuente === "tripadvisor")) ? "tripadvisor" : "estimado",
+    experiencias: (() => {
+      for (const pd of perDestination) for (const e of pd?.experiencias ?? []) if (PLACE_SOURCES.has(e?.fuente)) return e.fuente;
+      return "estimado";
+    })(),
   };
 }

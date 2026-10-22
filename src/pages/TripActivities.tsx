@@ -9,12 +9,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getYourGuideLink, viatorLink, tripadvisorLink, openTableLink } from "@/lib/affiliateLinks";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
+import { PlacePhoto } from "@/components/PlacePhoto";
 
 type TAResult = {
   id: string; name: string; address: string; rating: number | null;
   num_reviews: number | null; ranking: string | null; web_url: string | null;
   phone: string | null; website: string | null; description: string | null;
   photos: string[]; category: string | null;
+  /** Google Places: nombre de recurso de la foto (se pide por place-photo). */
+  photo_ref?: string | null;
 };
 
 const TripActivities = () => {
@@ -26,6 +29,7 @@ const TripActivities = () => {
   const [cat, setCat] = useState<"attractions" | "restaurants" | "hotels">("attractions");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TAResult[]>([]);
+  // "google_maps" = datos de Google (Places API o, como último recurso, Google Maps vía SerpApi).
   const [source, setSource] = useState<"tripadvisor" | "google_maps">("tripadvisor");
 
   const sources: { name: string; desc: string; link: () => string; category: "activity" | "restaurant" }[] = [
@@ -46,7 +50,7 @@ const TripActivities = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResults(data?.results ?? []);
-      setSource(data?.source === "google_maps" ? "google_maps" : "tripadvisor");
+      setSource(data?.source === "google_maps" || data?.source === "google_places" ? "google_maps" : "tripadvisor");
       if (!data?.results?.length) toast.message("Sin resultados para ese destino");
     } catch (e: any) {
       toast.error(e?.message ?? "No pudimos buscar en este momento. Intenta de nuevo.");
@@ -71,10 +75,11 @@ const TripActivities = () => {
           <label htmlFor="tripactivities-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
           <Input id="tripactivities-destino" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Roma, Tokio, Cancún…" />
           <Tabs value={cat} onValueChange={(v) => setCat(v as any)}>
+            {/* A 320 px "Restaurantes" no cabía en su tercio y se encimaba con "Atracciones". */}
             <TabsList className="w-full grid grid-cols-3">
-              <TabsTrigger value="attractions">Atracciones</TabsTrigger>
-              <TabsTrigger value="restaurants">Restaurantes</TabsTrigger>
-              <TabsTrigger value="hotels">Hoteles</TabsTrigger>
+              <TabsTrigger value="attractions" className="px-1 text-xs sm:px-3 sm:text-sm">Atracciones</TabsTrigger>
+              <TabsTrigger value="restaurants" className="px-1 text-xs sm:px-3 sm:text-sm">Restaurantes</TabsTrigger>
+              <TabsTrigger value="hotels" className="px-1 text-xs sm:px-3 sm:text-sm">Hoteles</TabsTrigger>
             </TabsList>
           </Tabs>
           <Button onClick={buscar} disabled={loading || !city} className="w-full">
@@ -88,6 +93,10 @@ const TripActivities = () => {
             <h2 className="font-display text-xl">Top resultados</h2>
             {results.map((r) => (
               <div key={r.id} className="glass-card rounded-2xl overflow-hidden border border-white/10">
+                {/* Google Places trae el nombre de la foto (no una URL): se pide con la sesión (PlacePhoto). */}
+                {!r.photos[0] && r.photo_ref && (
+                  <PlacePhoto photoRef={r.photo_ref} name={r.name} family={cat === "restaurants" ? "food" : cat === "hotels" ? "lodging" : "sight"} className="h-48" />
+                )}
                 {r.photos[0] && (
                   <img src={r.photos[0]} alt={r.name} className="w-full h-48 object-cover" loading="lazy" />
                 )}

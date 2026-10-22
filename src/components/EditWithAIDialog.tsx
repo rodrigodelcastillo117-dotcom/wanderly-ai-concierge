@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { Sparkles, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { readFunctionError } from "@/lib/functionErrors";
+import { useModalA11y } from "@/hooks/useModalA11y";
 
 interface Props {
   tripId: string;
@@ -21,6 +24,8 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [loading, setLoading] = useState(false);
+  const titleId = useId();
+  const dialogRef = useModalA11y(open, () => { if (!loading) setOpen(false); });
 
   const submit = async () => {
     if (!instruction.trim() || loading) return;
@@ -35,8 +40,11 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
       setOpen(false);
       setInstruction("");
       onUpdated();
-    } catch (e: any) {
-      toast.error(e?.message ?? "No se pudo actualizar el viaje");
+    } catch (e: unknown) {
+      // Antes se mostraba e.message tal cual: con un error del servidor salía
+      // "Edge Function returned a non-2xx status code".
+      const info = await readFunctionError(e, "No se pudo actualizar el viaje. Intenta de nuevo.");
+      toast.error(info.message);
     } finally {
       setLoading(false);
     }
@@ -52,9 +60,15 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
         <Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">Editar con IA</span>
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => !loading && setOpen(false)}>
+      {/* Portal a <body>: dentro de la página (con transformaciones de animación) el z-[100]
+          no salía de su contexto y la barra inferior móvil tapaba "Aplicar cambios". */}
+      {open && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-[max(1rem,env(safe-area-inset-bottom))]" onClick={() => !loading && setOpen(false)}>
           <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
             className="glass-card rounded-2xl p-5 md:p-8 w-full max-w-2xl max-h-[88vh] overflow-y-auto gold-border relative"
             onClick={(e) => e.stopPropagation()}
           >
@@ -69,13 +83,14 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
 
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              <h3 className="font-display text-2xl">Editar viaje con IATOS AI</h3>
+              <h3 id={titleId} className="font-display text-2xl">Editar viaje con IATOS AI</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-5">
               Describe los cambios y la IA reorganizará, recotizará y actualizará todo: rutas, vuelos, hospedaje, itinerario y presupuesto.
             </p>
 
             <textarea
+              data-autofocus
               aria-label="Cambios que quieres en tu viaje"
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
@@ -129,7 +144,8 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
               </p>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

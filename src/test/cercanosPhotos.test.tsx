@@ -153,7 +153,10 @@ describe("pantalla Cercanos", () => {
     expect(await screen.findByTestId("place-illustration")).toBeTruthy();
     expect(screen.getByText("Sin foto de este lugar")).toBeTruthy();
     expect(screen.queryByRole("img", { name: /Foto de LagoAlgo/ })).toBeNull();
-    expect(invoke.mock.calls.filter(([fn]) => String(fn).startsWith("place-photo"))).toHaveLength(0);
+    // La única foto pedida es la miniatura del otro lugar (el que sí tiene foto); LagoAlgo no gasta nada.
+    const photoCalls = invoke.mock.calls.filter(([fn]) => String(fn).startsWith("place-photo"));
+    expect(photoCalls.length).toBeLessThanOrEqual(1);
+    photoCalls.forEach(([fn]) => expect(String(fn)).toContain("maxWidth=240"));
   });
 
   it("si la foto no carga (URL vencida), cae a la ilustración", async () => {
@@ -162,5 +165,35 @@ describe("pantalla Cercanos", () => {
     const img = await screen.findByAltText("Foto de Ling Ling by Hakkasan");
     fireEvent.error(img);
     expect(await screen.findByText("Sin foto de este lugar")).toBeTruthy();
+  });
+});
+
+describe("miniaturas en la lista de Cercanos", () => {
+  beforeEach(() => { invoke.mockReset(); __resetPlacePhotoCache(); sessionStorage.clear(); });
+
+  it("la miniatura no pide la foto hasta que la tarjeta entra en pantalla, y luego la muestra", async () => {
+    const observers: Array<(e: Array<{ isIntersecting: boolean }>) => void> = [];
+    const orig = (globalThis as any).IntersectionObserver;
+    (globalThis as any).IntersectionObserver = class {
+      cb: any;
+      constructor(cb: any) { this.cb = cb; observers.push(cb); }
+      observe() {} disconnect() {} unobserve() {}
+    };
+    try {
+      invoke.mockResolvedValue({ data: { url: PHOTO }, error: null });
+      const { PlacePhoto } = await import("@/components/PlacePhoto");
+      render(<PlacePhoto compact photoRef={REF} name="Contramar" family="food" className="w-20 h-20" />);
+      expect(screen.getByTestId("place-thumb")).toBeTruthy();
+      await new Promise((r) => setTimeout(r, 20));
+      expect(invoke).not.toHaveBeenCalled();
+      observers.forEach((cb) => cb([{ isIntersecting: true }]));
+      const img = await screen.findByTestId("place-thumb-img");
+      expect(img.getAttribute("src")).toBe(PHOTO);
+      expect(img.getAttribute("alt")).toBe("");
+      expect(invoke).toHaveBeenCalledTimes(1);
+      expect(String(invoke.mock.calls[0][0])).toContain("maxWidth=240");
+    } finally {
+      (globalThis as any).IntersectionObserver = orig;
+    }
   });
 });

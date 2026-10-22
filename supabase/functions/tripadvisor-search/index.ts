@@ -1,10 +1,15 @@
 // Lugares reales con calificación y reseñas: TripAdvisor Content API y, si no está disponible
-// (sin llave o llave rechazada), Google Maps vía SerpApi. Mismo formato de respuesta; `source`
-// dice de dónde vino ("tripadvisor" | "google_maps").
+// (sin llave o llave rechazada), Google Places API (New) con la llave del servidor; SerpApi
+// (Google Maps) queda como último recurso porque su bolsa de búsquedas es escasa y la comparten
+// vuelos y hoteles. Mismo formato de respuesta; `source` dice de dónde vino
+// ("tripadvisor" | "google_places" | "google_maps").
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { serpFetchFor } from "../_shared/serpRuntime.ts";
+import { googleTransportFor } from "../_shared/google-runtime.ts";
+import { callError } from "../_shared/google-maps.ts";
+import { CATEGORY_SEARCH, placeCard, rankByQuality, searchText } from "../_shared/google-places.ts";
 
 const KEY = Deno.env.get("TRIPADVISOR_API_KEY");
 const SERP_KEY = Deno.env.get("SERPAPI_PRIVATE_KEY");
@@ -83,6 +88,26 @@ Deno.serve(async (req) => {
     }
 
     const googleFallback = async (reason: string, status: number, detail: unknown) => {
+      // 1) Google Places (New): datos de Google con la llave del servidor (Text Search Enterprise,
+      //    1,000 gratis al mes); no gasta la bolsa de SerpApi.
+      const transport = body.category === "geos" ? null : googleTransportFor("tripadvisor-search", __user.id);
+      if (transport) {
+        const cat = CATEGORY_SEARCH[body.category ?? "attractions"] ?? CATEGORY_SEARCH.attractions;
+        const r = await searchText(transport, {
+          query: `${cat.prefix} ${body.query}`,
+          includedType: cat.includedType,
+          language: "es",
+          maxResults: 15,
+          preset: "rich",
+        });
+        if (r.ok && r.places.length > 0) {
+          const results = rankByQuality(r.places).slice(0, 10).map((p) => placeCard(p, body.category ?? null));
+          return new Response(JSON.stringify({ ok: true, source: "google_places", consulted_at: r.consultado_at, atribucion: "Google Maps", results }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (!r.ok) console.warn("tripadvisor-search: Google Places", callError(r).kind, callError(r).message);
+      }
+      // 2) Último recurso: Google Maps vía SerpApi (gasta de la bolsa compartida).
       if (SERP_KEY) {
         // Google Maps vía SerpApi con la caché compartida (7 días): los lugares casi no cambian.
         const places = await googleMapsSearch(body, serpFetchFor("tripadvisor-search", __user.id).fetch);

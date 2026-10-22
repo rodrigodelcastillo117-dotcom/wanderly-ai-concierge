@@ -3,7 +3,7 @@
 // con sus acciones. Sin Deno. Cada oferta conserva su procedencia real (provider, source_url,
 // price_checked_at) y nunca promete más de lo que la fuente dio.
 import { checkAllowlisted, unwrapAffiliate } from "./allowlist.ts";
-import { whatsappNumberFromUrl } from "./channels.ts";
+import { countryIso as countryIsoName, whatsappNumberFromUrl } from "./channels.ts";
 import {
   aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, EVIDENCE, getYourGuideSearchUrl, isIsoDate,
   openTableSearchUrl, parseAviasalesSearch, parseBookingSearch, roomsForAdults, viatorSearchUrl,
@@ -525,6 +525,21 @@ export function offerFromTripTour(t: any, ctx: OfferContext & { city?: string | 
   const est = ESTIMATED.has(String(t?.fuente ?? "").toLowerCase()) || String(t?.estado_dato ?? "").toUpperCase() === "ESTIMADO";
   return { ...o, price: pp, currency: pp ? "MXN" : null, price_is_estimate: est, verification_status: est ? "estimated" : o.verification_status,
     price_checked_at: str(t?.consultado_at) ?? o.price_checked_at };
+}
+
+/**
+ * Restaurante del viaje que vino de Google Places (grupo googlemax: restaurantFromPlace guarda
+ * place_id, maps_url, website y telefono). Como trips.*_json lo puede editar su dueño, el servidor
+ * no firma salidas a dominios fuera de la lista blanca con estos datos (ver booking-bridge).
+ */
+export function venueFromTripPlace(r: any, city?: string | null, countryName?: string | null): VenueInfo | null {
+  if (!r || r.fuente !== "google_places" || typeof r.place_id !== "string") return null;
+  const country = /^[A-Z]{2}$/.test(String(countryName ?? "")) ? String(countryName) : countryIsoName(countryName);
+  return {
+    name: String(r.nombre ?? "").replace(` · ${city}`, ""), city: city ?? r.ciudad ?? null, country,
+    place_id: r.place_id, website: typeof r.website === "string" ? r.website : null,
+    phone: typeof r.telefono === "string" ? r.telefono : null, source: "google_places", verified_at: r.consultado_at ?? null,
+  };
 }
 
 /** Fila del catálogo Privé → datos del lugar (la usan el servidor y el planeador Privé). */

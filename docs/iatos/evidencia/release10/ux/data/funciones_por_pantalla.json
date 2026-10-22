@@ -1,0 +1,279 @@
+{
+ "/": {
+  "calls": [],
+  "blocked": []
+ },
+ "/auth": {
+  "calls": [],
+  "blocked": []
+ },
+ "/onboarding": {
+  "calls": [
+   "buscar-video GET",
+   "recomendar-destinos POST",
+   "buscar-video GET"
+  ],
+  "blocked": [
+   "recomendar-destinos"
+  ]
+ },
+ "/onboarding/deep": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard": {
+  "calls": [
+   "buscar-video GET",
+   "recomendar-destinos POST",
+   "buscar-video GET"
+  ],
+  "blocked": [
+   "recomendar-destinos"
+  ]
+ },
+ "/dashboard/planear": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/ruta": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/viajes": {
+  "calls": [
+   "buscar-video GET",
+   "buscar-video GET",
+   "pexels-image POST"
+  ],
+  "blocked": []
+ },
+ "/dashboard/viajes/:id": {
+  "calls": [
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST",
+   "pexels-image POST"
+  ],
+  "blocked": []
+ },
+ "/dashboard/viajes/:id/editar": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/viajes/:id/live": {
+  "calls": [
+   "buscar-video GET"
+  ],
+  "blocked": []
+ },
+ "/dashboard/viajes/:id/mapa": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/viajes/:id/packing": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/viajes/:id/clima": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/viajes/:id/traductor": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/viajes/:id/diario": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/viajes/:id/split": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/comparar": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/convertidor": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/vuelos": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/hoteles": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/seguros": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/beneficios": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/autos": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/esim": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/actividades": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/restaurantes": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/trenes": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/ferries": {
+  "calls": [
+   "buscar-video GET"
+  ],
+  "blocked": []
+ },
+ "/dashboard/cruceros": {
+  "calls": [
+   "buscar-video GET"
+  ],
+  "blocked": []
+ },
+ "/dashboard/reservas": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/descubre": {
+  "calls": [
+   "recomendar-destinos POST"
+  ],
+  "blocked": [
+   "recomendar-destinos"
+  ]
+ },
+ "/dashboard/cercanos": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/favoritos": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/social": {
+  "calls": [
+   "evaluar-logros POST"
+  ],
+  "blocked": [
+   "evaluar-logros"
+  ]
+ },
+ "/dashboard/smart-spend": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/gastos": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/concierge": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/concierge?tab=members": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/pro": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/admin": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/perfil": {
+  "calls": [],
+  "blocked": []
+ },
+ "/dashboard/members": {
+  "calls": [],
+  "blocked": []
+ },
+ "/prive": {
+  "calls": [],
+  "blocked": []
+ },
+ "/prive/invitacion": {
+  "calls": [],
+  "blocked": []
+ },
+ "/prive/membresia": {
+  "calls": [],
+  "blocked": []
+ },
+ "/prive/restablecer": {
+  "calls": [],
+  "blocked": []
+ },
+ "/prive/destino/paris": {
+  "calls": [],
+  "blocked": []
+ },
+ "/prive/universo/gastronomia": {
+  "calls": [],
+  "blocked": []
+ },
+ "/prive/experiencia/demo": {
+  "calls": [],
+  "blocked": []
+ },
+ "/prive/solicitudes": {
+  "calls": [],
+  "blocked": []
+ }
+}

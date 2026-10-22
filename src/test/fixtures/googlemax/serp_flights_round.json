@@ -1,0 +1,31 @@
+{
+  "_nota": "Respuesta de SerpApi engine=google_flights (viaje redondo) con el formato documentado (https://serpapi.com/google-flights-api). No es una grabación en vivo.",
+  "search_metadata": { "google_flights_url": "https://www.google.com/travel/flights?hl=es&tfs=x" },
+  "best_flights": [
+    {
+      "flights": [
+        { "departure_airport": { "name": "Aeropuerto Internacional Benito Juárez", "id": "MEX", "time": "2026-11-10 23:55" },
+          "arrival_airport": { "name": "Aeropuerto Adolfo Suárez Madrid-Barajas", "id": "MAD", "time": "2026-11-11 18:20" },
+          "duration": 625, "airplane": "Boeing 787", "airline": "Aeroméxico", "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/AM.png",
+          "travel_class": "Económica", "flight_number": "AM 1", "overnight": true, "often_delayed_by_over_30_min": false }
+      ],
+      "total_duration": 625,
+      "carbon_emissions": { "this_flight": 712000, "typical_for_this_route": 690000, "difference_percent": 3 },
+      "price": 1530,
+      "type": "Ida y vuelta",
+      "departure_token": "WyJDalJJ..."
+    }
+  ],
+  "other_flights": [
+    {
+      "flights": [
+        { "departure_airport": { "id": "MEX", "time": "2026-11-10 10:00" }, "arrival_airport": { "id": "BOG", "time": "2026-11-10 15:10" }, "duration": 250, "airline": "Avianca", "flight_number": "AV 61", "travel_class": "Económica" },
+        { "departure_airport": { "id": "BOG", "time": "2026-11-10 17:40" }, "arrival_airport": { "id": "MAD", "time": "2026-11-11 09:35" }, "duration": 595, "airline": "Avianca", "flight_number": "AV 10", "travel_class": "Económica" }
+      ],
+      "layovers": [{ "duration": 150, "name": "Aeropuerto El Dorado", "id": "BOG" }],
+      "total_duration": 995,
+      "price": 1180,
+      "departure_token": "WyJDalJJ2..."
+    }
+  ]
+}

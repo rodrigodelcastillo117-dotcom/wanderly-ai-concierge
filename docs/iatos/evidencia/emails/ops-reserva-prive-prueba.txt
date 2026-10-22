@@ -1,0 +1,25 @@
+Asunto: [PRUEBA] [IATOS Concierge] Reserva Privé · Experiencia de muestra · 30 de oct., 21:30 h · 2 pers. · e2e+prive@… · Folio 9C0FFEE0
+Preencabezado: Pendiente de confirmar · Experiencia de muestra · 30 de oct. de 2026, 21:30 h · 2 personas
+
+[PRUEBA] RESERVA PRIVÉ · Folio 9C0FFEE0
+Experiencia de muestra
+Ciudad de México, MX
+
+Estado: Pendiente de confirmar — el cliente ve «solicitud recibida», no «reserva».
+Sugerido: confirma disponibilidad y escribe al cliente en menos de 2 horas.
+
+Fecha y hora: 30 de oct. de 2026, 21:30 h (hora del lugar) · 30 de oct. de 2026, 21:30 h (hora CDMX)
+Personas: 2
+Cliente: Sin nombre en el perfil
+Correo: e2e+prive@mailinator.com
+Prefiere: En la app (bandeja de IATOS)
+Preferencias: PRUEBA — no contactar al lugar
+Viaje: Sin viaje
+Recibida: 22 de oct. de 2026, 14:08 h (hora CDMX)
+
+Responder a este correo le escribe directo al cliente.
+Confirma disponibilidad y precio reales con el lugar antes de decir que está reservado.
+
+—
+IATOS AI · traveliatos.life
+Correo interno de operaciones de IATOS: llega al buzón del equipo cuando un cliente pide algo a un humano.

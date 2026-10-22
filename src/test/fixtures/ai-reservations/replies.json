@@ -1,0 +1,841 @@
+{
+ "_note": "Respuestas con la forma exacta de la Messages API (tool_use de record_reply_classification). Construidas a mano para las pruebas: no salen de llamadas reales (regla del dueño: sin APIs de pago desde pruebas).",
+ "request": {
+  "venue_name": "Casa Oaxaca",
+  "venue_email": "reservas@casaoaxaca.com.mx",
+  "requested_local": "2026-11-03T20:30",
+  "party_size": 4,
+  "customer_name": "Ana López",
+  "venue_timezone": "America/Mexico_City",
+  "ref_code": "R-ABC234"
+ },
+ "cases": [
+  {
+   "name": "clear_yes_es",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Hola, buenas tardes.\n\nCon gusto confirmamos su reserva para 4 personas el martes 3 de noviembre a las 20:30 a nombre de Ana López. Su número de confirmación es MX-4821.\n\nSaludos,\nEquipo Casa Oaxaca\n\nEl lun, 2 nov 2026 a las 10:02, Ana López vía IATOS <reservas@traveliatos.life> escribió:\n> Hola, equipo de Casa Oaxaca:",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "confirmed",
+       "automatic_reply": false,
+       "booking_held": true,
+       "stated_date": "2026-11-03",
+       "stated_time": "20:30",
+       "stated_party_size": 4,
+       "stated_name": "Ana López",
+       "confirmation_code": "MX-4821",
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "Con gusto confirmamos su reserva para 4 personas el martes 3 de noviembre a las 20:30 a nombre de Ana López."
+       ],
+       "reply_language": "es",
+       "summary_es": "Confirmaron la reserva para 4 personas el 3 de noviembre a las 20:30."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "confirmed",
+    "code": "MX-4821"
+   }
+  },
+  {
+   "name": "yes_different_time_en",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Hi Ana,\n\nUnfortunately 8:30pm is fully booked, but we have booked you a table for 4 guests at 9:15pm on November 3rd instead. Please let us know if that works.\n\nBest,\nCasa Oaxaca",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "confirmed",
+       "automatic_reply": false,
+       "booking_held": true,
+       "stated_date": "2026-11-03",
+       "stated_time": "21:15",
+       "stated_party_size": 4,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "we have booked you a table for 4 guests at 9:15pm on November 3rd instead"
+       ],
+       "reply_language": "en",
+       "summary_es": "No hay lugar a las 20:30; apartaron una mesa a las 21:15."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "alternative_offered",
+    "alternatives": [
+     "2026-11-03T21:15"
+    ],
+    "held": true,
+    "why": "confirmed_different_slot"
+   }
+  },
+  {
+   "name": "no_es",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Buenas tardes, lamentablemente estamos completos esa noche y no tenemos lugar para 4 personas. Disculpe las molestias.",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "declined",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": null,
+       "stated_time": null,
+       "stated_party_size": null,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "lamentablemente estamos completos esa noche y no tenemos lugar para 4 personas"
+       ],
+       "reply_language": "es",
+       "summary_es": "Están completos esa noche."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "declined"
+   }
+  },
+  {
+   "name": "auto_reply_en",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Automatic reply: Reservation request",
+    "text": "Thank you for your email. I am out of the office until Monday 9 November with limited access to email. For urgent matters please call the restaurant.",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "unrelated",
+       "automatic_reply": true,
+       "booking_held": false,
+       "stated_date": null,
+       "stated_time": null,
+       "stated_party_size": null,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "I am out of the office until Monday 9 November"
+       ],
+       "reply_language": "en",
+       "summary_es": "Respuesta automática de fuera de la oficina."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "ignored",
+    "why": "automatic_reply"
+   }
+  },
+  {
+   "name": "spam_unrelated",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Novedades de Casa Oaxaca",
+    "text": "Descubre nuestro nuevo menú de temporada y suscríbete a nuestro boletín para recibir promociones exclusivas.",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "unrelated",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": null,
+       "stated_time": null,
+       "stated_party_size": null,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "suscríbete a nuestro boletín"
+       ],
+       "reply_language": "es",
+       "summary_es": "Boletín promocional, no responde la solicitud."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "ignored",
+    "why": "unrelated"
+   }
+  },
+  {
+   "name": "french_yes",
+   "reply": {
+    "from": "Le Comptoir <contact@lecomptoir.fr>",
+    "subject": "Re: Demande de réservation · Réf R-ABC234",
+    "text": "Bonjour,\n\nNous confirmons votre réservation pour 4 personnes le mardi 3 novembre à 20h30.\n\nÀ bientôt,\nL'équipe\n\nLe lun. 2 nov. 2026 à 10:02, Ana López vía IATOS a écrit :\n> Bonjour à l'équipe",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "confirmed",
+       "automatic_reply": false,
+       "booking_held": true,
+       "stated_date": "2026-11-03",
+       "stated_time": "20:30",
+       "stated_party_size": 4,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "Nous confirmons votre réservation pour 4 personnes le mardi 3 novembre à 20h30."
+       ],
+       "reply_language": "fr",
+       "summary_es": "Confirmaron la reserva para 4 personas el 3 de noviembre a las 20:30."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "confirmed",
+    "code": null
+   },
+   "venue_email": "contact@lecomptoir.fr"
+  },
+  {
+   "name": "alternatives_es",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Hola Ana, a las 20:30 ya no tenemos mesa. Les podemos ofrecer a las 19:00 o a las 22:00. ¿Cuál prefieren?",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "alternative_offered",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": null,
+       "stated_time": null,
+       "stated_party_size": null,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [
+        {
+         "date": null,
+         "time": "19:00",
+         "note": null
+        },
+        {
+         "date": null,
+         "time": "22:00",
+         "note": null
+        }
+       ],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "Les podemos ofrecer a las 19:00 o a las 22:00."
+       ],
+       "reply_language": "es",
+       "summary_es": "Ofrecen 19:00 o 22:00."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "alternative_offered",
+    "alternatives": [
+     "2026-11-03T19:00",
+     "2026-11-03T22:00"
+    ],
+    "held": false
+   }
+  },
+  {
+   "name": "needs_info_en",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Hello! Happy to help. Could you send us a phone number for the reservation and let us know if anyone has allergies?",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "needs_info",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": null,
+       "stated_time": null,
+       "stated_party_size": null,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": "Un teléfono para la reserva y si alguien tiene alergias.",
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "Could you send us a phone number for the reservation"
+       ],
+       "reply_language": "en",
+       "summary_es": "Piden un teléfono y alergias."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "needs_info"
+   }
+  },
+  {
+   "name": "payment_required_es",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Con gusto. Para garantizar la reserva necesitamos los datos de una tarjeta de crédito; puede enviarlos por este medio.",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "needs_info",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": null,
+       "stated_time": null,
+       "stated_party_size": null,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": "Piden datos de tarjeta para garantizar.",
+       "requires_payment_or_card": true,
+       "evidence_quotes": [
+        "Para garantizar la reserva necesitamos los datos de una tarjeta de crédito"
+       ],
+       "reply_language": "es",
+       "summary_es": "Piden tarjeta para garantizar."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "payment_required"
+   }
+  },
+  {
+   "name": "model_invents_quote",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Gracias por escribirnos, en breve le respondemos.",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "confirmed",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": null,
+       "stated_time": "20:30",
+       "stated_party_size": null,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "Su reserva está confirmada"
+       ],
+       "reply_language": "es",
+       "summary_es": "Confirmado."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "ambiguous",
+    "why": "no_verbatim_quote"
+   }
+  },
+  {
+   "name": "spoofed_sender",
+   "reply": {
+    "from": "Casa Oaxaca <casaoaxaca.reservas@gmail.com>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Confirmamos su reserva para 4 personas el 3 de noviembre a las 20:30.",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "confirmed",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": "2026-11-03",
+       "stated_time": "20:30",
+       "stated_party_size": 4,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "Confirmamos su reserva para 4 personas el 3 de noviembre a las 20:30."
+       ],
+       "reply_language": "es",
+       "summary_es": "Confirmado."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "unverified",
+    "why": "sender_unverified"
+   }
+  },
+  {
+   "name": "dmarc_fail_same_domain",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Confirmamos su reserva para 4 personas el 3 de noviembre a las 20:30.",
+    "authentication": {
+     "spf": "fail",
+     "dkim": "fail",
+     "dmarc": "fail"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "confirmed",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": "2026-11-03",
+       "stated_time": "20:30",
+       "stated_party_size": 4,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "Confirmamos su reserva para 4 personas el 3 de noviembre a las 20:30."
+       ],
+       "reply_language": "es",
+       "summary_es": "Confirmado."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "unverified",
+    "why": "sender_unverified"
+   }
+  },
+  {
+   "name": "party_mismatch",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Confirmamos su reserva para 2 personas el 3 de noviembre a las 20:30.",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "tool_use",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "confirmed",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": "2026-11-03",
+       "stated_time": "20:30",
+       "stated_party_size": 2,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [
+        "Confirmamos su reserva para 2 personas el 3 de noviembre a las 20:30."
+       ],
+       "reply_language": "es",
+       "summary_es": "Confirmado para 2."
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "ambiguous",
+    "why": "party_size_mismatch"
+   }
+  },
+  {
+   "name": "refusal",
+   "reply": {
+    "from": "Reservaciones Casa Oaxaca <reservas@casaoaxaca.com.mx>",
+    "subject": "Re: Solicitud de reserva · 4 personas · Ref R-ABC234",
+    "text": "Texto cualquiera.",
+    "authentication": {
+     "spf": "pass",
+     "dkim": "pass",
+     "dmarc": "pass"
+    }
+   },
+   "claude": {
+    "id": "msg_fixture",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-5-5",
+    "stop_reason": "refusal",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_fixture",
+      "name": "record_reply_classification",
+      "input": {
+       "outcome": "unrelated",
+       "automatic_reply": false,
+       "booking_held": false,
+       "stated_date": null,
+       "stated_time": null,
+       "stated_party_size": null,
+       "stated_name": null,
+       "confirmation_code": null,
+       "alternatives": [],
+       "info_requested": null,
+       "requires_payment_or_card": false,
+       "evidence_quotes": [],
+       "reply_language": "es",
+       "summary_es": ""
+      }
+     }
+    ],
+    "usage": {
+     "input_tokens": 1450,
+     "output_tokens": 260
+    }
+   },
+   "expected": {
+    "outcome": "ambiguous",
+    "why": "classification_unavailable"
+   }
+  }
+ ]
+}

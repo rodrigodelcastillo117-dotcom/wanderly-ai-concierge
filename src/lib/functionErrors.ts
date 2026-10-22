@@ -40,6 +40,9 @@ export type FunctionErrorInfo = {
 };
 
 const GENERIC_SUPABASE = /edge function returned a non-2xx status code|failed to send a request to the edge function|relay error/i;
+// Mensajes del navegador o de JavaScript que no le dicen nada al usuario ("Failed to fetch",
+// "TypeError: x is undefined", "Unexpected token < in JSON"): se reemplazan por el texto de la pantalla.
+const TECHNICAL = /failed to fetch|networkerror|load failed|network request failed|typeerror|referenceerror|syntaxerror|unexpected token|is not a function|is undefined|is null|cannot read|json|abort|timeout|\bat\s+\S+\s*\(|https?:\/\//i;
 
 const QUOTAS: QuotaName[] = [
   "concierge_monthly", "trip_analysis_once", "trip_analysis_monthly",
@@ -172,7 +175,7 @@ export async function readFunctionError(error: unknown, fallback: string): Promi
   else if (status === 409 && isText(body?.message)) message = body!.message as string;
   else if (err.name === "FunctionsFetchError") message = "No pudimos conectar con el servidor. Revisa tu internet e intenta de nuevo.";
   // Errores lanzados por la propia pantalla (sin respuesta HTTP), p. ej. "Sin resultado".
-  else if (status === null && isText(err.message) && !GENERIC_SUPABASE.test(err.message)) message = err.message;
+  else if (status === null && isText(err.message) && !GENERIC_SUPABASE.test(err.message) && !TECHNICAL.test(err.message)) message = err.message;
   else message = fallback;
 
   return { status, code, message, upgradeUrl: null, needsUpgrade: false, freeLimit: null };

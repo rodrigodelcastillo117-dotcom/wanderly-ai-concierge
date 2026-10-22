@@ -156,15 +156,23 @@ const esc = (v: unknown) =>
 /** Asunto y cuerpo (HTML interno, sin el layout) del correo de alerta. Todo texto va escapado y limpio. */
 export function alertEmail(results: CheckResult[], reason: "changed" | "reminder" | "first") {
   const ok = results.every((r) => r.ok);
+  // Una fila por servicio con su estado (falla / aviso) y el detalle, ya escapado y sin secretos.
   const rows = results
     .filter((r) => !r.ok || r.warn)
-    .map((r) => `<li><strong>${esc(r.name)}:</strong> ${esc(redactSecrets(r.ok ? r.warn : `falla — ${r.detail ?? "sin detalle"}`, 300))}</li>`)
+    .map((r) => {
+      const color = r.ok ? "#D7AE78" : "#CF8A7C";
+      const tag = r.ok ? "Aviso" : "Falla";
+      return `<tr><td style="padding:12px 0;border-bottom:1px solid #2A2722;">
+        <span style="display:inline-block;padding:3px 8px;border:1px solid ${color};font-size:10px;line-height:14px;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:${color};">${tag}</span>
+        <strong style="color:#F2EDE4;font-weight:600;">&nbsp;${esc(r.name)}</strong><br>
+        <span style="color:#CFC8BB;">${esc(redactSecrets(r.ok ? r.warn : `falla — ${r.detail ?? "sin detalle"}`, 300))}</span></td></tr>`;
+    })
     .join("");
   const subject = `${reason === "reminder" ? "Recordatorio — " : ""}${ok ? "IATOS: hay algo que atender" : "IATOS: un servicio está fallando"}`;
   const intro = reason === "reminder"
     ? "Sigue pendiente lo mismo que hace una semana:"
     : "El chequeo diario encontró lo siguiente:";
-  const html = `<p>${intro}</p><ul>${rows}</ul><p>El detalle está en Perfil → Panel de métricas. Solo te volveremos a escribir si esto cambia, o en una semana si sigue igual.</p>`;
+  const html = `<p style="margin:0 0 8px;">${intro}</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table><p style="margin:18px 0 0;color:#9C968B;font-size:13px;">El detalle está en Perfil → Panel de métricas. Solo te volveremos a escribir si esto cambia, o en una semana si sigue igual.</p>`;
   return { subject, html };
 }
 

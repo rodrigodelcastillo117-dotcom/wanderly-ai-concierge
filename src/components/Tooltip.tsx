@@ -80,7 +80,7 @@ export function Tooltip({
               type="button"
               onClick={onDismiss}
               aria-label="Cerrar"
-              className="shrink-0 -mr-1 -mt-1 p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
+              className="shrink-0 -mr-3 -mt-3 w-10 h-10 grid place-items-center rounded-md text-muted-foreground hover:text-primary transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>

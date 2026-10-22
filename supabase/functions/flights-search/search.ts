@@ -102,6 +102,65 @@ export type SearchResult = { status: number; body: Record<string, unknown> };
 
 export const MOTIVO_NO_DISPONIBLE = "Búsqueda en vivo no disponible ahora; intenta más tarde.";
 
+/** Travelpayouts es un respaldo: tarifas que otros viajeros encontraron en las últimas 48 h. */
+export const TP_LABEL = "Precio de referencia (Aviasales, búsquedas de las últimas 48 h); puede variar";
+
+const minutes = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : null);
+const hm = (m: number | null) => (m === null ? "—" : `${Math.floor(m / 60)}h ${m % 60}m`);
+
+/**
+ * Un resultado de Google Flights (SerpApi) con todo lo que trae: tramos con aerolínea, número de
+ * vuelo, horarios, avión y clase; escalas con su duración; emisiones. `price` es el total para
+ * todos los viajeros (ida y vuelta si es redondo, como lo muestra Google Flights).
+ */
+export function googleFlightResult(f: any, travelers: number, roundTrip: boolean, searchLink: string) {
+  const segs: any[] = Array.isArray(f?.flights) ? f.flights : [];
+  const dur = minutes(f?.total_duration) ?? 0;
+  const airline = segs[0]?.airline ?? "—";
+  const airlines = [...new Set(segs.map((s) => s?.airline).filter(Boolean))];
+  const price = Number(f?.price ?? 0);
+  return {
+    price_usd: price,
+    price_per_person_usd: Math.round(price / Math.max(1, travelers)),
+    airline,
+    airlines,
+    airline_logo: segs[0]?.airline_logo ?? f?.airline_logo ?? null,
+    duration: `${Math.floor(dur / 60)}h ${dur % 60}m`,
+    duration_minutes: dur || null,
+    stops: Math.max(0, segs.length - 1),
+    departure: { id: segs[0]?.departure_airport?.id, time: segs[0]?.departure_airport?.time },
+    arrival: { id: segs[segs.length - 1]?.arrival_airport?.id, time: segs[segs.length - 1]?.arrival_airport?.time },
+    segments: segs.map((s) => ({
+      airline: s?.airline ?? null,
+      flight_number: s?.flight_number ?? null,
+      from: s?.departure_airport?.id ?? null,
+      from_name: s?.departure_airport?.name ?? null,
+      departs: s?.departure_airport?.time ?? null,
+      to: s?.arrival_airport?.id ?? null,
+      to_name: s?.arrival_airport?.name ?? null,
+      arrives: s?.arrival_airport?.time ?? null,
+      duration: hm(minutes(s?.duration)),
+      airplane: s?.airplane ?? null,
+      travel_class: s?.travel_class ?? null,
+      overnight: s?.overnight === true,
+      often_delayed: s?.often_delayed_by_over_30_min === true,
+    })),
+    layovers: (Array.isArray(f?.layovers) ? f.layovers : []).map((l: any) => ({
+      airport: l?.id ?? null,
+      name: l?.name ?? null,
+      duration: hm(minutes(l?.duration)),
+      overnight: l?.overnight === true,
+    })),
+    carbon_kg: minutes(f?.carbon_emissions?.this_flight) !== null ? Math.round(f.carbon_emissions.this_flight / 1000) : null,
+    price_note: `Precio total para ${Math.max(1, travelers)} ${travelers === 1 ? "viajero" : "viajeros"}${roundTrip ? ", ida y vuelta" : ", solo ida"}, según Google Flights.`,
+    booking_token: f?.booking_token ?? null,
+    departure_token: f?.departure_token ?? null,
+    buy_url: searchLink,
+    airline_buy_url: airlineSite(airline),
+    fuente: "google_flights",
+  };
+}
+
 export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<SearchResult> {
   const { origin, destination, depart, return_date, travelers = 1, type = "round" } = body ?? {};
   const marker = resolveTpMarker(env.marker);
@@ -150,29 +209,15 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
           .filter((f: any) => Number(f?.price ?? 0) > 0)
           .sort((a: any, b: any) => Number(a.price) - Number(b.price))
           .slice(0, 12);
-        results = all.map((f: any) => {
-          const segs = f.flights ?? [];
-          const dur = f.total_duration ?? 0;
-          const airline = segs[0]?.airline ?? "—";
-          return {
-            price_usd: Number(f.price ?? 0),
-            price_per_person_usd: Math.round(Number(f.price ?? 0) / Math.max(1, travelers)),
-            airline,
-            airline_logo: segs[0]?.airline_logo ?? null,
-            duration: `${Math.floor(dur / 60)}h ${dur % 60}m`,
-            stops: Math.max(0, segs.length - 1),
-            departure: { id: segs[0]?.departure_airport?.id, time: segs[0]?.departure_airport?.time },
-            arrival: { id: segs[segs.length - 1]?.arrival_airport?.id, time: segs[segs.length - 1]?.arrival_airport?.time },
-            booking_token: f.booking_token ?? null,
-            buy_url: searchLink,
-            airline_buy_url: airlineSite(airline),
-          };
-        });
+        results = all.map((f: any) => googleFlightResult(f, travelers, roundTrip, searchLink));
         if (results.length > 0) source = "serpapi";
         else fallas.push("google_flights_sin_resultados");
       } else if (r.headers.get("x-iatos-cache") === "limit") {
         // La bolsa de búsquedas en vivo del plan se agotó: no se llamó a SerpApi.
         fallas.push("google_flights_limite_del_plan");
+      } else if (r.headers.get("x-iatos-cache") === "paused") {
+        // La cuenta de SerpApi está en pausa (presupuesto o cuota) y no había precio guardado.
+        fallas.push("google_flights_busquedas_en_pausa");
       } else {
         // Nunca registrar la URL: lleva la API key.
         console.error("serpapi flights status:", r.status);
@@ -216,6 +261,11 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
           booking_token: null,
           buy_url: searchLink,
           airline_buy_url: searchLink,
+          // Caché de búsquedas de otros viajeros (hasta 48 h): nunca "en vivo".
+          fuente: "travelpayouts",
+          estado_dato: "ESTIMADO",
+          etiqueta: TP_LABEL,
+          vigencia_hasta: typeof o.expires_at === "string" ? o.expires_at : null,
         }))
           .filter((x) => x.price_per_person_usd > 0)
           .sort((a, b) => a.price_per_person_usd - b.price_per_person_usd);
@@ -239,6 +289,9 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
       source,
       disponible,
       results,
+      // Etiqueta legible de la fuente (la fecha real la agrega finalizeSearchResponse).
+      etiqueta_fuente: source === "serpapi" ? "Google Flights" : source === "travelpayouts" ? TP_LABEL : null,
+      ...(source === "travelpayouts" ? { estado_dato: "ESTIMADO" } : {}),
       ...(disponible ? {} : { motivo: MOTIVO_NO_DISPONIBLE, fallas }),
       consulted_at: new Date().toISOString(),
       // Travelpayouts es caché (hasta 48 h); Google Flights se consulta en el momento.

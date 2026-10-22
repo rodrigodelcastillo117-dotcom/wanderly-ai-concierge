@@ -1,0 +1,4 @@
+Asunto: [IATOS] Pago rechazado en una suscripción PRO
+Preencabezado: 
+
+(el aviso de cobros se envía solo en HTML)

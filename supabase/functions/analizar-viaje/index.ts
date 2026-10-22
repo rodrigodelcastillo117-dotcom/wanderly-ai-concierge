@@ -17,19 +17,26 @@ import {
   type WorkResult,
 } from "../_shared/reservation.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
+import { sendEmail } from "../_shared/email.ts";
+import { tripQuoteEmail } from "../_shared/email-templates.ts";
+import { heroPhoto } from "../_shared/hero-photo.ts";
+import { buildQuoteEmailInput } from "./quoteEmail.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { callClaudeWithFallback } from "../_shared/claude.ts";
 import { internalHeaders, logUsage } from "../_shared/serpRuntime.ts";
+import { googleTransportFor } from "../_shared/google-runtime.ts";
+import { computeRoute } from "../_shared/google-routes.ts";
+import { enforceRestaurants, restaurantsForCity } from "../_shared/google-restaurants.ts";
+import { ratingText } from "../_shared/google-places.ts";
 import { usageFromClaude } from "../_shared/usage.ts";
 import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { buildQuoteSnapshot, saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
-import { enforceSources, hotelPreference } from "./sources.ts";
+import { enforceSources, hotelPreference, liveConsultedAt as sourceConsultedAt } from "./sources.ts";
 import { normalizarVuelos, reconcileBudget } from "./budget.ts";
 import {
   applyShortTripRules, detectShortTrip, groundSearchLinks, isReasonableShortFlight, parseDurationMinutes,
-  shortTripPromptBlock, shortTripTransportTotal, travelerPrefs,
+  refineShortTrip, SHORT_TRIP_CANDIDATE_KM, shortTripPromptBlock, shortTripTransportTotal, travelerPrefs,
 } from "./groundTransport.ts";
 
 // Las miniaturas de Google (googleusercontent) aceptan el tamaño en el sufijo "=w..-h..".
@@ -51,6 +58,9 @@ function pickCover(places: any[], hotels: any[]): string | null {
   }
   return null;
 }
+
+// Mantiene vivo el envío del correo después de responder (Supabase Edge Runtime).
+declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -334,7 +344,7 @@ const TOOL_SCHEMA = {
             duracion: { type: "string" },
             precio_por_persona: { type: "number" },
             por_que: { type: "string" },
-            fuente: { type: "string", enum: ["tripadvisor", "google_maps", "perplexity", "estimado"], description: "Usa la fuente que indica el bloque ATRACCIONES ('tripadvisor' o 'google_maps') si el nombre/rating salió de ahí." },
+            fuente: { type: "string", enum: ["tripadvisor", "google_places", "google_maps", "perplexity", "estimado"], description: "Usa la fuente que indica el bloque ATRACCIONES ('tripadvisor', 'google_places' o 'google_maps') si el nombre/rating salió de ahí." },
             rating: { type: "number", description: "Rating real (0-5) si salió del bloque ATRACCIONES." },
             num_reviews: { type: "integer", description: "Número real de reseñas si salió del bloque ATRACCIONES." },
           },
@@ -663,8 +673,17 @@ Deno.serve(async (req) => {
     // gastan la bolsa de búsquedas en vivo del usuario (_shared/internalCall.ts).
     const analysisHeaders = await internalHeaders(user.id, "analysis");
 
-    // Trayecto corto por carretera (N-06): no forzar vuelos; terrestre como opción estimada.
-    const shortTrip = detectShortTrip(body.ciudad_origen, body.destino);
+    // Google Maps Platform (llave solo en el servidor): restaurantes reales y tiempo de manejo real.
+    const google = googleTransportFor("analizar-viaje", user.id);
+
+    // Trayecto corto por carretera (N-06): no forzar vuelos; terrestre como opción estimada. Con la
+    // lista de ciudades se detecta un candidato (línea recta × factor) y Routes API da el tiempo y
+    // la distancia reales de manejo; sin respuesta de Google queda la aproximación (etiquetada).
+    const shortCandidate = detectShortTrip(body.ciudad_origen, body.destino, SHORT_TRIP_CANDIDATE_KM);
+    const driveRoute = shortCandidate && google
+      ? await computeRoute(google, { origin: { address: `${body.ciudad_origen}` }, destination: { address: `${body.destino}` }, mode: "DRIVE" })
+      : null;
+    const shortTrip = refineShortTrip(shortCandidate, driveRoute);
     const tripPrefs = travelerPrefs(body.notas_usuario);
     if (shortTrip) console.log("analizar-viaje: trayecto corto", shortTrip);
 
@@ -740,15 +759,22 @@ Deno.serve(async (req) => {
       }),
     }).then((r) => r.json()).catch((e) => ({ ok: false, error: String(e?.message ?? e), results: [] }));
 
-    const [perplexityResult, tpFlightsRes, serpHotelsRes, tripadvisorRes, googleFlightsRes] = await Promise.allSettled([
+    // Restaurantes reales de Google Places (New) para el destino, con la preferencia de comida.
+    const restaurantsPromise = google
+      ? restaurantsForCity(google, body.destino, { preferences: (travelProfile?.preferencias_comida ?? []).slice(0, 2).join(" ") || null })
+      : Promise.resolve(null);
+
+    const [perplexityResult, tpFlightsRes, serpHotelsRes, tripadvisorRes, googleFlightsRes, restaurantsRes] = await Promise.allSettled([
       investigarConPerplexity(body, dias, vaultDesc),
       tpFlightsPromise,
       serpHotelsPromise,
       tripadvisorPromise,
       googleFlightsPromise,
+      restaurantsPromise,
     ]);
 
     const liveConsultedAt = new Date().toISOString();
+    const googleRestaurants = restaurantsRes.status === "fulfilled" && restaurantsRes.value?.ok ? restaurantsRes.value.places : [];
     const investigacion = perplexityResult.status === "fulfilled"
       ? perplexityResult.value
       : { texto: `(Perplexity falló: ${(perplexityResult as any).reason?.message ?? "error"})`, citations: [] };
@@ -774,9 +800,10 @@ Deno.serve(async (req) => {
 
     const tripadvisor = tripadvisorRes.status === "fulfilled" ? tripadvisorRes.value : { ok: false, error: "promise_rejected", results: [] };
     const tripadvisorLive = tripadvisor?.ok === true && Array.isArray(tripadvisor?.results) && tripadvisor.results.length > 0;
-    // tripadvisor-search cae a Google Maps (SerpApi) cuando TripAdvisor no responde.
-    const placesSource: "tripadvisor" | "google_maps" = tripadvisor?.source === "google_maps" ? "google_maps" : "tripadvisor";
-    const placesLabel = placesSource === "google_maps" ? "Google Maps" : "TripAdvisor";
+    // tripadvisor-search cae a Google Places (New) y, como último recurso, a Google Maps (SerpApi).
+    const placesSource: "tripadvisor" | "google_places" | "google_maps" =
+      tripadvisor?.source === "google_places" ? "google_places" : tripadvisor?.source === "google_maps" ? "google_maps" : "tripadvisor";
+    const placesLabel = placesSource === "tripadvisor" ? "TripAdvisor" : "Google Maps";
 
     console.log(
       "Perplexity citations:", investigacion.citations.length,
@@ -805,7 +832,7 @@ Deno.serve(async (req) => {
         const escalas = f.stops === 0 ? "directo" : `${f.stops} escala(s)`;
         return `${i + 1}. ${f.airline} — ${f.departure?.id ?? "?"}→${f.arrival?.id ?? "?"} — ${escalas} — ${f.duration} — USD ${f.price_per_person_usd}/persona redondo (~$${ppMxn.toLocaleString("es-MX")} MXN) — sale ${f.departure?.time ?? "?"} — LINK: ${f.buy_url}`;
       }).join("\n");
-      return `Fuente: Google Flights vía SerpApi (tarifas reales consultadas hoy, viaje redondo, precio por persona).\n${lines}`;
+      return `Fuente: Google Flights vía SerpApi (tarifas reales consultadas ${googleFlights?.consulted_at ?? "hoy"}${googleFlights?.precio_guardado ? " — PRECIO GUARDADO, no en vivo" : ""}, viaje redondo, precio por persona).\n${lines}`;
     })();
 
     // Bloque de hoteles con precios reales de SerpApi / Google Hotels
@@ -817,7 +844,7 @@ Deno.serve(async (req) => {
         const nightlyMxn = Math.round((Number(h.nightly_usd) || 0) * fxUsd);
         return `${i + 1}. ${h.name}${h.hotel_class ? ` (${h.hotel_class}★)` : ""}${h.rating ? ` — rating ${h.rating}` : ""} — USD ${h.nightly_usd}/noche (~$${nightlyMxn.toLocaleString("es-MX")} MXN/noche) — total estancia USD ${h.total_usd ?? "?"} — LINK: ${h.booking_url}`;
       }).join("\n");
-      return `Fuente: SerpApi / Google Hotels (tarifas reales consultadas hoy para ${body.fecha_salida} → ${body.fecha_regreso}, ${body.num_viajeros} adultos).\n${lines}`;
+      return `Fuente: SerpApi / Google Hotels (tarifas reales con impuestos consultadas ${serpHotels?.consulted_at ?? "hoy"}${serpHotels?.precio_guardado ? " — PRECIO GUARDADO, no en vivo" : ""} para ${body.fecha_salida} → ${body.fecha_regreso}, ${body.num_viajeros} adultos).\n${lines}`;
     })();
 
     // Bloque de atracciones/experiencias reales de TripAdvisor Content API
@@ -832,6 +859,19 @@ Deno.serve(async (req) => {
       return `Fuente: ${placesLabel} (atracciones reales con rating y reseñas verificadas, consultadas hoy). Usa fuente="${placesSource}".\n${lines}`;
     })();
 
+
+    // Restaurantes reales (Google Places): el modelo solo puede elegir de esta lista.
+    const restaurantsBlock = (() => {
+      if (!googleRestaurants.length) {
+        return "(Sin datos de Google Maps para restaurantes — usa restaurantes reales de Perplexity; se mostrarán como sugerencia sin verificar)";
+      }
+      const lines = googleRestaurants.slice(0, 12).map((r, i) => {
+        const bits = [ratingText(r), r.price_symbol ? `precio ${r.price_symbol}` : null, r.primary_type_label, r.reservable ? "acepta reservaciones" : null]
+          .filter(Boolean).join(" — ");
+        return `${i + 1}. ${r.name}${bits ? ` — ${bits}` : ""}${r.editorial_summary ? ` — "${r.editorial_summary}"` : ""}`;
+      }).join("\n");
+      return `Fuente: Google Maps (Places API, consultado ${googleRestaurants[0]?.consultado_at ?? "hoy"}). Copia el nombre EXACTO.\n${lines}`;
+    })();
 
     // PASO 2: Claude estructura el análisis usando los datos reales
     const userPrompt = `Genera un análisis premium de viaje usando EXCLUSIVAMENTE los precios reales investigados abajo.
@@ -879,6 +919,9 @@ ${serpHotelsBlock}
 
 ATRACCIONES — ${placesLabel.toUpperCase()} (fuente curada para tours/experiencias; nombres y ratings reales):
 ${tripadvisorBlock}
+
+RESTAURANTES — GOOGLE MAPS (lugares reales; elige 5 de esta lista):
+${restaurantsBlock}
 ==========================================
 
 ==========================================
@@ -896,7 +939,8 @@ ${shortTrip ? `==========================================\n${shortTripPromptBloc
 - Si arriba hay datos de SERPAPI / GOOGLE HOTELS, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Si el cliente pidió un tipo de hospedaje (boutique, vista al mar, lujo, todo incluido, etc.), elige SOLO hoteles de la lista que encajen con esa petición y prefiere rating ≥ 4.3; menciona en "por_que" cómo cumple lo que pidió. Convierte USD→MXN (×${fxUsd}), copia el booking_link exacto y pon fuente_precio="serpapi". NUNCA inventes un hotel ni un precio si esa lista trae datos.
 - Si una categoría no trajo datos en vivo, cae a Perplexity y pon fuente_precio="perplexity" sin booking_link. Si tampoco hay contexto de Perplexity, pon fuente_precio="estimado".
 - Si arriba hay datos de ATRACCIONES, prioriza esos nombres para "tours" (son lugares reales con reseñas verificadas): copia el nombre exacto, pon fuente="${placesSource}", y copia rating/num_reviews tal cual. El precio_por_persona sigue siendo una estimación (${placesLabel} no da precio de boleto) — está bien, solo el nombre/rating son reales. Completa hasta 4-6 tours mezclando esa lista con ideas de Perplexity si trae menos de 4; en esos extras pon fuente="perplexity" o "estimado".
-- Restaurantes, itinerario, tips y cruceros se sacan SIEMPRE de Perplexity.
+- Restaurantes: si arriba hay lista de GOOGLE MAPS, elige SOLO de esa lista (nombre exacto) los 5 que mejor encajen con el cliente; el servidor pone calificación, precio, horario y link reales. Si no hay lista, usa restaurantes reales de Perplexity.
+- Itinerario, tips y cruceros se sacan de Perplexity.
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
@@ -947,13 +991,24 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
 
     // El servidor decide el origen de cada precio: un vuelo u hotel solo conserva la etiqueta de
     // una fuente en vivo si su precio (y nombre, en hoteles) está en la lista que trajo esa fuente.
+    // Cada fuente con SU fecha real de consulta (si salió de la caché compartida, la de esa
+    // consulta; antes se ponía la hora del análisis a todo).
     enforceSources(a, tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : [], placesSource, {
       tpFlights: Array.isArray(tpFlights?.flights) ? tpFlights.flights : [],
       tpApproximateDates: !!tpFlights?.approximate_dates,
       googleFlights: googleFlightsLive ? googleFlights.results : [],
       fxUsd,
       consultedAt: liveConsultedAt,
+      googleFlightsAt: sourceConsultedAt(googleFlights, liveConsultedAt),
+      googleFlightsSaved: googleFlights?.precio_guardado === true,
+      hotelsAt: sourceConsultedAt(serpHotels, liveConsultedAt),
+      hotelsSaved: serpHotels?.precio_guardado === true,
+      tpAt: sourceConsultedAt(tpFlights, liveConsultedAt),
     });
+    // Restaurantes: solo los que están en Google Maps, con sus datos reales.
+    const rest = enforceRestaurants(a.restaurantes, googleRestaurants, body.destino);
+    if (rest.quitados) console.warn("analizar-viaje: restaurantes fuera de la lista de Google quitados", rest.quitados, body.destino);
+    a.restaurantes = rest.restaurantes;
 
     // Trayecto corto: terrestre siempre "estimado" con liga de búsqueda; vuelos solo razonables; el
     // renglón de transporte sale de la opción con precio (0 si ninguna trae precio).
@@ -1048,7 +1103,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // Snapshot inmutable de esta cotización (moneda, tipo de cambio, fuentes, viajeros, noches,
     // habitaciones, estado por renglón y vigencia). Solo el service role escribe en trip_quotes.
     const admin = SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : null;
-    const quote = await saveQuoteSnapshot(admin, buildQuoteSnapshot({
+    const snapshot = buildQuoteSnapshot({
       tripId: trip.id,
       userId: user.id,
       origin: "analizar-viaje",
@@ -1070,35 +1125,43 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         vuelos: budget.vueloReferencia?.fuente_precio ?? "estimado",
         hospedaje: budget.hotelReferencia?.fuente_precio ?? "estimado",
         tours: tripadvisorLive ? placesSource : "estimado",
+        restaurantes: googleRestaurants.length ? "google_places" : "estimado",
+        traslado_carretera: shortTrip ? { fuente: shortTrip.source ?? "aproximado", consultado_at: shortTrip.consultedAt ?? null, km: shortTrip.approxRoadKm } : null,
         travelpayouts: { count: tpFlights?.flights?.length ?? 0, consulted_at: tpFlights?.consulted_at ?? null, approximate_dates: !!tpFlights?.approximate_dates, cache_max_age_h: 48 },
         google_flights: { live: googleFlightsLive, consulted_at: googleFlights?.consulted_at ?? null },
         google_hotels: { live: serpHotelsLive, consulted_at: serpHotels?.consulted_at ?? null },
         fx_eur: fxEurInfo,
         perplexity_citations: investigacion.citations.length,
       },
-    }));
+    });
+    const quote = await saveQuoteSnapshot(admin, snapshot);
 
-    // Email de cotización lista (fire-and-forget: nunca bloquea la respuesta).
-    try {
-      const { data: perfilEmail } = await supabase
-        .from("profiles").select("email, full_name").eq("id", user.id).maybeSingle();
-      const destinatario = perfilEmail?.email ?? user.email;
-      if (destinatario) {
-        const { subject, html } = tripQuoteEmail({
-          nombre: perfilEmail?.full_name?.split(" ")[0] ?? null,
-          destino: trip.destino,
-          fechaSalida: trip.fecha_salida,
-          fechaRegreso: trip.fecha_regreso,
-          total: Number(trip.total_estimado) || 0,
-          desglose: (trip.desglose_presupuesto ?? {}) as Record<string, unknown>,
-          tripId: trip.id,
-        });
-        void sendEmail({ to: destinatario, subject, html });
+    // Correo "Tu viaje está cotizado" en segundo plano: nunca bloquea ni rompe la respuesta. Lleva
+    // cada renglón con su procedencia (en vivo / estimado / no disponible), tarjetas de vuelo y hotel
+    // solo con datos reales de las listas en vivo y la portada de Pexels con su crédito.
+    const sendQuoteEmail = async () => {
+      try {
+        const { data: perfilEmail } = await supabase
+          .from("profiles").select("email, full_name").eq("id", user.id).maybeSingle();
+        const destinatario = perfilEmail?.email ?? user.email;
+        if (!destinatario) return;
+        const hero = await heroPhoto(trip.destino, { fn: "analizar-viaje", userId: user.id });
+        const mail = tripQuoteEmail(buildQuoteEmailInput({
+          trip, snapshot, saved: quote, firstName: perfilEmail?.full_name ?? null,
+          vueloReferencia: budget.vueloReferencia, hotelReferencia: budget.hotelReferencia,
+          googleFlights: googleFlightsLive ? googleFlights.results : [],
+          tpFlights: Array.isArray(tpFlights?.flights) ? tpFlights.flights : [],
+          liveHotels: serpHotelsLive ? serpHotels.results : [],
+          fxUsd, hero, siteUrl: Deno.env.get("SITE_URL"),
+        }));
+        const sent = await sendEmail({ to: destinatario, subject: mail.subject, html: mail.html, text: mail.text });
+        if (!sent.ok) console.warn("analizar-viaje: email no enviado", sent.error);
+      } catch (e) {
+        console.warn("analizar-viaje: email no enviado", (e as Error).message);
       }
-    } catch (e) {
-      console.warn("analizar-viaje: email no enviado", (e as Error).message);
-    }
-
+    };
+    const emailTask = sendQuoteEmail();
+    if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime?.waitUntil === "function") EdgeRuntime.waitUntil(emailTask);
 
     return { ok: true, tripId: trip.id, response: new Response(JSON.stringify({
       trip: quote ? { ...trip, current_quote_id: quote.id } : trip,

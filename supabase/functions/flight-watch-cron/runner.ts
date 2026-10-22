@@ -19,6 +19,8 @@ export type RunnerDeps = {
   /** Inserta el aviso si no existe ya (dedup_key). true si se creó. */
   notify: (n: { user_id: string; title: string; body: string; related_id: string | null; dedup_key: string }) => Promise<boolean>;
   push: (userId: string, payload: { title: string; body: string; url: string }) => Promise<number>;
+  /** Correo del aviso (opcional, apagado por defecto). Solo se llama si el aviso se insertó. */
+  email?: (flight: TrackedFlight, change: { changes: string[]; status: string | null; url: string }) => Promise<void>;
   now: () => number;
   log?: (...args: unknown[]) => void;
 };
@@ -102,6 +104,7 @@ export async function runFlightWatch(deps: RunnerDeps, opts: RunnerOptions = DEF
           // Se espera antes de sumar: `s.pushed += await …` leería el contador viejo con filas en paralelo.
           const sent = await deps.push(f.user_id, { title, body, url: flightUrl(f) }).catch(() => 0);
           s.pushed += sent;
+          if (deps.email) await deps.email(f, { changes: ev.changes, status: ev.state.status, url: flightUrl(f) }).catch(() => {});
         }
       }
       if (ev.finished) s.finished++;

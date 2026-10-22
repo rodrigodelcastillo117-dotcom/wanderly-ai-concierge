@@ -219,8 +219,18 @@ const shortDate = (iso?: string | null) => {
   return d.toLocaleDateString("es-MX", { day: "numeric", month: "short", timeZone: "UTC" }).replace(".", "");
 };
 
-export const tripLabel = (t: TripLike) =>
-  `${t.destino ?? "Sin destino"} (${shortDate(t.fecha_salida)} al ${shortDate(t.fecha_regreso)})`;
+// Sin fechas no se muestra "(? al ?)" (texto que parecía un error en el selector del Concierge):
+// se dice "sin fechas", o solo la fecha que sí existe.
+const dateRange = (t: TripLike) => {
+  const a = t.fecha_salida ? shortDate(t.fecha_salida) : "?";
+  const b = t.fecha_regreso ? shortDate(t.fecha_regreso) : "?";
+  if (a === "?" && b === "?") return "sin fechas";
+  if (b === "?") return `desde el ${a}`;
+  if (a === "?") return `hasta el ${b}`;
+  return `${a} al ${b}`;
+};
+
+export const tripLabel = (t: TripLike) => `${t.destino ?? "Sin destino"} (${dateRange(t)})`;
 
 /** Pregunta determinista cuando hay empate: lista destinos y fechas y termina en "?". */
 export function buildTripQuestion(candidates: TripLike[]): string {

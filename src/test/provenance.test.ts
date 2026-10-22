@@ -33,12 +33,13 @@ describe("provenanceOf: proveedores en vivo", () => {
 });
 
 describe("provenanceOf: caché de Travelpayouts", () => {
-  it("nunca dice 'verificado en vivo': 'Precio de referencia (caché ≤48 h)'", () => {
+  it("nunca dice 'en vivo' ni 'verificado': precio de referencia ESTIMADO que puede variar", () => {
     for (const source of ["travelpayouts", "aviasales"]) {
       const p = provenanceOf({ source, consultadoAt: hoursAgo(1) }, now);
-      expect(p.state).toBe("CONSULTADO_EN_VIVO");
-      expect(p.label).toBe("Precio de referencia (caché ≤48 h)");
-      expect(p.label).not.toMatch(/verificado/i);
+      expect(p.state).toBe("ESTIMADO");
+      expect(p.trusted).toBe(false);
+      expect(p.label).toBe("Precio de referencia (caché ≤48 h) · puede variar");
+      expect(p.label).not.toMatch(/verificado|en vivo/i);
     }
   });
   it("con fechas aproximadas → ESTIMADO", () => {

@@ -5,6 +5,7 @@ export { checkAllowlisted, checkTrustedSource, processorLabel } from "../../supa
 export { resolveBookingActions } from "../../supabase/functions/_shared/booking/resolver.ts";
 export {
   offerFromFlightResult, offerFromHotelResult, offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, offerFromVenue,
+  venueFromTripPlace,
   type FlightResultLike, type FlightSearchMeta, type HotelResultLike, type HotelSearchMeta, type VenueInfo,
 } from "../../supabase/functions/_shared/booking/offers.ts";
 export { intentStatusText, TERMINAL_STATES, type FollowUpOutcome, type Verification } from "../../supabase/functions/_shared/booking/states.ts";
