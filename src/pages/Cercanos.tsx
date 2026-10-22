@@ -10,6 +10,7 @@ import { placePhotoUrl } from "@/lib/googleMaps";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { RoutesPanel } from "@/components/RoutesPanel";
 import { Button } from "@/components/ui/button";
+import { localISODate } from "@/lib/localDate";
 
 declare global { interface Window { google: any; initMap?: () => void; } }
 
@@ -133,7 +134,7 @@ const Cercanos = () => {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localISODate();
       const [{ data: trips }, { data: visits }, { data: profile }] = await Promise.all([
         supabase.from("trips").select("id,destino,fecha_salida,fecha_regreso")
           .eq("user_id", user.id).gte("fecha_regreso", today)

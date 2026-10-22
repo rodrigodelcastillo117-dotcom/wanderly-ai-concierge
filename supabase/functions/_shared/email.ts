@@ -62,6 +62,10 @@ export async function sendEmail(opts: {
 }
 
 
+/** Escapa texto de usuario antes de meterlo en el HTML de un correo. */
+export const escapeHtml = (v: unknown) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
 const money = (n: number) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n || 0);
 
@@ -90,21 +94,21 @@ export function tripQuoteEmail(opts: {
   const rows = Object.entries(opts.desglose ?? {})
     .filter(([, v]) => Number(v) > 0)
     .map(([k, v]) =>
-      `<tr><td style="padding:8px 0;color:#b8b2a6;text-transform:capitalize">${k.replace(/_/g, " ")}</td>
+      `<tr><td style="padding:8px 0;color:#b8b2a6;text-transform:capitalize">${escapeHtml(k.replace(/_/g, " "))}</td>
        <td style="padding:8px 0;text-align:right;color:#fff">${money(Number(v))}</td></tr>`)
     .join("");
 
   const inner = `
   <p style="font-size:15px;line-height:1.6;color:#cfc9bd">
-    ${opts.nombre ? `${opts.nombre}, t` : "T"}u cotización para <strong style="color:#fff">${opts.destino}</strong> está lista.
-    ${opts.fechaSalida ? `Fechas: ${opts.fechaSalida}${opts.fechaRegreso ? ` → ${opts.fechaRegreso}` : ""}.` : ""}
+    ${opts.nombre ? `${escapeHtml(opts.nombre)}, t` : "T"}u cotización para <strong style="color:#fff">${escapeHtml(opts.destino)}</strong> está lista.
+    ${opts.fechaSalida ? `Fechas: ${escapeHtml(opts.fechaSalida)}${opts.fechaRegreso ? ` → ${escapeHtml(opts.fechaRegreso)}` : ""}.` : ""}
   </p>
   <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px">
     ${rows}
     <tr><td style="padding:12px 0;border-top:1px solid #2a2823;color:#c9a227;font-weight:600">Total estimado</td>
         <td style="padding:12px 0;border-top:1px solid #2a2823;text-align:right;color:#c9a227;font-weight:600">${money(opts.total)}</td></tr>
   </table>
-  <a href="https://traveliatos.life/dashboard/trips/${opts.tripId}"
+  <a href="https://traveliatos.life/dashboard/viajes/${encodeURIComponent(opts.tripId)}"
      style="display:inline-block;background:#c9a227;color:#141310;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600">
     Ver mi cotización completa
   </a>
@@ -114,10 +118,34 @@ export function tripQuoteEmail(opts: {
   return { subject: `Tu cotización a ${opts.destino} está lista`, html: layout("Tu viaje está cotizado", inner) };
 }
 
+export function tripInviteEmail(opts: {
+  invitado?: string | null;
+  anfitrion?: string | null;
+  destino: string;
+  fechaSalida?: string | null;
+  fechaRegreso?: string | null;
+  tripId: string;
+}) {
+  const fechas = opts.fechaSalida
+    ? `<p style="font-size:14px;color:#8a8578">${escapeHtml(opts.fechaSalida)}${opts.fechaRegreso ? ` → ${escapeHtml(opts.fechaRegreso)}` : ""}</p>`
+    : "";
+  const inner = `
+  <p style="font-size:15px;line-height:1.6;color:#cfc9bd">
+    ${opts.invitado ? `${escapeHtml(opts.invitado)}, ` : ""}${opts.anfitrion ? escapeHtml(opts.anfitrion) : "Un amigo"} te invitó a colaborar en su viaje a
+    <strong style="color:#fff">${escapeHtml(opts.destino)}</strong>.
+  </p>
+  ${fechas}
+  <a href="https://traveliatos.life/dashboard/viajes/${encodeURIComponent(opts.tripId)}"
+     style="display:inline-block;background:#c9a227;color:#141310;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600">
+    Ver el viaje
+  </a>`;
+  return { subject: `Te invitaron a un viaje a ${opts.destino}`, html: layout("Te invitaron a un viaje", inner) };
+}
+
 export function welcomeEmail(nombre?: string | null) {
   const inner = `
   <p style="font-size:15px;line-height:1.6;color:#cfc9bd">
-    ${nombre ? `${nombre}, b` : "B"}ienvenido a IATOS AI. Soy <strong style="color:#fff">Iato</strong>, tu concierge de viajes.
+    ${nombre ? `${escapeHtml(nombre)}, b` : "B"}ienvenido a IATOS AI. Soy <strong style="color:#fff">Iato</strong>, tu concierge de viajes.
   </p>
   <ul style="font-size:14px;line-height:1.9;color:#cfc9bd;padding-left:18px">
     <li>Cotiza un viaje completo con vuelos y hoteles reales.</li>

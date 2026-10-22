@@ -6,6 +6,7 @@ import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { trackBookingClick } from "@/lib/trackBooking";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { localISODatePlus } from "@/lib/localDate";
 
 type Watch = Tables<"price_watches">;
 type Check = Pick<Tables<"price_watch_checks">, "price_mxn" | "checked_at" | "approximate_dates" | "source">;
@@ -63,7 +64,7 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
     setLoading(false);
   }, [tripId]);
 
-  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  const tomorrow = localISODatePlus(1);
   const upcoming = !!departureDate && departureDate >= tomorrow;
 
   useEffect(() => { if (upcoming) load(); }, [load, upcoming]);

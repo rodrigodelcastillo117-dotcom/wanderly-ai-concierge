@@ -10,6 +10,7 @@ import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
 import SmartSpendPanel from "@/components/SmartSpendPanel";
 import { TripSavingsCalculator } from "@/components/TripSavingsCalculator";
+import { localISODate } from "@/lib/localDate";
 
 
 const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"] as const;
@@ -37,7 +38,7 @@ export const Gastos = () => {
     currency: "MXN",
     category: "Gastronomía",
     description: "",
-    expense_date: new Date().toISOString().slice(0, 10),
+    expense_date: localISODate(),
     file: null as File | null,
   });
 

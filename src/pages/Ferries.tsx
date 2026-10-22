@@ -8,13 +8,14 @@ import { toast } from "sonner";
 import { ferryhopperLink, directFerriesLink, aferryLink } from "@/lib/affiliateLinks";
 import { trackBookingClick } from "@/lib/trackBooking";
 import DestinationVideo from "@/components/DestinationVideo";
+import { localISODate } from "@/lib/localDate";
 
 const Ferries = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [origin, setOrigin] = useState(params.get("origin") ?? "");
   const [destination, setDestination] = useState(params.get("dest") ?? "");
-  const [date, setDate] = useState(params.get("date") ?? new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(params.get("date") ?? localISODate());
   const [passengers, setPassengers] = useState(Number(params.get("pax") ?? 2));
 
   const sources = [

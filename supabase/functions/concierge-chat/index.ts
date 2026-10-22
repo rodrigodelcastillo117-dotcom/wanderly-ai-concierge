@@ -5,7 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
-import { todayLine, toolArgs } from "./tools.ts";
+import { todayLine, toolArgs, slimToolResult } from "./tools.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -148,9 +148,8 @@ async function callTool(name: string, args: any, authHeader: string): Promise<an
       body: JSON.stringify(toolArgs(name, args ?? {})),
     });
     const j = await r.json().catch(() => ({ error: "json parse" }));
-    // recortar para no saturar contexto
-    const slim = JSON.stringify(j).slice(0, 6000);
-    return JSON.parse(slim.endsWith("}") || slim.endsWith("]") ? slim : slim + '"...truncated"}');
+    // recortar para no saturar el contexto, conservando JSON válido
+    return slimToolResult(j);
   } catch (e: any) {
     return { error: e?.message ?? "tool fetch error" };
   }

@@ -22,6 +22,7 @@ import marrakech from "@/assets/destination-marrakech.jpg";
 import patagonia from "@/assets/destination-patagonia.jpg";
 import tulum from "@/assets/destination-tulum.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
+import { localISODate } from "@/lib/localDate";
 
 
 
@@ -110,8 +111,8 @@ const DashboardHome = () => {
 
       // ───── Smart Spend real (gastos del mes actual vs mes anterior) ─────
       const now = new Date();
-      const startThis = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-      const startPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+      const startThis = localISODate(new Date(now.getFullYear(), now.getMonth(), 1));
+      const startPrev = localISODate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
       const { data: exps } = await supabase
         .from("expenses")
         .select("amount, currency, category, expense_date")

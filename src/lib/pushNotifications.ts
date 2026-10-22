@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { localISODate } from "@/lib/localDate";
 
 function urlBase64ToUint8Array(base64: string) {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -54,7 +55,8 @@ export async function subscribePush(): Promise<{ ok: boolean; error?: string }> 
 }
 
 export async function trackFlight(args: { flight: string; flight_date?: string; route?: string; trip_id?: string; active?: boolean }) {
-  const { data, error } = await supabase.functions.invoke("track-flight", { body: args });
+  // "today" en la zona del usuario: el servidor rechaza vuelos que ya pasaron.
+  const { data, error } = await supabase.functions.invoke("track-flight", { body: { ...args, today: localISODate() } });
   if (error) throw error;
   return data;
 }

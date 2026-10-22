@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { subscribePush, trackFlight } from "@/lib/pushNotifications";
+import { localISODate } from "@/lib/localDate";
 
 type FlightInfo = {
   status?: string;
@@ -35,7 +36,7 @@ export const FlightStatusDialog = ({
     setTracking(true);
     try {
       // 1) Siempre registramos el seguimiento en backend (cron + notificación in-app realtime).
-      await trackFlight({ flight: flight.trim(), flight_date: new Date().toISOString().slice(0,10) });
+      await trackFlight({ flight: flight.trim(), flight_date: localISODate() });
 
       // 2) Intentamos además activar el push del navegador (opcional, mejor experiencia).
       const sub = await subscribePush();

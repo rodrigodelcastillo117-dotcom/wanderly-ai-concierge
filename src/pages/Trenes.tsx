@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { trainlineLink, omioLink, raileuropeLink } from "@/lib/affiliateLinks";
 import { trackBookingClick } from "@/lib/trackBooking";
+import { localISODate } from "@/lib/localDate";
 
 const Trenes = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [origin, setOrigin] = useState(params.get("origin") ?? "");
   const [destination, setDestination] = useState(params.get("dest") ?? "");
-  const [date, setDate] = useState(params.get("date") ?? new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(params.get("date") ?? localISODate());
 
   const sources = [
     { name: "Trainline", desc: "El #1 en Europa y Reino Unido. 270+ operadores.", link: trainlineLink },
