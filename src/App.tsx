@@ -1,9 +1,7 @@
 import { Suspense } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { LazyToaster } from "@/components/ui/toaster-lazy";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { OnboardingProvider } from "@/hooks/useOnboardingStatus";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -18,21 +16,26 @@ import { Navigate } from "react-router-dom";
 
 // Code-splitting: todo lo que no es la landing se carga bajo demanda por ruta.
 // El bundle único pesaba >4.4MB; esto reparte el peso en chunks por página.
-const Auth = lazyWithRetry(() => import("./pages/Auth"));
+const loadAuth = () => import("./pages/Auth");
+const Auth = lazyWithRetry(loadAuth);
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const Onboarding = lazyWithRetry(() => import("./pages/Onboarding"));
 const OnboardingDeep = lazyWithRetry(() => import("./pages/OnboardingDeep"));
-const DashboardHome = lazyWithRetry(() => import("./pages/DashboardHome"));
+const loadDashboardHome = () => import("./pages/DashboardHome");
+const DashboardHome = lazyWithRetry(loadDashboardHome);
 const PlanTrip = lazyWithRetry(() => import("./pages/PlanTrip"));
-const TripDetail = lazyWithRetry(() => import("./pages/TripDetail"));
+const loadTripDetail = () => import("./pages/TripDetail");
+const TripDetail = lazyWithRetry(loadTripDetail);
 const EditTrip = lazyWithRetry(() => import("./pages/EditTrip"));
-const Trips = lazyWithRetry(() => import("./pages/Trips"));
+const loadTrips = () => import("./pages/Trips");
+const Trips = lazyWithRetry(loadTrips);
 const MultiDestRoute = lazyWithRetry(() => import("./pages/MultiDestRoute"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Discover = lazyWithRetry(() => import("./pages/Discover"));
 const Pro = lazyWithRetry(() => import("./pages/Pro"));
 const AdminMetrics = lazyWithRetry(() => import("./pages/AdminMetrics"));
-const Concierge = lazyWithRetry(() => import("./pages/Concierge"));
+const loadConcierge = () => import("./pages/Concierge");
+const Concierge = lazyWithRetry(loadConcierge);
 const Cercanos = lazyWithRetry(() => import("./pages/Cercanos"));
 const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
 const Social = lazyWithRetry(() => import("./pages/Social"));
@@ -77,100 +80,115 @@ const PriveInvitation = lazyWithRetry(() => import("./pages/prive/PriveInvitatio
 const PriveMembership = lazyWithRetry(() => import("./pages/prive/PriveMembership"));
 const PriveReset = lazyWithRetry(() => import("./pages/prive/PriveReset"));
 
+/**
+ * Pantalla de la URL con la que se abre la app: su chunk se pide en cuanto arranca el JS, en paralelo
+ * con la sesión y el estado de onboarding. Antes se pedía hasta que ProtectedRoute terminaba esas
+ * consultas (en 3G: ~1–2 s de espera en serie antes de empezar a bajar la pantalla).
+ */
+const INITIAL_ROUTE_CHUNKS: [RegExp, () => Promise<unknown>][] = [
+  [/^\/dashboard\/?$/, loadDashboardHome],
+  [/^\/dashboard\/viajes\/?$/, loadTrips],
+  [/^\/dashboard\/viajes\/[^\/]+\/?$/, loadTripDetail],
+  [/^\/dashboard\/concierge\/?$/, loadConcierge],
+  [/^\/auth\/?$/, loadAuth],
+];
+
+export function preloadInitialRoute(pathname: string): boolean {
+  const hit = INITIAL_ROUTE_CHUNKS.find(([re]) => re.test(pathname));
+  if (!hit) return false;
+  // Si falla, el lazy() de la ruta lo vuelve a intentar (y recarga una vez si el hash ya no existe).
+  void hit[1]().catch(() => {});
+  return true;
+}
+
 const RouteFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
     <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
   </div>
 );
 
-const queryClient = new QueryClient();
-
 const App = () => (
   <AppErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner theme="dark" />
-      <BrowserRouter>
-        <ScrollToTop />
-        <CookieBanner />
-        <ReferralCapture />
-        <FreeLimitDialogLazyHost />
-        <AuthProvider>
-          <OnboardingProvider>
-          <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/terminos" element={<Terminos />} />
-            <Route path="/privacidad" element={<Privacidad />} />
-            <Route path="/reembolsos" element={<Reembolsos />} />
-            <Route path="/cookies" element={<Cookies />} />
-            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-            <Route path="/onboarding/deep" element={<ProtectedRoute><OnboardingDeep /></ProtectedRoute>} />
-            <Route path="/dashboard" element={<ProtectedRoute><DashboardHome /></ProtectedRoute>} />
-            <Route path="/dashboard/planear" element={<ProtectedRoute><PlanTrip /></ProtectedRoute>} />
-            <Route path="/dashboard/ruta" element={<ProtectedRoute><MultiDestRoute /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes/:id" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes/:id/editar" element={<ProtectedRoute><EditTrip /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes/:id/live" element={<ProtectedRoute><LiveTrip /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes/:id/mapa" element={<ProtectedRoute><TripMap /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes/:id/packing" element={<ProtectedRoute><TripPacking /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes/:id/clima" element={<ProtectedRoute><TripWeather /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes/:id/traductor" element={<ProtectedRoute><TripTranslator /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes/:id/diario" element={<ProtectedRoute><TripJournal /></ProtectedRoute>} />
-            <Route path="/dashboard/viajes/:id/split" element={<ProtectedRoute><TripSplit /></ProtectedRoute>} />
-            <Route path="/dashboard/comparar" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
-            <Route path="/dashboard/convertidor" element={<ProtectedRoute><Currency /></ProtectedRoute>} />
-            <Route path="/dashboard/vuelos" element={<ProtectedRoute><TripFlights /></ProtectedRoute>} />
-            <Route path="/dashboard/hoteles" element={<ProtectedRoute><TripHotels /></ProtectedRoute>} />
-            <Route path="/dashboard/seguros" element={<ProtectedRoute><Insurance /></ProtectedRoute>} />
-            <Route path="/dashboard/beneficios" element={<ProtectedRoute><Benefits /></ProtectedRoute>} />
-            <Route path="/dashboard/autos" element={<ProtectedRoute><TripCars /></ProtectedRoute>} />
-            <Route path="/dashboard/esim" element={<ProtectedRoute><TripESIM /></ProtectedRoute>} />
-            <Route path="/dashboard/actividades" element={<ProtectedRoute><TripActivities /></ProtectedRoute>} />
-            <Route path="/dashboard/restaurantes" element={<ProtectedRoute><Restaurantes /></ProtectedRoute>} />
-            <Route path="/dashboard/trenes" element={<ProtectedRoute><Trenes /></ProtectedRoute>} />
-            <Route path="/dashboard/ferries" element={<ProtectedRoute><Ferries /></ProtectedRoute>} />
-            <Route path="/dashboard/cruceros" element={<ProtectedRoute><Cruceros /></ProtectedRoute>} />
-            <Route path="/dashboard/reservas" element={<ProtectedRoute><Reservas /></ProtectedRoute>} />
-            <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
-            <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
-            <Route path="/dashboard/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />
-            <Route path="/dashboard/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
-            <Route path="/dashboard/smart-spend" element={<Navigate to="/dashboard/gastos" replace />} />
-            <Route path="/dashboard/gastos" element={<ProtectedRoute><Gastos /></ProtectedRoute>} />
-            <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
-            <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
-            <Route path="/dashboard/admin" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />
-            <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/dashboard/members" element={<Navigate to="/dashboard/concierge?tab=members" replace />} />
-            {/* Sin sesión de IATOS, ProtectedRoute manda a /auth y regresa aquí. El #t=… de la
-                invitación ya se quitó de la URL (priveSession.ts) y no viaja en state.from. */}
-            <Route path="/prive" element={<ProtectedRoute><PriveRoot /></ProtectedRoute>}>
-              <Route index element={<PriveHub />} />
-              <Route path="invitacion" element={<PriveInvitation />} />
-              <Route path="membresia" element={<PriveMembership />} />
-              <Route path="restablecer" element={<PriveReset />} />
-              {/* ── IATOS Privé · catálogo (grupo catalog): dentro de PriveRoot (sesión, candado y estilo);
-                  el servidor exige la sesión Privé en cada RPC ── */}
-              <Route path="destino/:slug" element={<PriveDestinationPage />} />
-              <Route path="universo/:key" element={<PriveUniversePage />} />
-              <Route path="experiencia/:slug" element={<PriveExperiencePage />} />
-              <Route path="solicitudes" element={<PriveRequestsPage />} />
-              {/* ── fin IATOS Privé · catálogo ── */}
-            </Route>
+    <LazyToaster />
+    <Sonner theme="dark" />
+    <BrowserRouter>
+      <ScrollToTop />
+      <CookieBanner />
+      <ReferralCapture />
+      <FreeLimitDialogLazyHost />
+      <AuthProvider>
+        <OnboardingProvider>
+        <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/terminos" element={<Terminos />} />
+          <Route path="/privacidad" element={<Privacidad />} />
+          <Route path="/reembolsos" element={<Reembolsos />} />
+          <Route path="/cookies" element={<Cookies />} />
+          <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+          <Route path="/onboarding/deep" element={<ProtectedRoute><OnboardingDeep /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardHome /></ProtectedRoute>} />
+          <Route path="/dashboard/planear" element={<ProtectedRoute><PlanTrip /></ProtectedRoute>} />
+          <Route path="/dashboard/ruta" element={<ProtectedRoute><MultiDestRoute /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes/:id" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes/:id/editar" element={<ProtectedRoute><EditTrip /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes/:id/live" element={<ProtectedRoute><LiveTrip /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes/:id/mapa" element={<ProtectedRoute><TripMap /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes/:id/packing" element={<ProtectedRoute><TripPacking /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes/:id/clima" element={<ProtectedRoute><TripWeather /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes/:id/traductor" element={<ProtectedRoute><TripTranslator /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes/:id/diario" element={<ProtectedRoute><TripJournal /></ProtectedRoute>} />
+          <Route path="/dashboard/viajes/:id/split" element={<ProtectedRoute><TripSplit /></ProtectedRoute>} />
+          <Route path="/dashboard/comparar" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
+          <Route path="/dashboard/convertidor" element={<ProtectedRoute><Currency /></ProtectedRoute>} />
+          <Route path="/dashboard/vuelos" element={<ProtectedRoute><TripFlights /></ProtectedRoute>} />
+          <Route path="/dashboard/hoteles" element={<ProtectedRoute><TripHotels /></ProtectedRoute>} />
+          <Route path="/dashboard/seguros" element={<ProtectedRoute><Insurance /></ProtectedRoute>} />
+          <Route path="/dashboard/beneficios" element={<ProtectedRoute><Benefits /></ProtectedRoute>} />
+          <Route path="/dashboard/autos" element={<ProtectedRoute><TripCars /></ProtectedRoute>} />
+          <Route path="/dashboard/esim" element={<ProtectedRoute><TripESIM /></ProtectedRoute>} />
+          <Route path="/dashboard/actividades" element={<ProtectedRoute><TripActivities /></ProtectedRoute>} />
+          <Route path="/dashboard/restaurantes" element={<ProtectedRoute><Restaurantes /></ProtectedRoute>} />
+          <Route path="/dashboard/trenes" element={<ProtectedRoute><Trenes /></ProtectedRoute>} />
+          <Route path="/dashboard/ferries" element={<ProtectedRoute><Ferries /></ProtectedRoute>} />
+          <Route path="/dashboard/cruceros" element={<ProtectedRoute><Cruceros /></ProtectedRoute>} />
+          <Route path="/dashboard/reservas" element={<ProtectedRoute><Reservas /></ProtectedRoute>} />
+          <Route path="/dashboard/descubre" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
+          <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
+          <Route path="/dashboard/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />
+          <Route path="/dashboard/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
+          <Route path="/dashboard/smart-spend" element={<Navigate to="/dashboard/gastos" replace />} />
+          <Route path="/dashboard/gastos" element={<ProtectedRoute><Gastos /></ProtectedRoute>} />
+          <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
+          <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
+          <Route path="/dashboard/admin" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />
+          <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/dashboard/members" element={<Navigate to="/dashboard/concierge?tab=members" replace />} />
+          {/* Sin sesión de IATOS, ProtectedRoute manda a /auth y regresa aquí. El #t=… de la
+              invitación ya se quitó de la URL (priveSession.ts) y no viaja en state.from. */}
+          <Route path="/prive" element={<ProtectedRoute><PriveRoot /></ProtectedRoute>}>
+            <Route index element={<PriveHub />} />
+            <Route path="invitacion" element={<PriveInvitation />} />
+            <Route path="membresia" element={<PriveMembership />} />
+            <Route path="restablecer" element={<PriveReset />} />
+            {/* ── IATOS Privé · catálogo (grupo catalog): dentro de PriveRoot (sesión, candado y estilo);
+                el servidor exige la sesión Privé en cada RPC ── */}
+            <Route path="destino/:slug" element={<PriveDestinationPage />} />
+            <Route path="universo/:key" element={<PriveUniversePage />} />
+            <Route path="experiencia/:slug" element={<PriveExperiencePage />} />
+            <Route path="solicitudes" element={<PriveRequestsPage />} />
+            {/* ── fin IATOS Privé · catálogo ── */}
+          </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          </Suspense>
-          </OnboardingProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-    </QueryClientProvider>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        </Suspense>
+        </OnboardingProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </AppErrorBoundary>
 );
 

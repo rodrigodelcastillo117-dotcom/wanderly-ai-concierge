@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ export function DeleteAccountSection() {
   const [error, setError] = useState("");
   const { signOut } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const close = () => { if (!deleting) { setStep(0); setConfirmation(""); setError(""); } };
   const removeAccount = async () => {
     if (step !== 2 || confirmation !== "ELIMINAR" || deleting) return;

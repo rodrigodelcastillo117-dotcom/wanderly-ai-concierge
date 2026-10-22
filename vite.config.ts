@@ -4,6 +4,8 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 // Reparto en chunks vendor y guarda contra chunks circulares (incidente Smart Spend): ver el archivo.
 import { chunkCycleGuard, vendorChunk } from "./vite.chunks";
+// La pantalla con la que se abre la app se pide desde el HTML, en paralelo con el paquete inicial.
+import { routePreloadHints } from "./vite.routePreload";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -23,7 +25,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  plugins: [react(), mode === "development" && componentTagger(), chunkCycleGuard()].filter(Boolean),
+  plugins: [react(), mode === "development" && componentTagger(), chunkCycleGuard(), routePreloadHints()].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

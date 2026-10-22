@@ -5,7 +5,7 @@ import { applyConsent } from "./lib/consent";
 import { installExternalLinkHandler } from "./lib/externalLinks";
 import { watchForNewVersion } from "./lib/versionCheck";
 import { toast } from "sonner";
-import App from "./App.tsx";
+import App, { preloadInitialRoute } from "./App.tsx";
 import "./index.css";
 
 initSentry();
@@ -13,6 +13,9 @@ initSentry();
 applyConsent();
 // Enlaces a otros sitios: siempre en pestaña nueva (src/lib/externalLinks.ts).
 installExternalLinkHandler();
+
+// La pantalla inicial se empieza a bajar ya (no hasta que se resuelvan sesión y onboarding).
+preloadInitialRoute(window.location.pathname);
 
 createRoot(document.getElementById("root")!).render(<App />);
 

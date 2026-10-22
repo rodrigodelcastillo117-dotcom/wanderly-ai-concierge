@@ -5,7 +5,16 @@ import { cn } from "@/lib/utils";
 
 const TooltipProvider = TooltipPrimitive.Provider;
 
-const Tooltip = TooltipPrimitive.Root;
+// Cada Tooltip trae su propio Provider (patrón actual de shadcn): así la app no necesita un
+// TooltipProvider global en App.tsx, que metía Radix Tooltip + Floating UI (~15 KB gzip) en el
+// paquete inicial de todas las visitas aunque casi ninguna pantalla use tooltips de Radix.
+const Tooltip = ({ delayDuration, skipDelayDuration, disableHoverableContent, ...props }: React.ComponentProps<typeof TooltipPrimitive.Root> & {
+  skipDelayDuration?: number;
+}) => (
+  <TooltipPrimitive.Provider delayDuration={delayDuration} skipDelayDuration={skipDelayDuration} disableHoverableContent={disableHoverableContent}>
+    <TooltipPrimitive.Root {...props} />
+  </TooltipPrimitive.Provider>
+);
 
 const TooltipTrigger = TooltipPrimitive.Trigger;
 
