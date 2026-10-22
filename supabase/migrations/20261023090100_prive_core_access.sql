@@ -428,8 +428,15 @@ GRANT EXECUTE ON FUNCTION public.prive_resend_invitation(uuid) TO service_role;
 -- Correo de invitación: reclama las que tocan (FOR UPDATE SKIP LOCKED: dos corridas no reciben la
 -- misma), genera un token NUEVO (solo se guarda su hash) y lo devuelve una sola vez para el enlace.
 -- email_next_attempt_at queda 10 min adelante mientras se envía (si la corrida muere, se reintenta).
+DO $$ BEGIN
+  -- Versiones previas de esta función (en bases de prueba) devolvían otra fila: se recrea.
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'prive_claim_invitation_emails' AND pronamespace = 'public'::regnamespace
+               AND NOT ('basis' = ANY (coalesce(proargnames, '{}')))) THEN
+    DROP FUNCTION public.prive_claim_invitation_emails(int, uuid);
+  END IF;
+END $$;
 CREATE OR REPLACE FUNCTION public.prive_claim_invitation_emails(_limit int, _only_user uuid DEFAULT NULL)
-RETURNS TABLE (invitation_id uuid, user_id uuid, email text, first_name text, token text, attempt int)
+RETURNS TABLE (invitation_id uuid, user_id uuid, email text, first_name text, token text, attempt int, basis text)
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
 #variable_conflict use_column
 DECLARE
@@ -438,7 +445,7 @@ DECLARE
   v_email text;
 BEGIN
   FOR r IN
-    SELECT i.id, i.user_id, i.email_attempts FROM public.prive_invitations i
+    SELECT i.id, i.user_id, i.email_attempts, m.basis AS m_basis FROM public.prive_invitations i
       JOIN public.prive_memberships m ON m.user_id = i.user_id AND m.status = 'invited'
      WHERE i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()
        AND i.email_status IN ('pending', 'failed') AND i.email_attempts < 5
@@ -462,7 +469,7 @@ BEGIN
            email_next_attempt_at = now() + interval '10 minutes'
      WHERE id = r.id;
     invitation_id := r.id; user_id := r.user_id; email := v_email;
-    first_name := public.prive_first_name(r.user_id); token := v_token; attempt := r.email_attempts + 1;
+    first_name := public.prive_first_name(r.user_id); token := v_token; attempt := r.email_attempts + 1; basis := r.m_basis;
     RETURN NEXT;
   END LOOP;
 END $$;
