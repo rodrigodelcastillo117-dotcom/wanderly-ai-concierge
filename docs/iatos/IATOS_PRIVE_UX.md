@@ -1,6 +1,6 @@
 # IATOS Privé · Experiencia de usuario y dirección visual
 
-> Parte de la serie Privé. Datos: [Modelo de datos](IATOS_PRIVE_MODELO_DE_DATOS.md). Textos permitidos y prohibidos: [Calidad §4](IATOS_PRIVE_CALIDAD_FUENTES.md#4-lenguaje-permitido-y-prohibido).
+> Parte de la serie Privé. Datos: [Modelo de datos](IATOS_PRIVE_MODELO_DE_DATOS.md). Textos permitidos y prohibidos: [Calidad §4](IATOS_PRIVE_CURATION_STANDARD.md#4-lenguaje-permitido-y-prohibido).
 
 ## Resumen para fundadores
 

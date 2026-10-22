@@ -1,26 +1,23 @@
-# IATOS Privé · Calidad, fuentes y política de imágenes
+# IATOS Privé · Estándar de curaduría (Curation Standard)
 
-> Parte de la serie Privé. Campos y CHECK: [Modelo de datos §3](IATOS_PRIVE_MODELO_DE_DATOS.md#3-experiencias). Pruebas de estas reglas: [Matriz de pruebas](IATOS_PRIVE_TEST_MATRIX.md).
+> Parte de la serie Privé (antes `IATOS_PRIVE_CALIDAD_FUENTES.md`). Campos y CHECK: [Modelo de datos §3](IATOS_PRIVE_MODELO_DE_DATOS.md#3-experiencias). Destinos: [Destinos globales](IATOS_PRIVE_GLOBAL_DESTINATIONS.md). Planificador: [Experience Planner](IATOS_PRIVE_EXPERIENCE_PLANNER.md). Pruebas: [Matriz de pruebas](IATOS_PRIVE_TEST_MATRIX.md).
+> Estado: construido en la rama `claude/wc-prive-catalog` y probado en una réplica local. **Nada está aplicado en producción.**
 
 ## Resumen para fundadores
 
-- **Si un dato no tiene fuente, no se publica.** Si la fuente es vieja, se nota.
-- **El orden de confianza:**
-  1. el sitio oficial del lugar;
-  2. las guías con premios públicos (Michelin, 50 Best, La Liste, Forbes Travel Guide), con año y enlace;
-  3. los registros oficiales (por ejemplo, el permiso de un casino);
-  4. la prensa seria, con fecha;
-  5. Google Maps o TripAdvisor, solo para saber si sigue abierto y dónde está.
-
-  Lo que escribe una IA **nunca** es una fuente.
-- **Cada ficha vence a los 90 días.** Pasado ese tiempo dice "por verificar", sola.
-- **Mantenimiento:**
-  - un robot revisa los enlaces cada semana (gratis);
-  - una persona reverifica unas 43 fichas por semana, unas 8 horas;
-  - de cada lote nuevo, una persona revisa al azar el 20% antes de publicarlo.
-- **Fotos:** se usan fotos de Pexels (gratis), siempre con el crédito "Foto ilustrativa · Pexels · <fotógrafo>". No se presentan como el lugar, salvo que una persona confirme que sí lo son.
-- **Casinos:** solo los que tienen permiso legal y solo con información práctica. Sin apuestas, sin bonos, sin enlaces de afiliado de juego, y con la regla de edad visible.
-- **Palabras prohibidas sin contrato:** "VIP", "exclusivo", "acceso garantizado", "beneficio IATOS" y "socio IATOS".
+- **Si un dato no tiene fuente, no se publica.** Y ahora no es una promesa del equipo: la base de datos lo impide (reglas CHECK y disparadores). Un precio sin URL, un horario sin URL, un casino sin autoridad que lo autorice o una aventura sin requisitos de seguridad **no se pueden guardar como publicables**.
+- **Cinco estados de confianza más uno calculado:** VERIFICADO, CURADO, ESTIMADO, PENDIENTE, NO DISPONIBLE y **DESACTUALIZADO**, que se pone solo a los 90 días de la última revisión.
+- **Existencia, disponibilidad y relación comercial son tres datos distintos.** "Existe y está abierto" no quiere decir "hay lugar", y ninguna de las dos dice "es socio de IATOS".
+- **Etiquetas comerciales solo con evidencia:**
+  - EXPERIENCIA CURADA: lugar público elegido por IATOS (sin acuerdo).
+  - PARTNER VERIFICADO: requiere un acuerdo **firmado y vigente** en el registro de alianzas, con documento.
+  - BENEFICIO EXCLUSIVO: requiere un beneficio concreto escrito en ese acuerdo; el texto vive en el registro, no en la ficha.
+  - EXPERIENCIA PRIVADA: requiere operador real, su sitio y las condiciones.
+  - ACCESO CONFIRMADO: solo existe en una solicitud que el proveedor confirmó, con folio o documento.
+  - El registro de alianzas está **vacío**: hoy ninguna ficha puede decir "partner" ni "beneficio".
+- **La curaduría de octubre de 2026 ya pasó por el cargador** (ensayo, sin escribir en producción): 1,272 fichas, 1,260 aceptadas, 12 rechazadas por duplicado o fuente sin https. Quedan 1,097 CURADO (publicables con la etiqueta "pendiente de verificación en sitio oficial") y 163 PENDIENTE (ocultas).
+- **Ninguna ficha es VERIFICADO todavía:** eso exige el muestreo humano del 20% por lote. Es la siguiente tarea del equipo.
+- **Fotos:** Pexels, siempre "Foto ilustrativa · Pexels · <fotógrafo>", con enlaces. Nunca se presentan como el lugar.
 
 ---
 
@@ -68,6 +65,8 @@
 | Socios | Mensual; y al vencer el contrato, automático (la etiqueta cae sola) | Responsable comercial | — |
 | Reporte de usuario ("Este dato está mal") | Respuesta en ≤ 5 días hábiles | Persona curadora | — |
 
+**Volumen hoy:** ~1,260 fichas aceptadas (oct-2026) → ~97 reverificaciones por semana con ciclo de 90 días [SUPUESTO: ~10–12 min cada una ≈ 17–19 h a la semana]. Con ese volumen conviene priorizar las ciudades con más demanda (`prive_events`).
+
 **Quién:** se propone un rol **"Curaduría Privé"** con una persona responsable y una suplente [SUPUESTO: el dueño decide quién]. Los agentes de IA ayudan a investigar, pero **no** dejan una ficha en VERIFICADO sin el muestreo humano.
 
 ## 3. Qué cuenta como cada estado
@@ -79,7 +78,7 @@
 | **ESTIMADO** | Existe y está abierto, pero un dato práctico clave (precio, horario o reserva) está estimado y no publicado por el lugar | Sí: "Precio estimado" junto al dato | Sí, diciéndolo |
 | **PENDIENTE** | Cargado sin revisión (los 194 heredados, o lo que la curaduría marcó `no_confirmado` sin fuente útil) o descubierto en búsqueda | No en el catálogo. Solo en el descubrimiento bajo demanda, con su etiqueta | No, salvo el descubrimiento etiquetado |
 | **DESACTUALIZADO** (calculado) | Fue VERIFICADO, CURADO o ESTIMADO, y su última verificación tiene más de 90 días | Sí, en gris: "Por verificar: última revisión <fecha>" | No (lo excluye `prive-search`) |
-| **NO DISPONIBLE** | Cerrado temporal o permanente, evento pasado o temporada fuera de fechas | Solo si el usuario lo había guardado o pedido, en gris y sin botón de solicitar | No |
+| **NO DISPONIBLE** | Cerrado permanente, cerrado temporal **sin** fecha ni nota de temporada con fuente, evento pasado, vigencia vencida o reemplazado. (Cerrado por temporada **con** fuente se muestra como "Cerrado por temporada", no como abierto.) | Solo si el usuario lo había guardado o pedido, en gris y sin botón de solicitar | No |
 
 **Disponibilidad ≠ estado:** `availability_state` es `no_consultada` por omisión. Solo cambia cuando alguien consultó **para una fecha**, con `availability_checked_at` y `availability_for`. Una consulta vale ese día; después vuelve a "no consultada".
 
@@ -146,3 +145,76 @@ Decisión del dueño, 2026-10-22: **Pexels** reemplaza la jerarquía de Wikimedi
   - mandar el nombre del cliente, la fecha y las preferencias a un restaurante es una **transferencia** que debe estar en el aviso de privacidad y que se hace solo con la solicitud del usuario;
   - los socios firman el uso limitado de esos datos ([Alianzas §4](IATOS_PRIVE_ALIANZAS_COMERCIALES.md#4-checklist-de-acuerdo-una-página));
   - `prive_events` no guarda texto libre.
+
+---
+
+## 9. Evidencia por campo (lo que la base exige)
+
+| Campo | Para publicarse necesita | Si falta | Dónde se impone |
+|---|---|---|---|
+| Nombre, universo, subcategoría | Texto real (sin traducir), uno de los 12 universos | Se rechaza | CHECK `universe`, `subcategory` |
+| Destino | Un destino de la lista del dueño (país-destino, región o localidad); barrio opcional que sea de ese destino | Se rechaza | trigger `prive_experiences_guard` |
+| Estado VERIFICADO / CURADO / ESTIMADO | ≥ 1 fuente https, fecha de verificación y `why_fact` | No se puede guardar | CHECK `prive_sourced_states` |
+| VERIFICADO | Además, sitio oficial (`website`) | No se puede guardar | CHECK `prive_verified_official` |
+| Premios | Nombre, año (1950–2099) y URL https | No se puede guardar | `prive_accolades_ok` |
+| Fuentes | URL https | No se puede guardar | `prive_sources_ok` |
+| Precio con monto | URL de la fuente, moneda y fecha de consulta | No se puede guardar; la pantalla dice "precio por confirmar" | CHECK `prive_price_has_source` |
+| Horario | JSON por día + URL de la fuente | No se puede guardar; "horario por confirmar" | CHECK `prive_hours_have_source` |
+| Duración | Fuente | El planificador usa una duración ESTIMADA y lo dice | CHECK `prive_duration_has_source` |
+| Temporada | Fuente (`season_source`) | No se guarda la temporada | CHECK `prive_season_sourced` |
+| Disponibilidad ≠ "no consultada" | Fecha de consulta, fuente y fechas consultadas | No se puede guardar | CHECK `prive_availability_consulted` |
+| Club privado | Fuente del propio club | No se puede guardar | CHECK `prive_members_only_sourced` |
+| Casino publicable | Autoridad que otorga la licencia + URL + edad 18+/21+ | Queda PENDIENTE | CHECK `prive_casino_rules` |
+| Aventura publicable | Operador + requisitos de seguridad | Queda PENDIENTE | CHECK `prive_adventure_rules` |
+| Imagen "del lugar" | Que una persona marque `verified_image` | Siempre "Foto ilustrativa" | CHECK `prive_image_illustrative` |
+| Duplicado | Llave de nombre única por destino y por familia de destinos | Se rechaza (cargador y `prive_import_batch`) | UNIQUE `prive_dedupe` + `prive_destination_root` |
+
+## 10. Etiquetas comerciales y su evidencia
+
+| Etiqueta | Evidencia mínima | Qué la quita sola |
+|---|---|---|
+| EXPERIENCIA CURADA | Estado VERIFICADO o CURADO | Pasar a PENDIENTE, DESACTUALIZADO o NO DISPONIBLE |
+| PARTNER VERIFICADO | `prive_partner_agreements` con estado `firmado`, fecha de firma, vigencia, documento de evidencia (`evidence_document_path`), firmante, responsable de IATOS y condiciones; la ficha en VERIFICADO | Que venza el acuerdo: la vista la regresa a EXPERIENCIA CURADA |
+| BENEFICIO EXCLUSIVO | Lo anterior + `prive_partner_benefits` (texto literal, condiciones, cláusula) del **mismo** acuerdo (llave compuesta) | Que venza el acuerdo o el beneficio |
+| EXPERIENCIA PRIVADA | Operador, sitio https del operador y condiciones | — |
+| ACCESO CONFIRMADO | Solicitud en `confirmado_externamente` con `confirmed_by`, `confirmed_at` y folio o documento | Cancelación |
+
+- El cargador **nunca** pone PARTNER ni BENEFICIO: `prive_import_batch` rechaza esas filas. Solo una persona del equipo, con el contrato a la vista.
+- Un marketplace (Click&Boat, GetYourGuide, Viator…) es un canal externo (`booking_method = partner_ota`), **nunca** "partner".
+- "Solo huéspedes" o "solo socios" se dice como restricción y aclara que solicitar no garantiza acceso.
+
+## 11. Reglas automáticas del cargador (`scripts/prive/load_curation.mjs`)
+
+1. **Entrada:** `data/prive/curaduria/<AAAA-MM>/content_g*.json`, `content_new.json` y `content_updates.json`; cualquier subconjunto; las dos formas de los curadores (ola 1 y ola 2 con `locality_type` y `parent_destination`).
+2. **Estado:** `verificado` → CURADO (pasa a VERIFICADO solo con el muestreo humano); `no_confirmado` → PENDIENTE (oculto).
+3. **Destino:** alias exacto (Montecarlo → barrio de Mónaco; Polanco → barrio de CDMX). Si el barrio o la dirección nombran una localidad hija, o una localidad de **otro estado** confirmada por la dirección o las coordenadas, la ficha se mueve ahí ("Puerto Vallarta, Jal." archivado en Riviera Nayarit → Puerto Vallarta; "Mascate – Al Ghubra" → Mascate).
+4. **Sitios contaminados:** si las notas dicen que el sitio tiene apuestas inyectadas o un dominio secuestrado, se quita el enlace; si las notas nombran otro dominio, solo se quitan los enlaces a ese dominio. Un "sin apuestas" en la nota de un casino no se confunde.
+5. **Temporada:** "until 25 October", "reabre el 6 de mayo de 2027", "de abril a septiembre", "until next spring" → temporada con fuente. Un lugar cerrado por temporada se muestra "Cerrado por temporada", **nunca** como abierto.
+6. **Edad:** 21+, 18+, "solo adultos" → la regla; otros mínimos ("desde 4 años") quedan como restricción; vida nocturna y casino nunca son "todas las edades".
+7. **Enlaces:** solo https; uno que no lo es se omite (no se "arregla").
+8. **Duplicados:** misma llave de nombre en la misma familia de destinos (Pujol en CDMX y en Polanco; Cocina de Autor en Los Cabos y en San José del Cabo). Se queda la de mejor estado y, a igual estado, la más específica.
+9. **Imagen:** se ignora la imagen del curador; se usa `image_query` (Pexels).
+10. **Salida:** reporte, filas y un SQL de ensayo para una réplica. El cargador no se conecta a ninguna base.
+
+## 12. Qué se reutilizó, qué se construyó y qué se corrigió
+
+- **Reutilizado:** `pexels-image` y su caché de 7 días; `app_flags` (umbrales de cobertura y versión de la declaración 18+); `check_rate_limit`; `notify_once`; `concierge_requests` sobre el arreglo IATOS-114; `bookings` (constancia y "agregar al viaje"); `has_trip_access`; `haversineKm` de `analizar-viaje/groundTransport.ts`; `resolveActiveTrip`/`useActiveTrip`; `prive_require` y el sistema visual del grupo core y ui.
+- **Construido:** registro de alianzas (vacío), catálogo de experiencias con estados y etiquetas con evidencia, vista de estado efectivo, cobertura calculada, copia de los heredados como PENDIENTE, cargador con reporte de ensayo, `prive_import_batch`.
+- **Corregido:** los 28 lugares heredados del repo dejaron de ser visibles sin revisión (23 quedaron actualizados por la curaduría y 5 reemplazados); un sitio sin `https://` ya no se publica como enlace roto.
+
+## 13. Pruebas (resultado real)
+
+| Suite | Qué prueba | Resultado |
+|---|---|---|
+| `supabase/tests/prive_catalog/run.sh` | Acceso sin sesión, adelanto sin nombres, estados (incl. DESACTUALIZADO a los 90 días), etiquetas imposibles sin evidencia, cobertura, alias y duplicados, temporada, solicitudes solo por el servidor, nada sin confirmar se ve confirmado, consentimiento de Travel DNA, carga | **110 OK, 0 FALLA** |
+| `supabase/tests/prive/run.sh` (grupo core) | Antigüedad, sesiones, permisos (P54 ahora incluye las RPC del catálogo del contrato §5) | **89 OK, 0 FALLA** |
+| `src/test/priveCuration.test.ts` | Validación del cargador, temporada, sitios con apuestas, casinos, aventura, destinos y duplicados | **33 pruebas OK** |
+
+## 14. Lo que no se pudo verificar, costos, riesgos y autorizaciones
+
+- **No verificado:** ninguna ficha tiene muestreo humano todavía (por eso no hay VERIFICADO). Los premios Michelin de varias ciudades vienen de listas de Wikipedia porque guide.michelin.com bloquea la carga automática: siguen siendo CURADO hasta que una persona los compare.
+- **Casinos:** 8 fichas; las que no traen autoridad de licencia con fuente (6 en el ensayo) quedan PENDIENTE hasta que una persona la agregue.
+- **Aventura:** 47 fichas sin operador o requisitos de seguridad estructurados quedan PENDIENTE.
+- **Costo:** USD 0 en APIs para la carga (sin llamadas a proveedores). Las fotos usan la caché de Pexels (límite 20,000 al mes compartido con `buscar-video`). El costo grande es humano: muestreo del 20% del lote (~250 fichas, ~45 h) y reverificación de ~97 fichas por semana.
+- **Riesgos:** descripciones de curaduría con palabras como "exclusivo" o "VIP" (17 + 3 avisos) deben revisarse antes de verificar; 111 avisos de "mismo dominio" (casi todos restaurantes de un mismo hotel) son para revisión humana.
+- **Requiere autorización productiva:** aplicar las migraciones `20261023100000`–`20261023100600`, correr `prive_import_batch(…, false)` con el lote de octubre, y la designación de la persona de curaduría.

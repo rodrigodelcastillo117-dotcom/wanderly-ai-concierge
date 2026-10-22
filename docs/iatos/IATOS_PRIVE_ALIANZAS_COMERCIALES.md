@@ -1,6 +1,6 @@
 # IATOS Privé · Alianzas comerciales y costos unitarios
 
-> Parte de la serie Privé. Etiquetas y reglas de lenguaje: [Calidad §4](IATOS_PRIVE_CALIDAD_FUENTES.md#4-lenguaje-permitido-y-prohibido). Tabla de acuerdos: [Modelo §3.2](IATOS_PRIVE_MODELO_DE_DATOS.md#32-acuerdos-comerciales-habilitan-las-etiquetas-partner--beneficio--acceso). Precios de proveedores: [IATOS_COSTOS_UNITARIOS.md](IATOS_COSTOS_UNITARIOS.md) (no se repiten aquí).
+> Parte de la serie Privé. Etiquetas y reglas de lenguaje: [Calidad §4](IATOS_PRIVE_CURATION_STANDARD.md#4-lenguaje-permitido-y-prohibido). Tabla de acuerdos: [Modelo §3.2](IATOS_PRIVE_MODELO_DE_DATOS.md#32-acuerdos-comerciales-habilitan-las-etiquetas-partner--beneficio--acceso). Precios de proveedores: [IATOS_COSTOS_UNITARIOS.md](IATOS_COSTOS_UNITARIOS.md) (no se repiten aquí).
 
 ## Resumen para fundadores
 
