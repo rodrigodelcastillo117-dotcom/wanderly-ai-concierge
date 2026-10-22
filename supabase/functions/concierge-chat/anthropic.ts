@@ -209,7 +209,7 @@ export class MessageAccumulator {
         if (!p) break;
         this.pending.delete(idx);
         if (p.block.type === "tool_use") {
-          const parsed = parseToolJson(p.json, p.block.input);
+          const parsed = parseToolJson(p.json, p.block.input) as { ok: boolean; value?: unknown; error?: string };
           p.block.input = parsed.ok ? parsed.value : {};
           const tool: ParsedToolUse = { id: String(p.block.id ?? ""), name: String(p.block.name ?? ""), input: p.block.input };
           if (!parsed.ok) tool.inputError = parsed.error;

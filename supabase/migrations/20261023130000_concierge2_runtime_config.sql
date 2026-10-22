@@ -13,7 +13,7 @@
 
 INSERT INTO public.app_flags (key, value, note) VALUES
   ('concierge_models',
-   '{"anthropic_enabled": true, "fast_model": "claude-haiku-5-5", "smart_model": "claude-sonnet-5-5", "fast_effort": "low", "smart_effort": "low", "exigente_effort": "medium", "fallback_model": "google/gemini-2.5-flash", "breaker_cooldown_s": 120, "force_tier": null}'::jsonb,
+   '{"anthropic_enabled": true, "fast_model": "claude-haiku-5-5", "smart_model": "claude-sonnet-5-5", "fast_effort": "low", "smart_effort": "low", "exigente_effort": "medium", "fallback_model": "google/gemini-flash-latest", "breaker_cooldown_s": 120, "force_tier": null}'::jsonb,
    'Concierge 2.0: modelos de Iato por nivel (rápido/capaz), esfuerzo, respaldo y enfriamiento del breaker'),
   ('concierge_exigente_daily_limit', 'null'::jsonb,
    'Concierge 2.0: mensajes en Modo exigente por día y usuario (null = sin tope). DECISIÓN DEL DUEÑO')

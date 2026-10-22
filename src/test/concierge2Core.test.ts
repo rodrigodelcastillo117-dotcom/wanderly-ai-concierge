@@ -192,7 +192,7 @@ describe("circuit breaker", () => {
     const b = new CircuitBreaker(() => 0);
     const route = routeTurn({ message: "hola", intents: [], exigente: false, config: DEFAULT_MODEL_CONFIG });
     const full = providerChain(route, DEFAULT_MODEL_CONFIG, b, { hasAnthropicKey: true, hasLovableKey: true });
-    expect(full.map((s) => s.key)).toEqual(["anthropic:claude-haiku-5-5", "anthropic:claude-sonnet-5-5", "lovable:google/gemini-2.5-flash"]);
+    expect(full.map((s) => s.key)).toEqual(["anthropic:claude-haiku-5-5", "anthropic:claude-sonnet-5-5", "lovable:google/gemini-flash-latest"]);
     b.recordFailure("anthropic:claude-haiku-5-5", "overloaded", 60_000);
     expect(providerChain(route, DEFAULT_MODEL_CONFIG, b, { hasAnthropicKey: true, hasLovableKey: true })[0].key).toBe("anthropic:claude-sonnet-5-5");
     expect(providerChain(route, DEFAULT_MODEL_CONFIG, b, { hasAnthropicKey: false, hasLovableKey: true }).map((s) => s.provider)).toEqual(["lovable"]);

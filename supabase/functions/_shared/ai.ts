@@ -23,6 +23,11 @@ const LOVABLE_MODEL_ALIASES: Record<string, string> = {
   "google/gemini-flash-latest": "google/gemini-2.5-flash",
 };
 
+/** Nombre que acepta el gateway de Lovable para un modelo (traduce los alias; los demás igual). */
+export function lovableModelName(model: string): string {
+  return LOVABLE_MODEL_ALIASES[model] ?? model;
+}
+
 /** Petición para el gateway de Lovable: igual a la original salvo el nombre del modelo si es un alias. */
 function lovableInit(init: RequestInit, body: ChatBody | null): RequestInit {
   const model = typeof body?.model === "string" ? body.model : "";

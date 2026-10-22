@@ -1,0 +1,34 @@
+{
+ "q": "Vacaciones familiares de Ciudad de México a Cancún, 2 adultos y 2 niños (8 y 11 años), del 20 al 25 de marzo de 2027",
+ "reached": true,
+ "ms": 46612,
+ "url": "https://traveliatos.life/dashboard/viajes/a2e38523-d1e3-44d0-8e53-6700663edfa3",
+ "ui": {
+  "dialogs": [],
+  "toasts": []
+ },
+ "fns": [
+  {
+   "fn": "parsear-viaje",
+   "status": 200,
+   "body": "{\"destino\":\"Cancún\",\"pais_destino\":\"México\",\"destinations\":[\"Cancún\"],\"is_multi\":false,\"ciudad_origen\":\"Ciudad de México\",\"fecha_salida\":\"2027-03-20\",\"fecha_regreso\":\"2027-03-25\",\"num_viajeros\":4,\"presupuesto_objetivo\":null,\"notas\":\"Vacaciones familiares con dos niños de 8 y 11 años.\"}"
+  },
+  {
+   "fn": "REQ analizar-viaje",
+   "body": {
+    "destino": "Cancún",
+    "ciudad_origen": "Ciudad de México",
+    "fecha_salida": "2027-03-20",
+    "fecha_regreso": "2027-03-25",
+    "num_viajeros": 4,
+    "presupuesto_objetivo": null,
+    "notas_usuario": "Vacaciones familiares de Ciudad de México a Cancún, 2 adultos y 2 niños (8 y 11 años), del 20 al 25 de marzo de 2027"
+   }
+  },
+  {
+   "fn": "analizar-viaje",
+   "status": 200,
+   "bodyLen": 12335
+  }
+ ]
+}

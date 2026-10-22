@@ -51,9 +51,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIME = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 const isIso = (v: unknown): v is string => typeof v === "string" && ISO.test(v) && Number.isFinite(Date.parse(`${v}T00:00:00Z`));
+// eslint-disable-next-line no-control-regex -- quitar caracteres de control del texto del modelo es el objetivo
+const CONTROL = /[\u0000-\u001f\u007f]/g;
 const txt = (v: unknown, max: number) => {
   if (typeof v !== "string" && typeof v !== "number") return undefined;
-  const s = String(v).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  const s = String(v).replace(CONTROL, " ").replace(/\s+/g, " ").trim();
   return s ? s.slice(0, max) : undefined;
 };
 const num = (v: unknown) => {

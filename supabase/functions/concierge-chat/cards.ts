@@ -173,6 +173,25 @@ export interface Evidence {
   webLinks: Set<string>;
   /** Experiencias Privé mostradas en este turno (solo esas se pueden solicitar). */
   priveIds: Set<string>;
+  /** Dominios de los enlaces https que trajeron las herramientas de este turno (sin "www."). */
+  hosts: string[];
+}
+
+/** Dominios propios de IATOS: un enlace a ellos no necesita respaldo de una herramienta. */
+export const FIRST_PARTY_HOSTS = ["traveliatos.life"];
+
+const bareHost = (h: string) => h.toLowerCase().replace(/^www\./, "");
+
+/**
+ * Un enlace del modelo solo se muestra si su dominio salió de una herramienta de este turno (o es
+ * de IATOS). Evita que el modelo invente un dominio parecido a la marca (p. ej. "iatos.ai", que ni
+ * existe y cualquiera podría registrar) y lo ponga como botón "Solicitar".
+ */
+export function hostBacked(url: string, ev: Pick<Evidence, "hosts">): boolean {
+  let host: string;
+  try { host = bareHost(new URL(url).hostname); } catch { return false; }
+  const known = [...FIRST_PARTY_HOSTS, ...(ev.hosts ?? [])].map(bareHost);
+  return known.some((k) => host === k || host.endsWith(`.${k}`));
 }
 
 export interface EvidencePlace {
@@ -231,7 +250,13 @@ const DEFAULT_SOURCE: Record<string, string> = {
 };
 
 export function collectEvidence(runs: ToolRun[]): Evidence {
-  const ev: Evidence = { prices: [], ratings: [], available: {}, unavailable: {}, unavailableState: {}, places: [], webLinks: new Set(), priveIds: new Set() };
+  const ev: Evidence = { prices: [], ratings: [], available: {}, unavailable: {}, hosts: [], unavailableState: {}, places: [], webLinks: new Set(), priveIds: new Set() };
+  const hosts = new Set<string>();
+  const addHost = (v: string) => {
+    if (!/^https:\/\//i.test(v)) return;
+    const u = safeHttpsUrl(v);
+    if (u) hosts.add(bareHost(new URL(u).hostname));
+  };
   for (const run of runs) {
     const res = run.result ?? {};
     if (res.disponible === false) {
@@ -257,7 +282,9 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
     const at = typeof res.consulted_at === "string" && Number.isFinite(Date.parse(res.consulted_at)) ? res.consulted_at : undefined;
     const stale = res.precio_guardado === true || res.estado_dato === "OBSOLETO";
     const visit = (node: unknown, currency: string, source: string, depth: number) => {
-      if (depth > 8 || !node || typeof node !== "object") return;
+      if (depth > 8 || !node) return;
+      if (typeof node === "string") { addHost(node); return; }
+      if (typeof node !== "object") return;
       if (Array.isArray(node)) { node.forEach((n) => visit(n, currency, source, depth + 1)); return; }
       const obj = node as Record<string, unknown>;
       const cur = typeof obj.currency === "string" ? obj.currency.toUpperCase() : currency;
@@ -266,6 +293,8 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
         if (typeof v === "number" && Number.isFinite(v) && v > 0) {
           if (PRICE_KEY.test(k)) ev.prices.push({ tool: run.name, value: v, currency: /_usd$/i.test(k) ? "USD" : cur, source: src, ...(at ? { at } : {}), ...(stale ? { stale } : {}) });
           else if (RATING_KEY.test(k)) ev.ratings.push({ tool: run.name, value: v });
+        } else if (typeof v === "string" && /^https:\/\//i.test(v)) {
+          addHost(v);
         } else if (typeof v === "string" && RATING_KEY.test(k) && Number.isFinite(Number(v)) && Number(v) > 0) {
           // TripAdvisor devuelve el rating como texto ("4.5").
           ev.ratings.push({ tool: run.name, value: Number(v) });
@@ -274,6 +303,7 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
     };
     visit(res, "USD", topSource, 0);
   }
+  ev.hosts = [...hosts];
   return ev;
 }
 
@@ -354,15 +384,16 @@ export function validateCards(raw: unknown, ev: Evidence, consultadoAt: string =
       const body = str(r.body ?? r.snippet, 500);
       if (body) card.body = body;
     }
+    // Enlaces: https y con un dominio que salió de una herramienta de este turno (o de IATOS).
     const cta = safeHttpsUrl(r.cta_action);
-    if (cta) card.cta_action = cta;
+    if (cta && hostBacked(cta, ev)) card.cta_action = cta;
     // Fuente web: el enlace tiene que ser uno de los resultados de web_search de este turno.
     if (type === "source") {
       if (!cta || !ev.webLinks.has(cta)) { out.dropped.push({ type, reason: "fuente_sin_respaldo" }); continue; }
       try { card.subtitle = card.subtitle ?? new URL(cta).hostname.replace(/^www\./, ""); } catch { /* ya validada */ }
     }
     const img = safeHttpsUrl(r.image_url);
-    if (img) card.image_url = img;
+    if (img && hostBacked(img, ev)) card.image_url = img;
 
     const rating = toNumber(r.rating);
     if (rating !== undefined && rating > 0 && rating <= 10 && ev.ratings.some((x) => Math.abs(x.value - rating) < 0.05)) {

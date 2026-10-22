@@ -4,6 +4,7 @@
  * cobertura sale de aquí, para que ninguna tarjeta prometa más de lo que el dato respalda.
  */
 import type { PriveCoverage, PriveExperience, PriveLabel, PriveState, PriveUniverse } from "@/lib/priveCatalogApi";
+import { zonedIso } from "../../supabase/functions/_shared/privePlanner";
 
 export const UNIVERSES: { key: PriveUniverse; title: string; es: string; imageQuery: string; note?: string }[] = [
   { key: "the_table", title: "THE TABLE", es: "Mesas de autor, alta cocina y chef's tables", imageQuery: "fine dining tasting menu plating" },
@@ -113,3 +114,13 @@ export function seasonText(e: Pick<PriveExperience, "season">): string | null {
 export const canRequest = (e: Pick<PriveExperience, "state">) => e.state === "VERIFICADO" || e.state === "CURADO" || e.state === "ESTIMADO";
 
 export const AGE_TEXT: Record<string, string> = { todas: "Todas las edades", "18+": "Solo mayores de 18", "21+": "Solo mayores de 21" };
+
+/**
+ * Fecha y hora pedidas en una solicitud, en la hora local del destino y con su desfase
+ * ("2026-11-13T20:30:00+01:00" en Mónaco). Sin zona, el servidor leía "20:30" como UTC y el equipo
+ * veía una hora corrida (una hora en Mónaco, nueve en Tokio). Sin fecha no se pide hora.
+ */
+export function requestedForIso(date: string, time: string, timeZone?: string | null): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  return zonedIso(date, /^\d{2}:\d{2}$/.test(time) ? time : "20:00", timeZone);
+}

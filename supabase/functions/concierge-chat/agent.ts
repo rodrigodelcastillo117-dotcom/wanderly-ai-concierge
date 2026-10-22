@@ -21,6 +21,7 @@ import { toAnthropicTools, toOpenAiTools, type ToolDef, validateToolInput } from
 import { applyToolPolicy, toolOutcome, toolStatusText } from "./planner.ts";
 import type { ToolRun } from "./cards.ts";
 import { withTimeout } from "./tools.ts";
+import { lovableModelName } from "../_shared/ai.ts";
 
 export interface ModelCallInput {
   stableSystem: string;
@@ -268,7 +269,8 @@ export function makeModelCaller(d: CallerDeps): ModelCaller {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${d.lovableKey}` },
         body: JSON.stringify({
-          model: step.model, messages: toOpenAiMessages(input.stableSystem, input.dynamicSystem, input.messages),
+          // Mismo nombre que usa el resto de IATOS con el gateway (alias → nombre publicado).
+          model: lovableModelName(step.model), messages: toOpenAiMessages(input.stableSystem, input.dynamicSystem, input.messages),
           tools: toOpenAiTools(input.tools), tool_choice: input.toolChoice,
         }),
         signal: AbortSignal.timeout(t.totalMs),

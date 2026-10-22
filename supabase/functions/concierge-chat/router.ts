@@ -37,7 +37,7 @@ export const DEFAULT_MODEL_CONFIG: ConciergeModelConfig = {
   fast_effort: "low",
   smart_effort: "low",
   exigente_effort: "medium",
-  fallback_model: "google/gemini-2.5-flash",
+  fallback_model: "google/gemini-flash-latest",
   breaker_cooldown_s: 120,
   force_tier: null,
 };

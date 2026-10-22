@@ -1,0 +1,34 @@
+{
+ "q": "Viaje en pareja de Ciudad de México a Madrid, 2 personas, del 10 al 17 de febrero de 2027",
+ "reached": true,
+ "ms": 50827,
+ "url": "https://traveliatos.life/dashboard/viajes/a7ea9d82-69d4-4385-94cb-a1f77743d42d",
+ "ui": {
+  "dialogs": [],
+  "toasts": []
+ },
+ "fns": [
+  {
+   "fn": "parsear-viaje",
+   "status": 200,
+   "body": "{\"destino\":\"Madrid\",\"pais_destino\":\"España\",\"destinations\":[\"Madrid\"],\"is_multi\":false,\"ciudad_origen\":\"Ciudad de México\",\"fecha_salida\":\"2027-02-10\",\"fecha_regreso\":\"2027-02-17\",\"num_viajeros\":2,\"presupuesto_objetivo\":null,\"notas\":\"Viaje en pareja enfocado en estancia urbana en Madrid.\"}"
+  },
+  {
+   "fn": "REQ analizar-viaje",
+   "body": {
+    "destino": "Madrid",
+    "ciudad_origen": "Ciudad de México",
+    "fecha_salida": "2027-02-10",
+    "fecha_regreso": "2027-02-17",
+    "num_viajeros": 2,
+    "presupuesto_objetivo": null,
+    "notas_usuario": "Viaje en pareja de Ciudad de México a Madrid, 2 personas, del 10 al 17 de febrero de 2027"
+   }
+  },
+  {
+   "fn": "analizar-viaje",
+   "status": 200,
+   "bodyLen": 13328
+  }
+ ]
+}

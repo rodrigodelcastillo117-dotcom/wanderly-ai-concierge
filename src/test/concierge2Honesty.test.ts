@@ -142,3 +142,17 @@ describe("cards con botones a partir de la evidencia", () => {
     expect(out.actions).toEqual([expect.objectContaining({ id: "a1", type: "add_itinerary_item", runs: "server", summary: expect.stringMatching(/Cena en Contramar/) })]);
   });
 });
+
+describe("proactivo con el viaje activo", () => {
+  const trip = { id: "t", destino: "París", vuelos: [{ numero_vuelo: "AF179", fecha: "2026-10-22", from: "MEX", to: "CDG", hora_salida: "23:55" }], hospedaje: [] };
+  it("vuelo HOY: se consulta su estado aunque pregunte otra cosa y se sugiere a qué hora llegar", () => {
+    const p = planTurn({ message: "¿qué hago esta tarde?", intents: detectIntents("¿qué hago esta tarde?"), trip, todayISO: "2026-10-22", coords: null, hasPriveSession: false, exigente: false });
+    expect(p.prefetch).toEqual([expect.objectContaining({ name: "check_flight_status", args: { flight: "AF179", date: "2026-10-22" } })]);
+    expect(p.notes.join(" ")).toMatch(/llegar al aeropuerto 3 h antes en internacional, o sea ~20:55/);
+  });
+  it("vuelo mañana: solo la nota (sin gastar búsqueda)", () => {
+    const p = planTurn({ message: "hola", intents: [], trip: { ...trip, vuelos: [{ ...trip.vuelos[0], fecha: "2026-10-23" }] }, todayISO: "2026-10-22", coords: null, hasPriveSession: false, exigente: false });
+    expect(p.prefetch).toEqual([]);
+    expect(p.notes[0]).toMatch(/AF179 mañana/);
+  });
+});

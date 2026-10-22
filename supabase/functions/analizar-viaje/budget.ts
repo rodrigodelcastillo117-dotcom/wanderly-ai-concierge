@@ -3,10 +3,12 @@
 // El modelo propone un desglose; aquí se recalcula de forma determinista con las opciones que
 // el usuario va a ver, respetando lo que el usuario excluyó, y total = suma exacta del desglose.
 
-export const TIER_ORDER = ["ahorro", "equilibrio", "premium"];
+// Habitaciones: módulo compartido con logistics-plan (Supabase solo empaqueta la carpeta de la
+// función y _shared).
+import { hotelPriceRooms, roomsFor } from "../_shared/rooms.ts";
+export { hotelPriceRooms, roomsFor };
 
-/** Una habitación doble por cada 2 viajeros (mismo criterio que logistics-plan). */
-export const roomsFor = (travelers: number) => Math.max(1, Math.ceil((Number(travelers) || 1) / 2));
+export const TIER_ORDER = ["ahorro", "equilibrio", "premium"];
 
 /** Techo de comida por persona y día (fine dining: hasta $4,000 MXN por comida, 3 comidas). */
 export const COMIDA_TECHO_DIA_PP = 12000;
@@ -120,6 +122,8 @@ export type BudgetResult = {
   valido: boolean;
   exclusions: Exclusions;
   rooms: number;
+  /** Habitaciones por las que se multiplicó el precio del hotel de referencia (1 si el precio es del grupo). */
+  roomsPrecio: number;
   /** Hotel usado como referencia del renglón de hospedaje (precio medio). */
   hotelReferencia: any | null;
   /** Vuelo usado como referencia del renglón de vuelos (tier equilibrio). */
@@ -129,7 +133,8 @@ export type BudgetResult = {
 /**
  * Desglose final de analizar-viaje:
  * - vuelos = vuelo "equilibrio" × viajeros, salvo que el usuario lo excluyó o el modelo lo dejó en 0.
- * - hospedaje = hotel de precio medio × noches × habitaciones (ceil(viajeros/2)); antes era una
+ * - hospedaje = hotel de precio medio × noches × habitaciones (ceil(viajeros/2) si el precio es
+ *   estimado por habitación; 1 si es un precio en vivo que ya cubre al grupo); antes era una
  *   sola habitación sin importar cuántos viajaban. Si el usuario excluyó una ciudad se respeta el
  *   monto del modelo (que ya descontó esas noches) y nunca se sube por encima del cálculo completo.
  * - comida: acotada al techo por persona y día.
@@ -155,7 +160,9 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
   const hoteles: any[] = Array.isArray(a?.hospedaje) ? a.hospedaje : [];
   const ordenados = [...hoteles].sort((x, y) => (Number(x?.precio_por_noche) || 0) - (Number(y?.precio_por_noche) || 0));
   const hotelReferencia = ordenados.length ? ordenados[Math.floor(ordenados.length / 2)] : null;
-  const hospedajeCompleto = Math.round((Number(hotelReferencia?.precio_por_noche) || 0) * dias * rooms);
+  // El precio en vivo ya es del grupo; uno estimado es por habitación (hotelPriceRooms).
+  const roomsPrecio = hotelReferencia ? hotelPriceRooms(hotelReferencia, viajeros) : rooms;
+  const hospedajeCompleto = Math.round((Number(hotelReferencia?.precio_por_noche) || 0) * dias * roomsPrecio);
   if (exclusions.hospedaje === "all") {
     desglose.hospedaje = 0;
   } else if (exclusions.hospedaje === "partial") {
@@ -174,5 +181,5 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
   }
   for (const k of Object.keys(desglose)) desglose[k] = Math.max(0, Math.round(desglose[k]));
   const total = Object.values(desglose).reduce((s, v) => s + v, 0);
-  return { desglose, total, valido: total > 0, exclusions, rooms, hotelReferencia, vueloReferencia };
+  return { desglose, total, valido: total > 0, exclusions, rooms, roomsPrecio, hotelReferencia, vueloReferencia };
 }

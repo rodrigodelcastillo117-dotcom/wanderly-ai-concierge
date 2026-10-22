@@ -130,7 +130,13 @@ export const FIXER_RULE = [
 
 export function tripResolutionLine(reason: ActiveTripReason, hasTrip: boolean): string {
   if (reason === "ambiguous") {
-    return "VIAJE EN CONTEXTO: AMBIGUO. Hay varios viajes vigentes y el mensaje no dice cuál. Si la respuesta depende del viaje, pregunta cuál listando destino y fechas de <viajes_usuario>; no des horas, vuelos ni hoteles de ninguno hasta que el usuario elija.";
+    return [
+      "VIAJE EN CONTEXTO: AMBIGUO. Hay varios viajes vigentes y el mensaje no dice cuál. Si la respuesta depende del viaje, pregunta cuál listando destino y fechas de <viajes_usuario>; no des horas, vuelos ni hoteles de ninguno hasta que el usuario elija.",
+      // Hallazgos de producción R10: "mi viaje a Japón" sin viaje a Japón listaba Puebla/Madrid/Cancún,
+      // y "hazme una noche Privé" respondía "¿a cuál viaje?" en vez de explicar Privé.
+      "Si el usuario nombra un destino que NO está en <viajes_usuario>, dile que no tiene un viaje guardado a ese destino y ofrécele planearlo; no le listes sus otros viajes.",
+      "Si la petición no depende de un viaje (cómo funciona IATOS Privé o Members Only, una duda general, una emergencia), responde directamente sin preguntar por el viaje.",
+    ].join(" ");
   }
   if (!hasTrip) return "VIAJE EN CONTEXTO: ninguno (no hay viajes vigentes). No inventes un viaje; si quiere planear uno, ofrece la acción create_trip.";
   const why: Record<string, string> = {

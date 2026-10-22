@@ -21,26 +21,22 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { dbCacheStore, liveSearchGateFor, logUsage } from "../_shared/serpRuntime.ts";
 import type { UsageEntry } from "../_shared/usage.ts";
-import { buildTripQuestion, needsSpecificTrip, resolveActiveTrip } from "../_shared/activeTrip.ts";
+import { buildTripQuestion, mentionsUntrackedPlace, needsSpecificTrip, resolveActiveTrip } from "../_shared/activeTrip.ts";
 import { todayLine, toolArgs } from "./tools.ts";
 import { resolveToday, sanitizeClientMessages } from "./guard.ts";
-import {
-  buildContextMessage, buildDynamicSystem, buildMemoryData, buildStableSystem, capSummary, compactHistory, prefetchBlock,
-} from "./prompt.ts";
+import { buildContextMessage, buildDynamicSystem, buildMemoryData, buildStableSystem, capSummary } from "./prompt.ts";
 import {
   asArray, buildRequestIntelligence, compactItem, compactTripForPrompt, computeTripGaps, tripBookingContext, tripListBookingState,
 } from "./context.ts";
 import { chatError, type ChatErrorCode, modelHttpErrorCode, toolErrorCode } from "./errors.ts";
 import { redactPii } from "../_shared/redact.ts";
 import { runSearchPrive } from "./prive.ts";
-import { prepareToolResultForModel, type ToolRun } from "./cards.ts";
-import { detectIntents, planTurn, toolOutcome, toolStatusText } from "./planner.ts";
+import { detectIntents, planTurn } from "./planner.ts";
 import { providerChain, resolveModelConfig, routeTurn, sharedBreaker } from "./router.ts";
-import { AllProvidersFailed, makeModelCaller, runAgentTurn } from "./agent.ts";
-import { type AMessage, completeAnthropic, ProviderError } from "./anthropic.ts";
+import { AllProvidersFailed, makeModelCaller } from "./agent.ts";
+import { completeAnthropic, ProviderError } from "./anthropic.ts";
+import { runConciergeTurn } from "./turn.ts";
 import { encodeEvent, type ConciergeStreamEvent } from "./stream.ts";
-import { finalizeTurn } from "./finalize.ts";
-import { TOOL_DEFS } from "./toolDefs.ts";
 import { runWebSearch } from "./webSearch.ts";
 import { executeAction } from "./actionExec.ts";
 import type { ActionContext } from "./actions.ts";
@@ -335,8 +331,11 @@ Deno.serve(async (req) => {
       try { controller.enqueue(enc.encode(encodeEvent(ev))); } catch { /* cliente cerró */ }
     };
 
-    // B-08: empate entre viajes y una pregunta que depende del viaje → se pregunta cuál, sin modelo.
-    if (resolution.reason === "ambiguous" && needsSpecificTrip(lastUserMsg)) {
+    // B-08: empate entre viajes y una pregunta que depende del viaje → se pregunta cuál, sin
+    // llamar al modelo (antes se respondía sobre el viaje creado más recientemente). Si el mensaje
+    // nombra un destino que no está en ningún viaje ("mi viaje a Japón" sin viaje a Japón), no se
+    // listan viajes ajenos: responde el modelo (dice que no hay viaje guardado y ofrece planearlo).
+    if (resolution.reason === "ambiguous" && needsSpecificTrip(lastUserMsg) && !mentionsUntrackedPlace(lastUserMsg, trips)) {
       logInsight(supabase, userId, lastUserMsg, []).catch(() => {});
       await releaseQuota(quotaReservation, "trip_clarification"); // preguntar "¿cuál viaje?" no gasta mensaje
       const reply = { text: buildTripQuestion(resolution.candidates), cards: [], actions: [], _tools_used: [], _gaps: [], ...meta };
@@ -435,55 +434,14 @@ Deno.serve(async (req) => {
     const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords });
 
     const runTurn = async () => {
-      const t0 = Date.now();
-      send({ type: "meta", data: meta });
-      // 1) Herramientas previstas, en paralelo, con su paso en vivo.
-      const prefetched: ToolRun[] = await Promise.all(plan.prefetch.map(async (spec, idx): Promise<ToolRun> => {
-        const id = `pre_${idx}`;
-        send({ type: "status", data: { id, text: toolStatusText(spec.name, spec.args), state: "running" } });
-        let raw: unknown;
-        try { raw = await withTimeout(execTool(spec.name, spec.args), toolTimeout(spec.name, spec.args)); } catch (e) { raw = { error: (e as Error)?.message ?? "tool error" }; }
-        const result = prepareToolResultForModel(spec.name, raw);
-        const o = toolOutcome(result);
-        send({ type: "status", data: { id, text: `${toolStatusText(spec.name, spec.args).replace(/…$/, "")} · ${o.suffix}`, state: o.state } });
-        return { name: spec.name, args: spec.args, result };
-      }));
-      const prefetchMs = Date.now() - t0;
-
-      // 2) Mensajes: [CONTEXTO] [historial] — el último mensaje lleva los datos ya consultados.
-      const history = compactHistory(clientMessages);
-      const messages: AMessage[] = [];
-      if (contextMessage) messages.push({ role: "user", content: contextMessage.content });
-      history.forEach((m, idx) => {
-        const isLast = idx === history.length - 1;
-        if (isLast && m.role === "user" && prefetched.length) {
-          messages.push({ role: "user", content: [{ type: "text", text: m.content }, { type: "text", text: prefetchBlock(prefetched) }] });
-        } else {
-          messages.push({ role: m.role, content: m.content } as AMessage);
-        }
-      });
-      if (messages[0]?.role !== "user") messages.unshift({ role: "user", content: "(inicio de la conversación)" });
-
-      const chain = providerChain(route, config, sharedBreaker, { hasAnthropicKey: !!ANTHROPIC_API_KEY, hasLovableKey: !!LOVABLE_API_KEY });
-      const agent = await runAgentTurn({
-        chain, breaker: sharedBreaker, cooldownMs: config.breaker_cooldown_s * 1000,
+      const { final, agent, prefetchMs, totalMs } = await runConciergeTurn({
+        plan, route, config, breaker: sharedBreaker, execTool, toolTimeout, send, meta, stableSystem, dynamicSystem,
+        contextMessage, history: clientMessages, userMessage: lastUserMsg, exigente,
+        hasAnthropicKey: !!ANTHROPIC_API_KEY, hasLovableKey: !!LOVABLE_API_KEY,
         callModel: makeModelCaller({
           fetchImpl: fetch, anthropicKey: ANTHROPIC_API_KEY, lovableKey: LOVABLE_API_KEY,
           timeouts: route.tier === "fast" ? { firstByteMs: 8000, idleMs: 12000, totalMs: 35000 } : { firstByteMs: 12000, idleMs: 20000, totalMs: 60000 },
         }),
-        stableSystem, dynamicSystem, messages, tools: TOOL_DEFS, maxIterations: route.maxIterations, maxTokens: route.maxTokens,
-        userMessage: lastUserMsg, execTool, prepare: prepareToolResultForModel, toolTimeoutMs: toolTimeout,
-        prefetched, deadlineMs: exigente ? 50_000 : 30_000,
-        emit: {
-          status: (id, text, state) => send({ type: "status", data: { id, text, state } }),
-          delta: (text) => send({ type: "delta", data: { text } }),
-          reset: () => send({ type: "reset", data: {} }),
-        },
-      });
-
-      // 3) Respuesta validada (cards, botones, acciones y honestidad).
-      const final = finalizeTurn({
-        raw: agent.finalText, toolRuns: agent.toolRuns, plan,
         actionCtx: {
           todayISO, trips: trips.map((t) => ({ id: t.id, destino: t.destino, fecha_salida: t.fecha_salida, fecha_regreso: t.fecha_regreso, itinerario_json: t.itinerario_json, ciudad_origen: t.ciudad_origen })),
           activeTripId: trip?.id ?? null, hasPriveSession: !!priveSession,
@@ -492,7 +450,6 @@ Deno.serve(async (req) => {
         city: String(trip?.destino ?? "").split(/→|,|;/)[0].trim() || undefined, party: Number(trip?.num_viajeros) || 2,
       });
       if (final.dropped.cards.length || final.dropped.actions.length) console.warn("concierge_dropped", JSON.stringify(final.dropped));
-      const totalMs = Date.now() - t0;
       console.log("concierge_latency", JSON.stringify({
         user_id: userId, tier: route.tier, provider: agent.provider, model: agent.model, prefetch_ms: prefetchMs,
         first_text_ms: agent.firstTextMs, total_ms: totalMs, tools: agent.toolsUsed, prefetch: plan.prefetch.map((p) => p.name),

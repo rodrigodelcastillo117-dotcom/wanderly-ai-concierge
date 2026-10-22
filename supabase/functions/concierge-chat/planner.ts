@@ -212,7 +212,15 @@ export function planTurn(i: PlanInput): TurnPlan {
     );
   }
 
-  if (has("flight_status") || has("flight_disruption") || has("missed_connection")) {
+  // Proactivo: si el vuelo del viaje sale HOY, su estado real se consulta aunque la pregunta sea otra
+  // (caché de 10 min compartida), y Iato lo menciona en una línea.
+  const flightIntent = has("flight_status") || has("flight_disruption") || has("missed_connection");
+  if (flightSoon && flightSoon.date === i.todayISO && !flightIntent && !has("emergency")) {
+    plan.prefetch.push({ name: "check_flight_status", args: { flight: flightSoon.code, date: flightSoon.date }, reason: "vuelo de hoy (proactivo)" });
+    plan.notes.push(`Menciona en una línea el estado real del vuelo ${flightSoon.code} de hoy (viene en <datos_consultados>).`);
+  }
+
+  if (flightIntent) {
     if (flight?.code) {
       plan.prefetch.push({ name: "check_flight_status", args: { flight: flight.code, ...(flight.date ? { date: flight.date } : {}) }, reason: "estado del vuelo" });
       plan.suggestedActions.push({ type: "track_flight", params: { vuelo: flight.code, fecha: flight.date ?? i.todayISO, ...(tripId ? { trip_id: tripId } : {}) } });
@@ -345,6 +353,9 @@ export function planTurn(i: PlanInput): TurnPlan {
   }
 
   if (i.exigente) {
+    // Modo exigente: siempre queda lista la mano humana para cerrar lo elegido (Iato no reserva).
+    if (has("flight_compare")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "other", titulo: "Que el Fixer gestione el vuelo elegido", detalle: i.message.slice(0, 300), ...(tripId ? { trip_id: tripId } : {}) } });
+    if (has("dining_near_hotel") || has("dining")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "reservation", titulo: "Reservar mesa en la opción elegida", fecha: i.todayISO, hora: "20:30", ...(tripId ? { trip_id: tripId } : {}) } });
     plan.notes.push("MODO EXIGENTE: compara a fondo y presenta 'La mejor / La alternativa / El plan B' con el porqué, la fuente y la contra de cada una; anticipa las 2 siguientes necesidades.");
   }
 
