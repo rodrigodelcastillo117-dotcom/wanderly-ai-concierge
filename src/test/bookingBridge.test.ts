@@ -231,9 +231,16 @@ describe("adaptadores sobre lo que IATOS ya tiene", () => {
     expect(o.booking_mode).toBe("PROVIDER_SEARCH");
   });
   it("vuelo sin enlace ni aeropuertos: no se inventa una búsqueda", () => {
-    const o = offerFromTripFlight({ aerolinea: "Iberia", fuente_precio: "travelpayouts" }, { trip: TRIP, now: NOW });
+    // Ciudades que la tabla de aeropuertos no reconoce: ninguna búsqueda.
+    const unknown = { ...TRIP, destino: "Xyzópolis", ciudad_origen: "Abcville" };
+    const o = offerFromTripFlight({ aerolinea: "Iberia", fuente_precio: "travelpayouts" }, { trip: unknown, now: NOW });
     expect(o.actions.map((a) => a.kind)).toEqual(["save_for_later"]);
     expect(o.booking_mode).toBe("UNAVAILABLE");
+  });
+  it("vuelo sin enlace, con ciudades conocidas: la búsqueda sale de la ruta del viaje (no de la IA)", () => {
+    const o = offerFromTripFlight({ aerolinea: "Iberia", fuente_precio: "travelpayouts" }, { trip: TRIP, now: NOW });
+    const gf = o.actions.find((a) => a.processor === "Google Flights")!;
+    expect(parseGoogleFlightsSearch(gf.url!)).toEqual({ origin: "MEX", destination: "MAD", depart: "2026-12-05", ret: "2026-12-12", adults: 2, children: 0, airlines: ["IB"], one_way: false });
   });
   it("vuelo estimado: avisa que el precio es una estimación", () => {
     const o = offerFromTripFlight({ aerolinea: "Volaris", fuente_precio: "estimado", precio_por_persona: 5000,

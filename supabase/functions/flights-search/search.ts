@@ -6,6 +6,7 @@
 // se devolvían aerolíneas y precios inventados con botón de compra, como si fueran reales.
 import { aiFetch } from "../_shared/ai.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
+import { mainAirport } from "../_shared/airports.ts";
 
 const SERPAPI = "https://serpapi.com/search.json";
 
@@ -23,6 +24,10 @@ const IATA: Record<string, string> = {
 
 export function quickIata(city: string): string | null {
   if (!city) return null;
+  // Tabla compartida de aeropuertos: entiende acentos y espacios ("Ciudad de México " → MEX) y
+  // cambia un código de ciudad por su aeropuerto principal.
+  const known = mainAirport(city);
+  if (known) return known;
   const k = city.toLowerCase().trim().split(",")[0].trim();
   return IATA[k] ?? (/^[A-Za-z]{3}$/.test(k) ? k.toUpperCase() : null);
 }

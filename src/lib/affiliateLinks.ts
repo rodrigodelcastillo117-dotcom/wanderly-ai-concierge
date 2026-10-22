@@ -10,6 +10,7 @@ import {
   aviasalesSearchUrl, bookingSearchUrl, getYourGuideSearchUrl, googleFlightsSearchUrl, roomsForAdults,
 } from "../../supabase/functions/_shared/booking/links.ts";
 import { countryIso } from "../../supabase/functions/_shared/booking/channels.ts";
+import { mainAirport } from "../../supabase/functions/_shared/airports.ts";
 
 export const TP_MARKER = "533299";
 
@@ -105,9 +106,23 @@ export function hotellookLink(city: string, checkin: string, checkout: string, a
  * Sin códigos IATA no hay búsqueda: abre Google Flights para que el usuario escriba la ruta.
  */
 export function googleFlightsLink(origin: string, destination: string, depart: string, ret?: string, adults = 1,
-  opts: { children?: number; airline?: string | null } = {}) {
-  return googleFlightsSearchUrl({ origin, destination, depart, ret: ret || null, adults, children: opts.children ?? 0, airline: opts.airline ?? null })
-    ?? "https://www.google.com/travel/flights?hl=es-419";
+  opts: { children?: number; airline?: string | null; returnFrom?: string | null } = {}) {
+  return googleFlightsSearch(origin, destination, depart, ret, adults, opts).url;
+}
+
+/**
+ * Igual que googleFlightsLink, pero dice si la búsqueda va precargada. Acepta nombres de ciudad o
+ * códigos: un código de ciudad (ROM, BUH) se cambia por su aeropuerto principal, porque Google Flights
+ * deja vacío el campo con un código de ciudad. Sin aeropuerto reconocido, `prefilled` es false y el
+ * botón debe decir "Abre Google Flights y escribe el destino".
+ */
+export function googleFlightsSearch(origin: string, destination: string, depart: string, ret?: string | null, adults = 1,
+  opts: { children?: number; airline?: string | null; returnFrom?: string | null } = {}): { url: string; prefilled: boolean } {
+  const o = mainAirport(origin) ?? origin;
+  const d = mainAirport(destination) ?? destination;
+  const rf = opts.returnFrom ? mainAirport(opts.returnFrom) ?? opts.returnFrom : null;
+  const url = googleFlightsSearchUrl({ origin: o, destination: d, depart, ret: ret || null, adults, children: opts.children ?? 0, airline: opts.airline ?? null, returnFrom: rf });
+  return url ? { url, prefilled: true } : { url: "https://www.google.com/travel/flights?hl=es-419", prefilled: false };
 }
 
 /** Skyscanner (BLOQUEADO: responde captcha a navegadores automáticos; formato sin verificar aquí). */
@@ -127,7 +142,10 @@ export function skyscannerLink(originIata: string, destIata: string, depart: str
  * /children-8 suma un niño de 8 años: D-KAYAK-NINOS.jpg).
  */
 export function kayakFlightsLink(originIata: string, destIata: string, depart: string, ret?: string, adults = 1, childAges: number[] = []) {
-  const path = ret ? `${originIata}-${destIata}/${depart}/${ret}` : `${originIata}-${destIata}/${depart}`;
+  // Código de ciudad (ROM) → aeropuerto (FCO), igual que en Google Flights.
+  const o = mainAirport(originIata) ?? originIata;
+  const dd = mainAirport(destIata) ?? destIata;
+  const path = ret ? `${o}-${dd}/${depart}/${ret}` : `${o}-${dd}/${depart}`;
   const a = Math.min(9, Math.max(1, Math.round(adults) || 1));
   const kids = childAges.map((x) => Math.round(Number(x))).filter((x) => Number.isFinite(x) && x >= 0 && x <= 17).slice(0, 8);
   const url = `https://www.kayak.com/flights/${path}/${a}adults${kids.length ? `/children-${kids.join("-")}` : ""}`;

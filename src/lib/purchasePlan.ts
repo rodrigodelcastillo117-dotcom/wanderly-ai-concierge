@@ -7,7 +7,8 @@
 // también pasa por checkAllowlisted.
 import { kayakCarsLink, PREFILL } from "@/lib/affiliateLinks";
 import {
-  checkAllowlisted, offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace,
+  checkAllowlisted, isEstimatedTripFlight, isGroundTripOption, isTripInternationalRow, tripFlightProblems, tripFlightRoute, tripFlightSearches,
+  unresolvedCityLabel, type TripFlightRoute, offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace,
   type BookingAction, type BookingOffer,
 } from "@/lib/booking";
 import { isConfirmedBooking, type BookingLike } from "@/lib/bookingState";
@@ -38,6 +39,8 @@ export type PurchaseItem = {
   lleva: string[];
   completa: string | null;
   optional: boolean;
+  /** Texto del botón cuando no es "Abrir en <sitio>" (p. ej. "Abre Google Flights y escribe el destino"). */
+  buttonLabel?: string | null;
   /** Ruta interna cuando no hay enlace externo fiable (p. ej. buscar vuelos reales). */
   fallbackHref: string | null;
   /** Índice en trips.*_json (para el Booking Bridge). */
@@ -76,8 +79,10 @@ export function describePrefill(url: string | null, processor: string | null, tr
   const gf = parseGoogleFlightsSearch(url);
   if (gf) {
     const air = gf.airlines.map((c) => airlineName(c) ?? c);
+    // Multi-destino (open-jaw): "MEX → FCO · regreso VCE → MEX".
+    const ruta = gf.return_from ? [`${gf.origin} → ${gf.destination}`, `regreso ${gf.return_from} → ${gf.origin}`] : [`${gf.origin} → ${gf.destination}`];
     return {
-      lleva: [`${gf.origin} → ${gf.destination}`, fmtRange(gf.depart, gf.ret) ?? "", pax(gf.adults, gf.children), ...(air.length ? [`solo ${air.join(", ")}`] : [])].filter(Boolean),
+      lleva: [...ruta, fmtRange(gf.depart, gf.ret) ?? "", pax(gf.adults, gf.children), ...(air.length ? [`solo ${air.join(", ")}`] : [])].filter(Boolean),
       completa: PREFILL.google_flights.completa,
     };
   }
@@ -100,6 +105,15 @@ export function describePrefill(url: string | null, processor: string | null, tr
   if (host.endsWith("getyourguide.com")) {
     const qq = u.searchParams.get("q");
     return { lleva: [qq ? `“${qq}”` : "", fmtRange(u.searchParams.get("date_from"), u.searchParams.get("date_to")) ?? ""].filter(Boolean), completa: PREFILL.getyourguide.completa };
+  }
+  if (host.endsWith("kayak.com") && u.pathname.startsWith("/flights/")) {
+    // /flights/MEX-FCO/2026-10-23[/VCE-MEX]/2026-10-30/2adults
+    const parts = u.pathname.split("/").filter(Boolean).slice(1);
+    const legs = parts.filter((x) => /^[A-Z]{3}-[A-Z]{3}$/.test(x)).map((x) => x.replace("-", " → "));
+    const dates = parts.filter((x) => isIso(x));
+    const ad = Number(/^(\d)adults$/.exec(parts.find((x) => /adults$/.test(x)) ?? "")?.[1]) || 0;
+    return { lleva: [...legs.map((l, i) => (i ? `regreso ${l}` : l)), fmtRange(dates[0] ?? null, dates[1] ?? null) ?? "", ad ? plural(ad, "adulto", "adultos") : ""].filter(Boolean),
+      completa: "Elige el horario y compra con la aerolínea o agencia que muestre Kayak." };
   }
   if (host.endsWith("kayak.com") && u.pathname.startsWith("/cars/")) {
     const [, , city, a, b] = u.pathname.split("/");
@@ -152,25 +166,40 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     return { ...it, site: a?.processor ?? null, url: a?.url ?? null, lleva: d.lleva, completa: d.completa };
   };
 
-  // 1 · Vuelo (o trayecto por carretera)
+  // 1 · Vuelo (o trayecto por carretera). Sin selección, la primera tarifa que sirve para el viaje:
+  // una de otro destino, con duración absurda o con una aerolínea que no opera la ruta no se ofrece.
   const vuelos: any[] = Array.isArray(trip.vuelos_json) ? trip.vuelos_json : [];
-  if (sel.selVuelo !== -2 && vuelos.length) {
-    const i = sel.selVuelo >= 0 && vuelos[sel.selVuelo] ? sel.selVuelo : 0;
-    const v = vuelos[i];
-    const offer = offerFromTripFlight(v, { trip, city, index: i });
-    const pp = num(v?.precio_por_persona);
-    const range = num(v?.precio_min) && num(v?.precio_max);
-    items.push(base({
-      key: `vuelo:${i}:${norm(v?.aerolinea)}`, kind: "vuelo", category: "flight",
-      title: isGround(v) ? `${v?.modo === "auto" ? "En auto" : "Autobús"} · ${v?.aerolinea ?? ""}`.trim() : `Vuelo · ${v?.aerolinea ?? "Aerolínea por elegir"}`,
-      subtitle: [trip.ciudad_origen && city ? `${trip.ciudad_origen} → ${city}` : null, fmtRange(trip.fecha_salida, trip.fecha_regreso), plural(travelers, "viajero", "viajeros")].filter(Boolean).join(" · "),
-      price: range ? null : pp ? pp * travelers : null, currency: "MXN",
-      priceNote: range ? `$${Math.round(Number(v.precio_min)).toLocaleString("es-MX")}–$${Math.round(Number(v.precio_max)).toLocaleString("es-MX")} MXN por persona` : pp ? `${plural(travelers, "persona", "personas")} · $${Math.round(pp).toLocaleString("es-MX")} MXN c/u` : null,
-      source: { fuente: v?.fuente_precio ?? null, estado: v?.estado_dato ?? null, consultadoAt: checked(v), approximateDates: !!v?.approximate_dates },
-      estimate: offer.price_is_estimate || !!range, action: pick(offer, "vuelos_json", i), optional: false,
-      fallbackHref: isGround(v) ? null : `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "")}&destination=${encodeURIComponent(city ?? "")}&depart=${trip.fecha_salida ?? ""}&return=${trip.fecha_regreso ?? ""}&travelers=${travelers}&auto=1&trip=${trip.id}`,
-      col: "vuelos_json", index: i, offer,
-    }));
+  const route = tripFlightRoute(trip);
+  if (sel.selVuelo !== -2 && (vuelos.length || route.multi)) {
+    const usable = (v: any) => !isGroundTripOption(v) && tripFlightProblems(v, trip).length === 0 && isTripInternationalRow(v, route);
+    const i = sel.selVuelo >= 0 && vuelos[sel.selVuelo] ? sel.selVuelo : vuelos.findIndex(usable);
+    const v = i >= 0 ? vuelos[i] : null;
+    const tripRange = [route.multi && route.cities.length ? `${trip.ciudad_origen?.trim() ?? ""} → ${route.cities[0]} · regreso desde ${route.cities[route.cities.length - 1]}`.trim()
+      : trip.ciudad_origen && city ? `${String(trip.ciudad_origen).trim()} → ${city}` : null, fmtRange(trip.fecha_salida, trip.fecha_regreso), plural(travelers, "viajero", "viajeros")].filter(Boolean).join(" · ");
+    if (v) {
+      const offer = offerFromTripFlight(v, { trip, city, index: i });
+      const bad = tripFlightProblems(v, trip).length > 0;
+      const pp = bad ? null : num(v?.precio_por_persona);
+      const range = num(v?.precio_min) && num(v?.precio_max);
+      const est = isEstimatedTripFlight(v);
+      // Una fila con problemas usa SOLO las acciones locales (las del servidor pueden ser de antes del arreglo).
+      const actions = !bad && server.vuelos_json?.[i]?.length ? server.vuelos_json![i] : offer.actions;
+      items.push(base({
+        key: `vuelo:${i}:${norm(v?.aerolinea)}`, kind: "vuelo", category: "flight",
+        title: isGroundTripOption(v) ? `${v?.modo === "auto" || v?.mode === "coche" ? "En auto" : "Autobús"} · ${v?.aerolinea ?? ""}`.trim()
+          : `Vuelo · ${est || bad ? "aerolínea por confirmar" : v?.aerolinea ?? "Aerolínea por elegir"}`,
+        subtitle: tripRange,
+        price: range ? null : pp ? pp * travelers : null, currency: "MXN",
+        priceNote: range ? `$${Math.round(Number(v.precio_min)).toLocaleString("es-MX")}–$${Math.round(Number(v.precio_max)).toLocaleString("es-MX")} MXN por persona` : pp ? `${plural(travelers, "persona", "personas")} · $${Math.round(pp).toLocaleString("es-MX")} MXN c/u` : null,
+        source: { fuente: v?.fuente_precio ?? null, estado: v?.estado_dato ?? null, consultadoAt: checked(v), approximateDates: !!v?.approximate_dates },
+        estimate: offer.price_is_estimate || !!range, action: primaryAction(actions), optional: false,
+        fallbackHref: isGroundTripOption(v) ? null : `/dashboard/vuelos?origin=${encodeURIComponent(String(trip.ciudad_origen ?? "").trim())}&destination=${encodeURIComponent(route.cities[0] ?? city ?? "")}&depart=${trip.fecha_salida ?? ""}&return=${trip.fecha_regreso ?? ""}&travelers=${travelers}&auto=1&trip=${trip.id}`,
+        col: "vuelos_json", index: i, offer,
+      }));
+    } else {
+      // Ninguna tarifa sirve: el vuelo queda por cotizar, con la búsqueda del viaje precargada.
+      items.push(flightToQuote(trip, route, tripRange));
+    }
   }
 
   // 2 · Hospedaje
@@ -241,6 +270,30 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     }));
   });
   return items;
+}
+
+/**
+ * Vuelo sin tarifa válida: "por cotizar" con la búsqueda de Google Flights del viaje (open-jaw en
+ * multi-destino). Si no se reconoce un aeropuerto, el botón lo dice en vez de fingir que lleva la ruta.
+ */
+export function flightToQuote(trip: any, route: TripFlightRoute, subtitle: string): PurchaseItem {
+  const s = tripFlightSearches(trip);
+  const ok = s.google ? checkAllowlisted(s.google) : null;
+  const url = ok && ok.ok ? ok.url : null;
+  const d = describePrefill(url, "Google Flights", trip);
+  const missing = unresolvedCityLabel(route);
+  const plain = "https://www.google.com/travel/flights?hl=es-419";
+  return {
+    key: `vuelo:por-cotizar:${norm(route.cities.join(" "))}`, kind: "vuelo", category: "flight", title: "Vuelo · por cotizar",
+    subtitle, price: null, currency: null,
+    priceNote: "Aún no tenemos precio real para esta ruta: búscalo en Google Flights.",
+    source: { fuente: null, estado: null, consultadoAt: null }, estimate: false,
+    site: "Google Flights", url: url ?? plain, action: null,
+    lleva: url ? d.lleva : [],
+    completa: url ? d.completa : `No reconocimos el aeropuerto de ${missing ?? "tu destino"}: escribe la ruta en Google Flights.`,
+    buttonLabel: url ? null : "Abre Google Flights y escribe el destino",
+    optional: false, fallbackHref: null, col: null, index: -1, offer: null,
+  };
 }
 
 // ───────────────────────────── Estado "Ya lo reservé" ─────────────────────────────

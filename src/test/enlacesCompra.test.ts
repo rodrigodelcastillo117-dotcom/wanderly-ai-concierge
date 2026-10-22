@@ -33,7 +33,10 @@ describe("vuelos", () => {
   });
   it("Google Flights: ya no usa el texto ?q= (abría el formulario vacío, F8) y sin IATA no inventa una búsqueda", () => {
     expect(googleFlightsLink("MEX", "MAD", IDA, VUELTA, 2)).not.toContain("q=");
-    expect(googleFlightsLink("Ciudad de México", "Madrid", IDA, VUELTA, 2)).toBe("https://www.google.com/travel/flights?hl=es-419");
+    // Sin aeropuerto reconocido no hay búsqueda (antes cualquier nombre caía aquí; ahora los nombres de
+    // la tabla de aeropuertos sí se resuelven: "Ciudad de México" → MEX, "Madrid" → MAD).
+    expect(googleFlightsLink("Ciudad de México", "Xyzópolis", IDA, VUELTA, 2)).toBe("https://www.google.com/travel/flights?hl=es-419");
+    expect(parseGoogleFlightsSearch(googleFlightsLink("Ciudad de México", "Madrid", IDA, VUELTA, 2))).toMatchObject({ origin: "MEX", destination: "MAD" });
     expect(googleFlightsSearchUrl({ origin: "MEX", destination: "MAD", depart: VUELTA, ret: IDA, adults: 1 })).toBeNull();
   });
   it("Aviasales: DDMM + adultos + niños (/search/MEX1212MAD191221 = 2 adultos y 1 niño, D-AVIA-NINOS.jpg)", () => {

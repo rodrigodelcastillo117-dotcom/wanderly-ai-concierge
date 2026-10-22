@@ -20,6 +20,8 @@ export const EVIDENCE = {
   // google.com/travel/flights?tfs=<búsqueda codificada>: ruta, fechas, adultos/niños y filtro de aerolínea
   // (capturas docs/iatos/evidencia/enlaces/D-GF-*.jpg, 2026-10-22).
   GOOGLE_FLIGHTS_TFS: "EV-GFLIGHTS-TFS",
+  // kayak.com/flights/MEX-FCO/2026-10-23/VCE-MEX/2026-10-30/2adults: tramos, fechas y adultos en la ruta.
+  KAYAK_FLIGHTS: "EV-KAYAK-FLIGHTS",
   RESY_VENUE_DATE: "EV-RESY-DATE", // resy.com/cities/<c>/venues/<v>?date=YYYY-MM-DD&seats=N (Resy la usa al abrir; D-RESY)
   // Descartado: google.com/travel/flights?q=… abre el formulario VACÍO (captura F6, 2026-10-22).
   GOOGLE_FLIGHTS_BOOKING_REQUEST: "EV-GFLIGHTS-BOOKING-REQUEST", // SerpApi Booking Options: booking_request {url, post_data}
@@ -54,6 +56,11 @@ export type FlightSearchQuery = {
   origin: string; destination: string; depart: string; ret?: string | null; adults: number; children?: number;
   /** Código IATA de la aerolínea (2 caracteres) para filtrar Google Flights. */
   airline?: string | null;
+  /**
+   * Viaje multi-destino (open-jaw): el regreso sale de esta ciudad y no del destino de ida
+   * (MEX→FCO a la salida, VCE→MEX al regreso). Sin él, o igual al destino, es ida y vuelta normal.
+   */
+  returnFrom?: string | null;
 };
 
 const clampPax = (n: unknown, min: number) => Math.min(9, Math.max(min, Math.round(Number(n) || 0)));
@@ -114,6 +121,10 @@ export function googleFlightsSearchUrl(q: FlightSearchQuery, lang = "es-419"): s
   const d = String(q.destination ?? "").toUpperCase();
   if (!IATA.test(o) || !IATA.test(d) || o === d || !isIsoDate(q.depart)) return null;
   if (q.ret && (!isIsoDate(q.ret) || q.ret < q.depart)) return null;
+  const rf = q.returnFrom ? String(q.returnFrom).toUpperCase() : d;
+  if (!IATA.test(rf) || rf === o) return null;
+  // Open-jaw (regreso desde otra ciudad): Google Flights lo abre como "Varios destinos" (tipo 3).
+  const openJaw = !!q.ret && rf !== d;
   const adults = clampPax(q.adults, 1);
   const children = Math.min(9 - adults, clampPax(q.children, 0));
   const airline = q.airline && /^[A-Z0-9]{2}$/.test(q.airline.toUpperCase()) ? q.airline.toUpperCase() : null;
@@ -122,15 +133,33 @@ export function googleFlightsSearchUrl(q: FlightSearchQuery, lang = "es-419"): s
     pbBytes(3, [...pbStr(2, date), ...(airline ? pbStr(6, airline) : []), ...pbBytes(13, pbStr(2, from)), ...pbBytes(14, pbStr(2, to))]);
   const bytes = [
     ...leg(q.depart, o, d),
-    ...(q.ret ? leg(q.ret, d, o) : []),
-    // 8 pasajeros (1 adulto, 2 niño) · 9 clase (1 turista) · 19 viaje (1 ida y vuelta, 2 solo ida).
+    ...(q.ret ? leg(q.ret, rf, o) : []),
+    // 8 pasajeros (1 adulto, 2 niño) · 9 clase (1 turista) · 19 viaje (1 ida y vuelta, 2 solo ida, 3 varios destinos).
     ...Array.from({ length: adults }, () => pbInt(8, 1)).flat(),
     ...Array.from({ length: children }, () => pbInt(8, 2)).flat(),
     ...pbInt(9, 1),
-    ...pbInt(19, q.ret ? 1 : 2),
+    ...pbInt(19, openJaw ? 3 : q.ret ? 1 : 2),
   ];
   const p = new URLSearchParams({ tfs: b64(bytes), hl: lang });
   return `https://www.google.com/travel/flights?${p.toString()}`;
+}
+
+/**
+ * Kayak vuelos: /flights/MEX-MAD/2026-12-12/2026-12-19/2adults (ida y vuelta) y, para multi-destino
+ * (open-jaw), /flights/MEX-FCO/2026-10-23/VCE-MEX/2026-10-30/2adults: cada tramo con su fecha, que es
+ * como Kayak escribe sus búsquedas de "Varios destinos". Los pasajeros van en la ruta (D-KAYAK.jpg).
+ */
+export function kayakFlightsSearchUrl(q: FlightSearchQuery & { childAges?: number[] }): string | null {
+  const o = String(q.origin ?? "").toUpperCase();
+  const d = String(q.destination ?? "").toUpperCase();
+  if (!IATA.test(o) || !IATA.test(d) || o === d || !isIsoDate(q.depart)) return null;
+  if (q.ret && (!isIsoDate(q.ret) || q.ret < q.depart)) return null;
+  const rf = q.returnFrom ? String(q.returnFrom).toUpperCase() : d;
+  if (!IATA.test(rf) || rf === o) return null;
+  const a = clampPax(q.adults, 1);
+  const kids = (q.childAges ?? []).map((x) => Math.round(Number(x))).filter((x) => Number.isFinite(x) && x >= 0 && x <= 17).slice(0, 8);
+  const path = !q.ret ? `${o}-${d}/${q.depart}` : rf !== d ? `${o}-${d}/${q.depart}/${rf}-${o}/${q.ret}` : `${o}-${d}/${q.depart}/${q.ret}`;
+  return `https://www.kayak.com/flights/${path}/${a}adults${kids.length ? `/children-${kids.join("-")}` : ""}`;
 }
 
 /** "link" que devuelve la API de Travelpayouts ("/search/…?t=…"): abre resultados de búsqueda. */
@@ -144,7 +173,7 @@ export function aviasalesFromTpLink(link: string, marker = TP_PUBLIC_MARKER): st
  * Lee una búsqueda tfs de Google Flights (la inversa de googleFlightsSearchUrl): ruta, fechas, adultos,
  * niños y aerolíneas. Sirve para comprobar que la salida lleva los datos de la cotización.
  */
-export function parseGoogleFlightsSearch(url: string): { origin: string; destination: string; depart: string; ret: string | null; adults: number; children: number; airlines: string[]; one_way: boolean } | null {
+export function parseGoogleFlightsSearch(url: string): { origin: string; destination: string; depart: string; ret: string | null; adults: number; children: number; airlines: string[]; one_way: boolean; return_from?: string } | null {
   let u: URL;
   try { u = new URL(url); } catch { return null; }
   if (u.hostname !== "www.google.com" || !u.pathname.startsWith("/travel/flights")) return null;
@@ -180,7 +209,9 @@ export function parseGoogleFlightsSearch(url: string): { origin: string; destina
   const b = legs[1] ? leg(legs[1]) : null;
   const pax = top.filter((x) => x.f === 8).map((x) => x.v);
   return { origin: a.from, destination: a.to, depart: a.date, ret: b?.date ?? null, adults: pax.filter((v) => v === 1).length,
-    children: pax.filter((v) => v === 2).length, airlines: a.airlines, one_way: top.find((x) => x.f === 19)?.v === 2 };
+    children: pax.filter((v) => v === 2).length, airlines: a.airlines, one_way: top.find((x) => x.f === 19)?.v === 2,
+    // Open-jaw: el regreso sale de otra ciudad (solo se agrega cuando es así).
+    ...(b && b.from && b.from !== a.to ? { return_from: b.from } : {}) };
 }
 
 export type HotelSearchQuery = { query: string; checkin: string; checkout: string; adults: number; rooms?: number;

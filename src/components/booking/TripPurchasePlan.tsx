@@ -124,7 +124,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, serve
                       onClick={() => void logBookingClick({ category: it.category, provider: it.site ?? "Proveedor", title: it.title, bookingUrl: it.url!,
                         city: trip.destino ?? undefined, tripId: trip.id, startAt: trip.fecha_salida ?? undefined })}
                       className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
-                      Abrir en {it.site} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                      {it.buttonLabel ?? `Abrir en ${it.site}`} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
                     </a>
                   ) : it.fallbackHref ? (
                     <Link to={it.fallbackHref} className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-primary/40 px-3 py-2 text-sm text-primary">

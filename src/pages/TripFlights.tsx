@@ -15,7 +15,7 @@ import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 import { BookingActions } from "@/components/booking/BookingActions";
-import { offerFromFlightResult } from "@/lib/booking";
+import { offerFromFlightResult, tripDestinations, tripFlightSearches } from "@/lib/booking";
 
 interface FlightResult {
   price_usd: number;
@@ -56,6 +56,12 @@ const TripFlights = () => {
   const [estadoDato, setEstadoDato] = useState<string | null>(null);
   // Link de búsqueda (sin precio) cuando el proveedor en vivo no respondió.
   const [unavailableUrl, setUnavailableUrl] = useState<string | null>(null);
+
+  // Viaje multi-destino en contexto: regreso desde la última ciudad (open-jaw) en Google Flights y Kayak.
+  const tripCities = tripTool.trip ? tripDestinations(tripTool.trip) : [];
+  const openJaw = tripCities.length > 1 && tripTool.trip
+    ? tripFlightSearches({ ...tripTool.trip, fecha_salida: depart || tripTool.trip.fecha_salida, fecha_regreso: returnDate || tripTool.trip.fecha_regreso, num_viajeros: travelers })
+    : null;
 
   const search = async () => {
     if (!destination || !depart) {
@@ -106,11 +112,12 @@ const TripFlights = () => {
   useEffect(() => {
     const t = tripTool.trip;
     if (!t) return;
-    if (!destination && t.destino) setDestination(t.destino);
+    // Multi-destino ("Roma → Florencia → Venecia"): el vuelo de ida es a la primera ciudad.
+    if (!destination && t.destino) setDestination(tripDestinations(t)[0] ?? t.destino);
     if (!depart && t.fecha_salida) setDepart(t.fecha_salida);
     if (!returnDate && t.fecha_regreso) setReturnDate(t.fecha_regreso);
     if (!params.get("travelers") && t.num_viajeros) setTravelers(t.num_viajeros);
-    if (!originTouched.current && t.ciudad_origen) { originTouched.current = true; setOrigin(t.ciudad_origen); }
+    if (!originTouched.current && t.ciudad_origen) { originTouched.current = true; setOrigin(t.ciudad_origen.trim()); }
   }, [tripTool.trip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -222,7 +229,7 @@ const TripFlights = () => {
             <div>
               <Button variant="outline" className="w-full" onClick={() => tripTool.track({
                 category: "flight", provider: "Google Flights", title: `${origin} → ${destination}`,
-                city: destination, bookingUrl: googleFlightsLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
+                city: destination, bookingUrl: openJaw?.google ?? googleFlightsLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
               })}>
                 Ver todo en Google Flights
               </Button>
@@ -240,7 +247,7 @@ const TripFlights = () => {
             <div>
               <Button variant="outline" className="w-full" onClick={() => tripTool.track({
                 category: "flight", provider: "Kayak", title: `${origin} → ${destination}`,
-                city: destination, bookingUrl: kayakFlightsLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
+                city: destination, bookingUrl: openJaw?.kayak ?? kayakFlightsLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
               })}>
                 Kayak
               </Button>

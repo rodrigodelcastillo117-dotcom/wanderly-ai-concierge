@@ -5,10 +5,12 @@
 import { checkAllowlisted, unwrapAffiliate } from "./allowlist.ts";
 import { countryIso as countryIsoName, whatsappNumberFromUrl } from "./channels.ts";
 import {
-  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, EVIDENCE, getYourGuideSearchUrl, googleFlightsSearchUrl, isIsoDate,
+  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, EVIDENCE, getYourGuideSearchUrl, googleFlightsSearchUrl, isIsoDate, kayakFlightsSearchUrl,
   openTableSearchUrl, parseAviasalesSearch, parseBookingSearch, resyWithDate, roomsForAdults, viatorSearchUrl,
 } from "./links.ts";
 import { airlineCode } from "../airlines.ts";
+import { airlineFitsRoute, cityAirports, codeServesCity, mainAirport, maxPlausibleHours } from "../airports.ts";
+import { tripFlightRoute, type TripFlightRoute } from "./tripRoute.ts";
 import { TP_PUBLIC_MARKER } from "../tp-params.ts";
 import type { RequestLang } from "./messages.ts";
 import { hotelPriceRooms } from "../rooms.ts";
@@ -222,40 +224,131 @@ function parsedRoute(raw: string | null, depart: string | null, ret: string | nu
   return p ? { origin: p.origin, destination: p.destination, depart, return_date: ret, adults } : null;
 }
 
-/** Opción de vuelo guardada en el viaje (trips.vuelos_json, escrita por analizar-viaje). */
+/** Modos de tierra de vuelos_json: `modo` (analizar-viaje) o `mode` (ruta multi-destino). */
+const GROUND_MODES = new Set(["autobus", "auto", "coche", "tren", "bus", "ferry", "roadtrip", "car", "train"]);
+export function isGroundTripOption(v: any): boolean {
+  return GROUND_MODES.has(String(v?.modo ?? "").toLowerCase()) || GROUND_MODES.has(String(v?.mode ?? "").toLowerCase());
+}
+
+/** ¿La fila la escribió la IA como estimación (sin tarifa verificada)? */
+export function isEstimatedTripFlight(v: any): boolean {
+  const fuente = String(v?.fuente_precio ?? "").toLowerCase();
+  return ESTIMATED.has(fuente) || !fuente;
+}
+
+/**
+ * Problemas de una tarifa guardada que la vuelven inservible para el viaje: llega a otra ciudad
+ * (MEX→BUH presentada como Roma), dura más de lo creíble para la distancia o trae una aerolínea
+ * regional que no opera esa ruta (Volaris a Europa). Lista vacía = se puede usar.
+ */
+export function tripFlightProblems(v: any, trip: TripLike | null | undefined): Array<"destino_distinto_al_viaje" | "origen_distinto_al_viaje" | "duracion_absurda" | "aerolinea_no_opera_la_ruta"> {
+  const out: ReturnType<typeof tripFlightProblems> = [];
+  if (!v || isGroundTripOption(v)) return out;
+  const route = tripFlightRoute(trip);
+  const raw = str(v?.booking_link, 2000);
+  const ok = raw ? checkAllowlisted(raw) : null;
+  const parsed = ok && ok.ok ? parseAviasalesSearch(unwrapAffiliate(ok.url)) : null;
+  // Solo el vuelo internacional (origen → primera ciudad) se compara con el viaje; un tramo interno
+  // (Florencia → Venecia) tiene su propia ruta.
+  if (parsed && isTripInternationalRow(v, route)) {
+    if (route.cities[0] && codeServesCity(parsed.destination, route.cities[0]) === false) out.push("destino_distinto_al_viaje");
+    if (route.originCity && codeServesCity(parsed.origin, route.originCity) === false) out.push("origen_distinto_al_viaje");
+  }
+  const from = parsed?.origin ?? v?.from ?? route.originCity;
+  const to = parsed?.destination ?? v?.to ?? route.cities[0];
+  const hours = durationHours(v?.duracion ?? v?.duration);
+  // La duración guardada puede ser de ida y vuelta (Travelpayouts "duration"): se compara con el doble.
+  if (hours != null && hours > maxPlausibleHours(from, to) * (String(v?.fuente_precio) === "travelpayouts" ? 2 : 1)) out.push("duracion_absurda");
+  const code = airlineCode(v?.aerolinea);
+  if (code && !airlineFitsRoute(code, from, to)) out.push("aerolinea_no_opera_la_ruta");
+  return out;
+}
+
+/** ¿La fila es el vuelo internacional del viaje (sale del origen o no dice de dónde)? */
+export function isTripInternationalRow(v: any, route: TripFlightRoute): boolean {
+  if (isGroundTripOption(v)) return false;
+  const from = cityAirports(v?.from);
+  const origin = cityAirports(route.originCity);
+  if (!v?.from || !from) return true;
+  return !!origin && from.metro === origin.metro;
+}
+
+/** "65h", "12h 45m", "15 h 20 min" → horas. null si no se entiende. */
+export function durationHours(s: unknown): number | null {
+  const t = String(s ?? "").toLowerCase();
+  const h = /(\d+(?:[.,]\d+)?)\s*h/.exec(t);
+  const m = /(\d+)\s*m/.exec(t.replace(/\d+(?:[.,]\d+)?\s*h/, ""));
+  if (!h && !m) return null;
+  return (h ? Number(h[1].replace(",", ".")) : 0) + (m ? Number(m[1]) / 60 : 0);
+}
+
+/** Opción de vuelo guardada en el viaje (trips.vuelos_json, escrita por analizar-viaje o la ruta multi-destino). */
 export function offerFromTripFlight(v: any, ctx: OfferContext & { city?: string | null; index?: number }): BookingOffer {
   const trip = ctx.trip ?? {};
   const travelers = Math.max(1, Math.round(Number(trip.num_viajeros) || 1));
   const depart = isIsoDate(trip.fecha_salida) ? trip.fecha_salida! : null;
   const ret = isIsoDate(trip.fecha_regreso) ? trip.fecha_regreso! : null;
   const city = ctx.city ?? trip.destino ?? null;
-  const ground = v?.modo === "autobus" || v?.modo === "auto";
+  const ground = isGroundTripOption(v);
   const product: ProductType = ground ? "transport" : "flight";
   const raw = str(v?.booking_link, 2000) ?? str(v?.cta_action, 2000);
   const rejected: Array<{ url: string; reason: string }> = [];
   const searches: LinkCandidate[] = [];
   let website: LinkCandidate | null = null;
+  const problems = tripFlightProblems(v, trip);
+  const route = tripFlightRoute(trip);
+  const estimated = isEstimatedTripFlight(v);
+  // Aerolínea para filtrar Google Flights: solo si la tarifa es real y la aerolínea opera la ruta.
+  const airline = !estimated && problems.length === 0 ? airlineCode(v?.aerolinea) : null;
+  // Ruta del viaje (ida a la primera ciudad, regreso desde la última). Es la que manda: la de la
+  // tarifa guardada puede ser de otro destino.
+  const tripSearch = !ground && route.origin && route.destination && depart
+    ? { origin: route.origin, destination: route.destination, returnFrom: route.returnFrom, depart, ret, adults: travelers }
+    : null;
+  const pushTripSearches = () => {
+    if (!tripSearch) return;
+    const gf = googleFlightsSearchUrl({ ...tripSearch, airline });
+    if (gf) searches.push({ url: gf, trust: "builder", evidence: EVIDENCE.GOOGLE_FLIGHTS_TFS, provider_label: "Google Flights",
+      preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false } });
+    const kk = kayakFlightsSearchUrl(tripSearch);
+    if (kk) searches.push({ url: kk, trust: "builder", evidence: EVIDENCE.KAYAK_FLIGHTS, provider_label: "Kayak",
+      preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false } });
+  };
 
   if (raw) {
     const ok = checkAllowlisted(raw);
     const parsed = ok.ok ? parseAviasalesSearch(unwrapAffiliate(ok.url)) : null;
     if (!ok.ok) {
       rejected.push({ url: raw, reason: ok.reason });
+    } else if (parsed && problems.includes("destino_distinto_al_viaje")) {
+      // La tarifa era de otra ruta: nunca se abre ni se precarga ese destino.
+      rejected.push({ url: raw, reason: "destino_distinto_al_viaje" });
     } else if (parsed && depart) {
       // El enlace lo copió la IA de una búsqueda: si sus fechas o pasajeros no son los del viaje
       // (p. ej. el usuario cambió fechas), se arma la búsqueda correcta con los mismos aeropuertos.
       const want = { d: `${depart.slice(8, 10)}${depart.slice(5, 7)}`, r: ret ? `${ret.slice(8, 10)}${ret.slice(5, 7)}` : null };
-      // Primero Google Flights con la misma ruta, las fechas y pasajeros del viaje y SOLO la aerolínea
-      // cotizada (EV-GFLIGHTS-TFS): es lo más cercano al vuelo de la cotización que se puede abrir.
-      const gf = googleFlightsSearchUrl({ origin: parsed.origin, destination: parsed.destination, depart, ret, adults: travelers, airline: airlineCode(v?.aerolinea) });
-      if (gf && !ground) searches.push({ url: gf, trust: "builder", evidence: EVIDENCE.GOOGLE_FLIGHTS_TFS, provider_label: "Google Flights",
-        preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false } });
-      if (parsed.depart !== want.d || (parsed.ret ?? null) !== want.r || parsed.adults !== Math.min(9, travelers) || parsed.children !== 0) {
-        rejected.push({ url: raw, reason: "fechas_o_viajeros_distintos_al_viaje" });
-        const rebuilt = aviasalesSearchUrl({ origin: parsed.origin, destination: parsed.destination, depart, ret, adults: travelers });
-        if (rebuilt) searches.push({ url: rebuilt, trust: "builder", evidence: EVIDENCE.AVIASALES_SEARCH, preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false } });
+      // Primero Google Flights con la ruta del viaje (o la de la tarifa), las fechas y pasajeros del
+      // viaje y SOLO la aerolínea cotizada si es creíble (EV-GFLIGHTS-TFS).
+      const orig = mainAirport(parsed.origin) ?? parsed.origin;
+      const dest = mainAirport(parsed.destination) ?? parsed.destination;
+      if (tripSearch) pushTripSearches();
+      else if (!ground) {
+        const gf = googleFlightsSearchUrl({ origin: orig, destination: dest, depart, ret, adults: travelers, airline });
+        if (gf) searches.push({ url: gf, trust: "builder", evidence: EVIDENCE.GOOGLE_FLIGHTS_TFS, provider_label: "Google Flights",
+          preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false } });
+      }
+      // Aviasales solo para ida y vuelta al mismo destino (no recibe regreso desde otra ciudad).
+      const openJaw = !!tripSearch && tripSearch.returnFrom !== tripSearch.destination;
+      if (!openJaw) {
+        if (parsed.depart !== want.d || (parsed.ret ?? null) !== want.r || parsed.adults !== Math.min(9, travelers) || parsed.children !== 0) {
+          rejected.push({ url: raw, reason: "fechas_o_viajeros_distintos_al_viaje" });
+          const rebuilt = aviasalesSearchUrl({ origin: parsed.origin, destination: parsed.destination, depart, ret, adults: travelers });
+          if (rebuilt) searches.push({ url: rebuilt, trust: "builder", evidence: EVIDENCE.AVIASALES_SEARCH, preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false } });
+        } else {
+          searches.push({ url: ok.url, trust: "ai", evidence: EVIDENCE.AVIASALES_TP_LINK, preserves: { product: false, dates: true, travelers: true, room_or_fare: false } });
+        }
       } else {
-        searches.push({ url: ok.url, trust: "ai", evidence: EVIDENCE.AVIASALES_TP_LINK, preserves: { product: false, dates: true, travelers: true, room_or_fare: false } });
+        rejected.push({ url: raw, reason: "regreso_desde_otra_ciudad" });
       }
     } else if (ok.provider?.kind === "airline") {
       website = { url: ok.url, trust: "ai", evidence: EVIDENCE.AIRLINE_HOME, provider_label: ok.provider.label };
@@ -270,9 +363,15 @@ export function offerFromTripFlight(v: any, ctx: OfferContext & { city?: string 
       rejected.push({ url: raw, reason: "no_es_un_enlace_de_vuelo" });
     }
   }
+  // Sin enlace aprovechable (o descartado): la búsqueda del viaje, si el vuelo es el internacional.
+  if (!ground && !searches.some((x) => x.provider_label === "Google Flights") && tripSearch && isTripInternationalRow(v, route)) pushTripSearches();
+  // Kayak al final: Google Flights (con la aerolínea) y Aviasales (la tarifa) van primero.
+  searches.sort((a, b) => Number(a.provider_label === "Kayak") - Number(b.provider_label === "Kayak"));
   // No se arma Google Flights por texto (?q=): abre el formulario vacío (evidencia F6).
   const est = ESTIMATED.has(String(v?.fuente_precio ?? "").toLowerCase()) || String(v?.estado_dato ?? "").toUpperCase() === "ESTIMADO" || num(v?.precio_min) != null;
-  const pp = num(v?.precio_por_persona);
+  // Una tarifa de otra ruta (o imposible) no aporta precio: el vuelo queda "por cotizar".
+  const unusable = problems.length > 0;
+  const pp = unusable ? null : num(v?.precio_por_persona);
   const checked = str(v?.consultado_at) ?? trip.created_at ?? null;
   const input: ResolverInput = {
     product_type: product, title: str(v?.aerolinea) ?? (ground ? "Transporte" : "Vuelo"), now: ctx.now, flags: ctx.flags,
@@ -300,8 +399,9 @@ export function offerFromTripFlight(v: any, ctx: OfferContext & { city?: string 
     verification_status: est ? "estimated" : trip.quote_needs_update ? "unverified" : "source_verified",
     price_is_estimate: est,
     recheckable: false,
-    details: { tier: v?.tier ?? null, stale_quote: !!trip.quote_needs_update, ground, airline_code: airlineCode(v?.aerolinea),
-      search: parsedRoute(raw, depart, ret, travelers) },
+    details: { tier: v?.tier ?? null, stale_quote: !!trip.quote_needs_update, ground, airline_code: airline,
+      problems,
+      search: problems.includes("destino_distinto_al_viaje") ? null : parsedRoute(raw, depart, ret, travelers) },
   }, input, rejected);
 }
 
