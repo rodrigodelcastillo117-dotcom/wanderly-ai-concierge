@@ -15,7 +15,7 @@ describe("D-P3-4 · invoiceForPaymentIntentWith", () => {
   });
 
   it("basil+: la busca en invoice_payments", async () => {
-    const fetchInvoicePayments = vi.fn(async () => res(200, { data: [{ invoice: { id: "in_2" } }] }));
+    const fetchInvoicePayments = vi.fn(async (_q: string) => res(200, { data: [{ invoice: { id: "in_2" } }] }));
     expect(await invoiceForPaymentIntentWith("pi_2", { retrievePaymentIntent: async () => ({ invoice: null }), fetchInvoicePayments })).toBe("in_2");
     expect(String(fetchInvoicePayments.mock.calls[0][0])).toContain("payment%5Bpayment_intent%5D=pi_2");
   });
