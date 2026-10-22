@@ -8,7 +8,9 @@ export type BridgeSource =
   | { type: "trip_item"; trip_id: string; col: "vuelos_json" | "hospedaje_json" | "tours_json" | "restaurantes_json"; index: number; name?: string }
   | { type: "flight_result"; result: unknown; meta: unknown; trip_id?: string | null }
   | { type: "hotel_result"; result: unknown; meta: unknown; trip_id?: string | null }
-  | { type: "venue"; name: string; city?: string | null; country?: string | null; prive_slug?: string | null; product_type?: string; trip_id?: string | null };
+  | { type: "venue"; name: string; city?: string | null; country?: string | null; prive_slug?: string | null; product_type?: string; trip_id?: string | null }
+  // roadtrip: renta de auto (ciudades y fechas; el servidor arma el enlace con carRental.ts).
+  | { type: "car_rental"; pickup_city: string; dropoff_city: string | null; pickup_date: string; dropoff_date: string; trip_id?: string | null };
 
 export type BridgeResult = { ok: boolean; code?: string; message?: string; unavailable?: boolean; [k: string]: any };
 
