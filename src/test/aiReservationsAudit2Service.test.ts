@@ -234,3 +234,24 @@ describe("A2 · correo al usuario 'confirmó tu reserva por escrito' con una res
     });
   }
 });
+
+describe("A2-RES-02 · defensa en profundidad: el correo 'confirmó tu reserva' depende de lo que dejó la base", () => {
+  it("si TypeScript decide confirmed pero la base no deja la reserva en confirmed, no sale el correo de confirmación", async () => {
+    const t = setup();
+    const id = ((await createIntent(t.deps, USER, intent)).body.reservation as any).id;
+    await confirmSend(t.deps, USER, { id, confirm: true, consent: { share_contact: false, cc_me: false } });
+    // La base (trigger de evidencia) no acepta la transición: la reserva queda en venue_replied.
+    const rpc = t.deps.db.rpc;
+    t.deps.db.rpc = (async (fn: string, args?: Record<string, unknown>) => {
+      if (fn !== "ai_reservation_apply_reply") return rpc(fn, args);
+      const r = t.state.rows.get(id)!;
+      r.status = "venue_replied";
+      return { data: { ok: true, status: "venue_replied", reservation: { ...r } }, error: null };
+    }) as typeof rpc;
+    const w = await webhook(t.state.rows.get(id)!.reply_token!);
+    const r = await handleInbound(t.deps, w.headers, w.body);
+    expect(r.body).toMatchObject({ ok: true, outcome: "confirmed", status: "venue_replied" });
+    for (const m of t.sent) expect(m.subject).not.toMatch(/^Reserva confirmada/);
+  });
+});
+
