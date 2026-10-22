@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { lazyWithRetry } from "@/lib/lazyRetry";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,12 +9,14 @@ import { Plus, Trash2, Receipt, Upload, PieChart, Calculator } from "lucide-reac
 import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
-import SmartSpendPanel from "@/components/SmartSpendPanel";
 import { TripSavingsCalculator } from "@/components/TripSavingsCalculator";
 import { localISODate } from "@/lib/localDate";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { convertedTotal, formatMoney, fxLabel, subtotalsByCurrency } from "@/lib/fx";
 import { useFxTable } from "@/hooks/useFxTable";
+
+// Smart Spend usa recharts (~100 kB comprimidos): se carga solo al abrir esa pestaña.
+const SmartSpendPanel = lazyWithRetry(() => import("@/components/SmartSpendPanel"));
 
 
 const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"] as const;
@@ -157,7 +160,9 @@ export const Gastos = () => {
         {tab === "calc" ? (
           <TripSavingsCalculator />
         ) : tab === "smart" ? (
-          <SmartSpendPanel />
+          <Suspense fallback={<div className="glass-card rounded-2xl p-10 text-center text-sm text-muted-foreground" role="status">Cargando Smart Spend…</div>}>
+            <SmartSpendPanel />
+          </Suspense>
         ) : (
         <>
 
