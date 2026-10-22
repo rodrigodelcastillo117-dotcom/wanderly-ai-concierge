@@ -23,8 +23,16 @@ $PSQL -X -d "$DB" -f "$DIR/taste_profile.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ER
 $PSQL -d "$DB" -f "$DIR/profiles_tier.sql" 2>&1 | grep -E 'T[0-9]|denied' | sed 's/^ *//'
 $PSQL -X -d "$DB" -f "$DIR/action_idempotency.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
 $PSQL -X -d "$DB" -f "$DIR/aud_seguridad.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | grep -v 'violates row-level security'
-# Segunda auditoría, grupo privacidad (T-P2-2 y siguientes).
+# Segunda auditoría, grupo privacidad (T-P2-2 y siguientes). Algunas pruebas reaplican su migración
+# (\ir) para probar el relleno de datos viejos; después de cada una se reaplican EN ORDEN todas las
+# migraciones r2_privacidad, para que la base quede igual que en producción (Q-L1: no probar una
+# versión vieja de una función que una migración posterior reemplaza).
 for t in "$DIR"/r2_privacidad_*.sql; do
-  [ -f "$t" ] && $PSQL -X -d "$DB" -f "$t" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
+  [ -f "$t" ] || continue
+  $PSQL -X -d "$DB" -f "$t" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
+  for m in "$MIG"/20261026*_r2_privacidad_*.sql; do
+    out=$($PSQL -X -v ON_ERROR_STOP=1 -d "$DB" -f "$m" 2>&1 >/dev/null | grep ERROR | head -1)
+    [ -n "$out" ] && echo "FALLA migración $(basename "$m") no es idempotente: $out"
+  done
 done
 "$DIR/concurrent_rate_limit.sh" "$DB"
