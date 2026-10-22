@@ -38,7 +38,7 @@ const renderAt = (path = "/prive", extra?: React.ReactNode) =>
   );
 
 const withSession = () =>
-  sessionStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: SESSION_TOKEN, expiresAt: futureIso(), userId: "u1" }));
+  localStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: SESSION_TOKEN, expiresAt: futureIso(), userId: "u1" }));
 
 const setStatus = (s: PriveStatus) => { state.status = s; };
 
@@ -116,9 +116,9 @@ describe("candado y sesión Privé", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ingresar" }));
     expect(await screen.findByText("The World, Beyond Ordinary.")).toBeInTheDocument();
     expect(api.access).toHaveBeenCalledWith("unlock", { password: "faro lento sobre bahía 1987" });
-    const stored = JSON.parse(sessionStorage.getItem(PRIVE_SESSION_KEY)!);
+    const stored = JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!);
     expect(stored).toMatchObject({ token: SESSION_TOKEN, userId: "u1" });
-    expect(localStorage.length).toBe(0);
+    expect(Object.keys({ ...localStorage }).filter((k) => k !== PRIVE_SESSION_KEY)).toEqual([]);
     expect(screen.getByTestId("prive-curating")).toHaveTextContent("Contenido en curaduría");
   });
 
@@ -134,7 +134,7 @@ describe("candado y sesión Privé", () => {
     fireEvent.change(input, { target: { value: "otra cosa" } });
     fireEvent.click(screen.getByRole("button", { name: "Ingresar" }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/Podrás intentarlo de nuevo a las/));
-    expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
     expect(screen.getByRole("link", { name: "¿Olvidaste tu contraseña Privé?" })).toHaveAttribute("href", "/prive/restablecer");
   });
 
@@ -146,7 +146,7 @@ describe("candado y sesión Privé", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Saltar" }));
     expect(await screen.findByText("Tu sesión Privé venció. Vuelve a ingresar tu contraseña.")).toBeInTheDocument();
     expect(screen.getByLabelText("Contraseña Privé")).toBeInTheDocument();
-    expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
   });
 
   it("PRIVE_* desde la membresía también regresa a /prive con candado", async () => {
@@ -161,7 +161,7 @@ describe("candado y sesión Privé", () => {
       expect(screen.getByRole("heading", { name: "Tu acceso personal" })).toBeInTheDocument();
     });
     expect(screen.getByText("Tu acceso a Privé está en pausa porque tu plan PRO no está activo.")).toBeInTheDocument();
-    expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
   });
 
   it("no se pide contenido Privé sin sesión; con sesión sí, con su token", async () => {
@@ -197,7 +197,7 @@ describe("Grand Welcome", () => {
     fireEvent.click(within(dlg).getByRole("button", { name: "Saltar" }));
     await waitFor(() => expect(api.access).toHaveBeenCalledWith("save_progress", { welcome_version: 1, prive_session: SESSION_TOKEN }));
     expect(screen.queryByRole("dialog", { name: "Bienvenida a IATOS Privé" })).toBeNull();
-    expect(localStorage.length).toBe(0);
+    expect(Object.keys({ ...localStorage }).filter((k) => k !== PRIVE_SESSION_KEY)).toEqual([]);
   });
 
   it("si el servidor dice que ya la vio, no se reproduce; se puede repetir desde la membresía", async () => {
@@ -358,6 +358,6 @@ describe("membresía", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cerrar todas mis sesiones Privé" }));
     await waitFor(() => expect(api.access).toHaveBeenCalledWith("revoke_sessions", { prive_session: SESSION_TOKEN }));
     expect(await screen.findByText(/Cerramos todas tus sesiones Privé/)).toBeInTheDocument();
-    expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
   });
 });

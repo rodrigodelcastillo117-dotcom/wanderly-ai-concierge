@@ -4,6 +4,7 @@ import { checkPrivePassword, PRIVE_PW_MAX } from "@/lib/privePassword";
 import { messageFor } from "@/lib/priveCopy";
 import type { PriveResult } from "@/lib/priveApi";
 import { pickPassphrase } from "@/lib/privePassword";
+import { PriveUsernameField } from "@/components/prive/PriveUsernameField";
 
 type GenResult = PriveResult<{ generated_password?: string; passphrase?: string }>;
 
@@ -121,6 +122,7 @@ export function PasswordCreator({ onChosen, onGenerate, onComplete, submitLabel 
 
       {mode === "choose" ? (
         <form onSubmit={submitChosen} className="space-y-4" noValidate>
+          <PriveUsernameField />
           <div>
             <label htmlFor={ids.pw} className="block text-sm prive-champagne mb-2">Contraseña Privé</label>
             <div className="relative">

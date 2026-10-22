@@ -58,22 +58,39 @@ async function timed(name: string, fn: () => Promise<Omit<CheckResult, "name" | 
   }
 }
 
-/** Primeras líneas del error del proveedor, para saber qué pasó sin entrar a los logs. */
-const errText = async (r: Response) => (await r.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 200);
+/**
+ * Falla de un proveedor de IA en palabras: nunca el JSON crudo en el correo. 429/503/529 son
+ * saturación pasajera del proveedor (se reintenta solo), no una caída nuestra.
+ */
+export function aiStatusText(status: number): { transient: boolean; text: string } {
+  if (status === 429 || status === 503 || status === 529) return { transient: true, text: `saturado en este momento (HTTP ${status}); suele pasar solo` };
+  if (status === 401 || status === 403) return { transient: false, text: `la llave fue rechazada (HTTP ${status}); hay que revisarla` };
+  if (status === 402) return { transient: false, text: "sin saldo (HTTP 402)" };
+  if (status === 404) return { transient: false, text: "el modelo configurado ya no existe (HTTP 404)" };
+  return { transient: status === 502 || status === 504, text: `respondió con error (HTTP ${status})` };
+}
+
 
 const withTimeout = (f: Fetch, url: string, init: RequestInit = {}) =>
   f(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
 
 export function runChecks(k: Keys, f: Fetch = fetch): Promise<CheckResult[]> {
   return Promise.all([
-    timed("IA (Gemini)", async () => {
+    // Iato y el análisis usan Claude; Gemini directo es solo respaldo. Si Gemini está saturado y
+    // Claude responde, a los usuarios no les pasa nada: es AVISO, no FALLA.
+    timed("IA de respaldo (Gemini)", async () => {
       if (!k.geminiKey) return { ok: false, detail: "Falta GEMINI_API_KEY" };
       const r = await withTimeout(f, "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${k.geminiKey}` },
         body: JSON.stringify({ model: "gemini-flash-latest", messages: [{ role: "user", content: "Responde solo: OK" }] }),
       });
-      return r.ok ? { ok: true } : { ok: false, detail: `HTTP ${r.status}: ${await errText(r)}` };
+      if (r.ok) return { ok: true };
+      await r.body?.cancel().catch(() => {});
+      const s = aiStatusText(r.status);
+      return s.transient
+        ? { ok: true, warn: `Gemini (respaldo) ${s.text}. Iato sigue funcionando con Claude.` }
+        : { ok: false, detail: `Gemini (respaldo): ${s.text}` };
     }),
     timed("IA de respaldo (Lovable)", async () => {
       if (!k.lovableKey) return { ok: false, detail: "Falta LOVABLE_API_KEY" };
@@ -82,10 +99,12 @@ export function runChecks(k: Keys, f: Fetch = fetch): Promise<CheckResult[]> {
         headers: { "Content-Type": "application/json", "Lovable-API-Key": k.lovableKey },
         body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "user", content: "OK" }] }),
       });
-      if (r.status === 402) return { ok: true, warn: "Sin saldo de IA en Lovable: el respaldo no funcionaría si Gemini falla" };
-      return r.ok ? { ok: true } : { ok: false, detail: `HTTP ${r.status}` };
+      if (r.status === 402) return { ok: true, warn: "Sin saldo de IA en Lovable: este respaldo no funcionaría si Claude y Gemini fallan" };
+      if (r.ok) return { ok: true };
+      const s = aiStatusText(r.status);
+      return s.transient ? { ok: true, warn: `Respaldo de Lovable ${s.text}` } : { ok: false, detail: `Respaldo de Lovable: ${s.text}` };
     }),
-    timed("Análisis de viaje (Claude)", async () => {
+    timed("IA principal (Claude: Iato y análisis)", async () => {
       if (!k.anthropicKey) return { ok: false, detail: "Falta ANTHROPIC_API_KEY" };
       const model = k.anthropicModel || "claude-sonnet-5-5";
       const r = await withTimeout(f, "https://api.anthropic.com/v1/messages", {
@@ -95,7 +114,8 @@ export function runChecks(k: Keys, f: Fetch = fetch): Promise<CheckResult[]> {
       });
       if (r.ok) return { ok: true, detail: model };
       if (r.status === 404) return { ok: true, warn: `El modelo ${model} ya no existe: el análisis usa los modelos de respaldo` };
-      return { ok: false, detail: `HTTP ${r.status}` };
+      const s = aiStatusText(r.status);
+      return s.transient ? { ok: true, warn: `Claude ${s.text}; mientras tanto Iato usa el respaldo` } : { ok: false, detail: `Claude: ${s.text}` };
     }),
     timed("Vuelos, hoteles y lugares (SerpApi)", async () => {
       if (!k.serpKey) return { ok: false, detail: "Falta SERPAPI_PRIVATE_KEY" };

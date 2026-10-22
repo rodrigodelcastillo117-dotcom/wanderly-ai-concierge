@@ -1,9 +1,12 @@
 // Sesión de IATOS Privé en el navegador (contrato Privé §4, decisión D7).
 //
 // El token de sesión Privé lo emite el servidor (prive-access → unlock) y el servidor decide en
-// cada llamada si sigue vigente. Aquí solo se guarda en sessionStorage como comodidad: se borra al
-// cerrar la pestaña, al cerrar sesión, al cambiar de usuario y ante cualquier error PRIVE_*. Nunca
-// en localStorage y nunca se usa como autoridad (no hay "unlocked = true" sin servidor).
+// cada llamada si sigue vigente (12 h máximo, cierre por inactividad, revocación al perder PRO).
+// Aquí se guarda en localStorage para que una pestaña nueva (abrir un destino aparte, volver desde
+// el correo) no pida la contraseña otra vez: antes vivía en sessionStorage y cada pestaña nueva la
+// pedía, y ahí el navegador solía autollenar la contraseña de la CUENTA en vez de la Privé
+// ("contraseña incorrecta"). Se borra al cerrar sesión, al cambiar de usuario, al bloquear Privé y
+// ante cualquier error PRIVE_*. Nunca se usa como autoridad (no hay "unlocked = true" sin servidor).
 //
 // Este módulo va en el paquete inicial (lo importa AuthContext para limpiar al cerrar sesión), por
 // eso es diminuto y no importa nada.
@@ -28,11 +31,20 @@ const ss = (): Storage | null => {
   }
 };
 
+/** Almacén de la sesión Privé: compartido entre pestañas del mismo navegador. */
+const ls = (): Storage | null => {
+  try {
+    return typeof window !== "undefined" ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+};
+
 export function savePriveSession(s: StoredPriveSession) {
   try {
-    ss()?.setItem(PRIVE_SESSION_KEY, JSON.stringify(s));
+    ls()?.setItem(PRIVE_SESSION_KEY, JSON.stringify(s));
   } catch {
-    /* sessionStorage lleno o bloqueado: la sesión dura solo en memoria */
+    /* almacenamiento lleno o bloqueado: la sesión dura solo en memoria */
   }
 }
 
@@ -40,8 +52,14 @@ export function savePriveSession(s: StoredPriveSession) {
 export function readPriveSession(userId: string | null | undefined, now = Date.now()): StoredPriveSession | null {
   if (!userId) return null;
   try {
-    const raw = ss()?.getItem(PRIVE_SESSION_KEY);
-    if (!raw) return null;
+    let raw = ls()?.getItem(PRIVE_SESSION_KEY) ?? null;
+    if (!raw) {
+      // Sesiones abiertas antes del cambio (vivían solo en esta pestaña): se pasan al almacén compartido.
+      raw = ss()?.getItem(PRIVE_SESSION_KEY) ?? null;
+      if (!raw) return null;
+      ss()?.removeItem(PRIVE_SESSION_KEY);
+      ls()?.setItem(PRIVE_SESSION_KEY, raw);
+    }
     const s = JSON.parse(raw) as Partial<StoredPriveSession>;
     const exp = typeof s.expiresAt === "string" ? Date.parse(s.expiresAt) : NaN;
     if (typeof s.token !== "string" || !s.token || s.userId !== userId || !Number.isFinite(exp) || exp <= now) {
@@ -57,6 +75,7 @@ export function readPriveSession(userId: string | null | undefined, now = Date.n
 
 export function clearPriveSession() {
   try {
+    ls()?.removeItem(PRIVE_SESSION_KEY);
     ss()?.removeItem(PRIVE_SESSION_KEY);
   } catch {
     /* noop */

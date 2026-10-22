@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   capturePriveTokenFromUrl,
   clearAllPriveState,
+  clearPriveSession,
   readPendingToken,
   readPriveSession,
   savePriveSession,
@@ -55,14 +56,26 @@ describe("priveSession: sesión Privé", () => {
     expect(readPriveSession("u1")?.token).toBe("tok_1234567890");
     expect(readPriveSession("u2")).toBeNull();
     // Leerla con otra cuenta la borra.
-    expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
   });
 
-  it("vencida no sirve y se borra; nunca va a localStorage", () => {
+  it("vencida no sirve y se borra", () => {
     savePriveSession({ token: "tok_1234567890", expiresAt: new Date(Date.now() - 1000).toISOString(), userId: "u1" });
-    expect(localStorage.length).toBe(0);
     expect(readPriveSession("u1")).toBeNull();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+  });
+
+  it("se comparte entre pestañas (localStorage) y una sesión vieja de sessionStorage se migra", () => {
+    savePriveSession({ token: "tok_1234567890", expiresAt: new Date(Date.now() + 3600e3).toISOString(), userId: "u1" });
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).not.toBeNull();
     expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+    localStorage.clear();
+    sessionStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: "tok_old_123456789", expiresAt: new Date(Date.now() + 3600e3).toISOString(), userId: "u1" }));
+    expect(readPriveSession("u1")?.token).toBe("tok_old_123456789");
+    expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).not.toBeNull();
+    clearPriveSession();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
   });
 
   it("clearAllPriveState borra sesión y enlaces pendientes (cierre de sesión)", () => {

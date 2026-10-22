@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { claimPendingReferral } from "@/lib/referral";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
 import { safeRedirectPath } from "@/lib/safeRedirect";
+import { readPendingToken } from "@/lib/priveSession";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -41,7 +42,10 @@ const Auth = () => {
           supabase.from("travel_profiles").select("completado").eq("user_id", user.id).maybeSingle(),
         ]);
         const done = (prefs as any)?.completado || (tp as any)?.completado;
-        navigate(done ? (returnTo ?? "/dashboard") : "/onboarding", { replace: true });
+        // Quien llegó desde el correo de invitación Privé (el token quedó guardado al abrir el
+        // enlace) vuelve a su invitación, no al inicio.
+        const fallback = readPendingToken("invite") ? "/prive/invitacion" : "/dashboard";
+        navigate(done ? (returnTo ?? fallback) : "/onboarding", { replace: true });
       })();
     }
   }, [user, navigate, returnTo]);
