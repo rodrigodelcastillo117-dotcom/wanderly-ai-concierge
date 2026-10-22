@@ -25,6 +25,10 @@ export type ParsedSearch = {
 };
 
 const EXTRA: [RegExp, string[]][] = [
+  // Plurales y variantes que el analizador del planificador no toma ("yates", "cenas"…).
+  [/\b(yates|yachts|barcos|veleros|catamaranes|navegar)\b/, ["yacht_sea"]],
+  [/\b(cenas|restaurantes|restaurant|restaurants|gastronomia|chef)\b/, ["the_table"]],
+  [/\b(museos|galerias|arte)\b/, ["culture_access"]],
   [/\b(hotel|hoteles|villa|villas|estancia|estancias|suite|resort|hospedaje|stay|stays)\b/, ["private_stays"]],
   [/\b(romantic[ao]?s?|romance|pareja|aniversario|luna de miel|honeymoon|romantic)\b/, ["celebrations", "the_table"]],
   [/\b(aventura|helicoptero|helicopter|buceo|diving|safari|globo)\b/, ["adventure_elite"]],
@@ -81,7 +85,7 @@ export function parseSearch(query: string): ParsedSearch {
   for (const k of f.keywords ?? []) normalizeQuery(k).split(" ").forEach((w) => intentWords.add(w));
   const destWords = new Set(dest.matched.flatMap((m) => m.split(" ")));
   const extra = t.split(" ").filter((w) => w.length >= 4 && !STOP.has(w) && !destWords.has(w) && !intentWords.has(w)
-    && !EXTRA.some(([re]) => re.test(w)) && !/^(cena|cenar|dinner|comida|restaurante|yate|yates|barco|spa|museo|arte|golf|casino|rooftop|playa|beach)$/.test(w));
+    && !EXTRA.some(([re]) => re.test(w)) && !/^(cena|cenas|cenar|dinner|comida|restaurante|restaurantes|yate|yates|barco|barcos|spa|museo|museos|arte|golf|casino|rooftop|playa|beach)$/.test(w));
   const universes = [...uni].filter((u) => (PRIVE_UNIVERSES as readonly string[]).includes(u));
   const keywords = [...new Set([...(f.keywords ?? []), ...extra])].slice(0, 12);
   return {

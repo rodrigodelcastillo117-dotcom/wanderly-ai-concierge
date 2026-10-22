@@ -57,7 +57,8 @@ export function PriveCatalogSlot({ sections = PRIVE_HUB_SECTIONS, onContent }: {
   useEffect(() => { if (loaded !== null) onContent?.(has); }, [loaded, has, onContent]);
 
   if (loaded === null) {
-    return <p role="status" className="text-sm prive-muted">{t.hub.loadingSelection}</p>;
+    // Reserva el alto de la búsqueda que llega después (sin saltos de diseño).
+    return <p role="status" className="min-h-[60px] flex items-center text-sm prive-muted">{t.hub.loadingSelection}</p>;
   }
   if (visible.length === 0) {
     return (

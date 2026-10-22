@@ -121,18 +121,21 @@ export function YourNextJourney() {
   if (trip.fecha_regreso) q.set("hasta", trip.fecha_regreso);
   return (
     <section aria-labelledby="prive-next" className="prive-journey" data-testid="prive-next-journey">
-      {dest && <PrivePhoto queries={destinationPhotoQueries(dest.slug, dest.name)} alt={t.common.photoAlt(city)} label={city} className="prive-journey-photo" creditClassName="is-hero" />}
+      {/* Otra foto de la ciudad (la segunda consulta) para no repetir la de la portada. */}
+      {dest && <PrivePhoto queries={[...destinationPhotoQueries(dest.slug, dest.name).slice(1), ...destinationPhotoQueries(dest.slug, dest.name).slice(0, 1)]} alt={t.common.photoAlt(city)} label={city} className="prive-journey-photo" creditClassName="is-hero" />}
       <div className="prive-journey-veil" aria-hidden="true" />
       <div className="relative z-[2] p-6 sm:p-10 flex flex-col justify-end h-full">
         <p className="prive-eyebrow">{t.home.nextBrand}{t.home.nextSub ? <span className="prive-muted normal-case tracking-normal"> · {t.home.nextSub}</span> : null}</p>
         <h2 id="prive-next" className="prive-display text-4xl sm:text-5xl mt-3">{t.home.nextTitle(city)}</h2>
         {dates && <p className="text-sm prive-champagne mt-2 inline-flex items-center gap-2"><CalendarDays className="w-4 h-4" aria-hidden="true" />{dates}{dest ? ` · ${placeLine(dest.slug, lang)}` : ""}</p>}
         {dest && inCatalog && inCatalog.count > 0 ? (
-          <div className="flex flex-wrap gap-2 mt-6">
+          <div className="mt-6 space-y-3">
             <Link to={`/prive/destino/${dest.slug}`} className="prive-btn prive-btn-gold">{t.home.nextExplore(city)}</Link>
-            <Link to={`/prive/destino/${dest.slug}?${q.toString()}#para-tus-fechas`} className="prive-btn prive-btn-ghost prive-btn-glass">{t.home.nextForDates}</Link>
-            <Link to={`/prive/key?destino=${dest.slug}`} className="prive-btn prive-btn-ghost prive-btn-glass">{t.home.nextNight}</Link>
-            <Link to={`/dashboard/viajes/${trip.id}`} className="prive-btn prive-btn-ghost prive-btn-glass">{t.home.nextAdd}</Link>
+            <div className="flex flex-wrap gap-2">
+              <Link to={`/prive/destino/${dest.slug}?${q.toString()}#para-tus-fechas`} className="prive-chip-btn prive-btn-glass">{t.home.nextForDates}</Link>
+              <Link to={`/prive/key?destino=${dest.slug}`} className="prive-chip-btn prive-btn-glass">{t.home.nextNight}</Link>
+              <Link to={`/dashboard/viajes/${trip.id}`} className="prive-chip-btn prive-btn-glass">{t.home.nextAdd}</Link>
+            </div>
           </div>
         ) : (
           <div className="mt-5 space-y-4 max-w-xl">

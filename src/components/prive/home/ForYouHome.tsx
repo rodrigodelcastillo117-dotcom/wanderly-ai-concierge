@@ -45,7 +45,9 @@ export function ForYouHome() {
 
   const blocks: Record<HomeVariant, JSX.Element[]> = {
     c: [
-      <div key="s" className="relative z-20 -mt-8">{search}</div>,
+      // Sube sobre la portada con desplazamiento (no margen negativo): el margen colapsaba hacia el contenedor
+      // y movía la página al terminar de cargar (CLS medido 0.157).
+      <div key="s" className="relative z-20 -top-8 -mb-8">{search}</div>,
       <YourWorldIsReady key="w" />,
       <CuratedForYou key="cf" />,
       <YourNextJourney key="nj" />,

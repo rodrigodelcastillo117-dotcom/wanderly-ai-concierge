@@ -34,21 +34,23 @@ export function nextHeroIndex(n = PRIVE_HERO_DESTINATIONS.length, now = Date.now
   return Math.floor(now / 60_000) % n;
 }
 
-type HeroData = { slug: string; place: string; queries: string[]; video: string | null; fromTrip: boolean };
+type HeroData = { slug: string; place: string; queries: string[]; video: string | null; fromTrip: boolean; ready: boolean };
 
 /** Destino de portada: el del próximo viaje si está en Privé; si no, uno emblemático distinto por visita. */
 function useHeroData(): HeroData {
   const lang = usePriveLang();
-  const { dest } = usePriveTrip();
+  const { dest, loading } = usePriveTrip();
   const [idx] = useState(() => nextHeroIndex());
+  // Hasta saber si hay viaje no se elige portada: así no cambia la foto ni el texto a medio cargar
+  // (eso movía la portada: CLS 0.28 medido en 390 px).
   return useMemo(() => {
     if (dest && PRIVE_DESTINATION_INDEX[dest.slug]) {
       const m = PRIVE_DESTINATION_INDEX[dest.slug];
-      return { slug: dest.slug, place: lang === "en" ? m.en : m.es, queries: destinationPhotoQueries(dest.slug, m.es), video: `${m.en} aerial`, fromTrip: true };
+      return { slug: dest.slug, place: lang === "en" ? m.en : m.es, queries: destinationPhotoQueries(dest.slug, m.es), video: `${m.en} aerial`, fromTrip: true, ready: !loading };
     }
     const d = PRIVE_HERO_DESTINATIONS[idx] ?? PRIVE_HERO_DESTINATIONS[0];
-    return { slug: d.slug, place: lang === "en" ? PRIVE_DESTINATION_INDEX[d.slug]?.en ?? d.es : d.es, queries: destinationPhotoQueries(d.slug, d.es), video: d.video, fromTrip: false };
-  }, [dest, idx, lang]);
+    return { slug: d.slug, place: lang === "en" ? PRIVE_DESTINATION_INDEX[d.slug]?.en ?? d.es : d.es, queries: destinationPhotoQueries(d.slug, d.es), video: d.video, fromTrip: false, ready: !loading };
+  }, [dest, idx, lang, loading]);
 }
 
 function HeroCopy({ firstName, h, titleId = "prive-hero-title", align = "left" }: { firstName: string | null; h: HeroData; titleId?: string; align?: "left" | "center" }) {
@@ -64,15 +66,16 @@ function HeroCopy({ firstName, h, titleId = "prive-hero-title", align = "left" }
         <span className="block">{t.home.tagline}</span>
         {t.home.taglineSub && <span className="block prive-hero-sub" lang="es">{t.home.taglineSub}</span>}
       </h1>
-      <p className="prive-champagne mt-5 text-base sm:text-lg max-w-xl" data-testid="prive-hero-personal">
-        {h.fromTrip ? t.home.personalTrip(name, h.place) : t.home.personal(name)}
+      {/* Alto reservado (dos líneas) para que el texto personal no empuje los botones al llegar. */}
+      <p className="prive-champagne mt-5 text-base sm:text-lg max-w-xl min-h-[3.5em]" data-testid="prive-hero-personal">
+        {h.ready ? (h.fromTrip ? t.home.personalTrip(name, h.place) : t.home.personal(name)) : null}
       </p>
       <div className={`flex flex-wrap items-center gap-3 mt-7 ${align === "center" ? "justify-center" : ""}`}>
         <Link to="/prive/explorar" className="prive-btn prive-btn-gold">{t.home.explore}</Link>
         <Link to={askIatoHref("")} className="prive-btn prive-btn-ghost prive-btn-glass">{t.home.askIato}</Link>
       </div>
-      <p className="text-[11px] tracking-[0.2em] uppercase prive-muted mt-6">
-        {h.fromTrip
+      <p className="text-[11px] tracking-[0.2em] uppercase prive-muted mt-6 min-h-[1.5em]">
+        {!h.ready ? null : h.fromTrip
           ? <Link to={`/prive/destino/${h.slug}`} className="hover:text-[color:var(--pv-champagne)] underline-offset-4 hover:underline">{t.home.nextTrip(h.place)} →</Link>
           : <Link to={`/prive/destino/${h.slug}`} className="hover:text-[color:var(--pv-champagne)] underline-offset-4 hover:underline">{t.browse.heroPlace(h.place)} →</Link>}
       </p>
@@ -91,7 +94,7 @@ export function PriveHero({ firstName }: { firstName: string | null }) {
   const { reduce, rise } = usePriveMotion();
   const h = useHeroData();
   const saveData = typeof navigator !== "undefined" && (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true;
-  const wantVideo = !reduce && !saveData && !!h.video;
+  const wantVideo = !reduce && !saveData && !!h.video && h.ready;
   const [video, setVideo] = useState<string | null>(() => (wantVideo && h.video ? cachedVideo(h.video)?.url ?? null : null));
   const [videoOn, setVideoOn] = useState(false);
 
@@ -105,8 +108,8 @@ export function PriveHero({ firstName }: { firstName: string | null }) {
   return (
     <section className="prive-hero" aria-labelledby="prive-hero-title" data-testid="prive-hero" data-variant="c" data-slug={h.slug}>
       <div className="absolute inset-0" aria-hidden={videoOn}>
-        <PrivePhoto queries={h.queries} alt={t.common.photoAlt(h.place)} label={h.place} eager
-          className={`h-full w-full ${reduce ? "" : "prive-kenburns"}`} credit={!videoOn} creditClassName="is-hero" />
+        {h.ready && <PrivePhoto queries={h.queries} alt={t.common.photoAlt(h.place)} label={h.place} eager
+          className={`h-full w-full ${reduce ? "" : "prive-kenburns"}`} credit={!videoOn} creditClassName="is-hero" />}
       </div>
       {video && wantVideo && (
         <video key={video} src={video} className={`prive-hero-video ${videoOn ? "is-on" : ""}`}
@@ -140,8 +143,9 @@ export function PriveHeroEditorial({ firstName }: { firstName: string | null }) 
           <HeroCopy firstName={firstName} h={h} />
         </div>
         <figure className="order-1 lg:order-2 relative">
-          <PrivePhoto queries={h.queries} alt={t.common.photoAlt(h.place)} label={h.place} eager className="prive-editorial-photo" creditClassName="is-hero" />
-          <figcaption className="mt-3 text-[11px] tracking-[0.2em] uppercase prive-muted">{t.browse.heroPlace(h.place)}</figcaption>
+          {h.ready ? <PrivePhoto queries={h.queries} alt={t.common.photoAlt(h.place)} label={h.place} eager className="prive-editorial-photo" creditClassName="is-hero" />
+            : <div className="prive-editorial-photo prive-photo-box" aria-hidden="true" />}
+          <figcaption className="mt-3 text-[11px] tracking-[0.2em] uppercase prive-muted min-h-[1.5em]">{h.ready ? t.browse.heroPlace(h.place) : null}</figcaption>
         </figure>
       </div>
     </section>
@@ -161,7 +165,7 @@ export function PriveHeroClub({ firstName, memberSince }: { firstName: string | 
   return (
     <section className="prive-hero-club" aria-labelledby="prive-hero-title" data-testid="prive-hero" data-variant="b" data-slug={h.slug}>
       <div className="absolute inset-0 opacity-45" aria-hidden="true">
-        <PrivePhoto queries={h.queries} alt="" label={h.place} eager className="h-full w-full" credit={false} />
+        {h.ready && <PrivePhoto queries={h.queries} alt="" label={h.place} eager className="h-full w-full" creditClassName="is-hero" />}
       </div>
       <div className="prive-hero-veil" aria-hidden="true" />
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-8 pt-28 pb-12 grid lg:grid-cols-[1.2fr_1fr] gap-10 items-end">

@@ -66,10 +66,11 @@ function FrameInner({ immersive, pathname, lang, t }: { immersive: boolean; path
   const { view } = usePriveAccess();
   // Las seis áreas solo para quien ya está dentro (con candado o sin membresía no hay a dónde ir).
   const nav = !immersive && view === "unlocked";
+  const hubPath = pathname === "/prive" || pathname === "/prive/";
   return (
       <div className={`prive-root ${nav ? "has-bottom-nav" : ""}`} lang={lang === "en" ? "en" : "es-MX"}>
         {!immersive && (
-          <header className="relative z-30 flex items-center justify-between gap-4 px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-3">
+          <header className={`${hubPath ? "absolute inset-x-0 top-0" : "relative"} z-30 flex items-center justify-between gap-4 px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-3`}>
             <Link to="/dashboard" className="inline-flex items-center gap-2 min-h-[44px] text-xs tracking-[0.2em] uppercase prive-muted hover:text-[color:var(--pv-champagne)]">
               <ArrowLeft className="w-4 h-4" aria-hidden="true" /> {t.common.back}
             </Link>
@@ -89,7 +90,9 @@ function FrameInner({ immersive, pathname, lang, t }: { immersive: boolean; path
             )}
           </header>
         )}
-        <main id="prive-main">
+        {/* En /prive la barra flota sobre la portada; el relleno reserva su alto desde el primer render
+            (sin él, la portada subía al cargar: CLS 0.12 medido). */}
+        <main id="prive-main" className={hubPath && !immersive ? "pt-[calc(max(env(safe-area-inset-top),1rem)+44px+0.75rem)]" : undefined}>
           <Suspense fallback={<Spinner />}>
             <Outlet />
           </Suspense>

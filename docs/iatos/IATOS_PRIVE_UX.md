@@ -215,7 +215,7 @@ El dueño probó Privé en vivo: le encantaron la invitación y la tarjeta, y re
 - Cómo se decide (`resolvePriveLang` en `src/lib/priveI18n.ts`): 1) un campo de idioma del perfil, cuando exista (hoy `profiles` no tiene uno; el parámetro ya está listo), 2) `navigator.languages`, el primero que sea es o en, 3) español.
 - `PriveLangProvider` (en `PriveRoot`) fija el idioma y pone `lang="es-MX"` o `lang="en"` en el contenedor, para lectores de pantalla.
 - Líneas ceremoniales en español: "TE DAMOS LA BIENVENIDA A PRIVÉ", "TU MUNDO ACABA DE CRECER.", "TE DAMOS LA BIENVENIDA A TU MUNDO.", "EXPLORAR PRIVÉ", "ABRIR INVITACIÓN", "TE DAMOS LA BIENVENIDA, <NOMBRE>.", "TU MEMBRESÍA PRIVÉ ESTÁ ACTIVA.", "ENTRAR A IATOS PRIVÉ", "El mundo, más allá de lo ordinario." Todas son neutras en género. "Privé" no se traduce.
-- Las colecciones también tienen nombre en español: La Mesa, Al Caer la Noche, Casino y Grandes Noches, Yate y Mar, Estancias Privadas, Eventos Icónicos, Cultura y Acceso, Bienestar y Retiro, Gran Aventura, Deporte y Ocio, Celebraciones y México de Autor.
+- Actualización (especificación "The World Reimagined", 2026-10-22): los nombres de marca se quedan en inglés con subtítulo en el idioma de la persona. Esto aplica a IATOS PRIVÉ, "The World, Beyond Ordinary." ("El mundo, más allá de lo ordinario."), Curated for You, The Extraordinary Edit, The Privé Key y los doce universos (The Table · La mesa, After Dark · Después del anochecer…). Todo lo demás va en el idioma de la persona: botones, ayudas y descripciones ("Explora tu mundo", "Pregúntale a Iato").
 - Pendiente fuera de esta rama: el correo de invitación (`_shared/priveEmail`) sigue con las líneas en inglés. Además, `LockScreen.tsx` y `PasswordCreator.tsx` (grupo del líder) siguen solo en español; sus mensajes de error sí cambian de idioma a través de `messageFor`.
 
 ### 11.2 "No salieron fotos en algunos"
@@ -231,6 +231,8 @@ El dueño probó Privé en vivo: le encantaron la invitación y la tarjeta, y re
 - Crédito: "Foto ilustrativa · Pexels · <fotógrafo>" en cada foto. En las tarjetas va como texto, porque ya son enlaces y un enlace dentro de otro abría Pexels en otra pestaña. En portadas y fichas va con enlaces.
 
 ### 11.3 "La lista no debería ser infinita"
+
+Ver también `docs/iatos/prive_reimagined/prive-ux.md`: allí están el rediseño completo, las seis áreas y las tres propuestas de portada. Este apartado describe el primer pase.
 
 `DestinationBrowser` (`src/components/prive/catalog/DestinationBrowser.tsx`):
 
