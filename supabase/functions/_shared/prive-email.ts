@@ -141,7 +141,7 @@ function shell(o: ShellOpts): string {
   @media screen and (max-width: 620px) {
     .pv-container { width:100% !important; }
     .pv-pad { padding-left:28px !important; padding-right:28px !important; }
-    .pv-hero { font-size:28px !important; line-height:36px !important; }
+    .pv-hero { font-size:25px !important; line-height:34px !important; }
     .pv-body { font-size:16px !important; line-height:27px !important; }
     .pv-btn { padding:17px 22px !important; letter-spacing:0.16em !important; }
     .pv-space-xl { height:56px !important; }
