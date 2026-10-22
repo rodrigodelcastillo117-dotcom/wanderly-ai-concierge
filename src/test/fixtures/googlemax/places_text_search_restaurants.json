@@ -1,0 +1,85 @@
+{
+  "_nota": "Respuesta de Places API (New) places:searchText construida con el formato documentado (https://developers.google.com/maps/documentation/places/web-service/text-search). No es una grabación en vivo: no hay llave en el entorno de pruebas.",
+  "places": [
+    {
+      "id": "ChIJpujol0000000000000001",
+      "displayName": { "text": "Pujol", "languageCode": "es" },
+      "formattedAddress": "Tennyson 133, Polanco, 11550 Ciudad de México, CDMX, México",
+      "location": { "latitude": 19.4326, "longitude": -99.1955 },
+      "googleMapsUri": "https://maps.google.com/?cid=111",
+      "primaryType": "mexican_restaurant",
+      "primaryTypeDisplayName": { "text": "Restaurante mexicano", "languageCode": "es" },
+      "types": ["mexican_restaurant", "restaurant", "food", "point_of_interest", "establishment"],
+      "businessStatus": "OPERATIONAL",
+      "utcOffsetMinutes": -360,
+      "timeZone": { "id": "America/Mexico_City" },
+      "rating": 4.6,
+      "userRatingCount": 5321,
+      "priceLevel": "PRICE_LEVEL_VERY_EXPENSIVE",
+      "priceRange": { "startPrice": { "currencyCode": "MXN", "units": "2000" }, "endPrice": { "currencyCode": "MXN", "units": "4000" } },
+      "websiteUri": "https://pujol.com.mx/",
+      "internationalPhoneNumber": "+52 55 5545 4111",
+      "regularOpeningHours": {
+        "periods": [
+          { "open": { "day": 1, "hour": 13, "minute": 0 }, "close": { "day": 1, "hour": 22, "minute": 30 } },
+          { "open": { "day": 2, "hour": 13, "minute": 0 }, "close": { "day": 2, "hour": 22, "minute": 30 } },
+          { "open": { "day": 3, "hour": 13, "minute": 0 }, "close": { "day": 3, "hour": 22, "minute": 30 } },
+          { "open": { "day": 4, "hour": 13, "minute": 0 }, "close": { "day": 4, "hour": 22, "minute": 30 } },
+          { "open": { "day": 5, "hour": 13, "minute": 0 }, "close": { "day": 6, "hour": 0, "minute": 30 } },
+          { "open": { "day": 6, "hour": 13, "minute": 0 }, "close": { "day": 0, "hour": 0, "minute": 30 } }
+        ],
+        "weekdayDescriptions": [
+          "lunes: 13:00–22:30", "martes: 13:00–22:30", "miércoles: 13:00–22:30", "jueves: 13:00–22:30",
+          "viernes: 13:00–0:30", "sábado: 13:00–0:30", "domingo: Cerrado"
+        ]
+      },
+      "editorialSummary": { "text": "Menú de degustación de cocina mexicana contemporánea.", "languageCode": "es" },
+      "reservable": true,
+      "servesDinner": true,
+      "servesLunch": true,
+      "servesVegetarianFood": true,
+      "outdoorSeating": true,
+      "photos": [
+        { "name": "places/ChIJpujol0000000000000001/photos/AUc7tXfoto1", "widthPx": 4032, "heightPx": 3024,
+          "authorAttributions": [{ "displayName": "Ana López", "uri": "https://maps.google.com/maps/contrib/123", "photoUri": "https://lh3.googleusercontent.com/a/x" }] }
+      ]
+    },
+    {
+      "id": "ChIJcontramar00000000000002",
+      "displayName": { "text": "Contramar", "languageCode": "es" },
+      "formattedAddress": "Durango 200, Roma Nte., 06700 Ciudad de México, CDMX, México",
+      "location": { "latitude": 19.4194, "longitude": -99.1655 },
+      "googleMapsUri": "https://maps.google.com/?cid=222",
+      "primaryType": "seafood_restaurant",
+      "primaryTypeDisplayName": { "text": "Marisquería", "languageCode": "es" },
+      "types": ["seafood_restaurant", "restaurant"],
+      "businessStatus": "OPERATIONAL",
+      "utcOffsetMinutes": -360,
+      "timeZone": { "id": "America/Mexico_City" },
+      "rating": 4.5,
+      "userRatingCount": 12044,
+      "priceLevel": "PRICE_LEVEL_EXPENSIVE",
+      "currentOpeningHours": { "openNow": false },
+      "regularOpeningHours": {
+        "periods": [{ "open": { "day": 0, "hour": 12, "minute": 30 }, "close": { "day": 0, "hour": 18, "minute": 30 } }]
+      },
+      "reservable": true
+    },
+    {
+      "id": "ChIJcerrado0000000000000003",
+      "displayName": { "text": "Restaurante Que Cerró", "languageCode": "es" },
+      "businessStatus": "CLOSED_PERMANENTLY",
+      "rating": 4.9,
+      "userRatingCount": 3
+    },
+    {
+      "id": "ChIJoxxo00000000000000004",
+      "displayName": { "text": "Taquería 24 horas", "languageCode": "es" },
+      "utcOffsetMinutes": -360,
+      "rating": 4.2,
+      "userRatingCount": 80,
+      "priceLevel": "PRICE_LEVEL_INEXPENSIVE",
+      "regularOpeningHours": { "periods": [{ "open": { "day": 0, "hour": 0, "minute": 0 } }] }
+    }
+  ]
+}

@@ -7,6 +7,8 @@ import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 import { layout, sendEmail } from "../_shared/email.ts";
 import { redactSecrets } from "../_shared/redact.ts";
 import { allOk, runChecks } from "./checks.ts";
+import { probeGoogleApis } from "./googleProbe.ts";
+import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { alertEmail, alertRecipients, emailOutcome, jobHealth, shouldEmail, type CronHealth, type PreviousRun } from "./alerts.ts";
 
 const json = (body: unknown, status = 200) =>
@@ -14,6 +16,13 @@ const json = (body: unknown, status = 200) =>
 
 Deno.serve(async (req) => {
   if (!(await isAuthorizedCron(req))) return json({ error: "unauthorized" }, 401);
+
+  // Diagnóstico bajo demanda: ¿qué APIs de Google Maps Platform responden con la llave del
+  // servidor? (habilitada / deshabilitada / cuota / llave rechazada). No guarda nada ni manda correo.
+  //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=google_apis" -H "x-cron-secret: $CRON_SECRET"
+  if (new URL(req.url).searchParams.get("action") === "google_apis") {
+    return json(await probeGoogleApis(googleTransportFor("health-check", null)));
+  }
 
   const env = (k: string) => Deno.env.get(k) ?? undefined;
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
