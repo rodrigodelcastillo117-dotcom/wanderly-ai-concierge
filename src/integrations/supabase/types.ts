@@ -103,6 +103,57 @@ export type Database = {
           },
         ]
       }
+      ai_reservation_decisions: {
+        Row: {
+          created_at: string
+          decision: string
+          id: number
+          inbound_id: string
+          log: Json | null
+          model: string | null
+          reservation_id: string
+          rules_version: string | null
+          why: string | null
+        }
+        Insert: {
+          created_at?: string
+          decision: string
+          id?: never
+          inbound_id: string
+          log?: Json | null
+          model?: string | null
+          reservation_id: string
+          rules_version?: string | null
+          why?: string | null
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          id?: never
+          inbound_id?: string
+          log?: Json | null
+          model?: string | null
+          reservation_id?: string
+          rules_version?: string | null
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_reservation_decisions_inbound_id_fkey"
+            columns: ["inbound_id"]
+            isOneToOne: false
+            referencedRelation: "ai_reservation_inbound"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_reservation_decisions_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_reservation_events: {
         Row: {
           actor: string
@@ -149,42 +200,91 @@ export type Database = {
       }
       ai_reservation_inbound: {
         Row: {
+          attached_at: string | null
           attempts: number
+          auth: Json | null
+          body_sha256: string | null
+          duplicate_of: string | null
           email_id: string
+          from_address: string | null
           from_domain: string | null
           id: string
+          linkage: Json | null
+          message_id_hash: string | null
           outcome: string | null
           processed_at: string | null
+          provider: string
           provider_event_id: string
+          provider_received_at: string | null
+          raw_pointer: string | null
+          raw_sha256: string | null
           received_at: string
+          reply_text: string | null
+          reply_to: string | null
           reservation_id: string | null
+          sender: Json | null
           status: string
         }
         Insert: {
+          attached_at?: string | null
           attempts?: number
+          auth?: Json | null
+          body_sha256?: string | null
+          duplicate_of?: string | null
           email_id: string
+          from_address?: string | null
           from_domain?: string | null
           id?: string
+          linkage?: Json | null
+          message_id_hash?: string | null
           outcome?: string | null
           processed_at?: string | null
+          provider?: string
           provider_event_id: string
+          provider_received_at?: string | null
+          raw_pointer?: string | null
+          raw_sha256?: string | null
           received_at?: string
+          reply_text?: string | null
+          reply_to?: string | null
           reservation_id?: string | null
+          sender?: Json | null
           status: string
         }
         Update: {
+          attached_at?: string | null
           attempts?: number
+          auth?: Json | null
+          body_sha256?: string | null
+          duplicate_of?: string | null
           email_id?: string
+          from_address?: string | null
           from_domain?: string | null
           id?: string
+          linkage?: Json | null
+          message_id_hash?: string | null
           outcome?: string | null
           processed_at?: string | null
+          provider?: string
           provider_event_id?: string
+          provider_received_at?: string | null
+          raw_pointer?: string | null
+          raw_sha256?: string | null
           received_at?: string
+          reply_text?: string | null
+          reply_to?: string | null
           reservation_id?: string | null
+          sender?: Json | null
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_reservation_inbound_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "ai_reservation_inbound"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_reservation_inbound_reservation_id_fkey"
             columns: ["reservation_id"]
@@ -3303,6 +3403,30 @@ export type Database = {
         }
         Relationships: []
       }
+      social_pokes: {
+        Row: {
+          created_at: string
+          friend_id: string
+          gesto: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          gesto?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          gesto?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       stripe_payment_events: {
         Row: {
           account_id: string | null
@@ -4213,6 +4337,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_taste_profiles: {
+        Row: {
+          computed_at: string | null
+          computed_for: string | null
+          computed_rev: number | null
+          hash: string | null
+          profile: Json | null
+          rev: number
+          updated_at: string
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          computed_at?: string | null
+          computed_for?: string | null
+          computed_rev?: number | null
+          hash?: string | null
+          profile?: Json | null
+          rev?: number
+          updated_at?: string
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          computed_at?: string | null
+          computed_for?: string | null
+          computed_rev?: number | null
+          hash?: string | null
+          profile?: Json | null
+          rev?: number
+          updated_at?: string
+          user_id?: string
+          version?: number | null
+        }
+        Relationships: []
+      }
       user_vault_benefits: {
         Row: {
           airline_alliances: Json
@@ -4814,12 +4974,48 @@ export type Database = {
         Args: { _actor: string; _note: string }
         Returns: undefined
       }
+      _ai_res_alt_confirmation: {
+        Args: {
+          _alt: Json
+          r: Database["public"]["Tables"]["ai_reservations"]["Row"]
+        }
+        Returns: Json
+      }
       _ai_res_booking: {
         Args: { r: Database["public"]["Tables"]["ai_reservations"]["Row"] }
         Returns: undefined
       }
       _ai_res_enabled: { Args: never; Returns: boolean }
       _deploy_apply: { Args: { p_from: string; p_to: string }; Returns: string }
+      _social_clean: { Args: { p: string[] }; Returns: string[] }
+      _social_en_comun: { Args: { a: string; b: string }; Returns: Json }
+      _social_inter: { Args: { a: string[]; b: string[] }; Returns: string[] }
+      _social_is_prive: { Args: { p_user: string }; Returns: boolean }
+      _social_jaccard: { Args: { a: string[]; b: string[] }; Returns: number }
+      _social_lugares: {
+        Args: { p_user: string }
+        Returns: {
+          ciudad: string
+          pais: string
+        }[]
+      }
+      _social_saludos: {
+        Args: { p_amigo: string; p_me: string }
+        Returns: Json
+      }
+      _social_shared_trip_ids: {
+        Args: { a: string; b: string }
+        Returns: {
+          trip_id: string
+        }[]
+      }
+      _social_son_amigos: { Args: { a: string; b: string }; Returns: boolean }
+      _social_trip_ids: {
+        Args: { p_user: string }
+        Returns: {
+          trip_id: string
+        }[]
+      }
       _trip_check_is_foreign: { Args: { p_user: string }; Returns: boolean }
       access_snapshot: { Args: { _user_id: string }; Returns: Json }
       account_deletion_files: {
@@ -4856,6 +5052,23 @@ export type Database = {
         Returns: Json
       }
       agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
+      ai_res_confirmation_failures: {
+        Args: {
+          _c: Json
+          _code: string
+          _local: string
+          _party: number
+          _res_id: string
+          _venue_email: string
+        }
+        Returns: string[]
+      }
+      ai_res_freemail_domains: { Args: never; Returns: string[] }
+      ai_res_norm: { Args: { _t: string }; Returns: string }
+      ai_res_sender_strong: {
+        Args: { _auth: Json; _from: string; _venue: string }
+        Returns: boolean
+      }
       ai_reservation_apply_reply: {
         Args: { _d: Json; _id: string; _inbound_id: string }
         Returns: Json
@@ -4874,6 +5087,10 @@ export type Database = {
         Returns: Json
       }
       ai_reservation_due: { Args: { _limit?: number }; Returns: Json }
+      ai_reservation_inbound_attach: {
+        Args: { _e: Json; _inbound_id: string }
+        Returns: Json
+      }
       ai_reservation_inbound_claim: {
         Args: {
           _email_id: string
@@ -4938,6 +5155,8 @@ export type Database = {
         Args: { _from: string; _to: string }
         Returns: boolean
       }
+      amigo_perfil: { Args: { p_amigo: string }; Returns: Json }
+      amigos_resumen: { Args: never; Returns: Json }
       app_flag: { Args: { _key: string }; Returns: boolean }
       apply_comp_grants_now: {
         Args: never
@@ -5095,8 +5314,6 @@ export type Database = {
         Args: { _reservation_id: string; _result?: Json; _trip_id?: string }
         Returns: Json
       }
-      amigo_perfil: { Args: { p_amigo: string }; Returns: Json }
-      amigos_resumen: { Args: never; Returns: Json }
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
       concierge_runtime_config: { Args: { _user_id: string }; Returns: Json }
       consume_free_quota: {
