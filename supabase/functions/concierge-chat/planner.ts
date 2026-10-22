@@ -468,3 +468,54 @@ export function toolOutcome(prepared: Record<string, unknown>): { state: "done" 
   if (estado === "sin_acceso") return { state: "error", suffix: "requiere PRO" };
   return { state: "error", suffix: "no respondió" };
 }
+
+// ═══ Frase de inicio mientras corren las herramientas (Rendimiento, cierre 2026-10) ═══
+//
+// En vivo el primer texto tardaba 5–11 s: las herramientas previstas (vuelos en SerpApi ~5–8 s)
+// van antes del modelo y el modelo no puede decir nada útil sin sus datos. Si siguen corriendo después
+// de un momento, turn.ts muestra UNA frase que solo dice qué está haciendo Iato, armada con lo que el
+// usuario ya dio (su vuelo, su hotel, su pregunta): nunca un resultado, un precio, un estado ni una
+// disponibilidad. Después el modelo continúa en el mismo párrafo sin repetirla.
+
+const LEAD_CLIP = (v: unknown, max = 40) => clip(v, max).replace(/…$/, "");
+
+export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">): string | null {
+  const specs = plan.prefetch;
+  if (!specs.length) return null;
+  const has = (i: Intent) => plan.intents.includes(i);
+  const spec = (n: string) => specs.find((s) => s.name === n);
+  const status = spec("check_flight_status");
+  const flights = spec("search_flights");
+  const nearby = spec("search_nearby");
+  const places = spec("search_places");
+  const code = status ? LEAD_CLIP(status.args.flight, 12) : "";
+  if (has("emergency")) {
+    const base = "Si hay riesgo para tu vida, llama ya al número de emergencias local.";
+    return nearby?.args.kind === "hospital" ? `${base} Mientras tanto busco el hospital más cercano a tu ubicación.` : `${base} Mientras tanto reviso cómo ayudarte.`;
+  }
+  if (has("flight_disruption") || has("missed_connection")) {
+    const what = has("missed_connection") ? "tu conexión" : code ? `tu vuelo ${code}` : "tu vuelo";
+    return `Reviso en tiempo real ${what}${flights ? ", busco alternativas" : ""} y tus derechos como pasajero.`;
+  }
+  if (has("flight_compare") && flights) {
+    return `Comparo los vuelos ${LEAD_CLIP(flights.args.origin, 24)} → ${LEAD_CLIP(flights.args.destination, 24)} para tus fechas.`;
+  }
+  if (has("place_fact")) return "Busco ese dato en Google y en Google Maps para darte la ubicación exacta.";
+  if (places && (has("dining_near_hotel") || has("dining"))) return "Busco restaurantes cerca de tu hotel en Google Maps.";
+  if (nearby) return `Busco ${KIND_LABEL[String(nearby.args.kind)] ?? "lugares"} cerca de ti.`;
+  if (spec("search_prive")) return "Reviso el catálogo Privé verificado.";
+  if (status) return has("flight_status") ? `Reviso en tiempo real tu vuelo ${code}.` : `De paso reviso en tiempo real tu vuelo ${code} de hoy.`;
+  return "Consulto los datos en vivo para responderte.";
+}
+
+/** Une la frase de inicio con la respuesta del modelo: mismo párrafo, o párrafo nuevo si la respuesta
+ *  empieza con una lista, un encabezado o una tabla. */
+export function joinLead(lead: string, text: string): string {
+  const t = String(text ?? "").replace(/^\s+/, "");
+  if (!t) return lead;
+  return `${lead}${leadSeparator(t)}${t}`;
+}
+
+export function leadSeparator(nextText: string): string {
+  return /^([-*•#>|]|\d+[.)]\s)/.test(nextText.replace(/^\s+/, "")) ? "\n\n" : " ";
+}
