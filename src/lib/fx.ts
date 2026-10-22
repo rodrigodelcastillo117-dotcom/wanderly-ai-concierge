@@ -8,6 +8,8 @@
  * 1:1: se reporta "sin convertir".
  */
 
+import { parseLocalDate } from "@/lib/localDate";
+
 export type FxTable = {
   /** Unidades de cada moneda por 1 USD. */
   rates: Record<string, number>;
@@ -106,12 +108,9 @@ export async function fetchFxTable(fetchImpl: typeof fetch = fetch): Promise<FxT
   }
 }
 
-/** Fecha YYYY-MM-DD como fecha LOCAL (new Date("2026-10-01") es UTC y en México cae el 30 sep). */
-export function parseLocalDate(value: string | null | undefined): Date | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value ?? ""));
-  if (!m) return null;
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-}
+// Fecha YYYY-MM-DD como fecha LOCAL (new Date("2026-10-01") es UTC y en México cae el 30 sep).
+// Una sola implementación en lib/localDate; se re-exporta aquí por compatibilidad.
+export { parseLocalDate };
 
 export type Money = { amount: number; currency: string };
 

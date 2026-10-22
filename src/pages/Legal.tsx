@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { openCookieSettings } from "@/lib/consent";
-import iatosLogo from "@/assets/iatos-logo.png";
+// Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
+import iatosLogo from "@/assets/iatos-logo-320.png";
 import { FREE_FEATURES, PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
 

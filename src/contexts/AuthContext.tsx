@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { setSentryUser } from "@/lib/sentry";
 import { identifyUser, resetAnalytics, track } from "@/lib/analytics";
 import { captureRecoveryFromUrl, clearRecoveryFlag, hasRecoveryFlag, markRecovery } from "@/lib/passwordRecovery";
+import { hasStoredSession, restoreOutcome, restoreRetryDelay, RESTORE_SLOW_MS } from "@/lib/authRestore";
 
 // Borra los viajes guardados para lectura offline (public/sw.js) al cerrar sesión,
 // para que otra persona en el mismo dispositivo no los vea.
@@ -26,6 +27,10 @@ interface AuthContextValue {
   loading: boolean;
   /** true si esta pestaña llegó por un enlace de recuperación de contraseña aún vigente. */
   passwordRecovery: boolean;
+  /** true si la sesión guardada está tardando en recuperarse (red lenta): se muestra un aviso y se reintenta, nunca se cierra la sesión. */
+  restoring: boolean;
+  /** Reintenta ya la recuperación de la sesión (botón "Reintentar"). */
+  retryRestore: () => void;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
@@ -38,11 +43,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [passwordRecovery, setPasswordRecovery] = useState<boolean>(() => hasRecoveryFlag());
+  const [restoring, setRestoring] = useState(false);
+  const retryRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let mounted = true;
+    // true en cuanto sabemos si hay sesión o no; a partir de ahí ya no se reintenta.
+    let settled = false;
+    let attempts = 0;
+    let retryTimer: number | undefined;
+
     const finishAuth = (newSession: Session | null) => {
       if (!mounted) return;
+      settled = true;
+      window.clearTimeout(slowTimer);
+      window.clearTimeout(retryTimer);
+      setRestoring(false);
       setSession(newSession);
       setUser(newSession?.user ?? null);
       // Telemetría solo con el id interno: el correo no sale a Sentry ni a PostHog (F-18).
@@ -51,15 +67,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     };
 
-    const timeoutId = window.setTimeout(() => {
-      finishAuth(null);
-    }, 4500);
+    // Recuperar la sesión va lento pero sigue guardada: mostramos "Recuperando tu sesión…"
+    // (loading sigue en true, así ProtectedRoute no manda a /auth) y volvemos a intentar.
+    const scheduleRetry = () => {
+      if (!mounted || settled) return;
+      setRestoring(true);
+      window.clearTimeout(retryTimer);
+      retryTimer = window.setTimeout(attempt, restoreRetryDelay(attempts++));
+    };
+
+    // Hidratar desde storage local. NO cerramos sesión por errores transitorios de red:
+    // el refresh token de Supabase + autoRefreshToken validan contra el servidor cuando hay
+    // conexión. Si el refresh falla con un error real de auth, el listener recibe SIGNED_OUT.
+    function attempt() {
+      supabase.auth.getSession()
+        .then(({ data, error }) => {
+          if (settled) return;
+          const outcome = restoreOutcome({ hasSession: !!data?.session, error, stored: hasStoredSession() });
+          if (outcome === "retry") scheduleRetry();
+          else finishAuth(data?.session ?? null);
+        })
+        .catch(() => {
+          if (settled) return;
+          const outcome = restoreOutcome({ hasSession: false, thrown: true, stored: hasStoredSession() });
+          if (outcome === "retry") scheduleRetry();
+          else finishAuth(null);
+        });
+    }
+
+    // Pasado RESTORE_SLOW_MS sin respuesta: si no hay nada guardado, no hay sesión (se va a /auth
+    // como antes). Si hay una sesión guardada, NO se cierra: se sigue intentando.
+    const slowTimer = window.setTimeout(() => {
+      if (settled) return;
+      if (hasStoredSession()) scheduleRetry();
+      else finishAuth(null);
+    }, RESTORE_SLOW_MS);
+
+    retryRef.current = () => {
+      if (settled) return;
+      window.clearTimeout(retryTimer);
+      attempt();
+    };
 
     // Listener primero — mantiene la sesión sincronizada (refresh automático, login, logout explícito)
     // Este listener se registra al montar la app (no la página lazy), así que sí
     // recibe PASSWORD_RECOVERY, que Supabase emite una sola vez.
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
-      window.clearTimeout(timeoutId);
       if (event === "PASSWORD_RECOVERY") {
         markRecovery();
         if (mounted) setPasswordRecovery(true);
@@ -68,30 +121,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         clearOfflineTripCache();
         if (mounted) setPasswordRecovery(false);
       }
+      // Un INITIAL_SESSION vacío por un error de red no es un cierre de sesión si la sesión
+      // sigue guardada: lo decide getSession() (que reintenta).
+      if (event === "INITIAL_SESSION" && !newSession && !settled && hasStoredSession()) return;
       finishAuth(newSession);
     });
 
-    // Hidratar desde storage local. NO cerramos sesión por errores transitorios de red:
-    // solo confiamos en getSession() para la persistencia local del dispositivo.
-    // El refresh token de Supabase + autoRefreshToken se encargan de validar contra el servidor
-    // cuando hay conexión. Si el refresh falla con un error real de auth, el listener
-    // recibirá SIGNED_OUT y limpiará el estado.
-    supabase.auth.getSession()
-      .then(({ data }) => {
-        window.clearTimeout(timeoutId);
-        finishAuth(data.session ?? null);
-      })
-      .catch(() => {
-        window.clearTimeout(timeoutId);
-        finishAuth(null);
-      });
+    attempt();
 
     return () => {
       mounted = false;
-      window.clearTimeout(timeoutId);
+      window.clearTimeout(slowTimer);
+      window.clearTimeout(retryTimer);
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  const retryRestore = useCallback(() => retryRef.current(), []);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -121,7 +167,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, passwordRecovery, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, passwordRecovery, restoring, retryRestore, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

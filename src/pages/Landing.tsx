@@ -1,12 +1,15 @@
-import { motion } from "framer-motion";
+// Sin framer-motion: la landing es la primera página y debe cargar ligera (E-23).
+import { Reveal } from "@/components/Reveal";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Sparkles, Compass, Wallet, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroImg from "@/assets/hero-santorini.jpg";
+import heroImg960 from "@/assets/hero-santorini-960.jpg";
 import kyoto from "@/assets/destination-kyoto.jpg";
 import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
-import iatosLogo from "@/assets/iatos-logo.png";
+// Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
+import iatosLogo from "@/assets/iatos-logo-320.png";
 import { PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
 
@@ -33,23 +36,23 @@ const Landing = () => {
 
       {/* HERO */}
       <section className="relative min-h-screen flex items-center overflow-hidden">
+        {/* Imagen principal (LCP): en móvil baja la versión de 960 px y se pide con prioridad alta. */}
         <img
           src={heroImg}
+          srcSet={`${heroImg960} 960w, ${heroImg} 1920w`}
+          sizes="100vw"
           alt="Santorini al atardecer dorado"
           width={1920}
           height={1080}
+          decoding="async"
+          {...{ fetchpriority: "high" }}
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-overlay" />
         <div className="absolute inset-0 bg-gradient-radial-gold opacity-60" />
 
         <div className="container relative z-10 mx-auto pt-32 pb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-3xl"
-          >
+          <div className="max-w-3xl animate-fade-up">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card text-sm mb-6">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
               <span className="text-muted-foreground">IA personal de viajes premium</span>
@@ -81,24 +84,18 @@ const Landing = () => {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-6 tracking-wide uppercase">{trial.line}</p>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* CÓMO FUNCIONA */}
       <section id="como-funciona" className="py-32 container mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="max-w-2xl mb-20"
-        >
+        <Reveal className="max-w-2xl mb-20">
           <p className="text-primary text-sm tracking-[0.2em] uppercase mb-4">Cómo funciona</p>
           <h2 className="font-display text-4xl md:text-6xl leading-tight">
             Tres pasos. Una vida<br />de viajes mejores.
           </h2>
-        </motion.div>
+        </Reveal>
 
         <div className="grid md:grid-cols-3 gap-8">
           {[
@@ -121,21 +118,18 @@ const Landing = () => {
               desc: "Análisis completos con vuelos, hospedaje, itinerarios día por día y presupuestos reales en MXN.",
             },
           ].map((step, i) => (
-            <motion.div
+            <Reveal
               key={step.n}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: i * 0.1 }}
-              className="glass-card rounded-2xl p-8 hover:gold-border transition-all duration-500"
+              delay={i * 100}
+              className="glass-card rounded-2xl p-8 hover:gold-border"
             >
               <div className="flex items-start justify-between mb-8">
                 <step.icon className="w-7 h-7 text-primary" />
-                <span className="font-display text-2xl text-muted-foreground/40">{step.n}</span>
+                <span aria-hidden="true" className="font-display text-2xl text-muted-foreground/60">{step.n}</span>
               </div>
               <h3 className="font-display text-2xl mb-3">{step.title}</h3>
               <p className="text-muted-foreground leading-relaxed">{step.desc}</p>
-            </motion.div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -155,19 +149,17 @@ const Landing = () => {
               { img: bora, name: "Bora Bora", country: "Polinesia" },
               { img: marrakech, name: "Marrakech", country: "Marruecos" },
             ].map((d) => (
-              <motion.div
+              <div
                 key={d.name}
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.5 }}
-                className="relative aspect-[4/5] rounded-2xl overflow-hidden group cursor-pointer"
+                className="relative aspect-[4/5] rounded-2xl overflow-hidden group hover:scale-[1.02] transition-transform duration-500"
               >
-                <img src={d.img} alt={d.name} loading="lazy" width={1024} height={1280} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <img src={d.img} alt={d.name} loading="lazy" decoding="async" width={1024} height={1280} sizes="(min-width: 768px) 33vw, 100vw" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-overlay" />
                 <div className="absolute bottom-6 left-6">
                   <p className="text-xs text-primary tracking-[0.2em] uppercase mb-1">{d.country}</p>
                   <h3 className="font-display text-3xl">{d.name}</h3>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -182,13 +174,7 @@ const Landing = () => {
           </h2>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="max-w-md mx-auto glass-card gold-border rounded-3xl p-10 premium-shadow"
-        >
+        <Reveal className="max-w-md mx-auto glass-card gold-border rounded-3xl p-10 premium-shadow">
           <div className="text-center mb-8">
             <p className="text-sm tracking-[0.2em] uppercase text-primary mb-3">IATOS AI Premium</p>
             <div className="flex items-baseline justify-center gap-2">
@@ -215,7 +201,7 @@ const Landing = () => {
             {trial.cta}
           </Button>
           <p className="text-[11px] text-muted-foreground text-center mt-3">{trial.conditions}</p>
-        </motion.div>
+        </Reveal>
       </section>
 
       {/* FOOTER */}

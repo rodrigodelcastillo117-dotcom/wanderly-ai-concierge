@@ -40,7 +40,8 @@ describe("AuthContext / analytics no mandan el correo", () => {
     vi.doMock("posthog-js", () => ({ default: { init: vi.fn(), identify, capture: vi.fn(), opt_in_capturing: vi.fn() } }));
     vi.stubEnv("VITE_POSTHOG_KEY", "phc_test");
     const a = await import("@/lib/analytics");
-    a.initAnalytics();
+    // PostHog se descarga con import() (E-23): se espera a que termine de cargar.
+    await a.initAnalytics();
     a.identifyUser("u1", { email: "a@b.mx", plan: "pro" });
     expect(identify).toHaveBeenCalledWith("u1", { plan: "pro" });
     vi.unstubAllEnvs();

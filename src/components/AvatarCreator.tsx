@@ -350,6 +350,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
               <div className="space-y-2">
                 <Input
                   autoFocus
+                  aria-label={step.title}
                   placeholder="Ej: Santorini al atardecer, Tokio neón, Patagonia..."
                   value={value}
                   onChange={(e) => setBuilder({ ...builder, [step.key]: e.target.value })}

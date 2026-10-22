@@ -41,7 +41,9 @@ const HOTEL_TIERS = ["Member", "Silver", "Gold", "Platinum", "Diamond", "Ambassa
 const CAR_TYPES = ["Compacto", "Sedán", "SUV", "Eléctrico", "Lujo", "Convertible"];
 const DOC_TYPES = ["Pasaporte", "Visa USA", "Visa Schengen", "Visa UK", "Global Entry", "TSA PreCheck", "NEXUS", "SENTRI", "Licencia internacional", "Tarjeta de residente", "Otro"];
 
-const AI_HINT = "La IA de IATOS AI usará estos datos para aplicar descuentos automáticos, maletas gratis, accesos VIP y rutas correctas en tus cotizaciones en tiempo real.";
+// Sin promesas de "tiempo real" ni descuentos automáticos: la IA usa estos datos como contexto
+// y los beneficios que sugiere son estimaciones (ver aviso al buscar tarjeta).
+const AI_HINT = "Iato usa estos datos como contexto para sugerirte beneficios que podrías aprovechar (maletas, salas, seguros). Confírmalos siempre con tu banco o aerolínea.";
 
 const sectionMeta = {
   credit_cards: { icon: CreditCard, title: "Finanzas", subtitle: "Tarjetas de crédito y débito (autocompletado con IA)" },
@@ -106,7 +108,7 @@ const BenefitsVault = () => {
       <div className="flex items-start gap-3 p-4 rounded-xl border border-primary/30 bg-primary/5">
         <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
         <p className="text-sm text-muted-foreground">
-          Tu <span className="text-primary font-medium">Bóveda de Beneficios</span> es privada y cifrada. Escribe el nombre de tu tarjeta (Amex, AMEX, Visa Santander, BBVA Platinum…) y la IA llenará beneficios, seguros y salas en tiempo real.
+          Tu <span className="text-primary font-medium">Bóveda de Beneficios</span> es privada y cifrada. Escribe el nombre de tu tarjeta (Amex, AMEX, Visa Santander, BBVA Platinum…) y la IA sugerirá beneficios, seguros y salas (estimados; confírmalos con tu banco).
         </p>
       </div>
 
@@ -338,6 +340,7 @@ const CreditCardForm = ({ data, setData }: { data: any; setData: (fn: any) => vo
         </span>
         <div className="flex gap-2">
           <Input
+            aria-label="Busca tu tarjeta"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); search(); } }}

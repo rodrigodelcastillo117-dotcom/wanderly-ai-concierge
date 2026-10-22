@@ -15,8 +15,8 @@ import { RealTripTotal } from "@/components/RealTripTotal";
 import { InviteFriendDialog } from "@/components/InviteFriendDialog";
 import { PriceWatchCard } from "@/components/PriceWatchCard";
 import { useAuth } from "@/contexts/AuthContext";
-import { generateTripPDF } from "@/lib/tripPdf";
 import { formatDateOnly } from "@/lib/dateUtils";
+import { formatInstant } from "@/lib/localDate";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -81,6 +81,10 @@ const TripDetail = () => {
       .select("id, guardado")
       .eq("user_id", user.id)
       .eq("titulo", trip.destino)
+      // Puede haber filas repetidas de antes (doble toque): con maybeSingle() la consulta
+      // fallaba y el corazón nunca aparecía marcado. Tomamos la guardada si existe.
+      .order("guardado", { ascending: false })
+      .limit(1)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
@@ -90,7 +94,18 @@ const TripDetail = () => {
       });
   }, [user, trip?.destino]);
 
+  // Doble toque = dos filas en recomendaciones; se ignora el segundo mientras se guarda.
+  const [savingFav, setSavingFav] = useState(false);
   const toggleFavorite = async () => {
+    if (!user || !trip || savingFav) return;
+    setSavingFav(true);
+    try {
+      await toggleFavoriteNow();
+    } finally {
+      setSavingFav(false);
+    }
+  };
+  const toggleFavoriteNow = async () => {
     if (!user || !trip) return;
     if (isFavorite && favRecoId) {
       await supabase.from("recomendaciones").update({ guardado: false }).eq("id", favRecoId);
@@ -179,6 +194,8 @@ const TripDetail = () => {
     if (!trip) return;
     setGeneratingPdf(true);
     try {
+      // jsPDF (+ autotable, html2canvas) solo se descarga al pedir el PDF, no al abrir el viaje.
+      const { generateTripPDF } = await import("@/lib/tripPdf");
       await generateTripPDF(trip, { selVuelo, selHospedaje, nochesEfectivas, selTours }, { desglose: computedDesglose, total: computedTotal });
       toast.success("PDF descargado");
     } catch (e: any) {
@@ -303,6 +320,7 @@ const TripDetail = () => {
         <div className="absolute top-4 inset-x-4 z-20 flex flex-wrap items-start justify-end gap-2 md:top-6 md:right-6 md:left-auto md:flex-nowrap">
           <button
             onClick={toggleFavorite}
+            disabled={savingFav}
             aria-label={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
             className="inline-flex items-center justify-center w-9 h-9 rounded-full glass-card hover:gold-border transition shrink-0"
           >
@@ -364,7 +382,7 @@ const TripDetail = () => {
               </PopoverTrigger>
               <PopoverContent className="w-56 max-w-[calc(100vw-2rem)] space-y-3" align="start">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Nº de viajeros</p>
-                <Input type="number" min={1} max={20} defaultValue={viajeros} id="edit-viajeros" />
+                <Input type="number" min={1} max={20} defaultValue={viajeros} id="edit-viajeros" aria-label="Número de viajeros" />
                 <Button size="sm" disabled={savingMeta} className="w-full" onClick={() => {
                   const n = Number((document.getElementById("edit-viajeros") as HTMLInputElement)?.value);
                   if (!n || n < 1) return toast.error("Mínimo 1");
@@ -461,7 +479,7 @@ const TripDetail = () => {
               staleMessage={staleness.stale && staleness.basis ? staleQuoteMessage(staleness.basis) : null}
               validityLabel={validity.label}
               validityExpired={validity.expired}
-              fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatDateOnly(quote.fx_at)})` : null}
+              fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatInstant(quote.fx_at)})` : null}
               onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
             />
           ) : (
@@ -492,7 +510,7 @@ const TripDetail = () => {
               </div>
               <span className="font-display text-2xl gold-text">{nochesEfectivas}<span className="text-sm text-muted-foreground"> / {noches}</span></span>
             </div>
-            <input type="range" min={0} max={noches} value={nochesEfectivas}
+            <input type="range" min={0} max={noches} value={nochesEfectivas} aria-label="Noches en este hospedaje"
               onChange={(e) => setNochesHospedaje(Number(e.target.value))} className="w-full accent-primary" />
           </div>
         )}
@@ -879,7 +897,7 @@ const SubBlock = ({ icon: Icon, title, children }: any) => (
 const FlightConnector = ({ from, to }: { from: string; to: string }) => (
   <div className="relative my-5 md:my-7 select-none" aria-hidden="true">
     <div className="flex items-center gap-4 px-2">
-      <span className="hidden sm:inline text-[10px] tracking-[0.3em] uppercase text-muted-foreground/70 whitespace-nowrap">
+      <span className="hidden sm:inline text-[10px] tracking-[0.3em] uppercase text-muted-foreground whitespace-nowrap">
         {from}
       </span>
       <div className="relative flex-1 h-px">

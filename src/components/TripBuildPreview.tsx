@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { diffLocalDays, formatLocalDate, localISODatePlus, parseLocalDate } from "@/lib/localDate";
 import { fetchFriendProfiles } from "@/lib/friendProfiles";
 
 type Props = {
@@ -23,13 +24,10 @@ type Props = {
   onChangeViajeros?: (n: number) => void;
 };
 
+// Fecha de calendario local: new Date("YYYY-MM-DD") es UTC y en México mostraba el día anterior.
 const fmtDate = (s?: string) => {
   if (!s) return null;
-  try {
-    return new Date(s).toLocaleDateString("es-MX", { day: "numeric", month: "short" });
-  } catch {
-    return s;
-  }
+  return parseLocalDate(s) ? formatLocalDate(s, { day: "numeric", month: "short" }) : s;
 };
 
 export const TripBuildPreview = ({
@@ -80,10 +78,7 @@ export const TripBuildPreview = ({
   const isMulti = dests.length >= 2;
   const nights =
     fechaSalida && fechaRegreso
-      ? Math.max(
-          0,
-          Math.round((new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000),
-        )
+      ? Math.max(0, diffLocalDays(fechaSalida, fechaRegreso))
       : null;
 
   const hasAny = !!(origin || dests.length || fechaSalida || viajeros);
@@ -191,13 +186,11 @@ export const TripBuildPreview = ({
                           const newSalida = e.target.value;
                           // Si ya hay una duración definida, conservamos los días y recorremos el regreso
                           if (newSalida && fechaSalida && fechaRegreso) {
-                            const prevDays = Math.round(
-                              (new Date(fechaRegreso).getTime() - new Date(fechaSalida).getTime()) / 86400000,
-                            );
-                            if (prevDays > 0) {
-                              const d = new Date(newSalida);
-                              d.setDate(d.getDate() + prevDays);
-                              onChangeFechas(newSalida, d.toISOString().slice(0, 10));
+                            const prevDays = diffLocalDays(fechaSalida, fechaRegreso);
+                            const base = parseLocalDate(newSalida);
+                            if (prevDays > 0 && base) {
+                              // Misma duración, contada en días de calendario locales.
+                              onChangeFechas(newSalida, localISODatePlus(prevDays, base));
                               return;
                             }
                           }

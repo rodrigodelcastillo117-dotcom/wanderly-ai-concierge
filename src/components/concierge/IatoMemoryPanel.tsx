@@ -106,7 +106,7 @@ export function IatoMemoryPanel({ userId, trips }: { userId: string; trips: { id
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <button className="flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary transition">
+        <button className="flex items-center gap-1.5 text-[11px] text-primary/90 hover:text-primary transition">
           <Brain className="w-3 h-3" /> Lo que Iato recuerda
         </button>
       </SheetTrigger>

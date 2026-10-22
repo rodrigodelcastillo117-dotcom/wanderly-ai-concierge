@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
 import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationBell } from "@/components/NotificationBell";
-import iatosLogo from "@/assets/iatos-logo.png";
+// Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
+import iatosLogo from "@/assets/iatos-logo-320.png";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 const links = [
@@ -16,7 +17,8 @@ const links = [
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
-  { to: "/dashboard/concierge", icon: Crown, label: "Concierge Pro" },
+  // "Concierge", no "Concierge Pro": la pestaña está abierta a todas las cuentas.
+  { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
 ];
 
 // Barra inferior móvil: máximo 5 elementos (antes eran 7 con etiquetas de 9px y un
