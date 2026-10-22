@@ -5,6 +5,7 @@ import { setSentryUser } from "@/lib/sentry";
 import { identifyUser, resetAnalytics, track } from "@/lib/analytics";
 import { captureRecoveryFromUrl, clearRecoveryFlag, hasRecoveryFlag, markRecovery } from "@/lib/passwordRecovery";
 import { hasStoredSession, restoreOutcome, restoreRetryDelay, RESTORE_SLOW_MS } from "@/lib/authRestore";
+import { capturePriveTokenFromUrl, clearAllPriveState, readPriveSession } from "@/lib/priveSession";
 
 // Borra los viajes guardados para lectura offline (public/sw.js) al cerrar sesión,
 // para que otra persona en el mismo dispositivo no los vea.
@@ -20,6 +21,9 @@ const clearOfflineTripCache = () => {
 // Capturamos `type=recovery` en cuanto se evalúa este módulo (parte del bundle
 // inicial): Supabase borra el hash tras validar el token y /reset-password es lazy.
 captureRecoveryFromUrl();
+// Igual con el enlace de IATOS Privé (#t=…): se quita de la URL antes de que el router, la
+// analítica o el inicio de sesión (state.from) lo vean, y queda solo en sessionStorage.
+capturePriveTokenFromUrl();
 
 interface AuthContextValue {
   user: User | null;
@@ -119,6 +123,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else if (event === "SIGNED_OUT") {
         clearRecoveryFlag();
         clearOfflineTripCache();
+        // La sesión Privé nunca sobrevive al cierre de la sesión de IATOS.
+        clearAllPriveState();
         if (mounted) setPasswordRecovery(false);
       }
       // Un INITIAL_SESSION vacío por un error de red no es un cierre de sesión si la sesión
@@ -162,6 +168,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     clearRecoveryFlag();
     setPasswordRecovery(false);
     clearOfflineTripCache();
+    // Cierra también la sesión Privé en el servidor (mejor esfuerzo, máx. 1.5 s): el token local
+    // se borra de todos modos, y el servidor la liga a esta sesión de IATOS (D7).
+    const prive = readPriveSession(user?.id);
+    clearAllPriveState();
+    if (prive) {
+      await Promise.race([
+        supabase.functions.invoke("prive-access", { body: { action: "lock", prive_session: prive.token } }).catch(() => null),
+        new Promise((r) => setTimeout(r, 1500)),
+      ]);
+    }
     await supabase.auth.signOut({ scope: "local" });
     resetAnalytics();
   };

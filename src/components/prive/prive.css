@@ -1,0 +1,198 @@
+/* IATOS Privé — sistema visual propio (negro profundo, champaña, serif editorial).
+   Este CSS se carga solo con las rutas /prive/* (chunk aparte): no pesa en el resto de la app.
+   Sin imágenes de textura: el grano y los reflejos son gradientes y SVG en línea. */
+
+.prive-root {
+  --pv-black: #070707;
+  --pv-ink: #0d0d0e;
+  --pv-surface: #141416;
+  --pv-line: rgba(201, 169, 97, 0.18);
+  --pv-line-strong: rgba(201, 169, 97, 0.42);
+  --pv-gold: #c9a961;
+  --pv-gold-soft: #d9c08a;
+  --pv-champagne: #e8dcc2;
+  --pv-text: #f5f2ea;
+  --pv-muted: #a8a299; /* 7.6:1 sobre --pv-black */
+  --pv-serif: "Cormorant Garamond", "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, "Times New Roman", serif;
+  background: var(--pv-black);
+  color: var(--pv-text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+}
+
+/* Grano fino con SVG en línea (feTurbulence), sin archivo de imagen. */
+.prive-root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+/* Halo de champaña muy tenue arriba. */
+.prive-root::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% -10%, rgba(201, 169, 97, 0.10), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 120%, rgba(232, 220, 194, 0.04), transparent 70%);
+}
+
+.prive-serif { font-family: var(--pv-serif); font-weight: 400; letter-spacing: 0.01em; }
+.prive-root h1, .prive-root h2, .prive-root h3 { font-family: var(--pv-serif); font-weight: 400; letter-spacing: 0.01em; }
+.prive-display { font-family: var(--pv-serif); font-weight: 300; letter-spacing: 0.08em; line-height: 1.15; }
+.prive-eyebrow { font-size: 0.6875rem; letter-spacing: 0.32em; text-transform: uppercase; color: var(--pv-gold); }
+.prive-muted { color: var(--pv-muted); }
+.prive-champagne { color: var(--pv-champagne); }
+.prive-gold { color: var(--pv-gold); }
+.prive-hairline { border: 1px solid var(--pv-line); }
+.prive-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--pv-line-strong), transparent); }
+
+/* Línea de luz champaña de la llegada. */
+.prive-lightline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(232, 220, 194, 0) 8%, rgba(232, 220, 194, 0.95) 50%, rgba(232, 220, 194, 0) 92%, transparent 100%);
+  box-shadow: 0 0 18px 1px rgba(201, 169, 97, 0.45);
+}
+
+/* Botones: 48 px de alto, foco champaña de 2 px. */
+.prive-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 48px; padding: 0 1.75rem; border-radius: 999px;
+  font-size: 0.75rem; letter-spacing: 0.28em; text-transform: uppercase; font-weight: 600;
+  transition: background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease, opacity .2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.prive-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.prive-btn-gold {
+  color: #0a0906;
+  background: linear-gradient(135deg, #b8975a 0%, #e3cc95 48%, #c9a961 100%);
+  box-shadow: 0 10px 30px -12px rgba(201, 169, 97, 0.6), inset 0 1px 0 rgba(255, 245, 220, 0.5);
+}
+.prive-btn-gold:hover:not(:disabled) { box-shadow: 0 14px 40px -12px rgba(201, 169, 97, 0.8), inset 0 1px 0 rgba(255, 245, 220, 0.6); }
+.prive-btn-ghost { color: var(--pv-champagne); border: 1px solid var(--pv-line-strong); background: transparent; }
+.prive-btn-ghost:hover:not(:disabled) { background: rgba(201, 169, 97, 0.08); }
+.prive-link { color: var(--pv-champagne); text-decoration: underline; text-decoration-color: var(--pv-line-strong); text-underline-offset: 4px; }
+.prive-link:hover { text-decoration-color: var(--pv-gold); }
+.prive-root :focus-visible { outline: 2px solid var(--pv-champagne); outline-offset: 3px; }
+
+.prive-input {
+  width: 100%; min-height: 52px; padding: 0 1rem; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--pv-line); color: var(--pv-text);
+  font-size: 1rem; letter-spacing: 0.02em;
+}
+.prive-input:focus { border-color: var(--pv-line-strong); outline: none; box-shadow: 0 0 0 2px rgba(232, 220, 194, 0.35); }
+
+.prive-panel {
+  background: linear-gradient(180deg, rgba(20, 20, 22, 0.92), rgba(13, 13, 14, 0.92));
+  border: 1px solid var(--pv-line);
+  border-radius: 24px;
+}
+
+/* ── Sobre ─────────────────────────────────────────────────────────────── */
+.prive-envelope {
+  position: relative;
+  width: min(86vw, 440px);
+  aspect-ratio: 1.45 / 1;
+  perspective: 1400px;
+}
+.prive-envelope-body {
+  position: absolute; inset: 0; border-radius: 10px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.05) 0%, transparent 38%),
+    linear-gradient(180deg, #17171a 0%, #0e0e10 100%);
+  border: 1px solid var(--pv-line-strong);
+  box-shadow:
+    0 40px 80px -30px rgba(0, 0, 0, 0.9),
+    0 18px 40px -20px rgba(201, 169, 97, 0.18),
+    inset 0 1px 0 rgba(255, 245, 220, 0.08);
+  overflow: hidden;
+}
+/* Pliegues inferiores (V) con dos gradientes. */
+.prive-envelope-body::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    linear-gradient(to top right, transparent calc(50% - 0.5px), rgba(201, 169, 97, 0.22) 50%, transparent calc(50% + 0.5px)) left bottom / 50% 62% no-repeat,
+    linear-gradient(to top left, transparent calc(50% - 0.5px), rgba(201, 169, 97, 0.22) 50%, transparent calc(50% + 0.5px)) right bottom / 50% 62% no-repeat;
+}
+/* Reflejo diagonal que cruza una vez. */
+.prive-envelope-sheen {
+  position: absolute; inset: -40% -60%; pointer-events: none;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 248, 230, 0.10) 50%, transparent 60%);
+}
+.prive-envelope-flap {
+  position: absolute; left: 0; right: 0; top: 0; height: 58%;
+  transform-origin: top center; transform-style: preserve-3d;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: linear-gradient(180deg, #1d1d21 0%, #121214 100%);
+  border-top-left-radius: 10px; border-top-right-radius: 10px;
+  z-index: 3;
+}
+.prive-envelope-flap::after {
+  content: ""; position: absolute; inset: 0;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: linear-gradient(to bottom, transparent 96%, rgba(201, 169, 97, 0.35));
+}
+/* La posición va en un contenedor aparte: framer-motion reescribe el transform del sello. */
+.prive-seal-pos { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); z-index: 4; }
+.prive-seal {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e7d29f 0%, #c9a961 45%, #8e7238 100%);
+  box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 250, 230, 0.6), inset 0 -2px 4px rgba(60, 40, 10, 0.5);
+  display: flex; align-items: center; justify-content: center; color: #2a210f;
+}
+.prive-letter {
+  position: absolute; left: 6%; right: 6%; top: 8%; bottom: 8%; z-index: 2; border-radius: 6px;
+  background: linear-gradient(180deg, #f3ecdc 0%, #e6dcc5 100%);
+  color: #1b170f; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  padding: 1rem;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Tarjeta de miembro (proporción de tarjeta física 1.586) ────────────────── */
+.prive-card {
+  position: relative; width: min(88vw, 400px); aspect-ratio: 1.586 / 1; border-radius: 18px; overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(201, 169, 97, 0.16), transparent 55%),
+    linear-gradient(145deg, #18181b 0%, #0b0b0c 60%, #111113 100%);
+  border: 1px solid var(--pv-line-strong);
+  box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 245, 220, 0.08);
+  padding: 1.25rem 1.4rem;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.prive-card::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 248, 230, 0.07) 48%, transparent 60%);
+}
+.prive-card-code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0.18em; }
+
+/* ── Anillo de progreso ─────────────────────────────────────────────────── */
+.prive-ring-track { stroke: rgba(201, 169, 97, 0.14); }
+.prive-ring-value { stroke: url(#prive-ring-gold); stroke-linecap: round; }
+
+/* ── Universos ──────────────────────────────────────────────────────────── */
+.prive-tile {
+  position: relative; border-radius: 18px; padding: 1rem 1.1rem; min-height: 132px; overflow: hidden;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.0) 60%), var(--pv-ink);
+  border: 1px solid var(--pv-line);
+  display: flex; flex-direction: column; justify-content: space-between;
+  transition: border-color .3s ease, transform .3s ease;
+}
+.prive-tile:hover { border-color: var(--pv-line-strong); }
+
+/* ── Bienvenida ─────────────────────────────────────────────────────────── */
+.prive-overlay { position: fixed; inset: 0; z-index: 70; background: #030303; color: var(--pv-text); overflow-y: auto; }
+.prive-photo { position: relative; overflow: hidden; border-radius: 14px; background: linear-gradient(160deg, #1a1a1d, #0c0c0d); aspect-ratio: 3 / 4; }
+.prive-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.prive-photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0) 55%); pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .prive-root *, .prive-overlay * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
