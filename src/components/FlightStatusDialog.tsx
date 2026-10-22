@@ -20,6 +20,9 @@ type FlightInfo = {
   aircraft?: string;
   delay_minutes?: number;
   source?: string;
+  /** "serpapi" (widget de vuelos de Google) o "perplexity" (resumen de búsqueda web). */
+  fuente?: string;
+  retrieved_at?: string;
 };
 
 export const FlightStatusDialog = ({
@@ -161,6 +164,13 @@ export const FlightStatusDialog = ({
                     </div>
                   </div>
                 </div>
+                {/* De dónde salió el estado: Google (widget de vuelos, con hora de consulta) o un
+                    resumen de búsqueda web que no está confirmado con la aerolínea. */}
+                <p className="text-xs text-muted-foreground" data-testid="flight-status-source">
+                  {data.fuente === "perplexity"
+                    ? "Resumen de una búsqueda web: no está confirmado con la aerolínea. Verifica puerta y horario en su app."
+                    : `Datos de Google${data.retrieved_at ? ` · consultado ${new Date(data.retrieved_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}` : ""}. Confirma con tu aerolínea antes de ir a la puerta.`}
+                </p>
                 {citations.length > 0 && (
                   <div className="text-xs text-muted-foreground space-y-1">
                     <p className="uppercase tracking-wider text-[10px]">Fuentes</p>

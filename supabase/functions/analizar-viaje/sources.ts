@@ -37,11 +37,28 @@ export type LiveFlightLists = {
   googleFlights?: Array<{ price_per_person_usd?: number; buy_url?: string }>;
   /** Tipo de cambio con el que se le dieron los precios al modelo. */
   fxUsd: number;
-  /** Cuándo se consultaron las listas en vivo (ISO). */
+  /** Cuándo se consultaron las listas en vivo (ISO). Respaldo si una lista no trae su fecha. */
   consultedAt?: string;
+  /** Fecha real de cada lista (de la caché compartida si salió de ahí). */
+  googleFlightsAt?: string;
+  hotelsAt?: string;
+  tpAt?: string;
+  /** La lista es un precio guardado (vencido) servido por uso justo o pausa: no es "en vivo". */
+  googleFlightsSaved?: boolean;
+  hotelsSaved?: boolean;
 };
 
+/** Fecha real de consulta de la respuesta de una búsqueda (consulted_at), o el respaldo. */
+export function liveConsultedAt(resp: unknown, fallback: string): string {
+  const at = (resp as { consulted_at?: unknown } | null)?.consulted_at;
+  return typeof at === "string" && Number.isFinite(Date.parse(at)) ? at : fallback;
+}
+
+/** Etiqueta de Travelpayouts: un respaldo de referencia, nunca "en vivo". */
+export const TP_REFERENCE_NOTE = "Precio de referencia (Aviasales, búsquedas de las últimas 48 h); puede variar.";
+
 const LIVE_FLIGHT_LABELS = new Set(["travelpayouts", "serpapi", "google_flights", "aviasales"]);
+const PLACE_LABELS = new Set(["google_maps", "tripadvisor", "google_places"]);
 const LIVE_HOTEL_LABELS = new Set(["serpapi", "travelpayouts", "google_hotels"]);
 
 // La IA debe copiar lugares, hoteles y vuelos de las listas en vivo. Si un nombre o un precio no
@@ -57,12 +74,18 @@ export function enforceSources(
   const consultadoAt = live.consultedAt ?? new Date().toISOString();
 
   for (const t of Array.isArray(a?.tours) ? a.tours : []) {
-    if ((t?.fuente === "google_maps" || t?.fuente === "tripadvisor") && !places.some((p) => sameName(p?.name, t?.nombre))) {
+    const match = t && PLACE_LABELS.has(t.fuente) ? places.find((p) => sameName(p?.name, t?.nombre)) : null;
+    if (t && PLACE_LABELS.has(t.fuente) && !match) {
       t.fuente = "estimado";
       t.rating = null;
       t.num_reviews = null;
-    } else if (t?.fuente === "tripadvisor" || t?.fuente === "google_maps") {
+    } else if (t && match) {
       t.fuente = placesSource;
+      // Calificación y reseñas las pone el servidor con la lista, no el modelo.
+      t.rating = match.rating ?? null;
+      t.num_reviews = match.num_reviews ?? null;
+      if (match.place_id) t.place_id = match.place_id;
+      if (match.web_url) t.maps_url = match.web_url;
     } else if (!t?.fuente) {
       t.fuente = "estimado";
     }
@@ -82,8 +105,8 @@ export function enforceSources(
     // Travelpayouts ya no trae hoteles (Hotellook cerró): esa etiqueta nunca es real.
     if (ok) {
       h.fuente_precio = "serpapi";
-      h.estado_dato = "CONSULTADO_EN_VIVO";
-      h.consultado_at = consultadoAt;
+      h.estado_dato = live.hotelsSaved ? "OBSOLETO" : "CONSULTADO_EN_VIVO";
+      h.consultado_at = live.hotelsAt ?? consultadoAt;
     } else {
       if (label !== "perplexity") h.fuente_precio = "estimado";
       h.estado_dato = "ESTIMADO";
@@ -106,13 +129,16 @@ export function enforceSources(
     }
     if (matched) {
       v.fuente_precio = matched;
-      v.consultado_at = consultadoAt;
-      if (matched === "travelpayouts" && live.tpApproximateDates) {
-        // Tarifa del mismo mes, no de la fecha exacta: es una aproximación.
-        v.approximate_dates = true;
+      if (matched === "travelpayouts") {
+        // Caché de búsquedas de otros viajeros (hasta 48 h): precio de referencia, nunca "en vivo".
+        v.consultado_at = live.tpAt ?? consultadoAt;
         v.estado_dato = "ESTIMADO";
+        v.nota_precio = TP_REFERENCE_NOTE;
+        // Tarifa del mismo mes, no de la fecha exacta: además es una aproximación de fecha.
+        if (live.tpApproximateDates) v.approximate_dates = true;
       } else {
-        v.estado_dato = "CONSULTADO_EN_VIVO";
+        v.consultado_at = live.googleFlightsAt ?? consultadoAt;
+        v.estado_dato = live.googleFlightsSaved ? "OBSOLETO" : "CONSULTADO_EN_VIVO";
       }
     } else {
       if (label !== "perplexity") v.fuente_precio = "estimado";

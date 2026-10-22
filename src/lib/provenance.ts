@@ -39,7 +39,7 @@ const LIVE_PROVIDERS: Record<string, string> = {
 const CACHED_PROVIDERS = new Set(["travelpayouts", "aviasales"]);
 
 /** Lugares reales con reseñas; el precio que los acompaña es una estimación. */
-const CURATED_PROVIDERS: Record<string, string> = { tripadvisor: "TripAdvisor", google_maps: "Google" };
+const CURATED_PROVIDERS: Record<string, string> = { tripadvisor: "TripAdvisor", google_maps: "Google", google_places: "Google Maps" };
 
 const AI_SOURCES = new Set(["estimado", "ai-fallback", "ai-estimate", "ia", "ai", "gemini", "claude"]);
 
@@ -168,12 +168,14 @@ export function provenanceOf(input: ProvenanceInput, now: Date = new Date()): Pr
       };
     }
     if (!fresh || estado === "OBSOLETO") return obsolete(provider, at, now);
+    // Es caché de búsquedas de otros viajeros, no una consulta nuestra en vivo: se presenta como
+    // precio de referencia (ESTIMADO), nunca como verificado.
     return {
-      state: "CONSULTADO_EN_VIVO",
-      label: "Precio de referencia (caché ≤48 h)",
-      detail: "Tarifa real encontrada por otros viajeros en Aviasales durante las últimas 48 h. El precio final se confirma al reservar.",
+      state: "ESTIMADO",
+      label: "Precio de referencia (caché ≤48 h) · puede variar",
+      detail: "Tarifa que otros viajeros encontraron en Aviasales durante las últimas 48 h. No la consultamos en vivo: el precio final se confirma al reservar.",
       provider,
-      trusted: true,
+      trusted: false,
     };
   }
 

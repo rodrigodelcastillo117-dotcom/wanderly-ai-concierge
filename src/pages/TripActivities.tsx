@@ -9,12 +9,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getYourGuideLink, viatorLink, tripadvisorLink, openTableLink } from "@/lib/affiliateLinks";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
+import { placePhotoUrl } from "@/lib/googleMaps";
 
 type TAResult = {
   id: string; name: string; address: string; rating: number | null;
   num_reviews: number | null; ranking: string | null; web_url: string | null;
   phone: string | null; website: string | null; description: string | null;
   photos: string[]; category: string | null;
+  /** Google Places: nombre de recurso de la foto (se pide por place-photo). */
+  photo_ref?: string | null;
 };
 
 const TripActivities = () => {
@@ -26,6 +29,7 @@ const TripActivities = () => {
   const [cat, setCat] = useState<"attractions" | "restaurants" | "hotels">("attractions");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TAResult[]>([]);
+  // "google_maps" = datos de Google (Places API o, como último recurso, Google Maps vía SerpApi).
   const [source, setSource] = useState<"tripadvisor" | "google_maps">("tripadvisor");
 
   const sources: { name: string; desc: string; link: () => string; category: "activity" | "restaurant" }[] = [
@@ -46,7 +50,7 @@ const TripActivities = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResults(data?.results ?? []);
-      setSource(data?.source === "google_maps" ? "google_maps" : "tripadvisor");
+      setSource(data?.source === "google_maps" || data?.source === "google_places" ? "google_maps" : "tripadvisor");
       if (!data?.results?.length) toast.message("Sin resultados para ese destino");
     } catch (e: any) {
       toast.error(e?.message ?? "No pudimos buscar en este momento. Intenta de nuevo.");
@@ -88,8 +92,8 @@ const TripActivities = () => {
             <h2 className="font-display text-xl">Top resultados</h2>
             {results.map((r) => (
               <div key={r.id} className="glass-card rounded-2xl overflow-hidden border border-white/10">
-                {r.photos[0] && (
-                  <img src={r.photos[0]} alt={r.name} className="w-full h-48 object-cover" loading="lazy" />
+                {(r.photos[0] || r.photo_ref) && (
+                  <img src={r.photos[0] || placePhotoUrl(r.photo_ref!, 800)} alt={r.name} className="w-full h-48 object-cover" loading="lazy" />
                 )}
                 <div className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
