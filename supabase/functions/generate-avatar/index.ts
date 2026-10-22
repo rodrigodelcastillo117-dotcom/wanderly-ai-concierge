@@ -100,11 +100,15 @@ Deno.serve(async (req) => {
       ? `Traveler memory (subtle hints of past journeys in styling, accessories or souvenirs): ${journey.join(" • ")}.`
       : "";
 
+    // Una usuaria recibió un avatar con barba: el prompt pedía "preservar el vello facial" y el modelo
+    // lo inventaba aunque la selfie no lo tuviera. Ahora el vello facial solo se dibuja si se ve en la foto.
+    const FACIAL_HAIR_RULE = `FACIAL HAIR (strict rule): if the person is a woman, the avatar must NEVER have any facial hair — absolutely NO beard, NO mustache, NO stubble, NO shadow on chin, jaw or upper lip; smooth clean feminine face. If the person is a man, draw a beard, mustache or stubble ONLY if it is visible in the selfie (even slightly visible stubble counts — keep it as subtle as in the photo); if the selfie shows a clean-shaven man, the face must be clean-shaven. Never change the person's apparent gender presentation; do not add makeup, facial hair or features that are not in the photo.`;
     const FULL_BODY_RULES = `MANDATORY COMPOSITION: FULL BODY shot from head to toe. The ENTIRE body must be visible inside the frame — head, torso, hips, legs AND both feet/shoes fully in frame with comfortable margin above the head and below the shoes. Vertical 3:4 portrait, character standing in a confident natural pose, slight contrapposto, centered. DO NOT crop legs or feet. DO NOT zoom in on the face. Wide enough framing to show the complete outfit and footwear.`;
 
     const prompt = selfieDataUrl
       ? `Transform the person in this selfie into a stylized cartoon caricature luxury travel avatar — FULL BODY.
-CRITICAL: Preserve the person's REAL identity — exact face structure, facial proportions, eye shape and color, eyebrows, smile, nose, jawline, hairstyle, facial hair, skin tone and unique features. The avatar must instantly resemble the real person.
+CRITICAL: Preserve the person's REAL identity — exact face structure, facial proportions, eye shape and color, eyebrows, smile, nose, jawline, hairstyle, skin tone and unique features. The avatar must instantly resemble the real person.
+${FACIAL_HAIR_RULE}${/^(female|mujer|woman|femenino)$/i.test(String(gender)) ? " This person is a woman: NO facial hair of any kind." : ""}
 Style: elegant premium cartoon caricature — high-end Disney/Pixar adult character design, luxury lifestyle illustration, modern editorial cartoon, NOT anime, NOT childish, NOT chibi. Sophisticated, aspirational.
 Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, warm skin tones with soft gradients, premium fashion illustration aesthetic.
 Cultural context: ${culture.vibe}. ${styleHint}.
@@ -121,6 +125,7 @@ Style: elegant premium cartoon caricature — high-end Disney/Pixar adult charac
 Artistic direction: smooth rounded shapes, expressive stylized eyes, clean vector-like shading, painterly digital illustration texture, premium fashion illustration aesthetic.
 Character traits (MUST match exactly):
 - Skin tone: ${builder.skin ?? "natural medium"}.
+- Facial hair: ${(builder as any).facial_hair ? (builder as any).facial_hair : (/^(female|mujer|woman|femenino)$/i.test(String(builder.gender ?? gender)) ? "none — woman, smooth clean face, absolutely no facial hair" : "none — smooth clean face, no beard, no stubble")}.
 - Hair: ${builder.hair_style ?? "modern stylish"} in ${builder.hair_color ?? "natural"} color.
 - Outfit (head-to-toe, including shoes): ${builder.outfit_style ?? culture.outfit}.
 - Holding / wearing accessory: ${builder.accessory ?? culture.accessory}.
