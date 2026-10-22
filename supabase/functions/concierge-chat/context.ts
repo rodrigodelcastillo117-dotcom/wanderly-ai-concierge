@@ -296,3 +296,85 @@ export function buildTransferFallback(intel: any) {
     ],
   };
 }
+
+// ═══ Concierge 2.0 — viaje compacto para el prompt ═══
+// Antes <viaje_en_contexto> llevaba el viaje completo (análisis narrativo, todos los días del
+// itinerario, tips, restaurantes…): 8.5k–12.7k tokens de entrada por llamada, dos veces por mensaje.
+// Ahora: lo que sirve para responder hoy (días alrededor de hoy, elementos con su estado de reserva,
+// recortes de texto) y conteos de lo demás. La regla de estado_reserva va en el sistema (caché).
+
+const cut = (v: unknown, max: number) => {
+  if (v === null || v === undefined) return undefined;
+  const s = typeof v === "string" ? v : JSON.stringify(v);
+  const t = s.replace(/\s+/g, " ").trim();
+  if (!t) return undefined;
+  return t.length > max ? `${t.slice(0, max)}…` : t;
+};
+
+const itinDays = (it: unknown): any[] => (Array.isArray(it) ? it : Array.isArray((it as any)?.days) ? (it as any).days : []);
+
+/** Ventana de días del itinerario: el de hoy ±1 y los 2 siguientes si el viaje está en curso; si no, los 3 primeros. */
+export function itineraryWindow(trip: any, todayISO: string) {
+  const days = itinDays(trip?.itinerario_json);
+  if (!days.length) return { dias_total: 0, dias: [] as unknown[] };
+  const start = typeof trip?.fecha_salida === "string" ? trip.fecha_salida.slice(0, 10) : null;
+  const todayIdx = start ? (daysUntil(todayISO, start) ?? -1) + 1 : -1; // día 1 = fecha_salida
+  const inTrip = todayIdx >= 1 && todayIdx <= days.length + 1;
+  const pick = inTrip ? days.filter((d: any) => Number(d?.dia) >= todayIdx - 1 && Number(d?.dia) <= todayIdx + 2) : days.slice(0, 3);
+  return {
+    dias_total: days.length,
+    ...(inTrip ? { dia_de_hoy: todayIdx } : {}),
+    dias: pick.map((d: any) => compactItem({
+      dia: d?.dia, fecha: d?.fecha, ciudad: d?.ciudad, titulo: cut(d?.titulo, 80),
+      manana: cut(d?.["mañana"] ?? d?.manana, 160), tarde: cut(d?.tarde, 160), noche: cut(d?.noche, 160),
+      agregados: Array.isArray(d?.agregados) ? d.agregados.slice(0, 5).map((a: any) => compactItem({ hora: a?.hora, titulo: cut(a?.titulo, 80), lugar: cut(a?.lugar, 80) })) : undefined,
+    })),
+  };
+}
+
+export function compactTripForPrompt(trip: any, extras: {
+  todayISO: string;
+  estado_reservas?: any;
+  vuelos?: unknown;
+  hospedaje?: unknown;
+  tours?: unknown;
+  cruceros?: unknown;
+  reservas_confirmadas?: any[];
+  clics_sin_confirmar?: number;
+  datos_relevantes?: unknown;
+}) {
+  if (!trip) return null;
+  const vuelos = asArray(extras.vuelos ?? trip.vuelos_json).slice(0, 6).map((v: any) => compactItem({
+    aerolinea: v?.aerolinea, numero_vuelo: v?.numero_vuelo ?? v?.numero, fecha: v?.fecha ?? v?.fecha_salida,
+    from: v?.from ?? v?.aeropuerto_origen, to: v?.to ?? v?.aeropuerto_destino ?? v?.ciudad, hora_salida: v?.hora_salida,
+    hora_llegada: v?.hora_llegada, terminal: v?.terminal, pnr: v?.pnr, precio_por_persona: v?.precio_por_persona,
+    desde_pdf: v?.desde_pdf, estado_reserva: v?.estado_reserva,
+  }));
+  const hospedaje = asArray(extras.hospedaje ?? trip.hospedaje_json).slice(0, 4).map((h: any) => compactItem({
+    nombre: h?.nombre, ciudad: h?.ciudad, direccion: cut(h?.direccion, 120), barrio: h?.barrio,
+    check_in: h?.check_in ?? h?.checkin, check_out: h?.check_out ?? h?.checkout, precio_por_noche: h?.precio_por_noche,
+    booking_link: h?.booking_link, lat: h?.lat, lng: h?.lng, desde_pdf: h?.desde_pdf, estado_reserva: h?.estado_reserva,
+  }));
+  const restaurantes = asArray(trip.restaurantes_json).slice(0, 5).map((r: any) => compactItem({ nombre: r?.nombre, cocina: r?.cocina, cta_action: r?.cta_action }));
+  const tours = asArray(extras.tours ?? trip.tours_json).slice(0, 4).map((t: any) => compactItem({ nombre: t?.nombre, estado_reserva: t?.estado_reserva }));
+  const tips = asArray(trip.tips_personalizados).slice(0, 3).map((t) => cut(t, 160));
+  return compactItem({
+    id: trip.id, destino: trip.destino, pais_destino: trip.pais_destino, ciudad_origen: trip.ciudad_origen,
+    fecha_salida: trip.fecha_salida, fecha_regreso: trip.fecha_regreso, num_viajeros: trip.num_viajeros,
+    estado_reservas: extras.estado_reservas ? compactItem({ estado: extras.estado_reservas.estado, por_tipo: extras.estado_reservas.por_tipo }) : undefined,
+    presupuesto_objetivo: trip.presupuesto_objetivo, total_estimado: trip.total_estimado, moneda: trip.moneda,
+    vuelos: vuelos.length ? vuelos : undefined,
+    hospedaje: hospedaje.length ? hospedaje : undefined,
+    itinerario: itineraryWindow(trip, extras.todayISO),
+    restaurantes_sugeridos: restaurantes.length ? restaurantes : undefined,
+    tours: tours.length ? tours : undefined,
+    cruceros: asArray(extras.cruceros ?? trip.cruceros_json).length || undefined,
+    tips: tips.length ? tips : undefined,
+    resumen_analisis: cut(trip.analisis_ai, 300),
+    reservas_confirmadas_bookings: (extras.reservas_confirmadas ?? []).slice(0, 8).map((b: any) => compactItem({
+      category: b?.category, provider: b?.provider, title: cut(b?.title, 80), city: b?.city, start_at: b?.start_at, end_at: b?.end_at, confirmation_code: b?.confirmation_code,
+    })),
+    clics_a_socios_sin_confirmar: extras.clics_sin_confirmar || undefined,
+    datos_relevantes_para_la_peticion_actual: extras.datos_relevantes ?? undefined,
+  });
+}

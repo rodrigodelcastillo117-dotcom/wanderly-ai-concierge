@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, Send, Sparkles, MapPin, Utensils, Car, Siren,
-  Plane, Luggage, Crown, RefreshCw
+  Plane, Luggage, Crown, RefreshCw, Check, AlertCircle, Loader2, Info, Compass,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ConciergeActions } from "@/components/ConciergeActions";
@@ -25,8 +25,15 @@ import { ConciergeHeading } from "@/components/concierge/ConciergeHeading";
 import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
 import { loadConversation } from "@/lib/conciergeHistory";
 import { readPriveSession } from "@/lib/priveSession";
+import { streamConcierge } from "@/lib/conciergeStream";
+import { buildChips, welcomeText, type Chip, type ChipIcon } from "@/lib/conciergeChips";
+import { ActionCard } from "@/components/concierge/ActionCard";
+import type { ProposedAction } from "../../supabase/functions/concierge-chat/actions.ts";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
+
+/** Paso en vivo mientras Iato trabaja ("Consultando tu vuelo AF179…"). */
+type Step = { id: string; text: string; state: string };
 
 type Msg = {
   id: string;
@@ -39,6 +46,12 @@ type Msg = {
   tripReason?: ActiveTripReason;
   /** Con tripReason "ambiguous": viajes entre los que el usuario debe elegir. */
   tripCandidates?: ContextTrip[];
+  /** Acciones propuestas (se confirman con un toque). */
+  actions?: ProposedAction[];
+  /** Pasos en vivo y si la respuesta sigue llegando. */
+  steps?: Step[];
+  streaming?: boolean;
+  exigente?: boolean;
 };
 
 const PIN_KEY = "iatos_concierge_trip";
@@ -46,14 +59,11 @@ const browserTimeZone = () => {
   try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; }
 };
 
-type QuickAction = LiveAction | "flight" | "luggage";
-const QUICK_CHIPS: Array<{ icon: any; label: string; action?: QuickAction }> = [
-  { icon: Utensils, label: "Cena cerca", action: "dining" },
-  { icon: Car, label: "Pedir transporte", action: "transport" },
-  { icon: Siren, label: "Emergencia local", action: "emergency" },
-  { icon: Plane, label: "¿Mi vuelo va a tiempo?", action: "flight" },
-  { icon: Luggage, label: "Equipaje Invisible", action: "luggage" },
-];
+const CHIP_ICONS: Record<ChipIcon, typeof Utensils> = {
+  dining: Utensils, transport: Car, emergency: Siren, flight: Plane, luggage: Luggage, trip: Compass,
+};
+const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/concierge-chat`;
+const PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 // SpeechRecognition typing
 declare global {
@@ -82,17 +92,18 @@ const Concierge = () => {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<Msg[]>([{
     id: "welcome", role: "assistant", ts: Date.now(),
-    text: "Bienvenido. Estoy listo para anticiparme a cualquier capricho o emergencia de tu viaje. Usa los botones rápidos abajo para acciones reales en vivo, o escríbeme cualquier petición.",
+    text: welcomeText(null),
   }]);
   const [liveAction, setLiveAction] = useState<LiveAction>(null);
   const [showFlight, setShowFlight] = useState(false);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  // Modo exigente: apagado por omisión (usa el modelo más capaz: tarda un poco más y cuesta más).
   const [godMode, setGodMode] = useState(() => {
-    if (typeof window === "undefined") return true;
-    const v = localStorage.getItem("iatos_god_mode");
-    return v === null ? true : v === "1";
+    if (typeof window === "undefined") return false;
+    try { return localStorage.getItem("iatos_god_mode") === "1"; } catch { return false; }
   });
+  const [showExigenteInfo, setShowExigenteInfo] = useState(false);
   useEffect(() => {
     try { localStorage.setItem("iatos_god_mode", godMode ? "1" : "0"); } catch {}
   }, [godMode]);
@@ -125,7 +136,7 @@ const Concierge = () => {
   useEffect(() => {
     if (!user || !allowed) return;
     supabase.from("trips")
-      .select("id, destino, pais_destino, fecha_salida, fecha_regreso, created_at")
+      .select("id, destino, pais_destino, fecha_salida, fecha_regreso, created_at, vuelos_json, hospedaje_json")
       .order("fecha_salida", { ascending: true })
       .limit(50)
       .then(({ data }) => {
@@ -146,6 +157,7 @@ const Concierge = () => {
     [trips, pinnedId, todayLocal],
   );
   const trip = tripContext.trip;
+  const chips = useMemo(() => buildChips(trip as any, todayLocal), [trip, todayLocal]);
 
   // E-13: al abrir (o recargar) el chat se muestra la última conversación del viaje activo, que
   // concierge-chat ya guarda en concierge_conversations. Solo si el usuario aún no escribió nada.
@@ -232,11 +244,14 @@ const Concierge = () => {
     return "Noche disponible";
   }, []);
 
-  const sendText = async (text: string, opts: { tripId?: string | null } = {}) => {
+  const patchMsg = (id: string, fn: (m: Msg) => Msg) => setMessages((prev) => prev.map((m) => (m.id === id ? fn(m) : m)));
+
+  const sendText = async (text: string, opts: { tripId?: string | null; intent?: string } = {}) => {
     if (!text.trim() || sending) return;
     const userMsg: Msg = { id: crypto.randomUUID(), role: "user", text, ts: Date.now() };
     const next = [...messages, userMsg];
-    setMessages(next);
+    const replyId = crypto.randomUUID();
+    setMessages([...next, { id: replyId, role: "assistant", text: "", ts: Date.now(), steps: [], streaming: true, exigente: godMode }]);
     setInput("");
     setSending(true);
 
@@ -249,34 +264,43 @@ const Concierge = () => {
         window.location.href = "/auth";
         return;
       }
-
-      const { data, error } = await supabase.functions.invoke("concierge-chat", {
-        // Sesión Privé (si está desbloqueada): Iato la usa para search_prive; el servidor la valida.
-        headers: (() => { const ps = readPriveSession(sess.session?.user?.id)?.token; return ps ? { "x-prive-session": ps } : undefined; })(),
+      // Sesión Privé (si está desbloqueada): Iato la usa para search_prive; el servidor la valida.
+      const ps = readPriveSession(sess.session?.user?.id)?.token;
+      await streamConcierge({
+        url: FUNCTIONS_URL,
+        accessToken: sess.session.access_token,
+        apiKey: PUBLISHABLE_KEY,
+        headers: ps ? { "x-prive-session": ps } : undefined,
         body: {
-          messages: next.filter(m => m.id !== "welcome").map(m => ({ role: m.role, content: m.text })),
+          messages: next.filter((m) => m.id !== "welcome" && m.text.trim()).map((m) => ({ role: m.role, content: m.text })),
           god_mode: godMode,
           trip_id: opts.tripId !== undefined ? opts.tripId : pinnedId,
+          intent: opts.intent,
           client_date: localISODate(),
           tz: browserTimeZone(),
-          context: {
-            coords: currentCoords,
-            place: weather?.place,
-          },
+          context: { coords: currentCoords, place: weather?.place },
         },
+      }, {
+        onMeta: (d) => patchMsg(replyId, (m) => ({ ...m, tripId: (d._trip_id as string) ?? null, exigente: d._exigente === true })),
+        onStatus: (st) => patchMsg(replyId, (m) => {
+          const steps = [...(m.steps ?? [])];
+          const i = steps.findIndex((x) => x.id === st.id);
+          if (i >= 0) steps[i] = st; else steps.push(st);
+          return { ...m, steps };
+        }),
+        onDelta: (t) => patchMsg(replyId, (m) => ({ ...m, text: m.text + t })),
+        onReset: () => patchMsg(replyId, (m) => ({ ...m, text: "" })),
+        onFinal: (data) => patchMsg(replyId, (m) => ({
+          ...m,
+          streaming: false,
+          text: typeof data.text === "string" && data.text ? data.text : m.text || "…",
+          cards: Array.isArray(data.cards) ? data.cards : [],
+          actions: Array.isArray(data.actions) ? data.actions : [],
+          tripId: data._trip_id ?? null,
+          tripReason: data._trip_reason,
+          tripCandidates: Array.isArray(data._trip_candidates) ? data._trip_candidates : [],
+        })),
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text: data.text ?? "…",
-        cards: Array.isArray(data.cards) ? data.cards : [],
-        ts: Date.now(),
-        tripId: data._trip_id ?? null,
-        tripReason: data._trip_reason,
-        tripCandidates: Array.isArray(data._trip_candidates) ? data._trip_candidates : [],
-      }]);
     } catch (e: any) {
       // Se decide por el código del servidor, no por el texto (IATOS-P1-FREE-01).
       const { readFunctionError, toastFunctionError } = await import("@/lib/functionErrors");
@@ -289,17 +313,22 @@ const Concierge = () => {
       }
       await toastFunctionError(e, "El concierge no respondió");
       // Límite del plan: el diálogo lo explica; no se agrega "hubo un tropiezo" al chat.
-      if (!info.freeLimit) {
-        setMessages(prev => [...prev, {
-          id: crypto.randomUUID(), role: "assistant", ts: Date.now(),
-          text: "Disculpa, hubo un tropiezo. Inténtalo de nuevo en un momento.",
-        }]);
+      if (info.freeLimit) setMessages((prev) => prev.filter((m) => m.id !== replyId));
+      else {
+        patchMsg(replyId, (m) => ({
+          ...m, streaming: false, steps: m.steps?.map((x) => (x.state === "running" ? { ...x, state: "error" } : x)),
+          text: m.text.trim() ? m.text : `${info.message} Puedes intentarlo de nuevo o tocar **Contactar Fixer**.`,
+        }));
       }
     } finally {
       setSending(false);
     }
   };
 
+  const onChip = (c: Chip) => {
+    if (c.opens === "emergency") { setLiveAction("emergency"); return; }
+    if (c.text) void sendText(c.text, { intent: c.intent });
+  };
 
   // El usuario eligió un viaje cuando Iato preguntó "¿a cuál te refieres?": se fija y se repite
   // la última pregunta sobre ese viaje.
@@ -428,10 +457,10 @@ const Concierge = () => {
                 switchTab("chat");
                 setTimeout(() => {
                   sendText(
-                    `Quiero reservar en ${v.nombre} (${v.ciudad_display}) — ${v.categoria}. ` +
+                    `Ya pedí mesa en ${v.nombre} (${v.ciudad_display}) — ${v.categoria} desde Members Only. ` +
                     (v.dress_code ? `Dress code: ${v.dress_code}. ` : "") +
-                    (v.precio_estimado ? `Rango: ${v.precio_estimado}. ` : "") +
-                    `Ayúdame a encontrar la mejor mesa u horario para esta semana: dame opciones con enlace para reservar o dime si conviene pedírselo a un humano.`,
+                    `¿Qué necesito saber para ir y qué alternativa tengo si no hay mesa?`,
+                    { intent: "members_followup" },
                   );
                 }, 250);
               }}
@@ -443,57 +472,68 @@ const Concierge = () => {
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
 
           {messages.map(m => (
-            <MessageBubble key={m.id} msg={m} trips={trips} onChooseTrip={chooseTripAndRetry} disabled={sending} />
+            <MessageBubble key={m.id} msg={m.id === "welcome" ? { ...m, text: welcomeText(trip as any) } : m} trips={trips}
+              onChooseTrip={chooseTripAndRetry} disabled={sending} onOpenEmergency={() => setLiveAction("emergency")} />
           ))}
-          {sending && (
-            <div className="flex items-center gap-2 text-primary text-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse [animation-delay:150ms]" />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse [animation-delay:300ms]" />
-              <span className="ml-1 italic text-muted-foreground">Concierge pensando…</span>
-            </div>
-          )}
         </div>
 
         {/* SMART CHIPS + INPUT */}
         <div className="px-4 md:px-8 pb-6 pt-3 border-t border-border bg-background/80 backdrop-blur">
-          {/* Modo exigente (god_mode en el servidor): prioriza opciones premium; no reserva por sí solo */}
-          <div className="flex items-center justify-end mb-2">
-            <button
-              onClick={() => setGodMode(g => !g)}
-              className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full border transition text-xs ${
-                godMode
-                  ? "border-primary bg-gradient-gold text-primary-foreground shadow-[0_0_24px_-4px_hsl(var(--primary)/0.7)]"
-                  : "border-border text-muted-foreground hover:border-primary/40"
-              }`}
-            >
-              <Crown className={`w-3.5 h-3.5 ${godMode ? "animate-pulse" : ""}`} />
-              Modo exigente <span className="hidden sm:inline">· opciones VIP</span>
-            </button>
-          </div>
-
-          {/* Quick chips — wrap to show all options at once */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            {QUICK_CHIPS.map((c) => (
+          {/* Modo exigente (god_mode en el servidor): modelo más capaz, compara más opciones y deja el
+              plan A/B/C con fuentes. No reserva por sí solo y no promete disponibilidad. */}
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <p className="text-[11px] text-muted-foreground hidden sm:block">Iato propone; tú confirmas. Nada se reserva sin ti.</p>
+            <div className="flex items-center gap-1 ml-auto">
               <button
-                key={c.label}
-                onClick={() => {
-                  if (c.action === "flight") sendText("¿Mi vuelo de hoy va a tiempo? Dame estatus real, terminal, puerta y posibles retrasos.");
-                  else if (c.action === "luggage") sendText("Quiero activar Equipaje Invisible: recolección en mi ubicación actual y entrega en mi siguiente hospedaje. Dame opciones reales (Luggage Forward, AirPortr, LugLess) con precio y link directo.");
-                  else if (c.action === "dining") sendText("Recomiéndame cenas premium cerca de mi hotel para hoy, con rating real y link de reserva.");
-                  else if (c.action === "transport") sendText("Necesito transfer/taxi premium ahora. Propón opciones con tiempo estimado y link de reserva.");
-                  else if (c.action) setLiveAction(c.action as LiveAction);
-                  else sendText(c.label);
-                }}
-                disabled={sending}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition"
+                type="button"
+                onClick={() => setShowExigenteInfo((v) => !v)}
+                aria-label="¿Qué hace el Modo exigente?"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground"
               >
-                <c.icon className="w-3.5 h-3.5 text-primary" />
-                {c.label}
+                <Info className="w-4 h-4" aria-hidden="true" />
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setGodMode(g => !g)}
+                aria-pressed={godMode}
+                className={`relative flex items-center gap-2 px-3 min-h-[36px] rounded-full border transition text-xs ${
+                  godMode
+                    ? "border-primary bg-gradient-gold text-primary-foreground shadow-[0_0_24px_-4px_hsl(var(--primary)/0.7)]"
+                    : "border-border text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                <Crown className="w-3.5 h-3.5" aria-hidden="true" />
+                Modo exigente <span className="hidden sm:inline">· lo mejor de lo mejor</span>
+                {godMode && <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">ON</span>}
+              </button>
+            </div>
           </div>
+          {(showExigenteInfo || godMode) && (
+            <div className={`mb-3 rounded-xl border px-3 py-2 text-[11px] leading-relaxed ${godMode ? "border-primary/50 bg-primary/10 text-foreground" : "border-border text-muted-foreground"}`} role="note">
+              <strong className="text-primary">Modo exigente{godMode ? " activado" : ""}:</strong> Iato usa su modelo más capaz, compara más opciones en paralelo
+              y te da <em>la mejor, la alternativa y el plan B</em> con fuentes y contras, más acciones listas para confirmar.
+              Tarda unos segundos más y cada mensaje cuenta igual que uno normal.
+            </div>
+          )}
 
+          {/* Botones rápidos con el viaje activo (vuelo de hoy, hotel, destino) */}
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            {chips.map((c) => {
+              const Icon = CHIP_ICONS[c.icon];
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onChip(c)}
+                  disabled={sending && !c.opens}
+                  className="flex items-center gap-1.5 px-3 min-h-[36px] rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition disabled:opacity-50"
+                >
+                  <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
 
           <div className="flex items-end gap-2 rounded-2xl border border-primary/30 bg-card p-2 focus-within:border-primary transition">
             <Textarea
@@ -542,8 +582,29 @@ const Concierge = () => {
   );
 };
 
-const MessageBubble = ({ msg, trips, onChooseTrip, disabled }: {
-  msg: Msg; trips: ContextTrip[]; onChooseTrip: (id: string) => void; disabled?: boolean;
+function StepList({ steps, streaming, hasText }: { steps: Step[]; streaming?: boolean; hasText: boolean }) {
+  if (!steps.length && !(streaming && !hasText)) return null;
+  return (
+    <ul className="space-y-1 text-xs" aria-live="polite" data-testid="iato-steps">
+      {steps.map((st) => (
+        <li key={st.id} className={`flex items-center gap-1.5 ${st.state === "running" ? "text-foreground" : "text-muted-foreground"}`}>
+          {st.state === "running" ? <Loader2 className="w-3 h-3 animate-spin text-primary" aria-hidden="true" />
+            : st.state === "done" ? <Check className="w-3 h-3 text-primary" aria-hidden="true" />
+              : <AlertCircle className="w-3 h-3 text-amber-500" aria-hidden="true" />}
+          <span>{st.text}</span>
+        </li>
+      ))}
+      {streaming && !hasText && !steps.some((x) => x.state === "running") && (
+        <li className="flex items-center gap-1.5 text-muted-foreground">
+          <Loader2 className="w-3 h-3 animate-spin text-primary" aria-hidden="true" /> Iato está revisando tu viaje…
+        </li>
+      )}
+    </ul>
+  );
+}
+
+const MessageBubble = ({ msg, trips, onChooseTrip, disabled, onOpenEmergency }: {
+  msg: Msg; trips: ContextTrip[]; onChooseTrip: (id: string) => void; disabled?: boolean; onOpenEmergency?: () => void;
 }) => {
   const isUser = msg.role === "user";
   const aboutTrip = !isUser && msg.tripId ? trips.find((t) => t.id === msg.tripId) : null;
@@ -552,7 +613,8 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled }: {
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
-      <div className={`max-w-[85%] md:max-w-[75%] space-y-3 ${isUser ? "items-end" : "items-start"}`}>
+      <div className={`max-w-[92%] md:max-w-[75%] space-y-3 ${isUser ? "items-end" : "items-start"}`}>
+        {!isUser && <StepList steps={msg.steps ?? []} streaming={msg.streaming} hasText={!!msg.text.trim()} />}
         {msg.text && (
           <div className={
             isUser
@@ -561,7 +623,8 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled }: {
           }>
             {!isUser && (
               <div className="flex items-center gap-1.5 text-[10px] tracking-[0.3em] text-primary uppercase mb-1">
-                <Sparkles className="w-3 h-3" /> Concierge
+                <Sparkles className="w-3 h-3" /> Iato
+                {msg.exigente && <span className="ml-1 rounded-full border border-primary/50 px-1.5 normal-case tracking-normal">Modo exigente</span>}
                 {aboutTrip?.destino && (
                   <span className="ml-2 normal-case tracking-normal text-muted-foreground">· sobre tu viaje a {aboutTrip.destino}</span>
                 )}
@@ -586,6 +649,7 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled }: {
           </div>
         )}
         {msg.cards?.map((c, i) => <RichCard key={i} card={c} tripId={msg.tripId ?? null} />)}
+        {msg.actions?.map((a) => <ActionCard key={a.id} action={a} tripId={msg.tripId ?? null} onOpenEmergency={onOpenEmergency} />)}
       </div>
     </motion.div>
   );

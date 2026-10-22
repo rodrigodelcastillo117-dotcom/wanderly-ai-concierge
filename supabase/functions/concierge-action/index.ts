@@ -35,6 +35,8 @@ const labelByType: Record<string, string> = {
   alert: "Alerta recibida",
   members_nightlife_reservation: "Solicitud de reserva recibida",
   prive_request: "Solicitud Privé recibida",
+  rebooking: "Solicitud de cambio de vuelo recibida",
+  fixer_request: "Solicitud al Fixer recibida",
 };
 
 Deno.serve(async (req) => {
@@ -131,7 +133,8 @@ Deno.serve(async (req) => {
           type: body.type,
           title,
           payload,
-          status: "pending",
+          // "solicitado": la atiende un humano; nunca nace como confirmada (mismo vocabulario que Privé).
+          status: "solicitado",
         })
         .select()
         .single();
@@ -153,7 +156,7 @@ Deno.serve(async (req) => {
     });
 
     // 3) Notifica a un humano por email — sin esto la solicitud se queda en
-    // "pending" para siempre y nadie la atiende de verdad.
+    // "solicitado" para siempre y nadie la atiende de verdad.
     let humanNotified = false;
     try {
       const { data: profile } = await admin

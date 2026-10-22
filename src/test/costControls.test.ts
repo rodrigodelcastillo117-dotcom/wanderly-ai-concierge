@@ -39,14 +39,18 @@ describe("costo estimado para ai_usage_log", () => {
     expect(SERPAPI_USD_PER_SEARCH).toBe(0.015);
     expect(estimateCostUsd({ function: "flights-search", provider: "serpapi", searches: 2 })).toBe(0.03);
   });
-  it("Claude: entrada $2, salida $10, lectura de caché $0.10 por millón", () => {
+  it("Claude Sonnet 5.5: entrada $2, salida $10, lectura de caché $0.20 por millón", () => {
     const u = usageFromClaude({ model: "claude-sonnet-5-5", usage: { input_tokens: 10_000, output_tokens: 6_000, cache_read_input_tokens: 15_000 } })!;
     expect(u).toMatchObject({ input_tokens: 10_000, output_tokens: 6_000, cache_read_tokens: 15_000, model: "claude-sonnet-5-5" });
-    // 10k×2 + 6k×10 + 15k×0.1 = 20,000 + 60,000 + 1,500 = 81,500 / 1e6
-    expect(estimateCostUsd({ function: "analizar-viaje", provider: "anthropic", ...u })).toBeCloseTo(0.0815, 6);
+    // 10k×2 + 6k×10 + 15k×0.2 = 20,000 + 60,000 + 3,000 = 83,000 / 1e6
+    expect(estimateCostUsd({ function: "analizar-viaje", provider: "anthropic", ...u })).toBeCloseTo(0.083, 6);
     const row = usageRow({ function: "analizar-viaje", provider: "anthropic", user_id: "u1", ...u });
-    expect(row).toMatchObject({ input_tokens: 25_000, output_tokens: 6_000, searches: 0, cost_estimate_usd: 0.0815 });
+    expect(row).toMatchObject({ input_tokens: 25_000, output_tokens: 6_000, searches: 0, cost_estimate_usd: 0.083 });
     expect(Object.keys(row).sort()).toEqual(["cost_estimate_usd", "function", "input_tokens", "model", "output_tokens", "provider", "searches", "user_id"]);
+  });
+  it("Claude Haiku 5.5: entrada $0.10, salida $0.50, caché $0.01 lectura / $0.125 escritura", () => {
+    // 8k entrada + 600 salida + 5k leídos + 5k escritos = 0.0008 + 0.0003 + 0.00005 + 0.000625
+    expect(estimateCostUsd({ function: "concierge-chat", provider: "anthropic", model: "claude-haiku-5-5", input_tokens: 8_000, output_tokens: 600, cache_read_tokens: 5_000, cache_write_tokens: 5_000 })).toBeCloseTo(0.001775, 6);
   });
   it("Gemini (estilo OpenAI): el razonamiento cuenta como salida; sin usage no se inventa", () => {
     expect(usageFromChat({ usage: { prompt_tokens: 11_000, completion_tokens: 300, total_tokens: 12_300 } })).toEqual({ input_tokens: 11_000, output_tokens: 1_300 });

@@ -79,7 +79,8 @@ export function itemBookingState(kind: ItemKind, item: any, siblings: any[], con
   const sameKind = confirmed.filter((b) => BOOKING_KIND[String(b.category ?? "other")] === kind);
   if (sameKind.some((b) => bookingMatches(kind, item, b))) return "reservado";
   if (sameKind.length > 0 && siblings.length === 1) return "reservado";
-  if (item?.desde_pdf) return "segun_tu_archivo";
+  // desde_usuario: dato que el usuario dio en el chat (p. ej. "ya cambié de hotel"), sin verificar.
+  if (item?.desde_pdf || item?.desde_usuario) return "segun_tu_archivo";
   return "cotizado";
 }
 

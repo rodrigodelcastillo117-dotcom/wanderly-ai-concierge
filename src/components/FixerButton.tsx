@@ -419,7 +419,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
       <button
         onClick={() => setOpen(true)}
         className={`${triggerClass} ${className}`}
-        title="Un humano premium toma el control vía WhatsApp"
+        title="Un humano del equipo IATOS te ayuda por correo o teléfono, sujeto a disponibilidad"
       >
         <Phone className="w-4 h-4 text-primary" />
         <span className="hidden sm:inline">Contactar Fixer</span>

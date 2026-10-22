@@ -722,6 +722,17 @@ const TripDetail = () => {
                                 <div><span className="text-primary tracking-wider uppercase">Mañana</span><p className="mt-0.5 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
                                 <div><span className="text-primary tracking-wider uppercase">Tarde</span><p className="mt-0.5 text-muted-foreground">{d.tarde}</p></div>
                                 <div><span className="text-primary tracking-wider uppercase">Noche</span><p className="mt-0.5 text-muted-foreground">{d.noche}</p></div>
+                                {/* Agregado con Iato (acción confirmada por el usuario en el chat). */}
+                                {Array.isArray(d.agregados) && d.agregados.length > 0 && (
+                                  <div>
+                                    <span className="text-primary tracking-wider uppercase">Agregado por ti</span>
+                                    <ul className="mt-0.5 space-y-0.5 text-muted-foreground">
+                                      {d.agregados.map((a: any, k: number) => (
+                                        <li key={k}>{a?.hora ? `${a.hora} · ` : ""}{String(a?.titulo ?? "")}{a?.lugar ? ` — ${a.lugar}` : ""}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
                               </div>
                             </details>
                           );

@@ -232,7 +232,7 @@ describe("E-05..E-11 · tools y cards con modelo y proveedores simulados", () =>
     expect(captured[0].args).toMatchObject({ flight: "AF179", date: HOY });
     const seen = JSON.parse(model.calls[1].messages.find((m) => m.role === "tool")!.content!);
     expect(seen.disponible).toBe(false);
-    expect(reply.text).toMatch(/estado del vuelo no está disponible/);
+    expect(reply.text).toMatch(/servicio de estado del vuelo no respondió/);
   });
 
   it("E-11 jet y equipaje sin proveedor: nunca precio; son solicitudes de cotización", async () => {
