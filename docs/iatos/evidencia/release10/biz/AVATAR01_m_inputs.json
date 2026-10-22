@@ -1,0 +1,48 @@
+{
+ "inputs": [
+  {
+   "aria": null,
+   "accept": "image/*",
+   "capture": null,
+   "hasCaptureAttr": false,
+   "multiple": false
+  },
+  {
+   "aria": null,
+   "accept": "image/*",
+   "capture": null,
+   "hasCaptureAttr": false,
+   "multiple": true
+  },
+  {
+   "aria": "Elegir foto de la galería",
+   "accept": "image/jpeg,image/png,image/webp",
+   "capture": null,
+   "hasCaptureAttr": false,
+   "multiple": false
+  },
+  {
+   "aria": "Tomar una foto con la cámara",
+   "accept": "image/jpeg,image/png,image/webp",
+   "capture": "user",
+   "hasCaptureAttr": true,
+   "multiple": false
+  }
+ ],
+ "galeria": {
+  "opened": true,
+  "isMultiple": false,
+  "aria": "Elegir foto de la galería",
+  "capture": null,
+  "hasCaptureAttr": false,
+  "accept": "image/jpeg,image/png,image/webp"
+ },
+ "camara": {
+  "opened": true,
+  "isMultiple": false,
+  "aria": "Tomar una foto con la cámara",
+  "capture": "user",
+  "hasCaptureAttr": true,
+  "accept": "image/jpeg,image/png,image/webp"
+ }
+}

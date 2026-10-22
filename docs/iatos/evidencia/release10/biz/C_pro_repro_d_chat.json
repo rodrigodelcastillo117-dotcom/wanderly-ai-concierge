@@ -1,0 +1,80 @@
+{
+ "account": "B",
+ "results": [
+  {
+   "n": 1,
+   "msg": "Iato, ayúdame con mi viaje a Japón",
+   "status": 200,
+   "code": null,
+   "ms": 5489,
+   "headerBefore": "te quedan 30 días.",
+   "headerAfter": "te quedan 30 días.",
+   "reply": "Tienes 4 viajes próximos: Puebla (12 dic al 14 dic), E2E PRUEBA Privacidad B (12 dic al 13 dic), Madrid (10 feb al 17 feb) y Cancún (20 mar al 25 mar). Para no confundirme, ¿a cuál te refieres?",
+   "tools": null,
+   "otherFns": [],
+   "dialogs": [],
+   "toasts": [],
+   "techErr": false,
+   "rawKeys": [
+    "text",
+    "cards",
+    "_tools_used",
+    "_gaps",
+    "_trip_id",
+    "_trip_reason",
+    "_trip_candidates",
+    "_today"
+   ]
+  },
+  {
+   "n": 2,
+   "msg": "Hazme una noche Privé espectacular",
+   "status": 200,
+   "code": null,
+   "ms": 21650,
+   "headerBefore": "te quedan 30 días.",
+   "headerAfter": "te quedan 30 días.",
+   "reply": "Tienes 4 viajes próximos: Puebla (12 dic al 14 dic), E2E PRUEBA Privacidad B (12 dic al 13 dic), Madrid (10 feb al 17 feb) y Cancún (20 mar al 25 mar). Para no confundirme, ¿a cuál te refieres?",
+   "tools": null,
+   "otherFns": [],
+   "dialogs": [],
+   "toasts": [],
+   "techErr": false,
+   "rawKeys": [
+    "text",
+    "cards",
+    "_tools_used",
+    "_gaps",
+    "_trip_id",
+    "_trip_reason",
+    "_trip_candidates",
+    "_today"
+   ]
+  },
+  {
+   "n": 3,
+   "msg": "Busca vuelos de Ciudad de México a Tokio del 15 al 29 de abril de 2027, ¿cuál me conviene más?",
+   "status": 200,
+   "code": null,
+   "ms": 20648,
+   "headerBefore": "te quedan 30 días.",
+   "headerAfter": "te quedan 30 días.",
+   "reply": "Para volar a Tokio en esas fechas, la ruta más conveniente es la de United saliendo a las 06:30: ofrece solo 1 escala y 17h 55m de trayecto total, muy superior a las 37 horas de la opción con dos paradas. Las tarifas mostradas son precios estimados; te recomiendo agregar tus tarjetas y programas en tu Bóveda para aprovechar millas y accesos a salas VIP.",
+   "tools": null,
+   "otherFns": [],
+   "dialogs": [],
+   "toasts": [],
+   "techErr": false,
+   "rawKeys": [
+    "text",
+    "cards",
+    "_tools_used",
+    "_gaps",
+    "_trip_id",
+    "_trip_reason",
+    "_trip_candidates",
+    "_today"
+   ]
+  }
+ ]
+}

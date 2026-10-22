@@ -22,6 +22,7 @@ import { TripContextSelector, type ContextTrip } from "@/components/concierge/Tr
 import { resolveActiveTrip, tripLabel, type ActiveTripReason } from "@/lib/activeTrip";
 import { localISODate } from "@/lib/localDate";
 import { ConciergeHeading } from "@/components/concierge/ConciergeHeading";
+import { notifyAccessChanged } from "@/hooks/useSubscription";
 import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
 import { loadConversation } from "@/lib/conciergeHistory";
 import { readPriveSession } from "@/lib/priveSession";
@@ -297,6 +298,9 @@ const Concierge = () => {
       }
     } finally {
       setSending(false);
+      // El encabezado ("te quedan N de 3 mensajes") se lee del servidor: tras cada mensaje (o un
+      // límite alcanzado) se vuelve a leer para que no se quede en "3 de 3" (hallazgo R10).
+      notifyAccessChanged();
     }
   };
 
