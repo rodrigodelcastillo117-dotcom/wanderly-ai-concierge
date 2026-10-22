@@ -516,7 +516,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {isVeteran ? (
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-primary">
-                  <Sparkles className="w-3 h-3" /> God Mode activado · {tripsCount} viajes aprendidos
+                  <Sparkles className="w-3 h-3" aria-hidden="true" /> Perfil aprendido de {tripsCount} viajes
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border">

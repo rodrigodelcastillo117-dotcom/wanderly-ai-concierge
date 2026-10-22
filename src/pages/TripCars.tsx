@@ -29,7 +29,7 @@ const TripCars = () => {
           <Car className="w-8 h-8 text-primary mt-1" />
           <div>
             <h1 className="font-display text-3xl md:text-4xl">Renta de auto</h1>
-            <p className="text-sm text-muted-foreground mt-1">Compara precios reales en los 3 mejores comparadores</p>
+            <p className="text-sm text-muted-foreground mt-1">Compara precios en 3 comparadores (el precio final lo da cada sitio)</p>
           </div>
         </div>
 

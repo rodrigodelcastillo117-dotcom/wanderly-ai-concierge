@@ -39,7 +39,7 @@ const Restaurantes = () => {
           <UtensilsCrossed className="w-8 h-8 text-primary mt-1" />
           <div>
             <h1 className="font-display text-3xl md:text-4xl">Reservar mesa</h1>
-            <p className="text-sm text-muted-foreground mt-1">OpenTable, TheFork, Yelp y TripAdvisor — disponibilidad real</p>
+            <p className="text-sm text-muted-foreground mt-1">OpenTable, TheFork, Yelp y TripAdvisor — la disponibilidad la ves en el sitio de cada uno</p>
           </div>
         </div>
 

@@ -35,12 +35,12 @@ const Cruceros = () => {
   const sources = [
     {
       name: "Vacations To Go",
-      desc: "El #1 mundial. Descuentos de hasta 90% sobre tarifa oficial. 90-day ticker para last-minute.",
+      desc: "Especialista en cruceros con ofertas de última hora; los descuentos los publica el propio sitio.",
       link: () => vacationsToGoLink(destination, month),
     },
     {
       name: "CruiseDirect",
-      desc: "Comparador con todas las navieras (Royal Caribbean, MSC, Celestyal, NCL, Carnival). Precios reales.",
+      desc: "Comparador con todas las navieras (Royal Caribbean, MSC, Celestyal, NCL, Carnival). Precios en el sitio del comparador.",
       link: () => cruiseDirectLink(destination, depart, ret),
     },
     {
@@ -78,7 +78,7 @@ const Cruceros = () => {
               <div>
                 <h1 className="font-display text-3xl md:text-4xl">Cruceros</h1>
                 <p className="text-sm text-muted-foreground">
-                  Caribbean, Mediterráneo, islas griegas, Alaska — descuentos reales
+                  Caribbean, Mediterráneo, islas griegas, Alaska — ofertas publicadas por cada sitio
                 </p>
               </div>
             </div>
