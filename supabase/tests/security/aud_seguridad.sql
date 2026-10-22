@@ -39,7 +39,9 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   ('prive_confirm_adult'),('prive_destination'),('prive_experience'),('prive_for_you'),('prive_home'),('prive_my_requests'),
   ('prive_request_cancel'),('prive_request_create'),('prive_request_transition'),('prive_require'),('prive_save'),('prive_saved'),
   ('prive_search'),('prive_status'),('prive_teaser'),('prive_track'),('prive_universe'),('public_plan_config'),
-  ('rechazar_invitacion_viaje'),('unlock_members_access')),
+  ('rechazar_invitacion_viaje'),('unlock_members_access'),
+  -- 20261024140000_social_friend_profile (revisadas en el cierre): auth.uid() + _social_son_amigos.
+  ('amigo_perfil'),('amigos_resumen'),('saludar_amigo')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)
