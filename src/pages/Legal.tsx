@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { openCookieSettings } from "@/lib/consent";
 import iatosLogo from "@/assets/iatos-logo.png";
 
 const UPDATED = "24 de agosto de 2026";
@@ -128,11 +129,14 @@ export const Cookies = () => (
         <li><strong>Preferencias:</strong> recordar ajustes como tu ciudad de origen o los tooltips ya vistos.</li>
         <li><strong>Diagnóstico:</strong> registros anónimos de errores (Sentry) para detectar fallas.</li>
         <li><strong>Afiliados:</strong> al hacer clic en un enlace de reserva, el proveedor final puede colocar su propia cookie de atribución. Esa cookie se rige por la política del proveedor.</li>
+        <li><strong>Analítica y medición (solo si aceptas):</strong> PostHog (uso de la app) y el script de Travelpayouts (medición de conversiones de afiliado). No se cargan hasta que eliges "Aceptar" en el aviso de cookies.</li>
       </ul>
     </section>
     <section>
       <h2>2. Cómo controlarlas</h2>
-      <p>Puedes borrar el almacenamiento del sitio desde la configuración de tu navegador. Ten en cuenta que al hacerlo se cerrará tu sesión.</p>
+      <p>Puedes cambiar tu elección cuando quieras:{" "}
+        <button type="button" onClick={openCookieSettings} className="text-primary underline">Cambiar preferencias de cookies</button>.
+        También puedes borrar el almacenamiento del sitio desde tu navegador (se cerrará tu sesión).</p>
     </section>
     <section>
       <h2>3. Contacto</h2>

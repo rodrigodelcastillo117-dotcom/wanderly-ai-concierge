@@ -190,8 +190,8 @@ export const TripSavingsCalculator = () => {
         <>
           {/* Selector de viaje */}
           <div className="mb-6">
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 block">Viaje a financiar</label>
-            <select
+            <label htmlFor="tripsavingscalculator-viaje-a-financiar" className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 block">Viaje a financiar</label>
+            <select id="tripsavingscalculator-viaje-a-financiar"
               value={state.tripId}
               onChange={(e) => setState(s => ({ ...s, tripId: e.target.value }))}
               className="w-full rounded-xl bg-surface border border-border px-3 py-2.5 text-sm focus:border-primary outline-none"

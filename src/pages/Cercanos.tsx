@@ -384,6 +384,7 @@ const Cercanos = () => {
                         <Heart className={`w-4 h-4 ${favorited.has(selected.placeId) ? "fill-primary text-primary" : "text-foreground"}`} />
                       </button>
                       <button onClick={() => { setSelected(null); setShowRoute(false); }}
+                        aria-label="Cerrar detalle del lugar"
                         className="p-2 rounded-full bg-surface hover:bg-surface-elevated transition">
                         <X className="w-4 h-4" />
                       </button>

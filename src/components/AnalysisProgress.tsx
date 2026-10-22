@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Loader2, Sparkles } from "lucide-react";
 
-// Etapas reales de analizar-viaje: las tres búsquedas corren en paralelo (~10–15 s) y luego la
-// IA arma el viaje con esos datos (~40 s). Los tiempos marcan cuándo suele terminar cada una.
+// Etapas típicas de analizar-viaje: las tres búsquedas corren en paralelo (~10–15 s) y luego la
+// IA arma el viaje con esos datos (~40 s). El servidor no reporta avance, así que los tiempos
+// son estimados y la UI lo dice ("Pasos típicos", "avance estimado").
 export const ANALYSIS_STEPS = [
-  { label: "Vuelos en vivo de Google Flights y Aviasales", doneAt: 9 },
-  { label: "Hoteles mejor calificados para tu estilo", doneAt: 12 },
-  { label: "Lugares y experiencias con reseñas reales", doneAt: 15 },
+  { label: "Buscar vuelos (Google Flights / Aviasales, si responden)", doneAt: 9 },
+  { label: "Buscar hoteles para tu estilo", doneAt: 12 },
+  { label: "Buscar lugares y experiencias con reseñas", doneAt: 15 },
   { label: "Itinerario día por día y presupuesto en MXN", doneAt: Infinity },
 ] as const;
 
@@ -39,6 +40,9 @@ export function AnalysisProgress({ destino }: { destino: string }) {
         Analizando tu viaje a <span className="gold-text italic">{destino}</span>
       </h2>
 
+      <p className="w-full max-w-md text-left text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
+        Pasos típicos · avance estimado
+      </p>
       <ol className="w-full max-w-md space-y-3 text-left" aria-live="polite">
         {ANALYSIS_STEPS.map((s, i) => {
           const done = i < current;
@@ -71,7 +75,7 @@ export function AnalysisProgress({ destino }: { destino: string }) {
         </div>
         <p className="text-xs text-muted-foreground mt-3">
           {elapsed < TYPICAL_SECONDS
-            ? "Suele tardar menos de un minuto: estamos consultando precios reales de hoy."
+            ? "Suele tardar alrededor de un minuto. Si un proveedor no responde, te lo indicamos en el viaje."
             : "Ya casi: estamos terminando de armar tu itinerario."}
         </p>
       </div>

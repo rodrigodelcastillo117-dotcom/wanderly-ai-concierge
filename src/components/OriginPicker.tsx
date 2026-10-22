@@ -13,13 +13,15 @@ interface OriginPickerProps {
   value: string;
   onChange: (city: string) => void;
   className?: string;
+  /** id del <label> visible que nombra este selector (accesibilidad). */
+  labelId?: string;
 }
 
 /**
  * Two-step picker: País → Ciudad. Provides a free-text fallback ("Otra ciudad…")
  * so users can still enter anything outside the curated list.
  */
-export function OriginPicker({ value, onChange, className }: OriginPickerProps) {
+export function OriginPicker({ value, onChange, className, labelId }: OriginPickerProps) {
   // Derive currently selected country from the saved city.
   const initialCountry = useMemo(() => findCountryByCity(value) ?? null, [value]);
   const [country, setCountry] = useState<Country | null>(initialCountry);
@@ -39,8 +41,9 @@ export function OriginPicker({ value, onChange, className }: OriginPickerProps) 
 
   if (customMode) {
     return (
-      <div className={cn("space-y-2", className)}>
+      <div className={cn("space-y-2", className)} role="group" aria-labelledby={labelId}>
         <Input
+          aria-label="Ciudad de origen"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Ej. Mazatlán, Salamanca…"
@@ -59,7 +62,7 @@ export function OriginPicker({ value, onChange, className }: OriginPickerProps) 
   }
 
   return (
-    <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-3", className)}>
+    <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-3", className)} role="group" aria-labelledby={labelId}>
       {/* País */}
       <Popover open={openCountry} onOpenChange={setOpenCountry}>
         <PopoverTrigger asChild>
@@ -67,6 +70,7 @@ export function OriginPicker({ value, onChange, className }: OriginPickerProps) 
             type="button"
             variant="outline"
             role="combobox"
+            aria-label={country ? `País de origen: ${country.name}` : "País de origen"}
             className="h-12 justify-between bg-input border-border font-normal"
           >
             <span className="flex items-center gap-2 truncate">
@@ -108,6 +112,7 @@ export function OriginPicker({ value, onChange, className }: OriginPickerProps) 
             type="button"
             variant="outline"
             role="combobox"
+            aria-label={value ? `Ciudad de origen: ${value}` : "Ciudad de origen"}
             disabled={!country}
             className="h-12 justify-between bg-input border-border font-normal"
           >

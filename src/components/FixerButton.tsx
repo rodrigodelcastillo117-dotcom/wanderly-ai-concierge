@@ -355,10 +355,10 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <label htmlFor="fixerbutton-mensaje-opcional" className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                       Mensaje opcional
                     </label>
-                    <Textarea
+                    <Textarea id="fixerbutton-mensaje-opcional"
                       value={motivo}
                       onChange={(e) => setMotivo(e.target.value)}
                       placeholder="Ej. Mi vuelo se canceló y necesito reubicación esta noche."

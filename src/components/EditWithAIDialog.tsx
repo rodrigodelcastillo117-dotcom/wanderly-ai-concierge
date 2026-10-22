@@ -62,6 +62,7 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
               className="absolute top-4 right-4 text-muted-foreground hover:text-foreground disabled:opacity-30"
               onClick={() => setOpen(false)}
               disabled={loading}
+              aria-label="Cerrar"
             >
               <X className="w-5 h-5" />
             </button>

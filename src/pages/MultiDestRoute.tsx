@@ -427,8 +427,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         {/* Stops builder */}
         <section className="rounded-3xl border border-border bg-card p-6 md:p-8 space-y-5 premium-shadow">
           <div>
-            <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block">Ciudad de origen</label>
-            <OriginPicker value={origin} onChange={setOrigin} />
+            <label id="ruta-origen" className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block">Ciudad de origen</label>
+            <OriginPicker labelId="ruta-origen" value={origin} onChange={setOrigin} />
           </div>
 
           <div>
@@ -518,7 +518,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {isVeteran ? (
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-primary">
-                  <Sparkles className="w-3 h-3" /> God Mode activado · {tripsCount} viajes aprendidos
+                  <Sparkles className="w-3 h-3" aria-hidden="true" /> Perfil aprendido de {tripsCount} viajes
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border">

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, User, Mail, Plus, Globe, Users, LogOut, Settings, Sparkles } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
 import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationBell } from "@/components/NotificationBell";
 import iatosLogo from "@/assets/iatos-logo.png";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 const links = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
@@ -18,15 +19,24 @@ const links = [
   { to: "/dashboard/concierge", icon: Crown, label: "Concierge Pro" },
 ];
 
-// Mobile bottom nav — all 7 tabs + floating (+) above the bar
-const mobileNav = [
+// Barra inferior móvil: máximo 5 elementos (antes eran 7 con etiquetas de 9px y un
+// botón (+) flotante que tapaba "Favoritos"). Lo demás vive en "Más", así que todos
+// los destinos anteriores siguen a un toque de distancia.
+export const mobilePrimaryNav = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
   { to: "/dashboard/viajes", icon: Map, label: "Viajes" },
-  { to: "/dashboard/cercanos", icon: MapPin, label: "Cerca" },
-  { to: "/dashboard/favoritos", icon: Heart, label: "Favs" },
+  // El centro es "Planear" (el antiguo +), ver render.
+  { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
+];
+
+export const mobileMoreNav = [
+  { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
+  { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
-  { to: "/dashboard/concierge", icon: Crown, label: "Pro" },
+  { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend (gastos)" },
+  { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
+  { to: "/dashboard/pro", icon: Sparkles, label: "Plan IATOS PRO" },
+  { to: "/dashboard/perfil", icon: User, label: "Mi perfil" },
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
@@ -35,6 +45,11 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useState<{ full_name?: string | null; avatar_url?: string | null } | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreActive = mobileMoreNav.some((n) => location.pathname.startsWith(n.to));
+  // En el chat del Concierge el área de escritura va pegada abajo: reservamos el alto
+  // de la barra inferior y del área segura para que no quede oculta debajo.
+  const isChatRoute = location.pathname.startsWith("/dashboard/concierge");
 
   useEffect(() => {
     if (!user) return;
@@ -149,7 +164,13 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </aside>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 overflow-x-hidden pb-32 lg:pb-0 lg:pl-[200px] relative">
+      <main
+        className={`flex-1 min-w-0 overflow-x-hidden lg:pb-0 lg:pl-[200px] relative ${
+          isChatRoute
+            ? "flex flex-col h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-hidden pb-[calc(76px+env(safe-area-inset-bottom))]"
+            : "pb-32"
+        }`}
+      >
         {/* Mobile top bar — notifications + profile avatar */}
         <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
           <Link to="/dashboard" className="flex items-center">
@@ -188,41 +209,107 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           </button>
         </div>
         <BackButton />
-        {children}
+        {isChatRoute ? (
+          // El hijo directo (la página) ocupa exactamente el alto restante; así el
+          // compositor del chat queda visible sobre la barra inferior.
+          <div data-testid="chat-viewport" className="flex-1 min-h-0 [&>*]:!h-full [&>*]:min-h-0">
+            {children}
+          </div>
+        ) : (
+          children
+        )}
       </main>
 
-      {/* Mobile bottom nav — labels under icons, centered floating gold (+) */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
-        <div className="relative mx-2 rounded-[28px] border border-white/[0.06] bg-black/75 backdrop-blur-2xl shadow-[0_18px_60px_-12px_rgba(0,0,0,0.85)]">
-          <div className="grid grid-cols-7 items-end px-1.5 pt-2 pb-2 gap-0.5">
-            {mobileNav.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.end}
-                className={({ isActive }) =>
-                  `flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-colors ${
-                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                  }`
-                }
-              >
-                <n.icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                <span className="text-[9px] tracking-wide leading-none">{n.label}</span>
-              </NavLink>
+      {/* Barra inferior móvil: 5 elementos, etiquetas de 12px, áreas táctiles ≥44px */}
+      <nav aria-label="Navegación principal" className="lg:hidden fixed bottom-0 inset-x-0 z-50 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+        <div className="relative mx-2 rounded-[28px] border border-white/[0.06] bg-black/80 backdrop-blur-2xl shadow-[0_18px_60px_-12px_rgba(0,0,0,0.85)]">
+          <div className="grid grid-cols-5 items-stretch px-1 py-1.5 gap-0.5">
+            {[mobilePrimaryNav[0], mobilePrimaryNav[1]].map((n) => (
+              <BottomNavLink key={n.to} {...n} />
             ))}
-          </div>
 
-          {/* Floating gold (+) — sits above the bar */}
-          <button
-            onClick={() => navigate("/dashboard/planear")}
-            aria-label="Crear nuevo viaje"
-            className="absolute left-1/2 -top-7 -translate-x-1/2 w-14 h-14 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground shadow-[0_14px_36px_-8px_hsl(41_47%_59%/0.65),inset_0_1px_0_hsl(41_60%_80%/0.5)] ring-4 ring-background active:scale-95 transition"
-          >
-            <span aria-hidden className="absolute inset-0 rounded-full bg-primary/30 blur-xl -z-10" />
-            <Plus className="w-6 h-6" strokeWidth={2.25} />
-          </button>
+            {/* Planear: botón dorado redondo DENTRO de su propia columna (no tapa otras pestañas) */}
+            <NavLink
+              to="/dashboard/planear"
+              aria-label="Planear un viaje nuevo"
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center gap-1 min-h-[52px] min-w-[44px] rounded-xl ${isActive ? "text-primary" : "text-foreground"}`
+              }
+            >
+              <span className="w-11 h-11 -mt-1 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground shadow-[0_10px_28px_-8px_hsl(41_47%_59%/0.65)] active:scale-95 transition">
+                <Plus className="w-5 h-5" strokeWidth={2.25} aria-hidden="true" />
+              </span>
+              <span className="text-xs leading-none">Planear</span>
+            </NavLink>
+
+            <BottomNavLink {...mobilePrimaryNav[2]} />
+
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={moreOpen}
+              className={`flex flex-col items-center justify-center gap-1 min-h-[52px] min-w-[44px] rounded-xl transition-colors ${
+                moreActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Menu className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+              <span className="text-xs leading-none">Más</span>
+            </button>
+          </div>
         </div>
       </nav>
+
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side="bottom" className="lg:hidden rounded-t-3xl pb-[max(env(safe-area-inset-bottom),1rem)]">
+          <SheetHeader className="text-left">
+            <SheetTitle>Más opciones</SheetTitle>
+            <SheetDescription>Todas las secciones de IATOS.</SheetDescription>
+          </SheetHeader>
+          <ul className="mt-4 grid grid-cols-2 gap-2">
+            {mobileMoreNav.map((n) => (
+              <li key={n.to}>
+                <NavLink
+                  to={n.to}
+                  onClick={() => setMoreOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 min-h-[48px] px-3 rounded-xl border border-white/[0.06] text-sm ${
+                      isActive ? "text-primary border-primary/40" : "text-foreground hover:bg-white/[0.04]"
+                    }`
+                  }
+                >
+                  <n.icon className="w-5 h-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                  {n.label}
+                </NavLink>
+              </li>
+            ))}
+            <li className="col-span-2">
+              <button
+                type="button"
+                onClick={async () => { setMoreOpen(false); await signOut(); navigate("/"); }}
+                className="w-full flex items-center gap-3 min-h-[48px] px-3 rounded-xl border border-white/[0.06] text-sm text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-5 h-5" aria-hidden="true" /> Cerrar sesión
+              </button>
+            </li>
+          </ul>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
+
+const BottomNavLink = ({ to, icon: Icon, label, end }: { to: string; icon: any; label: string; end?: boolean }) => (
+  <NavLink
+    to={to}
+    end={end}
+    className={({ isActive }) =>
+      `flex flex-col items-center justify-center gap-1 min-h-[52px] min-w-[44px] rounded-xl transition-colors ${
+        isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+      }`
+    }
+  >
+    <Icon className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+    <span className="text-xs leading-none">{label}</span>
+  </NavLink>
+);

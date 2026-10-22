@@ -1,6 +1,104 @@
-// IATOS Service Worker - Web Push para cambios de vuelo
-self.addEventListener('install', (e) => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+// IATOS Service Worker: Web Push para cambios de vuelo + lectura offline ligera.
+//
+// Offline (por qué): sin red en el aeropuerto o en el extranjero la app quedaba en
+// blanco. Ahora guardamos:
+//  - el "app shell" (index.html + bundles con hash de /assets/) para que la app abra,
+//  - los últimos viajes consultados (GET a /rest/v1/trips) para leerlos sin conexión.
+// Estrategias: navegación y datos = red primero (siempre lo más fresco si hay red);
+// /assets/ = caché primero (los nombres llevan hash, nunca quedan viejos).
+// Al cerrar sesión la app pide borrar los datos guardados (mensaje iatos:clear-user-cache).
+const SHELL_CACHE = 'iatos-shell-v1';
+const DATA_CACHE = 'iatos-data-v1';
+const MAX_TRIP_ENTRIES = 8;
+const PRECACHE = ['/', '/manifest.webmanifest', '/favicon-32.png', '/icons/icon-192.png'];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(SHELL_CACHE)
+      // Nunca fallar la instalación por un recurso opcional.
+      .then((c) => Promise.all(PRECACHE.map((u) => c.add(u).catch(() => {}))))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('iatos-') && k !== SHELL_CACHE && k !== DATA_CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'iatos:clear-user-cache') {
+    event.waitUntil(caches.delete(DATA_CACHE));
+  }
+});
+
+function isTripsApi(url) {
+  return url.pathname.endsWith('/rest/v1/trips');
+}
+
+async function trimCache(name, max) {
+  const c = await caches.open(name);
+  const keys = await c.keys();
+  // keys() conserva el orden de inserción: borramos los más viejos.
+  for (let i = 0; i < keys.length - max; i++) await c.delete(keys[i]);
+}
+
+async function networkFirst(request, cacheName, cacheKey, max) {
+  try {
+    const res = await fetch(request);
+    if (res && res.ok) {
+      const c = await caches.open(cacheName);
+      await c.delete(cacheKey, { ignoreVary: true });
+      await c.put(cacheKey, res.clone());
+      if (max) await trimCache(cacheName, max);
+    }
+    return res;
+  } catch (err) {
+    const hit = await caches.match(cacheKey, { cacheName, ignoreVary: true });
+    if (hit) return hit;
+    throw err;
+  }
+}
+
+async function cacheFirst(request) {
+  const hit = await caches.match(request, { cacheName: SHELL_CACHE });
+  if (hit) return hit;
+  const res = await fetch(request);
+  if (res && res.ok) {
+    const c = await caches.open(SHELL_CACHE);
+    await c.put(request, res.clone());
+  }
+  return res;
+}
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  let url;
+  try { url = new URL(req.url); } catch { return; }
+
+  // Navegación de la SPA: red primero; sin red, el index.html guardado.
+  if (req.mode === 'navigate' && url.origin === self.location.origin) {
+    event.respondWith(networkFirst(req, SHELL_CACHE, '/', 0));
+    return;
+  }
+  // Bundles con hash generados por Vite.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
+    event.respondWith(cacheFirst(req));
+    return;
+  }
+  // Datos de viajes (Supabase REST, solo lectura): últimos viajes vistos.
+  if (isTripsApi(url)) {
+    // La misma URL puede pedirse como objeto o como arreglo (header Accept): lo
+    // incluimos en la llave para no devolver offline una forma distinta.
+    const accept = (req.headers && req.headers.get && req.headers.get('accept')) || '';
+    const key = req.url + (req.url.includes('?') ? '&' : '?') + '__accept=' + encodeURIComponent(accept);
+    event.respondWith(networkFirst(req, DATA_CACHE, key, MAX_TRIP_ENTRIES));
+  }
+});
 
 self.addEventListener('push', (event) => {
   let data = {};
