@@ -1,3 +1,5 @@
+import { fareProblems } from "./fareGuard.ts";
+
 // Server-to-server fare lookups for scheduled jobs. travelpayouts-flights and
 // flights-search require a user JWT, so cron jobs call the providers directly.
 
@@ -80,6 +82,8 @@ export async function travelpayoutsFare(q: FareQuery, token: string, marker: str
   }
   const best = rows
     .filter((r: { price?: number }) => Number(r?.price) > 0)
+    // Nunca la tarifa de otra ruta (otra ciudad de destino) ni una duración absurda.
+    .filter((r: Record<string, unknown>) => fareProblems(r as never, { origin: q.origin, destination: q.destination }).length === 0)
     .sort((a: { price: number }, b: { price: number }) => Number(a.price) - Number(b.price))[0];
   if (!best) return null;
 

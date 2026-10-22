@@ -40,6 +40,7 @@ import { TripDocuments } from "@/components/TripDocuments";
 import { BookingActions } from "@/components/booking/BookingActions";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
+import { tripFlightProblems } from "@/lib/booking";
 import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
@@ -368,6 +369,7 @@ const TripDetail = () => {
   }
 
   const trust = quoteTrust(quote);
+  const discardedFares = (trip.vuelos_json ?? []).filter((v: any) => tripFlightProblems(v, trip).length > 0).length;
   const hasQuotedTotal = !!(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0);
   const isOwner = user?.id === trip.user_id;
   const stickyTotalValue = hasQuotedTotal ? tripTotals(trip, quoteTravelers, currentSel ? computedDesglose : null).total : 0;
@@ -534,6 +536,13 @@ const TripDetail = () => {
         {/* roadtrip: acceso directo al panel de los tramos en coche, que va más abajo. */}
         {isMulti && logistics?.road_trip && <RoadTripJump plan={logistics.road_trip} />}
 
+        {/* Tarifas guardadas que eran de otra ruta: se descartan y se dice (nunca se muestran como vuelo del viaje). */}
+        {discardedFares > 0 && (
+          <div role="status" data-testid="trip-tarifas-descartadas" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-500">
+            Descartamos {discardedFares === 1 ? "1 tarifa de vuelo" : `${discardedFares} tarifas de vuelo`} de esta cotización porque no eran de tu ruta. El vuelo queda por cotizar: búscalo en “Comprar mi viaje” o actualiza la cotización.
+          </div>
+        )}
+
         {/* Total + Análisis narrativo */}
         <motion.section id="trip-total" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="scroll-mt-20 focus:outline-none">
           {hasQuotedTotal ? (
@@ -642,9 +651,10 @@ const TripDetail = () => {
 
           {(isMulti ? destinationsMulti : [trip.destino]).map((city: string, cityIdx: number, allCities: string[]) => {
             const cityKey = isMulti ? cityKeyFor(city) : city;
-            const cityVuelos = isMulti
+            // Tarifas de otra ruta (MEX→BUH presentada como Roma) o imposibles no se muestran.
+            const cityVuelos = (isMulti
               ? (trip.vuelos_json ?? []).filter((v: any) => (v.ciudad || v.to) === cityKey || (v.ciudad || v.to) === city)
-              : (trip.vuelos_json ?? []);
+              : (trip.vuelos_json ?? [])).filter((v: any) => tripFlightProblems(v, trip).length === 0);
             const priceNum = (s: any) => {
               if (typeof s === "number") return s;
               if (typeof s !== "string") return 0;

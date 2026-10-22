@@ -33,6 +33,7 @@ import { hotelPriceRooms } from "../_shared/rooms.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { computeRoute } from "../_shared/google-routes.ts";
 import { legModesFor, planRoadTrip, roadTripPromptBlock } from "./roadtrip.ts";
+import { filterFares } from "../_shared/fareGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -582,6 +583,17 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
 
     const [roadTrip, tpFlights, ...cityLive] = await Promise.all([roadTripPromise, tpFlightsPromise, ...cityLivePromises]);
 
+    // Solo tarifas de la ruta pedida (origen → primera ciudad), con duración creíble: la API puede
+    // devolver otra ciudad (MEX→BUH presentada como Roma, caso 22-oct-2026). Sin tarifa válida no hay
+    // "precio de referencia": el vuelo queda como estimación.
+    if (Array.isArray(tpFlights?.flights) && tpFlights.flights.length) {
+      const guard = filterFares(tpFlights.flights, {
+        origin: String(tpFlights.origin ?? ""), destination: String(tpFlights.destination ?? ""),
+        originCity: body.origin, destinationCity: body.destinations[0],
+      });
+      if (guard.rejected.length) console.warn("logistics-plan: tarifas de otra ruta descartadas", guard.rejected.length);
+      tpFlights.flights = guard.valid;
+    }
     const tpLive = Array.isArray(tpFlights?.flights) && tpFlights.flights.length > 0;
     const tpFlightsBlock = tpLive
       ? `DATOS EN VIVO — TRAVELPAYOUTS/AVIASALES (fuente_precio="travelpayouts"). Ruta ${tpFlights.origin}→${tpFlights.destination}${tpFlights.approximate_dates ? " (fechas aproximadas del mes)" : ""}:\n` +
@@ -707,7 +719,10 @@ Entrega JSON con:
         from: body.origin,
         to: body.destinations[0],
         airline_suggested: f.airline ? `${f.airline}${f.flight_number ? ` ${f.flight_number}` : ""}` : "Aerolínea por confirmar",
-        duration: f.duration_minutes ? `${Math.round(f.duration_minutes / 60)}h` : "",
+        // Duración de la ida (duration_minutes de Travelpayouts es ida + vuelta).
+        duration: f.duration_to_minutes ? `${Math.floor(f.duration_to_minutes / 60)}h${f.duration_to_minutes % 60 ? ` ${f.duration_to_minutes % 60}m` : ""}` : "",
+        dep_iata: f.origin_airport ?? tpFlights.origin ?? null,
+        arr_iata: f.destination_airport ?? tpFlights.destination ?? null,
         stops: Number(f.stops) > 0 ? `${f.stops} escala(s)` : "Directo",
         price_per_person_usd: Math.round(Number(f.price)),
         booking_link: f.booking_link ?? null,

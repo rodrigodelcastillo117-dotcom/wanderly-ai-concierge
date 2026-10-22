@@ -3,6 +3,7 @@ import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { pricesForDatesUrl, resolveTpMarker } from "../_shared/tp-params.ts";
 import { aviasalesSearchLink } from "../_shared/travelpayouts.ts";
+import { filterFares, knownCityCode } from "../_shared/fareGuard.ts";
 // Consulta precios de vuelos via Travelpayouts/Aviasales v3 prices_for_dates.
 // Acepta IATA o nombre de ciudad (auto-resuelve via autocomplete Travelpayouts).
 
@@ -32,6 +33,10 @@ async function resolveIata(input: string | undefined): Promise<string | null> {
   const cleaned = input.trim();
   if (!cleaned) return null;
   if (/^[A-Z]{3}$/.test(cleaned.toUpperCase())) return cleaned.toUpperCase();
+  // Ciudad conocida (tabla de aeropuertos): su código sin preguntar al autocompletado, que con
+  // nombres en español puede devolver otra ciudad.
+  const known = knownCityCode(cleaned);
+  if (known) return known;
   try {
     const url = `https://autocomplete.travelpayouts.com/places2?term=${encodeURIComponent(cleaned)}&locale=en&types[]=city&types[]=airport`;
     const res = await fetch(url);
@@ -127,11 +132,21 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Solo tarifas de ESTA ruta: el destino (o un aeropuerto de su área) y el origen pedidos, con una
+    // duración creíble. Antes pasaba una MEX→BUH (Bucarest) como si fuera a Roma.
+    const guard = filterFares(rows.map((r: any) => ({ ...r, booking_link: r?.link })), {
+      origin, destination, originCity: body.origin_city ?? null, destinationCity: body.destination_city ?? null,
+    });
+    if (guard.rejected.length) {
+      console.warn("travelpayouts-flights: tarifas descartadas", guard.rejected.map((x) => ({ d: x.row?.destination, a: x.row?.destination_airport, p: x.problems })));
+    }
+    rows = guard.valid;
     const data = { data: rows };
     if (rows.length === 0) {
       return okJson({
         source: "travelpayouts",
-        error: lastError ?? "sin_resultados_en_cache",
+        error: guard.rejected.length ? "solo_tarifas_de_otra_ruta" : lastError ?? "sin_resultados_en_cache",
+        rejected_count: guard.rejected.length,
         approximate_dates: false,
         flights: [],
       });
@@ -179,6 +194,7 @@ Deno.serve(async (req) => {
       // consulta de inventario en tiempo real: quien los muestre debe decirlo.
       cache_max_age_h: 48,
       one_way: !body.return_date,
+      rejected_count: guard.rejected.length,
       flights,
     });
 

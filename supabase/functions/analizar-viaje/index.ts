@@ -1,6 +1,7 @@
 // supabase/functions/analizar-viaje/index.ts
 // Flujo: Perplexity (sonar-pro) investiga precios reales -> Claude estructura el análisis premium.
 // FIX v3: Perplexity opcional — si falta la key, continúa sin contexto cualitativo (no 500).
+import { filterFares } from "../_shared/fareGuard.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   invalidRequestResponse,
@@ -801,6 +802,13 @@ Deno.serve(async (req) => {
       : { texto: `(Perplexity falló: ${(perplexityResult as any).reason?.message ?? "error"})`, citations: [] };
 
     const tpFlights = tpFlightsRes.status === "fulfilled" ? tpFlightsRes.value : { error: "promise_rejected", flights: [] };
+    // Solo tarifas de la ruta pedida y con duración creíble (nunca las de otra ciudad, caso MEX→BUH).
+    if (Array.isArray(tpFlights?.flights) && tpFlights.flights.length) {
+      tpFlights.flights = filterFares(tpFlights.flights, {
+        origin: String(tpFlights.origin ?? ""), destination: String(tpFlights.destination ?? ""),
+        originCity: body.ciudad_origen, destinationCity: body.destino,
+      }).valid;
+    }
     const googleFlights = googleFlightsRes.status === "fulfilled" ? googleFlightsRes.value : { ok: false, results: [] };
     // En trayecto corto, el modelo solo ve los vuelos que convienen puerta a puerta o que el usuario pidió.
     if (shortTrip) {
