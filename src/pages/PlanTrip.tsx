@@ -22,6 +22,7 @@ import { VoiceInput } from "@/components/VoiceInput";
 import { claimIntent, completeIntent, intentFingerprint, releaseIntent } from "@/lib/autoIntent";
 import { analysisSummaryOf, datePresets, EXAMPLE_PROMPTS, looksLikeSentence, understandPlanText } from "@/lib/planDefaults";
 import { formatLocalDate } from "@/lib/localDate";
+import { fetchFriendProfiles } from "@/lib/friendProfiles";
 
 const EMOCIONES: Array<{ key: string; label: string; sub: string; Icon: any }> = [
   { key: "Inspiración",  label: "Inspiración",  sub: "Quiero descubrir\nalgo nuevo",        Icon: Heart },
@@ -153,6 +154,21 @@ const PlanTrip = () => {
   // Aviso en el paso de fechas: qué entendimos de la frase o por qué falta un dato.
   const [stepNotice, setStepNotice] = useState<string | null>(null);
   const [analysisSummary, setAnalysisSummary] = useState<string | null>(null);
+  // "Planear juntos" desde el perfil de un amigo (?con=<id>): al guardarse el viaje se le invita
+  // con invitar_amigo_viaje (el servidor vuelve a comprobar la amistad).
+  const conParam = params.get("con");
+  const [companion, setCompanion] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    if (!user || !conParam || !/^[0-9a-f-]{36}$/i.test(conParam)) { setCompanion(null); return; }
+    let alive = true;
+    void fetchFriendProfiles(supabase, [conParam]).then((p) => {
+      if (!alive || !p[0]) return;
+      setCompanion({ id: p[0].id, name: (p[0].full_name || p[0].username || "tu amigo").split(/\s+/)[0] });
+    });
+    return () => { alive = false; };
+  }, [user?.id, conParam]);
+  const companionRef = useRef<{ id: string; name: string } | null>(null);
+  companionRef.current = companion;
 
   useEffect(() => {
     if (!user) return;
@@ -262,6 +278,16 @@ const PlanTrip = () => {
       // El análisis terminó y quedó guardado: el siguiente es otro intento (llave nueva).
       clearRequestKey("analizar-viaje");
       if (intentFp) completeIntent(intentFp, data.trip.id);
+      const amigo = companionRef.current;
+      if (amigo) {
+        try {
+          const { data: inv } = await supabase.rpc("invitar_amigo_viaje", { p_trip_id: data.trip.id, p_friend_id: amigo.id });
+          if ((inv as { ok?: boolean } | null)?.ok) {
+            toast.success(`Invitamos a ${amigo.name} a este viaje`);
+            supabase.functions.invoke("send-email", { body: { trip_id: data.trip.id, friend_id: amigo.id } }).catch(() => {});
+          }
+        } catch { /* la invitación se puede mandar después desde "Compartir" */ }
+      }
       // replace: el viaje sustituye a la pantalla del asistente en el historial,
       // así "Atrás" regresa a donde estabas antes de planear (no re-analiza).
       navigate(`/dashboard/viajes/${data.trip.id}`, { replace: true });
@@ -947,6 +973,13 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         <main className="flex-1 px-4 md:px-6 py-6 md:py-10">
           <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 md:gap-10 items-start">
             <div className="w-full max-w-xl mx-auto lg:mx-0">
+              {companion && (
+                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs text-foreground" data-testid="plan-companion">
+                  <Users className="w-3.5 h-3.5 text-primary" />
+                  Viaje con {companion.name} · lo invitamos en cuanto se guarde
+                  <button type="button" aria-label={`Planear sin ${companion.name}`} onClick={() => setCompanion(null)} className="ml-1 text-muted-foreground hover:text-foreground">×</button>
+                </div>
+              )}
               <AnimatePresence mode="wait">
                 <motion.div key={step} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }}>
                   {isEmocionMode && step === 0 ? (
