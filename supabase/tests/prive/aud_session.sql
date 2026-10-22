@@ -271,6 +271,83 @@ SELECT aud.ok('S13b anon y authenticated no tienen EXECUTE en las RPC admin_* de
                        'prive_auth_session_alive', 'prive_withdraw_invitation')
      AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))));
 
+-- ===================================================================== NEW-01 · revocar concesión con invitación pendiente
+-- U13: PRO sin días pagados; la concesión lo invita; el correo sale (token emitido); se revoca.
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES (aud.u(13), 'aud13@example.test', now()) ON CONFLICT DO NOTHING;
+INSERT INTO public.profiles (id, full_name, email) VALUES (aud.u(13), 'Aud 13', 'aud13@example.test') ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.subscriptions (user_id, status, stripe_subscription_id, stripe_customer_id, current_period_end)
+VALUES (aud.u(13), 'active', 'sub_aud13', 'cus_aud13', now() + interval '20 days') ON CONFLICT (user_id) DO NOTHING;
+SET ROLE service_role;
+SELECT public.admin_grant_prive('aud13@example.test', 'Cortesía de prueba', NULL, 'dueno@iatos.test') AS g13 \gset
+SELECT token AS it13 FROM public.prive_claim_invitation_emails(10, aud.u(13)) \gset
+SELECT public.admin_revoke_prive_grant((:'g13'::jsonb->>'grant_id')::uuid, 'Fin de la cortesía', 'dueno@iatos.test') AS rv13 \gset
+SELECT public.admin_revoke_prive_grant((:'g13'::jsonb->>'grant_id')::uuid, 'Fin de la cortesía', 'dueno@iatos.test') AS rv13b \gset
+RESET ROLE;
+SELECT aud.ok('N01 revocar la concesión revoca la invitación pendiente y retira la membresía "invited" (auditado)',
+  (:'g13'::jsonb->>'action') = 'invited'
+  AND NOT EXISTS (SELECT 1 FROM prive_invitations WHERE user_id = aud.u(13) AND accepted_at IS NULL AND revoked_at IS NULL)
+  AND NOT EXISTS (SELECT 1 FROM prive_memberships WHERE user_id = aud.u(13) AND status = 'invited')
+  AND EXISTS (SELECT 1 FROM prive_membership_events WHERE user_id = aud.u(13) AND event = 'invitation_withdrawn')
+  AND NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = aud.u(13) AND dedup_key = 'prive_invite:' || aud.u(13)),
+  'inv=' || (SELECT string_agg(coalesce(revoked_at::text, 'viva'), ',') FROM prive_invitations WHERE user_id = aud.u(13))
+  || ' memb=' || coalesce((SELECT status FROM prive_memberships WHERE user_id = aud.u(13)), 'none'));
+SELECT aud.ok('N01b idempotente: revocar otra vez no duplica nada',
+  (:'rv13b'::jsonb->>'ok') = 'false' AND (SELECT count(*) FROM prive_membership_events WHERE user_id = aud.u(13) AND event IN ('grant_revoked', 'invitation_withdrawn')) <= 2,
+  :'rv13b');
+SET ROLE service_role;
+SELECT public.prive_accept_invitation(aud.u(13), public.prive_sha256_hex(:'it13')) AS ac13 \gset
+SELECT public.prive_set_password(aud.u(13), 'Trece-aud-clave-larga', 'ok') AS sp13 \gset
+SELECT count(*) AS cl13 FROM public.prive_claim_invitation_emails(10, aud.u(13)) \gset
+RESET ROLE;
+SELECT aud.ok('N01c el enlace de la invitación revocada no se acepta, no fija contraseña y no se vuelve a enviar',
+  (:'ac13'::jsonb->>'ok') = 'false' AND (:'sp13'::jsonb->>'ok') = 'false' AND :cl13 = 0, :'ac13' || ' ' || :'sp13');
+-- Más tarde cumple 90 días pagados: el enlace viejo (de la concesión) sigue sin servir; el cron lo
+-- invita de nuevo por antigüedad, con invitación nueva.
+SELECT public.prive_record_paid_period(aud.u(13), 'in_aud_13', 'sub_aud13', 'cus_aud13', now() - interval '95 days', now() + interval '1 day', 19900, 'mxn', 'test');
+SET ROLE service_role;
+SELECT public.prive_accept_invitation(aud.u(13), public.prive_sha256_hex(:'it13')) AS ac13b \gset
+SELECT count(*) FROM (SELECT * FROM public.prive_evaluate_eligibility(500)) e;
+RESET ROLE;
+SELECT aud.ok('N01d al cumplir 90 días: el enlace viejo da INVITATION_EXPIRED y el cron crea una invitación nueva por antigüedad',
+  (:'ac13b'::jsonb->>'code') = 'INVITATION_EXPIRED'
+  AND (SELECT status = 'invited' AND basis = 'tenure' FROM prive_memberships WHERE user_id = aud.u(13))
+  AND (SELECT count(*) FROM prive_invitations WHERE user_id = aud.u(13) AND accepted_at IS NULL AND revoked_at IS NULL) = 1,
+  :'ac13b' || ' memb=' || coalesce((SELECT status || '/' || basis FROM prive_memberships WHERE user_id = aud.u(13)), 'none'));
+
+-- U14: concesión + 100 días pagados: revocar la concesión NO le quita la invitación (sigue cumpliendo).
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES (aud.u(14), 'aud14@example.test', now()) ON CONFLICT DO NOTHING;
+INSERT INTO public.subscriptions (user_id, status, stripe_subscription_id, stripe_customer_id, current_period_end)
+VALUES (aud.u(14), 'active', 'sub_aud14', 'cus_aud14', now() + interval '20 days') ON CONFLICT (user_id) DO NOTHING;
+SET ROLE service_role;
+SELECT public.admin_grant_prive('aud14@example.test', 'Cortesía de prueba', NULL, 'dueno@iatos.test') AS g14 \gset
+RESET ROLE;
+SELECT public.prive_record_paid_period(aud.u(14), 'in_aud_14', 'sub_aud14', 'cus_aud14', now() - interval '100 days', now() + interval '1 day', 19900, 'mxn', 'test');
+SET ROLE service_role;
+SELECT public.admin_revoke_prive_grant((:'g14'::jsonb->>'grant_id')::uuid, 'Fin de la cortesía', 'dueno@iatos.test');
+SELECT public.prive_accept_invitation(aud.u(14), NULL) AS ac14 \gset
+RESET ROLE;
+SELECT aud.ok('N02 si sigue cumpliendo por antigüedad, revocar la concesión no le quita la invitación',
+  (:'ac14'::jsonb->>'ok') = 'true' AND (SELECT status FROM prive_memberships WHERE user_id = aud.u(14)) = 'active', :'ac14');
+
+-- U15: la concesión VENCE (valid_until) con la invitación pendiente: el barrido la retira.
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES (aud.u(15), 'aud15@example.test', now()) ON CONFLICT DO NOTHING;
+INSERT INTO public.subscriptions (user_id, status, stripe_subscription_id, stripe_customer_id, current_period_end)
+VALUES (aud.u(15), 'active', 'sub_aud15', 'cus_aud15', now() + interval '20 days') ON CONFLICT (user_id) DO NOTHING;
+SET ROLE service_role;
+SELECT public.admin_grant_prive('aud15@example.test', 'Cortesía corta', now() + interval '1 day', 'dueno@iatos.test') AS g15 \gset
+RESET ROLE;
+UPDATE prive_grants SET valid_from = now() - interval '3 days', valid_until = now() - interval '1 second' WHERE id = (:'g15'::jsonb->>'grant_id')::uuid;
+SET ROLE service_role; SELECT public.prive_sweep() AS sw15 \gset
+RESET ROLE;
+SELECT aud.ok('N03 concesión vencida con invitación pendiente: el barrido revoca la invitación y retira la membresía',
+  NOT EXISTS (SELECT 1 FROM prive_invitations WHERE user_id = aud.u(15) AND accepted_at IS NULL AND revoked_at IS NULL)
+  AND NOT EXISTS (SELECT 1 FROM prive_memberships WHERE user_id = aud.u(15) AND status = 'invited')
+  AND EXISTS (SELECT 1 FROM prive_membership_events WHERE user_id = aud.u(15) AND event = 'invitation_withdrawn'), :'sw15');
+-- Un miembro ACTIVO cuya concesión se revoca no pierde su membresía (queda en pausa, como P18).
+SELECT aud.ok('N04 el barrido no toca membresías activas ni invitaciones de quien sí cumple',
+  (SELECT status FROM prive_memberships WHERE user_id = aud.u(14)) = 'active'
+  AND (SELECT count(*) FROM prive_memberships WHERE user_id IN (SELECT aud.u(n) FROM generate_series(1, 12) n) AND status = 'active') >= 10);
+
 -- ===================================================================== otros puntos de la fase 2
 -- members_requires_prive: hoy es solo informativa (el servidor no la aplica). Se deja documentado.
 UPDATE app_flags SET value = 'true'::jsonb WHERE key = 'members_requires_prive';
