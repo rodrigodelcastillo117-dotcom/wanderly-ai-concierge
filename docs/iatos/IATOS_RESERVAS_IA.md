@@ -77,7 +77,7 @@ La base de datos lo vuelve a exigir por su cuenta: el CHECK `ai_res_confirmed_ha
 
 ## 4. Seguridad y privacidad
 
-- **Patrón IATOS-114.** Los clientes no escriben nada. El usuario lee lo suyo por RLS y por columnas: el token de respuesta, el candado y la evidencia interna no son visibles, y `SELECT *` desde el cliente falla. Todo cambio pasa por funciones `SECURITY DEFINER` que solo ejecuta `service_role`. Un trigger rechaza escrituras directas incluso con la llave de servicio.
+- **Patrón IATOS-114.** Los clientes no escriben nada. El usuario lee lo suyo por RLS y por columnas: el token de respuesta, el candado y la evidencia interna no son visibles, y `SELECT *` desde el cliente falla. Todo cambio pasa por funciones `SECURITY DEFINER` que solo ejecuta `service_role`. Un trigger rechaza escrituras directas incluso con la llave de servicio: desde la ronda r2 (A2-RES-11, migración `20261026040000_r2_reservas_guardia.sql`) la guardia exige que escriba el **dueño** de la tabla (una de esas funciones), no solo la variable de sesión `aires.actor`, que cualquier sesión podía fijar con `set_config`; además `service_role` ya no tiene INSERT/UPDATE/DELETE/TRUNCATE sobre `ai_reservations`, y una reserva `confirmed` congela lo confirmado. Hasta la r2 esta frase **no era cierta** (la segunda auditoría lo refutó, A7/A7b). El canal `equipo` existe solo a través de `ai_reservation_transition`.
 - **Webhook firmado** con Svix (`RESEND_INBOUND_SECRET`):
   - Sin secreto → 503.
   - Sin firma o con firma inválida → 401.
