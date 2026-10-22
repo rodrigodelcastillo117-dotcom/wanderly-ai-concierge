@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Car, ExternalLink, Search } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { discoverCarsLink, rentalcarsLink, kayakCarsLink } from "@/lib/affiliateLinks";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 
 const TripCars = () => {
@@ -15,11 +16,20 @@ const TripCars = () => {
   const [city, setCity] = useState(params.get("city") ?? "");
   const [pickup, setPickup] = useState(params.get("pickup") ?? "");
   const [ret, setRet] = useState(params.get("return") ?? "");
+  // Sin datos en la URL, la ciudad y las fechas del viaje en contexto (?trip=).
+  useEffect(() => {
+    const t = tripTool.trip;
+    if (!t) return;
+    if (!city && t.destino) setCity(t.destino);
+    if (!pickup && t.fecha_salida) setPickup(t.fecha_salida);
+    if (!ret && t.fecha_regreso) setRet(t.fecha_regreso);
+  }, [tripTool.trip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const providers = [
-    { name: "Discover Cars", desc: "Comparador en 145 países · cancelación gratis 48h", url: () => discoverCarsLink(city, pickup, ret) },
-    { name: "Rentalcars.com", desc: "Inventario Booking Holdings · soporte en su sitio", url: () => rentalcarsLink(city, pickup, ret) },
-    { name: "Kayak Cars", desc: "Meta-buscador con filtros por compañía y tipo", url: () => kayakCarsLink(city, pickup, ret) },
+    // Kayak primero: es el único que recibe ciudad y fechas por enlace (comprobado).
+    { name: "Kayak Cars", desc: "Meta-buscador con filtros por compañía y tipo", url: () => kayakCarsLink(city, pickup, ret), prefill: "kayak_cars" },
+    { name: "Discover Cars", desc: "Comparador en 145 países · cancelación gratis 48h", url: () => discoverCarsLink(city, pickup, ret), prefill: "discovercars" },
+    { name: "Rentalcars.com", desc: "Inventario Booking Holdings · soporte en su sitio", url: () => rentalcarsLink(city, pickup, ret), prefill: "rentalcars" },
   ];
 
   const canSearch = city && pickup && ret;
@@ -64,6 +74,7 @@ const TripCars = () => {
               })} className="w-full">
                 <Search className="w-3 h-3 mr-1" /> Buscar <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
+              <PrefillNote provider={p.prefill} className="mt-2" />
             </div>
           ))}
         </div>

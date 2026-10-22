@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { toastFunctionError } from "@/lib/functionErrors";
 import { bookingLink, airbnbLink } from "@/lib/affiliateLinks";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 import { BookingActions } from "@/components/booking/BookingActions";
@@ -74,7 +75,10 @@ const TripHotels = () => {
       if (data.aviso_limite) toast.info(data.aviso_limite);
       if (data.disponible === false || list.length === 0) {
         setSource("");
-        setUnavailableUrl(data.booking_url ?? bookingLink(city, checkin, checkout, adults));
+        // hotels-search desplegado antes del cierre 2 devuelve el enlace envuelto en tp.media/click, que
+        // responde 400: en ese caso se arma la búsqueda directa de Booking.com aquí.
+        const srv = typeof data.booking_url === "string" && !/tp\.media/i.test(data.booking_url) ? data.booking_url : null;
+        setUnavailableUrl(srv ?? bookingLink(city, checkin, checkout, adults));
       } else {
         setSource(data.source);
       }
@@ -85,6 +89,16 @@ const TripHotels = () => {
       setLoading(false);
     }
   };
+
+  // Sin datos en la URL, la ciudad, las fechas y los viajeros del viaje en contexto (?trip=).
+  useEffect(() => {
+    const t = tripTool.trip;
+    if (!t) return;
+    if (!city && t.destino) setCity(t.destino);
+    if (!checkin && t.fecha_salida) setCheckin(t.fecha_salida);
+    if (!checkout && t.fecha_regreso) setCheckout(t.fecha_regreso);
+    if (!params.get("adults") && t.num_viajeros) setAdults(t.num_viajeros);
+  }, [tripTool.trip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (params.get("auto") === "1" && city && checkin && checkout) search();
@@ -189,19 +203,25 @@ const TripHotels = () => {
         </div>
 
         {results.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => tripTool.track({
-              category: "hotel", provider: "Booking.com", title: `Hoteles en ${city}`,
-              city, bookingUrl: bookingLink(city, checkin, checkout, adults), startAt: checkin || undefined,
-            })}>
-              Ver todo en Booking.com
-            </Button>
-            <Button variant="outline" onClick={() => tripTool.track({
-              category: "hotel", provider: "Airbnb", title: `Hoteles en ${city}`,
-              city, bookingUrl: airbnbLink(city, checkin, checkout, adults), startAt: checkin || undefined,
-            })}>
-              Buscar en Airbnb
-            </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Button variant="outline" className="w-full" onClick={() => tripTool.track({
+                category: "hotel", provider: "Booking.com", title: `Hoteles en ${city}`,
+                city, bookingUrl: bookingLink(city, checkin, checkout, adults), startAt: checkin || undefined,
+              })}>
+                Ver todo en Booking.com
+              </Button>
+              <PrefillNote provider="booking" className="mt-1" />
+            </div>
+            <div>
+              <Button variant="outline" className="w-full" onClick={() => tripTool.track({
+                category: "hotel", provider: "Airbnb", title: `Hoteles en ${city}`,
+                city, bookingUrl: airbnbLink(city, checkin, checkout, adults), startAt: checkin || undefined,
+              })}>
+                Buscar en Airbnb
+              </Button>
+              <PrefillNote provider="airbnb" className="mt-1" />
+            </div>
           </div>
         )}
       </div>

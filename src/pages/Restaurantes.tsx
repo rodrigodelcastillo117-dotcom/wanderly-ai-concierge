@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { openTableLink, theforkLink, yelpLink, tripadvisorLink } from "@/lib/affiliateLinks";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 
 const Restaurantes = () => {
@@ -16,10 +17,10 @@ const Restaurantes = () => {
   const [city, setCity] = useState(params.get("city") ?? "");
 
   const sources = [
-    { name: "OpenTable", desc: "Busca restaurantes con reserva en línea. EE.UU., México, Europa.", link: openTableLink },
-    { name: "TheFork", desc: "Líder en Europa. Reservas con descuentos hasta 50%.", link: theforkLink },
-    { name: "Yelp", desc: "Reviews + reserva en restaurantes locales.", link: yelpLink },
-    { name: "TripAdvisor", desc: "Catálogo global con reviews de viajeros.", link: tripadvisorLink },
+    { name: "OpenTable", desc: "Busca restaurantes con reserva en línea. EE.UU., México, Europa.", link: openTableLink, prefill: "opentable" },
+    { name: "TheFork", desc: "Líder en Europa. Reservas con descuentos hasta 50%.", link: theforkLink, prefill: "thefork" },
+    { name: "Yelp", desc: "Reviews + reserva en restaurantes locales.", link: yelpLink, prefill: "yelp" },
+    { name: "TripAdvisor", desc: "Catálogo global con reviews de viajeros.", link: tripadvisorLink, prefill: "tripadvisor" },
   ];
 
   function reservar(name: string, url: string) {
@@ -59,6 +60,7 @@ const Restaurantes = () => {
               <Button disabled={!city} onClick={() => reservar(s.name, s.link(city))} className="w-full">
                 <Search className="w-3 h-3 mr-1" /> Buscar mesa en {city || "ciudad"} <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
+              <PrefillNote provider={s.prefill} className="mt-2" />
             </div>
           ))}
         </div>

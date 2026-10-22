@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Wifi, ExternalLink } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { airaloLink, holaflyLink } from "@/lib/affiliateLinks";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 
 const PROVIDERS = [
@@ -13,18 +14,21 @@ const PROVIDERS = [
     desc: "eSIM en 200+ países, planes desde $4.50 USD. Activación instantánea por QR.",
     perk: "$3 USD OFF primera compra con código NEWTOAIRALO",
     link: (c: string) => airaloLink(c),
+    prefill: "airalo",
   },
   {
     name: "Holafly",
     desc: "Planes por destino en 170+ países; revisa en su sitio el límite de datos de cada plan.",
     perk: "5% OFF con código HOLAFLY5",
     link: (c: string) => holaflyLink(c),
+    prefill: "holafly",
   },
   {
     name: "Nomad",
     desc: "eSIM premium con cobertura empresarial en 165 países.",
     perk: "Planes regionales desde $9 USD",
     link: (_: string) => "https://www.getnomad.app/",
+    prefill: "nomad",
   },
 ];
 
@@ -34,6 +38,8 @@ const TripESIM = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [country, setCountry] = useState(params.get("country") ?? "");
+  // Sin país en la URL, el del viaje en contexto (Airalo y Holafly abren la página de ese país).
+  useEffect(() => { if (!country && tripTool.trip?.pais_destino) setCountry(tripTool.trip.pais_destino); }, [tripTool.trip?.pais_destino]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <DashboardLayout>
@@ -49,7 +55,7 @@ const TripESIM = () => {
 
         <div className="glass-card rounded-xl p-4 md:p-5">
           <label htmlFor="tripesim-pais-destino" className="text-xs uppercase tracking-wide text-muted-foreground">País destino</label>
-          <Input id="tripesim-pais-destino" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Spain, Japan, Mexico…" />
+          <Input id="tripesim-pais-destino" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="España, Japón, Estados Unidos…" />
         </div>
 
         <div className="grid md:grid-cols-3 gap-3">
@@ -66,6 +72,7 @@ const TripESIM = () => {
               })} className="w-full">
                 Comprar eSIM <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
+              <PrefillNote provider={p.prefill} className="mt-2" />
             </div>
           ))}
         </div>
