@@ -8,6 +8,7 @@
 // - Desglose real calculado en el servidor con FX dinámico (_shared/fx.ts). Nunca NULL, nunca 17.0.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
+import { internalHeaders } from "../_shared/serpRuntime.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import {
   invalidRequestResponse,
@@ -350,13 +351,14 @@ ${PRICING_REFS}`;
 
 // ───── Llamadas a otras edge functions (datos en vivo) ─────
 
-function invokeFn(name: string, authHeader: string, payload: unknown) {
+function invokeFn(name: string, authHeader: string, payload: unknown, extraHeaders: Record<string, string> = {}) {
   return fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: authHeader,
       apikey: SUPABASE_ANON_KEY,
+      ...extraHeaders,
     },
     body: JSON.stringify(payload),
   })
@@ -475,6 +477,9 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
 
     // ───── DATOS EN VIVO ─────
     // Vuelos internacionales: origen → primera ciudad (round-trip contra la última).
+    // Las búsquedas del plan multiciudad ya están cubiertas por su cuota de análisis: van firmadas
+    // para no gastar la bolsa de búsquedas en vivo del usuario (_shared/internalCall.ts).
+    const analysisHeaders = await internalHeaders(__user.id, "analysis");
     const tpFlightsPromise = invokeFn("travelpayouts-flights", authHeader, {
       origin_city: body.origin,
       destination_city: body.destinations[0],
@@ -494,7 +499,7 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
           // SerpApi ordena por precio más bajo: sin filtro de categoría el resultado son hostales.
           // Filtramos por estrellas según el nivel de presupuesto del usuario.
           hotel_class: HOTEL_CLASS_BY_TIER[selectedTier],
-        }),
+        }, analysisHeaders),
 
         invokeFn("tripadvisor-search", authHeader, {
           query: w.city,

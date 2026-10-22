@@ -73,7 +73,8 @@ export type FlightData = NonNullable<ReturnType<typeof normalizeFlightWidget>>;
  * - quota / provider_error: SerpApi falló; `message` ya viene sin llaves.
  */
 export type FlightOutcome =
-  | { kind: "ok"; data: FlightData }
+  // fetchedAt: cuándo se consultó de verdad (si salió de la caché compartida de 10 min, esa hora).
+  | { kind: "ok"; data: FlightData; fetchedAt?: string }
   | { kind: "no_data" }
   | { kind: "date_mismatch" }
   | { kind: "quota" | "provider_error"; message: string };
@@ -112,15 +113,17 @@ export async function fetchFlightStatus(
     const quota = response.status === 429 || QUOTA_RE.test(providerError);
     return { kind: quota ? "quota" : "provider_error", message };
   }
-  return classifyFlightWidget(result.flight_result, date);
+  const outcome = classifyFlightWidget(result.flight_result, date);
+  const fetchedAt = response.headers?.get?.("x-iatos-fetched-at");
+  return outcome.kind === "ok" && fetchedAt ? { ...outcome, fetchedAt } : outcome;
 }
 
-export async function querySerpApi(key: string, flight: string, date: string, route?: string) {
-  const outcome = await fetchFlightStatus(key, flight, date, route);
+export async function querySerpApi(key: string, flight: string, date: string, route?: string, opts: { fetch?: typeof fetch } = {}) {
+  const outcome = await fetchFlightStatus(key, flight, date, route, opts);
   // Never log the request URL (it contains the private key).
   if (outcome.kind === "quota" || outcome.kind === "provider_error") throw new Error("serpapi_unavailable");
   if (outcome.kind !== "ok") return null;
   const source = `https://www.google.com/search?q=${encodeURIComponent(`${flight} flight status ${date}`)}`;
   return { data: { ...outcome.data, source, fuente: "serpapi", source_name: "Google flight widget (SerpApi)",
-    retrieved_at: new Date().toISOString() }, citations: [source], raw: "", provider: "serpapi" };
+    retrieved_at: outcome.fetchedAt ?? new Date().toISOString() }, citations: [source], raw: "", provider: "serpapi" };
 }

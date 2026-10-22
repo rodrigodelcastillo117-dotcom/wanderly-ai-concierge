@@ -31,6 +31,14 @@ export function verifiedPrice(card: ConciergeCard): { amount: number; currency: 
   return { amount, currency };
 }
 
+/** Precio guardado (no en vivo): coincide con una búsqueda, pero su consulta ya venció. */
+export function savedPrice(card: ConciergeCard): { amount: number; currency: string } | null {
+  const amount = typeof card.price === "number" ? card.price : card.price_usd;
+  if (card.estado_dato !== "OBSOLETO" || !card.fuente || typeof amount !== "number" || !Number.isFinite(amount)) return null;
+  const currency = /^[A-Z]{3}$/.test(card.currency ?? "") ? card.currency! : "USD";
+  return { amount, currency };
+}
+
 const formatMoney = (amount: number, currency: string) => {
   try {
     return new Intl.NumberFormat("es-MX", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
@@ -73,6 +81,18 @@ export function ProvenanceBadge({ card }: { card: ConciergeCard }) {
       </span>
     );
   }
+  if (savedPrice(card)) {
+    const at = card.consultado_at ? new Date(card.consultado_at) : null;
+    const fecha = at && Number.isFinite(at.getTime())
+      ? ` · ${at.toLocaleString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
+      : "";
+    return (
+      <span title="Precio guardado de una búsqueda anterior, no consultado en este momento. Verifícalo antes de reservar."
+        className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] tracking-wide text-amber-500">
+        <AlertTriangle className="w-3 h-3" /> Precio guardado{fecha} · verifícalo
+      </span>
+    );
+  }
   if (verifiedPrice(card)) {
     const at = card.consultado_at ? new Date(card.consultado_at) : null;
     const hora = at && Number.isFinite(at.getTime()) ? ` · ${at.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}` : "";
@@ -93,6 +113,15 @@ function PriceBlock({ card, suffix }: { card: ConciergeCard; suffix?: string }) 
       <div className="text-right">
         <p className="font-display text-xl text-primary leading-none">{formatMoney(p.amount, p.currency)} <span className="text-xs text-muted-foreground">{p.currency}</span></p>
         {suffix && <p className="text-[10px] text-muted-foreground mt-1">{suffix}</p>}
+      </div>
+    );
+  }
+  const saved = savedPrice(card);
+  if (saved) {
+    return (
+      <div className="text-right">
+        <p className="font-display text-xl text-amber-500 leading-none">{formatMoney(saved.amount, saved.currency)} <span className="text-xs text-muted-foreground">{saved.currency}</span></p>
+        <p className="text-[10px] text-muted-foreground mt-1">precio guardado{suffix ? ` · ${suffix}` : ""}</p>
       </div>
     );
   }

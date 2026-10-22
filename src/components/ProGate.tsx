@@ -12,7 +12,7 @@ type Props = {
 };
 
 export const ProGate = ({ children, soft = false, title, description }: Props) => {
-  const { loading, isPro, access } = useSubscription();
+  const { loading, isPro, access, error, refresh } = useSubscription();
 
   if (loading) {
     return (
@@ -23,6 +23,17 @@ export const ProGate = ({ children, soft = false, title, description }: Props) =
   }
 
   if (isPro) return <>{children}</>;
+
+  // Si no pudimos leer el plan (red, servidor), no se muestra la invitación a pagar: un PRO vería
+  // un muro de pago por una falla nuestra.
+  if (error) {
+    return (
+      <div className="glass-card rounded-2xl p-6 text-center text-sm" role="alert">
+        <p className="mb-3">No pudimos verificar tu plan en este momento.</p>
+        <button onClick={() => refresh()} className="text-primary underline underline-offset-2">Reintentar</button>
+      </div>
+    );
+  }
 
   if (soft) {
     return (

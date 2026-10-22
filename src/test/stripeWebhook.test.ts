@@ -86,7 +86,7 @@ describe("stripe-webhook (A-07): estado real de Stripe, fecha del evento y invoi
   });
 
   it("eventos no manejados se aceptan sin tocar la base", async () => {
-    const out = await handleStripeEvent(ev("charge.refunded", {}), deps);
+    const out = await handleStripeEvent(ev("customer.created", {}), deps);
     expect(out.status).toBe(200);
     expect(deps.applySubscription).not.toHaveBeenCalled();
   });
@@ -105,5 +105,79 @@ describe("mapeo de la suscripción", () => {
     expect(invoiceSubscriptionId({ id: "i", parent: { subscription_details: { subscription: "s2" } } })).toBe("s2");
     expect(invoiceSubscriptionId({ id: "i", lines: { data: [{ parent: { subscription_item_details: { subscription: "s3" } } }] } })).toBe("s3");
     expect(invoiceSubscriptionId({ id: "i" })).toBeNull();
+  });
+});
+
+describe("stripe-webhook (A-14): reembolsos y disputas", () => {
+  const refundDeps = (subOverrides: Record<string, unknown> = {}) => {
+    const d = {
+      ...deps,
+      retrieveInvoice: vi.fn(async () => ({ id: "in_last", subscription: "sub_A" })),
+      retrieveSubscription: vi.fn(async (id: string) => sub({ id, latest_invoice: "in_last", ...subOverrides })),
+      updateSubscription: vi.fn(async (id: string) => sub({ id, cancel_at_period_end: true })),
+      markCancelAtPeriodEnd: vi.fn(async () => ({ data: { applied: true }, error: null })),
+      logPaymentEvent: vi.fn(async () => ({ error: null })),
+    };
+    return d;
+  };
+  const charge = (o: Record<string, unknown> = {}) => ({
+    id: "ch_1", amount: 9900, amount_refunded: 9900, refunded: true, currency: "mxn", customer: "cus_1", invoice: "in_last", ...o,
+  });
+
+  it("reembolso total de la última factura: no renovar en Stripe y en la fila, sin dar PRO", async () => {
+    const d = refundDeps();
+    const out = await handleStripeEvent(ev("charge.refunded", charge()), d);
+    expect(out).toEqual({ status: 200, body: { received: true, action: "cancel_at_period_end" } });
+    expect(d.updateSubscription).toHaveBeenCalledWith("sub_A", { cancel_at_period_end: true });
+    expect(d.markCancelAtPeriodEnd).toHaveBeenCalledWith("sub_A");
+    expect(d.applySubscription).not.toHaveBeenCalled();
+    expect(d.logPaymentEvent).toHaveBeenCalledWith(expect.objectContaining({
+      event_id: "evt_1", type: "charge.refunded", charge_id: "ch_1", invoice_id: "in_last", subscription_id: "sub_A",
+      amount: 9900, amount_refunded: 9900, action: "cancel_at_period_end",
+    }));
+  });
+
+  it("si Stripe ya la tenía sin renovar o cancelada, no la vuelve a tocar en Stripe", async () => {
+    const d = refundDeps({ status: "canceled" });
+    await handleStripeEvent(ev("charge.refunded", charge()), d);
+    expect(d.updateSubscription).not.toHaveBeenCalled();
+    expect(d.applySubscription).not.toHaveBeenCalled();
+  });
+
+  it("reembolso parcial: solo se registra", async () => {
+    const d = refundDeps();
+    const out = await handleStripeEvent(ev("charge.refunded", charge({ amount_refunded: 3000, refunded: false })), d);
+    expect(out.body.action).toBe("refund_partial_logged");
+    expect(d.updateSubscription).not.toHaveBeenCalled();
+    expect(d.markCancelAtPeriodEnd).not.toHaveBeenCalled();
+  });
+
+  it("reembolso total de una factura ANTERIOR: no cancela la renovación vigente", async () => {
+    const d = refundDeps({ latest_invoice: "in_nueva" });
+    const out = await handleStripeEvent(ev("charge.refunded", charge()), d);
+    expect(out.body.action).toBe("refund_full_factura_anterior");
+    expect(d.updateSubscription).not.toHaveBeenCalled();
+  });
+
+  it("disputa: se registra, no cambia el acceso ni da PRO", async () => {
+    const d = refundDeps();
+    const out = await handleStripeEvent(ev("charge.dispute.created", {
+      id: "dp_1", charge: "ch_1", amount: 9900, currency: "mxn", reason: "fraudulent", status: "needs_response",
+    }), d);
+    expect(out).toEqual({ status: 200, body: { received: true, action: "dispute_logged" } });
+    expect(d.logPaymentEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "charge.dispute.created", charge_id: "ch_1", dispute_reason: "fraudulent", action: "dispute_logged",
+    }));
+    expect(d.applySubscription).not.toHaveBeenCalled();
+    expect(d.updateSubscription).not.toHaveBeenCalled();
+  });
+
+  it("si no se puede registrar o marcar, 500 para que Stripe reintente", async () => {
+    const d = refundDeps();
+    d.markCancelAtPeriodEnd = vi.fn(async () => ({ data: null, error: { message: "db down" } }));
+    expect((await handleStripeEvent(ev("charge.refunded", charge()), d)).status).toBe(500);
+    const d2 = refundDeps();
+    d2.logPaymentEvent = vi.fn(async () => ({ error: { message: "db down" } }));
+    expect((await handleStripeEvent(ev("charge.dispute.created", { id: "dp_1", charge: "ch_1" }), d2)).status).toBe(500);
   });
 });

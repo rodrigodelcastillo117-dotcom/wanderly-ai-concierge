@@ -2,6 +2,8 @@
 # Reproduce las migraciones del repo en un Postgres local desechable y corre los ataques y flujos
 # legítimos de rls_attacks.sql. Uso: PGHOST=/ruta/socket PGPORT=5432 ./run.sh [nombre_db]
 # Esperado: todos los "A*" en 0 (o "permission denied") y todos los "L*" con ok/visibles.
+# Después corre hardening.sql y la prueba de concurrencia del rate limit: solo líneas "OK …"
+# (cualquier "FALLA" o "ERROR" es un error).
 # La migración de pg_cron falla en local (la extensión no existe fuera de Supabase); es esperado.
 set -u
 DIR=$(cd "$(dirname "$0")" && pwd); MIG="$DIR/../../migrations"; DB=${1:-iatos_rls_test}
@@ -13,3 +15,6 @@ for f in "$MIG"/*.sql; do
   [ -n "$out" ] && echo "FALLÓ $(basename "$f"): $out"
 done
 $PSQL -d "$DB" -f "$DIR/rls_attacks.sql" 2>&1 | grep -v '^$' | grep -v 'set_config\|^ *|' | sed 's/^ *//'
+$PSQL -X -d "$DB" -f "$DIR/hardening.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
+$PSQL -d "$DB" -f "$DIR/profiles_tier.sql" 2>&1 | grep -E 'T[0-9]|denied' | sed 's/^ *//'
+"$DIR/concurrent_rate_limit.sh" "$DB"

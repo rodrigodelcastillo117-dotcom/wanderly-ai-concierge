@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
+import { safeExtension, uploadProblem } from "@/lib/uploadRules";
 
 type Entry = { id: string; created_at: string; text: string; photo_url: string | null; author_id: string };
 
@@ -53,7 +54,10 @@ const TripJournal = () => {
     try {
       let photo_url: string | null = null;
       if (file) {
-        const ext = file.name.split(".").pop() || "jpg";
+        // El servidor también lo rechaza (límites del bucket); aquí se avisa con un mensaje claro.
+        const problem = uploadProblem("journal-photos", file);
+        if (problem) throw new Error(problem);
+        const ext = safeExtension(file.name);
         const path = `${userId}/${id}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage.from("journal-photos").upload(path, file, { upsert: false });
         if (upErr) throw upErr;

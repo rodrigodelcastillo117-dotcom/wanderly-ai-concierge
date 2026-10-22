@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { escapeHtml, sendEmail } from "../_shared/email.ts";
+import { escapeHtml, oneLine, sendEmail } from "../_shared/email.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { redactPii } from "../_shared/redact.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,8 +98,8 @@ Deno.serve(async (req) => {
       .single();
 
     if (reqErr) {
-      console.error("concierge_requests insert error", reqErr);
-      return new Response(JSON.stringify({ error: reqErr.message }), {
+      console.error("concierge_requests insert error", reqErr.code ?? "", redactPii(reqErr.message));
+      return new Response(JSON.stringify({ code: "INTERNAL_ERROR", error: "request_not_saved" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -122,7 +123,8 @@ Deno.serve(async (req) => {
         .eq("id", userId)
         .maybeSingle();
       const userEmail = userData.user.email ?? "sin email";
-      const subject = `[IATOS Concierge] ${labelByType[body.type] ?? body.type} — ${profile?.full_name ?? userEmail}`;
+      // Asunto en una línea: un nombre con saltos de línea no puede inyectar encabezados.
+      const subject = oneLine(`[IATOS Concierge] ${labelByType[body.type] ?? body.type} — ${profile?.full_name || userEmail}`, 180);
       // Todo lo que viene del cliente se escapa antes de ir al HTML del correo.
       const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;padding:20px">
         <h2>${escapeHtml(labelByType[body.type] ?? "Nueva solicitud de concierge")}</h2>
@@ -134,11 +136,13 @@ Deno.serve(async (req) => {
         <p>Responder al cliente con disponibilidad y precio reales. El cliente ve esto como "solicitud recibida", no como reserva.</p>
         <p style="color:#888;font-size:12px">concierge_requests.id = ${escapeHtml(reqRow.id)}</p>
       </body></html>`;
-      const sent = await sendEmail({ to: FIXER_EMAIL, from: FROM_ADDRESS, replyTo: userEmail, subject, html });
+      const sent = await sendEmail({
+        to: FIXER_EMAIL, from: FROM_ADDRESS, ...(userData.user.email ? { replyTo: userData.user.email } : {}), subject, html,
+      });
       humanNotified = !!sent.ok;
       if (!sent.ok) console.error("concierge-action: no se pudo notificar al humano", sent.error);
     } catch (notifyErr) {
-      console.error("concierge-action: error notificando al humano", notifyErr);
+      console.error("concierge-action: error notificando al humano", redactPii((notifyErr as Error)?.message ?? notifyErr));
     }
 
     return new Response(
@@ -146,8 +150,8 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
-    console.error("concierge-action error", e);
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    console.error("concierge-action error", redactPii((e as Error)?.message ?? e));
+    return new Response(JSON.stringify({ code: "INTERNAL_ERROR", error: "internal_error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

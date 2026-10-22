@@ -3,6 +3,7 @@ import { Download, Loader2, RefreshCw, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ServiceHealthCard } from "@/components/ServiceHealthCard";
+import { AdminCostCard } from "@/components/AdminCostCard";
 import { Button } from "@/components/ui/button";
 
 type Weekly = { week: string; signups: number; trips: number; bookings: number };
@@ -235,6 +236,8 @@ const AdminMetrics = () => {
             </div>
           </div>
         </Section>
+
+        <AdminCostCard />
 
         <Section title="Tendencia semanal">
           <div className="grid md:grid-cols-3 gap-3">

@@ -5,13 +5,9 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { fetchFriendProfiles, type FriendProfile } from "@/lib/friendProfiles";
 
-interface Friend {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-  avatar_url: string | null;
-}
+type Friend = FriendProfile;
 
 interface Props {
   tripId: string;
@@ -29,25 +25,9 @@ export const InviteFriendDialog = ({ tripId, isOwner }: Props) => {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data: fs } = await supabase
-      .from("friendships")
-      .select("requester_id, addressee_id")
-      .eq("status", "accepted")
-      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
-
-    const friendIds = (fs ?? []).map((f) =>
-      f.requester_id === user.id ? f.addressee_id : f.requester_id,
-    );
-
-    if (friendIds.length) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, avatar_url")
-        .in("id", friendIds);
-      setFriends(profs ?? []);
-    } else {
-      setFriends([]);
-    }
+    // Solo nombre, usuario y avatar de amistades aceptadas (RPC friend_profiles, F-10): el correo
+    // del amigo ya no se lee desde el navegador (el aviso por correo lo arma el servidor).
+    setFriends(await fetchFriendProfiles(supabase));
 
     const { data: collabs } = await supabase
       .from("trip_collaborators")
@@ -145,11 +125,11 @@ export const InviteFriendDialog = ({ tripId, isOwner }: Props) => {
                   className="flex items-center gap-3 p-3 rounded-xl bg-background/40 border border-border"
                 >
                   <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-display flex-shrink-0">
-                    {(f.full_name || f.email || "?").charAt(0).toUpperCase()}
+                    {(f.full_name || f.username || "?").charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{f.full_name || "Sin nombre"}</p>
-                    <p className="text-xs text-muted-foreground truncate">{f.email}</p>
+                    {f.username && <p className="text-xs text-muted-foreground truncate">@{f.username}</p>}
                   </div>
                   {already ? (
                     <button

@@ -7,6 +7,12 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { cheapestFare, resolveIata } from "../_shared/travelpayouts.ts";
 import { getUsdMxnRate } from "../_shared/fx.ts";
 import { primaryPlace } from "./place.ts";
+import { planLimit, serviceUnavailableResponse } from "../_shared/entitlements.ts";
+import { activeLimitDecision } from "../_shared/planGate.ts";
+import { serpFetchFor } from "../_shared/serpRuntime.ts";
+
+/** Tope de seguridad de alertas activas por usuario, aunque el plan no tenga límite. */
+const PRICE_WATCH_HARD_CAP = 10;
 
 const respond = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -48,7 +54,21 @@ Deno.serve(async (req) => {
 
   const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
   if (!trip.fecha_salida || trip.fecha_salida < tomorrow) {
-    return respond({ error: "trip_not_upcoming", message: "Solo se pueden vigilar viajes con fecha futura." }, 422);
+    return respond({ code: "INVALID_REQUEST", error: "trip_not_upcoming", message: "Solo se pueden vigilar viajes con fecha futura." }, 422);
+  }
+
+  // Alertas activas por plan (plan_limits.price_watches: FREE 0, prueba 2, PRO 5 con
+  // pro_limits_enforced). Se revisa ANTES de consultar la tarifa: un usuario sin cupo no gasta
+  // búsquedas. Reactivar la alerta de este mismo viaje no cuenta como una nueva.
+  const { count: activeOther, error: countErr } = await admin.from("price_watches")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id).eq("active", true).neq("trip_id", trip.id);
+  const gate = countErr
+    ? { allowed: false as const, kind: "unavailable" as const }
+    : activeLimitDecision("price_watches", await planLimit(user.id, "price_watches"), activeOther ?? 0, PRICE_WATCH_HARD_CAP);
+  if (!gate.allowed) {
+    if (gate.kind === "limit") return respond(gate.body, 402);
+    return serviceUnavailableResponse(corsHeaders);
   }
 
   const token = Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "";
@@ -61,15 +81,16 @@ Deno.serve(async (req) => {
     resolveIata(primaryPlace(trip.destino)),
   ]);
   if (!origin || !destination || origin === destination) {
-    return respond({ error: "route_unresolved", message: "No pudimos identificar los aeropuertos de este viaje." }, 422);
+    return respond({ code: "INVALID_REQUEST", error: "route_unresolved", message: "No pudimos identificar los aeropuertos de este viaje." }, 422);
   }
 
   const fare = await cheapestFare(
     { origin, destination, departureDate: trip.fecha_salida, returnDate: trip.fecha_regreso },
-    { travelpayoutsToken: token, serpKey, marker },
+    // Google Flights pasa por la caché compartida (6 h); cada búsqueda real queda en ai_usage_log.
+    { travelpayoutsToken: token, serpKey, marker, serpFetch: serpFetchFor("price-watch", user.id).fetch },
   );
   if (!fare) {
-    return respond({ error: "no_fare", message: "Aún no hay tarifas publicadas para esta ruta y fecha." }, 422);
+    return respond({ code: "INVALID_REQUEST", error: "no_fare", message: "Aún no hay tarifas publicadas para esta ruta y fecha." }, 422);
   }
 
   const fx = await getUsdMxnRate();

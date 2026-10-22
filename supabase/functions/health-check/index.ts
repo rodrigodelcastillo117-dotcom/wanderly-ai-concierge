@@ -16,7 +16,17 @@ Deno.serve(async (req) => {
   if (!(await isAuthorizedCron(req))) return json({ error: "unauthorized" }, 401);
 
   const env = (k: string) => Deno.env.get(k) ?? undefined;
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false },
+  });
+  // Ritmo real de búsquedas de SerpApi (promedio de 7 días en ai_usage_log). Si la migración no está
+  // o no hay historial, el chequeo usa el umbral fijo.
+  const { data: burn, error: burnErr } = await db.rpc("serp_burn_rate", { _days: 7 });
+  if (burnErr) console.warn("health-check: serp_burn_rate", redactSecrets(burnErr.message));
+  const serpPerDay = Number((burn as { avg_per_day?: unknown } | null)?.avg_per_day);
+
   const results = await runChecks({
+    serpPerDay: Number.isFinite(serpPerDay) && serpPerDay > 0 ? serpPerDay : null,
     geminiKey: env("GEMINI_API_KEY"),
     lovableKey: env("LOVABLE_API_KEY"),
     anthropicKey: env("ANTHROPIC_API_KEY"),
@@ -24,10 +34,6 @@ Deno.serve(async (req) => {
     serpKey: env("SERPAPI_PRIVATE_KEY"),
     travelpayoutsToken: env("TRAVELPAYOUTS_TOKEN"),
     stripeKey: env("STRIPE_SECRET_KEY"),
-  });
-
-  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
-    auth: { persistSession: false },
   });
 
   const dbCheck = await (async () => {

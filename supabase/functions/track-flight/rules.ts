@@ -1,7 +1,12 @@
-// Reglas para dar de alta el seguimiento de un vuelo. Cada vuelo activo consulta SerpApi cada
-// 15 minutos hasta su fecha, así que se exige una fecha válida y cercana y un máximo por usuario.
+// Reglas para dar de alta el seguimiento de un vuelo. Cada vuelo activo consulta SerpApi hasta su
+// fecha, así que se exige una fecha válida y cercana y un máximo por usuario: el de su plan
+// (plan_limits.tracked_flights: FREE 1, prueba 2, PRO 4 con pro_limits_enforced), nunca más que
+// el tope de seguridad.
 
-export const MAX_ACTIVE_PER_USER = 10;
+/** Tope de seguridad de vuelos activos por usuario, aunque el plan no tenga límite. */
+export const HARD_CAP_ACTIVE_PER_USER = 10;
+/** Nombre anterior del tope (antes era el mismo para todos los planes). */
+export const MAX_ACTIVE_PER_USER = HARD_CAP_ACTIVE_PER_USER;
 /** Las aerolíneas venden hasta ~330 días antes; más allá no hay estado que vigilar. */
 export const MAX_DAYS_AHEAD = 330;
 
@@ -23,4 +28,13 @@ export function trackError(input: { flight?: unknown; flight_date?: unknown }, t
   if (days < -1) return "Ese vuelo ya pasó";
   if (days > MAX_DAYS_AHEAD) return "Solo podemos seguir vuelos de los próximos 11 meses";
   return null;
+}
+
+export const FREE_DAY_OF_FLIGHT_MESSAGE =
+  "Con el plan gratuito el seguimiento es solo para vuelos de hoy o de mañana. Actívalo un día antes de tu vuelo, o activa IATOS PRO para seguirlo desde ahora.";
+
+/** Plan gratuito ("básico"): solo el día del vuelo, es decir hoy o mañana en la zona del usuario. */
+export function freePlanDateError(flightDate: string, todayISO: string): string | null {
+  const days = (Date.parse(`${flightDate}T00:00:00Z`) - Date.parse(`${todayISO}T00:00:00Z`)) / DAY_MS;
+  return days === 0 || days === 1 ? null : FREE_DAY_OF_FLIGHT_MESSAGE;
 }

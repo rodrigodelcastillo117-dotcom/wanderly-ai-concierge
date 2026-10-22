@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { diffLocalDays, formatLocalDate, localISODatePlus, parseLocalDate } from "@/lib/localDate";
+import { fetchFriendProfiles } from "@/lib/friendProfiles";
 
 type Props = {
   origin?: string;
@@ -52,12 +53,10 @@ export const TripBuildPreview = ({
     (async () => {
       setLoadingFriends(true);
       try {
-        const { data: rows } = await supabase.from("mis_amigos").select("amigo_id");
-        const ids = (rows ?? []).map((r: any) => r.amigo_id);
-        if (!ids.length) { setFriends([]); return; }
-        const { data: profs } = await supabase
-          .from("profiles").select("id, full_name, username, avatar_url").in("id", ids);
-        setFriends((profs ?? []).map((p: any) => ({
+        // Solo nombre, usuario y avatar de amistades aceptadas (RPC friend_profiles, F-10).
+        const profs = await fetchFriendProfiles(supabase);
+        if (!profs.length) { setFriends([]); return; }
+        setFriends(profs.map((p) => ({
           id: p.id,
           name: p.full_name || p.username || "Amigo",
           avatar: p.avatar_url ?? null,
@@ -440,17 +439,19 @@ export const TripBuildPreview = ({
               onClick={async () => {
                 setSending(true);
                 try {
-                  const shareText = `Mira este viaje que estoy armando con IATOS AI${
-                    destinations && destinations.length
-                      ? `: ${destinations.filter(Boolean).join(" → ")}`
-                      : destinoRaw ? `: ${destinoRaw}` : ""
-                  }${fechaSalida ? ` (${fmtDate(fechaSalida)}${fechaRegreso ? ` → ${fmtDate(fechaRegreso)}` : ""})` : ""}.`;
-                  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+                  // El servidor arma el texto con una plantilla fija (share-trip-notify/template.ts):
+                  // aquí solo se mandan los datos del viaje y la ruta interna de esta pantalla.
+                  const destinos = destinations && destinations.length
+                    ? destinations.filter(Boolean)
+                    : destinoRaw ? [destinoRaw] : [];
+                  const path = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : null;
                   const { data, error } = await supabase.functions.invoke("share-trip-notify", {
                     body: {
                       friend_ids: Array.from(selectedFriends),
-                      message: shareText,
-                      url: shareUrl,
+                      destinos,
+                      fecha_salida: fechaSalida ?? null,
+                      fecha_regreso: fechaRegreso ?? null,
+                      path,
                     },
                   });
                   if (error || (data as any)?.error) throw error || new Error((data as any).error);

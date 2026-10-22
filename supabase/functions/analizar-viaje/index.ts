@@ -20,6 +20,8 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { callClaudeWithFallback } from "../_shared/claude.ts";
+import { internalHeaders, logUsage } from "../_shared/serpRuntime.ts";
+import { usageFromClaude } from "../_shared/usage.ts";
 import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { buildQuoteSnapshot, saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
@@ -27,7 +29,7 @@ import { enforceSources, hotelPreference } from "./sources.ts";
 import { normalizarVuelos, reconcileBudget } from "./budget.ts";
 import {
   applyShortTripRules, detectShortTrip, groundSearchLinks, isReasonableShortFlight, parseDurationMinutes,
-  shortTripPromptBlock, shortTripTransportTotal,
+  shortTripPromptBlock, shortTripTransportTotal, travelerPrefs,
 } from "./groundTransport.ts";
 
 // Las miniaturas de Google (googleusercontent) aceptan el tamaño en el sufijo "=w..-h..".
@@ -655,8 +657,13 @@ Deno.serve(async (req) => {
       ),
     );
 
+    // Firma de llamada interna: las búsquedas del análisis ya están cubiertas por su cuota y no
+    // gastan la bolsa de búsquedas en vivo del usuario (_shared/internalCall.ts).
+    const analysisHeaders = await internalHeaders(user.id, "analysis");
+
     // Trayecto corto por carretera (N-06): no forzar vuelos; terrestre como opción estimada.
     const shortTrip = detectShortTrip(body.ciudad_origen, body.destino);
+    const tripPrefs = travelerPrefs(body.notas_usuario);
     if (shortTrip) console.log("analizar-viaje: trayecto corto", shortTrip);
 
     // PASO 1: Lanzar EN PARALELO Perplexity + Travelpayouts vuelos + Travelpayouts hoteles
@@ -686,6 +693,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
         Authorization: authHeader,
         apikey: SUPABASE_ANON_KEY,
+        ...analysisHeaders,
       },
       body: JSON.stringify({
         city: body.destino,
@@ -704,6 +712,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
         Authorization: authHeader,
         apikey: SUPABASE_ANON_KEY,
+        ...analysisHeaders,
       },
       body: JSON.stringify({
         origin: body.ciudad_origen,
@@ -744,15 +753,15 @@ Deno.serve(async (req) => {
 
     const tpFlights = tpFlightsRes.status === "fulfilled" ? tpFlightsRes.value : { error: "promise_rejected", flights: [] };
     const googleFlights = googleFlightsRes.status === "fulfilled" ? googleFlightsRes.value : { ok: false, results: [] };
-    // En trayecto corto, el modelo solo ve vuelos razonables (máx. 1 escala, < 3 × manejo).
+    // En trayecto corto, el modelo solo ve los vuelos que convienen puerta a puerta o que el usuario pidió.
     if (shortTrip) {
       if (Array.isArray(tpFlights?.flights)) {
         tpFlights.flights = tpFlights.flights.filter((f: any) =>
-          isReasonableShortFlight(Number(f?.stops), parseDurationMinutes(f?.duration_to_minutes ?? f?.duration_minutes), shortTrip.approxDriveHours));
+          isReasonableShortFlight(Number(f?.stops), parseDurationMinutes(f?.duration_to_minutes ?? f?.duration_minutes), shortTrip.approxDriveHours, tripPrefs));
       }
       if (Array.isArray(googleFlights?.results)) {
         googleFlights.results = googleFlights.results.filter((f: any) =>
-          isReasonableShortFlight(Number(f?.stops), parseDurationMinutes(f?.duration), shortTrip.approxDriveHours));
+          isReasonableShortFlight(Number(f?.stops), parseDurationMinutes(f?.duration), shortTrip.approxDriveHours, tripPrefs));
       }
     }
     const googleFlightsLive = googleFlights?.ok === true && googleFlights?.source === "serpapi" &&
@@ -879,7 +888,7 @@ FUENTES CITADAS:
 ${investigacion.citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}
 ==========================================
 
-${shortTrip ? `==========================================\n${shortTripPromptBlock(shortTrip)}\n(Esta sección manda sobre la regla de "3 tiers de vuelo" de abajo.)\n==========================================\n\n` : ""}REGLAS DE FUENTES:
+${shortTrip ? `==========================================\n${shortTripPromptBlock(shortTrip, tripPrefs)}\n(Esta sección manda sobre la regla de "3 tiers de vuelo" de abajo.)\n==========================================\n\n` : ""}REGLAS DE FUENTES:
 - Los 3 tiers de vuelo (ahorro/equilibrio/premium) DEBEN salir de las listas de VUELOS de arriba (Aviasales o Google Flights). Convierte USD→MXN (×${fxUsd}, tipo de cambio de referencia del día). Copia el LINK exacto en booking_link. fuente_precio="travelpayouts" si salió de Aviasales, "serpapi" si salió de Google Flights.
 - Tier "premium": la mejor experiencia REAL de esas listas (directo, mejor horario, aerolínea de servicio completo como Aeroméxico, United, Iberia…) aunque cueste más. NUNCA pongas un vuelo premium "estimado" si alguna de las listas trae vuelos. Las tarifas de las listas son en clase turista: no afirmes clase ejecutiva/Premier ni otra cabina, y no digas "tarifa estimada" si el precio salió de una lista.
 - Si arriba hay datos de SERPAPI / GOOGLE HOTELS, las opciones de hospedaje DEBEN salir de esa lista (toma 3 representativas: ahorro/equilibrio/premium por precio_por_noche). Si el cliente pidió un tipo de hospedaje (boutique, vista al mar, lujo, todo incluido, etc.), elige SOLO hoteles de la lista que encajen con esa petición y prefiere rating ≥ 4.3; menciona en "por_que" cómo cumple lo que pidió. Convierte USD→MXN (×${fxUsd}), copia el booking_link exacto y pon fuente_precio="serpapi". NUNCA inventes un hotel ni un precio si esa lista trae datos.
@@ -903,6 +912,9 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     let a: any = null;
     if (claudeRes.ok) {
       const claudeData = await claudeRes.json();
+      // Costo real de la llamada (tokens que reporta Claude) para ai_usage_log.
+      const claudeUsage = usageFromClaude(claudeData);
+      if (claudeUsage) await logUsage({ user_id: user.id, function: "analizar-viaje", provider: "anthropic", ...claudeUsage });
       const toolUse = (claudeData.content ?? []).find(
         (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
       );
@@ -944,7 +956,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // Trayecto corto: terrestre siempre "estimado" con liga de búsqueda; vuelos solo razonables; el
     // renglón de transporte sale de la opción con precio (0 si ninguna trae precio).
     if (shortTrip) {
-      a.vuelos = applyShortTripRules(a.vuelos, shortTrip, groundSearchLinks(shortTrip.origin, shortTrip.destination, body.fecha_salida));
+      a.vuelos = applyShortTripRules(a.vuelos, shortTrip, groundSearchLinks(shortTrip.origin, shortTrip.destination, body.fecha_salida), tripPrefs);
       a.desglose_presupuesto = { ...(a.desglose_presupuesto ?? {}), vuelos: shortTripTransportTotal(a.vuelos, body.num_viajeros) };
     }
 

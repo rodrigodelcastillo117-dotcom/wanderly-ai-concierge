@@ -2034,6 +2034,15 @@ export type Database = {
         Returns: Json
       }
       ensure_ai_prefs: { Args: { p_user: string }; Returns: undefined }
+      friend_profiles: {
+        Args: { p_ids?: string[] }
+        Returns: {
+          avatar_url: string | null
+          full_name: string | null
+          id: string
+          username: string | null
+        }[]
+      }
       gen_invite_code: { Args: never; Returns: string }
       get_access_state: { Args: { _user_id: string }; Returns: Json }
       has_trip_access: {
@@ -2055,6 +2064,7 @@ export type Database = {
       }
       purge_account_data: { Args: { p_user_id: string }; Returns: Json }
       rechazar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
+      unlock_members_access: { Args: { p_password: string }; Returns: Json }
       verify_cron_secret: { Args: { p_secret: string }; Returns: boolean }
     }
     Enums: {

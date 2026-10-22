@@ -5,6 +5,7 @@
 // aceptó: antes iba en el paquete inicial de todas las visitas, aunque la mayoría nunca lo usara
 // (E-23). Los eventos que llegan mientras se descarga se encolan y se envían al terminar.
 import type { PostHog } from "posthog-js";
+import { scrubCapture, stripPii } from "@/lib/piiScrub";
 
 const KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
 const HOST = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? "https://us.i.posthog.com";
@@ -24,36 +25,41 @@ function withClient(fn: (ph: PostHog) => void) {
   }
 }
 
-export function initAnalytics(load: () => Promise<{ default: PostHog }> = () => import("posthog-js")) {
-  if (!KEY) return;
+/** Inicia PostHog (descargándolo). Devuelve una promesa que se resuelve cuando ya está listo. */
+export function initAnalytics(load: () => Promise<{ default: PostHog }> = () => import("posthog-js")): Promise<void> {
+  if (!KEY) return Promise.resolve();
   optedOut = false;
   if (client) {
     // Re-aceptó después de haber rechazado en esta misma sesión.
     try { client.opt_in_capturing(); } catch { /* noop */ }
-    return;
+    return Promise.resolve();
   }
-  if (loading) return;
-  loading = load()
-    .then(({ default: posthog }) => {
-      if (optedOut) return null;
-      posthog.init(KEY, {
-        api_host: HOST,
-        person_profiles: "identified_only",
-        capture_pageview: true,
-        autocapture: false,
+  if (!loading) {
+    loading = load()
+      .then(({ default: posthog }) => {
+        if (optedOut) return null;
+        posthog.init(KEY, {
+          api_host: HOST,
+          person_profiles: "identified_only",
+          capture_pageview: true,
+          autocapture: false,
+          // Sin datos personales en propiedades de eventos ni en la persona (F-18).
+          before_send: (event) => (event ? scrubCapture(event) : event),
+        });
+        client = posthog;
+        for (const fn of queue.splice(0)) {
+          try { fn(posthog); } catch { /* noop */ }
+        }
+        return posthog;
+      })
+      .catch((e) => {
+        console.warn("PostHog init falló:", e);
+        queue.length = 0;
+        loading = null;
+        return null;
       });
-      client = posthog;
-      for (const fn of queue.splice(0)) {
-        try { fn(posthog); } catch { /* noop */ }
-      }
-      return posthog;
-    })
-    .catch((e) => {
-      console.warn("PostHog init falló:", e);
-      queue.length = 0;
-      loading = null;
-      return null;
-    });
+  }
+  return loading.then(() => undefined);
 }
 
 export type AnalyticsEvent =
@@ -67,11 +73,12 @@ export type AnalyticsEvent =
   | "affiliate_click";
 
 export function track(event: AnalyticsEvent, props?: Record<string, unknown>) {
-  withClient((ph) => ph.capture(event, props));
+  withClient((ph) => ph.capture(event, props ? stripPii(props) : props));
 }
 
+/** Solo el id interno: el correo, el nombre o el teléfono no se mandan a PostHog (F-18). */
 export function identifyUser(userId: string, props?: Record<string, unknown>) {
-  withClient((ph) => ph.identify(userId, props));
+  withClient((ph) => ph.identify(userId, props ? stripPii(props) : undefined));
 }
 
 export function resetAnalytics() {
