@@ -42,6 +42,13 @@ export interface TurnDeps {
   now?: () => number;
 }
 
+/**
+ * Tope total del turno en el servidor (AUD-IATO-01). La función Edge muere a los 150 s (plan gratis;
+ * también es el límite de inactividad de la petición): con 120 s queda margen para validar, registrar
+ * el uso, confirmar la cuota y mandar el evento final o el de error.
+ */
+export const TURN_BUDGET_MS = 120_000;
+
 export interface TurnOutput { final: FinalTurn; agent: AgentResult; prefetched: ToolRun[]; prefetchMs: number; totalMs: number }
 
 /** Mensajes para el modelo: [CONTEXTO] [historial]; el último mensaje lleva los datos ya consultados. */
@@ -86,7 +93,7 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
     stableSystem: d.stableSystem, dynamicSystem: d.dynamicSystem, messages: buildTurnMessages(d.contextMessage, d.history, prefetched),
     tools: TOOL_DEFS, maxIterations: d.route.maxIterations, maxTokens: d.route.maxTokens, userMessage: d.userMessage,
     execTool: d.execTool, prepare: prepareToolResultForModel, toolTimeoutMs: d.toolTimeout, prefetched,
-    deadlineMs: d.exigente ? 50_000 : 30_000, now: d.now,
+    deadlineMs: d.exigente ? 50_000 : 30_000, hardBudgetMs: Math.max(0, TURN_BUDGET_MS - prefetchMs), now: d.now,
     emit: {
       status: (id, text, state) => d.send({ type: "status", data: { id, text, state } }),
       delta: (text) => d.send({ type: "delta", data: { text } }),

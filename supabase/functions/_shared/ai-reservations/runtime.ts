@@ -54,6 +54,21 @@ async function receivedEmail(emailId: string): Promise<ReceivedEmail | null> {
   return await res.json().catch(() => null);
 }
 
+/**
+ * .eml original de un correo recibido (raw.download_url firmado de Resend), solo para calcular su
+ * SHA-256 como evidencia (AUD-06). https, 10 s y 5 MB como máximo; si falla, la evidencia queda sin
+ * esa huella (el resto sigue: cuerpo, Message-ID, autenticación).
+ */
+async function fetchRaw(url: string): Promise<ArrayBuffer | null> {
+  if (!/^https:\/\//.test(url)) return null;
+  const res = await fetch(url, { signal: AbortSignal.timeout(10_000), redirect: "error" }).catch(() => null);
+  if (!res || !res.ok) return null;
+  const len = Number(res.headers.get("content-length") ?? "0");
+  if (len > 5_000_000) return null;
+  const buf = await res.arrayBuffer().catch(() => null);
+  return buf && buf.byteLength <= 5_000_000 ? buf : null;
+}
+
 export function buildServiceDeps(): ServiceDeps {
   const db = adminDb();
   const callModel: ModelCall | null = env("ANTHROPIC_API_KEY")
@@ -100,6 +115,7 @@ export function buildServiceDeps(): ServiceDeps {
       return { name: (p as { full_name?: string } | null)?.full_name ?? null, email: u?.user?.email ?? null };
     },
     receivedEmail,
+    fetchRaw,
     config: {
       replyDomain: env("AI_RESERVATIONS_REPLY_DOMAIN") ?? DEFAULT_REPLY_DOMAIN,
       fromAddress: env("AI_RESERVATIONS_FROM_ADDRESS"),

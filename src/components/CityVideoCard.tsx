@@ -1,82 +1,97 @@
 import { useEffect, useRef, useState } from "react";
-import { cachedVideo, getDestinationVideo } from "@/lib/videoSearch";
+import { getDestinationVideo } from "@/lib/videoSearch";
+import { claimVideo, cityVideoQueries, videoKey } from "@/lib/cityVisuals";
 import { useInView } from "@/hooks/useInView";
 
 interface Props {
   city: string;
   active: boolean;
   onClick: () => void;
+  /** Línea chica bajo el nombre (p. ej. "12 lugares"). */
+  subtitle?: string;
+  className?: string;
 }
 
-// Query muy específica por ciudad para evitar resultados duplicados entre ciudades.
-const queryFor = (city: string) => `${city} city skyline night aerial landmark cinematic`;
+type Visual = { url: string | null; poster: string | null };
 
-// La caché, la deduplicación y el freno tras un 429 son compartidos (src/lib/videoSearch.ts), y
-// solo se pide el video cuando la tarjeta está por verse (N-04). Antes cada tarjeta llamaba por
-// su cuenta, con la URL de producción escrita a mano.
-export function CityVideoCard({ city, active, onClick }: Props) {
-  const initial = cachedVideo(queryFor(city));
-  const [src, setSrc] = useState<string | null>(initial?.url ?? null);
-  const [poster, setPoster] = useState<string | null>(initial?.poster ?? null);
-  const [loading, setLoading] = useState(!initial);
-  const videoRef = useRef<HTMLVideoElement>(null);
+const reducedMotion = () =>
+  typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * Tarjeta de ciudad con su propio clip (de día, de su lugar emblemático) y nunca el de otra ciudad:
+ * ver src/lib/cityVisuals.ts. La caché, la deduplicación y el freno tras un 429 son compartidos
+ * (src/lib/videoSearch.ts) y solo se pide el video cuando la tarjeta está por verse (N-04).
+ */
+export function CityVideoCard({ city, active, onClick, subtitle, className = "h-36" }: Props) {
+  const [visual, setVisual] = useState<Visual | null>(null);
+  const [done, setDone] = useState(false);
   const cardRef = useRef<HTMLButtonElement>(null);
   const inView = useInView(cardRef);
 
   useEffect(() => {
-    const q = queryFor(city);
-    const cached = cachedVideo(q);
-    if (cached) {
-      setSrc(cached.url);
-      setPoster(cached.poster);
-      setLoading(false);
-      return;
-    }
     if (!inView) return;
     let cancelled = false;
-    setLoading(true);
-    void getDestinationVideo(q).then((r) => {
-      if (cancelled) return;
-      setSrc(r.url);
-      setPoster(r.poster);
-      setLoading(false);
-    });
+    setDone(false);
+    (async () => {
+      let posterOnly: Visual | null = null;
+      for (const q of cityVideoQueries(city)) {
+        const r = await getDestinationVideo(q);
+        if (cancelled) return;
+        const key = videoKey(r.url, r.poster);
+        // Un clip que ya es de otra ciudad no se repite: se prueba la consulta de respaldo.
+        if (!key || !claimVideo(city, key)) continue;
+        if (r.url) { setVisual(r); setDone(true); return; }
+        if (r.poster && !posterOnly) posterOnly = { url: null, poster: r.poster };
+      }
+      setVisual(posterOnly);
+      setDone(true);
+    })();
     return () => { cancelled = true; };
   }, [city, inView]);
+
+  const playVideo = !!visual?.url && !reducedMotion();
+  const initial = city.trim().charAt(0).toUpperCase();
 
   return (
     <button
       ref={cardRef}
+      type="button"
       onClick={onClick}
-      className={`group relative overflow-hidden rounded-2xl border h-36 flex items-end p-3 transition-all duration-300 ${
+      aria-pressed={active}
+      aria-label={subtitle ? `${city}, ${subtitle}` : city}
+      className={`group relative overflow-hidden rounded-2xl border flex items-end p-3 text-left transition-all duration-300 ${className} ${
         active
-          ? "border-primary/60 shadow-[0_10px_40px_-12px_rgba(201,169,97,0.45)]"
-          : "border-primary/15 hover:border-primary/40"
+          ? "border-primary ring-1 ring-primary/70 shadow-[0_10px_40px_-12px_rgba(201,169,97,0.55)]"
+          : "border-primary/15 hover:border-primary/45"
       }`}
     >
-      {/* Video o poster */}
-      {src ? (
+      {playVideo ? (
         <video
-          ref={videoRef}
-          src={src}
-          poster={poster ?? undefined}
+          src={visual!.url!}
+          poster={visual!.poster ?? undefined}
           autoPlay
           muted
           loop
           playsInline
-          className="absolute inset-0 w-full h-full object-cover"
+          preload="metadata"
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
-      ) : poster ? (
-        <img src={poster} alt={city} className="absolute inset-0 w-full h-full object-cover" />
+      ) : visual?.poster ? (
+        <img src={visual.poster} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
       ) : (
-        <div className={`absolute inset-0 bg-gradient-to-br from-primary/20 to-black ${loading ? "animate-pulse" : ""}`} />
+        // Sin clip propio: fondo sobrio con la inicial (mejor que repetir el video de otra ciudad).
+        <div className={`absolute inset-0 bg-gradient-to-br from-primary/25 via-primary/[0.06] to-black ${done ? "" : "animate-pulse"}`}>
+          <span aria-hidden="true" className="absolute right-3 top-1 font-fraunces text-6xl text-primary/25 select-none">{initial}</span>
+        </div>
       )}
 
-      {/* Overlay oscuro para legibilidad */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
+      {/* Velo para leer el nombre, sin oscurecer toda la toma. */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
 
-      <span className="relative font-fraunces text-base text-foreground drop-shadow-lg z-10">
-        {city}
+      <span className="relative z-10 min-w-0">
+        <span className="block font-fraunces text-base leading-tight text-white drop-shadow-lg truncate">{city}</span>
+        {subtitle && <span className="block text-[10px] tracking-wide text-white/80 drop-shadow">{subtitle}</span>}
       </span>
     </button>
   );

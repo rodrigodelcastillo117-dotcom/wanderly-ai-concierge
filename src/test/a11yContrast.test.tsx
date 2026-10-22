@@ -59,7 +59,7 @@ describe("campos con nombre accesible", () => {
     ["src/pages/TripTranslator.tsx", ['aria-label="Frase en español para traducir"']],
     ["src/components/FlightStatusDialog.tsx", ['aria-label="Número de vuelo"']],
     ["src/components/ConciergeActions.tsx", ['aria-label="¿A dónde vas?"']],
-    ["src/components/MembersOnlyPanel.tsx", ['aria-label="Buscar por ciudad"']],
+    ["src/components/MembersOnlyPanel.tsx", ['aria-label="Buscar ciudad o lugar"']],
     ["src/components/EditWithAIDialog.tsx", ['aria-label="Cambios que quieres en tu viaje"']],
     ["src/components/BenefitsVault.tsx", ['aria-label="Busca tu tarjeta"']],
     ["src/pages/TripDetail.tsx", ['aria-label="Número de viajeros"', 'aria-label="Noches en este hospedaje"']],

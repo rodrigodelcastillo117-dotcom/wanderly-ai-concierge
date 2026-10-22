@@ -30,6 +30,8 @@ export interface ModelCallInput {
   tools: ToolDef[];
   toolChoice: "auto" | "none";
   maxTokens: number;
+  /** Tiempo que le queda al turno (ms): la llamada no puede durar más (AUD-IATO-01). */
+  budgetMs?: number;
 }
 
 export interface ModelCallResult {
@@ -71,6 +73,12 @@ export interface AgentInput {
   prefetched?: ToolRun[];
   /** Tope del turno completo; al pasarlo, la siguiente vuelta ya no permite herramientas. */
   deadlineMs?: number;
+  /**
+   * Tope DURO del turno (ms) contando respaldos y vueltas (AUD-IATO-01). Cada llamada recibe solo lo
+   * que queda; sin tiempo para una llamada útil se corta con AllProvidersFailed y la app recibe el
+   * evento de error antes de que la plataforma mate la función (el stream quedaba cortado sin final).
+   */
+  hardBudgetMs?: number;
   now?: () => number;
 }
 
@@ -91,8 +99,12 @@ export interface AgentResult {
 }
 
 export class AllProvidersFailed extends Error {
-  constructor(public last: ProviderError | null) { super("all_providers_failed"); }
+  /** usage: lo que sí cobraron los proveedores en este turno (AUD-IATO-02: se registra igual). */
+  constructor(public last: ProviderError | null, public usage: UsageRecord[] = []) { super("all_providers_failed"); }
 }
+
+/** Menos de esto no alcanza para una respuesta útil: se corta el turno (AUD-IATO-01). */
+export const MIN_MODEL_CALL_MS = 5_000;
 
 /** JSON con llaves ordenadas en todos los niveles (para reconocer la misma consulta). */
 export function stableStringify(v: unknown): string {
@@ -129,10 +141,14 @@ export async function runAgentTurn(a: AgentInput): Promise<AgentResult> {
       const step = a.chain[stepIdx];
       filter = new AnswerStreamFilter();
       shown = "";
+      const budgetMs = a.hardBudgetMs !== undefined ? a.hardBudgetMs - (now() - t0) : undefined;
+      if (budgetMs !== undefined && budgetMs < MIN_MODEL_CALL_MS) {
+        throw new AllProvidersFailed(lastErr ?? new ProviderError("timeout", 0, "turn_budget"), res.usage);
+      }
       try {
         result = await a.callModel(step, {
           stableSystem: a.stableSystem, dynamicSystem: a.dynamicSystem, messages, tools: a.tools,
-          toolChoice: last ? "none" : "auto", maxTokens: a.maxTokens,
+          toolChoice: last ? "none" : "auto", maxTokens: a.maxTokens, ...(budgetMs !== undefined ? { budgetMs } : {}),
         }, {
           onText: (d) => {
             const v = filter.push(d);
@@ -150,13 +166,16 @@ export async function runAgentTurn(a: AgentInput): Promise<AgentResult> {
         const err = e instanceof ProviderError ? e : new ProviderError("network", 0, (e as Error)?.message ?? "error");
         lastErr = err;
         res.failures.push({ key: step.key, kind: err.kind, status: err.status });
-        a.breaker.recordFailure(step.key, err.kind, a.cooldownMs);
+        // MEJ-01: una respuesta que SÍ estaba llegando y solo rebasó el tope total no dice que el
+        // proveedor esté caído: se pasa al respaldo sin abrir el breaker para todos los usuarios.
+        const cutWhileStreaming = err.kind === "timeout" && /timeout_total/.test(err.detail) && !!err.partialText;
+        a.breaker.recordFailure(step.key, cutWhileStreaming ? "bad_request" : err.kind, a.cooldownMs);
         if (shown) a.emit.reset();
         result = null;
         stepIdx++;
       }
     }
-    if (!result) throw new AllProvidersFailed(lastErr);
+    if (!result) throw new AllProvidersFailed(lastErr, res.usage);
     res.provider = result.provider;
     res.model = result.model;
     res.usage.push({ provider: result.provider, model: result.model, ...result.usage });
@@ -247,8 +266,11 @@ export function toOpenAiMessages(stableSystem: string, dynamicSystem: string, me
 const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0);
 
 export function makeModelCaller(d: CallerDeps): ModelCaller {
-  const t = d.timeouts ?? { firstByteMs: 10_000, idleMs: 15_000, totalMs: 45_000 };
+  const base = d.timeouts ?? { firstByteMs: 10_000, idleMs: 15_000, totalMs: 45_000 };
   return async (step, input, h) => {
+    // Nunca más que lo que le queda al turno (AUD-IATO-01).
+    const cap = typeof input.budgetMs === "number" && input.budgetMs > 0 ? input.budgetMs : Infinity;
+    const t = { firstByteMs: Math.min(base.firstByteMs, cap), idleMs: Math.min(base.idleMs, cap), totalMs: Math.min(base.totalMs, cap) };
     if (step.provider === "anthropic") {
       if (!d.anthropicKey) throw new ProviderError("auth", 401, "sin llave");
       const r = await streamAnthropic({

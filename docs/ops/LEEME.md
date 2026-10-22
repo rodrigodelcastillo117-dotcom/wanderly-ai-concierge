@@ -311,6 +311,7 @@ cada miembro entra con **su propia** contraseña Privé. Política completa:
 | `PRIVE_IP_SALT` | **Sí** | Sal del `ip_hash` del límite por conexión (30 fallos/hora → 60 min fuera). Pon un texto aleatorio largo (por ejemplo, 64 caracteres de un generador de contraseñas) y no lo compartas. | Se omite **solo** el límite por conexión (el de cada cuenta sigue) y la función lo advierte en sus registros. Nunca se inventa una sal. |
 | `SITE_URL` | Opcional | Dominio de los enlaces del correo (`https://traveliatos.life` por defecto). Solo acepta `https`. | Usa el valor por defecto. |
 | `SUPPORT_EMAIL` | Opcional | Contacto de soporte en el pie de los correos (`hola@traveliatos.life` por defecto). | Usa el valor por defecto. |
+| `PRIVE_REPLY_TO` | **Sí**, opcional | Buzón que **sí recibe** para el Reply-To de la invitación Privé (p. ej. `hola@traveliatos.life` cuando tenga MX). Con él, el pie dice "basta con responder a este correo". Ver `docs/iatos/IATOS_ENTREGABILIDAD_CORREO.md`. | La invitación sale sin Reply-To y el pie muestra `SUPPORT_EMAIL`. |
 | `LOVABLE_API_KEY`, `RESEND_API_KEY` | Ya existen | Enviar la invitación y los avisos de seguridad. | No se manda correo; la invitación queda pendiente y el aviso en la app sí aparece. |
 | `STRIPE_SECRET_KEY` | Ya existe | Solo lectura de facturas para el respaldo. | El respaldo responde `stripe_not_configured`. |
 

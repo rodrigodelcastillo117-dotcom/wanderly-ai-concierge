@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { fetchFriendProfiles, type FriendProfile } from "@/lib/friendProfiles";
+import { FriendAvatar } from "@/components/social/FriendAvatar";
+import { SOCIAL_ERRORS } from "@/lib/social";
 
 type Friend = FriendProfile;
 
@@ -49,13 +51,14 @@ export const InviteFriendDialog = ({ tripId, isOwner }: Props) => {
       p_friend_id: friendId,
     });
     setBusyId(null);
+    // Antes se mostraba el código crudo ("no_eres_dueno") o el mensaje técnico del servidor.
     if (error) {
-      toast.error(error.message);
+      toast.error("No se pudo invitar. Intenta de nuevo.");
       return;
     }
-    const r = data as any;
+    const r = data as { ok?: boolean; error?: string } | null;
     if (!r?.ok) {
-      toast.error(r?.error ?? "No se pudo invitar");
+      toast.error(SOCIAL_ERRORS[r?.error ?? ""] ?? "No se pudo invitar. Intenta de nuevo.");
       return;
     }
     toast.success("Amigo invitado al viaje");
@@ -124,9 +127,7 @@ export const InviteFriendDialog = ({ tripId, isOwner }: Props) => {
                   key={f.id}
                   className="flex items-center gap-3 p-3 rounded-xl bg-background/40 border border-border"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-display flex-shrink-0">
-                    {(f.full_name || f.username || "?").charAt(0).toUpperCase()}
-                  </div>
+                  <FriendAvatar name={f.full_name || f.username || "?"} url={f.avatar_url} className="w-10 h-10 text-base font-display" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{f.full_name || "Sin nombre"}</p>
                     {f.username && <p className="text-xs text-muted-foreground truncate">@{f.username}</p>}

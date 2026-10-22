@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
         send: (m) => sendEmail(m),
         siteUrl: Deno.env.get("SITE_URL") ?? "https://traveliatos.life",
         supportEmail: Deno.env.get("SUPPORT_EMAIL") ?? undefined,
+        replyTo: Deno.env.get("PRIVE_REPLY_TO") ?? undefined,
         warn: (...a) => console.warn(...a),
       }
       : null,

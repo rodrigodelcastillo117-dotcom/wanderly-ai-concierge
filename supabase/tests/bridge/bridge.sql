@@ -217,3 +217,54 @@ SELECT bt.ok('B13 booking_venue_lookup es solo del servidor', (SELECT j FROM bt.
 SELECT bt.ok('B14 historial con actor por paso', (SELECT string_agg(to_state || ':' || actor, ',' ORDER BY e.id) FROM public.booking_intent_events e JOIN public.booking_intents i ON i.id = e.intent_id WHERE i.offer_id='00000000000000f1')
   = 'READY_TO_BOOK:usuario,REDIRECTED_TO_PROVIDER:usuario,REDIRECTED_TO_PROVIDER:usuario,READY_TO_BOOK:usuario,REDIRECTED_TO_PROVIDER:usuario,PENDING_CONFIRMATION:usuario,CONFIRMED:equipo',
   (SELECT string_agg(to_state || ':' || actor, ',' ORDER BY e.id) FROM public.booking_intent_events e JOIN public.booking_intents i ON i.id = e.intent_id WHERE i.offer_id='00000000000000f1'));
+
+-- ── AUD-04 (cierre de auditoría, docs/iatos/cierre/BRIDGE.md): el destino guardado no se puede cambiar desde
+--    el cliente y, cuando el servidor lo alinea antes de salir, queda en el historial.
+SET ROLE service_role; SELECT bt.as_service();
+INSERT INTO bt.v SELECT 'a4a', public.booking_intent_start('b7d00000-0000-0000-0000-00000000000a', bt.payload('key-aud04-1','00000000000000d1'));
+RESET ROLE;
+SET ROLE authenticated; SELECT bt.as_user('b7d00000-0000-0000-0000-00000000000a');
+DO $$ BEGIN
+  UPDATE public.booking_intents SET target_url = 'https://pagos-seguros-reserva.com/x' WHERE offer_id = '00000000000000d1';
+  INSERT INTO bt.v VALUES ('a4b', '"updated"');
+EXCEPTION WHEN insufficient_privilege THEN INSERT INTO bt.v VALUES ('a4b', '"denied"'); END $$;
+DO $$ BEGIN
+  PERFORM public.booking_intent_transition((SELECT (j->'intent'->>'id')::uuid FROM bt.v WHERE k='a4a'), 'b7d00000-0000-0000-0000-00000000000a',
+    NULL, 'usuario', 'x', '{"target_url":"https://pagos-seguros-reserva.com/x"}');
+  INSERT INTO bt.v VALUES ('a4c', '"called"');
+EXCEPTION WHEN insufficient_privilege THEN INSERT INTO bt.v VALUES ('a4c', '"denied"'); END $$;
+DO $$ BEGIN
+  PERFORM public.booking_intent_mark_redirected((SELECT (j->'intent'->>'id')::uuid FROM bt.v WHERE k='a4a'), 'b7d00000-0000-0000-0000-00000000000a');
+  INSERT INTO bt.v VALUES ('a4d', '"called"');
+EXCEPTION WHEN insufficient_privilege THEN INSERT INTO bt.v VALUES ('a4d', '"denied"'); END $$;
+RESET ROLE;
+GRANT ALL ON bt.v TO anon;
+SET ROLE anon; SELECT set_config('request.jwt.claim.role', 'anon', false);
+DO $$ BEGIN
+  PERFORM public.booking_intent_mark_redirected('00000000-0000-0000-0000-000000000000'::uuid, 'b7d00000-0000-0000-0000-00000000000a');
+  INSERT INTO bt.v VALUES ('a4e', '"called"');
+EXCEPTION WHEN insufficient_privilege THEN INSERT INTO bt.v VALUES ('a4e', '"denied"'); END $$;
+RESET ROLE;
+SELECT bt.ok('AUD04-1 el dueño no puede cambiar el destino guardado con UPDATE', (SELECT j FROM bt.v WHERE k='a4b') = '"denied"', (SELECT j::text FROM bt.v WHERE k='a4b'));
+SELECT bt.ok('AUD04-2 el dueño no puede llamar booking_intent_transition', (SELECT j FROM bt.v WHERE k='a4c') = '"denied"', (SELECT j::text FROM bt.v WHERE k='a4c'));
+SELECT bt.ok('AUD04-3 ni el dueño ni anon pueden pedir el destino (booking_intent_mark_redirected)',
+  (SELECT j FROM bt.v WHERE k='a4d') = '"denied"' AND (SELECT j FROM bt.v WHERE k='a4e') = '"denied"');
+SELECT bt.ok('AUD04-4 el destino sigue intacto', (SELECT target_url FROM public.booking_intents WHERE offer_id='00000000000000d1') LIKE 'https://www.aviasales.com/%');
+
+-- El servidor alinea el destino antes de salir (otra acción de la misma oferta): queda en el historial.
+SET ROLE service_role; SELECT bt.as_service();
+INSERT INTO bt.v SELECT 'a4f', public.booking_intent_transition((SELECT (j->'intent'->>'id')::uuid FROM bt.v WHERE k='a4a'),
+  'b7d00000-0000-0000-0000-00000000000a', 'READY_TO_BOOK', 'usuario', 'Cambió la forma de continuar: Ver en Google Maps',
+  '{"target_url":"https://www.google.com/maps/search/?api=1&query=Madrid","target_host":"www.google.com","action_kind":"maps_listing","booking_mode":"UNAVAILABLE"}');
+SELECT public.booking_intent_mark_redirected((SELECT (j->'intent'->>'id')::uuid FROM bt.v WHERE k='a4a'), 'b7d00000-0000-0000-0000-00000000000a');
+-- Ya salió al proveedor: el destino ya no se reescribe.
+INSERT INTO bt.v SELECT 'a4g', public.booking_intent_transition((SELECT (j->'intent'->>'id')::uuid FROM bt.v WHERE k='a4a'),
+  'b7d00000-0000-0000-0000-00000000000a', NULL, 'usuario', 'x', '{"target_url":"https://www.booking.com/otro"}');
+RESET ROLE;
+SELECT bt.ok('AUD04-5 cambio de destino antes de salir: aplicado', (SELECT action_kind = 'maps_listing' AND target_url LIKE 'https://www.google.com/maps/%' FROM public.booking_intents WHERE offer_id='00000000000000d1'));
+SELECT bt.ok('AUD04-6 el cambio de destino queda en el historial (host anterior y nuevo)',
+  EXISTS (SELECT 1 FROM public.booking_intent_events e JOIN public.booking_intents i ON i.id = e.intent_id
+          WHERE i.offer_id='00000000000000d1' AND e.from_state = 'READY_TO_BOOK' AND e.to_state = 'READY_TO_BOOK'
+            AND e.note LIKE '%www.aviasales.com%www.google.com%'),
+  (SELECT string_agg(coalesce(from_state,'∅') || '→' || to_state || ' ' || coalesce(note,''), ' | ' ORDER BY e.id) FROM public.booking_intent_events e JOIN public.booking_intents i ON i.id = e.intent_id WHERE i.offer_id='00000000000000d1'));
+SELECT bt.ok('AUD04-7 después de salir al proveedor el destino ya no cambia', (SELECT target_url FROM public.booking_intents WHERE offer_id='00000000000000d1') LIKE 'https://www.google.com/maps/%');

@@ -68,4 +68,22 @@ describe("BookingActions", () => {
     render(<BookingActions offer={empty} source={src} />);
     expect(screen.getByText(/No encontramos una forma fiable de reservar/)).toBeInTheDocument();
   });
+
+  // Cierre de auditoría (AUD-04): oferta exacta vs búsqueda general, y el dominio de destino a la vista.
+  it("el aviso dice si es la oferta exacta o una búsqueda general, y a qué dominio se va", () => {
+    render(<BookingActions offer={flight} source={src} tripId={TRIP.id} />);
+    fireEvent.click(screen.getByRole("button", { name: /Buscar este vuelo · Aviasales/ }));
+    expect(screen.getByTestId("link-kind").textContent).toMatch(/Búsqueda general en Aviasales: no es un enlace a esta oferta/);
+    expect(screen.getByText("Destino: aviasales.com")).toBeInTheDocument();
+  });
+});
+
+describe("aviso al volver de booking-go (?salida=…)", () => {
+  it("cada motivo de booking-go tiene un mensaje claro; uno desconocido no muestra nada", async () => {
+    const { exitNotice, linkKindLine } = await import("@/lib/bookingExit");
+    for (const r of ["enlace_vencido", "enlace_invalido", "destino_bloqueado", "comprueba_el_precio", "no_disponible"]) expect(exitNotice(r)?.title, r).toBeTruthy();
+    expect(exitNotice("<script>")).toBeNull();
+    expect(linkKindLine({ mode: "EXACT_DEEP_LINK", kind: "exact_offer", processor: "Google Hotels", label: "Reservar esta tarifa" })).toBe("Enlace a esta oferta exacta en Google Hotels.");
+    expect(linkKindLine({ mode: "UNAVAILABLE", kind: "official_website", processor: "x.com", label: "Sitio web del lugar (sin verificar)" })).toMatch(/sin verificar/);
+  });
 });

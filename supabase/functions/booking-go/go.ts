@@ -1,14 +1,20 @@
 // booking-go: salida firmada al proveedor (Fase 12, sin open redirects). Sin Deno.serve (se prueba
 // con Vitest). Solo redirige si el token lo firmó booking-bridge, no venció, la intención es del mismo
-// usuario y su destino GUARDADO vuelve a pasar la lista blanca o la regla de fuente confiable. Nunca
-// lee una URL de la petición. Cualquier falla regresa a IATOS con un aviso, no a un dominio externo.
-import { checkTrustedSource } from "../_shared/booking/allowlist.ts";
-import { verifyRedirect } from "../_shared/booking/redirectToken.ts";
+// usuario y su destino GUARDADO es exactamente el que se firmó (huella `h`) y vuelve a pasar la regla
+// del nivel con que se firmó (`t`): lista estricta, o fuente del servidor (catálogo / escaneo del
+// sitio oficial). Un token sin huella (anterior a AUD-04) solo sale por la lista estricta. Nunca lee
+// una URL de la petición. Cualquier falla regresa a IATOS con un aviso, no a un dominio externo.
+import { checkAllowlisted, checkTrustedSource } from "../_shared/booking/allowlist.ts";
+import { targetHash, verifyRedirect } from "../_shared/booking/redirectToken.ts";
 import { DEFAULT_ORIGIN, safeOrigin } from "../_shared/origin.ts";
+
+type Target = { ok: boolean; target_url?: string; trip_id?: string | null; code?: string } | null;
 
 export type GoDeps = {
   secret: string;
-  markRedirected(intentId: string, userId: string): Promise<{ ok: boolean; target_url?: string; trip_id?: string | null; code?: string } | null>;
+  /** Lee (sin marcar) el destino guardado de la intención del usuario: se revisa ANTES de marcar la salida. */
+  peekTarget?(intentId: string, userId: string): Promise<Target>;
+  markRedirected(intentId: string, userId: string): Promise<Target>;
   now?: () => number;
 };
 
@@ -25,9 +31,19 @@ export async function resolveGo(url: string, deps: GoDeps): Promise<GoResult> {
   const v = await verifyRedirect(deps.secret, token, deps.now?.());
   if (!v.ok) return back(DEFAULT_ORIGIN, v.reason === "vencido" ? "enlace_vencido" : "enlace_invalido");
   const origin = safeOrigin(v.claims.o);
-  const r = await deps.markRedirected(v.claims.i, v.claims.u);
-  if (!r?.ok || !r.target_url) return back(origin, r?.code === "NOT_READY" ? "comprueba_el_precio" : "no_disponible", r?.trip_id ?? null);
-  const safe = checkTrustedSource(r.target_url);
-  if (!safe.ok) return back(origin, "destino_bloqueado", r.trip_id ?? null);
-  return { status: 302, location: safe.url, reason: "ok" };
+  const claims = v.claims;
+  const verdict = async (r: Target): Promise<GoResult | { url: string }> => {
+    if (!r?.ok || !r.target_url) return back(origin, r?.code === "NOT_READY" ? "comprueba_el_precio" : "no_disponible", r?.trip_id ?? null);
+    if (claims.h && (await targetHash(r.target_url)) !== claims.h) return back(origin, "destino_bloqueado", r.trip_id ?? null);
+    const safe = claims.h && claims.t === "s" ? checkTrustedSource(r.target_url) : checkAllowlisted(r.target_url);
+    return safe.ok ? { url: safe.url } : back(origin, "destino_bloqueado", r.trip_id ?? null);
+  };
+  // Primero se revisa sin marcar: un destino bloqueado no deja la intención como "salió al proveedor".
+  if (deps.peekTarget) {
+    const pre = await verdict(await deps.peekTarget(claims.i, claims.u));
+    if ("status" in pre) return pre;
+  }
+  const post = await verdict(await deps.markRedirected(claims.i, claims.u));
+  if ("status" in post) return post;
+  return { status: 302, location: post.url, reason: "ok" };
 }

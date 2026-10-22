@@ -413,7 +413,8 @@ const VENUE_TRUST: Record<VenueInfo["source"], SourceTrust> = {
 };
 const VERIFIED_BY: Record<VenueInfo["source"], string> = {
   prive_catalog: "Catálogo IATOS Privé (curado del sitio oficial)",
-  google_places: "Ficha de Google Maps del lugar",
+  // Solo llega de trips.*_json (venueFromTripPlace), que el dueño y los colaboradores pueden editar (AUD-04).
+  google_places: "Google Maps al cotizar (dato guardado en el viaje; confírmalo en la ficha)",
   official_site_scan: "Sitio oficial del lugar",
 };
 

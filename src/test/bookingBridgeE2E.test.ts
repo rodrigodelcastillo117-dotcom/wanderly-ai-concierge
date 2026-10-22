@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { type BridgeDeps, handleBridge, type TripRow } from "../../supabase/functions/booking-bridge/handler";
 import { resolveGo } from "../../supabase/functions/booking-go/go";
-import { signRedirect } from "../../supabase/functions/_shared/booking/redirectToken";
+import { signRedirect, targetHash } from "../../supabase/functions/_shared/booking/redirectToken";
 import { canTransition } from "../../supabase/functions/_shared/booking/states";
 import { venueFromPriveRow } from "../../supabase/functions/_shared/booking/offers";
 import { parseAviasalesSearch } from "../../supabase/functions/_shared/booking/links";
@@ -91,9 +91,15 @@ function setup(o: Opts = {}) {
     tripDocumentOk: async (docId) => docId === "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     recheckFlight: async () => o.recheck ?? { ok: false, code: "RECHECK_UNAVAILABLE", message: "x" },
     recheckHotel: async () => o.recheck ?? { ok: false, code: "RECHECK_UNAVAILABLE", message: "x" },
-    goUrl: async (intentId) => {
-      const t = await signRedirect(SECRET, { i: intentId, u: USER, o: "https://traveliatos.life" }, o.now ?? NOW);
+    // Igual que booking-bridge/index.ts: el token lleva la huella del destino y su nivel (AUD-04).
+    goUrl: async (intentId, target) => {
+      const t = await signRedirect(SECRET, { i: intentId, u: USER, o: "https://traveliatos.life", h: await targetHash(target.url),
+        t: target.tier === "trusted_source" ? "s" : "a" }, o.now ?? NOW);
       return `https://example.supabase.co/functions/v1/booking-go?t=${encodeURIComponent(t!)}`;
+    },
+    intentTarget: async (id) => {
+      const i = store.intents.find((x) => x.id === id && x.user_id === USER);
+      return i ? { target_url: i.target_url ?? null, action_trust: i.offer?.action?.trust ?? null } : null;
     },
   };
   const go = (url: string, user = USER) => resolveGo(url, {
@@ -336,9 +342,9 @@ describe("restaurante con datos de Google Places (googlemax) en el viaje", () =>
     expect(o.actions.find((a: any) => a.kind === "maps_listing").url).toContain("query_place_id=ChIJx5Rc1n0oQg0R5B1hVIKdWUU");
   });
   it("un sitio que viene del viaje (editable) no se firma en booking-go: se abre directo", async () => {
-    const t = setup({ trip: { ...PLACES_TRIP, restaurantes_json: [{ ...PLACES_TRIP.restaurantes_json![0], website: "https://phishing-ejemplo.example/" }] } });
+    const t = setup({ trip: { ...PLACES_TRIP, restaurantes_json: [{ ...PLACES_TRIP.restaurantes_json![0], website: "https://phishing-ejemplo.com/" }] } });
     const s = await t.call("start_booking", { source: tripItem("restaurantes_json", 0), action_kind: "official_website", idempotency_key: key(), consent: true });
-    expect(s.body).toMatchObject({ ok: true, go_url: null, direct_url: "https://phishing-ejemplo.example/" });
+    expect(s.body).toMatchObject({ ok: true, go_url: null, direct_url: "https://phishing-ejemplo.com/" });
     expect(t.store.intents[0].target_url).toBeNull();
   });
 });
@@ -363,5 +369,57 @@ describe("canales de un toque desde el servidor", () => {
     const s = await t.call("start_booking", { source: tripItem("vuelos_json", 0), action_kind: "equivalent_search", idempotency_key: key(), consent: true });
     t.store.intents[0].state = "CONFIRMED";
     expect((await t.call("cancel", { intent_id: (s.body.intent as any).id })).body.code).toBe("CANCEL_WITH_PROVIDER");
+  });
+});
+
+// ───────────────────────────── Cierre de auditoría · AUD-04 (docs/iatos/cierre/BRIDGE.md) ─────────────────────────────
+describe("AUD-04 · salidas auténticas y trazables desde el servidor", () => {
+  const PLACES_TRIP: TripRow = { ...TRIP, restaurantes_json: [{ nombre: "Sobrino de Botín", fuente: "google_places", place_id: "ChIJx5Rc1n0oQg0R5B1hVIKdWUU",
+    website: "https://botin-reservas-pago.com/", telefono: "+34 913 66 42 17", consultado_at: "2026-10-22T10:00:00Z" }] };
+
+  it("un sitio fuera de la lista blanca que viene del viaje (lo puede editar un colaborador) no se presenta como 'oficial' ni verificado", async () => {
+    const t = setup({ trip: PLACES_TRIP });
+    const o = (await t.call("resolve", { source: tripItem("restaurantes_json", 0) })).body.offer as any;
+    const site = o.actions.find((a: any) => a.kind === "official_website");
+    expect(site.url).toBe("https://botin-reservas-pago.com/");
+    expect(site.label).not.toMatch(/oficial/i);
+    expect(site.disclosures.join(" ")).toMatch(/no lo verificó/i);
+    expect(site.disclosures.join(" ")).toContain("botin-reservas-pago.com");
+    // Mejora: el teléfono guardado en el viaje tampoco se presenta como verificado.
+    expect(o.actions.find((a: any) => a.kind === "phone").channel.verified_by).toMatch(/guardado en el viaje/);
+  });
+
+  it("el cliente no puede hacer que booking-go firme un redirect de anuncios (google.com/aclk) que manda a otro dominio", async () => {
+    const t = setup();
+    const aclk = "https://www.google.com/aclk?sa=l&ai=x&adurl=" + encodeURIComponent("https://evil.io/pago");
+    const source = { type: "hotel_result", result: { name: "Hotel Urban", link: aclk, total_usd: 900 },
+      meta: { city: "Madrid", checkin: "2026-12-05", checkout: "2026-12-12", adults: 2, source: "serpapi" } };
+    const o = (await t.call("resolve", { source })).body.offer as any;
+    expect(JSON.stringify(o.actions)).not.toContain("google.com/aclk");
+    const s = await t.call("start_booking", { source, action_kind: "official_website", idempotency_key: key(), consent: true });
+    expect(s.body.go_url ?? null).toBeNull();
+  });
+
+  it("si ya hay una intención viva de la misma oferta con OTRO destino, la salida lleva al destino que el usuario eligió ahora", async () => {
+    const t = setup();
+    const o = (await t.call("resolve", { source: tripItem("hospedaje_json", 0) })).body.offer as any;
+    const search = o.actions.find((a: any) => a.kind === "equivalent_search");
+    const maps = o.actions.find((a: any) => a.kind === "maps_listing");
+    const a = await t.call("start_booking", { source: tripItem("hospedaje_json", 0), action_kind: "equivalent_search", idempotency_key: key(), consent: true });
+    expect((await t.go(String(a.body.go_url))).location).toBe(search.url);
+    const b = await t.call("start_booking", { source: tripItem("hospedaje_json", 0), action_kind: "maps_listing", idempotency_key: key(), consent: true });
+    const dest = b.body.go_url ? (await t.go(String(b.body.go_url))).location : b.body.direct_url;
+    expect(dest).toBe(maps.url);
+  });
+
+  it("después de aceptar el precio, el enlace firmado sigue atado al destino guardado", async () => {
+    const t = setup({ now: Date.parse("2026-10-25T12:00:00Z") });
+    const s = await t.call("start_booking", { source: tripItem("vuelos_json", 0), action_kind: "equivalent_search", idempotency_key: key(), consent: true });
+    expect(s.body.needs_price_ack).toBe(true);
+    const ack = await t.call("confirm_price_ack", { intent_id: (s.body.intent as any).id });
+    const r = await t.go(String(ack.body.go_url));
+    expect(r.reason).toBe("ok");
+    t.store.intents[0].target_url = "https://www.booking.com/hotel/es/otro.html";
+    expect((await t.go(String(ack.body.go_url))).reason).toBe("destino_bloqueado");
   });
 });

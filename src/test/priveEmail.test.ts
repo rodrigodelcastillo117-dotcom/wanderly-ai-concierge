@@ -12,23 +12,24 @@ import {
 const TOKEN = "Tk3n_abcdefghijklmnopqrstuvwxyzABCDEFG-0123";
 const hrefs = (html: string) => [...html.matchAll(/<(?:a|v:rect)\b[^>]*\shref="([^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, "&"));
 
-describe("invitación cinematográfica (texto del dueño, §6)", () => {
+describe("invitación Privé (tarjeta negra, español por defecto)", () => {
   const mail = priveInvitationEmail({ firstName: "valentina Ruiz", token: TOKEN, siteUrl: "https://traveliatos.life/" });
 
-  it("asunto, preencabezado y texto exactos", () => {
-    expect(mail.subject).toBe("A private invitation awaits you.");
-    expect(mail.preheader).toBe("90 days. A new world opens.");
+  // El dueño pidió (oct. 2026) todo en el idioma de la persona: el texto en inglés del §6 queda solo
+  // para la variante en inglés (priveEmailDeliverability.test.ts).
+  it("asunto, preencabezado y texto en español", () => {
+    expect(mail.subject).toBe("Valentina, tu invitación a IATOS Privé");
+    expect(mail.preheader).toBe("Una invitación personal, a tu nombre.");
     for (const line of [
       "IATOS PRIVÉ",
-      "There are places you visit.<br>And there are worlds you enter.",
-      "Después de 90 días como miembro de IATOS PRO, tu acceso personal a IATOS Privé está listo.",
-      "Una colección de experiencias extraordinarias, destinos excepcionales y recomendaciones elegidas para ti.",
-      "Your invitation is ready.",
-      "OPEN YOUR PRIVATE INVITATION",
-      "The World, Beyond Ordinary.",
+      "Hay lugares que se visitan.<br>Y hay mundos a los que se entra.",
+      "Llevas noventa días recorriendo el mundo con IATOS.",
+      "Esta puerta ahora es",
+      "Abrir mi invitación",
+      "El mundo, más allá de lo ordinario.",
     ]) expect(mail.html).toContain(line);
-    expect(mail.text).toContain("There are places you visit.\nAnd there are worlds you enter.");
-    expect(mail.text).toContain("The World, Beyond Ordinary.");
+    expect(mail.text).toContain("Hay lugares que se visitan.\nY hay mundos a los que se entra.");
+    expect(mail.text).toContain("El mundo, más allá de lo ordinario.");
   });
 
   it("personalizado con el primer nombre", () => {
@@ -95,7 +96,7 @@ describe("invitación cinematográfica (texto del dueño, §6)", () => {
     expect(mail.html).toContain("Recibes este correo porque tu membresía IATOS PRO cumplió 90 días pagados");
     const grant = priveInvitationEmail({ token: TOKEN, basis: "grant" });
     expect(grant.html).toContain("el equipo de IATOS te concedió acceso");
-    expect(grant.html).not.toContain("Después de 90 días");
+    expect(grant.html).not.toContain("noventa días");
   });
 
   it("token raro o sitio no https: no se arma un enlace peligroso", () => {

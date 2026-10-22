@@ -1,0 +1,21 @@
+{
+ "metrics": {
+  "members-390": {
+   "scrollH": 8261,
+   "clientH": 363,
+   "top": 405.5
+  },
+  "videos-390": [],
+  "members-1440": {
+   "scrollH": 4310,
+   "clientH": 641,
+   "top": 259.5
+  },
+  "videos-1440": []
+ },
+ "log": [
+  "blocked recomendar-destinos",
+  "blocked place-photo",
+  "blocked place-photo"
+ ]
+}

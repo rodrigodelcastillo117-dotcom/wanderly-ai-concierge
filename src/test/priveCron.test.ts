@@ -27,7 +27,7 @@ describe("correos de invitación", () => {
     const s = await sendDueInvitations(d, 50);
     expect(s).toEqual({ claimed: 2, sent: 2, failed: 0, mark_errors: 0 });
     expect(marks).toEqual([["inv-1", true, "msg_1", null], ["inv-2", true, "msg_1", null]]);
-    expect(sent[0].subject).toBe("A private invitation awaits you.");
+    expect(sent[0].subject).toBe("Valentina, tu invitación a IATOS Privé");
     expect(sent[0].html).toContain(`/prive/invitacion#t=${TOKEN}`);
     expect(sent[1].html).toContain("el equipo de IATOS te concedió acceso");
     // Segunda corrida: nada pendiente → nada se reenvía.

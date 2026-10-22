@@ -37,7 +37,7 @@ it("'Más' da acceso a todos los destinos que salieron de la barra (Favoritos, C
   const dialog = screen.getByRole("dialog");
   for (const [name, href] of [
     ["Favoritos", "/dashboard/favoritos"], ["Cercanos", "/dashboard/cercanos"], ["Social", "/dashboard/social"],
-    ["Smart Spend (gastos)", "/dashboard/gastos"], ["Mis reservas", "/dashboard/reservas"], ["Mi perfil", "/dashboard/perfil"],
+    ["Gastos y ahorro", "/dashboard/gastos"], ["Mis reservas", "/dashboard/reservas"], ["Mi perfil", "/dashboard/perfil"],
   ]) {
     expect(within(dialog).getByRole("link", { name })).toHaveAttribute("href", href);
   }

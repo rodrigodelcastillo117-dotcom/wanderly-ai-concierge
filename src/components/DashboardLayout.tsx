@@ -16,7 +16,7 @@ const links = [
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
+  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
   // "Concierge", no "Concierge Pro": la pestaña está abierta a todas las cuentas.
   { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
 ];
@@ -35,7 +35,7 @@ export const mobileMoreNav = [
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend (gastos)" },
+  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos y ahorro" },
   { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
   { to: "/dashboard/pro", icon: Sparkles, label: "Plan IATOS PRO" },
   // Entrada discreta a IATOS Privé: /prive muestra a cada cuenta lo que le corresponde (adelanto,

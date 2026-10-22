@@ -7,7 +7,10 @@
 //   * Reintentos: si el envío falla, prive_mark_invitation_email programa 15 min, 1 h, 6 h y 24 h;
 //     al quinto fallo deja de intentar (la invitación sigue en la app sin token).
 //   * El token solo vive en memoria durante el envío y en el enlace (#t=…); nunca se registra.
-import { priveInvitationEmail } from "./prive-email.ts";
+//   * Entregabilidad: remitente "IATOS Privé" (mismo buzón y dominio), X-Entity-Ref-ID estable por
+//     invitación (Gmail no encadena invitaciones distintas en un mismo hilo), Reply-To solo si hay un
+//     buzón que reciba (env PRIVE_REPLY_TO) y el idioma del perfil si la base lo devuelve (`locale`).
+import { PRIVE_FROM, priveEntityRefId, priveInvitationEmail, priveReplyTo } from "./prive-email.ts";
 
 export type ClaimedInvitation = {
   invitation_id: string;
@@ -17,6 +20,18 @@ export type ClaimedInvitation = {
   token: string;
   attempt: number;
   basis?: "tenure" | "grant" | null;
+  /** Idioma del perfil ("es", "en"…). Hoy la base no lo guarda: sin dato el correo va en español. */
+  locale?: string | null;
+};
+
+export type InviteMessage = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  from?: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
 };
 
 type DbResult<T> = PromiseLike<{ data: T | null; error: { message: string } | null }>;
@@ -24,9 +39,11 @@ type DbResult<T> = PromiseLike<{ data: T | null; error: { message: string } | nu
 export interface InviteSenderDeps {
   claim(limit: number, onlyUser: string | null): DbResult<ClaimedInvitation[]>;
   mark(invitationId: string, ok: boolean, providerId: string | null, error: string | null): DbResult<unknown>;
-  send(msg: { to: string; subject: string; html: string; text: string }): Promise<{ ok: boolean; id?: string; error?: string }>;
+  send(msg: InviteMessage): Promise<{ ok: boolean; id?: string; error?: string }>;
   siteUrl: string;
   supportEmail?: string;
+  /** Buzón que recibe respuestas (env PRIVE_REPLY_TO). Sin él no se manda Reply-To. */
+  replyTo?: string;
   warn?(...args: unknown[]): void;
 }
 
@@ -43,8 +60,16 @@ export async function sendDueInvitations(deps: InviteSenderDeps, limit: number, 
     let err: string | null = null;
     try {
       const basis = inv.basis === "grant" ? "grant" : "tenure";
-      const mail = priveInvitationEmail({ firstName: inv.first_name, token: inv.token, siteUrl: deps.siteUrl, supportEmail: deps.supportEmail, basis });
-      const r = await deps.send({ to: inv.email, subject: mail.subject, html: mail.html, text: mail.text });
+      const replyTo = priveReplyTo(deps.replyTo);
+      const mail = priveInvitationEmail({
+        firstName: inv.first_name, token: inv.token, siteUrl: deps.siteUrl, supportEmail: deps.supportEmail, basis,
+        locale: inv.locale ?? null, replyTo,
+      });
+      const r = await deps.send({
+        to: inv.email, subject: mail.subject, html: mail.html, text: mail.text, from: PRIVE_FROM,
+        ...(replyTo ? { replyTo } : {}),
+        headers: { "X-Entity-Ref-ID": priveEntityRefId(inv.invitation_id) },
+      });
       ok = r.ok;
       providerId = r.id ?? null;
       err = r.ok ? null : (r.error ?? "send_failed");

@@ -5,6 +5,8 @@ import { messageFor } from "@/lib/priveCopy";
 import type { PriveResult } from "@/lib/priveApi";
 import { pickPassphrase } from "@/lib/privePassword";
 import { PriveUsernameField } from "@/components/prive/PriveUsernameField";
+import { offerToSavePrivePassword } from "@/lib/priveCredential";
+import { useAuth } from "@/contexts/AuthContext";
 
 type GenResult = PriveResult<{ generated_password?: string; passphrase?: string }>;
 
@@ -21,6 +23,7 @@ export function PasswordCreator({ onChosen, onGenerate, onComplete, submitLabel 
   submitLabel?: string;
   intro?: React.ReactNode;
 }) {
+  const { user } = useAuth();
   const [mode, setMode] = useState<"choose" | "generate">("choose");
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -40,6 +43,8 @@ export function PasswordCreator({ onChosen, onGenerate, onComplete, submitLabel 
     const r = await onChosen(pw);
     setBusy(false);
     if (r.ok) {
+      // Que el navegador la guarde (separada de la contraseña de la cuenta) para no volver a teclearla.
+      void offerToSavePrivePassword(user?.email, pw.normalize("NFC").trim());
       setPw("");
       setConfirm("");
       onComplete();

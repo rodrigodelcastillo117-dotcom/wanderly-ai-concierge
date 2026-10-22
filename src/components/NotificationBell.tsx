@@ -152,7 +152,9 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
                     className="w-full text-left flex gap-3 hover:opacity-90"
                   >
                     <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                      <Plane className="w-4 h-4 text-primary" />
+                      {n.type === "social_poke"
+                        ? <span aria-hidden="true" className="text-sm leading-none">👋</span>
+                        : <Plane className="w-4 h-4 text-primary" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{n.title}</p>

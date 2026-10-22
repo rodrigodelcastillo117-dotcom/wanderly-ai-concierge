@@ -40,4 +40,27 @@ describe("enlaces externos en pestaña nueva", () => {
     expect(internal.target).toBe("");
     off();
   });
+
+  // Cierre de auditoría (AUD-04, docs/iatos/cierre/BRIDGE.md): reverse tabnabbing.
+  it("un enlace externo que ya traía target=_blank sin rel también recibe noopener (navegadores viejos)", () => {
+    const off = installExternalLinkHandler(document, ORIGIN);
+    const link = a("https://www.booking.com/", { target: "_blank" });
+    document.body.appendChild(link);
+    link.addEventListener("click", (e) => e.preventDefault());
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(link.rel).toContain("noopener");
+    // Uno interno con target=_blank no se toca (IATOS en otra pestaña puede usar window.opener).
+    const internal = a("/dashboard/reservas", { target: "_blank" });
+    document.body.appendChild(internal);
+    internal.addEventListener("click", (e) => e.preventDefault());
+    internal.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(internal.rel).toBe("");
+    off();
+  });
+  it("no abre aparte esquemas peligrosos ni enlaces que la app quiere en la misma pestaña", () => {
+    expect(shouldOpenInNewTab(a("javascript:alert(1)"), ORIGIN)).toBe(false);
+    expect(shouldOpenInNewTab(a("data:text/html,hi"), ORIGIN)).toBe(false);
+    expect(shouldOpenInNewTab(a("https://www.booking.com/", { target: "_self" }), ORIGIN)).toBe(false);
+    expect(shouldOpenInNewTab(a("https://x.supabase.co/storage/v1/object/sign/doc.pdf", { download: "" }), ORIGIN)).toBe(false);
+  });
 });

@@ -119,7 +119,16 @@ export async function executeAction(type: unknown, params: unknown, ctx: ActionC
       });
       if (r.status !== 200 || !r.json?.ok) return fnError(r, "No pude enviar la solicitud al Fixer. Usa el botón Contactar Fixer.");
       const folio = String(r.json?.request?.id ?? "").slice(0, 8).toUpperCase();
-      return { ok: true, message: `Solicitud enviada al Fixer${folio ? ` (folio ${folio})` : ""}. Estado: solicitado. Aún no está reservado; te avisamos cuando haya respuesta.`, data: { folio, status: "solicitado" } };
+      // AUD-IATO-03: si el correo al equipo falló, la solicitud quedó guardada pero ningún humano la
+      // vio todavía: no se promete respuesta (mismo criterio que RequestNote en ConciergeCards).
+      if (r.json?.human_notified === false) {
+        return {
+          ok: true,
+          message: `Tu solicitud quedó registrada${folio ? ` (folio ${folio})` : ""}, pero no pudimos avisar al equipo al instante. Aún no está reservado. Si no te respondemos pronto, usa el botón Contactar Fixer.`,
+          data: { folio, status: "solicitado", human_notified: false },
+        };
+      }
+      return { ok: true, message: `Solicitud enviada al Fixer${folio ? ` (folio ${folio})` : ""}. Estado: solicitado. Aún no está reservado; te avisamos cuando haya respuesta.`, data: { folio, status: "solicitado", human_notified: true } };
     }
     case "prive_request": {
       if (!d.priveSession) return { ok: false, code: "PRIVE_NO_SESSION", message: REASON_TEXT.sin_sesion_prive };
