@@ -36,17 +36,20 @@ WHERE user_id = (SELECT id FROM auth.users WHERE lower(email) = lower('correo@ej
 ## Regalar IATOS PRO a alguien
 
 La migración `20261021090000_comp_grants.sql` crea la lista `comp_grants`: quien
-esté en ella queda PRO de cortesía (sin cobro ni vencimiento) al registrarse, o
-al instante si ya tiene cuenta. Para agregar a alguien:
+esté en ella queda PRO de cortesía (sin cobro ni vencimiento) al confirmar su
+correo, o al instante si ya tiene cuenta. Para agregar a alguien:
 
 ```sql
 INSERT INTO public.comp_grants (email) VALUES (lower('correo@ejemplo.com'))
 ON CONFLICT (email) DO NOTHING;
 
-INSERT INTO public.subscriptions (user_id, status, plan)
-SELECT u.id, 'comped', 'pro' FROM auth.users u
-JOIN public.comp_grants g ON g.email = lower(u.email)
-ON CONFLICT (user_id) DO UPDATE
-  SET status = 'comped', plan = 'pro', current_period_end = NULL,
-      cancel_at_period_end = false, updated_at = now();
+-- Aplica la lista a cuentas que ya existen y dice a quién NO se le aplicó.
+SELECT * FROM public.apply_comp_grants_now();
 ```
+
+Reglas (migración `20261022130000_pay_stripe_sync_and_atomic_quota.sql`):
+- Solo cuentan correos **confirmados** (registrarse con un correo ajeno no da PRO).
+- Si la persona **ya paga** una suscripción viva en Stripe, la cortesía no la pisa
+  (`apply_comp_grants_now` responde "NO aplicado"). Para dejar de cobrarle, cancela su
+  suscripción en el dashboard de Stripe; cuando termine, el webhook la deja como cortesía.
+- Stripe nunca le quita la cortesía a una fila `comped`.

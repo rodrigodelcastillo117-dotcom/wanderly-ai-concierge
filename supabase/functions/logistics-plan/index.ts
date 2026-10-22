@@ -9,6 +9,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { consumeQuota, quotaDeniedResponse } from "../_shared/entitlements.ts";
 import { getUsdMxnRate } from "../_shared/fx.ts";
 import { aiFetch } from "../_shared/ai.ts";
 
@@ -365,13 +366,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = (await req.json()) as Body;
+    const body = (await req.json().catch(() => null)) as Body | null;
     if (!body?.origin || !Array.isArray(body?.destinations) || body.destinations.length < 1) {
       return new Response(JSON.stringify({ error: "origin y destinations son requeridos" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Gate PRO / cuota gratuita: el plan multi-ciudad es un análisis de viaje completo (IA + vuelos
+    // y hoteles en vivo), así que gasta la misma cuota que analizar-viaje (1 gratis de por vida).
+    // Antes no consumía nada y escribir "Madrid y Barcelona" en Planear daba análisis ilimitados.
+    // Va después de validar la entrada; si no se puede verificar el plan, se niega (503).
+    const quota = await consumeQuota(__user.id, "trip_analysis");
+    if (!quota.allowed) return quotaDeniedResponse(quota, "trip_analysis", corsHeaders);
 
     const authHeader = req.headers.get("Authorization") ?? "";
 
