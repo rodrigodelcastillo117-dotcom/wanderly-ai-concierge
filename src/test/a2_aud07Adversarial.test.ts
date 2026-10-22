@@ -38,7 +38,9 @@ describe("A2 · defectos encontrados", () => {
     }
   });
   it("A2-F2 (heurística, P3) dominios parecidos que el detector NO marca", () => {
-    const missed = ["air-bnb.com", "vlator.com", "reesy.com", "resyy.com", "googie.com", "googIe.com", "deltaairlines-mx.com", "tp-media.com"].filter((h) => !looksLikeBrandImpersonation(h));
+    const missed = ["air-bnb.com", "vlator.com", "reesy.com", "resyy.com", "googie.com", "googIe.com", "deltaairlines-mx.com", "tp-media.com",
+      // r2: a una letra de una marca de 5–6 letras (sustitución o transposición).
+      "goolge.com", "airbnd.com", "viatro.com"].filter((h) => !looksLikeBrandImpersonation(h));
     console.log("A2-F2 no detectados:", missed.join(", "));
     expect(missed).toEqual([]);
     for (const h of ["https://air-bnb.com/", "https://www.googIe.com/", "https://tp-media.com/click"]) expect(checkTrustedSource(h).ok, h).toBe(false);

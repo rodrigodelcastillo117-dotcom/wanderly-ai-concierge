@@ -149,6 +149,28 @@ describe("A2 · colaborador que edita restaurantes_json (fuente google_places)",
     // Lo seguro: ni firmado por IATOS ni etiquetado como oficial.
     expect(s.body.go_url ?? null).toBeNull();
     expect(site?.label ?? "").not.toMatch(/oficial/i);
+    // r2: el resolver ni siquiera ofrece el redirect opaco de un dato editable del viaje.
+    expect(site).toBeUndefined();
+  });
+
+  it("A2-01 (r2) un sitio del viaje que SÍ está en la lista estricta se ofrece, pero como 'sin verificar' (el colaborador lo puede editar)", async () => {
+    const t = setup({ trip: tripWith("https://www.opentable.com/r/sobrino-de-botin-madrid") });
+    const o = (await t.call("resolve", { source: tripItem("restaurantes_json", 0) })).body.offer as any;
+    const site = o.actions.find((a: any) => a.kind === "official_website");
+    expect(site?.label).toMatch(/sin verificar/);
+    expect(site?.verified_at ?? null).toBeNull();
+  });
+
+  it("A2-01 (r2) booking-bridge no firma un aclk guardado con fuente google_places aunque llegue por una intención ya creada", async () => {
+    const t = setup({ trip: tripWith("https://www.opentable.com/r/sobrino-de-botin-madrid") });
+    const s = await t.call("start_booking", { source: tripItem("restaurantes_json", 0), action_kind: "official_website", idempotency_key: key(), consent: true });
+    const i = t.store.intents[0];
+    // Una intención anterior a la corrección (o escrita por otra vía) con un redirect opaco del viaje.
+    i.target_url = "https://www.google.com/aclk?sa=l&ai=x&adurl=" + encodeURIComponent(evil);
+    i.offer = { ...(i.offer ?? {}), action: { ...(i.offer?.action ?? {}), trust: "google_places" } };
+    i.state = "PRICE_RECHECK_REQUIRED";
+    const r = await t.call("confirm_price_ack", { intent_id: (s.body.intent as any).id });
+    expect(r.body.go_url ?? null).toBeNull();
   });
 
   it("A2-02 /travel/clk de Google puesto por un colaborador tampoco se firma", async () => {
