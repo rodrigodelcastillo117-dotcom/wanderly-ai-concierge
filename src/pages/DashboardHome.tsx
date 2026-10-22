@@ -30,6 +30,10 @@ import { convert, fetchFxTable, fxLabel } from "@/lib/fx";
 import { ACTIVE_TRIP_COLUMNS, useActiveTrip } from "@/hooks/useActiveTrip";
 import { ActiveTripPicker } from "@/components/ActiveTripPicker";
 import { withTripParam } from "@/lib/tripLink";
+import { isTripEnded } from "@/lib/activeTrip";
+import { TripCommandCenter } from "@/components/TripCommandCenter";
+import { FirstTripGuide } from "@/components/FirstTripGuide";
+import { EXAMPLE_PROMPTS } from "@/lib/planDefaults";
 
 
 
@@ -198,7 +202,17 @@ const DashboardHome = () => {
 
   // Viaje activo / próximo / lista: homeTrips reparte lo que decide resolveActiveTrip con
   // profiles.active_trip_id (un solo selector en toda la app). Con empate, el selector pide escoger.
-  const { active: activeTrip, upcoming: upcomingTrip, list: upcomingList } = homeTrips(active.trips, localISODate(now), active.pinnedId);
+  const todayLocal = localISODate(now);
+  const { list: upcomingList } = homeTrips(active.trips, todayLocal, active.pinnedId);
+  // Centro de mando: el viaje activo único (el mismo de Iato) mientras no haya terminado.
+  const commandTrip = active.trip && !isTripEnded(active.trip, todayLocal) ? active.trip : null;
+  const hasTrips = active.trips.length > 0;
+  const ambiguous = !commandTrip && active.resolved.reason === "ambiguous";
+  const conciergeInputRef = useRef<HTMLInputElement>(null);
+  const pickExample = (text: string) => {
+    setConcierge(text);
+    conciergeInputRef.current?.focus();
+  };
 
 
 
@@ -232,6 +246,7 @@ const DashboardHome = () => {
               <div className="relative flex items-center gap-2 md:gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl pl-2.5 md:pl-4 pr-1.5 py-1.5 focus-within:border-primary/40 transition">
                 <Sparkles className="w-4 h-4 text-primary shrink-0" />
                 <input
+                  ref={conciergeInputRef}
                   type="text"
                   value={concierge}
                   onChange={(e) => setConcierge(e.target.value)}
@@ -290,51 +305,45 @@ const DashboardHome = () => {
 
             </div>
           </div>
+          {/* Ejemplos de un toque: solo llenan el campo (nada se analiza sin "Analizar"). */}
+          {concierge.trim().length === 0 && hasTrips && (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap" aria-label="Ejemplos para escribir tu viaje">
+              {EXAMPLE_PROMPTS.map((ex) => (
+                <button key={ex} type="button" onClick={() => pickExample(ex)}
+                  className="shrink-0 min-h-[36px] rounded-full border border-white/[0.08] bg-white/[0.02] px-3 text-[11px] md:text-xs text-muted-foreground hover:text-primary hover:border-primary/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  “{ex}”
+                </button>
+              ))}
+            </div>
+          )}
         </form>
 
 
-        {/* Modo Viaje Activo */}
-        {activeTrip && (
-          <button
-            onClick={() => navigate(`/dashboard/viajes/${activeTrip.id}/live`)}
-            className="animate-fade-up w-full text-left relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-xl p-5 md:p-6 group hover:border-primary/50 transition"
-          >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.18),transparent_60%)]" />
-            <div className="relative flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/25 flex items-center justify-center shrink-0">
-                <Sparkles className="w-6 h-6 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-primary font-bold">En vivo</div>
-                <div className="text-lg md:text-2xl font-serif mt-0.5 truncate">{activeTrip.destino}</div>
-                <div className="text-xs text-foreground/70">Tu viaje está en curso · abre el Modo Viaje</div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-primary shrink-0" />
-            </div>
-          </button>
-        )}
-        {!activeTrip && upcomingTrip && (
-          <button
-            onClick={() => navigate(`/dashboard/viajes/${upcomingTrip.id}/live`)}
-            className="animate-fade-up w-full text-left rounded-3xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-4 md:p-5 hover:border-primary/30 transition group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                <Sparkles className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-primary/80 font-semibold">Próximo viaje</div>
-                <div className="text-base md:text-lg font-serif truncate">{upcomingTrip.destino}</div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-foreground/40" />
-            </div>
-          </button>
-        )}
-
-
-
+        {/* Centro de mando del viaje activo, guía del primer viaje o selector si hay empate. */}
+        {active.loading ? (
+          <div aria-busy="true" aria-label="Cargando tu viaje" className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-8 space-y-3">
+            <div className="h-3 w-28 rounded bg-white/[0.06] motion-safe:animate-pulse" />
+            <div className="h-10 w-2/3 rounded-xl bg-white/[0.06] motion-safe:animate-pulse" />
+            <div className="h-6 w-40 rounded-lg bg-white/[0.05] motion-safe:animate-pulse" />
+            <div className="h-12 w-full md:w-1/2 rounded-2xl bg-white/[0.05] motion-safe:animate-pulse" />
+          </div>
+        ) : commandTrip ? (
+          <TripCommandCenter trip={commandTrip} today={todayLocal} />
+        ) : !hasTrips ? (
+          <FirstTripGuide onPickExample={pickExample} />
+        ) : ambiguous ? (
+          <section aria-labelledby="pick-trip-title" className="rounded-3xl border border-primary/25 bg-white/[0.02] p-5 md:p-7">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-primary font-semibold">Tu viaje activo</p>
+            <h2 id="pick-trip-title" className="font-display text-2xl md:text-3xl mt-1">¿Cuál es tu próximo viaje?</h2>
+            <p className="text-sm text-muted-foreground mt-1">Tienes varios viajes en fechas parecidas. Elige uno y aquí verás cuánto falta y qué sigue.</p>
+            <ActiveTripPicker trips={active.trips} pinnedId={active.pinnedId} resolved={active.resolved}
+              onChange={(id) => { void active.pin(id); }} className="mt-4 flex-wrap" />
+          </section>
+        ) : null}
 
         {/* HERO — cinematic Santorini-style sunset */}
+        {/* Para quien aún no tiene viajes la guía de arriba ya es la portada: sin video duplicado. */}
+        {hasTrips && (
         <section
           className="animate-fade-up"
         >
@@ -396,6 +405,7 @@ const DashboardHome = () => {
             </div>
           </div>
         </section>
+        )}
 
         {/* CURADO PARA TI */}
         <section>
@@ -411,6 +421,16 @@ const DashboardHome = () => {
             </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+            {!recosLoading && (aiRecos ?? []).length === 0 && (
+              <div className="col-span-full rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+                <p className="text-sm text-muted-foreground flex-1">
+                  Por ahora no pudimos preparar tus recomendaciones. Mientras tanto, explora destinos o cuéntanos tu idea arriba.
+                </p>
+                <Link to="/dashboard/descubre" className="inline-flex items-center justify-center gap-1 min-h-[44px] rounded-2xl border border-primary/40 px-4 text-sm text-primary hover:bg-primary/10 transition">
+                  Explorar destinos <ChevronRight className="w-4 h-4" aria-hidden />
+                </Link>
+              </div>
+            )}
             {(recosLoading && !aiRecos)
               ? Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="aspect-[4/5] rounded-3xl bg-surface/40 animate-pulse" />
@@ -474,7 +494,8 @@ const DashboardHome = () => {
                 Ver todos <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
-            {active.trips.length > 1 && (
+            {/* Con empate el selector ya está arriba (tarjeta "¿Cuál es tu próximo viaje?"): no se repite. */}
+            {active.trips.length > 1 && !ambiguous && (
               <ActiveTripPicker trips={active.trips} pinnedId={active.pinnedId} resolved={active.resolved}
                 onChange={(id) => { void active.pin(id); }} className="mb-4 flex-wrap" />
             )}
@@ -488,7 +509,7 @@ const DashboardHome = () => {
                   const days = daysFromToday(t.fecha_salida);
                   const endDays = daysFromToday(t.fecha_regreso ?? t.fecha_salida);
                   const badge = days == null ? "SIN FECHA"
-                    : days > 0 ? `EN ${days}D`
+                    : days > 0 ? (days === 1 ? "MAÑANA" : `EN ${days} DÍAS`)
                     : days === 0 ? "HOY"
                     : endDays != null && endDays >= 0 ? "EN CURSO"
                     : "TERMINADO";
@@ -536,6 +557,15 @@ const DashboardHome = () => {
                 </Link>
               </div>
 
+              {/* Sin gastos no se pinta un "$0.00" gigante con una dona vacía: se explica qué hacer. */}
+              {spendUsd <= 0 && spendCats.length === 0 ? (
+                <div className="py-4">
+                  <p className="font-display text-xl md:text-2xl">Aún no registras gastos este mes</p>
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed max-w-sm">
+                    Anota lo que gastas en tu viaje (comidas, transporte, compras) y aquí verás cuánto llevas y en qué se va.
+                  </p>
+                </div>
+              ) : (<>
               <p className="text-[11px] text-muted-foreground mb-1 tracking-wide">Este mes</p>
               <p className="font-display text-4xl md:text-5xl mb-1 gold-text">
                 ${spendUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -570,11 +600,12 @@ const DashboardHome = () => {
                   ))}
                 </ul>
               </div>
+              </>)}
               <Button
                 onClick={() => navigate("/dashboard/smart-spend")}
                 className="w-full mt-6 h-11 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-foreground hover:bg-white/[0.08] text-sm tracking-wide"
               >
-                Ver detalles y análisis
+                {spendUsd <= 0 && spendCats.length === 0 ? "Registrar un gasto" : "Ver detalles y análisis"}
               </Button>
             </div>
           </section>
@@ -641,14 +672,15 @@ const DashboardHome = () => {
             </div>
 
           </section>
+        </div>
 
-
-          {/* HERRAMIENTAS — strip elegante */}
-          <section>
+          {/* HERRAMIENTAS — ancho completo (antes quedaba dentro de la rejilla de 2 columnas y
+              ocupaba solo la mitad izquierda en escritorio). */}
+          <section aria-labelledby="tools-title">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase">Herramientas</p>
+              <h2 id="tools-title" className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase font-normal">Herramientas</h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2.5">
               {[
                 { icon: Plane, label: "Vuelos", sub: "En vivo", to: "/dashboard/vuelos", img: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=600&q=70&auto=format&fit=crop" },
                 { icon: Hotel, label: "Hoteles", sub: "Reales", to: "/dashboard/hoteles", img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=70&auto=format&fit=crop" },
@@ -695,7 +727,6 @@ const DashboardHome = () => {
               ))}
             </div>
           </section>
-        </div>
       </div>
     </DashboardLayout>
   );

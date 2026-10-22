@@ -24,6 +24,10 @@ import santorini from "@/assets/hero-santorini.jpg";
 import { deleteOwnedTrip, leaveSharedTrip, MEMBERSHIP_MESSAGES } from "@/lib/tripMembership";
 import { bookingsByTrip, deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
 import { BookingStateBadge } from "@/components/BookingStateBadge";
+import { TripCardsSkeleton } from "@/components/PageSkeletons";
+import { groupTripsForList } from "@/lib/tripList";
+import { tripTiming } from "@/lib/tripCommand";
+import { localISODate } from "@/lib/localDate";
 
 const cache = new Map<string, string | null>();
 
@@ -137,9 +141,26 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
           <h3 className="font-display text-2xl mb-2 group-hover:text-primary transition">{t.destino}</h3>
           {/* "listo" no distingue cotizado de reservado: se deriva de las reservas confirmadas. */}
           <div className="mb-3"><BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact /></div>
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>{formatDateOnly(t.fecha_salida)}</span>
-            <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")}</span>
+          <div className="flex items-end justify-between gap-3 text-sm text-muted-foreground">
+            <span className="min-w-0">
+              <span className="block">{t.fecha_salida ? formatDateOnly(t.fecha_salida) : "Sin fechas"}</span>
+              {/* Cuánto falta (o si está en curso): lo primero que se busca en la lista. */}
+              {t.fecha_salida && (() => {
+                const tm = tripTiming(t, localISODate());
+                return tm.phase === "terminado" ? null : (
+                  <span className={`block text-xs ${tm.phase === "en_curso" ? "text-primary" : "text-muted-foreground/80"}`}>{tm.label}</span>
+                );
+              })()}
+            </span>
+            {/* Un borrador no cuesta "$0": se dice que aún no tiene cotización. */}
+            {Number(t.total_estimado) > 0 ? (
+              <span className="text-right shrink-0">
+                <span className="block text-foreground font-medium">${Math.round(Number(t.total_estimado)).toLocaleString("es-MX")} MXN</span>
+                <span className="block text-[11px] text-muted-foreground/80">total cotizado</span>
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground shrink-0">Sin cotización</span>
+            )}
           </div>
         </div>
       </Link>
@@ -222,11 +243,7 @@ const Trips = () => {
         </section>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5" aria-busy="true" aria-label="Cargando tus viajes">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="glass-card rounded-2xl h-[268px] animate-pulse" />
-            ))}
-          </div>
+          <TripCardsSkeleton />
         ) : loadError ? (
           <div className="glass-card rounded-3xl p-8 md:p-12 text-center" role="alert">
             <p className="text-muted-foreground mb-5">No pudimos cargar tus viajes. Revisa tu conexión.</p>
@@ -236,18 +253,29 @@ const Trips = () => {
           </div>
         ) : trips.length === 0 ? (
           <div className="glass-card rounded-3xl p-8 md:p-12 text-center">
-            <p className="text-muted-foreground mb-5">Aún no has guardado ningún viaje.</p>
-            <Button onClick={() => navigate("/dashboard/planear")} className="bg-gradient-gold text-primary-foreground gold-glow rounded-2xl">
+            <h2 className="font-display text-2xl md:text-3xl mb-2">Aún no has guardado ningún viaje.</h2>
+            <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+              Cuando planeas un viaje, IATOS guarda aquí su cotización, itinerario y documentos para que los tengas a la mano.
+            </p>
+            <Button onClick={() => navigate("/dashboard/planear")} className="bg-gradient-gold text-primary-foreground gold-glow rounded-2xl min-h-[48px] px-6">
               <Plus className="w-4 h-4 mr-2" /> Crear mi primer viaje
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-            {trips.map((t) => (
-              <TripCard key={t.id} t={t} userId={user!.id} bookings={tripBookings.get(t.id)} onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
-
-            ))}
-          </div>
+          // Próximos primero (por fecha de salida) y los pasados aparte: antes todo iba revuelto
+          // por fecha de creación.
+          groupTripsForList(trips, localISODate()).map((g) => (
+            <section key={g.key} aria-labelledby={`trips-${g.key}`} className="space-y-4">
+              <h2 id={`trips-${g.key}`} className="text-[11px] tracking-[0.3em] uppercase text-primary">
+                {g.title} <span className="text-muted-foreground">· {g.trips.length}</span>
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+                {g.trips.map((t) => (
+                  <TripCard key={t.id} t={t} userId={user!.id} bookings={tripBookings.get(t.id)} onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
+                ))}
+              </div>
+            </section>
+          ))
         )}
       </div>
     </DashboardLayout>

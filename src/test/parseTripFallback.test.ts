@@ -29,3 +29,31 @@ describe("parseTripFallback", () => {
     expect(parseTripFallback("vacaciones en Cancún para 4 personas", today).viajeros).toBe(4);
   });
 });
+
+describe("parseTripFallback · frase natural en Planear (godtier)", () => {
+  it("lee destino al inicio, rango explícito y viajeros", () => {
+    const r = parseTripFallback("Oaxaca del 12 al 16 de diciembre, 2 personas", today);
+    expect(r.destino).toBe("Oaxaca");
+    expect(r.fechaSalida).toBe("2026-12-12");
+    expect(r.fechaRegreso).toBe("2026-12-16");
+    expect(r.viajeros).toBe(2);
+  });
+
+  it("rango entre meses que cruza de año y destino de varias palabras", () => {
+    const r = parseTripFallback("Ciudad de México, 28 de diciembre al 3 de enero", today);
+    expect(r.destino).toBe("Ciudad de México");
+    expect(r.fechaSalida).toBe("2026-12-28");
+    expect(r.fechaRegreso).toBe("2027-01-03");
+  });
+
+  it("un mes ya pasado este año se entiende como el próximo", () => {
+    const r = parseTripFallback("Tokio del 3 al 10 de abril", today);
+    expect(r.fechaSalida).toBe("2027-04-03");
+    expect(r.fechaRegreso).toBe("2027-04-10");
+  });
+
+  it("no inventa fechas imposibles ni destinos en frases sin lugar", () => {
+    expect(parseTripFallback("Roma del 30 al 31 de febrero", today).fechaSalida).toBeNull();
+    expect(parseTripFallback("Mi viaje soñado para descansar con amigos", today).destino).toBeNull();
+  });
+});

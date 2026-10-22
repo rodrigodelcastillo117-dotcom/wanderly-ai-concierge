@@ -91,7 +91,7 @@ describe("Inicio: viaje activo único", () => {
     expect(await screen.findByText("Próximo viaje")).toBeInTheDocument();
     expect(screen.getAllByText("París").length).toBeGreaterThan(0);
     // Lista de Inicio (2 lugares): el viaje activo (París, fijado) y el más cercano por fecha (Roma).
-    await waitFor(() => expect(screen.getAllByText(/^EN \d+D$/)).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText(/^EN \d+ DÍAS$/)).toHaveLength(2));
     const list = screen.getByText("Mis próximos viajes").closest("section")!;
     const hrefs = [...list.querySelectorAll("a[href^='/dashboard/viajes/']")].map((a) => a.getAttribute("href"));
     expect(hrefs).toEqual([`/dashboard/viajes/${PARIS}`, `/dashboard/viajes/${ROMA}`]);
