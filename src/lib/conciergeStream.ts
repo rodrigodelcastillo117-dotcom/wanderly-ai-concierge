@@ -77,3 +77,14 @@ export async function streamConcierge(req: StreamRequest, h: StreamHandlers): Pr
   if (!gotFinal) throw new Error("La conexión se cortó antes de terminar la respuesta.");
   return "stream";
 }
+
+/**
+ * Texto que queda en el chat si la respuesta falló a medias (MEJ-02). Lo que llegó en vivo no pasó por
+ * las revisiones de honestidad del servidor (fuentes, "sin verificar", nada de "reservé"): se conserva
+ * para no borrar lo útil, pero se marca como incompleto y sin verificar.
+ */
+export function incompleteReplyText(partial: string, errorMessage: string): string {
+  const t = String(partial ?? "").trim();
+  if (!t) return `${errorMessage} Puedes intentarlo de nuevo o tocar **Contactar Fixer**.`;
+  return `${t}\n\n_Respuesta incompleta: se cortó antes de terminar y sin verificar sus datos. Pídemela de nuevo o toca **Contactar Fixer**._`;
+}

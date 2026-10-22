@@ -1,11 +1,11 @@
 // Re-quotes watched trips' flights and alerts users when the live fare drops.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { cheapestFare, type CheapestFare } from "../_shared/travelpayouts.ts";
-import { getUsdMxnRate } from "../_shared/fx.ts";
+import { getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { PRICE_PUSH_OPTIONS, pushToUser } from "../_shared/push.ts";
 import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 import { safeErrorMessage } from "../_shared/redact.ts";
-import { decide, formatMxn, priceDedupKey } from "./rules.ts";
+import { decide, priceDedupKey, priceDropBody } from "./rules.ts";
 import { serpFetchFor } from "../_shared/serpRuntime.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { priceDropEmail } from "../_shared/email-templates.ts";
@@ -60,7 +60,8 @@ Deno.serve(async (req) => {
   // la búsqueda; cada búsqueda real queda en ai_usage_log.
   const serpFetch = serpFetchFor("price-watch-cron", null).fetch;
 
-  const fx = await getUsdMxnRate();
+  const fxInfo = await getUsdMxnRateInfo();
+  const fx = fxInfo.rate;
   const fareCache = new Map<string, CheapestFare | null>();
   const summary = { checked: 0, no_fare: 0, alerts: 0, rebaselined: 0, failed: 0 };
 
@@ -133,9 +134,7 @@ Deno.serve(async (req) => {
         // muestra es solo la baja real de la tarifa, no un efecto del dólar.
         const before = Math.round(baselineAmount! * fx);
         const title = `Bajó tu vuelo a ${destino}`;
-        const body = (w.adults ?? 1) > 1
-          ? `Ahora ${formatMxn(price)} por persona (antes ${formatMxn(before)}, al tipo de cambio de hoy). Ahorras ${formatMxn(totalSaving)} para ${w.adults} viajeros.`
-          : `Ahora ${formatMxn(price)} (antes ${formatMxn(before)}, al tipo de cambio de hoy). Ahorras ${formatMxn(totalSaving)}.`;
+        const body = priceDropBody({ price, before, totalSaving, adults: w.adults ?? 1, fxIsFallback: fxInfo.is_fallback });
         // Aviso con llave única: si esta corrida se repite o se encima, no se duplica ni se repite el push.
         const { data: inserted, error: notifyErr } = await admin.rpc("notify_once", {
           p_user_id: w.user_id, p_type: "price_drop", p_title: title, p_body: body, p_related_id: w.trip_id,
@@ -181,5 +180,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ ok: true, fx, ...summary });
+  return json({ ok: true, fx, fx_source: fxInfo.source, ...summary });
 });

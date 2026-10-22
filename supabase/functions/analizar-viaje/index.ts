@@ -36,6 +36,7 @@ import { buildQuoteSnapshot, saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
 import { enforceSources, hotelPreference, liveConsultedAt as sourceConsultedAt } from "./sources.ts";
 import { normalizarVuelos, reconcileBudget } from "./budget.ts";
+import { tripDatesProblem } from "./dates.ts";
 import {
   applyShortTripRules, detectShortTrip, groundSearchLinks, isReasonableShortFlight, parseDurationMinutes,
   refineShortTrip, SHORT_TRIP_CANDIDATE_KM, shortTripPromptBlock, shortTripTransportTotal, travelerPrefs,
@@ -561,6 +562,9 @@ Deno.serve(async (req) => {
     if (!body || !String(body.destino ?? "").trim() || !String(body.ciudad_origen ?? "").trim()) {
       return invalidRequestResponse(corsHeaders, "Faltan datos: indica el destino y tu ciudad de origen.");
     }
+    // AUD-Q-07: fechas pasadas o imposibles no se cotizan (ni gastan el análisis).
+    const datesProblem = tripDatesProblem(body);
+    if (datesProblem) return invalidRequestResponse(corsHeaders, datesProblem);
 
     // Re-análisis en sitio: solo si el usuario es dueño o colaborador aceptado del viaje. Se revisa
     // antes de la cuota y de las llamadas caras para que un trip_id ajeno no gaste nada.
@@ -674,6 +678,9 @@ Deno.serve(async (req) => {
     const resolved = await resolverFechasSiFaltan(authHeader, body);
     body.fecha_salida = resolved.fecha_salida;
     body.fecha_regreso = resolved.fecha_regreso;
+    // Las fechas que eligió resolver-fechas también tienen que servir (AUD-Q-07): si no, se libera el cupo.
+    const resolvedProblem = tripDatesProblem(body);
+    if (resolvedProblem) return { ok: false, reason: "fechas_invalidas", response: invalidRequestResponse(corsHeaders, resolvedProblem) };
     const datesOptimized = resolved.optimization !== null;
 
     const dias = Math.max(
