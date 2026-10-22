@@ -61,7 +61,7 @@ const Restaurantes = () => {
         </div>
 
         <p className="text-xs text-muted-foreground text-center pt-4">
-          Cada reserva queda guardada en <button onClick={() => navigate("/dashboard/reservas")} className="text-primary underline">Mis reservas</button>.
+          Cada sitio que abras queda en <button onClick={() => navigate("/dashboard/reservas")} className="text-primary underline">Mis reservas › Búsquedas/visitas a socios</button>. La reserva se completa en el sitio del socio.
         </p>
       </div>
     </DashboardLayout>
