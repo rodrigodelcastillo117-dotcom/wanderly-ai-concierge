@@ -475,6 +475,8 @@ Deno.serve(async (req) => {
       await releaseQuota(quotaReservation, "model_error"); // sin respuesta del modelo no se cobra
       quotaReservation = undefined;
       if (e instanceof AllProvidersFailed) {
+        // Lo que sí cobraron los proveedores antes de fallar también es costo (AUD-IATO-02).
+        await Promise.all(e.usage.map((x) => logUsage(usageEntry(userId, x))));
         const last = e.last;
         console.error("concierge-chat: proveedores de IA", last?.kind, last?.status, redactPii(last?.detail ?? "", 300));
         const code = last && last.status ? modelHttpErrorCode(last.status) : "AI_UNAVAILABLE";
