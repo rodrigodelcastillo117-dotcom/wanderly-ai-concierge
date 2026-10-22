@@ -20,6 +20,7 @@ import { IatoMemoryPanel } from "@/components/concierge/IatoMemoryPanel";
 import { TripContextSelector, type ContextTrip } from "@/components/concierge/TripContextSelector";
 import { resolveActiveTrip, tripLabel, type ActiveTripReason } from "@/lib/activeTrip";
 import { localISODate } from "@/lib/localDate";
+import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -124,11 +125,11 @@ const Concierge = () => {
         setTrips((data as ContextTrip[]) ?? []);
         setLastRefresh(new Date());
       });
-    supabase.from("profiles").select("active_trip_id").eq("id", user.id).maybeSingle()
-      .then(({ data, error }) => {
-        // Si la columna aún no existe (migración pendiente) se conserva la elección local.
-        if (!error && data) setPinnedId((data as any).active_trip_id ?? null);
-      });
+    // Si la columna aún no existe (migración pendiente) se conserva la elección local y no se
+    // vuelve a consultar en esta sesión (N-03).
+    void readPinnedTrip(user.id).then((pinned) => {
+      if (pinned !== undefined) setPinnedId(pinned);
+    });
   }, [user, allowed, refreshTick]);
 
   const todayLocal = localISODate();
@@ -142,11 +143,8 @@ const Concierge = () => {
     setPinnedId(id);
     try { if (id) localStorage.setItem(PIN_KEY, id); else localStorage.removeItem(PIN_KEY); } catch { /* modo privado */ }
     if (!user) return;
-    const { error } = await supabase.from("profiles").update({ active_trip_id: id }).eq("id", user.id);
-    if (error) {
-      console.warn("active_trip_id no guardado en el perfil", error.message);
-      if (error.code === "42501") toast.error("No tienes acceso a ese viaje");
-    }
+    const code = await savePinnedTrip(user.id, id);
+    if (code === "42501") toast.error("No tienes acceso a ese viaje");
   };
 
   // Auto-refresh tick every 60s
