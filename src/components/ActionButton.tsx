@@ -4,6 +4,7 @@ import { welcomePickupsLink, type WelcomePickupsTransferInput } from "@/lib/affi
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { track } from "@/lib/analytics";
+import { openExternalUrl } from "@/lib/trackBooking";
 
 const FIXER_WHATSAPP = "525543580077";
 
@@ -82,13 +83,10 @@ export function ActionButton({
       accion = "fallback";
     }
 
-    // 1) ABRIR DE INMEDIATO, mismo gesto del usuario.
-    const isWhatsapp = urlFinal.includes("wa.me") || urlFinal.includes("whatsapp.com");
-    const win = window.open(urlFinal, "_blank", isWhatsapp ? undefined : "noopener,noreferrer");
-    if (!win) {
-      // Safari estricto: fallback a navegación misma pestaña (preserva gesto).
-      window.location.href = urlFinal;
-    }
+    // 1) ABRIR DE INMEDIATO, mismo gesto del usuario. Con "noopener" en features, window.open
+    // devuelve null siempre y el respaldo navegaba también la pestaña actual; openExternalUrl
+    // abre sin ese flag, corta `opener` y solo navega aquí si de verdad se bloqueó.
+    openExternalUrl(urlFinal);
 
     // 2) Loggear en background — fire-and-forget, NUNCA bloquea el click.
     if (!isDuplicate) {
