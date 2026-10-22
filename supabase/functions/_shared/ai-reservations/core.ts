@@ -32,6 +32,11 @@ export type Alternative = {
   quote?: string;
   code?: string | null;
   from_domain?: string;
+  /** AUD-03/AUD-06: id del correo recibido en ai_reservation_inbound y cómo quedó aceptada cada condición. */
+  inbound_id?: string;
+  conditions?: Record<string, unknown>;
+  contradictions?: string[];
+  stated_party_size?: number | null;
 };
 
 /** Fila tal como la devuelven las funciones internas (ai_reservation_json_internal). */
@@ -287,23 +292,26 @@ const QUOTE_MARKERS = [
   /^\s*— IATOS · Ref R-[A-Z0-9]{6} —/, // nuestra propia marca al final de cada correo
 ];
 
+/** Separa lo que escribió el lugar (reply) de lo citado (quoted: nuestro correo original, si lo citó). */
+export function splitQuotedReply(text: string): { reply: string; quoted: string } {
+  const lines = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
+  const i = lines.findIndex((line) => QUOTE_MARKERS.some((re) => re.test(line)));
+  const reply = (i < 0 ? lines : lines.slice(0, i)).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return { reply, quoted: i < 0 ? "" : lines.slice(i).join("\n") };
+}
+
 /** Quita el mensaje citado (nuestro correo original) para clasificar solo lo que escribió el lugar. */
 export function stripQuotedReply(text: string): string {
-  const out: string[] = [];
-  for (const line of String(text ?? "").replace(/\r\n?/g, "\n").split("\n")) {
-    if (QUOTE_MARKERS.some((re) => re.test(line))) break;
-    out.push(line);
-  }
-  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return splitQuotedReply(text).reply;
 }
 
 /** HTML de un correo → texto plano (sin scripts ni estilos), para cuando no viene versión texto. */
-export function htmlToText(html: string): string {
-  return String(html ?? "")
+export function htmlToText(html: string, keepQuoted = false): string {
+  const h = String(html ?? "");
+  return (keepQuoted ? h : h.replace(/<blockquote[\s\S]*$/i, "")) // lo citado suele ir en <blockquote>
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, " ")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|li|tr|h[1-6]|blockquote)>/gi, "\n")
-    .replace(/<blockquote[\s\S]*$/i, "") // lo citado suele ir en <blockquote>
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'")

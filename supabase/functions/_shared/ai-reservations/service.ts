@@ -396,17 +396,24 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
   const sender = inboundSenderVerdict(d.from, content, row.venue_email);
   const fromAddr = sender.from_address;
   const verified = sender.verified;
-  const replyText = stripQuotedReply(content.text?.trim() ? content.text : htmlToText(content.html ?? ""));
+  const hasText = !!content.text?.trim();
+  const replyText = stripQuotedReply(hasText ? content.text! : htmlToText(content.html ?? ""));
+  // El correo completo, con lo citado: sirve para comprobar que cita nuestra solicitud exacta (AUD-03).
+  const fullText = hasText ? content.text! : htmlToText(content.html ?? "", true);
+  const linkage = token ? "reply_token" as const : "ref_subject" as const;
+  const receivedAt = typeof content.created_at === "string" ? content.created_at : null;
 
   // 4) Clasificación (Claude) + decisión con reglas verificables.
   let decision: ReplyDecision;
   try {
     const cls = replyText && deps.callModel
       ? await classifyReply(deps.callModel, {
-        reservation: row, replyText, subject: String(content.subject ?? d.subject ?? ""), receivedAt: content.created_at ?? new Date().toISOString(),
+        reservation: row, replyText, subject: String(content.subject ?? d.subject ?? ""), receivedAt: receivedAt ?? new Date().toISOString(),
       })
       : null;
-    decision = decideReply(row, cls, { replyText, verifiedSender: verified, fromDomain: domainOf(fromAddr), inboundEmailId: emailId });
+    decision = decideReply(row, cls, {
+      replyText, fullText, verifiedSender: verified, fromDomain: domainOf(fromAddr), inboundEmailId: emailId, linkage, receivedAt,
+    });
     if (!replyText) decision = { ...decision, outcome: "ignored", why: "empty_body", claude_calls: 0 };
     if (!deps.callModel) decision.claude_calls = 0;
   } catch (e) {

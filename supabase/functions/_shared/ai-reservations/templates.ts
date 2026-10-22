@@ -81,6 +81,16 @@ function details(r: Row, lang: VenueLanguage): Array<[string, string]> {
   return rows;
 }
 
+/**
+ * AUD-03 · Las tres líneas exactas de nuestra solicitud (fecha y hora, personas, nombre) en el idioma
+ * dado, tal como van en el correo al restaurante. Sirven para comprobar que una respuesta cita nuestra
+ * solicitud SIN cambios (ligadura con la solicitud exacta).
+ */
+export function requestFingerprint(r: Pick<AiReservationRow, "requested_local" | "party_size" | "customer_name">, lang: VenueLanguage): string[] {
+  const t = T[lang];
+  return [`${t.when}: ${formatLocal(r.requested_local, lang)}`, `${t.party}: ${r.party_size}`, `${t.name}: ${r.customer_name}`];
+}
+
 function venueMail(r: Row, subject: string, before: string[], withDetails: boolean, after: string[] = []): Mail {
   const lang = r.venue_language;
   const t = T[lang];
