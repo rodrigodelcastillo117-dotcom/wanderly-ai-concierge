@@ -133,4 +133,50 @@ SELECT rp.ok('RP7 quien registra (autoconfirm) el correo de una invitada y paga 
   AND (:'a7'::jsonb->>'code') = 'INVITATION_LINK_REQUIRED' AND rp.req_as(7, 7, :'t7') <> 'OK',
   :'a7' || ' ' || :'s7' || ' req=' || rp.req_as(7, 7, :'t7'));
 
+-- ===================================================================== P3-5 el contador de fallos no se reinicia a las 24 h
+CREATE FUNCTION rp.member(n int) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM rp.pro(n);
+  PERFORM public.prive_record_paid_period(rp.u(n), 'in_rp' || n, 'sub_rp' || n, 'cus_rp' || n, now() - interval '100 days', now() + interval '1 day', 9900, 'mxn', 'test');
+  PERFORM public.prive_invite_user(rp.u(n), 'tenure', 'system');
+  PERFORM public.prive_accept_invitation(rp.u(n), NULL);
+  PERFORM public.prive_set_password(rp.u(n), 'Rp-clave-larga-' || n, 'ok');
+  INSERT INTO auth.sessions (id, user_id) VALUES (rp.sid(n)::uuid, rp.u(n)) ON CONFLICT DO NOTHING;
+END $$;
+SELECT rp.member(10), rp.member(11);
+-- RP10: 14 fallos por "día" durante 3 días (lo que la escalera permite sin esperar de más).
+DO $$ DECLARE d int; i int; BEGIN
+  FOR d IN 1..3 LOOP
+    FOR i IN 1..14 LOOP
+      UPDATE public.prive_credentials SET locked_until = NULL WHERE user_id = rp.u(10);
+      PERFORM public.prive_unlock(rp.u(10), 'mala-' || d || '-' || i || '-xxxxxx', NULL, rp.sid(10));
+    END LOOP;
+    UPDATE public.prive_credentials SET last_failed_at = now() - interval '24 hours 1 minute', locked_until = NULL WHERE user_id = rp.u(10);
+  END LOOP;
+END $$;
+SELECT rp.ok('RP10 (C6d) 14 intentos por día repartidos en varios días llegan al bloqueo total',
+  (SELECT hard_locked FROM prive_credentials WHERE user_id = rp.u(10))
+  AND (public.prive_unlock(rp.u(10), 'Rp-clave-larga-10', NULL, rp.sid(10)))->>'reason' = 'HARD_LOCKED',
+  (SELECT 'hard_locked=' || hard_locked || ' failed_count=' || failed_count FROM prive_credentials WHERE user_id = rp.u(10)));
+-- RP11: quien se equivoca y luego entra no acumula: el contador vuelve a 0 con la entrada correcta.
+DO $$ DECLARE i int; BEGIN
+  FOR i IN 1..4 LOOP PERFORM public.prive_unlock(rp.u(11), 'mala-a-' || i || '-xxxxxx', NULL, rp.sid(11)); END LOOP;
+END $$;
+SELECT (public.prive_unlock(rp.u(11), 'Rp-clave-larga-11', NULL, rp.sid(11)))->>'ok' AS ok11 \gset
+UPDATE public.prive_credentials SET last_failed_at = now() - interval '3 days' WHERE user_id = rp.u(11);
+DO $$ DECLARE i int; BEGIN
+  FOR i IN 1..4 LOOP PERFORM public.prive_unlock(rp.u(11), 'mala-b-' || i || '-xxxxxx', NULL, rp.sid(11)); END LOOP;
+END $$;
+SELECT rp.ok('RP11 con una entrada correcta en medio, el contador empieza de nuevo (4, no 8) y no hay bloqueo',
+  :'ok11' = 'true' AND (SELECT failed_count = 4 AND NOT hard_locked AND locked_until IS NULL FROM prive_credentials WHERE user_id = rp.u(11)),
+  (SELECT 'failed_count=' || failed_count FROM prive_credentials WHERE user_id = rp.u(11)));
+-- RP12: el bloqueo total se sigue quitando solo con el restablecimiento por correo.
+SET ROLE service_role;
+SELECT public.prive_request_reset(rp.u(10)) AS rt10 \gset
+SELECT public.prive_complete_reset(rp.u(10), :'rt10', 'Rp-nueva-clave-larga-10', 'ok') AS cr10 \gset
+RESET ROLE;
+SELECT rp.ok('RP12 tras el restablecimiento por correo entra y el contador queda en 0',
+  (public.prive_unlock(rp.u(10), 'Rp-nueva-clave-larga-10', NULL, rp.sid(10)))->>'ok' = 'true'
+  AND (SELECT failed_count = 0 AND NOT hard_locked FROM prive_credentials WHERE user_id = rp.u(10)), :'cr10');
+
 DROP SCHEMA rp CASCADE;
