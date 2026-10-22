@@ -375,6 +375,8 @@ const es = {
       backToIatos: "Volver a IATOS",
       expiredTitle: "Tu invitación venció",
       sendNew: "Enviarme una nueva",
+      linkRequiredTitle: "Ábrela desde tu correo",
+      resentLinkOnly: "Te enviamos una invitación nueva a tu correo. Ábrela con el enlace del correo para continuar.",
       resentTitle: "Listo",
       resentSent: "Te enviamos una invitación nueva a tu correo. También puedes abrirla ahora mismo desde aquí.",
       resentReady: "Tu invitación nueva está lista. Ábrela ahora mismo desde aquí.",
@@ -624,6 +626,8 @@ const es = {
     INVITATION_OTHER_ACCOUNT:
       "Esta invitación no corresponde a la cuenta con la que iniciaste sesión. Cierra sesión y entra con la cuenta que recibió el correo.",
     INVITATION_EXPIRED: "Esta invitación ya venció. Podemos enviarte una nueva a tu correo.",
+    INVITATION_LINK_REQUIRED:
+      "Por seguridad, esta invitación se abre desde el enlace que te enviamos por correo. Ábrelo en este dispositivo o pide uno nuevo.",
     PASSWORD_WEAK: "Esa contraseña es fácil de adivinar. Usa al menos 12 caracteres, mejor una frase de varias palabras.",
     PASSWORD_BREACHED:
       "Esa contraseña aparece en filtraciones públicas conocidas. Por tu seguridad, elige otra que no uses en ningún otro sitio.",
@@ -972,6 +976,8 @@ const en: PriveText = {
       backToIatos: "Back to IATOS",
       expiredTitle: "Your invitation expired",
       sendNew: "Send me a new one",
+      linkRequiredTitle: "Open it from your email",
+      resentLinkOnly: "We sent a new invitation to your email. Open it with the link in that email to continue.",
       resentTitle: "Done",
       resentSent: "We sent a new invitation to your email. You can also open it right now from here.",
       resentReady: "Your new invitation is ready. Open it right now from here.",
@@ -1220,6 +1226,7 @@ const en: PriveText = {
     NO_INVITATION: "We could not find a current invitation for your account. If you think this is a mistake, write to us.",
     INVITATION_OTHER_ACCOUNT: "This invitation does not belong to the account you signed in with. Sign out and enter with the account that received the email.",
     INVITATION_EXPIRED: "This invitation has expired. We can send a new one to your email.",
+    INVITATION_LINK_REQUIRED: "For your security, this invitation opens from the link we sent to your email. Open it on this device or ask for a new one.",
     PASSWORD_WEAK: "That password is easy to guess. Use at least 12 characters, ideally a phrase of several words.",
     PASSWORD_BREACHED: "That password appears in known public leaks. For your safety, choose another one you do not use anywhere else.",
     PASSWORD_ALREADY_SET: "Your Privé password was already created. You can enter with it or reset it.",

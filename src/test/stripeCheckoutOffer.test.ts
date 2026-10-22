@@ -57,7 +57,8 @@ describe("AUD-08 · parámetros de la sesión de Checkout", () => {
     expect(p.automatic_tax).toEqual({ enabled: true });
     expect(p.mode).toBe("subscription");
     expect(p.client_reference_id).toBe("u-1");
-    expect(p.subscription_data.metadata).toEqual({ supabase_user_id: "u-1" });
+    // r2 D-P2-2: con prueba de 30 días la suscripción va marcada para revisar la huella de la tarjeta.
+    expect(p.subscription_data.metadata).toEqual({ supabase_user_id: "u-1", iatos_trial: "card" });
     expect(p.subscription_data.trial_period_days).toBe(30);
     expect(p.line_items).toEqual([{ price: "price_pro_mxn", quantity: 1 }]);
     expect(p.success_url).toBe("https://traveliatos.life/dashboard/pro?checkout=success");

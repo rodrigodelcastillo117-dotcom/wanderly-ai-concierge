@@ -28,7 +28,8 @@ import type { PriveResult, PriveStatus } from "@/lib/priveApi";
 
 type Scene = "loading" | "arrival" | "invitation" | "reveal" | "access" | "card" | "message";
 
-type Message = { kind: InvitationMessageKind; emailSent?: boolean };
+// linkOnly: la invitación solo se abre con el enlace del correo (concesión, N-02): no se ofrece "Abrir ahora".
+type Message = { kind: InvitationMessageKind; emailSent?: boolean; linkOnly?: boolean };
 
 
 export default function PriveInvitation() {
@@ -119,7 +120,7 @@ export default function PriveInvitation() {
       setScene("reveal");
       return;
     }
-    if (["INVITATION_OTHER_ACCOUNT", "INVITATION_EXPIRED", "NO_INVITATION", "NOT_PRO", "NOT_ELIGIBLE"].includes(r.code)) {
+    if (["INVITATION_OTHER_ACCOUNT", "INVITATION_EXPIRED", "INVITATION_LINK_REQUIRED", "NO_INVITATION", "NOT_PRO", "NOT_ELIGIBLE"].includes(r.code)) {
       if (r.code === "INVITATION_OTHER_ACCOUNT") clearPendingToken("invite");
       setMessage({ kind: r.code });
       setScene("message");
@@ -136,7 +137,11 @@ export default function PriveInvitation() {
       // La invitación vieja ya no sirve; la nueva se abre sin token (el servidor la busca por usuario).
       clearPendingToken("invite");
       tokenRef.current = null;
-      setMessage({ kind: "RESENT", emailSent: r.data.email === "sent" });
+      setMessage({
+        kind: "RESENT",
+        emailSent: r.data.email === "sent",
+        linkOnly: message?.linkOnly === true || message?.kind === "INVITATION_LINK_REQUIRED",
+      });
     } else {
       setInlineError(messageFor(r.code, lang));
     }
@@ -288,6 +293,7 @@ export default function PriveInvitation() {
             <InvitationMessage
               kind={message.kind}
               emailSent={message.emailSent === true}
+              linkOnly={message.linkOnly === true}
               status={status}
               busy={waiting}
               error={inlineError}
@@ -303,9 +309,10 @@ export default function PriveInvitation() {
   );
 }
 
-function InvitationMessage({ kind, emailSent, status, busy, error, onResend, onOpenAgain, onSwitchAccount, onRetry }: {
+function InvitationMessage({ kind, emailSent, linkOnly, status, busy, error, onResend, onOpenAgain, onSwitchAccount, onRetry }: {
   kind: Message["kind"];
   emailSent: boolean;
+  linkOnly: boolean;
   status: PriveStatus | null;
   busy: boolean;
   error: string | null;
@@ -349,7 +356,13 @@ function InvitationMessage({ kind, emailSent, status, busy, error, onResend, onO
       return box(M.expiredTitle, <p>{msg("INVITATION_EXPIRED")}</p>, (
         <button type="button" onClick={onResend} disabled={busy} className="prive-btn prive-btn-gold">{busy ? t.common.sending : M.sendNew}</button>
       ));
+    case "INVITATION_LINK_REQUIRED":
+      return box(M.linkRequiredTitle, <p>{msg("INVITATION_LINK_REQUIRED")}</p>, (
+        <button type="button" onClick={onResend} disabled={busy} className="prive-btn prive-btn-gold">{busy ? t.common.sending : M.sendNew}</button>
+      ));
     case "RESENT":
+      // Una invitación por concesión solo se abre con el enlace del correo (N-02): sin "Abrir ahora".
+      if (linkOnly) return box(M.resentTitle, <p>{M.resentLinkOnly}</p>, toPrive);
       return box(M.resentTitle, <p>{emailSent ? M.resentSent : M.resentReady}</p>, (
         <button type="button" onClick={onOpenAgain} className="prive-btn prive-btn-gold">{M.openNow}</button>
       ));

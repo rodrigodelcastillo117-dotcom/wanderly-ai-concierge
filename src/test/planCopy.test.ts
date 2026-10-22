@@ -25,6 +25,9 @@ const FORBIDDEN = [
   /con tarjeta/i,
   /renueva automáticamente cada mes/i,
   /ilimitad/i,
+  // N-04 / D-P3-6: "Mensajes sin límite" (Pro.tsx) contradecía "100 mensajes con Iato al mes".
+  /sin\s+l[ií]mites?/i,
+  /unlimited/i,
   /24\/7/,
   /primer mes gratis/i,
 ];
@@ -47,6 +50,34 @@ describe("textos comerciales", () => {
     // Con tarjeta se cobra al terminar la prueba: el precio con IVA debe estar a la vista.
     expect(all(card)).toMatch(/IVA incluido/);
     for (const c of [card, noCard]) expect(all(c)).not.toMatch(/ilimitad|24\/7/i);
+  });
+
+  it("N-04: ningún texto exportado por planCopy promete \"sin límite\" o \"ilimitado\"", async () => {
+    const c = await import("@/lib/planCopy");
+    const strings: string[] = [];
+    const collect = (v: unknown) => {
+      if (typeof v === "string") strings.push(v);
+      else if (Array.isArray(v)) v.forEach(collect);
+      else if (v && typeof v === "object") Object.values(v).forEach(collect);
+    };
+    collect(Object.values(c).filter((v) => typeof v !== "function"));
+    for (const mode of ["card", "no_card"] as const) collect(c.trialCopy(mode));
+    collect(c.freeUsageLines({ concierge_limit: null, concierge_remaining: null, trips_limit: null, trips_remaining: null }));
+    collect(c.freeUsageLines({ concierge_limit: 3, concierge_remaining: 1, trips_limit: 1, trips_remaining: 0 }));
+    expect(strings.length).toBeGreaterThan(10);
+    for (const s of strings) for (const re of FORBIDDEN) expect(s, `planCopy: "${s}" contiene ${re}`).not.toMatch(re);
+  });
+
+  it("N-04: la página PRO muestra el uso gratuito con planCopy (sin tope del servidor = lo publicado del plan gratuito)", async () => {
+    const c = await import("@/lib/planCopy");
+    expect(read("src/pages/Pro.tsx")).toMatch(/freeUsageLines\(/);
+    const sinTope = c.freeUsageLines({ concierge_limit: null, concierge_remaining: null, trips_limit: null, trips_remaining: null });
+    expect(sinTope).toEqual({ concierge: c.FREE_CONCIERGE_LINE, trips: c.FREE_TRIP_LINE });
+    expect(c.FREE_FEATURES).toContain(c.FREE_CONCIERGE_LINE);
+    expect(c.freeUsageLines({ concierge_limit: 3, concierge_remaining: 2, trips_limit: 1, trips_remaining: 0 }))
+      .toEqual({ concierge: "2 de 3 mensajes gratis", trips: "0 de 1 gratis" });
+    // PRO publica 100 mensajes al mes: ninguna pantalla puede decir lo contrario.
+    expect(c.PRO_FEATURES).toContain("100 mensajes con Iato al mes");
   });
 
   it("landing, registro, PRO y términos leen la misma fuente", () => {

@@ -31,6 +31,7 @@ export const PRIVE_ACCESS_CODES = [
   "NO_INVITATION",
   "INVITATION_OTHER_ACCOUNT",
   "INVITATION_EXPIRED",
+  "INVITATION_LINK_REQUIRED", // N-02: una invitación por concesión se abre con el enlace del correo
   "PASSWORD_WEAK",
   "PASSWORD_BREACHED",
   "PASSWORD_ALREADY_SET",

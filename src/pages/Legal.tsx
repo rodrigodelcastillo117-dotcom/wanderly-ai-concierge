@@ -191,7 +191,7 @@ export const Reembolsos = () => (
       <h2>4. Reembolsos</h2>
       <ul>
         <li><strong>Garantía de 7 días:</strong> si solicitas el reembolso dentro de los 7 días naturales posteriores a tu primer cargo, te devolvemos el 100% de ese cargo, sin preguntas.</li>
-        <li><strong>Cargo duplicado o error de facturación:</strong> reembolso íntegro siempre, sin límite de tiempo, en cuanto lo verifiquemos.</li>
+        <li><strong>Cargo duplicado o error de facturación:</strong> reembolso íntegro siempre, sin importar cuándo lo detectes, en cuanto lo verifiquemos.</li>
         <li><strong>Falla del servicio:</strong> si la plataforma estuvo inoperante por una causa atribuible a nosotros durante una parte significativa del mes, reembolsamos la parte proporcional.</li>
         <li>Fuera de esos supuestos, los meses ya iniciados no son reembolsables de forma prorrateada; lo que hacemos es cancelar la renovación y dejarte el acceso hasta el fin del periodo.</li>
         <li>Si te reembolsamos un cargo completo, la suscripción se cancela y el acceso PRO que pagaba ese cargo termina en ese momento (salvo que tengas otro acceso vigente, como una cortesía). Un reembolso parcial no cambia tu acceso.</li>

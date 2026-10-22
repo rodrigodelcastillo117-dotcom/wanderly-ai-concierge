@@ -12,7 +12,8 @@ DIR=$(cd "$(dirname "$0")" && pwd); DB=${1:-iatos_pay_test}
 . "$DIR/../lib.sh"
 . "$DIR/concurrency.sh"
 PSQL="psql -U ${PGUSER:-postgres} -q -X"
-ESPERADOS=88
+# 88 de antes + los de la ronda r2 del grupo cuentas (aud2_pagos_adversarial.sql y r2_cuentas.sql).
+ESPERADOS=121
 
 main() {
   "$DIR/../security/run.sh" "$DB" 2>&1 | grep -E '^FALLA (migración|stubs|no se pudo)'
@@ -23,14 +24,28 @@ main() {
   # AUD-05: efectos de Stripe repetidos, fuera de orden, con fallas a medias (imprime OK/FALLA por caso).
   $PSQL -d "$DB" -f "$DIR/stripe_events.sql" 2>&1 | grep -o 'OK AP.*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
   # L7: re-correr la siembra no pisa lo que el dueño editó (plan_limits_recommended.sql dejó
-  # free/live_searches=7). 20261022135300 es la última migración que define sus funciones: volver a
-  # aplicarla no deja versiones viejas (run_all.sh lo comprueba con el md5 de las funciones).
-  t_apply "$DB" "$DIR/../../migrations/20261022135300_pay_plan_limits_recommended.sql" "(segunda pasada) "
-  if [ "$($PSQL -d "$DB" -At -c "SELECT limit_value FROM public.plan_limits WHERE plan='free' AND kind='live_searches'")" = "7" ]; then
-    echo "OK L7 re-correr la migración respeta los límites editados por el dueño"
+  # free/live_searches=7). 20261022135300 ya NO es la última que define sus funciones: is_pro la redefine
+  # 20261026250000_r2_cuentas_is_pro_price_period. Por eso la segunda pasada va en una COPIA de la base,
+  # que se borra, y la base de las pruebas conserva las funciones de una base aplicada solo en orden
+  # (run_all.sh lo comprueba con el md5 de las funciones).
+  if t_copy_db "$DB" "${DB}_l7"; then
+    t_apply "${DB}_l7" "$DIR/../../migrations/20261022135300_pay_plan_limits_recommended.sql" "(segunda pasada) "
+    if [ "$($PSQL -d "${DB}_l7" -At -c "SELECT limit_value FROM public.plan_limits WHERE plan='free' AND kind='live_searches'")" = "7" ]; then
+      echo "OK L7 re-correr la migración respeta los límites editados por el dueño"
+    else
+      echo "FALLA L7 la siembra pisó un límite editado"
+    fi
+    $PSQL -d postgres -c "DROP DATABASE IF EXISTS ${DB}_l7" >/dev/null 2>&1
   else
-    echo "FALLA L7 la siembra pisó un límite editado"
+    echo "FALLA L7: no se pudo copiar la base $DB"
   fi
+  # Segunda auditoría (r2, grupo cuentas): idempotencia de sus migraciones (en una copia), casos
+  # adversariales del auditor y regresiones propias. r2_cuentas.sql hace \ir de 20261026250000 para
+  # probar la conversión de datos: es la última migración que define is_pro, pro_price_ok y
+  # prive_tenure_days, así que no deja versiones viejas.
+  t_idempotency "$DB" "$T_MIG"/20261026*_r2_cuentas_*.sql
+  $PSQL -d "$DB" -f "$DIR/aud2_pagos_adversarial.sql" 2>&1 | grep -o 'OK X.*\|FALLA.*\|PENDIENTE.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
+  $PSQL -d "$DB" -f "$DIR/r2_cuentas.sql" 2>&1 | grep -o 'OK RC.*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
   pay_conc_quota "$DB"
   pay_conc_reserve "$DB"
   # AUD-05: concurrencia real (dos transacciones).

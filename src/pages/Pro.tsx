@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
 import { track } from "@/lib/analytics";
-import { PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
+import { PRICE_LINE, PRO_FEATURES, freeUsageLines } from "@/lib/planCopy";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
 import { proStatusLabel } from "@/lib/proStatus";
 
@@ -88,11 +88,11 @@ export default function Pro() {
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="rounded-xl border border-border/60 bg-surface/40 p-4">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Concierge este mes</p>
-                    <p className="text-sm">{access.concierge_limit == null ? "Mensajes sin límite" : `${access.concierge_remaining ?? 0} de ${access.concierge_limit} mensajes gratis`}</p>
+                    <p className="text-sm">{freeUsageLines(access).concierge}</p>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-surface/40 p-4">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Análisis de viaje</p>
-                    <p className="text-sm">{access.trips_limit == null ? "Sin límite" : `${access.trips_remaining ?? 0} de ${access.trips_limit} gratis`}</p>
+                    <p className="text-sm">{freeUsageLines(access).trips}</p>
                   </div>
                 </div>
               )}

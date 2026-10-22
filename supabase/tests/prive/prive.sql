@@ -36,6 +36,10 @@ CREATE FUNCTION pt.pro(n int) RETURNS void LANGUAGE sql AS $$
 CREATE FUNCTION pt.paid(n int, a numeric, b numeric, inv text) RETURNS jsonb LANGUAGE sql AS $$
   SELECT public.prive_record_paid_period(pt.u(n), inv, 'sub_' || n, 'cus_' || n,
     now() - make_interval(secs => a * 86400), now() - make_interval(secs => b * 86400), 19900, 'mxn', 'test') $$;
+-- r2 (N-02): una invitación por concesión se acepta con el token del correo (como al abrir el enlace).
+CREATE FUNCTION pt.accept_link(n int) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT public.prive_accept_invitation(pt.u(n),
+    public.prive_sha256_hex((SELECT token FROM public.prive_claim_invitation_emails(10, pt.u(n)) LIMIT 1))) $$;
 CREATE FUNCTION pt.member(n int, pw text) RETURNS jsonb LANGUAGE plpgsql AS $$
 DECLARE r jsonb;
 BEGIN
@@ -287,9 +291,16 @@ SELECT public.admin_grant_prive('cambio@example.test', 'Prensa', NULL, 'dueno@ia
 RESET ROLE;
 INSERT INTO auth.users (id, email, email_confirmed_at) VALUES (pt.u(61), 'Nueva.Persona@example.test', now());
 UPDATE auth.users SET email = 'cambio@example.test' WHERE id = pt.u(15);
-SELECT pt.ok('P16 concesión por correo: se aplica al registrarse y al cambiar el correo',
+-- r2 (N-02): el cambio de correo ya no liga la concesión por sí solo (la confirmación de la fila es la
+-- del correo anterior). El dueño la liga al volver a concederla, que busca la cuenta por el correo.
+SELECT (SELECT user_id IS NULL FROM prive_grants WHERE email = 'cambio@example.test') AS p16c \gset
+SET ROLE service_role;
+SELECT public.admin_grant_prive('cambio@example.test', 'Prensa (verificada)', NULL, 'dueno@iatos.test');
+RESET ROLE;
+SELECT pt.ok('P16 concesión por correo: se aplica al registrarse; al cambiar el correo, solo cuando el dueño la vuelve a conceder',
   (:'g61'::jsonb->>'action') = 'pending_signup'
   AND (SELECT user_id FROM prive_grants WHERE email = 'nueva.persona@example.test') = pt.u(61)
+  AND :'p16c'::boolean
   AND (SELECT user_id FROM prive_grants WHERE email = 'cambio@example.test') = pt.u(15)
   AND public.prive_has_grant(pt.u(61)) AND public.prive_has_grant(pt.u(15)));
 UPDATE auth.users SET email = 'prive15@example.test' WHERE id = pt.u(15);
@@ -298,7 +309,7 @@ SELECT pt.pro(16);
 SET ROLE service_role;
 SELECT public.admin_grant_prive('prive16@example.test', 'Prueba de vigencia', now() + interval '1 day', 'dueno@iatos.test') AS g16 \gset
 RESET ROLE;
-SELECT public.prive_accept_invitation(pt.u(16), NULL);
+SELECT pt.accept_link(16);
 SELECT public.prive_set_password(pt.u(16), 'Dieciseis-clave-16', 'ok');
 INSERT INTO pt.secrets VALUES ('pw16', 'Dieciseis-clave-16');
 SELECT (pt.unlock(16, 'Dieciseis-clave-16', 16))->>'token' AS t16 \gset
@@ -310,7 +321,7 @@ SELECT pt.ok('P17 la concesión vence: el acceso se pausa (PRIVE_NOT_ELIGIBLE) y
   AND (SELECT count(*) FROM prive_sessions WHERE user_id = pt.u(16) AND revoked_at IS NULL) = 0, :'r16a');
 -- Revocar la concesión de un miembro con sesión.
 SELECT (pt.unlock(13, 'x', 13))->>'reason' AS r13 \gset
-SELECT public.prive_accept_invitation(pt.u(13), NULL);
+SELECT pt.accept_link(13);
 SELECT public.prive_set_password(pt.u(13), 'Trece-clave-larga-13', 'ok');
 INSERT INTO pt.secrets VALUES ('pw13', 'Trece-clave-larga-13');
 SELECT (pt.unlock(13, 'Trece-clave-larga-13', 13))->>'token' AS t13 \gset

@@ -13,12 +13,13 @@ INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
 DO $$
 DECLARE r jsonb; t uuid := '77777777-0000-0000-0000-000000000003'; p uuid := '77777777-0000-0000-0000-000000000004';
 BEGIN
-  -- L1: 'trialing' sin fecha de fin ya no es PRO para siempre; active y comped siguen igual.
+  -- L1: 'trialing' sin fecha de fin ya no es PRO para siempre.
+  -- r2 (D-P3-1 / N-06): 'active' de Stripe sin fecha de fin TAMPOCO es PRO indefinido (antes sí).
   INSERT INTO public.subscriptions (user_id, status, current_period_end) VALUES ('77777777-0000-0000-0000-000000000001', 'trialing', NULL);
   INSERT INTO public.subscriptions (user_id, status, stripe_subscription_id, current_period_end) VALUES ('77777777-0000-0000-0000-000000000002', 'active', 'sub_x', NULL);
   IF public.is_pro('77777777-0000-0000-0000-000000000001') THEN RAISE EXCEPTION 'L1 trialing NULL sigue PRO'; END IF;
-  IF NOT public.is_pro('77777777-0000-0000-0000-000000000002') THEN RAISE EXCEPTION 'L1 active NULL dejó de ser PRO'; END IF;
-  RAISE NOTICE 'OK L1 trialing sin current_period_end ya no es PRO; active sin fecha sigue igual';
+  IF public.is_pro('77777777-0000-0000-0000-000000000002') THEN RAISE EXCEPTION 'L1 active de Stripe sin fecha sigue PRO indefinido'; END IF;
+  RAISE NOTICE 'OK L1 trialing y active de Stripe sin current_period_end ya no son PRO';
 
   -- L2: valores recomendados sembrados (todos los tipos y planes).
   IF (SELECT count(*) FROM public.plan_limits WHERE note LIKE 'RECOMENDADO%') <> 15

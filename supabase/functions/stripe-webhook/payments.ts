@@ -25,6 +25,7 @@
 
 import type { ApplyArgs, StripeEventLike, StripeInvoiceLike, StripeSubscriptionLike, WebhookOutcome } from "./handler.ts";
 import { tenureEventFor, type TenureEvent } from "../_shared/prive-tenure.ts";
+import { alertDelivered } from "./alerts.ts";
 
 export type StripeChargeLike = {
   id: string;
@@ -238,7 +239,8 @@ export async function handlePaymentEvent(event: StripeEventLike, deps: PaymentDe
   // AUD-05: en una disputa el aviso a administradores ES el efecto obligatorio (hay plazo para
   // responder en Stripe). Si la campana no se pudo guardar, no se marca el evento como hecho: 500 y
   // Stripe reintenta (el aviso lleva llave por evento, así que el reintento no lo duplica).
-  if (isDispute && alertStatus === "fallido") {
+  // D-P3-3: "sin_destinatarios" (no hay administradores ni correo de alerta) tampoco es un aviso.
+  if (isDispute && alertStatus !== null && !alertDelivered(alertStatus)) {
     throw new Error(`aviso a administradores falló (${event.id}); se reintentará`);
   }
 
@@ -301,7 +303,8 @@ function subscriptionArgsFor(sub: StripeSubscriptionLike, eventCreated: number):
     _user_id: sub.metadata?.supabase_user_id || null,
     _customer_id: idOf(sub.customer),
     _subscription_id: sub.id,
-    _status: sub.status,
+    // D-P3-1: igual que effectiveStatus de handler.ts (cobro pausado = 'paused').
+    _status: sub.pause_collection && (sub.status === "active" || sub.status === "trialing") ? "paused" : sub.status,
     _trial_end: ts(sub.trial_end),
     _current_period_end: ts(sub.current_period_end ?? item?.current_period_end),
     _cancel_at_period_end: Boolean(sub.cancel_at_period_end),

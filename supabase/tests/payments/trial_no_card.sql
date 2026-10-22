@@ -40,7 +40,8 @@ BEGIN
 
   -- T5: correo con cortesía: gana la cortesía, no se gasta la prueba.
   INSERT INTO public.comp_grants (email) VALUES ('vip@test.mx') ON CONFLICT DO NOTHING;
-  INSERT INTO auth.users (id, email, email_confirmed_at) VALUES ('66666666-0000-0000-0000-000000000005', 'vip@test.mx', now());
+  -- r2 (N-01): la cortesía exige el correo comprobado (confirmado con el enlace, no al instante del registro).
+  INSERT INTO auth.users (id, email, email_confirmed_at, created_at) VALUES ('66666666-0000-0000-0000-000000000005', 'vip@test.mx', now(), now() - interval '1 hour');
   IF (SELECT status FROM public.subscriptions WHERE user_id = '66666666-0000-0000-0000-000000000005') <> 'comped'
      OR EXISTS (SELECT 1 FROM public.trial_grants WHERE user_id = '66666666-0000-0000-0000-000000000005') THEN RAISE EXCEPTION 'T5'; END IF;
   RAISE NOTICE 'OK T5 correo con cortesía: comped, sin consumir prueba';

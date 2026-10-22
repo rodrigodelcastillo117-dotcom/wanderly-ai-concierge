@@ -362,6 +362,10 @@ SELECT aud.ok('N05 la limpieza de la migración retira solo la invitación de la
   AND (SELECT status FROM prive_memberships WHERE user_id = aud.u(18)) = 'invited'
   AND (SELECT revoked_at IS NULL FROM prive_invitations WHERE user_id = aud.u(18)));
 \ir ../../migrations/20261024030000_aud_prive_remember_device.sql
+-- 20261024020000 y 20261024030000 redefinen prive_sweep; la última versión es la de la ronda r2
+-- (P3-4, grupo cuentas). Se vuelve a incluir para que el resto de las pruebas (y la base que queda) vean
+-- la versión de producción (Q-L1; run_all.sh compara el md5 de cada función con una base en orden).
+\ir ../../migrations/20261026260000_r2_cuentas_prive_sweep_schema_probe.sql
 
 -- ===================================================================== T · solicitud Privé con el viaje de OTRA cuenta
 -- (reportado por aud-iato: concierge-chat → concierge-action reenvía trip_id sin revisar). La RPC
@@ -445,9 +449,22 @@ SELECT aud.ok('R05 recordada: sin PRO → PRIVE_NOT_PRO; "cerrar todas mis sesio
   :'r12d' = 'PRIVE_NOT_PRO' AND aud.req_as(12, 1203, :'t12d') = 'PRIVE_SESSION_INVALID', :'r12d' || ' ' || aud.req_as(12, 1203, :'t12d'));
 SELECT (aud.unlock(12, 1203))->>'token' AS t12e \gset
 UPDATE prive_sessions SET created_at = now() - interval '10 minutes' WHERE token_hash = public.prive_sha256_hex(:'t12e');
-SELECT aud.ok('R06 solo se recuerda una sesión recién abierta y propia',
-  (aud.remember(12, :'t12e'))->>'code' = 'PRIVE_SESSION_INVALID' AND (aud.remember(11, :'t12e'))->>'ok' = 'false'
-  AND (SELECT NOT remember FROM prive_sessions WHERE token_hash = public.prive_sha256_hex(:'t12e')));
+-- r2 (P3-1): "propia" se prueba con OTRA cuenta con derecho vigente (la 1, miembro activo con PRO y
+-- 90 días) sobre una sesión recién abierta de la 12. Antes se usaba la 11, que ya había perdido PRO:
+-- respondía PRIVE_NOT_PRO antes del filtro por user_id y la prueba pasaba aunque el filtro faltara (M8).
+-- t12g: la fila de la 12 se liga (a mano) a una sesión de Auth VIVA de la cuenta 1, para que solo el
+-- filtro "user_id = la cuenta que pide" la proteja (la revisión de la sesión de Auth pasaría).
+SELECT (aud.unlock(12, 1203))->>'token' AS t12f \gset
+SELECT (aud.unlock(12, 1203))->>'token' AS t12g \gset
+SELECT aud.auth_login(1, 1299);
+UPDATE prive_sessions SET auth_session_id = aud.sid(1299) WHERE token_hash = public.prive_sha256_hex(:'t12g');
+SELECT aud.ok('R06 solo se recuerda una sesión recién abierta y propia (la otra cuenta tiene derecho vigente)',
+  (aud.remember(12, :'t12e'))->>'code' = 'PRIVE_SESSION_INVALID'
+  AND public.prive_access_code(aud.u(1)) IS NULL
+  AND (aud.remember(1, :'t12f'))->>'ok' = 'false' AND (aud.remember(11, :'t12f'))->>'ok' = 'false'
+  AND (aud.remember(1, :'t12g'))->>'ok' = 'false'
+  AND (SELECT bool_and(NOT remember AND expires_at <= now() + interval '12 hours') FROM prive_sessions
+        WHERE token_hash IN (public.prive_sha256_hex(:'t12e'), public.prive_sha256_hex(:'t12f'), public.prive_sha256_hex(:'t12g'))));
 SELECT aud.ok('R07 sin elegir "recordar" la sesión sigue en 12 h / 2 h',
   (SELECT NOT remember AND expires_at <= now() + interval '12 hours' FROM prive_sessions WHERE token_hash = public.prive_sha256_hex(:'t12e')));
 

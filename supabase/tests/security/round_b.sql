@@ -13,7 +13,7 @@ INSERT INTO auth.users(id,email,email_confirmed_at) VALUES
   ('76000000-0000-0000-0000-000000000006','b-legacy@example.test',now()),
   ('77000000-0000-0000-0000-000000000007','b-admin@example.test',now()),
   ('78000000-0000-0000-0000-000000000008','b-refund@example.test',now()),
-  ('79000000-0000-0000-0000-000000000009','b-grant@example.test',now()),
+  ('79000000-0000-0000-0000-000000000009','b-grant@example.test',now()+interval '1 minute'),  -- r2 N-01: correo comprobado con el enlace
   ('7a000000-0000-0000-0000-00000000000a','b-delete@example.test',now()),
   ('7b000000-0000-0000-0000-00000000000b','b-other@example.test',now())
 ON CONFLICT DO NOTHING;
