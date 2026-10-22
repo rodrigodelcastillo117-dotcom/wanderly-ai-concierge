@@ -5,14 +5,6 @@ import { ArrowRight, Check, Crown, CreditCard, Plane, Building2, Globe2, Sparkle
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -118,7 +110,8 @@ const Onboarding = () => {
   const [hotelOther, setHotelOther] = useState("");
   const [dnaSeed, setDnaSeed] = useState("");
   const [dnaLoading, setDnaLoading] = useState(false);
-  const [skipOpen, setSkipOpen] = useState(false);
+  // Evita doble envío mientras se guarda un paso o se termina el onboarding.
+  const [busy, setBusy] = useState(false);
 
   // Hydrate from existing record
   useEffect(() => {
@@ -159,16 +152,28 @@ const Onboarding = () => {
   const goNext = () => setStep((s) => Math.min(s + 1, 5));
 
   const handleStep2 = async () => {
-    await markStepComplete(2, { selected_cards: cardsFinal });
-    goNext();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await markStepComplete(2, { selected_cards: cardsFinal });
+      goNext();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleStep3 = async () => {
-    await markStepComplete(3, {
-      selected_loyalty_airlines: airlinesFinal,
-      selected_loyalty_hotels: hotelsFinal,
-    });
-    goNext();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await markStepComplete(3, {
+        selected_loyalty_airlines: airlinesFinal,
+        selected_loyalty_hotels: hotelsFinal,
+      });
+      goNext();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleStep4 = async () => {
@@ -189,25 +194,27 @@ const Onboarding = () => {
     }
   };
 
+  // Termina el onboarding con lo que haya elegido hasta ahora (vacío = valores por
+  // defecto). Todo lo demás se puede completar después desde Perfil.
   const finishAndGo = async (target: string) => {
-    await markOnboardingComplete({
+    if (busy) return;
+    setBusy(true);
+    const ok = await markOnboardingComplete({
       selected_cards: cardsFinal,
       selected_loyalty_airlines: airlinesFinal,
       selected_loyalty_hotels: hotelsFinal,
       travel_dna_seed: dnaSeed.trim() || null,
     });
+    setBusy(false);
+    if (!ok) {
+      toast.error("No pudimos guardar tu progreso. Revisa tu conexión e intenta de nuevo.");
+      return;
+    }
     navigate(target, { replace: true });
   };
 
-  const skipCurrent = () => {
-    setSkipOpen(false);
-    if (step === 2) handleStep2();
-    else if (step === 3) handleStep3();
-    else if (step === 4) {
-      markStepComplete(4, {});
-      goNext();
-    }
-  };
+  // "Saltar por ahora": visible en todos los pasos; el usuario llega al valor primero.
+  const skipAll = () => finishAndGo("/dashboard");
 
   if (isLoading || !user) {
     return (
@@ -220,16 +227,16 @@ const Onboarding = () => {
   return (
     <div className="relative min-h-screen bg-background text-foreground overflow-hidden">
       {/* Top bar */}
-      {step > 1 && step < 5 && (
-        <div className="absolute top-0 right-0 z-20 p-4">
-          <button
-            onClick={() => setSkipOpen(true)}
-            className="text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
-          >
-            Saltar
-          </button>
-        </div>
-      )}
+      <div className="absolute top-0 right-0 z-20 p-3">
+        <button
+          type="button"
+          onClick={skipAll}
+          disabled={busy}
+          className="text-sm text-white/90 hover:text-white bg-black/40 backdrop-blur rounded-full transition-colors px-4 min-h-[44px] disabled:opacity-50"
+        >
+          Saltar por ahora
+        </button>
+      </div>
 
       <Dots step={step} />
 
@@ -254,8 +261,8 @@ const Onboarding = () => {
                   Bienvenido a IATOS
                 </h1>
                 <p className="text-base text-white/80 leading-relaxed">
-                  Iato es tu concierge IA premium para viajes. Vault de tarjetas,
-                  Travel DNA evolutivo, sin OTAs intermediarios.
+                  Iato es tu concierge IA para viajes. Son 4 preguntas opcionales;
+                  puedes saltarlas y completarlas después en tu Perfil.
                 </p>
                 <Button
                   onClick={() => {
@@ -281,7 +288,7 @@ const Onboarding = () => {
               </div>
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-primary">
-                  Paso 2 de 5 · Vault
+                  Paso 2 de 5 · Vault · Opcional
                 </p>
                 <h2 className="font-display text-3xl text-foreground leading-tight">
                   ¿Qué tarjetas premium tienes?
@@ -305,6 +312,7 @@ const Onboarding = () => {
                   </Pill>
                 ))}
                 <Input
+                  aria-label="Otra tarjeta"
                   placeholder="Otra (escríbela)"
                   value={cardOther}
                   onChange={(e) => {
@@ -334,6 +342,7 @@ const Onboarding = () => {
 
               <Button
                 onClick={handleStep2}
+                disabled={busy}
                 className="w-full h-14 text-base font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground hover:opacity-95 shadow-[var(--shadow-gold)] mt-auto"
               >
                 Continuar
@@ -347,7 +356,7 @@ const Onboarding = () => {
             <motion.div key="s3" {...fadeSlide} className="flex-1 flex flex-col gap-5 mt-4">
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-primary">
-                  Paso 3 de 5 · Lealtad
+                  Paso 3 de 5 · Lealtad · Opcional
                 </p>
                 <h2 className="font-display text-3xl text-foreground leading-tight">
                   ¿En qué programas eres miembro o elite?
@@ -371,6 +380,7 @@ const Onboarding = () => {
                   </Pill>
                 ))}
                 <Input
+                  aria-label="Otra aerolínea"
                   placeholder="Otra aerolínea"
                   value={airlineOther}
                   onChange={(e) => setAirlineOther(e.target.value)}
@@ -390,6 +400,7 @@ const Onboarding = () => {
                   </Pill>
                 ))}
                 <Input
+                  aria-label="Otra cadena hotelera"
                   placeholder="Otra cadena"
                   value={hotelOther}
                   onChange={(e) => setHotelOther(e.target.value)}
@@ -399,6 +410,7 @@ const Onboarding = () => {
 
               <Button
                 onClick={handleStep3}
+                disabled={busy}
                 className="w-full h-14 text-base font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground hover:opacity-95 shadow-[var(--shadow-gold)] mt-auto"
               >
                 Continuar
@@ -422,7 +434,7 @@ const Onboarding = () => {
 
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-primary text-center">
-                  Paso 4 de 5 · Travel DNA
+                  Paso 4 de 5 · Travel DNA · Opcional
                 </p>
                 <h2 className="font-display text-3xl text-foreground leading-tight text-center">
                   Cuéntame de tu último gran viaje
@@ -434,6 +446,7 @@ const Onboarding = () => {
 
               <div className="space-y-2">
                 <Textarea
+                  aria-label="Cuéntame de tu último gran viaje"
                   value={dnaSeed}
                   onChange={(e) => setDnaSeed(e.target.value.slice(0, 500))}
                   placeholder="Ej: Fui a Madrid con mi pareja en octubre 2024. Nos hospedamos en Hotel Único en Salamanca. Lo mejor fue cenar en Coque (2 Michelin) y un día de Toledo. Buscábamos romance y arte, sin prisas."
@@ -486,8 +499,8 @@ const Onboarding = () => {
                     Crea tu primer viaje
                   </h2>
                   <p className="text-sm text-white/75">
-                    Iato lo arma con vuelos reales, hoteles con tus beneficios y experiencias
-                    curadas. 90 segundos.
+                    Iato busca vuelos y hoteles con proveedores en vivo (si alguno no
+                    responde, te lo dice) y arma tu itinerario. Suele tardar alrededor de 1 minuto.
                   </p>
                 </div>
 
@@ -547,27 +560,6 @@ const Onboarding = () => {
         </AnimatePresence>
       </div>
 
-      {/* Skip dialog */}
-      <Dialog open={skipOpen} onOpenChange={setSkipOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="font-display">¿Seguro?</DialogTitle>
-            <DialogDescription>
-              {step === 2 &&
-                "Sin Vault, Iato no aplica tus beneficios premium (upgrades, créditos, lounges)."}
-              {step === 3 && "Sin tus programas, no priorizamos acumulación de puntos ni status."}
-              {step === 4 &&
-                "Tu Travel DNA se irá refinando con cada viaje. Sin esto, las primeras sugerencias serán más genéricas."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={() => setSkipOpen(false)}>
-              Volver
-            </Button>
-            <Button onClick={skipCurrent}>Saltar de todos modos</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
