@@ -9,7 +9,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { CuratedForYou, PriveKeyLauncher, YourNextJourney, YourWorldIsReady } from "@/components/prive/key";
 import { DropsTeaser } from "@/components/prive/value";
-import { PrivateEditionTeaser } from "@/components/prive/edition";
+import { PrivateEditionBand } from "@/components/prive/edition";
 import { featuredDestinations } from "@/lib/priveBrowse";
 import { usePriveT } from "@/components/prive/PriveLang";
 import { PriveSpotlight } from "@/components/prive/catalog/PriveHomeLive";
@@ -44,6 +44,9 @@ export function ForYouHome() {
   );
   const requests = <p className="text-sm text-center"><Link to="/prive/solicitudes" className="prive-gold underline-offset-2 hover:underline">{t.browse.myRequests}</Link></p>;
 
+  // THE PRIVATE EDITION: sección editorial protagonista (portada, Mi edición, Leer, Intereses, Vuelo, Biblioteca).
+  const edition = <PrivateEditionBand key="pe" />;
+
   const blocks: Record<HomeVariant, JSX.Element[]> = {
     c: [
       // Sube sobre la portada con desplazamiento (no margen negativo): el margen colapsaba hacia el contenedor
@@ -51,30 +54,31 @@ export function ForYouHome() {
       <div key="s" className="relative z-20 -top-8 -mb-8">{search}</div>,
       <YourWorldIsReady key="w" />,
       <CuratedForYou key="cf" />,
+      edition,
       <YourNextJourney key="nj" />,
       <ExtraordinaryEdit key="ed" universes={universes} />,
       <PriveKeyLauncher key="k" />,
       <PriveSpotlight key="sp" />,
       <FeaturedDestinations key="fd" destinations={destinations} />,
-      <PrivateEditionTeaser key="pe" />,
       <DropsTeaser key="dr" />,
       <div key="u">{toUniverses}{requests}</div>,
     ],
     a: [
       <div key="s" className="pt-2">{search}</div>,
+      edition,
       <PriveSpotlight key="sp" />,
       <CuratedForYou key="cf" />,
       <ExtraordinaryEdit key="ed" universes={universes} />,
       <YourNextJourney key="nj" />,
       <PriveKeyLauncher key="k" />,
       <FeaturedDestinations key="fd" destinations={destinations} />,
-      <PrivateEditionTeaser key="pe" />,
       <div key="u">{toUniverses}{requests}</div>,
     ],
     b: [
       <div key="s" className="pt-2">{search}</div>,
       <PriveKeyLauncher key="k" />,
       <YourNextJourney key="nj" />,
+      edition,
       <CuratedForYou key="cf" />,
       <DropsTeaser key="dr" />,
       <FeaturedDestinations key="fd" destinations={destinations} />,

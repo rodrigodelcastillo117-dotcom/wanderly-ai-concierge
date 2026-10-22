@@ -1,6 +1,8 @@
 /**
  * edition — THE PRIVATE EDITION: ranuras para otros equipos de Privé (contrato prive_reimagined_contract.md).
- * <PrivateEditionTeaser /> va en FOR YOU (prive-ux) y en INSIDER (privevalor, con `destination` y
- * variant="insider"). Sin props obligatorias; si no hay número publicado no renderiza nada.
+ * <PrivateEditionSection /> es la sección protagonista de FOR YOU (prive-ux) y, con `destination` y
+ * variant="insider", la de INSIDER (privevalor). Sin número publicado presenta la revista con su estado real
+ * ("primer número en revisión editorial") sin exponer piezas pendientes. <PrivateEditionTeaser /> es el mismo
+ * componente (nombre del contrato original). <PriveEditionNavLink /> es el acceso en la cabecera Privé.
  */
-export { PrivateEditionTeaser } from "./PrivateEditionTeaser";
+export { PrivateEditionBand, PrivateEditionSection, PrivateEditionTeaser, invalidateEditionSection } from "./PrivateEditionTeaser";

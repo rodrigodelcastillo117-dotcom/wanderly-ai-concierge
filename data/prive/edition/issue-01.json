@@ -491,7 +491,7 @@
       "reuse_rights": "Cita de hechos con enlace.",
       "attribution": "Fuente: The Nobel Prize",
       "distribution_restrictions": "Solo enlace.",
-      "verification": "La página oficial respondió 403 al consultarla de forma automatizada; nombres y motivación corroborados con AAP (The Senior) y APA/Reuters del 12-oct-2026. El editor debe abrir el enlace oficial antes de aprobar."
+      "verification": "Página oficial leída el 22-oct-2026: «for microeconomic foundations of macroeconomic stabilisation», Robert E. Hall y Michael Woodford. Corroborado con AAP (The Senior) y APA/Reuters."
     },
     {
       "key": "aap_nobel",
@@ -878,8 +878,8 @@
         "en": "Why the first issue of The Private Edition comes with dates, sources and few promises."
       },
       "byline": {
-        "es": "Dirección editorial de IATOS Privé · borrador pendiente de firma",
-        "en": "IATOS Privé editorial direction · draft pending signature"
+        "es": "Dirección editorial de IATOS Privé",
+        "en": "IATOS Privé editorial direction"
       },
       "hero_image": null,
       "fact_status": "editorial",
@@ -1817,6 +1817,10 @@
         {
           "key": "apa_nobel",
           "used_for": "Corroboración del Nobel"
+        },
+        {
+          "key": "nobel_econ_2026",
+          "used_for": "Motivación oficial del Nobel (fuente primaria, leída el 22-oct-2026)"
         }
       ],
       "body": [
@@ -2486,6 +2490,17 @@
         }
       ],
       "actions": []
+    }
+  ],
+  "_corrections": [
+    {
+      "migration": "20261025110000_edition2_status_correcciones.sql",
+      "date": "2026-10-22",
+      "changes": [
+        "carta-del-editor-n01.byline",
+        "sources.nobel_econ_2026.verification",
+        "banxico-pausa-6-50.sources+nobel_econ_2026"
+      ]
     }
   ]
 }

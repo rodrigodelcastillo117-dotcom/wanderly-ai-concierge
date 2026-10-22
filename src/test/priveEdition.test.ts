@@ -157,7 +157,22 @@ describe("fuentes, fechas y reglas editoriales del primer número", () => {
   });
   it("la migración de siembra es exactamente la que produce el generador (sin ediciones a mano) y nace en revisión", () => {
     const sql = read("supabase/migrations/20261025100200_edition_seed_n01.sql");
-    expect(sql).toBe(buildSeedSql(doc, "data/prive/edition/issue-01.json"));
+    // La siembra YA está aplicada en producción: el archivo queda congelado (huella) y las correcciones
+    // posteriores van en 20261025110000. El JSON = siembra + correcciones: si se deshacen las
+    // correcciones, el generador vuelve a producir exactamente la siembra.
+    const { createHash } = require("node:crypto") as typeof import("node:crypto");
+    expect(createHash("sha256").update(sql).digest("hex")).toBe("2f5fedf1097d851131fbe257740b44f44cd523629a7f3a321c98ac932da5202d");
+    const original = structuredClone(doc);
+    original.articles.find((a: { slug: string }) => a.slug === "carta-del-editor-n01").byline = { es: "Dirección editorial de IATOS Privé · borrador pendiente de firma", en: "IATOS Privé editorial direction · draft pending signature" };
+    original.sources.find((s: { key: string }) => s.key === "nobel_econ_2026").verification = "La página oficial respondió 403 al consultarla de forma automatizada; nombres y motivación corroborados con AAP (The Senior) y APA/Reuters del 12-oct-2026. El editor debe abrir el enlace oficial antes de aprobar.";
+    const bx = original.articles.find((a: { slug: string }) => a.slug === "banxico-pausa-6-50");
+    bx.sources = bx.sources.filter((x: { key: string }) => x.key !== "nobel_econ_2026");
+    delete original._corrections;
+    expect(sql).toBe(buildSeedSql(original, "data/prive/edition/issue-01.json"));
+    const fix = read("supabase/migrations/20261025110000_edition2_status_correcciones.sql");
+    expect(fix).toContain(doc.articles[0].byline.es);
+    expect(fix).toContain(doc.sources.find((s: { key: string }) => s.key === "nobel_econ_2026").verification);
+    expect(fix).toContain(doc.articles.find((a: { slug: string }) => a.slug === "banxico-pausa-6-50").sources.find((x: { key: string }) => x.key === "nobel_econ_2026").used_for);
     expect(sql).toMatch(/'pending_review'/);
     expect(sql).not.toMatch(/'published'/);
     expect(sql).not.toMatch(/license_status\)[\s\S]*?'approved'/);

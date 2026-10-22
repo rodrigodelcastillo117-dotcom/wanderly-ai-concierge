@@ -98,6 +98,30 @@ SELECT et.ok('E06 borradores pendientes: el miembro no ve ningún número',
 SELECT et.ok('E07 artículo no aprobado no se sirve por slug',
   et.as_user(3, format('SELECT public.prive_edition_article(%L, %L)->>''found''', et.tok(3), 'cdmx-fin-de-semana-gran-premio')) = 'false');
 
+-- prive_edition_status (20261025110000): estado honesto de la revista para FOR YOU sin exponer piezas.
+SELECT et.ok('E45 sin número publicado el miembro ve solo el estado: en revisión, sin títulos ni piezas',
+  et.as_user(3, format('SELECT (public.prive_edition_status(%L)->''latest'')::text', et.tok(3))) = 'null'
+  AND et.as_user(3, format('SELECT public.prive_edition_status(%L)->>''in_review''', et.tok(3))) = 'true'
+  AND et.as_user(3, format('SELECT public.prive_edition_status(%L)->>''published_count''', et.tok(3))) = '0'
+  AND et.as_user(3, format('SELECT string_agg(k, '','' ORDER BY k) FROM jsonb_object_keys(public.prive_edition_status(%L)) k', et.tok(3)))
+      = 'generated_at,in_review,latest,next_scheduled_for,prefs_saved,published_count'
+  AND et.as_user(3, format('SELECT public.prive_edition_status(%L)::text', et.tok(3))) NOT LIKE '%cdmx%'
+  AND et.as_user(3, format('SELECT public.prive_edition_status(%L)::text', et.tok(3))) NOT LIKE '%n01-noviembre%',
+  et.as_user(3, format('SELECT public.prive_edition_status(%L)::text', et.tok(3))));
+SELECT et.ok('E45b FREE, PRO sin Privé, sesión inválida y anon no obtienen ni el estado',
+  et.as_user(1, $q$SELECT public.prive_edition_status('$q$ || repeat('a', 43) || $q$')::text$q$) LIKE 'ERR:PRIVE_NOT_PRO%'
+  AND et.as_user(2, $q$SELECT public.prive_edition_status('$q$ || repeat('a', 43) || $q$')::text$q$) LIKE 'ERR:PRIVE_NOT_ELIGIBLE%'
+  AND et.as_user(3, $q$SELECT public.prive_edition_status('$q$ || repeat('z', 43) || $q$')::text$q$) LIKE 'ERR:PRIVE_SESSION_INVALID%'
+  AND NOT has_function_privilege('anon', 'public.prive_edition_status(text)', 'EXECUTE'));
+SELECT et.ok('E45c correcciones de siembra aplicadas una sola vez (firma sin «borrador», Nobel confirmado y vinculado como fuente primaria)',
+  (SELECT byline->>'es' FROM public.edition_articles WHERE slug = 'carta-del-editor-n01') = 'Dirección editorial de IATOS Privé'
+  AND (SELECT version FROM public.edition_articles WHERE slug = 'carta-del-editor-n01') = 2
+  AND (SELECT verification FROM public.edition_sources WHERE key = 'nobel_econ_2026') LIKE 'Página oficial leída el 22-oct-2026%'
+  AND (SELECT count(*) FROM public.edition_reviews WHERE note LIKE 'Corrección de siembra (20261025110000)%') = 1
+  AND EXISTS (SELECT 1 FROM public.edition_article_sources l JOIN public.edition_articles a ON a.id = l.article_id JOIN public.edition_sources x ON x.id = l.source_id
+              WHERE a.slug = 'banxico-pausa-6-50' AND x.key = 'nobel_econ_2026'),
+  (SELECT byline::text || ' v' || version FROM public.edition_articles WHERE slug = 'carta-del-editor-n01'));
+
 -- ───────────── B. panel: solo admins ─────────────
 SELECT et.ok('E08 un miembro no abre el panel (EDITION_NOT_ADMIN)',
   et.as_user(3, 'SELECT public.edition_admin_overview()::text') LIKE 'ERR:EDITION_NOT_ADMIN%'
@@ -162,6 +186,11 @@ SELECT et.ok('E22 el miembro lee el número publicado (13 piezas) y nada pendien
   AND et.as_user(3, format('SELECT (public.prive_edition_issue(%L)->''articles'')::text', et.tok(3))) NOT LIKE '%watches-and-wonders-2027%'
   AND et.as_user(3, format('SELECT (public.prive_edition_issue(%L)->''articles'')::text', et.tok(3))) NOT LIKE '%ue-ia-alto-riesgo-2027%'
   AND et.as_user(3, format('SELECT public.prive_edition_article(%L, %L)->>''found''', et.tok(3), 'watches-and-wonders-2027')) = 'false');
+SELECT et.ok('E46 publicado el número, el estado da su portada (slug y número) y deja de decir «en revisión»',
+  et.as_user(4, format('SELECT public.prive_edition_status(%L)->''latest''->>''slug''', et.tok(4))) = 'n01-noviembre-2026'
+  AND et.as_user(4, format('SELECT public.prive_edition_status(%L)->>''published_count''', et.tok(4))) = '1'
+  AND et.as_user(4, format('SELECT public.prive_edition_status(%L)->>''in_review''', et.tok(4))) = 'false',
+  et.as_user(4, format('SELECT public.prive_edition_status(%L)::text', et.tok(4))));
 SELECT et.ok('E23 el lector no recibe notas internas ni estado editorial',
   et.as_user(3, format('SELECT public.prive_edition_issue(%L)::text', et.tok(3))) NOT LIKE '%editor_notes%'
   AND et.as_user(3, format('SELECT public.prive_edition_issue(%L)::text', et.tok(3))) NOT LIKE '%"status"%'
@@ -256,7 +285,7 @@ SELECT et.ok('E42 ninguna tabla de contenido tiene columna user_id (borrar a un 
   NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'user_id'
               AND table_name IN ('edition_sources','edition_images','edition_issues','edition_articles','edition_article_sources')));
 SELECT et.ok('E43 toda RPC prive_edition_* empieza con v_uid := public.prive_require(_ps) (sin sesión Privé no sale nada)',
-  (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_edition\_%') = 9
+  (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_edition\_%') = 10
   AND NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_edition\_%'
     AND (regexp_replace(p.prosrc, '^\s*DECLARE[^;]*(;[^;]*)*?BEGIN\s*', '', 's') !~ '^v_uid := public\.prive_require\(_ps\);' OR NOT p.prosecdef
          OR NOT EXISTS (SELECT 1 FROM unnest(p.proconfig) c WHERE c LIKE 'search_path=%'))));

@@ -23,6 +23,8 @@ import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import { onboardingResumeStep, shouldAutoPlayWelcome } from "@/lib/priveOnboarding";
 import { PRO_PATH } from "@/lib/functionErrors";
 import type { PriveOnboarding as OnboardingState, PriveStatus } from "@/lib/priveApi";
+import { PrivateEditionBand } from "@/components/prive/edition";
+import { editionText } from "@/lib/priveEditionI18n";
 
 const Center = ({ children, label }: { children: React.ReactNode; label: string }) => {
   const { rise, reduce } = usePriveMotion();
@@ -200,6 +202,8 @@ function UnlockedHub({ s }: { s: PriveStatus }) {
             <div className="relative z-20 mb-16">
               <PriveCatalogSlot onContent={onContent} />
             </div>
+            {/* Con el catálogo aún en curaduría, la revista sigue presente (ForYouHome la trae cuando hay catálogo). */}
+            {hasCatalog === false && <div className="mb-16"><PrivateEditionBand /></div>}
             {hasCatalog === false && (
               <section aria-labelledby="prive-collections">
                 <h2 id="prive-collections" className="text-2xl sm:text-3xl mb-6">{t.hub.collections}</h2>
@@ -287,6 +291,10 @@ export default function PriveHub() {
         <h1 className="text-2xl mb-3">{t.hub.loadError}</h1>
         <p className="prive-muted mb-6">{messageFor(statusError, lang)}</p>
         <button type="button" onClick={() => void refresh()} className="prive-btn prive-btn-ghost">{t.common.retry}</button>
+        {/* Sin red Privé no se puede comprobar, pero las ediciones guardadas en este dispositivo sí se leen. */}
+        {statusError === "NETWORK" && (
+          <p className="mt-8"><Link to="/prive/edicion/sin-conexion" className="prive-link" data-testid="prive-offline-editions">{editionText(lang === "en" ? "en" : "es").offline.openSaved}</Link></p>
+        )}
       </Center>
     );
   }

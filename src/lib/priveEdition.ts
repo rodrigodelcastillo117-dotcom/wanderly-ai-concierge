@@ -32,7 +32,7 @@ export const INTERESTS: { key: string; es: string; en: string }[] = [
   { key: "tecnologia", es: "Tecnología", en: "Technology" },
   { key: "arte", es: "Arte", en: "Art" },
   { key: "cultura", es: "Cultura", en: "Culture" },
-  { key: "bienestar", es: "Bienestar", en: "Wellness" },
+  { key: "bienestar", es: "Bienestar y wellness", en: "Wellness" },
   { key: "eventos_internacionales", es: "Eventos internacionales", en: "International events" },
   { key: "noticias_mundiales", es: "Noticias mundiales", en: "World news" },
   { key: "mexico", es: "México", en: "Mexico" },
@@ -131,6 +131,12 @@ export function formatDate(iso: string | null | undefined, lang: Lang, opts: Int
 export const todayInMexicoCity = (now = new Date()) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 
+/** Agenda: solo las fechas que no han terminado (una agenda con fechas pasadas no sirve para apartar nada). */
+export function upcomingAgenda<T extends { date: string; end?: string }>(items: T[], today: string = todayInMexicoCity()): { items: T[]; past: number } {
+  const keep = items.filter((it) => (it.end ?? it.date) >= today);
+  return { items: keep, past: items.length - keep.length };
+}
+
 // ───────────────────────────── personalización ─────────────────────────────
 /** Pesos efectivos: el preset de la edición elegida + lo que el miembro marcó (con consentimiento), sin excluidos. */
 export function effectiveWeights(prefs: EditionPrefs): Record<string, number> {
@@ -177,10 +183,14 @@ export function personalizeIssue(payload: IssuePayload, prefs: EditionPrefs = DE
   const byRank = (x: EditionArticle, y: EditionArticle) => rank(y) - rank(x) || x.sort_order - y.sort_order;
 
   // Portada: la del número; si el miembro personaliza, el reportaje con imagen que mejor coincide (empate → la del editor).
-  const editorsCover = visible.find((a) => a.slug === payload.issue?.cover_article) ?? null;
+  // Una portada vencida (p. ej. el Gran Premio después del 2-nov) no se queda como portada: pasa al índice con su
+  // aviso de vigencia y la portada la toma el reportaje vigente con foto mejor colocado (sin inventar nada).
+  const editorsPick = visible.find((a) => a.slug === payload.issue?.cover_article) ?? null;
+  const editorsCover = editorsPick && !editorsPick.expired ? editorsPick
+    : visible.filter((a) => a.format === "feature" && !a.expired && a.hero_image && payload.images?.[a.hero_image]).sort((x, y) => x.sort_order - y.sort_order)[0] ?? editorsPick;
   let cover = editorsCover;
   if (personalized) {
-    const candidates = visible.filter((a) => (a.format === "feature") && a.hero_image && payload.images?.[a.hero_image]);
+    const candidates = visible.filter((a) => (a.format === "feature") && !a.expired && a.hero_image && payload.images?.[a.hero_image]);
     const best = [...candidates].sort(byRank)[0];
     if (best && (!editorsCover || rank(best) > rank(editorsCover))) cover = best;
   }
@@ -224,6 +234,11 @@ export interface FlightOptions {
 }
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 /** Nombres de los destinos que usa la edición (slugs del catálogo Privé). */
+/** Guía práctica del destino para Flight Edition: consejos del Insider's Notebook (privevalor), cada uno con
+ *  fuente https y fecha de revisión. Se copia tal cual al PDF y a la copia sin conexión. */
+export interface GuideTip { id: string; category: string; title: Localized; body: Localized; before_you_go?: boolean; source: { url: string; name: string; checked_at: string } }
+export interface PracticalGuide { destination: string; as_of: string; tips: GuideTip[] }
+
 export const DESTINATION_LABELS: Record<string, { es: string; en: string }> = {
   cdmx: { es: "Ciudad de México", en: "Mexico City" }, mc: { es: "Mónaco", en: "Monaco" }, merida: { es: "Mérida", en: "Mérida" },
   guadalajara: { es: "Guadalajara", en: "Guadalajara" }, "los-cabos": { es: "Los Cabos", en: "Los Cabos" },
@@ -304,8 +319,11 @@ export function resolveAction(a: EditionAction, lang: Lang): ResolvedAction | nu
       return a.target && /^[a-z0-9-]{2,60}$/.test(a.target) ? { kind: "internal", to: `/prive/destino/${a.target}`, label, needsNetwork: true, source: a.kind } : null;
     case "explore_universe":
       return a.target && UNIVERSES.includes(a.target) ? { kind: "internal", to: `/prive/universo/${a.target}`, label, needsNetwork: true, source: a.kind } : null;
-    case "ask_iato":
-      return { kind: "internal", to: "/dashboard/concierge", state: { prefill: txt(a.prompt, lang) || label }, label, needsNetwork: true, source: a.kind };
+    case "ask_iato": {
+      // state.prefill dentro de la app; ?ask= para que el enlace del PDF (sin estado) llegue con la pregunta.
+      const prompt = (txt(a.prompt, lang) || label).slice(0, 500);
+      return { kind: "internal", to: `/dashboard/concierge?ask=${enc(prompt)}`, state: { prefill: prompt }, label, needsNetwork: true, source: a.kind };
+    }
     case "plan_trip":
       return a.target ? { kind: "internal", to: `/dashboard/planear?destino=${enc(a.target)}`, label, needsNetwork: true, source: a.kind } : null;
     case "hotels":

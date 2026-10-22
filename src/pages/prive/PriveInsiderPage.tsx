@@ -7,6 +7,7 @@ import { usePriveLoad } from "@/components/prive/catalog/usePriveLoad";
 import { BeforeYouGo } from "@/components/prive/value/BeforeYouGo";
 import { InsiderTipCard } from "@/components/prive/value/InsiderTipCard";
 import { BrandTitle } from "@/components/prive/value/ValueUi";
+import { PrivateEditionSection } from "@/components/prive/edition";
 import { groupByCategory, localToday, type InsiderIndex, type InsiderPage, type TipCategory } from "@/lib/priveValueModel";
 import { usePriveValue } from "@/lib/priveValueApi";
 import { formatValueDate, useValueText } from "@/lib/priveValueI18n";
@@ -42,6 +43,8 @@ function Index() {
             </ul>
           ) : <p className="text-sm prive-muted" role="status">{t.insider.empty}</p>}
         </section>
+        {/* THE PRIVATE EDITION: del número publicado (si no hay, no se pinta nada aquí). */}
+        <div className="border-t border-[color:var(--pv-line)] pt-10"><PrivateEditionSection variant="insider" /></div>
       </div>
     </PriveCatalogShell>
   );
@@ -76,6 +79,8 @@ function Notebook({ slug }: { slug: string }) {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="prive-insider-tips">
             {shown.map((tip) => <InsiderTipCard key={tip.id} tip={tip} trips={data.trips ?? []} api={api} lang={t.lang} t={t} />)}
           </div>
+          {/* Piezas del número de THE PRIVATE EDITION sobre este destino (solo si existen y están publicadas). */}
+          <div className="border-t border-[color:var(--pv-line)] pt-8"><PrivateEditionSection variant="insider" destination={slug} /></div>
         </div>
       )}
     </PriveCatalogShell>

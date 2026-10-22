@@ -4,7 +4,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { ArrowLeft, WifiOff } from "lucide-react";
 import { EditionProvider, useEdition } from "@/components/prive/edition/EditionContext";
 import { PriveLocked } from "@/components/prive/catalog/PriveLocked";
-import { useOnline } from "@/components/prive/edition/Magazine";
+import { ReadingModeToggle, useOnline, useReadingMode } from "@/components/prive/edition/Magazine";
 import { editionText } from "@/lib/priveEditionI18n";
 import "@/components/prive/edition/edition.css";
 
@@ -21,9 +21,10 @@ function Frame() {
   const { lang, setLang, locked, loading, error, reload } = useEdition();
   const online = useOnline();
   const T = editionText(lang);
+  const [reading, setReading] = useReadingMode();
   if (locked) return <PriveLocked code={locked} />;
   return (
-    <div className="ped" lang={lang}>
+    <div className="ped" lang={lang} data-reading={reading}>
       {!online && (
         <div className="ped-banner" role="status">
           <WifiOff className="inline h-4 w-4 mr-2" aria-hidden="true" />{T.offline.banner} ·{" "}
@@ -38,6 +39,8 @@ function Frame() {
           <span className="ped-masthead block text-[0.95rem] sm:text-lg text-[color:var(--ped-champagne)]">{T.brand}</span>
           <span className="hidden sm:block text-[0.7rem] italic text-[color:var(--ped-muted)]" style={{ fontFamily: "var(--ped-display)" }}>{T.taglineSub}</span>
         </Link>
+        <div className="flex items-center gap-2">
+        <ReadingModeToggle mode={reading} onChange={setReading} lang={lang} />
         <div role="group" aria-label={lang === "en" ? "Language" : "Idioma"} className="flex rounded-full border border-[color:var(--ped-line)]">
           {(["es", "en"] as const).map((l) => (
             <button key={l} type="button" onClick={() => setLang(l)} aria-pressed={lang === l}
@@ -45,6 +48,7 @@ function Frame() {
               {l}
             </button>
           ))}
+        </div>
         </div>
       </div>
       <nav className="ped-nav" aria-label={T.brand}>

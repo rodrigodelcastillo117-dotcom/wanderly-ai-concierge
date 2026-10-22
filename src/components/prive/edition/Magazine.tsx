@@ -4,9 +4,9 @@
  */
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bookmark, BookmarkCheck, ExternalLink, WifiOff } from "lucide-react";
+import { Bookmark, BookmarkCheck, ExternalLink, Moon, Sun, WifiOff } from "lucide-react";
 import {
-  blockText, formatDate, imageAllowed, imageCredit, resolveAction, tr, txt, type Block, type EditionArticle, type EditionImage,
+  blockText, formatDate, imageAllowed, imageCredit, resolveAction, tr, txt, upcomingAgenda, type Block, type EditionArticle, type EditionImage,
   type EditionIssue, type EditionSource, type Lang,
 } from "@/lib/priveEdition";
 import { editionText } from "@/lib/priveEditionI18n";
@@ -208,17 +208,22 @@ function Blocks({ blocks, images, lang, preview }: { blocks: Block[]; images: Re
             );
           case "img":
             return <EditionImg key={i} img={images[b.image]} lang={lang} preview={preview} className={`ped-fig ${b.size === "full" ? "full" : "half"}`} />;
-          case "agenda":
+          case "agenda": {
+            const ag = upcomingAgenda(b.items);
             return (
-              <ul key={i} className="ped-agenda">
-                {b.items.map((it, j) => (
+              <Fragment key={i}>
+              {ag.past > 0 && <p className="ped-meta">{lang === "en" ? `${ag.past} date${ag.past === 1 ? " has" : "s have"} already passed and ${ag.past === 1 ? "is" : "are"} not shown.` : `${ag.past} fecha${ag.past === 1 ? " ya pasó y no se muestra" : "s ya pasaron y no se muestran"}.`}</p>}
+              <ul className="ped-agenda" data-testid="agenda">
+                {ag.items.map((it, j) => (
                   <li key={j}>
                     <span className="dt">{formatDate(it.date, lang, { day: "numeric", month: "short", year: "numeric" })}{it.end ? ` – ${formatDate(it.end, lang, { day: "numeric", month: "short" })}` : ""}</span>
                     <span className="ev">{blockText(it, lang)}</span>
                   </li>
                 ))}
               </ul>
+              </Fragment>
             );
+          }
           default: return null;
         }
       })}
@@ -370,5 +375,26 @@ export function BriefItem({ article, lang, hrefFor }: { article: EditionArticle;
         ))}
       </p>
     </article>
+  );
+}
+
+const READING_KEY = "iatos_edition_reading";
+/** Modo de lectura (oscuro por omisión o «papel»): preferencia de este dispositivo, sin red. */
+export function useReadingMode(): ["dark" | "paper", (m: "dark" | "paper") => void] {
+  const [mode, setMode] = useState<"dark" | "paper">(() => {
+    try { return localStorage.getItem(READING_KEY) === "paper" ? "paper" : "dark"; } catch { return "dark"; }
+  });
+  const set = (m: "dark" | "paper") => { setMode(m); try { localStorage.setItem(READING_KEY, m); } catch { /* modo privado */ } };
+  return [mode, set];
+}
+
+export function ReadingModeToggle({ mode, onChange, lang }: { mode: "dark" | "paper"; onChange: (m: "dark" | "paper") => void; lang: Lang }) {
+  const paper = mode === "paper";
+  return (
+    <button type="button" className="ped-reading-toggle" aria-pressed={paper} data-testid="reading-mode"
+      title={lang === "en" ? "Reading mode: paper" : "Modo lectura: papel"} aria-label={lang === "en" ? "Paper reading mode" : "Modo lectura papel"}
+      onClick={() => onChange(paper ? "dark" : "paper")}>
+      {paper ? <Moon className="h-4 w-4" aria-hidden="true" /> : <Sun className="h-4 w-4" aria-hidden="true" />}
+    </button>
   );
 }

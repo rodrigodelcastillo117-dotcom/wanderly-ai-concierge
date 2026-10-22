@@ -183,7 +183,9 @@ describe("navegación de seis áreas", () => {
     await screen.findByTestId("prive-hero");
     const navs = screen.getAllByRole("navigation", { name: "Secciones de IATOS Privé" });
     expect(navs).toHaveLength(2);
-    expect(within(navs[0]).getAllByRole("link").map((a) => a.textContent)).toEqual(["Para ti", "The Key", "Drops", "Insider", "Explorar", "Mi Privé"]);
+    // Las seis áreas y, aparte (separador), el acceso a THE PRIVATE EDITION.
+    expect(within(navs[0]).getAllByRole("link").map((a) => a.textContent)).toEqual(["Para ti", "The Key", "Drops", "Insider", "Explorar", "Mi Privé", "Revista"]);
+    expect(screen.getAllByTestId("prive-edition-nav").every((a) => a.getAttribute("href") === "/prive/edicion")).toBe(true);
     const bottom = screen.getByTestId("prive-bottom-nav");
     expect(within(bottom).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/prive", "/prive/key", "/prive/explorar", "/prive/drops", "/prive/mi"]);
     expect(within(bottom).getByRole("link", { name: /Para ti/ })).toHaveAttribute("aria-current", "page");

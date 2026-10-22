@@ -13,6 +13,7 @@ import { createEditionAdminApi, describeCheck, EditionError, type AdminOverview 
 import { editionText } from "@/lib/priveEditionI18n";
 import "@/components/prive/prive.css";
 import "@/components/prive/edition/edition.css";
+import { invalidateEditionSection } from "@/components/prive/edition/PrivateEditionTeaser";
 
 const TABS = [
   { key: "revision", label: "Revisión" }, { key: "numero", label: "Número" }, { key: "fuentes", label: "Fuentes" },
@@ -55,7 +56,7 @@ export default function EditionAdminPage() {
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
     setBusy(true); setMsg(null);
-    try { await fn(); setMsg({ ok: true, text: `${label}: hecho.` }); await load(); }
+    try { await fn(); invalidateEditionSection(); setMsg({ ok: true, text: `${label}: hecho.` }); await load(); }
     catch (e) {
       const err = e as EditionError & { detail?: string };
       let detail = err.detail ?? "";
@@ -183,7 +184,7 @@ export default function EditionAdminPage() {
                       <p className="text-muted-foreground">{i.photographer} · <a className="underline" href={i.page_url} target="_blank" rel="noopener noreferrer">página</a> · <a className="underline" href={i.license_url} target="_blank" rel="noopener noreferrer">{i.license}</a> · PDF {i.allow_pdf ? "sí" : "no"} · offline {i.allow_offline ? "sí" : "no"}</p>
                       <p className="text-muted-foreground">{i.verification}</p>
                       <div className="flex gap-2 pt-1">
-                        <Btn busy={busy} onClick={() => void run(`licencia ${i.key}`, () => api.imageLicense(i.key, "approve", "Licencia y crédito verificados en la página del proveedor"))}>Aprobar licencia</Btn>
+                        {i.license_status !== "approved" && <Btn busy={busy} onClick={() => void run(`licencia ${i.key}`, () => api.imageLicense(i.key, "approve", "Licencia y crédito verificados en la página del proveedor"))}>Aprobar licencia</Btn>}
                         <Btn busy={busy} danger onClick={() => { const n = ask("Motivo del bloqueo:"); if (n) void run(`bloquear ${i.key}`, () => api.imageLicense(i.key, "block", n)); }}>Bloquear</Btn>
                       </div>
                     </div>
@@ -261,6 +262,8 @@ function ArticleEditor({ article, previewArticle, preview, busy, onTransition, o
   const [dek, setDek] = useState({ es: article.dek?.es ?? "", en: article.dek?.en ?? "" });
   const [body, setBody] = useState<Block[]>(full?.body ?? []);
   const [notes, setNotes] = useState(article.editor_notes ?? "");
+  // Vigencia (valid_until): después de esa fecha la pieza sale del World Brief y lleva aviso; la base no deja aprobar vencidas.
+  const [validUntil, setValidUntil] = useState(article.valid_until ?? "");
   const [showPreview, setShowPreview] = useState(false);
   const published = article.status === "published";
   const setText = (i: number, l: "es" | "en", v: string) => setBody((b) => b.map((x, j) => (j === i && "es" in x ? { ...x, [l]: v } as Block : x)));
@@ -284,7 +287,7 @@ function ArticleEditor({ article, previewArticle, preview, busy, onTransition, o
         </div></div>
       ) : (
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); const note = published ? ask("Nota PÚBLICA de corrección (obligatoria):") : (notes || undefined); if (published && !note) return;
-          onUpdate({ title, dek, body, ...(published ? {} : { editor_notes: notes }) }, note ?? undefined); }}>
+          onUpdate({ title, dek, body, ...(published ? {} : { editor_notes: notes }), ...(validUntil !== (article.valid_until ?? "") ? { valid_until: validUntil || null } : {}) }, note ?? undefined); }}>
           {(["es", "en"] as const).map((l) => (
             <div key={l} className="grid gap-2">
               <label className="text-xs text-muted-foreground">Título ({l})<input className="w-full rounded-md bg-background border border-white/10 px-2 py-2 text-sm" value={title[l]} onChange={(e) => setTitle({ ...title, [l]: e.target.value })} /></label>
@@ -305,6 +308,8 @@ function ArticleEditor({ article, previewArticle, preview, busy, onTransition, o
               ))}
             </ol>
           </details>
+          <label className="text-xs text-muted-foreground block">Vigente hasta (vacío = sin vencimiento)
+            <input type="date" className="mt-1 block rounded-md bg-background border border-white/10 px-2 py-2 text-sm" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} data-testid="valid-until" /></label>
           {!published && <label className="text-xs text-muted-foreground block">Notas internas del editor<textarea className="w-full rounded-md bg-background border border-white/10 px-2 py-2 text-sm" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>}
           <button type="submit" disabled={busy} className="rounded-full bg-primary text-primary-foreground px-4 min-h-[44px] text-sm font-semibold disabled:opacity-50">{published ? "Publicar corrección (con nota pública)" : "Guardar cambios (vuelve a revisión si estaba aprobado)"}</button>
         </form>

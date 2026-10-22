@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isPriveSessionCode, type PriveResult } from "@/lib/priveApi";
 import { PriveLockedError } from "@/lib/priveCatalogApi";
 import { usePriveAccess } from "@/hooks/usePriveAccess";
-import type { EditionArticle, EditionImage, EditionIssue, EditionPrefs, EditionSource, IssuePayload, Opportunity } from "@/lib/priveEdition";
+import type { EditionArticle, EditionImage, EditionIssue, EditionPrefs, EditionSource, IssuePayload, Opportunity, PracticalGuide } from "@/lib/priveEdition";
 
 export type ContentFn = <T = unknown>(fn: string, args?: Record<string, unknown>) => Promise<PriveResult<T>>;
 
@@ -27,11 +27,18 @@ export interface BriefPayload { items: EditionArticle[]; expired_count: number; 
 export interface SavedPayload { items: (EditionArticle & { saved_at: string })[]; images: Record<string, EditionImage>; generated_at: string }
 export interface ArticlePayload { found: boolean; article?: EditionArticle; images?: Record<string, EditionImage>; saved?: boolean;
   retracted?: { slug: string; title: { es: string; en?: string }; note: string; at: string }; generated_at?: string }
+/** Estado honesto de la revista (sin títulos ni textos de piezas no publicadas). */
+export interface EditionStatus { latest: { slug: string; number: number; period_label: { es: string; en?: string }; published_at: string } | null;
+  published_count: number; in_review: boolean; next_scheduled_for: string | null; prefs_saved: boolean; generated_at: string }
+/** Consejo práctico del Insider's Notebook (privevalor): siempre con fuente y fecha de revisión. */
+export interface PracticalTip { id: string; slug: string; category: string; title: { es: string; en?: string | null }; body: { es: string; en?: string | null };
+  before_you_go?: boolean; rank?: number; valid_until?: string | null; stale?: boolean; source: { url: string; name: string; checked_at: string } }
 export interface OpportunitiesPayload { available: boolean; items: Opportunity[]; expired_recent: number; generated_at: string | null }
 
 export function createEditionApi(content: ContentFn) {
   const c = async <T,>(fn: string, args: Record<string, unknown> = {}) => unwrap<T>(await content<T>(fn, args));
   return {
+    status: () => c<EditionStatus>("prive_edition_status"),
     library: () => c<LibraryPayload>("prive_edition_library"),
     issue: (slug?: string | null) => c<IssuePayload>("prive_edition_issue", { _slug: slug ?? null }),
     article: (slug: string) => c<ArticlePayload>("prive_edition_article", { _slug: slug }),
@@ -47,6 +54,25 @@ export function createEditionApi(content: ContentFn) {
      * Privé Opportunities = PRIVÉ DROPS del equipo privevalor (prive_drops). Interfaz estrecha: si la RPC no
      * existe todavía (NOT_AVAILABLE) la respuesta es "no disponible" con cero elementos; jamás datos inventados.
      */
+    /**
+     * Guía práctica del destino = THE INSIDER'S NOTEBOOK de privevalor (prive_insider). Solo consejos con
+     * fuente https, vigentes y no desactualizados. Sin la RPC o sin consejos: lista vacía (nunca inventada).
+     */
+    /** Guía práctica del destino (Insider's Notebook): solo consejos vigentes con fuente https y fecha de revisión. */
+    async practicalGuide(destination: string, today: string = new Date().toISOString().slice(0, 10)): Promise<PracticalGuide | null> {
+      const r = await content<{ found?: boolean; destination?: { es: string; en?: string }; tips?: PracticalTip[] }>("prive_insider", { _destination: destination });
+      if (!r.ok) {
+        if (isPriveSessionCode(r.code)) throw new PriveLockedError(r.code);
+        return null;
+      }
+      if (!r.data?.found) return null;
+      const tips = (r.data.tips ?? [])
+        .filter((t) => /^https:\/\//.test(t.source?.url ?? "") && !!t.source?.checked_at && !t.stale && (!t.valid_until || t.valid_until >= today))
+        .sort((a, b) => Number(!!b.before_you_go) - Number(!!a.before_you_go) || (a.rank ?? 99) - (b.rank ?? 99))
+        .slice(0, 6)
+        .map((t) => ({ id: t.id, category: t.category, title: t.title, body: t.body, before_you_go: !!t.before_you_go, source: t.source }));
+      return { destination: r.data.destination?.es ?? destination, as_of: new Date().toISOString(), tips };
+    },
     async opportunities(opts: { destination?: string | null; interests?: string[] | null; limit?: number } = {}): Promise<OpportunitiesPayload> {
       const r = await content<{ items?: Opportunity[]; expired_recent?: number; generated_at?: string }>("prive_drops", {
         _destination: opts.destination ?? null, _types: null, _interests: opts.interests?.length ? opts.interests : null, _limit: opts.limit ?? 20,

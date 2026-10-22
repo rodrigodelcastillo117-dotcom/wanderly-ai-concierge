@@ -240,7 +240,7 @@ La portada va a sangre con la foto con licencia. Lleva la cabecera *THE PRIVATE 
 
 **NO-GO para publicar a miembros** hasta que pase todo esto:
 1. Autorizar y aplicar en producción las 3 migraciones (§16) y desplegar `edition-link-check`.
-2. El responsable editorial lee y aprueba cada pieza, firma, aprueba las 12 licencias en el panel, corre «Comprobar enlaces» y confirma los 2 datos marcados (Nobel en nobelprize.org, Omnibus de IA en EUR-Lex).
+2. El responsable editorial lee y aprueba cada pieza, firma, aprueba las 12 licencias en el panel, corre «Comprobar enlaces» y confirma el dato marcado del Omnibus de IA en EUR-Lex. (El Nobel ya quedó confirmado en nobelprize.org el 22-oct; ver `EDITION_APROBACION.md`.)
 3. **La portada es urgente:** el GP es del 30 oct al 1 nov y la pieza vence el 2 nov.
    - Si el número se aprueba después del 2 de noviembre, la base bloqueará la portada por vencida. El editor tendría que reescribirla en pasado o elegir otra portada.
    - Para que sirva, debe aprobarse a más tardar el 28–29 de octubre.
@@ -263,6 +263,9 @@ La portada va a sangre con la foto con licencia. Lleva la cabecera *THE PRIVATE 
 | Migración: RPC de lectura y panel | `supabase/migrations/20261025100100_edition_rpc.sql` |
 | Migración: siembra del Nº 01 en revisión | `supabase/migrations/20261025100200_edition_seed_n01.sql` |
 | Edge function | `supabase/functions/edition-link-check/` (`verify_jwt` por omisión) |
+| **Segunda tanda:** migración `prive_edition_status` + 3 correcciones de siembra (idempotente) | `supabase/migrations/20261025110000_edition2_status_correcciones.sql` |
+
+> Estado al 22-oct-2026 (lo verificó el líder): las tres primeras ya están aplicadas y la función ya está desplegada. **Falta autorizar `20261025110000`**, junto con el frontend de la segunda tanda (§18).
 
 ## 17. Para el líder: integración con los otros equipos
 
@@ -270,7 +273,10 @@ La portada va a sangre con la foto con licencia. Lleva la cabecera *THE PRIVATE 
   - `/prive/edicion/*` como hijas de `/prive` (dentro de PriveRoot);
   - `/prive/edicion/sin-conexion` como ruta de primer nivel;
   - `/dashboard/admin/edicion` dentro de ProtectedRoute.
-- **Ranura:** `<PrivateEditionTeaser destination? variant="for-you"|"insider" />` en `src/components/prive/edition/index.ts`. Sin número publicado no renderiza nada. prive-ux debe montarla en FOR YOU; privevalor, en INSIDER con `destination`.
+- **Ranura:** `<PrivateEditionTeaser destination? variant="for-you"|"insider" />` en `src/components/prive/edition/index.ts`. ~~Sin número publicado no renderiza nada.~~ **Desde la segunda tanda (§18):**
+  - es la sección protagonista `PrivateEditionSection`, con tres estados honestos;
+  - `PrivateEditionBand` la monta en FOR YOU (las tres portadas y el hub en curaduría);
+  - INSIDER la muestra en el índice y en cada cuaderno de destino.
 - **Toques fuera de mi carpeta** (aditivos y mínimos):
   - `src/contexts/AuthContext.tsx`: una línea para borrar la caché de la edición al cerrar sesión;
   - `public/sw.js`;
@@ -283,3 +289,33 @@ La portada va a sangre con la foto con licencia. Lleva la cabecera *THE PRIVATE 
 - Todo el texto lo redactó la IA a partir de fuentes leídas el 22-oct-2026. Una lectura humana completa es obligatoria; el panel lo exige y la base no publica nada sin aprobación.
 - Las fotos se sirven desde el CDN de Pexels. Si Pexels retira una, la lectura la oculta (no hay hueco) y el editor debe reemplazarla.
 - La lectura offline en Safari/iOS no está probada.
+
+## 18. Segunda tanda: cerrar la integración dentro de IATOS Privé (22-oct-2026)
+
+Encargo del dueño: **no reconstruir, terminar la integración** para que la gente descubra y use la revista. Rama `claude/wc-edition2`.
+
+**Archivos nuevos o tocados:**
+- `src/components/prive/edition/PrivateEditionTeaser.tsx` (sección protagonista);
+- `ForYouHome.tsx`, `PriveHub.tsx`, `PriveInsiderPage.tsx`, `PriveNav.tsx`;
+- `FlightEditionPage.tsx`, `EditionOfflinePage.tsx`, `EditionRoot.tsx`, `Magazine.tsx`, `EditionAdminPage.tsx`;
+- `priveEdition*.ts` y `edition.css`;
+- la migración `20261025110000`.
+
+| Pedido | Qué quedó | Probado con |
+|---|---|---|
+| **1 · Visibilidad** | **FOR YOU** tiene la sección grande (no un teaser chico) en las tres portadas (a, b, c) y en el hub mientras el catálogo está en curaduría. Muestra la portada de la revista, «Mi edición personalizada» (3 piezas, la portada personal primero) y los accesos Leer revista · Elegir intereses · Descargar para un vuelo · Biblioteca.<br><br>**Cabecera Privé:** acceso «Revista», en escritorio y en teléfono.<br><br>**INSIDER:** el índice y cada destino muestran sus piezas, o nada si no hay.<br><br>**Sin número aprobado:** portada tipográfica y «Primer número en revisión editorial», sin un solo título; los datos salen de `prive_edition_status`, que solo dice sí o no. Si esa RPC aún no existe, usa la biblioteca. | **SQL real:** E45, E45b y E46 (miembro sin borradores; FREE, PRO sin Privé, sesión inválida y anon, denegados).<br>**Chromium + SQL real:** e2e-real §0 y §2.<br>**Vitest con la forma exacta de las RPC:** `priveEdition2.test.tsx`. |
+| **2 · Revisión del Nº 01** | `EDITION_APROBACION.md`: tablas por pieza y por foto, enlaces HTTP, pasos del panel y la portada del 2-nov.<br><br>3 correcciones en el JSON y en la migración.<br><br>En el panel, campo «Vigente hasta» y el botón «Aprobar licencia» se oculta cuando ya está aprobada.<br><br>Una portada vencida cede su lugar sola. | **SQL real:** E45c.<br>**Vitest:** siembra = JSON sin las correcciones (sha256); «portada que vence».<br>**e2e-real §1:** el panel aprueba 12 licencias y 16 piezas y publica, todo por la UI. |
+| **3 · Personalización** | Los 25 intereses del servidor (están todos los que pidió el dueño; «Bienestar y wellness»), sin dividir por género. Al guardar se reordenan la portada, el índice y la selección en FOR YOU; la caché de la sección se invalida. | **Vitest:** lista de intereses y portada personal.<br>**e2e-real:** intereses guardados por la RPC real y FOR YOU personalizado. |
+| **4 · Flight Edition** | El próximo viaje viene elegido; destino, temas, idioma y tiempo.<br><br>**Guía práctica del destino:** del Insider (`prive_insider` real), solo con fuente https y fecha; va en el PDF y en la copia sin conexión.<br><br>**Dos botones explicados:** «DESCARGAR REVISTA PDF» y «GUARDAR PARA LEER SIN INTERNET».<br><br>**Espacio:** estimado antes de guardar y real después (incluye la app); dice si el almacenamiento quedó persistente. | **e2e-real:** guía con 3 consejos, 3.8 MB estimados y reales, PDF de 23 páginas con 12 fotos (pdfinfo, pdfimages, pdftotext).<br>**Vitest:** guía, `nextTrip`, estimación, PDF con guía. |
+| **5 · Sin conexión real** | **Al recargar sin red** abre la portada, el índice, los artículos, las fotos (`blob:`) y la guía, sin Supabase. Sin red no se puede reservar ni pagar.<br><br>**Sin red, `/prive`** dice «No pudimos cargar Privé» y ofrece la copia guardada (sin pantalla en blanco).<br><br>**Al reconectar** reconcilia; al cerrar sesión borra las copias.<br><br>**iOS:** aviso de los 7 días, `persist()` con aviso honesto y «Compartir o guardar en Archivos» para el PDF. Guía para un teléfono real: `EDITION_PRUEBA_EN_TU_TELEFONO.md`. | **e2e-real** en Chromium 390 y 1440 y en Android emulado (Pixel 7: viewport, tacto y UA).<br>**Safari/iPhone y Android real: BLOQUEADO** (no hay dispositivos). |
+| **6 · Experiencia premium** | Modo de lectura «papel» (el botón del sol), guardado en el dispositivo.<br><br>«Pregúntale a Iato» lleva la pregunta en `state.prefill` y en `?ask=`, así el enlace del PDF también la lleva.<br><br>La agenda oculta las fechas que ya pasaron.<br><br>Lo demás ya existía: portada, doble página, índice, biblioteca, números anteriores, World Brief y Drops reales. | **Vitest:** `?ask=` y agenda.<br>**e2e-real:** modo papel en 1440. |
+| **7 · Pruebas** | `scripts/edition/pgrest-shim.mjs` (PostgREST mínimo sobre Postgres local con RLS), `e2e-real-db.sh`, `e2e-real-setup.sql` y `e2e-real.mjs`. | Ver el informe final: real contra simulado, separado. |
+
+**Lo que sigue simulado en la prueba E2E** (anotado en `docs/iatos/evidencia/edition2/resultados.json`):
+- Auth/GoTrue: JWT sin firma, aunque el usuario sale de `auth.users` y la sesión de `auth.sessions`;
+- las edge functions: responden `{}`;
+- el CDN de Pexels: fotos reales servidas desde local;
+- Google Fonts.
+
+Todo lo demás (RPC, tablas, RLS, sesión Privé, panel) es la base real con las migraciones del repo.
+

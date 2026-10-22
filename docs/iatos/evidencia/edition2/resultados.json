@@ -1,0 +1,598 @@
+{
+ "when": "2026-10-22T18:41:37.348Z",
+ "base": "http://127.0.0.1:8095",
+ "db": "edi_e2e",
+ "real": "Postgres local con todas las migraciones + siembra Nº 01 + corrección 20261025110000; RPC y tablas con RLS vía pgrest-shim; sesión Privé real (prive_unlock) atada a auth.sessions; build de producción + Service Worker + setOffline de Chromium",
+ "simulado": "Auth/GoTrue (JWT sin firma), edge functions (/functions/v1 → {}), CDN de Pexels (fotos reales locales), Google Fonts (caché local)",
+ "results": [
+  {
+   "name": "FOR YOU sin número aprobado: «primer número en revisión editorial» (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU sin número aprobado: ningún título de pieza pendiente en la página (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "acceso «Revista» visible en la cabecera Privé (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin scroll horizontal en FOR YOU (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU sin número aprobado: «primer número en revisión editorial» (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU sin número aprobado: ningún título de pieza pendiente en la página (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "acceso «Revista» visible en la cabecera Privé (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin scroll horizontal en FOR YOU (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FREE: /prive no muestra la revista ni títulos",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FREE: la RPC prive_edition_status por API directa responde PRIVE_NOT_PRO",
+   "ok": true,
+   "detail": "400 {\"code\":\"P0001\",\"message\":\"PRIVE_NOT_PRO\",\"details\":null,\"hint\":null}",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "PRO sin Privé: /prive no muestra la revista ni títulos",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "PRO sin Privé: la RPC prive_edition_status por API directa responde PRIVE_NOT_ELIGIBLE",
+   "ok": true,
+   "detail": "400 {\"code\":\"P0001\",\"message\":\"PRIVE_NOT_ELIGIBLE\",\"details\":null,\"hint\":null}",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "panel: las 12 licencias aprobadas desde la UI quedan en la base",
+   "ok": true,
+   "detail": "12/12",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "panel: las 16 piezas aprobadas desde la UI (reglas de la base cumplidas)",
+   "ok": true,
+   "detail": "aprobadas=16",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "panel: número aprobado y publicado (16 piezas publicadas, firma registrada)",
+   "ok": true,
+   "detail": "published · 16 · Dirección editorial (prueba local)",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU: portada + Leer revista · Elegir intereses · Descargar para un vuelo · Biblioteca (390)",
+   "ok": true,
+   "detail": "Leer revista | Elegir intereses | Descargar para un vuelo | Biblioteca",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU: «Mi edición personalizada» con selección del número (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "intereses guardados en la base por la RPC real (390)",
+   "ok": true,
+   "detail": "{\"formula_1\": 3, \"gastronomia\": 3, \"yates_y_embarcaciones\": 3}",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU reconoce la personalización (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "índice navegable con piezas publicadas (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "artículo con fuentes y From Page to Experience (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin scroll horizontal en el artículo (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "Flight Edition: el próximo viaje viene elegido (390)",
+   "ok": true,
+   "detail": "Ciudad de México, México · 2026-10-30 · Tu próximo viaje",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "Flight Edition: guía práctica del Insider con fuentes (RPC prive_insider real) (390)",
+   "ok": true,
+   "detail": "3 consejos prácticos con fuente",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "Flight Edition: dice cuánto ocupará antes de guardar (390)",
+   "ok": true,
+   "detail": "Ocupará aproximadamente 3.8 MB en este dispositivo.",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "dos botones distintos: DESCARGAR REVISTA PDF / GUARDAR PARA LEER SIN INTERNET (390)",
+   "ok": true,
+   "detail": "DESCARGAR REVISTA PDF | GUARDAR PARA LEER SIN INTERNET",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "PDF descargado: 23 páginas, 12 fotos, texto con portada, artículo y guía práctica (390)",
+   "ok": true,
+   "detail": "23 p · 12 img",
+   "kind": "SQL real + Chromium + pdfinfo/pdfimages/pdftotext"
+  },
+  {
+   "name": "copia sin internet guardada y dice cuánto ocupa (390)",
+   "ok": true,
+   "detail": "Ocupa 3.8 MB en este dispositivo (textos, fotos y app).",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: recargar abre la portada guardada (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: la foto de portada sale de la copia local (390)",
+   "ok": true,
+   "detail": "[\"blob:\",1600]",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: índice de la copia (390)",
+   "ok": true,
+   "detail": "piezas=14",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: la guía práctica del destino viene en la copia (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: artículo con sus fotos locales (390)",
+   "ok": true,
+   "detail": "[[\"blob:\",1600],[\"blob:\",1600],[\"blob:\",1600]]",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: /prive no queda en blanco y ofrece la copia guardada (390)",
+   "ok": true,
+   "detail": "IATOS P MEMBRESÍA No pudimos cargar Privé No pudimos conectar con el servidor. Revisa tu internet e inténtalo de nuevo.",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "al volver la red: la copia sigue y avisa conexión (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "al volver la red: FOR YOU vuelve con la revista (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin errores de JavaScript (390)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "cerrar sesión borra las ediciones guardadas del dispositivo",
+   "ok": true,
+   "detail": "entradas=0",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU: portada + Leer revista · Elegir intereses · Descargar para un vuelo · Biblioteca (1440)",
+   "ok": true,
+   "detail": "Leer revista | Elegir intereses | Descargar para un vuelo | Biblioteca",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU: «Mi edición personalizada» con selección del número (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "intereses guardados en la base por la RPC real (1440)",
+   "ok": true,
+   "detail": "{\"formula_1\": 3, \"gastronomia\": 3, \"yates_y_embarcaciones\": 3}",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU reconoce la personalización (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "índice navegable con piezas publicadas (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "artículo con fuentes y From Page to Experience (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "modo lectura «papel» activo",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin scroll horizontal en el artículo (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "Flight Edition: el próximo viaje viene elegido (1440)",
+   "ok": true,
+   "detail": "Ciudad de México, México · 2026-10-30 · Tu próximo viaje",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "Flight Edition: guía práctica del Insider con fuentes (RPC prive_insider real) (1440)",
+   "ok": true,
+   "detail": "3 consejos prácticos con fuente",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "Flight Edition: dice cuánto ocupará antes de guardar (1440)",
+   "ok": true,
+   "detail": "Ocupará aproximadamente 3.8 MB en este dispositivo.",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "dos botones distintos: DESCARGAR REVISTA PDF / GUARDAR PARA LEER SIN INTERNET (1440)",
+   "ok": true,
+   "detail": "DESCARGAR REVISTA PDF | GUARDAR PARA LEER SIN INTERNET",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "PDF descargado: 23 páginas, 12 fotos, texto con portada, artículo y guía práctica (1440)",
+   "ok": true,
+   "detail": "23 p · 12 img",
+   "kind": "SQL real + Chromium + pdfinfo/pdfimages/pdftotext"
+  },
+  {
+   "name": "copia sin internet guardada y dice cuánto ocupa (1440)",
+   "ok": true,
+   "detail": "Ocupa 3.8 MB en este dispositivo (textos, fotos y app).",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: recargar abre la portada guardada (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: la foto de portada sale de la copia local (1440)",
+   "ok": true,
+   "detail": "[\"blob:\",1600]",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: índice de la copia (1440)",
+   "ok": true,
+   "detail": "piezas=14",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: la guía práctica del destino viene en la copia (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: artículo con sus fotos locales (1440)",
+   "ok": true,
+   "detail": "[[\"blob:\",1600],[\"blob:\",1600],[\"blob:\",1600]]",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: /prive no queda en blanco y ofrece la copia guardada (1440)",
+   "ok": true,
+   "detail": "IATOS P IATOS PRIVÉ MEMBRESÍA No pudimos cargar Privé No pudimos conectar con el servidor. Revisa tu internet e inténta",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "al volver la red: la copia sigue y avisa conexión (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "al volver la red: FOR YOU vuelve con la revista (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin errores de JavaScript (1440)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU: portada + Leer revista · Elegir intereses · Descargar para un vuelo · Biblioteca (android)",
+   "ok": true,
+   "detail": "Leer revista | Elegir intereses | Descargar para un vuelo | Biblioteca",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU: «Mi edición personalizada» con selección del número (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "intereses guardados en la base por la RPC real (android)",
+   "ok": true,
+   "detail": "{\"formula_1\": 3, \"gastronomia\": 3, \"yates_y_embarcaciones\": 3}",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "FOR YOU reconoce la personalización (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "índice navegable con piezas publicadas (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "artículo con fuentes y From Page to Experience (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin scroll horizontal en el artículo (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "Flight Edition: el próximo viaje viene elegido (android)",
+   "ok": true,
+   "detail": "Ciudad de México, México · 2026-10-30 · Tu próximo viaje",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "Flight Edition: guía práctica del Insider con fuentes (RPC prive_insider real) (android)",
+   "ok": true,
+   "detail": "3 consejos prácticos con fuente",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "Flight Edition: dice cuánto ocupará antes de guardar (android)",
+   "ok": true,
+   "detail": "Ocupará aproximadamente 3.8 MB en este dispositivo.",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "dos botones distintos: DESCARGAR REVISTA PDF / GUARDAR PARA LEER SIN INTERNET (android)",
+   "ok": true,
+   "detail": "DESCARGAR REVISTA PDF | GUARDAR PARA LEER SIN INTERNET",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "PDF descargado: 23 páginas, 12 fotos, texto con portada, artículo y guía práctica (android)",
+   "ok": true,
+   "detail": "23 p · 12 img",
+   "kind": "SQL real + Chromium + pdfinfo/pdfimages/pdftotext"
+  },
+  {
+   "name": "copia sin internet guardada y dice cuánto ocupa (android)",
+   "ok": true,
+   "detail": "Ocupa 3.8 MB en este dispositivo (textos, fotos y app).",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: recargar abre la portada guardada (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: la foto de portada sale de la copia local (android)",
+   "ok": true,
+   "detail": "[\"blob:\",1600]",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: índice de la copia (android)",
+   "ok": true,
+   "detail": "piezas=14",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: la guía práctica del destino viene en la copia (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: artículo con sus fotos locales (android)",
+   "ok": true,
+   "detail": "[[\"blob:\",1600],[\"blob:\",1600],[\"blob:\",1600]]",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin red: /prive no queda en blanco y ofrece la copia guardada (android)",
+   "ok": true,
+   "detail": "IATOS P MEMBRESÍA No pudimos cargar Privé No pudimos conectar con el servidor. Revisa tu internet e inténtalo de nuevo.",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "al volver la red: la copia sigue y avisa conexión (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "al volver la red: FOR YOU vuelve con la revista (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "sin errores de JavaScript (android)",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  },
+  {
+   "name": "INSIDER (CDMX): piezas del número sobre ese destino",
+   "ok": true,
+   "detail": "",
+   "kind": "SQL real + Chromium"
+  }
+ ],
+ "pdf": [
+  {
+   "vp": "390",
+   "file": "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/edition2/dl/390-the-private-edition-01-flight-es.pdf",
+   "pages": 23,
+   "images": 12,
+   "bytes": 3742727,
+   "guide": true
+  },
+  {
+   "vp": "1440",
+   "file": "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/edition2/dl/1440-the-private-edition-01-flight-es.pdf",
+   "pages": 23,
+   "images": 12,
+   "bytes": 3742727,
+   "guide": true
+  },
+  {
+   "vp": "android",
+   "file": "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/edition2/dl/android-the-private-edition-01-flight-es.pdf",
+   "pages": 23,
+   "images": 12,
+   "bytes": 3742726,
+   "guide": true
+  }
+ ],
+ "rpc_calls": {
+  "prive_status": 37,
+  "prive_home": 14,
+  "prive_edition_status": 17,
+  "get_access_state": 20,
+  "edition_admin_overview": 49,
+  "edition_admin_preview": 49,
+  "edition_admin_image_license": 12,
+  "edition_admin_article_transition": 16,
+  "edition_admin_issue_transition": 2,
+  "prive_edition_issue": 28,
+  "prive_edition_prefs": 25,
+  "prive_edition_prefs_save": 5,
+  "prive_insider": 4,
+  "prive_drops": 3,
+  "prive_edition_log_download": 6,
+  "friend_profiles": 1,
+  "public_plan_config": 1,
+  "prive_value_track": 1
+ },
+ "tables": {
+  "GET user_onboarding_state": 41,
+  "GET trips": 21,
+  "GET profiles": 56,
+  "GET notifications": 40,
+  "HEAD notifications": 40,
+  "GET subscriptions": 20,
+  "GET ai_user_preferences": 22,
+  "GET admins": 1,
+  "GET avatar_souvenirs": 1,
+  "GET avatar_profiles": 2,
+  "GET travel_moments": 1,
+  "HEAD referrals": 1,
+  "GET vault_items": 1,
+  "GET vault_files": 1,
+  "GET travel_profiles": 1,
+  "GET user_visits": 1
+ },
+ "unsupported": [],
+ "functions": [
+  "pexels-image",
+  "buscar-video",
+  "prive-access"
+ ],
+ "server_errors": [
+  {
+   "rpc": "prive_edition_status",
+   "status": 400,
+   "code": "P0001",
+   "message": "PRIVE_NOT_PRO"
+  },
+  {
+   "rpc": "prive_edition_status",
+   "status": 400,
+   "code": "P0001",
+   "message": "PRIVE_NOT_ELIGIBLE"
+  }
+ ],
+ "blocked_hosts": []
+}
