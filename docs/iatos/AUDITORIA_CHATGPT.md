@@ -32,7 +32,7 @@
 
 ## Resultados de pruebas al cerrar (para comparar)
 
-- Vitest: 157 archivos, 1,464 pruebas, todas pasan.
+- Vitest: 158 archivos, 1,489 pruebas, todas pasan.
 - TypeScript sin errores; build de producción correcto; `deno check` correcto en las funciones cambiadas (Deno 2.1, el del runtime de Supabase).
 - SQL (Postgres local): seguridad 95, pagos 63, costo 16, Privé 89, catálogo Privé 110, Members 30, Reservas IA 43, Concierge 7, Booking Bridge 35. Sin fallas.
 - En producción: seguridad 70/70; ensayo Privé 50 PASS (P1 y P2 corregidos y desplegados); evaluación en vivo de Iato: los 8 escenarios del dueño y Centurion responden con herramientas reales; 2 se pasan del largo pedido (8 líneas vs 6); Modo exigente supera al normal en cenas, no en vuelos (la búsqueda real trae 2 opciones).
