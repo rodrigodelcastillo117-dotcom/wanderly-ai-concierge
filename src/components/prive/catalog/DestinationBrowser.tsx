@@ -104,7 +104,8 @@ function RegionTabs({ groups }: { groups: { key: string; items: BrowseDestinatio
       </div>
       <div role="tabpanel" id={`${base}-panel`} aria-labelledby={`${base}-tab-${g.key}`} className="pt-6 outline-none" data-testid="prive-region-panel" data-region={g.key} tabIndex={0}>
         {(() => {
-          const heading = <h4 className="prive-serif text-2xl">{label(g.key)}</h4>;
+          // La pestaña ya nombra la región: aquí solo el conteo, sin repetir el título.
+          const heading = <p className="text-xs prive-muted" aria-live="polite">{t.browse.inRegion(g.items.length, label(g.key))}</p>;
           const toggle = g.items.length > 3 ? (
             <button type="button" className="text-[11px] tracking-[0.2em] uppercase prive-gold hover:text-[color:var(--pv-champagne)] min-h-[44px] px-1"
               aria-expanded={index} onClick={() => setIndex((v) => !v)} data-testid="prive-region-toggle">

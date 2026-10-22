@@ -238,11 +238,12 @@
 }
 /* Dentro de una tarjeta: bajo el nombre, sin cápsula. */
 .prive-photo-credit.is-inline { top: auto; right: auto; left: 0.9rem; bottom: 0.55rem; max-width: calc(100% - 1.8rem);
-  padding: 0; background: none; backdrop-filter: none; border-radius: 0; color: rgba(232, 220, 194, 0.62); font-size: 9px; }
+  padding: 0; background: none; backdrop-filter: none; border-radius: 0; color: rgba(232, 220, 194, 0.62); font-size: 9px;
+  white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
 .prive-photo-credit a { pointer-events: auto; text-decoration: underline; text-decoration-color: rgba(201, 169, 97, 0.4); text-underline-offset: 2px; }
 /* Velo inferior para leer el nombre sobre la foto. */
 .prive-veil::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.25) 45%, rgba(0, 0, 0, 0) 70%); }
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.55) 32%, rgba(0, 0, 0, 0.12) 58%, rgba(0, 0, 0, 0) 75%); }
 
 /* ── Explorar destinos (DestinationBrowser) ─────────────────────────────── */
 .prive-search {
@@ -255,10 +256,16 @@
   font-family: var(--pv-serif); font-size: 1.25rem; letter-spacing: 0.02em; }
 .prive-search input::placeholder { color: rgba(168, 162, 153, 0.75); }
 .prive-search input::-webkit-search-cancel-button { display: none; }
+/* El anillo va en la cápsula (focus-within), no un rectángulo dentro de ella. */
+.prive-root .prive-search input:focus-visible { outline: none; }
 
 .prive-tabs { display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--pv-line);
   margin: 0 -1rem; padding: 0 1rem; scroll-padding-inline: 1rem; }
 .prive-tabs::-webkit-scrollbar { display: none; }
+/* En el teléfono la tira de regiones se desliza: un desvanecido a la derecha lo sugiere. */
+@media (max-width: 639px) {
+  .prive-tabs { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+}
 .prive-tab {
   position: relative; flex: none; min-height: 44px; padding: 0 0.9rem; font-size: 0.6875rem; letter-spacing: 0.24em;
   text-transform: uppercase; color: var(--pv-muted); white-space: nowrap; transition: color .2s ease;
@@ -271,12 +278,12 @@
 .prive-rail {
   display: grid; grid-auto-flow: column; gap: 0.75rem; overflow-x: auto; scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain; scrollbar-width: none; margin: 0 -1rem; padding: 0.25rem 1rem 0.5rem; scroll-padding-inline: 1rem;
-  grid-auto-columns: minmax(0, 46%);
+  grid-auto-columns: 46%;
 }
 .prive-rail::-webkit-scrollbar { display: none; }
 .prive-rail > * { scroll-snap-align: start; }
-.prive-rail-lg { grid-auto-columns: minmax(0, 78%); }
-@media (min-width: 640px) { .prive-rail { grid-auto-columns: minmax(0, 30%); margin: 0; padding-inline: 0; } .prive-rail-lg { grid-auto-columns: minmax(0, 40%); } }
+.prive-rail-lg { grid-auto-columns: 78%; }
+@media (min-width: 640px) { .prive-rail { grid-auto-columns: 30%; margin: 0; padding-inline: 0; } .prive-rail-lg { grid-auto-columns: 40%; } }
 @media (min-width: 1024px) { .prive-rail { grid-auto-columns: calc((100% - 4 * 0.75rem) / 5); } .prive-rail-lg { grid-auto-columns: calc((100% - 2 * 0.75rem) / 3); } }
 
 .prive-dest-card { position: relative; display: block; border-radius: 16px; overflow: hidden; border: 1px solid var(--pv-line);
@@ -284,9 +291,9 @@
 .prive-dest-card:hover { border-color: var(--pv-line-strong); }
 .prive-dest-card:hover .prive-photo-img.is-loaded { transform: scale(1.04); }
 .prive-dest-card:focus-visible { outline: 2px solid var(--pv-champagne); outline-offset: 3px; }
-.prive-dest-meta { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 0.85rem 0.9rem 1.65rem; }
+.prive-dest-meta { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 0.85rem 0.9rem 2.35rem; }
 .prive-rail-btn { width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--pv-line-strong); color: var(--pv-champagne);
-  display: inline-flex; align-items: center; justify-content: center; transition: background-color .2s ease, opacity .2s ease; }
+  align-items: center; justify-content: center; transition: background-color .2s ease, opacity .2s ease; }
 .prive-rail-btn:hover:not(:disabled) { background: rgba(201, 169, 97, 0.1); }
 .prive-rail-btn:disabled { opacity: 0.3; }
 

@@ -286,7 +286,9 @@ export default function PriveHub() {
       {view === "revoked" && <Revoked />}
       {view === "must_reset" && <MustReset hard={status.password_status === "hard_locked"} />}
       {view === "locked" && <LockScreen />}
-      {view === "unlocked" && <UnlockedHub s={status} />}
+      {/* Con la bienvenida o la guía abiertas, el hub espera oculto (display:none): sus tarjetas no piden
+          fotos detrás del velo y la fila de Pexels atiende primero a las seis ciudades de la bienvenida. */}
+      {view === "unlocked" && <div hidden={overlay !== null}><UnlockedHub s={status} /></div>}
       {view === "unlocked" && overlay === "welcome" && (
         <GrandWelcome
           onDone={() => {

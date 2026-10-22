@@ -33,7 +33,7 @@
 
 | Orden | Bloque | Contenido | Reutiliza |
 |---|---|---|---|
-| 1 | **Encabezado** | Eyebrow "IATOS PRIVÉ", título "The World, Beyond Ordinary" (fijo, en inglés en ambos idiomas, por marca [SUPUESTO]) y selector de ciudad | `ConciergeHeading` |
+| 1 | **Encabezado** | Eyebrow "IATOS PRIVÉ", título "El mundo, más allá de lo ordinario." / "The World, Beyond Ordinary." según el idioma de la persona (decisión del dueño, 2026-10-22; ver §11) y selector de ciudad | `ConciergeHeading` |
 | 2 | **Ciudad o viaje activo** | Si hay viaje activo (`useActiveTrip` → `resolveActiveTrip`): "Tu viaje a París · 12–15 nov". Si no: la última ciudad vista, o la ciudad de origen (`profiles.ciudad_origen`) si tiene cobertura. | `useActiveTrip`, `TripContextSelector` |
 | 3 | **Portada de ciudad** | Foto grande (Pexels) con crédito "Foto ilustrativa · Pexels · <fotógrafo>", la intro del editor en 2 líneas y la insignia de cobertura si no es PILOTO | `pexels-image` (caché de 7 días) |
 | 4 | **Para ti en <ciudad>** | Carrusel de 4 a 8 tarjetas de `prive_for_you`. Cada una con una línea "Por qué para ti" (plantilla en la lista; la frase de Iato al abrir la ficha) y la etiqueta "Elegido por Iato" | MembersOnlyPanel (tarjeta) |
@@ -197,10 +197,48 @@ El video de `CityVideoCard` no se usa en Privé: pesa más y consume la cuota de
 
 ## 10. Idiomas (es / en) y zonas horarias
 
-- **Textos fijos:** en un diccionario `src/lib/priveCopy.ts` (es-MX por omisión, en). Son los mismos principios que `planCopy.ts`.
+- **Textos fijos:** en el diccionario `src/lib/priveI18n.ts` (es-MX por omisión, en), con atajos en `src/lib/priveCopy.ts`. Ver §11.
 - **Contenido:** campos `_es` y `_en`. Si falta `_en`, se muestra `_es` con la marca "(en español)". Nunca se traduce al vuelo con IA sin revisión.
 - **Nombres propios:** no se traducen.
 - **Fechas y horas:**
   - con `Intl.DateTimeFormat` en la **zona del destino** (`prive_destinations.timezone`) cuando se habla del lugar: "Sáb 14 nov, 21:00 (hora de París)";
   - en la zona del usuario para "verificado el…".
 - **Monedas:** `price_note` en moneda local; equivalencia en MXN solo si existe `price_min`, con tipo de cambio y fecha (la misma fuente que `trip_quotes`).
+
+## 11. Pase de experiencia del dueño (2026-10-22)
+
+El dueño probó Privé en vivo: le encantaron la invitación y la tarjeta, y reportó tres problemas. Lo que cambió:
+
+### 11.1 "No todos hablan inglés"
+
+- Todo el texto de Privé sigue el idioma principal de la persona. **Español por omisión**; inglés solo si su idioma principal es inglés.
+- Cómo se decide (`resolvePriveLang` en `src/lib/priveI18n.ts`): 1) un campo de idioma del perfil, cuando exista (hoy `profiles` no tiene uno; el parámetro ya está listo), 2) `navigator.languages`, el primero que sea es o en, 3) español.
+- `PriveLangProvider` (en `PriveRoot`) fija el idioma y pone `lang="es-MX"` o `lang="en"` en el contenedor, para lectores de pantalla.
+- Líneas ceremoniales en español: "TE DAMOS LA BIENVENIDA A PRIVÉ", "TU MUNDO ACABA DE CRECER.", "TE DAMOS LA BIENVENIDA A TU MUNDO.", "EXPLORAR PRIVÉ", "ABRIR INVITACIÓN", "TE DAMOS LA BIENVENIDA, <NOMBRE>.", "TU MEMBRESÍA PRIVÉ ESTÁ ACTIVA.", "ENTRAR A IATOS PRIVÉ", "El mundo, más allá de lo ordinario." Todas son neutras en género. "Privé" no se traduce.
+- Las colecciones también tienen nombre en español: La Mesa, Al Caer la Noche, Casino y Grandes Noches, Yate y Mar, Estancias Privadas, Eventos Icónicos, Cultura y Acceso, Bienestar y Retiro, Gran Aventura, Deporte y Ocio, Celebraciones y México de Autor.
+- Pendiente fuera de esta rama: el correo de invitación (`_shared/priveEmail`) sigue con las líneas en inglés. Además, `LockScreen.tsx` y `PasswordCreator.tsx` (grupo del líder) siguen solo en español; sus mensajes de error sí cambian de idioma a través de `messageFor`.
+
+### 11.2 "No salieron fotos en algunos"
+
+**Causa raíz:** la Grand Welcome y las tarjetas del catálogo pedían a `pexels-image` por su cuenta, sin pasar por la fila compartida de `stockPhoto.ts` (20 por minuto, 3 a la vez, pausa tras un 429). El servidor permite 30 por minuto por persona y contaba también los aciertos de caché. Lo que volvía 429, o con Pexels caído (`200 + image:null`, que no se distingue de "no hay foto"), se quedaba vacío para siempre: tarjeta negra con la "P". La lista de destinos ni siquiera pedía foto. La portada del destino usaba "<name_en> skyline", que para islas, valles o barrios no trae nada útil.
+
+**Arreglo:**
+
+- `src/lib/privePhoto.ts` y `src/components/prive/PrivePhoto.tsx`: todo pasa por `loadStockPhoto` (la misma fila y la misma caché de sesión que el resto de IATOS). Cada destino trae varias consultas, de la más específica a la más amplia. Un fallo temporal no se recuerda y se reintenta a los 4, 15 y 45 s. Solo si ninguna consulta tiene foto se usa el respaldo de marca, con el nombre en filigrana.
+- `src/lib/priveDestinationIndex.ts`, generado por `scripts/prive/gen_destination_index.mjs`, guarda el nombre en inglés, el país, los alias y las consultas de Pexels de los 111 destinos del dueño.
+- `pexels-image`: la caché va antes del límite estricto (un acierto ya no gasta los 30 por minuto). Si Pexels falla, sirve la copia vencida si la hay; si no, responde `503 + Retry-After` con `upstream_error`. **Requiere desplegar la función.**
+- Mientras la bienvenida o la guía están abiertas, el hub espera oculto: la fila atiende primero a las seis ciudades.
+- Crédito: "Foto ilustrativa · Pexels · <fotógrafo>" en cada foto. En las tarjetas va como texto, porque ya son enlaces y un enlace dentro de otro abría Pexels en otra pestaña. En portadas y fichas va con enlaces.
+
+### 11.3 "La lista no debería ser infinita"
+
+`DestinationBrowser` (`src/components/prive/catalog/DestinationBrowser.tsx`):
+
+1. **"¿A dónde?"**: búsqueda instantánea que ignora acentos y mayúsculas, con alias y país: "queretaro" → Querétaro, "nyc" → Nueva York, "italia" → sus ciudades. Escape limpia la búsqueda.
+2. **Destacados**: carrusel con los destinos de selección verificada y con más experiencias.
+3. **Destinos por región**: pestañas WAI-ARIA (México, Europa, Norteamérica, Medio Oriente, Asia y Oceanía, Otras regiones) que se manejan con flechas, Inicio y Fin. Se ve una región a la vez, en un carrusel de fotos; "Ver todos (N)" abre un índice compacto de nombres de esa región.
+4. **Colecciones**: carrusel con foto y conteo que enlaza a cada universo. Las fichas estáticas "En curaduría" solo se ven cuando todavía no hay catálogo.
+
+Cualquier destino queda a dos interacciones: pestaña y tarjeta, o escribir y tarjeta. El hub a 390 px pasó de una columna de ~110 tarjetas a unos 2,100 px. Las experiencias de un destino o un universo se muestran de 9 en 9, con "Ver más (N)" (`ShowMore`). En el teléfono, las 12 colecciones del adelanto van en un carril horizontal.
+
+Ninguna navegación interna usa `target="_blank"` ni `window.open`; lo comprueba una prueba. Evidencia visual: `docs/iatos/evidencia/prive-ux/` (`antes-*` y `despues-*`, con servidor simulado).

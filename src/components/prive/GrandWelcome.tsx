@@ -124,7 +124,7 @@ export function GrandWelcome({ onDone }: { onDone: (how: "completed" | "skipped"
                       data-testid="prive-welcome-city"
                     >
                       <PrivePhoto queries={d.queries} alt={t.common.photoAlt(city)} label={city} eager className="prive-veil aspect-[3/4]" creditClassName="is-inline">
-                        <div className="absolute inset-x-0 bottom-0 z-[2] px-2.5 pt-2 pb-6 sm:px-3 text-left">
+                        <div className="absolute inset-x-0 bottom-0 z-[2] px-2.5 pt-2 pb-9 sm:px-3 text-left">
                           <p className="prive-serif text-base sm:text-lg leading-tight">{city}</p>
                         </div>
                       </PrivePhoto>
