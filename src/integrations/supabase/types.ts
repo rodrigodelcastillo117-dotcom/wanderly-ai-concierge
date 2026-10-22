@@ -551,18 +551,24 @@ export type Database = {
       }
       health_checks: {
         Row: {
+          email_error: string | null
+          email_status: string | null
           id: number
           ok: boolean
           ran_at: string
           results: Json
         }
         Insert: {
+          email_error?: string | null
+          email_status?: string | null
           id?: number
           ok: boolean
           ran_at?: string
           results: Json
         }
         Update: {
+          email_error?: string | null
+          email_status?: string | null
           id?: number
           ok?: boolean
           ran_at?: string
