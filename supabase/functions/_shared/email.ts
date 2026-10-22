@@ -15,6 +15,8 @@ export async function sendEmail(opts: {
   to: string | string[];
   subject: string;
   html: string;
+  /** Versión en texto plano (opcional; los clientes sin HTML la muestran). */
+  text?: string;
   from?: string;
   replyTo?: string;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
@@ -38,6 +40,7 @@ export async function sendEmail(opts: {
         to: Array.isArray(opts.to) ? opts.to : [opts.to],
         subject: opts.subject,
         html: opts.html,
+        ...(opts.text ? { text: opts.text } : {}),
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
       }),
     });

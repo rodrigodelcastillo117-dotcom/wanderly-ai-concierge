@@ -22,6 +22,7 @@
 //   * Trazabilidad sin datos personales: ids de Stripe, montos, decisión y estado antes/después.
 
 import type { ApplyArgs, StripeEventLike, StripeInvoiceLike, StripeSubscriptionLike, WebhookOutcome } from "./handler.ts";
+import { tenureEventFor, type TenureEvent } from "../_shared/prive-tenure.ts";
 
 export type StripeChargeLike = {
   id: string;
@@ -87,6 +88,8 @@ export interface PaymentDeps {
   isDeletedCustomer(customerId: string): Promise<boolean>;
   /** Campana de administradores + correo si está configurado. Nunca lanza. */
   alertAdmins(alert: AdminAlert): Promise<string>;
+  /** IATOS Privé: el periodo de esa factura deja de contar (o vuelve a contar) para la antigüedad. Opcional. */
+  markPaidPeriod?(args: { _invoice_id: string; _event: TenureEvent; _amount_refunded: number | null }): DbResult;
 }
 
 export const PAYMENT_EVENTS = new Set(["charge.refunded", "charge.dispute.created", "charge.dispute.closed"]);
@@ -174,19 +177,20 @@ export async function handlePaymentEvent(event: StripeEventLike, deps: PaymentDe
   const ctx = await resolveContext(deps, charge);
 
   let decision: Decision = { action: "registrado", accountId: null, before: null, after: null };
+  const fullRefund = event.type === "charge.refunded" && (charge.refunded === true ||
+    (typeof charge.amount === "number" && charge.amount > 0 && typeof charge.amount_refunded === "number" && charge.amount_refunded >= charge.amount));
+  let deletedCustomer = false;
   let alertStatus: string | null = null;
 
   if (ctx.customerId && await deps.isDeletedCustomer(ctx.customerId)) {
+    deletedCustomer = true;
     // Cuenta eliminada: no se escribe ni se otorga nada. Solo se corta un cobro que siguiera vivo.
     if (ctx.subscription && ctx.subscriptionId && LIVE.has(ctx.subscription.status)) {
       await deps.cancelSubscriptionNow(ctx.subscriptionId);
     }
     decision = { action: "cuenta_eliminada_sin_cambios", accountId: null, before: null, after: null };
   } else if (event.type === "charge.refunded") {
-    const amount = charge.amount ?? null;
-    const refunded = charge.amount_refunded ?? null;
-    const full = charge.refunded === true || (amount !== null && amount > 0 && refunded !== null && refunded >= amount);
-    decision = full
+    decision = fullRefund
       ? await revokeForPayment(deps, ctx, event, "reembolso_total")
       : { action: "reembolso_parcial_conserva_revision", accountId: null, before: null, after: null };
   } else if (event.type === "charge.dispute.created") {
@@ -220,6 +224,17 @@ export async function handlePaymentEvent(event: StripeEventLike, deps: PaymentDe
     }
   }
 
+  // Antigüedad de Privé: el periodo pagado por ESA factura deja de contar (reembolso total, disputa
+  // abierta o perdida) o vuelve a contar (disputa ganada), aunque no sea la factura vigente.
+  let tenure: string | null = null;
+  const tenureEvent = tenureEventFor(event.type, { fullRefund, disputeStatus: dispute?.status ?? null });
+  if (deps.markPaidPeriod && ctx.invoiceId && tenureEvent && !deletedCustomer) {
+    const m = await deps.markPaidPeriod({ _invoice_id: ctx.invoiceId, _event: tenureEvent, _amount_refunded: charge.amount_refunded ?? null });
+    if (m.error) throw new Error(`prive_mark_paid_period falló (${event.id}): ${m.error.message}`);
+    const r = (m.data ?? {}) as { applied?: boolean; reason?: string; after?: string };
+    tenure = r.after ? `${tenureEvent}:${r.after}` : (r.reason ?? tenureEvent);
+  }
+
   const { error } = await deps.logPaymentEvent({
     event_id: event.id,
     type: event.type,
@@ -243,7 +258,7 @@ export async function handlePaymentEvent(event: StripeEventLike, deps: PaymentDe
   if (error) throw new Error(`stripe_payment_events falló (${event.id}): ${error.message}`);
   // Sin datos personales: ids de Stripe y la decisión.
   console.warn("webhook: pago", event.type, event.id, charge.id, decision.action);
-  return { status: 200, body: { received: true, action: decision.action } };
+  return { status: 200, body: { received: true, action: decision.action, ...(tenure ? { tenure } : {}) } };
 }
 
 // Copia local de subscriptionArgs (evita un import circular con handler.ts).

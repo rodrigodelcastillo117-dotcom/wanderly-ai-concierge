@@ -6,6 +6,7 @@ import { adminClient } from "../_shared/entitlements.ts";
 import { escapeHtml, layout, sendEmail } from "../_shared/email.ts";
 import { isAlreadyGone } from "../_shared/stripe-billing.ts";
 import { redactPii } from "../_shared/redact.ts";
+import { missingRpcAsSkip } from "../_shared/prive-tenure.ts";
 import type { AdminAlert, StripeChargeLike } from "./payments.ts";
 import {
   handleStripeEvent,
@@ -60,6 +61,11 @@ Deno.serve(async (req) => {
     retrieveSubscription: (id) => stripe.subscriptions.retrieve(id) as unknown as Promise<StripeSubscriptionLike>,
     retrieveInvoice: (id) => stripe.invoices.retrieve(id) as unknown as Promise<StripeInvoiceLike>,
     applySubscription: (args) => adminClient().rpc("apply_stripe_subscription", args),
+    // IATOS Privé: periodos pagados (antigüedad) y su estado ante reembolsos y disputas.
+    recordPaidPeriod: async (args) =>
+      missingRpcAsSkip(await adminClient().rpc("prive_record_paid_period", args), "prive_record_paid_period", console.warn),
+    markPaidPeriod: async (args) =>
+      missingRpcAsSkip(await adminClient().rpc("prive_mark_paid_period", args), "prive_mark_paid_period", console.warn),
     // Reembolsos y disputas (payments.ts): estado vivo de Stripe, revocación sin dar PRO, aviso a
     // administradores, idempotencia por event_id y trazabilidad sin datos personales.
     retrieveCharge: (id) => stripe.charges.retrieve(id) as unknown as Promise<StripeChargeLike>,

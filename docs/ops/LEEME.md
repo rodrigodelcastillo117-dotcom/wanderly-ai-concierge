@@ -295,3 +295,114 @@ WHERE r.status <> 'completed' ORDER BY r.created_at, s.step;
    **no** sea `1.2.3.4`.
 3. **Límites de uploads.** Revisa en Storage → cada bucket (`recibos`, `journal-photos`,
    `travel-moments`) que diga 10 MB y la lista de tipos (imágenes; PDF solo en `recibos`).
+
+## IATOS Privé: invitaciones y antigüedad
+
+Privé ("The 90-Day Invitation") invita a quien tiene PRO vigente y **90 días pagados** (o una concesión), y
+cada miembro entra con **su propia** contraseña Privé. Política completa:
+`docs/iatos/IATOS_PRIVE_MEMBERSHIP_POLICY.md`; seguridad y SQL de administración:
+`docs/iatos/IATOS_PRIVE_INVITATIONS.md`; correo: `docs/iatos/IATOS_PRIVE_EMAIL_DESIGN.md`.
+**Nada de esto está activo** hasta que hagas estos pasos (requieren tu GO).
+
+### Secretos de las funciones
+
+| Secreto | ¿Nuevo? | Para qué | Si falta |
+|---|---|---|---|
+| `PRIVE_IP_SALT` | **Sí** | Sal del `ip_hash` del límite por conexión (30 fallos/hora → 60 min fuera). Pon un texto aleatorio largo (por ejemplo, 64 caracteres de un generador de contraseñas) y no lo compartas. | Se omite **solo** el límite por conexión (el de cada cuenta sigue) y la función lo advierte en sus registros. Nunca se inventa una sal. |
+| `SITE_URL` | Opcional | Dominio de los enlaces del correo (`https://traveliatos.life` por defecto). Solo acepta `https`. | Usa el valor por defecto. |
+| `SUPPORT_EMAIL` | Opcional | Contacto de soporte en el pie de los correos (`hola@traveliatos.life` por defecto). | Usa el valor por defecto. |
+| `LOVABLE_API_KEY`, `RESEND_API_KEY` | Ya existen | Enviar la invitación y los avisos de seguridad. | No se manda correo; la invitación queda pendiente y el aviso en la app sí aparece. |
+| `STRIPE_SECRET_KEY` | Ya existe | Solo lectura de facturas para el respaldo. | El respaldo responde `stripe_not_configured`. |
+
+### Orden de publicación
+
+1. Migraciones (SQL editor, en este orden; se pueden repetir sin riesgo):
+   `20261023090000_prive_core_tables.sql`, `20261023090100_prive_core_access.sql`,
+   `20261023090200_prive_core_password_sessions.sql`, `20261023090300_prive_core_paid_periods.sql`.
+   Si el grupo catálogo ya creó `prive_events`, la primera no la toca (`CREATE TABLE IF NOT EXISTS`).
+2. Funciones: `stripe-webhook` (versión nueva), `prive-access`, `prive-cron`, `prive-tenure-backfill`.
+   `supabase/config.toml` ya trae `prive-cron` y `prive-tenure-backfill` con `verify_jwt = false`
+   (se protegen con el secreto de cron, igual que las demás tareas) y `prive-access` con `verify_jwt = true`.
+3. Secreto `PRIVE_IP_SALT` (y opcionales).
+4. **Respaldo de antigüedad** (abajo): primero simulación, revisas números, después real.
+5. Programar `prive-cron` (abajo). Desde ese momento empiezan las invitaciones.
+6. Frontend (grupo ui).
+
+Si publicas `stripe-webhook` antes que las migraciones, no pasa nada grave: registra en sus
+bitácoras "migración de Privé pendiente" y no hace reintentar a Stripe; el respaldo recupera después
+esas facturas.
+
+### Respaldo de antigüedad (una vez)
+
+Lee de Stripe (solo lectura) las facturas pagadas de los clientes que ya están en `subscriptions` y
+guarda sus periodos. Es idempotente (la factura es la llave): repetirlo no duplica días. Va por lotes
+de clientes (`limit`, máximo 100) con `offset`; la respuesta trae `next_offset` (null = terminó).
+
+```sql
+-- 1) SIMULACIÓN (no escribe nada). Cambia offset para el siguiente lote.
+SELECT net.http_post(
+  url := 'https://uhkdewinscffhdonhhmt.supabase.co/functions/v1/prive-tenure-backfill',
+  headers := jsonb_build_object('Content-Type', 'application/json',
+    'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_shared_secret' LIMIT 1)),
+  body := '{"dry_run": true, "limit": 50, "offset": 0}'::jsonb,
+  timeout_milliseconds := 120000) AS request_id;
+-- Unos segundos después, el resultado (customers, invoices_seen, paid_periods, skipped, next_offset):
+SELECT id, status_code, content::jsonb FROM net._http_response ORDER BY id DESC LIMIT 3;
+
+-- 2) REAL: el mismo llamado con "dry_run": false, lote por lote hasta next_offset = null.
+```
+
+Después del respaldo, quién quedaría invitado en la primera corrida (solo lectura):
+
+```sql
+SELECT count(*) FILTER (WHERE public.prive_tenure_days(s.user_id) >= 90) AS con_90_dias,
+       count(*) AS pro_vigentes
+FROM public.subscriptions s WHERE public.is_pro(s.user_id);
+```
+
+### Programar `prive-cron` (cada hora)
+
+Evalúa quién cumple, crea su invitación y su aviso (una sola vez por persona), manda los correos
+pendientes con reintentos (15 min, 1 h, 6 h, 24 h; máximo 5) y cierra las sesiones Privé de quien ya no
+tiene derecho. **No lo programes en producción sin tu GO.**
+
+```sql
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'prive-cron-hourly') THEN
+    PERFORM cron.unschedule('prive-cron-hourly');
+  END IF;
+END $$;
+SELECT cron.schedule(
+  'prive-cron-hourly',
+  '23 * * * *',
+  $cmd$
+  SELECT net.http_post(
+    url := 'https://uhkdewinscffhdonhhmt.supabase.co/functions/v1/prive-cron',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_shared_secret' LIMIT 1)
+    ),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+  $cmd$
+);
+```
+
+Revisión (solo conteos, sin datos personales):
+
+```sql
+SELECT status, basis, count(*) FROM public.prive_memberships GROUP BY 1, 2;
+SELECT email_status, count(*) FROM public.prive_invitations WHERE revoked_at IS NULL GROUP BY 1;
+SELECT event, count(*) FROM public.prive_membership_events WHERE at > now() - interval '7 days' GROUP BY 1 ORDER BY 2 DESC;
+```
+
+Para apagarlo: `SELECT cron.unschedule('prive-cron-hourly');` (las membresías y contraseñas se
+quedan; solo dejan de crearse invitaciones y de barrerse sesiones; `prive_require` sigue revisando
+todo en vivo).
+
+### Dar o quitar Privé a mano
+
+Concesiones, revocaciones por fraude, restauraciones y desbloqueos: SQL listo en
+`docs/iatos/IATOS_PRIVE_INVITATIONS.md` §8. Todo queda en `prive_membership_events` con tu nombre.
