@@ -134,6 +134,8 @@ const ImportPastTrip = () => {
         const kind = docKindFor(draft.documentos.find((d) => d.archivo === i)?.tipo);
         const { error: rowErr } = await supabase.from("trip_documents").insert({
           trip_id: tripId, uploaded_by: user.id, kind, storage_path: path, filename: f.name.slice(0, 200), mime: f.type, size: f.size,
+          // Boletos, reservas y otros los ve todo el viaje (igual que el valor por omisión de la base).
+          visibility: "viaje",
         });
         if (rowErr) { docsFailed++; await supabase.storage.from(TRIP_DOC_BUCKET).remove([path]); }
       }
