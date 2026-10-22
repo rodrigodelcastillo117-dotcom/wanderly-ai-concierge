@@ -30,6 +30,7 @@ type Booking = {
   confirmation_code?: string | null;
   image_url?: string | null;
   partner_reference?: string | null;
+  raw_payload?: { compra_item?: string } | null;
   created_at: string;
 };
 
@@ -108,9 +109,12 @@ const Reservas = () => {
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <Badge variant="outline" className="text-xs">{labels[b.category] ?? b.category}</Badge>
             <span className="text-xs text-muted-foreground">{b.provider}</span>
-            {kind === "visit" && (
+            {kind === "visit" && (b.raw_payload?.compra_item ? (
+              // "Ya lo reservé" en Comprar mi viaje: lo marcó el usuario, sin evidencia del proveedor.
+              <span className="text-xs text-emerald-400">· Marcado por ti como reservado el {formatInstant(b.created_at)} (sin verificar)</span>
+            ) : (
               <span className="text-xs text-muted-foreground">· Visitado el {formatInstant(b.created_at)}</span>
-            )}
+            ))}
             {kind === "confirmed" && b.confirmation_code && (
               <span className="text-xs text-primary">· Confirmación {b.confirmation_code}</span>
             )}
