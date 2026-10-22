@@ -1,0 +1,47 @@
+{
+ "generated_at": "2026-10-22T19:38:35.285Z",
+ "base": "http://127.0.0.1:8232",
+ "nota": "Supabase y sitios externos simulados con route(); app real compilada por Vite en Chromium.",
+ "results": [
+  {
+   "viewport": 390,
+   "tag": "antes",
+   "steps": [
+    {
+     "paso": "ver 'Comprar mi viaje'",
+     "ok": false
+    }
+   ],
+   "errors": [],
+   "log": [
+    "HEAD notifications",
+    "HEAD notifications",
+    "fn booking-bridge",
+    "fn pexels-image",
+    "fn buscar-video",
+    "fn pexels-image"
+   ]
+  },
+  {
+   "viewport": 1440,
+   "tag": "antes",
+   "steps": [
+    {
+     "paso": "ver 'Comprar mi viaje'",
+     "ok": false
+    }
+   ],
+   "errors": [],
+   "log": [
+    "HEAD notifications",
+    "HEAD notifications",
+    "fn booking-bridge",
+    "fn pexels-image",
+    "fn buscar-video",
+    "fn pexels-image",
+    "fn place-photo",
+    "fn pexels-image"
+   ]
+  }
+ ]
+}

@@ -6,10 +6,11 @@ import { nextTripAction, quoteFreshness, tripTiming, type NextActionInput } from
 type QuoteLike = { created_at?: string | null; valid_until?: string | null } | null;
 
 /** A qué sección de esta misma página lleva cada acción que no cambia de pantalla. */
-const IN_PAGE_TARGET: Record<string, string> = {
-  cotizar: "trip-total",
-  revisar_precios: "trip-total",
-  reservar: "trip-destinos",
+const IN_PAGE_TARGET: Record<string, string[]> = {
+  cotizar: ["trip-total"],
+  revisar_precios: ["trip-total"],
+  // "Elige y reserva" lleva a "Comprar mi viaje" (cierre 2) y, si la página no la muestra, a los destinos.
+  reservar: ["trip-comprar", "trip-destinos"],
 };
 
 export function scrollToSection(id: string) {
@@ -45,7 +46,8 @@ export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabe
   const fresh = quoteFreshness(trip, quote, now);
   const base = `/dashboard/viajes/${trip.id}`;
   const go = () => {
-    const target = action.to === base ? IN_PAGE_TARGET[action.key] : null;
+    const targets = action.to === base ? IN_PAGE_TARGET[action.key] : null;
+    const target = targets?.find((id) => typeof document !== "undefined" && document.getElementById(id)) ?? null;
     if (target) scrollToSection(target);
     else navigate(action.to);
   };

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ferryhopperLink, directFerriesLink, aferryLink } from "@/lib/affiliateLinks";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import DestinationVideo from "@/components/DestinationVideo";
 import { localISODate } from "@/lib/localDate";
@@ -108,6 +109,7 @@ const Ferries = () => {
               >
                 <Search className="w-3 h-3 mr-1" /> Buscar <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
+              <PrefillNote provider="ferry" className="mt-2" />
             </div>
           ))}
         </div>

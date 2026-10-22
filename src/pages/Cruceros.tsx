@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { vacationsToGoLink, cruiseDirectLink, cruiseCriticLink } from "@/lib/affiliateLinks";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import DestinationVideo from "@/components/DestinationVideo";
 
@@ -124,6 +125,7 @@ const Cruceros = () => {
               <Button onClick={() => reservar(s.name, s.link())} className="w-full">
                 <Search className="w-3 h-3 mr-1" /> Buscar <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
+              <PrefillNote provider="crucero" className="mt-2" />
             </div>
           ))}
         </div>

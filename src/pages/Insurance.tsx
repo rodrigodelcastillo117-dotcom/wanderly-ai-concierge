@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Shield, ExternalLink, CheckCircle2 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 
 // Sin calificaciones numéricas ni códigos de descuento: no tenemos fuente verificada
@@ -26,7 +27,9 @@ const PARTNERS = [
     name: "AXA Assistance",
     tagline: "Marca global de confianza · ideal viajes premium",
     perks: ["Multiviaje anual", "Cancelación por cualquier motivo", "Deportes de aventura"],
-    url: "https://www.axa-assistance.com/",
+    // axa-assistance.com redirige a la portada corporativa de AXA Partners (no vende seguros de viaje
+    // ahí, cierre 2 · A-AXA.jpg); este es su cotizador de seguro de viaje (D-AXA.jpg).
+    url: "https://www.axatravelinsurance.com/",
     color: "from-amber-500/20 to-amber-500/5",
   },
   {
@@ -76,6 +79,7 @@ const Insurance = () => {
               })} className="w-full" size="sm">
                 Cotizar en {p.name} <ExternalLink className="w-3 h-3 ml-1" aria-hidden="true" />
               </Button>
+              <PrefillNote provider="seguro" className="mt-2" />
             </div>
           ))}
         </div>

@@ -281,16 +281,13 @@ export function buildTransferFallback(intel: any) {
     utm_medium: "iatos_concierge",
     utm_campaign: `transfer_${String(intel.ciudad_detectada ?? "general").toLowerCase().replace(/\s+/g, "_")}`,
   });
-  if (airport) wpParams.set("pickup_location", airport);
-  if (hotel?.nombre) wpParams.set("dropoff_location", `${hotel.nombre}${hotel.direccion ? ", " + hotel.direccion : ""}`);
-  if (flight?.fecha) wpParams.set("pickup_date", flight.fecha);
-  if (flight?.hora_llegada) wpParams.set("pickup_time", flight.hora_llegada);
-  if (flight?.numero_vuelo) wpParams.set("flight_number", flight.numero_vuelo);
+  // Welcome Pickups no aplica origen, destino, fecha ni hora por URL (abre su formulario vacío; cierre 2,
+  // docs/iatos/cierre2/ENLACES_COMPRA.md): solo va el seguimiento del afiliado y la tarjeta dice qué escribir.
   const wpUrl = `https://www.welcomepickups.com/?${wpParams.toString()}`;
   return {
     text: `Ya tengo los datos del viaje: llegas a ${intel.ciudad_detectada} en ${flightLine} y tu hospedaje es ${hotelLine}. Además, en tu itinerario aparece pendiente el traslado aeropuerto → hotel; te dejo opciones premium para activarlo sin pedirte datos repetidos.`,
     cards: [
-      { type: "transport", title: "Transfer privado premium", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Reservar transfer", cta_action: wpUrl, meta: pendingText || "Pendiente detectado en tu itinerario" },
+      { type: "transport", title: "Transfer privado premium", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Reservar transfer", cta_action: wpUrl, meta: `${pendingText || "Pendiente detectado en tu itinerario"} · En Welcome escribe aeropuerto, hotel, fecha y hora de llegada` },
       { type: "transport", title: "Chofer ejecutivo", subtitle: `${airport} → ${hotel?.direccion ?? hotel?.nombre ?? intel.ciudad_detectada}`, cta_label: "Buscar Blacklane", cta_action: `https://www.google.com/search?q=${query}+Blacklane`, meta: flightLine },
       { type: "transport", title: "Taxi oficial / VTC", subtitle: `${airport} → ${hotel?.nombre ?? "hotel"}`, cta_label: "Abrir Maps", cta_action: `https://www.google.com/maps/search/?api=1&query=${query}`, meta: "Ruta con origen y destino del viaje" },
     ],

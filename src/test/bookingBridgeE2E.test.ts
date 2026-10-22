@@ -7,7 +7,7 @@ import { resolveGo } from "../../supabase/functions/booking-go/go";
 import { signRedirect, targetHash } from "../../supabase/functions/_shared/booking/redirectToken";
 import { canTransition } from "../../supabase/functions/_shared/booking/states";
 import { venueFromPriveRow } from "../../supabase/functions/_shared/booking/offers";
-import { parseAviasalesSearch } from "../../supabase/functions/_shared/booking/links";
+import { parseAviasalesSearch, parseGoogleFlightsSearch } from "../../supabase/functions/_shared/booking/links";
 import type { RecheckResult } from "../../supabase/functions/_shared/booking/recheck";
 
 const USER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -129,10 +129,14 @@ describe("Fase 11 · los 20 recorridos E2E (simulados, sin compras reales)", () 
     expect(fl.actions.map((a: any) => a.label)).not.toContain("Comprar esta oferta");
     expect(fl.actions[0].label).toBe("Buscar este vuelo");
     const r = await t.call("start_booking", { source: tripItem("vuelos_json", 0, "Iberia"), action_kind: "equivalent_search", idempotency_key: key(), consent: true });
-    expect(r.body).toMatchObject({ ok: true, processor: "Aviasales", intent: { state: "READY_TO_BOOK" } });
+    // La primera búsqueda es Google Flights con ruta, fechas, viajeros y la aerolínea cotizada.
+    expect(r.body).toMatchObject({ ok: true, processor: "Google Flights", intent: { state: "READY_TO_BOOK" } });
     expect((r.body.disclosures as string[])).toContain("El precio puede cambiar al continuar en el proveedor.");
     const g = await t.go(String(r.body.go_url));
-    expect(parseAviasalesSearch(g.location)).toEqual({ origin: "MEX", destination: "MAD", depart: "0512", ret: "1212", adults: 2 });
+    expect(parseGoogleFlightsSearch(g.location)).toEqual({ origin: "MEX", destination: "MAD", depart: "2026-12-05", ret: "2026-12-12", adults: 2, children: 0, airlines: ["IB"], one_way: false });
+    // Aviasales sigue como segunda búsqueda, con las mismas fechas y viajeros.
+    const av = fl.actions.filter((a: any) => a.kind === "equivalent_search")[1];
+    expect(parseAviasalesSearch(av.url)).toEqual({ origin: "MEX", destination: "MAD", depart: "0512", ret: "1212", adults: 2, children: 0 });
     expect(t.store.intents[0].state).toBe("REDIRECTED_TO_PROVIDER");
   });
 
@@ -150,7 +154,8 @@ describe("Fase 11 · los 20 recorridos E2E (simulados, sin compras reales)", () 
     const r = await t.call("resolve", { source: tripItem("vuelos_json", 0) });
     const o = r.body.offer as any;
     expect(o.rejected[0].reason).toBe("fechas_o_viajeros_distintos_al_viaje");
-    expect(o.actions[0].url).toContain("MEX0512MAD12122");
+    expect(parseGoogleFlightsSearch(o.actions[0].url)).toMatchObject({ depart: "2026-12-05", ret: "2026-12-12", adults: 2 });
+    expect(o.actions[1].url).toContain("MEX0512MAD12122");
   });
 
   it("4 · oferta caducada: pide comprobar el precio o aceptar que el proveedor mostrará el final", async () => {

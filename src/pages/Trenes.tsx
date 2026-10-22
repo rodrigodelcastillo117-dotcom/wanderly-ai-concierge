@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { trainlineLink, omioLink, raileuropeLink } from "@/lib/affiliateLinks";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { localISODate } from "@/lib/localDate";
 
@@ -19,9 +20,9 @@ const Trenes = () => {
   const [date, setDate] = useState(params.get("date") ?? localISODate());
 
   const sources = [
-    { name: "Trainline", desc: "El #1 en Europa y Reino Unido. 270+ operadores.", link: trainlineLink },
-    { name: "Omio", desc: "Trenes, autobuses y vuelos en una sola búsqueda.", link: omioLink },
-    { name: "Rail Europe", desc: "Eurail y trenes de alta velocidad en Europa.", link: raileuropeLink },
+    { name: "Trainline", desc: "El #1 en Europa y Reino Unido. 270+ operadores.", link: trainlineLink, prefill: "trainline" },
+    { name: "Omio", desc: "Trenes, autobuses y vuelos en una sola búsqueda.", link: omioLink, prefill: "omio" },
+    { name: "Rail Europe", desc: "Eurail y trenes de alta velocidad en Europa.", link: raileuropeLink, prefill: "raileurope" },
   ];
 
   function reservar(name: string, url: string) {
@@ -73,6 +74,7 @@ const Trenes = () => {
               <Button disabled={!origin || !destination} onClick={() => reservar(s.name, s.link(origin, destination, date))} className="w-full">
                 <Search className="w-3 h-3 mr-1" /> Buscar <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
+              <PrefillNote provider={s.prefill} className="mt-2" />
             </div>
           ))}
         </div>

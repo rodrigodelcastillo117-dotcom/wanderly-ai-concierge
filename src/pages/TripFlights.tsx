@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { toastFunctionError } from "@/lib/functionErrors";
 import { googleFlightsLink, skyscannerLink, kayakFlightsLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 import { BookingActions } from "@/components/booking/BookingActions";
@@ -100,6 +101,17 @@ const TripFlights = () => {
         setOrigin((data as { ciudad_origen?: string | null } | null)?.ciudad_origen || "CDMX");
       });
   }, [user]);
+
+  // Sin datos en la URL, el destino, las fechas y los viajeros del viaje en contexto (?trip=).
+  useEffect(() => {
+    const t = tripTool.trip;
+    if (!t) return;
+    if (!destination && t.destino) setDestination(t.destino);
+    if (!depart && t.fecha_salida) setDepart(t.fecha_salida);
+    if (!returnDate && t.fecha_regreso) setReturnDate(t.fecha_regreso);
+    if (!params.get("travelers") && t.num_viajeros) setTravelers(t.num_viajeros);
+    if (!originTouched.current && t.ciudad_origen) { originTouched.current = true; setOrigin(t.ciudad_origen); }
+  }, [tripTool.trip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (params.get("auto") === "1" && destination && depart) search();
@@ -204,28 +216,36 @@ const TripFlights = () => {
           ))}
         </div>
 
-        {results.length > 0 && meta && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <Button variant="outline" onClick={() => tripTool.track({
-              category: "flight", provider: "Google Flights", title: `${origin} → ${destination}`,
-              city: destination, bookingUrl: googleFlightsLink(origin, destination, depart, returnDate, travelers), startAt: depart || undefined,
-            })}>
-              Ver todo en Google Flights
-            </Button>
-            {meta.dep_iata && meta.arr_iata && <>
-              <Button variant="outline" onClick={() => tripTool.track({
+        {results.length > 0 && meta?.dep_iata && meta?.arr_iata && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Cada botón dice qué llega precargado al sitio (comprobado abriendo cada enlace). */}
+            <div>
+              <Button variant="outline" className="w-full" onClick={() => tripTool.track({
+                category: "flight", provider: "Google Flights", title: `${origin} → ${destination}`,
+                city: destination, bookingUrl: googleFlightsLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
+              })}>
+                Ver todo en Google Flights
+              </Button>
+              <PrefillNote provider="google_flights" className="mt-1" />
+            </div>
+            <div>
+              <Button variant="outline" className="w-full" onClick={() => tripTool.track({
                 category: "flight", provider: "Skyscanner", title: `${origin} → ${destination}`,
                 city: destination, bookingUrl: skyscannerLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
               })}>
                 Skyscanner
               </Button>
-              <Button variant="outline" onClick={() => tripTool.track({
+              <PrefillNote provider="skyscanner" className="mt-1" />
+            </div>
+            <div>
+              <Button variant="outline" className="w-full" onClick={() => tripTool.track({
                 category: "flight", provider: "Kayak", title: `${origin} → ${destination}`,
                 city: destination, bookingUrl: kayakFlightsLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
               })}>
                 Kayak
               </Button>
-            </>}
+              <PrefillNote provider="kayak" className="mt-1" />
+            </div>
           </div>
         )}
       </div>

@@ -126,9 +126,9 @@ describe("applyShortTripRules", () => {
 });
 
 describe("ligas y prompt", () => {
-  it("Omio directo para autobús (sin el redirect tp.media roto) y Google Maps para auto", () => {
+  it("Google Maps en transporte público para autobús (Omio /search respondía 410) y Google Maps para auto", () => {
     const l = groundSearchLinks("Ciudad de México", "Puebla", "2026-12-12");
-    expect(l.bus).toMatch(/^https:\/\/www\.omio\.com\/search\?fromCity=Ciudad\+de\+M/);
+    expect(l.bus).toMatch(/^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&origin=Ciudad\+de\+M.*travelmode=transit$/);
     expect(l.car).toMatch(/^https:\/\/www\.google\.com\/maps\/dir\/\?api=1/);
   });
 

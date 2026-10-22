@@ -42,6 +42,7 @@ import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
 import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
 import { TripNextStep } from "@/components/TripNextStep";
+import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
 
@@ -176,7 +177,7 @@ const TripDetail = () => {
       restoredFor.current = id;
       void Promise.resolve(
         supabase.from("bookings")
-          .select("trip_id, category, status, confirmation_code, partner_reference, title, subtitle")
+          .select("id, trip_id, category, status, confirmation_code, partner_reference, title, subtitle, raw_payload")
           .eq("trip_id", id),
       ).then(({ data: bks }) => setBookings((bks as BookingLike[] | null) ?? [])).catch(() => setBookings([]));
     }
@@ -561,6 +562,13 @@ const TripDetail = () => {
 
         {/* Qué sigue: guardado, cuánto falta y UNA acción principal. */}
         <TripNextStep trip={trip} quote={quote} isOwner={isOwner} />
+
+        {/* Comprar mi viaje: lo cotizado, a qué sitio lleva cada botón, qué datos van precargados y
+            "Ya lo reservé" (cierre 2, grupo enlaces). Un viaje importado de documentos ya está pagado. */}
+        {(trip as any).fuente !== "documento" && hasQuotedTotal && (
+          <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours}
+            serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null} />
+        )}
 
         {/* Herramientas del viaje: después del total y de "qué sigue" (antes iban primero y empujaban
             el precio fuera de la pantalla); en móvil, una fila deslizable. */}

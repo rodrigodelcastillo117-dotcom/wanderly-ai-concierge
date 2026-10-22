@@ -9,14 +9,15 @@ const SERPAPI = "https://serpapi.com/search.json";
 
 export const MOTIVO_NO_DISPONIBLE = "Búsqueda en vivo no disponible ahora; intenta más tarde.";
 
-// Mismo esquema que tpDeepLink() en src/lib/affiliateLinks.ts: Booking.com se
-// atribuye vía el redirect tp.media/click, no con un marker directo en la URL.
-export function tpDeepLink(targetUrl: string, subId: string, marker: string): string {
-  const p = new URLSearchParams({ marker: `${marker}.${subId}`, u: targetUrl });
-  return `https://tp.media/click?${p.toString()}`;
-}
-
-export function bookingUrl(city: string, ci: string, co: string, adults: number, marker: string) {
+/**
+ * Búsqueda de Booking.com DIRECTA. Antes se envolvía en https://tp.media/click?…&u=<booking>, pero ese
+ * redirect responde HTTP 400 "source_type is empty" desde 2026-10 (evidencia H0 de
+ * docs/iatos/evidencia/bridge y A-TPMEDIA-HOTELS.jpg en docs/iatos/evidencia/enlaces): el botón "Buscar
+ * en Booking.com" de /dashboard/hoteles llevaba a una página de error. Mismo criterio que tpDeepLink()
+ * en src/lib/affiliateLinks.ts. `marker` se conserva en la firma (lo resuelve resolveTpMarker) por si
+ * Travelpayouts vuelve a dar un redirect válido (decisión BB-02 del dueño).
+ */
+export function bookingUrl(city: string, ci: string, co: string, adults: number, _marker: string) {
   const p = new URLSearchParams({
     ss: city,
     checkin: ci,
@@ -24,7 +25,7 @@ export function bookingUrl(city: string, ci: string, co: string, adults: number,
     group_adults: String(adults),
     no_rooms: String(Math.max(1, Math.ceil(adults / 2))),
   });
-  return tpDeepLink(`https://www.booking.com/searchresults.html?${p.toString()}`, "hotels", marker);
+  return `https://www.booking.com/searchresults.html?${p.toString()}`;
 }
 
 const pos = (v: unknown) => (Number(v) > 0 ? Math.round(Number(v)) : null);

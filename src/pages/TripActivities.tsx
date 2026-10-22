@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Sparkles, ExternalLink, Search, Star, Loader2, MapPin, Phone, UtensilsCrossed, BedDouble, Landmark } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getYourGuideLink, viatorLink, tripadvisorLink, openTableLink } from "@/lib/affiliateLinks";
+import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { SmartImage } from "@/components/media/SmartImage";
 import { activityQuery, cuisineQuery, hotelQuery } from "@/lib/categoryImagery";
@@ -27,6 +28,8 @@ const TripActivities = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [city, setCity] = useState(params.get("city") ?? "");
+  // Sin ciudad en la URL, la del viaje en contexto.
+  useEffect(() => { if (!city && tripTool.trip?.destino) setCity(tripTool.trip.destino); }, [tripTool.trip?.destino]); // eslint-disable-line react-hooks/exhaustive-deps
   const [cat, setCat] = useState<"attractions" | "restaurants" | "hotels">("attractions");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TAResult[]>([]);
@@ -35,11 +38,13 @@ const TripActivities = () => {
   // "google_maps" = datos de Google (Places API o, como último recurso, Google Maps vía SerpApi).
   const [source, setSource] = useState<"tripadvisor" | "google_maps">("tripadvisor");
 
-  const sources: { name: string; desc: string; link: () => string; category: "activity" | "restaurant" }[] = [
-    { name: "GetYourGuide", desc: "Tours, skip-the-line, experiencias guiadas. Cancelación 24h.", link: () => getYourGuideLink(city), category: "activity" },
-    { name: "Viator", desc: "Marketplace de TripAdvisor: actividades y tours.", link: () => viatorLink(city), category: "activity" },
-    { name: "TripAdvisor Web", desc: "Catálogo completo con todos los reviews.", link: () => tripadvisorLink(city), category: "activity" },
-    { name: "OpenTable", desc: "Reservas en restaurantes con disponibilidad real.", link: () => openTableLink(city), category: "restaurant" },
+  // Con un viaje en contexto (?trip=), GetYourGuide se abre filtrado a las fechas del viaje.
+  const tripDates = tripTool.trip?.fecha_salida && tripTool.trip?.fecha_regreso ? { from: tripTool.trip.fecha_salida, to: tripTool.trip.fecha_regreso } : undefined;
+  const sources: { name: string; desc: string; link: () => string; category: "activity" | "restaurant"; prefill: string }[] = [
+    { name: "GetYourGuide", desc: "Tours, skip-the-line, experiencias guiadas. Cancelación 24h.", link: () => getYourGuideLink(city, undefined, tripDates), category: "activity", prefill: "getyourguide" },
+    { name: "Viator", desc: "Marketplace de TripAdvisor: actividades y tours.", link: () => viatorLink(city), category: "activity", prefill: "viator" },
+    { name: "TripAdvisor Web", desc: "Catálogo completo con todos los reviews.", link: () => tripadvisorLink(city), category: "activity", prefill: "tripadvisor" },
+    { name: "OpenTable", desc: "Reservas en restaurantes con disponibilidad real.", link: () => openTableLink(city), category: "restaurant", prefill: "opentable" },
   ];
 
   async function buscar() {
@@ -153,6 +158,7 @@ const TripActivities = () => {
                 })} variant="outline" className="w-full">
                   <Search className="w-3 h-3 mr-1" /> Explorar {city || "destino"} <ExternalLink className="w-3 h-3 ml-1" />
                 </Button>
+                <PrefillNote provider={s.prefill} className="mt-2" />
               </div>
             ))}
           </div>

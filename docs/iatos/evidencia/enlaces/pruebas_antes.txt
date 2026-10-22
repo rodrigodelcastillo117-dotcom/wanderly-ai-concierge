@@ -1,0 +1,26 @@
+# Pruebas nuevas contra el código ANTES (3db952a), 2026-10-22
+      Tests  20 failed (20)
+ FAIL  src/test/enlacesCompra.test.ts > actividades y restaurantes > GetYourGuide aplica las fechas del viaje (date_from/date_to, D-GYG.jpg)
+ FAIL  src/test/enlacesCompra.test.ts > actividades y restaurantes > Resy: fecha y personas en la página del lugar (D-RESY.jpg); la hora no se puede fijar
+ FAIL  src/test/enlacesCompra.test.ts > actividades y restaurantes > experiencia del viaje: la búsqueda de GetYourGuide lleva las fechas del viaje
+ FAIL  src/test/enlacesCompra.test.ts > hoteles > Booking.com: hotel + ciudad, fechas, 2 adultos, 1 habitación (y niños con edad, D-BK-NINOS.jpg)
+ FAIL  src/test/enlacesCompra.test.ts > hoteles > bookingLink de las herramientas: habitaciones como la cotización (4 adultos = 2 hab.) y marker
+ FAIL  src/test/enlacesCompra.test.ts > hoteles > hotels-search: el enlace de Booking ya no pasa por tp.media/click (respondía 400, H0)
+ FAIL  src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > Omio ya no manda a /search?fromCity=… (respondía 410) ni Trainline a un #hash que ignora
+ FAIL  src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > Welcome Pickups: solo el seguimiento del afiliado (la página ignoraba origen, fecha y hora)
+ FAIL  src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > autobús en trayectos cortos: rutas de Google Maps en transporte público (Omio /search respondía 410 para CDMX–Puebla)
+ FAIL  src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > autos: Kayak con ciudad y fechas; Discover Cars y Rentalcars abren su buscador (no aplicaban los datos)
+ FAIL  src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > cada proveedor dice qué lleva y qué completar; ninguno promete datos que no recibe
+ FAIL  src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > eSIM: el país en español se convierte al slug verificado (España → spain; Estados Unidos → usa en Holafly)
+ FAIL  src/test/enlacesCompra.test.ts > trenes, autos, eSIM, ferries, cruceros y traslados > ferries y cruceros: sin parámetros inventados; Vacations To Go ya no abre 'Page Not Found!'
+ FAIL  src/test/enlacesCompra.test.ts > vuelos > Aviasales: DDMM + adultos + niños (/search/MEX1212MAD191221 = 2 adultos y 1 niño, D-AVIA-NINOS.jpg)
+ FAIL  src/test/enlacesCompra.test.ts > vuelos > Google Flights (tfs): ruta, fechas, 2 adultos y solo Aeroméxico — la URL exacta que se verificó (D-GF-AM.jpg)
+ FAIL  src/test/enlacesCompra.test.ts > vuelos > Google Flights: CDMX→Madrid con un niño y solo ida
+ FAIL  src/test/enlacesCompra.test.ts > vuelos > Google Flights: ya no usa el texto ?q= (abría el formulario vacío, F8) y sin IATA no inventa una búsqueda
+ FAIL  src/test/enlacesCompra.test.ts > vuelos > Kayak: los pasajeros van en la ruta (/2adults), no en ?adults= (que Kayak ignoraba)
+ FAIL  src/test/enlacesCompra.test.ts > vuelos > resultado de Travelpayouts (sin URL de SerpApi): Google Flights filtrado por la aerolínea del resultado
+ FAIL  src/test/enlacesCompra.test.ts > vuelos > vuelo del viaje (Aeroméxico): primero Google Flights con la ruta del enlace, fechas y viajeros del viaje y solo AM
+ FAIL  src/test/tripPurchasePlan.test.tsx [ src/test/tripPurchasePlan.test.tsx ]
+ Test Files  2 failed (2)
+Error: Failed to resolve import "@/lib/purchasePlan" from "src/test/tripPurchasePlan.test.tsx". Does the file exist?
+⎯⎯⎯⎯⎯⎯ Failed Tests 20 ⎯⎯⎯⎯⎯⎯⎯
