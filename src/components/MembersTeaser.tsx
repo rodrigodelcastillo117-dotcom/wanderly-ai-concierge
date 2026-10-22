@@ -7,11 +7,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchMembersTeaser, summarizeTeaser, UNLOCK_ERRORS, type TeaserSummary } from "@/lib/membersAccess";
 import { PRO_PATH } from "@/lib/functionErrors";
 import { PriveEntryLink } from "@/components/PriveEntryLink";
+import { OTHER_CATEGORY, isKnownCategory } from "@/lib/membersVenues";
 
 const CATEGORY_LABELS: Record<string, string> = {
   cabaret: "🎭 Cabaret", burlesque: "💃 Burlesque", members_club: "🥃 Members Club", speakeasy: "🍸 Speakeasy",
   rooftop: "🌃 Rooftop", casino_vip: "🎰 Casino VIP", jazz_lounge: "🎷 Jazz Lounge", evento_vip: "🥂 Evento VIP",
+  [OTHER_CATEGORY.id]: `${OTHER_CATEGORY.emoji} ${OTHER_CATEGORY.label}`,
 };
+
+// Lo curado de Privé trae categorías que la lista no conoce (coctelería, mezcalería…): se suman en "Otros".
+function groupCategories(categories: Record<string, number>): [string, number][] {
+  const m: Record<string, number> = {};
+  for (const [cat, n] of Object.entries(categories)) {
+    const k = isKnownCategory(cat) ? cat : OTHER_CATEGORY.id;
+    m[k] = (m[k] ?? 0) + n;
+  }
+  return Object.entries(m);
+}
 
 interface Props {
   /** La contraseña temporal del dueño está encendida y vigente (members_access_state.password_gate). */
@@ -76,7 +88,7 @@ export function MembersTeaser({ passwordGate, onUnlocked }: Props) {
         <>
           <p className="text-xs tracking-[0.18em] uppercase text-muted-foreground mb-3">Por categoría</p>
           <ul className="flex flex-wrap gap-2 mb-8" aria-label="Categorías">
-            {Object.entries(summary.categories).map(([cat, n]) => (
+            {groupCategories(summary.categories).map(([cat, n]) => (
               <li key={cat} className="px-4 py-2 rounded-full text-xs border border-primary/20 text-muted-foreground">
                 {CATEGORY_LABELS[cat] ?? cat} <span className="opacity-60">({n})</span>
               </li>

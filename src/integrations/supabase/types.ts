@@ -2126,6 +2126,43 @@ export type Database = {
           venues: number
         }[]
       }
+      members_venues: {
+        Args: { p_ciudad: string }
+        Returns: {
+          address: string | null
+          age_policy: string | null
+          categoria: string
+          ciudad: string
+          ciudad_display: string
+          descripcion: string | null
+          dress_code: string | null
+          effective_label: string | null
+          effective_state: string | null
+          emoji: string | null
+          fuente: string
+          id: string
+          neighborhood: string | null
+          nombre: string
+          pais: string | null
+          por_que: string | null
+          precio_estimado: string | null
+          reserva_requerida: boolean
+          season_state: string | null
+          source_url: string | null
+          tags: string[] | null
+          verified_at: string | null
+          website: string | null
+        }[]
+      }
+      members_cities: {
+        Args: never
+        Returns: {
+          ciudad: string
+          ciudad_display: string
+          pais: string | null
+          venues: number
+        }[]
+      }
       unlock_members_access: { Args: { p_password: string }; Returns: Json }
       verify_cron_secret: { Args: { p_secret: string }; Returns: boolean }
     }

@@ -7,9 +7,15 @@ import { fetchMembersAccess, summarizeTeaser } from "@/lib/membersAccess";
 // Supabase simulado: el servidor decide el acceso; la "tabla" solo responde si hay derecho.
 const state = { access: false, via: null as string | null, password_gate: false };
 const fromCalls: string[] = [];
+const rpcCalls: string[] = [];
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     rpc: vi.fn(async (fn: string) => {
+      rpcCalls.push(fn);
+      if (fn === "members_venues") return {
+        data: state.access ? [{ id: "v1", ciudad: "paris", ciudad_display: "París", categoria: "cabaret", nombre: "Lugar Reservado", address: "1 Rue", reserva_requerida: true, tags: [], fuente: "members" }] : null,
+        error: state.access ? null : { message: "MEMBERS_PRO_REQUIRED" },
+      };
       if (fn === "members_access_state") return { data: { ...state }, error: null };
       if (fn === "members_teaser") return {
         data: [
@@ -38,7 +44,7 @@ import { MembersOnlyPanel } from "@/components/MembersOnlyPanel";
 const renderPanel = () => render(<MemoryRouter><MembersOnlyPanel /></MemoryRouter>);
 
 describe("Members Only = PRO", () => {
-  beforeEach(() => { state.access = false; state.via = null; state.password_gate = false; fromCalls.length = 0; });
+  beforeEach(() => { state.access = false; state.via = null; state.password_gate = false; fromCalls.length = 0; rpcCalls.length = 0; });
 
   it("gratis: adelanto con ciudades, categorías y conteos; no pide lugares a la tabla", async () => {
     renderPanel();
@@ -47,6 +53,7 @@ describe("Members Only = PRO", () => {
     expect(screen.getByRole("link", { name: "Conocer IATOS PRO" })).toHaveAttribute("href", "/dashboard/pro");
     expect(screen.queryByText("Lugar Reservado")).toBeNull();
     expect(fromCalls).not.toContain("nightlife_premium");
+    expect(rpcCalls).not.toContain("members_venues");
     expect(screen.queryByLabelText("Contraseña temporal de miembro")).toBeNull();
   });
 
@@ -56,11 +63,12 @@ describe("Members Only = PRO", () => {
     expect(await screen.findByLabelText("Contraseña temporal de miembro")).toBeInTheDocument();
   });
 
-  it("PRO: carga los lugares completos", async () => {
+  it("PRO: carga los lugares completos (por la RPC members_venues, no la tabla)", async () => {
     state.access = true; state.via = "plan";
     renderPanel();
     expect(await screen.findByText("Lugar Reservado")).toBeInTheDocument();
-    await waitFor(() => expect(fromCalls).toContain("nightlife_premium"));
+    await waitFor(() => expect(rpcCalls).toContain("members_venues"));
+    expect(fromCalls).not.toContain("nightlife_premium");
   });
 
   it("resumen del adelanto y estado ante error", async () => {

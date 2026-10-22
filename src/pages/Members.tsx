@@ -11,43 +11,26 @@ import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { MembersTeaser } from "@/components/MembersTeaser";
 import { fetchMembersAccess, NO_ACCESS, type MembersAccess } from "@/lib/membersAccess";
+import {
+  MEMBERS_CATEGORIES, OTHER_CATEGORY, cityNames, countByCategory, fetchMembersCities, fetchMembersVenues,
+  matchesCategory, venueEmoji, type MembersCity, type MembersVenue,
+} from "@/lib/membersVenues";
+import { MembersVenueMeta } from "@/components/MembersVenueMeta";
 
 // Members Only es exclusivo de IATOS PRO (ronda sec2-b). Ya no hay contraseña compartida: el
 // acceso lo decide el servidor (members_access_state: PRO, prueba vigente o cortesía; o una
-// contraseña temporal con caducidad que el dueño puede encender) y la RLS de nightlife_premium no
+// contraseña temporal con caducidad que el dueño puede encender) y la RPC members_venues no
 // devuelve lugares sin derecho. Sin acceso se muestra el adelanto (MembersTeaser).
-const CATEGORIES: { id: string; emoji: string; label: string }[] = [
-  { id: "cabaret", emoji: "🎭", label: "Cabaret" },
-  { id: "burlesque", emoji: "💃", label: "Burlesque" },
-  { id: "members_club", emoji: "🥃", label: "Members Club" },
-  { id: "speakeasy", emoji: "🍸", label: "Speakeasy" },
-  { id: "rooftop", emoji: "🌃", label: "Rooftop" },
-  { id: "casino_vip", emoji: "🎰", label: "Casino VIP" },
-  { id: "jazz_lounge", emoji: "🎷", label: "Jazz Lounge" },
-  { id: "evento_vip", emoji: "🥂", label: "Evento VIP" },
-];
+// Los lugares incluyen la vida nocturna curada de Privé (con fuente y fecha), sin repetir.
+const CATEGORIES = MEMBERS_CATEGORIES;
 
+// Respaldo si members_cities falla; normalmente las ciudades salen del servidor (las que tienen lugares).
 const FEATURED_CITIES = [
   "París", "Londres", "Nueva York", "Las Vegas",
   "Ciudad de México", "Dubái", "Tokio", "Berlín", "Ibiza", "Miami",
 ];
 
-interface Venue {
-  id: string;
-  ciudad: string;
-  ciudad_display: string;
-  categoria: string;
-  emoji: string | null;
-  nombre: string;
-  por_que: string | null;
-  descripcion: string | null;
-  dress_code: string | null;
-  precio_estimado: string | null;
-  reserva_requerida: boolean;
-  tags: string[] | null;
-  address: string | null;
-  website: string | null;
-}
+type Venue = MembersVenue;
 
 const norm = (s: string) => s.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -62,6 +45,7 @@ export default function Members() {
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loadingVenues, setLoadingVenues] = useState(false);
+  const [cities, setCities] = useState<MembersCity[] | null>(null);
   const tipMembers = useTooltipShown("members_only");
 
   // Cargar estado del gate
@@ -83,25 +67,25 @@ export default function Members() {
     if (!confirmedAdult || !access.access || !city) return;
     setLoadingVenues(true);
     (async () => {
-      const { data, error } = await supabase
-        .from("nightlife_premium")
-        .select("*")
-        .eq("ciudad", norm(city))
-        .order("nombre");
+      const { venues: list, error } = await fetchMembersVenues(supabase, city);
       if (error) {
         toast({ title: "Error cargando venues", description: "No pudimos cargar los lugares. Intenta de nuevo.", variant: "destructive" });
-        setVenues([]);
-      } else {
-        setVenues((data ?? []) as Venue[]);
       }
+      setVenues(list);
       setLoadingVenues(false);
     })();
   }, [city, confirmedAdult, access.access]);
 
-  const filteredVenues = useMemo(() => {
-    if (!activeCat) return venues;
-    return venues.filter((v) => v.categoria === activeCat);
-  }, [venues, activeCat]);
+  // Ciudades con lugares (solo nombres y conteos). Si falla, se usa la lista fija.
+  useEffect(() => {
+    if (!confirmedAdult || !access.access) return;
+    fetchMembersCities(supabase).then(setCities);
+  }, [confirmedAdult, access.access]);
+  const allCities = useMemo(() => cityNames(cities, FEATURED_CITIES), [cities]);
+  const featuredCities = allCities.slice(0, FEATURED_CITIES.length);
+
+  const filteredVenues = useMemo(() => venues.filter((v) => matchesCategory(v, activeCat)), [venues, activeCat]);
+  const otherCount = countByCategory(venues)[OTHER_CATEGORY.id] ?? 0;
 
   const handleConfirmAdult = async () => {
     if (!user) return;
@@ -205,7 +189,7 @@ export default function Members() {
               list="cities-list"
             />
             <datalist id="cities-list">
-              {FEATURED_CITIES.map((c) => <option key={c} value={c} />)}
+              {allCities.map((c) => <option key={c} value={c} />)}
             </datalist>
           </div>
         </div>
@@ -238,6 +222,19 @@ export default function Members() {
                 {c.label}
               </button>
             ))}
+            {otherCount > 0 && (
+              <button
+                onClick={() => setActiveCat(activeCat === OTHER_CATEGORY.id ? null : OTHER_CATEGORY.id)}
+                className={`px-4 py-2 rounded-full text-xs tracking-wide transition border ${
+                  activeCat === OTHER_CATEGORY.id
+                    ? "bg-gradient-gold text-primary-foreground border-transparent"
+                    : "border-primary/20 text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                <span className="mr-1">{OTHER_CATEGORY.emoji}</span>
+                {OTHER_CATEGORY.label}
+              </button>
+            )}
           </div>
         </div>
 
@@ -268,7 +265,7 @@ export default function Members() {
                   className="rounded-2xl border border-primary/15 bg-gradient-to-b from-black/60 to-black/30 backdrop-blur-xl p-6 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_20px_60px_-20px_rgba(201,169,97,0.3)]"
                 >
                   <div className="flex items-start gap-4 mb-3">
-                    <div className="text-4xl">{v.emoji ?? "✨"}</div>
+                    <div className="text-4xl">{venueEmoji(v)}</div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-fraunces text-xl text-foreground leading-tight">{v.nombre}</h3>
                       {v.por_que && (
@@ -276,6 +273,8 @@ export default function Members() {
                       )}
                     </div>
                   </div>
+
+                  <MembersVenueMeta venue={v} />
 
                   {v.descripcion && (
                     <p className="text-sm text-muted-foreground leading-relaxed mb-4">
@@ -336,7 +335,7 @@ export default function Members() {
         <div>
           <p className="text-xs tracking-[0.18em] uppercase text-muted-foreground mb-4">Ciudades destacadas</p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {FEATURED_CITIES.map((c) => (
+            {featuredCities.map((c) => (
               <CityVideoCard
                 key={c}
                 city={c}
