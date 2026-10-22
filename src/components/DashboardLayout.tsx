@@ -175,7 +175,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           </div>
           <div className="flex-1 text-left min-w-0">
             <p className="text-[13px] font-medium truncate">{firstName}</p>
-            <p className="text-[10px] text-muted-foreground truncate tracking-wide">Explorador</p>
+            {/* Con qué cuenta estás dentro (antes no se veía en ningún lado). */}
+            <p className="text-[10px] text-muted-foreground truncate tracking-wide" title={user?.email ?? undefined} data-testid="sidebar-signed-in-email">{user?.email ?? "Explorador"}</p>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         </button>
@@ -310,6 +311,11 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                 </NavLink>
               </li>
             ))}
+            {user?.email && (
+              <li className="col-span-2 px-1 pt-1 text-xs text-muted-foreground truncate" data-testid="more-signed-in-email">
+                Sesión iniciada como <span className="text-foreground">{user.email}</span>
+              </li>
+            )}
             <li className="col-span-2">
               <button
                 type="button"
