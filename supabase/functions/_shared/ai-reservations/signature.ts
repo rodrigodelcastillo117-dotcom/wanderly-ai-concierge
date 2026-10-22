@@ -12,11 +12,13 @@ export const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
 
 export type SignatureResult = { ok: true; id: string; timestamp: number } | { ok: false; reason: string };
 
-function b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
+// Devuelve ArrayBuffer (no Uint8Array<ArrayBuffer>) para compilar igual en Deno 2.1 y 2.9.
+function b64ToBytes(b64: string): ArrayBuffer {
   const bin = atob(b64);
-  const out = new Uint8Array(new ArrayBuffer(bin.length));
+  const buf = new ArrayBuffer(bin.length);
+  const out = new Uint8Array(buf);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+  return buf;
 }
 function bytesToB64(bytes: ArrayBuffer): string {
   let s = "";
