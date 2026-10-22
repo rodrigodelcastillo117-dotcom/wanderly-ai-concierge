@@ -8,6 +8,7 @@ import { isAlreadyGone } from "../_shared/stripe-billing.ts";
 import { redactPii } from "../_shared/redact.ts";
 import { missingRpcAsSkip } from "../_shared/prive-tenure.ts";
 import { deliverAdminAlert } from "./alerts.ts";
+import { invoiceForPaymentIntentWith } from "./lookups.ts";
 import type { AdminAlert, StripeChargeLike } from "./payments.ts";
 import {
   cardFingerprintFrom,
@@ -135,18 +136,13 @@ Deno.serve(async (req) => {
   });
 });
 
-// Factura de un PaymentIntent: en 2024-12-18.acacia viene en payment_intent.invoice; en versiones
-// nuevas (basil en adelante) hay que buscarla en /v1/invoice_payments.
-async function invoiceForPaymentIntent(stripe: Stripe, pi: string): Promise<string | null> {
-  const intent = await stripe.paymentIntents.retrieve(pi) as unknown as { invoice?: string | { id: string } | null };
-  const direct = typeof intent.invoice === "string" ? intent.invoice : intent.invoice?.id ?? null;
-  if (direct) return direct;
-  const qs = new URLSearchParams({ "payment[type]": "payment_intent", "payment[payment_intent]": pi, limit: "1" });
-  const res = await fetch(`https://api.stripe.com/v1/invoice_payments?${qs}`, { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } });
-  if (!res.ok) return null;
-  const j = await res.json() as { data?: Array<{ invoice?: string | { id: string } | null }> };
-  const inv = j.data?.[0]?.invoice;
-  return typeof inv === "string" ? inv : inv?.id ?? null;
+// Factura de un PaymentIntent (lookups.ts; D-P3-4: un HTTP no-OK lanza y el webhook responde 500).
+function invoiceForPaymentIntent(stripe: Stripe, pi: string): Promise<string | null> {
+  return invoiceForPaymentIntentWith(pi, {
+    retrievePaymentIntent: (id) => stripe.paymentIntents.retrieve(id) as unknown as Promise<{ invoice?: string | { id: string } | null }>,
+    fetchInvoicePayments: (qs) =>
+      fetch(`https://api.stripe.com/v1/invoice_payments?${qs}`, { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } }),
+  });
 }
 
 // Aviso a administradores: campana (notify_admins, una vez por evento) y correo si hay Resend y
