@@ -36,3 +36,16 @@ it("la navegación ofrece saltar al contenido y 'Planear viaje' también en escr
   expect(document.getElementById("contenido")?.tagName).toBe("MAIN");
   expect(screen.getByRole("link", { name: "Planear viaje" })).toHaveAttribute("href", "/dashboard/planear");
 });
+
+import { act } from "@testing-library/react";
+import { FreeLimitDialogLazyHost } from "@/components/FreeLimitDialogLazy";
+import { openFreeLimitDialog, closeFreeLimitDialog } from "@/lib/freeLimitStore";
+
+it("el diálogo de límite ya no viaja en la carga inicial, pero aparece al necesitarse", async () => {
+  const { container } = render(<MemoryRouter><FreeLimitDialogLazyHost /></MemoryRouter>);
+  expect(container.innerHTML).toBe("");
+  act(() => openFreeLimitDialog({ quota: "trip_analysis_once", limit: 1, used: 1, renewsAt: null, upgradeAvailable: true }));
+  expect(await screen.findByText("Usaste tu análisis gratuito")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Conocer IATOS PRO" })).toBeInTheDocument();
+  act(() => closeFreeLimitDialog());
+});

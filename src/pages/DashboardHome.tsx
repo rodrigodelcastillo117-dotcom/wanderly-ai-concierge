@@ -494,7 +494,8 @@ const DashboardHome = () => {
                 Ver todos <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
-            {active.trips.length > 1 && (
+            {/* Con empate el selector ya está arriba (tarjeta "¿Cuál es tu próximo viaje?"): no se repite. */}
+            {active.trips.length > 1 && !ambiguous && (
               <ActiveTripPicker trips={active.trips} pinnedId={active.pinnedId} resolved={active.resolved}
                 onChange={(id) => { void active.pin(id); }} className="mb-4 flex-wrap" />
             )}
