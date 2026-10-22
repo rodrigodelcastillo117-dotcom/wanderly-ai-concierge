@@ -142,37 +142,139 @@ SELECT public.revoke_comp('correo@ejemplo.com');
 - `accounts_revoked: 0` con `grant_removed: true` = estaba en la lista pero no tenía cuenta con
   cortesía (por ejemplo, nunca confirmó su correo).
 
-## Contraseña de "Members"
+## Members Only: exclusivo de IATOS PRO
 
-La contraseña ya no está en el código (la anterior quedó expuesta en el bundle y en el historial de
-git, así que **hay que elegir una nueva**). Se guarda solo su hash (migración
-`20261022141700_sec2_members_gate.sql`). Mientras no la configures, la pantalla de contraseña dice
-"El acceso de miembros aún no está disponible"; quien ya había desbloqueado conserva su acceso.
+Desde la migración `20261022146000_sec2_members_pro_access.sql` el acceso a Members Only lo da el
+**plan**: PRO pagado, prueba vigente o cortesía (`is_pro`). Quien no lo tiene ve un adelanto
+(ciudades, categorías y cuántos lugares hay) sin nombres, direcciones, sitios ni reservas; la base
+(RLS de `nightlife_premium`) no le entrega esos datos aunque los pida directo, y `nightlife-discover`
+y las reservas de `concierge-action` también lo revisan en el servidor.
+
+### Antes de aplicar: ¿quién perdería el acceso?
+
+Los desbloqueos con la contraseña vieja (comprometida) **dejan de contar**. Corre esta consulta de
+solo lectura en el editor SQL antes de aplicar la migración; lista a quien hoy tiene
+`password_unlocked` pero no tiene PRO (esas personas pasarían a ver el adelanto):
 
 ```sql
--- Mínimo 8 caracteres; no distingue mayúsculas ni espacios al inicio/fin.
-SELECT public.set_members_password('<la-nueva-contraseña>');
+SELECT u.email, na.password_unlocked_at, s.status AS estado_suscripcion
+FROM public.nightlife_access na
+JOIN auth.users u ON u.id = na.user_id
+LEFT JOIN public.subscriptions s ON s.user_id = na.user_id
+WHERE na.password_unlocked AND NOT public.is_pro(na.user_id)
+ORDER BY na.password_unlocked_at DESC;
 ```
 
-Para cambiarla, vuelve a correr lo mismo con la nueva. Cada persona tiene 10 intentos por hora.
+Si sale vacía, nadie pierde acceso. Si sale alguien que debe conservarlo, dale cortesía
+(`comp_grants`, sección "Regalar IATOS PRO") o PRO antes de aplicar.
+
+### Contraseña temporal (apagada por defecto)
+
+Solo para una transición; caduca sola (máximo 30 días) y nunca va en el código ni en el repo. Para
+que la contraseña en claro no quede en el historial del editor SQL de producción, genera el hash
+en un Postgres local (o cualquier herramienta bcrypt `$2a$`) y pega solo el hash:
+
+```sql
+-- En un Postgres LOCAL (no producción): normaliza en minúsculas y sin espacios al inicio/fin.
+SELECT crypt(lower(btrim('<contraseña-nueva-de-12+-caracteres>')), gen_salt('bf', 10));
+
+-- En producción, con el hash resultante y una caducidad (máx. 30 días):
+SELECT public.set_members_password_hash('$2a$10$...', now() + interval '14 days');
+```
+
+Quien la use tiene acceso solo hasta esa caducidad. 10 intentos por hora por persona.
+
+**Rotar o apagar** (por ejemplo, si la contraseña se filtró):
+
+```sql
+-- Apaga la contraseña y corta de inmediato los accesos que dio (los PRO no se ven afectados):
+SELECT public.disable_members_password(true);
+-- Si hace falta una nueva, vuelve a correr set_members_password_hash con otro hash y caducidad.
+```
+
+La contraseña anterior que estaba en el código ya no sirve: la migración retiró la función sin
+caducidad y apagó cualquier hash previo.
 
 ## Reembolsos y disputas de Stripe
 
-`stripe-webhook` maneja `charge.refunded` y `charge.dispute.created` (en el dashboard de Stripe →
-Developers → Webhooks, agrega esos dos eventos al endpoint). Ninguno da PRO.
+`stripe-webhook` aplica esta política con el estado **vivo** de Stripe (migración
+`20261022146100_sec2_stripe_payment_integrity.sql`):
 
-- Reembolso **total** de la última factura: la suscripción queda "no renovar" en Stripe y en la base
-  (`cancel_at_period_end`); el acceso dura hasta el fin del periodo pagado.
-- Reembolso parcial, de una factura anterior, o disputa: solo se registra.
+| Evento | Qué pasa |
+|---|---|
+| Reembolso **total** del cargo de la factura vigente | La suscripción se cancela ya en Stripe y se quita el acceso que pagaba, salvo otro derecho válido (cortesía, otra suscripción viva, prueba vigente). |
+| Reembolso total de una factura anterior | Se registra para revisión; el periodo vigente lo pagó otra factura. |
+| Reembolso **parcial** | Se conserva el acceso y se registra para revisión. |
+| `charge.dispute.created` | Se registra y se avisa a los administradores (campana y, si hay Resend, correo a `HEALTH_ALERT_EMAIL` o a los admins). No se cancela. |
+| `charge.dispute.closed` perdida | Igual que un reembolso total, con aviso. |
+| `charge.dispute.closed` ganada | Se vuelve a leer la suscripción en Stripe y se escribe su estado real. |
 
-Todo queda en `stripe_payment_events` (sin datos personales):
+Nunca da PRO, no repite un evento ya registrado (idempotente por `event_id`), ignora un evento viejo
+que llegue después (por ejemplo, un `invoice.paid` anterior al reembolso) y no escribe nada para una
+cuenta eliminada.
+
+**Paso del dueño:** en Stripe → Developers → Webhooks → el endpoint de `stripe-webhook`, agrega
+`charge.refunded`, `charge.dispute.created` y `charge.dispute.closed`. Revisa también la **versión
+de API del endpoint**: las pruebas usan la forma de `2024-12-18.acacia` (la del código); si el endpoint
+está en otra versión, el webhook busca la factura por `payment_intent`, pero conviene alinearla.
+
+Revisión (sin datos personales):
 
 ```sql
-SELECT event_created, type, action, charge_id, subscription_id, amount, amount_refunded, dispute_reason
+SELECT event_created, type, action, charge_id, subscription_id, account_id,
+       amount, amount_refunded, dispute_reason, alert_status, before_state, after_state
 FROM public.stripe_payment_events ORDER BY event_created DESC LIMIT 50;
+-- Pendientes de revisión humana:
+SELECT * FROM public.stripe_payment_events
+WHERE action LIKE '%revision%' OR action LIKE 'disputa_abierta%' ORDER BY event_created DESC;
 ```
 
-Una disputa no quita el acceso sola: revísala en Stripe y, si procede, cancela la suscripción ahí.
+Cómo probarlo en modo prueba de Stripe: `docs/ops/stripe-modo-prueba.md`.
+
+## Eliminación de cuenta: pasos, reintentos y llaves
+
+Cada eliminación es una solicitud en `deletion_requests` con 5 pasos en `deletion_request_steps`
+(migración `20261022146200_sec2_deletion_requests.sql`):
+
+| Paso | ¿Bloquea borrar la identidad? | Qué hace |
+|---|---|---|
+| `stripe_cancel` | Sí | Cancela todas las suscripciones vivas y quita los métodos de pago guardados. |
+| `storage` | Sí | Borra los archivos del usuario en todos los buckets. |
+| `db_purge` | Sí | `purge_account_data`. |
+| `stripe_customer_redact` | No | Quita nombre, correo, teléfono y dirección del cliente en Stripe (no lo borra: Stripe conserva facturas y cargos por ley y para disputas; borrar el Customer no los elimina). |
+| `posthog_delete` | No | Pide a PostHog borrar la persona y sus eventos (`distinct_id` = id de la cuenta). |
+
+La cuenta (auth) se borra solo cuando los tres bloqueantes terminaron. Si uno falla, la persona ve
+que su solicitud quedó registrada y puede reintentar; nada se borra a medias.
+
+**Llaves nuevas (paso del dueño, no se inventan):** `POSTHOG_PERSONAL_API_KEY` (llave personal con
+alcance `person:write`) y `POSTHOG_PROJECT_ID` (y opcional `POSTHOG_API_HOST`, por defecto
+`https://us.posthog.com`). Sin ellas, `posthog_delete` queda en `pending_key` y se completa en el
+siguiente reintento después de configurarlas.
+
+**Reintentos:** la función `account-deletion-retry` (autenticación de cron, falla cerrada) reanuda
+solicitudes pendientes; un paso que falló 8 veces queda para revisión. Programarla (después de
+publicarla), igual que las otras tareas:
+
+```sql
+SELECT cron.schedule('account-deletion-retry-hourly', '23 * * * *', $$
+  SELECT net.http_post(
+    url := 'https://<proyecto>.supabase.co/functions/v1/account-deletion-retry',
+    headers := jsonb_build_object('Content-Type','application/json',
+      'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_shared_secret' LIMIT 1)),
+    body := '{}'::jsonb)
+$$);
+```
+
+(mismo secreto de cron que `docs/ops/programar-tareas.sql` usa para las otras tareas; cambia `<proyecto>`).
+
+Revisar:
+
+```sql
+SELECT r.id, r.status, r.created_at, s.step, s.status, s.attempts, s.last_error
+FROM public.deletion_requests r JOIN public.deletion_request_steps s ON s.request_id = r.id
+WHERE r.status <> 'completed' ORDER BY r.created_at, s.step;
+```
 
 ## Revisiones de seguridad después de aplicar las migraciones `2026102214*`
 
