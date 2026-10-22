@@ -22,15 +22,22 @@ const mask = (s: string, start: number, len: number) => s.slice(0, start) + " ".
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 // ───────────────────────────── Números ─────────────────────────────
+// A2-RES-03: hasta 20 en es/en/fr y pt (antes solo hasta 12, sin pt).
 const NUM_WORDS: Record<string, number> = {
   uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12,
+  trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20,
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+  thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
   un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12,
+  treize: 13, quatorze: 14, quinze: 15, seize: 16, "dix-sept": 17, "dix-huit": 18, "dix-neuf": 19, vingt: 20,
+  um: 1, uma: 1, dois: 2, duas: 2, quatro: 4, sete: 7, oito: 8, nove: 9, dez: 10, doze: 12, treze: 13, catorze: 14,
+  dezesseis: 16, dezasseis: 16, dezessete: 17, dezassete: 17, dezoito: 18, dezenove: 19, dezanove: 19, vinte: 20,
 };
 const NUM = `(\\d{1,2}|${Object.keys(NUM_WORDS).sort((a, b) => b.length - a.length).join("|")})`;
+const NUM_WORD_ALT = Object.keys(NUM_WORDS).sort((a, b) => b.length - a.length).join("|");
 const toNum = (x: string) => (/^\d+$/.test(x) ? Number(x) : NUM_WORDS[x]);
 const NOT_TIME = "(?![:.h]\\d)";
-const PARTY_NOUN = "(?:personas?|comensales|invitados|adultos|pax|people|persons?|guests?|diners|adults|personnes?|couverts?|convives)";
+const PARTY_NOUN = "(?:personas?|comensales|invitados|adultos|pax|people|persons?|guests?|diners|adults|personnes?|couverts?|convives|pessoas?|convidados|adultos)";
 const PARTY_RES = [
   new RegExp(`\\b${NUM}${NOT_TIME}\\s+${PARTY_NOUN}\\b`, "g"),
   new RegExp(`\\b(?:mesa|table|reserva|reservacion|reservation|booking)\\s+(?:para|for|pour)\\s+${NUM}${NOT_TIME}\\b`, "g"),
@@ -51,9 +58,32 @@ const TIME_RES: RegExp[] = [
   // a las 8 de la noche
   /\ba las (1[0-2]|0?[1-9])\s+(de la (?:noche|tarde|manana))/g,
 ];
+// A2-RES-03: horas sin am/pm ("a las 9", "para las nueve", "at 9", "à neuf heures", "às nove"). Sin
+// sufijo la hora es ambigua (9 → 09:00 o 21:00): cuenta como mención (contradice si ninguna coincide),
+// pero nunca como hora "escrita" exacta.
+const HOUR_WORD = `(\\d{1,2}|${["una", "uno", "um", "uma", "one", "une", ...Object.keys(NUM_WORDS)].filter((w, i, a) => a.indexOf(w) === i).sort((a, b) => b.length - a.length).join("|")})`;
+const HOUR_MIN = "(?:\\s+(?:y|e|et|and)\\s+(media|meia|demie|half|cuarto|quart|quarter))?";
+const HOUR_SUFFIX = "(?:\\s+(?:horas|hrs?|heures?|o'?clock|h))?(?:\\s+(de la (?:noche|tarde|manana)|du soir|du matin|de l'apres-midi|da (?:noite|tarde|manha)|in the (?:evening|morning|afternoon)))?";
+const NOT_PARTY = `(?!\\s+${"(?:personas?|comensales|invitados|adultos|pax|people|persons?|guests?|diners|adults|personnes?|couverts?|convives|pessoas?|convidados)"}\\b)`;
+const LOOSE_TIME_RES: RegExp[] = [
+  new RegExp(`\\b(?:a|para|desde|hacia|sobre|antes de|despues de|a partir de)\\s+las?\\s+${HOUR_WORD}(?![\\d:h]|\\.\\d)${NOT_PARTY}${HOUR_MIN}${HOUR_SUFFIX}(?![a-z])`, "g"),
+  new RegExp(`\\b(?:at|around|from|until|by)\\s+${HOUR_WORD}(?![\\d:h]|\\.\\d)${NOT_PARTY}${HOUR_MIN}${HOUR_SUFFIX}(?![a-z])`, "g"),
+  new RegExp(`\\b(?:a|vers|pour|des)\\s+${HOUR_WORD}\\s+heures?(?:\\s+(et demie|et quart))?(?:\\s+(du soir|du matin|de l'apres-midi))?(?![a-z])`, "g"),
+  new RegExp(`\\b(?:as|pelas|para as|a partir das)\\s+${HOUR_WORD}(?![\\d:h]|\\.\\d)${NOT_PARTY}${HOUR_MIN}${HOUR_SUFFIX}(?![a-z])`, "g"),
+];
+const MIN_WORDS: Record<string, number> = { media: 30, meia: 30, demie: 30, half: 30, cuarto: 15, quart: 15, quarter: 15, "et demie": 30, "et quart": 15 };
+function looseHours(word: string, minWord: string | undefined, suffix: string | undefined): string[] {
+  const h = /^\d+$/.test(word) ? Number(word) : NUM_WORDS[word] ?? (["una", "uno", "um", "uma", "one", "une"].includes(word) ? 1 : NaN);
+  if (!Number.isFinite(h) || h > 23) return [];
+  const m = minWord ? MIN_WORDS[minWord] ?? 0 : 0;
+  if (suffix) { const t = toHHMM(h, m, suffix); return t ? [t] : []; }
+  if (h === 0 || h > 12) return [`${pad2(h)}:${pad2(m)}`];
+  return [...new Set([`${pad2(h === 12 ? 0 : h)}:${pad2(m)}`, `${pad2(h === 12 ? 12 : h + 12)}:${pad2(m)}`])];
+}
+
 function toHHMM(h: number, m: number, suffix: string | undefined): string | null {
   const sx = (suffix ?? "").replace(/[\s.]/g, "");
-  if (sx === "pm" || PM_PARTS.test(sx)) { if (h < 12) h += 12; } else if ((sx === "am" || /(manana|matin|morning)/.test(sx)) && h === 12) h = 0;
+  if (sx === "pm" || PM_PARTS.test(sx) || /(noite)/.test(sx)) { if (h < 12) h += 12; } else if ((sx === "am" || /(manana|matin|morning|manha)/.test(sx)) && h === 12) h = 0;
   return h <= 23 && m <= 59 ? `${pad2(h)}:${pad2(m)}` : null;
 }
 
@@ -160,6 +190,10 @@ export type ReplyAnalysis = {
   /** El texto normalizado (fold). */
   text: string;
   times: string[];
+  /** A2-RES-03: horas escritas sin am/pm o en palabras ("a las nueve" → 09:00 o 21:00). */
+  looseTimes: string[][];
+  /** A2-RES-03: números (1–23) o números en letra (2–20) que no se explican como hora, fecha ni personas. */
+  looseNumbers: string[];
   parties: number[];
   dates: DateMention[];
   relative: Array<{ text: string; date: string | null }>;
@@ -181,6 +215,16 @@ export function analyzeReply(text: string, opts: { receivedAt?: string | null; t
         : re === TIME_RES[2] ? toHHMM(Number(m[1]), 0, undefined)
         : toHHMM(Number(m[1]), 0, m[2]);
       if (hhmm) times.push(hhmm);
+      f = mask(f, m.index!, m[0].length);
+    }
+  }
+  const looseTimes: string[][] = [];
+  for (const re of LOOSE_TIME_RES) {
+    for (const m of [...f.matchAll(re)]) {
+      const c = looseHours(m[1], m[2], m[3]);
+      // Con "de la noche", "du soir"… la hora queda exacta: cuenta como escrita.
+      if (c.length === 1 && m[3]) times.push(c[0]);
+      else if (c.length) looseTimes.push(c);
       f = mask(f, m.index!, m[0].length);
     }
   }
@@ -221,6 +265,12 @@ export function analyzeReply(text: string, opts: { receivedAt?: string | null; t
       if (n) parties.push(n);
     }
   }
+  for (const re of PARTY_RES) for (const m of [...f.matchAll(re)]) f = mask(f, m.index!, m[0].length);
+  // Lo que queda: números sueltos que podrían ser personas u horas y que nadie explicó.
+  const looseNumbers = [
+    ...[...f.matchAll(/(?<![\w.,:/#-])(\d{1,2})(?![\w,:/%-]|\.\d|\s*%)/g)].map((m) => m[1]).filter((x) => Number(x) >= 1 && Number(x) <= 23),
+    ...[...f.matchAll(new RegExp(`(?<![a-z-])(${NUM_WORD_ALT})(?![a-z-])`, "g"))].map((m) => m[1]).filter((w) => NUM_WORDS[w] >= 2 && w !== "once"),
+  ];
   const full = fold(text);
   const names = [...full.matchAll(NAME_LEAD)].map((m) => {
     const words: string[] = [];
@@ -230,7 +280,7 @@ export function analyzeReply(text: string, opts: { receivedAt?: string | null; t
   const hedges = HEDGES.filter(([, re]) => re.test(full)).map(([id]) => id);
   if (cancelMentioned(full)) hedges.push("cancellation");
   return {
-    text: full, times, parties, dates, relative, weekdays, names, hedges,
+    text: full, times, looseTimes, looseNumbers, parties, dates, relative, weekdays, names, hedges,
     pending: PENDING_RE.test(full), payment: PAYMENT_RE.test(full), explicitConfirmation: CONFIRM_RE.test(full),
   };
 }
@@ -250,6 +300,7 @@ export function contradictions(a: ReplyAnalysis, slot: { dates: string[]; times:
   const out: string[] = [];
   if (a.parties.some((p) => p !== slot.party)) out.push("party_size_mismatch");
   if (a.times.some((t) => !slot.times.includes(t))) out.push("time_mismatch");
+  if (a.looseTimes.some((c) => !c.some((t) => slot.times.includes(t)))) out.push("time_mismatch");
   if (a.dates.some((d) => !slot.dates.some((s) => d.candidates.includes(s) || d.candidates.includes(s.slice(5))))) out.push("date_mismatch");
   if (a.relative.some((r) => r.date === null)) out.push("relative_date_unresolved");
   else if (a.relative.some((r) => !slot.dates.includes(r.date!))) out.push("date_mismatch");
@@ -329,6 +380,7 @@ export function ambiguousReasonEs(why: string | null | undefined): string | null
     hedge_condition: "El restaurante pone condiciones (lista de espera, \u201csujeto a\u201d…).",
     hedge_negated_confirmation: "El restaurante dice que la reserva NO está confirmada o que no la apartó.",
     hedge_cancellation: "El correo habla de una cancelación.",
+    unexplained_numbers: "El correo menciona números (personas u horas) que no pudimos comprobar contra tu solicitud.",
     model_not_held: "La respuesta no dice que la mesa quedó apartada.",
     evidence_incomplete: "Al correo le faltan datos del proveedor para usarlo como comprobante.",
     classification_unavailable: "No pudimos leer la respuesta automáticamente.",

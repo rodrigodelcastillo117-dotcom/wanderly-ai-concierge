@@ -263,6 +263,7 @@ function conditionsFor(
   };
 }
 const missingConditions = (c: Conditions) => (Object.keys(c) as Array<keyof Conditions>).filter((k) => c[k].basis === null);
+const usesThreadQuote = (c: Conditions) => c.date.basis === "thread_quote" || c.time.basis === "thread_quote" || c.party_size.basis === "thread_quote";
 /** ¿La cita aparece en el texto empezando y terminando en límites de palabra? */
 function quoteOnWordBoundaries(quote: string, text: string): boolean {
   const q = fold(quote), t = fold(text);
@@ -324,6 +325,7 @@ export function decideReply(row: DecideRow, cls: Classification | null, ctx: Dec
     if (a.pending) fails.push("pending_language");
     if (a.hedges.includes("condition")) fails.push("conditional_language");
     fails.push(...vetoes);
+    if (usesThreadQuote(c) && a.looseNumbers.length) fails.push("unexplained_numbers");
     return { held: fails.length === 0, conditions: c, fails };
   };
 
@@ -360,6 +362,9 @@ export function decideReply(row: DecideRow, cls: Classification | null, ctx: Dec
     if (!confirmQuote) failures.push("no_explicit_confirmation");
     if (cls.alternatives.length) failures.push("alternatives_listed");
     if (cls.info_requested) failures.push("info_requested");
+    // A2-RES-03: si algún dato se toma de nuestra solicitud citada, el restaurante no puede haber
+    // escrito números (personas u horas) que no se explican: podrían ser un cambio que no leímos.
+    if (usesThreadQuote(conditions) && a.looseNumbers.length) failures.push("unexplained_numbers");
     const missing = missingConditions(conditions);
     if (missing.length) failures.push(`conditions_not_confirmed:${missing.join(",")}`);
     if (failures.length) return fin({ outcome: "ambiguous", why: failures[0] }, { ...facts, failures, conditions });
