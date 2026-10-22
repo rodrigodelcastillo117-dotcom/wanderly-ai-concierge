@@ -140,10 +140,11 @@ describe("UX10-03 · Concierge en pantallas bajas", () => {
   it("los atajos van en una fila desplazable en móvil para que el compositor no quede bajo la barra", () => {
     const src = read("src/pages/Concierge.tsx");
     expect(src).toMatch(/className="flex flex-nowrap overflow-x-auto sm:flex-wrap/);
-    expect(src).toMatch(/className="flex shrink-0 whitespace-nowrap items-center gap-1.5 px-3 py-1.5 rounded-full/);
-    // "Modo exigente" va en la fila de atajos en móvil (sin renglón propio) y expone su estado.
-    expect(src).toMatch(/<div className="hidden sm:flex items-center justify-end mb-2">\n\s+\{godModeToggle\}/);
-    expect(src).toMatch(/<div className="sm:hidden shrink-0">\n\s+\{godModeToggle\}/);
+    expect(src).toMatch(/className="flex shrink-0 whitespace-nowrap items-center gap-1.5 px-3 min-h-\[36px\] rounded-full/);
+    // Modo exigente: renglón propio solo en sm+; en móvil es el primer atajo de la fila.
+    expect(src).toMatch(/<div className="hidden sm:flex items-center justify-between gap-2 mb-2">/);
+    expect(src).toMatch(/<div className="sm:hidden flex shrink-0 items-center gap-1">\n\s+\{exigenteControls\}/);
+    expect(src).toMatch(/pb-3 sm:pb-6 pt-3/);
     expect(src).toMatch(/aria-pressed=\{godMode\}/);
   });
 });

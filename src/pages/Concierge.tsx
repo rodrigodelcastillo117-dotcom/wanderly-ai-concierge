@@ -390,6 +390,35 @@ const Concierge = () => {
   }
   if (!allowed) return null;
 
+  // Modo exigente: mismo control en dos lugares. En sm+ va en su renglón; en móvil es el primer
+  // atajo de la fila (un renglón propio restaba 40 px y el compositor quedaba bajo la barra inferior).
+  const exigenteControls = (
+    <>
+      <button
+        type="button"
+        onClick={() => setShowExigenteInfo((v) => !v)}
+        aria-label="¿Qué hace el Modo exigente?"
+        className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground"
+      >
+        <Info className="w-4 h-4" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setGodMode(g => !g)}
+        aria-pressed={godMode}
+        className={`relative flex items-center gap-2 px-3 min-h-[36px] rounded-full border transition text-xs ${
+          godMode
+            ? "border-primary bg-gradient-gold text-primary-foreground shadow-[0_0_24px_-4px_hsl(var(--primary)/0.7)]"
+            : "border-border text-muted-foreground hover:border-primary/40"
+        }`}
+      >
+        <Crown className="w-3.5 h-3.5" aria-hidden="true" />
+        Modo exigente <span className="hidden sm:inline">· lo mejor de lo mejor</span>
+        {godMode && <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">ON</span>}
+      </button>
+    </>
+  );
+
   return (
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
@@ -494,35 +523,15 @@ const Concierge = () => {
         <div className="px-4 md:px-8 pb-3 sm:pb-6 pt-3 border-t border-border bg-background/80 backdrop-blur">
           {/* Modo exigente (god_mode en el servidor): modelo más capaz, compara más opciones y deja el
               plan A/B/C con fuentes. No reserva por sí solo y no promete disponibilidad. */}
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <p className="text-[11px] text-muted-foreground hidden sm:block">Iato propone; tú confirmas. Nada se reserva sin ti.</p>
+          <div className="hidden sm:flex items-center justify-between gap-2 mb-2">
+            <p className="text-[11px] text-muted-foreground">Iato propone; tú confirmas. Nada se reserva sin ti.</p>
             <div className="flex items-center gap-1 ml-auto">
-              <button
-                type="button"
-                onClick={() => setShowExigenteInfo((v) => !v)}
-                aria-label="¿Qué hace el Modo exigente?"
-                className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground"
-              >
-                <Info className="w-4 h-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setGodMode(g => !g)}
-                aria-pressed={godMode}
-                className={`relative flex items-center gap-2 px-3 min-h-[36px] rounded-full border transition text-xs ${
-                  godMode
-                    ? "border-primary bg-gradient-gold text-primary-foreground shadow-[0_0_24px_-4px_hsl(var(--primary)/0.7)]"
-                    : "border-border text-muted-foreground hover:border-primary/40"
-                }`}
-              >
-                <Crown className="w-3.5 h-3.5" aria-hidden="true" />
-                Modo exigente <span className="hidden sm:inline">· lo mejor de lo mejor</span>
-                {godMode && <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">ON</span>}
-              </button>
+              {exigenteControls}
             </div>
           </div>
           {(showExigenteInfo || godMode) && (
-            <div className={`mb-3 rounded-xl border px-3 py-2 text-[11px] leading-relaxed ${godMode ? "border-primary/50 bg-primary/10 text-foreground" : "border-border text-muted-foreground"}`} role="note">
+            // En móvil la nota solo aparece si la piden (ⓘ): siempre visible empujaba el compositor bajo la barra.
+            <div className={`mb-3 rounded-xl border px-3 py-2 text-[11px] leading-relaxed ${godMode ? "border-primary/50 bg-primary/10 text-foreground" : "border-border text-muted-foreground"} ${showExigenteInfo ? "" : "hidden sm:block"}`} role="note">
               <strong className="text-primary">Modo exigente{godMode ? " activado" : ""}:</strong> Iato usa su modelo más capaz, compara más opciones en paralelo
               y te da <em>la mejor, la alternativa y el plan B</em> con fuentes y contras, más acciones listas para confirmar.
               Tarda unos segundos más y cada mensaje cuenta igual que uno normal.
@@ -533,6 +542,9 @@ const Concierge = () => {
               con desplazamiento horizontal: en varias filas empujaban el compositor debajo de la barra
               inferior en pantallas de 667 px de alto (iPhone SE/8). */}
           <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap sm:overflow-visible items-center gap-2 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="sm:hidden flex shrink-0 items-center gap-1">
+              {exigenteControls}
+            </div>
             {chips.map((c) => {
               const Icon = CHIP_ICONS[c.icon];
               return (

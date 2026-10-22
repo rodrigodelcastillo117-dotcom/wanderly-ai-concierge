@@ -430,7 +430,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
       <button
         onClick={() => setOpen(true)}
         className={`${triggerClass} ${className}`}
-        title="Un humano del equipo IATOS te ayuda por correo o teléfono, sujeto a disponibilidad"
+        title="Asistencia humana por correo o teléfono, sujeta a disponibilidad del equipo"
       >
         <Phone className="w-4 h-4 text-primary" />
         <span className="hidden sm:inline">Contactar Fixer</span>
