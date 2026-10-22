@@ -4,14 +4,20 @@ import { readFunctionError } from "@/lib/functionErrors";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Límites leídos de public.plan_limits en el servidor; null = ilimitado (p. ej. PRO mientras
+// pro_limits_enforced esté apagado).
 export type AccessState = {
   is_pro: boolean;
+  plan?: "free" | "pro";
+  limits_enforced?: boolean;
   concierge_used: number;
-  concierge_limit: number;
-  concierge_remaining: number;
+  concierge_limit: number | null;
+  concierge_remaining: number | null;
+  concierge_renews_at?: string | null;
   trips_used: number;
-  trips_limit: number;
-  trips_remaining: number;
+  trips_limit: number | null;
+  trips_remaining: number | null;
+  trips_period?: "month" | "once";
 };
 
 export type SubscriptionRow = {
@@ -60,7 +66,9 @@ export function useSubscription() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const status = subscription?.status ?? null;
-  const isTrialing = status === "trialing";
+  // Una prueba vencida (p. ej. la de 30 días sin tarjeta) queda como 'trialing' en la fila, pero
+  // ya no da acceso: solo cuenta como prueba mientras el servidor diga que es PRO.
+  const isTrialing = status === "trialing" && Boolean(access?.is_pro);
   const isComped = status === "comped";
   const trialDaysLeft = isTrialing ? daysLeft(subscription?.trial_end ?? subscription?.current_period_end) : null;
 

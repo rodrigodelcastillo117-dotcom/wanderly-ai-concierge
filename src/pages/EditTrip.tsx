@@ -124,7 +124,8 @@ const EditTrip = () => {
       }
       navigate(`/dashboard/viajes/${res.tripId}`, { replace: true });
     } catch (e: any) {
-      toast.error(e?.message ?? "No pudimos re-analizar el viaje. No se cambió nada.");
+      // Límite del plan → diálogo; fallo técnico → mensaje seguro (nunca el texto interno).
+      await (await import("@/lib/functionErrors")).toastFunctionError(e, "No pudimos re-analizar el viaje. No se cambió nada.");
       setReanalyzing(false);
     }
   };

@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { toastFunctionError } from "@/lib/functionErrors";
+import { clearRequestKey, getRequestKey } from "@/lib/requestKey";
 
 
 type ConnStyle = "tiempo" | "paisaje" | "smart";
@@ -248,16 +249,19 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         }]);
       }
 
-      // Logística real via edge function
+      // Logística real via edge function. Misma llave al reintentar o recargar (auto=1): si el plan
+      // ya se generó, el servidor lo devuelve sin gastar otro análisis.
+      const planArgs = {
+        origin,
+        destinations: validStops,
+        fecha_salida: fechaSalida || undefined,
+        fecha_regreso: fechaRegreso || undefined,
+        num_viajeros: viajeros,
+        prefs: p,
+      };
+      const request_key = getRequestKey("logistics-plan", planArgs);
       const { data, error } = await supabase.functions.invoke("logistics-plan", {
-        body: {
-          origin,
-          destinations: validStops,
-          fecha_salida: fechaSalida || undefined,
-          fecha_regreso: fechaRegreso || undefined,
-          num_viajeros: viajeros,
-          prefs: p,
-        },
+        body: { ...planArgs, request_key },
       });
       if (error) throw error;
       if (!data?.logistics) throw new Error("La IA no devolvió logística");
@@ -391,7 +395,10 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
           .select("id")
           .single();
         if (tErr) console.error(tErr);
-        else tripId = trip?.id;
+        else {
+          tripId = trip?.id;
+          clearRequestKey("logistics-plan");
+        }
       }
 
 
@@ -402,8 +409,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
       }
     } catch (e: any) {
       console.error(e);
-      // 402 = ya usó su análisis gratis: mensaje claro con botón a PRO (no "non-2xx status code").
-      await toastFunctionError(e, "No pudimos generar la ruta", navigate);
+      // Límite del plan → diálogo con "Conocer IATOS PRO"; fallo técnico → "intenta de nuevo".
+      await toastFunctionError(e, "No pudimos generar la ruta");
     } finally {
       setGenerating(false);
     }

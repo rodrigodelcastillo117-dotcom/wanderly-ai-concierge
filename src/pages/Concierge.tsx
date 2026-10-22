@@ -253,18 +253,23 @@ const Concierge = () => {
         tripCandidates: Array.isArray(data._trip_candidates) ? data._trip_candidates : [],
       }]);
     } catch (e: any) {
-      const msg = e?.message ?? "";
-      if (/401|Sesión inválida|No autorizado|invalid auth/i.test(msg)) {
+      // Se decide por el código del servidor, no por el texto (IATOS-P1-FREE-01).
+      const { readFunctionError, toastFunctionError } = await import("@/lib/functionErrors");
+      const info = await readFunctionError(e, "El concierge no respondió");
+      if (info.status === 401 || info.code === "UNAUTHENTICATED") {
         await supabase.auth.signOut();
         toast.error("Tu sesión expiró. Vuelve a iniciar sesión.");
         window.location.href = "/auth";
         return;
       }
-      toast.error(msg || "El concierge no respondió");
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(), role: "assistant", ts: Date.now(),
-        text: "Disculpa, hubo un tropiezo. Inténtalo de nuevo en un momento.",
-      }]);
+      await toastFunctionError(e, "El concierge no respondió");
+      // Límite del plan: el diálogo lo explica; no se agrega "hubo un tropiezo" al chat.
+      if (!info.freeLimit) {
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(), role: "assistant", ts: Date.now(),
+          text: "Disculpa, hubo un tropiezo. Inténtalo de nuevo en un momento.",
+        }]);
+      }
     } finally {
       setSending(false);
     }

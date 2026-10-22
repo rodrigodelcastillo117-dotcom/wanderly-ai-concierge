@@ -13,6 +13,7 @@ import { CookieBanner } from "@/components/CookieBanner";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { lazyWithRetry } from "@/lib/lazyRetry";
 import Landing from "./pages/Landing";
+import { FreeLimitDialogHost } from "@/components/FreeLimitDialog";
 import { Navigate } from "react-router-dom";
 
 // Code-splitting: todo lo que no es la landing se carga bajo demanda por ruta.
@@ -81,6 +82,7 @@ const App = () => (
         <ScrollToTop />
         <CookieBanner />
         <ReferralCapture />
+        <FreeLimitDialogHost />
         <AuthProvider>
           <OnboardingProvider>
           <Suspense fallback={<RouteFallback />}>

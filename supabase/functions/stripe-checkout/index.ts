@@ -1,5 +1,5 @@
-// Crea una Checkout Session de Stripe para IATOS PRO ($99 MXN/mes, trial 30 días con tarjeta
-// solo la primera vez). Reglas en logic.ts.
+// Crea una Checkout Session de Stripe para IATOS PRO. Prueba de Stripe de 30 días solo la primera
+// vez; durante la prueba sin tarjeta (DEC-02) no se cobra hasta que termine. Reglas en logic.ts.
 import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { adminClient } from "../_shared/entitlements.ts";
@@ -82,6 +82,8 @@ Deno.serve(async (req) => {
       line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
       subscription_data: {
         ...(plan.trialDays ? { trial_period_days: plan.trialDays } : {}),
+        // Durante una prueba sin tarjeta: sin cobro hasta que termine (logic.ts noCardTrialEnd).
+        ...(plan.trialEndUnix ? { trial_end: plan.trialEndUnix } : {}),
         metadata: { supabase_user_id: user.id },
       },
       automatic_tax: { enabled: true },

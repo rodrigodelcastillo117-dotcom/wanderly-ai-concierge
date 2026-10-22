@@ -24,7 +24,8 @@ export async function getAuthUser(req: Request): Promise<{ id: string; email?: s
 }
 
 export function unauthorizedResponse(corsHeaders: Record<string, string> = {}) {
-  return new Response(JSON.stringify({ error: "unauthorized" }), {
+  // code estable para el cliente (IATOS-P1-FREE-01); "error" se conserva por compatibilidad.
+  return new Response(JSON.stringify({ code: "UNAUTHENTICATED", error: "unauthorized", message: "Tu sesión expiró. Vuelve a iniciar sesión." }), {
     status: 401,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
