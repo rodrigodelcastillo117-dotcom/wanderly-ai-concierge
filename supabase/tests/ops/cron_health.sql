@@ -1,4 +1,5 @@
 -- cron_health() con tablas mínimas que imitan pg_cron y pg_net (solo en la base local de prueba).
+-- Formato "C1 <qué> [<esperado>]: <observado>" (run.sh lo convierte en OK/FALLA).
 \pset footer off
 \pset tuples_only on
 CREATE SCHEMA IF NOT EXISTS cron;
@@ -19,9 +20,12 @@ INSERT INTO cron.job_run_details (jobid, status, return_message, start_time, end
 INSERT INTO net._http_response (status_code, timed_out, created) VALUES
  (200, false, now() - interval '1 hour'), (401, false, now() - interval '30 minutes'), (NULL, true, now() - interval '10 minutes'),
  (401, false, now() - interval '9 hours');
-\echo 'C1 cron_health devuelve los 3 jobs con su última corrida y las fallas HTTP de 6 h [total 3, failed 2, last_failure timeout]'
 SET ROLE service_role;
-SELECT jsonb_pretty(public.cron_health());
+SELECT 'C1 cron_health devuelve los 3 jobs con su última corrida y las fallas HTTP de 6 h [available true, 3 jobs, http 3/2 timeout, price-watch failed]: '
+  || 'available ' || (j->>'available') || ', ' || jsonb_array_length(j->'jobs') || ' jobs, http '
+  || (j->'http'->>'total') || '/' || (j->'http'->>'failed') || ' ' || (j->'http'->>'last_failure') || ', price-watch '
+  || (SELECT x->>'last_status' FROM jsonb_array_elements(j->'jobs') x WHERE x->>'jobname' = 'price-watch-twice-daily')
+  FROM (SELECT public.cron_health() AS j) s;
 RESET ROLE;
 DROP SCHEMA cron CASCADE;
 DROP SCHEMA net CASCADE;

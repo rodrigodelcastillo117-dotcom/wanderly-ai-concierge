@@ -2,19 +2,22 @@
 # Pruebas SQL del grupo cost (caché compartida, registro de uso, bolsa de búsquedas en vivo, C-01 y
 # reclamo de alertas) sobre un Postgres local desechable (nunca producción).
 # Uso: PGHOST=/ruta/socket PGPORT=5432 ./run.sh [nombre_db]
-# Esperado: líneas "OK ..."; cualquier "ERROR"/"FALLA" es un error.
+# Base con TODAS las migraciones en orden (la de pg_cron falla en local y sale como AVISO); la
+# idempotencia de 20261022142* se prueba en una COPIA de la base. Las aserciones de cost.sql son RAISE
+# EXCEPTION: un "ERROR" sale como "FALLA ERROR". Salida OK/FALLA/AVISO y un RESUMEN; sale con 1 si algo
+# falla (../lib.sh).
 set -u
 DIR=$(cd "$(dirname "$0")" && pwd); MIG="$DIR/../../migrations"; DB=${1:-iatos_cost_test}
+. "$DIR/../lib.sh"
 PSQL="psql -U ${PGUSER:-postgres} -q -X"
-# Reproduce todas las migraciones (la de pg_cron falla en local; es esperado).
-"$DIR/../security/run.sh" "$DB" 2>&1 | grep '^FALLÓ' | grep -v pg_cron || true
-echo "--- idempotencia (segunda pasada de 20261022142*) ---"
-for f in "$MIG"/20261022142*.sql; do
-  out=$($PSQL -v ON_ERROR_STOP=1 -d "$DB" -f "$f" 2>&1 >/dev/null | grep ERROR | head -1)
-  if [ -n "$out" ]; then echo "FALLA $(basename "$f"): $out"; else echo "ok $(basename "$f")"; fi
-done
+ESPERADOS=16
+
+main() {
+"$DIR/../security/run.sh" "$DB" 2>&1 | grep -E '^FALLA (migración|stubs|no se pudo)'
+echo "--- idempotencia (segunda pasada de 20261022142*, en una copia de la base) ---"
+t_idempotency "$DB" "$MIG"/20261022142*.sql
 echo "--- pruebas ---"
-$PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/cost.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA cost.sql"
+$PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/cost.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
 
 # Concurrencia 1: dos búsquedas simultáneas del mismo usuario FREE con 4 de 5 usadas: la sesión A
 # toma la 5a y tarda en confirmar; la B espera el candado y recibe quota_exceeded (nunca 6).
@@ -62,3 +65,7 @@ if [ -n "$A" ] && [ -n "$B" ] && [ "$COMMON" = "0" ]; then
 else
   echo "FALLA CONCURRENCIA claim_price_watches A=$A B=$B comunes=$COMMON"
 fi
+}
+
+main 2>&1 | t_verdict cost "$ESPERADOS"
+exit "${PIPESTATUS[1]}"
