@@ -75,11 +75,11 @@ beforeEach(() => {
 });
 
 describe("Inicio sin viajes: guía del primer viaje", () => {
-  it("explica los 3 pasos, sin video duplicado, y los ejemplos solo llenan el campo", async () => {
+  it("franja compacta que explica qué pasa, sin video duplicado, y los ejemplos solo llenan el campo", async () => {
     renderHome();
     expect(await screen.findByRole("heading", { name: /Planea tu primer viaje/ })).toBeInTheDocument();
     expect(screen.queryByText(/Planea un/)).toBeNull(); // el hero de video no se repite
-    expect(screen.getByText("Ves el total en pesos")).toBeInTheDocument();
+    expect(screen.getByText(/te da el total en pesos/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "“Oaxaca un fin de semana, 2 personas”" }));
     expect(screen.getByLabelText("Platícame tu viaje")).toHaveValue("Oaxaca un fin de semana, 2 personas");
     // No navegó ni analizó nada.

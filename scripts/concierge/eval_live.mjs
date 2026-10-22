@@ -104,18 +104,18 @@ const SCENARIOS = (ids) => [
 ];
 
 async function main() {
-  const { token } = await login();
+  const { token, userId } = await login();
   console.log("Cuenta sintética lista. Creando viajes de prueba…");
   const created = [];
   try {
     const [tokio] = await rest(token, "POST", "trips", {
-      destino: "Tokio", pais_destino: "Japón", ciudad_origen: "CDMX", fecha_salida: addDays(150), fecha_regreso: addDays(160), num_viajeros: 2, status: "borrador",
+      user_id: userId, destino: "Tokio", pais_destino: "Japón", ciudad_origen: "CDMX", fecha_salida: addDays(150), fecha_regreso: addDays(160), num_viajeros: 2, status: "listo",
       vuelos_json: [{ aerolinea: "ANA", numero_vuelo: "NH179", fecha: addDays(150), from: "MEX", to: "NRT", hora_salida: "01:20" }],
       hospedaje_json: [{ nombre: "Park Hyatt Tokyo", ciudad: "Tokio", direccion: "3-7-1-2 Nishi-Shinjuku" }],
     });
     created.push(tokio.id);
     const [paris] = await rest(token, "POST", "trips", {
-      destino: "París", pais_destino: "Francia", ciudad_origen: "CDMX", fecha_salida: today, fecha_regreso: addDays(7), num_viajeros: 2, status: "borrador",
+      user_id: userId, destino: "París", pais_destino: "Francia", ciudad_origen: "CDMX", fecha_salida: today, fecha_regreso: addDays(7), num_viajeros: 2, status: "listo",
       vuelos_json: [{ aerolinea: "Air France", numero_vuelo: "AF179", fecha: today, from: "MEX", to: "CDG", hora_salida: "23:55", desde_pdf: true }],
       hospedaje_json: [{ nombre: "Hôtel Le Marais", ciudad: "París", direccion: "Rue de Rivoli 10", check_in: today, check_out: addDays(7), desde_pdf: true }],
     });
