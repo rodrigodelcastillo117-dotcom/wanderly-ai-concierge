@@ -227,6 +227,7 @@ describe("/prive/restablecer", () => {
   it("con token (#t=): lo quita de la URL, guarda la nueva y cierra la sesión local", async () => {
     state.status = activeStatus();
     happyServer();
+    document.cookie = "iatos_prive_bs=1; Path=/";
     localStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: SESSION_TOKEN, expiresAt: futureIso(), userId: "u1" }));
     window.history.replaceState(null, "", "/prive/restablecer#t=resetTOKEN_0123456789abc");
     renderAt("/prive/restablecer");

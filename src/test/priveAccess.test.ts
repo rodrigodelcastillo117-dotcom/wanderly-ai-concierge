@@ -310,3 +310,30 @@ describe("AUD-01 · sesión de Auth: falla cerrado", () => {
     expect(JSON.stringify(logs)).not.toContain(PS);
   });
 });
+
+describe("mantener mi sesión en este dispositivo (30 días)", () => {
+  it("unlock con remember: abre la sesión y la base la convierte en recordada (vence en 30 días)", async () => {
+    rpcImpl.prive_remember_session = () => okData({ ok: true, expires_at: "2026-11-21T10:00:00Z" });
+    const out = await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: true });
+    expect(out).toEqual({ status: 200, body: { ok: true, prive_session: PS, expires_at: "2026-11-21T10:00:00Z", remember: true } });
+    expect(calls.map(([fn]) => fn)).toEqual(["prive_unlock", "prive_remember_session"]);
+    expect(calls[1][1]).toEqual({ _user: UID, _session_id: "s1" });
+  });
+
+  it("si la base no la recuerda, queda la sesión normal de 12 h (nunca al revés)", async () => {
+    rpcImpl.prive_remember_session = () => okData({ ok: false, code: "PRIVE_SESSION_INVALID" });
+    expect((await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: true })).body)
+      .toEqual({ ok: true, prive_session: PS, expires_at: "2026-10-22T22:00:00Z" });
+    rpcImpl.prive_remember_session = () => ({ data: null, error: { message: "boom" } });
+    expect((await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: true })).body)
+      .toEqual({ ok: true, prive_session: PS, expires_at: "2026-10-22T22:00:00Z" });
+  });
+
+  it("sin remember (o contraseña equivocada) no se pide recordar; remember con otro tipo → 400", async () => {
+    await run({ action: "unlock", password: "Una-frase-muy-propia-77" });
+    rpcImpl.prive_unlock = () => okData({ ok: false, reason: "WRONG_PASSWORD" });
+    await run({ action: "unlock", password: "mala-clave-larga", remember: true });
+    expect(calls.map(([fn]) => fn)).toEqual(["prive_unlock", "prive_unlock"]);
+    expect((await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: "yes" })).status).toBe(400);
+  });
+});

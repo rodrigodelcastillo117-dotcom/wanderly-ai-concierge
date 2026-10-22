@@ -268,7 +268,7 @@ END $$;
 SELECT aud.ok('S13b anon y authenticated no tienen EXECUTE en las RPC admin_* de Privé ni en prive_sweep/prive_auth_session_alive',
   NOT EXISTS (SELECT 1 FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace
      AND p.proname IN ('admin_grant_prive', 'admin_revoke_prive_grant', 'admin_revoke_prive', 'admin_restore_prive', 'prive_sweep',
-                       'prive_auth_session_alive', 'prive_withdraw_invitation')
+                       'prive_auth_session_alive', 'prive_withdraw_invitation', 'prive_remember_session', 'prive_session_idle_limit')
      AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))));
 
 -- ===================================================================== NEW-01 · revocar concesión con invitación pendiente
@@ -348,12 +348,88 @@ SELECT aud.ok('N04 el barrido no toca membresías activas ni invitaciones de qui
   (SELECT status FROM prive_memberships WHERE user_id = aud.u(14)) = 'active'
   AND (SELECT count(*) FROM prive_memberships WHERE user_id IN (SELECT aud.u(n) FROM generate_series(1, 12) n) AND status = 'active') >= 10);
 
+-- ===================================================================== R · "mantener mi sesión en este dispositivo (30 días)"
+CREATE FUNCTION aud.remember(n int, tok text) RETURNS jsonb LANGUAGE plpgsql AS $$
+DECLARE r jsonb;
+BEGIN
+  SET LOCAL ROLE service_role;
+  r := public.prive_remember_session(aud.u(n), (SELECT id FROM public.prive_sessions WHERE token_hash = public.prive_sha256_hex(tok)));
+  RESET ROLE;
+  RETURN r;
+END $$;
+SELECT aud.auth_login(12, 1202);
+SELECT (aud.unlock(12, 1202))->>'token' AS t12 \gset
+SELECT aud.remember(12, :'t12') AS rm12 \gset
+SELECT aud.ok('R01 recordar: la sesión vence a los 30 días, avisa en la app y queda en la bitácora',
+  (:'rm12'::jsonb->>'ok')::boolean
+  AND (SELECT remember AND expires_at BETWEEN now() + interval '29 days 23 hours' AND now() + interval '30 days 1 minute'
+         FROM prive_sessions WHERE token_hash = public.prive_sha256_hex(:'t12'))
+  AND EXISTS (SELECT 1 FROM notifications WHERE user_id = aud.u(12) AND dedup_key LIKE 'prive_remember:%')
+  AND EXISTS (SELECT 1 FROM prive_membership_events WHERE user_id = aud.u(12) AND event = 'session_remembered'), :'rm12');
+UPDATE prive_sessions SET last_seen_at = now() - interval '3 hours' WHERE token_hash = public.prive_sha256_hex(:'t12');
+SET ROLE service_role; SELECT public.prive_sweep() AS swr \gset
+RESET ROLE;
+SELECT aud.ok('R02 recordada: 3 h sin uso no la cierran (ni prive_require ni el barrido)', aud.req_as(12, 1202, :'t12') = 'OK', aud.req_as(12, 1202, :'t12'));
+UPDATE prive_sessions SET last_seen_at = now() - interval '8 days' WHERE token_hash = public.prive_sha256_hex(:'t12');
+SELECT aud.ok('R03 recordada: 8 días sin uso → PRIVE_SESSION_EXPIRED', aud.req_as(12, 1202, :'t12') = 'PRIVE_SESSION_EXPIRED', aud.req_as(12, 1202, :'t12'));
+SELECT (aud.unlock(12, 1202))->>'token' AS t12b \gset
+SELECT aud.remember(12, :'t12b');
+UPDATE prive_sessions SET created_at = now() - interval '31 days', expires_at = now() - interval '1 day' WHERE token_hash = public.prive_sha256_hex(:'t12b');
+SELECT aud.ok('R03b recordada: a los 30 días vence aunque se use', aud.req_as(12, 1202, :'t12b') = 'PRIVE_SESSION_EXPIRED', aud.req_as(12, 1202, :'t12b'));
+-- Sigue sujeta a todo lo de prive_require.
+SELECT (aud.unlock(12, 1202))->>'token' AS t12c \gset
+SELECT aud.remember(12, :'t12c');
+SELECT aud.req_as(12, 1202, :'t12c') AS r12c0 \gset
+DELETE FROM auth.sessions WHERE id = aud.sid(1202)::uuid;
+SELECT aud.ok('R04 recordada: cerrar sesión en IATOS la invalida al instante', :'r12c0' = 'OK' AND aud.req_as(12, 1202, :'t12c') = 'PRIVE_SESSION_INVALID', aud.req_as(12, 1202, :'t12c'));
+SELECT aud.auth_login(12, 1203);
+SELECT (aud.unlock(12, 1203))->>'token' AS t12d \gset
+SELECT aud.remember(12, :'t12d');
+UPDATE subscriptions SET current_period_end = now() - interval '1 minute' WHERE user_id = aud.u(12);
+SELECT aud.req_as(12, 1203, :'t12d') AS r12d \gset
+UPDATE subscriptions SET current_period_end = now() + interval '20 days' WHERE user_id = aud.u(12);
+SET ROLE service_role; SELECT public.prive_revoke_sessions(aud.u(12), 'user_revoke_all'); RESET ROLE;
+SELECT aud.ok('R05 recordada: sin PRO → PRIVE_NOT_PRO; "cerrar todas mis sesiones" la cierra',
+  :'r12d' = 'PRIVE_NOT_PRO' AND aud.req_as(12, 1203, :'t12d') = 'PRIVE_SESSION_INVALID', :'r12d' || ' ' || aud.req_as(12, 1203, :'t12d'));
+SELECT (aud.unlock(12, 1203))->>'token' AS t12e \gset
+UPDATE prive_sessions SET created_at = now() - interval '10 minutes' WHERE token_hash = public.prive_sha256_hex(:'t12e');
+SELECT aud.ok('R06 solo se recuerda una sesión recién abierta y propia',
+  (aud.remember(12, :'t12e'))->>'code' = 'PRIVE_SESSION_INVALID' AND (aud.remember(11, :'t12e'))->>'ok' = 'false'
+  AND (SELECT NOT remember FROM prive_sessions WHERE token_hash = public.prive_sha256_hex(:'t12e')));
+SELECT aud.ok('R07 sin elegir "recordar" la sesión sigue en 12 h / 2 h',
+  (SELECT NOT remember AND expires_at <= now() + interval '12 hours' FROM prive_sessions WHERE token_hash = public.prive_sha256_hex(:'t12e')));
+
+-- ===================================================================== L · siempre hay salida para quien quedó bloqueado
+-- Bloqueo total (15 fallos) → pedir restablecimiento → completarlo → entrar con la nueva, en su
+-- sesión de Auth (lo que exige AUD-01). El restablecimiento no requiere sesión Privé.
+SELECT aud.auth_login(10, 1010);
+DO $$ DECLARE i int; BEGIN
+  FOR i IN 1..15 LOOP
+    UPDATE public.prive_credentials SET locked_until = NULL WHERE user_id = aud.u(10);
+    PERFORM public.prive_unlock(aud.u(10), 'mala-clave-numero-' || i, NULL, aud.sid(1010));
+  END LOOP;
+END $$;
+SELECT (aud.unlock(10, 1010))->>'reason' AS l10a \gset
+SET ROLE service_role;
+SELECT public.prive_request_reset(aud.u(10)) AS rt10 \gset
+SELECT public.prive_complete_reset(aud.u(10), :'rt10', 'Nueva-clave-aud-10-tras-reset', 'ok') AS cr10 \gset
+SELECT public.prive_unlock(aud.u(10), 'Nueva-clave-aud-10-tras-reset', NULL, aud.sid(1010)) AS ul10 \gset
+SELECT public.prive_complete_reset(aud.u(10), :'rt10', 'Otra-clave-aud-10-segunda', 'ok') AS cr10b \gset
+RESET ROLE;
+SELECT aud.ok('L01 bloqueo total → restablecer por correo → entra con la nueva; el enlace no sirve dos veces',
+  :'l10a' = 'HARD_LOCKED' AND (:'cr10'::jsonb->>'ok')::boolean AND (:'ul10'::jsonb->>'ok')::boolean
+  AND aud.req_as(10, 1010, :'ul10'::jsonb->>'token') = 'OK' AND (:'cr10b'::jsonb->>'code') = 'RESET_INVALID',
+  :'l10a' || ' ' || :'cr10' || ' ' || :'cr10b');
+
 -- ===================================================================== otros puntos de la fase 2
 -- members_requires_prive: hoy es solo informativa (el servidor no la aplica). Se deja documentado.
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES (aud.u(16), 'aud16@example.test', now()) ON CONFLICT DO NOTHING;
+INSERT INTO public.subscriptions (user_id, status, stripe_subscription_id, stripe_customer_id, current_period_end)
+VALUES (aud.u(16), 'active', 'sub_aud16', 'cus_aud16', now() + interval '20 days') ON CONFLICT (user_id) DO NOTHING;
 UPDATE app_flags SET value = 'true'::jsonb WHERE key = 'members_requires_prive';
-SELECT set_config('request.jwt.claim.sub', aud.u(12)::text, false);
+SELECT set_config('request.jwt.claim.sub', aud.u(16)::text, false);
 SELECT aud.ok('X01 members_requires_prive=true NO cambia members_access (bandera solo informativa; ver PRIVE.md)',
-  public.members_access() = true AND public.is_pro(aud.u(12)) AND NOT EXISTS (SELECT 1 FROM prive_sessions WHERE user_id = aud.u(12)));
+  public.members_access() = true AND NOT EXISTS (SELECT 1 FROM prive_memberships WHERE user_id = aud.u(16)));
 SELECT set_config('request.jwt.claim.sub', '', false);
 UPDATE app_flags SET value = 'false'::jsonb WHERE key = 'members_requires_prive';
 

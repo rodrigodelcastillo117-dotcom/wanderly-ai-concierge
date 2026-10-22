@@ -78,6 +78,30 @@ describe("priveSession: sesión Privé", () => {
     expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
   });
 
+  it("sesión normal: otra pestaña la usa (misma cookie de sesión del navegador); tras cerrar el navegador se pide de nuevo", () => {
+    savePriveSession({ token: "tok_1234567890", expiresAt: new Date(Date.now() + 3600e3).toISOString(), userId: "u1" });
+    expect(document.cookie).toContain("iatos_prive_bs=1");
+    expect(JSON.stringify(document.cookie)).not.toContain("tok_1234567890");
+    expect(readPriveSession("u1")?.token).toBe("tok_1234567890"); // otra pestaña: comparte localStorage y cookie
+    // Cerrar el navegador borra las cookies de sesión; localStorage queda.
+    document.cookie = "iatos_prive_bs=; Path=/; Max-Age=0";
+    expect(readPriveSession("u1")).toBeNull();
+    expect(localStorage.getItem(PRIVE_SESSION_KEY)).toBeNull();
+  });
+
+  it("sesión recordada (el servidor la aceptó): sobrevive al cierre del navegador hasta su vencimiento", () => {
+    savePriveSession({ token: "tok_1234567890", expiresAt: new Date(Date.now() + 20 * 86400e3).toISOString(), userId: "u1", remember: true });
+    document.cookie = "iatos_prive_bs=; Path=/; Max-Age=0";
+    expect(readPriveSession("u1")).toEqual(expect.objectContaining({ token: "tok_1234567890", remember: true }));
+    expect(readPriveSession("u1", Date.now() + 21 * 86400e3)).toBeNull();
+  });
+
+  it("cerrar la sesión Privé borra también la cookie de sesión del navegador", () => {
+    savePriveSession({ token: "tok_1234567890", expiresAt: new Date(Date.now() + 3600e3).toISOString(), userId: "u1" });
+    clearPriveSession();
+    expect(document.cookie).not.toContain("iatos_prive_bs=1");
+  });
+
   it("clearAllPriveState borra sesión y enlaces pendientes (cierre de sesión)", () => {
     savePriveSession({ token: "tok_1234567890", expiresAt: new Date(Date.now() + 3600e3).toISOString(), userId: "u1" });
     sessionStorage.setItem(PRIVE_INVITE_TOKEN_KEY, "abcDEF0123456789xyz");
