@@ -659,6 +659,21 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_email_changes: {
+        Row: {
+          changed_at: string
+          user_id: string
+        }
+        Insert: {
+          changed_at?: string
+          user_id: string
+        }
+        Update: {
+          changed_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       avatar_image_usage: {
         Row: {
           created_at: string
@@ -4793,6 +4808,33 @@ export type Database = {
         }
         Relationships: []
       }
+      storage_purge_queue: {
+        Row: {
+          bucket_id: string
+          id: number
+          name: string
+          queued_at: string
+          reason: string
+          user_id: string | null
+        }
+        Insert: {
+          bucket_id: string
+          id?: number
+          name: string
+          queued_at?: string
+          reason?: string
+          user_id?: string | null
+        }
+        Update: {
+          bucket_id?: string
+          id?: number
+          name?: string
+          queued_at?: string
+          reason?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       stripe_payment_events: {
         Row: {
           account_id: string | null
@@ -4856,6 +4898,45 @@ export type Database = {
           invoice_id?: string | null
           subscription_id?: string | null
           type?: string
+        }
+        Relationships: []
+      }
+      stripe_pro_prices: {
+        Row: {
+          created_at: string
+          note: string | null
+          price_id: string
+        }
+        Insert: {
+          created_at?: string
+          note?: string | null
+          price_id: string
+        }
+        Update: {
+          created_at?: string
+          note?: string | null
+          price_id?: string
+        }
+        Relationships: []
+      }
+      stripe_trial_fingerprints: {
+        Row: {
+          customer_id: string | null
+          fingerprint: string
+          first_seen_at: string
+          subscription_id: string
+        }
+        Insert: {
+          customer_id?: string | null
+          fingerprint: string
+          first_seen_at?: string
+          subscription_id: string
+        }
+        Update: {
+          customer_id?: string | null
+          fingerprint?: string
+          first_seen_at?: string
+          subscription_id?: string
         }
         Relationships: []
       }
@@ -5002,7 +5083,8 @@ export type Database = {
           created_at: string
           destino: string | null
           id: string
-          image_url: string
+          image_path: string | null
+          image_url: string | null
           place_name: string | null
           tags: string[]
           trip_id: string | null
@@ -5017,7 +5099,8 @@ export type Database = {
           created_at?: string
           destino?: string | null
           id?: string
-          image_url: string
+          image_path?: string | null
+          image_url?: string | null
           place_name?: string | null
           tags?: string[]
           trip_id?: string | null
@@ -5032,7 +5115,8 @@ export type Database = {
           created_at?: string
           destino?: string | null
           id?: string
-          image_url?: string
+          image_path?: string | null
+          image_url?: string | null
           place_name?: string | null
           tags?: string[]
           trip_id?: string | null
@@ -5197,6 +5281,7 @@ export type Database = {
           storage_path: string
           trip_id: string
           uploaded_by: string
+          visibility: string
         }
         Insert: {
           created_at?: string
@@ -5208,6 +5293,7 @@ export type Database = {
           storage_path: string
           trip_id: string
           uploaded_by: string
+          visibility: string
         }
         Update: {
           created_at?: string
@@ -5219,6 +5305,7 @@ export type Database = {
           storage_path?: string
           trip_id?: string
           uploaded_by?: string
+          visibility?: string
         }
         Relationships: [
           {
@@ -5267,6 +5354,7 @@ export type Database = {
           author_id: string
           created_at: string
           id: string
+          photo_path: string | null
           photo_url: string | null
           text: string
           trip_id: string
@@ -5275,6 +5363,7 @@ export type Database = {
           author_id: string
           created_at?: string
           id?: string
+          photo_path?: string | null
           photo_url?: string | null
           text: string
           trip_id: string
@@ -5283,6 +5372,7 @@ export type Database = {
           author_id?: string
           created_at?: string
           id?: string
+          photo_path?: string | null
           photo_url?: string | null
           text?: string
           trip_id?: string
@@ -6707,6 +6797,7 @@ export type Database = {
       _social_inter: { Args: { a: string[]; b: string[] }; Returns: string[] }
       _social_is_prive: { Args: { p_user: string }; Returns: boolean }
       _social_jaccard: { Args: { a: string[]; b: string[] }; Returns: number }
+      _social_lock_pair: { Args: { a: string; b: string }; Returns: undefined }
       _social_lugares: {
         Args: { p_user: string }
         Returns: {
@@ -6714,6 +6805,7 @@ export type Database = {
           pais: string
         }[]
       }
+      _social_nombre_seguro: { Args: { p_user: string }; Returns: string }
       _social_saludos: {
         Args: { p_amigo: string; p_me: string }
         Returns: Json
@@ -6793,10 +6885,24 @@ export type Database = {
         }
         Returns: string[]
       }
+      ai_res_fold: { Args: { _t: string }; Returns: string }
       ai_res_freemail_domains: { Args: never; Returns: string[] }
       ai_res_norm: { Args: { _t: string }; Returns: string }
+      ai_res_reply_vetoes: { Args: { _t: string }; Returns: string[] }
+      ai_res_rules_versions: { Args: never; Returns: string[] }
       ai_res_sender_strong: {
-        Args: { _auth: Json; _from: string; _venue: string }
+        Args: {
+          _auth: Json
+          _from: string
+          _venue: string
+          _venue_website?: string
+        }
+        Returns: boolean
+      }
+      ai_res_site_host: { Args: { _url: string }; Returns: string }
+      ai_res_trusted_writer: { Args: { _rel: unknown }; Returns: boolean }
+      ai_res_venue_owns_domain: {
+        Args: { _venue: string; _venue_website: string }
         Returns: boolean
       }
       ai_reservation_apply_reply: {
@@ -6910,6 +7016,17 @@ export type Database = {
         }
         Returns: Json
       }
+      auth_email_proven: { Args: { _user_id: string }; Returns: boolean }
+      auth_email_proven_parts: {
+        Args: {
+          _changed_at: string
+          _confirmed_at: string
+          _created_at: string
+          _email: string
+          _provider: string
+        }
+        Returns: boolean
+      }
       avatar_claim_trip: {
         Args: {
           p_fuente: string
@@ -6930,6 +7047,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      bloquear_usuario: { Args: { p_otro: string }; Returns: Json }
       booking_intent_apply_external: {
         Args: {
           _evidence?: Json
@@ -6980,6 +7098,7 @@ export type Database = {
         Args: { _city: string; _name: string }
         Returns: Json
       }
+      cancelar_solicitud_amistad: { Args: { p_otro: string }; Returns: Json }
       check_rate_limit: {
         Args: {
           _bucket: string
@@ -7060,6 +7179,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_trial_fingerprint: {
+        Args: {
+          _customer_id: string
+          _fingerprint: string
+          _subscription_id: string
+        }
+        Returns: Json
+      }
       commit_quota: {
         Args: { _reservation_id: string; _result?: Json; _trip_id?: string }
         Returns: Json
@@ -7071,6 +7198,7 @@ export type Database = {
         Returns: Json
       }
       cron_health: { Args: { p_http_window?: string }; Returns: Json }
+      desbloquear_usuario: { Args: { p_otro: string }; Returns: Json }
       disable_members_password: {
         Args: { p_revoke_unlocks?: boolean }
         Returns: Json
@@ -7227,6 +7355,10 @@ export type Database = {
         Args: { p_trip: string; p_user: string }
         Returns: boolean
       }
+      journal_photo_visible: {
+        Args: { p_name: string; p_uid: string }
+        Returns: boolean
+      }
       live_search_refund: {
         Args: { _plan: string; _units?: number; _user_id: string }
         Returns: undefined
@@ -7368,6 +7500,11 @@ export type Database = {
         Args: { _sid: string; _user: string }
         Returns: boolean
       }
+      prive_auth_session_lookup: {
+        Args: { _sid: string; _user: string }
+        Returns: boolean
+      }
+      prive_auth_sessions_checkable: { Args: never; Returns: boolean }
       prive_before_you_go: {
         Args: { _ps: string; _trip?: string }
         Returns: Json
@@ -7468,6 +7605,7 @@ export type Database = {
         Returns: Json
       }
       prive_edition_saved: { Args: { _ps: string }; Returns: Json }
+      prive_edition_status: { Args: { _ps: string }; Returns: Json }
       prive_edition_world_brief: { Args: { _ps: string }; Returns: Json }
       prive_entitled: { Args: { _user: string }; Returns: boolean }
       prive_evaluate_eligibility: {
@@ -7841,8 +7979,16 @@ export type Database = {
         Args: { _invoice_id: string }
         Returns: undefined
       }
+      pro_price_ok: {
+        Args: { _currency: string; _price_id: string }
+        Returns: boolean
+      }
       public_plan_config: { Args: never; Returns: Json }
       purge_account_data: { Args: { p_user_id: string }; Returns: Json }
+      quitar_amigo: {
+        Args: { p_bloquear?: boolean; p_otro: string }
+        Returns: Json
+      }
       quota_rule: {
         Args: { _kind: string; _user_id: string }
         Returns: {
@@ -7864,12 +8010,17 @@ export type Database = {
         Returns: number
       }
       rechazar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
+      regenerar_codigo_invitacion: { Args: never; Returns: Json }
       release_quota: {
         Args: { _reason?: string; _reservation_id: string }
         Returns: Json
       }
       reserve_quota: {
         Args: { _kind: string; _request_key: string; _user_id: string }
+        Returns: Json
+      }
+      responder_solicitud_amistad: {
+        Args: { p_aceptar: boolean; p_otro: string }
         Returns: Json
       }
       revert_profile_tier: { Args: { _batch_id: string }; Returns: number }
@@ -7907,6 +8058,11 @@ export type Database = {
         Args: { p_expires_at: string; p_hash: string }
         Returns: undefined
       }
+      set_trip_document_visibility: {
+        Args: { p_id: string; p_visibility: string }
+        Returns: Json
+      }
+      solicitudes_amistad: { Args: never; Returns: Json }
       start_account_deletion: { Args: { _account_id: string }; Returns: string }
       stripe_commit_payment_event: {
         Args: { _amount_refunded: number; _row: Json; _tenure_event: string }
@@ -7940,6 +8096,10 @@ export type Database = {
           p_today: string
         }
         Returns: string
+      }
+      trip_document_object_visible: {
+        Args: { p_name: string; p_uid: string }
+        Returns: boolean
       }
       trip_document_path_trip: { Args: { p_name: string }; Returns: string }
       trip_quotes_line_items_valid: { Args: { items: Json }; Returns: boolean }
