@@ -105,7 +105,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
       if (data?.error) throw new Error(data.error);
       toast({
         title: "Solicitud enviada al Concierge",
-        description: `Tu solicitud para ${v.nombre} está en cola. Te confirmamos por chat.`,
+        description: `Tu solicitud para ${v.nombre} quedó con el equipo (estado: solicitado). Aún no es una reserva: te avisamos cuando el lugar responda.`,
       });
       onReserve?.(v);
     } catch (e: any) {

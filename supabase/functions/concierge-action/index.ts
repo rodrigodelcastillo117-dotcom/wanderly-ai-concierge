@@ -36,6 +36,8 @@ const labelByType: Record<string, string> = {
   alert: "Alerta recibida",
   members_nightlife_reservation: "Solicitud de reserva recibida",
   prive_request: "Solicitud Privé recibida",
+  rebooking: "Solicitud de cambio de vuelo recibida",
+  fixer_request: "Solicitud al Fixer recibida",
 };
 
 Deno.serve(async (req) => {
@@ -132,7 +134,8 @@ Deno.serve(async (req) => {
           type: body.type,
           title,
           payload,
-          status: "pending",
+          // "solicitado": la atiende un humano; nunca nace como confirmada (mismo vocabulario que Privé).
+          status: "solicitado",
         })
         .select()
         .single();
@@ -154,7 +157,7 @@ Deno.serve(async (req) => {
     });
 
     // 3) Notifica a un humano por email — sin esto la solicitud se queda en
-    // "pending" para siempre y nadie la atiende de verdad. El correo es una tarjeta de operaciones
+    // "solicitado" para siempre y nadie la atiende de verdad. El correo es una tarjeta de operaciones
     // legible (tipo en español, lugar, fecha en hora del lugar y de CDMX, cliente, folio corto):
     // nunca JSON crudo ni el uuid completo (_shared/email-ops.ts).
     let humanNotified = false;

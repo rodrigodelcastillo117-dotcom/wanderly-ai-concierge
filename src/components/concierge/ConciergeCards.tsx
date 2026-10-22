@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  AlertTriangle, BadgeCheck, BedDouble, Car, ExternalLink, Landmark, Luggage, Plane, Sparkles, Star, Utensils, UserRound,
+  AlertTriangle, BadgeCheck, BedDouble, Car, ExternalLink, Globe, Landmark, Luggage, MapPin, Navigation, Phone, Plane, Sparkles, Star,
+  Utensils, UserRound, CalendarCheck, Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ActionButton as AffiliateActionButton } from "@/components/ActionButton";
@@ -11,7 +12,7 @@ import { toast } from "sonner";
 import { track } from "@/lib/analytics";
 import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
 import {
-  CARD_TYPES, safeHttpsUrl, type ConciergeCard,
+  CARD_TYPES, safeCardLink, safeHttpsUrl, type CardLink, type ConciergeCard,
 } from "../../../supabase/functions/concierge-chat/cards.ts";
 
 // Cards del chat de Iato. El servidor (concierge-chat/cards.ts → validateCards) ya validó tipo,
@@ -268,6 +269,34 @@ function MediaHeader({ card, Icon }: { card: ConciergeCard; Icon: typeof Utensil
   );
 }
 
+const LINK_ICON: Record<CardLink["kind"], typeof Navigation> = {
+  directions: Navigation, ride: Car, call: Phone, website: Globe, maps: MapPin, booking: CalendarCheck,
+};
+
+/**
+ * Botones de la card (cómo llegar, Uber, llamar, sitio, reservar). Los arma el servidor con los
+ * resultados reales; aquí se vuelven a validar (https o tel:). "Reservar" abre una búsqueda prellenada:
+ * no es una reserva hecha.
+ */
+export function CardLinks({ card, onOpen }: { card: ConciergeCard; onOpen?: (url: string) => void }) {
+  const links = (card.links ?? []).map(safeCardLink).filter(Boolean) as CardLink[];
+  if (!links.length) return null;
+  return (
+    <div className="mt-3 flex flex-wrap gap-2" data-testid="card-links">
+      {links.map((l) => {
+        const Icon = LINK_ICON[l.kind] ?? Link2;
+        return (
+          <a key={`${l.kind}-${l.url}`} href={l.url} target={l.kind === "call" ? undefined : "_blank"} rel="noopener noreferrer"
+            onClick={() => l.kind !== "call" && onOpen?.(l.url)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 px-3 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition min-h-[36px]">
+            <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" /> {l.label}
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: string | null }) {
   const { user } = useAuth();
   const req = useConciergeRequest(tripId);
@@ -313,7 +342,48 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           {card.meta && card.type !== "hotel" && <p className="text-xs text-primary mb-2">{card.meta}</p>}
           <div className="my-3"><ProvenanceBadge card={card} /></div>
           <ExternalCta card={card} label={card.cta_label ?? (card.type === "hotel" ? "Ver y reservar" : "Ver detalles")} onOpen={onOpen} className="w-full gold-glow" />
+          <CardLinks card={card} onOpen={onOpen} />
         </div>
+      </div>
+    );
+  }
+
+  if (card.type === "place") {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-4" data-card-type="place">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+            <MapPin className="w-5 h-5 text-primary" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h4 className="font-display text-base leading-tight">{card.title}</h4>
+              <Rating value={card.rating} />
+            </div>
+            {card.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>}
+            {card.meta && <p className="text-xs text-primary mt-1">{card.meta}</p>}
+            {card.body && <p className="text-sm text-muted-foreground mt-2">{card.body}</p>}
+            {card.fuente && <p className="text-[10px] text-muted-foreground mt-2">Fuente: {SOURCE_LABEL[String(card.fuente).toLowerCase()] ?? card.fuente}</p>}
+          </div>
+        </div>
+        <CardLinks card={card} onOpen={onOpen} />
+        {!card.links?.length && <div className="mt-3"><ExternalCta card={card} label={card.cta_label ?? "Ver en Google Maps"} onOpen={onOpen} className="h-9 px-3" /></div>}
+      </div>
+    );
+  }
+
+  if (card.type === "source") {
+    const url = safeHttpsUrl(card.cta_action);
+    return (
+      <div className="rounded-2xl border border-border bg-surface/40 p-4" data-card-type="source">
+        <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Fuente{card.subtitle ? ` · ${card.subtitle}` : ""}</p>
+        <h4 className="text-sm font-medium leading-snug">{card.title}</h4>
+        {card.body && <p className="text-xs text-muted-foreground mt-1">{card.body}</p>}
+        {url && (
+          <a href={url} target="_blank" rel="noopener noreferrer" onClick={() => onOpen(url)} className="inline-flex items-center gap-1 text-xs text-primary mt-2 hover:underline">
+            Abrir fuente <ExternalLink className="w-3 h-3" aria-hidden="true" />
+          </a>
+        )}
       </div>
     );
   }
@@ -358,11 +428,13 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             <ExternalCta card={card} label={card.cta_label ?? "Reservar"} className="w-full gold-glow" onOpen={onOpen} />
           ) : (
             <>
-              <RequestButton state={req.state} label="Solicitar reserva" className="w-full gold-glow"
+              <RequestButton state={req.state} label="Pídeselo al Fixer" className="w-full gold-glow"
                 onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
               <RequestNote {...req} />
             </>
           )}
+          <CardLinks card={card} onOpen={onOpen} />
+          <p className="text-[10px] text-muted-foreground mt-2">Aún no está reservado: los enlaces abren la reserva o una búsqueda prellenada.</p>
         </div>
       </div>
     );
@@ -384,7 +456,9 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
         {card.meta && <p className="text-xs text-muted-foreground mb-3">{card.meta}</p>}
         {/* B-17: cada card abre SU enlace (Welcome Pickups, Blacklane, Maps…). Solo sin enlace se
             arma uno de Welcome Pickups con origen y destino de la card. */}
-        {url ? (
+        {card.links?.length ? (
+          <CardLinks card={card} onOpen={onOpen} />
+        ) : url ? (
           <AffiliateActionButton type="custom_link" userId={user?.id} tripId={tripId ?? null} label={card.cta_label ?? "Abrir"}
             payload={{ url, provider: card.provider ?? new URL(url).hostname, accion: "concierge_transport" }} className="h-10 text-sm" />
         ) : (
