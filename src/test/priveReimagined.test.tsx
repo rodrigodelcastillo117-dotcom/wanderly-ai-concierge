@@ -54,6 +54,8 @@ const EXPS = [
 function Where() { const l = useLocation(); return <p data-testid="where">{l.pathname}{l.search}</p>; }
 
 const renderAt = (path: string) => {
+  // Sesión normal en este navegador abierto: token en localStorage + cookie de sesión del navegador (AUD-01).
+  document.cookie = "iatos_prive_bs=1; Path=/";
   localStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: SESSION_TOKEN, expiresAt: futureIso(), userId: "u1" }));
   return render(
     <MemoryRouter initialEntries={[path]}>

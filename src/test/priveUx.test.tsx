@@ -302,6 +302,8 @@ const EXPS = [
 
 describe("hub desbloqueado en español y navegación interna en la misma pestaña", { timeout: 20_000 }, () => {
   const renderHub = () => {
+    // Sesión normal en este navegador abierto: token en localStorage + cookie de sesión del navegador (AUD-01).
+    document.cookie = "iatos_prive_bs=1; Path=/";
     localStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: SESSION_TOKEN, expiresAt: futureIso(), userId: "u1" }));
     state.statusOk = true;
     state.status = activeStatus();
