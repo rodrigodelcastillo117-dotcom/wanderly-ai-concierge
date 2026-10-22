@@ -429,13 +429,17 @@ export function htmlToText(html: string, keepQuoted = false): string {
 }
 
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+// A2-RES-13: enlaces (con esquema, www. o un dominio con ruta) → "[enlace]". El extracto lo reenviamos
+// desde IATOS al usuario: un enlace del remitente (verificado o no) nunca debe llegar clicable.
+const URL_RE = /\b(?:(?:https?|ftp):\/\/|www\.)[^\s<>"'()]+|\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z]{2,}\/[^\s<>"'()]*/gi;
 const CARD_RE = /\b(?:\d[ -]?){13,19}\b/g;
 const PHONE_RE = /\+?\d[\d\s().-]{7,}\d/g;
 
-/** Extracto para guardar y mostrar: sin correos, teléfonos ni números tipo tarjeta, recortado. */
+/** Extracto para guardar y mostrar: sin correos, enlaces, teléfonos ni números tipo tarjeta, recortado. */
 export function redactExcerpt(text: string, max = 600): string {
   const t = String(text ?? "")
     .replace(EMAIL_RE, "[correo]")
+    .replace(URL_RE, "[enlace]")
     .replace(CARD_RE, "[número]")
     // Un teléfono tiene 9+ dígitos; una fecha ISO ("2026-11-03 20") no es un teléfono.
     .replace(PHONE_RE, (m) => (/^\d{4}-\d{2}-\d{2}/.test(m) || m.replace(/\D/g, "").length < 9 ? m : "[teléfono]"))
