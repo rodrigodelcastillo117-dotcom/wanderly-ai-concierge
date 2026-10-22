@@ -1,0 +1,97 @@
+{
+ "metrics": {
+  "members-390": {
+   "scrollH": 2397,
+   "clientH": 656,
+   "top": 112
+  },
+  "videos-390": [
+   {
+    "src": "https://videos.pexels.com/video-files/27312626/12118104_640_360_30fps.mp4",
+    "label": "Nueva York\n16 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/28159811/12313516_640_360_30fps.mp4",
+    "label": "Madrid\n15 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/32697876/13939793_640_360_30fps.mp4",
+    "label": "Milán\n14 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/5844838/5844838-hd_1280_720_30fps.mp4",
+    "label": "Saint-Tropez\n14 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/27777771/12222232_640_360_25fps.mp4",
+    "label": "Londres\n13 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/7197893/7197893-hd_1280_720_30fps.mp4",
+    "label": "París\n12 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/853857/853857-hd_1280_720_24fps.mp4",
+    "label": "Tulum\n11 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/36600485/15517645_640_360_24fps.mp4",
+    "label": "Berlín\n9 lugares"
+   }
+  ],
+  "members-1440": {
+   "scrollH": 2102,
+   "clientH": 845,
+   "top": 55
+  },
+  "videos-1440": [
+   {
+    "src": "https://videos.pexels.com/video-files/15809008/15809008-hd_1280_720_30fps.mp4",
+    "label": "Ciudad de México\n16 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/27312626/12118104_640_360_30fps.mp4",
+    "label": "Nueva York\n16 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/19444055/19444055-hd_1280_720_60fps.mp4",
+    "label": "Dubái\n13 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/27777771/12222232_640_360_25fps.mp4",
+    "label": "Londres\n13 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/37292884/15797130_640_360_30fps.mp4",
+    "label": "Mykonos\n13 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/7197893/7197893-hd_1280_720_30fps.mp4",
+    "label": "París\n12 lugares"
+   }
+  ]
+ },
+ "log": [
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo"
+ ]
+}

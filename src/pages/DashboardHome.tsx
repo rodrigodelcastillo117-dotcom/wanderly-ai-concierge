@@ -553,14 +553,14 @@ const DashboardHome = () => {
           </section>
 
 
-          {/* Smart Spend */}
+          {/* Tus gastos (antes "Smart Spend") */}
           <section className="glass-card rounded-3xl p-4 md:p-7 relative overflow-hidden min-w-0">
             <div aria-hidden className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Smart Spend</p>
-                <Link to="/dashboard/smart-spend" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
-                  Ver reportes <ChevronRight className="w-3 h-3" />
+                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Tus gastos</p>
+                <Link to="/dashboard/gastos?tab=resumen" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
+                  Ver resumen <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
 

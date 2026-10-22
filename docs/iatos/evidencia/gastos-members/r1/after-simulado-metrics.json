@@ -1,0 +1,45 @@
+{
+ "metrics": {
+  "members-390": {
+   "scrollH": 3578,
+   "clientH": 656,
+   "top": 112
+  },
+  "videos-390": [
+   {
+    "src": "https://videos.pexels.com/video-files/31553699/13447472_640_360_25fps.mp4",
+    "label": "Roma\n16 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/29175866/12598746_640_360_50fps.mp4",
+    "label": "Bangkok\n18 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/15809008/15809008-hd_1280_720_30fps.mp4",
+    "label": "Ciudad de México\n16 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/27777771/12222232_640_360_25fps.mp4",
+    "label": "Londres\n13 lugares"
+   },
+   {
+    "src": "https://videos.pexels.com/video-files/7197893/7197893-hd_1280_720_30fps.mp4",
+    "label": "París\n12 lugares"
+   }
+  ],
+  "members-1440": {
+   "scrollH": 3454,
+   "clientH": 845,
+   "top": 55
+  },
+  "videos-1440": []
+ },
+ "log": [
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo",
+  "blocked place-photo"
+ ]
+}
