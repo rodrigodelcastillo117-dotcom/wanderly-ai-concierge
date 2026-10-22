@@ -38,6 +38,8 @@ const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
 const Social = lazyWithRetry(() => import("./pages/Social"));
 const FriendProfile = lazyWithRetry(() => import("./pages/FriendProfile"));
 const Gastos = lazyWithRetry(() => import("./pages/Gastos"));
+// IATOS Wrapped ("Tu año en viajes"): pantalla completa tipo stories, su propio chunk.
+const Wrapped = lazyWithRetry(() => import("./pages/Wrapped"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound.tsx"));
 // ── IATOS Privé · catálogo (grupo catalog). El hub /prive y su candado los pone el grupo ui. ──
 const PriveDestinationPage = lazyWithRetry(() => import("./pages/prive/PriveDestinationPage"));
@@ -165,6 +167,8 @@ const App = () => (
             {/* Panel editorial de THE PRIVATE EDITION: el servidor exige public.admins en cada RPC. */}
             <Route path="/dashboard/admin/edicion" element={<ProtectedRoute><EditionAdmin /></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/wrapped" element={<ProtectedRoute><Wrapped /></ProtectedRoute>} />
+            <Route path="/wrapped/:year" element={<ProtectedRoute><Wrapped /></ProtectedRoute>} />
             <Route path="/dashboard/members" element={<Navigate to="/dashboard/concierge?tab=members" replace />} />
             {/* THE PRIVATE EDITION sin conexión: fuera de ProtectedRoute (en modo avión la sesión no se puede
                 renovar). No llama a la red; solo lee las copias que este usuario guardó en este dispositivo. */}

@@ -38,6 +38,7 @@ import { isTripEnded } from "@/lib/activeTrip";
 import { TripCommandCenter } from "@/components/TripCommandCenter";
 import { FirstTripGuide } from "@/components/FirstTripGuide";
 import { EXAMPLE_PROMPTS } from "@/lib/planDefaults";
+import { DashboardWrappedPromo } from "@/components/wrapped/WrappedPromo";
 
 
 
@@ -356,6 +357,9 @@ const DashboardHome = () => {
               onChange={(id) => { void active.pin(id); }} className="mt-4 flex-wrap" />
           </section>
         ) : null}
+
+        {/* IATOS Wrapped: destacado en diciembre y enero; el resto del año, acceso discreto. */}
+        {!active.loading && <DashboardWrappedPromo trips={active.trips} today={todayLocal} />}
 
         {/* HERO — cinematic Santorini-style sunset */}
         {/* Para quien aún no tiene viajes la guía de arriba ya es la portada: sin video duplicado. */}

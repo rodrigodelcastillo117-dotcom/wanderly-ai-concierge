@@ -72,7 +72,10 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   ('edition_admin_article_transition'),('edition_admin_article_correct'),('edition_admin_issue_transition'),
   ('edition_admin_image_license'),('edition_record_link_check'),('edition_sources_to_check'),
   -- Importar un viaje pasado: auth.uid(), el viaje nace del que llama; sin user_id del cliente.
-  ('import_past_trip')),
+  ('import_past_trip'),
+  -- IATOS Wrapped (20261026310000): sin parámetro de usuario; solo nombres y número de viajes de quienes
+  -- comparten viaje con auth.uid() (dueño o colaborador aceptado). Pruebas en supabase/tests/wrapped.
+  ('wrapped_companions')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)
