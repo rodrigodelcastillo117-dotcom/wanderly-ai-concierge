@@ -136,3 +136,21 @@ export function taxProblems(settings: TaxSettingsLike, registrations: TaxRegistr
   }
   return { problems, warnings };
 }
+
+export type StripeProductLike = { id?: string; name?: string | null; description?: string | null; active?: boolean | null; marketing_features?: Array<{ name?: string | null }> | null } | null;
+
+/** Frases que la oferta no puede prometer (PROFECO, publicidad veraz; IATOS_PLAN_COMERCIAL.md riesgo 3). */
+export const FORBIDDEN_CLAIMS = /sin\s+l[ií]mites?|ilimitad[oa]s?|unlimited|24\s*\/\s*7|\bvip\b/i;
+
+/** El nombre y la descripción del producto aparecen en el checkout, el portal, las facturas y los recibos. */
+export function productProblems(product: StripeProductLike): string[] {
+  if (!product) return ["product: no existe"];
+  const p: string[] = [];
+  if (product.active === false) p.push("product: archivado");
+  const texts = [product.name, product.description, ...(product.marketing_features ?? []).map((m) => m.name)].filter(Boolean) as string[];
+  for (const t of texts) {
+    const m = t.match(FORBIDDEN_CLAIMS);
+    if (m) p.push(`product: el texto "${m[0]}" promete algo que el plan no garantiza (quítalo en Stripe → Productos)`);
+  }
+  return p;
+}

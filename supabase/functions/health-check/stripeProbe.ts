@@ -1,6 +1,6 @@
 // Diagnóstico de la configuración de Stripe para vender IATOS PRO (AUD-08, auditoría de cierre).
 // Lo corre health-check con ?action=stripe_config (misma protección: secreto de cron o llave de
-// servicio). SOLO LECTURA: cinco GET a la API de Stripe con la llave del servidor; no crea, cambia
+// servicio). SOLO LECTURA: seis GET a la API de Stripe con la llave del servidor; no crea, cambia
 // ni cobra nada, no guarda nada y no manda correo. Nunca devuelve la llave.
 //
 //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=stripe_config" -H "x-cron-secret: $CRON_SECRET"
@@ -11,11 +11,13 @@
 import {
   priceProblems,
   portalProblems,
+  productProblems,
   STRIPE_API_VERSION,
   taxProblems,
   webhookProblems,
   type PortalConfigLike,
   type StripePriceLike,
+  type StripeProductLike,
   type TaxRegistrationLike,
   type TaxSettingsLike,
   type WebhookEndpointLike,
@@ -58,7 +60,15 @@ export async function probeStripeConfig(k: { stripeKey?: string; priceId?: strin
       if (mode !== "unknown" && typeof r.body?.livemode === "boolean" && r.body.livemode !== (mode === "live")) {
         warnings.push("el precio y la llave son de modos distintos");
       }
-      return { problems: priceProblems(r.body as StripePriceLike), warnings };
+      const problems = priceProblems(r.body as StripePriceLike);
+      // Nombre y descripción del producto (salen en el checkout, el portal y los recibos).
+      const productId = typeof r.body?.product === "string" ? r.body.product : r.body?.product?.id;
+      if (productId) {
+        const pr = await get(`products/${encodeURIComponent(productId)}`);
+        if (pr.ok) problems.push(...productProblems(pr.body as StripeProductLike));
+        else warnings.push(`no se pudo leer el producto: ${httpErr(pr)}`);
+      }
+      return { problems, warnings };
     }),
     safe("Webhook (eventos y versión de API)", async () => {
       const r = await get("webhook_endpoints?limit=100");

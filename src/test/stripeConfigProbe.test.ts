@@ -5,7 +5,7 @@ import { probeStripeConfig } from "../../supabase/functions/health-check/stripeP
 import { REQUIRED_WEBHOOK_EVENTS, portalProblems, taxProblems, webhookProblems } from "../../supabase/functions/_shared/stripe-offer";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
-const price = { id: "price_pro", active: true, livemode: true, currency: "mxn", unit_amount: 9900, tax_behavior: "inclusive", type: "recurring", recurring: { interval: "month", interval_count: 1, usage_type: "licensed" } };
+const price = { id: "price_pro", product: "prod_pro", active: true, livemode: true, currency: "mxn", unit_amount: 9900, tax_behavior: "inclusive", type: "recurring", recurring: { interval: "month", interval_count: 1, usage_type: "licensed" } };
 const endpoint = { id: "we_1", url: "https://x.supabase.co/functions/v1/stripe-webhook", status: "enabled", api_version: "2024-12-18.acacia",
   enabled_events: [...REQUIRED_WEBHOOK_EVENTS, "customer.subscription.paused", "customer.subscription.resumed", "invoice.payment_succeeded"] };
 const portal = { id: "bpc_1", is_default: true, business_profile: { privacy_policy_url: "https://traveliatos.life/privacidad", terms_of_service_url: "https://traveliatos.life/terminos" },
@@ -17,6 +17,7 @@ function stripeFetch(over: Record<string, () => Response> = {}) {
     expect((init as RequestInit & { method?: string })?.method ?? "GET").toBe("GET"); // solo lectura
     for (const [part, make] of Object.entries(over)) if (url.includes(part)) return make();
     if (url.includes("/prices/")) return json(price);
+    if (url.includes("/products/")) return json({ id: "prod_pro", active: true, name: "IATOS PRO", description: "Concierge de viajes con IA: 100 mensajes con Iato y 10 análisis al mes." });
     if (url.includes("webhook_endpoints")) return json({ data: [endpoint] });
     if (url.includes("billing_portal")) return json({ data: [portal] });
     if (url.includes("tax/settings")) return json({ status: "active" });
@@ -33,7 +34,7 @@ describe("health-check?action=stripe_config", () => {
     expect(r.mode).toBe("live");
     expect(r.checks.every((c) => c.problems.length === 0)).toBe(true);
     expect(JSON.stringify(r)).not.toContain("SECRETO");
-    expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(5);
+    expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(6);
   });
 
   it("modo prueba: aviso explícito de que no certifica live", async () => {
@@ -55,6 +56,15 @@ describe("health-check?action=stripe_config", () => {
     expect(by("Webhook").problems[0]).toMatch(/charge\.refunded/);
     expect(by("Portal").problems[0]).toMatch(/at_period_end/);
     expect(by("Impuestos").problems[0]).toMatch(/Stripe Tax no está activo/);
+  });
+
+  it("detecta 'sin límites' en la descripción del producto (lo que señaló IATOS_ESTADO_FINAL §5)", async () => {
+    const r = await probeStripeConfig({ stripeKey: "sk_live_x", priceId: "price_pro" }, stripeFetch({
+      "/products/": () => json({ id: "prod_pro", name: "IATOS PRO", description: "Concierge de viajes sin límites" }),
+    }));
+    const c = r.checks.find((x) => x.name.startsWith("Precio"))!;
+    expect(c.ok).toBe(false);
+    expect(c.problems[0]).toMatch(/sin límites/);
   });
 
   it("sin llave o sin precio: falla clara; un error HTTP no rompe el resto", async () => {
