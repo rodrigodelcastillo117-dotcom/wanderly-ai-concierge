@@ -121,7 +121,12 @@ const Profile = () => {
           </div>
           <div className="flex-1">
             <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Tu Travel Avatar</p>
-            <h1 className="font-display text-3xl md:text-4xl mb-2">{fullName || "Viajero"}</h1>
+            <h1 className="font-display text-3xl md:text-4xl mb-1">{fullName || "Viajero"}</h1>
+            {user?.email && (
+              <p className="text-sm text-muted-foreground mb-3" data-testid="profile-signed-in-email">
+                Sesión iniciada como <span className="text-foreground">{user.email}</span>
+              </p>
+            )}
             <p className="text-muted-foreground mb-4">
               {avatarUrl
                 ? "Este avatar te representa en todo IATOS: perfil, viajes, social y compatibilidad."
