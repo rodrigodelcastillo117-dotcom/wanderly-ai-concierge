@@ -1,0 +1,23 @@
+{
+  "_nota": "Respuesta de SerpApi engine=google_hotels con el formato documentado (https://serpapi.com/google-hotels-api). No es una grabación en vivo.",
+  "properties": [
+    {
+      "type": "hotel", "name": "Hotel Único Madrid", "link": "https://www.unicohotelmadrid.com/",
+      "property_token": "ChcIabc", "gps_coordinates": { "latitude": 40.4301, "longitude": -3.6869 },
+      "check_in_time": "15:00", "check_out_time": "12:00",
+      "rate_per_night": { "lowest": "$412", "extracted_lowest": 412, "before_taxes_fees": "$375", "extracted_before_taxes_fees": 375 },
+      "total_rate": { "lowest": "$2,060", "extracted_lowest": 2060, "before_taxes_fees": "$1,875", "extracted_before_taxes_fees": 1875 },
+      "prices": [{ "source": "Booking.com", "rate_per_night": { "extracted_lowest": 412 } }],
+      "hotel_class": "5-star hotel", "extracted_hotel_class": 5,
+      "images": [{ "thumbnail": "https://lh5.googleusercontent.com/p/abc=s287-w287-h192-n-k-no" }],
+      "overall_rating": 4.7, "reviews": 1840, "location_rating": 4.6,
+      "amenities": ["Wi-Fi gratis", "Spa", "Restaurante"]
+    },
+    {
+      "type": "hotel", "name": "Hostal Sin Total",
+      "rate_per_night": { "extracted_lowest": 95 },
+      "hotel_class": "3-star hotel",
+      "overall_rating": 4.2, "reviews": 300
+    }
+  ]
+}
