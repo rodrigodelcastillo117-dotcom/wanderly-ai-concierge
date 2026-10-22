@@ -31,6 +31,8 @@ import {
 import { chatError, type ChatErrorCode, modelHttpErrorCode, toolErrorCode } from "./errors.ts";
 import { redactPii } from "../_shared/redact.ts";
 import { runSearchPrive } from "./prive.ts";
+import { memoryCache, runPriveKey } from "./priveKeyMode.ts";
+import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { detectIntents, planTurn } from "./planner.ts";
 import { providerChain, resolveModelConfig, routeTurn, sharedBreaker } from "./router.ts";
 import { AllProvidersFailed, makeModelCaller } from "./agent.ts";
@@ -227,6 +229,45 @@ async function handleAction(req: Request, body: Body, authHeader: string) {
   return json(result, result.ok ? 200 : 422);
 }
 
+// ═══ The Privé Key (modo Privé de Iato, sin modelo: Experience Planner determinista) ═══
+
+const keyCache = memoryCache();
+
+async function handlePriveKey(req: Request, body: Body & Record<string, unknown>, authHeader: string) {
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+  const { data: u } = await supabase.auth.getUser();
+  if (!u?.user) return fail("UNAUTHENTICATED");
+  const userId = u.user.id;
+  // Bucket propio (no es de pago: no llama a IA ni a APIs externas) + cupo diario en runPriveKey.
+  const rl = await enforceRateLimit(req, "prive-key", userId, { perMinute: 12, perHour: 80, ipPerMinute: 30 });
+  if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
+  const today = resolveToday({ clientDate: body.client_date, tz: body.tz });
+  const [{ data: trips }, pinnedRes] = await Promise.all([
+    supabase.from("trips").select("id, destino, pais_destino, fecha_salida, fecha_regreso, num_viajeros, hospedaje_json, vuelos_json").limit(50),
+    supabase.from("profiles").select("active_trip_id").eq("id", userId).maybeSingle(),
+  ]);
+  const out = await runPriveKey(body, {
+    userId, priveSession: req.headers.get("x-prive-session"),
+    rpc: (fn, params) => supabase.rpc(fn, params) as any,
+    trips: (trips ?? []) as any[], pinnedId: (pinnedRes as any)?.data?.active_trip_id ?? null, todayISO: today.todayISO,
+    hitDaily: async (bucket, limit) => {
+      try {
+        const { data, error } = await adminClient().rpc("check_rate_limit", { _subject: userId, _bucket: bucket, _limit: limit, _window_seconds: 86400 });
+        if (error) return null;
+        const allowed = (data as { allowed?: unknown } | null)?.allowed;
+        return typeof allowed === "boolean" ? allowed : null;
+      } catch { return null; }
+    },
+    cache: keyCache,
+    fx: async () => {
+      const [usd, eur] = await Promise.all([getUsdMxnRateInfo(), getEurMxnRateInfo()]);
+      return { MXN: 1, USD: usd.rate, EUR: eur.rate, GBP: 26, JPY: 0.135, AED: 5.6 };
+    },
+    log: (event, data) => console.log(event, JSON.stringify(data)),
+  });
+  return json(out.body, out.status);
+}
+
 // ═══ Mensaje ═══
 
 Deno.serve(async (req) => {
@@ -238,6 +279,7 @@ Deno.serve(async (req) => {
     if (!authHeader) return fail("UNAUTHENTICATED");
     const body = (await req.json().catch(() => ({}))) as Body;
     if (body.mode === "action") return await handleAction(req, body, authHeader);
+    if (body.mode === "prive_key") return await handlePriveKey(req, body as Body & Record<string, unknown>, authHeader);
 
     if (!LOVABLE_API_KEY && !ANTHROPIC_API_KEY) {
       console.error("concierge-chat: faltan ANTHROPIC_API_KEY y LOVABLE_API_KEY");

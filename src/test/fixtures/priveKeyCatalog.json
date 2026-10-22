@@ -1,0 +1,2519 @@
+{
+ "_nota": "Filas reales de data/prive/import/curaduria_2026-10.json con la forma de prive_exp_json. Generado por scripts/prive/gen_key_fixture.mjs.",
+ "cities": {
+  "cdmx": {
+   "city": {
+    "slug": "cdmx",
+    "name": "Ciudad de México",
+    "timezone": "America/Mexico_City",
+    "currency": "MXN"
+   },
+   "items": [
+    {
+     "id": "00000000-0000-4000-8000-000000001000",
+     "slug": "cdmx-quintonil",
+     "name": "Quintonil",
+     "universe": "the_table",
+     "subcategory": "alta_cocina_mexicana",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Polanco",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Cocina mexicana del chef Jorge Vallejo y Alejandra Flores, nombrada por una hierba nativa de México, con dos estrellas MICHELIN 2026 y n.º 3 en The World's 50 Best Restaurants 2025.",
+     "address": "Isaac Newton 55, Polanco, Miguel Hidalgo, 11560 Ciudad de México",
+     "lat": 19.430818,
+     "lng": -99.191834,
+     "website": "https://quintonil.com",
+     "booking_url": "https://www.exploretock.com/quintonil",
+     "booking_method": "tock",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Menú degustación $6,090 MXN; maridaje $3,380 MXN (según el sitio oficial).",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Dos Estrellas",
+       "year": 2026,
+       "url": "https://guide.michelin.com/us/en/ciudad-de-mexico/miguel-hidalgo_1999281/restaurant/quintonil"
+      },
+      {
+       "name": "The World's 50 Best Restaurants – n.º 3",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-the-world/list/1-50"
+      },
+      {
+       "name": "Latin America's 50 Best Restaurants – n.º 7",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-latin-america/list/1-50"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "fine dining tasting menu plated mexican",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001001",
+     "slug": "cdmx-rosetta",
+     "name": "Rosetta",
+     "universe": "the_table",
+     "subcategory": "cocina_de_autor",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Cocina creativa de raíz mexicana con influencias globales de la chef Elena Reygadas, con una estrella MICHELIN 2026 y n.º 46 en The World's 50 Best Restaurants 2025.",
+     "address": "Colima 166, Roma Norte, Cuauhtémoc, 06700 Ciudad de México",
+     "lat": 19.41977,
+     "lng": -99.159772,
+     "website": "https://rosetta.com.mx",
+     "booking_url": "https://rosetta.com.mx/reservaciones",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Carta y menú de cocina de autor; sin rango publicado en la fuente consultada.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Una Estrella",
+       "year": 2026,
+       "url": "https://guide.michelin.com/us/en/ciudad-de-mexico/cuauhtemoc_1995126/restaurant/rosetta"
+      },
+      {
+       "name": "The World's 50 Best Restaurants – n.º 46",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-the-world/list/1-50"
+      },
+      {
+       "name": "Latin America's 50 Best Restaurants – n.º 39",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-latin-america/list/1-50"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "mansion dining room plants candlelight",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001002",
+     "slug": "cdmx-sud-777",
+     "name": "Sud 777",
+     "universe": "the_table",
+     "subcategory": "cocina_de_autor",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Restaurante del chef Edgar Núñez en el Pedregal, de techos altos y madera oscura, con una estrella MICHELIN 2026.",
+     "address": "Blvd. de la Luz 777, Jardines del Pedregal, Álvaro Obregón, 01900 Ciudad de México",
+     "lat": 19.313517,
+     "lng": -99.211473,
+     "website": "https://www.sud777.com.mx",
+     "booking_url": null,
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Cocina de autor; Michelin lo describe como gasto moderado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Una Estrella",
+       "year": 2026,
+       "url": "https://guide.michelin.com/us/en/ciudad-de-mexico/alvaro-obregon_2003790/restaurant/sud-777"
+      },
+      {
+       "name": "Latin America's 50 Best Restaurants – n.º 59 (51-100)",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-latin-america/list/1-50"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "modern restaurant garden terrace volcanic stone",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001003",
+     "slug": "cdmx-masala-y-maiz",
+     "name": "Masala y Maíz",
+     "universe": "the_table",
+     "subcategory": "cocina_india_mexicana",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Cocina ecléctica de fusión, con cocina abierta, de la chef Norma Listman y su equipo en el centro de la ciudad; una estrella MICHELIN 2026.",
+     "address": "Artículo 123 116, Centro, Cuauhtémoc, 06040 Ciudad de México",
+     "lat": 19.433234,
+     "lng": -99.149924,
+     "website": "https://www.masalaymaiz.com",
+     "booking_url": "https://www.exploretock.com/masala-y-maiz-mexico-city/",
+     "booking_method": "tock",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Michelin lo describe como gasto moderado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Una Estrella",
+       "year": 2026,
+       "url": "https://guide.michelin.com/us/en/ciudad-de-mexico/cuauhtemoc_1995126/restaurant/masala-y-maiz"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "spice fusion cuisine colorful dishes restaurant",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001004",
+     "slug": "cdmx-contramar",
+     "name": "Contramar",
+     "universe": "the_table",
+     "subcategory": "mesa_iconica",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Marisquería de la chef Gabriela Cámara abierta desde 1998; Bib Gourmand MICHELIN 2026.",
+     "address": "Durango 200, Roma Norte, Cuauhtémoc, 06700 Ciudad de México",
+     "lat": 19.419611,
+     "lng": -99.167226,
+     "website": "https://contramar.com.mx",
+     "booking_url": "https://www.opentable.com.mx/restref/client/?restref=1013491&lang=es-MX",
+     "booking_method": "opentable",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Pescados y mariscos a la carta; sin rango publicado en la fuente consultada.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Bib Gourmand",
+       "year": 2026,
+       "url": "https://guide.michelin.com/us/en/ciudad-de-mexico/cuauhtemoc_1995126/restaurant/contramar"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "seafood lunch bright restaurant grilled fish",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001005",
+     "slug": "cdmx-handshake-speakeasy",
+     "name": "Handshake Speakeasy",
+     "universe": "after_dark",
+     "subcategory": "cocktail_bar",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bar de coctelería en la colonia Juárez, n.º 6 en The World's 50 Best Bars 2026 y n.º 12 en North America's 50 Best Bars 2026.",
+     "address": "Amberes 65, Juárez, Cuauhtémoc, 06600 Ciudad de México",
+     "lat": 19.4257,
+     "lng": -99.165345,
+     "website": "https://handshake.bar",
+     "booking_url": "https://handshake.bar",
+     "booking_method": "opentable",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Coctelería de autor; sin rango publicado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "The World's 50 Best Bars – n.º 6",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-the-world/list/1-50"
+      },
+      {
+       "name": "North America's 50 Best Bars – n.º 12",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-north-america/lists/1-50"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "hidden speakeasy cocktail bar dim light",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001006",
+     "slug": "cdmx-licoreria-limantour",
+     "name": "Licorería Limantour",
+     "universe": "after_dark",
+     "subcategory": "cocktail_bar",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bar de cócteles abierto desde 2011 en la Roma, n.º 20 en North America's 50 Best Bars 2026.",
+     "address": "Av. Álvaro Obregón 106, Roma Norte, Cuauhtémoc, 06700 Ciudad de México",
+     "lat": 19.41815,
+     "lng": -99.159526,
+     "website": "https://limantour.tv",
+     "booking_url": "https://www.opentable.com.mx/r/licoreria-limantour-ciudad-de-mexico",
+     "booking_method": "opentable",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Coctelería; sin rango publicado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "North America's 50 Best Bars – n.º 20",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-north-america/lists/1-50"
+      },
+      {
+       "name": "The World's 50 Best Bars – n.º 63 (51-100)",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-the-world/list/1-50"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "lively cocktail bar night bartender",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001007",
+     "slug": "cdmx-tlecan",
+     "name": "Tlecān",
+     "universe": "after_dark",
+     "subcategory": "mezcaleria",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Mezcalería de artesanos, n.º 5 en North America's 50 Best Bars 2026.",
+     "address": "Av. Álvaro Obregón 228, Local 2, Roma Norte, Cuauhtémoc, 06700 Ciudad de México",
+     "lat": 19.416881,
+     "lng": -99.165438,
+     "website": "https://tlecan.com",
+     "booking_url": null,
+     "booking_method": "walk_in",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Mezcales artesanales y coctelería; sin rango publicado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "North America's 50 Best Bars – n.º 5",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-north-america/lists/1-50"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "mezcal bar candles agave bottles",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001008",
+     "slug": "cdmx-hanky-panky",
+     "name": "Hanky Panky",
+     "universe": "after_dark",
+     "subcategory": "speakeasy",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Speakeasy abierto en 2016 por Walter Meyenberg, nombrado en honor al cóctel Hanky Panky de Ada Coleman.",
+     "address": null,
+     "lat": null,
+     "lng": null,
+     "website": "https://www.hankypanky.mx",
+     "booking_url": "https://www.hankypanky.mx/rsvp",
+     "booking_method": "opentable",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Coctelería de autor; sin rango publicado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "secret speakeasy entrance cocktail lounge",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001009",
+     "slug": "cdmx-parker-and-lenox",
+     "name": "Parker & Lenox",
+     "universe": "after_dark",
+     "subcategory": "jazz_club",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bar de jazz en vivo (Parker) de martes a sábado y bar de escucha con vinilos (Lenox) detrás de la misma puerta.",
+     "address": "General Prim 100, esquina Milán 14, Juárez, Cuauhtémoc, Ciudad de México",
+     "lat": 19.430835,
+     "lng": -99.156494,
+     "website": "https://parkerandlenox.com",
+     "booking_url": "https://parkerandlenox.com/en",
+     "booking_method": "web",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Lenox sin reserva ni boleto; Parker con boletos por concierto.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "live jazz club stage intimate",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001010",
+     "slug": "cdmx-soho-house-mexico-city",
+     "name": "Soho House Mexico City",
+     "universe": "after_dark",
+     "subcategory": "members_club",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Primera casa de Soho House en Latinoamérica, en una casona de inspiración barroca en la colonia Juárez, con alberca y bar de tequila.",
+     "address": "Calle Versalles 28, Juárez, Cuauhtémoc, 06600 Ciudad de México",
+     "lat": 19.431025,
+     "lng": -99.154098,
+     "website": "https://www.sohohouse.com/houses/soho-house-mexico-city",
+     "booking_url": null,
+     "booking_method": "concierge_request",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Acceso para miembros o invitados de miembros; habitaciones reservables.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "private members club courtyard pool night",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001011",
+     "slug": "cdmx-casa-luis-barragan",
+     "name": "Casa Luis Barragán",
+     "universe": "culture_access",
+     "subcategory": "visita_arquitectura",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Casa estudio del arquitecto Luis Barragán, inscrita por la UNESCO en la Lista del Patrimonio Mundial en 2004; se visita solo con boleto previo.",
+     "address": "General Francisco Ramírez 12, Ampliación Daniel Garza, 11840 Ciudad de México",
+     "lat": 19.409216,
+     "lng": -99.192646,
+     "website": "https://www.casaluisbarragan.org",
+     "booking_url": "https://www.casaluisbarragan.org/visitas.html",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Boletos con compra anticipada obligatoria en el sitio oficial.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "modernist house pink wall architecture mexico",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001012",
+     "slug": "cdmx-casa-jacaranda",
+     "name": "Casa Jacaranda – clase de cocina con visita al mercado",
+     "universe": "signature_mexico",
+     "subcategory": "clase_de_cocina",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Experiencia que empieza en un mercado tradicional con los chefs de la casa y termina cocinando y comiendo en su cocina.",
+     "address": null,
+     "lat": null,
+     "lng": null,
+     "website": "https://www.casajacaranda.mx",
+     "booking_url": "https://www.casajacaranda.mx/prices",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Precios publicados en USD en el sitio oficial (tarifa flexible y tarifa final).",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "cooking class mexican market fresh ingredients",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001013",
+     "slug": "cdmx-lucha-libre-en-arena-mexico",
+     "name": "Lucha libre en la Arena México (CMLL)",
+     "universe": "signature_mexico",
+     "subcategory": "lucha_libre",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Funciones de lucha libre del Consejo Mundial de Lucha Libre en la Arena México, como el 'Viernes Espectacular' anunciado en su cartelera.",
+     "address": "Dr. Lavista 189, Doctores, Cuauhtémoc, Ciudad de México",
+     "lat": 19.42404,
+     "lng": -99.150522,
+     "website": "https://cmll.com",
+     "booking_url": "https://cmll.com",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 1,
+     "price_note": "Boletos en taquilla o en línea desde el sitio oficial.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "lucha libre wrestling arena masks crowd",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001014",
+     "slug": "cdmx-siembra-tortilleria",
+     "name": "Siembra Tortillería",
+     "universe": "signature_mexico",
+     "subcategory": "taqueria_maiz",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Polanco",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Taquería moderna de los chefs Karina Mejía e Israel Montero, abierta en Polanco en 2019 junto a Siembra Comedor; Bib Gourmand MICHELIN 2026.",
+     "address": "Av. Isaac Newton 256, Polanco, Miguel Hidalgo, Ciudad de México",
+     "lat": 19.4364918,
+     "lng": -99.1851933,
+     "website": "https://siempresiembra.com.mx",
+     "booking_url": "https://www.covermanager.com/reservation/module_restaurant/siembracomedor-cdmx/spanish",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 1,
+     "price_note": "Taquería de autor; MICHELIN la clasifica como económica.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Bib Gourmand",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/ciudad-de-mexico/miguel-hidalgo_1999281/restaurant/siembra-tortilleria"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "handmade blue corn tortillas taco counter",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001015",
+     "slug": "cdmx-limantour-polanco",
+     "name": "Limantour Polanco",
+     "universe": "after_dark",
+     "subcategory": "cocteleria",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Polanco",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Sede en Polanco de Licorería Limantour, cuyo bar original en la Roma ocupa el n.º 20 en North America's 50 Best Bars 2026.",
+     "address": "Oscar Wilde 9, Polanco, Miguel Hidalgo, Ciudad de México",
+     "lat": 19.4303521,
+     "lng": -99.1970055,
+     "website": "https://limantour.tv",
+     "booking_url": "https://www.opentable.com.mx/r/limantour-polanco-ciudad-de-mexico",
+     "booking_method": "opentable",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Coctelería; sin rango publicado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "elegant cocktail bar night polanco",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001016",
+     "slug": "cdmx-museo-nacional-de-antropologia",
+     "name": "Museo Nacional de Antropología",
+     "universe": "culture_access",
+     "subcategory": "museo",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Polanco",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Museo del INAH en el límite de Polanco con el Bosque de Chapultepec, dedicado a las culturas prehispánicas y los pueblos indígenas de México.",
+     "address": "Av. Paseo de la Reforma y Calzada Gandhi s/n, Chapultepec Polanco, Miguel Hidalgo, 11560 Ciudad de México",
+     "lat": 19.426,
+     "lng": -99.1863,
+     "website": "https://www.inah.gob.mx/museos/museo-nacional-de-antropologia",
+     "booking_url": null,
+     "booking_method": "walk_in",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 1,
+     "price_note": "Entrada general $210 MXN; nacionales y residentes $110 MXN (INAH, visto 2026-10-22).",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "anthropology museum aztec sun stone hall",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001017",
+     "slug": "cdmx-alcobas-a-luxury-collection-hotel",
+     "name": "Las Alcobas, a Luxury Collection Hotel",
+     "universe": "private_stays",
+     "subcategory": "hotel_boutique",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Polanco",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Hotel boutique de la colección Luxury Collection sobre Avenida Presidente Masaryk, la calle de las casas de moda de Polanco.",
+     "address": "Av. Presidente Masaryk 390, Polanco Chapultepec, 11560 Ciudad de México",
+     "lat": 19.4316432,
+     "lng": -99.1978117,
+     "website": "https://www.lasalcobas.com",
+     "booking_url": null,
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Hotel boutique de cinco estrellas; tarifas variables, sin rango publicado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "boutique hotel suite mexico city luxury",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001018",
+     "slug": "cdmx-maximo",
+     "name": "Máximo",
+     "universe": "the_table",
+     "subcategory": "cocina_de_autor",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Restaurante de Roma Norte en un espacio industrial de ladrillo encalado y madera de mezquite; una estrella MICHELIN 2026 y n.º 30 en Latin America's 50 Best Restaurants 2025.",
+     "address": "Álvaro Obregón, 65 Bis, Roma Norte, Cuauhtémoc, 06700",
+     "lat": 19.4188657,
+     "lng": -99.1579904,
+     "website": "https://www.maximobistrot.com.mx",
+     "booking_url": null,
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "MICHELIN lo ubica en su rango de precio más alto; sin rango publicado en el sitio.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Una Estrella",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/ciudad-de-mexico/cuauhtemoc_1995126/restaurant/maximo"
+      },
+      {
+       "name": "Latin America's 50 Best Restaurants – n.º 30",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-latin-america/list/1-50"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "industrial chic bistro dining room brick",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001019",
+     "slug": "cdmx-em",
+     "name": "Em",
+     "universe": "the_table",
+     "subcategory": "menu_degustacion",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Restaurante íntimo del chef Lucho Martínez, nombrado por su hija Emilia, con el bar 686 en la planta alta; una estrella MICHELIN 2026 y n.º 71 en Latin America's 50 Best Restaurants 2025.",
+     "address": "Ámsterdam 76, Colonia Condesa, Cuauhtémoc, 06140",
+     "lat": 19.4148467,
+     "lng": -99.1694391,
+     "website": "https://itsemilia.rest",
+     "booking_url": "https://www.exploretock.com/em/",
+     "booking_method": "tock",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Menú degustación; sin rango publicado consultado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Una Estrella",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/ciudad-de-mexico/cuauhtemoc_1995126/restaurant/em"
+      },
+      {
+       "name": "Latin America's 50 Best Restaurants – n.º 71 (51-100)",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-latin-america/list/1-50"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "intimate tasting menu counter dim light",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001020",
+     "slug": "cdmx-gaba",
+     "name": "Gaba",
+     "universe": "the_table",
+     "subcategory": "cocina_de_autor",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Café sencillo de día y restaurante de cocina sofisticada de noche en la Condesa; una estrella MICHELIN 2026.",
+     "address": "Av. Mazatlán 190, Colonia Condesa, Cuauhtémoc, 06170",
+     "lat": 19.4093741,
+     "lng": -99.1795811,
+     "website": "https://gabarestaurante.com",
+     "booking_url": null,
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Café de día y cocina de autor de noche; sin rango publicado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Una Estrella",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/ciudad-de-mexico/cuauhtemoc_1995126/restaurant/gaba"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "minimal concrete restaurant evening service",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001021",
+     "slug": "cdmx-expendio-de-maiz",
+     "name": "Expendio de Maíz",
+     "universe": "signature_mexico",
+     "subcategory": "maiz_nixtamal",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Cuatro mesas comunales, sin letrero ni menú, dedicadas al maíz y la cocina de banqueta en Roma Norte; una estrella MICHELIN 2026.",
+     "address": "Av. Yucatán 84, Roma Norte, Cuauhtémoc, 06700",
+     "lat": 19.4141912,
+     "lng": -99.1626171,
+     "website": "https://www.expendiodemaizsinnombre.com",
+     "booking_url": null,
+     "booking_method": "walk_in",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Sin menú impreso; sólo efectivo según MICHELIN.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "MICHELIN Guide México – Una Estrella",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/ciudad-de-mexico/cuauhtemoc_1995126/restaurant/expendio-de-maiz"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "heirloom corn comal street kitchen mexico",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001022",
+     "slug": "cdmx-form-matter",
+     "name": "Form + Matter (FO+MA)",
+     "universe": "after_dark",
+     "subcategory": "cocteleria",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bar de cócteles en Roma Norte, n.º 13 en North America's 50 Best Bars 2026 y n.º 59 en The World's 50 Best Bars.",
+     "address": "San Luis Potosí 37, Roma Nte., Cuauhtémoc, 06700 Ciudad de México (entrada por calle Mérida)",
+     "lat": null,
+     "lng": null,
+     "website": "https://www.fomabar.com",
+     "booking_url": "https://www.opentable.com.mx/r/form-and-matter-foma-reservations-ciudad-de-mexico",
+     "booking_method": "opentable",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Coctelería; sin rango publicado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "North America's 50 Best Bars – n.º 13",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-north-america/the-list/form-matter.html"
+      },
+      {
+       "name": "The World's 50 Best Bars – n.º 59 (51-100)",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-the-world/list/1-50"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "design cocktail bar moody lighting",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001023",
+     "slug": "cdmx-baltra",
+     "name": "Baltra Bar",
+     "universe": "after_dark",
+     "subcategory": "cocteleria",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bar de cócteles de la Condesa, n.º 48 en North America's 50 Best Bars 2026.",
+     "address": "Iztaccíhuatl 36D, Colonia Condesa, Cuauhtémoc, 06100 Ciudad de México",
+     "lat": 19.40943,
+     "lng": -99.1689855,
+     "website": "https://baltra.bar",
+     "booking_url": "https://www.opentable.com.mx/r/baltra-bar-ciudad-de-mexico",
+     "booking_method": "opentable",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Coctelería; sin rango publicado.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "North America's 50 Best Bars – n.º 48",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-north-america/the-list/Baltra-bar.html"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "small neighborhood cocktail bar warm light",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001024",
+     "slug": "cdmx-ignacia-guest-house",
+     "name": "Ignacia Guest House",
+     "universe": "private_stays",
+     "subcategory": "casa_de_huespedes",
+     "destination": {
+      "slug": "cdmx",
+      "name": "Ciudad de México",
+      "timezone": "America/Mexico_City",
+      "currency": "MXN"
+     },
+     "neighborhood": "Roma-Condesa",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bed & breakfast exclusivo en una casona de la colonia Roma, según su sitio oficial.",
+     "address": "Jalapa 208, Roma, 06700 Ciudad de México",
+     "lat": null,
+     "lng": null,
+     "website": "https://www.ignacia.mx",
+     "booking_url": null,
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Bed & breakfast de pocas habitaciones; sin tarifa publicada consultada.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "colorful guest house courtyard mexico city",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    }
+   ]
+  },
+  "mc": {
+   "city": {
+    "slug": "mc",
+    "name": "Mónaco",
+    "timezone": "Europe/Monaco",
+    "currency": "EUR"
+   },
+   "items": [
+    {
+     "id": "00000000-0000-4000-8000-000000001100",
+     "slug": "mc-louis-xv",
+     "name": "Le Louis XV – Alain Ducasse à l'Hôtel de Paris",
+     "universe": "the_table",
+     "subcategory": "alta_cocina_palacio",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Tres estrellas MICHELIN 2026; el restaurante de Alain Ducasse en el Hôtel de Paris, frente a la Place du Casino.",
+     "address": "Hôtel de Paris Monte-Carlo, Place du Casino, 98000 Mónaco",
+     "lat": 43.739009,
+     "lng": 7.427468,
+     "website": "https://www.montecarlosbm.com/en/restaurant-monaco/le-louis-xv-alain-ducasse-hotel-de-paris",
+     "booking_url": "https://www.montecarlosbm.com/en/restaurant-monaco/le-louis-xv-alain-ducasse-hotel-de-paris",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Menú degustación y carta; precios no publicados en las fuentes consultadas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "Guía MICHELIN — 3 estrellas",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/monaco-region/monaco/restaurant/le-louis-xv-alain-ducasse-a-l-hotel-de-paris"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "opulent palace dining room Monte Carlo chandelier",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001101",
+     "slug": "mc-blue-bay-marcel-ravin",
+     "name": "Blue Bay Marcel Ravin",
+     "universe": "the_table",
+     "subcategory": "alta_cocina_creativa",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Dos estrellas MICHELIN 2026; cocina creativa del chef martiniqués Marcel Ravin con raíces en las Antillas.",
+     "address": "40 avenue Princesse-Grace, 98000 Mónaco",
+     "lat": 43.748548,
+     "lng": 7.438968,
+     "website": "https://www.montecarlosbm.com/en/restaurant-monaco/blue-bay-marcel-ravin",
+     "booking_url": "https://www.montecarlosbm.com/en/restaurant-monaco/blue-bay-marcel-ravin",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Menú degustación; precios no publicados en las fuentes consultadas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "Guía MICHELIN — 2 estrellas",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/monaco-region/monaco/restaurant/blue-bay-marcel-ravin"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "seaside fine dining terrace Monaco bay",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001102",
+     "slug": "mc-ambassadeurs-by-christophe-cussac",
+     "name": "Les Ambassadeurs by Christophe Cussac",
+     "universe": "the_table",
+     "subcategory": "alta_cocina_hotel_belle_epoque",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Dos estrellas MICHELIN 2026; en el Hôtel Métropole (1886), renovado por Jacques Garcia, según la Guía MICHELIN.",
+     "address": "Hôtel Métropole Monte-Carlo, 4 avenue de la Madone, 98000 Mónaco",
+     "lat": 43.740935,
+     "lng": 7.427918,
+     "website": "https://www.metropole.com/fr/restaurant-bar",
+     "booking_url": "https://www.metropole.com/fr/restaurant-bar",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Menú degustación; precios no publicados en las fuentes consultadas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "Guía MICHELIN — 2 estrellas",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/monaco-region/monaco/restaurant/les-ambassadeurs-by-christophe-cussac"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "belle epoque hotel restaurant Monte Carlo luxury",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001103",
+     "slug": "mc-l-abysse-monte-carlo",
+     "name": "L'Abysse Monte-Carlo",
+     "universe": "the_table",
+     "subcategory": "sushi_barra",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Dos estrellas MICHELIN 2026; el concepto de sushi de Yannick Alléno, con barra de madera clara.",
+     "address": "1 square Beaumarchais, 98000 Mónaco",
+     "lat": 43.738666,
+     "lng": 7.426073,
+     "website": "https://www.montecarlosbm.com/en/restaurant-monaco/labysse-monte-carlo-yannick-alleno",
+     "booking_url": "https://www.montecarlosbm.com/en/restaurant-monaco/labysse-monte-carlo-yannick-alleno",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Menú omakase/degustación; precios no publicados en las fuentes consultadas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "Guía MICHELIN — 2 estrellas",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/monaco-region/monaco/restaurant/l-abysse-monte-carlo"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "sushi counter omakase luxury wood",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001104",
+     "slug": "mc-elsa-marcel-ravin",
+     "name": "Elsa Marcel Ravin",
+     "universe": "the_table",
+     "subcategory": "cocina_mediterranea_beach_club",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Una estrella MICHELIN 2026; en el hotel Monte-Carlo Beach de los años 30, renovado por India Mahdavi, con carta vegetal y marina.",
+     "address": "Monte-Carlo Beach, avenue Princesse-Grace, 06190 Roquebrune-Cap-Martin",
+     "lat": 43.751115,
+     "lng": 7.442235,
+     "website": "https://www.montecarlosbm.com/en/restaurant-monaco/elsa",
+     "booking_url": "https://www.montecarlosbm.com/en/restaurant-monaco/elsa",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Carta y menú; precios no publicados en las fuentes consultadas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "Guía MICHELIN — 1 estrella",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/monaco-region/monaco/restaurant/elsa-marcel-ravin"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "Riviera beach club restaurant sea view terrace",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001105",
+     "slug": "mc-table-d-antonio-salvatore-au-rampoldi",
+     "name": "La Table d'Antonio Salvatore au Rampoldi",
+     "universe": "the_table",
+     "subcategory": "alta_cocina_italiana",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Una estrella MICHELIN 2026; mesa gastronómica del chef Antonio Salvatore, natural de Basilicata, dentro del histórico Rampoldi.",
+     "address": "3 avenue des Spélugues, 98000 Mónaco",
+     "lat": 43.740393,
+     "lng": 7.427849,
+     "website": "https://rampoldi.mc",
+     "booking_url": "https://rampoldi.mc",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Menú degustación; precios no publicados en las fuentes consultadas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "Guía MICHELIN — 1 estrella",
+       "year": 2026,
+       "url": "https://guide.michelin.com/en/monaco-region/monaco/restaurant/la-table-d-antonio-salvatore-au-rampoldi"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "Italian fine dining Monte Carlo elegant",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001106",
+     "slug": "mc-americain",
+     "name": "Le Bar Américain",
+     "universe": "after_dark",
+     "subcategory": "bar_de_hotel_con_musica_en_vivo",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bar del Hôtel de Paris con músicos en directo cada noche (jazz, swing, blues, soul); abre todo el año de 12:00 a 01:00 según la web oficial.",
+     "address": "Hôtel de Paris Monte-Carlo, Place du Casino, 98000 Mónaco",
+     "lat": 43.739009,
+     "lng": 7.427468,
+     "website": "https://www.montecarlosbm.com/en/nightlife/le-bar-americain",
+     "booking_url": "https://www.montecarlosbm.com/en/nightlife/le-bar-americain",
+     "booking_method": "web",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Cócteles; precios no publicados en las fuentes consultadas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "grand hotel bar jazz piano Monte Carlo night",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001107",
+     "slug": "mc-buddha-monte-carlo",
+     "name": "Buddha-Bar Monte-Carlo",
+     "universe": "after_dark",
+     "subcategory": "lounge_dj",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Restaurante-lounge con DJ junto al Casino; abre de martes a jueves de 18:00 a 02:00 y viernes y sábado hasta las 03:00 según la web oficial.",
+     "address": "Place du Casino, Casino de Monte-Carlo, 98000 Mónaco",
+     "lat": 43.73916,
+     "lng": 7.428023,
+     "website": "https://www.montecarlosbm.com/en/restaurant-monaco/buddha-bar-monte-carlo",
+     "booking_url": "https://www.montecarlosbm.com/en/restaurant-monaco/buddha-bar-monte-carlo",
+     "booking_method": "web",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Restaurante-lounge; precios no publicados en las fuentes consultadas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "asian lounge bar dim lights DJ Monaco",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001108",
+     "slug": "mc-note-bleue",
+     "name": "La Note Bleue",
+     "universe": "after_dark",
+     "subcategory": "playa_con_musica_en_vivo",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Restaurante de playa en Larvotto con conciertos en directo de jazz, soul, funk y música brasileña y sesiones de DJ, según su web.",
+     "address": "Plage du Larvotto, avenue Princesse Grace, Monte-Carlo",
+     "lat": 43.745946,
+     "lng": 7.433069,
+     "website": "https://lanotebleue.mc",
+     "booking_url": "https://lanotebleue.mc",
+     "booking_method": "web",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Restaurante de playa; precios no publicados en las fuentes consultadas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": "La fuente no indica una edad mínima; IATOS lo marca 18+ por ser vida nocturna o casino.",
+     "image": {
+      "source": "pexels",
+      "query": "beach restaurant Monaco Larvotto evening music",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001109",
+     "slug": "mc-monte-carlo-cigar",
+     "name": "Monte-Carlo Cigar Club",
+     "universe": "after_dark",
+     "subcategory": "club_de_puros_miembros",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Club de puros y destilados dentro del Casino de Monte-Carlo, con terraza y vista al mar; la web lo describe como 'ultra-private' con círculo de miembros.",
+     "address": "Casino de Monte-Carlo, Place du Casino, 98000 Mónaco",
+     "lat": 43.73916,
+     "lng": 7.428023,
+     "website": "https://www.montecarlosbm.com/en/bar-nightclub-monaco/monte-carlo-cigar-club",
+     "booking_url": "https://www.montecarlosbm.com/en/bar-nightclub-monaco/monte-carlo-cigar-club",
+     "booking_method": "concierge_request",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Club con membresía; condiciones y precios no publicados en la página consultada.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "cigar lounge leather armchairs whisky",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001110",
+     "slug": "mc-thermes-marins-monte-carlo",
+     "name": "Thermes Marins Monte-Carlo",
+     "universe": "wellness_escape",
+     "subcategory": "spa_de_talasoterapia",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Centro de bienestar de 6.600 m² con piscina interior climatizada, sauna, hammam, jacuzzi, gimnasio y cabinas de tratamiento.",
+     "address": "2 avenue de Monte-Carlo, 98000 Mónaco",
+     "lat": 43.737755,
+     "lng": 7.427069,
+     "website": "https://www.montecarlosbm.com/en/wellness-sport-monaco/thermes-marins-monte-carlo",
+     "booking_url": "https://www.montecarlosbm.com/en/wellness-sport-monaco/thermes-marins-monte-carlo",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Tratamientos desde 195 € (p. ej. 'St Barth Escape'), según la web oficial.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "luxury spa indoor pool sea view",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001111",
+     "slug": "mc-caves-de-l-hotel-de-paris-monte-carlo",
+     "name": "Les Caves de l'Hôtel de Paris Monte-Carlo",
+     "universe": "celebrations",
+     "subcategory": "visita_y_cena_privada_en_bodega",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bodega de 1.500 m² bajo el Hôtel de Paris con más de 300.000 botellas y 11.000 referencias; se puede privatizar para cóctel o cena con cata.",
+     "address": "Square Beaumarchais, 98000 Mónaco",
+     "lat": 43.739009,
+     "lng": 7.427468,
+     "website": "https://www.montecarlosbm.com/en/restaurant-monaco/les-caves-de-lhotel-de-paris-monte-carlo",
+     "booking_url": "https://www.montecarlosbm.com/en/restaurant-monaco/les-caves-de-lhotel-de-paris-monte-carlo",
+     "booking_method": "email",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Visita previa a la cena con jefe sumiller y copa de champagne: 250 € por persona (hasta 10 personas; requiere reserva de cena en un restaurante del resort).",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": "Según la fuente: 18+ para la cata",
+     "image": {
+      "source": "pexels",
+      "query": "underground wine cellar candlelight dinner",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001112",
+     "slug": "mc-hotel-de-paris-monte-carlo",
+     "name": "Hôtel de Paris Monte-Carlo — Diamond Suites",
+     "universe": "private_stays",
+     "subcategory": "suites_de_palacio",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Colección de cinco Diamond Suites del Hôtel de Paris, entre ellas las suites Princess Grace y Prince Rainier III, de dos dormitorios.",
+     "address": "Place du Casino, 98000 Mónaco",
+     "lat": 43.739009,
+     "lng": 7.427468,
+     "website": "https://www.montecarlosbm.com/en/hotel/hotel-de-paris-monte-carlo/diamond-suites",
+     "booking_url": "https://www.montecarlosbm.com/en/hotel/hotel-de-paris-monte-carlo/diamond-suites",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Tarifas según fechas; no publicadas en la página consultada.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "luxury palace suite terrace Monaco sea view",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001113",
+     "slug": "mc-opera-de-monte-carlo",
+     "name": "Opéra de Monte-Carlo — temporada 2026-2027",
+     "universe": "culture_access",
+     "subcategory": "opera",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": "Montecarlo",
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Temporada en curso con galas en la Opéra de Monte-Carlo, como el recital de Jonathan Tetelman (7 nov 2026) y 'La Vie parisienne' de Offenbach (23 dic 2026), según el calendario oficial.",
+     "address": "Opéra de Monte-Carlo, Place du Casino, 98000 Mónaco",
+     "lat": 43.738959,
+     "lng": 7.428371,
+     "website": "https://www.opera.mc/en/",
+     "booking_url": "https://www.opera.mc/en/",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Entradas según función; abonos de galas disponibles.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "opera house gilded interior Monte Carlo",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001114",
+     "slug": "mc-formula-1-louis-vuitton-grand-prix-de-monaco-2027",
+     "name": "Formula 1 Louis Vuitton Grand Prix de Monaco 2027",
+     "universe": "iconic_events",
+     "subcategory": "formula_1",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "El Gran Premio de Mónaco 2027 se celebra del 3 al 6 de junio de 2027 y será fin de semana sprint por primera vez, según el Automobile Club de Monaco.",
+     "address": "Mónaco",
+     "lat": 43.737092,
+     "lng": 7.42115,
+     "website": "https://acm.mc/en/",
+     "booking_url": "https://acm.mc/en/",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Entradas a la venta en el Automobile Club de Monaco; precios según tribuna.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "Formula 1 Monaco street circuit harbour",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001115",
+     "slug": "mc-monaco-yacht-show-2027",
+     "name": "Monaco Yacht Show 2027",
+     "universe": "yacht_sea",
+     "subcategory": "salon_nautico",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Salón de superyates en Port Hercule, del 22 al 25 de septiembre de 2027, con más de 560 expositores según la web oficial.",
+     "address": "Port Hercule, Mónaco",
+     "lat": 43.737092,
+     "lng": 7.42115,
+     "website": "https://www.monacoyachtshow.com/en/",
+     "booking_url": "https://www.monacoyachtshow.com/en/",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Entradas y acceso según categoría; precios no consultados.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "superyachts Monaco harbour Port Hercule",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001116",
+     "slug": "mc-rolex-monte-carlo-masters-2027",
+     "name": "Rolex Monte-Carlo Masters 2027",
+     "universe": "sport_leisure",
+     "subcategory": "tenis_atp",
+     "destination": {
+      "slug": "mc",
+      "name": "Mónaco",
+      "timezone": "Europe/Monaco",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Torneo Rolex Monte-Carlo Masters, del 3 al 11 de abril de 2027 según la web oficial, con venta de entradas y paquetes de hospitalidad.",
+     "address": null,
+     "lat": null,
+     "lng": null,
+     "website": "https://montecarlotennismasters.com/en/",
+     "booking_url": "https://montecarlotennismasters.com/en/dates-and-tickets-2027/",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Entradas y paquetes de hospitalidad; precios en la web oficial.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "clay tennis court Mediterranean sea view",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    }
+   ]
+  },
+  "paris": {
+   "city": {
+    "slug": "paris",
+    "name": "París",
+    "timezone": "Europe/Paris",
+    "currency": "EUR"
+   },
+   "items": [
+    {
+     "id": "00000000-0000-4000-8000-000000001200",
+     "slug": "paris-plenitude",
+     "name": "Plénitude",
+     "universe": "the_table",
+     "subcategory": "alta_cocina",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Restaurante gastronómico del chef Arnaud Donckele en el primer piso de Cheval Blanc Paris (edificio La Samaritaine), con vista al Sena; n.º 14 en The World's 50 Best Restaurants 2025.",
+     "address": "Cheval Blanc Paris, 8 Quai du Louvre, 75001 Paris",
+     "lat": 48.8588428,
+     "lng": 2.3418987,
+     "website": "https://www.chevalblanc.com/fr/maison/paris/restaurants-et-bars/plenitude/",
+     "booking_url": null,
+     "booking_method": "phone",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Menús degustación (Symphonie y otros); la página oficial no publica precios.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "The World's 50 Best Restaurants – n.º 14",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-the-world/the-list/plenitude.html"
+      },
+      {
+       "name": "Guía MICHELIN – 3 estrellas",
+       "year": 2026,
+       "url": "https://en.wikipedia.org/wiki/List_of_Michelin-starred_restaurants_in_Paris"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "Paris haute cuisine dining room Seine view",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001201",
+     "slug": "paris-arpege",
+     "name": "Arpège",
+     "universe": "the_table",
+     "subcategory": "alta_cocina",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Casa del chef Alain Passard, centrada en verduras de sus propias huertas; n.º 45 en The World's 50 Best Restaurants 2025.",
+     "address": "84 Rue de Varenne, 75007 Paris",
+     "lat": 48.855754,
+     "lng": 2.3170135,
+     "website": "https://www.alain-passard.com/",
+     "booking_url": "https://bookings.zenchef.com/results?rid=354036&lang=fr",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Carta y menús almuerzo/cena publicados en PDF; la página principal no muestra precios.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "The World's 50 Best Restaurants – n.º 45",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-the-world/the-list/arpege.html"
+      },
+      {
+       "name": "Guía MICHELIN – 3 estrellas",
+       "year": 2026,
+       "url": "https://en.wikipedia.org/wiki/List_of_Michelin-starred_restaurants_in_Paris"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "Paris fine dining vegetable tasting menu",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001202",
+     "slug": "paris-table",
+     "name": "Table – Bruno Verjus",
+     "universe": "the_table",
+     "subcategory": "chef_table",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Mostrador abierto del chef autodidacta Bruno Verjus, dos estrellas Michelin según su web; n.º 8 en The World's 50 Best Restaurants 2025.",
+     "address": "3 Rue de Prague, 75012 Paris",
+     "lat": 48.8487639,
+     "lng": 2.3758751,
+     "website": "https://www.table.paris/",
+     "booking_url": "https://bookings.zenchef.com/results?rid=356893&pid=1001",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Menú único 'Couleur du jour' 480 € (almuerzo y cena), bebidas aparte; ticket de reserva de 200 € por persona descontado de la cuenta (no reembolsable).",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "The World's 50 Best Restaurants – n.º 8",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-the-world/the-list/table-by-bruno-verjus.html"
+      },
+      {
+       "name": "Guía MICHELIN – 2 estrellas",
+       "year": 2026,
+       "url": "https://en.wikipedia.org/wiki/List_of_Michelin-starred_restaurants_in_Paris"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "chef counter open kitchen Paris",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001203",
+     "slug": "paris-jules-verne",
+     "name": "Le Jules Verne",
+     "universe": "the_table",
+     "subcategory": "mesa_iconica",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Restaurante del chef Frédéric Anton a 125 m de altura en el segundo piso de la Torre Eiffel; obtuvo su segunda estrella Michelin en 2024 según su web.",
+     "address": "Torre Eiffel, 2.º piso, 6 Avenue Gustave Eiffel, 75007 Paris",
+     "lat": 48.8581328,
+     "lng": 2.2944968,
+     "website": "https://www.restaurants-toureiffel.com/fr/restaurant-jules-verne.html",
+     "booking_url": "https://www.restaurants-toureiffel.com/index.cfm/julesverne.booking/",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": "Tenue correcta: ni shorts ni ropa deportiva; chaqueta para caballeros (según la web oficial).",
+     "price_level": 4,
+     "price_note": "La página oficial no publica precios de menú.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "Guía MICHELIN – 2 estrellas",
+       "year": 2026,
+       "url": "https://en.wikipedia.org/wiki/List_of_Michelin-starred_restaurants_in_Paris"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "Eiffel Tower restaurant dinner view",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001204",
+     "slug": "paris-septime",
+     "name": "Septime",
+     "universe": "the_table",
+     "subcategory": "bistronomia",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Cocina francesa de temporada del chef Bertrand Grébaut en un bistró neoindustrial; n.º 40 en The World's 50 Best Restaurants 2025.",
+     "address": "80 Rue de Charonne, 75011 Paris",
+     "lat": 48.8536026,
+     "lng": 2.3809558,
+     "website": "https://www.septime-charonne.fr/",
+     "booking_url": "https://bookings.zenchef.com/results?rid=356354&pid=1001&lang=fr",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Almuerzo carta blanca 5 tiempos 85; cena 7 tiempos 135; maridaje 60 (almuerzo) / 75 (cena), según la web oficial (cifras publicadas sin símbolo de moneda; se entienden en euros).",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "The World's 50 Best Restaurants – n.º 40",
+       "year": 2025,
+       "url": "https://www.the50.com/restaurants/best-in-the-world/the-list/septime.html"
+      },
+      {
+       "name": "Guía MICHELIN – 1 estrella",
+       "year": 2026,
+       "url": "https://en.wikipedia.org/wiki/List_of_Michelin-starred_restaurants_in_Paris"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "Paris modern bistro seasonal dining",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001205",
+     "slug": "paris-kei",
+     "name": "Restaurant Kei",
+     "universe": "the_table",
+     "subcategory": "alta_cocina",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Cocina francesa del chef japonés Kei Kobayashi, tres estrellas Michelin en la edición 2026.",
+     "address": "5 Rue Coq-Héron, 75001 Paris",
+     "lat": 48.864328,
+     "lng": 2.3421687,
+     "website": "https://restaurant-kei.fr/",
+     "booking_url": null,
+     "booking_method": "phone",
+     "age_policy": "todas",
+     "dress_code": "Casual chic (según la web oficial).",
+     "price_level": 4,
+     "price_note": "Menús degustación; la web solo publica precios de los menús de Navidad.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": "Edad: niños a partir de 12 años (según el restaurante)",
+     "accolades": [
+      {
+       "name": "Guía MICHELIN – 3 estrellas",
+       "year": 2026,
+       "url": "https://en.wikipedia.org/wiki/List_of_Michelin-starred_restaurants_in_Paris"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "French Japanese fine dining elegant room",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001206",
+     "slug": "paris-crazy-horse-paris",
+     "name": "Crazy Horse Paris",
+     "universe": "after_dark",
+     "subcategory": "cabaret",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Cabaret fundado en 1951 en la Avenue George V, conocido por su revista de iluminación y coreografía 'Totally Crazy'.",
+     "address": "12 Avenue George V, 75008 Paris",
+     "lat": 48.8659664,
+     "lng": 2.3016447,
+     "website": "https://www.lecrazyhorseparis.com/",
+     "booking_url": "https://reservation.lecrazy.com/fr",
+     "booking_method": "web",
+     "age_policy": "18+",
+     "dress_code": "Tenue correcta o elegante; se desaconsejan ropa deportiva, zapatillas, chanclas y shorts (según la FAQ oficial).",
+     "price_level": 4,
+     "price_note": "Show solo o show + restaurante/champagne; la FAQ remite a la página de tarifas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "Paris cabaret stage red lights",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001207",
+     "slug": "paris-little-red-door",
+     "name": "Little Red Door",
+     "universe": "after_dark",
+     "subcategory": "speakeasy",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Coctelería de autor tras una pequeña puerta roja en el Haut Marais; n.º 93 en The World's 50 Best Bars 2026 (lista 51–100).",
+     "address": "60 Rue Charlot, 75003 Paris",
+     "lat": 48.8636585,
+     "lng": 2.3635886,
+     "website": "https://www.lrdparis.com/",
+     "booking_url": null,
+     "booking_method": "walk_in",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": null,
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "The World's 50 Best Bars – n.º 93 (51–100)",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-the-world/list/51-100"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "speakeasy cocktail bar dim light",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001208",
+     "slug": "paris-duc-des-lombards",
+     "name": "Le Duc des Lombards",
+     "universe": "after_dark",
+     "subcategory": "jazz_club",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Club de jazz en la rue des Lombards con dos pases por noche (19:30 y 22:00) y agenda de tríos y cuartetos.",
+     "address": "42 Rue des Lombards, 75001 Paris",
+     "lat": 48.859665,
+     "lng": 2.3485752,
+     "website": "https://ducdeslombards.com/",
+     "booking_url": "https://ducdeslombards.com/fr/l-agenda",
+     "booking_method": "web",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Entradas por concierto en la agenda; la página no publica rango de precios.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "intimate jazz club stage night",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001209",
+     "slug": "paris-nouveau",
+     "name": "Bar Nouveau",
+     "universe": "after_dark",
+     "subcategory": "cocktail_bar",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bar inspirado en el Art Nouveau cofundado por Rémy Savage; n.º 15 en The World's 50 Best Bars 2026.",
+     "address": "5 Rue des Haudriettes, 75003 Paris",
+     "lat": 48.861504,
+     "lng": 2.3575623,
+     "website": "https://barnouveau.fr/",
+     "booking_url": null,
+     "booking_method": "opentable",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": "Planta baja a la carta; en el sótano 'Set Menu Experience' de seis cócteles (sábado y domingo).",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "The World's 50 Best Bars – n.º 15",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-the-world/the-list/bar-nouveau.html"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "art nouveau cocktail bar Paris",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001210",
+     "slug": "paris-de-vie",
+     "name": "De Vie",
+     "universe": "after_dark",
+     "subcategory": "cocktail_bar",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bar y restaurante de Alex Francis y Barney O'Kane dedicado a productores y destiladores independientes franceses; n.º 23 en The World's 50 Best Bars 2026.",
+     "address": "22-24 Rue Saint-Sauveur, 75002 Paris",
+     "lat": null,
+     "lng": null,
+     "website": "https://devie.bar/",
+     "booking_url": "https://devie.bar/",
+     "booking_method": "web",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 3,
+     "price_note": null,
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "accolades": [
+      {
+       "name": "The World's 50 Best Bars – n.º 23",
+       "year": 2026,
+       "url": "https://www.the50.com/bars/best-in-the-world/the-list/de-vie.html"
+      }
+     ],
+     "image": {
+      "source": "pexels",
+      "query": "seasonal cocktail bar Paris night",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001211",
+     "slug": "paris-ambassadeurs",
+     "name": "Bar Les Ambassadeurs – Hôtel de Crillon",
+     "universe": "after_dark",
+     "subcategory": "hotel_bar",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Bar del Hôtel de Crillon con cócteles creativos y música en vivo, y vista a la place de la Concorde.",
+     "address": "Hôtel de Crillon, 10 Place de la Concorde, 75008 Paris",
+     "lat": 48.8676219,
+     "lng": 2.3213665,
+     "website": "https://www.rosewoodhotels.com/fr/hotel-de-crillon/dining/les-ambassadeurs",
+     "booking_url": null,
+     "booking_method": "phone",
+     "age_policy": "18+",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": null,
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "palace hotel bar live music Paris",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001212",
+     "slug": "paris-ducasse-sur-seine",
+     "name": "Ducasse sur Seine",
+     "universe": "yacht_sea",
+     "subcategory": "crucero_gastronomico",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Barco-restaurante de Alain Ducasse con propulsión eléctrica, silenciosa, que navega por el Sena frente a la Torre Eiffel.",
+     "address": "Port Debilly, 75016 Paris",
+     "lat": 48.8604329,
+     "lng": 2.2917343,
+     "website": "https://www.ducasse-seine.com/fr",
+     "booking_url": "https://reservation.ducasse-seine.com",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "La página principal no publica precios (remite a la página de menús).",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "Seine river dinner cruise Eiffel Tower night",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001213",
+     "slug": "paris-yachts-de-paris",
+     "name": "Les Yachts de Paris – crucero privado",
+     "universe": "yacht_sea",
+     "subcategory": "barco_privado",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "Flota de yates en el Sena (Cachemire, Acajou, Victoria, Excellence, Mirage, Paquebot) que se reservan para experiencias y celebraciones privadas.",
+     "address": null,
+     "lat": null,
+     "lng": null,
+     "website": "https://www.yachtsdeparis.fr/",
+     "booking_url": "https://www.yachtsdeparis.fr/contact",
+     "booking_method": "email",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 4,
+     "price_note": "Bajo presupuesto; la web no publica tarifas.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "private yacht Seine Paris evening",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001214",
+     "slug": "paris-palais-garnier",
+     "name": "Palais Garnier – visita guiada después del cierre",
+     "universe": "culture_access",
+     "subcategory": "acceso_cultural",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "La Ópera de París vende visitas guiadas temáticas del Palais Garnier, incluida una modalidad después del cierre al público.",
+     "address": "Palais Garnier, Place de l'Opéra, 75009 Paris",
+     "lat": 48.8714332,
+     "lng": 2.3319654,
+     "website": "https://www.operadeparis.fr/visites/palais-garnier",
+     "booking_url": "https://www.operadeparis.fr/visites/palais-garnier",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 1,
+     "price_note": "Visita guiada después del cierre 32 € o 42 €; visita guiada estándar de 11 € a 35 € (tarifas 2026 de la web oficial).",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "Palais Garnier opera grand staircase",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    },
+    {
+     "id": "00000000-0000-4000-8000-000000001215",
+     "slug": "paris-cordon-bleu-paris",
+     "name": "Le Cordon Bleu Paris – talleres culinarios",
+     "universe": "the_table",
+     "subcategory": "clase_de_cocina",
+     "destination": {
+      "slug": "paris",
+      "name": "París",
+      "timezone": "Europe/Paris",
+      "currency": "EUR"
+     },
+     "neighborhood": null,
+     "state": "CURADO",
+     "verified_at": "2026-10-22",
+     "why": "La escuela Le Cordon Bleu Paris abre al público talleres prácticos de cocina, pastelería y pan, con un máximo de 16 personas por sala supervisadas por un chef.",
+     "address": "13-15 Quai André Citroën, 75015 Paris",
+     "lat": 48.8482742,
+     "lng": 2.2807711,
+     "website": "https://www.cordonbleu.edu/paris/short-culinary-courses/en",
+     "booking_url": "https://www.cordonbleu.edu/paris/short-culinary-courses/en",
+     "booking_method": "web",
+     "age_policy": "todas",
+     "dress_code": null,
+     "price_level": 2,
+     "price_note": "Talleres de 2 h 30 a 2 días, de 80 € a 545 € según la web oficial.",
+     "availability": {
+      "state": "no_consultada"
+     },
+     "restrictions": null,
+     "image": {
+      "source": "pexels",
+      "query": "French cooking class chef kitchen",
+      "illustrative": true
+     },
+     "reasons": [],
+     "score": 0
+    }
+   ]
+  }
+ }
+}
