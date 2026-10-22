@@ -194,7 +194,7 @@ export type SignTier = "allowlist" | "trusted_source";
  */
 function signTier(url: string | null, trust: string | null | undefined): SignTier | null {
   if (!url) return null;
-  if ((trust === "ai" || trust === "client" ? checkUntrusted(url) : checkAllowlisted(url)).ok) return "allowlist";
+  if ((trust === "ai" || trust === "client" || trust === "google_places" ? checkUntrusted(url) : checkAllowlisted(url)).ok) return "allowlist";
   if ((trust === "curated_catalog" || trust === "official_site_scan") && checkTrustedSource(url).ok) return "trusted_source";
   return null;
 }
