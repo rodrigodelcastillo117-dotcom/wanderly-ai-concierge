@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Gift, Car, Wifi, Compass, Ship, UtensilsCrossed, TrainFront, Anchor, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +11,10 @@ import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { useSavedDestinations } from "@/hooks/useSavedDestinations";
 import { homeTrips } from "@/lib/homeTrips";
 import { VoiceInput } from "@/components/VoiceInput";
-import tileTrenes from "@/assets/tools/tile-trenes.png";
-import tileFerries from "@/assets/tools/tile-ferries.png";
-import tileReservas from "@/assets/tools/tile-reservas.png";
+import tileTrenes from "@/assets/tools/tile-trenes.jpg";
+import tileFerries from "@/assets/tools/tile-ferries.jpg";
+// JPG de 600 px (~9 kB) en lugar de PNG de 800 px (~250 kB cada uno).
+import tileReservas from "@/assets/tools/tile-reservas.jpg";
 import { TripFileUpload } from "@/components/TripFileUpload";
 
 
@@ -60,6 +60,12 @@ const SpendDonut = ({ segments }: { segments: { label: string; pct: number; colo
     </svg>
   );
 };
+
+// Unsplash sirve el ancho que se pide: en móvil (2 columnas) basta 320 px.
+const tileSrcSet = (img: string) =>
+  img.startsWith("https://images.unsplash.com/")
+    ? `${img.replace(/([?&])w=\d+/, "$1w=320")} 320w, ${img} 600w`
+    : undefined;
 
 const HERO_REELS = [
   { query: "santorini sunset cinematic luxury travel aerial", fallback: santorini, label: "Santorini" },
@@ -224,17 +230,14 @@ const DashboardHome = () => {
 
 
         {/* Saludo + búsqueda inline */}
-        <motion.form
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+        <form
           onSubmit={(e) => {
             e.preventDefault();
             const q = concierge.trim();
             if (q.length < 5) return;
             navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
           }}
-          className="space-y-4"
+          className="animate-fade-up space-y-4"
         >
           <div className="flex flex-row items-center gap-2 md:gap-5">
             <h1 className="font-display text-xl md:text-4xl leading-[1.1] tracking-tight shrink-0">
@@ -267,10 +270,8 @@ const DashboardHome = () => {
 
               {/* Despliegue en vivo de lo que el usuario escribe (editable) */}
               {concierge.trim().length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="absolute left-0 right-0 top-full mt-2 z-30 rounded-2xl border border-primary/20 bg-background/30 backdrop-blur-md shadow-2xl p-4 md:p-5"
+                <div
+                  className="animate-fade-in absolute left-0 right-0 top-full mt-2 z-30 rounded-2xl border border-primary/20 bg-background/30 backdrop-blur-md shadow-2xl p-4 md:p-5"
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <p className="text-[10px] tracking-[0.3em] uppercase text-primary/80">Tu idea de viaje</p>
@@ -299,20 +300,19 @@ const DashboardHome = () => {
                       Toca cualquier parte del texto para editar. Presiona <span className="text-primary">Analizar</span> o Enter.
                     </p>
                   )}
-                </motion.div>
+                </div>
               )}
 
             </div>
           </div>
-        </motion.form>
+        </form>
 
 
         {/* Modo Viaje Activo */}
         {activeTrip && (
-          <motion.button
-            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+          <button
             onClick={() => navigate(`/dashboard/viajes/${activeTrip.id}/live`)}
-            className="w-full text-left relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-xl p-5 md:p-6 group hover:border-primary/50 transition"
+            className="animate-fade-up w-full text-left relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-xl p-5 md:p-6 group hover:border-primary/50 transition"
           >
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.18),transparent_60%)]" />
             <div className="relative flex items-center gap-4">
@@ -326,13 +326,12 @@ const DashboardHome = () => {
               </div>
               <ChevronRight className="w-5 h-5 text-primary shrink-0" />
             </div>
-          </motion.button>
+          </button>
         )}
         {!activeTrip && upcomingTrip && (
-          <motion.button
-            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+          <button
             onClick={() => navigate(`/dashboard/viajes/${upcomingTrip.id}/live`)}
-            className="w-full text-left rounded-3xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-4 md:p-5 hover:border-primary/30 transition group"
+            className="animate-fade-up w-full text-left rounded-3xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-4 md:p-5 hover:border-primary/30 transition group"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
@@ -344,17 +343,15 @@ const DashboardHome = () => {
               </div>
               <ChevronRight className="w-4 h-4 text-foreground/40" />
             </div>
-          </motion.button>
+          </button>
         )}
 
 
 
 
         {/* HERO — cinematic Santorini-style sunset */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
+        <section
+          className="animate-fade-up"
         >
           <div
             className="relative rounded-[28px] overflow-hidden premium-shadow group cursor-pointer ring-1 ring-white/[0.05]"
@@ -413,7 +410,7 @@ const DashboardHome = () => {
               </Button>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* CURADO PARA TI */}
         <section>
@@ -434,12 +431,8 @@ const DashboardHome = () => {
                   <div key={i} className="aspect-[4/5] rounded-3xl bg-surface/40 animate-pulse" />
                 ))
               : (aiRecos ?? []).slice(0, 4).map((d, i) => (
-                <motion.div
+                <div
                   key={`${d.name}-${i}`}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: i * 0.05 }}
-                  whileHover={{ y: -4 }}
                   onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}${d.country ? `&pais=${encodeURIComponent(d.country)}` : ""}&autoCheapest=1`)}
                   role="link"
                   tabIndex={0}
@@ -449,7 +442,7 @@ const DashboardHome = () => {
                     e.preventDefault();
                     navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}${d.country ? `&pais=${encodeURIComponent(d.country)}` : ""}&autoCheapest=1`);
                   }}
-                  className="cursor-pointer group rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-pointer group rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <div className="relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-white/[0.05]">
                     <DestinationVideo query={d.image_query} fallbackImage={santorini} alt={d.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
@@ -476,7 +469,7 @@ const DashboardHome = () => {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
           </div>
         </section>
@@ -692,8 +685,13 @@ const DashboardHome = () => {
                 >
                   <img
                     src={img}
-                    alt={label}
+                    srcSet={tileSrcSet(img)}
+                    sizes="(min-width: 768px) 25vw, 50vw"
+                    alt=""
                     loading="lazy"
+                    decoding="async"
+                    width={600}
+                    height={450}
                     className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 group-hover:scale-105 transition-all duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20" />
