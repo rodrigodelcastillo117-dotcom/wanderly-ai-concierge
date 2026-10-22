@@ -139,6 +139,7 @@ const PlanTrip = () => {
   }, intentFp?: string) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
+    let ok = false;
     setDestino(args.destino);
     setAnalizando(true);
     try {
@@ -154,13 +155,15 @@ const PlanTrip = () => {
       // replace: el viaje sustituye a la pantalla del asistente en el historial,
       // así "Atrás" regresa a donde estabas antes de planear (no re-analiza).
       navigate(`/dashboard/viajes/${data.trip.id}`, { replace: true });
+      ok = true;
     } catch (e: any) {
       console.error(e);
-      if (intentFp) releaseIntent(intentFp);
       toast.error(e?.message ?? "No pudimos generar el análisis. Intenta de nuevo.");
       setAnalizando(false);
     } finally {
       inFlightRef.current = false;
+      // Si falló, liberamos la intención para que el usuario pueda reintentar.
+      if (!ok && intentFp) releaseIntent(intentFp);
     }
   };
 
