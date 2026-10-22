@@ -44,8 +44,8 @@ export type ReceivedEmail = {
  * senderAuthentication(), el From del webhook, el del correo descargado y el encabezado From crudo
  * deben ser la MISMA dirección: si discrepan, no se puede saber quién escribió → no verificado.
  */
-export function inboundSenderVerdict(webhookFrom: unknown, content: ReceivedEmail, venueEmail: string | null): SenderVerdict {
-  const v = senderAuthentication(content.from ?? webhookFrom, venueEmail, content.authentication);
+export function inboundSenderVerdict(webhookFrom: unknown, content: ReceivedEmail, venueEmail: string | null, venueWebsite?: string | null): SenderVerdict {
+  const v = senderAuthentication(content.from ?? webhookFrom, venueEmail, content.authentication, venueWebsite);
   const reasons = [...v.reasons];
   const h = content.headers && typeof content.headers === "object" ? content.headers as Record<string, unknown> : null;
   const headerFrom = h ? (h.from ?? h.From) : undefined;
@@ -438,7 +438,7 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
     await deps.db.rpc("ai_reservation_inbound_finish", { _inbound_id: inboundId, _status: "failed", _outcome: "fetch_failed" });
     return fail(500, "FETCH_FAILED"); // Resend reintenta; el reintento reclama la fila 'failed'
   }
-  const sender = inboundSenderVerdict(d.from, content, row.venue_email);
+  const sender = inboundSenderVerdict(d.from, content, row.venue_email, row.venue_website);
   const fromAddr = sender.from_address;
   const verified = sender.verified;
   const hasText = !!content.text?.trim();

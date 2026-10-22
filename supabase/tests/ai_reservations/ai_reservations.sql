@@ -450,7 +450,9 @@ SELECT rt.ok('R56 alterno "apartado" con autenticación débil (solo SPF) → no
 -- R57: la regla de remitente fuerte en SQL es la misma que en TypeScript (lo prueba también Vitest).
 SELECT rt.ok('R57 remitente fuerte (SQL): DMARC alineado o dirección exacta + DKIM; nunca SPF solo, dominios parecidos ni From ambiguos',
   public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', rt.pass())
-  AND public.ai_res_sender_strong('maria@mail.casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"dmarc":"pass"}')
+  -- A2-RES-01: otro buzón o subdominio solo con dominio propio (= sitio oficial); sin sitio, no.
+  AND public.ai_res_sender_strong('maria@mail.casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"dmarc":"pass"}', 'https://www.casaoaxaca.com.mx/')
+  AND NOT public.ai_res_sender_strong('maria@mail.casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"dmarc":"pass"}')
   AND public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"gray","dkim":"pass","dmarc":"gray"}')
   AND NOT public.ai_res_sender_strong('maria@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"pass","dkim":"pass","dmarc":"gray"}')
   AND NOT public.ai_res_sender_strong('reservas@casaoaxaca.com.mx', 'reservas@casaoaxaca.com.mx', '{"spf":"pass","dkim":"pass","dmarc":"fail"}')
