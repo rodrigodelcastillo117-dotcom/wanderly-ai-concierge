@@ -108,6 +108,7 @@ export const FlightStatusDialog = ({
 
             <div className="flex gap-2 mb-4">
               <Input
+                aria-label="Número de vuelo"
                 placeholder="Número de vuelo (ej. AF179, AM2)"
                 value={flight}
                 onChange={(e) => setFlight(e.target.value.toUpperCase())}

@@ -333,7 +333,7 @@ const TripPacking = () => {
                                     <span
                                       className={`text-sm font-[Manrope,system-ui] ${
                                         checked
-                                          ? "line-through text-foreground/40"
+                                          ? "line-through text-muted-foreground"
                                           : "text-foreground/90"
                                       }`}
                                     >

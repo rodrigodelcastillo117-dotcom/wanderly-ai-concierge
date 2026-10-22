@@ -150,8 +150,9 @@ export function MembersOnlyPanel({ onReserve }: Props) {
         </p>
 
         <div className="relative max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <Input
+            aria-label="Buscar por ciudad"
             value={cityInput}
             onChange={(e) => setCityInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && setCity(cityInput)}

@@ -250,6 +250,7 @@ export default function Social() {
               <p className="text-xs md:text-sm text-muted-foreground mb-3 md:mb-4">Pega su código de 8 caracteres.</p>
               <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
                 <Input
+                  aria-label="Código de tu amigo"
                   value={codeInput}
                   onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
                   placeholder="EJ. A3K9PQ7M"

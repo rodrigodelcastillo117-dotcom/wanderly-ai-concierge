@@ -211,6 +211,7 @@ export const ConciergeActions = ({
                 </div>
                 <div className="flex gap-2">
                   <Input
+                    aria-label="¿A dónde vas?"
                     placeholder="¿A dónde vas? (dirección, restaurante, hotel…)"
                     value={destination}
                     onChange={(e) => setDestination(e.target.value)}

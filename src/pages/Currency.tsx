@@ -60,16 +60,16 @@ const Currency = () => {
         </div>
 
         <div className="glass-card rounded-3xl p-5 sm:p-7 space-y-5">
-          <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="text-3xl h-16 text-center font-display" />
+          <Input type="number" inputMode="decimal" aria-label="Cantidad a convertir" value={amount} onChange={e => setAmount(e.target.value)} className="text-3xl h-16 text-center font-display" />
 
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <select value={from} onChange={e => setFrom(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
+            <select aria-label="Moneda de origen" value={from} onChange={e => setFrom(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <Button variant="ghost" size="icon" onClick={swap} className="mx-auto" aria-label="Invertir monedas">
               <ArrowLeftRight className="w-5 h-5 text-primary" />
             </Button>
-            <select value={to} onChange={e => setTo(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
+            <select aria-label="Moneda de destino" value={to} onChange={e => setTo(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>

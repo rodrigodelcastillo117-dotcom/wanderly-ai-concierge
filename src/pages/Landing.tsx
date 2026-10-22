@@ -125,7 +125,7 @@ const Landing = () => {
             >
               <div className="flex items-start justify-between mb-8">
                 <step.icon className="w-7 h-7 text-primary" />
-                <span className="font-display text-2xl text-muted-foreground/40">{step.n}</span>
+                <span aria-hidden="true" className="font-display text-2xl text-muted-foreground/60">{step.n}</span>
               </div>
               <h3 className="font-display text-2xl mb-3">{step.title}</h3>
               <p className="text-muted-foreground leading-relaxed">{step.desc}</p>

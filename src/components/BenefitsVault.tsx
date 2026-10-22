@@ -340,6 +340,7 @@ const CreditCardForm = ({ data, setData }: { data: any; setData: (fn: any) => vo
         </span>
         <div className="flex gap-2">
           <Input
+            aria-label="Busca tu tarjeta"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); search(); } }}

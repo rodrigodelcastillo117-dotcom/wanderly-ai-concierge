@@ -164,6 +164,7 @@ const TripTranslator = () => {
 
         <div className="flex gap-2 mb-6">
           <Input
+            aria-label="Frase en español para traducir"
             placeholder="Escribe una frase en español..."
             value={customInput}
             onChange={e => setCustomInput(e.target.value)}

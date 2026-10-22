@@ -198,34 +198,34 @@ export const Gastos = () => {
             >
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Monto</label>
-                  <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" />
+                  <label htmlFor="gasto-monto" className="text-xs text-muted-foreground mb-1 block">Monto</label>
+                  <Input id="gasto-monto" type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Moneda</label>
-                  <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                  <label htmlFor="gasto-moneda" className="text-xs text-muted-foreground mb-1 block">Moneda</label>
+                  <select id="gasto-moneda" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     {MONEDAS.map((m) => <option key={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Categoría</label>
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  <label htmlFor="gasto-categoria" className="text-xs text-muted-foreground mb-1 block">Categoría</label>
+                  <select id="gasto-categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Fecha</label>
-                  <Input type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
+                  <label htmlFor="gasto-fecha" className="text-xs text-muted-foreground mb-1 block">Fecha</label>
+                  <Input id="gasto-fecha" type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-xs text-muted-foreground mb-1 block">Descripción</label>
-                  <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Cena en Le Jules Verne" />
+                  <label htmlFor="gasto-descripcion" className="text-xs text-muted-foreground mb-1 block">Descripción</label>
+                  <Input id="gasto-descripcion" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Cena en Le Jules Verne" />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-xs text-muted-foreground mb-1 flex items-center gap-2"><Upload className="w-3 h-3" /> Recibo (opcional)</label>
-                  <Input type="file" accept="image/*,application/pdf" onChange={(e) => setForm({ ...form, file: e.target.files?.[0] ?? null })} />
+                  <label htmlFor="gasto-recibo" className="text-xs text-muted-foreground mb-1 flex items-center gap-2"><Upload className="w-3 h-3" aria-hidden="true" /> Recibo (opcional)</label>
+                  <Input id="gasto-recibo" type="file" accept="image/*,application/pdf" onChange={(e) => setForm({ ...form, file: e.target.files?.[0] ?? null })} />
                 </div>
               </div>
               <div className="flex gap-2 mt-5">

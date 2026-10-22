@@ -155,7 +155,7 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{n.title}</p>
                       {n.body && <p className="text-[11px] text-muted-foreground line-clamp-2">{n.body}</p>}
-                      <p className="text-[10px] text-muted-foreground/70 mt-1">
+                      <p className="text-[11px] text-muted-foreground mt-1">
                         {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: es })}
                       </p>
                     </div>
