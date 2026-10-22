@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { lazyWithRetry } from "@/lib/lazyRetry";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,13 +9,17 @@ import { Plus, Trash2, Receipt, Upload, PieChart, Calculator } from "lucide-reac
 import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
-import SmartSpendPanel from "@/components/SmartSpendPanel";
 import { TripSavingsCalculator } from "@/components/TripSavingsCalculator";
 import { localISODate } from "@/lib/localDate";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { convertedTotal, formatMoney, fxLabel, subtotalsByCurrency } from "@/lib/fx";
 import { useFxTable } from "@/hooks/useFxTable";
 import { safeFileName, uploadProblem } from "@/lib/uploadRules";
+import { useActiveTrip } from "@/hooks/useActiveTrip";
+import { isTripEnded, tripLabel } from "@/lib/activeTrip";
+
+// Smart Spend usa recharts (~100 kB comprimidos): se carga solo al abrir esa pestaña.
+const SmartSpendPanel = lazyWithRetry(() => import("@/components/SmartSpendPanel"));
 
 
 const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"] as const;
@@ -28,6 +33,7 @@ type Expense = {
   description: string | null;
   expense_date: string;
   receipt_url: string | null;
+  trip_id?: string | null;
 };
 
 export const Gastos = () => {
@@ -44,7 +50,15 @@ export const Gastos = () => {
     description: "",
     expense_date: localISODate(),
     file: null as File | null,
+    // undefined = aún no elegido: se usa el viaje activo. "" = sin viaje.
+    trip_id: undefined as string | undefined,
   });
+
+  // El gasto se liga al viaje activo (el mismo que Iato y el Dashboard), y se puede cambiar.
+  const active = useActiveTrip<any>();
+  const tripOptions = active.trips.filter((t) => !isTripEnded(t, localISODate()) || t.id === active.trip?.id);
+  const formTripId = form.trip_id !== undefined ? form.trip_id : active.trip?.id ?? "";
+  const tripName = (id?: string | null) => active.trips.find((t) => t.id === id)?.destino ?? null;
 
   const load = async () => {
     if (!user) return;
@@ -86,6 +100,7 @@ export const Gastos = () => {
         description: form.description || null,
         expense_date: form.expense_date,
         receipt_url,
+        trip_id: formTripId || null,
       });
       if (error) throw error;
       await logInsight("planned", "expense", form.category, { amount: form.amount });
@@ -100,9 +115,20 @@ export const Gastos = () => {
     }
   };
 
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  // Borrar pide confirmación y revisa el resultado: antes el gasto desaparecía aunque el borrado
+  // fallara (y volvía al recargar).
   const remove = async (id: string) => {
-    await supabase.from("expenses").delete().eq("id", id);
-    setItems((s) => s.filter((x) => x.id !== id));
+    if (removingId) return;
+    if (!window.confirm("¿Eliminar este gasto? No se puede deshacer.")) return;
+    setRemovingId(id);
+    try {
+      const { error } = await supabase.from("expenses").delete().eq("id", id);
+      if (error) { toast.error("No se pudo eliminar el gasto. Intenta de nuevo."); return; }
+      setItems((s) => s.filter((x) => x.id !== id));
+    } finally {
+      setRemovingId(null);
+    }
   };
 
   // Nunca se suman monedas distintas como si fueran una: subtotal por moneda y, aparte, el total
@@ -150,7 +176,9 @@ export const Gastos = () => {
         {tab === "calc" ? (
           <TripSavingsCalculator />
         ) : tab === "smart" ? (
-          <SmartSpendPanel />
+          <Suspense fallback={<div className="glass-card rounded-2xl p-10 text-center text-sm text-muted-foreground" role="status">Cargando Smart Spend…</div>}>
+            <SmartSpendPanel />
+          </Suspense>
         ) : (
         <>
 
@@ -186,34 +214,42 @@ export const Gastos = () => {
             >
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Monto</label>
-                  <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" />
+                  <label htmlFor="gasto-monto" className="text-xs text-muted-foreground mb-1 block">Monto</label>
+                  <Input id="gasto-monto" type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Moneda</label>
-                  <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                  <label htmlFor="gasto-moneda" className="text-xs text-muted-foreground mb-1 block">Moneda</label>
+                  <select id="gasto-moneda" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     {MONEDAS.map((m) => <option key={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Categoría</label>
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  <label htmlFor="gasto-categoria" className="text-xs text-muted-foreground mb-1 block">Categoría</label>
+                  <select id="gasto-categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Fecha</label>
-                  <Input type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
+                  <label htmlFor="gasto-fecha" className="text-xs text-muted-foreground mb-1 block">Fecha</label>
+                  <Input id="gasto-fecha" type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-xs text-muted-foreground mb-1 block">Descripción</label>
-                  <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Cena en Le Jules Verne" />
+                  <label htmlFor="gasto-viaje" className="text-xs text-muted-foreground mb-1 block">Viaje</label>
+                  <select id="gasto-viaje" value={formTripId} onChange={(e) => setForm({ ...form, trip_id: e.target.value })}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">Sin viaje</option>
+                    {tripOptions.map((t) => <option key={t.id} value={t.id}>{tripLabel(t)}</option>)}
+                  </select>
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-xs text-muted-foreground mb-1 flex items-center gap-2"><Upload className="w-3 h-3" /> Recibo (opcional)</label>
-                  <Input type="file" accept="image/*,application/pdf" onChange={(e) => setForm({ ...form, file: e.target.files?.[0] ?? null })} />
+                  <label htmlFor="gasto-descripcion" className="text-xs text-muted-foreground mb-1 block">Descripción</label>
+                  <Input id="gasto-descripcion" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Cena en Le Jules Verne" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="gasto-recibo" className="text-xs text-muted-foreground mb-1 flex items-center gap-2"><Upload className="w-3 h-3" aria-hidden="true" /> Recibo (opcional)</label>
+                  <Input id="gasto-recibo" type="file" accept="image/*,application/pdf" onChange={(e) => setForm({ ...form, file: e.target.files?.[0] ?? null })} />
                 </div>
               </div>
               <div className="flex gap-2 mt-5">
@@ -236,14 +272,15 @@ export const Gastos = () => {
                   <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary">{x.category}</span>
                   {/* Fecha local: new Date("2026-10-01") es UTC y en México se mostraba el 30 sep. */}
                   <span className="text-xs text-muted-foreground">{formatDateOnly(x.expense_date)}</span>
+                  {tripName(x.trip_id) && <span className="text-xs text-muted-foreground truncate">· {tripName(x.trip_id)}</span>}
                 </div>
                 <p className="text-sm truncate">{x.description ?? "—"}</p>
               </div>
               <div className="text-right">
                 <p className="font-display text-lg">{formatMoney(Number(x.amount), x.currency)}</p>
               </div>
-              <button onClick={() => remove(x.id)} className="text-muted-foreground hover:text-destructive p-2">
-                <Trash2 className="w-4 h-4" />
+              <button onClick={() => remove(x.id)} disabled={removingId === x.id} aria-label={`Eliminar gasto ${x.description ?? x.category ?? ""}`.trim()} className="text-muted-foreground hover:text-destructive p-2 disabled:opacity-40">
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           ))}

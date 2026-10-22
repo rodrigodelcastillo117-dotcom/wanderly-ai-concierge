@@ -96,6 +96,10 @@ export function TripFileUpload({ size = "md" }: Props) {
             transfers: data.transfers ?? [],
             pendientes: data.pendientes ?? [],
             contactos: data.contactos ?? [],
+            // D-08: lo ya pagado y el tipo de cambio usado (fuente y fecha) no se pierden.
+            presupuesto_pagado_mxn: data.presupuesto_pagado_mxn ?? null,
+            presupuesto_original: data.presupuesto_original ?? null,
+            fx: data.fx ?? null,
             days: itinerarioDays,
           },
           tips_personalizados: data.notas_generales ? [data.notas_generales] : null,

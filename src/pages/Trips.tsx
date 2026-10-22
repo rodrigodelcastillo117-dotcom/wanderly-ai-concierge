@@ -22,10 +22,12 @@ import { formatDateOnly } from "@/lib/dateUtils";
 import { useNavigate } from "react-router-dom";
 import santorini from "@/assets/hero-santorini.jpg";
 import { deleteOwnedTrip, leaveSharedTrip, MEMBERSHIP_MESSAGES } from "@/lib/tripMembership";
+import { bookingsByTrip, deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
+import { BookingStateBadge } from "@/components/BookingStateBadge";
 
 const cache = new Map<string, string | null>();
 
-const TripCard = ({ t, userId, onDeleted }: { t: any; userId: string; onDeleted: (id: string) => void }) => {
+const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: string; onDeleted: (id: string) => void; bookings?: BookingLike[] }) => {
   const [deleting, setDeleting] = useState(false);
   // Un viaje compartido conmigo no es mío: no puedo borrarlo, solo salir de él.
   const isShared = !!t.shared;
@@ -132,7 +134,9 @@ const TripCard = ({ t, userId, onDeleted }: { t: any; userId: string; onDeleted:
         </div>
         <div className="p-5">
           <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{t.pais_destino}</p>
-          <h3 className="font-display text-2xl mb-3 group-hover:text-primary transition">{t.destino}</h3>
+          <h3 className="font-display text-2xl mb-2 group-hover:text-primary transition">{t.destino}</h3>
+          {/* "listo" no distingue cotizado de reservado: se deriva de las reservas confirmadas. */}
+          <div className="mb-3"><BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact /></div>
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>{formatDateOnly(t.fecha_salida)}</span>
             <span className="text-foreground font-medium">${Number(t.total_estimado).toLocaleString("es-MX")}</span>
@@ -151,6 +155,7 @@ const Trips = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [tripBookings, setTripBookings] = useState<Map<string, BookingLike[]>>(new Map());
 
   useEffect(() => {
     if (!user) return;
@@ -174,6 +179,15 @@ const Trips = () => {
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         );
         if (!cancelled) setTrips(all);
+        // Reservas de esos viajes para el estado reservado/cotizado (si falla, todos quedan "cotizado").
+        if (all.length) {
+          try {
+            const { data: bks } = await supabase.from("bookings")
+              .select("trip_id, category, status, confirmation_code, partner_reference, title, subtitle")
+              .in("trip_id", all.map((t: any) => t.id));
+            if (!cancelled) setTripBookings(bookingsByTrip((bks as BookingLike[] | null) ?? []));
+          } catch { /* sin reservas: el estado queda en "cotizado" */ }
+        }
       } catch (e) {
         console.error("Trips: no se pudieron cargar", e);
         if (!cancelled) setLoadError(true);
@@ -230,7 +244,7 @@ const Trips = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {trips.map((t) => (
-              <TripCard key={t.id} t={t} userId={user!.id} onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
+              <TripCard key={t.id} t={t} userId={user!.id} bookings={tripBookings.get(t.id)} onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
 
             ))}
           </div>

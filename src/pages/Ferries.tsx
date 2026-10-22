@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ferryhopperLink, directFerriesLink, aferryLink } from "@/lib/affiliateLinks";
-import { trackBookingClick } from "@/lib/trackBooking";
+import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import DestinationVideo from "@/components/DestinationVideo";
 import { localISODate } from "@/lib/localDate";
 
 const Ferries = () => {
+  // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
+  const tripTool = useTripTool();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [origin, setOrigin] = useState(params.get("origin") ?? "");
@@ -38,7 +40,7 @@ const Ferries = () => {
 
   function reservar(name: string, url: string) {
     if (!origin || !destination) return toast.error("Completa origen y destino");
-    trackBookingClick({
+    tripTool.track({
       category: "ferry",
       provider: name,
       title: `Ferry ${origin} → ${destination}`,
@@ -51,6 +53,7 @@ const Ferries = () => {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
+        <TripToolBanner tool={tripTool} />
         <div className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden border border-white/10">
           <DestinationVideo
             query={`ferry boat ${destination || "mediterranean sea"}`}

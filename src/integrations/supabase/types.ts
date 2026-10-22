@@ -1498,10 +1498,55 @@ export type Database = {
           },
         ]
       }
+      trip_documents: {
+        Row: {
+          created_at: string
+          filename: string
+          id: string
+          kind: string
+          mime: string
+          size: number
+          storage_path: string
+          trip_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          filename: string
+          id?: string
+          kind: string
+          mime: string
+          size: number
+          storage_path: string
+          trip_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          filename?: string
+          id?: string
+          kind?: string
+          mime?: string
+          size?: number
+          storage_path?: string
+          trip_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_documents_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_split_expenses: {
         Row: {
           amount: number
           created_at: string
+          currency: string
           description: string
           id: string
           payer_id: string
@@ -1510,6 +1555,7 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
+          currency?: string
           description: string
           id?: string
           payer_id: string
@@ -1518,6 +1564,7 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          currency?: string
           description?: string
           id?: string
           payer_id?: string
@@ -1574,6 +1621,7 @@ export type Database = {
           current_quote_id: string | null
           quote_basis: Json | null
           quote_needs_update: boolean
+          selections: Json | null
           analisis_ai: string | null
           ciudad_origen: string | null
           cover_image_url: string | null
@@ -1606,6 +1654,7 @@ export type Database = {
           current_quote_id?: string | null
           quote_basis?: Json | null
           quote_needs_update?: boolean
+          selections?: Json | null
           analisis_ai?: string | null
           ciudad_origen?: string | null
           cover_image_url?: string | null
@@ -1638,6 +1687,7 @@ export type Database = {
           current_quote_id?: string | null
           quote_basis?: Json | null
           quote_needs_update?: boolean
+          selections?: Json | null
           analisis_ai?: string | null
           ciudad_origen?: string | null
           cover_image_url?: string | null

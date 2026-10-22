@@ -29,6 +29,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
+vi.mock("@/hooks/useSubscription", () => ({ useSubscription: () => ({ loading: false, isPro: false }) }));
 vi.mock("@/components/CityVideoCard", () => ({ CityVideoCard: () => null }));
 vi.mock("@/components/VenueDetailDialog", () => ({ VenueDetailDialog: () => null }));
 

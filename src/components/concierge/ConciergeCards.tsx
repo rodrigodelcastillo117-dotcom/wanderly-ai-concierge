@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { track } from "@/lib/analytics";
+import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
 import {
   CARD_TYPES, safeHttpsUrl, type ConciergeCard,
 } from "../../../supabase/functions/concierge-chat/cards.ts";
@@ -129,10 +130,26 @@ function PriceBlock({ card, suffix }: { card: ConciergeCard; suffix?: string }) 
   return null;
 }
 
-function logClick(userId: string | undefined, card: ConciergeCard, url: string) {
+/**
+ * Categoría de "Mis reservas" según el tipo de card. Antes todo clic del concierge se guardaba como
+ * "restaurant" (un vuelo o un hotel aparecían como mesa reservada).
+ */
+export function bookingCategoryForCard(type: string | undefined): TrackBookingInput["category"] {
+  switch (type) {
+    case "flight": return "flight";
+    case "hotel": return "hotel";
+    case "attraction": return "activity";
+    case "restaurant": return "restaurant";
+    case "transport": return "car";
+    default: return "other";
+  }
+}
+
+function logClick(userId: string | undefined, card: ConciergeCard, url: string, tripId?: string | null) {
   // En segundo plano: el enlace ya se abrió en el mismo gesto del usuario.
   void supabase.from("affiliate_clicks").insert({
     user_id: userId ?? null,
+    trip_id: tripId ?? null,
     proveedor: card.provider ?? card.fuente ?? card.type,
     accion: `concierge_${card.type}`,
     payload: { title: card.title, subtitle: card.subtitle ?? null } as any,
@@ -140,6 +157,14 @@ function logClick(userId: string | undefined, card: ConciergeCard, url: string) 
     user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
   }).then(({ error }) => { if (error) console.warn("affiliate click log", error.message); });
   track("affiliate_click", { provider: card.fuente ?? card.type, accion: `concierge_${card.type}` });
+  // "Mis reservas" (como visita al socio, status pending) con su categoría real y el viaje.
+  if (userId) {
+    void logBookingClick({
+      category: bookingCategoryForCard(card.type), provider: card.provider ?? card.fuente ?? "Concierge",
+      title: card.title, subtitle: card.subtitle ?? undefined, bookingUrl: url,
+      imageUrl: safeHttpsUrl(card.image_url) ?? undefined, tripId: tripId ?? null,
+    });
+  }
 }
 
 /**
@@ -246,7 +271,7 @@ function MediaHeader({ card, Icon }: { card: ConciergeCard; Icon: typeof Utensil
 export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: string | null }) {
   const { user } = useAuth();
   const req = useConciergeRequest(tripId);
-  const onOpen = (url: string) => logClick(user?.id, card, url);
+  const onOpen = (url: string) => logClick(user?.id, card, url, tripId);
 
   if (!card || typeof card !== "object" || typeof card.title !== "string") return null;
 
@@ -330,18 +355,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           {card.subtitle && <p className="text-sm text-muted-foreground mb-1">{card.subtitle}</p>}
           {card.meta && <p className="text-xs text-primary mb-3">{card.meta}</p>}
           {url ? (
-            <ExternalCta card={card} label={card.cta_label ?? "Reservar"} className="w-full gold-glow"
-              onOpen={(u) => {
-                onOpen(u);
-                // Se conserva el registro en "Mis reservas" que hacía trackBookingClick, ahora sin
-                // esperar antes de abrir (Safari bloqueaba la ventana).
-                if (user) {
-                  void supabase.from("bookings").insert({
-                    user_id: user.id, category: "restaurant", provider: card.provider ?? "Concierge", title: card.title,
-                    subtitle: card.subtitle ?? null, booking_url: u, image_url: safeHttpsUrl(card.image_url) ?? null, status: "pending",
-                  }).then(({ error }) => { if (error) console.warn("booking log", error.message); });
-                }
-              }} />
+            <ExternalCta card={card} label={card.cta_label ?? "Reservar"} className="w-full gold-glow" onOpen={onOpen} />
           ) : (
             <>
               <RequestButton state={req.state} label="Solicitar reserva" className="w-full gold-glow"

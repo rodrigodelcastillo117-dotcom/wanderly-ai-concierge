@@ -76,6 +76,7 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
             </p>
 
             <textarea
+              aria-label="Cambios que quieres en tu viaje"
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
               placeholder="Ej: Cambia Florencia por Cinque Terre, sube a 4★ y agrega un tour en barco..."

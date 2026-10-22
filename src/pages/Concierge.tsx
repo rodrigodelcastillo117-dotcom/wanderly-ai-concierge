@@ -21,7 +21,9 @@ import { SafeMarkdown } from "@/components/concierge/SafeMarkdown";
 import { TripContextSelector, type ContextTrip } from "@/components/concierge/TripContextSelector";
 import { resolveActiveTrip, tripLabel, type ActiveTripReason } from "@/lib/activeTrip";
 import { localISODate } from "@/lib/localDate";
+import { ConciergeHeading } from "@/components/concierge/ConciergeHeading";
 import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
+import { loadConversation } from "@/lib/conciergeHistory";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -101,6 +103,9 @@ const Concierge = () => {
     try { return localStorage.getItem(PIN_KEY) || null; } catch { return null; }
   });
   const [refreshTick, setRefreshTick] = useState(0);
+  const [tripsLoaded, setTripsLoaded] = useState(false);
+  // E-13: viaje cuyo historial ya se cargó (undefined = ninguno todavía; null = "sin viaje").
+  const historyFor = useRef<string | null | undefined>(undefined);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [weather, setWeather] = useState<{ temp: number; place: string } | null>(null);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -124,6 +129,7 @@ const Concierge = () => {
       .limit(50)
       .then(({ data }) => {
         setTrips((data as ContextTrip[]) ?? []);
+        setTripsLoaded(true);
         setLastRefresh(new Date());
       });
     // Si la columna aún no existe (migración pendiente) se conserva la elección local y no se
@@ -139,6 +145,23 @@ const Concierge = () => {
     [trips, pinnedId, todayLocal],
   );
   const trip = tripContext.trip;
+
+  // E-13: al abrir (o recargar) el chat se muestra la última conversación del viaje activo, que
+  // concierge-chat ya guarda en concierge_conversations. Solo si el usuario aún no escribió nada.
+  useEffect(() => {
+    if (!user || !allowed || !tripsLoaded) return;
+    const key = trip?.id ?? null;
+    if (historyFor.current === key) return;
+    historyFor.current = key;
+    loadConversation(supabase, user.id, key).then((restored) => {
+      // Si mientras tanto cambió el viaje en contexto, esta respuesta ya no aplica.
+      if (historyFor.current !== key) return;
+      // Al cambiar de viaje se reemplaza el historial mostrado; nunca se pisa lo que el usuario ya escribió.
+      setMessages((prev) => (prev.some((m) => m.role === "user" && !m.id.startsWith("hist-"))
+        ? prev
+        : [...prev.filter((m) => m.id === "welcome"), ...restored]));
+    });
+  }, [user?.id, allowed, tripsLoaded, trip?.id]);
 
   const pinTrip = async (id: string | null) => {
     setPinnedId(id);
@@ -329,10 +352,8 @@ const Concierge = () => {
         <div className="px-4 md:px-8 pt-6 pb-3 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
-              <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
-                <Crown className="w-3 h-3" /> CONCIERGE PRO
-              </p>
-              <h1 className="font-display text-2xl md:text-3xl leading-tight">Concierge PRO te escucha</h1>
+              {/* Encabezado según el plan real: a cuentas gratis ya no les dice "Concierge PRO". */}
+              <ConciergeHeading />
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
                   {weather ? `${weather.place} · ${weather.temp}°C` : "Detectando tu ubicación real…"}

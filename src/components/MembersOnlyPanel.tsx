@@ -8,6 +8,8 @@ import { CityVideoCard } from "@/components/CityVideoCard";
 import { VenueDetailDialog } from "@/components/VenueDetailDialog";
 import { MembersTeaser } from "@/components/MembersTeaser";
 import { fetchMembersAccess, type MembersAccess } from "@/lib/membersAccess";
+import { useSubscription } from "@/hooks/useSubscription";
+import { membersOnlySubtitle } from "@/lib/planCopy";
 
 const CATEGORIES: { id: string; emoji: string; label: string }[] = [
   { id: "cabaret", emoji: "🎭", label: "Cabaret" },
@@ -54,6 +56,7 @@ interface Props {
 
 export function MembersOnlyPanel({ onReserve }: Props) {
   const { user } = useAuth();
+  const { loading: subLoading, isPro } = useSubscription();
   // Members Only es exclusivo de IATOS PRO: el servidor decide el acceso (members_access_state) y
   // la RLS de nightlife_premium no devuelve lugares sin derecho. Antes este panel no tenía candado.
   const [access, setAccess] = useState<MembersAccess | null>(null);
@@ -152,13 +155,15 @@ export function MembersOnlyPanel({ onReserve }: Props) {
           Nightlife Premium
         </div>
         <h2 className="font-fraunces text-3xl md:text-5xl text-foreground mb-2">Members Only</h2>
+        {/* Según el plan real; antes prometía a todas las cuentas que el Concierge PRO gestionaba sus reservas. */}
         <p className="text-primary text-base mb-6 font-fraunces italic">
-          Vida nocturna seleccionada — reservas gestionadas por tu Concierge PRO
+          {membersOnlySubtitle({ loading: subLoading, isPro })}
         </p>
 
         <div className="relative max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <Input
+            aria-label="Buscar por ciudad"
             value={cityInput}
             onChange={(e) => setCityInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && setCity(cityInput)}

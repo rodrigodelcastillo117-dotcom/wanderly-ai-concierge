@@ -154,9 +154,14 @@ export default function Social() {
     }
   }
 
-  const copy = (txt: string, label: string) => {
-    navigator.clipboard.writeText(txt);
-    toast.success(`${label} copiado`);
+  // writeText es una promesa: sin permiso (o en http) falla y antes igual decía "copiado".
+  const copy = async (txt: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(txt);
+      toast.success(`${label} copiado`);
+    } catch {
+      toast.error(`No se pudo copiar. Mantén presionado el ${label.toLowerCase()} para copiarlo.`);
+    }
   };
 
   return (
@@ -244,6 +249,7 @@ export default function Social() {
               <p className="text-xs md:text-sm text-muted-foreground mb-3 md:mb-4">Pega su código de 8 caracteres.</p>
               <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
                 <Input
+                  aria-label="Código de tu amigo"
                   value={codeInput}
                   onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
                   placeholder="EJ. A3K9PQ7M"

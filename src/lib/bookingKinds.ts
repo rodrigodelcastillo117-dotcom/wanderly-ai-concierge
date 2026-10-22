@@ -3,20 +3,10 @@
 //  - reservas reales (con confirmación del socio o marcadas como confirmadas).
 // Mostrar los clics como "reservas" engañaba al usuario; aquí las separamos.
 
-const CONFIRMED_STATUSES = new Set(["confirmed", "booked", "completed", "paid"]);
-
-export interface BookingLike {
-  status?: string | null;
-  confirmation_code?: string | null;
-  partner_reference?: string | null;
-}
-
-/** true solo si hay evidencia de una reserva real (estado confirmado o código del socio). */
-export function isConfirmedBooking(b: BookingLike): boolean {
-  if (b.confirmation_code && String(b.confirmation_code).trim()) return true;
-  if (b.partner_reference && String(b.partner_reference).trim()) return true;
-  return CONFIRMED_STATUSES.has(String(b.status ?? "").toLowerCase());
-}
+// Una sola definición de "reserva confirmada" para la pantalla de reservas, el expediente del
+// viaje y el contexto de Iato (supabase/functions/_shared/bookingState.ts).
+import { isConfirmedBooking, type BookingLike } from "./bookingState";
+export { isConfirmedBooking, type BookingLike };
 
 export function splitBookings<T extends BookingLike>(rows: T[]): { confirmed: T[]; visits: T[] } {
   const confirmed: T[] = [];

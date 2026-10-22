@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { converterRateLabel, providerUpdatedAt } from "@/lib/fx";
 
 const CURRENCIES = ["MXN","USD","EUR","GBP","JPY","CAD","BRL","ARS","CLP","COP","PEN","CHF","AUD","CNY","KRW","THB","IDR","INR","TRY","AED"];
 
@@ -23,9 +24,12 @@ const Currency = () => {
       // Open exchangerate-api (no key, CORS open)
       const r = await fetch(`https://open.er-api.com/v6/latest/${base}`).then(r => r.json());
       if (r?.rates) {
+        // D-25: la fecha es la que publica el proveedor (time_last_update_utc), no la hora del
+        // teléfono: open.er-api actualiza una vez al día.
+        const asOf = providerUpdatedAt(r);
         setRates(r.rates);
-        setUpdated(new Date().toLocaleString("es-MX"));
-        try { localStorage.setItem(`iatos:fx:${base}`, JSON.stringify({ rates: r.rates, updated: Math.floor(Date.now() / 1000) })); } catch {}
+        setUpdated(converterRateLabel("open.er-api.com", asOf, false));
+        try { localStorage.setItem(`iatos:fx:${base}`, JSON.stringify({ rates: r.rates, asOf: asOf?.toISOString() ?? null })); } catch {}
         toast.success("Tasas actualizadas");
       } else throw new Error();
     } catch {
@@ -33,9 +37,11 @@ const Currency = () => {
       try {
         const cached = localStorage.getItem(`iatos:fx:${base}`);
         if (cached) {
-          const { rates, updated } = JSON.parse(cached);
-          setRates(rates);
-          setUpdated(new Date(updated * 1000).toLocaleString("es-MX") + " (caché)");
+          const c = JSON.parse(cached);
+          // Formato anterior: `updated` en segundos (hora del cliente); el nuevo guarda la del proveedor.
+          const asOf = c?.asOf ? new Date(c.asOf) : typeof c?.updated === "number" ? new Date(c.updated * 1000) : null;
+          setRates(c.rates);
+          setUpdated(converterRateLabel("open.er-api.com", asOf, true));
           toast.info("Usando tasas en caché (offline)");
         } else toast.error("No hay conexión y no hay caché");
       } catch {}
@@ -45,7 +51,10 @@ const Currency = () => {
 
   useEffect(() => { load(from); }, [from]);
 
-  const result = rates && rates[to] ? (parseFloat(amount || "0") * rates[to]).toFixed(2) : "—";
+  // Sin tasa para la moneda destino no se muestra un número (nunca 1:1).
+  const result = from === to
+    ? (parseFloat(amount || "0")).toFixed(2)
+    : rates && rates[to] > 0 ? (parseFloat(amount || "0") * rates[to]).toFixed(2) : "—";
   const swap = () => { setFrom(to); setTo(from); };
 
   return (
@@ -60,16 +69,16 @@ const Currency = () => {
         </div>
 
         <div className="glass-card rounded-3xl p-5 sm:p-7 space-y-5">
-          <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="text-3xl h-16 text-center font-display" />
+          <Input type="number" inputMode="decimal" aria-label="Cantidad a convertir" value={amount} onChange={e => setAmount(e.target.value)} className="text-3xl h-16 text-center font-display" />
 
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <select value={from} onChange={e => setFrom(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
+            <select aria-label="Moneda de origen" value={from} onChange={e => setFrom(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <Button variant="ghost" size="icon" onClick={swap} className="mx-auto" aria-label="Invertir monedas">
               <ArrowLeftRight className="w-5 h-5 text-primary" />
             </Button>
-            <select value={to} onChange={e => setTo(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
+            <select aria-label="Moneda de destino" value={to} onChange={e => setTo(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -81,7 +90,7 @@ const Currency = () => {
           </div>
 
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Actualizado: {updated || "—"}</span>
+            <span>{updated || "Tipo de cambio: —"}</span>
             <Button variant="ghost" size="sm" onClick={() => load(from)} disabled={loading}>
               <RefreshCw className={`w-3 h-3 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
             </Button>

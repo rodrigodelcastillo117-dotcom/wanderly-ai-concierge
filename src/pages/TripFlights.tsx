@@ -1,5 +1,6 @@
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plane, Search, ExternalLink, Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -9,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { toastFunctionError } from "@/lib/functionErrors";
 import { googleFlightsLink, skyscannerLink, kayakFlightsLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
-import { trackBookingClick } from "@/lib/trackBooking";
+import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 
 interface FlightResult {
@@ -26,9 +27,15 @@ interface FlightResult {
 }
 
 const TripFlights = () => {
+  // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
+  const tripTool = useTripTool();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [origin, setOrigin] = useState(params.get("origin") ?? "Mexico City");
+  // Origen: el de la URL, si no la ciudad de origen del perfil (antes siempre "Mexico City",
+  // en inglés y aunque la persona viva en otra ciudad). Se respeta lo que ya haya escrito.
+  const { user } = useAuth();
+  const [origin, setOrigin] = useState(params.get("origin") ?? "");
+  const originTouched = useRef(Boolean(params.get("origin")));
   const [destination, setDestination] = useState(params.get("destination") ?? "");
   const [depart, setDepart] = useState(params.get("depart") ?? "");
   const [returnDate, setReturnDate] = useState(params.get("return") ?? "");
@@ -79,6 +86,15 @@ const TripFlights = () => {
   };
 
   useEffect(() => {
+    if (!user || originTouched.current) return;
+    supabase.from("profiles").select("ciudad_origen").eq("id", user.id).maybeSingle()
+      .then(({ data }) => {
+        if (originTouched.current) return;
+        setOrigin((data as { ciudad_origen?: string | null } | null)?.ciudad_origen || "CDMX");
+      });
+  }, [user]);
+
+  useEffect(() => {
     if (params.get("auto") === "1" && destination && depart) search();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -86,6 +102,7 @@ const TripFlights = () => {
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
+        <TripToolBanner tool={tripTool} />
         <div>
           <h1 className="font-display text-3xl md:text-4xl">Vuelos reales</h1>
           <p className="text-sm text-muted-foreground mt-1">Tarifas consultadas al momento en Google Flights o, si no responde, en la caché de Aviasales</p>
@@ -95,7 +112,7 @@ const TripFlights = () => {
           <div className="grid md:grid-cols-2 gap-3">
             <div>
               <label htmlFor="tripflights-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
-              <Input id="tripflights-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ciudad de México" />
+              <Input id="tripflights-origen" value={origin} onChange={(e) => { originTouched.current = true; setOrigin(e.target.value); }} placeholder="Ciudad de México" />
             </div>
             <div>
               <label htmlFor="tripflights-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
@@ -132,7 +149,7 @@ const TripFlights = () => {
         {unavailableUrl !== null && results.length === 0 && (
           <LiveSearchUnavailable
             providerLabel="Aviasales"
-            onSearch={unavailableUrl ? () => trackBookingClick({
+            onSearch={unavailableUrl ? () => tripTool.track({
               category: "flight", provider: "Aviasales", title: `${origin} → ${destination}`,
               city: destination, bookingUrl: ensureAviasalesMarker(unavailableUrl), startAt: depart || undefined,
             }) : undefined}
@@ -175,14 +192,14 @@ const TripFlights = () => {
                 <div className="font-display text-2xl gold-text">${f.price_per_person_usd}</div>
                 <div className="text-[11px] text-muted-foreground">USD / persona</div>
                 <div className="flex flex-col gap-1 mt-2">
-                  <Button size="sm" onClick={() => trackBookingClick({
+                  <Button size="sm" onClick={() => tripTool.track({
                     category: "flight", provider: f.airline, title: `${origin} → ${destination}`,
                     subtitle: `$${f.price_per_person_usd} USD / persona`, city: destination,
                     bookingUrl: ensureAviasalesMarker(f.buy_url), startAt: depart || undefined,
                   })} className="w-full">
                     Reservar <ExternalLink className="w-3 h-3 ml-1" />
                   </Button>
-                  <button onClick={() => trackBookingClick({
+                  <button onClick={() => tripTool.track({
                     category: "flight", provider: f.airline, title: `${origin} → ${destination}`,
                     subtitle: `$${f.price_per_person_usd} USD / persona`, city: destination,
                     bookingUrl: ensureAviasalesMarker(f.airline_buy_url), startAt: depart || undefined,
@@ -197,20 +214,20 @@ const TripFlights = () => {
 
         {results.length > 0 && meta && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <Button variant="outline" onClick={() => trackBookingClick({
+            <Button variant="outline" onClick={() => tripTool.track({
               category: "flight", provider: "Google Flights", title: `${origin} → ${destination}`,
               city: destination, bookingUrl: googleFlightsLink(origin, destination, depart, returnDate, travelers), startAt: depart || undefined,
             })}>
               Ver todo en Google Flights
             </Button>
             {meta.dep_iata && meta.arr_iata && <>
-              <Button variant="outline" onClick={() => trackBookingClick({
+              <Button variant="outline" onClick={() => tripTool.track({
                 category: "flight", provider: "Skyscanner", title: `${origin} → ${destination}`,
                 city: destination, bookingUrl: skyscannerLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
               })}>
                 Skyscanner
               </Button>
-              <Button variant="outline" onClick={() => trackBookingClick({
+              <Button variant="outline" onClick={() => tripTool.track({
                 category: "flight", provider: "Kayak", title: `${origin} → ${destination}`,
                 city: destination, bookingUrl: kayakFlightsLink(meta.dep_iata, meta.arr_iata, depart, returnDate, travelers), startAt: depart || undefined,
               })}>

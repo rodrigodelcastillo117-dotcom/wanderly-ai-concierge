@@ -602,7 +602,7 @@ const PlaceList = ({ icon: Icon, label, items, destino }: any) => (
           </li>
         );
       })}
-      {items.length === 0 && <li className="text-xs text-foreground/40">Sin elementos</li>}
+      {items.length === 0 && <li className="text-xs text-muted-foreground">Sin elementos</li>}
     </ul>
   </div>
 );

@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { toastFunctionError } from "@/lib/functionErrors";
 import { bookingLink, airbnbLink } from "@/lib/affiliateLinks";
-import { trackBookingClick } from "@/lib/trackBooking";
+import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 
 interface HotelResult {
@@ -25,6 +25,8 @@ interface HotelResult {
 }
 
 const TripHotels = () => {
+  // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
+  const tripTool = useTripTool();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [city, setCity] = useState(params.get("city") ?? "");
@@ -83,6 +85,7 @@ const TripHotels = () => {
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
+        <TripToolBanner tool={tripTool} />
         <div>
           <h1 className="font-display text-3xl md:text-4xl">Hoteles reales</h1>
           <p className="text-sm text-muted-foreground mt-1">Tarifas consultadas al momento en Google Hotels · reserva con Booking.com</p>
@@ -128,7 +131,7 @@ const TripHotels = () => {
         {unavailableUrl !== null && results.length === 0 && (
           <LiveSearchUnavailable
             providerLabel="Booking.com"
-            onSearch={() => trackBookingClick({
+            onSearch={() => tripTool.track({
               category: "hotel", provider: "Booking.com", title: `Hoteles en ${city}`,
               city, bookingUrl: unavailableUrl, startAt: checkin || undefined,
             })}
@@ -170,7 +173,7 @@ const TripHotels = () => {
                     <div className="font-display text-xl gold-text">${h.nightly_usd}</div>
                     <div className="text-[10px] text-muted-foreground">USD / noche</div>
                   </div>
-                  <Button size="sm" onClick={() => trackBookingClick({
+                  <Button size="sm" onClick={() => tripTool.track({
                     category: "hotel", provider: "Booking.com", title: h.name,
                     subtitle: `$${h.nightly_usd} USD / noche`, city, bookingUrl: h.booking_url, startAt: checkin || undefined,
                   })}>
@@ -184,13 +187,13 @@ const TripHotels = () => {
 
         {results.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => trackBookingClick({
+            <Button variant="outline" onClick={() => tripTool.track({
               category: "hotel", provider: "Booking.com", title: `Hoteles en ${city}`,
               city, bookingUrl: bookingLink(city, checkin, checkout, adults), startAt: checkin || undefined,
             })}>
               Ver todo en Booking.com
             </Button>
-            <Button variant="outline" onClick={() => trackBookingClick({
+            <Button variant="outline" onClick={() => tripTool.track({
               category: "hotel", provider: "Airbnb", title: `Hoteles en ${city}`,
               city, bookingUrl: airbnbLink(city, checkin, checkout, adults), startAt: checkin || undefined,
             })}>

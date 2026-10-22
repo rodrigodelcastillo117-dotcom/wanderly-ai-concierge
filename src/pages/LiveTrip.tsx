@@ -11,8 +11,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { BackButton } from "@/components/BackButton";
+import { formatLocalDate } from "@/lib/localDate";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
+import { useActiveTrip } from "@/hooks/useActiveTrip";
+import { FixerButton } from "@/components/FixerButton";
+import { toast } from "sonner";
 
 import {
   getEmergency,
@@ -29,6 +33,18 @@ const LiveTrip = () => {
   const [loading, setLoading] = useState(true);
   const [sosOpen, setSosOpen] = useState(false);
   const tipLive = useTooltipShown("live");
+  // Viaje activo único: abrir el Concierge desde aquí fija ESTE viaje, para que Iato hable de él.
+  const active = useActiveTrip();
+  const isActiveTrip = !!trip && active.trip?.id === trip.id;
+  const makeActive = async () => {
+    if (!trip) return;
+    const r = await active.pin(trip.id);
+    if (r.forbidden) toast.error("No tienes acceso a ese viaje");
+  };
+  const openConcierge = async () => {
+    if (trip && !isActiveTrip) await makeActive();
+    navigate("/dashboard/concierge");
+  };
 
   useEffect(() => {
     if (!id || !user) return;
@@ -110,6 +126,14 @@ const LiveTrip = () => {
             <div className="mt-2 flex flex-wrap items-center gap-3 text-white/85 text-sm">
               <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Día {dayIndex + 1} de {totalDays}</span>
               <span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {trip.pais_destino ?? "—"}</span>
+              {!active.loading && (isActiveTrip ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-xs">Tu viaje activo</span>
+              ) : (
+                <button type="button" onClick={() => { void makeActive(); }}
+                  className="inline-flex items-center gap-1 rounded-full border border-white/40 px-2 py-0.5 text-xs hover:bg-white/10">
+                  Usar como viaje activo
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -122,7 +146,7 @@ const LiveTrip = () => {
             <Clock className="w-5 h-5 text-primary shrink-0" />
             <div className="text-sm">
               <div className="font-semibold text-foreground">Aún no empieza</div>
-              <div className="text-foreground/60">Tu viaje comienza el {new Date(trip.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "long" })}.</div>
+              <div className="text-foreground/60">Tu viaje comienza el {formatLocalDate(trip.fecha_salida, { day: "numeric", month: "long" })}.</div>
             </div>
           </div>
         )}
@@ -140,12 +164,12 @@ const LiveTrip = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <QuickAction icon={Navigation} label="Mapa" sublabel="Día por día" onClick={() => navigate(`/dashboard/viajes/${trip.id}/mapa`)} />
           <QuickAction icon={Luggage} label="Packing" sublabel="Checklist" onClick={() => navigate(`/dashboard/viajes/${trip.id}/packing`)} />
-          <QuickAction icon={Cloud} label="Clima" sublabel="14 días" onClick={() => navigate(`/dashboard/viajes/${trip.id}/clima`)} />
+          <QuickAction icon={Cloud} label="Clima" sublabel="Pronóstico" onClick={() => navigate(`/dashboard/viajes/${trip.id}/clima`)} />
           <QuickAction icon={Languages} label="Traductor" sublabel="Frases clave" onClick={() => navigate(`/dashboard/viajes/${trip.id}/traductor`)} />
           <QuickAction icon={BookHeart} label="Diario" sublabel="Memorias" onClick={() => navigate(`/dashboard/viajes/${trip.id}/diario`)} />
           <QuickAction icon={Users} label="Split" sublabel="Gastos" onClick={() => navigate(`/dashboard/viajes/${trip.id}/split`)} />
           <QuickAction icon={Phone} label="SOS" sublabel="Emergencias" danger onClick={() => setSosOpen(true)} />
-          <QuickAction icon={Crown} label="Concierge" sublabel="IA" gold onClick={() => navigate("/dashboard/concierge")} />
+          <QuickAction icon={Crown} label="Concierge" sublabel="IA" gold onClick={() => { void openConcierge(); }} />
         </div>
 
 
@@ -198,7 +222,7 @@ const LiveTrip = () => {
             <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/viajes/${trip.id}`)}>
               Ver itinerario completo
             </Button>
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => navigate("/dashboard/concierge")}>
+            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => { void openConcierge(); }}>
               <Crown className="w-3.5 h-3.5 mr-1.5" /> Pedir al Concierge
             </Button>
           </div>
@@ -247,7 +271,10 @@ const LiveTrip = () => {
                 <p className="text-xs text-foreground/60 pt-1">{UNKNOWN_EMERGENCY_SOURCE_NOTE}</p>
               </div>
             )}
-            <Button variant="ghost" className="w-full mt-4" onClick={() => setSosOpen(false)}>Cerrar</Button>
+            <div className="mt-4 flex justify-center">
+              <FixerButton trip={trip} variant="inline" />
+            </div>
+            <Button variant="ghost" className="w-full mt-2" onClick={() => setSosOpen(false)}>Cerrar</Button>
           </motion.div>
         </div>
       )}

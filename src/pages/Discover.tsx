@@ -3,52 +3,15 @@ import { DestinationVideo } from "@/components/DestinationVideo";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, RefreshCw, Sparkles, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { logInsight } from "@/lib/insights";
-import { toast } from "sonner";
-import { useAIRecommendations, type AIRecommendation } from "@/hooks/useAIRecommendations";
+import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+import { useSavedDestinations } from "@/hooks/useSavedDestinations";
 
 import santorini from "@/assets/hero-santorini.jpg";
 
 const Discover = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [saved, setSaved] = useState<Set<string>>(new Set());
   const { recos, loading, error, refresh } = useAIRecommendations();
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("recomendaciones").select("titulo").eq("user_id", user.id).eq("guardado", true)
-      .then(({ data }) => setSaved(new Set((data ?? []).map((r: any) => r.titulo))));
-  }, [user]);
-
-  const toggleSave = async (d: AIRecommendation) => {
-    if (!user) return;
-    const isSaved = saved.has(d.name);
-    if (isSaved) {
-      await supabase.from("recomendaciones").update({ guardado: false })
-        .eq("user_id", user.id).eq("titulo", d.name);
-      await logInsight("removed", "destination", d.name);
-      setSaved((s) => { const n = new Set(s); n.delete(d.name); return n; });
-    } else {
-      const { data: existing } = await supabase.from("recomendaciones").select("id")
-        .eq("user_id", user.id).eq("titulo", d.name).maybeSingle();
-      if (existing) {
-        await supabase.from("recomendaciones").update({ guardado: true }).eq("id", existing.id);
-      } else {
-        await supabase.from("recomendaciones").insert([{
-          user_id: user.id, titulo: d.name, tipo: "destination_ai",
-          descripcion: d.country, match_score: d.score, guardado: true,
-          metadata: { reason: d.reason, image_query: d.image_query, trip_type: d.trip_type, best_months: d.best_months },
-        }]);
-      }
-      await logInsight("saved", "destination", d.name, { country: d.country, score: d.score });
-      setSaved((s) => new Set(s).add(d.name));
-      toast.success(`${d.name} guardado en favoritos`);
-    }
-  };
+  const { saved, pending: pendingSave, toggle: toggleSave } = useSavedDestinations();
 
   return (
     <DashboardLayout>
@@ -129,7 +92,9 @@ const Discover = () => {
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleSave(d); }}
-                    aria-label={isSaved ? "Quitar de favoritos" : "Guardar"}
+                    disabled={pendingSave.has(d.name)}
+                    aria-label={isSaved ? `Quitar ${d.name} de favoritos` : `Guardar ${d.name} en favoritos`}
+                    aria-pressed={isSaved}
                     className="absolute top-4 right-4 p-2 rounded-full bg-background/70 backdrop-blur hover:bg-background/90 transition"
                   >
                     <Heart className={`w-4 h-4 ${isSaved ? "fill-primary text-primary" : "text-foreground"}`} />

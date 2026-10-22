@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { AiDataNotice, AiEstimateBadge, OfficialSourceLink } from "@/components/AiDataNotice";
 
 type Row = {
   destino: string;
@@ -48,14 +49,28 @@ const Compare = () => {
     setLoading(false);
   };
 
-  const fields: { key: keyof Row; label: string }[] = [
-    { key: "costo_diario_usd", label: "Costo diario" },
+  // Todo viene del modelo (ai-tool), nada se consultó en una fuente: costos, visa y seguridad
+  // llevan "Estimado por IA" y, los trámites, el enlace a la fuente oficial.
+  const fields: { key: keyof Row; label: string; ai?: "estimate" | "official" }[] = [
+    { key: "costo_diario_usd", label: "Costo diario (USD)", ai: "estimate" },
     { key: "mejor_epoca", label: "Mejor época" },
-    { key: "visa_mx", label: "Visa (MX)" },
-    { key: "seguridad", label: "Seguridad" },
+    { key: "visa_mx", label: "Visa (MX)", ai: "official" },
+    { key: "seguridad", label: "Seguridad", ai: "official" },
     { key: "idioma", label: "Idioma" },
     { key: "highlights", label: "Highlights" },
   ];
+
+  const cell = (f: (typeof fields)[number], value: string) => (
+    <>
+      <p className="text-sm text-foreground/90 break-words">{value}</p>
+      {f.ai && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <AiEstimateBadge />
+          {f.ai === "official" && <OfficialSourceLink label="Verifica en la SRE" />}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <DashboardLayout>
@@ -71,7 +86,7 @@ const Compare = () => {
         <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6 space-y-2">
           {dests.map((d, i) => (
             <div key={i} className="flex gap-2">
-              <Input placeholder={`Destino ${i + 1} (ej: Tokio, Japón)`} value={d} onChange={e => set(i, e.target.value)} />
+              <Input aria-label={`Destino ${i + 1}`} placeholder={`Destino ${i + 1} (ej: Tokio, Japón)`} value={d} onChange={e => set(i, e.target.value)} />
               {dests.length > 2 && (
                 <Button variant="ghost" size="icon" onClick={() => remove(i)} aria-label={`Quitar destino ${i + 1}`}><X className="w-4 h-4" /></Button>
               )}
@@ -89,6 +104,15 @@ const Compare = () => {
 
         {rows && (
           <>
+            <div className="mb-4">
+              <AiDataNotice>
+                <p>
+                  Esta comparación la genera la IA: costos, temporada, visa y seguridad son orientativos y pueden estar
+                  desactualizados. Antes de viajar, confirma requisitos de visa y alertas de seguridad en la fuente oficial.
+                </p>
+                <p className="mt-2"><OfficialSourceLink /></p>
+              </AiDataNotice>
+            </div>
             {/* Mobile: stacked cards */}
             <div className="space-y-4 md:hidden">
               {rows.map((r, i) => (
@@ -101,7 +125,7 @@ const Compare = () => {
                     {fields.map(f => (
                       <div key={f.key} className="px-4 py-3">
                         <p className="text-primary text-xs font-medium mb-1">{f.label}</p>
-                        <p className="text-sm text-foreground/90 break-words">{r[f.key]}</p>
+                        {cell(f, r[f.key])}
                       </div>
                     ))}
                   </div>
@@ -120,7 +144,7 @@ const Compare = () => {
                   <Fragment key={f.key}>
                     <div className="bg-card p-3 text-sm font-medium text-primary">{f.label}</div>
                     {rows.map((r, i) => (
-                      <div key={`${f.key}-${i}`} className="bg-card p-3 text-sm break-words">{r[f.key]}</div>
+                      <div key={`${f.key}-${i}`} className="bg-card p-3 text-sm break-words">{cell(f, r[f.key])}</div>
                     ))}
                   </Fragment>
                 ))}

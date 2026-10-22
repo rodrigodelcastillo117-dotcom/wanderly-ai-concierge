@@ -397,6 +397,18 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         if (tErr) console.error(tErr);
         else {
           tripId = trip?.id;
+          // Snapshot inmutable de la cotización (trip_quotes, solo service role): el servidor lo arma
+          // con el plan que él generó para esta llave. Si falla, el viaje queda igual que antes.
+          if (tripId) {
+            try {
+              const { data: snap, error: snapErr } = await supabase.functions.invoke("logistics-plan", {
+                body: { action: "snapshot", trip_id: tripId, request_key },
+              });
+              if (snapErr || !snap?.ok) console.warn("logistics-plan snapshot no guardado", snapErr?.message ?? snap?.error);
+            } catch (e) {
+              console.warn("logistics-plan snapshot no guardado", (e as Error)?.message);
+            }
+          }
           clearRequestKey("logistics-plan");
         }
       }
@@ -458,6 +470,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                     </span>
                     <MapPin className="w-4 h-4 text-primary/70" />
                     <Input
+                      aria-label={`Parada ${i + 1}`}
                       value={s}
                       onChange={(e) =>
                         setStops((arr) => arr.map((x, idx) => (idx === i ? e.target.value : x)))
@@ -482,6 +495,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             >
               <div className="relative flex-1">
                 <Input
+                  aria-label="Agregar ciudad o pedir un cambio a la IA"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder='Agrega una ciudad (ej. "Kioto") o pide a IA: "quita Praga y agrega Roma"'
@@ -559,6 +573,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             </h3>
           </div>
           <Input
+            aria-label="Emoción del viaje"
             value={emocionTexto}
             onChange={(e) => setEmocionTexto(e.target.value)}
             placeholder='ej. quiero sentir libertad total y aventura'

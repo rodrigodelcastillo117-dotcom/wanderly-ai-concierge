@@ -160,7 +160,7 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
                       </div>
                     );
                   })}
-                  <p className="text-[10px] text-muted-foreground/70 italic pt-1">
+                  <p className="text-[11px] text-muted-foreground italic pt-1">
                     Mostramos la opción más económica por ruta. La suma de tramos ({fmtMXN(sumLegs)}) puede variar respecto al total de vuelos ({fmtMXN(vuelosTotal)}) según la combinación final que elijas.
                   </p>
                 </div>
