@@ -1,6 +1,6 @@
 -- Pruebas de public.trip_quotes y de la base de cotización en trips (migración 20261022133000).
--- Uso: después de run.sh <db>, `psql -d <db> -f trip_quotes.sql`.
--- Esperado: Q1-Q10 con el valor indicado entre corchetes.
+-- Uso: ./run_trip.sh quotes [db] (base nueva con todas las migraciones en orden).
+-- Esperado: Q1-Q11 con el valor indicado entre corchetes (los booleanos se imprimen true/false).
 \set ON_ERROR_STOP off
 \pset tuples_only on
 RESET ROLE;
@@ -14,7 +14,7 @@ VALUES ('a1000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-00000000
 INSERT INTO trip_collaborators(trip_id,user_id,invited_by,status)
 VALUES ('a1000000-0000-0000-0000-000000000001','c0000000-0000-0000-0000-00000000000c','a0000000-0000-0000-0000-00000000000a','accepted');
 
-SELECT 'Q1 base al crear [2|2026-11-10|f]: '||(quote_basis->>'num_viajeros')||'|'||(quote_basis->>'fecha_salida')||'|'||quote_needs_update
+SELECT 'Q1 base al crear [2|2026-11-10|false]: '||(quote_basis->>'num_viajeros')||'|'||(quote_basis->>'fecha_salida')||'|'||quote_needs_update
 FROM trips WHERE id='a1000000-0000-0000-0000-000000000001';
 
 -- Service role inserta dos cotizaciones: versiones 1 y 2, user_id forzado al dueño.
@@ -58,7 +58,7 @@ UPDATE trips SET num_viajeros=4 WHERE id='a1000000-0000-0000-0000-000000000001';
 -- Intentar limpiar la marca a mano o apuntar a otra cotización no tiene efecto / falla.
 UPDATE trips SET quote_needs_update=false, quote_basis='{"num_viajeros":4}' WHERE id='a1000000-0000-0000-0000-000000000001';
 RESET ROLE;
-SELECT 'Q8 recotizar tras cambiar viajeros [t|2]: '||quote_needs_update||'|'||(quote_basis->>'num_viajeros')
+SELECT 'Q8 recotizar tras cambiar viajeros [true|2]: '||quote_needs_update||'|'||(quote_basis->>'num_viajeros')
 FROM trips WHERE id='a1000000-0000-0000-0000-000000000001';
 
 -- Cotización nueva para 4 viajeros: deja de necesitar actualización.
@@ -68,7 +68,7 @@ VALUES ('a1000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-00000000
 UPDATE trips SET current_quote_id=(SELECT id FROM trip_quotes WHERE trip_id='a1000000-0000-0000-0000-000000000001' AND version=3)
 WHERE id='a1000000-0000-0000-0000-000000000001';
 RESET ROLE;
-SELECT 'Q9 nueva cotización [f|4]: '||quote_needs_update||'|'||(quote_basis->>'num_viajeros')
+SELECT 'Q9 nueva cotización [false|4]: '||quote_needs_update||'|'||(quote_basis->>'num_viajeros')
 FROM trips WHERE id='a1000000-0000-0000-0000-000000000001';
 
 -- current_quote_id de OTRO viaje: rechazado.
