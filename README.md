@@ -103,7 +103,7 @@ checked into this repo. At minimum, the app needs:
 | `GOOGLE_MAPS_API_KEY` | Geocoding / Places |
 | `CRON_SECRET` | Authenticates scheduled cron-triggered functions |
 | `VAPID_*` | Web push notifications |
-| `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID` / `STRIPE_WEBHOOK_SECRET` | Billing (optional — app runs without it, subscriptions stay "comped") |
+| `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID` / `STRIPE_WEBHOOK_SECRET` | Billing. Optional, but without it nobody can buy PRO: checkout answers 503 and every account stays on the **free tier** (3 concierge messages per month, 1 trip analysis). Only emails listed in `comp_grants` get courtesy PRO (`status = 'comped'`); nothing is comped by default |
 | `PERPLEXITY_API_KEY` | Optional — web-grounded fallback for flight status, promos, nightlife |
 | `SENTRY_DSN` / `VITE_SENTRY_DSN` | Optional — error monitoring |
 | `VITE_POSTHOG_KEY` | Optional — product analytics |
@@ -118,7 +118,11 @@ Accounts and keys to move or re-create under the new owner, then replace in
 Lovable → More → Secrets:
 
 - **Stripe** (`STRIPE_*`): the "IATOS" Stripe account; switch test keys to
-  live keys and recreate the product/price and webhook in live mode.
+  live keys and recreate the product/price and webhook in live mode. The webhook
+  endpoint must send `checkout.session.completed`, `customer.subscription.created`,
+  `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`
+  and `invoice.payment_failed` (`invoice.paid` is what takes a user out of
+  `past_due` after a successful retry).
 - **Google Gemini** (`GEMINI_API_KEY`): primary AI provider. Enable billing in
   Google AI Studio for production so customer prompts are not used for training.
 - **SerpApi** (`SERPAPI_PRIVATE_KEY`): Google Flights, Google Hotels and Google
