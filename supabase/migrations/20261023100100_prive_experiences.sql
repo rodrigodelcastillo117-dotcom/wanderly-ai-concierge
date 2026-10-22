@@ -135,7 +135,10 @@ RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   )
   SELECT CASE WHEN s = '' THEN n ELSE s END FROM stripped;
 $$;
-GRANT EXECUTE ON FUNCTION public.prive_dedupe_key(text) TO service_role;
+REVOKE ALL ON FUNCTION public.prive_dedupe_key(text), public.prive_accolades_ok(jsonb), public.prive_sources_ok(jsonb),
+  public.prive_hours_ok(jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.prive_dedupe_key(text), public.prive_accolades_ok(jsonb), public.prive_sources_ok(jsonb),
+  public.prive_hours_ok(jsonb) TO service_role;
 
 -- ───────────────────────────── Experiencias ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.prive_experiences (

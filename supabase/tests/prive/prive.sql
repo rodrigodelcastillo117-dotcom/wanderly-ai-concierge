@@ -640,10 +640,16 @@ SELECT pt.ok('P53 anon no ejecuta ninguna función Privé',
                  AND has_function_privilege('anon', p.oid, 'EXECUTE')),
   (SELECT string_agg(p.proname, ',') FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_%' AND has_function_privilege('anon', p.oid, 'EXECUTE')));
-SELECT pt.ok('P54 authenticated solo ejecuta prive_require y prive_status',
+-- (Integración con el grupo catalog, contrato §5: además, las RPC de contenido de Privé —todas empiezan
+-- con prive_require(_ps)—, el adelanto prive_teaser, las solicitudes propias y los paneles admin_*
+-- que validan public.admins por dentro. Cualquier otra función expuesta es una falla.)
+SELECT pt.ok('P54 authenticated solo ejecuta prive_require, prive_status y las RPC de catálogo del contrato',
   (SELECT string_agg(p.proname, ',' ORDER BY p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND (p.proname LIKE 'prive\_%' OR p.proname LIKE 'admin\_%prive%' OR p.proname = 'apply_prive_grant')
-      AND has_function_privilege('authenticated', p.oid, 'EXECUTE')) = 'prive_require,prive_status',
+      AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
+      AND p.proname NOT IN ('prive_teaser','prive_home','prive_destination','prive_universe','prive_experience','prive_search',
+        'prive_for_you','prive_confirm_adult','prive_save','prive_saved','prive_add_to_trip','prive_track','prive_request_create',
+        'prive_request_cancel','prive_my_requests','prive_request_transition','admin_prive_requests','admin_prive_metrics')) = 'prive_require,prive_status',
   (SELECT string_agg(p.proname, ',' ORDER BY p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')));
 SELECT pt.ok('P55 todas las funciones Privé SECURITY DEFINER tienen search_path fijo',

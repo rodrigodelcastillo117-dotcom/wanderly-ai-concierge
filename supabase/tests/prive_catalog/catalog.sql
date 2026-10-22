@@ -25,7 +25,28 @@ INSERT INTO auth.users(id, email) VALUES
   ('c0000000-0000-0000-0000-0000000000a2', 'u2-free@example.test'),
   ('c0000000-0000-0000-0000-0000000000a3', 'u3-admin@example.test') ON CONFLICT DO NOTHING;
 INSERT INTO public.admins(user_id) VALUES ('c0000000-0000-0000-0000-0000000000a3') ON CONFLICT DO NOTHING;
-INSERT INTO public.prive_test_sessions(token, user_id) VALUES ('ps-u1', 'c0000000-0000-0000-0000-0000000000a1') ON CONFLICT DO NOTHING;
+-- U1 es miembro de verdad: PRO activo, 99 días pagados, invitación aceptada, contraseña Privé y una
+-- sesión Privé emitida por prive_unlock (la prive_require real del grupo core la valida).
+CREATE TABLE IF NOT EXISTS public.t_tokens (label text PRIMARY KEY, token text NOT NULL);
+REVOKE ALL ON public.t_tokens FROM PUBLIC, anon, authenticated;
+DO $$
+DECLARE u uuid := 'c0000000-0000-0000-0000-0000000000a1'; r jsonb; pw text := 'Catalogo de prueba Prive 2026';
+BEGIN
+  INSERT INTO public.profiles (id, full_name, email) VALUES (u, 'Miembro Prueba', 'u1-member@example.test') ON CONFLICT (id) DO NOTHING;
+  INSERT INTO public.subscriptions (user_id, status, stripe_subscription_id, stripe_customer_id, current_period_end)
+  VALUES (u, 'active', 'sub_cat1', 'cus_cat1', now() + interval '20 days')
+  ON CONFLICT (user_id) DO UPDATE SET status = 'active', current_period_end = now() + interval '20 days';
+  PERFORM public.prive_record_paid_period(u, 'in_cat_1', 'sub_cat1', 'cus_cat1', now() - interval '100 days', now() - interval '1 day', 19900, 'mxn', 'test');
+  PERFORM public.prive_invite_user(u, 'tenure', 'system');
+  r := public.prive_accept_invitation(u, NULL);
+  r := public.prive_set_password(u, pw, 'ok');
+  r := public.prive_unlock(u, pw, NULL, NULL);
+  IF r->>'token' IS NULL THEN RAISE NOTICE 'FALLA SETUP no se obtuvo sesión Privé: %', r; END IF;
+  INSERT INTO public.t_tokens VALUES ('u1', r->>'token') ON CONFLICT (label) DO UPDATE SET token = EXCLUDED.token;
+END $$;
+CREATE OR REPLACE FUNCTION public.t_ps() RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT token FROM public.t_tokens WHERE label = 'u1' $$;
+GRANT EXECUTE ON FUNCTION public.t_ps() TO authenticated;
 INSERT INTO public.trips(id, user_id, destino) VALUES ('c0000000-0000-0000-0000-00000000aa01', 'c0000000-0000-0000-0000-0000000000a1', 'Mónaco')
   ON CONFLICT DO NOTHING;
 
@@ -65,18 +86,19 @@ VALUES ('e0000000-0000-0000-0000-000000000007', 'mc-t-beach', public.t_dest('mc'
   'https://example.test/beach', '["https://example.test/beach"]', 'Club de playa de temporada.', 'CURADO', now() - interval '1 day',
   'cerrado_temporal', current_date + 60, 'Reabre en primavera (según el sitio).', 'https://example.test/beach');
 
--- ───────────── 1. Acceso: sin sesión Privé no sale contenido ─────────────
+-- ───────────── 1. Acceso: sin derecho o sin sesión Privé no sale contenido ─────────────
+-- U2 es una cuenta sin Privé (gratis): la base responde con un código PRIVE_* y nada más.
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.role', 'authenticated', false);
 SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a2', false);
-SELECT public.t_err('A1 prive_destination sin sesión', $q$SELECT public.prive_destination(NULL, 'mc')$q$, 'PRIVE_NO_SESSION');
-SELECT public.t_err('A2 prive_search sin sesión', $q$SELECT public.prive_search('', ARRAY['Mónaco'])$q$, 'PRIVE_NO_SESSION');
-SELECT public.t_err('A3 prive_experience con sesión ajena', $q$SELECT public.prive_experience('ps-u1', 'mc-t-louis-xv')$q$, 'PRIVE_SESSION_INVALID');
-SELECT public.t_err('A4 prive_universe con token inventado', $q$SELECT public.prive_universe('x', 'the_table')$q$, 'PRIVE_SESSION_INVALID');
-SELECT public.t_err('A5 prive_save sin sesión', $q$SELECT public.prive_save(NULL, 'e0000000-0000-0000-0000-000000000001')$q$, 'PRIVE_NO_SESSION');
-SELECT public.t_err('A6 prive_add_to_trip sin sesión', $q$SELECT public.prive_add_to_trip(NULL, 'c0000000-0000-0000-0000-00000000aa01', '[]')$q$, 'PRIVE_NO_SESSION');
-SELECT public.t_err('A7 prive_request_create sin sesión', $q$SELECT public.prive_request_create(NULL, 'e0000000-0000-0000-0000-000000000001')$q$, 'PRIVE_NO_SESSION');
-SELECT public.t_err('A8 prive_track sin sesión', $q$SELECT public.prive_track(NULL, 'detail_open')$q$, 'PRIVE_NO_SESSION');
-SELECT public.t_err('A9 prive_for_you sin sesión', $q$SELECT public.prive_for_you(NULL, 'mc')$q$, 'PRIVE_NO_SESSION');
+SELECT public.t_err('A1 prive_destination sin sesión', $q$SELECT public.prive_destination(NULL, 'mc')$q$, 'PRIVE_');
+SELECT public.t_err('A2 prive_search sin sesión', $q$SELECT public.prive_search('', ARRAY['Mónaco'])$q$, 'PRIVE_');
+SELECT public.t_err('A3 prive_experience con sesión ajena', $q$SELECT public.prive_experience(public.t_ps(), 'mc-t-louis-xv')$q$, 'PRIVE_');
+SELECT public.t_err('A4 prive_universe con token inventado', $q$SELECT public.prive_universe('x', 'the_table')$q$, 'PRIVE_');
+SELECT public.t_err('A5 prive_save sin sesión', $q$SELECT public.prive_save(NULL, 'e0000000-0000-0000-0000-000000000001')$q$, 'PRIVE_');
+SELECT public.t_err('A6 prive_add_to_trip sin sesión', $q$SELECT public.prive_add_to_trip(NULL, 'c0000000-0000-0000-0000-00000000aa01', '[]')$q$, 'PRIVE_');
+SELECT public.t_err('A7 prive_request_create sin sesión', $q$SELECT public.prive_request_create(NULL, 'e0000000-0000-0000-0000-000000000001')$q$, 'PRIVE_');
+SELECT public.t_err('A8 prive_track sin sesión', $q$SELECT public.prive_track(NULL, 'detail_open')$q$, 'PRIVE_');
+SELECT public.t_err('A9 prive_for_you sin sesión', $q$SELECT public.prive_for_you(NULL, 'mc')$q$, 'PRIVE_');
 SELECT public.t_err('A10 lectura directa de prive_experiences', $q$SELECT count(*) FROM public.prive_experiences$q$, 'permission denied');
 SELECT public.t_err('A11 lectura directa de la vista', $q$SELECT count(*) FROM public.prive_experiences_v$q$, 'permission denied');
 SELECT public.t_err('A12 lectura directa del registro de alianzas', $q$SELECT count(*) FROM public.prive_partner_agreements$q$, 'permission denied');
@@ -198,47 +220,49 @@ RESET ROLE;
 -- ───────────── 7. Contenido para el miembro ─────────────
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.role', 'authenticated', false);
 SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a1', false);
+SELECT public.t_err('M0a miembro sin token', $q$SELECT public.prive_destination(NULL, 'mc')$q$, 'PRIVE_NO_SESSION');
+SELECT public.t_err('M0b miembro con token inventado', $q$SELECT public.prive_destination(repeat('x', 43), 'mc')$q$, 'PRIVE_SESSION_INVALID');
 SELECT public.t_ok('M1 la página de Mónaco no muestra PENDIENTE ni el evento pasado',
-  public.prive_destination('ps-u1', 'mc')::text !~ '(T Pending Club|T Past Gala)');
+  public.prive_destination(public.t_ps(), 'mc')::text !~ '(T Pending Club|T Past Gala)');
 SELECT public.t_ok('M2 lo desactualizado aparece marcado DESACTUALIZADO',
-  (SELECT x->>'state' FROM jsonb_array_elements(public.prive_destination('ps-u1', 'Monte Carlo')->'experiences') x WHERE x->>'slug' = 'mc-t-old-bar') IS NULL
-  AND (SELECT x->>'state' FROM jsonb_array_elements(public.prive_destination('ps-u1', 'mc')->'experiences') x WHERE x->>'slug' = 'mc-t-old-bar') = 'DESACTUALIZADO');
+  (SELECT x->>'state' FROM jsonb_array_elements(public.prive_destination(public.t_ps(), 'Monte Carlo')->'experiences') x WHERE x->>'slug' = 'mc-t-old-bar') IS NULL
+  AND (SELECT x->>'state' FROM jsonb_array_elements(public.prive_destination(public.t_ps(), 'mc')->'experiences') x WHERE x->>'slug' = 'mc-t-old-bar') = 'DESACTUALIZADO');
 SELECT public.t_ok('M3 sin declaración 18+ el casino no sale (solo el conteo)',
-  public.prive_destination('ps-u1', 'mc')::text !~ 'T Casino' AND (public.prive_destination('ps-u1', 'mc')->>'age_locked_count')::int = 1);
-SELECT public.t_ok('M4 declaración 18+ con la versión vigente', public.prive_confirm_adult('ps-u1', '2026-10-22'));
-SELECT public.t_ok('M5 Iato no recomienda casino si no se pidió', public.prive_search('ps-u1', ARRAY['Montecarlo'])::text !~ 'T Casino');
+  public.prive_destination(public.t_ps(), 'mc')::text !~ 'T Casino' AND (public.prive_destination(public.t_ps(), 'mc')->>'age_locked_count')::int = 1);
+SELECT public.t_ok('M4 declaración 18+ con la versión vigente', public.prive_confirm_adult(public.t_ps(), '2026-10-22'));
+SELECT public.t_ok('M5 Iato no recomienda casino si no se pidió', public.prive_search(public.t_ps(), ARRAY['Montecarlo'])::text !~ 'T Casino');
 SELECT public.t_ok('M6 Iato: casino legal solo si se pidió, con licencia y edad',
-  (SELECT x->'license'->>'authority' FROM jsonb_array_elements(public.prive_search('ps-u1', ARRAY['Mónaco'], ARRAY['casino_grand_nights'])->'cities'->0->'items') x LIMIT 1) = 'Autoridad de prueba');
+  (SELECT x->'license'->>'authority' FROM jsonb_array_elements(public.prive_search(public.t_ps(), ARRAY['Mónaco'], ARRAY['casino_grand_nights'])->'cities'->0->'items') x LIMIT 1) = 'Autoridad de prueba');
 SELECT public.t_ok('M7 Iato excluye DESACTUALIZADO, PENDIENTE y NO DISPONIBLE',
-  public.prive_search('ps-u1', ARRAY['Mónaco'], ARRAY['after_dark','iconic_events'])::text !~ '(T Old Bar|T Pending|T Past Gala)');
+  public.prive_search(public.t_ps(), ARRAY['Mónaco'], ARRAY['after_dark','iconic_events'])::text !~ '(T Old Bar|T Pending|T Past Gala)');
 SELECT public.t_ok('M8 ciudad sin cobertura: dice SIN COBERTURA y no inventa nada',
   (SELECT x->>'coverage' = 'SIN_COBERTURA_VERIFICADA' AND jsonb_array_length(x->'items') = 0
-     FROM jsonb_array_elements(public.prive_search('ps-u1', ARRAY['Atlantis'])->'cities') x));
+     FROM jsonb_array_elements(public.prive_search(public.t_ps(), ARRAY['Atlantis'])->'cities') x));
 SELECT public.t_ok('M9 búsqueda por palabra clave (beach club) encuentra el club de playa con su temporada',
-  (SELECT x->'season'->>'state' FROM jsonb_array_elements(public.prive_search('ps-u1', ARRAY['Mónaco'], NULL, ARRAY['beach club'])->'cities'->0->'items') x
+  (SELECT x->'season'->>'state' FROM jsonb_array_elements(public.prive_search(public.t_ps(), ARRAY['Mónaco'], NULL, ARRAY['beach club'])->'cities'->0->'items') x
     WHERE x->>'slug' = 'mc-t-beach') = 'cerrado_por_temporada');
 SELECT public.t_ok('M10 ficha: precio y horario solo con su fuente',
-  (public.prive_experience('ps-u1', 'mc-t-louis-xv')->'experience'->'price'->>'source') = 'https://example.test/louis/menu'
-  AND (public.prive_experience('ps-u1', 'mc-t-yacht')->'experience'->'price') IS NULL
-  AND (public.prive_experience('ps-u1', 'mc-t-yacht')->'experience'->'opening_hours') IS NULL);
-SELECT public.t_ok('M11 una experiencia PENDIENTE no existe para el miembro', (public.prive_experience('ps-u1', 'mc-t-pending')->>'found')::boolean = false);
-SELECT public.t_ok('M12a guardar', (public.prive_save('ps-u1', 'e0000000-0000-0000-0000-000000000003')->>'ok')::boolean);
+  (public.prive_experience(public.t_ps(), 'mc-t-louis-xv')->'experience'->'price'->>'source') = 'https://example.test/louis/menu'
+  AND (public.prive_experience(public.t_ps(), 'mc-t-yacht')->'experience'->'price') IS NULL
+  AND (public.prive_experience(public.t_ps(), 'mc-t-yacht')->'experience'->'opening_hours') IS NULL);
+SELECT public.t_ok('M11 una experiencia PENDIENTE no existe para el miembro', (public.prive_experience(public.t_ps(), 'mc-t-pending')->>'found')::boolean = false);
+SELECT public.t_ok('M12a guardar', (public.prive_save(public.t_ps(), 'e0000000-0000-0000-0000-000000000003')->>'ok')::boolean);
 -- (cada verificación de estado va en su propia sentencia: una sentencia no ve lo que escribió su propia función)
 SELECT public.t_ok('M12b el guardado queda en Favoritos (recomendaciones)', EXISTS (SELECT 1 FROM public.recomendaciones WHERE experience_id = 'e0000000-0000-0000-0000-000000000003' AND guardado));
 SELECT public.t_err('M13 el cliente no fabrica guardados de Privé', $q$INSERT INTO public.recomendaciones(user_id, tipo, titulo, experience_id) VALUES ('c0000000-0000-0000-0000-0000000000a1','prive','x','e0000000-0000-0000-0000-000000000001')$q$, 'prive_save');
 SELECT public.t_ok('M14 agregar al viaje crea elementos NO confirmados en el viaje',
-  (public.prive_add_to_trip('ps-u1', 'c0000000-0000-0000-0000-00000000aa01',
+  (public.prive_add_to_trip(public.t_ps(), 'c0000000-0000-0000-0000-00000000aa01',
      '[{"experience_id":"e0000000-0000-0000-0000-000000000001","start_at":"2026-11-12T20:00:00+01:00"},{"experience_id":"e0000000-0000-0000-0000-000000000006"}]')->>'added')::int = 1);
 SELECT public.t_ok('M14b en el viaje quedan como pendientes, sin folio (no reservados)', (SELECT bool_and(status = 'pending' AND confirmation_code IS NULL AND provider = 'iatos_prive') FROM public.bookings WHERE trip_id = 'c0000000-0000-0000-0000-00000000aa01'));
 SELECT public.t_ok('M15 la ficha trae la evidencia de la etiqueta y el crédito de imagen ilustrativa',
-  (public.prive_experience('ps-u1', 'mc-t-yacht')->'experience'->'label_evidence'->>'operator') = 'T Yacht Charter SARL'
-  AND (public.prive_experience('ps-u1', 'mc-t-yacht')->'experience'->'image'->>'illustrative')::boolean);
-SELECT public.t_ok('M16 prive_track ignora eventos que solo escribe el servidor', public.prive_track('ps-u1', 'request_confirmed') = false);
+  (public.prive_experience(public.t_ps(), 'mc-t-yacht')->'experience'->'label_evidence'->>'operator') = 'T Yacht Charter SARL'
+  AND (public.prive_experience(public.t_ps(), 'mc-t-yacht')->'experience'->'image'->>'illustrative')::boolean);
+SELECT public.t_ok('M16 prive_track ignora eventos que solo escribe el servidor', public.prive_track(public.t_ps(), 'request_confirmed') = false);
 
 -- ───────────── 8. Solicitudes: transiciones solo del servidor ─────────────
-SELECT public.t_ok('R1 solicitar crea "solicitado"', (SELECT (j->>'status') = 'solicitado' FROM (SELECT public.prive_request_create('ps-u1',
+SELECT public.t_ok('R1 solicitar crea "solicitado"', (SELECT (j->>'status') = 'solicitado' FROM (SELECT public.prive_request_create(public.t_ps(),
   'e0000000-0000-0000-0000-000000000003', now() + interval '20 days', 2, 'Atardecer', 'app', 'c0000000-0000-0000-0000-00000000aa01') j) t));
-SELECT public.t_ok('R2 no se puede solicitar algo PENDIENTE', (public.prive_request_create('ps-u1', 'e0000000-0000-0000-0000-000000000006')->>'code') = 'EXPERIENCE_UNAVAILABLE');
+SELECT public.t_ok('R2 no se puede solicitar algo PENDIENTE', (public.prive_request_create(public.t_ps(), 'e0000000-0000-0000-0000-000000000006')->>'code') = 'EXPERIENCE_UNAVAILABLE');
 SELECT public.t_err('R3 el usuario no cambia el estado directo', $q$UPDATE public.concierge_requests SET status='confirmado_externamente' WHERE type='prive_request'$q$, 'permission denied');
 SELECT public.t_err('R4 el usuario no inserta una solicitud confirmada', $q$INSERT INTO public.concierge_requests(user_id,type,title,status,experience_id) VALUES ('c0000000-0000-0000-0000-0000000000a1','prive_request','x','confirmado_externamente','e0000000-0000-0000-0000-000000000003')$q$, 'permission denied');
 SELECT public.t_err('R5 el usuario no es el equipo', $q$SELECT public.prive_request_transition((SELECT id FROM public.concierge_requests WHERE type='prive_request' LIMIT 1), 'pendiente_confirmacion')$q$, 'solo el equipo');
@@ -265,7 +289,7 @@ SET ROLE authenticated; SELECT set_config('request.jwt.claim.role', 'authenticat
 SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a1', false);
 SELECT public.t_ok('R14 la confirmada sí se ve confirmada, con ACCESO CONFIRMADO y folio',
   (SELECT (x->>'is_confirmed')::boolean AND x->>'label' = 'ACCESO_CONFIRMADO' AND x->>'confirmation_code' = 'ABC123' FROM jsonb_array_elements(public.prive_my_requests()) x LIMIT 1));
-SELECT public.t_ok('R15a nueva solicitud', (public.prive_request_create('ps-u1', 'e0000000-0000-0000-0000-000000000001')->>'ok')::boolean);
+SELECT public.t_ok('R15a nueva solicitud', (public.prive_request_create(public.t_ps(), 'e0000000-0000-0000-0000-000000000001')->>'ok')::boolean);
 SELECT public.t_ok('R15b la nueva sigue "aún no es una reserva"', (SELECT count(*) FROM jsonb_array_elements(public.prive_my_requests()) x WHERE NOT (x->>'is_confirmed')::boolean AND x->>'status_text' ~ 'aún no es una reserva') = 1);
 SELECT public.t_ok('R16a el usuario cancela la suya',
   (public.prive_request_cancel((SELECT id FROM public.concierge_requests WHERE status = 'confirmado_externamente' LIMIT 1))->>'status') = 'cancelado');
@@ -273,12 +297,26 @@ SELECT public.t_ok('R16b la constancia queda cancelada', NOT EXISTS (SELECT 1 FR
 SELECT public.t_ok('R17 una cancelada no se puede volver a cancelar', (public.prive_request_cancel((SELECT id FROM public.concierge_requests WHERE status = 'cancelado' LIMIT 1))->>'code') = 'NOT_CANCELLABLE');
 RESET ROLE;
 
--- ───────────── 9. Heredados ─────────────
+-- ───────────── 9. Carga de curaduría: duplicados en la jerarquía y etiquetas ─────────────
+SELECT set_config('request.jwt.claim.role', 'service_role', false);
+SELECT public.t_ok('I1 un lugar ya cargado en Los Cabos no se duplica en San José del Cabo (misma familia)',
+  (SELECT (j->'rejected'->0->>'reason') ~ 'jerarquía' FROM (SELECT public.prive_import_batch(
+     '[{"destination_slug":"los-cabos","slug":"los-cabos-t-cocina","universe":"the_table","subcategory":"autor","name":"T Cocina de Autor","data_state":"PENDIENTE"},
+       {"destination_slug":"san-jose-del-cabo","slug":"sjd-t-cocina","universe":"the_table","subcategory":"autor","name":"T Cocina de Autor","data_state":"PENDIENTE"}]'::jsonb,
+     'prueba_familia', true) j) t));
+SELECT public.t_ok('I2 el cargador no puede poner PARTNER VERIFICADO',
+  (SELECT (j->'rejected'->0->>'reason') ~ 'etiquetas de socio' FROM (SELECT public.prive_import_batch(
+     '[{"destination_slug":"mc","slug":"mc-t-x","universe":"the_table","subcategory":"autor","name":"T Socio","data_state":"PENDIENTE","commercial_label":"PARTNER_VERIFICADO"}]'::jsonb,
+     'prueba_label', true) j) t));
+SELECT public.t_ok('I3 el ensayo (dry run) no deja nada escrito', NOT EXISTS (SELECT 1 FROM public.prive_experiences WHERE import_batch IN ('prueba_familia','prueba_label')));
+SELECT set_config('request.jwt.claim.role', '', false);
+
+-- ───────────── 10. Heredados ─────────────
 SELECT public.t_ok('H1 los lugares heredados entran PENDIENTE y ocultos', (SELECT count(*) FROM public.prive_experiences WHERE import_batch = 'legacy_nightlife_premium' AND data_state <> 'PENDIENTE') = 0
   AND (SELECT count(*) FROM public.prive_experiences WHERE import_batch = 'legacy_nightlife_premium') >= 28);
 SELECT public.t_ok('H2 nightlife_premium no se tocó', (SELECT count(*) FROM public.nightlife_premium) >= 28);
 
--- ───────────── 10. Métricas ─────────────
+-- ───────────── 11. Métricas ─────────────
 SELECT public.t_ok('X1 las métricas no guardan texto libre', NOT EXISTS (SELECT 1 FROM information_schema.columns
   WHERE table_name = 'prive_events' AND column_name NOT IN ('id','user_id','event','experience_id','destination_id','trip_id','surface','plan','created_at')));
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a3', false);

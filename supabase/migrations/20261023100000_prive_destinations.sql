@@ -21,7 +21,9 @@ RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
     'AAAAAAAAAaaaaaaaaaEEEEEEEEeeeeeeeeIIIIIIiiiiiiOOOOOOOoooooooUUUUUUUuuuuuuuNNnnCCCcccSSssZZZzzzYYyyGgSsIiLl')),
     '&', ' and '), '[^a-z0-9]+', ' ', 'g'));
 $$;
-GRANT EXECUTE ON FUNCTION public.prive_norm(text) TO anon, authenticated, service_role;
+-- Solo el servidor la usa (índices, CHECK y RPC SECURITY DEFINER); los clientes no la necesitan.
+REVOKE ALL ON FUNCTION public.prive_norm(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.prive_norm(text) TO service_role;
 
 CREATE TABLE IF NOT EXISTS public.prive_destinations (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),

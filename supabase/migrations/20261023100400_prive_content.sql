@@ -13,6 +13,8 @@
 --  * 18+ / 21+: solo a quien hizo la declaración de mayoría de edad (prive_confirm_adult); a los demás
 --    solo se les dice cuántas hay;
 --  * precio y horario: solo con su fuente; si no, null (la pantalla dice "por confirmar").
+-- Las RPC con sesión son VOLATILE (por omisión) para que prive_require pueda refrescar el reloj de
+-- inactividad de la sesión Privé.
 -- Idempotente.
 
 -- Tarjeta de una experiencia (lo que ve la app). _full agrega fuentes, descripción y reglas.
@@ -150,7 +152,7 @@ END $$;
 
 -- ─────────────────────────────── Contenido (con sesión Privé) ──────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.prive_home(_ps text)
-RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_uid uuid;
 BEGIN
   v_uid := public.prive_require(_ps);
@@ -295,7 +297,7 @@ END $$;
 -- "Para ti en <destino>": máximo 2 por universo en los primeros N, casinos solo con señal propia.
 CREATE OR REPLACE FUNCTION public.prive_for_you(_ps text, _destination text, _from date DEFAULT NULL, _to date DEFAULT NULL,
   _limit int DEFAULT 8)
-RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_uid uuid; v_dest uuid; v_sig jsonb; v_adult boolean;
 BEGIN
   v_uid := public.prive_require(_ps);
@@ -369,7 +371,7 @@ BEGIN
 END $$;
 
 CREATE OR REPLACE FUNCTION public.prive_saved(_ps text)
-RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_uid uuid;
 BEGIN
   v_uid := public.prive_require(_ps);
