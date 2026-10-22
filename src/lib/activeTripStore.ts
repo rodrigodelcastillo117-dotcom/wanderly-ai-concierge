@@ -1,12 +1,10 @@
-// Lectura y escritura del viaje activo (profiles.active_trip_id) para todas las pantallas.
-//
-// La columna llega con la migración 20261022131000. Mientras no esté aplicada en producción, el
-// SELECT responde 400 (columna inexistente): aquí se atrapa el error y se usa la elección guardada
-// en este dispositivo, sin romper la pantalla. El Concierge ya usaba la misma llave local.
+// Viaje activo (profiles.active_trip_id) para las pantallas fuera del chat. La lectura/escritura
+// tolerante es la de profileActiveTrip.ts (N-03: si la columna aún no existe en producción, el
+// primer error se calla y no se vuelve a consultar en la sesión); aquí se suma la elección local,
+// con la misma llave que usa el Concierge, para que todas las pantallas coincidan sin la columna.
+import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
 
 export const ACTIVE_TRIP_LOCAL_KEY = "iatos_concierge_trip";
-
-type MinimalClient = { from: (table: string) => any };
 
 export function readLocalPin(): string | null {
   try { return localStorage.getItem(ACTIVE_TRIP_LOCAL_KEY) || null; } catch { return null; }
@@ -21,34 +19,22 @@ export function writeLocalPin(id: string | null) {
 
 export type PinnedRead = { id: string | null; source: "profile" | "local" };
 
-/**
- * Viaje fijado por el usuario. Nunca lanza: si la columna no existe o la red falla, devuelve la
- * elección local (o null).
- */
-export async function fetchPinnedTripId(client: MinimalClient, userId: string): Promise<PinnedRead> {
-  try {
-    const { data, error } = await client.from("profiles").select("active_trip_id").eq("id", userId).maybeSingle();
-    if (error || !data) return { id: readLocalPin(), source: "local" };
-    const id = (data as { active_trip_id?: string | null }).active_trip_id ?? null;
-    writeLocalPin(id);
-    return { id, source: "profile" };
-  } catch {
-    return { id: readLocalPin(), source: "local" };
-  }
+/** Viaje fijado. Nunca lanza: sin columna o sin red, la elección local (o null). */
+export async function fetchPinnedTripId(userId: string): Promise<PinnedRead> {
+  const v = await readPinnedTrip(userId);
+  if (v === undefined) return { id: readLocalPin(), source: "local" };
+  writeLocalPin(v);
+  return { id: v, source: "profile" };
 }
 
 export type PinResult = { ok: boolean; forbidden?: boolean; message?: string };
 
-/** Fija (o quita, con null) el viaje activo. Se guarda local siempre y en el perfil si se puede. */
-export async function savePinnedTripId(client: MinimalClient, userId: string, id: string | null): Promise<PinResult> {
+/** Fija (o quita, con null) el viaje activo: siempre en el dispositivo y en el perfil si se puede. */
+export async function savePinnedTripId(userId: string, id: string | null): Promise<PinResult> {
   writeLocalPin(id);
-  try {
-    const { error } = await client.from("profiles").update({ active_trip_id: id }).eq("id", userId);
-    if (!error) return { ok: true };
-    // 42501: el trigger profiles_guard_active_trip rechazó un viaje sin acceso.
-    if (error.code === "42501") return { ok: false, forbidden: true, message: "No tienes acceso a ese viaje" };
-    return { ok: false, message: error.message };
-  } catch (e) {
-    return { ok: false, message: (e as Error)?.message };
-  }
+  const code = await savePinnedTrip(userId, id);
+  if (!code) return { ok: true };
+  // 42501: el trigger profiles_guard_active_trip rechazó un viaje sin acceso.
+  if (code === "42501") return { ok: false, forbidden: true, message: "No tienes acceso a ese viaje" };
+  return { ok: false, message: code };
 }

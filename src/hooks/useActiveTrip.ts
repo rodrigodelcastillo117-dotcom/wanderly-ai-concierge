@@ -42,7 +42,7 @@ export function useActiveTrip<T extends TripLike = TripLike>(
         Promise.resolve(
           supabase.from("trips").select(columns).order("fecha_salida", { ascending: true }).limit(50),
         ).catch(() => ({ data: null })),
-        fetchPinnedTripId(supabase, user.id),
+        fetchPinnedTripId(user.id),
       ]);
       if (cancelled) return;
       setTrips(((tripsRes as { data: T[] | null })?.data ?? []) as T[]);
@@ -58,7 +58,7 @@ export function useActiveTrip<T extends TripLike = TripLike>(
   const pin = useCallback(async (id: string | null) => {
     setPinnedId(id);
     if (!user?.id) return { ok: false };
-    return savePinnedTripId(supabase, user.id, id);
+    return savePinnedTripId(user.id, id);
   }, [user?.id]);
 
   return { trips, pinnedId, resolved, trip: resolved.trip, loading, pin };

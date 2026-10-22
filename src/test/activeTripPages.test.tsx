@@ -4,6 +4,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { vi, it, expect, beforeEach, describe } from "vitest";
+import { __resetActiveTripColumn } from "@/lib/profileActiveTrip";
 
 const ROMA = "11111111-1111-4111-8111-111111111111";
 const LIMA = "22222222-2222-4222-8222-222222222222";
@@ -73,6 +74,7 @@ const trips = () => [
 ];
 
 beforeEach(() => {
+  __resetActiveTripColumn();
   db.tables = { trips: trips(), expenses: [], profiles: [{ id: "u1", active_trip_id: LIMA }], bookings: [], trip_collaborators: [] };
   db.profileError = null;
   db.inserts.length = 0;

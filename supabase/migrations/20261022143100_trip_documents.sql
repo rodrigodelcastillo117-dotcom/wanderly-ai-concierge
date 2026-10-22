@@ -81,16 +81,23 @@ CREATE POLICY trip_documents_obj_delete ON storage.objects FOR DELETE TO authent
   );
 -- Sin política UPDATE: un documento no se sobrescribe (se borra y se sube otro).
 
--- Borrado de cuenta: además de los archivos que subió la persona, los documentos que otros
--- subieron a SUS viajes (el viaje se borra en cascada y quedarían huérfanos en el bucket).
+-- Borrado de cuenta: la versión de 20261022141900 (F-18, fotos del diario de otros en sus viajes)
+-- más los documentos que otros subieron a SUS viajes (el viaje se borra en cascada y quedarían
+-- huérfanos en el bucket). delete-account la llama antes de purge_account_data.
 CREATE OR REPLACE FUNCTION public.account_deletion_files(p_user_id uuid)
-RETURNS TABLE(bucket_id text,name text) LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
-SELECT o.bucket_id,o.name FROM storage.objects o
+RETURNS TABLE (bucket_id text, name text)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+SELECT o.bucket_id, o.name FROM storage.objects o
 WHERE o.owner_id = p_user_id::text OR o.owner = p_user_id
- OR o.name LIKE p_user_id::text || '/%'
- OR o.name LIKE 'avatars/' || p_user_id::text || '/%'
- OR (o.bucket_id = 'trip-documents'
-     AND public.trip_document_path_trip(o.name) IN (SELECT t.id FROM public.trips t WHERE t.user_id = p_user_id));
+   OR o.name LIKE p_user_id::text || '/%'
+   OR o.name LIKE 'avatars/' || p_user_id::text || '/%'
+   OR (o.bucket_id = 'journal-photos'
+       AND (storage.foldername(o.name))[2] IN (SELECT t.id::text FROM public.trips t WHERE t.user_id = p_user_id))
+   OR (o.bucket_id = 'trip-documents'
+       AND public.trip_document_path_trip(o.name) IN (SELECT t.id FROM public.trips t WHERE t.user_id = p_user_id));
 $$;
-REVOKE ALL ON FUNCTION public.account_deletion_files(uuid) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.account_deletion_files(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.account_deletion_files(uuid) TO service_role;

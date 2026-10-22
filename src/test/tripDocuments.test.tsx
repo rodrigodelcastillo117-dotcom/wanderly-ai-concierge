@@ -74,7 +74,7 @@ describe("Documentos del viaje", () => {
     fireEvent.change(screen.getByTestId("trip-doc-input"), { target: { files: [file] } });
     await waitFor(() => expect(state.inserts).toHaveLength(1));
     expect(state.uploads[0].b).toBe("trip-documents");
-    expect(state.uploads[0].path).toMatch(new RegExp(`^${TRIP}/[0-9a-f-]+-Mi_Pasaporte\\.pdf$`));
+    expect(state.uploads[0].path).toMatch(new RegExp(`^${TRIP}/[0-9a-f-]+-Mi-Pasaporte\\.pdf$`));
     expect(state.uploads[0].opts).toMatchObject({ upsert: false, contentType: "application/pdf" });
     expect(state.inserts[0].row).toMatchObject({ trip_id: TRIP, uploaded_by: "owner", kind: "pasaporte", storage_path: state.uploads[0].path, mime: "application/pdf", size: 4 });
   });

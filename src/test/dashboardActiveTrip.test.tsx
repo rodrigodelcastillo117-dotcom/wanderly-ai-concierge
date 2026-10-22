@@ -4,6 +4,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 import { vi, it, expect, beforeEach, describe } from "vitest";
+import { __resetActiveTripColumn } from "@/lib/profileActiveTrip";
 import { localISODatePlus } from "@/lib/localDate";
 
 const ROMA = "11111111-1111-4111-8111-111111111111";
@@ -54,6 +55,7 @@ const renderHome = () => render(
 );
 
 beforeEach(() => {
+  __resetActiveTripColumn();
   // Roma está en curso pero es el viaje creado hace más tiempo: con limit(2) por fecha de creación no aparecía.
   db.trips = [
     { id: ROMA, user_id: "u1", destino: "Roma", fecha_salida: localISODatePlus(-1), fecha_regreso: localISODatePlus(3), created_at: "2026-01-01" },

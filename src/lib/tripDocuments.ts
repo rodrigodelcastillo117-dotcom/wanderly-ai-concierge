@@ -1,9 +1,10 @@
 // Documentos del viaje (boletos, pasaporte, pólizas, reservas) en el bucket PRIVADO trip-documents.
 // Ruta: {trip_id}/{uuid}-{nombre}. Las políticas de storage y de la tabla trip_documents usan
-// has_trip_access(trip_id) (migración 20261022143100); aquí van las mismas reglas del lado del
-// cliente para avisar antes de subir. El servidor (bucket y CHECKs) es quien manda.
+// has_trip_access(trip_id) (migración 20261022143100); tipo, tamaño y nombre seguro son las reglas
+// comunes de uploadRules.ts, para avisar antes de subir. El servidor (bucket y CHECKs) es quien manda.
+import { UPLOAD_RULES, safeFileName, uploadProblem } from "@/lib/uploadRules";
 
-export const TRIP_DOC_BUCKET = "trip-documents";
+export const TRIP_DOC_BUCKET = "trip-documents" as const;
 
 export const TRIP_DOC_KINDS = ["boleto", "pasaporte", "poliza", "reserva", "otro"] as const;
 export type TripDocKind = (typeof TRIP_DOC_KINDS)[number];
@@ -17,10 +18,10 @@ export const TRIP_DOC_KIND_LABEL: Record<TripDocKind, string> = {
 };
 
 /** 10 MB: igual que file_size_limit del bucket y el CHECK de trip_documents.size. */
-export const TRIP_DOC_MAX_BYTES = 10 * 1024 * 1024;
+export const TRIP_DOC_MAX_BYTES = UPLOAD_RULES[TRIP_DOC_BUCKET].maxBytes;
 
 /** Igual que allowed_mime_types del bucket y el CHECK de trip_documents.mime. */
-export const TRIP_DOC_MIME = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"] as const;
+export const TRIP_DOC_MIME: readonly string[] = UPLOAD_RULES[TRIP_DOC_BUCKET].types;
 
 /** Vida del enlace de descarga: 60 s. */
 export const SIGNED_URL_TTL_S = 60;
@@ -40,18 +41,7 @@ export type TripDocument = {
 /** Mensaje para el usuario si el archivo no se puede subir; null si está bien. */
 export function validateDocFile(file: { size: number; type: string }): string | null {
   if (!file || !(file.size > 0)) return "El archivo está vacío.";
-  if (file.size > TRIP_DOC_MAX_BYTES) return "El archivo pesa más de 10 MB.";
-  if (!(TRIP_DOC_MIME as readonly string[]).includes(String(file.type || "").toLowerCase())) {
-    return "Solo se aceptan PDF o imágenes (JPG, PNG, WEBP, HEIC).";
-  }
-  return null;
-}
-
-/** Nombre seguro para la ruta: sin carpetas, sin caracteres raros, máximo 100. */
-export function safeFileName(name: string): string {
-  const base = String(name ?? "").split(/[\\/]/).pop() ?? "";
-  const clean = base.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^[._]+/, "");
-  return (clean || "documento").slice(-100);
+  return uploadProblem(TRIP_DOC_BUCKET, file);
 }
 
 export function buildDocPath(tripId: string, uuid: string, name: string): string {

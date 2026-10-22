@@ -8,7 +8,7 @@
 -- 2) La base de la cotización (quote_basis) recuerda también la selección con que se cotizó
 --    (quote_basis.selections). Cambiar la selección después marca quote_needs_update, igual que
 --    cambiar viajeros o fechas.
--- 3) E-22: bookings y expenses solo pueden ligarse a un viaje al que su usuario tiene acceso.
+-- 3) E-22: índice de gastos por viaje (el acceso al viaje lo valida F-15, 20261022141600).
 
 ALTER TABLE public.trips ADD COLUMN IF NOT EXISTS selections jsonb;
 ALTER TABLE public.trips DROP CONSTRAINT IF EXISTS trips_selections_is_object;
@@ -77,27 +77,6 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.trips_quote_basis_guard() FROM PUBLIC, anon, authenticated;
 -- El trigger trips_quote_basis_guard ya existe (BEFORE INSERT OR UPDATE): toma la nueva versión.
 
--- 3) trip_id de bookings/expenses: solo un viaje propio o compartido contigo (aceptado). Antes la
---    FK aceptaba cualquier viaje, también uno ajeno.
-CREATE OR REPLACE FUNCTION public.guard_row_trip_access()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  IF NEW.trip_id IS NOT NULL
-     AND (TG_OP = 'INSERT' OR NEW.trip_id IS DISTINCT FROM OLD.trip_id OR NEW.user_id IS DISTINCT FROM OLD.user_id)
-     AND NOT public.has_trip_access(NEW.trip_id, NEW.user_id) THEN
-    RAISE EXCEPTION 'No tienes acceso a ese viaje' USING ERRCODE = '42501';
-  END IF;
-  RETURN NEW;
-END;
-$$;
-REVOKE EXECUTE ON FUNCTION public.guard_row_trip_access() FROM PUBLIC, anon, authenticated;
-
-DROP TRIGGER IF EXISTS bookings_guard_trip_access ON public.bookings;
-CREATE TRIGGER bookings_guard_trip_access BEFORE INSERT OR UPDATE OF trip_id, user_id ON public.bookings
-  FOR EACH ROW EXECUTE FUNCTION public.guard_row_trip_access();
-
-DROP TRIGGER IF EXISTS expenses_guard_trip_access ON public.expenses;
-CREATE TRIGGER expenses_guard_trip_access BEFORE INSERT OR UPDATE OF trip_id, user_id ON public.expenses
-  FOR EACH ROW EXECUTE FUNCTION public.guard_row_trip_access();
-
+-- 3) trip_id de bookings/expenses: la validación de acceso al viaje ya la hace la política RLS de
+--    20261022141600_sec2_trip_id_checks.sql (F-15). Aquí solo el índice para leer gastos por viaje.
 CREATE INDEX IF NOT EXISTS idx_expenses_trip ON public.expenses(trip_id) WHERE trip_id IS NOT NULL;

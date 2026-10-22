@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 import { vi, it, expect, beforeEach, describe } from "vitest";
+import { __resetActiveTripColumn } from "@/lib/profileActiveTrip";
 
 const TRIP = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
@@ -46,6 +47,7 @@ import LiveTrip from "@/pages/LiveTrip";
 const Where = () => { const l = useLocation(); return <p data-testid="where">{l.pathname}</p>; };
 
 beforeEach(() => {
+  __resetActiveTripColumn();
   db.tables = {
     trips: [
       { id: TRIP, user_id: "u1", destino: "Roma", pais_destino: "Italia", fecha_salida: "2099-11-01", fecha_regreso: "2099-11-08" },

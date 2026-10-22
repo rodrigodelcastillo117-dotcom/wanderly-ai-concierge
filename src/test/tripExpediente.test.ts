@@ -5,9 +5,9 @@ import { computeTripDesglose, quoteStaleness, staleQuoteMessage } from "@/lib/qu
 import { tripTotals } from "@/components/RealTripTotal";
 import { computeSplit, parseSplitAmount, hasPayments } from "@/lib/split";
 import { withTripParam, readTripParam } from "@/lib/tripLink";
-import { buildDocPath, canDeleteDoc, safeFileName, validateDocFile, TRIP_DOC_MAX_BYTES } from "@/lib/tripDocuments";
+import { readFileSync } from "node:fs";
+import { buildDocPath, canDeleteDoc, validateDocFile, TRIP_DOC_MAX_BYTES, TRIP_DOC_MIME } from "@/lib/tripDocuments";
 import { restoreConversation, loadConversation } from "@/lib/conciergeHistory";
-import { fetchPinnedTripId, savePinnedTripId, ACTIVE_TRIP_LOCAL_KEY } from "@/lib/activeTripStore";
 import { converterRateLabel, providerUpdatedAt } from "@/lib/fx";
 import { currenciesUsed, readMoney, toMxn } from "../../supabase/functions/parse-trip-file/money.ts";
 import { buildLogisticsSnapshot, logisticsReferences } from "../../supabase/functions/logistics-plan/snapshot.ts";
@@ -187,10 +187,18 @@ describe("documentos del viaje: reglas del cliente", () => {
   it("valida tipo y tamaño; arma la ruta {trip_id}/{uuid}-{nombre} sin carpetas", () => {
     expect(validateDocFile({ size: 1000, type: "application/pdf" })).toBeNull();
     expect(validateDocFile({ size: TRIP_DOC_MAX_BYTES + 1, type: "application/pdf" })).toMatch(/10 MB/);
-    expect(validateDocFile({ size: 10, type: "application/x-msdownload" })).toMatch(/PDF o imágenes/);
+    expect(validateDocFile({ size: 10, type: "application/x-msdownload" })).toMatch(/o un PDF/);
     expect(validateDocFile({ size: 0, type: "image/png" })).toMatch(/vacío/);
-    expect(buildDocPath(TRIP, "u1", "../../Boleto Mañana.pdf")).toBe(`${TRIP}/u1-Boleto_Manana.pdf`);
-    expect(safeFileName("")).toBe("documento");
+    expect(buildDocPath(TRIP, "u1", "../../Boleto Mañana.pdf")).toBe(`${TRIP}/u1-Boleto-Manana.pdf`);
+  });
+  it("tipos y tamaño iguales en el cliente, el bucket y el CHECK de la tabla (migración)", () => {
+    const sql = readFileSync("supabase/migrations/20261022143100_trip_documents.sql", "utf8");
+    const bucket = sql.slice(sql.indexOf("INSERT INTO storage.buckets"), sql.indexOf("ON CONFLICT"));
+    const check = sql.slice(sql.indexOf("mime         text"), sql.indexOf("size         bigint"));
+    const types = (s: string) => [...s.matchAll(/'([a-z]+\/[a-z0-9.+-]+)'/g)].map((m) => m[1]).sort();
+    expect(types(bucket)).toEqual([...TRIP_DOC_MIME].sort());
+    expect(types(check)).toEqual([...TRIP_DOC_MIME].sort());
+    expect(bucket).toContain(String(TRIP_DOC_MAX_BYTES));
   });
   it("borra quien lo subió o el dueño del viaje", () => {
     expect(canDeleteDoc({ uploaded_by: "a" }, "a", "o")).toBe(true);
@@ -234,24 +242,6 @@ describe("historial del concierge (E-13)", () => {
     await loadConversation(client({ data: null }, calls2) as any, "u1", null);
     expect(calls2).toContainEqual(["is", "trip_id", null]);
     expect(await loadConversation(client({ error: { message: "boom" } }) as any, "u1", TRIP)).toEqual([]);
-  });
-});
-
-describe("viaje activo tolera que falte profiles.active_trip_id (migración pendiente)", () => {
-  beforeEach(() => localStorage.clear());
-  it("si la columna no existe (400) usa la elección local", async () => {
-    localStorage.setItem(ACTIVE_TRIP_LOCAL_KEY, TRIP);
-    const r = await fetchPinnedTripId(client({ data: null, error: { code: "42703", message: "column profiles.active_trip_id does not exist" } }) as any, "u1");
-    expect(r).toEqual({ id: TRIP, source: "local" });
-  });
-  it("con la columna, manda el perfil y se recuerda localmente", async () => {
-    const r = await fetchPinnedTripId(client({ data: { active_trip_id: "t2" }, error: null }) as any, "u1");
-    expect(r).toEqual({ id: "t2", source: "profile" });
-    expect(localStorage.getItem(ACTIVE_TRIP_LOCAL_KEY)).toBe("t2");
-  });
-  it("fijar un viaje ajeno devuelve forbidden (trigger 42501)", async () => {
-    expect(await savePinnedTripId(client({ error: { code: "42501", message: "No tienes acceso" } }) as any, "u1", TRIP)).toMatchObject({ ok: false, forbidden: true });
-    expect(await savePinnedTripId(client({ error: null }) as any, "u1", null)).toEqual({ ok: true });
   });
 });
 
