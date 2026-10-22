@@ -10,7 +10,8 @@ import { placePhotoUrl } from "@/lib/googleMaps";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { RoutesPanel } from "@/components/RoutesPanel";
 import { Button } from "@/components/ui/button";
-import { localISODate } from "@/lib/localDate";
+import { useActiveTrip } from "@/hooks/useActiveTrip";
+import { ActiveTripPicker } from "@/components/ActiveTripPicker";
 
 declare global { interface Window { google: any; initMap?: () => void; } }
 
@@ -117,7 +118,9 @@ const Cercanos = () => {
   const markers = useRef<Map<string, any>>(new Map());
   const userMarker = useRef<any>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [activeTrip, setActiveTrip] = useState<any>(null);
+  // Mismo viaje activo que Iato y el Dashboard (antes: el primero por fecha de salida).
+  const active = useActiveTrip<any>();
+  const activeTrip = active.trip;
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [favorited, setFavorited] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<EnrichedPlace | null>(null);
@@ -130,19 +133,14 @@ const Cercanos = () => {
   const [activeType, setActiveType] = useState<string>("restaurant");
   const [markingId, setMarkingId] = useState<string | null>(null);
 
-  // Cargar viaje activo, visitados, food_dna
+  // Cargar visitados y food_dna (el viaje activo lo resuelve useActiveTrip)
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const today = localISODate();
-      const [{ data: trips }, { data: visits }, { data: profile }] = await Promise.all([
-        supabase.from("trips").select("id,destino,fecha_salida,fecha_regreso")
-          .eq("user_id", user.id).gte("fecha_regreso", today)
-          .order("fecha_salida", { ascending: true }).limit(1),
+      const [{ data: visits }, { data: profile }] = await Promise.all([
         supabase.from("visited_places").select("place_id").eq("user_id", user.id).eq("status", "visited"),
         supabase.from("profiles").select("food_dna").eq("id", user.id).maybeSingle(),
       ]);
-      if (trips?.length) setActiveTrip(trips[0]);
       setVisited(new Set((visits ?? []).map((v: any) => v.place_id).filter(Boolean)));
       setFoodDna((profile?.food_dna as FoodDNA) ?? null);
     })();
@@ -300,12 +298,15 @@ const Cercanos = () => {
                 : geoError ? "Activa la ubicación para ver lugares cerca." : "Detectando ubicación…"}
             </p>
           </div>
-          {activeTrip && (
+          {activeTrip ? (
             <div className="text-right">
               <p className="text-xs text-primary tracking-[0.2em] uppercase">Viaje activo</p>
-              <p className="text-sm">{formatDateOnly(activeTrip.fecha_salida)} → {formatDateOnly(activeTrip.fecha_regreso)}</p>
+              <p className="text-sm">{activeTrip.destino} · {formatDateOnly(activeTrip.fecha_salida)} → {formatDateOnly(activeTrip.fecha_regreso)}</p>
             </div>
-          )}
+          ) : active.resolved.reason === "ambiguous" ? (
+            <ActiveTripPicker trips={active.trips} pinnedId={active.pinnedId} resolved={active.resolved}
+              onChange={(id) => { void active.pin(id); }} />
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
