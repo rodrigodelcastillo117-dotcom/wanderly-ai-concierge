@@ -10,7 +10,13 @@
 //   400 INVALID_REQUEST      faltan datos
 
 export type QuotaKind = "concierge" | "trip_analysis";
-export type QuotaName = "concierge_monthly" | "trip_analysis_once" | "trip_analysis_monthly";
+export type QuotaName =
+  | "concierge_monthly" | "trip_analysis_once" | "trip_analysis_monthly"
+  // Límites recomendados (20261022135300): prueba sin tarjeta y tope diario de PRO.
+  | "concierge_trial" | "trip_analysis_trial" | "concierge_daily" | "trip_analysis_daily";
+
+/** Solo los límites mensuales y diarios se renuevan; los de una vez y los de la prueba, no. */
+export const quotaRenews = (q: QuotaName) => q.endsWith("_monthly") || q.endsWith("_daily");
 
 export type QuotaReason =
   | "pro" | "free_quota" | "reserved" | "quota_exceeded" | "in_progress" | "too_many_in_progress"
@@ -112,10 +118,15 @@ const DEFAULT_LIMIT: Record<QuotaKind, number> = { concierge: 3, trip_analysis: 
 
 /** Texto para el usuario según el límite alcanzado. El frontend usa el mismo texto (functionErrors.ts). */
 export function freeLimitMessage(quota: QuotaName, renewsAt: string | null, upgradeAvailable: boolean): string {
-  const fecha = formatRenewal(renewsAt) ?? "próximo mes";
-  // Un plan de pago que llega a su límite no recibe oferta de "mejorar".
-  if (!upgradeAvailable) return `Llegaste al límite mensual de tu plan; se renueva el ${fecha}.`;
+  const fecha = formatRenewal(renewsAt) ?? (quota.endsWith("_daily") ? "mañana" : "próximo mes");
   const pro = "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, sujeto a las condiciones vigentes.";
+  // Un plan de pago que llega a su límite no recibe oferta de "mejorar".
+  if (!upgradeAvailable) {
+    return quota.endsWith("_daily")
+      ? `Llegaste al límite diario de tu plan; se renueva el ${fecha}.`
+      : `Llegaste al límite mensual de tu plan; se renueva el ${fecha}.`;
+  }
+  if (quota.endsWith("_trial")) return `Llegaste al límite de tu prueba gratuita de IATOS PRO. ${pro}`;
   if (quota === "concierge_monthly") {
     return `Has utilizado tus mensajes gratuitos de Iato de este mes. Se renuevan el ${fecha}. ${pro}`;
   }
@@ -126,10 +137,9 @@ export function freeLimitMessage(quota: QuotaName, renewsAt: string | null, upgr
 /** Cuerpo del 402. Si la base no mandó los datos (migración sin aplicar) usa los límites gratuitos. */
 export function freeLimitBody(kind: QuotaKind, q: Partial<QuotaResult> = {}, now = new Date()): FreeLimitBody {
   const quota: QuotaName = q.quota ?? (kind === "concierge" ? "concierge_monthly" : "trip_analysis_once");
-  const monthly = quota !== "trip_analysis_once";
   const limit = typeof q.limit === "number" ? q.limit : DEFAULT_LIMIT[kind];
   const used = typeof q.used === "number" ? q.used : limit;
-  const renews_at = monthly ? (q.renews_at ?? nextMonthStartIso(now)) : null;
+  const renews_at = quotaRenews(quota) ? (q.renews_at ?? (quota.endsWith("_daily") ? null : nextMonthStartIso(now))) : null;
   const upgrade_available = q.upgrade_available ?? true;
   return {
     code: "FREE_LIMIT_REACHED", quota, limit, used, renews_at, upgrade_available,

@@ -88,3 +88,32 @@ describe("IATOS-P1-FREE-01: el frontend reconoce el código, no el texto", () =>
     expect(info.freeLimit?.quota).toBe("concierge_monthly");
   });
 });
+
+describe("límites recomendados: prueba sin tarjeta y tope diario", () => {
+  it("cliente y servidor muestran exactamente el mismo texto para cada límite", async () => {
+    const { freeLimitMessage } = await import("../../supabase/functions/_shared/quota");
+    const quotas = ["concierge_monthly", "trip_analysis_once", "trip_analysis_monthly", "concierge_trial",
+      "trip_analysis_trial", "concierge_daily", "trip_analysis_daily"] as const;
+    for (const quota of quotas) {
+      for (const upgradeAvailable of [true, false]) {
+        const renewsAt = quota.endsWith("_monthly") || quota.endsWith("_daily") ? "2026-11-01T00:00:00Z" : null;
+        expect(freeLimitCopy({ quota, limit: 1, used: 1, renewsAt, upgradeAvailable })).toBe(freeLimitMessage(quota, renewsAt, upgradeAvailable));
+      }
+    }
+  });
+
+  it("prueba sin tarjeta agotada: ofrece PRO y no promete renovación", async () => {
+    const info = await readFunctionError(httpError(402, { code: "FREE_LIMIT_REACHED", quota: "trip_analysis_trial", limit: 5, used: 5,
+      renews_at: "2026-11-01T00:00:00Z", upgrade_available: true }), "x");
+    expect(info.freeLimit?.renewsAt).toBeNull();
+    expect(info.message).toMatch(/^Llegaste al límite de tu prueba gratuita de IATOS PRO\./);
+    expect(info.needsUpgrade).toBe(true);
+  });
+
+  it("tope diario de PRO: se renueva mañana y sin oferta de PRO", async () => {
+    const info = await readFunctionError(httpError(402, { code: "FREE_LIMIT_REACHED", quota: "trip_analysis_daily", limit: 3, used: 3,
+      renews_at: "2026-10-23T00:00:00Z", upgrade_available: false }), "x");
+    expect(info.message).toBe("Llegaste al límite diario de tu plan; se renueva el 23 de octubre de 2026.");
+    expect(info.needsUpgrade).toBe(false);
+  });
+});

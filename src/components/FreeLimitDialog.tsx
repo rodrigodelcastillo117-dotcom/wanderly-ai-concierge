@@ -18,6 +18,8 @@ export function FreeLimitDialog({ info, onClose, onUpgrade }: {
     ? ""
     : !info.upgradeAvailable
       ? "Llegaste al límite de tu plan"
+      : info.quota.endsWith("_trial")
+        ? "Llegaste al límite de tu prueba"
       : info.quota === "concierge_monthly"
         ? "Usaste tus mensajes gratuitos"
         : "Usaste tu análisis gratuito";

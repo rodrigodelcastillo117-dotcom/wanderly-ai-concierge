@@ -12,7 +12,9 @@ import { openFreeLimitDialog } from "@/lib/freeLimitStore";
 
 export const PRO_PATH = "/dashboard/pro";
 
-export type QuotaName = "concierge_monthly" | "trip_analysis_once" | "trip_analysis_monthly";
+export type QuotaName =
+  | "concierge_monthly" | "trip_analysis_once" | "trip_analysis_monthly"
+  | "concierge_trial" | "trip_analysis_trial" | "concierge_daily" | "trip_analysis_daily";
 
 export type FreeLimitInfo = {
   quota: QuotaName;
@@ -35,7 +37,12 @@ export type FunctionErrorInfo = {
 
 const GENERIC_SUPABASE = /edge function returned a non-2xx status code|failed to send a request to the edge function|relay error/i;
 
-const QUOTAS: QuotaName[] = ["concierge_monthly", "trip_analysis_once", "trip_analysis_monthly"];
+const QUOTAS: QuotaName[] = [
+  "concierge_monthly", "trip_analysis_once", "trip_analysis_monthly",
+  "concierge_trial", "trip_analysis_trial", "concierge_daily", "trip_analysis_daily",
+];
+/** Solo los límites mensuales y diarios se renuevan; los de una vez y los de la prueba, no. */
+const renews = (q: QuotaName) => q.endsWith("_monthly") || q.endsWith("_daily");
 
 type ResponseLike = { status?: number; clone?: () => ResponseLike; json?: () => Promise<unknown>; text?: () => Promise<string> };
 
@@ -68,11 +75,17 @@ export function formatRenewal(iso: string | null | undefined): string | null {
 
 /** Texto del aviso de límite. Mismo texto que el servidor (supabase/functions/_shared/quota.ts). */
 export function freeLimitCopy(info: FreeLimitInfo): string {
-  const fecha = formatRenewal(info.renewsAt) ?? "próximo mes";
-  // Un plan de pago que llega a su límite no recibe oferta de "mejorar".
-  if (!info.upgradeAvailable) return `Llegaste al límite mensual de tu plan; se renueva el ${fecha}.`;
+  const q = info.quota;
+  const fecha = formatRenewal(info.renewsAt) ?? (q.endsWith("_daily") ? "mañana" : "próximo mes");
   const pro = "Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, sujeto a las condiciones vigentes.";
-  if (info.quota === "concierge_monthly") {
+  // Un plan de pago que llega a su límite no recibe oferta de "mejorar".
+  if (!info.upgradeAvailable) {
+    return q.endsWith("_daily")
+      ? `Llegaste al límite diario de tu plan; se renueva el ${fecha}.`
+      : `Llegaste al límite mensual de tu plan; se renueva el ${fecha}.`;
+  }
+  if (q.endsWith("_trial")) return `Llegaste al límite de tu prueba gratuita de IATOS PRO. ${pro}`;
+  if (q === "concierge_monthly") {
     return `Has utilizado tus mensajes gratuitos de Iato de este mes. Se renuevan el ${fecha}. ${pro}`;
   }
   // El análisis gratuito es de una sola vez: nunca se promete renovación.
@@ -88,7 +101,7 @@ function parseFreeLimit(body: Record<string, unknown> | null, status: number | n
       quota,
       limit: num(body.limit),
       used: num(body.used),
-      renewsAt: quota === "trip_analysis_once" ? null : typeof body.renews_at === "string" ? body.renews_at : null,
+      renewsAt: !renews(quota) ? null : typeof body.renews_at === "string" ? body.renews_at : null,
       upgradeAvailable: body.upgrade_available !== false,
     };
   }

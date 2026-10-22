@@ -89,6 +89,37 @@ export function reservationDeps(userId: string, kind: QuotaKind): ReservationDep
   };
 }
 
+export type PlanLimit = {
+  plan: "free" | "pro" | "trial";
+  kind: string;
+  period: "month" | "once" | "day" | "trial" | "active";
+  /** null = ilimitado (o límite de PRO mientras pro_limits_enforced esté apagado). */
+  limit: number | null;
+  daily_limit: number | null;
+  /** true = al pasarse se degrada (p. ej. precios en caché) en vez de bloquear. */
+  soft: boolean;
+  enforced: boolean;
+};
+
+/**
+ * Límite configurado en public.plan_limits para este usuario y tipo (price_watches,
+ * tracked_flights, live_searches...). Aún NO se aplica en esas funciones: es para el paso que las
+ * conecte. Devuelve null si no se pudo leer (quien lo use decide si falla abierto o cerrado).
+ */
+export async function planLimit(userId: string, kind: string): Promise<PlanLimit | null> {
+  try {
+    const { data, error } = await adminClient().rpc("plan_limit", { _user_id: userId, _kind: kind });
+    if (error) {
+      console.error("plan_limit error:", error.message);
+      return null;
+    }
+    return data as PlanLimit;
+  } catch (e) {
+    console.error("plan_limit exception:", (e as Error).message);
+    return null;
+  }
+}
+
 /** ¿Es PRO? Ante un error responde false (fail-closed): no se regala acceso de pago por una caída. */
 export async function isPro(userId: string): Promise<boolean> {
   try {
