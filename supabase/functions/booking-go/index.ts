@@ -12,6 +12,15 @@ Deno.serve(async (req) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
   const r = await resolveGo(req.url, {
     secret: SERVICE_KEY,
+    // Lectura previa (service role, filtrada por dueño): si el destino no pasa, no se marca la salida.
+    peekTarget: async (i, u) => {
+      const { data, error } = await admin.from("booking_intents").select("target_url, trip_id, state").eq("id", i).eq("user_id", u).maybeSingle();
+      if (error) console.error("booking-go peek:", error.message);
+      if (!data) return { ok: false, code: "NOT_FOUND" };
+      const d = data as { target_url: string | null; trip_id: string | null; state: string };
+      if (!["READY_TO_BOOK", "REDIRECTED_TO_PROVIDER", "PENDING_CONFIRMATION", "CONFIRMED"].includes(d.state)) return { ok: false, code: "NOT_READY", trip_id: d.trip_id };
+      return d.target_url ? { ok: true, target_url: d.target_url, trip_id: d.trip_id } : { ok: false, code: "NO_TARGET", trip_id: d.trip_id };
+    },
     markRedirected: async (i, u) => {
       // HEAD (previsualizadores de enlaces, antivirus) no cuenta como salida.
       if (req.method === "HEAD") return { ok: false, code: "HEAD" };

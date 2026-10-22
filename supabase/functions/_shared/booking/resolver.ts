@@ -11,7 +11,7 @@
 //  6. Ficha de Google Maps.
 //  7. Solicitud asistida o guardar para después.
 // Cada botón dice exactamente lo que hace: "Comprar esta oferta" solo existe en el nivel 1.
-import { checkAllowlisted, checkTrustedSource, processorLabel, unwrapAffiliate, type UrlVerdict } from "./allowlist.ts";
+import { checkAllowlisted, checkTrustedSource, checkUntrusted, processorLabel, unwrapAffiliate, type UrlVerdict } from "./allowlist.ts";
 import { mailtoLink, normalizePhone, smsLink, telLink, whatsappLink } from "./channels.ts";
 import { EVIDENCE, mapsListingUrl } from "./links.ts";
 import { draftRequest, type RequestDraftInput, type RequestLang } from "./messages.ts";
@@ -122,12 +122,25 @@ function modeFor(kind: ActionKind): BookingMode {
   return "UNAVAILABLE";
 }
 
+const UNTRUSTED: SourceTrust[] = ["ai", "client"];
+
 function check(c: LinkCandidate): UrlVerdict {
-  // Lo que escribió la IA o mandó el cliente solo puede salir a dominios de la lista blanca.
-  const v = c.trust === "ai" || c.trust === "client" ? checkAllowlisted(c.url) : checkTrustedSource(c.url);
+  // Lo que escribió la IA o mandó el cliente solo puede salir a dominios de la lista blanca y nunca
+  // por un redirect opaco (google.com/aclk, /travel/clk) cuyo destino final no se ve (AUD-04).
+  const untrusted = UNTRUSTED.includes(c.trust);
+  const v = untrusted ? checkUntrusted(c.url) : checkTrustedSource(c.url);
   // tp.media/click responde 400 (ver links.ts): se abre su destino, que también pasó la lista blanca.
-  if (v.ok && v.provider?.provider === "travelpayouts") return checkAllowlisted(unwrapAffiliate(v.url));
+  if (v.ok && v.provider?.redirector === "wrapper") return untrusted ? checkUntrusted(unwrapAffiliate(v.url)) : checkAllowlisted(unwrapAffiliate(v.url));
   return v;
+}
+
+/**
+ * Un sitio fuera de la lista blanca cuyo dato vive en trips.*_json (Google Places guardado al
+ * cotizar): el dueño o un colaborador lo pueden editar, así que no se presenta como "oficial" ni
+ * verificado (AUD-04). Se ofrece igual (no se bloquean sitios reales), con su dominio a la vista.
+ */
+function editableTripData(c: LinkCandidate, v: UrlVerdict): boolean {
+  return v.ok && v.trust === "trusted_source" && c.trust === "google_places";
 }
 
 function preservesNotes(p: Preserves, product: ProductType): string[] {
@@ -164,6 +177,7 @@ export function resolveBookingActions(input: ResolverInput): ResolvedActions {
     if (!c.url && !form) return;
     let host: string | null = null;
     let url: string | null = null;
+    let unverified = false;
     const trust: SourceTrust = c.trust;
     if (form) {
       const v = checkAllowlisted(form.action);
@@ -173,6 +187,7 @@ export function resolveBookingActions(input: ResolverInput): ResolvedActions {
       const v = check(c);
       if (!v.ok) { rejected.push({ url: String(c.url), reason: v.reason }); return; }
       url = v.url; host = v.host;
+      unverified = editableTripData(c, v);
     }
     const processor = c.provider_label || (url ? processorLabel(url) : (host ?? "el proveedor"));
     const preserves: Preserves = { ...(kind === "exact_offer" ? FULL : NONE), ...(c.preserves ?? {}) };
@@ -188,7 +203,12 @@ export function resolveBookingActions(input: ResolverInput): ResolvedActions {
     }
     if (kind !== "official_website") disclosures.push(...preservesNotes(preserves, p));
     disclosures.push(...extra, ...estimateNote);
-    push(kind, { url, form: form ?? null, host, processor, preserves, disclosures, trust, evidence: c.evidence, verified_at: c.verified_at ?? null });
+    if (unverified) {
+      disclosures.unshift(`IATOS no lo verificó: el enlace viene de los datos guardados en el viaje. Antes de dar datos personales o de pago, revisa que ${host} sea el sitio del lugar.`);
+    }
+    const label = unverified ? (kind === "official_booking_page" ? "Abrir página de reservas (sin verificar)" : "Sitio web del lugar (sin verificar)") : undefined;
+    push(kind, { url, form: form ?? null, host, processor, preserves, disclosures, trust, evidence: c.evidence, verified_at: unverified ? null : c.verified_at ?? null,
+      ...(label ? { label } : {}) });
   };
 
   // 1) Exacto: solo si sigue vigente (si no, se pide comprobar el precio).

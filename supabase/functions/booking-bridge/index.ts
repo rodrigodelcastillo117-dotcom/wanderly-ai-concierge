@@ -10,7 +10,7 @@ import { redactPii } from "../_shared/redact.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { liveSearchGateFor, serpFetchFor } from "../_shared/serpRuntime.ts";
 import { recheckFlight, recheckHotel } from "../_shared/booking/recheck.ts";
-import { signRedirect } from "../_shared/booking/redirectToken.ts";
+import { signRedirect, targetHash } from "../_shared/booking/redirectToken.ts";
 import { safeOrigin } from "../_shared/origin.ts";
 import { venueFromPriveRow } from "../_shared/booking/offers.ts";
 import { type BridgeDeps, handleBridge } from "./handler.ts";
@@ -105,9 +105,14 @@ Deno.serve(async (req) => {
       },
       recheckFlight: (q) => recheckFlight(q, { serpKey, serpFetch: serp.fetch }),
       recheckHotel: (q) => recheckHotel(q, { serpKey, serpFetch: serp.fetch }),
-      goUrl: async (intentId) => {
-        const t = await signRedirect(SERVICE_KEY, { i: intentId, u: userId, o: origin });
+      // El token queda atado al destino guardado (huella SHA-256) y a su nivel de confianza (AUD-04).
+      goUrl: async (intentId, target) => {
+        const t = await signRedirect(SERVICE_KEY, { i: intentId, u: userId, o: origin, h: await targetHash(target.url), t: target.tier === "trusted_source" ? "s" : "a" });
         return t ? `${SUPABASE_URL}/functions/v1/booking-go?t=${encodeURIComponent(t)}` : null;
+      },
+      intentTarget: async (id) => {
+        const { data } = await admin.from("booking_intents").select("target_url, offer").eq("id", id).eq("user_id", userId).maybeSingle();
+        return data ? { target_url: (data as any).target_url ?? null, action_trust: (data as any).offer?.action?.trust ?? null } : null;
       },
     };
     const out = await handleBridge(action, body ?? {}, deps);
