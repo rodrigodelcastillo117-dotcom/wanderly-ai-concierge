@@ -9,6 +9,9 @@
 // La distancia sale de coordenadas conocidas de cada ciudad (lista curada) × un factor de
 // carretera: es una aproximación y siempre se presenta como "aprox.".
 
+import { haversineKm } from "../_shared/geo-distance.ts";
+export { haversineKm };
+
 export const SHORT_TRIP_MAX_ROAD_KM = 350;
 /** Las carreteras son más largas que la línea recta (≈1.3 en el centro de México). */
 const ROAD_FACTOR = 1.3;
@@ -82,15 +85,6 @@ export function findCity(text: unknown): City | null {
 }
 
 // Exportada para reutilizarla en el planificador de Privé (_shared/privePlanner.ts).
-export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371;
-  const rad = (d: number) => (d * Math.PI) / 180;
-  const dLat = rad(b.lat - a.lat);
-  const dLng = rad(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-
 export type ShortTrip = {
   origin: string;
   destination: string;

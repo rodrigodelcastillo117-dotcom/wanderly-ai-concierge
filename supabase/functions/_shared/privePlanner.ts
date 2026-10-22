@@ -12,7 +12,7 @@
 //  * edad, dress code, reserva y restricciones de cada lugar;
 //  * choques de horario y alternativas.
 // Nunca confirma ni reserva: el resultado es status "propuesta" y lo dice.
-import { haversineKm } from "../analizar-viaje/groundTransport.ts";
+import { haversineKm } from "./geo-distance.ts";
 
 export type Universe =
   | "the_table" | "after_dark" | "casino_grand_nights" | "yacht_sea" | "private_stays" | "iconic_events"
