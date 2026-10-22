@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, X, AlertTriangle, AlertCircle, MessageCircle, Loader2, ArrowLeft, Check, type LucideIcon } from "lucide-react";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveTrip } from "@/hooks/useActiveTrip";
+import { useModalA11y } from "@/hooks/useModalA11y";
 
 // Datos del Fixer (números visibles + email backend)
 const FIXER_WHATSAPP_DIGITS = "525543580077";
@@ -117,6 +118,11 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
     setOpen(false);
     setTimeout(reset, 200);
   };
+
+  // Accesibilidad del diálogo: antes no era un diálogo para lectores de pantalla, el foco se quedaba
+  // detrás (Tab recorría la página tapada) y Escape no lo cerraba.
+  const titleId = useId();
+  const dialogRef = useModalA11y(open, handleClose);
 
   const buildEmailBody = (nombre: string) => {
     let body = `Hola,\n\nNecesito ayuda con lo siguiente:\n\n`;
@@ -263,6 +269,10 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
             exit={{ y: 28, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 280, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
             className="relative flex w-full max-w-md max-h-[calc(100dvh-0.75rem)] flex-col overflow-hidden rounded-t-[28px] border border-primary/30 bg-card shadow-[0_30px_90px_-24px_hsl(var(--primary)/0.45)] sm:rounded-[28px] sm:max-h-[min(720px,calc(100dvh-3rem))]"
           >
             <div className="shrink-0 border-b border-border/80 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 sm:pt-5">
@@ -273,13 +283,14 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
                   </div>
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-[0.28em] text-primary">The Fixer</p>
-                    <h3 className="font-display text-xl leading-tight">Asistencia humana</h3>
+                    <h3 id={titleId} className="font-display text-xl leading-tight">Asistencia humana</h3>
                   </div>
                 </div>
                 <button
                   onClick={handleClose}
                   disabled={submitting}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:text-foreground disabled:opacity-40"
+                  data-autofocus
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:text-foreground disabled:opacity-40"
                   aria-label="Cerrar"
                 >
                   <X className="h-4 w-4" />
@@ -309,7 +320,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm font-medium">¿Qué tan urgente es?</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Elige una opción. Te llevamos al mensaje final.</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Elige una opción. Te atiende una persona del equipo, sujeto a disponibilidad.</p>
                   </div>
 
                   <div className="space-y-2.5">
@@ -358,7 +369,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
                   <div className="rounded-2xl border border-primary/25 bg-primary/10 px-4 py-3">
                     <p className="text-[10px] uppercase tracking-[0.24em] text-primary">Solicitud</p>
                     <p className="mt-1 text-sm font-medium">{selectedUrgencia?.titulo ?? "Urgencia seleccionada"}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Un humano revisa tu caso y abre conversación por WhatsApp.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Una persona del equipo revisa tu caso y te responde por correo, sujeto a disponibilidad.</p>
                   </div>
 
                   <div>

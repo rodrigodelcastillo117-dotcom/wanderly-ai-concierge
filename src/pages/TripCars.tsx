@@ -18,7 +18,7 @@ const TripCars = () => {
 
   const providers = [
     { name: "Discover Cars", desc: "Comparador en 145 países · cancelación gratis 48h", url: () => discoverCarsLink(city, pickup, ret) },
-    { name: "Rentalcars.com", desc: "Inventario Booking Holdings · soporte 24/7", url: () => rentalcarsLink(city, pickup, ret) },
+    { name: "Rentalcars.com", desc: "Inventario Booking Holdings · soporte en su sitio", url: () => rentalcarsLink(city, pickup, ret) },
     { name: "Kayak Cars", desc: "Meta-buscador con filtros por compañía y tipo", url: () => kayakCarsLink(city, pickup, ret) },
   ];
 

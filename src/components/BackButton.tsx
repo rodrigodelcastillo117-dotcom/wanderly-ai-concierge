@@ -22,7 +22,8 @@ export const BackButton = ({ fallback, floating = false }: Props) => {
   };
 
   const base =
-    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 bg-background/70 backdrop-blur text-xs text-foreground hover:bg-primary/10 hover:border-primary transition w-fit";
+    // min-h-10: medía 80×30 px en móvil (objetivo táctil < 40 px).
+    "inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-full border border-primary/30 bg-background/70 backdrop-blur text-xs text-foreground hover:bg-primary/10 hover:border-primary transition w-fit";
 
   return (
     <button

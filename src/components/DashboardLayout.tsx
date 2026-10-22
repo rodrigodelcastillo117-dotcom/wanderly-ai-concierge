@@ -200,8 +200,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       >
         {/* Mobile top bar — notifications + profile avatar */}
         <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
-          <Link to="/dashboard" className="flex items-center">
-            <img src={iatosLogo} alt="IATOS" className="h-7 w-auto object-contain" />
+          <Link to="/dashboard" className="flex items-center min-h-10" aria-label="IATOS, inicio">
+            <img src={iatosLogo} alt="" className="h-7 w-auto object-contain" />
           </Link>
           <div className="flex items-center gap-1">
             <NotificationBell />
@@ -215,7 +215,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <button
               onClick={() => navigate("/dashboard/perfil")}
               aria-label="Mi perfil"
-              className="ml-1 w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition overflow-hidden"
+              className="ml-1 w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition overflow-hidden"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
