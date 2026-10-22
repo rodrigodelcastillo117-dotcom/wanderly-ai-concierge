@@ -29,7 +29,7 @@ export const PAID_BUCKETS: ReadonlySet<string> = new Set([
   "flight-status", "flights-search", "hotels-search", "price-watch", "serpapi-quote", "track-flight",
   "tripadvisor-search",
   // Google Maps Platform
-  "geocode", "geocode-address", "get-routes", "nearby-places", "place-details", "place-photo",
+  "geocode", "geocode-address", "get-routes", "mark-visited", "nearby-places", "place-details", "place-photo",
   "places-nearby", "places-search",
   // Correos (Resend) y avisos a otras personas
   "concierge-action", "email-bienvenida", "enviar-email-fixer", "send-email", "share-trip-notify",

@@ -2,6 +2,7 @@
 // y dispara update-food-dna.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const CUISINE_BY_TYPE: Record<string, string> = {
   italian_restaurant: "italiana",
@@ -107,6 +108,10 @@ Deno.serve(async (req) => {
       });
     }
     const user_id = userData.user.id;
+    // AUD-SEG-02: cada llamada consulta Place Details (de pago) y recalcula el Food DNA; sin límite un
+    // usuario gratuito podía repetirla en bucle. Cubeta de pago: si no se puede verificar, se niega.
+    const __rl = await enforceRateLimit(req, "mark-visited", user_id, { perMinute: 20, perHour: 200, ipPerMinute: 60 });
+    if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
     const body = await req.json().catch(() => ({}));
     const placeId: string = body.placeId;
