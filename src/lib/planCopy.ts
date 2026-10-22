@@ -25,10 +25,13 @@ export const TRIAL_CONDITIONS = "La prueba empieza al confirmar tu correo y es u
 
 export const FIXER_LINE = "Acceso preferente al Fixer humano, sujeto a disponibilidad";
 
+export const FREE_CONCIERGE_LINE = "3 mensajes con Iato al mes";
+export const FREE_TRIP_LINE = "1 análisis completo de viaje de cortesía (una sola vez)";
+
 export const FREE_FEATURES = [
   "Travel DNA básico",
-  "3 mensajes con Iato al mes",
-  "1 análisis completo de viaje de cortesía (una sola vez)",
+  FREE_CONCIERGE_LINE,
+  FREE_TRIP_LINE,
   "Tus viajes guardados y edición manual",
   "Herramientas esenciales del viaje",
 ] as const;
@@ -41,6 +44,22 @@ export const PRO_FEATURES = [
   "Personalización avanzada con tu Travel DNA completo",
   FIXER_LINE,
 ] as const;
+
+/**
+ * Uso del plan gratuito en la página PRO (N-04 / D-P3-6). Si el servidor no devuelve un tope (null),
+ * se muestra lo publicado del plan gratuito, nunca "sin límite": ningún plan de IATOS es ilimitado.
+ */
+export function freeUsageLines(a: {
+  concierge_limit: number | null;
+  concierge_remaining: number | null;
+  trips_limit: number | null;
+  trips_remaining: number | null;
+}): { concierge: string; trips: string } {
+  return {
+    concierge: a.concierge_limit == null ? FREE_CONCIERGE_LINE : `${a.concierge_remaining ?? 0} de ${a.concierge_limit} mensajes gratis`,
+    trips: a.trips_limit == null ? FREE_TRIP_LINE : `${a.trips_remaining ?? 0} de ${a.trips_limit} gratis`,
+  };
+}
 
 /** Durante la prueba los topes son menores que en PRO (uso justo, ver docs/iatos/IATOS_PROPUESTA_PLANES_Y_PRUEBA.md). */
 export const TRIAL_FEATURES = [
