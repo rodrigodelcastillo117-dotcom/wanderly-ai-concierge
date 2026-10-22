@@ -4,14 +4,20 @@ import { readFunctionError } from "@/lib/functionErrors";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Límites leídos de public.plan_limits en el servidor; null = ilimitado (p. ej. PRO mientras
+// pro_limits_enforced esté apagado).
 export type AccessState = {
   is_pro: boolean;
+  plan?: "free" | "pro";
+  limits_enforced?: boolean;
   concierge_used: number;
-  concierge_limit: number;
-  concierge_remaining: number;
+  concierge_limit: number | null;
+  concierge_remaining: number | null;
+  concierge_renews_at?: string | null;
   trips_used: number;
-  trips_limit: number;
-  trips_remaining: number;
+  trips_limit: number | null;
+  trips_remaining: number | null;
+  trips_period?: "month" | "once";
 };
 
 export type SubscriptionRow = {

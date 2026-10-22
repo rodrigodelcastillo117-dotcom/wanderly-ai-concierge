@@ -54,6 +54,12 @@ describe("IATOS-P1-FREE-01: contrato FREE_LIMIT_REACHED", () => {
     expect(b.message).not.toMatch(/IATOS PRO/);
   });
 
+  it("límite mensual de análisis de PRO (pro_limits_enforced): conserva la renovación y no ofrece PRO", () => {
+    const b = freeLimitBody("trip_analysis", { quota: "trip_analysis_monthly", limit: 10, used: 10, renews_at: "2026-11-01T00:00:00Z", upgrade_available: false });
+    expect(b).toMatchObject({ quota: "trip_analysis_monthly", renews_at: "2026-11-01T00:00:00Z", upgrade_available: false });
+    expect(b.message).toBe("Llegaste al límite mensual de tu plan; se renueva el 1 de noviembre de 2026.");
+  });
+
   it("(9) fallo técnico al verificar: 503 SERVICE_UNAVAILABLE, sin campos de upgrade", async () => {
     const r = quotaDeniedResponse({ allowed: false, reason: "error", remaining: null }, "trip_analysis");
     expect(r.status).toBe(503);
