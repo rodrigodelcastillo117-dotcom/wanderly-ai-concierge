@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-10-22T20:01:37.758Z",
+  "base": "http://127.0.0.1:8093",
+  "files": [
+    "docs/iatos/evidencia/roadtrip/01-ruta-modo-coche__390.png",
+    "docs/iatos/evidencia/roadtrip/02-ruta-mezcla-por-tramo__390.png",
+    "docs/iatos/evidencia/roadtrip/03-ruta-vista-previa-estimada__390.png",
+    "docs/iatos/evidencia/roadtrip/04-viaje-tramos-en-coche__390.png",
+    "docs/iatos/evidencia/roadtrip/05-viaje-costos-etiquetados__390.png",
+    "docs/iatos/evidencia/roadtrip/06-viaje-renta-recogida-devolucion__390.png",
+    "docs/iatos/evidencia/roadtrip/07-viaje-reservar-auto-bridge__390.png",
+    "docs/iatos/evidencia/roadtrip/08-viaje-avisos-por-pais__390.png",
+    "docs/iatos/evidencia/roadtrip/09-planear-ideas-road-trips__390.png",
+    "docs/iatos/evidencia/roadtrip/10-descubre-road-trips__390.png",
+    "docs/iatos/evidencia/roadtrip/11-iato-road-trip-toscana__390.png",
+    "docs/iatos/evidencia/roadtrip/12-autos-devolucion-otra-ciudad__390.png",
+    "docs/iatos/evidencia/roadtrip/01-ruta-modo-coche__1440.png",
+    "docs/iatos/evidencia/roadtrip/02-ruta-mezcla-por-tramo__1440.png",
+    "docs/iatos/evidencia/roadtrip/03-ruta-vista-previa-estimada__1440.png",
+    "docs/iatos/evidencia/roadtrip/04-viaje-tramos-en-coche__1440.png",
+    "docs/iatos/evidencia/roadtrip/05-viaje-costos-etiquetados__1440.png",
+    "docs/iatos/evidencia/roadtrip/06-viaje-renta-recogida-devolucion__1440.png",
+    "docs/iatos/evidencia/roadtrip/07-viaje-reservar-auto-bridge__1440.png",
+    "docs/iatos/evidencia/roadtrip/08-viaje-avisos-por-pais__1440.png",
+    "docs/iatos/evidencia/roadtrip/09-planear-ideas-road-trips__1440.png",
+    "docs/iatos/evidencia/roadtrip/10-descubre-road-trips__1440.png",
+    "docs/iatos/evidencia/roadtrip/11-iato-road-trip-toscana__1440.png",
+    "docs/iatos/evidencia/roadtrip/12-autos-devolucion-otra-ciudad__1440.png"
+  ],
+  "horizontal_overflow": [],
+  "blocked_hosts": [
+    "unpkg.com"
+  ],
+  "page_errors": {
+    "390": [],
+    "1440": []
+  }
+}
