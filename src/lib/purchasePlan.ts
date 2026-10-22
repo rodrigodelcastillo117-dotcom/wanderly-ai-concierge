@@ -249,7 +249,7 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
 // Así no se marca la cotización como "por actualizar" (trips.selections sí lo haría) y no se usa
 // "confirmed", que en IATOS exige evidencia del proveedor (bookingState.isConfirmedBooking).
 
-export type PurchaseMarkRow = BookingLike & { id?: string; raw_payload?: any; created_at?: string | null };
+export type PurchaseMarkRow = BookingLike & { id?: string; user_id?: string | null; raw_payload?: any; created_at?: string | null };
 
 export function markedKeys(rows: PurchaseMarkRow[]): Map<string, PurchaseMarkRow> {
   const m = new Map<string, PurchaseMarkRow>();
@@ -262,12 +262,13 @@ export function markedKeys(rows: PurchaseMarkRow[]): Map<string, PurchaseMarkRow
 
 export type PurchaseState = "confirmado" | "marcado" | "pendiente";
 
-/** Confirmado (con evidencia del proveedor) > marcado por el usuario > pendiente. */
-export function itemPurchaseState(item: PurchaseItem, rows: PurchaseMarkRow[]): PurchaseState {
+/** Confirmado (con evidencia del proveedor) > marcado por alguien del viaje > pendiente. Con `marks`
+ *  (las marcas del grupo, r2 grupo) cuenta lo que marcó cualquier miembro; sin él, las filas propias. */
+export function itemPurchaseState(item: PurchaseItem, rows: PurchaseMarkRow[], marks?: { has(key: string): boolean } | null): PurchaseState {
   const confirmed = (rows ?? []).filter((r) => isConfirmedBooking(r) && r.category === item.category);
   const name = norm(item.kind === "vuelo" ? item.title.replace(/^Vuelo · /, "") : item.title.replace(/^Hospedaje · /, ""));
   if (name.length >= 3 && confirmed.some((r) => ` ${norm(`${r.title ?? ""} ${r.subtitle ?? ""}`)} `.includes(` ${name} `))) return "confirmado";
-  return markedKeys(rows).has(item.key) ? "marcado" : "pendiente";
+  return (marks ?? markedKeys(rows)).has(item.key) ? "marcado" : "pendiente";
 }
 
 /** Fila para bookings al tocar "Ya lo reservé". */

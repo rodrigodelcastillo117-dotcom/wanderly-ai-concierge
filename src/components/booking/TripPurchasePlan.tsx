@@ -1,16 +1,16 @@
 // "Comprar mi viaje": reserva en 3 pasos (cierre 2, grupo enlaces). Lista lo cotizado y, por cada cosa,
 // dice a qué sitio lleva el botón, qué datos van precargados en ese enlace (leídos de la URL), qué hay
-// que completar ahí y si el usuario ya lo reservó (lo marca él: IATOS no ve la compra).
-import { useEffect, useMemo, useState } from "react";
+// que completar ahí y si alguien del viaje ya lo reservó (lo marca a mano: IATOS no ve la compra). En un
+// viaje compartido todos los miembros ven quién lo marcó y cuándo (r2 grupo, useTripPurchaseMarks).
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Car, Check, Compass, ExternalLink, Hotel, Plane, ShieldCheck, ShoppingBag, Undo2, Utensils } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { logBookingClick } from "@/lib/trackBooking";
-import {
-  buildPurchasePlan, itemPurchaseState, markedKeys, markRow, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike,
-} from "@/lib/purchasePlan";
+import { buildPurchasePlan, itemPurchaseState, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
+import { canUnmark, markLabel } from "@/lib/purchaseMarks";
+import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
 
 const ICON = { vuelo: Plane, hospedaje: Hotel, auto: Car, actividad: Compass, restaurante: Utensils } as const;
 const KIND_LABEL = { vuelo: "Vuelo", hospedaje: "Hospedaje", auto: "Auto", actividad: "Actividad", restaurante: "Restaurante" } as const;
@@ -24,45 +24,41 @@ type Props = {
   serverOffers?: TripOfferActionsLike;
   bookings: PurchaseMarkRow[];
   userId: string | null;
+  /** Dueño del viaje (puede quitar cualquier marca). Por defecto, trip.user_id. */
+  ownerId?: string | null;
   quoteCreatedAt?: string | null;
   onChanged?: () => void;
 };
 
-export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, serverOffers = {}, bookings, userId, quoteCreatedAt, onChanged }: Props) {
+export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, serverOffers = {}, bookings, userId, ownerId, quoteCreatedAt, onChanged }: Props) {
   const items = useMemo(
     () => buildPurchasePlan(trip, { selVuelo, selHospedaje, selTours }, serverOffers, { quoteCreatedAt }),
     [trip, selVuelo, selHospedaje, selTours, serverOffers, quoteCreatedAt],
   );
-  // Cambios locales mientras la base responde (y si la base no responde, no se finge el cambio).
-  const [local, setLocal] = useState<PurchaseMarkRow[] | null>(null);
-  useEffect(() => { setLocal(null); }, [bookings]);
-  const rows = local ?? bookings;
+  const { rows, marks, mark: saveMark, unmark: removeMark } = useTripPurchaseMarks({ trip, userId, bookings });
+  const owner = ownerId ?? trip?.user_id ?? null;
   const [busy, setBusy] = useState<string | null>(null);
 
   if (!items.length) return null;
   const core = items.filter((i) => !i.optional);
-  const doneCore = core.filter((i) => itemPurchaseState(i, rows) !== "pendiente").length;
+  const doneCore = core.filter((i) => itemPurchaseState(i, rows, marks) !== "pendiente").length;
 
   async function mark(item: PurchaseItem) {
     if (!userId) return toast.error("Inicia sesión para guardar tu avance.");
     setBusy(item.key);
-    const row = markRow(item, trip, userId);
-    const { data, error } = await supabase.from("bookings").insert(row as any).select("id, trip_id, category, status, confirmation_code, partner_reference, title, subtitle, raw_payload").single();
+    const r = await saveMark(item);
     setBusy(null);
-    if (error) return toast.error("No se pudo guardar", { description: "Intenta de nuevo en un momento." });
-    setLocal([...(rows ?? []), data as PurchaseMarkRow]);
-    toast.success("Marcado como reservado", { description: "Lo marcaste tú: IATOS no lo verificó con el sitio. Guarda tu confirmación en Documentos del viaje." });
+    if (!r.ok) return toast.error("No se pudo guardar", { description: "Intenta de nuevo en un momento." });
+    toast.success("Marcado como reservado", { description: "Lo marcaste tú: IATOS no lo verificó con el sitio. Quienes viajan contigo lo verán marcado. Guarda tu confirmación en Documentos del viaje." });
     onChanged?.();
   }
 
   async function unmark(item: PurchaseItem) {
-    const r = markedKeys(rows).get(item.key);
-    if (!r?.id) return;
     setBusy(item.key);
-    const { error } = await supabase.from("bookings").delete().eq("id", r.id);
+    const r = await removeMark(item);
     setBusy(null);
-    if (error) return toast.error("No se pudo deshacer", { description: "Intenta de nuevo en un momento." });
-    setLocal((rows ?? []).filter((x) => x.id !== r.id));
+    if (r.reason === "no_permitido") return toast.error("No se pudo deshacer", { description: "Solo quien lo marcó o quien creó el viaje puede quitarlo." });
+    if (!r.ok) return toast.error("No se pudo deshacer", { description: "Intenta de nuevo en un momento." });
     onChanged?.();
   }
 
@@ -89,7 +85,9 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, serve
 
       <ul className="mt-4 space-y-3">
         {items.map((it) => {
-          const st = itemPurchaseState(it, rows);
+          const st = itemPurchaseState(it, rows, marks);
+          const mk = marks.get(it.key) ?? null;
+          const mine = !!mk && (mk.source === "propia" || mk.markedBy === userId);
           const Icon = ICON[it.kind];
           return (
             <li key={it.key} className={`rounded-xl border p-3 sm:p-4 ${st === "pendiente" ? "border-border/60 bg-surface/30" : "border-emerald-500/40 bg-emerald-500/[0.06]"}`}
@@ -137,10 +135,14 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, serve
                     <p className="inline-flex items-center justify-center gap-1 text-sm text-emerald-400"><Check className="w-4 h-4" /> Confirmado</p>
                   ) : st === "marcado" ? (
                     <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/40 px-3 py-2 text-sm">
-                      <span className="inline-flex items-center gap-1 text-emerald-400"><Check className="w-4 h-4" /> Ya lo reservé</span>
-                      <button type="button" onClick={() => void unmark(it)} disabled={busy === it.key} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" aria-label={`Marcar ${it.title} como pendiente`}>
-                        <Undo2 className="w-3 h-3" /> Deshacer
-                      </button>
+                      <span className="inline-flex min-w-0 items-start gap-1 text-emerald-400" data-testid={`comprar-${it.kind}-marca`}>
+                        <Check className="mt-0.5 w-4 h-4 shrink-0" aria-hidden="true" /><span className="break-words">{mk ? markLabel(mk, userId) : "Ya lo reservé"}</span>
+                      </span>
+                      {mk && canUnmark(mk, userId, owner) && (
+                        <button type="button" onClick={() => void unmark(it)} disabled={busy === it.key} className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground" aria-label={`Marcar ${it.title} como pendiente`}>
+                          <Undo2 className="w-3 h-3" aria-hidden="true" /> Deshacer
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <button type="button" onClick={() => void mark(it)} disabled={busy === it.key} data-testid={`comprar-${it.kind}-marcar`}
@@ -148,7 +150,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, serve
                       {busy === it.key ? "Guardando…" : "Ya lo reservé"}
                     </button>
                   )}
-                  <p className="text-center text-[11px] text-muted-foreground">{st === "marcado" ? "Marcado por ti · sin verificar" : st === "pendiente" ? "Pendiente" : "Con confirmación del proveedor"}</p>
+                  <p className="text-center text-[11px] text-muted-foreground">{st === "marcado" ? (mine ? "Marcado por ti · sin verificar" : "Marcado a mano · sin verificar") : st === "pendiente" ? "Pendiente" : "Con confirmación del proveedor"}</p>
                 </div>
               </div>
             </li>

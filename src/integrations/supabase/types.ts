@@ -5335,6 +5335,44 @@ export type Database = {
           },
         ]
       }
+      trip_purchase_marks: {
+        Row: {
+          category: string | null
+          id: string
+          item_key: string
+          marked_at: string
+          marked_by: string | null
+          marked_by_name: string | null
+          trip_id: string
+        }
+        Insert: {
+          category?: string | null
+          id?: string
+          item_key: string
+          marked_at?: string
+          marked_by?: string | null
+          marked_by_name?: string | null
+          trip_id: string
+        }
+        Update: {
+          category?: string | null
+          id?: string
+          item_key?: string
+          marked_at?: string
+          marked_by?: string | null
+          marked_by_name?: string | null
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_purchase_marks_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_quotes: {
         Row: {
           breakdown: Json
