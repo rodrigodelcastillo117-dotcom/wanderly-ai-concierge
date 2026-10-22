@@ -1,0 +1,158 @@
+[
+ {
+  "id": 1,
+  "name": "Miembro Privé ve la portada completa",
+  "status": "PASS",
+  "evidence": "secciones 7/7; búsqueda a 760px del borde superior (viewport 900); errores JS 0"
+ },
+ {
+  "id": 2,
+  "name": "FREE ve solo lo autorizado",
+  "status": "PASS",
+  "evidence": "adelanto visible; barra de miembro 0; RPC de contenido llamadas: []"
+ },
+ {
+  "id": 3,
+  "name": "Búsqueda: Mónaco",
+  "status": "PASS",
+  "evidence": "«Mónaco» → /prive/destino/mc (2 acciones: escribir + tocar)"
+ },
+ {
+  "id": 4,
+  "name": "Búsqueda: CDMX",
+  "status": "PASS",
+  "evidence": "«cdmx» → /prive/destino/cdmx (2 acciones: escribir + tocar)"
+ },
+ {
+  "id": 5,
+  "name": "Búsqueda: restaurante por nombre",
+  "status": "PASS",
+  "evidence": "prive_search [\"quintonil\"] en [\"cdmx\",\"mc\",\"paris\",\"nueva-york\",\"tokio\"] → ficha en 3 acciones (/prive/experiencia/cdmx-0)"
+ },
+ {
+  "id": 6,
+  "name": "Búsqueda sin resultados",
+  "status": "PASS",
+  "evidence": "«No encontramos experiencias verificadas para «Zzyzx imposible».» + /dashboard/concierge?ask=Zzyzx%20imposible"
+ },
+ {
+  "id": 7,
+  "name": "Cambio de región",
+  "status": "PASS",
+  "evidence": "Europa: mc, paris, londres, milan, roma…; URL /prive/explorar?region=europa"
+ },
+ {
+  "id": 8,
+  "name": "Abrir universo",
+  "status": "PASS",
+  "evidence": "h1 «The Table»"
+ },
+ {
+  "id": 9,
+  "name": "Abrir destino",
+  "status": "PASS",
+  "evidence": "/prive/destino/cdmx, misma pestaña (1 pestaña)"
+ },
+ {
+  "id": 10,
+  "name": "Abrir experiencia",
+  "status": "PASS",
+  "evidence": "/prive/experiencia/cdmx-0; acciones: GUARDAR · EN · MI · PRIVÉ · AGREGAR · A · MI · VIAJE · SOLICITAR · CON · IATO · VER · OPCIONES · DE · RESERVA · (SE · ABRE · EN · UNA · PESTAÑA · NUEVA) · PREGÚNTALE · A · IATO"
+ },
+ {
+  "id": 11,
+  "name": "Guardar",
+  "status": "PASS",
+  "evidence": "prive_save _saved=true; botón aria-pressed=true"
+ },
+ {
+  "id": 12,
+  "name": "Quitar guardado",
+  "status": "PASS",
+  "evidence": "prive_save _saved=false"
+ },
+ {
+  "id": 13,
+  "name": "Agregar al viaje",
+  "status": "PASS",
+  "evidence": "prive_add_to_trip trip=11111111…; «Agregado a tu viaje (1). Queda como plan sin reservar; para pedirlo usa \"Solicitar\".»"
+ },
+ {
+  "id": 14,
+  "name": "Solicitar con Iato",
+  "status": "PASS",
+  "evidence": "concierge-action type=prive_request; «Solicitud enviada · aún no es una reserva»"
+ },
+ {
+  "id": 15,
+  "name": "Abrir enlace real de reserva",
+  "status": "PASS",
+  "evidence": "href https://www.example.org/ target=_blank; se abre en pestaña nueva (externo) y Privé sigue en la suya"
+ },
+ {
+  "id": 16,
+  "name": "Regresar a Privé con contexto",
+  "status": "PASS",
+  "evidence": "atrás → /prive/explorar?region=europa; Europa seleccionada=true"
+ },
+ {
+  "id": 17,
+  "name": "Mi Privé",
+  "status": "PASS",
+  "evidence": "tarjeta 1; guardados 3; solicitudes abiertas visibles"
+ },
+ {
+  "id": 18,
+  "name": "Foto inexistente",
+  "status": "PASS",
+  "evidence": "cajas 24; respaldo de marca 7; vacías 0; imágenes rotas 0; en espera visibles 0"
+ },
+ {
+  "id": 19,
+  "name": "Servicio de fotos caído (503)",
+  "status": "PASS",
+  "evidence": "cajas 24; respaldo de marca 0; vacías 0; imágenes rotas 0; en espera visibles 1"
+ },
+ {
+  "id": 20,
+  "name": "Datos obsoletos",
+  "status": "PASS",
+  "evidence": "la ficha desactualizada dice «Por verificar…» y va en gris; no se puede solicitar (prueba unitaria)"
+ },
+ {
+  "id": 21,
+  "name": "Sesión Privé vencida",
+  "status": "PASS",
+  "evidence": "candado de Privé visible; sesión local borrada=true"
+ },
+ {
+  "id": 22,
+  "name": "Móvil (320–1440 sin scroll horizontal)",
+  "status": "PASS",
+  "evidence": "7 anchos × 5 pantallas sin scroll horizontal"
+ },
+ {
+  "id": 23,
+  "name": "Accesibilidad (axe)",
+  "status": "PASS",
+  "evidence": "/prive: 0 graves | /prive/explorar: 0 graves | /prive/destino/cdmx: 0 graves | /prive/experiencia/cdmx-0: 0 graves | /prive/mi: 0 graves"
+ },
+ {
+  "id": 24,
+  "name": "Rendimiento (LCP/CLS en vite local)",
+  "status": "PASS",
+  "evidence": "LCP 1488 ms (servidor de desarrollo, sin minificar; indicativo), CLS 0.01, imágenes en DOM 4"
+ },
+ {
+  "id": 25,
+  "name": "Teclado",
+  "status": "PASS",
+  "evidence": "flecha → «México»; Fin → última pestaña; foco visible (solid)"
+ },
+ {
+  "id": 26,
+  "name": "Movimiento reducido",
+  "status": "PASS",
+  "evidence": "sin Ken Burns (false), sin video (false), data-motion=reduced"
+ }
+]

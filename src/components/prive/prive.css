@@ -257,6 +257,7 @@
 .prive-search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: var(--pv-text);
   font-family: var(--pv-serif); font-size: 1.25rem; letter-spacing: 0.02em; }
 .prive-search input::placeholder { color: rgba(168, 162, 153, 0.75); }
+@media (max-width: 639px) { .prive-search input { font-size: 1.05rem; } }
 .prive-search input::-webkit-search-cancel-button { display: none; }
 /* El anillo va en la cápsula (focus-within), no un rectángulo dentro de ella. */
 .prive-root .prive-search input:focus-visible { outline: none; }

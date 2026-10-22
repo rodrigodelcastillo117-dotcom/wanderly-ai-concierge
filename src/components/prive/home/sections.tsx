@@ -85,7 +85,6 @@ export function TwelveUniverses({ universes, layout = "grid" }: { universes: { k
               <p className="text-[10px] tracking-[0.3em] prive-gold">{String(i + 1).padStart(2, "0")}</p>
               <p className="prive-serif text-2xl leading-tight mt-1">{u.name}</p>
               {u.sub && <p className="text-[11px] tracking-[0.18em] uppercase prive-champagne mt-1">{u.sub}</p>}
-              <p className="text-[12px] prive-muted leading-snug mt-1 line-clamp-2">{u.es}</p>
               <p className="text-[10px] tracking-[0.2em] uppercase prive-gold mt-2 opacity-80">{n > 0 ? t.common.experiences(n) : t.explore.preparing}</p>
             </div>
           </PrivePhoto>
