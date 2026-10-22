@@ -25,3 +25,4 @@ $PSQL -At -d "$DB" -f "$DIR/aud_seg_strength.sql" 2>&1 | grep -o 'OK .*\|FALLA.*
 # Segunda auditoría (r2, grupo cuentas): casos del auditor (aud2_prive.sql) y regresiones propias.
 $PSQL -At -d "$DB" -f "$DIR/aud2_prive.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
 $PSQL -At -d "$DB" -f "$DIR/r2_cuentas_prive.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
+$PSQL -At -d "$DB" -f "$DIR/aud2_sweep.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
