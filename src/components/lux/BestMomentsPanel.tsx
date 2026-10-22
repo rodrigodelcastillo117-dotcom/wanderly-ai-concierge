@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Trash2, Loader2, ImagePlus, Pencil, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { safeExtension, uploadProblem } from "@/lib/uploadRules";
+import { MOMENTS_BUCKET, momentPhotoPath, preparePhotoFile, signPhotoPaths } from "@/lib/photoUpload";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { invalidateRecommendations } from "@/hooks/useAIRecommendations";
@@ -15,7 +15,10 @@ import { looksLikeFilename } from "../../../supabase/functions/_shared/tasteProf
 
 type Moment = {
   id: string;
-  image_url: string;
+  // Momentos nuevos: image_path en el bucket PRIVADO travel-moments-private (enlace firmado).
+  // Los viejos conservan image_url pública hasta que se migran (scripts/privacidad).
+  image_url: string | null;
+  image_path?: string | null;
   caption: string | null;
   trip_name: string | null;
   trip_id?: string | null;
@@ -54,6 +57,7 @@ export const BestMomentsPanel = () => {
   const [pending, setPending] = useState<File[]>([]);
   const [editing, setEditing] = useState<Moment | null>(null);
   const [form, setForm] = useState<Form>({ tripId: "", destino: "", caption: "", tags: [] });
+  const [signed, setSigned] = useState<Map<string, string>>(new Map());
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogOpen = pending.length > 0 || !!editing;
 
@@ -67,8 +71,12 @@ export const BestMomentsPanel = () => {
       supabase.from("trips").select("id, destino, fecha_salida, fecha_regreso").eq("user_id", user.id)
         .lte("fecha_salida", today).order("fecha_salida", { ascending: false }).limit(40),
     ]);
-    setMoments((data as Moment[]) ?? []);
+    const list = (data as Moment[]) ?? [];
+    // Enlaces firmados antes de tocar el estado: todo se actualiza en un solo render.
+    const urls = await signPhotoPaths(supabase as never, MOMENTS_BUCKET, list.map((m) => m.image_path));
+    setMoments(list);
     setTrips((tripRows as TripOption[]) ?? []);
+    setSigned(urls);
     setLoading(false);
   };
 
@@ -135,17 +143,17 @@ export const BestMomentsPanel = () => {
       } else {
         const ids: string[] = [];
         for (const file of pending) {
-          // El servidor también lo rechaza (límites del bucket); aquí se avisa con un mensaje claro.
-          const problem = uploadProblem("travel-moments", file);
-          if (problem) throw new Error(problem);
-          const ext = safeExtension(file.name);
-          const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-          const { error: upErr } = await supabase.storage.from("travel-moments").upload(path, file, { upsert: false });
+          // Igual que la Bóveda: JPEG reescrito sin EXIF/GPS; nombre UUID en un bucket privado.
+          const clean = await preparePhotoFile(file);
+          const path = momentPhotoPath(user.id);
+          const { error: upErr } = await supabase.storage.from(MOMENTS_BUCKET).upload(path, clean, { contentType: "image/jpeg", upsert: false });
           if (upErr) throw upErr;
-          const { data: pub } = supabase.storage.from("travel-moments").getPublicUrl(path);
           const { data: row, error: insErr } = await supabase.from("travel_moments")
-            .insert({ user_id: user.id, image_url: pub.publicUrl, ...data }).select("id").single();
-          if (insErr) throw insErr;
+            .insert({ user_id: user.id, image_path: path, ...data } as never).select("id").single();
+          if (insErr) {
+            await supabase.storage.from(MOMENTS_BUCKET).remove([path]);
+            throw insErr;
+          }
           if (row?.id) ids.push(row.id);
         }
         learnFrom(ids);
@@ -166,11 +174,17 @@ export const BestMomentsPanel = () => {
   const remove = async (m: Moment) => {
     if (!user) return;
     try {
-      const marker = "/travel-moments/";
-      const idx = m.image_url.indexOf(marker);
-      if (idx >= 0) {
-        const path = m.image_url.slice(idx + marker.length);
-        await supabase.storage.from("travel-moments").remove([path]);
+      if (m.image_path) {
+        const { error: objErr } = await supabase.storage.from(MOMENTS_BUCKET).remove([m.image_path]);
+        if (objErr) throw objErr;
+      } else if (m.image_url) {
+        // Momento viejo en el bucket público.
+        const marker = "/travel-moments/";
+        const idx = m.image_url.indexOf(marker);
+        if (idx >= 0) {
+          const path = decodeURIComponent(m.image_url.slice(idx + marker.length).split(/[?#]/)[0]);
+          await supabase.storage.from("travel-moments").remove([path]);
+        }
       }
       await supabase.from("travel_moments").delete().eq("id", m.id);
       setMoments(prev => prev.filter(x => x.id !== m.id));
@@ -217,7 +231,7 @@ export const BestMomentsPanel = () => {
                   key={m.id}
                   className="group relative aspect-square rounded-xl overflow-hidden border border-primary/20 bg-black"
                 >
-                  <img src={m.image_url} alt={label ?? "Momento"} className="w-full h-full object-cover transition group-hover:scale-105" loading="lazy" />
+                  <img src={(m.image_path ? signed.get(m.image_path) : m.image_url) ?? undefined} alt={label ?? "Momento"} className="w-full h-full object-cover transition group-hover:scale-105" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-90 pointer-events-none" />
                   <button
                     onClick={() => openForEdit(m)}

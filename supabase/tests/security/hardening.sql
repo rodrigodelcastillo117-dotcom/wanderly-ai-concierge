@@ -60,8 +60,14 @@ UPDATE trips SET status='listo' WHERE id='d1000000-0000-0000-0000-000000000001';
 
 -- ===== F-09: columnas sensibles del perfil =====
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','d0000000-0000-0000-0000-00000000000d',false);
-UPDATE profiles SET avatar_url='https://x/b.png', full_name='Dueña Dos', active_trip_id='d1000000-0000-0000-0000-000000000001', food_dna='{"a":1}'
+-- N-L1 (segunda auditoría): avatar_url ya no es edición normal; la escribe solo el servidor (P1b).
+UPDATE profiles SET full_name='Dueña Dos', active_trip_id='d1000000-0000-0000-0000-000000000001', food_dna='{"a":1}'
  WHERE id='d0000000-0000-0000-0000-00000000000d';
+DO $$ BEGIN
+  UPDATE profiles SET avatar_url='https://x/b.png' WHERE id='d0000000-0000-0000-0000-00000000000d';
+  RAISE NOTICE 'FALLA P1b cambió avatar_url desde el cliente';
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'OK P1b el cliente no puede poner cualquier URL como avatar';
+END $$;
 DO $$ BEGIN
   UPDATE profiles SET email='otro@evil.test' WHERE id='d0000000-0000-0000-0000-00000000000d';
   RAISE NOTICE 'FALLA P2 cambió email';
@@ -83,9 +89,9 @@ DO $$ BEGIN
 EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'OK P5 el cliente no inserta perfiles';
 END $$;
 RESET ROLE;
-SELECT CASE WHEN avatar_url='https://x/b.png' AND full_name='Dueña Dos' AND email='h-owner@example.test'
+SELECT CASE WHEN avatar_url IS DISTINCT FROM 'https://x/b.png' AND full_name='Dueña Dos' AND email='h-owner@example.test'
              AND active_trip_id='d1000000-0000-0000-0000-000000000001'
-            THEN 'OK P1 edición normal del perfil (avatar, nombre, viaje activo, food_dna)' ELSE 'FALLA P1' END
+            THEN 'OK P1 edición normal del perfil (nombre, viaje activo, food_dna; el avatar no)' ELSE 'FALLA P1' END
   FROM profiles WHERE id='d0000000-0000-0000-0000-00000000000d';
 SELECT CASE WHEN count(*)=1 THEN 'OK P6 índice único de invite_code creado' ELSE 'FALLA P6 sin índice' END
   FROM pg_indexes WHERE indexname='profiles_invite_code_upper_key';

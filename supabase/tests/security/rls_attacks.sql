@@ -6,6 +6,8 @@ RESET ROLE;
 INSERT INTO auth.users(id,email) VALUES ('aaaaaaaa-0000-0000-0000-00000000000a','owner@example.test'),('bbbbbbbb-0000-0000-0000-00000000000b','attacker@example.test'),('cccccccc-0000-0000-0000-00000000000c','friend@example.test');
 INSERT INTO storage.buckets(id,name,public) VALUES ('journal-photos','journal-photos',true),('travel-moments','travel-moments',true) ON CONFLICT DO NOTHING;
 INSERT INTO trips(id,user_id,destino) VALUES ('11111111-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-00000000000a','Paris');
+-- T-P2-2: la foto del diario es de una entrada (photo_path); sin entrada, los miembros no la ven.
+INSERT INTO trip_journal_entries(trip_id,author_id,text,photo_path) VALUES ('11111111-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-00000000000a','Torre Eiffel','aaaaaaaa-0000-0000-0000-00000000000a/11111111-0000-0000-0000-000000000001/x.jpg');
 INSERT INTO storage.objects(bucket_id,name) VALUES ('journal-photos','aaaaaaaa-0000-0000-0000-00000000000a/11111111-0000-0000-0000-000000000001/x.jpg'),('travel-moments','aaaaaaaa-0000-0000-0000-00000000000a/m.jpg'),('travel-moments','avatars/aaaaaaaa-0000-0000-0000-00000000000a/v2.png');
 -- ATAQUES (atacante b)
 SET ROLE anon; SELECT 'A1 anon ve objetos [0]: '||count(*) FROM storage.objects; RESET ROLE;
@@ -23,8 +25,12 @@ RESET ROLE; SELECT 'A5 vuelos insertados directo [0]: '||count(*) FROM tracked_f
 DELETE FROM friendships; DELETE FROM trip_collaborators;
 SELECT invite_code AS code FROM public.profiles WHERE id='aaaaaaaa-0000-0000-0000-00000000000a' \gset
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','cccccccc-0000-0000-0000-00000000000c',false);
-SELECT 'L1 agregar amigo por código [{"ok": true, "amigo_id": "aaaaaaaa-0000-0000-0000-00000000000a"}]: '||agregar_amigo_por_codigo(:'code')::text;
-RESET ROLE; SELECT 'L1b amistades [1 accepted]: '||count(*)||' '||string_agg(status,',') FROM friendships;
+SELECT 'L1 agregar amigo por código [{"ok": true, "estado": "pendiente"}]: '||agregar_amigo_por_codigo(:'code')::text;
+RESET ROLE; SELECT 'L1b amistades [1 pending]: '||count(*)||' '||string_agg(status,',') FROM friendships;
+-- T-P2-1: el código solo crea una solicitud; la amistad existe cuando la dueña del código acepta.
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','aaaaaaaa-0000-0000-0000-00000000000a',false);
+SELECT 'L1c a acepta la solicitud [{"ok": true, "estado": "amigos"}]: '||responder_solicitud_amistad('cccccccc-0000-0000-0000-00000000000c', true)::text;
+RESET ROLE; SELECT 'L1d amistades [1 accepted]: '||count(*)||' '||string_agg(status,',') FROM friendships;
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','aaaaaaaa-0000-0000-0000-00000000000a',false);
 SELECT 'L2 invitar [{"ok": true}]: '||invitar_amigo_viaje('11111111-0000-0000-0000-000000000001','cccccccc-0000-0000-0000-00000000000c')::text;
 SELECT 'L2b dueño ve sus fotos [3]: '||count(*) FROM storage.objects;

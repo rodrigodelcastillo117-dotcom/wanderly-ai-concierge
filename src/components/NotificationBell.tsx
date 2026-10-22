@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from "react";
-import { Bell, Check, Plane } from "lucide-react";
+import { Bell, Check, Plane, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { notificationTarget } from "@/lib/notificationTarget";
+import { respondFriendRequest } from "@/lib/friendRequests";
 
 type Notification = {
   id: string;
@@ -109,6 +110,20 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
     }
   };
 
+  // Solicitud de amistad (T-P2-1): la amistad solo existe si la persona la acepta aquí o en Social.
+  const respondFriend = async (n: Notification, accept: boolean) => {
+    if (!n.related_id || responding) return;
+    setResponding(n.id);
+    setInviteError(null);
+    const r = await respondFriendRequest(supabase as never, n.related_id, accept);
+    setResponding(null);
+    // sin_solicitud: ya se respondió en otra pantalla (o la cancelaron); solo se marca como leído.
+    if (!r?.ok && r?.error !== "sin_solicitud") { setInviteError(n.id); return; }
+    if (r?.error === "sin_solicitud" && !n.read) await supabase.from("notifications").update({ read: true }).eq("id", n.id);
+    await load();
+    if (accept && r?.ok) { setOpen(false); navigate(`/dashboard/social/amigo/${n.related_id}`); }
+  };
+
   return (
     <div ref={panelRef} className={`relative ${className}`}>
       <button
@@ -154,7 +169,9 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
                     <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                       {n.type === "social_poke"
                         ? <span aria-hidden="true" className="text-sm leading-none">👋</span>
-                        : <Plane className="w-4 h-4 text-primary" />}
+                        : n.type === "friend_request" || n.type === "friend_accepted"
+                          ? <UserPlus className="w-4 h-4 text-primary" />
+                          : <Plane className="w-4 h-4 text-primary" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{n.title}</p>
@@ -183,7 +200,25 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
                       </button>
                     </div>
                   )}
-                  {n.type === "trip_invite" && inviteError === n.id && (
+                  {n.type === "friend_request" && n.related_id && !n.read && (
+                    <div className="flex gap-2 mt-3 ml-11">
+                      <button
+                        onClick={() => respondFriend(n, true)}
+                        disabled={responding === n.id}
+                        className="disabled:opacity-50 flex-1 px-3 py-1.5 rounded-full bg-gradient-gold text-primary-foreground text-[11px] font-medium tracking-wide hover:opacity-90 transition"
+                      >
+                        Aceptar
+                      </button>
+                      <button
+                        onClick={() => respondFriend(n, false)}
+                        disabled={responding === n.id}
+                        className="disabled:opacity-50 flex-1 px-3 py-1.5 rounded-full border border-white/10 text-muted-foreground text-[11px] hover:text-foreground hover:bg-white/[0.04] transition"
+                      >
+                        Rechazar
+                      </button>
+                    </div>
+                  )}
+                  {(n.type === "trip_invite" || n.type === "friend_request") && inviteError === n.id && (
                     <p role="alert" className="mt-2 ml-11 text-[11px] text-destructive">
                       No se pudo responder la invitación. Intenta de nuevo.
                     </p>

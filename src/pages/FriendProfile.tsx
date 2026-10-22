@@ -16,6 +16,7 @@ import { PokeButtons } from "@/components/social/PokeButtons";
 import { TripPostcard } from "@/components/social/TripPostcard";
 import { PlanTogetherDialog } from "@/components/social/PlanTogetherDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { removeFriend as removeFriendRpc } from "@/lib/friendRequests";
 import { useAuth } from "@/contexts/AuthContext";
 import { destinationQuery } from "@/lib/categoryImagery";
 import { localISODate } from "@/lib/localDate";
@@ -178,14 +179,13 @@ export default function FriendProfile() {
   const sharedIds = useMemo(() => new Set(data?.viajes_juntos.map((t) => t.id) ?? []), [data]);
   const common = data ? commonGround(data.en_comun, data.dna.ritmo) : [];
 
-  const removeFriend = async () => {
+  // quitar_amigo (servidor): borra la amistad; con bloquear, además impide que vuelva a pedirla con
+  // tu código. Sin bloquear, si vuelve a usar tu código solo te llega una solicitud que tú decides.
+  const removeFriend = async (bloquear = false) => {
     if (!user || !data) return;
-    const { error } = await supabase
-      .from("friendships")
-      .delete()
-      .or(`and(requester_id.eq.${user.id},addressee_id.eq.${data.amigo.id}),and(requester_id.eq.${data.amigo.id},addressee_id.eq.${user.id})`);
-    if (error) { toast.error("No se pudo quitar la amistad. Intenta de nuevo."); return; }
-    toast.success(`Ya no estás conectado con ${nombre}.`);
+    const r = await removeFriendRpc(supabase as never, data.amigo.id, bloquear);
+    if (!r?.ok) { toast.error("No se pudo quitar la amistad. Intenta de nuevo."); return; }
+    toast.success(bloquear ? `Bloqueaste a ${nombre}. Ya no podrá mandarte solicitudes.` : `Ya no estás conectado con ${nombre}.`);
     navigate("/dashboard/social", { replace: true });
   };
 
@@ -452,11 +452,13 @@ export default function FriendProfile() {
             <AlertDialogTitle>¿Dejar de ser amigos de {nombre}?</AlertDialogTitle>
             <AlertDialogDescription>
               Ya no verán sus perfiles ni podrán saludarse. Los viajes que comparten no se borran: cada quien conserva su acceso.
+              Si vuelve a usar tu código, te llegará una solicitud que puedes rechazar; si lo bloqueas, ya no podrá pedírtela.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={removeFriend} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Dejar de ser amigos</AlertDialogAction>
+            <AlertDialogAction onClick={() => void removeFriend(true)} className="border border-destructive/40 bg-transparent text-destructive hover:bg-destructive/10">Quitar y bloquear</AlertDialogAction>
+            <AlertDialogAction onClick={() => void removeFriend(false)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Dejar de ser amigos</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

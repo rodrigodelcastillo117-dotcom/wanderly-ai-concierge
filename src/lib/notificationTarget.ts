@@ -10,6 +10,9 @@ export function notificationTarget(n: { type: string; related_id: string | null;
   if (n.type === "prive") return /invitaci/i.test(n.title ?? "") || !n.title ? "/prive/invitacion" : "/prive/membresia";
   // Saludo de un amigo (saludar_amigo): related_id es quien saludó → su perfil para devolverlo.
   if (n.type === "social_poke") return n.related_id ? `/dashboard/social/amigo/${n.related_id}` : "/dashboard/social";
+  // Amistad (T-P2-1): la solicitud se responde en Social; la aceptada abre el perfil del amigo.
+  if (n.type === "friend_request") return "/dashboard/social";
+  if (n.type === "friend_accepted") return n.related_id ? `/dashboard/social/amigo/${n.related_id}` : "/dashboard/social";
   // Reservas IA (correo al restaurante): la tarjeta vive en Mis reservas.
   if (n.type === "ai_reservation") return "/dashboard/reservas#reservas-ia";
   return null;

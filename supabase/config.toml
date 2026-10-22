@@ -50,6 +50,11 @@ verify_jwt = false
 [functions.avatar-evolve]
 verify_jwt = false
 
+# T-P2-3: archivos de viajes borrados. Con sesión vacía la cola de esa persona; con x-cron-secret,
+# toda la cola. La función valida ambas.
+[functions.trip-files-purge]
+verify_jwt = false
+
 [functions.flights-search]
 verify_jwt = true
 

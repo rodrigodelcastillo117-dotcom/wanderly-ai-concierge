@@ -277,11 +277,9 @@ const OnboardingDeep = () => {
       canNext: () => true,
       render: () => (
         <AvatarCreator
-          onComplete={async (url) => {
-            if (url && user) {
-              await (supabase as any).from("profiles").update({ avatar_url: url }).eq("id", user.id);
-              toast.success("¡Avatar guardado!");
-            }
+          onComplete={(url) => {
+            // generate-avatar ("elegir") ya lo guardó con la llave de servicio (N-L1).
+            if (url) toast.success("¡Avatar guardado!");
             navigate("/dashboard");
           }}
           onSkip={() => navigate("/dashboard")}

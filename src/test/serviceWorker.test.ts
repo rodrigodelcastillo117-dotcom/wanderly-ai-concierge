@@ -44,16 +44,24 @@ function makeEnv() {
     addEventListener: (t: string, h: any) => { handlers[t] = h; },
     skipWaiting: async () => {}, clients: { claim: async () => {} }, registration: {},
   };
-  vm.runInNewContext(code, { self, caches, fetch: fetchFn, URL, Response, Promise, console, encodeURIComponent });
+  vm.runInNewContext(code, { self, caches, fetch: fetchFn, URL, Response, Promise, console, encodeURIComponent, atob });
   const dispatch = async (type: string, data: any = {}) => {
     let responded: Promise<any> | undefined; const waits: Promise<any>[] = [];
     handlers[type]({ ...data, respondWith: (p: any) => { responded = Promise.resolve(p); }, waitUntil: (p: any) => waits.push(p) });
     await Promise.all(waits);
     return responded;
   };
-  const get = (url: string, mode = "cors", accept = "application/json") =>
-    ({ url, method: "GET", mode, headers: { get: (h: string) => (h === "accept" ? accept : null) } });
+  // Las peticiones de la app a Supabase siempre llevan el JWT de la sesión (Authorization).
+  const get = (url: string, mode = "cors", accept = "application/json", auth: string | null = jwtFor(USER_A)) =>
+    ({ url, method: "GET", mode, headers: { get: (h: string) => (h === "accept" ? accept : h === "authorization" ? auth : null) } });
   return { stores, dispatch, get, setOnline: (v: boolean) => { online = v; }, netCount: () => net };
+}
+
+const USER_A = "aaaaaaaa-0000-4000-8000-00000000000a";
+const USER_B = "bbbbbbbb-0000-4000-8000-00000000000b";
+const b64url = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+function jwtFor(sub: string | null): string {
+  return `Bearer ${b64url({ alg: "HS256", typ: "JWT" })}.${b64url(sub ? { sub, role: "authenticated" } : { role: "anon" })}.firma`;
 }
 
 let env: ReturnType<typeof makeEnv>;
@@ -89,6 +97,24 @@ describe("service worker offline", () => {
     expect(env.stores.get("iatos-data-v1")!.size).toBe(8);
     await env.dispatch("message", { data: { type: "iatos:clear-user-cache" } });
     expect(env.stores.has("iatos-data-v1")).toBe(false);
+  });
+
+  it("la caché de viajes es por persona: otra cuenta en el mismo teléfono no lee sin red los viajes de la primera", async () => {
+    await env.dispatch("fetch", { request: env.get(tripUrl("a"), "cors", "application/json", jwtFor(USER_A)) });
+    env.setOnline(false);
+    // La segunda cuenta (sin que se haya cerrado sesión) pide lo mismo sin red: no hay copia suya.
+    await expect(env.dispatch("fetch", { request: env.get(tripUrl("a"), "cors", "application/json", jwtFor(USER_B)) }).then((p) => p)).rejects.toThrow();
+    // La primera sí conserva la suya.
+    const res = await env.dispatch("fetch", { request: env.get(tripUrl("a"), "cors", "application/json", jwtFor(USER_A)) });
+    expect(await (await res).text()).toContain("id=eq.a");
+    // La llave guardada lleva a la persona.
+    expect([...env.stores.get("iatos-data-v1")!.keys()].every((k) => k.includes(`__u=${USER_A}`))).toBe(true);
+  });
+
+  it("sin sesión (llave anónima o sin Authorization) los viajes no se guardan", async () => {
+    expect(await env.dispatch("fetch", { request: env.get(tripUrl("a"), "cors", "application/json", jwtFor(null)) })).toBeUndefined();
+    expect(await env.dispatch("fetch", { request: env.get(tripUrl("a"), "cors", "application/json", null) })).toBeUndefined();
+    expect(env.stores.get("iatos-data-v1")?.size ?? 0).toBe(0);
   });
 
   it("no intercepta escrituras ni otras APIs", async () => {

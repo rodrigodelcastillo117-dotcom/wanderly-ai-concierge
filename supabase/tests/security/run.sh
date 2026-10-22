@@ -12,9 +12,37 @@ set -u
 DIR=$(cd "$(dirname "$0")" && pwd); DB=${1:-iatos_rls_test}
 . "$DIR/../lib.sh"
 PSQL="psql -U ${PGUSER:-postgres} -q"
+# Segunda auditoría, grupo privacidad (T-P2-1 y siguientes). Varias pruebas r2_privacidad_*.sql recrean
+# datos viejos y vuelven a aplicar su migración (\ir) para probar el relleno. Para no reaplicar
+# migraciones sobre la base de las pruebas (P2-QA-1) corren en una COPIA de la base, que se borra al
+# terminar; y para no probar versiones viejas de funciones que una migración posterior redefine (p. ej.
+# purge_account_data: 20261026130000 → 20261026170000), cada "\ir <migración N>" se sustituye por la
+# migración N seguida de TODAS las posteriores en orden, como las aplicaría producción (Q-L1).
+r2_privacidad() { # $1 base
+  local copy="${1}_r2priv" tmp t
+  if ! t_copy_db "$1" "$copy"; then echo "FALLA r2_privacidad: no se pudo copiar la base $1"; return; fi
+  tmp=$(mktemp -d)
+  for t in "$DIR"/r2_privacidad_*.sql; do
+    [ -f "$t" ] || continue
+    MIGDIR="$T_MIG" perl -ne '
+      if (m{^\\ir\s+\.\./\.\./migrations/(\S+\.sql)\s*$}) {
+        my $n = $1; opendir(my $d, $ENV{MIGDIR}) or die; my @m = sort grep { /\.sql$/ && $_ ge $n } readdir($d);
+        die "no existe la migración $n\n" unless grep { $_ eq $n } @m;
+        print "\\i $ENV{MIGDIR}/$_\n" for @m; next;
+      }
+      print;' "$t" > "$tmp/$(basename "$t")" || { echo "FALLA r2_privacidad: no se pudo preparar $(basename "$t")"; continue; }
+    $PSQL -X -d "$copy" -f "$tmp/$(basename "$t")" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
+  done
+  rm -rf "$tmp"
+  $PSQL -d postgres -c "DROP DATABASE IF EXISTS $copy" >/dev/null 2>&1
+}
+
 # 156 líneas OK de hardening, round_b, concierge_requests, taste_profile, action_idempotency, aud_seguridad
-# y concurrencia (las mismas de antes) + 15 de rls_attacks + 6 de trip_delete_conversation + 9 de profiles_tier.
-ESPERADOS=186
+# y concurrencia (las mismas de antes) + 15 de rls_attacks + 6 de trip_delete_conversation + 9 de profiles_tier
+# = 186; ronda r2 (grupo privacidad): +2 de rls_attacks (L1c, L1d: el código crea una solicitud que se
+# acepta), +1 de hardening (P1b) y +65 de r2_privacidad_*.sql (avatar 11, d1_politicas 9, documentos 18,
+# fotos 17, photo_url 7, tier_audit 3).
+ESPERADOS=254
 
 main() {
   t_build_db "$DB"
@@ -32,6 +60,9 @@ main() {
   # errores son el resultado esperado del ataque y se descartan; cada caso tiene su línea OK/FALLA y el
   # total esperado detecta una línea que deje de imprimirse.
   $PSQL -X -d "$DB" -f "$DIR/aud_seguridad.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | grep -v 'violates row-level security' | sed 's/^ERROR/FALLA ERROR/'
+  # Idempotencia de las migraciones r2 de privacidad (en una copia, ../lib.sh) y sus pruebas.
+  t_idempotency "$DB" "$T_MIG"/20261026*_r2_privacidad_*.sql
+  r2_privacidad "$DB"
   "$DIR/concurrent_rate_limit.sh" "$DB"
 }
 

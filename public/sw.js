@@ -61,6 +61,23 @@ function isTripsApi(url) {
   return url.pathname.endsWith('/rest/v1/trips');
 }
 
+// Persona de la sesión: claim "sub" del JWT del header Authorization. Va en la llave de la caché de
+// viajes para que, si se cambia de cuenta sin cerrar sesión (almacenamiento borrado a medias), la
+// segunda cuenta no lea sin red los viajes de la primera. No se verifica la firma: solo separa
+// cachés (los datos los protege RLS en el servidor). Sin JWT con "sub" (anon) no se guarda nada.
+function sessionSub(req) {
+  try {
+    const auth = ((req.headers && req.headers.get && req.headers.get('authorization')) || '').trim();
+    const m = /^Bearer\s+[\w-]+\.([\w-]+)\.[\w-]+$/i.exec(auth);
+    if (!m) return null;
+    const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+    return typeof claims.sub === 'string' && /^[\w-]{1,64}$/.test(claims.sub) ? claims.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 async function trimCache(name, max) {
   const c = await caches.open(name);
   const keys = await c.keys();
@@ -114,10 +131,14 @@ self.addEventListener('fetch', (event) => {
   }
   // Datos de viajes (Supabase REST, solo lectura): últimos viajes vistos.
   if (isTripsApi(url)) {
+    // Llave por persona (T-P3 privacidad: antes no incluía al usuario). Sin persona, no se guarda.
+    const sub = sessionSub(req);
+    if (!sub) return;
     // La misma URL puede pedirse como objeto o como arreglo (header Accept): lo
     // incluimos en la llave para no devolver offline una forma distinta.
     const accept = (req.headers && req.headers.get && req.headers.get('accept')) || '';
-    const key = req.url + (req.url.includes('?') ? '&' : '?') + '__accept=' + encodeURIComponent(accept);
+    const key = req.url + (req.url.includes('?') ? '&' : '?') + '__accept=' + encodeURIComponent(accept)
+      + '&__u=' + encodeURIComponent(sub);
     event.respondWith(networkFirst(req, DATA_CACHE, key, MAX_TRIP_ENTRIES));
   }
 });

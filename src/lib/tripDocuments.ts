@@ -6,16 +6,28 @@ import { UPLOAD_RULES, safeFileName, uploadProblem } from "@/lib/uploadRules";
 
 export const TRIP_DOC_BUCKET = "trip-documents" as const;
 
-export const TRIP_DOC_KINDS = ["boleto", "pasaporte", "poliza", "reserva", "otro"] as const;
+export const TRIP_DOC_KINDS = ["boleto", "pasaporte", "visa", "poliza", "reserva", "otro"] as const;
 export type TripDocKind = (typeof TRIP_DOC_KINDS)[number];
 
 export const TRIP_DOC_KIND_LABEL: Record<TripDocKind, string> = {
   boleto: "Boleto",
   pasaporte: "Pasaporte",
+  visa: "Visa",
   poliza: "Póliza de seguro",
   reserva: "Reserva",
   otro: "Otro",
 };
+
+/**
+ * T-P2-4: quién ve cada documento. "viaje" = todos los del viaje; "solo_yo" = solo quien lo subió (ni
+ * el dueño del viaje). Lo impone el servidor (políticas de trip_documents y de storage).
+ */
+export type TripDocVisibility = "viaje" | "solo_yo";
+export const TRIP_DOC_VISIBILITY_LABEL: Record<TripDocVisibility, string> = { viaje: "Todo el viaje", solo_yo: "Solo yo" };
+/** Igual que el trigger trip_documents_default_visibility: pasaporte y visa, "solo yo". */
+export function defaultDocVisibility(kind: TripDocKind): TripDocVisibility {
+  return kind === "pasaporte" || kind === "visa" ? "solo_yo" : "viaje";
+}
 
 /** 10 MB: igual que file_size_limit del bucket y el CHECK de trip_documents.size. */
 export const TRIP_DOC_MAX_BYTES = UPLOAD_RULES[TRIP_DOC_BUCKET].maxBytes;
@@ -36,6 +48,7 @@ export type TripDocument = {
   mime: string;
   size: number;
   created_at: string;
+  visibility?: TripDocVisibility;
 };
 
 /** Mensaje para el usuario si el archivo no se puede subir; null si está bien. */
