@@ -29,6 +29,10 @@ import { forceEstimated, labelExperiences, markLive, pricingSources } from "./pr
 import { buildLogisticsSnapshot } from "./snapshot.ts";
 import { saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { hotelPriceRooms } from "../_shared/rooms.ts";
+// roadtrip: coche como modo de primera clase entre paradas (distancias reales de Google Routes).
+import { googleTransportFor } from "../_shared/google-runtime.ts";
+import { computeRoute } from "../_shared/google-routes.ts";
+import { legModesFor, planRoadTrip, roadTripPromptBlock } from "./roadtrip.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,6 +54,9 @@ interface Body {
     connection?: "tiempo" | "paisaje" | "smart";
     roadtripStops?: boolean;
     luggageLogistics?: boolean;
+    /** roadtrip: "avion" | "tren" | "coche" para todos los tramos, o "mixto" con leg_modes por tramo. */
+    transport_mode?: string;
+    leg_modes?: string[];
   };
   /** Llave de idempotencia por intento (sessionStorage del cliente). */
   request_key?: string;
@@ -339,7 +346,7 @@ const ROADTRIP_RULES = `MODO ROADTRIP DETECTADO — REGLAS OBLIGATORIAS:
 - Añade un tramo extra "pickup" desde el aeropuerto y "dropoff" al regreso.
 - En cada day["mañana"|"tarde"|"noche"] menciona la carretera, km aproximados y paradas escénicas.
 - En arrival_options de cada ciudad: la opción principal es "Coche desde [punto anterior]" con km, horas y paradas clave.
-- mandatory_costs DEBE incluir en notes la gasolina + peajes calculados por km totales.`;
+- NO calcules gasolina, casetas, viñetas ni estacionamiento: el sistema los calcula aparte con fuentes oficiales (antes se pedían aquí y salían inventados).`;
 
 const GLOBAL_SYSTEM = `Eres IATOS, analista senior de pricing de viajes de lujo. Devuelves JSON estricto con precios REALES de mercado.
 Aerolíneas/operadores REALES (Iberia, Air France, Italo, Renfe AVE, Eurostar, Ferries Blue Star, etc).
@@ -509,7 +516,10 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
     const viajeros = Math.max(1, Number(body.num_viajeros) || 2);
     const fechas = `${body.fecha_salida ?? "flexible"} a ${body.fecha_regreso ?? "flexible"}`;
     const cityList = body.destinations.join(" → ");
-    const roadtripMode = isRoadtrip(body.destinations, body.origin);
+    const roadtripDetected = isRoadtrip(body.destinations, body.origin);
+    // roadtrip: el modo que eligió el viajero manda; sin elección, el destino de roadtrip implica coche.
+    const legModes = legModesFor(body.destinations, body.prefs, roadtripDetected);
+    const roadtripMode = legModes.length ? legModes.every((m) => m === "coche") : roadtripDetected;
     const roadtripBlock = roadtripMode ? `\n\n${ROADTRIP_RULES}` : "";
 
     // Ventanas de fechas por ciudad para consultar hoteles reales.
@@ -558,7 +568,19 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
       ]).then(([hotels, attractions]) => ({ hotels, attractions })),
     );
 
-    const [tpFlights, ...cityLive] = await Promise.all([tpFlightsPromise, ...cityLivePromises]);
+    // roadtrip: distancia y tiempo reales por tramo en coche (una llamada Essentials por tramo).
+    const google = legModes.includes("coche") ? googleTransportFor("logistics-plan", __user.id) : null;
+    const roadTripPromise = planRoadTrip({
+      destinations: body.destinations,
+      legModes,
+      legDates: body.destinations.slice(1).map((_, i) => cityWindows[i + 1]?.checkin ?? null),
+      route: google ? async (origin, destination) => {
+        const r = await computeRoute(google, { origin: { address: origin }, destination: { address: destination }, mode: "DRIVE" });
+        return r.ok ? { ok: true, distance_meters: r.distance_meters, duration_seconds: r.duration_seconds, consultado_at: r.consultado_at } : null;
+      } : null,
+    }).catch((e) => { console.warn("roadtrip:", e instanceof Error ? e.message : e); return null; });
+
+    const [roadTrip, tpFlights, ...cityLive] = await Promise.all([roadTripPromise, tpFlightsPromise, ...cityLivePromises]);
 
     const tpLive = Array.isArray(tpFlights?.flights) && tpFlights.flights.length > 0;
     const tpFlightsBlock = tpLive
@@ -581,7 +603,7 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
     });
 
     // ───── Llamada GLOBAL ─────
-    const globalPrompt = `${perfilLine}${roadtripBlock}
+    const globalPrompt = `${perfilLine}${roadtripBlock}${roadTripPromptBlock(body.destinations, legModes, roadTrip)}
 
 Origen: ${body.origin}
 Destinos en orden: ${cityList}
@@ -600,7 +622,7 @@ Entrega JSON con:
   ? `tramos en COCHE/CAMPERVAN entre ciudades consecutivas (mode="coche", provider real, duración en horas, scenic=true, luggage_note con km y paradas). Añade pickup aeropuerto → primera ciudad y dropoff última → aeropuerto.`
   : `UN tramo por cada par consecutivo (${body.destinations.length - 1} tramos), sin duplicados. Europa <800km usa TREN. Inter-islas griegas usa FERRY.`} Marca fuente_precio="estimado" (no tenemos inventario en vivo de tierra).
 3. days: ${nights} días distribuidos lógicamente entre las ciudades, cada uno con ciudad/título/mañana/tarde/noche específicos${roadtripMode ? " (mencionando carretera, km y paradas escénicas)" : ""}.
-4. mandatory_costs con currency_buffer_pct=3${roadtripMode ? ' e incluye en "notes" gasolina + peajes' : ""}.
+4. mandatory_costs con currency_buffer_pct=3.
 5. resumen breve (2-3 frases). NO calcules totales: el total lo calcula el sistema.`;
 
     // ───── Llamadas POR CIUDAD en paralelo ─────
@@ -634,7 +656,7 @@ Punto anterior: ${prevPoint}
 Viajeros: ${viajeros} | Noches: ${cityNights} (${w.checkin} → ${w.checkout})
 Ruta completa del viaje (contexto): ${body.origin} → ${cityList}
 NIVEL DE PRESUPUESTO DEL USUARIO: ${selectedTier}. El hospedaje del tier "${selectedTier}" es el que se usará para el total.
-${roadtripMode ? "MODO: ROADTRIP — arrival_options principal SIEMPRE en coche con km, horas y paradas." : ""}
+${roadtripMode ? "MODO: ROADTRIP — arrival_options principal SIEMPRE en coche con km, horas y paradas." : ""}${i > 0 && legModes[i - 1] ? `\nEl viajero eligió llegar desde ${prevPoint} en ${legModes[i - 1] === "avion" ? "avión" : legModes[i - 1]}: esa es la opción PRINCIPAL de arrival_options.${legModes[i - 1] === "coche" && roadTrip?.legs.find((l) => l.index === i - 1)?.distance_km ? ` Distancia ${roadTrip.legs.find((l) => l.index === i - 1)!.distance_km} km (no inventes otra).` : ""}` : ""}
 
 ==========================================
 HOSPEDAJE — ${hotelsBlock}
@@ -842,6 +864,9 @@ Entrega JSON con:
       flights,
       internal_transport: internalTransport,
       per_destination: perDestination,
+      // roadtrip: tramos en coche, costos etiquetados, avisos por país y renta (null sin coche).
+      leg_modes: legModes,
+      road_trip: roadTrip,
       selected_tier: selectedTier,
       presupuesto_rango: presupuestoRango,
       fx_usd_mxn: fxUsd,
