@@ -46,13 +46,14 @@ describe("búsqueda en vivo sin proveedores: nunca se inventan vuelos ni hoteles
     expect(res[0]).toMatchObject({ price_per_person_usd: 300, price_usd: 600, arrival: { id: "CDG", time: null }, return_at: "2026-11-20T18:00:00Z" });
   });
 
-  it("hotels-search: SerpApi falla o sin llave → results [], disponible false, source none, link de Booking afiliado", async () => {
+  it("hotels-search: SerpApi falla o sin llave → results [], disponible false, source none, link directo a Booking (tp.media/click responde 400)", async () => {
     fetchMock.mockResolvedValue(new Response("down", { status: 503 }));
     const body = { city: "Roma", checkin: "2026-11-10", checkout: "2026-11-15", adults: 3 };
     for (const envKeys of [{ serpKey: "s" }, { serpKey: null }]) {
       const r = await searchHotels(body, envKeys);
       expect(r.body).toMatchObject({ ok: true, source: "none", disponible: false, results: [] });
-      expect(String(r.body.booking_url)).toMatch(/^https:\/\/tp\.media\/click\?marker=533299\.hotels&u=/);
+      // Directo: el redirect tp.media/click responde 400 "source_type is empty" (H0, cierre 2 · enlaces).
+      expect(String(r.body.booking_url)).toMatch(/^https:\/\/www\.booking\.com\/searchresults\.html\?ss=Roma&checkin=2026-11-10&checkout=2026-11-15&group_adults=3/);
       // 3 adultos → 2 habitaciones en la búsqueda.
       expect(decodeURIComponent(String(r.body.booking_url))).toContain("no_rooms=2");
     }
