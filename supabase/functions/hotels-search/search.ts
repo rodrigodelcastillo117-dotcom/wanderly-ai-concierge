@@ -27,6 +27,49 @@ export function bookingUrl(city: string, ci: string, co: string, adults: number,
   return tpDeepLink(`https://www.booking.com/searchresults.html?${p.toString()}`, "hotels", marker);
 }
 
+const pos = (v: unknown) => (Number(v) > 0 ? Math.round(Number(v)) : null);
+
+/**
+ * Un hotel de Google Hotels (SerpApi) con lo que trae: tarifa por noche y total CON impuestos y
+ * cargos (los `extracted_lowest` de Google ya los incluyen) y, si Google los publica, los montos
+ * antes de impuestos; categoría numérica, ubicación, horarios de entrada/salida y el sitio que da
+ * la tarifa más baja.
+ */
+export function hotelResult(p: any, nightly: number, totalRaw: number, nights: number, city: string, checkin: string, checkout: string, adults: number, marker: string) {
+  const nightlyBefore = pos(p?.rate_per_night?.extracted_before_taxes_fees);
+  const totalBefore = pos(p?.total_rate?.extracted_before_taxes_fees);
+  const cls = Number(p?.extracted_hotel_class ?? (typeof p?.hotel_class === "number" ? p.hotel_class : String(p?.hotel_class ?? "").match(/\d/)?.[0]));
+  const cheapest = Array.isArray(p?.prices) ? p.prices.find((x: any) => x?.source) : null;
+  return {
+    name: p.name,
+    rating: p.overall_rating ?? null,
+    reviews: p.reviews ?? null,
+    location_rating: p.location_rating ?? null,
+    // Número (1–5): antes llegaba el texto "5-star hotel" y la pantalla no podía pintar estrellas.
+    hotel_class: Number.isFinite(cls) && cls > 0 ? cls : null,
+    type: p.type ?? null,
+    nightly_usd: Math.round(nightly),
+    total_usd: Math.round(totalRaw > 0 ? totalRaw : nightly * nights),
+    nights,
+    nightly_before_taxes_usd: nightlyBefore,
+    total_before_taxes_usd: totalBefore,
+    // Google Hotels da la tarifa con impuestos y cargos; si no trae total, se calcula noche × noches.
+    total_incluye_impuestos: totalRaw > 0,
+    total_calculado: !(totalRaw > 0),
+    lat: p?.gps_coordinates?.latitude ?? null,
+    lng: p?.gps_coordinates?.longitude ?? null,
+    check_in_time: p.check_in_time ?? null,
+    check_out_time: p.check_out_time ?? null,
+    proveedor_tarifa: cheapest?.source ?? null,
+    property_token: p.property_token ?? null,
+    thumbnail: p.images?.[0]?.thumbnail ?? null,
+    amenities: (p.amenities ?? []).slice(0, 6),
+    link: p.link ?? null,
+    booking_url: bookingUrl(`${p.name} ${city}`, checkin, checkout, adults, marker),
+    fuente: "google_hotels",
+  };
+}
+
 export type HotelsSearchEnv = {
   serpKey?: string | null;
   marker?: string | null;
@@ -61,6 +104,7 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
     try {
       const r = await (env.serpFetch ?? fetch)(u.toString());
       if (r.headers.get("x-iatos-cache") === "limit") { fallas.push("google_hotels_limite_del_plan"); return []; }
+      if (r.headers.get("x-iatos-cache") === "paused") { fallas.push("google_hotels_busquedas_en_pausa"); return []; }
       // Nunca registrar la URL: lleva la API key.
       if (!r.ok) { console.error("hotels status", r.status); fallas.push(`google_hotels_http_${r.status}`); return []; }
       const j = await r.json();
@@ -82,18 +126,7 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
       return withNightly
         .sort((a: any, b: any) => a.nightly - b.nightly)
         .slice(0, 15)
-        .map(({ p, nightly, totalRaw }: any) => ({
-          name: p.name,
-          rating: p.overall_rating ?? null,
-          reviews: p.reviews ?? null,
-          hotel_class: p.hotel_class ?? null,
-          nightly_usd: Math.round(nightly),
-          total_usd: Math.round(totalRaw > 0 ? totalRaw : nightly * nightsSafe),
-          thumbnail: p.images?.[0]?.thumbnail ?? null,
-          amenities: (p.amenities ?? []).slice(0, 6),
-          link: p.link ?? null,
-          booking_url: bookingUrl(`${p.name} ${city}`, checkin, checkout, adults, marker),
-        }));
+        .map(({ p, nightly, totalRaw }: any) => hotelResult(p, nightly, totalRaw, nightsSafe, city, checkin, checkout, adults, marker));
     } catch (e) {
       console.error("hotels err", (e as Error).message);
       fallas.push("google_hotels_error");
@@ -123,6 +156,7 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
       source: disponible ? "serpapi" : "none",
       disponible,
       results,
+      etiqueta_fuente: disponible ? "Google Hotels" : null,
       ...(disponible ? {} : { motivo: MOTIVO_NO_DISPONIBLE, fallas }),
       consulted_at: new Date().toISOString(),
       // Link de búsqueda (sin precio) para que el usuario busque por su cuenta.

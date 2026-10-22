@@ -174,11 +174,14 @@ async function serpHotels(key: string, city: string, checkin: string, checkout: 
     });
   }
 
+  const cls = Number(top.p.extracted_hotel_class ?? String(top.p.hotel_class ?? "").match(/\d/)?.[0]);
   return {
     name: top.p.name,
     rating: top.p.overall_rating ?? null,
-    hotel_class: top.p.hotel_class ?? null,
+    hotel_class: Number.isFinite(cls) && cls > 0 ? cls : null,
     nightly_usd: Math.round(top.nightly),
+    // Total de la estancia con impuestos y cargos, tal como lo publica Google Hotels (si lo trae).
+    total_usd: top.totalRaw > 0 ? Math.round(top.totalRaw) : null,
     thumbnail: top.p.images?.[0]?.thumbnail ?? top.p.thumbnail ?? null,
     link: top.p.link ?? null,
   };
@@ -270,7 +273,8 @@ import { aiFetch } from "../_shared/ai.ts";
 import { adminClient } from "../_shared/entitlements.ts";
 import { cacheGet, cacheKey, cacheProvenance, cachePut } from "../_shared/serpCache.ts";
 import { dbCacheStore, liveSearchGateFor, serpFetchFor } from "../_shared/serpRuntime.ts";
-import { FAIR_USE_EMPTY, liveSearchLimitBody } from "../_shared/liveSearch.ts";
+import { FAIR_USE_EMPTY, liveSearchLimitBody, PAUSED_EMPTY } from "../_shared/liveSearch.ts";
+import { getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { decideQuote, decorateCachedQuote, quoteKeyParams, REFRESH_FAILED, REFRESH_TOO_SOON } from "./quoteCache.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -390,18 +394,22 @@ Deno.serve(async (req) => {
     // IA (aerolínea, hotel y precios inventados) mostrada como la cotización del viaje.
     if (!flight && !hotel) {
       // Hay una cotización anterior: se muestra con su fecha real, nunca como "en vivo".
-      if (saved) return jsonResponse(decorateCachedQuote(saved, Date.now(), { aviso: limitBody?.message ?? (denied ? FAIR_USE_EMPTY : REFRESH_FAILED) }));
+      if (saved) return jsonResponse(decorateCachedQuote(saved, Date.now(), { aviso: limitBody?.message ?? (denied ? FAIR_USE_EMPTY : serp.trace.paused ? PAUSED_EMPTY : REFRESH_FAILED) }));
       if (limitBody) return jsonResponse(limitBody, 402);
+      if (serp.trace.paused) return jsonResponse({ code: "SERVICE_UNAVAILABLE", error: "no_pricing_available", message: PAUSED_EMPTY, busquedas_en_pausa: true }, 503);
       if (denied) return jsonResponse({ code: "SERVICE_UNAVAILABLE", error: "no_pricing_available", message: FAIR_USE_EMPTY }, 503);
       return noPricingResponse();
     }
 
     const flights_total = flight?.price_usd ?? 0;
-    const hotel_total = hotel ? hotel.nightly_usd * nights : 0;
+    // El total de Google (con impuestos) manda; si no lo trae, noche × noches.
+    const hotel_total = hotel ? (hotel.total_usd ?? hotel.nightly_usd * nights) : 0;
     const subtotal = flights_total + hotel_total;
     const total_usd = Math.round(subtotal);
     if (total_usd <= 0) return noPricingResponse();
-    const fxRate = await getUsdMxnRate();
+    // Tipo de cambio con su fuente: si es el de respaldo, el total en pesos es una estimación.
+    const fx = await getUsdMxnRateInfo();
+    const fxRate = fx.rate;
     const total_mxn = Math.round(total_usd * fxRate);
     // Fecha real de los precios (si salieron de la caché compartida, la de esa consulta).
     const prov = cacheProvenance(serp.trace);
@@ -416,6 +424,9 @@ Deno.serve(async (req) => {
         buffer_usd: 0,
       },
       total_usd, total_mxn, fx_rate: fxRate, source,
+      fx_source: fx.source,
+      fx_is_fallback: fx.is_fallback,
+      ...(fx.is_fallback ? { nota_tipo_de_cambio: "Total en pesos con tipo de cambio de referencia (no se pudo consultar el del día)." } : {}),
       // Qué partes se pudieron consultar: si falta una, el total es parcial.
       components: { flight: !!flight, hotel: !!hotel },
       fetched_at: prov.fetched_at,

@@ -50,7 +50,7 @@ describe("enforceSources: vuelos y hoteles contra las listas en vivo (B-05)", ()
     googleFlights: [{ price_per_person_usd: 900, buy_url: "https://www.aviasales.com/search/x" }],
   };
 
-  it("un vuelo 'travelpayouts' inventado pasa a estimado; uno real se queda", () => {
+  it("un vuelo 'travelpayouts' inventado pasa a estimado; uno real conserva su fuente pero como precio de referencia", () => {
     const a = {
       vuelos: [
         { tier: "ahorro", precio_por_persona: 10000, fuente_precio: "travelpayouts" }, // 500 × 20
@@ -60,7 +60,9 @@ describe("enforceSources: vuelos y hoteles contra las listas en vivo (B-05)", ()
     };
     enforceSources(a, [], [], "tripadvisor", live);
     expect(a.vuelos.map((v: any) => v.fuente_precio)).toEqual(["travelpayouts", "estimado", "serpapi"]);
-    expect(a.vuelos.map((v: any) => v.estado_dato)).toEqual(["CONSULTADO_EN_VIVO", "ESTIMADO", "CONSULTADO_EN_VIVO"]);
+    // Travelpayouts es caché de búsquedas (≤48 h): nunca "en vivo", aunque el precio sea real.
+    expect(a.vuelos.map((v: any) => v.estado_dato)).toEqual(["ESTIMADO", "ESTIMADO", "CONSULTADO_EN_VIVO"]);
+    expect((a.vuelos[0] as any).nota_precio).toMatch(/precio de referencia/i);
     expect((a.vuelos[0] as any).consultado_at).toBe("2026-10-22T10:00:00Z");
     expect((a.vuelos[1] as any).consultado_at).toBeUndefined();
   });

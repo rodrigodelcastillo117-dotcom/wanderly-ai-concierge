@@ -2,7 +2,8 @@
 // registro de uso. La lógica vive en serpCache.ts, liveSearch.ts, usage.ts e internalCall.ts
 // (probadas con Vitest); aquí solo se conecta con la base.
 import { adminClient } from "./entitlements.ts";
-import { type CacheRow, type CacheStore, createSerpFetch, type LiveGate } from "./serpCache.ts";
+import { type AccountBrake, type CacheRow, type CacheStore, createSerpFetch, type LiveGate } from "./serpCache.ts";
+import { makeAccountBrake } from "./serpBrake.ts";
 import { makeLiveSearchGate } from "./liveSearch.ts";
 import { type UsageEntry, usageRow } from "./usage.ts";
 import { INTERNAL_HEADER, type InternalPurpose, signInternal, verifyInternal } from "./internalCall.ts";
@@ -38,6 +39,24 @@ export async function logUsage(entry: UsageEntry): Promise<void> {
   }
 }
 
+/**
+ * Freno de toda la cuenta de SerpApi: presupuesto opcional del mes/día (SERPAPI_MONTHLY_BUDGET,
+ * SERPAPI_DAILY_BUDGET; sin variable no hay tope) contado en ai_usage_log, y pausa de 1 h cuando
+ * SerpApi dice que ya no hay búsquedas.
+ */
+export function accountBrake(store: CacheStore = dbCacheStore()): AccountBrake {
+  return makeAccountBrake({
+    store,
+    monthlyBudget: Number(Deno.env.get("SERPAPI_MONTHLY_BUDGET") ?? "") || null,
+    dailyBudget: Number(Deno.env.get("SERPAPI_DAILY_BUDGET") ?? "") || null,
+    used: async (period) => {
+      const { data, error } = await adminClient().rpc("serp_global_used", { _period: period });
+      if (error) throw new Error(error.message);
+      return Number(data) || 0;
+    },
+  });
+}
+
 export function liveSearchGateFor(userId: string): LiveGate {
   return makeLiveSearchGate((fn, args) => adminClient().rpc(fn, args), userId);
 }
@@ -47,9 +66,11 @@ export function liveSearchGateFor(userId: string): LiveGate {
  * ai_usage_log (provider "serpapi", model = motor). `gate` = bolsa de búsquedas del usuario.
  */
 export function serpFetchFor(fn: string, userId: string | null, gate?: LiveGate) {
+  const store = dbCacheStore();
   return createSerpFetch({
-    store: dbCacheStore(),
+    store,
     gate,
+    brake: accountBrake(store),
     onLive: ({ engine, ok }) => (ok ? logUsage({ user_id: userId, function: fn, provider: "serpapi", model: engine, searches: 1 }) : undefined),
   });
 }

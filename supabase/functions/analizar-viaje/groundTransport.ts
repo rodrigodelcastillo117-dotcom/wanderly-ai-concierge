@@ -13,6 +13,8 @@ import { haversineKm } from "../_shared/geo-distance.ts";
 export { haversineKm };
 
 export const SHORT_TRIP_MAX_ROAD_KM = 350;
+/** Con Routes API disponible se revisa también lo que por línea recta queda hasta 500 km. */
+export const SHORT_TRIP_CANDIDATE_KM = 500;
 /** Las carreteras son más largas que la línea recta (≈1.3 en el centro de México). */
 const ROAD_FACTOR = 1.3;
 /** Velocidad media de manejo/autobús en carretera, con entradas y salidas de ciudad. */
@@ -88,10 +90,37 @@ export function findCity(text: unknown): City | null {
 export type ShortTrip = {
   origin: string;
   destination: string;
-  /** Aproximados (línea recta × factor de carretera); nunca se presentan como exactos. */
+  /** Aproximados (línea recta × factor de carretera) salvo que `source` sea "google_routes". */
   approxRoadKm: number;
   approxDriveHours: number;
+  /** "google_routes" = distancia y tiempo de manejo reales de Google Maps (Routes API). */
+  source?: "google_routes" | "aproximado";
+  consultedAt?: string | null;
 };
+
+type DriveRoute = { ok: boolean; duration_seconds?: number; distance_meters?: number | null; consultado_at?: string | null } | null | undefined;
+
+/**
+ * Con la ruta real de Google (Routes API, manejo sin tráfico) se decide con la distancia por
+ * carretera de verdad; sin ruta se usa la aproximación de siempre (solo si cabe en 350 km).
+ */
+export function refineShortTrip(candidate: ShortTrip | null, route: DriveRoute, maxRoadKm = SHORT_TRIP_MAX_ROAD_KM): ShortTrip | null {
+  if (!candidate) return null;
+  const sec = route?.ok ? Number(route.duration_seconds) : NaN;
+  const meters = route?.ok ? Number(route.distance_meters) : NaN;
+  if (Number.isFinite(sec) && sec > 0 && Number.isFinite(meters) && meters > 0) {
+    const km = Math.round(meters / 1000);
+    if (km > maxRoadKm) return null;
+    return {
+      ...candidate,
+      approxRoadKm: km,
+      approxDriveHours: Math.round((sec / 3600) * 10) / 10,
+      source: "google_routes",
+      consultedAt: route?.consultado_at ?? null,
+    };
+  }
+  return candidate.approxRoadKm <= maxRoadKm ? { ...candidate, source: "aproximado", consultedAt: null } : null;
+}
 
 /** null si alguna ciudad no es conocida, si son la misma o si están a más de maxRoadKm. */
 export function detectShortTrip(origin: unknown, destination: unknown, maxRoadKm = SHORT_TRIP_MAX_ROAD_KM): ShortTrip | null {
@@ -219,7 +248,8 @@ export function shortTripPromptBlock(t: ShortTrip, prefs: TravelerPrefs = NO_PRE
     : prefs.comfort
       ? "ahorro = autobús de lujo, equilibrio = auto o traslado privado, premium = vuelo directo si conviene"
       : "ahorro = autobús, equilibrio = autobús de lujo o auto, premium = vuelo directo si conviene o auto/traslado privado";
-  return `TRAYECTO CORTO POR CARRETERA (${t.origin} → ${t.destination}, aprox. ${t.approxRoadKm} km; cifras aproximadas)
+  const real = t.source === "google_routes";
+  return `TRAYECTO CORTO POR CARRETERA (${t.origin} → ${t.destination}, ${real ? `${t.approxRoadKm} km y ~${h(g.car)} de manejo según Google Maps, sin tráfico` : `aprox. ${t.approxRoadKm} km; cifras aproximadas`})
 - Compara por TIEMPO PUERTA A PUERTA, precio, comodidad y lo que pidió el viajero. Referencias aproximadas: auto ~${h(g.car)}, autobús ~${h(g.bus)} (incluye terminal); un vuelo suma ~${h(FLIGHT_OVERHEAD_MIN)} de aeropuertos al tiempo de vuelo.
 - Prioriza vuelos DIRECTOS cuando tengan sentido. Las listas de vuelos ya vienen filtradas por el servidor: usa solo los que aparecen; si no queda ninguno, no propongas vuelos.
 - Las opciones terrestres (modo="autobus" o modo="auto") son ESTIMACIONES: fuente_precio="estimado", precio_min y precio_max (rango por persona, viaje redondo, en MXN) y precio_por_persona dentro de ese rango. No inventes horarios ni digas que es precio en vivo; en notas indica que el precio real se confirma en el buscador.
@@ -284,7 +314,9 @@ export function applyShortTripRules(vuelos: any[], t: ShortTrip, links: { bus: s
       tier,
       modo: "autobus",
       aerolinea: "Autobús o auto",
-      duracion: `Unas ${t.approxDriveHours} h por carretera (aprox.)`,
+      duracion: t.source === "google_routes"
+        ? `${t.approxDriveHours} h de manejo según Google Maps (sin tráfico)`
+        : `Unas ${t.approxDriveHours} h por carretera (aprox.)`,
       escalas: "Terrestre",
       precio_por_persona: 0,
       precio_min: null,

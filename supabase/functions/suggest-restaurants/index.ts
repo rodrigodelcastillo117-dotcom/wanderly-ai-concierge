@@ -1,15 +1,21 @@
-// suggest-restaurants — sugiere 4-6 restaurantes REALES y reconocidos por ciudad
+// suggest-restaurants — restaurantes REALES por ciudad para viajes que no los traen (típico de
+// imports de PDF). Antes los "sugería" un modelo de IA con rangos de precio sin fuente; ahora
+// salen de Google Places API (New): nombre, calificación y número de reseñas, nivel de precio,
+// horario, si acepta reservaciones, sitio web y link de Google Maps, con la fecha de consulta.
+// Si Google no responde se devuelve una lista vacía con el motivo: nunca se inventa.
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { aiFetch } from "../_shared/ai.ts";
-// para complementar viajes importados desde PDF que no traen restaurantes.
+import { googleTransportFor } from "../_shared/google-runtime.ts";
+import { googleErrorMessage } from "../_shared/google-maps.ts";
+import { suggestRestaurants } from "../_shared/google-restaurants.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -20,81 +26,16 @@ Deno.serve(async (req) => {
   if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
   try {
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY no configurada");
-    const { cities = [], travelers = 2 } = await req.json();
-    if (!Array.isArray(cities) || cities.length === 0) {
-      return new Response(JSON.stringify({ error: "cities[] requerido" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const { cities = [], travelers = 2, preferences = "" } = await req.json();
+    if (!Array.isArray(cities) || cities.length === 0) return json({ error: "cities[] requerido" }, 400);
+
+    const transport = googleTransportFor("suggest-restaurants", __user.id);
+    if (!transport) {
+      return json({ ok: false, restaurantes: [], disponible: false, motivo: googleErrorMessage("error") });
     }
-
-    const prompt = `Eres un concierge gastronómico. Para cada ciudad de la lista, sugiere 5 restaurantes REALES y reconocidos (que existen, con nombre exacto, mezcla de íconos locales y joyas modernas, ningún restaurante inventado). Devuelve JSON estricto:
-
-{
-  "restaurantes": [
-    {
-      "nombre": "Nombre real del restaurante",
-      "ciudad": "ciudad exacta como en la lista",
-      "cocina": "Tipo de cocina (Bistró francés, Mariscos griegos…)",
-      "rango_precio": "$ | $$ | $$$ | $$$$",
-      "por_que": "1-2 frases de por qué vale la pena para ${travelers} personas",
-      "tip": "Tip práctico (reservar X días antes, pedir Y, ir a hora Z)"
-    }
-  ]
-}
-
-Ciudades: ${cities.join(", ")}.
-NO inventes nombres. Si no estás 100% seguro de uno, omítelo.`;
-
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 45000);
-    const res = await aiFetch({
-      method: "POST",
-      signal: ctrl.signal,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
-      body: JSON.stringify({
-        model: "google/gemini-flash-latest",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-      }),
-    }).finally(() => clearTimeout(tid));
-
-    if (!res.ok) {
-      const t = await res.text();
-      return new Response(JSON.stringify({ error: `gateway ${res.status}`, raw: t }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content ?? "{}";
-    let parsed: any = {};
-    const tryParse = (s: string) => { try { return JSON.parse(s); } catch { return null; } };
-    // strip markdown fences
-    let cleaned = String(content)
-      .replace(/```json\s*/gi, "")
-      .replace(/```/g, "")
-      .trim();
-    parsed = tryParse(cleaned);
-    if (!parsed) {
-      // extract from first { to last }
-      const start = cleaned.indexOf("{");
-      const end = cleaned.lastIndexOf("}");
-      if (start !== -1 && end > start) {
-        let slice = cleaned.slice(start, end + 1)
-          .replace(/,\s*}/g, "}")
-          .replace(/,\s*]/g, "]")
-          .replace(/[\x00-\x1F\x7F]/g, " ");
-        parsed = tryParse(slice) ?? {};
-      } else {
-        parsed = {};
-      }
-    }
-    return new Response(JSON.stringify({ ok: true, restaurantes: parsed.restaurantes ?? [] }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json(await suggestRestaurants(transport, { cities, travelers, preferences }));
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("suggest-restaurants error:", (e as Error).message);
+    return json({ ok: false, restaurantes: [], disponible: false, motivo: googleErrorMessage("error") }, 500);
   }
 });

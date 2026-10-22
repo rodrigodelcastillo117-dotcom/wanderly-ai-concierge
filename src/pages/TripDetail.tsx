@@ -787,12 +787,14 @@ const TripDetail = () => {
                                 title={cleanName}
                                 price={r.rango_precio}
                                 actions={[
-                                  { label: "Reservar / Ver", href: googleMapsSearchLink(cleanName, city), primary: true },
+                                  // Con datos de Google Places: su sitio o su ficha exacta en Google Maps.
+                                  { label: r.reservable ? "Reservar / Ver" : "Ver en Google Maps", href: r.website || r.maps_url || googleMapsSearchLink(cleanName, city), primary: true },
                                   { label: "TheFork", href: theforkLink(city, cleanName),
                                     onClick: () => void logBookingClick({ tripId: trip.id, category: "restaurant", provider: "TheFork", title: cleanName, city, bookingUrl: theforkLink(city, cleanName) }) },
                                 ]}
                               >
                                 <p className="italic">{r.por_que}</p>
+                                <RestaurantFacts r={r} />
                               </ExpandableItemCard>
                             </div>
                           );
@@ -1191,3 +1193,28 @@ const HotelCard = ({ hotel, city, trip, active, onClick }: { hotel: any; city: s
 };
 
 export default TripDetail;
+
+/**
+ * Datos reales del restaurante cuando vienen de Google Places (calificación, reseñas, horario de
+ * hoy, reservaciones) con la fuente y la fecha de consulta. Si no vienen de Google, se dice que es
+ * una sugerencia sin verificar.
+ */
+function RestaurantFacts({ r }: { r: any }) {
+  if (r?.fuente === "google_places") {
+    const rating = typeof r.rating === "number" ? `${r.rating.toFixed(1)} ★${r.num_reviews ? ` (${Number(r.num_reviews).toLocaleString("es-MX")} reseñas)` : ""}` : null;
+    const at = r.consultado_at ? new Date(r.consultado_at) : null;
+    const when = at && Number.isFinite(at.getTime()) ? at.toLocaleDateString("es-MX", { day: "numeric", month: "short" }) : null;
+    return (
+      <div className="mt-2 space-y-0.5 text-xs text-muted-foreground not-italic">
+        {(rating || r.nivel_precio) && <p>{[rating, r.nivel_precio].filter(Boolean).join(" · ")}</p>}
+        {r.horario_hoy && <p>{r.horario_hoy}</p>}
+        {r.reservable === true && <p>Acepta reservaciones</p>}
+        <p>Datos de Google Maps{when ? ` · consultado el ${when}` : ""}</p>
+      </div>
+    );
+  }
+  if (r?.verificado === false) {
+    return <p className="mt-2 text-xs text-muted-foreground not-italic">Sugerencia sin verificar en Google Maps.</p>;
+  }
+  return null;
+}

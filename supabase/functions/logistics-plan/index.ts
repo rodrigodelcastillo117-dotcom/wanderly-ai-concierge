@@ -619,8 +619,9 @@ Entrega JSON con:
         : `(Sin datos en vivo de hoteles${live?.hotels?.error ? `. Motivo: ${live.hotels.error}` : ""} — estima con hoteles REALES y pon fuente_precio="estimado")`;
 
       const attrLive = live?.attractions?.ok === true && Array.isArray(live?.attractions?.results) && live.attractions.results.length > 0;
+      const attrSource = typeof live?.attractions?.source === "string" ? live.attractions.source : "tripadvisor";
       const attrBlock = attrLive
-        ? `DATOS EN VIVO — TRIPADVISOR (fuente="tripadvisor"; nombre y rating REALES, el precio sigue siendo estimación):\n` +
+        ? `DATOS EN VIVO — ${attrSource === "tripadvisor" ? "TRIPADVISOR" : "GOOGLE MAPS"} (fuente="${attrSource}"; nombre y rating REALES, el precio sigue siendo estimación):\n` +
           live.attractions.results.slice(0, 8).map((a: any, j: number) =>
             `${j + 1}. ${a.name}${a.rating ? ` — rating ${a.rating}/5 (${a.num_reviews ?? "?"} reseñas)` : ""}${a.ranking ? ` — ${a.ranking}` : ""}`
           ).join("\n")
@@ -649,7 +650,7 @@ Entrega JSON con:
   : `Si es Europa <800km incluye tren real. Si son islas griegas incluye ferry real y vuelo Aegean/Sky Express.`} fuente_precio="estimado" salvo que se indique lo contrario.
 - hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium). Si hay datos en vivo arriba, los 3 DEBEN salir de esa lista (el más barato = ahorro, uno intermedio = equilibrio, el más caro/mejor = premium), copiando nombre, precio y booking_url exactos con fuente_precio="serpapi".
 - restaurantes: 4-5 reales en ${city} acordes al estilo del usuario.
-- experiencias: 4-5 en ${city}; prioriza las de TripAdvisor arriba con fuente="tripadvisor" y su rating real.`;
+- experiencias: 4-5 en ${city}; prioriza las de la lista de arriba con fuente="${attrSource}" y su rating real.`;
 
       return callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema)
         .then((r) => ({ ...r, city, nights: cityNights, checkin: w.checkin, checkout: w.checkout }))
@@ -763,7 +764,7 @@ Entrega JSON con:
       }
 
       const attrLive = live?.attractions?.ok === true && Array.isArray(live?.attractions?.results) ? live.attractions.results : null;
-      const experiencias = labelExperiences(pd.experiencias, attrLive);
+      const experiencias = labelExperiences(pd.experiencias, attrLive, typeof live?.attractions?.source === "string" ? live.attractions.source : "tripadvisor");
 
       const arrival_options = (() => {
         const seen = new Set<string>();

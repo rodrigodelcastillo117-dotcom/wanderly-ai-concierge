@@ -1,0 +1,8 @@
+{
+  "_nota": "Errores con el formato documentado de las APIs de Google (nuevas: google.rpc.Status; anteriores: status/error_message).",
+  "disabled": { "error": { "code": 403, "message": "Places API (New) has not been used in project 123456 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/places.googleapis.com/overview?project=123456 then retry.", "status": "PERMISSION_DENIED", "details": [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "SERVICE_DISABLED", "domain": "googleapis.com", "metadata": { "service": "places.googleapis.com" } }] } },
+  "quota": { "error": { "code": 429, "message": "Quota exceeded for quota metric 'SearchTextRequest' and limit 'SearchTextRequest per minute'.", "status": "RESOURCE_EXHAUSTED" } },
+  "invalid_key": { "error": { "code": 400, "message": "API key not valid. Please pass a valid API key.", "status": "INVALID_ARGUMENT", "details": [{ "reason": "API_KEY_INVALID" }] } },
+  "legacy_disabled": { "status": "REQUEST_DENIED", "error_message": "This API project is not authorized to use this API.", "results": [] },
+  "legacy_over_limit": { "status": "OVER_QUERY_LIMIT", "error_message": "You have exceeded your daily request quota for this API.", "results": [] }
+}
