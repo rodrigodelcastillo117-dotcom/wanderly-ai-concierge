@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Mic, Send, Phone, Sparkles, Cloud, MapPin, Utensils, Car, Siren,
-  Plane, Luggage, Star, AlertTriangle, X, Crown, RefreshCw
+  Mic, Send, Sparkles, MapPin, Utensils, Car, Siren,
+  Plane, Luggage, Crown, RefreshCw
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ConciergeActions } from "@/components/ConciergeActions";
@@ -13,27 +13,32 @@ import { MembersOnlyPanel } from "@/components/MembersOnlyPanel";
 import { FixerButton } from "@/components/FixerButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { trackBookingClick } from "@/lib/trackBooking";
-import { ActionButton as AffiliateActionButton } from "@/components/ActionButton";
+import { RichCard, type ConciergeCard } from "@/components/concierge/ConciergeCards";
+import { IatoMemoryPanel } from "@/components/concierge/IatoMemoryPanel";
+import { TripContextSelector, type ContextTrip } from "@/components/concierge/TripContextSelector";
+import { resolveActiveTrip, tripLabel, type ActiveTripReason } from "@/lib/activeTrip";
+import { localISODate } from "@/lib/localDate";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
-
-type Card =
-  | { type: "restaurant"; title: string; subtitle?: string; image_prompt?: string; image_url?: string; rating?: number; cta_label: string; cta_action?: string; meta?: string; provider?: string }
-  | { type: "transport"; title: string; subtitle?: string; cta_label: string; cta_action?: string; meta?: string }
-  | { type: "alert"; title: string; body: string; cta_label?: string; cta_action?: string }
-  | { type: "luggage"; title: string; from: string; to: string; status: string; cta_label: string; cta_action?: string }
-  | { type: "jet"; title: string; route: string; price_usd: number; fbo: string; cta_label: string; cta_action?: string };
 
 type Msg = {
   id: string;
   role: "user" | "assistant";
   text: string;
-  cards?: Card[];
+  cards?: ConciergeCard[];
   ts: number;
+  /** Viaje sobre el que respondió el servidor y por qué (B-08). */
+  tripId?: string | null;
+  tripReason?: ActiveTripReason;
+  /** Con tripReason "ambiguous": viajes entre los que el usuario debe elegir. */
+  tripCandidates?: ContextTrip[];
+};
+
+const PIN_KEY = "iatos_concierge_trip";
+const browserTimeZone = () => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; }
 };
 
 type QuickAction = LiveAction | "flight" | "luggage";
@@ -88,7 +93,11 @@ const Concierge = () => {
   }, [godMode]);
   const [listening, setListening] = useState(false);
   
-  const [trip, setTrip] = useState<any>(null);
+  const [trips, setTrips] = useState<ContextTrip[]>([]);
+  // Viaje elegido por el usuario (profiles.active_trip_id). null = Iato decide.
+  const [pinnedId, setPinnedId] = useState<string | null>(() => {
+    try { return localStorage.getItem(PIN_KEY) || null; } catch { return null; }
+  });
   const [refreshTick, setRefreshTick] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [weather, setWeather] = useState<{ temp: number; place: string } | null>(null);
@@ -103,20 +112,42 @@ const Concierge = () => {
   }, [user]);
 
 
-  // Load active trip for header — auto-refresh every minute
+  // Viajes del usuario (propios y compartidos, vía RLS) y viaje fijado — auto-refresh cada minuto.
+  // Antes el encabezado mostraba el viaje creado más recientemente, aunque Iato hablara de otro.
   useEffect(() => {
     if (!user || !allowed) return;
     supabase.from("trips")
-      .select("destino, pais_destino, fecha_salida, fecha_regreso")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      .select("id, destino, pais_destino, fecha_salida, fecha_regreso, created_at")
+      .order("fecha_salida", { ascending: true })
+      .limit(50)
       .then(({ data }) => {
-        setTrip(data);
+        setTrips((data as ContextTrip[]) ?? []);
         setLastRefresh(new Date());
       });
+    supabase.from("profiles").select("active_trip_id").eq("id", user.id).maybeSingle()
+      .then(({ data, error }) => {
+        // Si la columna aún no existe (migración pendiente) se conserva la elección local.
+        if (!error && data) setPinnedId((data as any).active_trip_id ?? null);
+      });
   }, [user, allowed, refreshTick]);
+
+  const todayLocal = localISODate();
+  const tripContext = useMemo(
+    () => resolveActiveTrip(trips, { pinnedId, todayLocal }),
+    [trips, pinnedId, todayLocal],
+  );
+  const trip = tripContext.trip;
+
+  const pinTrip = async (id: string | null) => {
+    setPinnedId(id);
+    try { if (id) localStorage.setItem(PIN_KEY, id); else localStorage.removeItem(PIN_KEY); } catch { /* modo privado */ }
+    if (!user) return;
+    const { error } = await supabase.from("profiles").update({ active_trip_id: id }).eq("id", user.id);
+    if (error) {
+      console.warn("active_trip_id no guardado en el perfil", error.message);
+      if (error.code === "42501") toast.error("No tienes acceso a ese viaje");
+    }
+  };
 
   // Auto-refresh tick every 60s
   useEffect(() => {
@@ -178,7 +209,7 @@ const Concierge = () => {
     return "Noche disponible";
   }, []);
 
-  const sendText = async (text: string) => {
+  const sendText = async (text: string, opts: { tripId?: string | null } = {}) => {
     if (!text.trim() || sending) return;
     const userMsg: Msg = { id: crypto.randomUUID(), role: "user", text, ts: Date.now() };
     const next = [...messages, userMsg];
@@ -200,6 +231,9 @@ const Concierge = () => {
         body: {
           messages: next.filter(m => m.id !== "welcome").map(m => ({ role: m.role, content: m.text })),
           god_mode: godMode,
+          trip_id: opts.tripId !== undefined ? opts.tripId : pinnedId,
+          client_date: localISODate(),
+          tz: browserTimeZone(),
           context: {
             coords: currentCoords,
             place: weather?.place,
@@ -214,6 +248,9 @@ const Concierge = () => {
         text: data.text ?? "…",
         cards: Array.isArray(data.cards) ? data.cards : [],
         ts: Date.now(),
+        tripId: data._trip_id ?? null,
+        tripReason: data._trip_reason,
+        tripCandidates: Array.isArray(data._trip_candidates) ? data._trip_candidates : [],
       }]);
     } catch (e: any) {
       const msg = e?.message ?? "";
@@ -233,6 +270,14 @@ const Concierge = () => {
     }
   };
 
+
+  // El usuario eligió un viaje cuando Iato preguntó "¿a cuál te refieres?": se fija y se repite
+  // la última pregunta sobre ese viaje.
+  const chooseTripAndRetry = (id: string) => {
+    void pinTrip(id);
+    const lastQuestion = [...messages].reverse().find((m) => m.role === "user")?.text;
+    if (lastQuestion) void sendText(lastQuestion, { tripId: id });
+  };
 
   const toggleMic = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -288,12 +333,13 @@ const Concierge = () => {
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
                   {weather ? `${weather.place} · ${weather.temp}°C` : "Detectando tu ubicación real…"}
                 </span>
-                {trip?.destino && (
-                  <span className="flex items-center gap-1.5">
-                    <Plane className="w-3.5 h-3.5 text-primary" />
-                    Viaje activo: {trip.destino}{trip.pais_destino ? `, ${trip.pais_destino}` : ""}
-                  </span>
-                )}
+                <TripContextSelector
+                  trips={trips}
+                  todayLocal={todayLocal}
+                  pinnedId={pinnedId}
+                  resolved={tripContext}
+                  onChange={(id) => void pinTrip(id)}
+                />
                 <span className="hidden sm:inline">|</span>
                 <span>{localTimeContext}</span>
                 <span className="hidden sm:inline">|</span>
@@ -304,6 +350,12 @@ const Concierge = () => {
                 >
                   <RefreshCw className="w-3 h-3" /> Auto-refresh 60s
                 </button>
+                {user && (
+                  <>
+                    <span className="hidden sm:inline">|</span>
+                    <IatoMemoryPanel userId={user.id} trips={trips} />
+                  </>
+                )}
               </div>
 
             </div>
@@ -363,7 +415,7 @@ const Concierge = () => {
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
 
           {messages.map(m => (
-            <MessageBubble key={m.id} msg={m} />
+            <MessageBubble key={m.id} msg={m} trips={trips} onChooseTrip={chooseTripAndRetry} disabled={sending} />
           ))}
           {sending && (
             <div className="flex items-center gap-2 text-primary text-sm">
@@ -462,8 +514,11 @@ const Concierge = () => {
   );
 };
 
-const MessageBubble = ({ msg }: { msg: Msg }) => {
+const MessageBubble = ({ msg, trips, onChooseTrip, disabled }: {
+  msg: Msg; trips: ContextTrip[]; onChooseTrip: (id: string) => void; disabled?: boolean;
+}) => {
   const isUser = msg.role === "user";
+  const aboutTrip = !isUser && msg.tripId ? trips.find((t) => t.id === msg.tripId) : null;
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -479,232 +534,32 @@ const MessageBubble = ({ msg }: { msg: Msg }) => {
             {!isUser && (
               <div className="flex items-center gap-1.5 text-[10px] tracking-[0.3em] text-primary uppercase mb-1">
                 <Sparkles className="w-3 h-3" /> Concierge
+                {aboutTrip?.destino && (
+                  <span className="ml-2 normal-case tracking-normal text-muted-foreground">· sobre tu viaje a {aboutTrip.destino}</span>
+                )}
               </div>
             )}
             {msg.text}
           </div>
         )}
-        {msg.cards?.map((c, i) => <RichCard key={i} card={c} />)}
+        {!isUser && msg.tripReason === "ambiguous" && (msg.tripCandidates?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Elige el viaje">
+            {msg.tripCandidates!.map((t) => (
+              <button
+                key={t.id}
+                disabled={disabled}
+                onClick={() => onChooseTrip(t.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/40 text-xs hover:bg-primary/10 hover:border-primary transition disabled:opacity-40"
+              >
+                <Plane className="w-3.5 h-3.5 text-primary" /> {tripLabel(t)}
+              </button>
+            ))}
+          </div>
+        )}
+        {msg.cards?.map((c, i) => <RichCard key={i} card={c} tripId={msg.tripId ?? null} />)}
       </div>
     </motion.div>
   );
-};
-
-type CardStatus = "idle" | "loading" | "confirmed" | "error";
-
-const useConciergeAction = () => {
-  const [status, setStatus] = useState<CardStatus>("idle");
-  const run = async (payload: { type: string; title: string; payload?: any }) => {
-    setStatus("loading");
-    try {
-      const { data, error } = await supabase.functions.invoke("concierge-action", {
-        body: payload,
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setStatus("confirmed");
-      toast.success("Solicitud enviada", { description: payload.title });
-    } catch (e: any) {
-      setStatus("error");
-      toast.error(e?.message ?? "No pudimos procesar la solicitud");
-    }
-  };
-  return { status, run };
-};
-
-const ActionButton = ({
-  status, label, onClick, className = "",
-}: { status: CardStatus; label: string; onClick: () => void; className?: string }) => (
-  <Button
-    onClick={onClick}
-    disabled={status === "loading" || status === "confirmed"}
-    className={`bg-gradient-gold text-primary-foreground hover:opacity-90 ${className}`}
-  >
-    {status === "loading" && "Procesando…"}
-    {status === "confirmed" && "✓ Enviado"}
-    {status === "idle" && label}
-    {status === "error" && "Reintentar"}
-  </Button>
-);
-
-const RichCard = ({ card }: { card: Card }) => {
-  const { user } = useAuth();
-  const { status, run } = useConciergeAction();
-
-  if (card.type === "alert") {
-    return (
-      <motion.div
-        animate={{ boxShadow: ["0 0 0 hsl(var(--primary)/0)", "0 0 24px hsl(var(--primary)/0.35)", "0 0 0 hsl(var(--primary)/0)"] }}
-        transition={{ duration: 3, repeat: Infinity }}
-        className="rounded-2xl border border-primary/60 bg-primary/5 p-4"
-      >
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-4 h-4 text-primary" />
-          </div>
-          <div className="flex-1">
-            <p className="font-display text-base mb-1">{card.title}</p>
-            <p className="text-sm text-muted-foreground mb-3">{card.body}</p>
-            {card.cta_label && (
-              <ActionButton
-                status={status}
-                label={card.cta_label}
-                onClick={() => run({ type: "alert", title: card.title, payload: { body: card.body } })}
-                className="h-9 px-3 text-sm"
-              />
-            )}
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
-
-  if (card.type === "restaurant") {
-    return (
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="h-32 bg-muted flex items-center justify-center relative overflow-hidden">
-          {card.image_url ? (
-            <img src={card.image_url} alt={card.title} className="h-full w-full object-cover" loading="lazy" />
-          ) : (
-            <Utensils className="w-10 h-10 text-primary/40" />
-          )}
-          {card.rating && (
-            <span className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 backdrop-blur text-xs">
-              <Star className="w-3 h-3 fill-primary text-primary" /> {card.rating.toFixed(1)}
-            </span>
-          )}
-        </div>
-        <div className="p-4">
-          <h4 className="font-display text-lg leading-tight">{card.title}</h4>
-          {card.subtitle && <p className="text-sm text-muted-foreground mb-1">{card.subtitle}</p>}
-          {card.meta && <p className="text-xs text-primary mb-3">{card.meta}</p>}
-          <ActionButton
-            status={status}
-            label={card.cta_label}
-            onClick={() => {
-              if (card.cta_action) {
-                trackBookingClick({
-                  category: "restaurant",
-                  provider: card.provider ?? "Concierge",
-                  title: card.title,
-                  subtitle: card.subtitle,
-                  bookingUrl: card.cta_action,
-                  imageUrl: card.image_url,
-                });
-                return;
-              }
-              run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta, rating: card.rating } });
-            }}
-            className="w-full gold-glow"
-          />
-        </div>
-      </div>
-    );
-  }
-  if (card.type === "transport") {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-            <Car className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h4 className="font-display text-base leading-tight">{card.title}</h4>
-            {card.subtitle && <p className="text-xs text-muted-foreground">{card.subtitle}</p>}
-          </div>
-        </div>
-        {card.meta && <p className="text-xs text-muted-foreground mb-3">{card.meta}</p>}
-        <AffiliateActionButton
-          type="welcome_pickups_transfer"
-          userId={user?.id}
-          label={card.cta_label}
-          payload={{
-            origen: card.subtitle,
-            destino: card.title,
-            ciudad: card.title,
-          }}
-          className="h-10 text-sm"
-        />
-      </div>
-    );
-  }
-
-
-
-  if (card.type === "luggage") {
-    return (
-      <div className="rounded-2xl border border-primary/30 bg-card overflow-hidden">
-        <div className="relative h-28 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 flex items-center px-5">
-          <div className="absolute inset-0 opacity-30" style={{
-            backgroundImage: "radial-gradient(circle at 10% 50%, hsl(var(--primary)/0.4), transparent 30%), radial-gradient(circle at 90% 50%, hsl(var(--primary)/0.4), transparent 30%)",
-          }} />
-          <div className="relative flex items-center justify-between w-full">
-            <div className="text-xs text-muted-foreground">
-              <p className="uppercase tracking-widest text-[10px] text-primary">Origen</p>
-              <p>{card.from}</p>
-            </div>
-            <div className="flex-1 mx-3 relative h-px bg-primary/30">
-              <motion.div
-                animate={{ left: ["0%", "100%"] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-                className="absolute -top-2 w-4 h-4 rounded-full bg-primary"
-                style={{ boxShadow: "0 0 12px hsl(var(--primary))" }}
-              />
-            </div>
-            <div className="text-xs text-muted-foreground text-right">
-              <p className="uppercase tracking-widest text-[10px] text-primary">Destino</p>
-              <p>{card.to}</p>
-            </div>
-          </div>
-        </div>
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Luggage className="w-4 h-4 text-primary" />
-            <h4 className="font-display text-base">{card.title}</h4>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">{card.status}</p>
-          <ActionButton
-            status={status}
-            label={card.cta_label}
-            onClick={() => run({ type: "pickup", title: card.title, payload: { from: card.from, to: card.to, status: card.status } })}
-            className="w-full"
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (card.type === "jet") {
-    return (
-      <div className="rounded-2xl border border-primary/50 bg-gradient-to-br from-stone-950 via-stone-900 to-black overflow-hidden gold-glow">
-        <div className="relative h-32 flex items-center justify-center overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
-          <Plane className="w-16 h-16 text-primary relative" />
-          <span className="absolute top-3 left-3 px-2 py-1 rounded-full bg-primary text-primary-foreground text-[10px] tracking-widest uppercase font-medium">
-            Empty Leg
-          </span>
-        </div>
-        <div className="p-4">
-          <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1">Upgrade exclusivo</p>
-          <h4 className="font-display text-lg mb-1">{card.title}</h4>
-          <p className="text-sm text-muted-foreground">{card.route}</p>
-          <p className="text-xs text-muted-foreground mb-3">FBO: {card.fbo}</p>
-          <div className="flex items-end justify-between mb-3">
-            <span className="text-xs text-muted-foreground">Costo adicional</span>
-            <span className="font-display text-2xl text-primary">+${card.price_usd.toLocaleString()} USD</span>
-          </div>
-          <ActionButton
-            status={status}
-            label={card.cta_label}
-            onClick={() => run({ type: "jet", title: card.title, payload: { route: card.route, fbo: card.fbo, price_usd: card.price_usd } })}
-            className="w-full gold-glow"
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return null;
 };
 
 export default Concierge;

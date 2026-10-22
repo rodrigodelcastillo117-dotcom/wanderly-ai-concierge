@@ -158,20 +158,33 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
       content: t.content ?? t.text ?? "",
     }));
 
-    // 1) Log en BD (no bloquea)
-    void supabase
-      .from("fixer_escalations")
-      .insert({
-        user_id: user.id,
-        trip_id: trip?.id ?? null,
-        motivo: motivo.trim() || null,
-        urgencia,
-        contexto_chat: contexto,
-        status: "email_enviado",
-      })
-      .then(({ error }) => {
-        if (error) console.error("[FixerButton] log error:", error);
-      });
+    // 1) Registro en BD como 'pendiente'. Antes se guardaba 'email_enviado' ANTES de intentar el
+    //    envío (y ese valor ni pasaba el CHECK de la tabla, así que no quedaba nada). Ahora el
+    //    estado final se escribe con el resultado real del correo.
+    let escalationId: string | null = null;
+    try {
+      const { data: row, error } = await supabase
+        .from("fixer_escalations")
+        .insert({
+          user_id: user.id,
+          trip_id: trip?.id ?? null,
+          motivo: motivo.trim() || null,
+          urgencia,
+          contexto_chat: contexto,
+          status: "pendiente",
+        })
+        .select("id")
+        .single();
+      if (error) console.error("[FixerButton] log error:", error);
+      escalationId = (row as { id?: string } | null)?.id ?? null;
+    } catch (err) {
+      console.error("[FixerButton] log error:", err);
+    }
+    const saveOutcome = (status: "email_enviado" | "email_fallido") => {
+      if (!escalationId) return;
+      void supabase.from("fixer_escalations").update({ status }).eq("id", escalationId)
+        .then(({ error }) => { if (error) console.error("[FixerButton] status error:", error); });
+    };
 
     // 2) Edge function (Resend)
     try {
@@ -198,15 +211,18 @@ export const FixerButton = ({ trip, ultimosTurnos = [], className = "", variant 
 
       if (error || (data && (data as any).error)) {
         console.warn("Resend fallo, usando mailto fallback:", error || data);
+        saveOutcome("email_fallido");
         toast.warning("Abrimos tu cliente de email como backup");
         abrirMailtoFallback(nombre);
       } else {
+        saveOutcome("email_enviado");
         toast.success("Tu Fixer recibió tu solicitud", {
           description: "Te contactará por email o WhatsApp en minutos.",
         });
       }
     } catch (err) {
       console.error("Submit error:", err);
+      saveOutcome("email_fallido");
       toast.warning("Abrimos tu cliente de email como backup");
       abrirMailtoFallback(nombre);
     } finally {
