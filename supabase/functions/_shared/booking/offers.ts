@@ -5,9 +5,11 @@
 import { checkAllowlisted, unwrapAffiliate } from "./allowlist.ts";
 import { countryIso as countryIsoName, whatsappNumberFromUrl } from "./channels.ts";
 import {
-  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, EVIDENCE, getYourGuideSearchUrl, isIsoDate,
-  openTableSearchUrl, parseAviasalesSearch, parseBookingSearch, roomsForAdults, viatorSearchUrl,
+  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, EVIDENCE, getYourGuideSearchUrl, googleFlightsSearchUrl, isIsoDate,
+  openTableSearchUrl, parseAviasalesSearch, parseBookingSearch, resyWithDate, roomsForAdults, viatorSearchUrl,
 } from "./links.ts";
+import { airlineCode } from "../airlines.ts";
+import { TP_PUBLIC_MARKER } from "../tp-params.ts";
 import type { RequestLang } from "./messages.ts";
 import { hotelPriceRooms } from "../rooms.ts";
 import { langForCountry } from "./messages.ts";
@@ -135,6 +137,15 @@ export function offerFromFlightResult(r: FlightResultLike, meta: FlightSearchMet
     searches.push({ url: meta.google_flights_url, trust: "provider_api", evidence: EVIDENCE.GOOGLE_FLIGHTS_SERP_URL,
       preserves: { product: false, dates: true, travelers: true, room_or_fare: false }, verified_at: checkedAt, provider_label: "Google Flights" });
   }
+  // Sin la búsqueda de SerpApi: Google Flights armado por IATOS con ruta, fechas, pasajeros y la
+  // aerolínea de este resultado como filtro (EV-GFLIGHTS-TFS).
+  const gf = !searches.length && depart
+    ? googleFlightsSearchUrl({ origin, destination: dest, depart, ret, adults: travelers, airline: airlineCode(r.airline) })
+    : null;
+  if (gf) {
+    searches.push({ url: gf, trust: "builder", evidence: EVIDENCE.GOOGLE_FLIGHTS_TFS,
+      preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false }, provider_label: "Google Flights" });
+  }
   const av = depart ? aviasalesSearchUrl({ origin, destination: dest, depart, ret, adults: travelers }) : null;
   if (av) {
     searches.push({ url: av, trust: "builder", evidence: EVIDENCE.AVIASALES_SEARCH,
@@ -203,6 +214,14 @@ export function flightResultFromSerp(item: any, travelers: number): FlightResult
   };
 }
 
+/** Ruta (IATA) del enlace de Aviasales que guardó la cotización, con las fechas y viajeros del viaje. */
+function parsedRoute(raw: string | null, depart: string | null, ret: string | null, adults: number) {
+  if (!raw) return null;
+  const ok = checkAllowlisted(raw);
+  const p = ok.ok ? parseAviasalesSearch(unwrapAffiliate(ok.url)) : null;
+  return p ? { origin: p.origin, destination: p.destination, depart, return_date: ret, adults } : null;
+}
+
 /** Opción de vuelo guardada en el viaje (trips.vuelos_json, escrita por analizar-viaje). */
 export function offerFromTripFlight(v: any, ctx: OfferContext & { city?: string | null; index?: number }): BookingOffer {
   const trip = ctx.trip ?? {};
@@ -226,7 +245,12 @@ export function offerFromTripFlight(v: any, ctx: OfferContext & { city?: string 
       // El enlace lo copió la IA de una búsqueda: si sus fechas o pasajeros no son los del viaje
       // (p. ej. el usuario cambió fechas), se arma la búsqueda correcta con los mismos aeropuertos.
       const want = { d: `${depart.slice(8, 10)}${depart.slice(5, 7)}`, r: ret ? `${ret.slice(8, 10)}${ret.slice(5, 7)}` : null };
-      if (parsed.depart !== want.d || (parsed.ret ?? null) !== want.r || parsed.adults !== Math.min(9, travelers)) {
+      // Primero Google Flights con la misma ruta, las fechas y pasajeros del viaje y SOLO la aerolínea
+      // cotizada (EV-GFLIGHTS-TFS): es lo más cercano al vuelo de la cotización que se puede abrir.
+      const gf = googleFlightsSearchUrl({ origin: parsed.origin, destination: parsed.destination, depart, ret, adults: travelers, airline: airlineCode(v?.aerolinea) });
+      if (gf && !ground) searches.push({ url: gf, trust: "builder", evidence: EVIDENCE.GOOGLE_FLIGHTS_TFS, provider_label: "Google Flights",
+        preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false } });
+      if (parsed.depart !== want.d || (parsed.ret ?? null) !== want.r || parsed.adults !== Math.min(9, travelers) || parsed.children !== 0) {
         rejected.push({ url: raw, reason: "fechas_o_viajeros_distintos_al_viaje" });
         const rebuilt = aviasalesSearchUrl({ origin: parsed.origin, destination: parsed.destination, depart, ret, adults: travelers });
         if (rebuilt) searches.push({ url: rebuilt, trust: "builder", evidence: EVIDENCE.AVIASALES_SEARCH, preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false } });
@@ -235,6 +259,10 @@ export function offerFromTripFlight(v: any, ctx: OfferContext & { city?: string 
       }
     } else if (ok.provider?.kind === "airline") {
       website = { url: ok.url, trust: "ai", evidence: EVIDENCE.AIRLINE_HOME, provider_label: ok.provider.label };
+    } else if (ground && ok.provider?.kind === "maps") {
+      // Trayecto por carretera: ruta de Google Maps (en auto o en transporte público) con origen y destino.
+      searches.push({ url: ok.url, trust: "builder", evidence: EVIDENCE.MAPS_SEARCH, provider_label: "Google Maps",
+        preserves: { product: false, dates: false, travelers: false, room_or_fare: false } });
     } else if (ok.provider?.kind === "bus" || ok.provider?.provider === "travelpayouts" || ok.provider?.kind === "metasearch") {
       searches.push({ url: ok.url, trust: "ai", evidence: ground ? EVIDENCE.BUS_SEARCH : EVIDENCE.AVIASALES_TP_LINK,
         preserves: { product: false, dates: false, travelers: false, room_or_fare: false } });
@@ -272,7 +300,8 @@ export function offerFromTripFlight(v: any, ctx: OfferContext & { city?: string 
     verification_status: est ? "estimated" : trip.quote_needs_update ? "unverified" : "source_verified",
     price_is_estimate: est,
     recheckable: false,
-    details: { tier: v?.tier ?? null, stale_quote: !!trip.quote_needs_update, ground },
+    details: { tier: v?.tier ?? null, stale_quote: !!trip.quote_needs_update, ground, airline_code: airlineCode(v?.aerolinea),
+      search: parsedRoute(raw, depart, ret, travelers) },
   }, input, rejected);
 }
 
@@ -461,7 +490,15 @@ export function offerFromVenue(
   const country = (v.country ?? ctx.country ?? null) || null;
   const rejected: Array<{ url: string; reason: string }> = [];
   const vin = venueInputs(venue);
-  const official = [...(vin.official_booking ?? [])];
+  // Resy acepta fecha y personas en la URL de la página del lugar (EV-RESY-DATE); la hora no.
+  const reqDate = ctx.draft?.date ?? null;
+  const reqSeats = ctx.draft?.party_size ?? null;
+  const official = (vin.official_booking ?? []).map((c) => {
+    if (!c.url) return c;
+    const withDate = resyWithDate(c.url, reqDate, reqSeats);
+    return withDate === c.url ? c : { ...c, url: withDate, evidence: EVIDENCE.RESY_VENUE_DATE,
+      preserves: { ...c.preserves, dates: isIsoDate(reqDate), travelers: !!reqSeats } };
+  });
   const searches: LinkCandidate[] = [];
   // Enlace escrito por la IA (cta_action): solo si es un sistema de reservas permitido Y su ruta
   // nombra a este lugar (evita mandar al restaurante equivocado).
@@ -478,9 +515,12 @@ export function offerFromVenue(
     const ot = openTableSearchUrl(city ?? "", name);
     if (ot) searches.push({ url: ot, trust: "builder", evidence: EVIDENCE.OPENTABLE_SEARCH, preserves: { product: false, dates: false, travelers: false, room_or_fare: false } });
   } else if (product !== "restaurant" && official.length === 0) {
-    const gyg = getYourGuideSearchUrl(city ?? "", name);
+    // Con las fechas del viaje: GetYourGuide filtra por ese rango (date_from/date_to).
+    const tripFrom = isIsoDate(ctx.trip?.fecha_salida) ? ctx.trip!.fecha_salida! : null;
+    const tripTo = isIsoDate(ctx.trip?.fecha_regreso) ? ctx.trip!.fecha_regreso! : null;
+    const gyg = getYourGuideSearchUrl(city ?? "", name, TP_PUBLIC_MARKER, { from: tripFrom, to: tripTo });
     const via = viatorSearchUrl(city ?? "", name);
-    if (gyg) searches.push({ url: gyg, trust: "builder", evidence: EVIDENCE.TOURS_SEARCH, provider_label: "GetYourGuide", preserves: { product: false, dates: false, travelers: false, room_or_fare: false } });
+    if (gyg) searches.push({ url: gyg, trust: "builder", evidence: EVIDENCE.TOURS_SEARCH, provider_label: "GetYourGuide", preserves: { product: false, dates: !!(tripFrom && tripTo), travelers: false, room_or_fare: false } });
     if (via) searches.push({ url: via, trust: "builder", evidence: EVIDENCE.TOURS_SEARCH, provider_label: "Viator", preserves: { product: false, dates: false, travelers: false, room_or_fare: false } });
   }
   const lang: RequestLang = langForCountry(country);

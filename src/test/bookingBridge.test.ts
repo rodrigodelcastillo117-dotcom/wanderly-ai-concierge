@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { checkAllowlisted, checkTrustedSource, looksLikeBrandImpersonation, processorLabel } from "../../supabase/functions/_shared/booking/allowlist";
 import {
-  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, mapsListingUrl, parseAviasalesSearch, parseBookingSearch,
+  aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, mapsListingUrl, parseAviasalesSearch, parseBookingSearch, parseGoogleFlightsSearch,
 } from "../../supabase/functions/_shared/booking/links";
 import {
   containsCardNumber, countryIso, mailtoLink, normalizePhone, smsLink, telLink, whatsappLink, whatsappNumberFromUrl,
@@ -67,7 +67,7 @@ describe("constructores de enlaces documentados", () => {
   it("Aviasales: mismo formato que el ejemplo de Travelpayouts (/search/MAD2807BCN26081)", () => {
     const u = aviasalesSearchUrl({ origin: "MAD", destination: "BCN", depart: "2023-07-28", ret: "2023-08-26", adults: 1 }, "533299");
     expect(u).toBe("https://www.aviasales.com/search/MAD2807BCN26081?marker=533299");
-    expect(parseAviasalesSearch(u!)).toEqual({ origin: "MAD", destination: "BCN", depart: "2807", ret: "2608", adults: 1 });
+    expect(parseAviasalesSearch(u!)).toEqual({ origin: "MAD", destination: "BCN", depart: "2807", ret: "2608", adults: 1, children: 0 });
     expect(aviasalesSearchUrl({ origin: "MEX", destination: "MEX", depart: "2026-12-05", adults: 1 })).toBeNull();
     expect(aviasalesSearchUrl({ origin: "MEX", destination: "MAD", depart: "2026-02-30", adults: 1 })).toBeNull();
     expect(aviasalesFromTpLink("/search/MAD2807BCN26081?t=IB169")).toBe("https://www.aviasales.com/search/MAD2807BCN26081?t=IB169&marker=533299");
@@ -223,8 +223,10 @@ describe("adaptadores sobre lo que IATOS ya tiene", () => {
     const v = { aerolinea: "Iberia", booking_link: "https://www.aviasales.com/search/MEX0111MAD08111?marker=533299", fuente_precio: "travelpayouts", precio_por_persona: 21000 };
     const o = offerFromTripFlight(v, { trip: TRIP, now: NOW });
     expect(o.rejected.map((x) => x.reason)).toContain("fechas_o_viajeros_distintos_al_viaje");
-    const s = o.actions.find((a) => a.kind === "equivalent_search")!;
-    expect(s.url).toBe("https://www.aviasales.com/search/MEX0512MAD12122?marker=533299");
+    const [gf, av] = o.actions.filter((a) => a.kind === "equivalent_search");
+    // Primero Google Flights con la ruta del enlace, las fechas y viajeros del viaje y solo Iberia (IB).
+    expect(parseGoogleFlightsSearch(gf.url!)).toEqual({ origin: "MEX", destination: "MAD", depart: "2026-12-05", ret: "2026-12-12", adults: 2, children: 0, airlines: ["IB"], one_way: false });
+    expect(av.url).toBe("https://www.aviasales.com/search/MEX0512MAD12122?marker=533299");
     expect(o.price).toBe(42000);
     expect(o.booking_mode).toBe("PROVIDER_SEARCH");
   });
