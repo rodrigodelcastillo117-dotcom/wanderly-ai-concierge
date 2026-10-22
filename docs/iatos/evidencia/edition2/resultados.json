@@ -1,5 +1,5 @@
 {
- "when": "2026-10-22T18:41:37.348Z",
+ "when": "2026-10-22T18:57:30.252Z",
  "base": "http://127.0.0.1:8095",
  "db": "edi_e2e",
  "real": "Postgres local con todas las migraciones + siembra Nº 01 + corrección 20261025110000; RPC y tablas con RLS vía pgrest-shim; sesión Privé real (prive_unlock) atada a auth.sessions; build de producción + Service Worker + setOffline de Chromium",
@@ -516,7 +516,7 @@
    "file": "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/edition2/dl/390-the-private-edition-01-flight-es.pdf",
    "pages": 23,
    "images": 12,
-   "bytes": 3742727,
+   "bytes": 3742725,
    "guide": true
   },
   {
@@ -524,7 +524,7 @@
    "file": "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/edition2/dl/1440-the-private-edition-01-flight-es.pdf",
    "pages": 23,
    "images": 12,
-   "bytes": 3742727,
+   "bytes": 3742725,
    "guide": true
   },
   {
@@ -532,7 +532,7 @@
    "file": "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/edition2/dl/android-the-private-edition-01-flight-es.pdf",
    "pages": 23,
    "images": 12,
-   "bytes": 3742726,
+   "bytes": 3742727,
    "guide": true
   }
  ],
@@ -565,10 +565,10 @@
   "GET subscriptions": 20,
   "GET ai_user_preferences": 22,
   "GET admins": 1,
+  "HEAD referrals": 1,
   "GET avatar_souvenirs": 1,
   "GET avatar_profiles": 2,
   "GET travel_moments": 1,
-  "HEAD referrals": 1,
   "GET vault_items": 1,
   "GET vault_files": 1,
   "GET travel_profiles": 1,
