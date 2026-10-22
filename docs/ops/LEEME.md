@@ -106,3 +106,73 @@ Reglas (migración `20261022130000_pay_stripe_sync_and_atomic_quota.sql`):
   (`apply_comp_grants_now` responde "NO aplicado"). Para dejar de cobrarle, cancela su
   suscripción en el dashboard de Stripe; cuando termine, el webhook la deja como cortesía.
 - Stripe nunca le quita la cortesía a una fila `comped`.
+
+### Quitar la cortesía a alguien
+
+Quitar el correo de `comp_grants` a mano **no** le quita el PRO: la fila `comped` no vence. Usa
+`revoke_comp` (migración `20261022141950_sec2_stripe_refunds_and_revoke_comp.sql`). Nada la llama
+sola: solo se revoca cuando tú la ejecutas.
+
+```sql
+SELECT public.revoke_comp('correo@ejemplo.com');
+-- {"email": "correo@ejemplo.com", "grant_removed": true, "accounts_revoked": 1}
+```
+
+- Borra el correo de la lista (ya no se vuelve a aplicar si se registra de nuevo).
+- Las cuentas con ese correo en `comped` pasan a `canceled` desde ese momento (plan gratis).
+- No toca suscripciones pagadas: si esa persona además paga en Stripe, el siguiente evento de
+  Stripe vuelve a escribir su estado real.
+- `accounts_revoked: 0` con `grant_removed: true` = estaba en la lista pero no tenía cuenta con
+  cortesía (por ejemplo, nunca confirmó su correo).
+
+## Contraseña de "Members"
+
+La contraseña ya no está en el código (la anterior quedó expuesta en el bundle y en el historial de
+git, así que **hay que elegir una nueva**). Se guarda solo su hash (migración
+`20261022141700_sec2_members_gate.sql`). Mientras no la configures, la pantalla de contraseña dice
+"El acceso de miembros aún no está disponible"; quien ya había desbloqueado conserva su acceso.
+
+```sql
+-- Mínimo 8 caracteres; no distingue mayúsculas ni espacios al inicio/fin.
+SELECT public.set_members_password('<la-nueva-contraseña>');
+```
+
+Para cambiarla, vuelve a correr lo mismo con la nueva. Cada persona tiene 10 intentos por hora.
+
+## Reembolsos y disputas de Stripe
+
+`stripe-webhook` maneja `charge.refunded` y `charge.dispute.created` (en el dashboard de Stripe →
+Developers → Webhooks, agrega esos dos eventos al endpoint). Ninguno da PRO.
+
+- Reembolso **total** de la última factura: la suscripción queda "no renovar" en Stripe y en la base
+  (`cancel_at_period_end`); el acceso dura hasta el fin del periodo pagado.
+- Reembolso parcial, de una factura anterior, o disputa: solo se registra.
+
+Todo queda en `stripe_payment_events` (sin datos personales):
+
+```sql
+SELECT event_created, type, action, charge_id, subscription_id, amount, amount_refunded, dispute_reason
+FROM public.stripe_payment_events ORDER BY event_created DESC LIMIT 50;
+```
+
+Una disputa no quita el acceso sola: revísala en Stripe y, si procede, cancela la suscripción ahí.
+
+## Revisiones de seguridad después de aplicar las migraciones `2026102214*`
+
+1. **Códigos de invitación duplicados.** La migración `20261022141200_sec2_profiles_sensitive_columns.sql`
+   crea un índice único en `invite_code` solo si no hay duplicados (si los hay, deja un NOTICE).
+   Revisa:
+   ```sql
+   SELECT upper(invite_code), count(*) FROM public.profiles
+   WHERE invite_code IS NOT NULL GROUP BY 1 HAVING count(*) > 1;
+   ```
+   Si sale algo, regenera el código de los repetidos (`UPDATE public.profiles SET invite_code =
+   public.gen_invite_code() WHERE id = '<id>'`) y vuelve a correr la migración.
+2. **IP real en el límite por IP.** El límite por IP ya no usa el primer `X-Forwarded-For` (lo escribe
+   el cliente) sino `cf-connecting-ip`, luego `x-real-ip` y luego el **último** `X-Forwarded-For`
+   (`supabase/functions/_shared/rate-limit-core.ts`). Para confirmarlo en vivo, manda a cualquier
+   función una petición con el encabezado `X-Forwarded-For: 1.2.3.4` y revisa en
+   `SELECT subject FROM public.rate_limits ORDER BY created_at DESC LIMIT 5;` que la IP guardada
+   **no** sea `1.2.3.4`.
+3. **Límites de uploads.** Revisa en Storage → cada bucket (`recibos`, `journal-photos`,
+   `travel-moments`) que diga 10 MB y la lista de tipos (imágenes; PDF solo en `recibos`).
