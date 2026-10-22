@@ -22,7 +22,7 @@ import marrakech from "@/assets/destination-marrakech.jpg";
 import patagonia from "@/assets/destination-patagonia.jpg";
 import tulum from "@/assets/destination-tulum.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
-import { localISODate } from "@/lib/localDate";
+import { daysFromToday, formatLocalDate, localISODate } from "@/lib/localDate";
 import { convert, fetchFxTable, fxLabel } from "@/lib/fx";
 
 
@@ -501,7 +501,15 @@ const DashboardHome = () => {
             ) : (
               <div className="space-y-2.5 mb-5">
                 {trips.map((t) => {
-                  const days = Math.max(0, Math.ceil((new Date(t.fecha_salida).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                  // Días de calendario locales (new Date("YYYY-MM-DD") es UTC y corría un día).
+                  // Un viaje en curso o pasado ya no dice "EN 0D".
+                  const days = daysFromToday(t.fecha_salida);
+                  const endDays = daysFromToday(t.fecha_regreso ?? t.fecha_salida);
+                  const badge = days == null ? "SIN FECHA"
+                    : days > 0 ? `EN ${days}D`
+                    : days === 0 ? "HOY"
+                    : endDays != null && endDays >= 0 ? "EN CURSO"
+                    : "TERMINADO";
                   return (
                     <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-3 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group min-w-0">
                       <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden bg-surface flex-shrink-0 ring-1 ring-white/[0.06]">
@@ -514,11 +522,11 @@ const DashboardHome = () => {
                       <div className="flex-1 min-w-0">
                         <p className="font-display text-sm md:text-base truncate">{t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
                         <p className="text-[11px] text-muted-foreground tracking-wide">
-                          {t.fecha_salida ? new Date(t.fecha_salida).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                          {formatLocalDate(t.fecha_salida, { day: "numeric", month: "short", year: "numeric" })}
                         </p>
                       </div>
                       <span className="text-[10px] px-2 md:px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap tracking-wider shrink-0">
-                        EN {days}D
+                        {badge}
                       </span>
                     </Link>
                   );
