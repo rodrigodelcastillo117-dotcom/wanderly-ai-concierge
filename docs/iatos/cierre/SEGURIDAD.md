@@ -170,6 +170,57 @@ Revisado a mano, sin hallazgos:
   - Se conservan `stripe_payment_events` y `deletion_requests` por obligación contable (DB2).
 - **Avisos.** Un cliente solo inserta avisos para sí mismo (`notifications` INSERT `auth.uid() = user_id`). Los avisos a otras personas salen de RPC con amistad o viaje compartido, o de `share-trip-notify` con plantilla fija.
 
+## Wave2: objetos nuevos de privekey, privevalor, edition y avatar (integración final)
+
+Rama `claude/cierre-wave2`. Las guardas SG5 y SG7 marcaron 46 funciones y 4 políticas nuevas. Revisé cada una en su
+migración y en la base local, no solo las agregué a la lista. **No encontré huecos: 0 hallazgos nuevos y ninguna
+migración que corregir.**
+
+Todas las funciones fijan `search_path = public` (SG2), ninguna la ejecuta `anon` y ninguna recibe un `user_id` del cliente.
+
+| Grupo (migración) | Funciones | Primera comprobación | Escrituras | Viaje | Veredicto |
+|---|---|---|---|---|---|
+| Privé Valor: drops, radar, valor, insider, pasaporte (`20261024100000`-`100500`) | prive_drop, prive_drops, prive_radar, prive_radar_save, prive_radar_delete, prive_value_save, prive_value_delete, prive_value_summary, prive_value_track, prive_insider, prive_insider_index, prive_tip_save, prive_tip_add_to_trip, prive_before_you_go, prive_passport, prive_passport_save, prive_passport_delete | `prive_require(_ps)` | siempre `user_id = v_uid`; los `*_delete` y las ediciones filtran `id AND user_id = v_uid`; el radar solo enlaza drops publicables; el valor "potencial" exige un beneficio propio | `prive_tip_add_to_trip`, `prive_radar_save`, `prive_value_save`, `prive_passport_save` y `prive_before_you_go` exigen `has_trip_access`; `prive_member_trips` lista solo viajes con acceso | OK (SN2) |
+| Privé Key (`20261024310000_privekey_plans`) | prive_key_plans, prive_key_save, prive_key_archive, prive_key_add_to_trip, prive_key_taste_save, prive_key_track | `prive_require(_ps)` | planes solo del miembro; pasos solo de experiencias publicables; límite 30/h y 50 planes activos | `prive_key_add_to_trip` exige `has_trip_access` y además pasa por `prive_add_to_trip`, que lo vuelve a comprobar; `trip_label` solo con acceso | OK (SN2) |
+| Vista previa (privevalor) | prive_preview_track | `auth.uid()` (es para PRO sin Privé) | dos eventos fijos, 30/min, sin datos de catálogo | — | OK |
+| Métricas de equipo | admin_prive_key_metrics, admin_prive_product_metrics | `auth.uid()` en `admins` | solo lectura agregada | — | OK (SN1) |
+| IATOS Edition, lector (`20261025100100_edition_rpc`) | prive_edition_issue, _article, _library, _saved, _save, _prefs, _prefs_save, _world_brief, _log_download | `prive_require(_ps)` | `user_id = v_uid`; solo artículos publicados (`edition_is_live`) | — | OK (SN2) |
+| IATOS Edition, equipo | edition_admin_overview, _preview, _article_update, _article_transition, _article_correct, _issue_transition, _image_license | `edition_admin_require()` (`auth.uid()` en `admins`, si no `EDITION_NOT_ADMIN`) | bitácora con el admin real | — | OK (SN1) |
+| Edition, revisión de enlaces | edition_record_link_check, edition_sources_to_check | JWT `service_role` **o** admin (`edition_admin_require`); nunca `current_user` | solo `link_status` de una fuente | — | OK. Que `authenticated` pueda ejecutarlas **no es un hueco**: un usuario normal recibe `EDITION_NOT_ADMIN` (SN1) y la tarea de servicio funciona (SN1c). Se deja así para que un admin pueda revisar desde el panel |
+| Edition | edition_is_admin | responde `auth.uid()` en `admins` | — | — | OK: solo dice si uno mismo es admin (SN1b) |
+| Importar viaje pasado (`20261024200100_trip_import_documents`) | import_past_trip | `auth.uid()` (42501 sin sesión) | el viaje nace con `user_id = auth.uid()` aunque el JSON diga otro (SN4); llaves de duplicado por persona y con candado | crea uno propio | OK; `trip_import_refs` solo se lee a sí mismo (SN5) |
+| Avatar (`20261024200000_avatar_evolution`) | avatar_claim_trip, avatar_trips_due, avatar_take_images | solo `service_role` (no están en SG5) | tablas: lectura propia, sin escritura de clientes | — | OK |
+
+**SG7 (4 políticas).** `prive_passport_owner`, `prive_radar_owner`, `prive_saved_tips_owner` y `prive_value_owner` son
+`FOR ALL TO authenticated USING/WITH CHECK (user_id = auth.uid())`: solo dueño, sin relación con viajes. Además las
+tablas no tienen ningún GRANT a `authenticated` (`REVOKE ALL … FROM PUBLIC, anon, authenticated`), así que la política
+nunca se alcanza: todo se escribe por las RPC de arriba, que sí exigen `has_trip_access` (SN3: permission denied ×5).
+SG7 ahora solo cuenta políticas que el rol puede alcanzar (tiene INSERT o UPDATE); la regla sigue fallando si alguien
+da GRANT de escritura a una tabla con `trip_id` sin comprobar el acceso.
+
+Pruebas nuevas en `supabase/tests/security/aud_seguridad.sql`:
+- **SN1:** 11 llamadas de edición, revisión de enlaces y métricas niegan a un no admin.
+- **SN1b:** `edition_is_admin` responde por la sesión.
+- **SN1c:** `service_role` sí revisa enlaces.
+- **SN2:** las 32 RPC nuevas de miembro exigen la sesión Privé.
+- **SN3:** las tablas de miembro no tienen acceso directo.
+- **SN4, SN5:** importar un viaje.
+
+Resultados en la base local (wave2), con las bases `audseg_w2_*` ya borradas:
+
+| Suite | Resultado |
+|---|---|
+| security | **156 OK, 0 FALLA**. Los 7 `ERROR` son los permission denied esperados de los ataques (`rls_attacks`, `profiles_tier`) y el de `pg_cron` |
+| edition | 47 OK |
+| avatar | 41 OK |
+| prive_key | 47 OK |
+| privevalor | 144 OK |
+| prive | 140 OK |
+
+Lo que no probé en SQL: el caso positivo de los `*_add_to_trip`, es decir, un miembro con sesión Privé y un viaje ajeno
+que recibe `TRIP_NOT_FOUND`. Para eso hacen falta los setups Privé que mantiene aud-prive. Queda revisado en el
+código (tabla de arriba).
+
 ## HALLAZGOS NUEVOS
 
 AUD-SEG-01 a AUD-SEG-05 (tabla de arriba). Además, notas abiertas P3 que no se corrigieron porque son decisión de producto o necesitan rehacer pantallas:

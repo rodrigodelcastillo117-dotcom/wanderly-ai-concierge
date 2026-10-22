@@ -41,7 +41,28 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   ('prive_search'),('prive_status'),('prive_teaser'),('prive_track'),('prive_universe'),('public_plan_config'),
   ('rechazar_invitacion_viaje'),('unlock_members_access'),
   -- 20261024140000_social_friend_profile (revisadas en el cierre): auth.uid() + _social_son_amigos.
-  ('amigo_perfil'),('amigos_resumen'),('saludar_amigo')),
+  ('amigo_perfil'),('amigos_resumen'),('saludar_amigo'),
+  -- Integración final (wave2), revisadas una por una en SEGURIDAD.md §"Wave2":
+  -- Privé Valor/Key (privevalor_*, privekey_plans): todas empiezan con prive_require(_ps); user_id siempre el de la sesión;
+  -- los *_add_to_trip / *_save con trip_id exigen has_trip_access.
+  ('prive_drop'),('prive_drops'),('prive_radar'),('prive_radar_save'),('prive_radar_delete'),('prive_value_save'),
+  ('prive_value_delete'),('prive_value_summary'),('prive_value_track'),('prive_insider'),('prive_insider_index'),
+  ('prive_tip_save'),('prive_tip_add_to_trip'),('prive_before_you_go'),('prive_passport'),('prive_passport_save'),
+  ('prive_passport_delete'),('prive_key_plans'),('prive_key_save'),('prive_key_archive'),('prive_key_add_to_trip'),
+  ('prive_key_taste_save'),('prive_key_track'),
+  -- Vista previa para PRO sin Privé: solo auth.uid(), dos eventos fijos, límite 30/min, sin datos.
+  ('prive_preview_track'),
+  -- Métricas de equipo: auth.uid() en admins.
+  ('admin_prive_key_metrics'),('admin_prive_product_metrics'),
+  -- IATOS Edition: lectura con prive_require; edición con edition_admin_require (admins); edition_is_admin solo
+  -- responde por uno mismo; la revisión de enlaces es de service_role o de un admin (SN1).
+  ('prive_edition_issue'),('prive_edition_article'),('prive_edition_library'),('prive_edition_saved'),('prive_edition_save'),
+  ('prive_edition_prefs'),('prive_edition_prefs_save'),('prive_edition_world_brief'),('prive_edition_log_download'),
+  ('edition_is_admin'),('edition_admin_overview'),('edition_admin_preview'),('edition_admin_article_update'),
+  ('edition_admin_article_transition'),('edition_admin_article_correct'),('edition_admin_issue_transition'),
+  ('edition_admin_image_license'),('edition_record_link_check'),('edition_sources_to_check'),
+  -- Importar un viaje pasado: auth.uid(), el viaje nace del que llama; sin user_id del cliente.
+  ('import_past_trip')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)
@@ -64,6 +85,10 @@ SELECT CASE WHEN count(*) = 0 THEN 'OK SG7 escrituras con trip_id exigen acceso 
  WHERE p.schemaname = 'public' AND p.cmd IN ('INSERT','UPDATE','ALL')
    AND p.tablename IN (SELECT c.table_name FROM information_schema.columns c WHERE c.table_schema = 'public' AND c.column_name = 'trip_id')
    AND p.tablename <> 'affiliate_clicks'
+   -- Una política solo se alcanza si el rol tiene el permiso: las tablas Privé de Valor/Pasaporte (sin GRANT de
+   -- escritura a authenticated; se escriben por RPC que exigen has_trip_access) no cuentan.
+   AND coalesce(has_table_privilege('authenticated', to_regclass('public.' || quote_ident(p.tablename)), 'INSERT')
+             OR has_table_privilege('authenticated', to_regclass('public.' || quote_ident(p.tablename)), 'UPDATE'), false)
    AND coalesce(p.with_check, p.qual, '') !~ '(has_trip_access|is_trip_owner)';
 
 SELECT CASE WHEN count(*) FILTER (WHERE NOT public) = 2 AND count(*) FILTER (WHERE id IN ('recibos','trip-documents') AND public) = 0
@@ -244,3 +269,76 @@ SELECT public.aceptar_invitacion_viaje('a7000000-0000-0000-0000-000000000001');
 SELECT CASE WHEN (SELECT count(*) FROM trips WHERE id = 'a7000000-0000-0000-0000-000000000001' AND destino = 'Viaje del dueño') = 1
             THEN 'OK SC2 al aceptar ve el viaje; antes de aceptar no pudo cambiarlo' ELSE 'FALLA SC2' END;
 RESET ROLE;
+
+-- ===== Wave2 (integración final): objetos nuevos de privekey, privevalor, edition y avatar =====
+-- SN1: sin ser del equipo nada de edición ni métricas responde; la revisión de enlaces tampoco.
+INSERT INTO auth.users(id,email) VALUES ('a6000000-0000-0000-0000-000000000003','aud-noadmin@example.test') ON CONFLICT DO NOTHING;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.role','authenticated',false);
+SELECT set_config('request.jwt.claim.sub','a6000000-0000-0000-0000-000000000003',false);
+DO $$ DECLARE q text; n int := 0; ok int := 0; BEGIN
+  FOREACH q IN ARRAY ARRAY[
+    'SELECT public.edition_admin_overview()', 'SELECT public.edition_admin_preview(NULL)',
+    $x$SELECT public.edition_admin_article_update('x', '{}'::jsonb, 'n')$x$, $x$SELECT public.edition_admin_article_correct('x', '{}'::jsonb, 'n')$x$,
+    $x$SELECT public.edition_admin_article_transition('x', 'publish', 'n', NULL, NULL)$x$, $x$SELECT public.edition_admin_issue_transition('x', 'publish', 'n', NULL, NULL)$x$,
+    $x$SELECT public.edition_admin_image_license('x', 'approved', 'n')$x$, $x$SELECT public.edition_record_link_check('x', 'ok', 200)$x$,
+    'SELECT * FROM public.edition_sources_to_check(5)', 'SELECT public.admin_prive_key_metrics(30)', 'SELECT public.admin_prive_product_metrics(30)'] LOOP
+    n := n + 1;
+    BEGIN EXECUTE q; RAISE NOTICE 'FALLA SN1 respondió a un no admin: %', q;
+    EXCEPTION WHEN insufficient_privilege OR raise_exception THEN
+      IF SQLERRM ~ 'EDITION_NOT_ADMIN|not_authorized|solo el equipo|permission denied|42501' OR SQLSTATE = '42501' THEN ok := ok + 1;
+      ELSE RAISE NOTICE 'FALLA SN1 % → %', q, SQLERRM; END IF;
+    END;
+  END LOOP;
+  RAISE NOTICE '%', CASE WHEN ok = n THEN 'OK SN1 edición, revisión de enlaces y métricas Privé niegan a un no admin (' || n || ')' ELSE 'FALLA SN1 ' || ok || '/' || n END;
+  IF public.edition_is_admin() THEN RAISE NOTICE 'FALLA SN1b edition_is_admin dijo sí'; ELSE RAISE NOTICE 'OK SN1b edition_is_admin responde por la sesión: no'; END IF;
+END $$;
+-- SN2: sin sesión Privé ninguna RPC de miembro responde (prive_require primero).
+DO $$ DECLARE q text; n int := 0; ok int := 0; BEGIN
+  FOREACH q IN ARRAY ARRAY[
+    $x$SELECT public.prive_drops('x', NULL, NULL, NULL, 5)$x$, $x$SELECT public.prive_drop('x', 'y')$x$, $x$SELECT public.prive_radar('x', NULL)$x$,
+    $x$SELECT public.prive_radar_save('x', '{}'::jsonb)$x$, $x$SELECT public.prive_radar_delete('x', gen_random_uuid())$x$,
+    $x$SELECT public.prive_value_save('x', '{}'::jsonb)$x$, $x$SELECT public.prive_value_delete('x', gen_random_uuid())$x$,
+    $x$SELECT public.prive_value_summary('x')$x$, $x$SELECT public.prive_value_track('x', 'drops_view', NULL, NULL, NULL)$x$,
+    $x$SELECT public.prive_insider('x', 'cdmx')$x$, $x$SELECT public.prive_insider_index('x')$x$, $x$SELECT public.prive_tip_save('x', gen_random_uuid(), true)$x$,
+    $x$SELECT public.prive_tip_add_to_trip('x', gen_random_uuid(), 'a7000000-0000-0000-0000-000000000001')$x$,
+    $x$SELECT public.prive_before_you_go('x', NULL)$x$, $x$SELECT public.prive_passport('x')$x$, $x$SELECT public.prive_passport_save('x', '{}'::jsonb)$x$,
+    $x$SELECT public.prive_passport_delete('x', gen_random_uuid())$x$, $x$SELECT public.prive_key_plans('x')$x$, $x$SELECT public.prive_key_save('x', '{}'::jsonb)$x$,
+    $x$SELECT public.prive_key_archive('x', gen_random_uuid())$x$, $x$SELECT public.prive_key_add_to_trip('x', gen_random_uuid(), 'a7000000-0000-0000-0000-000000000001')$x$,
+    $x$SELECT public.prive_key_taste_save('x', '{}'::jsonb, true)$x$, $x$SELECT public.prive_key_track('x', 'key_open', '{}'::jsonb)$x$,
+    $x$SELECT public.prive_edition_issue('x', NULL)$x$, $x$SELECT public.prive_edition_article('x', 'y')$x$, $x$SELECT public.prive_edition_library('x')$x$,
+    $x$SELECT public.prive_edition_saved('x')$x$, $x$SELECT public.prive_edition_save('x', 'y', true)$x$, $x$SELECT public.prive_edition_prefs('x')$x$,
+    $x$SELECT public.prive_edition_prefs_save('x', '{}'::jsonb)$x$, $x$SELECT public.prive_edition_world_brief('x')$x$,
+    $x$SELECT public.prive_edition_log_download('x', 'y', 'pdf', 'full', 1, 1, 1, 1, 'es')$x$] LOOP
+    n := n + 1;
+    BEGIN EXECUTE q; RAISE NOTICE 'FALLA SN2 respondió sin sesión Privé: %', q;
+    EXCEPTION WHEN raise_exception THEN
+      IF SQLERRM ~ '^PRIVE_' THEN ok := ok + 1; ELSE RAISE NOTICE 'FALLA SN2 % → %', q, SQLERRM; END IF;
+    END;
+  END LOOP;
+  RAISE NOTICE '%', CASE WHEN ok = n THEN 'OK SN2 las ' || n || ' RPC nuevas de miembro exigen la sesión Privé' ELSE 'FALLA SN2 ' || ok || '/' || n END;
+END $$;
+-- SN3: las tablas de Valor/Pasaporte/Radar/Tips/Key no se escriben ni leen directo (solo por RPC).
+DO $$ DECLARE t text; ok int := 0; BEGIN
+  FOREACH t IN ARRAY ARRAY['prive_passport_entries','prive_radar_items','prive_saved_tips','prive_value_entries','prive_key_plans'] LOOP
+    BEGIN EXECUTE format('SELECT count(*) FROM public.%I', t); RAISE NOTICE 'FALLA SN3 se lee %', t;
+    EXCEPTION WHEN insufficient_privilege THEN ok := ok + 1; END;
+  END LOOP;
+  RAISE NOTICE '%', CASE WHEN ok = 5 THEN 'OK SN3 tablas Privé de miembro sin acceso directo [permission denied x5]' ELSE 'FALLA SN3' END;
+END $$;
+-- SN4: importar un viaje pasado lo crea a nombre de quien llama, aunque el JSON diga otra cosa.
+SELECT public.import_past_trip('{"destino":"Lisboa","fecha_salida":"2025-05-01","user_id":"a5000000-0000-0000-0000-000000000001"}'::jsonb, ARRAY['PNR:ABC123']);
+RESET ROLE;
+SELECT CASE WHEN (SELECT user_id FROM trips WHERE destino = 'Lisboa' AND fuente = 'documento' LIMIT 1) = 'a6000000-0000-0000-0000-000000000003'
+             AND NOT EXISTS (SELECT 1 FROM trips WHERE destino = 'Lisboa' AND user_id = 'a5000000-0000-0000-0000-000000000001')
+            THEN 'OK SN4 import_past_trip crea el viaje del que llama (ignora user_id del JSON)' ELSE 'FALLA SN4' END;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','a5000000-0000-0000-0000-000000000001',false);
+SELECT CASE WHEN count(*) = 0 THEN 'OK SN5 las llaves de importación de otra cuenta no se ven' ELSE 'FALLA SN5' END FROM trip_import_refs;
+RESET ROLE;
+-- SN1c (flujo legítimo): la tarea de revisión de enlaces sí corre como service_role.
+SET ROLE service_role; SELECT set_config('request.jwt.claim.role','service_role',false); SELECT set_config('request.jwt.claim.sub','',false);
+DO $$ BEGIN
+  PERFORM * FROM public.edition_sources_to_check(1);
+  PERFORM public.edition_record_link_check('clave-que-no-existe', 'ok', 200);
+  RAISE NOTICE 'OK SN1c service_role lista y registra la revisión de enlaces';
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'FALLA SN1c %', SQLERRM; END $$;
+RESET ROLE; SELECT set_config('request.jwt.claim.role','authenticated',false);
