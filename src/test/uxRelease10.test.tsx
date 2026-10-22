@@ -208,3 +208,10 @@ describe("UX10-13 · fotos del detalle de viaje: sin amplificar errores", () => 
     __resetCityImageBlock();
   });
 });
+
+describe("UX10-05b · más objetivos táctiles de 40 px", () => {
+  it("'Volver' y el cierre de los consejos miden al menos 40 px", () => {
+    expect(read("src/components/BackButton.tsx")).toMatch(/inline-flex items-center gap-1\.5 min-h-10 /);
+    expect(read("src/components/Tooltip.tsx")).toMatch(/aria-label="Cerrar"\n\s+className="shrink-0 -mr-3 -mt-3 w-10 h-10/);
+  });
+});
