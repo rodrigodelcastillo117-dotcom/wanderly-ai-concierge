@@ -2,8 +2,13 @@
 // Envía un email al Fixer humano vía el gateway de Resend de Lovable
 // cuando un usuario escala desde el Concierge.
 // Si el envío falla, el cliente hace fallback a mailto:.
+// Seguridad (F-08): la identidad (correo y replyTo) sale de la sesión, no del cuerpo; todo el HTML
+// se escapa (template.ts) y hay límite de frecuencia. Las respuestas solo llevan códigos estables.
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { redactPii } from "../_shared/redact.ts";
+import { buildFixerEmail, parseFixerPayload } from "./template.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,151 +23,46 @@ const FROM_ADDRESS =
   Deno.env.get("FIXER_FROM_ADDRESS") ||
   "IATOS Fixer <hola@traveliatos.life>";
 
-
-interface FixerPayload {
-  user_name: string;
-  user_email: string;
-  user_phone?: string;
-  trip?: {
-    titulo?: string;
-    destinos?: string;
-    fecha_salida?: string;
-    fecha_regreso?: string;
-  };
-  urgencia: "critica" | "alta" | "media" | "baja";
-  motivo: string;
-  contexto_chat?: Array<{ role: string; content: string }>;
-}
-
-function esc(s: string): string {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function construirHtmlEmail(p: FixerPayload): string {
-  const color =
-    ({
-      critica: "#dc2626",
-      alta: "#ea580c",
-      media: "#ca8a04",
-      baja: "#65a30d",
-    } as const)[p.urgencia] || "#65a30d";
-
-  const trip = p.trip
-    ? `<h3 style="margin:18px 0 4px;color:#111">Viaje activo</h3>
-       <p style="margin:2px 0"><b>Título:</b> ${esc(p.trip.titulo || "Sin título")}</p>
-       <p style="margin:2px 0"><b>Destinos:</b> ${esc(p.trip.destinos || "N/A")}</p>
-       <p style="margin:2px 0"><b>Fechas:</b> ${esc(p.trip.fecha_salida || "?")} al ${esc(p.trip.fecha_regreso || "?")}</p>`
-    : "";
-
-  const chat =
-    p.contexto_chat && p.contexto_chat.length
-      ? `<h3 style="margin:18px 0 4px;color:#111">Contexto chat con Iato</h3>
-         <div style="background:#f5f5f5;padding:12px;border-radius:8px;font-size:13px">
-           ${p.contexto_chat
-             .slice(-3)
-             .map(
-               (t) =>
-                 `<p style="margin:6px 0"><b>${t.role === "user" ? "Cliente" : "Iato"}:</b> ${esc(
-                   (t.content || "").slice(0, 300),
-                 )}</p>`,
-             )
-             .join("")}
-         </div>`
-      : "";
-
-  return `<!doctype html>
-<html><body style="font-family:Arial,sans-serif;background:#ffffff;color:#111;padding:20px;max-width:640px;margin:0 auto">
-  <h2 style="color:${color};margin:0 0 12px">Solicitud Fixer IATOS — ${p.urgencia.toUpperCase()}</h2>
-  <h3 style="margin:18px 0 4px;color:#111">Cliente</h3>
-  <p style="margin:2px 0"><b>Nombre:</b> ${esc(p.user_name)}</p>
-  <p style="margin:2px 0"><b>Email:</b> ${esc(p.user_email)}</p>
-  ${p.user_phone ? `<p style="margin:2px 0"><b>Teléfono:</b> ${esc(p.user_phone)}</p>` : ""}
-  ${trip}
-  <h3 style="margin:18px 0 4px;color:#111">Motivo</h3>
-  <div style="background:#fffbea;padding:12px;border-left:3px solid ${color};border-radius:4px;white-space:pre-wrap">${esc(p.motivo)}</div>
-  ${chat}
-  <hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5"/>
-  <p style="color:#888;font-size:12px">IATOS AI · ${new Date().toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}</p>
-  <p style="font-size:13px"><a href="mailto:${esc(p.user_email)}" style="color:${color}">Responder al cliente directo</a></p>
-</body></html>`;
-}
+const json = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
-  const __user = await getAuthUser(req);
-  if (!__user) return unauthorizedResponse(corsHeaders);
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  const user = await getAuthUser(req);
+  if (!user) return unauthorizedResponse(corsHeaders);
+  if (req.method !== "POST") return json(405, { code: "METHOD_NOT_ALLOWED", error: "method_not_allowed" });
+
+  // Cada llamada manda un correo a una persona del staff: límite para que no sirva de spam.
+  const rl = await enforceRateLimit(req, "enviar-email-fixer", user.id, { perMinute: 3, perHour: 20, ipPerMinute: 10 });
+  if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
   if (!RESEND_API_KEY) {
-    return new Response(
-      JSON.stringify({
-        error: "Resend not configured",
-        hint: "Configurar RESEND_API_KEY en secrets",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    console.error("enviar-email-fixer: falta RESEND_API_KEY");
+    return json(503, { code: "SERVICE_UNAVAILABLE", error: "email_not_configured" });
   }
 
   try {
-    const payload = (await req.json()) as FixerPayload;
+    const parsed = parseFixerPayload(await req.json().catch(() => null));
+    if (!parsed.ok) return json(400, { code: "INVALID_REQUEST", error: parsed.error });
 
-    if (!payload.user_name || !payload.motivo || !payload.urgencia) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    const subject = `[IATOS Fixer · ${payload.urgencia.toUpperCase()}] ${payload.user_name} — ${payload.motivo.slice(0, 60)}`;
-    const html = construirHtmlEmail(payload);
-
+    const { subject, html } = buildFixerEmail(parsed.value, { email: user.email ?? null, userId: user.id });
     const sent = await sendEmail({
       to: FIXER_EMAIL,
       from: FROM_ADDRESS,
-      replyTo: payload.user_email,
+      ...(user.email ? { replyTo: user.email } : {}),
       subject,
       html,
     });
 
     if (!sent.ok) {
-      console.error("Fixer email error:", sent.error);
-      return new Response(
-        JSON.stringify({ error: "Email send failed", details: sent.error }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      console.error("enviar-email-fixer: envío falló", redactPii(sent.error));
+      return json(502, { code: "EMAIL_SEND_FAILED", error: "email_send_failed" });
     }
-
-    return new Response(JSON.stringify({ success: true, email_id: sent.id }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-
+    return json(200, { success: true, email_id: sent.id });
   } catch (err) {
-    console.error("Error in enviar-email-fixer:", err);
-    return new Response(
-      JSON.stringify({ error: (err as Error).message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    console.error("enviar-email-fixer: error", redactPii((err as Error)?.message ?? err));
+    return json(500, { code: "INTERNAL_ERROR", error: "internal_error" });
   }
 });
