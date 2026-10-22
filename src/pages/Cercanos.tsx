@@ -365,7 +365,10 @@ const Cercanos = () => {
               return (
                 <li key={p.placeId}>
                   <button type="button" data-testid="nearby-card" onClick={() => openPlace(p)}
-                    className="w-full text-left glass-card rounded-xl p-4 hover:border-primary/50 border border-transparent transition">
+                    className="w-full text-left glass-card rounded-xl p-3 hover:border-primary/50 border border-transparent transition flex gap-3 items-center">
+                    <PlacePhoto compact photoRef={p.photo_ref} name={p.name ?? "este lugar"}
+                      family={placeFamily(p.primary_type, p.types)} className="w-20 h-20 rounded-lg shrink-0" />
+                    <span className="min-w-0 flex-1 block">
                     <p className="text-[10px] text-primary tracking-[0.2em] uppercase mb-1 flex items-center gap-2">
                       {bestPlaceTypeLabel(p.primary_type, p.types)}
                       {p.for_you && <span className="normal-case tracking-normal text-[#E94E77]">· Para ti</span>}
@@ -380,6 +383,7 @@ const Cercanos = () => {
                       {p.open_now === true && <span className="text-emerald-400">Abierto ahora</span>}
                       {p.open_now === false && <span className="text-red-400">Cerrado</span>}
                     </p>
+                    </span>
                   </button>
                 </li>
               );
