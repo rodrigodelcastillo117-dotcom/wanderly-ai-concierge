@@ -1,0 +1,36 @@
+OK S01 sesión de Auth viva + sesión Privé vigente → OK
+OK S01b control: con una sesión válida las RPC de contenido pasan prive_require (la prueba S11 no es vacía)
+OK S02 sesión de Auth cerrada (JWT sin vencer) → PRIVE_SESSION_INVALID
+OK S03 cierre global: las sesiones Privé de todos los dispositivos dejan de valer
+FALLA S04 cuenta suspendida → PRIVE_SESSION_INVALID y no puede desbloquear; al vencer la suspensión vuelve a entrar req=OK unlock={"ok": true, "token": "<redactado: base local desechable>", "notice": null, "expires_at": "2026-10-23T01:55:48.564923+00:00", "session_id": "ede488f8-a187-4f56-88f8-9b0524725ef2"}
+FALLA S05 cuenta borrada (deleted_at) → PRIVE_SESSION_INVALID OK
+OK S05b cuenta eliminada: el JWT que sobrevive no abre nada y no quedan sesiones
+OK S06 sesión de Auth vencida (not_after) → PRIVE_SESSION_INVALID
+FALLA S07 sin SELECT en auth.sessions → se niega (fail closed) OK
+FALLA S07b sin USAGE en el esquema auth → se niega con el código del contrato (no un error 500) ERROR 42501: permission denied for schema auth
+FALLA S08 auth.sessions no existe → se niega (fail closed) OK
+FALLA S08b columna faltante en auth.sessions → se niega (fail closed) OK
+OK S08c al recuperar la tabla la sesión legítima sigue sirviendo (no se bloqueó a nadie)
+FALLA S09 desbloquear sin session_id de Auth no emite sesión Privé {"ok": true, "token": "<redactado: base local desechable>", "notice": null, "expires_at": "2026-10-23T01:55:50.208269+00:00", "session_id": "28722467-fcb2-43b9-ba61-936a02c8d6a8"}
+FALLA S09b sesión Privé sin ligar → PRIVE_SESSION_INVALID con cualquier JWT (con o sin session_id) OK
+FALLA S09c desbloquear con un session_id que no existe (o de otra cuenta) no emite sesión {"ok": true, "token": "<redactado: base local desechable>", "notice": null, "expires_at": "2026-10-23T01:55:50.5579+00:00", "session_id": "b784f49d-9af3-4343-83e9-e07d640a9486"}
+OK S10 la sesión Privé no se hereda a otro inicio de sesión; desbloquear en el nuevo sí
+OK S11 token Privé de una sesión de Auth cerrada: todas las RPC con _ps → PRIVE_SESSION_INVALID
+FALLA S11b token Privé sin ligar: todas las RPC → PRIVE_SESSION_INVALID 12 rpc; no negadas con PRIVE_SESSION_INVALID: prive_add_to_trip=RET, prive_confirm_adult=RET, prive_destination=RET, prive_experience=RET, prive_for_you=RET, prive_home=RET, prive_request_create=RET, prive_save=RET, prive_saved=RET, prive_search=RET, prive_track=ERR:null value in column "event" of rela, prive_universe=RET
+FALLA S11c cuenta suspendida: todas las RPC → PRIVE_SESSION_INVALID 12 rpc; no negadas con PRIVE_SESSION_INVALID: prive_add_to_trip=RET, prive_confirm_adult=RET, prive_destination=RET, prive_experience=RET, prive_for_you=RET, prive_home=RET, prive_request_create=RET, prive_save=RET, prive_saved=RET, prive_search=RET, prive_track=ERR:null value in column "event" of rela, prive_universe=RET
+OK S11d sesión Privé bloqueada (lock): todas las RPC → PRIVE_SESSION_INVALID
+OK S11e sesión Privé inactiva > 2 h: todas las RPC → PRIVE_SESSION_EXPIRED
+OK S12 PRO terminado: prive_require → PRIVE_NOT_PRO con la sesión Privé vieja y la de Auth viva
+OK S12b PRO terminado: la contraseña correcta no abre sesión
+OK S12c PRO terminado: todas las RPC de contenido → PRIVE_NOT_PRO
+OK S12d suscripción cancelada en Stripe (status canceled) → PRIVE_NOT_PRO
+OK S13 authenticated sin ser admin: 10 RPC de administración negadas
+OK S13b anon y authenticated no tienen EXECUTE en las RPC admin_* de Privé ni en prive_sweep/prive_auth_session_alive
+FALLA N01 revocar la concesión revoca la invitación pendiente y retira la membresía "invited" (auditado) inv=viva memb=invited
+OK N01b idempotente: revocar otra vez no duplica nada
+OK N01c el enlace de la invitación revocada no se acepta, no fija contraseña y no se vuelve a enviar
+FALLA N01d al cumplir 90 días: el enlace viejo da INVITATION_EXPIRED y el cron crea una invitación nueva por antigüedad {"ok": true, "first_name": null, "member_code": "IP-KPX5-HHDV", "activated_at": "2026-10-22T13:55:52.607751+00:00"} memb=active/grant
+OK N02 si sigue cumpliendo por antigüedad, revocar la concesión no le quita la invitación
+FALLA N03 concesión vencida con invitación pendiente: el barrido revoca la invitación y retira la membresía {"resets_purged": 0, "sessions_idle": 1, "sessions_stale": 0, "attempts_purged": 0, "ip_blocks_purged": 0, "sessions_expired": 0, "invitations_expired": 0, "old_sessions_deleted": 0, "sessions_not_entitled": 1}
+OK N04 el barrido no toca membresías activas ni invitaciones de quien sí cumple
+OK X01 members_requires_prive=true NO cambia members_access (bandera solo informativa; ver PRIVE.md)

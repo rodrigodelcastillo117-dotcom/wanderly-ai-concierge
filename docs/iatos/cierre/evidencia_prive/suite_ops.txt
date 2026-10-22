@@ -1,0 +1,86 @@
+FALLÓ 20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql: psql:/home/user/wt-aud-prive/supabase/migrations/20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql:45: ERROR:  extension "pg_cron" is not available
+--- idempotencia (segunda pasada de 2026102213*) ---
+ok 20261022130000_pay_stripe_sync_and_atomic_quota.sql
+ok 20261022131000_active_trip_and_fixer_status.sql
+ok 20261022132000_ops_flight_watch_reliability.sql
+ok 20261022132100_ops_notifications_dedup.sql
+ok 20261022132200_ops_price_watch_original_currency.sql
+ok 20261022132300_ops_health_check_jobs_and_email.sql
+ok 20261022133000_trip_quotes.sql
+ok 20261022135000_pay_quota_reservations.sql
+ok 20261022135100_pay_plan_limits.sql
+ok 20261022135200_pay_trial_no_card.sql
+ok 20261022135300_pay_plan_limits_recommended.sql
+--- pruebas ---
+T1 authenticated no puede reclamar vuelos [permission denied]
+psql:/home/user/wt-aud-prive/supabase/tests/ops/flight_watch_claim.sql:28: ERROR:  permission denied for function claim_tracked_flights
+T2 authenticated no puede usar notify_once / cron_health / verify_cron_secret [permission denied x3]
+psql:/home/user/wt-aud-prive/supabase/tests/ops/flight_watch_claim.sql:32: ERROR:  permission denied for function notify_once
+psql:/home/user/wt-aud-prive/supabase/tests/ops/flight_watch_claim.sql:33: ERROR:  permission denied for function cron_health
+psql:/home/user/wt-aud-prive/supabase/tests/ops/flight_watch_claim.sql:34: ERROR:  permission denied for function verify_cron_secret
+T3 service_role reclama solo los pendientes, primero la ventana de ±1 día [AYER_20MIN, HOY_NUNCA, HOY_SALE_EN_2H_20MIN, SALE_EN_10H_70MIN, EN10DIAS_7H, EN3DIAS_4H; no SALE_EN_10H_20MIN (sale en >6 h: cada hora)]
+ AYER_20MIN, HOY_NUNCA, HOY_SALE_EN_2H_20MIN, SALE_EN_10H_70MIN, EN10DIAS_7H, EN3DIAS_4H
+T4 se apagaron sin fecha, fecha pasada y llegada hace >3 h [ANTIER, SIN_FECHA, YA_LLEGO_HACE_4H]
+ ANTIER, SIN_FECHA, YA_LLEGO_HACE_4H
+T5 los reclamados quedan con last_attempt_at = ahora y no se vuelven a reclamar [6 | 0]
+     6
+     0
+T6 con límite 2 gana la ventana de ±1 día (los más próximos) [2: los de fecha más temprana dentro de ±1 día: AYER_20MIN y uno de hoy]
+ 2: AYER_20MIN, HOY_SALE_EN_2H_20MIN
+T7 notify_once inserta una vez por llave; sin llave no deduplica [id | NULL | 1 | 2]
+ t
+ NULL
+     1
+     2
+T8 cron_health sin pg_cron/pg_net locales [available false, jobs [], http null]
+ {"http": null, "jobs": [], "available": false, "checked_at": "2026-10-22T15:00:58.367584+00:00"}
+T9 tracked_flight_gap por distancia, salida y fallas [00:10:00 | 03:00:00 | 06:00:00 | 00:30:00 | 01:00:00 | 01:00:00 | 00:10:00]
+ 00:10:00           | 03:00:00           | 06:00:00           | 00:30:00           | 01:00:00           | 01:00:00           | 00:10:00
+C1 cron_health devuelve los 3 jobs con su última corrida y las fallas HTTP de 6 h [total 3, failed 2, last_failure timeout]
+ {                                                                 +
+     "http": {                                                     +
+         "total": 3,                                               +
+         "failed": 2,                                              +
+         "last_failure": "timeout",                                +
+         "window_hours": 6.0000000000000000                        +
+     },                                                            +
+     "jobs": [                                                     +
+         {                                                         +
+             "active": true,                                       +
+             "jobname": "flight-watch-every-15-min",               +
+             "last_end": "2026-10-22T14:10:58.802125+00:00",       +
+             "schedule": "*/15 * * * *",                           +
+             "failed_24h": 0,                                      +
+             "last_start": "2026-10-22T14:10:58.802125+00:00",     +
+             "last_status": "succeeded",                           +
+             "last_message": "1 row"                               +
+         },                                                        +
+         {                                                         +
+             "active": true,                                       +
+             "jobname": "health-check-daily",                      +
+             "last_end": "2026-10-21T15:00:58.802125+00:00",       +
+             "schedule": "7 13 * * *",                             +
+             "failed_24h": 0,                                      +
+             "last_start": "2026-10-21T15:00:58.802125+00:00",     +
+             "last_status": "succeeded",                           +
+             "last_message": "1 row"                               +
+         },                                                        +
+         {                                                         +
+             "active": true,                                       +
+             "jobname": "price-watch-twice-daily",                 +
+             "last_end": "2026-10-22T10:00:58.802125+00:00",       +
+             "schedule": "17 3,15 * * *",                          +
+             "failed_24h": 1,                                      +
+             "last_start": "2026-10-22T10:00:58.802125+00:00",     +
+             "last_status": "failed",                              +
+             "last_message": "ERROR: schema \"net\" does not exist"+
+         }                                                         +
+     ],                                                            +
+     "available": true,                                            +
+     "checked_at": "2026-10-22T15:00:58.815719+00:00"              +
+ }
+--- dos sesiones simultáneas ---
+A reclamó AM1,AM2,AM3 a las 15:00:59.401
+A COMMIT a las 15:01:02.410
+B (A sigue abierta) reclamó AM4,AM5,AM6 a las 15:01:00.345
+C (después de ambas) reclamó (nada: todos ya intentados)

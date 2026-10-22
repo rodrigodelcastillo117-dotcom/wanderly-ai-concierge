@@ -1,0 +1,71 @@
+FALLÓ 20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql: psql:/home/user/wt-aud-prive/supabase/migrations/20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql:45: ERROR:  extension "pg_cron" is not available
+OK Q0 preparación: B y C con Privé vigente, F sin 
+OK R1 anon no llama amigo_perfil [permission denied for function amigo_perfil]
+OK R2 anon no llama saludar_amigo [permission denied for function saludar_amigo]
+OK R3 anon no llama amigos_resumen [permission denied for function amigos_resumen]
+OK R4 cliente no llama ayudantes internos [permission denied for function _social_lugares]
+OK R5 cliente no llama _social_en_comun [permission denied for function _social_en_comun]
+OK R6 cliente no lee social_pokes [permission denied for table social_pokes]
+OK R7 cliente no inserta saludos directo [permission denied for table social_pokes]
+OK R8 cliente no inserta avisos a otro [new row violates row-level security policy for table "notifications"]
+OK R9 sigue sin leer el perfil del amigo directo [cero filas]
+OK P1 amigo aceptado ve el perfil 
+OK P2 trae nombre, avatar y ciudad 
+OK P3 el perfil trae solo campos permitidos {avatar_url,ciudad_origen,full_name,id,is_prive,pais_origen,username}
+OK P4 no filtra datos sensibles ni textos privados 
+OK P5 Travel DNA del amigo (sin restricciones) {"ritmo": "equilibrado", "comida": ["foodie"], "estilo": "Explorador gastronómico", "tardes": ["museos", "playas"], "hospedaje": ["boutique", "resort_ai"]}
+OK P6 amigos desde 
+OK P7 extraño → privado 
+OK P8 solicitud pendiente → privado 
+OK P9 id que no existe → misma respuesta privado 
+OK P10 mi propio id → eres_tu 
+OK P11 privado no trae nada más 
+OK Q1 amigo Privé vigente → is_prive true 
+OK Q2 yo no soy Privé → yo_prive false 
+OK Q3 amigo sin Privé → is_prive false 
+OK Q4 un extraño Privé no deja saber que lo es 
+OK Q5 cliente no llama _social_is_prive [permission denied for function _social_is_prive]
+OK Q6 cliente no llama prive_entitled de otro [permission denied for function prive_entitled]
+OK Q7 membresía revocada → el sello se apaga 
+OK V1 3 viajes juntos (míos, suyos y de grupo) 
+OK V2 son T1, T2 y T4 {Tokio,Roma,Madrid}
+OK V3 invitación pendiente y viaje ajeno no cuentan 
+OK V4 viaje junto trae portada 
+OK V5 lugares de B: terminados + declarados {Madrid,Roma,Oaxaca,CDMX}
+OK V6 su viaje futuro (Lisboa) no se revela 
+OK V7 los lugares no traen fechas 
+OK C1 comida/tardes/hospedaje en común {"comida": ["foodie"], "suenos": ["Japón"], "tardes": ["museos"], "afinidad": 47, "destinos": ["Madrid", "Roma", "cdmx"], "hospedaje": ["boutique"], "mismo_ritmo": true, "yo_tengo_dna": true, "amigo_tiene_dna": true, "mismo_presupuesto": false}
+OK C2 destinos en común (CDMX sin importar mayúsculas, Roma y Madrid) ["Madrid", "Roma", "cdmx"]
+OK C3 sueños en común: solo Japón (no Perú ni Islandia) ["Japón"]
+OK C4 afinidad con datos suficientes 47
+OK C5 amigo sin Travel DNA → afinidad nula (no 0 %) 
+OK L1 resumen: B, E y F (no C ni D) 
+OK L2 resumen cuenta 3 viajes juntos con B 
+OK L3 resumen sin datos sensibles 
+OK L4 resumen: B Privé, F no; C (extraño Privé) no aparece 
+OK S1 A saluda a B 
+OK S2 a B le llega un aviso con plantilla fija 
+OK S3 segundo saludo en menos de 24 h → muy_pronto 
+OK S4 sigue habiendo un solo aviso 
+OK S5 el perfil dice cuándo se puede volver 
+OK S6 a un extraño no → no_son_amigos 
+OK S7 a una solicitud pendiente no 
+OK S8 a mí mismo no 
+OK S9 gesto inventado → gesto_invalido 
+OK S10 B ve el saludo por devolver 
+OK S11 B devuelve el saludo (su límite es aparte) 
+OK S12 aviso a A: te devolvió el saludo + contador 
+OK S13 "devuelta" sin nada que devolver se manda como saludo 
+OK S14 después de 24 h se puede de nuevo 
+OK E0 A saluda a E 
+OK E1 E le devuelve 
+OK E2 A borró la amistad (RLS lo permite) 
+OK E3 examigo → privado 
+OK E4 se borran los saludos entre los dos 
+OK E5 y sus avisos en ambas bandejas 
+OK E6 los demás saludos siguen 
+OK E7 ya no se le puede saludar 
+OK D1 purge_account_data(B) corre 
+OK D2 no quedan saludos de/para B 
+OK D3 ni avisos de saludo de B en la bandeja de A 
+OK K1 tres toques simultáneos → un saludo y un aviso

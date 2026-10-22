@@ -1,0 +1,35 @@
+OK B1 el usuario no puede insertar intenciones
+OK B2 el usuario no puede llamar booking_intent_start (evita destinos sin validar)
+OK B3 alta READY_TO_BOOK
+OK B3 reintento con la misma llave = misma intención
+OK B3 otra llave, misma oferta = reusa la viva (no hay dos compras)
+OK B3 una sola fila
+OK B4 el usuario no puede confirmar
+OK B4 UPDATE directo rechazado por la guardia
+OK B5 REDIRECTED_TO_PROVIDER con el destino guardado
+OK B5 reabrir: mismo estado, contador 2
+OK B5 otro usuario no puede usar la intención
+OK B6 abandono → READY_TO_BOOK
+OK B6 declarada por el usuario: PENDING_CONFIRMATION + user_declared, no CONFIRMED
+OK B6 el usuario no puede marcarla verificada
+OK B7 otro usuario no ve la intención ni su historial
+OK B7 el dueño ve su intención y su historial
+OK B7 el dueño no puede cambiar el estado desde el cliente
+OK B8 un usuario normal no confirma
+OK B8 sin folio, el CHECK lo rechaza
+OK B8 el equipo confirma (team_verified, aunque pida provider_api)
+OK B8 constancia confirmada en bookings
+OK B8 volver a comprar lo ya confirmado devuelve la confirmada (no duplica)
+OK B9 un número de tarjeta en el reporte se rechaza
+OK B9 un destino http se rechaza
+OK B9 no se liga a un viaje ajeno
+OK B10 "confirmed" de una solicitud sin evidencia → PENDING_CONFIRMATION
+OK B10 cancelada en concierge → CANCELLED
+OK B11 confirmado sin evidencia → PENDING_CONFIRMATION
+OK B11 con folio/respuesta → CONFIRMED (provider_verified)
+OK B12 la fecha de alta no se puede alterar (guardia)
+OK B12 una cancelada no revive
+OK B12 selección vieja sin continuar → EXPIRED
+OK B13 booking_link_checks es solo del servidor
+OK B13 booking_venue_lookup es solo del servidor
+OK B14 historial con actor por paso

@@ -1,0 +1,43 @@
+OK R01 la bandera nace apagada
+OK R02 con la bandera apagada no se crea nada
+OK R03 un usuario no puede llamar las funciones del servidor
+OK R04 un usuario no puede insertar en ai_reservations
+OK R05 un usuario no puede confirmar a mano (ni como "equipo")
+OK R06 alta con correo verificado → awaiting_user_ok + solicitud de concierge espejo
+OK R07 la misma solicitud (lugar + hora) no se duplica
+OK R08 sin correo → needs_user/no_contact con aviso honesto
+OK R09 sin lugar identificado (Google/Privé) o sin fuente del correo → rechazado
+OK R10 hora demasiado próxima → DATE_TOO_SOON
+OK R11 hora local convertida con la zona del lugar
+OK R12 el dueño lee su reserva y su historial
+OK R13 otro usuario no ve la reserva ni su historial
+OK R14 el token de respuesta no se puede leer desde el cliente (ni con SELECT *)
+OK R15 el usuario no puede cambiar el estado
+OK R16 la tabla de correos recibidos y la de reservas son invisibles para clientes/anon
+OK R17 UPDATE directo con service_role → rechazado por la guardia
+OK R18 sin consentimiento explícito no se reserva el envío
+OK R19 otro usuario no puede enviar mi solicitud
+OK R20 doble toque: el segundo envío queda bloqueado (candado)
+OK R21 envío registrado → sent, plazo de vencimiento y aviso "aún no es una reserva"
+OK R22 ya enviada → ALREADY_SENT; sin correo → NOT_SENDABLE
+OK R23 webhook nuevo se reclama una vez; el mismo otra vez → duplicate
+OK R24 token desconocido → unmatched; folio del asunto solo cuenta con el remitente exacto
+OK R25 "confirmed" sin remitente verificado o sin cita → CHECK lo rechaza
+OK R26 respuesta automática no cambia el estado
+OK R27 confirmación escrita verificada → confirmed + constancia en bookings + aviso con quién confirmó
+OK R28 una respuesta después de confirmar no cambia nada (LATE)
+OK R29 ningún aviso dice "mesa confirmada"
+OK R30 confirmed → expired no es legal
+OK R31 nadie cancela la reserva de otro
+OK R32 cancelar una confirmada → cancelled, constancia cancelada y hay que avisar al restaurante
+OK R33 el sistema no puede reabrir (cancelled → sent)
+OK R34 historial completo con actor
+OK R35 alterno ofrecido → needs_user; índice inválido rechazado
+OK R36 el usuario acepta un alterno YA apartado por escrito → confirmed con la cita del restaurante
+OK R37 límite diario por usuario
+OK R38 límite diario por restaurante (todos los usuarios)
+OK R39 un webhook que falló se puede reintentar (retry) una vez reclamado
+OK R40 el recordatorio al restaurante se reclama una sola vez
+OK R41 vencer es idempotente y avisa una vez al usuario
+OK R42 con la bandera apagada no se reclama ningún envío
+OK R43 borrar la cuenta borra sus reservas IA, historial y correos recibidos

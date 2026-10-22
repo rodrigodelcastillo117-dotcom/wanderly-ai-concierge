@@ -1,0 +1,21 @@
+--- idempotencia (segunda pasada de 20261022142*) ---
+ok 20261022142000_cost_serp_cache_usage_log.sql
+ok 20261022142100_cost_tracked_flights_unique.sql
+ok 20261022142200_cost_price_watch_claim.sql
+--- pruebas ---
+OK K1 serp_cache, ai_usage_log (insertar), live_search_*, serp_burn_rate y claim_price_watches: solo service_role
+OK K1b anon no lee ai_usage_log ni admin_cost_metrics
+OK K2 serp_cache: guarda, lee, cuenta aciertos solo vigentes y refresca fetched_at
+OK K3 FREE: 5 búsquedas en vivo al día, la 6a negada (live_searches_daily, renueva mañana), la devolución libera cupo
+OK K4 prueba: 30 búsquedas en vivo en total, la 31a negada (live_searches_trial, sin renovación)
+OK K5 PRO: sin interruptor siempre permite y cuenta; con interruptor 80 al mes con uso justo (soft, sin bloquear)
+OK K6 sin renglón de FREE el tope sigue en 5 al día
+OK K7 ai_usage_log: plan (free/trial/pro/system) y fecha los pone la base
+OK K8 serp_burn_rate: 6 búsquedas, 2.00 al día
+OK K9 un usuario normal no ve ai_usage_log y admin_cost_metrics le responde not_authorized
+OK K9 admin: costo de 30 días por plan y por función (total US$0.1270)
+OK K10 upsert repetido deja 1 fila por (usuario, vuelo, fecha), también sin fecha
+OK K11 migración C-01: borra solo duplicados inactivos, conserva la activa o la más reciente y crea UNIQUE NULLS NOT DISTINCT
+OK K12 claim_price_watches: pendientes primero, apaga viajes que ya salen y no repite dentro del intervalo
+OK CONCURRENCIA live_search_take: sesión A tomó la 5a, sesión B simultánea negada, usadas=5
+OK CONCURRENCIA claim_price_watches: A=D1,D2,D3 y B=D4,D5,D6 (sin repetir; B no esperó a A)

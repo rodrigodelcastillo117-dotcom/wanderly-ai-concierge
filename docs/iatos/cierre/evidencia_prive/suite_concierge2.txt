@@ -1,0 +1,9 @@
+--- idempotencia (segunda pasada de 20261023130000) ---
+OK idempotente
+--- pruebas ---
+OK K1 modelos sembrados y Modo exigente sin tope (como hoy)
+OK K2 cuenta solo los mensajes exigentes confirmados de hoy (2 de 20)
+OK K3 tope inválido = sin tope
+OK K4 un usuario no puede ejecutar concierge_runtime_config [permission denied]
+OK K5 un usuario no puede leer app_flags [permission denied]
+OK K6 service_role la ejecuta

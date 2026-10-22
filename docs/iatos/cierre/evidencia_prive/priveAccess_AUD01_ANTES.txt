@@ -1,0 +1,10 @@
+   × AUD-01 · sesión de Auth: falla cerrado > desbloquear con un JWT sin session_id → 401 UNAUTHENTICATED sin llamar a la base 89ms
+   × AUD-01 · sesión de Auth: falla cerrado > la base no puede comprobar la sesión de Auth (cerrada, suspendida, ilegible) → 401, sin token 19ms
+   × AUD-01 · sesión de Auth: falla cerrado > ninguna acción entrega una sesión Privé sin session_id de Auth (fijar, cambiar, restablecer) 1ms
+   ✓ AUD-01 · sesión de Auth: falla cerrado > token Privé viejo: cada acción que lo exige se detiene con el código de la base y no toca nada 1ms
+   ✓ AUD-01 · sesión de Auth: falla cerrado > si prive_require falla por otra causa (permisos, red) → 500 INTERNAL y nada con service_role 13ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/test/priveAccess.test.ts > AUD-01 · sesión de Auth: falla cerrado > desbloquear con un JWT sin session_id → 401 UNAUTHENTICATED sin llamar a la base
+ FAIL  src/test/priveAccess.test.ts > AUD-01 · sesión de Auth: falla cerrado > la base no puede comprobar la sesión de Auth (cerrada, suspendida, ilegible) → 401, sin token
+ FAIL  src/test/priveAccess.test.ts > AUD-01 · sesión de Auth: falla cerrado > ninguna acción entrega una sesión Privé sin session_id de Auth (fijar, cambiar, restablecer)
+      Tests  3 failed | 29 passed (32)

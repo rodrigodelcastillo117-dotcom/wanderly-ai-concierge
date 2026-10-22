@@ -1,0 +1,31 @@
+FALLÓ 20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql: psql:/home/user/wt-aud-prive/supabase/migrations/20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql:45: ERROR:  extension "pg_cron" is not available
+OK A1 anon no llama members_venues [permission denied for function members_venues]
+OK A2 anon no llama members_cities [permission denied for function members_cities]
+OK A3 gratis: members_venues se niega [MEMBERS_PRO_REQUIRED: Members Only es exclusivo de IATOS PRO]
+OK A4 nadie llama la función interna [permission denied for function members_venue_pool]
+OK A5 la tabla vieja sigue cerrada para gratis [cero filas]
+OK C1 gratis ve ciudades con conteo 
+OK C2 CDMX en members_cities con 7 lugares Ciudad de México:7, Londres:4, Nueva York:4, París:4, Las Vegas:3, Dubái:2, Ibiza:2, Miami:2, Tokio:2, Berlín:1, Miami Beach:1, San José del Cabo:1, ZZ Ciudad Prueba:1
+OK C3 ordenadas por conteo 
+OK C4 members_cities no trae nombres de lugares 
+OK C5 members_teaser no trae nombres de lugares 
+OK C6 adelanto total = suma de members_cities 
+OK C7 adelanto de CDMX = 7 (misma unión) 
+OK C8 el adelanto ya cuenta la categoría mapeada (speakeasy incluye la curada) 
+OK P1 PRO recibe la unión de CDMX (7) Fifty Mils Bar Rooftop Test/curaduria, Hanky Panky/curaduria, Licoreria Limantour/curaduria, Parker & Lenox/members, Soho House Mexico City/members, T Polanco Jazz/curaduria, Terraza Legado Polanco/members
+OK P2 trae lugares viejos y curados 
+OK P3 Hanky Panky (vieja + curada ligada) aparece una vez y es la curada 
+OK P4 Fifty Mils renombrado no se repite (liga legacy_nightlife_id) 
+OK P5 Licorería sin liga: una vez, curada, con barrio, fuente y fecha 
+OK P6 PENDIENTE, casino, desactualizado y otro universo no salen 
+OK P7 solo VERIFICADO/CURADO en lo curado 
+OK P8 barrio dentro de la ciudad: Polanco aparece en CDMX con su nombre 
+OK P9 buscar "Polanco" da solo Polanco 
+OK P10 CDMX = Ciudad de Mexico = Mexico City = ciudad de méxico 
+OK P11 región incluye su localidad hija (Los Cabos → San José del Cabo) 
+OK P12 área metropolitana incluye a sus miembros (Miami + Miami Beach) 
+OK P13 ciudad vieja fuera del catálogo sigue funcionando 
+OK P14 París sin curaduría: las 4 de siempre 
+OK P15 conteos del adelanto = lugares de PRO por ciudad 
+OK P16 ningún lugar repetido en ninguna ciudad 
+OK P17 texto vacío: nada 

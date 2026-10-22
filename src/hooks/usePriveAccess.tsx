@@ -34,10 +34,11 @@ export type PriveAccess = {
   notice: string | null;
   clearNotice: () => void;
   refresh: () => Promise<PriveStatus | null>;
-  unlock: (password: string) => Promise<PriveResult>;
+  /** remember: "mantener mi sesión en este dispositivo (30 días)"; el servidor decide. */
+  unlock: (password: string, opts?: { remember?: boolean }) => Promise<PriveResult>;
   lock: () => Promise<void>;
   /** Guarda una sesión que el servidor acaba de emitir (p. ej. al terminar la ceremonia). */
-  adoptSession: (token: string, expiresAt: string) => void;
+  adoptSession: (token: string, expiresAt: string, remember?: boolean) => void;
   /** Llama a prive-access; con withSession agrega prive_session y maneja los PRIVE_*. */
   call: <T = Record<string, unknown>>(action: PriveAction, body?: Record<string, unknown>, opts?: CallOpts) => Promise<PriveResult<T>>;
   /** RPC de contenido del catálogo; sin sesión no se llama. */
@@ -112,9 +113,9 @@ export function PriveProvider({ children }: { children: ReactNode }) {
   );
 
   const adoptSession = useCallback(
-    (token: string, expiresAt: string) => {
+    (token: string, expiresAt: string, remember = false) => {
       if (!uid || !token) return;
-      const s = { token, expiresAt, userId: uid };
+      const s: StoredPriveSession = { token, expiresAt, userId: uid, ...(remember ? { remember: true } : {}) };
       savePriveSession(s);
       setSession(s);
       setNotice(null);
@@ -152,13 +153,15 @@ export function PriveProvider({ children }: { children: ReactNode }) {
   );
 
   const unlock = useCallback(
-    async (password: string): Promise<PriveResult> => {
-      const r = await priveApi.access<{ prive_session?: string; expires_at?: string }>("unlock", { password });
+    async (password: string, opts: { remember?: boolean } = {}): Promise<PriveResult> => {
+      const r = await priveApi.access<{ prive_session?: string; expires_at?: string; remember?: boolean }>(
+        "unlock", opts.remember ? { password, remember: true } : { password });
       if (r.ok) {
         const token = typeof r.data.prive_session === "string" ? r.data.prive_session : "";
         const exp = typeof r.data.expires_at === "string" ? r.data.expires_at : new Date(Date.now() + 12 * 3600e3).toISOString();
         if (!token) return { ok: false, code: "SERVICE_UNAVAILABLE" };
-        adoptSession(token, exp);
+        // Recordada solo si el SERVIDOR la aceptó (remember: true en la respuesta).
+        adoptSession(token, exp, r.data.remember === true);
         return { ok: true, data: {} };
       }
       // Cambió el estado (p. ej. MUST_RESET, PRO terminó): se vuelve a leer.

@@ -1,0 +1,204 @@
+
+ RUN  v3.2.7 /home/user/wt-aud-prive
+
+stderr | src/test/godtierHome.test.tsx > Inicio sin viajes: guía del primer viaje > franja compacta que explica qué pasa, sin video duplicado, y los ejemplos solo llenan el campo
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ❯ src/test/godtierHome.test.tsx (5 tests | 1 failed) 15683ms
+   × Inicio sin viajes: guía del primer viaje > franja compacta que explica qué pasa, sin video duplicado, y los ejemplos solo llenan el campo 7640ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ Inicio sin viajes: guía del primer viaje > recomendaciones vacías y gastos vacíos explican qué hacer (sin $0.00 gigante)  3356ms
+   ✓ Inicio con viaje: centro de mando > cuenta regresiva, cotización vigente, vuelo seguido, clima y UNA acción principal  1279ms
+   ✓ Inicio con viaje: centro de mando > un borrador sin cotización pide cotizar; mientras carga no muestra una acción equivocada  2803ms
+   ✓ Inicio con viaje: centro de mando > las herramientas ocupan todo el ancho (ya no quedan dentro de la rejilla de 2 columnas)  601ms
+stderr | src/test/priveHub.test.tsx > /prive: una pantalla por estado del servidor > FREE → adelanto elegante con PRO, sin contenido reservado
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/test/priveHub.test.tsx (29 tests) 13242ms
+   ✓ /prive: una pantalla por estado del servidor > FREE → adelanto elegante con PRO, sin contenido reservado  1212ms
+   ✓ /prive: una pantalla por estado del servidor > pausada (PRO terminó)  451ms
+   ✓ candado y sesión Privé > activada sin sesión → contraseña; al desbloquear guarda la sesión del usuario y abre el hub  498ms
+   ✓ candado y sesión Privé > mantener la sesión (30 días): opcional, apagado por omisión; solo se recuerda si el servidor lo aceptó  370ms
+   ✓ candado y sesión Privé > contraseña incorrecta y bloqueo temporal: mensajes calmados  675ms
+   ✓ candado y sesión Privé > un error PRIVE_* en cualquier llamada borra la sesión y regresa al candado  680ms
+   ✓ candado y sesión Privé > PRIVE_* desde la membresía también regresa a /prive con candado  942ms
+   ✓ Grand Welcome > se reproduce sola la primera vez; Saltar guarda la versión en el servidor  370ms
+   ✓ Grand Welcome > si el servidor dice que ya la vio, no se reproduce; se puede repetir desde la membresía  385ms
+   ✓ Grand Welcome > la membresía ofrece repetir la bienvenida  543ms
+   ✓ Grand Welcome > con movimiento completo empieza en negro y avanza por escenas; las fotos se piden después  442ms
+   ✓ Grand Welcome > con movimiento reducido todo aparece de una vez, sin escenas ni temporizadores  366ms
+   ✓ guía de inicio > reanuda en el paso guardado; Siguiente/Atrás guardan el avance en el servidor  368ms
+   ✓ guía de inicio > teclado: flechas para moverse, foco en el título del paso y Esc para saltar  932ms
+   ✓ guía de inicio > el consentimiento del Travel DNA se guarda; reservas: cinco etiquetas sin prometer nada  1767ms
+   ✓ guía de inicio > al terminar: WELCOME TO YOUR WORLD. → EXPLORE PRIVÉ guarda completed_at  955ms
+   ✓ guía de inicio > después de la bienvenida sigue la guía si no está terminada  391ms
+   ✓ membresía > desbloqueada: cambiar contraseña, reportar, cerrar sesiones, términos y ayuda  493ms
+stderr | src/test/dashboardActiveTrip.test.tsx > Inicio: viaje activo único > muestra 'En vivo' el viaje en curso aunque sea el más viejo
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/test/dashboardActiveTrip.test.tsx (3 tests) 5604ms
+   ✓ Inicio: viaje activo único > muestra 'En vivo' el viaje en curso aunque sea el más viejo  1248ms
+   ✓ Inicio: viaje activo único > el viaje fijado manda (mismo que Iato); las herramientas reciben ?trip=  4013ms
+   ✓ Inicio: viaje activo único > sin la columna en producción usa la elección local; la lista pone primero el viaje activo  341ms
+stderr | src/test/priveInvitation.test.tsx > /prive/invitacion > el token #t= se quita de la URL al llegar y se envía solo al aceptar
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/test/priveInvitation.test.tsx (16 tests) 11566ms
+   ✓ /prive/invitacion > el token #t= se quita de la URL al llegar y se envía solo al aceptar  2120ms
+   ✓ /prive/invitacion > invitación de otra cuenta: mensaje genérico y cambio de cuenta  2000ms
+   ✓ /prive/invitacion > invitación vencida: se pide una nueva y se puede abrir sin el token viejo  2052ms
+   ✓ /prive/invitacion > frase generada: se muestra una vez, nunca se guarda y la tarjeta no muestra credenciales  3401ms
+   ✓ /prive/invitacion > contraseña elegida: guía de fuerza, sin enviar hasta cumplir; error del servidor visible  533ms
+   ✓ /prive/restablecer > con token (#t=): lo quita de la URL, guarda la nueva y cierra la sesión local  363ms
+   ✓ /prive/restablecer > enlace vencido: lo dice y ofrece pedir otro  336ms
+stderr | src/test/tripSplitLive.test.tsx > TripSplit por moneda (D-18) > salda euros en euros y pesos en pesos, con el total convertido y su fuente
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/test/tripSplitLive.test.tsx (3 tests) 4281ms
+   ✓ TripSplit por moneda (D-18) > salda euros en euros y pesos en pesos, con el total convertido y su fuente  465ms
+   ✓ TripSplit por moneda (D-18) > no quita a quien tiene pagos (antes se borraban en cascada y cambiaban los saldos)  432ms
+   ✓ Modo viaje: el Concierge habla de este viaje > abrir el Concierge fija este viaje como activo  3382ms
+stderr | src/test/godtierPlan.test.tsx > una frase completa en el paso 1 se interpreta en el dispositivo y prellena fechas y viajeros
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/test/godtierPlan.test.tsx > si la frase no trae un destino reconocible lo dice, en vez de mandarla entera como destino
+Warning: An update to PlanTrip inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at PlanTrip (/home/user/wt-aud-prive/src/pages/PlanTrip.tsx:182:44)
+    at RenderedRoute (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:535:7)
+    at Routes (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1269:7)
+    at Router (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1203:17)
+    at MemoryRouter (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1097:7)
+
+stderr | src/test/godtierPlan.test.tsx > si la frase no trae un destino reconocible lo dice, en vez de mandarla entera como destino
+Warning: An update to PlanTrip inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at PlanTrip (/home/user/wt-aud-prive/src/pages/PlanTrip.tsx:182:44)
+    at RenderedRoute (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:535:7)
+    at Routes (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1269:7)
+    at Router (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1203:17)
+    at MemoryRouter (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1097:7)
+
+ ✓ src/test/godtierPlan.test.tsx (4 tests) 2734ms
+   ✓ una frase completa en el paso 1 se interpreta en el dispositivo y prellena fechas y viajeros  1264ms
+   ✓ los ejemplos llenan el campo y los atajos de fechas ponen salida y regreso  1261ms
+ ✓ src/test/bookingActionsUi.test.tsx (4 tests) 6138ms
+   ✓ BookingActions > una búsqueda dice 'Buscar este vuelo' (nunca 'Comprar') y abre el aviso antes de salir  3415ms
+   ✓ BookingActions > con consentimiento guarda la intención y usa la salida firmada  1218ms
+   ✓ BookingActions > restaurante con WhatsApp verificado: mensaje editable y enlace wa.me con el texto  1479ms
+stderr | src/test/membersMore.test.tsx > Members Only con la curaduría > panel del Concierge: pide members_venues con la ciudad, muestra fuente y barrio; no lee la tabla
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/test/membersMore.test.tsx (8 tests) 2419ms
+   ✓ Members Only con la curaduría > panel del Concierge: pide members_venues con la ciudad, muestra fuente y barrio; no lee la tabla  1687ms
+   ✓ Members Only con la curaduría > la solicitud de reserva sigue igual (concierge-action)  358ms
+stderr | src/test/priveEntry.test.tsx > el menú lateral y 'Más' llevan a /prive
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/test/priveEntry.test.tsx > el menú lateral y 'Más' llevan a /prive
+Warning: An update to DashboardLayout inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DashboardLayout (/home/user/wt-aud-prive/src/components/DashboardLayout.tsx:131:28)
+    at Router (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1203:17)
+    at MemoryRouter (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1097:7)
+Warning: An update to DashboardLayout inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DashboardLayout (/home/user/wt-aud-prive/src/components/DashboardLayout.tsx:131:28)
+    at Router (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1203:17)
+    at MemoryRouter (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1097:7)
+
+stderr | src/test/priveEntry.test.tsx > el menú lateral y 'Más' llevan a /prive
+Warning: An update to DashboardLayout inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DashboardLayout (/home/user/wt-aud-prive/src/components/DashboardLayout.tsx:131:28)
+    at Router (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1203:17)
+    at MemoryRouter (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1097:7)
+
+stderr | src/test/priveEntry.test.tsx > Members Only (adelanto) muestra la entrada a Privé y conserva su CTA de PRO
+Warning: An update to MembersTeaser inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at MembersTeaser (/home/user/wt-aud-prive/src/components/MembersTeaser.tsx:46:30)
+    at Router (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1203:17)
+    at MemoryRouter (/home/user/wanderly-ai-concierge/node_modules/.deno/react-router@6.30.6/node_modules/react-router/dist/umd/react-router.development.js:1097:7)
+
+ ✓ src/test/priveEntry.test.tsx (2 tests) 1767ms
+   ✓ el menú lateral y 'Más' llevan a /prive  1717ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/godtierHome.test.tsx > Inicio sin viajes: guía del primer viaje > franja compacta que explica qué pasa, sin video duplicado, y los ejemplos solo llenan el campo
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/test/godtierHome.test.tsx:78:3
+     76| 
+     77| describe("Inicio sin viajes: guía del primer viaje", () => {
+     78|   it("franja compacta que explica qué pasa, sin video duplicado, y los…
+       |   ^
+     79|     renderHome();
+     80|     expect(await screen.findByRole("heading", { name: /Planea tu prime…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 8 passed (9)
+      Tests  1 failed | 73 passed (74)
+   Start at  15:15:46
+   Duration  110.87s (transform 5.82s, setup 4.99s, collect 17.22s, tests 63.43s, environment 13.66s, prepare 3.00s)
+

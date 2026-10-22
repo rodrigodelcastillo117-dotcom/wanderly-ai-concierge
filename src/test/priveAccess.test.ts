@@ -255,3 +255,99 @@ describe("nunca registra secretos", () => {
     expect(text).not.toContain("valentina@example.test");
   });
 });
+
+// AUD-01 (cierre de auditoría): la función de Edge nunca abre una sesión Privé sin la sesión de Auth
+// del JWT, y si la base no puede validar la sesión Privé (o la de Auth) no hace nada sensible.
+describe("AUD-01 · sesión de Auth: falla cerrado", () => {
+  const noSid = { ...ctx, authSessionId: null };
+  const runNoSid = (body: unknown) => handlePriveAction(body, noSid, deps());
+
+  it("desbloquear con un JWT sin session_id → 401 UNAUTHENTICATED sin llamar a la base", async () => {
+    expect(await runNoSid({ action: "unlock", password: "Una-frase-muy-propia-77" }))
+      .toEqual({ status: 401, body: { ok: false, code: "UNAUTHENTICATED" } });
+    expect(calls).toEqual([]);
+  });
+
+  it("la base no puede comprobar la sesión de Auth (cerrada, suspendida, ilegible) → 401, sin token", async () => {
+    rpcImpl.prive_unlock = () => okData({ ok: false, reason: "AUTH_SESSION_INVALID" });
+    const out = await run({ action: "unlock", password: "Una-frase-muy-propia-77" });
+    expect(out).toEqual({ status: 401, body: { ok: false, code: "UNAUTHENTICATED" } });
+    expect(JSON.stringify(out)).not.toContain(PS);
+  });
+
+  it("ninguna acción entrega una sesión Privé sin session_id de Auth (fijar, cambiar, restablecer)", async () => {
+    rpcImpl.prive_set_password = () => okData({ ok: true });
+    rpcImpl.prive_change_password = () => okData({ ok: true });
+    rpcImpl.prive_complete_reset = () => okData({ ok: true });
+    const outs = [
+      await runNoSid({ action: "set_password", password: "Una-frase-muy-propia-77" }),
+      await runNoSid({ action: "change_password", prive_session: PS, old_password: "Una-frase-muy-propia-77", new_password: "Otra-frase-muy-propia-88" }),
+      await runNoSid({ action: "complete_reset", token: TOKEN, new_password: "Otra-frase-muy-propia-88" }),
+    ];
+    for (const o of outs) expect(o.body).not.toHaveProperty("prive_session");
+    expect(calls.map(([fn]) => fn)).not.toContain("prive_unlock");
+  });
+
+  it("token Privé viejo: cada acción que lo exige se detiene con el código de la base y no toca nada", async () => {
+    for (const code of ["PRIVE_SESSION_INVALID", "PRIVE_SESSION_EXPIRED", "PRIVE_NOT_PRO", "PRIVE_NOT_ELIGIBLE", "PRIVE_REVOKED"]) {
+      calls = [];
+      userRpcImpl.prive_require = () => ({ data: null, error: { message: code, code: "P0001" } });
+      for (const action of ["change_password", "revoke_sessions", "save_progress"]) {
+        const out = await run({ action, prive_session: PS, old_password: "Una-frase-muy-propia-77", new_password: "Otra-frase-muy-propia-88", welcome_version: 1 });
+        expect(out).toEqual({ status: 200, body: { ok: false, code } });
+      }
+      expect(calls).toEqual([]);
+    }
+  });
+
+  it("si prive_require falla por otra causa (permisos, red) → 500 INTERNAL y nada con service_role", async () => {
+    userRpcImpl.prive_require = () => ({ data: null, error: { message: "permission denied for schema auth", code: "42501" } });
+    for (const action of ["change_password", "revoke_sessions", "save_progress"]) {
+      const out = await run({ action, prive_session: PS, old_password: "Una-frase-muy-propia-77", new_password: "Otra-frase-muy-propia-88" });
+      expect(out).toEqual({ status: 500, body: { ok: false, code: "INTERNAL" } });
+    }
+    expect(calls).toEqual([]);
+    expect(JSON.stringify(logs)).not.toContain(PS);
+  });
+});
+
+describe("mantener mi sesión en este dispositivo (30 días)", () => {
+  it("unlock con remember: abre la sesión y la base la convierte en recordada (vence en 30 días)", async () => {
+    rpcImpl.prive_remember_session = () => okData({ ok: true, expires_at: "2026-11-21T10:00:00Z" });
+    const out = await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: true });
+    expect(out).toEqual({ status: 200, body: { ok: true, prive_session: PS, expires_at: "2026-11-21T10:00:00Z", remember: true } });
+    expect(calls.map(([fn]) => fn)).toEqual(["prive_unlock", "prive_remember_session"]);
+    expect(calls[1][1]).toEqual({ _user: UID, _session_id: "s1" });
+  });
+
+  it("si la base no la recuerda, queda la sesión normal de 12 h (nunca al revés)", async () => {
+    rpcImpl.prive_remember_session = () => okData({ ok: false, code: "PRIVE_SESSION_INVALID" });
+    expect((await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: true })).body)
+      .toEqual({ ok: true, prive_session: PS, expires_at: "2026-10-22T22:00:00Z" });
+    rpcImpl.prive_remember_session = () => ({ data: null, error: { message: "boom" } });
+    expect((await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: true })).body)
+      .toEqual({ ok: true, prive_session: PS, expires_at: "2026-10-22T22:00:00Z" });
+  });
+
+  it("sin remember (o contraseña equivocada) no se pide recordar; remember con otro tipo → 400", async () => {
+    await run({ action: "unlock", password: "Una-frase-muy-propia-77" });
+    rpcImpl.prive_unlock = () => okData({ ok: false, reason: "WRONG_PASSWORD" });
+    await run({ action: "unlock", password: "mala-clave-larga", remember: true });
+    expect(calls.map(([fn]) => fn)).toEqual(["prive_unlock", "prive_unlock"]);
+    expect((await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: "yes" })).status).toBe(400);
+  });
+});
+
+describe("restablecer: siempre hay salida y sin gastar intentos en vano", () => {
+  it("cuenta sin correo: EMAIL_UNAVAILABLE sin emitir token (no consume el límite de 3 por hora)", async () => {
+    const out = await handlePriveAction({ action: "request_reset" }, { ...ctx, user: { id: UID, email: null } }, deps());
+    expect(out.body).toEqual({ ok: false, code: "EMAIL_UNAVAILABLE" });
+    expect(calls).toEqual([]);
+  });
+
+  it("bloqueo total: pedir el enlace no exige sesión Privé (solo la de IATOS)", async () => {
+    rpcImpl.prive_request_reset = () => okData(TOKEN);
+    expect((await run({ action: "request_reset" })).body).toEqual({ ok: true, email: "sent" });
+    expect(userCalls).toEqual([]);
+  });
+});

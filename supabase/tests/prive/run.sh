@@ -8,10 +8,14 @@ DIR=$(cd "$(dirname "$0")" && pwd); DB=${1:-iatos_prive_test}
 PSQL="psql -U ${PGUSER:-postgres} -q -X"
 "$DIR/../security/run.sh" "$DB" >/dev/null 2>&1
 # Una migración que falle al reproducirse es una falla de esta suite.
-for f in "$DIR"/../../migrations/2026102309*.sql; do
+# Las del cierre de auditoría (20261024*_aud_prive_*) redefinen funciones de las 2026102309*: van
+# después, como en producción, y también deben ser idempotentes.
+for f in "$DIR"/../../migrations/2026102309*.sql "$DIR"/../../migrations/20261024*_aud_prive_*.sql; do
   out=$($PSQL -v ON_ERROR_STOP=1 -d "$DB" -f "$f" 2>&1 >/dev/null | grep ERROR | head -1)
   [ -n "$out" ] && echo "FALLA migración $(basename "$f") no es idempotente: $out"
 done
-# auth.sessions existe en Supabase pero no en los stubs locales: prive_auth_session_alive la usa.
-$PSQL -d "$DB" -c "CREATE TABLE IF NOT EXISTS auth.sessions (id uuid PRIMARY KEY, user_id uuid, not_after timestamptz, created_at timestamptz DEFAULT now())" >/dev/null
+# auth.sessions ya está en los stubs (01_supabase_stubs.sql); esto queda por compatibilidad con bases viejas.
+$PSQL -d "$DB" -c "CREATE TABLE IF NOT EXISTS auth.sessions (id uuid PRIMARY KEY, user_id uuid, not_after timestamptz, created_at timestamptz DEFAULT now())" >/dev/null 2>&1
 $PSQL -At -d "$DB" -f "$DIR/prive.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
+# Cierre de auditoría: AUD-01 (sesión de Auth, fail closed) y NEW-01 (revocar concesión con invitación).
+$PSQL -At -d "$DB" -f "$DIR/aud_session.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'

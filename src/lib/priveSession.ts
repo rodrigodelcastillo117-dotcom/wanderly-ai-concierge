@@ -8,6 +8,13 @@
 // ("contraseña incorrecta"). Se borra al cerrar sesión, al cambiar de usuario, al bloquear Privé y
 // ante cualquier error PRIVE_*. Nunca se usa como autoridad (no hay "unlocked = true" sin servidor).
 //
+// Cierre de auditoría (grupo prive): localStorage sobrevive al cierre del navegador; sessionStorage no.
+// Para no perder esa protección (computadora compartida: quien la abre después no debe entrar a Privé
+// sin la contraseña Privé), una sesión NORMAL se acompaña de una cookie de sesión del navegador (sin
+// fecha, sin el token; compartida entre pestañas, se borra al cerrar el navegador). Sin esa cookie, la
+// sesión guardada se descarta. Solo la sesión que la persona pidió recordar ("mantener mi sesión en
+// este dispositivo", 30 días, decidido y vigilado por el servidor) sobrevive al cierre.
+//
 // Este módulo va en el paquete inicial (lo importa AuthContext para limpiar al cerrar sesión), por
 // eso es diminuto y no importa nada.
 
@@ -21,7 +28,38 @@ export type StoredPriveSession = {
   expiresAt: string;
   /** Usuario de IATOS dueño de la sesión: otra cuenta en la misma pestaña no la hereda. */
   userId: string;
+  /** La persona eligió "mantener mi sesión en este dispositivo" (el servidor la aceptó). */
+  remember?: boolean;
 };
+
+/** Cookie de sesión del navegador (sin Expires): marca que este navegador no se ha cerrado. */
+export const PRIVE_BROWSER_SESSION_COOKIE = "iatos_prive_bs";
+
+function setBrowserSessionMarker() {
+  try {
+    if (typeof document === "undefined") return;
+    const secure = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${PRIVE_BROWSER_SESSION_COOKIE}=1; Path=/; SameSite=Strict${secure}`;
+  } catch {
+    /* sin cookies: la sesión normal durará solo hasta que se lea sin la marca */
+  }
+}
+
+function hasBrowserSessionMarker(): boolean {
+  try {
+    return typeof document !== "undefined" && document.cookie.split(/;\s*/).includes(`${PRIVE_BROWSER_SESSION_COOKIE}=1`);
+  } catch {
+    return false;
+  }
+}
+
+function clearBrowserSessionMarker() {
+  try {
+    if (typeof document !== "undefined") document.cookie = `${PRIVE_BROWSER_SESSION_COOKIE}=; Path=/; Max-Age=0; SameSite=Strict`;
+  } catch {
+    /* noop */
+  }
+}
 
 const ss = (): Storage | null => {
   try {
@@ -42,6 +80,7 @@ const ls = (): Storage | null => {
 
 export function savePriveSession(s: StoredPriveSession) {
   try {
+    if (!s.remember) setBrowserSessionMarker();
     ls()?.setItem(PRIVE_SESSION_KEY, JSON.stringify(s));
   } catch {
     /* almacenamiento lleno o bloqueado: la sesión dura solo en memoria */
@@ -59,14 +98,17 @@ export function readPriveSession(userId: string | null | undefined, now = Date.n
       if (!raw) return null;
       ss()?.removeItem(PRIVE_SESSION_KEY);
       ls()?.setItem(PRIVE_SESSION_KEY, raw);
+      setBrowserSessionMarker(); // venía de esta pestaña: el navegador sigue abierto
     }
     const s = JSON.parse(raw) as Partial<StoredPriveSession>;
     const exp = typeof s.expiresAt === "string" ? Date.parse(s.expiresAt) : NaN;
-    if (typeof s.token !== "string" || !s.token || s.userId !== userId || !Number.isFinite(exp) || exp <= now) {
+    const remember = s.remember === true;
+    if (typeof s.token !== "string" || !s.token || s.userId !== userId || !Number.isFinite(exp) || exp <= now
+        || (!remember && !hasBrowserSessionMarker())) {
       clearPriveSession();
       return null;
     }
-    return { token: s.token, expiresAt: s.expiresAt as string, userId };
+    return { token: s.token, expiresAt: s.expiresAt as string, userId, ...(remember ? { remember: true } : {}) };
   } catch {
     clearPriveSession();
     return null;
@@ -74,6 +116,7 @@ export function readPriveSession(userId: string | null | undefined, now = Date.n
 }
 
 export function clearPriveSession() {
+  clearBrowserSessionMarker();
   try {
     ls()?.removeItem(PRIVE_SESSION_KEY);
     ss()?.removeItem(PRIVE_SESSION_KEY);

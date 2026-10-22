@@ -1,0 +1,111 @@
+FALLÓ 20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql: psql:/home/user/wt-aud-prive/supabase/migrations/20260527200005_5015a40e-874a-442d-9511-f3477ba7e18b.sql:45: ERROR:  extension "pg_cron" is not available
+OK A1 prive_destination sin sesión [PRIVE_NOT_PRO]
+OK A2 prive_search sin sesión [PRIVE_NOT_PRO]
+OK A3 prive_experience con sesión ajena [PRIVE_NOT_PRO]
+OK A4 prive_universe con token inventado [PRIVE_NOT_PRO]
+OK A5 prive_save sin sesión [PRIVE_NOT_PRO]
+OK A6 prive_add_to_trip sin sesión [PRIVE_NOT_PRO]
+OK A7 prive_request_create sin sesión [PRIVE_NOT_PRO]
+OK A8 prive_track sin sesión [PRIVE_NOT_PRO]
+OK A9 prive_for_you sin sesión [PRIVE_NOT_PRO]
+OK A10 lectura directa de prive_experiences [permission denied for table prive_experiences]
+OK A11 lectura directa de la vista [permission denied for view prive_experiences_v]
+OK A12 lectura directa del registro de alianzas [permission denied for table prive_partner_agreements]
+OK A13 escritura directa de experiencias [permission denied for table prive_experiences]
+OK T1 el adelanto trae universos y destinos 
+OK T2 el adelanto no filtra nombres, sitios ni coordenadas de experiencias 
+OK T3 el adelanto cuenta solo lo publicable (no PENDIENTE, ni pasado, ni desactualizado) {"kind": "country", "name": "Mónaco", "slug": "mc", "count": 4, "coverage": "COBERTURA_PARCIAL", "region_group": "europa"}
+OK T4 anon no llama el adelanto [permission denied for function prive_teaser]
+OK S1 VERIFICADO reciente queda VERIFICADO 
+OK S2 más de 90 días sin verificar = DESACTUALIZADO 
+OK S3 evento pasado = NO_DISPONIBLE 
+OK S4 cerrado por temporada con reapertura sourced: visible y marcado 
+OK S5 CURADO sin fuentes [new row for relation "prive_experiences" violates check constraint "prive_sourced_states"]
+OK S6 VERIFICADO sin sitio oficial [new row for relation "prive_experiences" violates check constraint "prive_verified_officia]
+OK S7 precio sin fuente [new row for relation "prive_experiences" violates check constraint "prive_price_has_source]
+OK S8 horario sin fuente [new row for relation "prive_experiences" violates check constraint "prive_hours_have_sourc]
+OK S9 disponibilidad sin consulta [new row for relation "prive_experiences" violates check constraint "prive_availability_con]
+OK S10 casino publicado sin licencia [new row for relation "prive_experiences" violates check constraint "prive_casino_rules"]
+OK S11 casino para todas las edades [new row for relation "prive_experiences" violates check constraint "prive_casino_rules"]
+OK S12 aventura sin requisitos de seguridad [new row for relation "prive_experiences" violates check constraint "prive_adventure_rules"]
+OK S13 premio sin año [new row for relation "prive_experiences" violates check constraint "prive_experiences_acco]
+OK L1 PARTNER VERIFICADO sin acuerdo [prive_experiences: PARTNER_VERIFICADO requiere un acuerdo firmado y vigente]
+OK L2 BENEFICIO EXCLUSIVO sin beneficio [prive_experiences: BENEFICIO_EXCLUSIVO requiere un acuerdo firmado y vigente]
+OK L3 EXPERIENCIA CURADA en algo PENDIENTE [new row for relation "prive_experiences" violates check constraint "prive_label_curada"]
+OK L4 EXPERIENCIA PRIVADA sin operador [new row for relation "prive_experiences" violates check constraint "prive_label_private"]
+OK L5 acuerdo "firmado" sin documento de evidencia [new row for relation "prive_partner_agreements" violates check constraint "prive_agreement]
+OK L6 PARTNER VERIFICADO con acuerdo en borrador [prive_experiences: PARTNER_VERIFICADO requiere un acuerdo firmado y vigente]
+OK L7 beneficio de otro acuerdo [prive_experiences: BENEFICIO_EXCLUSIVO requiere un acuerdo firmado y vigente]
+OK L8 con acuerdo firmado, vigente y beneficio del registro sí hay BENEFICIO EXCLUSIVO 
+OK L9 al vencer el acuerdo la etiqueta cae sola a EXPERIENCIA CURADA 
+OK L10 el beneficio vencido ya no se publica en la tarjeta 
+OK L11 no se puede escribir un beneficio que no está en el registro [prive_experiences: BENEFICIO_EXCLUSIVO requiere un acuerdo firmado y vigente]
+OK L12 ninguna fila del registro fue inventada por la migración (solo las de esta prueba) 
+OK D1 "Monte Carlo", "montecarlo" y "Monte-Carlo" son el mismo barrio de Mónaco 
+OK D2 CDMX, DF, Mexico City → Ciudad de México; Polanco y Roma-Condesa son barrios de la CDMX 
+OK D3 Punta Mita en Riviera Nayarit; San José del Cabo en Los Cabos; Miami Beach en el Área de Miami 
+OK D4 Riviera Maya y Tulum son destinos distintos de Quintana Roo; Omán es país con Mascate 
+OK D5 los 111 destinos de la lista del dueño, ninguno duplicado por nombre 
+OK D6 todos nacen SIN COBERTURA VERIFICADA (sin contenido) 
+OK D7 coordenadas: cada una con fuente; las que faltan dicen por qué 
+OK D8 un segundo alias "montecarlo" a otro destino [duplicate key value violates unique constraint "prive_destination_aliases_pkey"]
+OK D9 una segunda "Montecarlo" bajo Mónaco [duplicate key value violates unique constraint "prive_dest_unique_name"]
+OK D10 un barrio colgando de otro barrio [prive_destinations: un neighborhood no puede colgar de un neighborhood]
+OK D11 experiencia colgada de un área [prive_experiences: destination_id debe ser un destino (país-destino, región o localidad), ]
+OK D12 barrio que no es de ese destino [prive_experiences: el barrio no pertenece a ese destino]
+OK D13 duplicado por nombre en el mismo destino ("T Louis XV - Hôtel de Paris") [duplicate key value violates unique constraint "prive_dedupe"]
+OK C1 Mónaco con contenido VERIFICADO/CURADO vigente = COBERTURA PARCIAL {"level": "COBERTURA_PARCIAL", "universos": 4, "publicables": 4, "verificadas": 1}
+OK C2 París solo con PENDIENTE (heredados) y DESACTUALIZADO = SIN COBERTURA VERIFICADA {"level": "SIN_COBERTURA_VERIFICADA", "universos": 0, "publicables": 0, "verificadas": 0}
+OK C3 12 VERIFICADO en 3 universos = PILOTO VERIFICADO 
+OK C4 con 75% verificado baja a COBERTURA PARCIAL 
+OK C5 el barrio Montecarlo cuenta lo suyo 
+OK C6 la cobertura no es una columna que se pueda escribir a mano 
+OK M0a miembro sin token [PRIVE_NO_SESSION]
+OK M0b miembro con token inventado [PRIVE_SESSION_INVALID]
+OK M1 la página de Mónaco no muestra PENDIENTE ni el evento pasado 
+OK M2 lo desactualizado aparece marcado DESACTUALIZADO 
+OK M3 sin declaración 18+ el casino no sale (solo el conteo) 
+OK M4 declaración 18+ con la versión vigente 
+OK M5 Iato no recomienda casino si no se pidió 
+OK M6 Iato: casino legal solo si se pidió, con licencia y edad 
+OK M7 Iato excluye DESACTUALIZADO, PENDIENTE y NO DISPONIBLE 
+OK M8 ciudad sin cobertura: dice SIN COBERTURA y no inventa nada 
+OK M9 búsqueda por palabra clave (beach club) encuentra el club de playa con su temporada 
+OK M10 ficha: precio y horario solo con su fuente 
+OK M11 una experiencia PENDIENTE no existe para el miembro 
+OK M12a guardar 
+OK M12b el guardado queda en Favoritos (recomendaciones) 
+OK M13 el cliente no fabrica guardados de Privé [recomendaciones: los guardados de Privé solo se crean con prive_save()]
+OK M14 agregar al viaje crea elementos NO confirmados en el viaje 
+OK M14b en el viaje quedan como pendientes, sin folio (no reservados) 
+OK M15 la ficha trae la evidencia de la etiqueta y el crédito de imagen ilustrativa 
+OK M16a sin consentimiento de Travel DNA no se usan preferencias 
+OK M16b con consentimiento, el gusto Michelin sube The Table (razón dna:the_table) 
+OK M16 prive_track ignora eventos que solo escribe el servidor 
+OK R1 solicitar crea "solicitado" 
+OK R2 no se puede solicitar algo PENDIENTE 
+OK R3 el usuario no cambia el estado directo [permission denied for table concierge_requests]
+OK R4 el usuario no inserta una solicitud confirmada [permission denied for table concierge_requests]
+OK R5 el usuario no es el equipo [prive_request_transition: solo el equipo]
+OK R6 lo no confirmado nunca se muestra como confirmado 
+OK R7 ni con llave de servicio se cambia el estado sin la función [prive_request: el estado solo cambia con prive_request_transition() o prive_request_cancel]
+OK R8 transición ilegal (solicitado → confirmado) rechazada 
+OK R9 solicitado → pendiente de confirmación 
+OK R10 confirmar sin evidencia [new row for relation "concierge_requests" violates check constraint "prive_confirm_has_evi]
+OK R11 confirmar con evidencia 
+OK R12 la constancia confirmada existe en bookings con folio 
+OK R13 historial con actor en cada paso ∅>solicitado:usuario,solicitado>pendiente_confirmacion:equipo,pendiente_confirmacion>confirmado_externamente:equipo
+OK R14 la confirmada sí se ve confirmada, con ACCESO CONFIRMADO y folio 
+OK R15a nueva solicitud 
+OK R15b la nueva sigue "aún no es una reserva" 
+OK R16a el usuario cancela la suya 
+OK R16b la constancia queda cancelada 
+OK R17 una cancelada no se puede volver a cancelar 
+OK I1 un lugar ya cargado en Los Cabos no se duplica en San José del Cabo (misma familia) 
+OK I2 el cargador no puede poner PARTNER VERIFICADO 
+OK I3 el ensayo (dry run) no deja nada escrito 
+OK H1 los lugares heredados entran PENDIENTE y ocultos 
+OK H2 nightlife_premium no se tocó 
+OK X1 las métricas no guardan texto libre 
+OK X2 el equipo ve confirmadas con evidencia 
+OK X3 un usuario no ve el panel [admin_prive_metrics: solo el equipo]

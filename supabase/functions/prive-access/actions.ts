@@ -88,11 +88,28 @@ async function checkNewPassword(deps: PriveAccessDeps, pw: unknown): Promise<{ p
   return { breach };
 }
 
+/** Sin sesión de Auth comprobable no hay sesión Privé (AUD-01): "vuelve a iniciar sesión". */
+const authSessionInvalid = () => fail("UNAUTHENTICATED", {}, 401);
+
 /** Abre una sesión Privé (después de fijar, cambiar o restablecer la contraseña). */
-async function openSession(deps: PriveAccessDeps, ctx: PriveRequestCtx, password: string): Promise<ActionOutcome> {
+async function openSession(deps: PriveAccessDeps, ctx: PriveRequestCtx, password: string, remember = false): Promise<ActionOutcome> {
+  // AUD-01: una sesión Privé siempre queda ligada al session_id del JWT. Sin él (JWT raro, de servicio
+  // o manipulado) no se emite; la base lo vuelve a comprobar contra auth.sessions.
+  if (!ctx.authSessionId) return authSessionInvalid();
   const r = await call(deps, "prive_unlock", { _user: ctx.user.id, _password: password, _ip_hash: ctx.ipHash, _auth_session_id: ctx.authSessionId });
+  if (r.reason === "AUTH_SESSION_INVALID") return authSessionInvalid();
   if (r.ok === true) {
     if (r.notice === "new_access") await deps.sendNotice("new_access", ctx.user);
+    if (remember && typeof r.session_id === "string") {
+      // "Mantener mi sesión en este dispositivo (30 días)": la base decide; si no se puede, queda la
+      // sesión normal de 12 h (nunca al revés).
+      const { data, error } = await deps.rpc("prive_remember_session", { _user: ctx.user.id, _session_id: r.session_id });
+      const m = (data ?? {}) as Record<string, unknown>;
+      if (!error && m.ok === true && typeof m.expires_at === "string") {
+        return ok({ prive_session: r.token, expires_at: m.expires_at, remember: true });
+      }
+      deps.log?.("prive-access: no se pudo recordar la sesión", error ? error.message : String(m.code ?? ""));
+    }
     return ok({ prive_session: r.token, expires_at: r.expires_at });
   }
   if (r.notice === "hard_lock") await deps.sendNotice("hard_lock", ctx.user);
@@ -177,7 +194,8 @@ export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, dep
       case "unlock": {
         const password = str(b.password);
         if (!password) return invalid("password");
-        return await openSession(deps, ctx, password);
+        if (b.remember !== undefined && typeof b.remember !== "boolean") return invalid("remember");
+        return await openSession(deps, ctx, password, b.remember === true);
       }
 
       case "lock": {
@@ -204,6 +222,8 @@ export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, dep
       }
 
       case "request_reset": {
+        // Sin correo no hay a dónde mandar el enlace: no se gasta un token ni uno de los 3 intentos por hora.
+        if (!ctx.user.email) return fail("EMAIL_UNAVAILABLE");
         const { data, error } = await deps.rpc("prive_request_reset", { _user: uid });
         if (error) {
           const m = error.message.trim();
@@ -211,7 +231,6 @@ export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, dep
           if (m === "NO_PASSWORD") return fail("NO_PASSWORD");
           throw new Internal(`prive_request_reset: ${m}`);
         }
-        if (!ctx.user.email) return fail("EMAIL_UNAVAILABLE");
         const sent = await deps.sendResetEmail(ctx.user, String(data));
         // El token nunca vuelve al navegador: solo viaja por correo.
         return sent ? ok({ email: "sent" }) : fail("EMAIL_UNAVAILABLE");

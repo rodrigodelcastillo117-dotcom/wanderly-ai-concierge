@@ -1,0 +1,48 @@
+OK S01 sesión de Auth viva + sesión Privé vigente → OK
+OK S01b control: con una sesión válida las RPC de contenido pasan prive_require (la prueba S11 no es vacía)
+OK S02 sesión de Auth cerrada (JWT sin vencer) → PRIVE_SESSION_INVALID
+OK S03 cierre global: las sesiones Privé de todos los dispositivos dejan de valer
+OK S04 cuenta suspendida → PRIVE_SESSION_INVALID y no puede desbloquear; al vencer la suspensión vuelve a entrar
+OK S05 cuenta borrada (deleted_at) → PRIVE_SESSION_INVALID
+OK S05b cuenta eliminada: el JWT que sobrevive no abre nada y no quedan sesiones
+OK S06 sesión de Auth vencida (not_after) → PRIVE_SESSION_INVALID
+OK S07 sin SELECT en auth.sessions → se niega (fail closed)
+OK S07b sin USAGE en el esquema auth → se niega con el código del contrato (no un error 500)
+OK S08 auth.sessions no existe → se niega (fail closed)
+OK S08b columna faltante en auth.sessions → se niega (fail closed)
+OK S08c al recuperar la tabla la sesión legítima sigue sirviendo (no se bloqueó a nadie)
+OK S09 desbloquear sin session_id de Auth no emite sesión Privé
+OK S09b sesión Privé sin ligar → PRIVE_SESSION_INVALID con cualquier JWT (con o sin session_id)
+OK S09c desbloquear con un session_id que no existe (o de otra cuenta) no emite sesión
+OK S10 la sesión Privé no se hereda a otro inicio de sesión; desbloquear en el nuevo sí
+OK S11 token Privé de una sesión de Auth cerrada: todas las RPC con _ps → PRIVE_SESSION_INVALID
+OK S11b token Privé sin ligar: todas las RPC → PRIVE_SESSION_INVALID
+OK S11c cuenta suspendida: todas las RPC → PRIVE_SESSION_INVALID
+OK S11d sesión Privé bloqueada (lock): todas las RPC → PRIVE_SESSION_INVALID
+OK S11e sesión Privé inactiva > 2 h: todas las RPC → PRIVE_SESSION_EXPIRED
+OK S12 PRO terminado: prive_require → PRIVE_NOT_PRO con la sesión Privé vieja y la de Auth viva
+OK S12b PRO terminado: la contraseña correcta no abre sesión
+OK S12c PRO terminado: todas las RPC de contenido → PRIVE_NOT_PRO
+OK S12d suscripción cancelada en Stripe (status canceled) → PRIVE_NOT_PRO
+OK S13 authenticated sin ser admin: 10 RPC de administración negadas
+OK S13b anon y authenticated no tienen EXECUTE en las RPC admin_* de Privé ni en prive_sweep/prive_auth_session_alive
+OK N01 revocar la concesión revoca la invitación pendiente y retira la membresía "invited" (auditado)
+OK N01b idempotente: revocar otra vez no duplica nada
+OK N01c el enlace de la invitación revocada no se acepta, no fija contraseña y no se vuelve a enviar
+OK N01d al cumplir 90 días: el enlace viejo da INVITATION_EXPIRED y el cron crea una invitación nueva por antigüedad
+OK N02 si sigue cumpliendo por antigüedad, revocar la concesión no le quita la invitación
+OK N03 concesión vencida con invitación pendiente: el barrido revoca la invitación y retira la membresía
+OK N04 el barrido no toca membresías activas ni invitaciones de quien sí cumple
+OK N05 la limpieza de la migración retira solo la invitación de la concesión revocada; la vigente sigue
+OK T01 solicitud Privé con el viaje de otra cuenta → TRIP_NOT_FOUND y no se crea nada
+OK T02 con su propio viaje, con uno compartido con ella (colaboradora) o sin viaje → se crea a su nombre
+OK R01 recordar: la sesión vence a los 30 días, avisa en la app y queda en la bitácora
+OK R02 recordada: 3 h sin uso no la cierran (ni prive_require ni el barrido)
+OK R03 recordada: 8 días sin uso → PRIVE_SESSION_EXPIRED
+OK R03b recordada: a los 30 días vence aunque se use
+OK R04 recordada: cerrar sesión en IATOS la invalida al instante
+OK R05 recordada: sin PRO → PRIVE_NOT_PRO; "cerrar todas mis sesiones" la cierra
+OK R06 solo se recuerda una sesión recién abierta y propia
+OK R07 sin elegir "recordar" la sesión sigue en 12 h / 2 h
+OK L01 bloqueo total → restablecer por correo → entra con la nueva; el enlace no sirve dos veces
+OK X01 members_requires_prive=true NO cambia members_access (bandera solo informativa; ver PRIVE.md)

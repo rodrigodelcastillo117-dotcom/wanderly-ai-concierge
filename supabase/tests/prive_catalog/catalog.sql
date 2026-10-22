@@ -40,7 +40,10 @@ BEGIN
   PERFORM public.prive_invite_user(u, 'tenure', 'system');
   r := public.prive_accept_invitation(u, NULL);
   r := public.prive_set_password(u, pw, 'ok');
-  r := public.prive_unlock(u, pw, NULL, NULL);
+  -- AUD-01: la sesión Privé queda ligada a una sesión de Auth real (fila en auth.sessions y su
+  -- session_id en el JWT, que se pone en request.jwt.claims cada vez que U1 "inicia sesión" abajo).
+  INSERT INTO auth.sessions (id, user_id) VALUES ('c1000000-0000-0000-0000-0000000000a1', u) ON CONFLICT DO NOTHING;
+  r := public.prive_unlock(u, pw, NULL, 'c1000000-0000-0000-0000-0000000000a1');
   IF r->>'token' IS NULL THEN RAISE NOTICE 'FALLA SETUP no se obtuvo sesión Privé: %', r; END IF;
   INSERT INTO public.t_tokens VALUES ('u1', r->>'token') ON CONFLICT (label) DO UPDATE SET token = EXCLUDED.token;
 END $$;
@@ -89,7 +92,7 @@ VALUES ('e0000000-0000-0000-0000-000000000007', 'mc-t-beach', public.t_dest('mc'
 -- ───────────── 1. Acceso: sin derecho o sin sesión Privé no sale contenido ─────────────
 -- U2 es una cuenta sin Privé (gratis): la base responde con un código PRIVE_* y nada más.
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.role', 'authenticated', false);
-SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a2', false);
+SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a2', false), set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-0000000000a2","role":"authenticated"}', false);
 SELECT public.t_err('A1 prive_destination sin sesión', $q$SELECT public.prive_destination(NULL, 'mc')$q$, 'PRIVE_');
 SELECT public.t_err('A2 prive_search sin sesión', $q$SELECT public.prive_search('', ARRAY['Mónaco'])$q$, 'PRIVE_');
 SELECT public.t_err('A3 prive_experience con sesión ajena', $q$SELECT public.prive_experience(public.t_ps(), 'mc-t-louis-xv')$q$, 'PRIVE_');
@@ -112,7 +115,7 @@ SELECT public.t_ok('T2 el adelanto no filtra nombres, sitios ni coordenadas de e
 SELECT public.t_ok('T3 el adelanto cuenta solo lo publicable (no PENDIENTE, ni pasado, ni desactualizado)',
   (SELECT (x->>'count')::int FROM jsonb_array_elements(public.prive_teaser()->'destinations') x WHERE x->>'slug' = 'mc') = 4,
   (SELECT x::text FROM jsonb_array_elements(public.prive_teaser()->'destinations') x WHERE x->>'slug' = 'mc'));
-RESET ROLE; SET ROLE anon; SELECT set_config('request.jwt.claim.sub', '', false);
+RESET ROLE; SET ROLE anon; SELECT set_config('request.jwt.claim.sub', '', false), set_config('request.jwt.claims', '{}', false);
 SELECT public.t_err('T4 anon no llama el adelanto', $q$SELECT public.prive_teaser()$q$, 'permission denied');
 RESET ROLE;
 
@@ -219,7 +222,7 @@ RESET ROLE;
 
 -- ───────────── 7. Contenido para el miembro ─────────────
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.role', 'authenticated', false);
-SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a1', false);
+SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"c1000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_err('M0a miembro sin token', $q$SELECT public.prive_destination(NULL, 'mc')$q$, 'PRIVE_NO_SESSION');
 SELECT public.t_err('M0b miembro con token inventado', $q$SELECT public.prive_destination(repeat('x', 43), 'mc')$q$, 'PRIVE_SESSION_INVALID');
 SELECT public.t_ok('M1 la página de Mónaco no muestra PENDIENTE ni el evento pasado',
@@ -278,7 +281,7 @@ SELECT public.t_err('R5 el usuario no es el equipo', $q$SELECT public.prive_requ
 SELECT public.t_ok('R6 lo no confirmado nunca se muestra como confirmado',
   (SELECT bool_and(NOT (x->>'is_confirmed')::boolean AND x->>'label' IS NULL AND x->>'status_text' ~ 'aún no es una reserva') FROM jsonb_array_elements(public.prive_my_requests()) x));
 RESET ROLE;
-SET ROLE service_role; SELECT set_config('request.jwt.claim.role', 'service_role', false); SELECT set_config('request.jwt.claim.sub', '', false);
+SET ROLE service_role; SELECT set_config('request.jwt.claim.role', 'service_role', false); SELECT set_config('request.jwt.claim.sub', '', false), set_config('request.jwt.claims', '{}', false);
 SELECT public.t_err('R7 ni con llave de servicio se cambia el estado sin la función', $q$UPDATE public.concierge_requests SET status='pendiente_confirmacion' WHERE type='prive_request'$q$, 'solo cambia con');
 SELECT public.t_ok('R8 transición ilegal (solicitado → confirmado) rechazada',
   (public.prive_request_transition((SELECT id FROM public.concierge_requests WHERE type = 'prive_request' LIMIT 1), 'confirmado_externamente')->>'code') = 'ILLEGAL_TRANSITION');
@@ -295,7 +298,7 @@ SELECT public.t_ok('R13 historial con actor en cada paso',
   (SELECT string_agg(coalesce(from_status, '∅') || '>' || to_status || ':' || actor, ',' ORDER BY id) FROM public.concierge_request_events));
 RESET ROLE;
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.role', 'authenticated', false);
-SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a1', false);
+SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"c1000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_ok('R14 la confirmada sí se ve confirmada, con ACCESO CONFIRMADO y folio',
   (SELECT (x->>'is_confirmed')::boolean AND x->>'label' = 'ACCESO_CONFIRMADO' AND x->>'confirmation_code' = 'ABC123' FROM jsonb_array_elements(public.prive_my_requests()) x LIMIT 1));
 SELECT public.t_ok('R15a nueva solicitud', (public.prive_request_create(public.t_ps(), 'e0000000-0000-0000-0000-000000000001')->>'ok')::boolean);
@@ -328,8 +331,8 @@ SELECT public.t_ok('H2 nightlife_premium no se tocó', (SELECT count(*) FROM pub
 -- ───────────── 11. Métricas ─────────────
 SELECT public.t_ok('X1 las métricas no guardan texto libre', NOT EXISTS (SELECT 1 FROM information_schema.columns
   WHERE table_name = 'prive_events' AND column_name NOT IN ('id','user_id','event','experience_id','destination_id','trip_id','surface','plan','created_at')));
-SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a3', false);
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a3', false), set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
 SELECT public.t_ok('X2 el equipo ve confirmadas con evidencia', (public.admin_prive_metrics(30)->>'requests')::int = 2);
-SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a1', false);
+SELECT set_config('request.jwt.claim.sub', 'c0000000-0000-0000-0000-0000000000a1', false), set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-0000000000a1","role":"authenticated","session_id":"c1000000-0000-0000-0000-0000000000a1"}', false);
 SELECT public.t_err('X3 un usuario no ve el panel', $q$SELECT public.admin_prive_metrics(30)$q$, 'solo el equipo');
 RESET ROLE;

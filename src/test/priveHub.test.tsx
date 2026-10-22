@@ -37,8 +37,11 @@ const renderAt = (path = "/prive", extra?: React.ReactNode) =>
     </MemoryRouter>,
   );
 
-const withSession = () =>
+// Sesión normal en este navegador abierto: el token en localStorage + la cookie de sesión del navegador.
+const withSession = () => {
+  document.cookie = "iatos_prive_bs=1; Path=/";
   localStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: SESSION_TOKEN, expiresAt: futureIso(), userId: "u1" }));
+};
 
 const setStatus = (s: PriveStatus) => { state.status = s; };
 
@@ -120,6 +123,23 @@ describe("candado y sesión Privé", () => {
     expect(stored).toMatchObject({ token: SESSION_TOKEN, userId: "u1" });
     expect(Object.keys({ ...localStorage }).filter((k) => k !== PRIVE_SESSION_KEY)).toEqual([]);
     expect(screen.getByTestId("prive-curating")).toHaveTextContent("Contenido en curaduría");
+  });
+
+  it("mantener la sesión (30 días): opcional, apagado por omisión; solo se recuerda si el servidor lo aceptó", async () => {
+    setStatus(activeStatus());
+    state.handler = (action) => (action === "unlock"
+      ? { ok: true, data: { ok: true, prive_session: SESSION_TOKEN, expires_at: new Date(Date.now() + 30 * 86400e3).toISOString(), remember: true } }
+      : { ok: true, data: {} });
+    renderAt();
+    const input = await screen.findByLabelText("Contraseña Privé");
+    const box = screen.getByTestId("prive-remember") as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    fireEvent.click(box);
+    fireEvent.change(input, { target: { value: "faro lento sobre bahía 1987" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ingresar" }));
+    expect(await screen.findByText("The World, Beyond Ordinary.")).toBeInTheDocument();
+    expect(api.access).toHaveBeenCalledWith("unlock", { password: "faro lento sobre bahía 1987", remember: true });
+    expect(JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!)).toMatchObject({ token: SESSION_TOKEN, remember: true });
   });
 
   it("contraseña incorrecta y bloqueo temporal: mensajes calmados", async () => {
