@@ -165,7 +165,7 @@ Investigación de mercado (no se usa en v1): ver la matriz comercial.
 
 ## 9. Qué se probó y cómo
 
-- `src/test/bookingBridge.test.ts` (68): lista blanca, constructores, E.164 (16 casos en 9 países), WhatsApp/mailto/SMS/tel con acentos, emojis y saltos, mensajes en 6 idiomas, resolver, adaptadores, estados TS = SQL, token, recheck (con respuestas de la forma documentada por SerpApi), escaneo de sitio y robots.txt, Iato, correos.
+- `src/test/bookingBridge.test.ts` (67): lista blanca, constructores, E.164 (16 casos en 9 países), WhatsApp/mailto/SMS/tel con acentos, emojis y saltos, mensajes en 6 idiomas, resolver, adaptadores, estados TS = SQL, token, recheck (con respuestas de la forma documentada por SerpApi), escaneo de sitio y robots.txt, Iato, correos.
 - `src/test/bookingBridgeE2E.test.ts` (22): **los 20 recorridos de la Fase 11** con el handler real y proveedores simulados.
 - `src/test/bookingActionsUi.test.tsx` (4) y `src/test/bookingLinkCheck.test.ts` (6).
 - `supabase/tests/bridge/run.sh` (35 casos SQL sobre todas las migraciones).
