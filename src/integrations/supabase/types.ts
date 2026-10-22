@@ -589,6 +589,234 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_intent_events: {
+        Row: {
+          actor: string
+          actor_id: string | null
+          created_at: string
+          from_state: string | null
+          id: number
+          intent_id: string
+          note: string | null
+          to_state: string
+        }
+        Insert: {
+          actor: string
+          actor_id?: string | null
+          created_at?: string
+          from_state?: string | null
+          id?: never
+          intent_id: string
+          note?: string | null
+          to_state: string
+        }
+        Update: {
+          actor?: string
+          actor_id?: string | null
+          created_at?: string
+          from_state?: string | null
+          id?: never
+          intent_id?: string
+          note?: string | null
+          to_state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_intent_events_intent_id_fkey"
+            columns: ["intent_id"]
+            isOneToOne: false
+            referencedRelation: "booking_intents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_intents: {
+        Row: {
+          action_kind: string
+          ai_reservation_id: string | null
+          booking_id: string | null
+          booking_mode: string
+          channel: string
+          concierge_request_id: string | null
+          confirmation_evidence: Json | null
+          consent_saved_at: string | null
+          created_at: string
+          currency: string | null
+          id: string
+          idempotency_key: string
+          offer: Json
+          offer_expires_at: string | null
+          offer_id: string
+          price: number | null
+          price_checked_at: string | null
+          processor: string | null
+          product_type: string
+          provider: string
+          provider_offer_id: string | null
+          redirect_count: number
+          redirected_at: string | null
+          state: string
+          state_changed_at: string
+          target_host: string | null
+          target_url: string | null
+          title: string
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+          user_report: Json | null
+          verification: string
+        }
+        Insert: {
+          action_kind: string
+          ai_reservation_id?: string | null
+          booking_id?: string | null
+          booking_mode: string
+          channel?: string
+          concierge_request_id?: string | null
+          confirmation_evidence?: Json | null
+          consent_saved_at?: string | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          idempotency_key: string
+          offer?: Json
+          offer_expires_at?: string | null
+          offer_id: string
+          price?: number | null
+          price_checked_at?: string | null
+          processor?: string | null
+          product_type: string
+          provider: string
+          provider_offer_id?: string | null
+          redirect_count?: number
+          redirected_at?: string | null
+          state?: string
+          state_changed_at?: string
+          target_host?: string | null
+          target_url?: string | null
+          title: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+          user_report?: Json | null
+          verification?: string
+        }
+        Update: {
+          action_kind?: string
+          ai_reservation_id?: string | null
+          booking_id?: string | null
+          booking_mode?: string
+          channel?: string
+          concierge_request_id?: string | null
+          confirmation_evidence?: Json | null
+          consent_saved_at?: string | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          idempotency_key?: string
+          offer?: Json
+          offer_expires_at?: string | null
+          offer_id?: string
+          price?: number | null
+          price_checked_at?: string | null
+          processor?: string | null
+          product_type?: string
+          provider?: string
+          provider_offer_id?: string | null
+          redirect_count?: number
+          redirected_at?: string | null
+          state?: string
+          state_changed_at?: string
+          target_host?: string | null
+          target_url?: string | null
+          title?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+          user_report?: Json | null
+          verification?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_intents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_intents_concierge_request_id_fkey"
+            columns: ["concierge_request_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_intents_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_link_checks: {
+        Row: {
+          check_count: number
+          checked_at: string | null
+          created_at: string
+          expires_at: string | null
+          final_host: string | null
+          findings: Json
+          host: string
+          http_status: number | null
+          id: string
+          kind: string
+          last_error: string | null
+          source: string
+          status: string
+          subject: string | null
+          url: string
+          url_hash: string
+        }
+        Insert: {
+          check_count?: number
+          checked_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          final_host?: string | null
+          findings?: Json
+          host: string
+          http_status?: number | null
+          id?: string
+          kind: string
+          last_error?: string | null
+          source: string
+          status?: string
+          subject?: string | null
+          url: string
+          url_hash: string
+        }
+        Update: {
+          check_count?: number
+          checked_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          final_host?: string | null
+          findings?: Json
+          host?: string
+          http_status?: number | null
+          id?: string
+          kind?: string
+          last_error?: string | null
+          source?: string
+          status?: string
+          subject?: string | null
+          url?: string
+          url_hash?: string
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
           booking_url: string | null
@@ -4702,6 +4930,56 @@ export type Database = {
           _trial_end: string
           _user_id: string
         }
+        Returns: Json
+      }
+      booking_intent_apply_external: {
+        Args: {
+          _evidence?: Json
+          _id: string
+          _source: string
+          _status: string
+        }
+        Returns: Json
+      }
+      booking_intent_confirm: {
+        Args: { _evidence: Json; _id: string }
+        Returns: Json
+      }
+      booking_intent_json: {
+        Args: { i: Database["public"]["Tables"]["booking_intents"]["Row"] }
+        Returns: Json
+      }
+      booking_intent_mark_redirected: {
+        Args: { _id: string; _user: string }
+        Returns: Json
+      }
+      booking_intent_start: { Args: { _p: Json; _user: string }; Returns: Json }
+      booking_intent_transition: {
+        Args: {
+          _actor: string
+          _id: string
+          _note?: string
+          _patch?: Json
+          _to: string
+          _user: string
+        }
+        Returns: Json
+      }
+      booking_intent_transition_ok: {
+        Args: { _from: string; _to: string }
+        Returns: boolean
+      }
+      booking_intents_expire: { Args: never; Returns: number }
+      booking_reservas_status_to_intent: {
+        Args: { _s: string }
+        Returns: string
+      }
+      booking_set_actor: {
+        Args: { _actor: string; _actor_id: string; _note: string }
+        Returns: undefined
+      }
+      booking_venue_lookup: {
+        Args: { _city: string; _name: string }
         Returns: Json
       }
       check_rate_limit: {
