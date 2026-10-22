@@ -1326,7 +1326,15 @@ export type Database = {
           trip_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trip_collaborators_trip_fk"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trip_journal_entries: {
         Row: {
