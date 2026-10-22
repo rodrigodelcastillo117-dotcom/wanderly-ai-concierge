@@ -40,6 +40,11 @@ vi.mock("framer-motion", () => {
 });
 const toastError = vi.hoisted(() => vi.fn());
 vi.mock("sonner", () => ({ toast: { error: toastError, success: vi.fn() } }));
+// Prueba hermética: TripSplit pide el tipo de cambio en vivo (open.er-api.com); aquí usa la tabla de respaldo.
+vi.mock("@/lib/fx", async () => {
+  const actual: any = await vi.importActual("@/lib/fx");
+  return { ...actual, fetchFxTable: async () => actual.FX_FALLBACK_TABLE };
+});
 
 import TripSplit from "@/pages/TripSplit";
 

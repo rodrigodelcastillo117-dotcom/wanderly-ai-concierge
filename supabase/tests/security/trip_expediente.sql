@@ -1,6 +1,6 @@
 -- Expediente vivo del viaje (grupo trip): viaje activo, selecciones (E-12), trip_id de reservas y
 -- gastos (E-22), documentos del viaje y gastos compartidos (D-18).
--- Uso: después de run.sh <db>, `psql -d <db> -f trip_expediente.sql`.
+-- Uso: ./run_trip.sh expediente [db] (base nueva con todas las migraciones en orden).
 -- Esperado: cada línea "Xn ... [esperado]: real" con real = esperado.
 \set ON_ERROR_STOP off
 -- Ids propios (7d…/7e…/7f…) para no chocar con hardening.sql, que corre antes en la misma base.
@@ -33,17 +33,17 @@ SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000
 UPDATE trips SET selections='{"v":1,"vuelo":{"i":1,"key":"iberia||madrid|9000"},"hospedaje":{"i":-1,"key":null},"noches_hospedaje":null,"tours":[]}'
  WHERE id='7d100000-0000-0000-0000-000000000071';
 RESET ROLE;
-SELECT 'S1 cambiar selección marca recotizar [t|vuelo 1]: '||quote_needs_update||'|vuelo '||(selections->'vuelo'->>'i') FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SELECT 'S1 cambiar selección marca recotizar [true|vuelo 1]: '||quote_needs_update||'|vuelo '||(selections->'vuelo'->>'i') FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
 -- El cliente no puede "aprobar" su selección escribiendo la base.
 UPDATE trips SET quote_basis = quote_basis || jsonb_build_object('selections', selections), quote_needs_update=false
  WHERE id='7d100000-0000-0000-0000-000000000071';
 RESET ROLE;
-SELECT 'S2 la base no la escribe el cliente [t|null]: '||quote_needs_update||'|'||coalesce(quote_basis->>'selections','null') FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SELECT 'S2 la base no la escribe el cliente [true|null]: '||quote_needs_update||'|'||coalesce(quote_basis->>'selections','null') FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
 UPDATE trips SET selections=NULL WHERE id='7d100000-0000-0000-0000-000000000071';
 RESET ROLE;
-SELECT 'S3 volver a la cotización tal cual [f]: '||quote_needs_update FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SELECT 'S3 volver a la cotización tal cual [false]: '||quote_needs_update FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
 UPDATE trips SET selections='{"v":1,"vuelo":{"i":0,"key":"a"},"hospedaje":{"i":-1,"key":null},"noches_hospedaje":null,"tours":[]}' WHERE id='7d100000-0000-0000-0000-000000000071';
 UPDATE trips SET selections='[1,2]' WHERE id='7d100000-0000-0000-0000-000000000071';
@@ -55,7 +55,7 @@ INSERT INTO trip_quotes(id,trip_id,user_id,origin,total,line_items,travelers,nig
 VALUES ('7d200000-0000-0000-0000-000000000071','7d100000-0000-0000-0000-000000000071','7d000000-0000-0000-0000-0000000000d7','logistics-plan',81000,'[]',2,5,1,'2026-12-01','2026-12-06',18.4,'frankfurter',now(),now()+interval '7 days');
 UPDATE trips SET current_quote_id='7d200000-0000-0000-0000-000000000071' WHERE id='7d100000-0000-0000-0000-000000000071';
 RESET ROLE;
-SELECT 'S5 cotización nueva limpia selección [null|f|null]: '||coalesce(selections::text,'null')||'|'||quote_needs_update||'|'||coalesce(quote_basis->>'selections','null')
+SELECT 'S5 cotización nueva limpia selección [null|false|null]: '||coalesce(selections::text,'null')||'|'||quote_needs_update||'|'||coalesce(quote_basis->>'selections','null')
 FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
 
 -- ───── trip_id de bookings y expenses (E-22) ─────
@@ -77,7 +77,7 @@ SELECT 'B3 colaborador aceptado sí [1|1]: '||
   (SELECT count(*) FROM expenses WHERE trip_id='7d100000-0000-0000-0000-000000000071' AND user_id='7f000000-0000-0000-0000-0000000000f7');
 
 -- ───── Documentos del viaje ─────
-SELECT 'D0 bucket privado con límites [f|10485760|6]: '||public||'|'||file_size_limit||'|'||array_length(allowed_mime_types,1) FROM storage.buckets WHERE id='trip-documents';
+SELECT 'D0 bucket privado con límites [false|10485760|6]: '||public||'|'||file_size_limit||'|'||array_length(allowed_mime_types,1) FROM storage.buckets WHERE id='trip-documents';
 -- Dueño sube boleto (objeto + fila).
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
 INSERT INTO storage.objects(bucket_id,name,owner,owner_id) VALUES ('trip-documents','7d100000-0000-0000-0000-000000000071/0001-boleto.pdf','7d000000-0000-0000-0000-0000000000d7','7d000000-0000-0000-0000-0000000000d7');
@@ -125,8 +125,9 @@ RESET ROLE;
 SELECT 'D5 atacante no subió ni borró [2|2]: '||(SELECT count(*) FROM trip_documents)||'|'||(SELECT count(*) FROM storage.objects WHERE bucket_id='trip-documents');
 SET ROLE anon; SELECT set_config('request.jwt.claim.sub','',false);
 SELECT 'D6 anónimo no ve objetos [0]: '||count(*) FROM storage.objects WHERE bucket_id='trip-documents';
-SELECT 'D6b anónimo sin permiso sobre la tabla [error abajo]';
-SELECT count(*) FROM trip_documents;
+DO $$ DECLARE n bigint; BEGIN SELECT count(*) INTO n FROM public.trip_documents;
+  RAISE NOTICE 'D6b anónimo sin permiso sobre la tabla [permission denied]: leyó % fila(s)', n;
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'D6b anónimo sin permiso sobre la tabla [permission denied]: permission denied'; END $$;
 RESET ROLE;
 -- Dueño borra el documento del colaborador; colaborador borra el suyo propio en otro caso.
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
@@ -152,8 +153,9 @@ SELECT 'T3 ex colaborador pierde el viaje activo [null]: '||coalesce(active_trip
 INSERT INTO storage.objects(bucket_id,name,owner,owner_id) VALUES ('trip-documents','7d100000-0000-0000-0000-000000000071/0005-colab.pdf','7f000000-0000-0000-0000-0000000000f7','7f000000-0000-0000-0000-0000000000f7');
 SELECT 'D10 borrado de cuenta lista archivos de su viaje [2]: '||count(*) FROM public.account_deletion_files('7d000000-0000-0000-0000-0000000000d7') WHERE bucket_id='trip-documents';
 SET ROLE authenticated;
-SELECT 'D11 la función de borrado no la ejecuta un usuario [error abajo]';
-SELECT count(*) FROM public.account_deletion_files('7d000000-0000-0000-0000-0000000000d7');
+DO $$ DECLARE n bigint; BEGIN SELECT count(*) INTO n FROM public.account_deletion_files('7d000000-0000-0000-0000-0000000000d7');
+  RAISE NOTICE 'D11 la función de borrado no la ejecuta un usuario [permission denied]: devolvió % fila(s)', n;
+EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'D11 la función de borrado no la ejecuta un usuario [permission denied]: permission denied'; END $$;
 RESET ROLE;
 
 -- ───── Gastos compartidos (D-18) ─────

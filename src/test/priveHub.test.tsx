@@ -12,6 +12,15 @@ vi.mock("@/lib/priveApi", async (importOriginal) => {
 const loadStockPhoto = vi.fn(async (q: string) => ({ photo: { image: `https://images.pexels.com/${encodeURIComponent(q)}.jpg`, photographer: "Ana", page_url: null }, transient: false }));
 vi.mock("@/lib/stockPhoto", () => ({ loadStockPhoto: (q: string) => loadStockPhoto(q), cachedStockPhoto: () => undefined }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1", email: "v@example.com" }, signOut: vi.fn() }) }));
+// Prueba hermética: el hub lee el viaje activo (useActiveTrip → /rest/v1/trips y /rest/v1/profiles). Sin
+// este mock cada corrida mandaba ~30 GET reales al VITE_SUPABASE_URL del .env (producción). Sin viajes.
+vi.mock("@/hooks/useActiveTrip", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/useActiveTrip")>();
+  const { resolveActiveTrip } = await import("@/lib/activeTrip");
+  const resolved = resolveActiveTrip([], { pinnedId: null, todayLocal: "2026-10-22" });
+  const result = { trips: [], trip: resolved.trip, resolved, loading: false, pinnedId: null, pin: async () => ({ ok: true }) };
+  return { ...actual, useActiveTrip: () => result };
+});
 
 import PriveRoot from "@/pages/prive/PriveRoot";
 import PriveHub from "@/pages/prive/PriveHub";

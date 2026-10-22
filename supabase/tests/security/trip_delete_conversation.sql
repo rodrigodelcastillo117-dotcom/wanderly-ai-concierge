@@ -40,5 +40,5 @@ RESET ROLE;
 SELECT 'D5 el chat queda como general [solo viaje]: '||string_agg(messages->0->>'content','|') FROM concierge_conversations WHERE user_id='5e000000-0000-0000-0000-0000000000e5' AND trip_id IS NULL;
 -- D6: la función del trigger no se puede llamar directo.
 SET ROLE authenticated;
-SELECT 'D6 authenticated no ejecuta la función [f]: '||has_function_privilege('authenticated','public.trips_before_delete_conversations()','EXECUTE');
+SELECT 'D6 authenticated no ejecuta la función [false]: '||has_function_privilege('authenticated','public.trips_before_delete_conversations()','EXECUTE');
 RESET ROLE;

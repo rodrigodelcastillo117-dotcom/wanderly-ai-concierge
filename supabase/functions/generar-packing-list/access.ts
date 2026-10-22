@@ -8,6 +8,32 @@ export function canWritePackingList(existing: { user_id: string } | null, caller
   return existing === null || existing.user_id === callerId;
 }
 
+/** Lo mínimo del cliente de Supabase que usa loadPromptContext (en las pruebas, un cliente simulado). */
+// deno-lint-ignore no-explicit-any
+export type PromptContextClient = { from: (table: string) => any };
+export type PromptContext = { profile: unknown; vault: unknown[]; dnaPref: unknown };
+
+/**
+ * AUD-SEG-03 / T-P2-6: el contexto del prompt (perfil, bóveda de tarjetas y ADN) es el de QUIEN LLAMA
+ * (`callerId`), nunca el del dueño del viaje (`trip.user_id`), aunque el que llama sea un colaborador.
+ * Antes se leía el perfil completo, la bóveda y el ADN del dueño y un colaborador recibía una lista
+ * armada con los beneficios de tarjeta del dueño. Recibe el viaje a propósito: la regresión posible es
+ * usar trip.user_id aquí, y src/test/audSeguridadEdge.test.ts lo prueba con un cliente simulado que
+ * registra los filtros de cada consulta.
+ */
+export async function loadPromptContext(
+  admin: PromptContextClient,
+  _trip: { user_id: string },
+  callerId: string,
+): Promise<PromptContext> {
+  const [{ data: profile }, { data: vault }, { data: dnaPref }] = await Promise.all([
+    admin.from("profiles").select("full_name").eq("id", callerId).maybeSingle(),
+    admin.from("user_vault_benefits").select("*").eq("user_id", callerId),
+    admin.from("ai_user_preferences").select("*").eq("user_id", callerId).maybeSingle(),
+  ]);
+  return { profile: profile ?? null, vault: Array.isArray(vault) ? vault : [], dnaPref: dnaPref ?? null };
+}
+
 /**
  * Mejora (auditoría de cierre): la lista leía b.benefit_name / b.name, columnas que user_vault_benefits
  * no tiene, así que "Vault activo" siempre llegaba vacío al modelo. La bóveda real es UNA fila con

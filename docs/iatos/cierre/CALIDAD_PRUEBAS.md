@@ -8,6 +8,52 @@ Alcance: `src/test/**` (177 archivos, 1,791 pruebas después del merge de `claud
 
 Las pruebas débiles que encontré las reforcé. No se debilitó ninguna.
 
+## 0. Estado vigente (corrección posterior a la segunda auditoría, 22-oct-2026, rama `claude/r2-pruebas`)
+
+Las cifras de las secciones 1 a 5 son del primer cierre (177 archivos, 1,791 pruebas, 11 suites). Las
+vigentes, medidas en esta ronda sobre `origin/main` (`8f83f38`) + la rama, son estas:
+
+| Qué | Cifra real | Cómo se mide |
+|---|---|---|
+| Vitest | **205 archivos, 2,280/2,280 pruebas, exit 0** (5 min 28 s) | `npx vitest run` **sin `.env` y con la red cortada** (`unshare -n`) |
+| Errores no manejados | 0 (antes 7, de `TripBookingIntents.tsx:23`) | mismo comando |
+| Peticiones de red reales | 0: `src/test/setup.ts` bloquea `fetch`; una petición no simulada hace FALLAR la prueba con su URL (antes ~35: 30 al `VITE_SUPABASE_URL` del `.env`, que apunta a producción) | mismo comando |
+| Dependencia del `.env` | ninguna: `vitest.config.ts` fija valores FALSOS en `test.env` (antes 6 archivos no cargaban sin `.env`) | mismo comando |
+| `tsc --noEmit -p tsconfig.app.json` / `npm run build` | exit 0 / OK (build con `.env`) | |
+| Archivos que simulan `@/integrations/supabase/client` | 69 | `grep -rl` |
+| Snapshots | 4 (`emailSystem.test.ts`; 1 solo-snapshot) | `grep` |
+| `skip`/`only`/`todo` | 0 | `grep` |
+| Suites SQL | **18** (16 + `trip_quotes` + `trip_expediente`), **1,139 OK de 1,139 esperados**, 0 FALLA | `supabase/tests/run_all.sh` |
+
+### `supabase/tests/run_all.sh` (nuevo)
+
+```
+su postgres -c "PGHOST=/tmp/pgsec PGPORT=55440 bash supabase/tests/run_all.sh <prefijo>"
+```
+- Construye una base de **referencia** con todas las migraciones aplicadas una sola vez, en orden.
+- Corre las 16 suites y `security/run_trip.sh quotes|expediente`, cada una en su base `<prefijo>_<suite>`.
+- Por suite: código de salida, OK / esperado, fallas y **md5 de `prosrc` de cada función** contra la
+  referencia. Una función distinta o ausente es FALLA (la suite probó una versión que no es la de producción).
+- Imprime la tabla y sale con 0 solo si todo pasa. `KEEP=1` conserva las bases; `OUT_DIR=` guarda la salida.
+
+Reglas comunes (`supabase/tests/lib.sh`), que ahora cumplen las 18 suites:
+- La base de las pruebas tiene las migraciones **en orden, una sola vez**. La idempotencia se prueba en una
+  **copia** de la base que se borra (`t_idempotency`). Antes `prive/run.sh` y `ops/run.sh` reaplicaban
+  migraciones viejas al final y probaban versiones viejas de 5 funciones (ver §2).
+- Una migración que no se aplica es **FALLA** (la de `pg_cron`, que no existe en local, sale como AVISO).
+- Una aserción que falla nunca queda como `ERROR`: sale como `FALLA ERROR` y cuenta.
+- Cada `run.sh` guarda su **total esperado de OK** y sale con código distinto de 0 si hay una falla o si el
+  total no coincide (un bloque que deja de correr ya no pasa inadvertido).
+- `ops`, `rls_attacks`, `profiles_tier`, `trip_delete_conversation`, `trip_quotes` y `trip_expediente`
+  imprimían valores para comparar a mano; ahora cada caso es OK/FALLA.
+- Las pruebas de concurrencia de `payments` (CONCURRENCIA ×2, CC1–CC4) y la de `ops` coordinan las dos
+  sesiones con una compuerta de candados (`t_conc2`), no con `sleep`. CC3 exige que la sesión 2 haya esperado
+  el candado de la factura. `payments/cc3_repeat.sh <db> 20`: 20/20 OK sin mutación; 20/20 FALLA con la
+  mutación M1 de pagos (sin candado), también con 4 núcleos ocupados (el método viejo dio 5 OK falsos de 20).
+
+Mutaciones que ahora hacen fallar `run_all.sh` (y que antes salían con código 0): ver
+`docs/iatos/cierre2/PRUEBAS.md`.
+
 ## 1. Aserciones reales por prueba (medido, no estimado)
 
 Corrí la suite completa con un `afterEach` temporal que guarda `expect.getState().assertionCalls` de cada prueba. El archivo de configuración temporal ya se borró y no se subió.
@@ -36,11 +82,11 @@ Búsqueda de patrones:
   - Ninguna prueba de Vitest prueba RLS, y no puede: usa mocks.
   - Aun en SQL, `auth.uid()`, `auth.jwt()` y `storage.objects` son **stubs** (`supabase/tests/security/01_supabase_stubs.sql`). No pasan por PostgREST, GoTrue ni la API de Storage.
   - Por eso lo que depende de esas capas queda **VERIFICAR EN VIVO**: `pg-safeupdate`, límites del bucket y `verify_jwt` desplegado.
-- **Suites que vuelven a aplicar migraciones al final.** Es una "segunda pasada de idempotencia", y la base de prueba puede quedar con versiones **viejas** de funciones que una migración posterior redefine:
+- **(Corregido en la segunda ronda: ver §0.)** **Suites que vuelven a aplicar migraciones al final.** Es una "segunda pasada de idempotencia", y la base de prueba puede quedar con versiones **viejas** de funciones que una migración posterior redefine:
   - `ops/run.sh` deja `clear_active_trip_on_collab_removed` y `trips_quote_basis_guard` como estaban en `2026102213*`.
   - `prive/run.sh` reaplica `2026102309*`. Por eso mi primer intento de mutar `prive_require` con una migración posterior **no se aplicó** y dio un falso "nadie lo detecta". Lo repetí aplicando la mutación después del ciclo de idempotencia.
   - `ai_reservations` y `bridge` reaplican también sus migraciones `aud_*`, así que su estado final sí es el correcto.
-- **Archivos SQL que se cortan al primer error.** `payments/run.sh` corre cada archivo con `ON_ERROR_STOP=1`. Ante una falla imprime `ERROR: …` y salta el resto de ese archivo sin decir qué pruebas no corrieron. Por ejemplo, con M1 pasó de 63 a 39 OK. Se detecta, pero el conteo de OK no sirve como cobertura.
+- **(Corregido en la segunda ronda: ahora sale como FALLA ERROR y el total esperado lo detecta.)** **Archivos SQL que se cortan al primer error.** `payments/run.sh` corre cada archivo con `ON_ERROR_STOP=1`. Ante una falla imprime `ERROR: …` y salta el resto de ese archivo sin decir qué pruebas no corrieron. Por ejemplo, con M1 pasó de 63 a 39 OK. Se detecta, pero el conteo de OK no sirve como cobertura.
 
 ## 3. Pruebas mutantes (13 + 4 extra, todas revertidas)
 
@@ -83,7 +129,7 @@ Con la máquina cargada por los otros grupos (carga 40-50), estas pruebas fallar
 | `serpQuota.test.ts` "pagan una sola búsqueda…" | `setTimeout(5)`: la segunda búsqueda llegaba antes de que la primera se registrara | **Corregida:** `vi.waitFor` hasta que la primera está en SerpApi. 3 de 3 |
 | `godtierHome` ×2, `dashboardActiveTrip`, `expensesCurrencies`, `godtierPlan`, `tripSplitLive` | límite de 5 s de Vitest (tardan 6-9 s bajo carga) | Pasan solas o con `--testTimeout=30000`. Sin cambio |
 | `membersMore` "la solicitud de reserva sigue igual" | lee `invoke.mock.calls[0]`; bajo carga la foto (`place-photo`) se pide primero | Frágil, dependiente del orden. Recomendado: buscar la llamada por nombre |
-| `payments`/`cost` `run.sh` | mismo `sleep 0.5` en sus pruebas de concurrencia | Pasaron; son de otros grupos (nota) |
+| `payments`/`cost` `run.sh` | mismo `sleep 0.5` en sus pruebas de concurrencia | **`payments` corregida** en la segunda ronda (compuerta de candados, §0). `cost` sigue con `sleep 0.5`: con carga puede dar una FALLA falsa, nunca un OK falso |
 
 ## 5. Pruebas nuevas o reforzadas en esta fase
 
@@ -103,6 +149,6 @@ Con la máquina cargada por los otros grupos (carga 40-50), estas pruebas fallar
 
 ## Riesgo residual
 
-- 59 archivos de pantalla prueban con un Supabase falso. Una regla del servidor que solo tenga prueba de pantalla no está probada.
+- 69 archivos de pantalla prueban con un Supabase falso (59 en el primer cierre). Una regla del servidor que solo tenga prueba de pantalla no está probada.
 - Las suites SQL usan stubs de `auth` y `storage`. Hace falta una prueba en vivo de solo lectura con dos cuentas de prueba (PostgREST real) para cerrar del todo RLS y almacenamiento.
 - Las mutaciones M7, M9, X3 y X4 las detecta una sola prueba cada una: cubiertas, pero frágiles.

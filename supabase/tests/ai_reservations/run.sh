@@ -1,17 +1,21 @@
 #!/bin/bash
 # Pruebas SQL de Reservas IA (grupo reservas) sobre un Postgres local desechable (nunca producción).
 # Uso: PGHOST=/ruta/socket PGPORT=5432 ./run.sh [nombre_db]
-# Reproduce TODAS las migraciones (igual que la suite de seguridad; la de pg_cron falla en local, es
-# esperado), vuelve a aplicar las de Reservas IA (incluidas las del cierre de auditoría,
-# 20261024*_aud_reservas_*) para probar que son idempotentes y corre
-# ai_reservations.sql. Imprime solo líneas "OK …" o "FALLA …".
+# Construye la base con TODAS las migraciones en orden (vía la suite de seguridad; la de pg_cron falla en
+# local y sale como AVISO), comprueba en una COPIA de la base que las de Reservas IA (incluidas las del
+# cierre de auditoría, 20261024*_aud_reservas_*) son idempotentes y corre ai_reservations.sql sobre el
+# estado final real (P2-QA-1). Salida OK/FALLA/AVISO y un RESUMEN; sale con 1 si algo falla (../lib.sh).
 set -u
 DIR=$(cd "$(dirname "$0")" && pwd); DB=${1:-iatos_ai_reservations_test}
+. "$DIR/../lib.sh"
 PSQL="psql -U ${PGUSER:-postgres} -q -X"
-"$DIR/../security/run.sh" "$DB" >/dev/null 2>&1
-for f in "$DIR"/../../migrations/2026102317*.sql "$DIR"/../../migrations/20261024*_aud_reservas_*.sql; do
-  [ -f "$f" ] || continue
-  out=$($PSQL -v ON_ERROR_STOP=1 -d "$DB" -f "$f" 2>&1 >/dev/null | grep ERROR | head -1)
-  [ -n "$out" ] && echo "FALLA migración $(basename "$f") no es idempotente: $out"
-done
-$PSQL -At -d "$DB" -f "$DIR/ai_reservations.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
+ESPERADOS=57
+
+main() {
+  "$DIR/../security/run.sh" "$DB" 2>&1 | grep -E '^FALLA (migración|stubs|no se pudo)'
+  t_idempotency "$DB" "$T_MIG"/2026102317*.sql "$T_MIG"/20261024*_aud_reservas_*.sql
+  $PSQL -At -d "$DB" -f "$DIR/ai_reservations.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
+}
+
+main 2>&1 | t_verdict ai_reservations "$ESPERADOS"
+exit "${PIPESTATUS[1]}"

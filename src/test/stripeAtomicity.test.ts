@@ -6,6 +6,20 @@
 // y stripe_commit_payment_event de 20261024051500_aud_pagos_payment_event_atomic.sql). Las funciones
 // SQL reales se prueban en supabase/tests/payments/stripe_events.sql (+ concurrencia en run.sh).
 //
+// LÍMITE DE ESTA PRUEBA (segunda auditoría, INFORME_pagos.md §4): lo que se prueba aquí es el MANEJADOR
+// (handler.ts: orden de efectos, 500 mientras falte uno, reintentos) contra un MODELO en memoria que
+// reimplementa las funciones SQL. El modelo no es el SQL: esta prueba NO detecta cambios en las
+// funciones reales. La auditoría lo comprobó con mutaciones que aquí siguen en verde: M1 (SQL sin el
+// candado por factura), M2b (SQL sin la idempotencia por event_id) y M4 (SQL sin reaplicar las decisiones
+// ya registradas al crear el periodo); tampoco detecta M2a (payments.ts sin la idempotencia por event_id),
+// porque el commitPaymentEvent de este modelo ya deduplica por su cuenta.
+// Las garantías del SQL las dan:
+//   - supabase/tests/payments/stripe_events.sql (AP01–AP21: idempotencia, orden, fallas a medias);
+//   - supabase/tests/payments/concurrency.sh CC1–CC4, con dos sesiones coordinadas por candados
+//     (CC3 es la única que protege el candado de M1; cc3_repeat.sh la repite N veces);
+//   - y supabase/tests/run_all.sh, que corre todo eso y sale distinto de 0 si algo falla.
+// Si cambia una regla del SQL, hay que cambiarla también en el modelo de abajo: no se sincronizan solos.
+//
 // Cada dependencia puede fallar a propósito (red de Stripe → excepción; base → { error }) para
 // comprobar: (1) la respuesta es 500 mientras falte un efecto obligatorio, (2) el reintento de Stripe
 // converge al MISMO estado final que una corrida limpia, (3) nunca hay efectos dobles (cancelaciones,
