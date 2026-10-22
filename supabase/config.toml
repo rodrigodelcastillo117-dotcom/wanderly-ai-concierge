@@ -166,3 +166,15 @@ verify_jwt = false
 # reintentos de borrado de cuenta (pg_cron): autenticación de cron interna, falla cerrada
 [functions.account-deletion-retry]
 verify_jwt = false
+
+# IATOS Privé: acceso desde la app (JWT de usuario + getUser dentro de la función)
+[functions.prive-access]
+verify_jwt = true
+
+# IATOS Privé (pg_cron): elegibilidad, correos de invitación y barrido; autenticación de cron interna
+[functions.prive-cron]
+verify_jwt = false
+
+# IATOS Privé: respaldo de antigüedad desde Stripe (manual, dry_run por defecto); autenticación de cron interna
+[functions.prive-tenure-backfill]
+verify_jwt = false

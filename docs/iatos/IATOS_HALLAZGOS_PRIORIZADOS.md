@@ -30,7 +30,59 @@
 
 ---
 
+## 0. Estado conciliado con el código (2026-10-22, rama en `abaa74a`)
+
+Revisé cada hallazgo contra la rama: sus commits (`git log origin/main..HEAD`), el diff contra `origin/main` (`ae6d5c8`) y las pruebas de `src/test` y `supabase/tests`. Vitest pasa **737/737 en 106 archivos**. **Este estado manda sobre las líneas "Estado final" de la sección 4**, que son las de la auditoría.
+
+**Un solo estado por hallazgo:**
+
+| Estado | Qué significa |
+|---|---|
+| **VERIFIED** | Corregido **y** verificado en producción. Solo califican la migración `20261022120000_security_p0_fixes.sql` (F-01, F-02, F-03, F-05 y la parte de BD de F-06), aplicada y verificada por fuera el 2026-10-22, y `send-email` solo para invitaciones (F-04), desplegada y verificada. |
+| **FIXED_UNVERIFIED** | La corrección está en la rama, con pruebas, pero **no está en producción**: ninguna de las 35 migraciones nuevas ni de las 36 funciones cambiadas se ha desplegado. Si queda un resto menor, la evidencia dice "Falta: …". |
+| **BLOCKED** | Necesita una acción del dueño fuera del código. Si el código ya existe pero no puede funcionar sin esa acción, también es BLOCKED; la evidencia dice cuál acción. |
+| **OPEN** | No hay corrección en la rama. |
+| **REGRESSED** | Estuvo corregido y se volvió a romper. **Hoy no hay ninguno.** La posible regresión N-09 (compuerta G-2) la corrigieron `807a46c` y `f6e21e5`, con `protectedRouteMountOnce.test.tsx` y `planTripFreeLimit.test.tsx`, que pasan. |
+
+**Conteo por estado y severidad (114 hallazgos):**
+
+| Severidad | VERIFIED | FIXED_UNVERIFIED | BLOCKED | OPEN | REGRESSED | Total |
+|---|---|---|---|---|---|---|
+| P0 | 4 | 6 | 0 | 0 | 0 | 10 |
+| P1 | 1 | 29 | 6 | 0 | 0 | 36 |
+| P2 | 0 | 42 | 5 | 2 | 0 | 49 |
+| P3 | 0 | 17 | 1 | 1 | 0 | 19 |
+| **Total** | **5** | **94** | **12** | **3** | **0** | **114** |
+
+P1 incluye IATOS-111, 112 y 114, y P2 incluye IATOS-113 (sección 5).
+
+**Lo que sigue abierto (OPEN):** IATOS-062 (restaurantes de la IA guardados como del viaje), IATOS-064 (`parsear-viaje` y `parse-trip-file` sin validar el JSON) e IATOS-110 (`evaluar-logros`). Ningún P0 ni P1 está abierto.
+
+**Lo que espera al dueño (BLOCKED) y qué acción necesita:**
+
+| Hallazgo | Acción del dueño |
+|---|---|
+| 011 | Stripe en modo real, precio con IVA incluido (`tax_behavior: inclusive`) y una compra real reembolsada |
+| 012, DEC-02 | Exigir la confirmación de correo en Supabase Auth (requisito de la prueba sin tarjeta), verificar Resend y dar el GO para `trial_no_card_enabled` |
+| 013, DEC-01 | Aprobar los valores de `plan_limits` y encender `pro_limits_enforced` |
+| 015 | Plan de SerpApi |
+| 030 | Teléfono o WhatsApp y horario del Fixer |
+| 034 | Verificar el dominio en Resend (DNS) y poner el secreto `HEALTH_ALERT_EMAIL` |
+| 045 | Activar `invoice.paid` en el webhook de Stripe y confirmar la versión de API del endpoint |
+| 049, DEC-08 | Activar `charge.refunded`, `charge.dispute.created` y `charge.dispute.closed`, y correr `docs/ops/stripe-modo-prueba.md` |
+| 055 | Confirmación de correo en Supabase Auth |
+| 072 | Autorizar el registro de las migraciones en `schema_migrations` |
+| 077 | Revisar la atribución de enlaces en el panel de Travelpayouts |
+| 108, DEC-09 | Secretos `POSTHOG_PERSONAL_API_KEY` y `POSTHOG_PROJECT_ID`, y programar `account-deletion-retry` |
+| DEC-05 | Autorizar `sync_profile_tier` (la migración solo prepara la corrección) |
+
+**Decisiones del dueño (DEC-01 a DEC-09):** FIXED_UNVERIFIED 3 (DEC-03, 06, 07), BLOCKED 5 (DEC-01, 02, 05, 08, 09) y OPEN 1 (DEC-04, solo investigación). El detalle está en la sección 5.
+
+---
+
 ## 1. Conteo por severidad (después de unificar)
+
+> Conteo original de la auditoría, antes de las correcciones de la rama. El estado vigente está en la sección 0.
 
 | Severidad | Cantidad | Corregidos y verificados en producción | Corregidos en rama, pendientes de despliegue | Abiertos o bloqueados | Requieren decisión del dueño |
 |---|---|---|---|---|---|
@@ -90,121 +142,124 @@ La unificación partió de 133 hallazgos originales: A 19, B 22, C 17, D 26, E 2
 
 ## 3. Tabla resumen
 
-| ID | Sev | Título corto | Origen | Estado |
-|---|---|---|---|---|
-| IATOS-001 | P0 | Cualquiera se vuelve colaborador de un viaje ajeno | F-01 | CORREGIDO |
-| IATOS-002 | P0 | Amistades falsificadas exponen el perfil de otros | F-02 | CORREGIDO |
-| IATOS-003 | P0 | Buckets de fotos listables con la llave pública | F-03, E-18 | CORREGIDO |
-| IATOS-004 | P0 | `send-email` como *relay* abierto | F-04, E-08 | CORREGIDO EN RAMA |
-| IATOS-005 | P0 | Bucle infinito al terminar el onboarding | E-01 | CORREGIDO EN RAMA |
-| IATOS-006 | P0 | Iato recibe "error" en lugar de resultados de búsqueda | B-01 | CORREGIDO EN RAMA |
-| IATOS-007 | P0 | El total del viaje muestra el presupuesto, no la cotización | D-01 | CORREGIDO EN RAMA |
-| IATOS-008 | P0 | "Re-analizar" borra el viaje y sus datos | E-04 | ABIERTO |
-| IATOS-009 | P0 | Hospedaje cotizado como 1 habitación para N viajeros | D-04, B-19 | ABIERTO |
-| IATOS-010 | P0 | Gastos suma MXN, USD y EUR como una sola moneda | D-06, E-07 | ABIERTO |
-| IATOS-011 | P1 | Stripe en modo prueba; IVA sobre $99 sin definir | A-15, inventario | BLOQUEADO |
-| IATOS-012 | P1 | "30 días sin tarjeta" contradice el checkout | A-03, E-17 | BLOQUEADO |
-| IATOS-013 | P1 | Beneficios PRO anunciados abiertos a cuentas gratis | A-01, E-17, F-16 | BLOQUEADO |
-| IATOS-014 | P1 | APIs de pago sin presupuesto para cuentas gratis | F-07, A-12 | BLOQUEADO |
-| IATOS-015 | P1 | SerpApi casi agotado (~216 búsquedas) | inventario, C-12, C-04 | BLOQUEADO |
-| IATOS-016 | P1 | Un colaborador puede cambiar al dueño del viaje | F-05 | CORREGIDO |
-| IATOS-017 | P1 | Vuelos seguidos sin límite queman SerpApi | C-04, F-06, A-12 | CORREGIDO (BD) + EN RAMA (función); cron ABIERTO |
-| IATOS-018 | P1 | Suscripciones duplicadas y doble cobro posible | A-05 | ABIERTO |
-| IATOS-019 | P1 | El webhook de Stripe ignora errores de BD y responde 200 | A-06, F-14 | ABIERTO |
-| IATOS-020 | P1 | Prueba de 30 días repetible sin límite | A-04, F-14 | ABIERTO |
-| IATOS-021 | P1 | El planificador multidestino evade la cuota de análisis | A-02 | ABIERTO |
-| IATOS-022 | P1 | Sin flujo de pago: un 402 se ve como error genérico | A-13 | ABIERTO |
-| IATOS-111 | P1 | Cuota gratis agotada se ve como error técnico (Lovable) | IATOS-P1-FREE-01, A-13 | EN CURSO |
-| IATOS-112 | P1 | Un análisis fallido consume la oportunidad gratis (Lovable) | IATOS-P1-FREE-02, A-09, A-11 | EN CURSO |
-| IATOS-113 | P2 | El avatar obliga a usar la cámara del teléfono (Lovable) | IATOS-P2-AVATAR-01 | CORREGIDO EN RAMA |
-| IATOS-023 | P1 | El chat no dibuja tarjetas de vuelo, hotel ni atracción | B-02 | ABIERTO |
-| IATOS-024 | P1 | Precios "estimados por IA" con botón de compra y sin marca | B-03 | ABIERTO |
-| IATOS-025 | P1 | Jet privado y equipaje con precio inventado y "solicitud enviada" | B-04, D-17 | ABIERTO |
-| IATOS-026 | P1 | La etiqueta "precio en vivo" la decide el modelo | B-05, D-16 | ABIERTO |
-| IATOS-027 | P1 | `editar-viaje-ai` recotiza con IA y conserva la etiqueta "en vivo" | B-06 | ABIERTO |
-| IATOS-028 | P1 | No hay un "viaje activo" único; cada módulo elige otro | B-08, B-09, E-11, E-13, B-12 | ABIERTO |
-| IATOS-029 | P1 | *Prompt injection* y URLs inseguras escritas por la IA | B-10, B-11, F-12 | ABIERTO |
-| IATOS-030 | P1 | "Fixer humano 24/7 por WhatsApp" sin respaldo | B-12 | BLOQUEADO |
-| IATOS-031 | P1 | Promociones y vida nocturna usan un modelo Claude retirado | B-13 | ABIERTO |
-| IATOS-032 | P1 | Fechas en UTC: alertas de vuelo nocturnas perdidas | C-02, B-16 | CORREGIDO EN RAMA (UI); servidor ABIERTO |
-| IATOS-033 | P1 | Fallas del proveedor se registran como revisión exitosa | C-03 | ABIERTO |
-| IATOS-034 | P1 | Correos no llegan: dominio de Resend sin verificar | C-11, inventario | BLOQUEADO |
-| IATOS-035 | P1 | Cambiar viajeros o fechas no recotiza; selecciones no se guardan | D-02, E-12 | ABIERTO |
-| IATOS-036 | P1 | `travelpayouts-flights` no pide viaje redondo | D-03 | ABIERTO |
-| IATOS-037 | P1 | El recálculo pisa "ya tengo vuelo" o "sin hotel" | D-05 | ABIERTO |
-| IATOS-038 | P1 | Alertas falsas de "bajó el precio" por el tipo de cambio | D-09, C-09 | ABIERTO |
-| IATOS-039 | P1 | Botones de afiliado bloqueados en iOS (`await` antes de `window.open`) | D-12, E-05 | ABIERTO |
-| IATOS-040 | P1 | El marker de respaldo usa 6 caracteres del token secreto | D-13 | BLOQUEADO |
-| IATOS-041 | P1 | La pantalla de nueva contraseña puede quedar bloqueada | E-02 | ABIERTO |
-| IATOS-042 | P1 | El botón Atrás vuelve a analizar y duplica el viaje | E-03 | ABIERTO |
-| IATOS-043 | P1 | Números de emergencia (SOS) adivinados | E-16 | ABIERTO |
-| IATOS-044 | P2 | Vuelos sin fecha se duplican y nunca se detienen | C-01 | CORREGIDO EN RAMA (función); cron ABIERTO |
-| IATOS-045 | P2 | Eventos de Stripe fuera de orden; versión de API sin fixtures | A-07, F-14 | ABIERTO |
-| IATOS-046 | P2 | Cortesía (comped) y Stripe se sobrescriben entre sí | A-08 | ABIERTO |
-| IATOS-047 | P2 | La cuota gratis se consume antes de validar | A-09 | ABIERTO |
-| IATOS-048 | P2 | Cuotas y límites fallan abiertos | A-10, F-07 | ABIERTO |
-| IATOS-049 | P2 | Reembolsos y disputas no se manejan | A-14 | BLOQUEADO |
-| IATOS-050 | P2 | Borrar la cuenta se bloquea por el estado de facturación | A-16 | ABIERTO |
-| IATOS-051 | P2 | Correos al staff con HTML inyectable y sin límite | F-08, A-17, B-22 | ABIERTO |
-| IATOS-052 | P2 | El usuario puede editar cualquier columna de su perfil | F-09 | ABIERTO |
-| IATOS-053 | P2 | Los amigos ven el perfil completo | F-10 | ABIERTO |
-| IATOS-054 | P2 | Uploads sin validar tipo ni tamaño en el servidor | F-11 | ABIERTO |
-| IATOS-055 | P2 | PRO de cortesía con correo no confirmado | F-13, A-18 | BLOQUEADO |
-| IATOS-056 | P2 | Rastreadores antes del consentimiento | E-18 | BLOQUEADO |
-| IATOS-057 | P2 | Caché de Travelpayouts mostrada como "en vivo" | B-07, D-16 | ABIERTO |
-| IATOS-058 | P2 | Modelos Gemini retirados: un salto extra por llamada | B-13 | ABIERTO |
-| IATOS-059 | P2 | La memoria de Iato es invisible, crece sin límite y el historial no se carga | B-14, E-13 | ABIERTO |
-| IATOS-060 | P2 | Latencia: herramientas en serie, sin timeout | B-15 | ABIERTO |
-| IATOS-061 | P2 | La tarjeta de transporte ignora su enlace | B-17 | ABIERTO |
-| IATOS-062 | P2 | Restaurantes sugeridos por IA se guardan como del viaje | B-18 | ABIERTO |
-| IATOS-063 | P2 | Presupuesto: tiers sumados y pruebas que no prueban producción | B-19, D-20, D-21, D-26 | ABIERTO |
-| IATOS-064 | P2 | `parsear-viaje` y `parse-trip-file` sin validar el JSON | B-20 | ABIERTO |
-| IATOS-065 | P2 | Alertas de vuelo incorrectas o ausentes | C-05 | ABIERTO |
-| IATOS-066 | P2 | Corridas simultáneas: doble gasto y doble aviso | C-06 | ABIERTO |
-| IATOS-067 | P2 | El cron de vuelos puede exceder el tiempo límite | C-07 | ABIERTO |
-| IATOS-068 | P2 | El cron de vuelos truena sin VAPID; push sin TTL | C-08 | ABIERTO |
-| IATOS-069 | P2 | El health-check no vigila las tareas | C-12 | ABIERTO |
-| IATOS-070 | P2 | El health-check puede guardar y enviar secretos en errores | C-13 | ABIERTO |
-| IATOS-071 | P2 | El correo de cotización enlaza a una ruta 404 | C-16 | CORREGIDO EN RAMA |
-| IATOS-072 | P2 | Deriva entre las migraciones del repo y producción | inventario, C-14, F-21 | BLOQUEADO |
-| IATOS-073 | P2 | Inicio: moneda desconocida 1:1 y FX de respaldo silencioso | D-07 | ABIERTO |
-| IATOS-074 | P2 | FX del servidor: respaldo silencioso y copias divergentes | D-08 | ABIERTO |
-| IATOS-075 | P2 | TripDetail: errores aritméticos en el total de selecciones | D-10, E-22 | ABIERTO |
-| IATOS-076 | P2 | Cotización en vivo parcial presentada como "Inversión total" | D-11 | ABIERTO |
-| IATOS-077 | P2 | Atribución de afiliados `tp.media` sin verificar | D-14 | BLOQUEADO |
-| IATOS-078 | P2 | Enlace de Aviasales de respaldo con fecha mal formada | D-15 | ABIERTO |
-| IATOS-079 | P2 | TripSplit sin moneda, con negativos y borrado en cascada | D-18, E-24 | ABIERTO |
-| IATOS-080 | P2 | Sin *snapshot*, versión ni vigencia de la cotización | D-22 | ABIERTO |
-| IATOS-081 | P2 | Clics contados como "reservas"; no existe Pagado/Pendiente | D-24, E-06 | ABIERTO |
-| IATOS-082 | P2 | Fechas mostradas un día antes; montos negativos | D-19, E-25, E-07, E-11 | ABIERTO |
-| IATOS-083 | P2 | Login: se pierde el *deep link* y hay dos fuentes de onboarding | E-08 | ABIERTO |
-| IATOS-084 | P2 | Un arranque lento "cierra sesión" a los 4.5 s | E-09 | ABIERTO |
-| IATOS-085 | P2 | Mis viajes sin estado de carga; falso "eliminado" | E-10 | ABIERTO |
-| IATOS-086 | P2 | Inicio: favorito local, controles falsos, input compartido | E-11 | ABIERTO |
-| IATOS-087 | P2 | Problemas de layout en móvil | E-14 | ABIERTO |
-| IATOS-088 | P2 | Faltas de accesibilidad | E-15 | ABIERTO |
-| IATOS-089 | P2 | Textos que prometen funciones inexistentes | E-17, E-13 | ABIERTO |
-| IATOS-090 | P2 | El onboarding bloquea todo el valor | E-19 | BLOQUEADO |
-| IATOS-091 | P2 | Visa y seguridad generadas por IA sin aviso | E-27 | ABIERTO |
-| IATOS-092 | P3 | La cuota `trip_analysis` se rebasa en paralelo | A-11 | ABIERTO |
-| IATOS-093 | P3 | README y textos de pago inconsistentes | A-19 | ABIERTO |
-| IATOS-094 | P3 | Contratos de herramientas e higiene de Iato | B-21, B-22 | ABIERTO |
-| IATOS-095 | P3 | `price-watch-cron`: cobertura y robustez | C-10 | ABIERTO |
-| IATOS-096 | P3 | Endurecimiento: auth de cron, CORS, push, llaves | C-14, F-21 | ABIERTO |
-| IATOS-097 | P3 | Campana de notificaciones | C-15 | ABIERTO |
-| IATOS-098 | P3 | `docs/ops/LEEME.md` desactualizado | C-17 | ABIERTO |
-| IATOS-099 | P3 | Detalles menores de dinero, fechas y textos | D-23, D-25, E-28 | ABIERTO |
-| IATOS-100 | P3 | Sin modo offline ni bóveda de documentos | E-20 | ABIERTO |
-| IATOS-101 | P3 | Módulos duplicados y código muerto | E-21 | ABIERTO |
-| IATOS-102 | P3 | Herramientas desconectadas del viaje | E-22 | ABIERTO |
-| IATOS-103 | P3 | Rendimiento en móvil | E-23 | ABIERTO |
-| IATOS-104 | P3 | Doble envío y promesas no manejadas | E-24 | ABIERTO |
-| IATOS-105 | P3 | "Volver" puede salir de la app | E-26 | ABIERTO |
-| IATOS-106 | P3 | `trip_id` sin validar en varias tablas | F-15 | ABIERTO |
-| IATOS-107 | P3 | Funciones "oráculo" de relaciones | F-17 | ABIERTO |
-| IATOS-108 | P3 | PII en logs y terceros; huecos en el borrado | F-18 | ABIERTO |
-| IATOS-109 | P3 | Notificaciones con texto arbitrario entre miembros | F-19, inventario | ABIERTO |
-| IATOS-110 | P3 | Robustez: `nightlife-discover` y `evaluar-logros` | F-20 | ABIERTO |
+Estado conciliado al 2026-10-22 (rama en `abaa74a`); las definiciones están en la sección 0. La evidencia da el commit corto y la prueba. "SQL" son las suites de `supabase/tests/`; los demás archivos están en `src/test/`.
+
+| ID | Sev | Título corto | Origen | Estado | Evidencia |
+|---|---|---|---|---|---|
+| IATOS-001 | P0 | Cualquiera se vuelve colaborador de un viaje ajeno | F-01 | **VERIFIED** | `20261022120000` (`9346b6c`; en main `629c946`), verificada en vivo el 22-oct; SQL `rls_attacks.sql` A3, L1-L7 |
+| IATOS-002 | P0 | Amistades falsificadas exponen el perfil de otros | F-02 | **VERIFIED** | misma migración, verificada en vivo; SQL `rls_attacks.sql` A4 |
+| IATOS-003 | P0 | Buckets de fotos listables con la llave pública | F-03, E-18 | **VERIFIED** | misma migración, verificada en vivo (listado anónimo `[]`); SQL A1-A2. Mejora aparte: hacer privado `journal-photos` |
+| IATOS-004 | P0 | `send-email` como *relay* abierto | F-04, E-08 | **VERIFIED** | `send-email` de `629c946` desplegada y verificada en vivo (400/403/401). Sin prueba automática del *handler*. Se vuelve a desplegar por `_shared/`: repetir V2 |
+| IATOS-005 | P0 | Bucle infinito al terminar el onboarding | E-01 | **FIXED_UNVERIFIED** | `5c2e5cc`, `807a46c`; `onboardingRedirect.test.tsx`, `protectedRouteMountOnce.test.tsx` |
+| IATOS-006 | P0 | Iato recibe "error" en lugar de resultados de búsqueda | B-01 | **FIXED_UNVERIFIED** | `610a1e2`; `conciergeTools.test.ts`, `iatoEvals` E-06 |
+| IATOS-007 | P0 | El total del viaje muestra el presupuesto, no la cotización | D-01 | **FIXED_UNVERIFIED** | `5c2e5cc`; `realTripTotal.test.ts` |
+| IATOS-008 | P0 | "Re-analizar" borra el viaje y sus datos | E-04 | **FIXED_UNVERIFIED** | `12d98f2`, `ac13186`; `tripReanalysis.test.tsx` |
+| IATOS-009 | P0 | Hospedaje cotizado como 1 habitación para N viajeros | D-04, B-19 | **FIXED_UNVERIFIED** | `71f3789`; `budget.test.ts` |
+| IATOS-010 | P0 | Gastos suma MXN, USD y EUR como una sola moneda | D-06, E-07 | **FIXED_UNVERIFIED** | `1e13012`; `fx.test.ts` |
+| IATOS-011 | P1 | Stripe en modo prueba; IVA sobre $99 sin definir | A-15, inventario | **BLOCKED** | Dueño: Stripe en modo real, precio con `tax_behavior: inclusive` y una compra real reembolsada. Textos "IVA incluido" ya en `d550aac` (`planCopy.test.ts`) |
+| IATOS-012 | P1 | "30 días sin tarjeta" contradice el checkout | A-03, E-17 | **BLOCKED** | Código listo y apagado (`a8baaba`, `49c7878`; SQL `trial_no_card.sql` T1-T8, `stripeCheckout.test.ts`, `usePlanConfig.test.ts`). Dueño: exigir confirmación de correo en Supabase Auth, verificar Resend y dar el GO |
+| IATOS-013 | P1 | Beneficios PRO anunciados abiertos a cuentas gratis | A-01, E-17, F-16 | **BLOCKED** | Members = PRO en `099086c` (`membersGate.test.tsx`, SQL `round_b.sql`); límites por plan apagados (`c4c0af4`, `ea10ae8`). Dueño: aprobar valores de `plan_limits` y encender `pro_limits_enforced` (DEC-01) |
+| IATOS-014 | P1 | APIs de pago sin presupuesto para cuentas gratis | F-07, A-12 | **FIXED_UNVERIFIED** | `271afc8` (`rateLimit.test.ts`, `concurrent_rate_limit.sh`), `0f104fc`/`b40e03c` (5 búsquedas en vivo al día para GRATIS; `serpCache.test.ts`, SQL `cost.sql`), `59f7db2`, `341e907`. Falta: `mark-visited` sigue sin límite; topes del lado del proveedor (dueño) |
+| IATOS-015 | P1 | SerpApi casi agotado (~216 búsquedas) | inventario, C-12, C-04 | **BLOCKED** | Dueño: plan de SerpApi. Aviso por ritmo de gasto en `16712a1` y caché compartida en `b40e03c` (`costControls.test.ts`, `serpCache.test.ts`) |
+| IATOS-016 | P1 | Un colaborador puede cambiar al dueño del viaje | F-05 | **VERIFIED** | trigger `trips_guard_owner` de `20261022120000`, verificado en vivo; SQL `rls_attacks.sql` L6 |
+| IATOS-017 | P1 | Vuelos seguidos sin límite queman SerpApi | C-04, F-06, A-12 | **FIXED_UNVERIFIED** | Parte de BD: VERIFIED en vivo. Función: `610a1e2`, `223425e` (`trackFlightRules.test.ts`). Cron: `6989450` (`flightWatchRunner.test.ts`, SQL `ops` T3-T6) |
+| IATOS-018 | P1 | Suscripciones duplicadas y doble cobro posible | A-05 | **FIXED_UNVERIFIED** | `657a4c0`; `stripeCheckout.test.ts` |
+| IATOS-019 | P1 | El webhook de Stripe ignora errores de BD y responde 200 | A-06, F-14 | **FIXED_UNVERIFIED** | `b39bf8f`; `stripeWebhook.test.ts` |
+| IATOS-020 | P1 | Prueba de 30 días repetible sin límite | A-04, F-14 | **FIXED_UNVERIFIED** | `657a4c0`; `stripeCheckout.test.ts` |
+| IATOS-021 | P1 | El planificador multidestino evade la cuota de análisis | A-02 | **FIXED_UNVERIFIED** | `cace072`, `6bcf31d`; `quota.test.ts`, `reservation.test.ts` |
+| IATOS-022 | P1 | Sin flujo de pago: un 402 se ve como error genérico | A-13 | **FIXED_UNVERIFIED** | `2c1c5f7`, `9c1a09b`, `ce1c508`; `functionErrors.test.ts`, `freeLimitDialog.test.tsx` |
+| IATOS-111 | P1 | Cuota gratis agotada se ve como error técnico (Lovable) | IATOS-P1-FREE-01, A-13 | **FIXED_UNVERIFIED** | `9c1a09b`, `ce1c508`, `6bcf31d`; `functionErrors.test.ts`, `freeLimitDialog.test.tsx`, `quota.test.ts`; SQL `quota_reservations.sql` F1-F10 |
+| IATOS-112 | P1 | Un análisis fallido consume la oportunidad gratis (Lovable) | IATOS-P1-FREE-02, A-09, A-11 | **FIXED_UNVERIFIED** | `6ffd183`, `6bcf31d`, `76ab9cc`; `reservation.test.ts`, `requestKey.test.ts`; SQL R1-R12, M1-M4 |
+| IATOS-114 | P1 | El usuario podía confirmar él mismo sus solicitudes al concierge | Datos y permisos (2026-10-22) | **FIXED_UNVERIFIED** | `0825360` (migración `20261022146300`); SQL `security/concierge_requests.sql` CR1-CR4 |
+| IATOS-113 | P2 | El avatar obliga a usar la cámara del teléfono (Lovable) | IATOS-P2-AVATAR-01 | **FIXED_UNVERIFIED** | `4b9911c`; `avatarCreator.test.tsx`. Falta probar en iPhone y Android reales |
+| IATOS-023 | P1 | El chat no dibuja tarjetas de vuelo, hotel ni atracción | B-02 | **FIXED_UNVERIFIED** | `ab28eba`; `conciergeCards.test.tsx` |
+| IATOS-024 | P1 | Precios "estimados por IA" con botón de compra y sin marca | B-03 | **FIXED_UNVERIFIED** | `4c450c9`, `b4cc190`; `liveSearchFallback.test.ts`, `iatoEvals` E-07/E-08 |
+| IATOS-025 | P1 | Jet privado y equipaje con precio inventado y "solicitud enviada" | B-04, D-17 | **FIXED_UNVERIFIED** | `b4cc190`, `341e907`, `ab28eba`; `conciergeCards.test.tsx`, `iatoEvals` E-11 |
+| IATOS-026 | P1 | La etiqueta "precio en vivo" la decide el modelo | B-05, D-16 | **FIXED_UNVERIFIED** | `71f3789`, `e4a0400`; `tripSources`, `logisticsProvenance`, `provenance`, `priceSourceBadge` |
+| IATOS-027 | P1 | `editar-viaje-ai` recotiza con IA y conserva la etiqueta "en vivo" | B-06 | **FIXED_UNVERIFIED** | `71f3789`; `editReconcile.test.ts` |
+| IATOS-028 | P1 | No hay un "viaje activo" único; cada módulo elige otro | B-08, B-09, E-11, E-13, B-12 | **FIXED_UNVERIFIED** | `b4cc190`, `cc0b00e`, `86dc091`, `a6db4bd`, `8cd740e`; `iatoEvals` E-01 a E-04, `activeTripPages`, `dashboardActiveTrip`, `homeTrips`; SQL `trip_expediente.sql` T1-T3 |
+| IATOS-029 | P1 | *Prompt injection* y URLs inseguras escritas por la IA | B-10, B-11, F-12 | **FIXED_UNVERIFIED** | `b4cc190`, `c8e0553`, `24e3830`; `iatoEvals` E-15/E-16, `safeMarkdown`, `conciergeCards`. Falta: pantalla para revisar lo leído de un PDF |
+| IATOS-030 | P1 | "Fixer humano 24/7 por WhatsApp" sin respaldo | B-12 | **BLOCKED** | Estado real del correo en `ab28eba`; "sujeto a disponibilidad" en `d550aac`. Dueño: teléfono o WhatsApp y horario del Fixer. `FixerButton.tsx:227` aún dice "por email o WhatsApp en minutos" |
+| IATOS-031 | P1 | Promociones y vida nocturna usan un modelo Claude retirado | B-13 | **FIXED_UNVERIFIED** | `ecb815f`; `claudeCall.test.ts`, `retiredModels.test.ts` |
+| IATOS-032 | P1 | Fechas en UTC: alertas de vuelo nocturnas perdidas | C-02, B-16 | **FIXED_UNVERIFIED** | `610a1e2`, `f9eb8f4` (pantallas), `6989450` (cron, ±1 día), `b4cc190` (zona horaria a Iato); `trackFlightRules`, `localDate`, `iatoEvals` E-20; SQL `ops` T3/T6 |
+| IATOS-033 | P1 | Fallas del proveedor se registran como revisión exitosa | C-03 | **FIXED_UNVERIFIED** | `6989450`; `flightWatchRules.test.ts`, `flightWatchRunner.test.ts` |
+| IATOS-034 | P1 | Correos no llegan: dominio de Resend sin verificar | C-11, inventario | **BLOCKED** | Dueño: verificar el dominio en Resend (DNS) y poner el secreto `HEALTH_ALERT_EMAIL`. Código listo en `1feae0e` (`healthAlerts.test.ts`) |
+| IATOS-035 | P1 | Cambiar viajeros o fechas no recotiza; selecciones no se guardan | D-02, E-12 | **FIXED_UNVERIFIED** | `e4a0400`, `dba3fc7`, `1fefc4e`; `quote.test.ts`, `tripSelectionsPersist.test.tsx`; SQL `trip_quotes.sql`, `trip_expediente.sql` S1-S5 |
+| IATOS-036 | P1 | `travelpayouts-flights` no pide viaje redondo | D-03 | **FIXED_UNVERIFIED** | `4c450c9`; `tpParams.test.ts` |
+| IATOS-037 | P1 | El recálculo pisa "ya tengo vuelo" o "sin hotel" | D-05 | **FIXED_UNVERIFIED** | `71f3789`; `budget.test.ts` |
+| IATOS-038 | P1 | Alertas falsas de "bajó el precio" por el tipo de cambio | D-09, C-09 | **FIXED_UNVERIFIED** | `598c974`; `priceWatch.test.ts` |
+| IATOS-039 | P1 | Botones de afiliado bloqueados en iOS (`await` antes de `window.open`) | D-12, E-05 | **FIXED_UNVERIFIED** | `24e3830`, `9265fa6`; `trackBooking.test.ts`. Falta probar en un iPhone real |
+| IATOS-040 | P1 | El marker de respaldo usa 6 caracteres del token secreto | D-13 | **FIXED_UNVERIFIED** | `4c450c9`; `tpParams.test.ts`. Dueño (no bloquea): confirmar `TRAVELPAYOUTS_MARKER`; si faltaba, rotar el token |
+| IATOS-041 | P1 | La pantalla de nueva contraseña puede quedar bloqueada | E-02 | **FIXED_UNVERIFIED** | `1bfca52`; `resetPassword.test.tsx` |
+| IATOS-042 | P1 | El botón Atrás vuelve a analizar y duplica el viaje | E-03 | **FIXED_UNVERIFIED** | `d7c5252`, `f6e21e5`; `planTripBack.test.tsx`, `planTripFreeLimit.test.tsx` |
+| IATOS-043 | P1 | Números de emergencia (SOS) adivinados | E-16 | **FIXED_UNVERIFIED** | `b1bcbdb`; `emergencyNumbers.test.ts` |
+| IATOS-044 | P2 | Vuelos sin fecha se duplican y nunca se detienen | C-01 | **FIXED_UNVERIFIED** | `610a1e2`, `6989450` (el cron retira vuelos sin fecha), `0f104fc` (UNIQUE NULLS NOT DISTINCT); `trackFlightRules.test.ts`; SQL `cost.sql` |
+| IATOS-045 | P2 | Eventos de Stripe fuera de orden; versión de API sin fixtures | A-07, F-14 | **BLOCKED** | Orden de eventos en `b0c43f4`, `b39bf8f`; fixtures en `af51ec8` (`stripeWebhook`, `stripePayments`; SQL `payments.sql` S1-S8). Dueño: activar `invoice.paid` y confirmar la versión de API del endpoint (`docs/ops/stripe-modo-prueba.md`) |
+| IATOS-046 | P2 | Cortesía (comped) y Stripe se sobrescriben entre sí | A-08 | **FIXED_UNVERIFIED** | `b0c43f4`, `657a4c0`; SQL `payments.sql` S6, C1-C3; `stripeCheckout.test.ts` |
+| IATOS-047 | P2 | La cuota gratis se consume antes de validar | A-09 | **FIXED_UNVERIFIED** | `cace072`, `6bcf31d`; `reservation.test.ts` |
+| IATOS-048 | P2 | Cuotas y límites fallan abiertos | A-10, F-07 | **FIXED_UNVERIFIED** | `cace072`, `271afc8`; `quota.test.ts`, `rateLimit.test.ts` |
+| IATOS-049 | P2 | Reembolsos y disputas no se manejan | A-14 | **BLOCKED** | Código en `cf06ae6`, `af51ec8` (`stripePayments.test.ts`, SQL `round_b.sql`). Dueño: activar en Stripe `charge.refunded`, `charge.dispute.created` y `charge.dispute.closed`, y correr `docs/ops/stripe-modo-prueba.md` |
+| IATOS-050 | P2 | Borrar la cuenta se bloquea por el estado de facturación | A-16 | **FIXED_UNVERIFIED** | `3a0c2fe`, `a8c7bcb`; `deleteAccount.test.ts`, `accountDeletion.test.ts` |
+| IATOS-051 | P2 | Correos al staff con HTML inyectable y sin límite | F-08, A-17, B-22 | **FIXED_UNVERIFIED** | `59f7db2`, `341e907`; `fixerEmail.test.ts` |
+| IATOS-052 | P2 | El usuario puede editar cualquier columna de su perfil | F-09 | **FIXED_UNVERIFIED** | `73a7551`; SQL `hardening.sql`. Antes de aplicar: revisar `invite_code` duplicados (`docs/ops/LEEME.md`) |
+| IATOS-053 | P2 | Los amigos ven el perfil completo | F-10 | **FIXED_UNVERIFIED** | `c30619f`; `friendProfiles.test.ts`, SQL `hardening.sql` |
+| IATOS-054 | P2 | Uploads sin validar tipo ni tamaño en el servidor | F-11 | **FIXED_UNVERIFIED** | `ea7fb74`; `uploadRules.test.ts`, SQL `hardening.sql` |
+| IATOS-055 | P2 | PRO de cortesía con correo no confirmado | F-13, A-18 | **BLOCKED** | Código en `b0c43f4` (la cortesía exige correo confirmado) y `cf06ae6` (`revoke_comp`); SQL `payments.sql` C1-C3. Dueño: activar la confirmación de correo en Supabase Auth (hoy `email_confirmed_at` se llena al registrarse) |
+| IATOS-056 | P2 | Rastreadores antes del consentimiento | E-18 | **FIXED_UNVERIFIED** | `c008c80`; `cookieConsent.test.tsx`. Revisión legal opcional |
+| IATOS-057 | P2 | Caché de Travelpayouts mostrada como "en vivo" | B-07, D-16 | **FIXED_UNVERIFIED** | `4c450c9`, `e4a0400`; `provenance.test.ts`, `priceSourceBadge.test.tsx` |
+| IATOS-058 | P2 | Modelos Gemini retirados: un salto extra por llamada | B-13 | **FIXED_UNVERIFIED** | `ecb815f`, `ce38d8a`; `aiFetch.test.ts`, `retiredModels.test.ts` |
+| IATOS-059 | P2 | La memoria de Iato es invisible, crece sin límite y el historial no se carga | B-14, E-13 | **FIXED_UNVERIFIED** | `b4cc190`, `ab28eba`, `5143afa`; `iatoEvals` E-19 |
+| IATOS-060 | P2 | Latencia: herramientas en serie, sin timeout | B-15 | **FIXED_UNVERIFIED** | `b4cc190`; `iatoEvals` B-15 |
+| IATOS-061 | P2 | La tarjeta de transporte ignora su enlace | B-17 | **FIXED_UNVERIFIED** | `ab28eba`; `conciergeCards.test.tsx` |
+| IATOS-062 | P2 | Restaurantes sugeridos por IA se guardan como del viaje | B-18 | **OPEN** | Sin corrección: los restaurantes de la IA no llevan marca de sugerido |
+| IATOS-063 | P2 | Presupuesto: tiers sumados y pruebas que no prueban producción | B-19, D-20, D-21, D-26 | **FIXED_UNVERIFIED** | `71f3789`; `budget.test.ts` (importa el código real) |
+| IATOS-064 | P2 | `parsear-viaje` y `parse-trip-file` sin validar el JSON | B-20 | **OPEN** | Sin corrección: ninguna de las dos funciones valida el JSON (`b402749` solo cambió el tipo de cambio de `parse-trip-file`) |
+| IATOS-065 | P2 | Alertas de vuelo incorrectas o ausentes | C-05 | **FIXED_UNVERIFIED** | `6989450`; `flightWatchRules.test.ts` |
+| IATOS-066 | P2 | Corridas simultáneas: doble gasto y doble aviso | C-06 | **FIXED_UNVERIFIED** | `6989450`, `598c974`, `0f104fc`, `223425e`; `flightWatchRunner`, `ops/concurrent_claim.sh`, SQL `cost.sql` |
+| IATOS-067 | P2 | El cron de vuelos puede exceder el tiempo límite | C-07 | **FIXED_UNVERIFIED** | `6989450`; `flightWatchRunner.test.ts` |
+| IATOS-068 | P2 | El cron de vuelos truena sin VAPID; push sin TTL | C-08 | **FIXED_UNVERIFIED** | `d442c75`; `pushCore.test.ts` |
+| IATOS-069 | P2 | El health-check no vigila las tareas | C-12 | **FIXED_UNVERIFIED** | `1feae0e`, `16712a1`; `healthAlerts`, `serviceHealthCard`; SQL `ops` C1. El correo de alerta depende de 034 |
+| IATOS-070 | P2 | El health-check puede guardar y enviar secretos en errores | C-13 | **FIXED_UNVERIFIED** | `d442c75`, `1feae0e`; `healthAlerts.test.ts`, `flightWatchRules.test.ts` |
+| IATOS-071 | P2 | El correo de cotización enlaza a una ruta 404 | C-16 | **FIXED_UNVERIFIED** | `610a1e2` (ya en main por `629c946`, pero `analizar-viaje` no se ha vuelto a desplegar). Sin prueba. Falta la redirección `/dashboard/trips/:id` |
+| IATOS-072 | P2 | Deriva entre las migraciones del repo y producción | inventario, C-14, F-21 | **BLOCKED** | Dueño: autorizar el registro de las migraciones en `schema_migrations` |
+| IATOS-073 | P2 | Inicio: moneda desconocida 1:1 y FX de respaldo silencioso | D-07 | **FIXED_UNVERIFIED** | `1e13012`; `fx.test.ts` |
+| IATOS-074 | P2 | FX del servidor: respaldo silencioso y copias divergentes | D-08 | **FIXED_UNVERIFIED** | `71f3789`, `b402749`; `fx.test.ts`. Falta: el prompt de `parsear-viaje` aún dice "USD≈18, EUR≈20" |
+| IATOS-075 | P2 | TripDetail: errores aritméticos en el total de selecciones | D-10, E-22 | **FIXED_UNVERIFIED** | `e4a0400`; `quote.test.ts` |
+| IATOS-076 | P2 | Cotización en vivo parcial presentada como "Inversión total" | D-11 | **FIXED_UNVERIFIED** | `e4a0400` (`LiveTripQuote.tsx`). Sin prueba específica |
+| IATOS-077 | P2 | Atribución de afiliados `tp.media` sin verificar | D-14 | **BLOCKED** | Dueño: revisar en el panel de Travelpayouts qué programas y enlaces atribuyen |
+| IATOS-078 | P2 | Enlace de Aviasales de respaldo con fecha mal formada | D-15 | **FIXED_UNVERIFIED** | `4c450c9`; `tpParams.test.ts` |
+| IATOS-079 | P2 | TripSplit sin moneda, con negativos y borrado en cascada | D-18, E-24 | **FIXED_UNVERIFIED** | `202900a`, `b402749`; `doubleSubmit`, `tripSplitLive`; SQL `trip_expediente.sql` P1-P3 |
+| IATOS-080 | P2 | Sin *snapshot*, versión ni vigencia de la cotización | D-22 | **FIXED_UNVERIFIED** | `71f3789`; `quoteSnapshot.test.ts`; SQL `trip_quotes.sql` Q1-Q11 |
+| IATOS-081 | P2 | Clics contados como "reservas"; no existe Pagado/Pendiente | D-24, E-06 | **FIXED_UNVERIFIED** | `39a4c82`, `8cd740e`; `reservas.test.tsx`, `tripExpediente.test.ts`. Falta: el usuario todavía puede escribir `price_amount` y `commission_amount` |
+| IATOS-082 | P2 | Fechas mostradas un día antes; montos negativos | D-19, E-25, E-07, E-11 | **FIXED_UNVERIFIED** | `f9eb8f4`, `1e13012`; `localDate.test.ts`, `fx.test.ts`. Falta: `CHECK (amount > 0)` en `expenses` (hoy solo lo valida la pantalla) |
+| IATOS-083 | P2 | Login: se pierde el *deep link* y hay dos fuentes de onboarding | E-08 | **FIXED_UNVERIFIED** | `5de770e`; `authReturnTo.test.tsx` |
+| IATOS-084 | P2 | Un arranque lento "cierra sesión" a los 4.5 s | E-09 | **FIXED_UNVERIFIED** | `068bb34`; `authRestore.test.tsx` |
+| IATOS-085 | P2 | Mis viajes sin estado de carga; falso "eliminado" | E-10 | **FIXED_UNVERIFIED** | `12d98f2`; `tripsPage.test.tsx`, `tripReanalysis.test.tsx` |
+| IATOS-086 | P2 | Inicio: favorito local, controles falsos, input compartido | E-11 | **FIXED_UNVERIFIED** | `4456305`, `08d4326`; `homeTrips.test.ts`, `favoriteSave.test.tsx` |
+| IATOS-087 | P2 | Problemas de layout en móvil | E-14 | **FIXED_UNVERIFIED** | `1d07061`, `c008c80`; `bottomNav.test.tsx`. Falta probar en un dispositivo |
+| IATOS-088 | P2 | Faltas de accesibilidad | E-15 | **FIXED_UNVERIFIED** | `fc4266f`, `8d66a34`, `6c4818a`; `formLabels.test.tsx`, `a11yContrast.test.tsx` |
+| IATOS-089 | P2 | Textos que prometen funciones inexistentes | E-17, E-13 | **FIXED_UNVERIFIED** | `ad78b5d`, `2df91c8`, `72a21a3`, `1487229`, `49c7878`; `planCopy`, `conciergePlanCopy`, `analysisProgress` |
+| IATOS-090 | P2 | El onboarding bloquea todo el valor | E-19 | **FIXED_UNVERIFIED** | `49a9327`; `onboardingSkip.test.tsx`. El alcance final del onboarding sigue siendo del dueño |
+| IATOS-091 | P2 | Visa y seguridad generadas por IA sin aviso | E-27 | **FIXED_UNVERIFIED** | `35ae6af`; `compareAiNotice.test.tsx` |
+| IATOS-092 | P3 | La cuota `trip_analysis` se rebasa en paralelo | A-11 | **FIXED_UNVERIFIED** | `b0c43f4`; SQL `payments` (concurrencia) |
+| IATOS-093 | P3 | README y textos de pago inconsistentes | A-19 | **FIXED_UNVERIFIED** | `94d3733`, `d550aac`, `657a4c0`; `planCopy.test.ts` |
+| IATOS-094 | P3 | Contratos de herramientas e higiene de Iato | B-21, B-22 | **FIXED_UNVERIFIED** | `b4cc190`; `iatoEvals` B-02. Falta: `match_score` sigue forzado entre 70 y 99 |
+| IATOS-095 | P3 | `price-watch-cron`: cobertura y robustez | C-10 | **FIXED_UNVERIFIED** | `598c974`, `0f104fc`, `223425e`; SQL `cost.sql` |
+| IATOS-096 | P3 | Endurecimiento: auth de cron, CORS, push, llaves | C-14, F-21 | **FIXED_UNVERIFIED** | `d442c75`, `657a4c0`; `cronAuth.test.ts`. Falta: CORS `*` en `stripe-checkout` y `delete-account`, `push-subscribe` sin cambios, revisar la llave de Maps |
+| IATOS-097 | P3 | Campana de notificaciones | C-15 | **FIXED_UNVERIFIED** | `b2b059f`; `notificationBell.test.tsx` |
+| IATOS-098 | P3 | `docs/ops/LEEME.md` desactualizado | C-17 | **FIXED_UNVERIFIED** | `7a0260d`, `0fcca8e` (documento; sin prueba) |
+| IATOS-099 | P3 | Detalles menores de dinero, fechas y textos | D-23, D-25, E-28 | **FIXED_UNVERIFIED** | `464af39`, `b402749`, `f9eb8f4`; `minorFixes.test.tsx`. Falta: la calculadora de ahorro (estado "pagado", sueldo en `localStorage`) |
+| IATOS-100 | P3 | Sin modo offline ni bóveda de documentos | E-20 | **FIXED_UNVERIFIED** | `bb4c152`, `66cab4a`; `serviceWorker.test.ts`, `tripDocuments.test.tsx`; SQL `trip_expediente.sql` D0-D11 |
+| IATOS-101 | P3 | Módulos duplicados y código muerto | E-21 | **FIXED_UNVERIFIED** | `e90b999`, `08d4326`. Falta: tres sistemas de gastos y dos esquemas de equipaje |
+| IATOS-102 | P3 | Herramientas desconectadas del viaje | E-22 | **FIXED_UNVERIFIED** | `7240e85`, `21a9837`; `activeTripPages.test.tsx` |
+| IATOS-103 | P3 | Rendimiento en móvil | E-23 | **FIXED_UNVERIFIED** | `f36c133`, `afdb9ab`, `07506c8`, `79dddd0`, `36122bc`; `bundleSplit.test.tsx` |
+| IATOS-104 | P3 | Doble envío y promesas no manejadas | E-24 | **FIXED_UNVERIFIED** | `202900a`, `e8f376e`; `doubleSubmit.test.tsx`, `forgotPassword.test.tsx` |
+| IATOS-105 | P3 | "Volver" puede salir de la app | E-26 | **FIXED_UNVERIFIED** | `314754e`; `backButton.test.tsx` |
+| IATOS-106 | P3 | `trip_id` sin validar en varias tablas | F-15 | **FIXED_UNVERIFIED** | `7bb0b71`; SQL `hardening.sql` |
+| IATOS-107 | P3 | Funciones "oráculo" de relaciones | F-17 | **FIXED_UNVERIFIED** | `df32b6b`; SQL `hardening.sql` |
+| IATOS-108 | P3 | PII en logs y terceros; huecos en el borrado | F-18 | **BLOCKED** | Código en `68ed8e5`, `a8c7bcb` (`piiScrub.test.ts`, `accountDeletion.test.ts`). Dueño: secretos `POSTHOG_PERSONAL_API_KEY` y `POSTHOG_PROJECT_ID` (sin ellos el paso de PostHog queda en `pending_key`) y programar `account-deletion-retry` |
+| IATOS-109 | P3 | Notificaciones con texto arbitrario entre miembros | F-19, inventario | **FIXED_UNVERIFIED** | `dc8f7c4`; `shareTripNotify.test.ts`, SQL `hardening.sql` |
+| IATOS-110 | P3 | Robustez: `nightlife-discover` y `evaluar-logros` | F-20 | **OPEN** | Parcial: `nightlife-discover` sí se corrigió (`099086c`); `evaluar-logros` no cambió |
 
 **Cambios de severidad respecto a los informes originales** (por el criterio único):
 
@@ -223,6 +278,8 @@ La unificación partió de 133 hallazgos originales: A 19, B 22, C 17, D 26, E 2
 ---
 
 ## 4. Detalle de hallazgos
+
+> **Aviso:** las líneas "Resultado" y "Estado final" de esta sección son las de la auditoría y muchas ya no están al día. El estado vigente de cada hallazgo es el de la tabla de la sección 3.
 
 Formato por hallazgo: Origen · Reproducción · Causa raíz · Archivos · Corrección propuesta · Prueba · Resultado · Riesgo de regresión · Estado final. Las rutas son relativas a la raíz del repo. Las migraciones se citan por su prefijo de fecha.
 
@@ -1854,23 +1911,33 @@ Estos tres hallazgos se integran a la lista única; no son flujos aparte. Cada u
 - **Riesgo de regresión:** bajo.
 - **Estado final:** CORREGIDO EN RAMA.
 
+#### IATOS-114 · P1 · El usuario podía confirmar él mismo sus solicitudes al concierge
+- **Origen:** revisión de datos y permisos (2026-10-22).
+- **Reproducción:** con su sesión, un usuario hacía INSERT o UPDATE de sus propias filas en `concierge_requests` con cualquier `status`, y así marcaba como "confirmada" una solicitud que nadie había atendido.
+- **Causa raíz:** las políticas `Users insert own concierge_requests` y `Users update own concierge_requests` solo revisaban `user_id`, no el estado.
+- **Corrección (rama, commit `0825360`):** la migración `20261022146300_sec_concierge_requests_server_only.sql` borra esas dos políticas y quita INSERT, UPDATE y DELETE a `anon` y `authenticated`. Las solicitudes las crea `concierge-action` con la llave de servicio, que fija el estado inicial. El usuario sigue leyendo las suyas.
+- **Prueba:** `supabase/tests/security/concierge_requests.sql` (CR1-CR4, todas OK), que corre `security/run.sh`.
+- **Riesgo de regresión:** bajo. Ninguna pantalla escribe directo en la tabla.
+- **Estado final:** FIXED_UNVERIFIED (falta aplicar la migración en producción).
+
 ### Decisiones comerciales tomadas por el dueño (2026-10-22)
 
 - **DEC-01 · Modelo GRATIS vs PRO ($99 MXN/mes)** — resuelve el sentido de IATOS-013 y IATOS-014. Límites propuestos, no definitivos: GRATIS = Travel DNA básico, 3 mensajes de Iato/mes, 1 análisis de cortesía (una sola vez), viajes guardados, edición manual, herramientas esenciales. PRO = 100 mensajes/mes, 10 análisis/mes, hasta 5 alertas de precio, seguimiento ampliado de vuelos, personalización avanzada, funciones premium. Fixer: acceso preferente sujeto a disponibilidad, sin prometer 24/7 ni ilimitado (afecta IATOS-030). Cuotas en el servidor. Antes de fijarlos: medir costos y recomendar ajustes (ver `IATOS_COSTOS_UNITARIOS.md` y `IATOS_PROPUESTA_PLANES_Y_PRUEBA.md`).
 - **DEC-02 · Prueba PRO de 30 días sin tarjeta y sin cobro automático** — resuelve IATOS-012 en la opción (b). Al terminar, vuelve a GRATIS conservando datos; la tarjeta solo se pide al contratar. Landing, onboarding, página PRO, checkout, correos y términos deben decir exactamente lo mismo. Antes de implementar: costo de la prueba y controles contra abuso.
-- **Estado:** se preparan diseño, implementación y pruebas en desarrollo; **no se activa nada en producción** (configuración comercial, cobros, suscripciones existentes) sin aprobación explícita.
+- **Estado conciliado (2026-10-22):** DEC-01 **BLOCKED** (límites en `plan_limits`, apagados con `pro_limits_enforced=false`; el dueño aprueba los valores y lo enciende). DEC-02 **BLOCKED** (`a8baaba`, apagada con `trial_no_card_enabled=false`; antes hay que exigir la confirmación de correo en Supabase Auth y verificar Resend).
+- **Estado original:** se preparan diseño, implementación y pruebas en desarrollo; **no se activa nada en producción** (configuración comercial, cobros, suscripciones existentes) sin aprobación explícita.
 
 
 ### Decisiones del dueño, segunda ronda (2026-10-22)
 
 | ID | Decisión | Hallazgos relacionados | Estado |
 |---|---|---|---|
-| DEC-03 | Trayectos cortos: elegir por tiempo puerta a puerta, precio, comodidad y preferencias; directos cuando tengan sentido; con escala solo con ventaja comprobable o si el viajero lo pide; la regla de 3× el manejo se revisa contra casos reales. | N-06 | CORREGIDO EN RAMA (commit 0f0bf79). Revisado contra el caso real CDMX→Puebla (Google Flights, 22-oct): los vuelos con escala de 4h15–5h27 pasaban con la regla anterior y ya no pasan. Supuestos de aeropuerto documentados en `groundTransport.ts`. |
-| DEC-04 | Autobuses en México: explorar Busbud, ADO y Estrella de Oro; no eliminar Omio; evaluar cobertura, precios, API, afiliación y condiciones; sin inventar acuerdos ni comisiones. | N-06 | EN CURSO: investigación con fuentes en `IATOS_PROVEEDORES_AUTOBUSES.md`. |
-| DEC-05 | `profiles.tier = pro` en cuentas antiguas: corregir la inconsistencia sin dar ni quitar PRO; el servidor y las suscripciones son la única fuente de acceso. | Observación E2E, IATOS-052 | Diagnóstico de solo lectura: 11 cuentas de cortesía coherentes y 2 cuentas de prueba E2E con `pro` sin PRO; ningún cliente real afectado. Migración `20261022145000` auditable y reversible, preparada y probada en local; no cambia cuentas hasta la autorización. Valor por defecto corregido en `20261022140000`. |
-| DEC-06 | Contraseña de Members comprometida (P0): migrar Members a los derechos del servidor; un mecanismo temporal solo con secreto rotado, del lado servidor y con caducidad. Preparar la rotación sin tocar producción. | IATOS (F-16) | EN CURSO. |
-| DEC-07 | Members Only es beneficio PRO (PRO, prueba con derecho o cortesía); los gratuitos ven una presentación limitada sin información reservada; validación en servidor; revisar derechos de usuarios existentes antes de restringir. | IATOS-013 | EN CURSO. |
-| DEC-08 | Reembolsos y disputas (P0): reembolso total revoca el acceso del pago salvo otro derecho vigente; parcial conserva y se revisa; disputa abierta se registra, alerta y revisa sin cancelar; perdida reconcilia; ganada restaura según la suscripción real. Firma, idempotencia, trazabilidad y tolerancia al desorden; pruebas en modo test, sin reembolsos reales. | A-14, IATOS-019 | EN CURSO (la primera versión, que conservaba acceso hasta fin de periodo, se ajusta a esta política). |
-| DEC-09 | Eliminación de cuenta (P1): flujo auditable y reanudable en sistemas externos (PostHog: borrar perfil identificable; Stripe: cancelar, impedir cobros, borrar lo que se pueda y conservar lo legalmente obligatorio); no prometer borrado absoluto. | A-16, F-18 | EN CURSO. |
+| DEC-03 | Trayectos cortos: elegir por tiempo puerta a puerta, precio, comodidad y preferencias; directos cuando tengan sentido; con escala solo con ventaja comprobable o si el viajero lo pide; la regla de 3× el manejo se revisa contra casos reales. | N-06 | **FIXED_UNVERIFIED** (`0f0bf79`; `groundTransport.test.ts`, 14). CORREGIDO EN RAMA (commit 0f0bf79). Revisado contra el caso real CDMX→Puebla (Google Flights, 22-oct): los vuelos con escala de 4h15–5h27 pasaban con la regla anterior y ya no pasan. Supuestos de aeropuerto documentados en `groundTransport.ts`. |
+| DEC-04 | Autobuses en México: explorar Busbud, ADO y Estrella de Oro; no eliminar Omio; evaluar cobertura, precios, API, afiliación y condiciones; sin inventar acuerdos ni comisiones. | N-06 | **OPEN**: solo hay investigación con fuentes (`IATOS_PROVEEDORES_AUTOBUSES.md`, `3b647af`); ningún proveedor nuevo está en el código. |
+| DEC-05 | `profiles.tier = pro` en cuentas antiguas: corregir la inconsistencia sin dar ni quitar PRO; el servidor y las suscripciones son la única fuente de acceso. | Observación E2E, IATOS-052 | **BLOCKED**: el dueño debe autorizar `sync_profile_tier` (`d5a2651`; SQL `security/profiles_tier.sql` T1-T7). Diagnóstico de solo lectura: 11 cuentas de cortesía coherentes y 2 cuentas de prueba E2E con `pro` sin PRO; ningún cliente real afectado. Migración `20261022145000` auditable y reversible, preparada y probada en local; no cambia cuentas hasta la autorización. Valor por defecto corregido en `20261022140000`. |
+| DEC-06 | Contraseña de Members comprometida (P0): migrar Members a los derechos del servidor; un mecanismo temporal solo con secreto rotado, del lado servidor y con caducidad. Preparar la rotación sin tocar producción. | IATOS (F-16) | **FIXED_UNVERIFIED**: contraseña fija retirada; la temporal es un hash bcrypt con caducidad y está apagada (`6196eb4`, `099086c`; `membersGate.test.tsx`, SQL `round_b.sql`). |
+| DEC-07 | Members Only es beneficio PRO (PRO, prueba con derecho o cortesía); los gratuitos ven una presentación limitada sin información reservada; validación en servidor; revisar derechos de usuarios existentes antes de restringir. | IATOS-013 | **FIXED_UNVERIFIED**: `members_access()` = `is_pro`, adelanto para gratuitos y revisión en servidor (`099086c`; `membersGate.test.tsx`, SQL `round_b.sql`). Antes de aplicar, correr la consulta de "¿quién perdería el acceso?" de `docs/ops/LEEME.md`. |
+| DEC-08 | Reembolsos y disputas (P0): reembolso total revoca el acceso del pago salvo otro derecho vigente; parcial conserva y se revisa; disputa abierta se registra, alerta y revisa sin cancelar; perdida reconcilia; ganada restaura según la suscripción real. Firma, idempotencia, trazabilidad y tolerancia al desorden; pruebas en modo test, sin reembolsos reales. | A-14, IATOS-019 | **BLOCKED**: la política está en `af51ec8` (`stripePayments.test.ts`, 14; SQL `round_b.sql`), pero solo funciona cuando el dueño active en Stripe `charge.refunded` y `charge.dispute.created/closed` y corra `docs/ops/stripe-modo-prueba.md`. |
+| DEC-09 | Eliminación de cuenta (P1): flujo auditable y reanudable en sistemas externos (PostHog: borrar perfil identificable; Stripe: cancelar, impedir cobros, borrar lo que se pueda y conservar lo legalmente obligatorio); no prometer borrado absoluto. | A-16, F-18 | **BLOCKED**: pasos reanudables con bitácora en `a8c7bcb` (`accountDeletion.test.ts`, 8; SQL `round_b.sql`). El paso de PostHog queda en `pending_key` hasta que el dueño ponga `POSTHOG_PERSONAL_API_KEY` y `POSTHOG_PROJECT_ID`; falta programar `account-deletion-retry`. |
 
 Decisiones técnicas menores tomadas con criterio por defecto (el dueño pidió no interrumpir): búsquedas en vivo permiten la operación si falla el conteo (cuesta centavos); el plan gratis sobre su límite ve precios de referencia gratuitos de Travelpayouts con aviso; un PRO que pasa el uso justo sin precio guardado ve "no disponible" en lugar de una búsqueda nueva; tope de seguridad de 10 alertas para PRO.
