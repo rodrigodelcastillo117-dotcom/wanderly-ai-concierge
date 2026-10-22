@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import iatosLogo from "@/assets/iatos-logo.png";
+// Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
+import iatosLogo from "@/assets/iatos-logo-320.png";
 import AvatarCreator from "@/components/AvatarCreator";
 
 

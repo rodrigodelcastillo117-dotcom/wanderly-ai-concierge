@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
 import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationBell } from "@/components/NotificationBell";
-import iatosLogo from "@/assets/iatos-logo.png";
+// Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
+import iatosLogo from "@/assets/iatos-logo-320.png";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 const links = [
