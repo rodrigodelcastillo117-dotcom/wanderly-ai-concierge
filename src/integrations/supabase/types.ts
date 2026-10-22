@@ -5066,6 +5066,8 @@ export type Database = {
         Args: { _reservation_id: string; _result?: Json; _trip_id?: string }
         Returns: Json
       }
+      amigo_perfil: { Args: { p_amigo: string }; Returns: Json }
+      amigos_resumen: { Args: never; Returns: Json }
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
       concierge_runtime_config: { Args: { _user_id: string }; Returns: Json }
       consume_free_quota: {
@@ -5570,6 +5572,10 @@ export type Database = {
           _reason: string
           _subscription_id: string
         }
+        Returns: Json
+      }
+      saludar_amigo: {
+        Args: { p_amigo: string; p_gesto?: string }
         Returns: Json
       }
       serp_burn_rate: { Args: { _days?: number }; Returns: Json }

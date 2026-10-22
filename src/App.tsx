@@ -36,6 +36,7 @@ const Concierge = lazyWithRetry(() => import("./pages/Concierge"));
 const Cercanos = lazyWithRetry(() => import("./pages/Cercanos"));
 const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
 const Social = lazyWithRetry(() => import("./pages/Social"));
+const FriendProfile = lazyWithRetry(() => import("./pages/FriendProfile"));
 const Gastos = lazyWithRetry(() => import("./pages/Gastos"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound.tsx"));
 // ── IATOS Privé · catálogo (grupo catalog). El hub /prive y su candado los pone el grupo ui. ──
@@ -140,6 +141,7 @@ const App = () => (
             <Route path="/dashboard/cercanos" element={<ProtectedRoute><Cercanos /></ProtectedRoute>} />
             <Route path="/dashboard/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />
             <Route path="/dashboard/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
+            <Route path="/dashboard/social/amigo/:id" element={<ProtectedRoute><FriendProfile /></ProtectedRoute>} />
             <Route path="/dashboard/smart-spend" element={<Navigate to="/dashboard/gastos" replace />} />
             <Route path="/dashboard/gastos" element={<ProtectedRoute><Gastos /></ProtectedRoute>} />
             <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
