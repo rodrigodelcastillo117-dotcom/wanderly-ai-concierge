@@ -6,6 +6,7 @@ import {
   Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt, Wand2,
 } from "lucide-react";
 import { multiDestTripRows } from "@/lib/multiDestTrip";
+import { diffLocalDays, formatLocalDate } from "@/lib/localDate";
 import { countryForStops } from "@/lib/booking";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -73,7 +74,7 @@ const CONNECTION_OPTIONS: {
 const MultiDestRoute = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
 
   // Seeds desde la URL (cuando llega desde PlanTrip por detección automática)
   const seedDestinos = useMemo(
@@ -84,6 +85,17 @@ const MultiDestRoute = () => {
   const [fechaSalida, setFechaSalida] = useState(params.get("fecha_salida") ?? "");
   const [fechaRegreso, setFechaRegreso] = useState(params.get("fecha_regreso") ?? "");
   const [viajeros, setViajeros] = useState<number>(Number(params.get("viajeros") ?? "2"));
+  // Las fechas y viajeros elegidos en pantalla se escriben en la URL (sin nueva entrada de historial).
+  // Antes solo vivían en el estado: si la página se volvía a montar (recarga, guardia de rutas,
+  // reintento del chunk) regresaban a las de la URL y se cotizaba con otras fechas sin avisar
+  // (caso 22-oct-2026: el dueño eligió 23 → 30 oct y se guardó 22 oct → 1 nov).
+  useEffect(() => {
+    const want: Record<string, string> = { fecha_salida: fechaSalida, fecha_regreso: fechaRegreso, viajeros: String(viajeros) };
+    if (Object.entries(want).every(([k, v]) => (params.get(k) ?? "") === v)) return;
+    const next = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(want)) (v ? next.set(k, v) : next.delete(k));
+    setParams(next, { replace: true });
+  }, [fechaSalida, fechaRegreso, viajeros]); // eslint-disable-line react-hooks/exhaustive-deps
   const presupuesto = params.get("presupuesto");
   const autoStart = params.get("auto") === "1" && seedDestinos.length >= 1;
 
@@ -503,6 +515,12 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               )}
             </div>
 
+            {fechaSalida && fechaRegreso && diffLocalDays(fechaSalida, fechaRegreso) > 0 && (
+              <p className="w-full text-xs text-muted-foreground sm:w-auto" data-testid="ruta-fechas-confirmacion">
+                Se cotiza del {formatLocalDate(fechaSalida, { day: "numeric", month: "short" })} al {formatLocalDate(fechaRegreso, { day: "numeric", month: "short" })}
+                {" "}· {diffLocalDays(fechaSalida, fechaRegreso)} noches · {viajeros} {viajeros === 1 ? "viajero" : "viajeros"}
+              </p>
+            )}
             <Button
               onClick={handleStart}
               disabled={!canStart || generating}
