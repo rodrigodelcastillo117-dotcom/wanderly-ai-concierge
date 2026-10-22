@@ -2,6 +2,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { serpFetchFor } from "../_shared/serpRuntime.ts";
 
 type Body = {
   lat: number;
@@ -33,7 +34,7 @@ const KIND_TO_QUERY: Record<string, string> = {
   lodging: "hoteles",
 };
 
-async function searchWithSerpApi(body: Body) {
+async function searchWithSerpApi(body: Body, doFetch: typeof fetch = fetch) {
   const serpKey = Deno.env.get("SERPAPI_PRIVATE_KEY");
   if (!serpKey) return null;
 
@@ -46,7 +47,7 @@ async function searchWithSerpApi(body: Body) {
     hl: "es",
     api_key: serpKey,
   });
-  const res = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+  const res = await doFetch(`https://serpapi.com/search.json?${params.toString()}`);
   const data = await res.json();
   if (!res.ok || data?.error) throw new Error(data?.error || "SerpAPI Google Maps error");
 
@@ -141,7 +142,8 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       console.error("Places API error", data);
       try {
-        const fallbackPlaces = await searchWithSerpApi(body);
+        // Respaldo con Google Maps vía SerpApi y la caché compartida (7 días).
+        const fallbackPlaces = await searchWithSerpApi(body, serpFetchFor("places-nearby", __user.id).fetch);
         if (fallbackPlaces) {
           return new Response(JSON.stringify({ ok: true, places: fallbackPlaces, source: "serpapi_fallback" }), {
             status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

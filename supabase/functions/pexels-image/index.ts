@@ -1,6 +1,11 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { cacheGet, cacheKey, cachePut, freshnessOf } from "../_shared/serpCache.ts";
+import { dbCacheStore, logUsage } from "../_shared/serpRuntime.ts";
+
+// Pexels permite 20,000 solicitudes al mes: la foto de cada destino se guarda 7 días en la caché
+// compartida (public.serp_cache), así todos los usuarios que ven "Roma" usan una sola consulta.
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -34,6 +39,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    const store = dbCacheStore();
+    const key = await cacheKey('pexels_photo', { query: query.toLowerCase() });
+    const hit = await cacheGet(store, key);
+    if (hit && freshnessOf(hit).fresh) {
+      return new Response(JSON.stringify({ ...(hit.response as Record<string, unknown>), cached: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
+      });
+    }
+
     const res = await fetch(
       `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
       { headers: { Authorization: apiKey } },
@@ -42,8 +57,14 @@ Deno.serve(async (req) => {
     const photo = data?.photos?.[0];
     const image =
       photo?.src?.landscape ?? photo?.src?.large ?? photo?.src?.medium ?? null;
+    const result = { image, photographer: photo?.photographer ?? null };
+    // Solo se guarda una respuesta válida de Pexels (también "sin foto": evita repetir la consulta).
+    if (res.ok) {
+      await cachePut(store, key, 'pexels_photo', result);
+      await logUsage({ user_id: __user.id, function: 'pexels-image', provider: 'pexels', searches: 0 });
+    }
 
-    return new Response(JSON.stringify({ image, photographer: photo?.photographer ?? null }), {
+    return new Response(JSON.stringify(result), {
       status: 200,
       headers: {
         ...corsHeaders,

@@ -1,7 +1,11 @@
 // hotels-search — hoteles reales de Google Hotels vía SerpApi + link de Booking (afiliado).
 // Si SerpApi no responde se dice "no disponible" (con link de búsqueda); nunca se inventan hoteles.
+// SerpApi pasa por la caché compartida (12 h) y, salvo que lo llame un análisis de viaje (que ya
+// tiene su cuota), cada búsqueda real gasta de la bolsa de búsquedas en vivo del plan del usuario.
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { isAnalysisCall, liveSearchGateFor, serpFetchFor } from "../_shared/serpRuntime.ts";
+import { finalizeSearchResponse } from "../_shared/liveSearch.ts";
 import { searchHotels } from "./search.ts";
 
 const corsHeaders = {
@@ -21,10 +25,14 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { status, body: out } = await searchHotels(body, {
+    const analysis = await isAnalysisCall(req, __user.id);
+    const serp = serpFetchFor("hotels-search", __user.id, analysis ? undefined : liveSearchGateFor(__user.id));
+    const result = await searchHotels(body, {
       serpKey: Deno.env.get("SERPAPI_PRIVATE_KEY"),
       marker: Deno.env.get("TRAVELPAYOUTS_MARKER"),
+      serpFetch: serp.fetch,
     });
+    const { status, body: out } = finalizeSearchResponse(result, serp.trace);
     return new Response(JSON.stringify(out), {
       status, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

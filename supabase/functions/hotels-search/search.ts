@@ -27,7 +27,12 @@ export function bookingUrl(city: string, ci: string, co: string, adults: number,
   return tpDeepLink(`https://www.booking.com/searchresults.html?${p.toString()}`, "hotels", marker);
 }
 
-export type HotelsSearchEnv = { serpKey?: string | null; marker?: string | null };
+export type HotelsSearchEnv = {
+  serpKey?: string | null;
+  marker?: string | null;
+  /** fetch para SerpApi: el de la caché compartida (_shared/serpCache.ts) en producción. */
+  serpFetch?: typeof fetch;
+};
 
 export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ status: number; body: Record<string, unknown> }> {
   const { city, checkin, checkout, adults = 1, hotel_class = "", query = "", sort = "value" } = body ?? {};
@@ -54,7 +59,8 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
     u.searchParams.set("sort_by", sort === "price" ? "3" : "8"); // 3 = menor precio, 8 = mejor calificación
     u.searchParams.set("api_key", env.serpKey!);
     try {
-      const r = await fetch(u.toString());
+      const r = await (env.serpFetch ?? fetch)(u.toString());
+      if (r.headers.get("x-iatos-cache") === "limit") { fallas.push("google_hotels_limite_del_plan"); return []; }
       // Nunca registrar la URL: lleva la API key.
       if (!r.ok) { console.error("hotels status", r.status); fallas.push(`google_hotels_http_${r.status}`); return []; }
       const j = await r.json();

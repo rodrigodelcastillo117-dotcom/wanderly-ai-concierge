@@ -16,8 +16,11 @@ export type CardType = typeof CARD_TYPES[number];
  * - CONSULTADO_EN_VIVO: el precio coincide con un resultado de herramienta de este turno.
  * - NO_VERIFICADO: el modelo puso un precio que no aparece en ningún resultado; se quita.
  * - SOLICITUD_HUMANA: jet/equipaje — no hay proveedor conectado; es una solicitud de cotización.
+ * - OBSOLETO: el precio coincide con un resultado, pero es un precio GUARDADO (pasó el tiempo de la
+ *   caché y el plan llegó a su uso justo de búsquedas en vivo): se muestra con su fecha, nunca como
+ *   "en vivo".
  */
-export type EstadoDato = "CONSULTADO_EN_VIVO" | "NO_VERIFICADO" | "SOLICITUD_HUMANA";
+export type EstadoDato = "CONSULTADO_EN_VIVO" | "NO_VERIFICADO" | "SOLICITUD_HUMANA" | "OBSOLETO";
 
 export interface ConciergeCard {
   type: CardType;
@@ -89,10 +92,18 @@ export interface ToolUnavailable { disponible: false; motivo: string; fuente?: s
  * (source "ai-fallback") o vacío, el modelo recibe una nota explícita {disponible:false, motivo}
  * y NUNCA las opciones inventadas. Los textos de terceros se neutralizan.
  */
+export const LIMIT_MOTIVO_PREFIX = "Límite de búsquedas en vivo del plan del usuario";
+
 export function prepareToolResultForModel(name: string, raw: unknown): Record<string, unknown> {
   const r = raw as any;
   if (!r || typeof r !== "object" || Array.isArray(r)) {
     return { disponible: false, motivo: "El proveedor no devolvió datos." } satisfies ToolUnavailable;
+  }
+  // El plan del usuario ya no permite búsquedas en vivo (tope duro o uso justo sin precio guardado):
+  // se le dice tal cual, sin presentarlo como falla del proveedor.
+  if (r.code === "FREE_LIMIT_REACHED" || r.limite_uso_justo === true) {
+    const detalle = typeof r.message === "string" ? r.message : typeof r.motivo === "string" ? r.motivo : "";
+    return { disponible: false, error: "limite_del_plan", motivo: `${LIMIT_MOTIVO_PREFIX}. ${detalle}`.trim().slice(0, 400) };
   }
   if (r.error === "timeout") {
     return { disponible: false, error: "timeout", motivo: "El proveedor tardó demasiado en responder; la búsqueda en vivo no está disponible ahora." };
@@ -118,6 +129,10 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
     disponible: true,
     ...(slimToolResult(neutralizeDeep(cleaned, 400)) as Record<string, unknown>),
   };
+  if (r.precio_guardado === true || r.estado_dato === "OBSOLETO") {
+    const at = typeof r.consulted_at === "string" ? r.consulted_at : "fecha desconocida";
+    out.nota_fuente = `Precios GUARDADOS (consultados ${at}), no en vivo, por el uso justo de búsquedas del plan: dilo así y sugiere verificarlos antes de reservar.`;
+  }
   if (name === "check_flight_status" && (r.provider === "perplexity" || r?.data?.fuente === "perplexity")) {
     out.nota_fuente = "Dato obtenido de una búsqueda web, no del sistema de la aerolínea: dilo así y sugiere confirmar con la aerolínea.";
   }
@@ -129,7 +144,8 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
 export interface ToolRun { name: string; args?: Record<string, unknown>; result: Record<string, unknown> }
 
 export interface Evidence {
-  prices: { tool: string; value: number; currency: string; source: string }[];
+  /** at = cuándo se consultó de verdad (caché incluida); stale = precio guardado (OBSOLETO). */
+  prices: { tool: string; value: number; currency: string; source: string; at?: string; stale?: boolean }[];
   ratings: { tool: string; value: number }[];
   available: Record<string, boolean>;
   unavailable: Record<string, string>;
@@ -157,6 +173,8 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
     ev.available[run.name] = true;
     delete ev.unavailable[run.name];
     const topSource = typeof res.source === "string" ? res.source : DEFAULT_SOURCE[run.name] ?? run.name;
+    const at = typeof res.consulted_at === "string" && Number.isFinite(Date.parse(res.consulted_at)) ? res.consulted_at : undefined;
+    const stale = res.precio_guardado === true || res.estado_dato === "OBSOLETO";
     const visit = (node: unknown, currency: string, source: string, depth: number) => {
       if (depth > 8 || !node || typeof node !== "object") return;
       if (Array.isArray(node)) { node.forEach((n) => visit(n, currency, source, depth + 1)); return; }
@@ -165,7 +183,7 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
       const src = typeof obj.source === "string" && !isAiSource(obj.source) ? obj.source : source;
       for (const [k, v] of Object.entries(obj)) {
         if (typeof v === "number" && Number.isFinite(v) && v > 0) {
-          if (PRICE_KEY.test(k)) ev.prices.push({ tool: run.name, value: v, currency: /_usd$/i.test(k) ? "USD" : cur, source: src });
+          if (PRICE_KEY.test(k)) ev.prices.push({ tool: run.name, value: v, currency: /_usd$/i.test(k) ? "USD" : cur, source: src, ...(at ? { at } : {}), ...(stale ? { stale } : {}) });
           else if (RATING_KEY.test(k)) ev.ratings.push({ tool: run.name, value: v });
         } else if (typeof v === "string" && RATING_KEY.test(k) && Number.isFinite(Number(v)) && Number(v) > 0) {
           // TripAdvisor devuelve el rating como texto ("4.5").
@@ -279,8 +297,10 @@ export function validateCards(raw: unknown, ev: Evidence, consultadoAt: string =
         if (currency === "USD") card.price_usd = price;
         card.currency = currency;
         card.fuente = match.source;
-        card.estado_dato = "CONSULTADO_EN_VIVO";
-        card.consultado_at = consultadoAt;
+        // Fecha real de la consulta (si salió de la caché compartida, la de esa consulta).
+        card.estado_dato = match.stale ? "OBSOLETO" : "CONSULTADO_EN_VIVO";
+        card.consultado_at = match.at ?? consultadoAt;
+        if (match.stale) card.price_note = "precio guardado";
       } else {
         card.estado_dato = "NO_VERIFICADO";
         card.price_note = "precio no verificado";
@@ -309,6 +329,9 @@ export function enforceAvailabilityHonesty(text: string, ev: Evidence): string {
   const missing = Object.keys(ev.unavailable).filter((t) => TOOL_LABEL[t] && !ev.available[t]);
   if (!missing.length || ALREADY_HONEST.test(text)) return text;
   const names = missing.map((t) => TOOL_LABEL[t]).join(" y ");
+  if (missing.every((t) => ev.unavailable[t].startsWith(LIMIT_MOTIVO_PREFIX))) {
+    return `Llegaste al límite de búsquedas en vivo de tu plan para ${names}, así que no te muestro opciones como si fueran reales. ${text}`.trim();
+  }
   const anyEmpty = missing.some((t) => /no trajo resultados/.test(ev.unavailable[t]));
   const line = anyEmpty && missing.length === 1
     ? `La búsqueda en vivo de ${names} no trajo resultados, así que no te muestro opciones inventadas.`

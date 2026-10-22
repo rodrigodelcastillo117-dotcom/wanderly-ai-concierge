@@ -1,7 +1,12 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { cacheGet, cacheKey, cachePut, freshnessOf } from "../_shared/serpCache.ts";
+import { dbCacheStore, logUsage } from "../_shared/serpRuntime.ts";
 
+// Pexels permite 20,000 solicitudes al mes y esta función llegó a ~87 por usuario al día. Dos capas:
+// la memoria de esta instancia (6 h) y la caché compartida en la base (public.serp_cache, 7 días),
+// que sobrevive a reinicios y se comparte entre instancias y usuarios.
 const cache = new Map<string, { url: string; poster: string; ts: number }>();
 const TTL = 1000 * 60 * 60 * 6; // 6h
 
@@ -31,6 +36,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    const store = dbCacheStore();
+    const sharedKey = await cacheKey('pexels_video', { q: key });
+    const shared = await cacheGet(store, sharedKey);
+    if (shared && freshnessOf(shared).fresh) {
+      const v = shared.response as { url: string | null; poster: string | null };
+      if (v?.url) cache.set(key, { url: v.url, poster: v.poster ?? '', ts: Date.now() });
+      return new Response(JSON.stringify({ url: v?.url ?? null, poster: v?.poster ?? null, cached: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const apiKey = Deno.env.get('PEXELS_API_KEY');
     if (!apiKey) throw new Error('PEXELS_API_KEY not configured');
 
@@ -40,9 +56,12 @@ Deno.serve(async (req) => {
     );
     if (!r.ok) throw new Error(`Pexels ${r.status}`);
     const data = await r.json();
+    await logUsage({ user_id: __user.id, function: 'buscar-video', provider: 'pexels', searches: 0 });
 
     const video = data.videos?.[0];
     if (!video) {
+      // "Sin video" también se guarda: evita repetir la misma consulta durante 7 días.
+      await cachePut(store, sharedKey, 'pexels_video', { url: null, poster: null });
       return new Response(JSON.stringify({ url: null, poster: null }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -58,6 +77,7 @@ Deno.serve(async (req) => {
 
     const result = { url: pick?.link ?? null, poster: video.image ?? null };
     if (result.url) cache.set(key, { ...result, ts: Date.now() } as any);
+    await cachePut(store, sharedKey, 'pexels_video', result);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

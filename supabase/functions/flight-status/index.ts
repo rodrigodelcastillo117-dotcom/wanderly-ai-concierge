@@ -4,6 +4,7 @@ import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { z } from "npm:zod@3.25.76";
 import { querySerpApi } from "../_shared/flight-serpapi.ts";
+import { serpFetchFor } from "../_shared/serpRuntime.ts";
 
 const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
 const SERPAPI_PRIVATE_KEY = Deno.env.get('SERPAPI_PRIVATE_KEY');
@@ -35,7 +36,9 @@ Deno.serve(async (req) => {
     const date = input.data.date ?? new Date().toISOString().slice(0, 10);
     if (SERPAPI_PRIVATE_KEY && flight) {
       try {
-        const result = await querySerpApi(SERPAPI_PRIVATE_KEY, flight, date, route ?? undefined);
+        // Caché compartida de 10 min: dos personas en el mismo vuelo pagan una sola búsqueda.
+        const serp = serpFetchFor("flight-status", __user.id);
+        const result = await querySerpApi(SERPAPI_PRIVATE_KEY, flight, date, route ?? undefined, { fetch: serp.fetch });
         if (result) return jsonResponse({ flight, date, route, ...result });
       } catch {
         console.warn('flight-status: SerpApi unavailable; attempting optional fallback');

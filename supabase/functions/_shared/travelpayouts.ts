@@ -91,7 +91,7 @@ export async function travelpayoutsFare(q: FareQuery, token: string, marker: str
 }
 
 // Live Google Flights price for the exact dates, 1 adult (SerpApi, metered).
-export async function googleFlightsFare(q: FareQuery, serpKey: string, marker: string): Promise<CheapestFare | null> {
+export async function googleFlightsFare(q: FareQuery, serpKey: string, marker: string, doFetch: typeof fetch = fetch): Promise<CheapestFare | null> {
   const u = new URL("https://serpapi.com/search.json");
   u.searchParams.set("engine", "google_flights");
   u.searchParams.set("departure_id", q.origin);
@@ -105,7 +105,7 @@ export async function googleFlightsFare(q: FareQuery, serpKey: string, marker: s
   u.searchParams.set("sort_by", "2");
   u.searchParams.set("api_key", serpKey);
   try {
-    const r = await fetch(u.toString(), { signal: AbortSignal.timeout(20000) });
+    const r = await doFetch(u.toString(), { signal: AbortSignal.timeout(20000) });
     if (!r.ok) return null;
     const j = await r.json();
     const prices = [...(j?.best_flights ?? []), ...(j?.other_flights ?? [])]
@@ -130,16 +130,17 @@ export async function googleFlightsFare(q: FareQuery, serpKey: string, marker: s
 // its checks stay comparable with the baseline.
 export async function cheapestFare(
   q: FareQuery,
-  keys: { travelpayoutsToken?: string; serpKey?: string; marker: string },
+  // serpFetch: el fetch de la caché compartida de SerpApi (vuelos 6 h), si quien llama lo tiene.
+  keys: { travelpayoutsToken?: string; serpKey?: string; marker: string; serpFetch?: typeof fetch },
   prefer: CheapestFare["source"] = "travelpayouts",
 ): Promise<CheapestFare | null> {
   const gfFirst = prefer === "google_flights" && keys.serpKey;
   if (gfFirst) {
-    const gf = await googleFlightsFare(q, keys.serpKey!, keys.marker);
+    const gf = await googleFlightsFare(q, keys.serpKey!, keys.marker, keys.serpFetch);
     if (gf) return gf;
   }
   const tp = keys.travelpayoutsToken ? await travelpayoutsFare(q, keys.travelpayoutsToken, keys.marker) : null;
   if (tp && !tp.approximateDates) return tp;
-  const gf = !gfFirst && keys.serpKey ? await googleFlightsFare(q, keys.serpKey, keys.marker) : null;
+  const gf = !gfFirst && keys.serpKey ? await googleFlightsFare(q, keys.serpKey, keys.marker, keys.serpFetch) : null;
   return gf ?? tp;
 }

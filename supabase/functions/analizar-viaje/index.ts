@@ -20,6 +20,8 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { callClaudeWithFallback } from "../_shared/claude.ts";
+import { internalHeaders, logUsage } from "../_shared/serpRuntime.ts";
+import { usageFromClaude } from "../_shared/usage.ts";
 import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { buildQuoteSnapshot, saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
@@ -655,6 +657,10 @@ Deno.serve(async (req) => {
       ),
     );
 
+    // Firma de llamada interna: las búsquedas del análisis ya están cubiertas por su cuota y no
+    // gastan la bolsa de búsquedas en vivo del usuario (_shared/internalCall.ts).
+    const analysisHeaders = await internalHeaders(user.id, "analysis");
+
     // Trayecto corto por carretera (N-06): no forzar vuelos; terrestre como opción estimada.
     const shortTrip = detectShortTrip(body.ciudad_origen, body.destino);
     const tripPrefs = travelerPrefs(body.notas_usuario);
@@ -687,6 +693,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
         Authorization: authHeader,
         apikey: SUPABASE_ANON_KEY,
+        ...analysisHeaders,
       },
       body: JSON.stringify({
         city: body.destino,
@@ -705,6 +712,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
         Authorization: authHeader,
         apikey: SUPABASE_ANON_KEY,
+        ...analysisHeaders,
       },
       body: JSON.stringify({
         origin: body.ciudad_origen,
@@ -904,6 +912,9 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     let a: any = null;
     if (claudeRes.ok) {
       const claudeData = await claudeRes.json();
+      // Costo real de la llamada (tokens que reporta Claude) para ai_usage_log.
+      const claudeUsage = usageFromClaude(claudeData);
+      if (claudeUsage) await logUsage({ user_id: user.id, function: "analizar-viaje", provider: "anthropic", ...claudeUsage });
       const toolUse = (claudeData.content ?? []).find(
         (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
       );

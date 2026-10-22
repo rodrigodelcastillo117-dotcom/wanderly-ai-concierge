@@ -466,6 +466,7 @@ const TripDetail = () => {
             />
           ) : (
             <LiveTripQuote
+              tripId={trip.id}
               origin={trip.ciudad_origen}
               destination={isMulti ? destinationsMulti[0] : trip.destino}
               depart={trip.fecha_salida}

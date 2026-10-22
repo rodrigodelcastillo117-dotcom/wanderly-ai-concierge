@@ -3,6 +3,7 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { fetchFlightStatus } from '../_shared/flight-serpapi.ts';
+import { serpFetchFor } from '../_shared/serpRuntime.ts';
 import { isAuthorizedCron } from '../_shared/cron-auth.ts';
 import { FLIGHT_PUSH_OPTIONS, pushToUser } from '../_shared/push.ts';
 import { safeErrorMessage } from '../_shared/redact.ts';
@@ -28,6 +29,9 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   });
   const opts = { ...DEFAULT_OPTIONS, maxChecks: parseMaxChecks(Deno.env.get('FLIGHT_WATCH_MAX_CHECKS')) };
+  // Caché compartida de 10 min con flight-status: varias personas en el mismo vuelo pagan una sola
+  // búsqueda; cada búsqueda real queda en ai_usage_log.
+  const serp = serpFetchFor('flight-watch-cron', null);
 
   try {
     const summary = await runFlightWatch({
@@ -37,7 +41,7 @@ Deno.serve(async (req) => {
         return (data ?? []) as TrackedFlight[];
       },
       check: (flight, date, route) =>
-        fetchFlightStatus(key, flight, date, route ?? undefined, { timeoutMs: opts.perCallTimeoutMs }),
+        fetchFlightStatus(key, flight, date, route ?? undefined, { timeoutMs: opts.perCallTimeoutMs, fetch: serp.fetch }),
       save: async (id, update) => {
         const { error } = await admin.from('tracked_flights').update(update).eq('id', id);
         if (error) throw new Error(`save_failed: ${error.message}`);

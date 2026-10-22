@@ -6,6 +6,7 @@ import { PRICE_PUSH_OPTIONS, pushToUser } from "../_shared/push.ts";
 import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 import { safeErrorMessage } from "../_shared/redact.ts";
 import { decide, formatMxn, priceDedupKey } from "./rules.ts";
+import { serpFetchFor } from "../_shared/serpRuntime.ts";
 
 // Las dos fuentes (Travelpayouts y Google Flights vía SerpApi) se consultan en dólares.
 const PROVIDER_CURRENCY = "USD";
@@ -26,18 +27,34 @@ Deno.serve(async (req) => {
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey, { auth: { persistSession: false } });
 
   const now = new Date();
-  const tomorrow = new Date(now.getTime() + 86_400_000).toISOString().slice(0, 10);
 
-  // Trips that already departed (or leave tomorrow) are no longer actionable.
-  await admin.from("price_watches").update({ active: false }).eq("active", true).lt("departure_date", tomorrow);
-
-  const { data: watches, error } = await admin
-    .from("price_watches")
-    .select("*, trips(destino)")
-    .eq("active", true)
-    .order("last_checked_at", { ascending: true, nullsFirst: true })
-    .limit(BATCH);
-  if (error) return json({ error: "query_failed" }, 500);
+  // Reclamo con FOR UPDATE SKIP LOCKED (migración 20261022142200): dos corridas encimadas reciben
+  // alertas distintas y no gastan dos veces la misma búsqueda ni repiten el aviso. La función
+  // también apaga las alertas de viajes que ya salieron (o salen mañana).
+  let { data: claimed, error } = await admin.rpc("claim_price_watches", { p_limit: BATCH });
+  if (error && /claim_price_watches|PGRST202|does not exist/i.test(`${error.code ?? ""} ${error.message ?? ""}`)) {
+    // La función se publicó antes que la migración: el SELECT de antes (sin candado).
+    console.error("price-watch-cron: falta claim_price_watches; se usa la lectura sin candado");
+    await admin.from("price_watches").update({ active: false }).eq("active", true)
+      .lt("departure_date", new Date(now.getTime() + 86_400_000).toISOString().slice(0, 10));
+    ({ data: claimed, error } = await admin.from("price_watches").select("*").eq("active", true)
+      .order("last_checked_at", { ascending: true, nullsFirst: true }).limit(BATCH));
+  }
+  if (error) {
+    console.error("price-watch-cron: claim_price_watches", safeErrorMessage(error));
+    return json({ error: "query_failed" }, 500);
+  }
+  const tripIds = [...new Set(((claimed ?? []) as { trip_id: string }[]).map((w) => w.trip_id))];
+  const { data: tripRows } = tripIds.length
+    ? await admin.from("trips").select("id, destino").in("id", tripIds)
+    : { data: [] as { id: string; destino: string | null }[] };
+  const destinoById = new Map((tripRows ?? []).map((t: { id: string; destino: string | null }) => [t.id, t.destino]));
+  // deno-lint-ignore no-explicit-any -- filas de price_watches (sin tipos generados en las funciones)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const watches: any[] = ((claimed ?? []) as any[]).map((w) => ({ ...w, trips: { destino: destinoById.get(w.trip_id) ?? null } }));
+  // Google Flights pasa por la caché compartida (6 h): alertas de la misma ruta y fechas comparten
+  // la búsqueda; cada búsqueda real queda en ai_usage_log.
+  const serpFetch = serpFetchFor("price-watch-cron", null).fetch;
 
   const fx = await getUsdMxnRate();
   const fareCache = new Map<string, CheapestFare | null>();
@@ -50,7 +67,7 @@ Deno.serve(async (req) => {
       if (!fareCache.has(key)) {
         fareCache.set(key, await cheapestFare(
           { origin: w.origin_iata, destination: w.destination_iata, departureDate: w.departure_date, returnDate: w.return_date },
-          { travelpayoutsToken: token, serpKey, marker },
+          { travelpayoutsToken: token, serpKey, marker, serpFetch },
           prefer,
         ));
       }

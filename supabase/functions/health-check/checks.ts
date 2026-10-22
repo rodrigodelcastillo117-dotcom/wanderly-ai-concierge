@@ -19,13 +19,32 @@ export type Keys = {
   serpKey?: string;
   travelpayoutsToken?: string;
   stripeKey?: string;
+  /** Búsquedas de SerpApi por día (promedio de 7 días, de ai_usage_log). null = sin datos. */
+  serpPerDay?: number | null;
 };
 
 type Fetch = typeof fetch;
 
 const TIMEOUT_MS = 20000;
-/** Búsquedas de SerpApi por debajo de las cuales avisamos: ~4 por análisis de viaje. */
+/** Respaldo sin historial de uso: búsquedas de SerpApi por debajo de las cuales avisamos. */
 export const SERPAPI_LOW = 200;
+/** Con historial: avisamos si al ritmo de los últimos 7 días quedan menos de estos días. */
+export const SERPAPI_DAYS_LOW = 7;
+
+/**
+ * ¿Quedan pocas búsquedas? Con el ritmo real (ai_usage_log) se calcula para cuántos días alcanzan;
+ * sin historial se usa el umbral fijo. Pura para poder probarla.
+ */
+export function serpLowWarning(left: number, perDay: number | null | undefined): { warn: boolean; detail: string } {
+  const base = `${left.toLocaleString("es-MX")} búsquedas disponibles`;
+  if (typeof perDay === "number" && Number.isFinite(perDay) && perDay > 0) {
+    const days = left / perDay;
+    const ritmo = `~${Math.round(perDay).toLocaleString("es-MX")} al día (promedio de 7 días)`;
+    const alcance = days < 1 ? "se acaban hoy" : `alcanzan para ~${Math.floor(days)} ${Math.floor(days) === 1 ? "día" : "días"}`;
+    return { warn: days < SERPAPI_DAYS_LOW, detail: `${base} · ${ritmo} · ${alcance}` };
+  }
+  return { warn: left < SERPAPI_LOW, detail: base };
+}
 
 async function timed(name: string, fn: () => Promise<Omit<CheckResult, "name" | "ms">>): Promise<CheckResult> {
   const t0 = Date.now();
@@ -86,8 +105,8 @@ export function runChecks(k: Keys, f: Fetch = fetch): Promise<CheckResult[]> {
       const left = Number(j?.total_searches_left ?? j?.plan_searches_left ?? NaN);
       if (!Number.isFinite(left)) return { ok: true };
       if (left <= 0) return { ok: false, detail: "Se acabaron las búsquedas del plan" };
-      const detail = `${left.toLocaleString("es-MX")} búsquedas disponibles`;
-      return left < SERPAPI_LOW ? { ok: true, warn: `Quedan pocas búsquedas: ${detail}` } : { ok: true, detail };
+      const { warn, detail } = serpLowWarning(left, k.serpPerDay);
+      return warn ? { ok: true, warn: `Quedan pocas búsquedas: ${detail}` } : { ok: true, detail };
     }),
     timed("Precios de vuelos (Travelpayouts)", async () => {
       if (!k.travelpayoutsToken) return { ok: false, detail: "Falta TRAVELPAYOUTS_TOKEN" };
