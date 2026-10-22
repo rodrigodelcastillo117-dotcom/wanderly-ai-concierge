@@ -14,11 +14,14 @@ for f in "$MIG"/*.sql; do
   out=$($PSQL -v ON_ERROR_STOP=1 -d "$DB" -f "$f" 2>&1 >/dev/null | grep ERROR | head -1)
   [ -n "$out" ] && echo "FALLÓ $(basename "$f"): $out"
 done
-for f in "$MIG"/20261024140000_social_friend_profile.sql; do
+for f in "$MIG"/20261024140000_social_friend_profile.sql "$MIG"/20261026010000_r2_privacidad_social_consent.sql; do
+  [ -f "$f" ] || continue
   out=$($PSQL -v ON_ERROR_STOP=1 -d "$DB" -f "$f" 2>&1 >/dev/null | grep ERROR | head -1)
   [ -n "$out" ] && echo "FALLA migración $(basename "$f") no es idempotente: $out"
 done
 $PSQL -X -d "$DB" -f "$DIR/social.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
+# T-P2-1: amistad con consentimiento, código rotable, bloqueo y avisos de invitación acotados.
+$PSQL -X -d "$DB" -f "$DIR/consent.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
 
 # Dos toques simultáneos de "Saludar" (dos sesiones): solo uno pasa y sale un solo aviso.
 A=5a000000-0000-0000-0000-00000000000a; F=5f000000-0000-0000-0000-00000000000f

@@ -32,6 +32,22 @@ describe("referral attribution", () => {
     expect(pendingReferral()).toBeNull();
   });
 
+  it("T-P2-1: el enlace manda una solicitud de amistad (agregar_amigo_por_codigo), no crea la amistad", async () => {
+    captureReferral("?ref=AB12CD34");
+    rpc.mockResolvedValue({ data: { ok: true, estado: "pendiente" }, error: null });
+    await claimPendingReferral();
+    expect(rpc).toHaveBeenCalledWith("agregar_amigo_por_codigo", { p_codigo: "AB12CD34" });
+    // Ninguna escritura directa a friendships: solo RPC.
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(["claim_referral", "agregar_amigo_por_codigo"]);
+  });
+
+  it("si la atribución falla no se manda la solicitud (se reintenta después)", async () => {
+    captureReferral("?ref=AB12CD34");
+    rpc.mockResolvedValue({ data: null, error: { message: "network" } });
+    await claimPendingReferral();
+    expect(rpc).not.toHaveBeenCalledWith("agregar_amigo_por_codigo", expect.anything());
+  });
+
   it("keeps the code to retry when the request fails", async () => {
     captureReferral("?ref=AB12CD34");
     rpc.mockResolvedValue({ data: null, error: { message: "network" } });

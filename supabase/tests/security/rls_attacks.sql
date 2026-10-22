@@ -23,6 +23,10 @@ SELECT invite_code AS code FROM public.profiles WHERE id='aaaaaaaa-0000-0000-000
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','cccccccc-0000-0000-0000-00000000000c',false);
 SELECT 'L1 agregar amigo por código: '||agregar_amigo_por_codigo(:'code')::text;
 RESET ROLE; SELECT 'L1b amistades: '||count(*)||' '||string_agg(status,',') FROM friendships;
+-- T-P2-1: el código solo crea una solicitud; la amistad existe cuando la dueña del código acepta.
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','aaaaaaaa-0000-0000-0000-00000000000a',false);
+SELECT 'L1c a acepta la solicitud: '||responder_solicitud_amistad('cccccccc-0000-0000-0000-00000000000c', true)::text;
+RESET ROLE; SELECT 'L1d amistades: '||count(*)||' '||string_agg(status,',') FROM friendships;
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','aaaaaaaa-0000-0000-0000-00000000000a',false);
 SELECT 'L2 invitar: '||invitar_amigo_viaje('11111111-0000-0000-0000-000000000001','cccccccc-0000-0000-0000-00000000000c')::text;
 SELECT 'L2b dueño ve sus fotos: '||count(*) FROM storage.objects;

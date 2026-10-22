@@ -42,6 +42,10 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   ('rechazar_invitacion_viaje'),('unlock_members_access'),
   -- 20261024140000_social_friend_profile (revisadas en el cierre): auth.uid() + _social_son_amigos.
   ('amigo_perfil'),('amigos_resumen'),('saludar_amigo'),
+  -- 20261026010000_r2_privacidad_social_consent (T-P2-1): auth.uid() como remitente o destinatario; solo
+  -- tocan filas de friendships donde la persona es parte; regenerar solo cambia su propio código.
+  ('responder_solicitud_amistad'),('cancelar_solicitud_amistad'),('bloquear_usuario'),('desbloquear_usuario'),
+  ('quitar_amigo'),('solicitudes_amistad'),('regenerar_codigo_invitacion'),
   -- Integración final (wave2), revisadas una por una en SEGURIDAD.md §"Wave2":
   -- Privé Valor/Key (privevalor_*, privekey_plans): todas empiezan con prive_require(_ps); user_id siempre el de la sesión;
   -- los *_add_to_trip / *_save con trip_id exigen has_trip_access.

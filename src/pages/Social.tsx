@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles, ChevronRight, Plane } from "lucide-react";
+import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles, ChevronRight, Plane, UserPlus, RefreshCw, Ban, X } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,10 @@ import { FriendAvatar } from "@/components/social/FriendAvatar";
 import { PriveSeal } from "@/components/PriveSeal";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchFriendProfiles } from "@/lib/friendProfiles";
+import {
+  blockUser, cancelFriendRequest, connectMessage, loadFriendRequests, respondFriendRequest, rotateInviteCode,
+  sendFriendRequest, unblockUser, type FriendRequests,
+} from "@/lib/friendRequests";
 import { firstName, parseFriendSummaries, showAfinidad, summaryLine, type FriendSummary } from "@/lib/social";
 import { useAuth } from "@/contexts/AuthContext";
 import { FeatureTooltip } from "@/components/Tooltip";
@@ -66,6 +70,10 @@ export default function Social() {
   const [misiones, setMisiones] = useState<Mision[]>([]);
   const [loadingMisiones, setLoadingMisiones] = useState(true);
   const [resumen, setResumen] = useState<Map<string, FriendSummary>>(new Map());
+  const [requests, setRequests] = useState<FriendRequests>({ recibidas: [], enviadas: [], bloqueados: [] });
+  const [busyReq, setBusyReq] = useState<string | null>(null);
+  const [confirmRotate, setConfirmRotate] = useState(false);
+  const [rotating, setRotating] = useState(false);
   const navigate = useNavigate();
   const tipSocial = useTooltipShown("social");
 
@@ -83,8 +91,58 @@ export default function Social() {
       setMyCode(data?.invite_code ?? "");
     })();
     loadAmigos();
+    loadRequests();
     loadGamification();
   }, [user]);
+
+  async function loadRequests() {
+    setRequests(await loadFriendRequests(supabase as never));
+  }
+
+  // Aceptar, rechazar o bloquear una solicitud recibida (la amistad solo existe si la aceptas).
+  async function answerRequest(otro: string, action: "aceptar" | "rechazar" | "bloquear") {
+    if (busyReq) return;
+    setBusyReq(otro);
+    const r = action === "bloquear" ? await blockUser(supabase as never, otro)
+      : await respondFriendRequest(supabase as never, otro, action === "aceptar");
+    setBusyReq(null);
+    if (!r?.ok) { toast.error("No se pudo responder la solicitud. Intenta de nuevo."); return; }
+    toast.success(action === "aceptar" ? "¡Ahora son amigos!" : action === "bloquear" ? "Bloqueaste a esta persona." : "Solicitud rechazada.");
+    await loadRequests();
+    if (action === "aceptar") { loadAmigos(); loadGamification(); }
+  }
+
+  async function cancelRequest(otro: string) {
+    if (busyReq) return;
+    setBusyReq(otro);
+    const r = await cancelFriendRequest(supabase as never, otro);
+    setBusyReq(null);
+    if (!r?.ok) { toast.error("No se pudo cancelar la solicitud."); return; }
+    await loadRequests();
+  }
+
+  async function unblock(otro: string) {
+    if (busyReq) return;
+    setBusyReq(otro);
+    const r = await unblockUser(supabase as never, otro);
+    setBusyReq(null);
+    if (!r?.ok) { toast.error("No se pudo desbloquear."); return; }
+    await loadRequests();
+  }
+
+  // Cambiar el código: el anterior (y el enlace que ya compartiste) deja de servir.
+  async function rotateCode() {
+    setRotating(true);
+    const r = await rotateInviteCode(supabase as never);
+    setRotating(false);
+    setConfirmRotate(false);
+    if (!r?.ok || !r.codigo) {
+      toast.error(r?.error === "demasiados_intentos" ? "Ya cambiaste tu código varias veces hoy. Intenta mañana." : "No se pudo cambiar tu código.");
+      return;
+    }
+    setMyCode(r.codigo);
+    toast.success("Listo: tu código anterior ya no funciona.");
+  }
 
   async function loadAmigos() {
     setLoadingAmigos(true);
@@ -130,23 +188,15 @@ export default function Social() {
     const codigo = codeInput.trim().toUpperCase();
     if (!codigo) { toast.error("Ingresa un código"); return; }
     setConnecting(true);
-    const { data, error } = await supabase.rpc("agregar_amigo_por_codigo", { p_codigo: codigo });
+    // Manda una SOLICITUD: la otra persona la acepta o la rechaza (si ella ya te había pedido, quedan amigos).
+    const r = await sendFriendRequest(supabase as never, codigo);
     setConnecting(false);
-    if (error) { toast.error("No se pudo conectar"); return; }
-    const r: any = data;
-    if (r?.ok) {
-      toast.success("¡Conectados!");
-      setCodeInput("");
-      loadAmigos();
-      loadGamification();
-    } else {
-      const msgs: Record<string, string> = {
-        codigo_invalido: "Código inválido",
-        es_tu_propio_codigo: "Ese es tu propio código",
-        no_autenticado: "Inicia sesión primero",
-      };
-      toast.error(msgs[r?.error] ?? "No se pudo conectar");
-    }
+    const msg = connectMessage(r);
+    if (!msg.ok) { toast.error(msg.text); return; }
+    toast.success(msg.text);
+    setCodeInput("");
+    loadRequests();
+    if (r?.estado === "amigos") { loadAmigos(); loadGamification(); }
   }
 
   // writeText es una promesa: sin permiso (o en http) falla y antes igual decía "copiado".
@@ -185,6 +235,48 @@ export default function Social() {
 
           {/* AMIGOS */}
           <TabsContent value="amigos" className="mt-4 md:mt-6 space-y-3">
+            {requests.recibidas.length > 0 && (
+              <section aria-labelledby="solicitudes-title" className="glass-card rounded-2xl p-3 md:p-4 border border-primary/25 space-y-3">
+                <h2 id="solicitudes-title" className="text-sm font-medium flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-primary" aria-hidden="true" /> Solicitudes de amistad
+                </h2>
+                <p className="text-[11px] text-muted-foreground">Solo si aceptas podrá ver tu Travel DNA, tus lugares y saludarte.</p>
+                {requests.recibidas.map((q) => {
+                  const nombre = q.full_name ?? q.username ?? "Viajero";
+                  return (
+                    <div key={q.id} className="flex flex-wrap items-center gap-3" data-testid="friend-request">
+                      <FriendAvatar name={nombre} url={q.avatar_url} className="w-10 h-10 text-sm" />
+                      <p className="flex-1 min-w-0 text-sm truncate">{nombre}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" disabled={busyReq === q.id} onClick={() => answerRequest(q.id, "aceptar")}
+                          className="bg-gradient-gold text-primary-foreground hover:opacity-90 text-xs">Aceptar</Button>
+                        <Button size="sm" variant="outline" disabled={busyReq === q.id} onClick={() => answerRequest(q.id, "rechazar")}
+                          className="text-xs">Rechazar</Button>
+                        <Button size="sm" variant="ghost" disabled={busyReq === q.id} onClick={() => answerRequest(q.id, "bloquear")}
+                          aria-label={`Bloquear a ${nombre}`} className="text-xs text-muted-foreground hover:text-destructive">
+                          <Ban className="w-3.5 h-3.5" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
+            )}
+            {requests.enviadas.length > 0 && (
+              <section aria-label="Solicitudes enviadas" className="rounded-2xl p-3 md:p-4 border border-white/[0.06] space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  {requests.enviadas.length === 1 ? "1 solicitud enviada" : `${requests.enviadas.length} solicitudes enviadas`} · esperando respuesta
+                </p>
+                {requests.enviadas.map((q) => (
+                  <div key={q.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="flex-1">Enviada el {new Date(q.created_at).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}</span>
+                    <Button size="sm" variant="ghost" disabled={busyReq === q.id} onClick={() => cancelRequest(q.id)} className="text-xs h-7">
+                      <X className="w-3 h-3 mr-1" aria-hidden="true" /> Cancelar
+                    </Button>
+                  </div>
+                ))}
+              </section>
+            )}
             {loadingAmigos ? (
               [...Array(3)].map((_, i) => (
                 <div key={i} className="h-20 rounded-2xl bg-card/40 border border-white/[0.04] animate-pulse" />
@@ -253,6 +345,23 @@ export default function Social() {
                   <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" /> Compartir
                 </Button>
               </div>
+              <p className="text-[11px] text-muted-foreground mt-4">
+                Quien use tu código o tu enlace te manda una solicitud: tú decides si la aceptas.
+              </p>
+              {confirmRotate ? (
+                <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Tu código y tu enlace actuales dejarán de funcionar.</span>
+                  <Button size="sm" variant="destructive" disabled={rotating} onClick={rotateCode} className="text-xs">
+                    {rotating ? "Cambiando…" : "Sí, cambiar mi código"}
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={rotating} onClick={() => setConfirmRotate(false)} className="text-xs">Cancelar</Button>
+                </div>
+              ) : (
+                <Button size="sm" variant="ghost" disabled={!myCode} onClick={() => setConfirmRotate(true)}
+                  className="mt-2 text-xs text-muted-foreground hover:text-foreground">
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" /> Cambiar mi código
+                </Button>
+              )}
             </div>
 
             <div className="glass-card rounded-3xl p-6 md:p-8 border border-white/[0.04]">
@@ -269,10 +378,23 @@ export default function Social() {
                 />
                 <Button onClick={handleConnect} disabled={connecting || !codeInput.trim()}
                   className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-10 md:h-11 text-sm md:text-base">
-                  {connecting ? "Conectando…" : "Conectar"}
+                  {connecting ? "Enviando…" : "Mandar solicitud"}
                 </Button>
               </div>
             </div>
+
+            {requests.bloqueados.length > 0 && (
+              <div className="glass-card rounded-3xl p-6 md:p-8 border border-white/[0.04] space-y-3">
+                <p className="font-display text-lg md:text-xl">Personas bloqueadas</p>
+                <p className="text-xs text-muted-foreground">No pueden mandarte solicitudes ni invitarte a viajes.</p>
+                {requests.bloqueados.map((b) => (
+                  <div key={b.id} className="flex items-center gap-3 text-sm">
+                    <span className="flex-1 truncate">{b.nombre}</span>
+                    <Button size="sm" variant="outline" disabled={busyReq === b.id} onClick={() => unblock(b.id)} className="text-xs">Desbloquear</Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* LOGROS — Medallas + Misiones */}
