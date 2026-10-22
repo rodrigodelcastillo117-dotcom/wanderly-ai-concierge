@@ -41,6 +41,11 @@ vi.mock("@/lib/fx", async () => {
   const actual: any = await vi.importActual("@/lib/fx");
   return { ...actual, fetchFxTable: async () => actual.FX_FALLBACK_TABLE };
 });
+// Prueba hermética: el clima del viaje en curso se pedía a geocoding-api.open-meteo.com de verdad.
+vi.mock("@/lib/weatherNow", async () => {
+  const actual: any = await vi.importActual("@/lib/weatherNow");
+  return { ...actual, fetchWeatherNow: async () => null };
+});
 
 import DashboardHome from "@/pages/DashboardHome";
 
