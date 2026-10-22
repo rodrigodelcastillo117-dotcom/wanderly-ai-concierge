@@ -5,7 +5,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { isPaidBucket } from "../../supabase/functions/_shared/rate-limit-core";
-import { canWritePackingList } from "../../supabase/functions/generar-packing-list/access";
+import { canWritePackingList, vaultSummary } from "../../supabase/functions/generar-packing-list/access";
 import { tripIdForTracking } from "../../supabase/functions/track-flight/rules";
 
 const FN_DIR = join(__dirname, "../../supabase/functions");
@@ -95,5 +95,26 @@ describe("track-flight: trip_id con la llave de servicio (AUD-SEG-04)", () => {
     expect(await tripIdForTracking("no-es-uuid", async () => true)).toBeNull();
     expect(await tripIdForTracking({ id: TRIP }, async () => true)).toBeNull();
     expect(await tripIdForTracking(undefined, async () => true)).toBeNull();
+  });
+});
+
+describe("generar-packing-list: la bóveda sí llega al modelo (mejora)", () => {
+  it("resume tarjetas, aerolíneas, hoteles y rentas sin números de socio ni documentos", () => {
+    const rows = [{
+      credit_cards: [{ bank: "BBVA", card_tier: "Platinum", lounge_access: ["Priority Pass"] }, { card_name: "Amex Gold", bank: "Amex", card_tier: "Gold" }],
+      airline_alliances: [{ alliance_name: "SkyTeam", airline: "Aeroméxico", membership_number: "AM123456789", tier_status: "Oro" }],
+      hotel_loyalty: [{ chain_name: "Marriott Bonvoy", member_id: "MB-998877", status_tier: "Platinum" }],
+      car_rentals: [{ company_name: "Hertz", customer_id: "HZ-1" }],
+      travel_documents: [{ type: "pasaporte", number: "G12345678" }],
+    }];
+    const out = vaultSummary(rows);
+    expect(out).toEqual([
+      "Tarjeta BBVA Platinum (salas VIP)", "Tarjeta Amex Gold", "Aerolínea Aeroméxico Oro", "Hotel Marriott Bonvoy Platinum", "Renta de autos Hertz",
+    ]);
+    expect(out.join(" ")).not.toMatch(/AM123456789|MB-998877|HZ-1|G12345678/);
+  });
+  it("datos vacíos o raros no rompen el prompt", () => {
+    expect(vaultSummary(null)).toEqual([]);
+    expect(vaultSummary([{ credit_cards: "x", hotel_loyalty: [null, 3, {}] }])).toEqual([]);
   });
 });

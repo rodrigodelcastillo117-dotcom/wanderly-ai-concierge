@@ -4,7 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
-import { canWritePackingList } from "./access.ts";
+import { canWritePackingList, vaultSummary } from "./access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -145,7 +145,7 @@ function buildUserPrompt(trip: any, profile: any, vault: any[], travelDna: any) 
     .filter(Boolean);
   const crucero = viaje.cruceros?.[0] ?? viaje.crucero;
 
-  const vaultNames = (vault ?? []).map((b: any) => b.benefit_name ?? b.name).filter(Boolean);
+  const vaultNames = vaultSummary(vault);
 
   return `VIAJE A PLANEAR:
 - Destinos: ${trip.destino}${trip.pais_destino ? ` (${trip.pais_destino})` : ""}
