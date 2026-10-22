@@ -90,9 +90,7 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
       className="glass-card rounded-2xl p-5 sm:p-8 md:p-10 mb-8 relative overflow-hidden max-w-full"
     >
       <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
-        <p className="text-xs tracking-[0.2em] uppercase text-primary">
-          Total de tu viaje · {viajeros} {viajeros === 1 ? "persona" : "personas"}
-        </p>
+        <p className="text-xs tracking-[0.2em] uppercase text-primary">Total de tu viaje</p>
         {/* Solo se habla de presupuesto si el usuario puso uno ("cotización base respetada" no
             le decía nada a nadie). */}
         {presupuesto > 0 && (
@@ -103,16 +101,22 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
         )}
       </div>
 
-      {/* Costo por persona protagonista */}
-      <p className="font-display text-4xl sm:text-5xl md:text-6xl gold-text mb-1 leading-tight break-words">
-        {fmtMXN(porPersona)}
-        <span className="text-sm sm:text-base md:text-lg text-muted-foreground font-sans ml-2">/ persona</span>
+      {/* El total de TODO el viaje es la cifra grande; el precio por persona va debajo, con su
+          etiqueta. Antes la cifra grande era "/persona" y el dueño no sabía si era por 1 o por 2. */}
+      <p className="text-sm text-muted-foreground" data-testid="trip-total-label">
+        {viajeros > 1 ? `Total para ${viajeros} personas` : "Total para 1 persona"}
       </p>
-
-      {/* Total del viaje secundario */}
+      <p className="font-display text-4xl sm:text-5xl md:text-6xl gold-text mb-1 leading-tight break-words" data-testid="trip-total-amount"
+        aria-label={`${viajeros > 1 ? `Total para ${viajeros} personas` : "Total para 1 persona"}: ${fmtMXN(total)}`}>
+        {fmtMXN(total)}
+      </p>
+      {viajeros > 1 && (
+        <p className="text-base text-foreground/90 mb-1" data-testid="trip-total-pp">
+          {fmtMXN(porPersona)} <span className="text-muted-foreground">por persona</span>
+        </p>
+      )}
       <p className="text-sm text-muted-foreground mb-1">
-        Total del viaje · <span className="text-foreground font-medium">{fmtMXN(total)}</span> ·{" "}
-        {viajeros} {viajeros === 1 ? "persona" : "personas"} · {noches} noches
+        {noches} {noches === 1 ? "noche" : "noches"}
       </p>
       <p className="text-[11px] text-muted-foreground/80 mb-2 italic">
         {fromSelection
@@ -131,7 +135,7 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{staleMessage}. {fromSelection
               ? "El total de arriba ya suma tu selección; los precios se confirman al actualizar la cotización."
-              : "El total y el precio por persona de arriba son los de esa cotización."}</span>
+              : viajeros > 1 ? "El total y el precio por persona de arriba son los de esa cotización." : "El total de arriba es el de esa cotización."}</span>
           </span>
           {onRequote && (
             <button type="button" onClick={onRequote}

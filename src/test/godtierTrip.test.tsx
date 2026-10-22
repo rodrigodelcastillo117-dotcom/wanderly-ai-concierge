@@ -64,7 +64,10 @@ describe("RealTripTotal · verificado vs estimado", () => {
 
   it("dice qué parte del total se consultó en vivo y cuál es estimada, renglón por renglón", () => {
     render(<RealTripTotal trip={trip} noches={2} viajeros={2} trust={trust} />);
-    expect(screen.getByText(/Total de tu viaje · 2 personas/)).toBeInTheDocument();
+    // Punto 6 (caso Roma): el total para las 2 personas es la cifra grande; por persona va abajo, etiquetado.
+    expect(screen.getByTestId("trip-total-label")).toHaveTextContent("Total para 2 personas");
+    expect(screen.getByTestId("trip-total-amount")).toHaveTextContent("$20,520 MXN");
+    expect(screen.getByTestId("trip-total-pp")).toHaveTextContent("$10,260 MXN por persona");
     expect(screen.getByText("$10,720 MXN con precio consultado en vivo · $9,800 MXN estimado.")).toBeInTheDocument();
     expect(document.querySelector('[data-trust="verificado"]')).toHaveTextContent(/Vuelos.*en vivo/);
     expect(document.querySelector('[data-trust="estimado"]')).toHaveTextContent(/Hospedaje.*estimado/);

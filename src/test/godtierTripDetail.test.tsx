@@ -83,7 +83,8 @@ beforeEach(() => {
 describe("TripDetail · lectura de un vistazo", () => {
   it("total → qué sigue → herramientas, en ese orden; y la barra móvil repite total y acción", async () => {
     renderTrip();
-    const total = await screen.findByText(/Total de tu viaje · 2 personas/);
+    // Punto 6 (caso Roma): la tarjeta del total dice "Total para 2 personas" (antes "Total de tu viaje · 2 personas").
+    const total = await screen.findByText("Total para 2 personas");
     const next = screen.getByRole("heading", { name: "Elige y reserva" });
     const tools = screen.getByRole("group", { name: "Herramientas del viaje" });
     expect(total.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
