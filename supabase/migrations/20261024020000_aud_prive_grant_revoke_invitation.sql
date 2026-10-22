@@ -128,3 +128,15 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.prive_sweep() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.prive_sweep() TO service_role;
+
+-- Limpieza única (idempotente) de lo que ya quedó así antes de esta corrección — en producción, la
+-- cuenta 2097e1e0 de FASE0_ESTADO.md (concesión revocada, membresía 'invited', invitación viva). El
+-- barrido lo haría, pero prive-cron no está programado en producción.
+DO $$
+DECLARE r record; n int := 0;
+BEGIN
+  FOR r IN SELECT m.user_id FROM public.prive_memberships m WHERE m.status = 'invited' AND m.activated_at IS NULL LOOP
+    IF public.prive_withdraw_invitation(r.user_id, 'system', 'aud_prive_cleanup') THEN n := n + 1; END IF;
+  END LOOP;
+  IF n > 0 THEN RAISE NOTICE 'NEW-01: % invitaciones de cuentas que ya no cumplen se retiraron', n; END IF;
+END $$;

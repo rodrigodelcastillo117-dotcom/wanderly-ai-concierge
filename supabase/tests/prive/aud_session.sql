@@ -348,6 +348,21 @@ SELECT aud.ok('N04 el barrido no toca membresías activas ni invitaciones de qui
   (SELECT status FROM prive_memberships WHERE user_id = aud.u(14)) = 'active'
   AND (SELECT count(*) FROM prive_memberships WHERE user_id IN (SELECT aud.u(n) FROM generate_series(1, 12) n) AND status = 'active') >= 10);
 
+-- N05 limpieza única de la migración (caso real de producción: concesión revocada con invitación viva
+-- de antes de la corrección). Se recrea el estado viejo y se vuelve a aplicar la migración.
+INSERT INTO auth.users (id, email) VALUES (aud.u(17), 'aud17@example.test'), (aud.u(18), 'aud18@example.test') ON CONFLICT DO NOTHING;
+INSERT INTO prive_grants (email, user_id, reason, granted_by, revoked_at) VALUES ('aud17@example.test', aud.u(17), 'prueba', 'dueno', now());
+INSERT INTO prive_grants (email, user_id, reason, granted_by) VALUES ('aud18@example.test', aud.u(18), 'prueba', 'dueno');
+INSERT INTO prive_memberships (user_id, status, basis, member_code) VALUES (aud.u(17), 'invited', 'grant', 'IP-AUDA-AAAA'), (aud.u(18), 'invited', 'grant', 'IP-AUDA-AAAB');
+INSERT INTO prive_invitations (user_id, token_hash) VALUES (aud.u(17), repeat('a', 64)), (aud.u(18), repeat('b', 64));
+\ir ../../migrations/20261024020000_aud_prive_grant_revoke_invitation.sql
+SELECT aud.ok('N05 la limpieza de la migración retira solo la invitación de la concesión revocada; la vigente sigue',
+  NOT EXISTS (SELECT 1 FROM prive_memberships WHERE user_id = aud.u(17))
+  AND (SELECT revoked_at IS NOT NULL FROM prive_invitations WHERE user_id = aud.u(17))
+  AND (SELECT status FROM prive_memberships WHERE user_id = aud.u(18)) = 'invited'
+  AND (SELECT revoked_at IS NULL FROM prive_invitations WHERE user_id = aud.u(18)));
+\ir ../../migrations/20261024030000_aud_prive_remember_device.sql
+
 -- ===================================================================== R · "mantener mi sesión en este dispositivo (30 días)"
 CREATE FUNCTION aud.remember(n int, tok text) RETURNS jsonb LANGUAGE plpgsql AS $$
 DECLARE r jsonb;
