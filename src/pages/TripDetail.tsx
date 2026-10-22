@@ -31,6 +31,10 @@ import {
 import { deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
 import { BookingStateBadge } from "@/components/BookingStateBadge";
 import { TripDocuments } from "@/components/TripDocuments";
+import { BookingActions } from "@/components/booking/BookingActions";
+import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
+import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
+import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour } from "@/lib/booking";
 
 
 const fmtMXN = (n: number) =>
@@ -68,6 +72,8 @@ const TripDetail = () => {
   const restoredFor = useRef<string | null>(null);
   // Reservas del viaje: reservado vs. cotizado se deriva de las confirmadas.
   const [bookings, setBookings] = useState<BookingLike[]>([]);
+  // Booking Bridge: acciones de reserva con datos del servidor (catálogo, enlaces verificados).
+  const serverOffers = useTripOffers(trip?.id, trip?.current_quote_id ?? trip?.updated_at ?? null);
 
   async function saveTripMeta(patch: Record<string, any>) {
     if (!trip?.id) return;
@@ -647,27 +653,11 @@ const TripDetail = () => {
                               onToggle={() => setSelVuelo(active ? -1 : i)}
                             >
                               {v.notas && <p>{v.notas}</p>}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const bookingUrl = v.booking_link || v.cta_action;
-                                  if (bookingUrl) {
-                                    // Abre en el mismo gesto y registra el clic sin esperar (iOS).
-                                    trackBookingClick({
-                                      category: v.modo === "auto" ? "car" : isGroundOption(v) ? "other" : "flight", provider: v.aerolinea || "Aviasales", tripId: trip.id,
-                                      title: `${trip.ciudad_origen ?? ""} → ${city}`.trim(),
-                                      subtitle: `${v.tier ?? ""} · ${fmtMXN(v.precio_por_persona)} / persona`,
-                                      bookingUrl: ensureAviasalesMarker(bookingUrl), city, startAt: trip.fecha_salida ?? undefined,
-                                    });
-                                    return;
-                                  }
-                                  const u = `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "Mexico City")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida}&return=${trip.fecha_regreso}&travelers=${trip.num_viajeros ?? 1}&auto=1&trip=${trip.id}`;
-                                  window.location.href = u;
-                                }}
-                                className="mt-2 text-xs px-3 py-1.5 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition"
-                              >
-                                  {isGroundOption(v) ? "Ver horarios y precios →" : (v.booking_link || v.cta_action) ? "Reservar vuelo →" : "Buscar vuelos reales y reservar →"}
-                              </button>
+                              {/* Booking Bridge: solo acciones reales (búsqueda ≠ compra) y aviso antes de salir. */}
+                              <BookingActions className="mt-2" tripId={trip.id}
+                                offer={offerFromTripFlight(v, { trip, city, index: i })}
+                                source={{ type: "trip_item", trip_id: trip.id, col: "vuelos_json", index: i, name: v.aerolinea }}
+                                serverActions={serverOffers.vuelos_json?.[i]} />
                             </ExpandableItemCard>
                           );
                         })}
@@ -688,7 +678,7 @@ const TripDetail = () => {
                           const active = selHospedaje === i;
                           return (
                             <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
-                              <HotelCard hotel={h} city={city} trip={trip} active={active} onClick={() => setSelHospedaje(active ? -1 : i)} />
+                              <HotelCard hotel={h} city={city} trip={trip} active={active} onClick={() => setSelHospedaje(active ? -1 : i)} index={i} serverOffers={serverOffers} />
                             </div>
                           );
                         })}
@@ -748,13 +738,6 @@ const TripDetail = () => {
                                 active={active}
                                 selectable
                                 onToggle={() => toggleTour(i)}
-                                actions={[
-                                  { label: "Reservar en GetYourGuide", href: getYourGuideLink(city, t.nombre), primary: true,
-                                    onClick: () => void logBookingClick({ tripId: trip.id, category: "activity", provider: "GetYourGuide", title: t.nombre, city, bookingUrl: getYourGuideLink(city, t.nombre), startAt: trip.fecha_salida ?? undefined }) },
-                                  { label: "Ver en Viator", href: viatorLink(city, t.nombre),
-                                    onClick: () => void logBookingClick({ tripId: trip.id, category: "activity", provider: "Viator", title: t.nombre, city, bookingUrl: viatorLink(city, t.nombre), startAt: trip.fecha_salida ?? undefined }) },
-                                  { label: "Ubicación", href: googleMapsSearchLink(t.nombre, city) },
-                                ]}
                               >
                                 {(t.fuente === "tripadvisor" || t.fuente === "google_maps") && (
                                   <p className="text-xs text-muted-foreground mb-1">
@@ -764,6 +747,10 @@ const TripDetail = () => {
                                 )}
                                 <PriceSourceBadge source={t.fuente} estado={t.estado_dato} consultadoAt={t.consultado_at} className="mb-2" />
                                 <p className="italic">{t.por_que}</p>
+                                <BookingActions className="mt-2" tripId={trip.id}
+                                  offer={offerFromTripTour(t, { trip, city, index: i })}
+                                  source={{ type: "trip_item", trip_id: trip.id, col: "tours_json", index: i, name: t.nombre }}
+                                  serverActions={serverOffers.tours_json?.[i]} />
                               </ExpandableItemCard>
                             </div>
 
@@ -786,13 +773,12 @@ const TripDetail = () => {
                                 eyebrow={r.cocina}
                                 title={cleanName}
                                 price={r.rango_precio}
-                                actions={[
-                                  { label: "Reservar / Ver", href: googleMapsSearchLink(cleanName, city), primary: true },
-                                  { label: "TheFork", href: theforkLink(city, cleanName),
-                                    onClick: () => void logBookingClick({ tripId: trip.id, category: "restaurant", provider: "TheFork", title: cleanName, city, bookingUrl: theforkLink(city, cleanName) }) },
-                                ]}
                               >
                                 <p className="italic">{r.por_que}</p>
+                                <BookingActions className="mt-2" tripId={trip.id}
+                                  offer={offerFromTripRestaurant(r, { trip, city, index: (trip.restaurantes_json ?? []).indexOf(r) })}
+                                  source={{ type: "trip_item", trip_id: trip.id, col: "restaurantes_json", index: (trip.restaurantes_json ?? []).indexOf(r), name: r.nombre }}
+                                  serverActions={serverOffers.restaurantes_json?.[(trip.restaurantes_json ?? []).indexOf(r)]} />
                               </ExpandableItemCard>
                             </div>
                           );
@@ -935,6 +921,7 @@ const TripDetail = () => {
         )}
 
         {/* Documentos del viaje: boletos, pasaporte, pólizas (bucket privado trip-documents). */}
+        <TripBookingIntents tripId={trip.id} />
         <TripDocuments tripId={trip.id} ownerId={trip.user_id} />
 
       </div>
@@ -1125,7 +1112,7 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any;
   );
 };
 
-const HotelCard = ({ hotel, city, trip, active, onClick }: { hotel: any; city: string; trip: any; active: boolean; onClick: () => void }) => {
+const HotelCard = ({ hotel, city, trip, active, onClick, index, serverOffers }: { hotel: any; city: string; trip: any; active: boolean; onClick: () => void; index: number; serverOffers: TripOfferActions }) => {
   const img = useCityImage(`${hotel.nombre} ${city} hotel`);
   return (
     <div
@@ -1170,21 +1157,10 @@ const HotelCard = ({ hotel, city, trip, active, onClick }: { hotel: any; city: s
         </p>
         <PriceSourceBadge source={hotel.fuente_precio} estado={hotel.estado_dato} consultadoAt={hotel.consultado_at ?? trip?.created_at} className="mb-2" />
         <p className="text-xs text-muted-foreground italic line-clamp-3 mb-2">{hotel.por_que}</p>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            // Sin link propio: búsqueda de Booking con el link de afiliado (antes iba sin atribución).
-            const bookingUrl = hotel.booking_link || hotel.booking_url || hotel.cta_action
-              || bookingLink(`${hotel.nombre} ${city}`, trip?.fecha_salida ?? "", trip?.fecha_regreso ?? "", trip?.num_viajeros ?? 2);
-            trackBookingClick({
-              category: "hotel", provider: "Booking.com", tripId: trip?.id, title: hotel.nombre, subtitle: `${fmtMXN(hotel.precio_por_noche)} / noche`,
-              bookingUrl, city, startAt: trip?.fecha_salida ?? undefined,
-            });
-          }}
-          className="text-xs px-3 py-1.5 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition"
-        >
-          {(hotel.booking_link || hotel.booking_url || hotel.cta_action) ? "Reservar hotel →" : "Buscar y reservar →"}
-        </button>
+        <BookingActions tripId={trip?.id}
+          offer={offerFromTripHotel(hotel, { trip, city, index })}
+          source={{ type: "trip_item", trip_id: trip?.id, col: "hospedaje_json", index, name: hotel.nombre }}
+          serverActions={serverOffers.hospedaje_json?.[index]} />
       </div>
     </div>
   );

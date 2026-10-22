@@ -11,6 +11,8 @@ import { toastFunctionError } from "@/lib/functionErrors";
 import { bookingLink, airbnbLink } from "@/lib/affiliateLinks";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
+import { BookingActions } from "@/components/booking/BookingActions";
+import { offerFromHotelResult } from "@/lib/booking";
 
 interface HotelResult {
   name: string;
@@ -22,6 +24,8 @@ interface HotelResult {
   thumbnail: string | null;
   amenities: string[];
   booking_url: string;
+  link?: string | null;
+  property_token?: string | null;
 }
 
 const TripHotels = () => {
@@ -173,12 +177,9 @@ const TripHotels = () => {
                     <div className="font-display text-xl gold-text">${h.nightly_usd}</div>
                     <div className="text-[10px] text-muted-foreground">USD / noche</div>
                   </div>
-                  <Button size="sm" onClick={() => tripTool.track({
-                    category: "hotel", provider: "Booking.com", title: h.name,
-                    subtitle: `$${h.nightly_usd} USD / noche`, city, bookingUrl: h.booking_url, startAt: checkin || undefined,
-                  })}>
-                    Reservar <ExternalLink className="w-3 h-3 ml-1" />
-                  </Button>
+                  <BookingActions tripId={tripTool.tripId} max={1}
+                    offer={offerFromHotelResult(h, { city, checkin, checkout, adults, consulted_at: consultedAt, source })}
+                    source={{ type: "hotel_result", result: h, meta: { city, checkin, checkout, adults, consulted_at: consultedAt, source }, trip_id: tripTool.tripId }} />
                 </div>
               </div>
             </div>

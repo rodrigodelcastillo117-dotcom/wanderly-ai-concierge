@@ -16,7 +16,7 @@ const Restaurantes = () => {
   const [city, setCity] = useState(params.get("city") ?? "");
 
   const sources = [
-    { name: "OpenTable", desc: "Reservas con disponibilidad en vivo. EE.UU., México, Europa.", link: openTableLink },
+    { name: "OpenTable", desc: "Busca restaurantes con reserva en línea. EE.UU., México, Europa.", link: openTableLink },
     { name: "TheFork", desc: "Líder en Europa. Reservas con descuentos hasta 50%.", link: theforkLink },
     { name: "Yelp", desc: "Reviews + reserva en restaurantes locales.", link: yelpLink },
     { name: "TripAdvisor", desc: "Catálogo global con reviews de viajeros.", link: tripadvisorLink },
@@ -57,7 +57,7 @@ const Restaurantes = () => {
               <h3 className="font-display text-lg mb-2">{s.name}</h3>
               <p className="text-xs text-muted-foreground mb-4">{s.desc}</p>
               <Button disabled={!city} onClick={() => reservar(s.name, s.link(city))} className="w-full">
-                <Search className="w-3 h-3 mr-1" /> Reservar en {city || "ciudad"} <ExternalLink className="w-3 h-3 ml-1" />
+                <Search className="w-3 h-3 mr-1" /> Buscar mesa en {city || "ciudad"} <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
             </div>
           ))}
