@@ -41,3 +41,9 @@ Cada pedido tiene un equipo responsable y un estado. Nada se publica sin autoriz
 | 35 | Invitación Privé "super MEGA ELITE" | wc-prive-email | En curso |
 | 36 | Que los correos no lleguen a spam | wc-prive-email (código) + dueño (DNS) | En curso / acción del dueño |
 | 37 | Paquete ZIP + SHA para la segunda auditoría de ChatGPT | lead | Al cierre |
+| 38 | Contraseña Privé: nadie debe quedarse fuera (espacios/acentos, guardar en el navegador, restablecer visible) | lead (42f05e8) | Listo en rama; sale en la publicación única |
+| 39 | Mantener sesión Privé en este dispositivo (30 días) | aud-prive | En curso |
+| 40 | IATOS PRIVÉ — THE WORLD REIMAGINED (rediseño frontend total, fases 0–16) | wc-prive-ux | En curso |
+| 41 | THE PRIVÉ KEY + YOUR WORLD IS READY + Curated for You + Your Next Journey + 48 Hours + Surprise Me | wc-privekey | En curso |
+| 42 | PRIVÉ DROPS, PRIVILEGE RADAR, INSIDER'S NOTEBOOK, PRIVATE EDIT, PASSPORT, vista previa antes del día 90, costos y métricas | wc-privevalor | En curso |
+| 43 | Publicación: el dueño dio su OK y prefiere **una sola salida con todo** | lead | Pendiente de cerrar todo |
