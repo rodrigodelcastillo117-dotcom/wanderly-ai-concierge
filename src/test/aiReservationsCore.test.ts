@@ -26,9 +26,12 @@ describe("token de respuesta por reserva", () => {
 
 describe("remitente verificado", () => {
   const pass = { spf: "pass", dkim: "pass", dmarc: "pass" };
-  it("mismo dominio + DMARC (o SPF y DKIM) = verificado", () => {
+  it("mismo dominio (o subdominio) + DMARC pass = verificado; SPF y DKIM sin DMARC solo con la dirección exacta (AUD-02)", () => {
     expect(senderVerified("maria@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", pass)).toBe(true);
-    expect(senderVerified("x@mail.casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" })).toBe(true);
+    expect(senderVerified("x@mail.casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass", dmarc: "pass" })).toBe(true);
+    // AUD-02: antes esto era true (SPF+DKIM sin DMARC para cualquier dirección del dominio). Ver aiReservationsSenderAuth.test.ts.
+    expect(senderVerified("x@mail.casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" })).toBe(false);
+    expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", { spf: "pass", dkim: "pass" })).toBe(true);
   });
   it("sin autenticación, con DMARC fallido u otro dominio → no verificado", () => {
     expect(senderVerified("reservas@casaoaxaca.com.mx", "reservas@casaoaxaca.com.mx", null)).toBe(false);

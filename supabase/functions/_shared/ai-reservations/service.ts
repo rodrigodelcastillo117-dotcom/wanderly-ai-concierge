@@ -6,7 +6,7 @@
 import {
   type AiReservationRow, type AiReservationStatus, bareAddress, confirmPrompt, cronDecision, DEFAULT_FROM_ADDRESS,
   DEFAULT_LIMITS, DEFAULT_REPLY_DOMAIN, domainOf, extractReplyToken, formatLocal, htmlToText, isLocalDateTime, type Limits,
-  replyAddress, senderVerified, statusLabel, stripQuotedReply, toBridgeState,
+  replyAddress, senderAuthentication, type SenderVerdict, statusLabel, stripQuotedReply, toBridgeState,
 } from "./core.ts";
 import { ClassifierUnavailable, classifyReply, decideReply, type ModelCall, type ReplyDecision } from "./classifier.ts";
 import { type ContactDeps, discoverVenueContact } from "./contact.ts";
@@ -21,14 +21,38 @@ export type Db = {
   rpc<T = unknown>(fn: string, args?: Record<string, unknown>): Promise<RpcResult<T>>;
 };
 export type OutgoingMail = { to: string | string[]; subject: string; html: string; text: string; from?: string; replyTo?: string };
+/** Lo que usamos de GET /emails/receiving/{id} de Resend (forma documentada, consultada 2026-10-22). */
 export type ReceivedEmail = {
+  id?: string;
   from?: string;
+  to?: unknown[];
   subject?: string;
   text?: string | null;
   html?: string | null;
   created_at?: string;
+  /** Calculados por el servidor que recibe ('pass' | 'fail' | 'gray' | 'processing_failed' | 'unknown'); null en correos viejos. */
   authentication?: { spf?: string; dkim?: string; dmarc?: string } | null;
+  message_id?: string | null;
+  reply_to?: unknown;
+  headers?: Record<string, unknown> | null;
+  raw?: { download_url?: string; expires_at?: string } | null;
 };
+
+/**
+ * AUD-02 · Veredicto del remitente con lo que dio el proveedor. Además de la regla de
+ * senderAuthentication(), el From del webhook, el del correo descargado y el encabezado From crudo
+ * deben ser la MISMA dirección: si discrepan, no se puede saber quién escribió → no verificado.
+ */
+export function inboundSenderVerdict(webhookFrom: unknown, content: ReceivedEmail, venueEmail: string | null): SenderVerdict {
+  const v = senderAuthentication(content.from ?? webhookFrom, venueEmail, content.authentication);
+  const reasons = [...v.reasons];
+  const h = content.headers && typeof content.headers === "object" ? content.headers as Record<string, unknown> : null;
+  const headerFrom = h ? (h.from ?? h.From) : undefined;
+  if (webhookFrom != null && String(webhookFrom).trim() && bareAddress(webhookFrom) !== v.from_address) reasons.push("webhook_from_mismatch");
+  if (headerFrom != null && String(headerFrom).trim() && bareAddress(headerFrom) !== v.from_address) reasons.push("header_from_mismatch");
+  if (reasons.length === v.reasons.length) return v;
+  return { ...v, verified: false, basis: null, reasons };
+}
 
 export type ServiceDeps = {
   db: Db;
@@ -369,8 +393,9 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
     await deps.db.rpc("ai_reservation_inbound_finish", { _inbound_id: inboundId, _status: "failed", _outcome: "fetch_failed" });
     return fail(500, "FETCH_FAILED"); // Resend reintenta; el reintento reclama la fila 'failed'
   }
-  const fromAddr = bareAddress(content.from ?? d.from);
-  const verified = senderVerified(fromAddr, row.venue_email, content.authentication);
+  const sender = inboundSenderVerdict(d.from, content, row.venue_email);
+  const fromAddr = sender.from_address;
+  const verified = sender.verified;
   const replyText = stripQuotedReply(content.text?.trim() ? content.text : htmlToText(content.html ?? ""));
 
   // 4) Clasificación (Claude) + decisión con reglas verificables.

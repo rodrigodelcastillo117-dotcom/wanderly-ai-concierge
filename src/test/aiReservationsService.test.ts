@@ -21,7 +21,7 @@ function fakeDb(flag: boolean) {
   const rows = new Map<string, AiReservationRow & Record<string, any>>();
   const inbound = new Map<string, { id: string; status: string; attempts: number; reservation_id: string | null; email_id: string }>();
   let n = 0;
-  const state = { flag, rows, inbound, calls: [] as string[] };
+  const state = { flag, rows, inbound, calls: [] as string[], attached: [] as Array<Record<string, any>>, applied: [] as Array<Record<string, any>> };
   const pub = (r: any) => { const { reply_token: _t, send_lock_at: _l, evidence: _e, ...p } = r; return p; };
   const move = (r: any, to: string) => {
     if (r.status !== to && !canTransition(r.status, to as never)) throw new Error(`ilegal ${r.status}→${to}`);
@@ -104,9 +104,21 @@ function fakeDb(flag: boolean) {
       return r ? { ok: true, state: "new", inbound_id: _event_id, reservation: { ...r } } : { ok: true, state: "unmatched", inbound_id: _event_id };
     },
     ai_reservation_inbound_finish: ({ _inbound_id, _status }) => { inbound.get(_inbound_id)!.status = _status; return null; },
+    // Evidencia del correo (AUD-06): el mismo Message-ID no se procesa dos veces aunque cambien el
+    // id del evento de Svix y el email_id de Resend.
+    ai_reservation_inbound_attach: ({ _inbound_id, _e }) => {
+      const me = inbound.get(_inbound_id)! as any;
+      state.attached.push({ inbound_id: _inbound_id, ..._e });
+      const mid = String(_e.message_id ?? "").trim().toLowerCase();
+      const dup = mid && [...inbound.values()].find((x: any) => x.id !== _inbound_id && x.message_id === mid);
+      if (dup) { me.status = "duplicate"; return { ok: true, duplicate: true, duplicate_of: dup.id }; }
+      me.message_id = mid || null;
+      return { ok: true, duplicate: false };
+    },
     ai_reservation_apply_reply: ({ _id, _inbound_id, _d }) => {
       const r = rows.get(_id)!;
       state.calls.push(`apply:${_d.outcome}`);
+      state.applied.push(_d);
       if (!["sent", "venue_replied", "needs_user"].includes(r.status)) return { ok: false, code: "LATE", status: r.status };
       const to = ({ confirmed: "confirmed", alternative_offered: "needs_user", declined: "declined", needs_info: "needs_user", payment_required: "needs_user", unverified: "venue_replied", ambiguous: "venue_replied" } as Record<string, string>)[_d.outcome] ?? r.status;
       if (to === "confirmed" && !(_d.confirmation?.verified_sender && _d.confirmation?.quote)) throw new Error("CHECK ai_res_confirmed_has_evidence");
@@ -157,7 +169,13 @@ function setup(flag = true) {
     internationalPhoneNumber: "+52 951 514 4173", addressComponents: [{ shortText: "MX", types: ["country"] }], businessStatus: "OPERATIONAL",
   }));
   const fetchPage = vi.fn(async (url: string) => ({ url, html: url.endsWith("/contacto") ? contactPage : venueSite }));
-  let received: Record<string, unknown> = { from: "Casa Oaxaca <reservas@casaoaxaca.com.mx>", subject: "Re: Solicitud", text: fixtures.cases[0].reply.text, authentication: { spf: "pass", dkim: "pass", dmarc: "pass" }, created_at: "2026-11-02T18:00:00Z" };
+  // Forma real de GET /emails/receiving/{id} de Resend (campos que usamos).
+  let received: Record<string, unknown> = {
+    object: "email", id: "em_1", from: "Casa Oaxaca <reservas@casaoaxaca.com.mx>", subject: "Re: Solicitud", text: fixtures.cases[0].reply.text,
+    html: null, authentication: { spf: "pass", dkim: "pass", dmarc: "pass" }, created_at: "2026-11-02T18:00:00Z",
+    message_id: "<CAF1234@mail.casaoaxaca.com.mx>", reply_to: null, headers: { from: "Casa Oaxaca <reservas@casaoaxaca.com.mx>" },
+    raw: { download_url: "https://inbound-raw.resend.test/em_1.eml?sig=x", expires_at: "2026-11-02T19:00:00Z" },
+  };
   const deps: ServiceDeps = {
     db,
     sendEmail: vi.fn(async (m) => { sent.push(m); return { ok: true, id: `re_${sent.length}` }; }),
@@ -173,8 +191,8 @@ function setup(flag = true) {
 
 const intent = { venue: { name: "Casa Oaxaca", place_id: "ChIJ_casaoaxaca_0001" }, datetime_local: "2026-11-03T20:30", party_size: 4 };
 
-async function webhook(token: string, eventId = "msg_evt_1", emailId = "em_1") {
-  const body = JSON.stringify({ type: "email.received", data: { email_id: emailId, from: "reservas@casaoaxaca.com.mx", to: [`reservas+${token}@reply.traveliatos.life`], subject: "Re: Solicitud · Ref R-ABC231" } });
+async function webhook(token: string, eventId = "msg_evt_1", emailId = "em_1", from = "reservas@casaoaxaca.com.mx") {
+  const body = JSON.stringify({ type: "email.received", data: { email_id: emailId, from, to: [`reservas+${token}@reply.traveliatos.life`], subject: "Re: Solicitud · Ref R-ABC231" } });
   const ts = Math.floor(NOW.getTime() / 1000);
   const headers = new Headers({ "svix-id": eventId, "svix-timestamp": String(ts), "svix-signature": `v1,${await signSvix(SECRET, eventId, ts, body)}` });
   return { headers, body };
@@ -373,5 +391,61 @@ describe("Booking Bridge", () => {
     expect(b.body.replay).toBe(true);
     expect((b.body.reservation as any).id).toBe((a.body.reservation as any).id);
     expect(t.sent).toHaveLength(0);
+  });
+});
+
+async function sentReservation(t: ReturnType<typeof setup>) {
+  const id = ((await createIntent(t.deps, USER, intent)).body.reservation as any).id;
+  await confirmSend(t.deps, USER, { id, confirm: true, consent: { share_contact: false, cc_me: false } });
+  return { id, token: t.state.rows.get(id)!.reply_token! };
+}
+
+describe("AUD-02 · remitente de la respuesta, de punta a punta", () => {
+  it("respuesta en nuestro hilo (token correcto) pero de otro remitente con DMARC pass → unverified, nunca confirmed", async () => {
+    const t = setup();
+    const { id, token } = await sentReservation(t);
+    t.setReceived({ from: "Reservas <reservas@casaoaxaca-mx.com>", headers: { from: "Reservas <reservas@casaoaxaca-mx.com>" } });
+    const w = await webhook(token, "msg_evt_1", "em_1", "reservas@casaoaxaca-mx.com");
+    expect((await handleInbound(t.deps, w.headers, w.body)).body).toMatchObject({ outcome: "unverified", status: "venue_replied" });
+    expect(t.state.rows.get(id)!.status).toBe("venue_replied");
+  });
+  it("el From del webhook y el del correo descargado no coinciden → unverified", async () => {
+    const t = setup();
+    const { token } = await sentReservation(t);
+    const w = await webhook(token, "msg_evt_1", "em_1", "atacante@evil.test");
+    expect((await handleInbound(t.deps, w.headers, w.body)).body).toMatchObject({ outcome: "unverified" });
+  });
+  it("el encabezado From crudo (headers.from) no coincide con el From que reporta Resend → unverified", async () => {
+    const t = setup();
+    const { token } = await sentReservation(t);
+    t.setReceived({ headers: { from: '"reservas@casaoaxaca.com.mx"@evil.test' } });
+    const w = await webhook(token);
+    expect((await handleInbound(t.deps, w.headers, w.body)).body).toMatchObject({ outcome: "unverified" });
+  });
+  it("Reply-To distinto no cambia nada: se verifica el From (y el Reply-To del atacante no sirve para falsificar)", async () => {
+    const t = setup();
+    const { token } = await sentReservation(t);
+    t.setReceived({ reply_to: ["atacante@evil.test"] });
+    const w = await webhook(token);
+    expect((await handleInbound(t.deps, w.headers, w.body)).body).toMatchObject({ outcome: "confirmed" });
+    const t2 = setup();
+    const s2 = await sentReservation(t2);
+    t2.setReceived({ from: "atacante@evil.test", headers: { from: "atacante@evil.test" }, reply_to: ["reservas@casaoaxaca.com.mx"] });
+    const w2 = await webhook(s2.token, "msg_evt_1", "em_1", "atacante@evil.test");
+    expect((await handleInbound(t2.deps, w2.headers, w2.body)).body).toMatchObject({ outcome: "unverified" });
+  });
+  it("Resend sin bloque de autenticación (authentication: null) → unverified", async () => {
+    const t = setup();
+    const { token } = await sentReservation(t);
+    t.setReceived({ authentication: null });
+    const w = await webhook(token);
+    expect((await handleInbound(t.deps, w.headers, w.body)).body).toMatchObject({ outcome: "unverified" });
+  });
+  it("SPF y DKIM pass con DMARC fail (d= de otro dominio) → unverified", async () => {
+    const t = setup();
+    const { token } = await sentReservation(t);
+    t.setReceived({ authentication: { spf: "pass", dkim: "pass", dmarc: "fail" } });
+    const w = await webhook(token);
+    expect((await handleInbound(t.deps, w.headers, w.body)).body).toMatchObject({ outcome: "unverified" });
   });
 });
