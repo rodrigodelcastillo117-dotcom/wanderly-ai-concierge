@@ -25,13 +25,20 @@ export type ProviderInfo = {
    * /travel/clk): solo vale si lo dio una API del servidor (SerpApi), nunca de la IA ni del cliente.
    */
   redirector?: "wrapper" | "opaque";
+  /**
+   * Hosts exactos permitidos cuando el dominio aloja servicios de terceros (google.com: sites.google.com
+   * y docs.google.com publican páginas de cualquiera). Sin esto vale cualquier subdominio.
+   */
+  hosts?: string[];
   /** Por qué este dominio es legítimo (AUD-04: ninguna entrada sin justificación). */
   why: string;
 };
 
-const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"] } = {}): ProviderInfo =>
+const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"]; hosts?: string[] } = {}): ProviderInfo =>
   ({ domain, provider, label, kind, why, ...extra });
 
+// Endurecimiento O1 (segunda auditoría): Google solo en sus hosts propios; sites.google.com/maps/… no es Maps.
+const GOOGLE_HOSTS = ["www.google.com", "google.com"];
 const AIRLINE = (name: string) => `Sitio oficial de ${name}: destino del botón "Sitio de la aerolínea" (EV-AIRLINE-HOME) y de airline_buy_url de flights-search.`;
 const OT = "Sitio público de OpenTable para el país (opentable.com/r/<lugar>): enlaces curados del catálogo Privé y de la IA validados por nombre (EV-OPENTABLE-SEARCH).";
 const FORK = "Sitio público de TheFork (grupo Tripadvisor) por país, usado por restaurantes del catálogo Privé (EV-PRIVE-CATALOG).";
@@ -44,8 +51,8 @@ const FORK = "Sitio público de TheFork (grupo Tripadvisor) por país, usado por
 export const PROVIDERS: ProviderInfo[] = [
   // Vuelos
   P("aviasales.com", "aviasales", "Aviasales", "metasearch", "Buscador de Travelpayouts (marker 533299): formato /search/ documentado en EV-AVIASALES-SEARCH.", { paths: /^\/search\// }),
-  P("google.com", "google_flights", "Google Flights", "metasearch", "Búsqueda de Google Flights de SerpApi (EV-GFLIGHTS-SERP-URL); /travel/flights solamente.", { paths: /^\/travel\/flights(\/|\?|$)/ }),
-  P("google.com", "google_flights", "Google Flights", "metasearch", "booking_request de Google Flights vía SerpApi (EV-GFLIGHTS-BOOKING-REQUEST, bandera apagada): redirect opaco.", { paths: /^\/travel\/clk\//, redirector: "opaque" }),
+  P("google.com", "google_flights", "Google Flights", "metasearch", "Búsqueda de Google Flights de SerpApi (EV-GFLIGHTS-SERP-URL); /travel/flights solamente.", { paths: /^\/travel\/flights(\/|\?|$)/, hosts: GOOGLE_HOSTS }),
+  P("google.com", "google_flights", "Google Flights", "metasearch", "booking_request de Google Flights vía SerpApi (EV-GFLIGHTS-BOOKING-REQUEST, bandera apagada): redirect opaco.", { paths: /^\/travel\/clk\//, redirector: "opaque", hosts: GOOGLE_HOSTS }),
   P("skyscanner.com.mx", "skyscanner", "Skyscanner", "metasearch", "Buscador que arma src/lib/affiliateLinks.ts (skyscannerLink) para México."),
   P("kayak.com", "kayak", "Kayak", "metasearch", "Buscador que arma src/lib/affiliateLinks.ts (kayakFlightsLink, kayakCarsLink)."),
   P("aeromexico.com", "aeromexico", "Aeroméxico", "airline", AIRLINE("Aeroméxico")),
@@ -67,9 +74,9 @@ export const PROVIDERS: ProviderInfo[] = [
   P("booking.com", "booking", "Booking.com", "ota", "Búsqueda searchresults.html que arma IATOS (EV-BOOKING-SEARCH) y páginas de hotel; dominio único de Booking.com."),
   P("airbnb.com", "airbnb", "Airbnb", "ota", "Búsqueda /s/<ciudad>/homes que arma src/lib/affiliateLinks.ts (airbnbLink)."),
   // Google Hotels (enlaces de precios que devuelve SerpApi: google.com/aclk) y Maps
-  P("google.com", "google_hotels", "Google Hotels", "metasearch", "Enlaces de precio de Google Hotels vía SerpApi (EV-GHOTELS-PRICE-LINK): clic de anuncio, redirect opaco.", { paths: /^\/aclk(\?|$)/, redirector: "opaque" }),
-  P("google.com", "google_hotels", "Google Hotels", "metasearch", "Ficha de Google Hotels (/travel/hotels) de SerpApi.", { paths: /^\/travel\/hotels(\/|\?|$)/ }),
-  P("google.com", "google_maps", "Google Maps", "maps", "Google Maps URLs oficiales (EV-MAPS-URLS): /maps/search/?api=1 y /maps/dir/?api=1.", { paths: /^\/maps(\/|\?|$)/ }),
+  P("google.com", "google_hotels", "Google Hotels", "metasearch", "Enlaces de precio de Google Hotels vía SerpApi (EV-GHOTELS-PRICE-LINK): clic de anuncio, redirect opaco.", { paths: /^\/aclk(\?|$)/, redirector: "opaque", hosts: GOOGLE_HOSTS }),
+  P("google.com", "google_hotels", "Google Hotels", "metasearch", "Ficha de Google Hotels (/travel/hotels) de SerpApi.", { paths: /^\/travel\/hotels(\/|\?|$)/, hosts: GOOGLE_HOSTS }),
+  P("google.com", "google_maps", "Google Maps", "maps", "Google Maps URLs oficiales (EV-MAPS-URLS): /maps/search/?api=1 y /maps/dir/?api=1.", { paths: /^\/maps(\/|\?|$)/, hosts: [...GOOGLE_HOSTS, "maps.google.com"] }),
   // Restaurantes: sistemas públicos de reserva (no requieren ser socio para abrir su página pública)
   P("opentable.com", "opentable", "OpenTable", "restaurant_booking", OT),
   P("opentable.com.mx", "opentable", "OpenTable", "restaurant_booking", OT),
@@ -165,6 +172,7 @@ export function providerFor(host: string, pathname = "/"): ProviderInfo | null {
   const h = host.toLowerCase();
   for (const p of PROVIDERS) {
     if (!hostMatches(h, p.domain)) continue;
+    if (p.hosts && !p.hosts.includes(h)) continue;
     if (p.paths && !p.paths.test(pathname)) continue;
     return p;
   }
@@ -257,8 +265,11 @@ export function looksLikeBrandImpersonation(host: string): boolean {
   return false;
 }
 
-/** Barras, barras invertidas o puntos codificados en la ruta (%2F, %5C, %2E): para saltar una ruta permitida. */
-const ENCODED_PATH_TRICK = /%(2f|5c|2e)/i;
+/**
+ * Barras, barras invertidas o puntos codificados en la ruta (%2F, %5C, %2E), también con doble o triple
+ * codificación (%252F, %25252E; endurecimiento O2): para saltar una ruta permitida.
+ */
+const ENCODED_PATH_TRICK = /%(?:25)*(2f|5c|2e)/i;
 
 /**
  * URL permitida para el nivel ESTRICTO. Un redirect "wrapper" (tp.media) solo si su destino `u`
