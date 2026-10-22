@@ -126,6 +126,9 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
   if (r.error === "timeout") {
     return { disponible: false, estado: "no_respondio", error: "timeout", motivo: "El servicio tardó demasiado en responder; no hay datos en vivo ahora." };
   }
+  if (r.error === "busquedas_en_pausa") {
+    return { disponible: false, estado: "no_respondio", error: "busquedas_en_pausa", motivo: "Las búsquedas en vivo están en pausa por ahora; no hay datos en vivo." };
+  }
   if (r.error === "no_configurado") {
     return { disponible: false, estado: "no_respondio", error: "no_configurado", motivo: "Esta búsqueda no está disponible en este momento." };
   }

@@ -19,7 +19,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { adminClient, commitQuota, quotaDeniedResponse, releaseQuota, reserveQuota } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
-import { dbCacheStore, liveSearchGateFor, logUsage } from "../_shared/serpRuntime.ts";
+import { accountBrake, dbCacheStore, liveSearchGateFor, logUsage } from "../_shared/serpRuntime.ts";
 import type { UsageEntry } from "../_shared/usage.ts";
 import { buildTripQuestion, mentionsUntrackedPlace, needsSpecificTrip, resolveActiveTrip } from "../_shared/activeTrip.ts";
 import { todayLine, toolArgs } from "./tools.ts";
@@ -538,8 +538,9 @@ function makeExecTool(c: { supabase: any; authHeader: string; userId: string; pr
       return runSearchPrive(args, { rpc: (fn, params) => c.supabase.rpc(fn, params) as any, priveSession: c.priveSession, todayISO: c.todayISO });
     }
     if (name === "web_search") {
+      const store = dbCacheStore();
       return runWebSearch(args, {
-        fetchImpl: fetch, serpKey: SERPAPI_KEY, store: dbCacheStore(), gate: liveSearchGateFor(c.userId), timeoutMs: TOOL_TIMEOUTS.web_search - 500,
+        fetchImpl: fetch, serpKey: SERPAPI_KEY, store, gate: liveSearchGateFor(c.userId), brake: accountBrake(store), timeoutMs: TOOL_TIMEOUTS.web_search - 500,
         onLive: (ok) => (ok ? logUsage({ user_id: c.userId, function: "concierge-chat", provider: "serpapi", model: "google_web", searches: 1 }) : undefined),
       });
     }
