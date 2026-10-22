@@ -14,12 +14,21 @@ export interface MembershipResult {
 
 interface MinimalClient {
   from: (table: string) => any;
+  functions?: { invoke: (fn: string, opts?: any) => Promise<any> };
 }
 
+// T-P2-3: al borrar el viaje, la base anota TODOS sus archivos (documentos y fotos del diario, de
+// cualquiera que los subió) en storage_purge_queue; trip-files-purge los borra de storage. Si esta
+// llamada falla, la tarea programada y el borrado de cuenta los vuelven a intentar.
 export async function deleteOwnedTrip(client: MinimalClient, tripId: string): Promise<MembershipResult> {
   const { data, error } = await client.from("trips").delete().eq("id", tripId).select("id");
   if (error) return { ok: false, reason: "error", message: error.message };
   if (!Array.isArray(data) || data.length === 0) return { ok: false, reason: "not_allowed" };
+  try {
+    await client.functions?.invoke("trip-files-purge", { body: {} });
+  } catch {
+    // no bloquea: el viaje ya se borró y los archivos siguen en la cola
+  }
   return { ok: true };
 }
 

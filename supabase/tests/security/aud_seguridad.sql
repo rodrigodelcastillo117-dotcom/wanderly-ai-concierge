@@ -49,6 +49,9 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- 20261026020000 (T-P2-2): solo responde por p_uid con has_trip_access y la entrada del diario; la usa la
   -- política de journal-photos.
   ('journal_photo_visible'),
+  -- 20261026030000 (T-P2-3/T-P2-4): trip_document_object_visible solo responde por auth.uid() (la usa la
+  -- política de trip-documents); set_trip_document_visibility solo cambia documentos que subió auth.uid().
+  ('trip_document_object_visible'),('set_trip_document_visibility'),
   -- Integración final (wave2), revisadas una por una en SEGURIDAD.md §"Wave2":
   -- Privé Valor/Key (privevalor_*, privekey_plans): todas empiezan con prive_require(_ps); user_id siempre el de la sesión;
   -- los *_add_to_trip / *_save con trip_id exigen has_trip_access.
