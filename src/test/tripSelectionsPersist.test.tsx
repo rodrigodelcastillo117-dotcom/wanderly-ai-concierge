@@ -19,7 +19,9 @@ vi.mock("@/integrations/supabase/client", () => {
     let kind = "select";
     let payload: any = null;
     const api: any = {
-      select: () => api, eq: () => api, order: () => api, limit: () => api, in: () => api,
+      // .not: TripBookingIntents filtra con .not("state", "in", …); sin él el componente reventaba en cada
+      // render (7 "Unhandled Rejection") y la corrida terminaba con exit 1 (P3-QA-1).
+      select: () => api, eq: () => api, not: () => api, order: () => api, limit: () => api, in: () => api,
       update: (p: any) => { kind = "update"; payload = p; db.updates.push({ table, payload: p }); return api; },
       insert: () => api,
       maybeSingle: async () => ({ data: table === "trips" ? db.trip : null, error: null }),
