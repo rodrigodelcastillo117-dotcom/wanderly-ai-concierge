@@ -43,6 +43,7 @@ import { useTripOffers, type TripOfferActions } from "@/components/booking/useTr
 import { isGroundTripOption, tripCountryLabel, tripFlightProblems } from "@/lib/booking";
 import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightStopsLabel } from "@/lib/flightDisplay";
 import { groundOptionsForCity } from "@/lib/multiDestTrip";
+import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
@@ -703,7 +704,7 @@ const TripDetail = () => {
                           const i = (trip.vuelos_json ?? []).indexOf(v);
                           const active = selVuelo === i;
                           return isMulti ? (
-                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(active ? -1 : i)} quotedAt={quote?.created_at ?? trip.created_at} />
+                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(active ? -1 : i)} quotedAt={quote?.created_at ?? trip.created_at} trip={trip} index={i} />
                           ) : (
                             <ExpandableItemCard
                               key={i}
@@ -740,7 +741,7 @@ const TripDetail = () => {
                           );
                         })}
                         {cityGround.map((g: any, gi: number) => (
-                          <ArrivalOptionCard key={`tierra-${gi}`} option={g} active={false} quotedAt={quote?.created_at ?? trip.created_at} />
+                          <ArrivalOptionCard key={`tierra-${gi}`} option={g} active={false} quotedAt={quote?.created_at ?? trip.created_at} trip={trip} />
                         ))}
                         {!isMulti && (
                           <SkipCard active={selVuelo === -2} onClick={() => setSelVuelo(selVuelo === -2 ? -1 : -2)}
@@ -1001,7 +1002,7 @@ const TripDetail = () => {
               <ReadonlyBudget
                 desglose={computedDesglose}
                 total={computedTotal}
-                vuelos={trip.vuelos_json ?? []}
+                vuelos={(trip.vuelos_json ?? []).filter((v: any) => !isGroundTripOption(v) && tripFlightProblems(v, trip).length === 0)}
                 travelers={viajeros}
               />
             </div>
@@ -1183,7 +1184,7 @@ function flightPriceLabel(v: any): string {
   return `${fmtMXN(v.precio_por_persona)} / persona`;
 }
 
-const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any; active: boolean; onClick?: () => void; quotedAt?: string | null }) => {
+const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 }: { option: any; active: boolean; onClick?: () => void; quotedAt?: string | null; trip?: any; index?: number }) => {
   // Coche, tren, bus o ferry con su icono (antes un coche salía con avión: MODE_ICON no tenía "coche").
   const mode = String(option.mode ?? option.modo ?? "vuelo");
   const Icon = MODE_ICON[mode] || (isGroundTripOption(option) ? Car : Plane);
@@ -1236,6 +1237,8 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any;
       )}
       <PriceSourceBadge source={option.fuente_precio} estado={option.estado_dato} consultadoAt={option.consultado_at ?? quotedAt} approximateDates={option.approximate_dates} className="mt-2" />
       {option.notas && <p className="text-xs text-muted-foreground mt-2 italic">{option.notas}</p>}
+      {/* Comprar aquí mismo (punto 8): vuelo → Google Flights/Kayak precargados; coche → road trip y renta. */}
+      {trip && <FlightBuyButtons option={option} trip={trip} index={index} />}
     </div>
   );
 };
