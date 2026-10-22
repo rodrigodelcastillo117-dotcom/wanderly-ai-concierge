@@ -11,6 +11,14 @@ $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/payments.sql" 2>&1 | grep -o 'OK .*\|
 $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/quota_reservations.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA quota_reservations.sql"
 $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/plan_limits.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA plan_limits.sql"
 $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/trial_no_card.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA trial_no_card.sql"
+$PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/plan_limits_recommended.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA plan_limits_recommended.sql"
+# Re-correr la siembra no pisa lo que el dueño editó (plan_limits_recommended.sql dejó free/live_searches=7).
+$PSQL -d "$DB" -f "$DIR/../../migrations/20261022135300_pay_plan_limits_recommended.sql" >/dev/null 2>&1
+if [ "$($PSQL -d "$DB" -At -c "SELECT limit_value FROM public.plan_limits WHERE plan='free' AND kind='live_searches'")" = "7" ]; then
+  echo "OK L7 re-correr la migración respeta los límites editados por el dueño"
+else
+  echo "FALLA L7 la siembra pisó un límite editado"
+fi
 
 # Concurrencia: la sesión 1 consume el análisis gratis y tarda en confirmar; la sesión 2 llega en
 # medio. Con el UPDATE condicional, la 2 espera el candado y luego ve el contador en 1 → negada.

@@ -78,7 +78,7 @@ BEGIN
   DELETE FROM public.plan_limits WHERE plan = 'free' AND kind = 'concierge';
   r := public.reserve_quota(u, 'concierge', 's:f8');
   IF r->>'reason' <> 'quota_exceeded' OR (r->>'limit')::int <> 3 THEN RAISE EXCEPTION 'P6b %', r; END IF;
-  INSERT INTO public.plan_limits (plan, kind, period, limit_value) VALUES ('free', 'concierge', 'month', 3);
+  INSERT INTO public.plan_limits (plan, kind, period, limit_value, note) VALUES ('free', 'concierge', 'month', 3, 'RECOMENDADO: mensajes de Iato al mes');
   RAISE NOTICE 'OK P6 NULL = ilimitado; sin fila se usa el límite de siempre (3)';
 
   -- P7: el cliente no puede leer ni cambiar límites ni interruptores.
