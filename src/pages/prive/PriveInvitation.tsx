@@ -17,7 +17,8 @@ import { EASE, usePriveMotion } from "@/components/prive/motion";
 import { Monogram } from "@/components/prive/Monogram";
 import { Envelope } from "@/components/prive/Envelope";
 import { MemberCard } from "@/components/prive/MemberCard";
-import { PasswordCreator, pickPassphrase } from "@/components/prive/PasswordCreator";
+import { PasswordCreator } from "@/components/prive/PasswordCreator";
+import { pickPassphrase } from "@/lib/privePassword";
 import { CEREMONY, SUPPORT_EMAIL, messageFor, tenureLine } from "@/lib/priveCopy";
 import { capturePriveTokenFromUrl, clearPendingToken, readPendingToken } from "@/lib/priveSession";
 import { invitationStart, type InvitationMessageKind } from "@/lib/priveView";
@@ -26,7 +27,7 @@ import type { PriveResult, PriveStatus } from "@/lib/priveApi";
 
 type Scene = "loading" | "arrival" | "invitation" | "reveal" | "access" | "card" | "message";
 
-type Message = { kind: InvitationMessageKind };
+type Message = { kind: InvitationMessageKind; emailSent?: boolean };
 
 
 export default function PriveInvitation() {
@@ -114,13 +115,13 @@ export default function PriveInvitation() {
 
   const resend = async () => {
     setWaiting(true);
-    const r = await call("resend_invitation");
+    const r = await call<{ email?: string }>("resend_invitation");
     setWaiting(false);
     if (r.ok) {
       // La invitación vieja ya no sirve; la nueva se abre sin token (el servidor la busca por usuario).
       clearPendingToken("invite");
       tokenRef.current = null;
-      setMessage({ kind: "RESENT" });
+      setMessage({ kind: "RESENT", emailSent: r.data.email === "sent" });
     } else {
       setInlineError(messageFor(r.code));
     }
@@ -149,7 +150,7 @@ export default function PriveInvitation() {
   };
 
   const onGenerate = async () => {
-    const r = await call<{ passphrase?: string }>("set_password", { generate: true });
+    const r = await call<{ generated_password?: string }>("set_password", { generate: true });
     if (!r.ok && r.code === "PASSWORD_ALREADY_SET") {
       setMessage({ kind: "PASSWORD_ALREADY_SET" });
       setScene("message");
@@ -274,6 +275,7 @@ export default function PriveInvitation() {
           <motion.section key={`msg-${message.kind}`} {...sceneAnim()} className="flex-1 flex items-center justify-center px-4 py-16" aria-live="polite">
             <InvitationMessage
               kind={message.kind}
+              emailSent={message.emailSent === true}
               status={status}
               busy={waiting}
               error={inlineError}
@@ -289,8 +291,9 @@ export default function PriveInvitation() {
   );
 }
 
-function InvitationMessage({ kind, status, busy, error, onResend, onOpenAgain, onSwitchAccount, onRetry }: {
+function InvitationMessage({ kind, emailSent, status, busy, error, onResend, onOpenAgain, onSwitchAccount, onRetry }: {
   kind: Message["kind"];
+  emailSent: boolean;
   status: PriveStatus | null;
   busy: boolean;
   error: string | null;
@@ -331,7 +334,13 @@ function InvitationMessage({ kind, status, busy, error, onResend, onOpenAgain, o
         <button type="button" onClick={onResend} disabled={busy} className="prive-btn prive-btn-gold">{busy ? "Enviando…" : "Enviarme una nueva"}</button>
       ));
     case "RESENT":
-      return box("Listo", <p>Te enviamos una invitación nueva a tu correo. También puedes abrirla ahora mismo desde aquí.</p>, (
+      return box("Listo", (
+        <p>
+          {emailSent
+            ? "Te enviamos una invitación nueva a tu correo. También puedes abrirla ahora mismo desde aquí."
+            : "Tu invitación nueva está lista. Ábrela ahora mismo desde aquí."}
+        </p>
+      ), (
         <button type="button" onClick={onOpenAgain} className="prive-btn prive-btn-gold">Abrir ahora</button>
       ));
     case "NO_INVITATION":

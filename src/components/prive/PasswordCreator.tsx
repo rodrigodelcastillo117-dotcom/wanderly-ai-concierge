@@ -3,12 +3,9 @@ import { Check, Circle, Copy, Eye, EyeOff } from "lucide-react";
 import { checkPrivePassword, PRIVE_PW_MAX } from "@/lib/privePassword";
 import { messageFor } from "@/lib/priveCopy";
 import type { PriveResult } from "@/lib/priveApi";
+import { pickPassphrase } from "@/lib/privePassword";
 
-type GenResult = PriveResult<{ passphrase?: string; password?: string; generated?: string }>;
-
-/** La frase generada puede venir como passphrase (contrato) o, por tolerancia, password/generated. */
-export const pickPassphrase = (d: { passphrase?: unknown; password?: unknown; generated?: unknown }) =>
-  [d.passphrase, d.password, d.generated].find((v): v is string => typeof v === "string" && v.length > 0) ?? null;
+type GenResult = PriveResult<{ generated_password?: string; passphrase?: string }>;
 
 /**
  * Crear una contraseña Privé: elegida por la persona (con guía de fuerza, 12–72 caracteres) o una

@@ -69,6 +69,8 @@ export const CODE_MESSAGES: Record<PriveErrorCode, string> = {
   HARD_LOCKED: "Por seguridad bloqueamos el acceso con contraseña. Restablécela desde el enlace que te enviaremos por correo.",
   MUST_RESET: "Por seguridad necesitas crear una contraseña Privé nueva.",
   RESET_INVALID: "El enlace para restablecer ya venció o ya se usó. Pide uno nuevo.",
+  NO_PASSWORD: "Aún no tienes una contraseña Privé. Créala desde tu invitación.",
+  EMAIL_UNAVAILABLE: "No pudimos enviarte el correo en este momento. Inténtalo más tarde o escríbenos a hola@traveliatos.life.",
   PRIVE_NO_SESSION: "Ingresa tu contraseña Privé para continuar.",
   PRIVE_NOT_PRO: "Tu acceso a Privé está en pausa porque tu plan PRO no está activo.",
   PRIVE_NOT_ELIGIBLE: "Tu acceso a Privé está en pausa por ahora.",

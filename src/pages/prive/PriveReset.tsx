@@ -16,7 +16,7 @@ import { capturePriveTokenFromUrl, clearPendingToken, clearPriveSession, readPen
 
 export default function PriveReset() {
   const { user } = useAuth();
-  const { call, refresh } = usePriveAccess();
+  const { call, refresh, adoptSession } = usePriveAccess();
   const { rise, reduce } = usePriveMotion();
   const [token, setToken] = useState<string | null>(null);
   const [phase, setPhase] = useState<"request" | "sent" | "form" | "done" | "invalid">("request");
@@ -44,7 +44,12 @@ export default function PriveReset() {
 
   const complete = async (pw: string) => {
     if (!token) return { ok: false as const, code: "RESET_INVALID" as const };
-    const r = await call("complete_reset", { token, new_password: pw });
+    const r = await call<{ prive_session?: string; expires_at?: string }>("complete_reset", { token, new_password: pw });
+    if (r.ok) {
+      // Las sesiones anteriores se cerraron; si el servidor ya abrió una con la contraseña nueva, se usa.
+      clearPriveSession();
+      if (r.data.prive_session) adoptSession(r.data.prive_session, r.data.expires_at ?? new Date(Date.now() + 12 * 3600e3).toISOString());
+    }
     if (!r.ok && r.code === "RESET_INVALID") {
       clearPendingToken("reset");
       setToken(null);
@@ -55,7 +60,6 @@ export default function PriveReset() {
 
   const done = () => {
     clearPendingToken("reset");
-    clearPriveSession();
     setToken(null);
     setPhase("done");
     void refresh();
@@ -112,7 +116,7 @@ export default function PriveReset() {
 
       {phase === "done" && (
         <div className="space-y-5" role="status">
-          <p className="text-sm prive-champagne">Tu contraseña Privé cambió. Por seguridad cerramos tus sesiones Privé abiertas.</p>
+          <p className="text-sm prive-champagne">Tu contraseña Privé cambió. Por seguridad cerramos las demás sesiones Privé abiertas.</p>
           <Link to="/prive" className="prive-btn prive-btn-gold">Entrar a IATOS Privé</Link>
         </div>
       )}

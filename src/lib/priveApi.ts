@@ -39,6 +39,9 @@ export const PRIVE_ACCESS_CODES = [
   "HARD_LOCKED",
   "MUST_RESET",
   "RESET_INVALID",
+  // Observados en la implementación de la rama core (no están en la lista del contrato §3):
+  "NO_PASSWORD", // restablecer/reportar sin contraseña creada
+  "EMAIL_UNAVAILABLE", // no se pudo enviar el correo (Resend apagado o sin correo)
 ] as const;
 
 /** Códigos que pone este cliente cuando no hay respuesta de negocio. */

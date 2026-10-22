@@ -58,7 +58,11 @@ function happyServer(over: Record<string, unknown> = {}) {
     }
     if (action === "set_password") {
       state.status = { ...state.status, has_password: true, password_status: "active" };
-      return { ok: true, data: body.generate ? { ok: true, passphrase: PASSPHRASE } : { ok: true } };
+      // Forma de la rama core: la frase llega como generated_password y la primera sesión ya viene abierta.
+      return {
+        ok: true,
+        data: body.generate ? { ok: true, generated_password: PASSPHRASE, prive_session: SESSION_TOKEN, expires_at: futureIso() } : { ok: true },
+      };
     }
     if (action === "unlock") return { ok: true, data: { ok: true, prive_session: SESSION_TOKEN, expires_at: futureIso() } };
     return { ok: true, data: { ok: true } };
@@ -149,8 +153,9 @@ describe("/prive/invitacion", () => {
     const out = await screen.findByLabelText("Contraseña Privé generada");
     expect(out).toHaveTextContent(PASSPHRASE);
     expect(screen.getByText(/Solo la verás esta vez/)).toBeInTheDocument();
-    // Con la frase abre la primera sesión, pero la frase no queda en ningún almacenamiento.
-    await waitFor(() => expect(api.access).toHaveBeenCalledWith("unlock", { password: PASSPHRASE }));
+    // La primera sesión la abrió el servidor; la frase no queda en ningún almacenamiento.
+    await waitFor(() => expect(sessionStorage.getItem(PRIVE_SESSION_KEY)).not.toBeNull());
+    expect(api.access).not.toHaveBeenCalledWith("unlock", expect.anything());
     const everything = JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage });
     expect(everything).not.toContain(PASSPHRASE);
     expect(JSON.parse(sessionStorage.getItem(PRIVE_SESSION_KEY)!).token).toBe(SESSION_TOKEN);
@@ -183,6 +188,19 @@ describe("/prive/invitacion", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("filtraciones públicas");
     expect(api.access).toHaveBeenCalledWith("set_password", { password: "faro lento sobre bahía 1987" });
     expect(api.access).not.toHaveBeenCalledWith("unlock", expect.anything());
+  });
+
+  it("si el servidor no abre la sesión al crear la contraseña, se abre con unlock (sin guardar la contraseña)", async () => {
+    state.status = activeStatus({ has_password: false, password_status: null });
+    happyServer();
+    renderAt("/prive/invitacion");
+    fireEvent.change(await screen.findByLabelText("Contraseña Privé", { selector: "input" }), { target: { value: "faro lento sobre bahía 1987" } });
+    fireEvent.change(screen.getByLabelText("Repítela"), { target: { value: "faro lento sobre bahía 1987" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear mi contraseña" }));
+    expect(await screen.findByTestId("prive-member-card")).toBeInTheDocument();
+    expect(api.access).toHaveBeenCalledWith("unlock", { password: "faro lento sobre bahía 1987" });
+    expect(JSON.parse(sessionStorage.getItem(PRIVE_SESSION_KEY)!).token).toBe(SESSION_TOKEN);
+    expect(JSON.stringify({ ...sessionStorage }) + JSON.stringify({ ...localStorage })).not.toContain("faro lento");
   });
 
   it("MemberCard no recibe ni muestra contraseña o token (solo datos públicos)", () => {

@@ -70,3 +70,10 @@ export function checkPrivePassword(pw: string, confirm?: string): PasswordCheck 
   const mandatoryOk = rules.every((r) => r.ok);
   return { bytes, rules, score, label: LABELS[score], acceptable: mandatoryOk && score >= 2 };
 }
+
+/**
+ * La frase que generó el servidor. La rama core la devuelve como `generated_password`; por
+ * tolerancia se acepta también `passphrase`. Solo se lee para mostrarla una vez.
+ */
+export const pickPassphrase = (d: { generated_password?: unknown; passphrase?: unknown } | null | undefined) =>
+  [d?.generated_password, d?.passphrase].find((v): v is string => typeof v === "string" && v.length > 0) ?? null;

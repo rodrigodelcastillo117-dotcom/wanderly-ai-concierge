@@ -13,14 +13,16 @@ export function ReportCompromised() {
   const [step, setStep] = useState<"idle" | "confirm" | "done">("idle");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailed, setEmailed] = useState(false);
 
   const report = async () => {
     setBusy(true);
     setError(null);
-    const r = await call("report_compromised");
+    const r = await call<{ email?: string }>("report_compromised");
     setBusy(false);
     if (r.ok) {
       clearPriveSession();
+      setEmailed(r.data.email === "sent");
       setStep("done");
       void refresh();
     } else setError(messageFor(r.code));
@@ -49,7 +51,8 @@ export function ReportCompromised() {
       )}
       {step === "done" && (
         <p role="status" className="text-sm prive-champagne">
-          Listo. Bloqueamos tu contraseña Privé y cerramos tus sesiones. Para crear una nueva, pide el enlace a tu correo.
+          Listo. Bloqueamos tu contraseña Privé y cerramos tus sesiones.{" "}
+          {emailed ? "Te enviamos a tu correo un enlace para crear una nueva." : "Para crear una nueva, pide el enlace a tu correo."}
         </p>
       )}
     </div>
