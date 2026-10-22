@@ -129,6 +129,19 @@ describe("/prive/invitacion", () => {
     expect(api.access).toHaveBeenLastCalledWith("accept_invitation", {});
   });
 
+  it("N-02: invitación por concesión sin el enlace del correo: pide abrirla desde el correo y no ofrece 'Abrir ahora'", async () => {
+    state.status = baseStatus({ eligible: true, membership_status: "invited" });
+    happyServer({ accept_invitation: { ok: false, code: "INVITATION_LINK_REQUIRED" } });
+    renderAt("/prive/invitacion");
+    fireEvent.click(await goToEnvelope());
+    expect(await screen.findByRole("heading", { name: "Ábrela desde tu correo" })).toBeInTheDocument();
+    expect(screen.getByText(/se abre desde el enlace que te enviamos por correo/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Enviarme una nueva" }));
+    await waitFor(() => expect(api.access).toHaveBeenCalledWith("resend_invitation", {}));
+    expect(await screen.findByText(/Ábrela con el enlace del correo para continuar/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Abrir ahora" })).toBeNull();
+  });
+
   it.each([
     ["sin PRO", baseStatus({ is_pro: false }), "Privé es parte de IATOS PRO"],
     ["sin 90 días", baseStatus({ tenure_days: 30 }), "Aún no es momento"],
