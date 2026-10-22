@@ -41,3 +41,61 @@ describe("enforceSources", () => {
     expect(sameName("Torre Eiffel", "Louvre")).toBe(false);
   });
 });
+
+describe("enforceSources: vuelos y hoteles contra las listas en vivo (B-05)", () => {
+  const live = {
+    fxUsd: 20,
+    consultedAt: "2026-10-22T10:00:00Z",
+    tpFlights: [{ price: 500, booking_link: "https://www.aviasales.com/x?marker=533299" }],
+    googleFlights: [{ price_per_person_usd: 900, buy_url: "https://www.aviasales.com/search/x" }],
+  };
+
+  it("un vuelo 'travelpayouts' inventado pasa a estimado; uno real se queda", () => {
+    const a = {
+      vuelos: [
+        { tier: "ahorro", precio_por_persona: 10000, fuente_precio: "travelpayouts" }, // 500 × 20
+        { tier: "equilibrio", precio_por_persona: 13000, fuente_precio: "travelpayouts" }, // no está en la lista
+        { tier: "premium", precio_por_persona: 18100, fuente_precio: "serpapi" }, // 900 × 20 (±3 %)
+      ],
+    };
+    enforceSources(a, [], [], "tripadvisor", live);
+    expect(a.vuelos.map((v: any) => v.fuente_precio)).toEqual(["travelpayouts", "estimado", "serpapi"]);
+    expect(a.vuelos.map((v: any) => v.estado_dato)).toEqual(["CONSULTADO_EN_VIVO", "ESTIMADO", "CONSULTADO_EN_VIVO"]);
+    expect((a.vuelos[0] as any).consultado_at).toBe("2026-10-22T10:00:00Z");
+    expect((a.vuelos[1] as any).consultado_at).toBeUndefined();
+  });
+
+  it("sin listas en vivo ninguna etiqueta del modelo sobrevive", () => {
+    const a = { vuelos: [{ precio_por_persona: 10000, fuente_precio: "travelpayouts" }], hospedaje: [{ nombre: "Real Hotel", precio_por_noche: 3000, fuente_precio: "travelpayouts" }] };
+    enforceSources(a, [], [{ name: "Real Hotel", nightly_usd: 150 }], "tripadvisor");
+    expect(a.vuelos[0].fuente_precio).toBe("estimado");
+    // Travelpayouts ya no trae hoteles: esa etiqueta nunca es real.
+    expect(a.hospedaje[0].fuente_precio).toBe("estimado");
+  });
+
+  it("tarifa de Travelpayouts con fechas aproximadas queda como ESTIMADO", () => {
+    const a = { vuelos: [{ precio_por_persona: 10000, fuente_precio: "travelpayouts" }] };
+    enforceSources(a, [], [], "tripadvisor", { ...live, tpApproximateDates: true });
+    expect(a.vuelos[0]).toMatchObject({ fuente_precio: "travelpayouts", approximate_dates: true, estado_dato: "ESTIMADO" });
+  });
+
+  it("hotel 'serpapi' con nombre de la lista pero precio distinto pasa a estimado", () => {
+    const a = { hospedaje: [
+      { nombre: "Hotel de Jobo", precio_por_noche: 3000, fuente_precio: "serpapi" }, // 150 × 20
+      { nombre: "Hotel de Jobo", precio_por_noche: 4500, fuente_precio: "serpapi" },
+    ] };
+    enforceSources(a, [], [{ name: "Hôtel de JoBo", nightly_usd: 150 }], "tripadvisor", live);
+    expect(a.hospedaje.map((h: any) => h.fuente_precio)).toEqual(["serpapi", "estimado"]);
+  });
+
+  it("sin fuente → estimado (nunca un precio sin etiqueta)", () => {
+    const a = { vuelos: [{ precio_por_persona: 1 }], hospedaje: [{ nombre: "X Y" }], tours: [{ nombre: "Z" }] };
+    enforceSources(a, [], [], "tripadvisor", live);
+    expect([a.vuelos[0], a.hospedaje[0]].map((x: any) => x.fuente_precio)).toEqual(["estimado", "estimado"]);
+    expect((a.tours[0] as any).fuente).toBe("estimado");
+  });
+
+  it("'Hotel' ya no coincide con cualquier hotel", () => {
+    expect(sameName("Hotel", "Hôtel de JoBo")).toBe(false);
+  });
+});

@@ -1,46 +1,67 @@
-// Tipo de cambio USD→MXN en vivo (frankfurter.app) con cache de 6h y fallback seguro.
-// NUNCA hardcodear un tipo de cambio en edge functions: importar getUsdMxnRate() de aquí.
+// Tipo de cambio USD→MXN y EUR→MXN en vivo (frankfurter.app, datos del Banco Central Europeo)
+// con caché de 6 h y respaldo. NUNCA hardcodear un tipo de cambio en edge functions: importar de aquí.
+//
+// getUsdMxnRateInfo()/getEurMxnRateInfo() dicen además DE DÓNDE salió la tasa y CUÁNDO, para
+// guardarlo con la cotización. Antes, si frankfurter fallaba, se usaba 20.5 sin avisar a nadie.
+// getUsdMxnRate()/getEurMxnRate() conservan la firma anterior (solo el número).
 
 const FX_TTL_MS = 6 * 60 * 60 * 1000;
-const USD_MXN_FALLBACK = 20.5;
 
-let fxCache: { rate: number; fetchedAt: number } | null = null;
+/** Tasas de respaldo aproximadas (solo si la API no responde). Valores que ya usaba el código. */
+export const FX_FALLBACK = {
+  USD: 20.5,
+  EUR: 22,
+  /** Fecha en que se fijó esta tabla (se muestra junto a la tasa). */
+  as_of: "2026-10-22",
+} as const;
 
-export async function getUsdMxnRate(): Promise<number> {
+export type FxInfo = {
+  rate: number;
+  /** "frankfurter" (en vivo) o "fallback" (tabla fija de arriba). */
+  source: "frankfurter" | "fallback";
+  /** Fecha de la tasa: la que publica el proveedor, o la fecha de la tabla de respaldo. */
+  fetched_at: string;
+  is_fallback: boolean;
+};
+
+const RANGES: Record<"USD" | "EUR", [number, number]> = { USD: [10, 40], EUR: [12, 45] };
+const caches: Partial<Record<"USD" | "EUR", { info: FxInfo; at: number }>> = {};
+
+async function rateInfo(from: "USD" | "EUR"): Promise<FxInfo> {
   const now = Date.now();
-  if (fxCache && now - fxCache.fetchedAt < FX_TTL_MS) return fxCache.rate;
+  const cached = caches[from];
+  if (cached && now - cached.at < FX_TTL_MS) return cached.info;
   try {
-    const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=MXN");
+    const r = await fetch(`https://api.frankfurter.app/latest?from=${from}&to=MXN`, { signal: AbortSignal.timeout(8000) });
     if (!r.ok) throw new Error(`fx ${r.status}`);
     const j = await r.json();
     const rate = Number(j?.rates?.MXN);
-    if (!Number.isFinite(rate) || rate < 10 || rate > 40) {
-      console.warn("fx rate out of range or invalid:", rate);
-      return USD_MXN_FALLBACK;
-    }
-    fxCache = { rate, fetchedAt: now };
-    return rate;
+    const [min, max] = RANGES[from];
+    if (!Number.isFinite(rate) || rate < min || rate > max) throw new Error(`tasa fuera de rango: ${rate}`);
+    // frankfurter publica la fecha de la tasa (día hábil del BCE).
+    const date = typeof j?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(j.date) ? `${j.date}T00:00:00Z` : new Date(now).toISOString();
+    const info: FxInfo = { rate, source: "frankfurter", fetched_at: date, is_fallback: false };
+    caches[from] = { info, at: now };
+    return info;
   } catch (e) {
-    console.warn("fx fetch failed, using fallback:", (e as Error).message);
-    return USD_MXN_FALLBACK;
+    console.warn(`fx ${from}→MXN falló, usando respaldo:`, (e as Error).message);
+    return { rate: FX_FALLBACK[from], source: "fallback", fetched_at: `${FX_FALLBACK.as_of}T00:00:00Z`, is_fallback: true };
   }
 }
 
-// EUR→MXN derivado vía USD (frankfurter EUR->MXN directo, mismo cache pattern).
-let eurCache: { rate: number; fetchedAt: number } | null = null;
+export const getUsdMxnRateInfo = () => rateInfo("USD");
+export const getEurMxnRateInfo = () => rateInfo("EUR");
+
+export async function getUsdMxnRate(): Promise<number> {
+  return (await getUsdMxnRateInfo()).rate;
+}
 
 export async function getEurMxnRate(): Promise<number> {
-  const now = Date.now();
-  if (eurCache && now - eurCache.fetchedAt < FX_TTL_MS) return eurCache.rate;
-  try {
-    const r = await fetch("https://api.frankfurter.app/latest?from=EUR&to=MXN");
-    if (!r.ok) throw new Error(`fx ${r.status}`);
-    const j = await r.json();
-    const rate = Number(j?.rates?.MXN);
-    if (!Number.isFinite(rate) || rate < 12 || rate > 45) return 22;
-    eurCache = { rate, fetchedAt: now };
-    return rate;
-  } catch {
-    return 22;
-  }
+  return (await getEurMxnRateInfo()).rate;
+}
+
+/** Solo para pruebas: vacía la caché en memoria. */
+export function __resetFxCache() {
+  delete caches.USD;
+  delete caches.EUR;
 }

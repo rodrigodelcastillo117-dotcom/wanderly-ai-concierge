@@ -12,14 +12,50 @@ export function hotelPreference(notas: unknown): string {
 
 const normName = (v: unknown) =>
   String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+// Igualdad, o que el nombre corto (de al menos 2 palabras) esté dentro del largo. Antes bastaba
+// "contiene" en cualquier sentido: "Hotel" coincidía con cualquier hotel de la lista.
 export const sameName = (a: unknown, b: unknown) => {
   const x = normName(a), y = normName(b);
-  return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
+  if (!x || !y) return false;
+  if (x === y) return true;
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  return short.split(" ").length >= 2 && ` ${long} `.includes(` ${short} `);
 };
 
-// La IA debe copiar lugares y hoteles de las listas en vivo. Si un nombre no está en la lista,
-// no puede llevar la etiqueta de esa fuente (sería presentar una invención como dato real).
-export function enforceSources(a: any, places: any[], hotels: any[], placesSource: string) {
+/** ¿Dos precios coinciden dentro de la tolerancia relativa? */
+export const samePrice = (a: unknown, b: unknown, tolerance = 0.03) => {
+  const x = Number(a), y = Number(b);
+  if (!(x > 0) || !(y > 0)) return false;
+  return Math.abs(x - y) / y <= tolerance;
+};
+
+export type LiveFlightLists = {
+  /** travelpayouts-flights: `price` USD por persona. */
+  tpFlights?: Array<{ price?: number; booking_link?: string }>;
+  tpApproximateDates?: boolean;
+  /** flights-search (Google Flights): `price_per_person_usd`. */
+  googleFlights?: Array<{ price_per_person_usd?: number; buy_url?: string }>;
+  /** Tipo de cambio con el que se le dieron los precios al modelo. */
+  fxUsd: number;
+  /** Cuándo se consultaron las listas en vivo (ISO). */
+  consultedAt?: string;
+};
+
+const LIVE_FLIGHT_LABELS = new Set(["travelpayouts", "serpapi", "google_flights", "aviasales"]);
+const LIVE_HOTEL_LABELS = new Set(["serpapi", "travelpayouts", "google_hotels"]);
+
+// La IA debe copiar lugares, hoteles y vuelos de las listas en vivo. Si un nombre o un precio no
+// está en la lista, no puede llevar la etiqueta de esa fuente (sería presentar una invención como
+// dato real). La etiqueta la decide el servidor, no el modelo.
+export function enforceSources(
+  a: any,
+  places: any[],
+  hotels: any[],
+  placesSource: string,
+  live: LiveFlightLists = { fxUsd: 0 },
+) {
+  const consultadoAt = live.consultedAt ?? new Date().toISOString();
+
   for (const t of Array.isArray(a?.tours) ? a.tours : []) {
     if ((t?.fuente === "google_maps" || t?.fuente === "tripadvisor") && !places.some((p) => sameName(p?.name, t?.nombre))) {
       t.fuente = "estimado";
@@ -27,9 +63,61 @@ export function enforceSources(a: any, places: any[], hotels: any[], placesSourc
       t.num_reviews = null;
     } else if (t?.fuente === "tripadvisor" || t?.fuente === "google_maps") {
       t.fuente = placesSource;
+    } else if (!t?.fuente) {
+      t.fuente = "estimado";
+    }
+    // El lugar puede ser real, pero el precio del tour siempre es una estimación.
+    if (t && typeof t === "object") t.estado_dato = "ESTIMADO";
+  }
+
+  for (const h of Array.isArray(a?.hospedaje) ? a.hospedaje : []) {
+    if (!h || typeof h !== "object") continue;
+    const label = String(h.fuente_precio ?? "").toLowerCase();
+    let ok = false;
+    if (LIVE_HOTEL_LABELS.has(label) && label !== "travelpayouts") {
+      // Nombre de la lista Y precio por noche igual (±5 %) al de la lista convertido a MXN.
+      ok = hotels.some((x) => sameName(x?.name, h.nombre) &&
+        (!(live.fxUsd > 0) || !(Number(h.precio_por_noche) > 0) || samePrice(h.precio_por_noche, Number(x?.nightly_usd) * live.fxUsd, 0.05)));
+    }
+    // Travelpayouts ya no trae hoteles (Hotellook cerró): esa etiqueta nunca es real.
+    if (ok) {
+      h.fuente_precio = "serpapi";
+      h.estado_dato = "CONSULTADO_EN_VIVO";
+      h.consultado_at = consultadoAt;
+    } else {
+      if (label !== "perplexity") h.fuente_precio = "estimado";
+      h.estado_dato = "ESTIMADO";
+      delete h.consultado_at;
     }
   }
-  for (const h of Array.isArray(a?.hospedaje) ? a.hospedaje : []) {
-    if (h?.fuente_precio === "serpapi" && !hotels.some((x) => sameName(x?.name, h?.nombre))) h.fuente_precio = "estimado";
+
+  for (const v of Array.isArray(a?.vuelos) ? a.vuelos : []) {
+    if (!v || typeof v !== "object") continue;
+    const label = String(v.fuente_precio ?? "").toLowerCase();
+    const ppMxn = Number(v.precio_por_persona) || 0;
+    const fx = live.fxUsd;
+    let matched: "travelpayouts" | "serpapi" | null = null;
+    if (LIVE_FLIGHT_LABELS.has(label) && fx > 0 && ppMxn > 0) {
+      const tpHit = (live.tpFlights ?? []).some((f) => samePrice(ppMxn, Number(f?.price) * fx));
+      const gfHit = (live.googleFlights ?? []).some((f) => samePrice(ppMxn, Number(f?.price_per_person_usd) * fx));
+      // Respeta la fuente declarada si coincide; si el precio está en la otra lista, se corrige.
+      if (label === "travelpayouts" || label === "aviasales") matched = tpHit ? "travelpayouts" : gfHit ? "serpapi" : null;
+      else matched = gfHit ? "serpapi" : tpHit ? "travelpayouts" : null;
+    }
+    if (matched) {
+      v.fuente_precio = matched;
+      v.consultado_at = consultadoAt;
+      if (matched === "travelpayouts" && live.tpApproximateDates) {
+        // Tarifa del mismo mes, no de la fecha exacta: es una aproximación.
+        v.approximate_dates = true;
+        v.estado_dato = "ESTIMADO";
+      } else {
+        v.estado_dato = "CONSULTADO_EN_VIVO";
+      }
+    } else {
+      if (label !== "perplexity") v.fuente_precio = "estimado";
+      v.estado_dato = "ESTIMADO";
+      delete v.consultado_at;
+    }
   }
 }
