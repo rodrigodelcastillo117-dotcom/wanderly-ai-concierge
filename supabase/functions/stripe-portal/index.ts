@@ -2,6 +2,7 @@
 import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { adminClient } from "../_shared/entitlements.ts";
+import { safeOrigin } from "../_shared/origin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +27,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const origin = (body?.origin as string) ?? req.headers.get("origin") ?? "https://traveliatos.life";
+    // Solo regresamos a dominios propios (antes se usaba cualquier origin del cuerpo).
+    const origin = safeOrigin(body?.origin ?? req.headers.get("origin"));
 
     const { data: sub } = await adminClient()
       .from("subscriptions")

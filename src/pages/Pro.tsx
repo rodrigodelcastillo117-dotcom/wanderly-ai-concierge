@@ -48,7 +48,9 @@ export default function Pro() {
     ? "PRO de cortesía · acceso permanente"
     : isTrialing
       ? `En periodo de prueba · ${trialDaysLeft ?? 0} días restantes`
-      : subscription?.status === "active"
+      : subscription?.status === "past_due"
+        ? "Pago pendiente · actualiza tu tarjeta en “Gestionar suscripción” para recuperar PRO"
+        : subscription?.status === "active"
         ? cancelAtPeriodEnd
           ? `Activa hasta el ${fmtDate(subscription?.current_period_end)} (cancelación programada)`
           : `Activa · se renueva el ${fmtDate(subscription?.current_period_end)}`
@@ -115,7 +117,9 @@ export default function Pro() {
                 </div>
               ) : subscription?.stripe_customer_id && (isPro || subscription?.status) ? (
                 <div className="flex flex-col sm:flex-row gap-3">
-                  {!isPro && (
+                  {/* Con pago pendiente no se contrata otra suscripción (el servidor la rechaza): se
+                      actualiza la tarjeta en el portal. */}
+                  {!isPro && subscription?.status !== "past_due" && (
                     <button
                       onClick={() => run("checkout", startCheckout)}
                       disabled={busy !== null}
