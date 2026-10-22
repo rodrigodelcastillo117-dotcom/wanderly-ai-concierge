@@ -26,13 +26,14 @@ import {
 } from "./context.ts";
 import { chatError, type ChatErrorCode, modelHttpErrorCode, toolErrorCode } from "./errors.ts";
 import { redactPii } from "../_shared/redact.ts";
+import { runSearchPrive, SEARCH_PRIVE_TOOL } from "./prive.ts";
 
 declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-prive-session, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -125,6 +126,8 @@ const TOOLS = [
       },
     },
   },
+  // IATOS Privé: catálogo verificado + planificador (prive.ts). Con la sesión Privé del cliente.
+  SEARCH_PRIVE_TOOL,
 ];
 
 const TOOL_FUNCTIONS: Record<string, string> = {
@@ -442,7 +445,12 @@ Deno.serve(async (req) => {
       if (tokens) modelUsage.push({ user_id: u.user.id, function: "concierge-chat", provider, model: typeof data?.model === "string" ? data.model : model, ...tokens });
       return data?.choices?.[0]?.message ?? null;
     };
-    const execTool = makeToolExecutor((name, mapped) => callTool(name, mapped, authHeader), { todayISO, coords });
+    // search_prive llama a la RPC con el JWT del usuario y su sesión Privé (encabezado x-prive-session);
+    // sin sesión válida responde {available:false} sin nombres de lugares.
+    const priveSession = req.headers.get("x-prive-session");
+    const execTool = makeToolExecutor((name, mapped) => name === "search_prive"
+      ? runSearchPrive(mapped, { rpc: (fn, params) => supabase.rpc(fn, params) as any, priveSession, todayISO })
+      : callTool(name, mapped, authHeader), { todayISO, coords });
 
     let loop;
     try {
