@@ -136,6 +136,9 @@ verify_jwt = true
 [functions.suggest-restaurants]
 verify_jwt = true
 
+[functions.tag-moment]
+verify_jwt = true
+
 [functions.track-flight]
 verify_jwt = true
 

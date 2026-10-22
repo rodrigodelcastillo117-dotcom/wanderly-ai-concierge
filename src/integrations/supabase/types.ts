@@ -3505,30 +3505,59 @@ export type Database = {
       }
       travel_moments: {
         Row: {
+          ai_tag_status: string
+          ai_tagged_at: string | null
+          ai_tags: Json | null
           caption: string | null
           created_at: string
+          destino: string | null
           id: string
           image_url: string
+          place_name: string | null
+          tags: string[]
+          trip_id: string | null
           trip_name: string | null
           user_id: string
         }
         Insert: {
+          ai_tag_status?: string
+          ai_tagged_at?: string | null
+          ai_tags?: Json | null
           caption?: string | null
           created_at?: string
+          destino?: string | null
           id?: string
           image_url: string
+          place_name?: string | null
+          tags?: string[]
+          trip_id?: string | null
           trip_name?: string | null
           user_id: string
         }
         Update: {
+          ai_tag_status?: string
+          ai_tagged_at?: string | null
+          ai_tags?: Json | null
           caption?: string | null
           created_at?: string
+          destino?: string | null
           id?: string
           image_url?: string
+          place_name?: string | null
+          tags?: string[]
+          trip_id?: string | null
           trip_name?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "travel_moments_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       travel_profiles: {
         Row: {
