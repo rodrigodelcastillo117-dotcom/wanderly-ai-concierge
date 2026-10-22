@@ -1,0 +1,19 @@
+{
+ "ms": 42281,
+ "req": {
+  "destino": "Cancún",
+  "pais_destino": "México",
+  "ciudad_origen": "Ciudad de México",
+  "fecha_salida": "2027-03-20",
+  "fecha_regreso": "2027-03-25",
+  "num_viajeros": 4,
+  "presupuesto_objetivo": null,
+  "trip_id": "a2e38523-d1e3-44d0-8e53-6700663edfa3"
+ },
+ "status": 200,
+ "ui": {
+  "url": "/dashboard/viajes/a2e38523-d1e3-44d0-8e53-6700663edfa3",
+  "toasts": [],
+  "dialogs": []
+ }
+}

@@ -6,7 +6,8 @@ import { Heart, MapPin, X, Star, Sparkles, Loader2, Navigation, Check } from "lu
 import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
-import { placePhotoUrl } from "@/lib/googleMaps";
+import { PlacePhoto } from "@/components/PlacePhoto";
+import { bestPlaceTypeLabel, placeFamily, priceLevelLabel } from "@/lib/placeLabels";
 import { loadGoogleMaps } from "@/lib/googleMapsLoader";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { RoutesPanel } from "@/components/RoutesPanel";
@@ -130,7 +131,7 @@ const Cercanos = () => {
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [foodDna, setFoodDna] = useState<FoodDNA>(null);
-  const [places, setPlaces] = useState<EnrichedPlace[]>([]);
+  const [rawPlaces, setRawPlaces] = useState<NearbyPlace[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeType, setActiveType] = useState<string>("restaurant");
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -173,7 +174,9 @@ const Cercanos = () => {
     );
   }, []);
 
-  // Fetch nearby cuando hay ubicación + tipo
+  // Fetch nearby cuando hay ubicación + tipo. Solo depende de eso: antes también dependía del
+  // food_dna y de los visitados, y cada vez que llegaban se volvía a llamar a Google (2 búsquedas
+  // pagadas por cada visita a la pantalla). El orden "para ti" se calcula aparte, sin red.
   const fetchNearby = useCallback(async () => {
     if (!userLoc) return;
     setLoading(true);
@@ -183,29 +186,31 @@ const Cercanos = () => {
       });
       if (error) throw error;
       const raw = (data?.results ?? []) as NearbyPlace[];
-      const enriched: EnrichedPlace[] = raw
-        .filter((p) => typeof p.lat === "number" && typeof p.lng === "number")
-        .map((p) => {
-          const cuisine = detectCuisine(p.types, p.primary_type, p.name);
-          const score = scorePlace(p, cuisine, foodDna);
-          const for_you = !!(foodDna?.top_cuisines?.some((c) => c.key === cuisine && c.count >= 1));
-          return { ...p, cuisine, visited: visited.has(p.placeId), match_score: score, for_you };
-        })
-        .sort((a, b) => b.match_score - a.match_score);
-      setPlaces(enriched);
+      setRawPlaces(raw.filter((p) => typeof p.lat === "number" && typeof p.lng === "number"));
     } catch (e: any) {
       toast.error(e?.message ?? "No pudimos cargar lugares cercanos");
     } finally {
       setLoading(false);
     }
-  }, [userLoc, activeType, foodDna, visited]);
+  }, [userLoc, activeType]);
 
   useEffect(() => { fetchNearby(); }, [fetchNearby]);
 
-  // Refresca el flag visited cuando cambia el set
-  useEffect(() => {
-    setPlaces((prev) => prev.map((p) => ({ ...p, visited: visited.has(p.placeId) })));
-  }, [visited]);
+  // Cocina, "para ti" y visitados: se recalculan en el cliente cuando cambian (sin volver a Google).
+  const places: EnrichedPlace[] = useMemo(() => rawPlaces
+    .map((p) => {
+      const cuisine = detectCuisine(p.types, p.primary_type, p.name);
+      const score = scorePlace(p, cuisine, foodDna);
+      const for_you = !!(foodDna?.top_cuisines?.some((c) => c.key === cuisine && c.count >= 1));
+      return { ...p, cuisine, visited: visited.has(p.placeId), match_score: score, for_you };
+    })
+    .sort((a, b) => b.match_score - a.match_score), [rawPlaces, foodDna, visited]);
+
+  const openPlace = (p: EnrichedPlace) => {
+    setShowRoute(false);
+    setSelected(p);
+    logInsight("viewed", "restaurant", p.name ?? "", { placeId: p.placeId, cuisine: p.cuisine });
+  };
 
   // Inicializar / actualizar mapa y pins
   useEffect(() => {
@@ -251,11 +256,7 @@ const Cercanos = () => {
         icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: p.for_you ? 11 : 9,
           fillColor: color, fillOpacity: 1, strokeColor: PIN_GOLD, strokeWeight: 2 },
       });
-      marker.addListener("click", () => {
-        setShowRoute(false);
-        setSelected(p);
-        logInsight("viewed", "restaurant", p.name ?? "", { placeId: p.placeId, cuisine: p.cuisine });
-      });
+      marker.addListener("click", () => openPlace(p));
       markers.current.set(p.placeId, marker);
       bounds.extend({ lat: p.lat, lng: p.lng });
     });
@@ -354,6 +355,37 @@ const Cercanos = () => {
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-primary" /> Visitado</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: PIN_FORYOU }} /> Para ti</span>
         </p>
+
+        {/* Lista de lugares: funciona aunque el mapa no cargue (el aviso del mapa lo promete) y
+            con teclado/lector de pantalla, que no pueden usar los pines. */}
+        {places.length > 0 && (
+          <ul className="mt-6 grid sm:grid-cols-2 gap-3" aria-label="Lugares cercanos">
+            {places.map((p) => {
+              const price = priceLevelLabel(p.price_level);
+              return (
+                <li key={p.placeId}>
+                  <button type="button" data-testid="nearby-card" onClick={() => openPlace(p)}
+                    className="w-full text-left glass-card rounded-xl p-4 hover:border-primary/50 border border-transparent transition">
+                    <p className="text-[10px] text-primary tracking-[0.2em] uppercase mb-1 flex items-center gap-2">
+                      {bestPlaceTypeLabel(p.primary_type, p.types)}
+                      {p.for_you && <span className="normal-case tracking-normal text-[#E94E77]">· Para ti</span>}
+                      {p.visited && <span className="normal-case tracking-normal">· Visitado</span>}
+                    </p>
+                    <p className="font-display text-lg leading-tight truncate">{p.name ?? "Lugar sin nombre"}</p>
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+                      {typeof p.rating === "number" && (
+                        <span className="flex items-center gap-1 text-foreground"><Star className="w-3 h-3 fill-primary text-primary" aria-hidden="true" />{p.rating.toFixed(1)}</span>
+                      )}
+                      {price && <span>{price}</span>}
+                      {p.open_now === true && <span className="text-emerald-400">Abierto ahora</span>}
+                      {p.open_now === false && <span className="text-red-400">Cerrado</span>}
+                    </p>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       {/* Bottom sheet */}
@@ -371,33 +403,26 @@ const Cercanos = () => {
               className="fixed inset-x-0 bottom-0 z-50 md:inset-x-auto md:right-8 md:bottom-8 md:max-w-md max-h-[85vh] overflow-y-auto"
             >
               <div className="glass-card rounded-t-3xl md:rounded-3xl border border-primary/30 premium-shadow overflow-hidden">
-                {selected.photo_ref && (
-                  <div className="relative h-44 w-full bg-surface">
-                    <img
-                      src={placePhotoUrl(selected.photo_ref, 800)}
-                      alt={selected.name ?? ""}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                    {selected.for_you && (
-                      <div className="absolute top-3 left-3 bg-[#E94E77] text-white text-[10px] tracking-widest uppercase px-2 py-1 rounded-full flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> Para ti
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="relative">
+                  <PlacePhoto photoRef={selected.photo_ref} name={selected.name ?? "este lugar"}
+                    family={placeFamily(selected.primary_type, selected.types)} />
+                  {selected.for_you && (
+                    <div className="absolute top-3 left-3 bg-[#E94E77] text-white text-[10px] tracking-widest uppercase px-2 py-1 rounded-full flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" /> Para ti
+                    </div>
+                  )}
+                </div>
                 <div className="p-6">
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="min-w-0">
                       <p className="text-xs text-primary tracking-[0.2em] uppercase mb-1">
-                        {selected.cuisine ?? selected.primary_type ?? "Lugar"}
+                        {bestPlaceTypeLabel(selected.primary_type, selected.types)}
                       </p>
                       <h3 className="font-display text-2xl leading-tight">{selected.name}</h3>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={() => toggleFav(selected)}
-                        className="p-2 rounded-full bg-surface hover:bg-surface-elevated transition" aria-label="Favorito">
+                        className="p-2 rounded-full bg-surface hover:bg-surface-elevated transition" aria-label={favorited.has(selected.placeId) ? "Quitar de favoritos" : "Agregar a favoritos"}>
                         <Heart className={`w-4 h-4 ${favorited.has(selected.placeId) ? "fill-primary text-primary" : "text-foreground"}`} />
                       </button>
                       <button onClick={() => { setSelected(null); setShowRoute(false); }}
@@ -413,10 +438,10 @@ const Cercanos = () => {
                       <span className="flex items-center gap-1 text-foreground">
                         <Star className="w-3 h-3 fill-primary text-primary" />
                         {selected.rating.toFixed(1)}
-                        <span className="text-muted-foreground">({selected.ratings_count})</span>
+                        <span className="text-muted-foreground">({selected.ratings_count.toLocaleString("es-MX")} reseñas)</span>
                       </span>
                     )}
-                    {selected.price_level && <span>{selected.price_level.replace("PRICE_LEVEL_", "").toLowerCase()}</span>}
+                    {priceLevelLabel(selected.price_level) && <span>{priceLevelLabel(selected.price_level)}</span>}
                     {selected.open_now === true && <span className="text-emerald-400">Abierto ahora</span>}
                     {selected.open_now === false && <span className="text-red-400">Cerrado</span>}
                   </div>

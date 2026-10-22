@@ -1,0 +1,106 @@
+{
+ "account": "B",
+ "results": [
+  {
+   "n": 1,
+   "msg": "Hola Iato, ¿qué ropa me recomiendas llevar a Puebla en diciembre?",
+   "status": 200,
+   "code": null,
+   "ms": 20385,
+   "headerBefore": "PLAN GRATUITO",
+   "headerAfter": "PLAN GRATUITO",
+   "reply": "Para tu viaje a Puebla del 12 al 14 de diciembre, la clave es vestirse en capas. Durante el día el clima es templado y soleado (alrededor de 21 °C), ideal para prendas ligeras con un suéter liviano; sin embargo, al caer la tarde y por la noche refresca con fuerza (baja a unos 7 °C), por lo que un abrigo estructurado o chamarra abrigadora y una pashmina serán indispensables.\n\nTe recomiendo calzado cómodo con buen soporte para recorrer a pie las calles empedradas del Centro Histórico y el Callejón de los Sapos sin perder el estilo. Para cenas en lugares como Augurio o El Mural de los Poblanos, un código *smart casual* es perfecto.",
+   "tools": null,
+   "otherFns": [],
+   "dialogs": [],
+   "toasts": [],
+   "techErr": false,
+   "rawKeys": [
+    "text",
+    "cards",
+    "_tools_used",
+    "_gaps",
+    "_trip_id",
+    "_trip_reason",
+    "_trip_candidates",
+    "_today"
+   ]
+  },
+  {
+   "n": 2,
+   "msg": "¿Qué platillo típico de Puebla no me debo perder?",
+   "status": 200,
+   "code": null,
+   "ms": 17218,
+   "headerBefore": "PLAN GRATUITO",
+   "headerAfter": "PLAN GRATUITO",
+   "reply": "Para tu viaje a Puebla, el estandarte culinario indiscutible es el mole poblano tradicional: complejo, aromático y con el balance justo entre cacao, especias y chiles secos. Te sugiero también probar el pipián verde elaborado con pepita de calabaza y, en un registro más casual de media tarde, una auténtica cemita con quesillo y pápalo fresco (recuerda que los chiles en nogada son estrictamente de temporada julio-septiembre).",
+   "tools": null,
+   "otherFns": [],
+   "dialogs": [],
+   "toasts": [],
+   "techErr": false,
+   "rawKeys": [
+    "text",
+    "cards",
+    "_tools_used",
+    "_gaps",
+    "_trip_id",
+    "_trip_reason",
+    "_trip_candidates",
+    "_today"
+   ]
+  },
+  {
+   "n": 3,
+   "msg": "¿Cuánto tiempo necesito para visitar Cholula?",
+   "status": 200,
+   "code": null,
+   "ms": 69484,
+   "headerBefore": "PLAN GRATUITO",
+   "headerAfter": "PLAN GRATUITO",
+   "reply": "La búsqueda en vivo de lugares no está disponible en este momento, así que no te muestro opciones como si fueran reales. Para tu viaje a Puebla, lo ideal es dedicarle **medio día (entre 4 y 5 horas)** a Cholula, aprovechando que se encuentra a solo 25 o 30 minutos en auto desde el centro de la ciudad. \n\nEse tiempo te permite subir con calma al Santuario de la Virgen de los Remedios —ubicado en la cima de la Gran Pirámide— para disfrutar de la vista panorámica del Popocatépetl, recorrer el zócalo de San Pedro y tomar un café o aperitivo en los portales.\n\nSi deseas extender la experiencia a un **día completo (6 a 7 horas)**, te sugiero sumar las iglesias de Santa María Tonantzintla y San Francisco Acatepec, dos de las máximas joyas del barroco indígena novohispano, y cerrar con una comida relajada en la zona.",
+   "tools": null,
+   "otherFns": [],
+   "dialogs": [],
+   "toasts": [],
+   "techErr": false,
+   "rawKeys": [
+    "text",
+    "cards",
+    "_tools_used",
+    "_gaps",
+    "_trip_id",
+    "_trip_reason",
+    "_trip_candidates",
+    "_today"
+   ]
+  },
+  {
+   "n": 4,
+   "msg": "¿Y qué museo me recomiendas en Puebla?",
+   "status": 402,
+   "code": "FREE_LIMIT_REACHED",
+   "ms": 4076,
+   "headerBefore": "PLAN GRATUITO",
+   "headerAfter": "PLAN GRATUITO",
+   "reply": "Has utilizado tus mensajes gratuitos de Iato de este mes. Se renuevan el 1 de noviembre de 2026. Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.",
+   "tools": null,
+   "otherFns": [],
+   "dialogs": [
+    "Usaste tus mensajes gratuitos\n\nHas utilizado tus mensajes gratuitos de Iato de este mes. Se renuevan el 1 de noviembre de 2026. Puedes seguir usando las funciones gratuitas o activar IATOS PRO por $99 MXN al mes, IVA incluido, sujeto a las condiciones vigentes.\n\nContinuar con la versión gratuita\nConocer IATOS PRO\nClose"
+   ],
+   "toasts": [],
+   "techErr": false,
+   "rawKeys": [
+    "code",
+    "quota",
+    "limit",
+    "used",
+    "renews_at",
+    "upgrade_available",
+    "message"
+   ]
+  }
+ ]
+}

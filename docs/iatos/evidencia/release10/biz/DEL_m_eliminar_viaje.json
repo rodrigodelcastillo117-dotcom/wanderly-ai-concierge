@@ -1,0 +1,14 @@
+{
+ "rest": [
+  {
+   "status": 409,
+   "body": "{\"code\":\"23505\",\"details\":\"Key (user_id)=(63751b37-9dfe-46bb-9ee1-65c9da2605d6) already exists.\",\"hint\":null,\"message\":\"duplicate key value violates unique constraint \\\"uq_conv_user_general\\\"\"}"
+  }
+ ],
+ "ui": {
+  "url": "/dashboard/viajes/997a1aba-3fe0-482d-bcdd-ef797d000cb1/editar",
+  "toasts": [
+   "No pudimos completar la acción. Intenta de nuevo."
+  ]
+ }
+}

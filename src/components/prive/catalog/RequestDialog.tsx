@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PriveLockedError, usePriveCatalog, type PriveExperience } from "@/lib/priveCatalogApi";
+import { requestedForIso } from "@/lib/priveCatalogView";
 
 /** Solicitar con Iato: crea una SOLICITUD que revisa el equipo. Nunca dice "reservado". */
 export function RequestDialog({ e, open, onOpenChange, tripId, onLocked }: {
@@ -20,7 +21,7 @@ export function RequestDialog({ e, open, onOpenChange, tripId, onLocked }: {
   const send = async () => {
     setState("sending"); setError(null);
     try {
-      await api.request({ experienceId: e.id, title: e.name, requestedFor: date ? `${date}T${time || "20:00"}:00` : null,
+      await api.request({ experienceId: e.id, title: e.name, requestedFor: requestedForIso(date, time, e.destination?.timezone),
         partySize: party, preferences: prefs || null, tripId: tripId ?? null });
       setState("sent");
     } catch (err) {

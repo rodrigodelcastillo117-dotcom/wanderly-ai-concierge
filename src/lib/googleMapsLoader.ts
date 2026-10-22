@@ -59,7 +59,7 @@ function injectScript(key: string, channel?: string): Promise<void> {
     s.id = SCRIPT_ID;
     s.async = true;
     s.onerror = () => reject(new Error("No se pudo cargar Google Maps"));
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&loading=async&libraries=places&callback=${CALLBACK}${channel ? `&channel=${encodeURIComponent(channel)}` : ""}`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&loading=async&libraries=places&language=es&callback=${CALLBACK}${channel ? `&channel=${encodeURIComponent(channel)}` : ""}`;
     document.head.appendChild(s);
   });
 }
