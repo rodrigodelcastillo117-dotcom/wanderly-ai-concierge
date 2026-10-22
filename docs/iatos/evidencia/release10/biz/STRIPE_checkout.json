@@ -1,0 +1,14 @@
+{
+ "checkout": {
+  "status": 200,
+  "urlHost": "checkout.stripe.com",
+  "sessionPrefix": "cs_test_",
+  "trial_days": null
+ },
+ "stripePage": {
+  "testBadge": true,
+  "snippet": "Atrás\nEntorno de prueba de IATOS\nEntorno de prueba\nDetalles\nPrueba IATOS PRO\n30 días gratis\nLuego USD 5.49 por mes a partir del 21 de noviembre de 2026\nConcierge de viajes con IA sin límites: viajes, precios en vivo y alertas. Cancela cuando quieras.\nAgregar código\nUSD\nMXN\n1 MXN = 0.0554 USD. Los cargos variarán según los tipos de cambio.\n\nO BIEN\n\nCorreo electrónico\ne2e-free-b@<redactado>\nMétodo de pago\nTarjeta\nInformación de la tarjeta\nTipos de tarjeta aceptados: Visa y Mastercard\nCódigo de 3 dígitos en el reverso de la tarjeta\nNombre del titular de tarjeta\nDirección de"
+ },
+ "returnUrl": "https://traveliatos.life/dashboard/pro?checkout=success",
+ "returnMs": 8684
+}

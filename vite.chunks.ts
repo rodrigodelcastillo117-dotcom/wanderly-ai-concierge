@@ -1,0 +1,151 @@
+/**
+ * Reparto de node_modules en chunks "vendor" y guarda contra chunks circulares.
+ *
+ * Por qué existe (incidente de Smart Spend, oct 2026): en el build de producción (Lovable instala
+ * con bun.lockb → rollup 4.21) `vendor-charts` importaba de `vendor-3d` y `vendor-3d` de
+ * `vendor-charts`. Con un ciclo entre chunks, uno de los dos se evalúa antes de que el otro
+ * termine y la pestaña Smart Spend tronaba con "TypeError: ….x is not a function". La causa:
+ * la regla "d3-*" metía en las gráficas los paquetes d3 que solo usa el globo (d3-delaunay), y
+ * `delaunator` —que no estaba en ningún grupo y lo piden tanto d3-delaunay como
+ * three-conic-polygon-geometry— lo colocaba Rollup a su criterio: en 4.21 caía en vendor-3d, en
+ * 4.24 en vendor-charts. Un build local (npm) no tenía ciclo; el de producción sí.
+ *
+ * Reglas que evitan que vuelva a pasar, sin importar qué versión resuelva cada lockfile:
+ *  1. Cada grupo es "cerrado": sus paquetes solo dependen de paquetes del mismo grupo o de
+ *     grupos anteriores en la lista. Así Rollup no tiene que decidir a dónde va nada compartido.
+ *  2. Lo compartido entre las gráficas y el globo (toda la familia d3, internmap, delaunator,
+ *     robust-predicates) vive en UN solo chunk hoja (`vendor-d3`) que no importa a nadie.
+ *  3. El 3D (three, globe.gl, @react-three/…) ya no se fuerza a un chunk manual: solo lo usan
+ *     pantallas perezosas (RouteGlobe3D, TravelAvatar3D, MultiDestRoute) y Rollup lo reparte solo.
+ *  4. `chunkCycleGuard` hace FALLAR el build si dos chunks se importan entre sí (directa o
+ *     transitivamente). Mejor un build rojo que una pantalla rota en producción.
+ */
+
+// Paquetes de node_modules agrupados en chunks "vendor" estables (E-23 / IATOS-103). El navegador
+// los guarda en caché entre despliegues y lo pesado que solo usan algunas pantallas (gráficas,
+// PDF, analítica) nunca entra al paquete inicial. EL ORDEN IMPORTA: un grupo solo puede depender
+// de grupos anteriores (ver regla 1 arriba).
+export const VENDOR_GROUPS: [string, (pkg: string) => boolean][] = [
+  // React, el router y ayudantes diminutos que usan varias librerías a la vez. Si no se fijan
+  // aquí, Rollup los mete en el primer chunk que los pide (p. ej. clsx dentro de las gráficas) y
+  // el paquete inicial termina descargando las gráficas o el PDF completos.
+  ["vendor-core", (p) => [
+    "react", "react-dom", "scheduler", "react-router", "react-router-dom", "@remix-run/router", "use-sync-external-store",
+    "clsx", "prop-types", "react-is", "object-assign", "@babel/runtime", "tslib", "tiny-invariant",
+  ].includes(p)],
+  ["vendor-supabase", (p) => p.startsWith("@supabase/") || p === "iceberg-js"],
+  // Radix y lo que importa (el bloqueo de scroll y aria-hidden de los diálogos).
+  ["vendor-radix", (p) => p.startsWith("@radix-ui/") || p.startsWith("@floating-ui/") || p.startsWith("react-remove-scroll") || [
+    "aria-hidden", "react-style-singleton", "use-callback-ref", "use-sidecar", "get-nonce", "detect-node-es",
+  ].includes(p)],
+  ["vendor-motion", (p) => ["framer-motion", "motion-dom", "motion-utils"].includes(p)],
+  // Hoja compartida por las gráficas (recharts) y el globo (three-globe): la familia d3 completa y
+  // sus únicas dependencias. Ningún paquete de aquí importa algo fuera de este grupo.
+  ["vendor-d3", (p) => p.startsWith("d3-") || ["internmap", "delaunator", "robust-predicates"].includes(p)],
+  // recharts y TODO lo que importa (además de vendor-core y vendor-d3).
+  ["vendor-charts", (p) => [
+    "recharts", "recharts-scale", "react-smooth", "victory-vendor", "decimal.js-light",
+    "lodash", "eventemitter3", "fast-equals", "react-transition-group", "dom-helpers",
+  ].includes(p)],
+  // jsPDF y TODO lo que arrastra (canvg trae core-js, raf, etc.).
+  ["vendor-pdf", (p) => [
+    "jspdf", "jspdf-autotable", "html2canvas", "dompurify", "canvg", "fflate", "core-js", "fast-png", "iobuffer", "pako",
+    "performance-now", "raf", "rgbcolor", "stackblur-canvas", "svg-pathdata", "css-line-break", "text-segmentation", "utrie",
+    "base64-arraybuffer", "regenerator-runtime",
+  ].includes(p)],
+  ["vendor-posthog", (p) => p === "posthog-js" || p.startsWith("@posthog/") || [
+    "preact", "query-selector-shadow-dom", "web-vitals", "web-vitals-soft-navs",
+  ].includes(p)],
+  ["vendor-sentry", (p) => p.startsWith("@sentry/") || p.startsWith("@sentry-internal/")],
+];
+
+/** Nombre del paquete de node_modules al que pertenece un id de módulo ("@scope/pkg" o "pkg"). */
+export function packageOf(id: string): string | undefined {
+  const m = /.*node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(id.replace(/\\/g, "/"));
+  return m?.[1];
+}
+
+export function vendorChunk(id: string): string | undefined {
+  // Ayudantes que inyecta Vite/Rollup (precarga de import(), interop CommonJS).
+  if (/vite\/preload-helper|commonjsHelpers|vite\/modulepreload-polyfill/.test(id)) return "vendor-core";
+  const pkg = packageOf(id);
+  if (!pkg) return undefined;
+  return VENDOR_GROUPS.find(([, test]) => test(pkg))?.[0];
+}
+
+/** Lo mínimo de un chunk del bundle de Rollup que necesita la revisión del grafo. */
+export type ChunkLike =
+  | { type: "chunk"; fileName: string; imports: string[]; name?: string; modules?: Record<string, unknown> }
+  | { type: "asset"; fileName: string };
+
+/**
+ * Paquetes que no están en ningún grupo pero Rollup metió en un chunk vendor-* (lo arrastró por ser
+ * dependencia). No es un error en sí, pero es justo el tipo de decisión que cambia entre versiones
+ * de Rollup: conviene asignarlos a su grupo para que el reparto sea fijo.
+ */
+export function unassignedInVendorChunks(bundle: Record<string, ChunkLike>): Record<string, string[]> {
+  const out: Record<string, Set<string>> = {};
+  for (const item of Object.values(bundle)) {
+    if (item.type !== "chunk" || !item.name?.startsWith("vendor-")) continue;
+    for (const id of Object.keys(item.modules ?? {})) {
+      const pkg = packageOf(id);
+      if (pkg && !vendorChunk(id)) (out[item.name] ??= new Set()).add(pkg);
+    }
+  }
+  return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, [...v].sort()]));
+}
+
+/**
+ * Ciclos de importación ESTÁTICA entre chunks (los import() dinámicos no cuentan: se evalúan
+ * después). Devuelve cada ciclo como lista de archivos, p. ej. [a.js, b.js, a.js]. Vacío = sano.
+ */
+export function findChunkCycles(bundle: Record<string, ChunkLike>): string[][] {
+  const graph = new Map<string, string[]>();
+  for (const item of Object.values(bundle)) {
+    if (item.type === "chunk") graph.set(item.fileName, item.imports.filter((f) => f !== item.fileName));
+  }
+  const cycles: string[][] = [];
+  const seen = new Set<string>();
+  // DFS con colores (blanco/gris/negro); cada arista "hacia atrás" a un nodo gris es un ciclo.
+  const state = new Map<string, 1 | 2>();
+  const stack: string[] = [];
+  const visit = (n: string) => {
+    state.set(n, 1);
+    stack.push(n);
+    for (const m of graph.get(n) ?? []) {
+      if (!graph.has(m)) continue;
+      const s = state.get(m);
+      if (s === 1) {
+        const cyc = [...stack.slice(stack.indexOf(m)), m];
+        const key = [...cyc.slice(0, -1)].sort().join("|");
+        if (!seen.has(key)) { seen.add(key); cycles.push(cyc); }
+      } else if (!s) visit(m);
+    }
+    stack.pop();
+    state.set(n, 2);
+  };
+  for (const n of [...graph.keys()].sort()) if (!state.has(n)) visit(n);
+  return cycles;
+}
+
+/** Plugin de Rollup/Vite: el build falla si hay chunks que se importan entre sí. */
+export function chunkCycleGuard() {
+  return {
+    name: "iatos-chunk-cycle-guard",
+    apply: "build" as const,
+    generateBundle(this: { error: (msg: string) => never; warn: (msg: string) => void }, _opts: unknown, bundle: Record<string, ChunkLike>) {
+      const loose = unassignedInVendorChunks(bundle);
+      for (const [chunk, pkgs] of Object.entries(loose)) {
+        this.warn(`${chunk} incluye paquetes sin grupo en VENDOR_GROUPS (asígnalos para un reparto estable): ${pkgs.join(", ")}`);
+      }
+      const cycles = findChunkCycles(bundle);
+      if (cycles.length) {
+        this.error(
+          "Chunks circulares en el build (en el navegador esto rompe pantallas con " +
+            "\"x is not a function\"). Revisa VENDOR_GROUPS en vite.chunks.ts:\n" +
+            cycles.map((c) => "  " + c.join(" → ")).join("\n"),
+        );
+      }
+    },
+  };
+}

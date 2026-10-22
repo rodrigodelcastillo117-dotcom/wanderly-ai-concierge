@@ -16,7 +16,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch, aiFetchDetailed } from "../_shared/ai.ts";
 import { logUsage } from "../_shared/serpRuntime.ts";
 import { usageFromChat, type UsageEntry } from "../_shared/usage.ts";
-import { buildTripQuestion, needsSpecificTrip, resolveActiveTrip } from "../_shared/activeTrip.ts";
+import { buildTripQuestion, mentionsUntrackedPlace, needsSpecificTrip, resolveActiveTrip } from "../_shared/activeTrip.ts";
 import { makeToolExecutor, todayLine, TOOL_TIMEOUT_MS } from "./tools.ts";
 import { resolveToday, sanitizeClientMessages } from "./guard.ts";
 import { buildContextMessage, buildMemoryData, buildSystemContent, capSummary } from "./prompt.ts";
@@ -302,8 +302,10 @@ Deno.serve(async (req) => {
     };
 
     // B-08: empate entre viajes y una pregunta que depende del viaje → se pregunta cuál, sin
-    // llamar al modelo (antes se respondía sobre el viaje creado más recientemente).
-    if (resolution.reason === "ambiguous" && needsSpecificTrip(lastUserMsg)) {
+    // llamar al modelo (antes se respondía sobre el viaje creado más recientemente). Si el mensaje
+    // nombra un destino que no está en ningún viaje ("mi viaje a Japón" sin viaje a Japón), no se
+    // listan viajes ajenos: responde el modelo (dice que no hay viaje guardado y ofrece planearlo).
+    if (resolution.reason === "ambiguous" && needsSpecificTrip(lastUserMsg) && !mentionsUntrackedPlace(lastUserMsg, trips)) {
       logInsight(supabase, u.user.id, lastUserMsg, []).catch(() => {});
       await releaseQuota(quotaReservation, "trip_clarification"); // preguntar "¿cuál viaje?" no gasta mensaje
       return json({ text: buildTripQuestion(resolution.candidates), cards: [], _tools_used: [], _gaps: [], ...tripMeta });

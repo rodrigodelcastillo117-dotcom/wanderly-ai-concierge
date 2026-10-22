@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
 import { getYourGuideLink, viatorLink, googleMapsSearchLink, theforkLink, ensureAviasalesMarker, bookingLink } from "@/lib/affiliateLinks";
 import { logBookingClick, trackBookingClick } from "@/lib/trackBooking";
-import { computeTripDesglose, quoteStaleness, quoteValidity, staleQuoteMessage, tripNights, roomsFor, type QuoteSnapshot } from "@/lib/quote";
+import { computeTripDesglose, quoteStaleness, quoteValidity, staleQuoteMessage, tripNights, hotelPriceRooms, type QuoteSnapshot } from "@/lib/quote";
 import {
   readLocalSelections, restoreSelections, sameSelections, serializeSelections, writeLocalSelections, type PersistedSelections,
 } from "@/lib/tripSelections";
@@ -1180,9 +1180,14 @@ const HotelCard = ({ hotel, city, trip, active, onClick }: { hotel: any; city: s
         <p className="text-xs text-muted-foreground mb-2">{hotel.barrio} · ★ {hotel.rating}</p>
         <p className="font-medium text-sm mb-2">
           {fmtMXN(hotel.precio_por_noche)}
-          <span className="text-xs text-muted-foreground ml-1">/ noche por habitación</span>
-          {roomsFor(trip?.num_viajeros ?? 1) > 1 && (
-            <span className="block text-[11px] text-muted-foreground">× {roomsFor(trip?.num_viajeros ?? 1)} hab. para {trip?.num_viajeros} viajeros</span>
+          {/* Un precio en vivo ya es para todo el grupo; uno estimado es por habitación doble. */}
+          {hotelPriceRooms(hotel, trip?.num_viajeros ?? 1) === 1 && (trip?.num_viajeros ?? 1) > 1 ? (
+            <span className="text-xs text-muted-foreground ml-1">/ noche para {trip?.num_viajeros} viajeros</span>
+          ) : (
+            <span className="text-xs text-muted-foreground ml-1">/ noche por habitación</span>
+          )}
+          {hotelPriceRooms(hotel, trip?.num_viajeros ?? 1) > 1 && (
+            <span className="block text-[11px] text-muted-foreground">× {hotelPriceRooms(hotel, trip?.num_viajeros ?? 1)} hab. para {trip?.num_viajeros} viajeros</span>
           )}
         </p>
         <PriceSourceBadge source={hotel.fuente_precio} estado={hotel.estado_dato} consultadoAt={hotel.consultado_at ?? trip?.created_at} className="mb-2" />

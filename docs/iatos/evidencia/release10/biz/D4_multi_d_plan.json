@@ -1,0 +1,41 @@
+{
+ "reached": true,
+ "url": "https://traveliatos.life/dashboard/viajes/95c5bf37-f65e-4a40-ae26-152a9b3d68dc",
+ "ms": 54987,
+ "ui": {
+  "toasts": [],
+  "dialogs": []
+ },
+ "fns": [
+  {
+   "fn": "geocode",
+   "status": 200,
+   "body": "{\"results\":[{\"formatted_address\":\"Ciudad de México, CDMX, México\",\"lat\":19.4326077,\"lng\":-99.133208,\"place_id\":\"ChIJB3UJ2yYAzoURQeheJnYQBlQ\",\"types\":[\"locality\",\"political\"],\"location_type\":\"APPROXIMATE\"}]}"
+  },
+  {
+   "fn": "geocode",
+   "status": 200,
+   "body": "{\"results\":[{\"formatted_address\":\"Ciudad de México, CDMX, México\",\"lat\":19.4326077,\"lng\":-99.133208,\"place_id\":\"ChIJB3UJ2yYAzoURQeheJnYQBlQ\",\"types\":[\"locality\",\"political\"],\"location_type\":\"APPROXIMATE\"}]}"
+  },
+  {
+   "fn": "geocode",
+   "status": 200,
+   "body": "{\"results\":[{\"formatted_address\":\"Madrid, España\",\"lat\":40.41672790000001,\"lng\":-3.7032905,\"place_id\":\"ChIJgTwKgJcpQg0RaSKMYcHeNsQ\",\"types\":[\"locality\",\"political\"],\"location_type\":\"APPROXIMATE\"}]}"
+  },
+  {
+   "fn": "geocode",
+   "status": 200,
+   "body": "{\"results\":[{\"formatted_address\":\"Barcelona, España\",\"lat\":41.3874374,\"lng\":2.1686496,\"place_id\":\"ChIJ5TCOcRaYpBIRCmZHTz37sEQ\",\"types\":[\"locality\",\"political\"],\"location_type\":\"APPROXIMATE\"}]}"
+  },
+  {
+   "fn": "logistics-plan",
+   "status": 200,
+   "body": "{\"logistics\":{\"resumen\":\"Itinerario equilibrado combinando el patrimonio cultural de Madrid y la vanguardia mediterránea de Barcelona a lo largo de 7 días. La conexión se realiza de forma óptima y escénica en tren de alta velocidad AVE en solo 2.5 horas. Propuesta balanceada con vuelos directos y ex"
+  },
+  {
+   "fn": "logistics-plan",
+   "status": 200,
+   "body": "{\"ok\":true,\"quote_id\":\"61b81e4d-58d7-4eb2-ac96-cdeb494b6911\",\"valid_until\":\"2026-10-23T07:30:25.926+00:00\"}"
+  }
+ ]
+}

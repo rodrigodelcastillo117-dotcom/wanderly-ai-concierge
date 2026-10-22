@@ -1,0 +1,64 @@
+{
+ "m/": {
+  "sinTarjeta": false,
+  "hits": [
+   "Empezar gratis",
+   "Tu concierge de IA que conoce tus gustos, cotiza con números reales y diseña cada experiencia. Empieza gratis; PRO cuesta $99 MXN al mes, IVA incluido.",
+   "PRUEBA IATOS PRO 30 DÍAS GRATIS AL CONTRATARLO POR PRIMERA VEZ",
+   "Prueba IATOS PRO 30 días gratis al contratarlo por primera vez. Registras tu tarjeta al contratar; si cancelas antes de que terminen los 30 días no se cobra nada. Si no cancelas, se cobra $99 MXN al mes, IVA incluido.",
+   "Crear tu cuenta es gratis; la prueba de PRO es una por persona."
+  ]
+ },
+ "m/auth": {
+  "sinTarjeta": false,
+  "hits": []
+ },
+ "m/terminos": {
+  "sinTarjeta": false,
+  "hits": [
+   "Prueba: Prueba IATOS PRO 30 días gratis al contratarlo por primera vez. Crear tu cuenta es gratis; la prueba de PRO es una por persona. Registras tu tarjeta al contratar; si cancelas antes de que terminen los 30 días no se cobra nada. Si no cancelas, se cobra $99 MXN al mes, IVA incluido.",
+   "Al contratar PRO, el cobro mensual se realiza a través de Stripe y se renueva cada mes hasta que canceles. IATOS AI no almacena los datos de tu tarjeta."
+  ]
+ },
+ "m/dashboard/pro": {
+  "sinTarjeta": false,
+  "hits": [
+   "Más mensajes con Iato, más análisis de viaje y alertas de precio. $99 MXN al mes, IVA incluido. Cancela cuando quieras.",
+   "$99",
+   "3 de 3 mensajes gratis",
+   "1 de 1 gratis",
+   "Al contratar registras tu tarjeta en Stripe. Si es tu primera vez, los primeros 30 días son de prueba y no se cobra nada si cancelas antes; después, $99 MXN al mes, IVA incluido, cada mes hasta que canceles desde “Gestionar suscripción”. IATOS AI no almacena tu tarjeta."
+  ]
+ },
+ "d/": {
+  "sinTarjeta": false,
+  "hits": [
+   "Empezar gratis",
+   "Tu concierge de IA que conoce tus gustos, cotiza con números reales y diseña cada experiencia. Empieza gratis; PRO cuesta $99 MXN al mes, IVA incluido.",
+   "PRUEBA IATOS PRO 30 DÍAS GRATIS AL CONTRATARLO POR PRIMERA VEZ",
+   "Prueba IATOS PRO 30 días gratis al contratarlo por primera vez. Registras tu tarjeta al contratar; si cancelas antes de que terminen los 30 días no se cobra nada. Si no cancelas, se cobra $99 MXN al mes, IVA incluido.",
+   "Crear tu cuenta es gratis; la prueba de PRO es una por persona."
+  ]
+ },
+ "d/auth": {
+  "sinTarjeta": false,
+  "hits": []
+ },
+ "d/terminos": {
+  "sinTarjeta": false,
+  "hits": [
+   "Prueba: Prueba IATOS PRO 30 días gratis al contratarlo por primera vez. Crear tu cuenta es gratis; la prueba de PRO es una por persona. Registras tu tarjeta al contratar; si cancelas antes de que terminen los 30 días no se cobra nada. Si no cancelas, se cobra $99 MXN al mes, IVA incluido.",
+   "Al contratar PRO, el cobro mensual se realiza a través de Stripe y se renueva cada mes hasta que canceles. IATOS AI no almacena los datos de tu tarjeta."
+  ]
+ },
+ "d/dashboard/pro": {
+  "sinTarjeta": false,
+  "hits": [
+   "Más mensajes con Iato, más análisis de viaje y alertas de precio. $99 MXN al mes, IVA incluido. Cancela cuando quieras.",
+   "$99",
+   "3 de 3 mensajes gratis",
+   "1 de 1 gratis",
+   "Al contratar registras tu tarjeta en Stripe. Si es tu primera vez, los primeros 30 días son de prueba y no se cobra nada si cancelas antes; después, $99 MXN al mes, IVA incluido, cada mes hasta que canceles desde “Gestionar suscripción”. IATOS AI no almacena tu tarjeta."
+  ]
+ }
+}

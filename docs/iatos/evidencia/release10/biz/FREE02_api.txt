@@ -1,0 +1,7 @@
+## antes 2026-10-22T07:01:32Z
+{"plan": "free", "is_pro": false, "trips_used": 0, "trips_limit": 1, "trips_period": "once", "concierge_used": 0, "concierge_limit": 3, "limits_enforced": true, "trips_remaining": 1, "trips_daily_limit": null, "concierge_remaining": 3, "concierge_renews_at": "2026-11-01T00:00:00+00:00", "concierge_daily_limit": null}
+## POST analizar-viaje destino='   ' (solo espacios), sin fechas
+{"code":"SERVICE_UNAVAILABLE","message":"No pudimos completar esto en este momento y no se descontó de tu plan. Intenta de nuevo en unos minutos."}
+HTTP 503 t=3.109065s
+## después (inmediato) 2026-10-22T07:01:36Z
+{"plan": "free", "is_pro": false, "trips_used": 0, "trips_limit": 1, "trips_period": "once", "concierge_used": 0, "concierge_limit": 3, "limits_enforced": true, "trips_remaining": 1, "trips_daily_limit": null, "concierge_remaining": 3, "concierge_renews_at": "2026-11-01T00:00:00+00:00", "concierge_daily_limit": null}
