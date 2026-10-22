@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { track } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,7 +25,10 @@ const defaults = (uid: string): OnboardingState => ({
   travel_dna_seed: null,
 });
 
-export function useOnboardingStatus() {
+// El estado vive en un solo proveedor: la guardia de rutas y la pantalla de onboarding tenían
+// cada una su copia, y al terminar el onboarding la guardia seguía viendo "incompleto" y
+// rebotaba entre /onboarding y /dashboard hasta recargar la página.
+function useOnboardingState() {
   const { user } = useAuth();
   const uid = user?.id ?? null;
   const [status, setStatus] = useState<OnboardingState | null>(null);
@@ -121,4 +124,18 @@ export function useOnboardingStatus() {
   );
 
   return { status, isLoading, markStepComplete, markOnboardingComplete, reload: load };
+}
+
+type OnboardingApi = ReturnType<typeof useOnboardingState>;
+const OnboardingContext = createContext<OnboardingApi | null>(null);
+
+export function OnboardingProvider({ children }: { children: ReactNode }) {
+  const value = useOnboardingState();
+  return createElement(OnboardingContext.Provider, { value }, children);
+}
+
+export function useOnboardingStatus(): OnboardingApi {
+  const ctx = useContext(OnboardingContext);
+  if (!ctx) throw new Error("useOnboardingStatus debe usarse dentro de <OnboardingProvider>");
+  return ctx;
 }

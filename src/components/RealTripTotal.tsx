@@ -12,9 +12,12 @@ type Props = {
 const fmtMXN = (n: number) =>
   `$${Math.round(Number(n) || 0).toLocaleString("es-MX")} MXN`;
 
-export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
-
-
+/**
+ * Total del viaje a partir de la cotización guardada. Nunca se recorta al presupuesto: si la
+ * cotización lo rebasa se informa la diferencia (antes se mostraba el presupuesto como si fuera
+ * el precio y se decía que la IA "ajustaba la selección", sin ajustar nada).
+ */
+export function tripTotals(trip: any, viajeros: number) {
   const vuelos: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
   const hoteles: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
   const cruceros: any[] = Array.isArray(trip?.cruceros_json) ? trip.cruceros_json : [];
@@ -43,13 +46,17 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
   }, 0);
 
   const itemSubtotal = totalVuelos + totalHoteles + totalCruceros;
-  const totalReal = sumNumber(trip?.total_estimado) || explicitBreakdownTotal || itemSubtotal;
-
-  // Tope de presupuesto: si el usuario definió uno, no rebasarlo
-  const presupuestoObjetivo = sumNumber(trip?.presupuesto_objetivo);
-  const cappedToBudget = presupuestoObjetivo > 0 && totalReal > presupuestoObjetivo;
-  const total = cappedToBudget ? presupuestoObjetivo : totalReal;
+  const total = sumNumber(trip?.total_estimado) || explicitBreakdownTotal || itemSubtotal;
+  const presupuesto = sumNumber(trip?.presupuesto_objetivo);
+  const excedente = presupuesto > 0 && total > presupuesto ? total - presupuesto : 0;
   const porPersona = viajeros > 0 ? total / viajeros : total;
+  return { total, porPersona, presupuesto, excedente };
+}
+
+export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
+
+
+  const { total, porPersona, presupuesto, excedente } = tripTotals(trip, viajeros);
 
   const [showAnalisis, setShowAnalisis] = useState(false);
 
@@ -65,7 +72,7 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
         </p>
         <span className="text-[10px] tracking-widest uppercase text-muted-foreground inline-flex items-center gap-1">
           <Receipt className="w-3 h-3 text-primary" />
-          {cappedToBudget ? "ajustado a tu presupuesto" : "cotización base respetada"}
+          {excedente > 0 ? "rebasa tu presupuesto" : "cotización base respetada"}
         </span>
       </div>
 
@@ -81,10 +88,14 @@ export function RealTripTotal({ trip, noches, viajeros, onUpdated }: Props) {
         {viajeros} {viajeros === 1 ? "persona" : "personas"} · {noches} noches
       </p>
       <p className="text-[11px] text-muted-foreground/80 mb-2 italic">
-        {cappedToBudget
-          ? `Tope respetado: tu presupuesto es ${fmtMXN(presupuestoObjetivo)}. IATOS AI ajusta selección para no rebasarlo.`
-          : "Calculado solo con los importes de la cotización y tus selecciones; no se agregan extras automáticos"}
+        Calculado solo con los importes de la cotización y tus selecciones; no se agregan extras automáticos.
       </p>
+      {excedente > 0 && (
+        <p className="text-xs text-amber-500 mb-2" role="status">
+          Esta cotización rebasa tu presupuesto de {fmtMXN(presupuesto)} por {fmtMXN(excedente)}. Puedes editar el
+          viaje (fechas, hotel o actividades) para acercarlo.
+        </p>
+      )}
 
       {/* Análisis del concierge integrado en la misma tarjeta */}
       {trip?.analisis_ai && (
