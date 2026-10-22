@@ -33,7 +33,7 @@ export function MemberCard({ firstName, status, activatedAt, memberCode, reveal 
     : { initial: false as const };
   return (
     <figure className="flex flex-col items-center gap-3" style={{ perspective: 1200 }}>
-      <motion.div {...anim} className="prive-card" data-testid="prive-member-card" aria-label="Tarjeta de miembro IATOS Privé">
+      <motion.div {...anim} className="prive-card text-left" data-testid="prive-member-card" aria-label="Tarjeta de miembro IATOS Privé">
         <div className="flex items-start justify-between">
           <div>
             <p className="prive-eyebrow">IATOS Privé</p>

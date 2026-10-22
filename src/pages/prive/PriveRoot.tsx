@@ -11,7 +11,7 @@ const FONT_ID = "prive-font-cormorant";
 // Una sola familia (Cormorant Garamond) con display=swap: el texto se ve al instante con la serifa
 // del sistema y cambia cuando llega la fuente. Solo se pide al entrar a Privé.
 const FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&display=swap";
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,400&display=swap";
 
 function usePriveFont() {
   useEffect(() => {
