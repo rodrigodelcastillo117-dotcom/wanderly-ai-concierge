@@ -9,9 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { computeSplit, hasPayments, parseSplitAmount } from "@/lib/split";
+import { convertedTotal, formatMoney, fxLabel } from "@/lib/fx";
+import { useFxTable } from "@/hooks/useFxTable";
+
+const MONEDAS = ["MXN", "USD", "EUR", "GBP", "JPY", "CAD"] as const;
 
 type Person = { id: string; name: string };
-type Expense = { id: string; payer_id: string; amount: number; description: string; created_at: string };
+type Expense = { id: string; payer_id: string; amount: number; currency?: string | null; description: string; created_at: string };
 
 const TripSplit = () => {
   const { id } = useParams();
@@ -23,6 +28,8 @@ const TripSplit = () => {
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [payer, setPayer] = useState("");
+  const [currency, setCurrency] = useState<string>("MXN");
+  const fx = useFxTable();
   const tipSplit = useTooltipShown("split");
 
   useEffect(() => {
@@ -48,21 +55,29 @@ const TripSplit = () => {
     else toast.error("No se pudo agregar");
   };
 
+  // Quitar a alguien ya no borra lo que pagó (cambiaba los saldos de todos): primero sus gastos.
   const removePerson = async (pid: string) => {
+    const person = people.find(p => p.id === pid);
+    if (hasPayments(pid, expenses)) {
+      toast.error(`${person?.name ?? "Esta persona"} tiene pagos registrados`, { description: "Borra primero sus gastos para quitarla." });
+      return;
+    }
+    const { error } = await supabase.from("trip_split_people").delete().eq("id", pid);
+    if (error) { toast.error("No se pudo quitar"); return; }
     setPeople(prev => prev.filter(p => p.id !== pid));
-    await supabase.from("trip_split_people").delete().eq("id", pid);
-    // Refresh expenses (cascade may have deleted some)
-    const { data: ex } = await supabase.from("trip_split_expenses").select("*").eq("trip_id", id!).order("created_at", { ascending: false });
-    setExpenses((ex as Expense[]) || []);
   };
 
   const addExp = async () => {
-    const a = parseFloat(amount);
-    if (!a || !payer || !desc.trim() || !id) return;
-    const { data, error } = await supabase
-      .from("trip_split_expenses")
-      .insert({ trip_id: id, payer_id: payer, amount: a, description: desc.trim() })
-      .select().single();
+    const a = parseSplitAmount(amount);
+    if (!payer || !desc.trim() || !id) return;
+    if (a == null) { toast.error("El monto debe ser mayor a 0"); return; }
+    const row = { trip_id: id, payer_id: payer, amount: a, description: desc.trim(), currency };
+    let { data, error } = await supabase.from("trip_split_expenses").insert(row).select().single();
+    if (error && currency === "MXN") {
+      // Sin la columna currency (migración 20261022143200 pendiente) un gasto en MXN se guarda igual.
+      ({ data, error } = await supabase.from("trip_split_expenses")
+        .insert({ trip_id: id, payer_id: payer, amount: a, description: desc.trim() }).select().single());
+    }
     if (!error && data) {
       setExpenses(prev => [data as Expense, ...prev]);
       setAmount(""); setDesc("");
@@ -74,33 +89,12 @@ const TripSplit = () => {
     await supabase.from("trip_split_expenses").delete().eq("id", eid);
   };
 
-  const balances = useMemo(() => {
-    if (people.length === 0) return {} as Record<string, number>;
-    const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
-    const share = total / people.length;
-    const paid: Record<string, number> = {};
-    people.forEach(p => paid[p.id] = 0);
-    expenses.forEach(e => { paid[e.payer_id] = (paid[e.payer_id] || 0) + Number(e.amount); });
-    const out: Record<string, number> = {};
-    people.forEach(p => out[p.id] = (paid[p.id] || 0) - share);
-    return out;
-  }, [people, expenses]);
-
-  const settlements = useMemo(() => {
-    const debtors = people.filter(p => (balances[p.id] || 0) < -0.01).map(p => ({ ...p, b: balances[p.id] }));
-    const creditors = people.filter(p => (balances[p.id] || 0) > 0.01).map(p => ({ ...p, b: balances[p.id] }));
-    const out: { from: string; to: string; amount: number }[] = [];
-    debtors.sort((a, b) => a.b - b.b); creditors.sort((a, b) => b.b - a.b);
-    let i = 0, j = 0;
-    while (i < debtors.length && j < creditors.length) {
-      const amt = Math.min(-debtors[i].b, creditors[j].b);
-      out.push({ from: debtors[i].name, to: creditors[j].name, amount: amt });
-      debtors[i].b += amt; creditors[j].b -= amt;
-      if (Math.abs(debtors[i].b) < 0.01) i++;
-      if (Math.abs(creditors[j].b) < 0.01) j++;
-    }
-    return out;
-  }, [balances, people]);
+  // Saldos y "cómo saldar" por moneda (nunca se mezclan MXN y EUR como si fueran lo mismo).
+  const split = useMemo(() => computeSplit(people, expenses), [people, expenses]);
+  const monedas = Object.keys(split.totals);
+  const enMxn = fx && monedas.length > 1
+    ? convertedTotal(monedas.map((c) => ({ amount: split.totals[c], currency: c })), "MXN", fx)
+    : null;
 
   return (
     <DashboardLayout>
@@ -135,7 +129,13 @@ const TripSplit = () => {
             <h2 className="font-medium mb-3">Agregar gasto</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
               <Input aria-label="Descripción del gasto" placeholder="Descripción" value={desc} onChange={e => setDesc(e.target.value)} />
-              <Input type="number" aria-label="Monto del gasto" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} />
+              <div className="flex gap-2">
+                <Input type="number" min="0.01" step="0.01" aria-label="Monto del gasto" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} />
+                <select aria-label="Moneda del gasto" value={currency} onChange={e => setCurrency(e.target.value)}
+                  className="bg-background border border-border rounded-md px-2 text-sm">
+                  {MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
             </div>
             <select className="w-full bg-background border border-border rounded-md p-2 mb-3 text-sm" value={payer} onChange={e => setPayer(e.target.value)}>
               <option value="">¿Quién pagó?</option>
@@ -148,26 +148,41 @@ const TripSplit = () => {
         {expenses.length > 0 && (
           <>
             <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6">
-              <h2 className="font-medium mb-3">Balances</h2>
-              {people.map(p => {
-                const b = balances[p.id] || 0;
-                return (
-                  <div key={p.id} className="flex justify-between py-1.5 text-sm border-b border-border/30 last:border-0">
-                    <span>{p.name}</span>
-                    <span className={b >= 0 ? "text-emerald-400" : "text-destructive"}>
-                      {b >= 0 ? "+" : ""}{b.toFixed(2)}
-                    </span>
-                  </div>
-                );
-              })}
+              <h2 className="font-medium mb-1">Balances</h2>
+              <p className="text-xs text-muted-foreground mb-3">
+                Total: {monedas.map(c => formatMoney(split.totals[c], c)).join(" · ")}
+                {enMxn && (
+                  <span className="block text-[11px]">
+                    ≈ {formatMoney(Math.round(enMxn.total), "MXN", 0)} en total
+                    {enMxn.unconvertedCount > 0 && ` (sin contar ${Object.keys(enMxn.unconverted).join(", ")}: no tenemos tipo de cambio)`}
+                    {" · "}{fxLabel(fx!)}. Los saldos se pagan en la moneda de cada gasto.
+                  </span>
+                )}
+              </p>
+              {monedas.map(c => (
+                <div key={c} className="mb-2 last:mb-0">
+                  {monedas.length > 1 && <p className="text-[11px] uppercase tracking-wider text-primary mt-2">{c}</p>}
+                  {people.map(p => {
+                    const b = split.balances[c]?.[p.id] || 0;
+                    return (
+                      <div key={p.id} className="flex justify-between py-1.5 text-sm border-b border-border/30 last:border-0">
+                        <span>{p.name}</span>
+                        <span className={b >= 0 ? "text-emerald-400" : "text-destructive"}>
+                          {b >= 0 ? "+" : "−"}{formatMoney(Math.abs(b), c)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
 
-            {settlements.length > 0 && (
+            {split.settlements.length > 0 && (
               <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6 border-primary/30">
                 <h2 className="font-medium mb-3 text-primary">Cómo saldar</h2>
-                {settlements.map((s, i) => (
+                {split.settlements.map((s, i) => (
                   <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-1.5 text-sm">
-                    <span className="font-medium">{s.from}</span> → <span className="font-medium">{s.to}</span>: <span className="text-primary">${s.amount.toFixed(2)}</span>
+                    <span className="font-medium">{s.from}</span> → <span className="font-medium">{s.to}</span>: <span className="text-primary">{formatMoney(s.amount, s.currency)}</span>
                   </motion.div>
                 ))}
               </div>
@@ -184,7 +199,7 @@ const TripSplit = () => {
                       <div className="text-xs text-muted-foreground">Pagó {p?.name || "?"}</div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-sm font-medium">${Number(e.amount).toFixed(2)}</span>
+                      <span className="text-sm font-medium">{formatMoney(Number(e.amount), e.currency || "MXN")}</span>
                       <button onClick={() => removeExp(e.id)} aria-label={`Eliminar gasto ${e.description ?? ""}`.trim()} className="p-2 -m-2"><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" aria-hidden="true" /></button>
                     </div>
                   </div>

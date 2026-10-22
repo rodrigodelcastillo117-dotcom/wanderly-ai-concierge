@@ -2,6 +2,8 @@
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
+import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
+import { currenciesUsed, moneyMeta, normalizeCurrency, readMoney, type MxnRates } from "./money.ts";
 // viaje TAL CUAL aparece en los documentos. Devuelve datos mapeados al
 // schema interno (vuelos_json, hospedaje_json, cruceros_json, itinerario_json).
 
@@ -34,9 +36,9 @@ Devuelve SOLO este JSON estricto, sin markdown:
   "fecha_salida": "YYYY-MM-DD"|null,         // primer día del viaje
   "fecha_regreso": "YYYY-MM-DD"|null,        // último día
   "num_viajeros": number,                    // mínimo 1, default 2 si es claro que viajan en pareja
-  "presupuesto_total_mxn": number|null,      // total estimado del viaje en MXN
-  "presupuesto_pagado_mxn": number|null,     // lo que ya está pagado
-  "moneda_original": string|null,            // "MXN", "USD", "EUR"
+  "presupuesto_total": number|null,          // total del viaje TAL CUAL aparece (en moneda_original)
+  "presupuesto_pagado": number|null,         // lo que ya está pagado (en moneda_original)
+  "moneda_original": string|null,            // código ISO de la moneda principal del documento: "MXN", "USD", "EUR"
   "vuelos": [
     {
       "aerolinea": string,                   // "Air France", "Iberia", etc.
@@ -52,8 +54,9 @@ Devuelve SOLO este JSON estricto, sin markdown:
       "escalas": string|null,                // "directo" o "1 escala en LHR"
       "clase": string|null,                  // "Económica", "Premium", "Business"
       "pasajeros": number|null,              // cuántos pax en este boleto
-      "precio_total_mxn": number|null,       // precio total del tramo (todos los pax)
-      "precio_por_persona_mxn": number|null,
+      "precio_total": number|null,           // precio total del tramo (todos los pax), tal cual
+      "precio_por_persona": number|null,
+      "moneda": string|null,                 // "MXN", "USD", "EUR"… de ESTE precio
       "confirmacion": string|null,           // PNR
       "notas": string|null
     }
@@ -69,8 +72,9 @@ Devuelve SOLO este JSON estricto, sin markdown:
       "noches": number|null,
       "tipo": string|null,                   // "Hotel boutique", "Departamento de amigo", "Resort"
       "rating": number|null,                 // 9.0
-      "precio_por_noche_mxn": number|null,
-      "precio_total_mxn": number|null,       // 0 si es gratis
+      "precio_por_noche": number|null,
+      "precio_total": number|null,           // 0 si es gratis
+      "moneda": string|null,
       "costo_cero": boolean,                 // true si es gratis/AMOR/casa de amigo/$0
       "motivo_gratis": string|null,          // "Departamento de un amigo en París"
       "confirmacion": string|null,
@@ -86,14 +90,15 @@ Devuelve SOLO este JSON estricto, sin markdown:
       "fecha_desembarque": "YYYY-MM-DD"|null,
       "noches": number|null,
       "camarote": string|null,               // "Oceanview", "Balcón"
-      "precio_total_mxn": number|null,
+      "precio_total": number|null,
+      "moneda": string|null,
       "confirmacion": string|null,
       "estado": string|null,                 // "PAGADO", "PENDIENTE"
       "notas": string|null
     }
   ],
   "transfers": [
-    { "tipo": string, "from": string, "to": string, "fecha": "YYYY-MM-DD"|null, "hora": string|null, "proveedor": string|null, "precio_mxn": number|null, "confirmacion": string|null }
+    { "tipo": string, "from": string, "to": string, "fecha": "YYYY-MM-DD"|null, "hora": string|null, "proveedor": string|null, "precio": number|null, "moneda": string|null, "confirmacion": string|null }
   ],
   "itinerario": [
     {
@@ -115,7 +120,7 @@ Devuelve SOLO este JSON estricto, sin markdown:
   "notas_generales": string                  // resumen libre de tips, equipaje, recordatorios
 }
 
-Conversiones de moneda aproximadas (úsalas SOLO si el PDF da EUR/USD): USD≈18 MXN, EUR≈20 MXN.
+Montos: cópialos TAL CUAL aparecen, en su moneda original, SIN convertir, y escribe su moneda en "moneda" (código ISO: MXN, USD, EUR…). La conversión a pesos la hace el sistema con el tipo de cambio del día.
 
 Antes de responder, autocheck: ¿incluiste TODOS los vuelos del PDF? ¿TODOS los hoteles (incluso los gratis)? ¿El crucero con todos sus puertos? ¿Cada día del itinerario? Si falta algo, regresa al PDF antes de cerrar el JSON.`;
 
@@ -188,6 +193,17 @@ Deno.serve(async (req) => {
       parsed = m ? JSON.parse(m[0]) : {};
     }
 
+    // Montos: el modelo copia el original y aquí se convierte con el tipo de cambio de _shared/fx.ts
+    // (fuente y fecha). Solo se piden las tasas de las monedas que aparecen.
+    const monedaDoc = normalizeCurrency(parsed.moneda_original);
+    const needed = currenciesUsed(parsed);
+    const rates: MxnRates = {};
+    if (needed.includes("USD")) rates.USD = await getUsdMxnRateInfo();
+    if (needed.includes("EUR")) rates.EUR = await getEurMxnRateInfo();
+    const money = (item: any, field: string) => readMoney(item, field, monedaDoc, rates);
+    const presupuestoTotal = money(parsed, "presupuesto_total");
+    const presupuestoPagado = money(parsed, "presupuesto_pagado");
+
     // Mapea a schema interno
     const vuelos_json = (parsed.vuelos ?? []).map((v: any) => ({
       aerolinea: v.aerolinea ?? "—",
@@ -205,8 +221,9 @@ Deno.serve(async (req) => {
       duracion: v.duracion ?? "—",
       escalas: v.escalas ?? "directo",
       pasajeros: v.pasajeros ?? null,
-      precio_total: v.precio_total_mxn ?? null,
-      precio_por_persona: v.precio_por_persona_mxn ?? null,
+      precio_total: money(v, "precio_total").mxn,
+      precio_por_persona: money(v, "precio_por_persona").mxn,
+      ...moneyMeta(money(v, "precio_total").original ? money(v, "precio_total") : money(v, "precio_por_persona")),
       confirmacion: v.confirmacion ?? null,
       notas: v.notas ?? null,
       desde_pdf: true,
@@ -223,8 +240,9 @@ Deno.serve(async (req) => {
       check_in: h.check_in ?? null,
       check_out: h.check_out ?? null,
       noches: h.noches ?? null,
-      precio_por_noche: h.costo_cero ? 0 : (h.precio_por_noche_mxn ?? null),
-      precio_total: h.costo_cero ? 0 : (h.precio_total_mxn ?? null),
+      precio_por_noche: h.costo_cero ? 0 : money(h, "precio_por_noche").mxn,
+      precio_total: h.costo_cero ? 0 : money(h, "precio_total").mxn,
+      ...(h.costo_cero ? {} : moneyMeta(money(h, "precio_total").original ? money(h, "precio_total") : money(h, "precio_por_noche"))),
       costo_cero: !!h.costo_cero,
       motivo_gratis: h.motivo_gratis ?? null,
       por_que: h.costo_cero
@@ -242,7 +260,8 @@ Deno.serve(async (req) => {
       fecha_desembarque: c.fecha_desembarque ?? null,
       noches: c.noches ?? null,
       camarote: c.camarote ?? null,
-      precio_total: c.precio_total_mxn ?? null,
+      precio_total: money(c, "precio_total").mxn,
+      ...moneyMeta(money(c, "precio_total")),
       confirmacion: c.confirmacion ?? null,
       estado: c.estado ?? null,
       notas: c.notas ?? null,
@@ -258,12 +277,19 @@ Deno.serve(async (req) => {
       fecha_salida: parsed.fecha_salida ?? null,
       fecha_regreso: parsed.fecha_regreso ?? null,
       num_viajeros: parsed.num_viajeros ?? 2,
-      presupuesto_total_mxn: parsed.presupuesto_total_mxn ?? null,
-      presupuesto_pagado_mxn: parsed.presupuesto_pagado_mxn ?? null,
+      presupuesto_total_mxn: presupuestoTotal.mxn,
+      presupuesto_pagado_mxn: presupuestoPagado.mxn,
+      presupuesto_original: presupuestoTotal.original,
+      moneda_original: monedaDoc,
+      // Tasas usadas, con fuente y fecha (vacío si todo venía en MXN).
+      fx: Object.keys(rates).length ? rates : null,
       vuelos_json,
       hospedaje_json,
       cruceros_json,
-      transfers: parsed.transfers ?? [],
+      transfers: (parsed.transfers ?? []).map((t: any) => {
+        const m = money(t, "precio");
+        return { ...t, precio_mxn: m.mxn, ...moneyMeta(m) };
+      }),
       itinerario: parsed.itinerario ?? [],
       pendientes: parsed.pendientes ?? [],
       contactos: parsed.contactos ?? [],
