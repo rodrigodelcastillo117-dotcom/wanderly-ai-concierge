@@ -1,0 +1,24 @@
+Asunto: [IATOS Fixer · ALTA] Valentina Ruiz — Perdí la conexión en Madrid y el siguiente vuelo sale mañana
+Preencabezado: 
+
+SOLICITUD AL FIXER · URGENCIA ALTA
+
+Cliente: Valentina Ruiz (nombre que escribió el cliente)
+Correo: valentina@correo-muestra.mx
+Teléfono: +52 55 1234 5678
+Viaje: Barcelona · Madrid, Barcelona · 8 – 16 de may. de 2027
+Recibida: 22 de oct. de 2026, 14:08 h (hora CDMX)
+Cuenta: 5f1e2d3c-0000-4000-8000-00000000abcd
+
+MOTIVO
+Perdí la conexión en Madrid y el siguiente vuelo sale mañana. Necesito hotel cerca del aeropuerto para 2 personas.
+
+ÚLTIMOS MENSAJES CON IATO
+Cliente: ¿Me ayudas con un hotel cerca de Barajas?
+Iato: Te conecto con el Fixer para resolverlo ya.
+
+Responder a este correo le escribe directo al cliente.
+
+—
+IATOS AI · traveliatos.life
+Correo interno de operaciones de IATOS: un cliente pidió ayuda humana desde el Concierge.

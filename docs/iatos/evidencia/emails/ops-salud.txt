@@ -1,0 +1,4 @@
+Asunto: IATOS: un servicio está fallando
+Preencabezado: 
+
+(el aviso de salud se envía solo en HTML)
