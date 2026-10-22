@@ -170,7 +170,7 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
             onClick={() => trackBookingClick({
               category: "flight", provider: "Aviasales", title: `Vuelo ${route}`,
               subtitle: current != null ? `${mxn(current)} MXN por persona` : undefined,
-              bookingUrl: watch.booking_link!, startAt: watch.departure_date,
+              bookingUrl: watch.booking_link!, startAt: watch.departure_date, tripId,
             })}
             className="bg-gradient-gold text-primary-foreground hover:opacity-90"
           >
