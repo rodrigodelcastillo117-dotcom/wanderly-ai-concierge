@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
@@ -17,6 +17,8 @@ const links = [
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
+  // Documentos, membresías, tarjetas y seguros (antes "Beneficios").
+  { to: "/dashboard/beneficios", icon: Vault, label: "Bóveda" },
   // "Concierge", no "Concierge Pro": la pestaña está abierta a todas las cuentas.
   { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
 ];
@@ -37,6 +39,7 @@ export const mobileMoreNav = [
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend (gastos)" },
   { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
+  { to: "/dashboard/beneficios", icon: Vault, label: "Bóveda (documentos y membresías)" },
   { to: "/dashboard/pro", icon: Sparkles, label: "Plan IATOS PRO" },
   // Entrada discreta a IATOS Privé: /prive muestra a cada cuenta lo que le corresponde (adelanto,
   // progreso, invitación o candado), así que no se oculta a nadie.

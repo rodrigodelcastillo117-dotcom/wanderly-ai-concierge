@@ -99,7 +99,7 @@ export const Privacidad = () => (
       <ul>
         <li><strong>Cuenta:</strong> nombre, correo electrónico, ciudad de origen, fecha de nacimiento (opcional) y foto de perfil.</li>
         <li><strong>Preferencias de viaje (Travel DNA):</strong> gustos gastronómicos, restricciones alimentarias, ritmo de viaje, presupuesto y programas de lealtad que decidas registrar.</li>
-        <li><strong>Bóveda de beneficios:</strong> el nombre o tipo de tus tarjetas y membresías para identificar beneficios aplicables. <strong>Nunca pedimos ni almacenamos números completos de tarjeta, CVV ni fechas de vencimiento.</strong></li>
+        <li><strong>Bóveda:</strong> los documentos de viaje que decidas guardar (pasaporte, visas, INE, licencia, certificados de vacunación y pólizas de seguro, con su número, vigencia y, si quieres, su foto o PDF), tus membresías y programas de lealtad con sus beneficios, y el nombre y nivel de tus tarjetas (a lo mucho sus últimos 4 dígitos). <strong>Nunca pedimos ni almacenamos números completos de tarjeta, CVV ni fechas de vencimiento de tarjetas.</strong> Las fotos y PDF se guardan en almacenamiento privado al que solo tú accedes, y a las fotos les quitamos la ubicación y otros datos ocultos antes de subirlas. Tus documentos, sus fotos y sus números no se envían a proveedores de IA: para personalizar recomendaciones solo usamos el nombre, el nivel y los beneficios de tus membresías, tarjetas y seguros.</li>
         <li><strong>Fotografías para tu avatar:</strong> si subes una selfie para generar tu avatar, la imagen se procesa con nuestro proveedor de IA para crear el avatar y no se usa para entrenar modelos ni se comparte con terceros con fines publicitarios. Puedes eliminar tu avatar y tu foto desde tu perfil.</li>
         <li><strong>Contenido de viajes:</strong> destinos, fechas, itinerarios, gastos, notas y conversaciones con el Concierge.</li>
         <li><strong>Datos técnicos:</strong> dirección IP, tipo de dispositivo y registros de error para seguridad y diagnóstico.</li>
@@ -123,7 +123,7 @@ export const Privacidad = () => (
       <h2>5. Conservación y eliminación de tu cuenta</h2>
       <p>Conservamos tus datos mientras tu cuenta esté activa. Si eliminas tu cuenta desde tu perfil:</p>
       <ul>
-        <li>Borramos tu perfil, viajes, conversaciones, preferencias, beneficios y los archivos que subiste.</li>
+        <li>Borramos tu perfil, viajes, conversaciones, preferencias, tu bóveda (documentos, membresías y sus fotos) y los archivos que subiste.</li>
         <li>Cancelamos tu suscripción y quitamos tus métodos de pago guardados en Stripe, para que no haya cobros nuevos.</li>
         <li>Pedimos a PostHog que borre tu historial de uso, y en Stripe quitamos tu nombre, correo, teléfono y dirección de tu ficha de cliente.</li>
         <li><strong>Lo que no podemos borrar:</strong> Stripe conserva las facturas y los cargos ya hechos (con los datos con que se emitieron) porque la ley lo exige para fines fiscales y para atender aclaraciones o contracargos. También guardamos un registro de pagos, reembolsos y de la solicitud de eliminación que no incluye tu nombre ni tu correo.</li>

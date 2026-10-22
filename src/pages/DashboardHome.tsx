@@ -695,7 +695,7 @@ const DashboardHome = () => {
                 { icon: Wifi, label: "eSIM", sub: "Datos", to: "/dashboard/esim", img: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&q=70&auto=format&fit=crop" },
                 { icon: Compass, label: "Tours", sub: "Experiencias", to: "/dashboard/actividades", img: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600&q=70&auto=format&fit=crop" },
                 { icon: Shield, label: "Seguros", sub: "Viaje", to: "/dashboard/seguros", img: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=600&q=70&auto=format&fit=crop" },
-                { icon: Gift, label: "Beneficios", sub: "PRO", to: "/dashboard/beneficios", img: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&q=70&auto=format&fit=crop" },
+                { icon: Gift, label: "Bóveda", sub: "Docs y membresías", to: "/dashboard/beneficios", img: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&q=70&auto=format&fit=crop" },
                 { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar", img: "https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=70&auto=format&fit=crop" },
                 { icon: ArrowLeftRight, label: "Conversor", sub: "Moneda", to: "/dashboard/convertidor", img: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&q=70&auto=format&fit=crop" },
                 { icon: Crown, label: "Concierge", sub: "Tu concierge IA", to: "/dashboard/concierge", img: "https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=70&auto=format&fit=crop" },
