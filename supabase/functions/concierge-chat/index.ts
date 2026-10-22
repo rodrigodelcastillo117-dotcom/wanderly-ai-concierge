@@ -22,6 +22,8 @@ import { resolveToday, sanitizeClientMessages } from "./guard.ts";
 import { buildContextMessage, buildMemoryData, buildSystemContent, capSummary } from "./prompt.ts";
 import { finalizeReply, parseModelJson, runConciergeLoop, type ModelMessage } from "./loop.ts";
 import { asArray, buildRequestIntelligence, compactItem, computeTripGaps, ensureTransferUsesKnownData } from "./context.ts";
+import { chatError, type ChatErrorCode, modelHttpErrorCode, toolErrorCode } from "./errors.ts";
+import { redactPii } from "../_shared/redact.ts";
 
 declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
 
@@ -146,7 +148,7 @@ async function callTool(name: string, args: Record<string, unknown>, authHeader:
     if (!r.ok && j && typeof j === "object" && !("error" in j)) return { ...j, ok: false, error: `http_${r.status}` };
     return j;
   } catch (e: any) {
-    return { error: e?.name === "TimeoutError" ? "timeout" : (e?.message ?? "tool fetch error") };
+    return { error: toolErrorCode(e) };
   }
 }
 
@@ -197,6 +199,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { ...corsHeaders, "Content-Type": "application/json" },
 });
+/** Error con código estable (errors.ts): el detalle técnico nunca llega al cliente. */
+const fail = (code: ChatErrorCode) => {
+  const { status, body } = chatError(code);
+  return json(body, status);
+};
 
 
 
@@ -211,14 +218,17 @@ Deno.serve(async (req) => {
   let quotaReservation: string | undefined; // cuota: mensaje apartado, se libera si no hay respuesta
 
   try {
-    if (!LOVABLE_API_KEY) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
+    if (!LOVABLE_API_KEY) {
+      console.error("concierge-chat: falta LOVABLE_API_KEY");
+      return fail("SERVICE_UNAVAILABLE");
+    }
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "No autorizado" }, 401);
+    if (!authHeader) return fail("UNAUTHENTICATED");
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: u } = await supabase.auth.getUser();
-    if (!u?.user) return json({ error: "Sesión inválida" }, 401);
+    if (!u?.user) return fail("UNAUTHENTICATED");
 
     // Anti-abuso: límite de ritmo por usuario e IP (aplica también a PRO)
     const rl = await enforceRateLimit(req, "concierge-chat", u.user.id, {
@@ -230,7 +240,7 @@ Deno.serve(async (req) => {
     // B-10: solo user/assistant del cliente, máximo 10 mensajes de 4000 caracteres.
     const clientMessages = sanitizeClientMessages(body.messages);
     const lastUserMsg = [...clientMessages].reverse().find((m) => m.role === "user")?.content ?? "";
-    if (!lastUserMsg.trim()) return json({ error: "Escribe un mensaje para Iato." }, 400);
+    if (!lastUserMsg.trim()) return fail("INVALID_REQUEST");
 
     // Cuota (3 mensajes al mes sin suscripción): se APARTA el mensaje y solo se cobra si Iato
     // responde de verdad (commit al final). Aclaraciones y errores lo liberan. Falla cerrado.
@@ -430,9 +440,9 @@ Deno.serve(async (req) => {
       await flushUsage(); // lo que el modelo sí alcanzó a cobrar
       await releaseQuota(quotaReservation, "model_error"); // sin respuesta del modelo no se cobra
       if (e instanceof ModelHttpError) {
-        if (e.status === 429) return json({ error: "Demasiadas solicitudes, intenta en un momento." }, 429);
-        if (e.status === 402) return json({ error: "Nuestro asistente no está disponible en este momento. Intenta de nuevo en unos minutos." }, 503);
-        return json({ error: `AI gateway ${e.status}`, detail: e.detail }, 502);
+        // El cuerpo del proveedor solo va al log (recortado y sin secretos ni correos).
+        console.error("concierge-chat: gateway de IA", e.status, redactPii(e.detail, 300));
+        return fail(modelHttpErrorCode(e.status));
       }
       throw e;
     }
@@ -517,7 +527,7 @@ Deno.serve(async (req) => {
     return json(parsed);
   } catch (e: any) {
     await releaseQuota(quotaReservation, "error");
-    console.error("concierge-chat error", e);
-    return json({ error: e?.message ?? "Error" }, 500);
+    console.error("concierge-chat error", redactPii(e?.message ?? e, 300));
+    return fail("INTERNAL_ERROR");
   }
 });

@@ -14,6 +14,7 @@ import { localISODate } from "@/lib/localDate";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { convertedTotal, formatMoney, fxLabel, subtotalsByCurrency } from "@/lib/fx";
 import { useFxTable } from "@/hooks/useFxTable";
+import { safeFileName, uploadProblem } from "@/lib/uploadRules";
 
 
 const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"] as const;
@@ -69,7 +70,10 @@ export const Gastos = () => {
     try {
       let receipt_url: string | null = null;
       if (form.file) {
-        const path = `${user.id}/${Date.now()}-${form.file.name}`;
+        // El servidor también lo rechaza (límites del bucket); aquí se avisa con un mensaje claro.
+        const problem = uploadProblem("recibos", form.file);
+        if (problem) throw new Error(problem);
+        const path = `${user.id}/${Date.now()}-${safeFileName(form.file.name)}`;
         const { error: upErr } = await supabase.storage.from("recibos").upload(path, form.file);
         if (upErr) throw upErr;
         receipt_url = path;

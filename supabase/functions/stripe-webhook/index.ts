@@ -56,6 +56,11 @@ Deno.serve(async (req) => {
     retrieveSubscription: (id) => stripe.subscriptions.retrieve(id) as unknown as Promise<StripeSubscriptionLike>,
     retrieveInvoice: (id) => stripe.invoices.retrieve(id) as unknown as Promise<StripeInvoiceLike>,
     applySubscription: (args) => adminClient().rpc("apply_stripe_subscription", args),
+    // Reembolsos y disputas (A-14): no renovar tras reembolso total y registro sin datos personales.
+    updateSubscription: (id, params) => stripe.subscriptions.update(id, params) as unknown as Promise<StripeSubscriptionLike>,
+    markCancelAtPeriodEnd: (id) => adminClient().rpc("mark_subscription_cancel_at_period_end", { _subscription_id: id }),
+    logPaymentEvent: (row) =>
+      adminClient().from("stripe_payment_events").upsert(row, { onConflict: "event_id", ignoreDuplicates: true }),
   });
 
   return new Response(JSON.stringify(outcome.body), {

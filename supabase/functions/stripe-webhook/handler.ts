@@ -9,6 +9,8 @@
 //   vieja pise a otra viva.
 // - Si la escritura en la base falla, se responde 500 para que Stripe REINTENTE (antes se respondía
 //   200 y el cambio se perdía en silencio: alguien pagaba y seguía sin PRO).
+// - charge.refunded / charge.dispute.created (A-14) se registran en stripe_payment_events y jamás
+//   dan PRO; un reembolso total de la última factura deja la suscripción sin renovar.
 
 export type StripeSubscriptionLike = {
   id: string;
@@ -18,6 +20,7 @@ export type StripeSubscriptionLike = {
   current_period_end?: number | null;
   cancel_at_period_end?: boolean | null;
   currency?: string | null;
+  latest_invoice?: string | { id: string } | null;
   metadata?: Record<string, string> | null;
   items?: { data?: Array<{ current_period_end?: number | null; price?: { id?: string | null } | null }> } | null;
 };
@@ -28,6 +31,42 @@ export type StripeInvoiceLike = {
   subscription?: string | { id: string } | null;
   parent?: { subscription_details?: { subscription?: string | { id: string } | null } | null } | null;
   lines?: { data?: Array<{ subscription?: string | { id: string } | null; parent?: { subscription_item_details?: { subscription?: string | null } | null } | null }> } | null;
+};
+
+export type StripeChargeLike = {
+  id: string;
+  amount?: number | null;
+  amount_refunded?: number | null;
+  refunded?: boolean | null;
+  currency?: string | null;
+  customer?: string | { id: string } | null;
+  invoice?: string | { id: string } | null;
+};
+
+export type StripeDisputeLike = {
+  id: string;
+  charge?: string | { id: string } | null;
+  amount?: number | null;
+  currency?: string | null;
+  reason?: string | null;
+  status?: string | null;
+};
+
+/** Fila de public.stripe_payment_events (sin datos personales: ids de Stripe y montos). */
+export type PaymentEventRow = {
+  event_id: string;
+  type: string;
+  charge_id: string | null;
+  invoice_id: string | null;
+  subscription_id: string | null;
+  customer_id: string | null;
+  amount: number | null;
+  amount_refunded: number | null;
+  currency: string | null;
+  dispute_reason: string | null;
+  dispute_status: string | null;
+  action: string;
+  event_created: string;
 };
 
 export type StripeEventLike = {
@@ -56,6 +95,14 @@ export interface WebhookDeps {
   retrieveSubscription(id: string): Promise<StripeSubscriptionLike>;
   retrieveInvoice(id: string): Promise<StripeInvoiceLike>;
   applySubscription(args: ApplyArgs): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  // Reembolsos y disputas (A-14). Opcionales para no romper a quien solo maneja suscripciones; si
+  // falta alguna y llega uno de esos eventos, se responde 500 (Stripe reintenta).
+  /** Pide a Stripe que la suscripción no se renueve (cancel_at_period_end=true). */
+  updateSubscription?(id: string, params: { cancel_at_period_end: true }): Promise<StripeSubscriptionLike>;
+  /** RPC mark_subscription_cancel_at_period_end: solo marca la fila; nunca cambia status ni da PRO. */
+  markCancelAtPeriodEnd?(subscriptionId: string): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  /** Inserta en stripe_payment_events (idempotente por event_id). */
+  logPaymentEvent?(row: PaymentEventRow): PromiseLike<{ error: { message: string } | null }>;
 }
 
 export type WebhookOutcome = { status: number; body: Record<string, unknown> };
@@ -160,6 +207,10 @@ export async function handleStripeEvent(event: StripeEventLike, deps: WebhookDep
         const r = await apply(deps, subscriptionArgs(sub, event.created), event.id);
         return ok(r);
       }
+      case "charge.refunded":
+        return await handleRefund(event, deps);
+      case "charge.dispute.created":
+        return await handleDispute(event, deps);
       default:
         return { status: 200, body: { received: true, ignored: event.type } };
     }
@@ -167,4 +218,74 @@ export async function handleStripeEvent(event: StripeEventLike, deps: WebhookDep
     console.error("webhook handler error:", event.type, event.id, (e as Error).message);
     return { status: 500, body: { error: "handler_failed" } };
   }
+}
+
+// Suscripción que todavía da acceso o cobrará: la única que tiene sentido marcar "no renovar".
+const LIVE_STATUSES = new Set(["active", "trialing", "past_due", "unpaid", "incomplete"]);
+
+async function logEvent(deps: WebhookDeps, row: PaymentEventRow): Promise<void> {
+  if (!deps.logPaymentEvent) throw new Error("logPaymentEvent no configurado");
+  const { error } = await deps.logPaymentEvent(row);
+  if (error) throw new Error(`stripe_payment_events falló (${row.event_id}): ${error.message}`);
+  // Sin datos personales: ids de Stripe, montos y la decisión.
+  console.warn("webhook: pago revertido", row.type, row.event_id, row.charge_id, row.action);
+}
+
+/**
+ * charge.refunded (A-14). Nunca da PRO: no llama a apply_stripe_subscription.
+ * - Reembolso parcial, o de una factura que no es la última: solo se registra.
+ * - Reembolso TOTAL de la última factura de la suscripción: se le pide a Stripe que no renueve
+ *   (si sigue viva) y se marca cancel_at_period_end en la fila. El acceso dura hasta el fin del
+ *   periodo según Stripe; el customer.subscription.updated que Stripe manda después sincroniza el
+ *   estado completo por la vía normal. Quitar el acceso de inmediato es decisión del dueño.
+ */
+async function handleRefund(event: StripeEventLike, deps: WebhookDeps): Promise<WebhookOutcome> {
+  const ch = event.data.object as StripeChargeLike;
+  const amount = typeof ch.amount === "number" ? ch.amount : null;
+  const refundedAmount = typeof ch.amount_refunded === "number" ? ch.amount_refunded : null;
+  const full = ch.refunded === true || (amount !== null && amount > 0 && refundedAmount !== null && refundedAmount >= amount);
+  const invoiceId = idOf(ch.invoice);
+  let subId: string | null = null;
+  let action = full ? "refund_full_logged" : "refund_partial_logged";
+
+  if (full && invoiceId) {
+    subId = invoiceSubscriptionId(await deps.retrieveInvoice(invoiceId));
+    if (!subId) {
+      action = "refund_full_sin_suscripcion";
+    } else {
+      const sub = await deps.retrieveSubscription(subId);
+      if (idOf(sub.latest_invoice) !== invoiceId) {
+        action = "refund_full_factura_anterior";
+      } else {
+        if (LIVE_STATUSES.has(sub.status) && !sub.cancel_at_period_end) {
+          if (!deps.updateSubscription) throw new Error("updateSubscription no configurado");
+          await deps.updateSubscription(subId, { cancel_at_period_end: true });
+        }
+        if (!deps.markCancelAtPeriodEnd) throw new Error("markCancelAtPeriodEnd no configurado");
+        const { error } = await deps.markCancelAtPeriodEnd(subId);
+        if (error) throw new Error(`mark_subscription_cancel_at_period_end falló (${event.id}): ${error.message}`);
+        action = "cancel_at_period_end";
+      }
+    }
+  }
+
+  await logEvent(deps, {
+    event_id: event.id, type: event.type, charge_id: ch.id ?? null, invoice_id: invoiceId,
+    subscription_id: subId, customer_id: idOf(ch.customer), amount, amount_refunded: refundedAmount,
+    currency: ch.currency ?? null, dispute_reason: null, dispute_status: null, action,
+    event_created: new Date(event.created * 1000).toISOString(),
+  });
+  return { status: 200, body: { received: true, action } };
+}
+
+/** charge.dispute.created (A-14): se registra para que operación lo atienda; no cambia el acceso. */
+async function handleDispute(event: StripeEventLike, deps: WebhookDeps): Promise<WebhookOutcome> {
+  const d = event.data.object as StripeDisputeLike;
+  await logEvent(deps, {
+    event_id: event.id, type: event.type, charge_id: idOf(d.charge), invoice_id: null, subscription_id: null,
+    customer_id: null, amount: typeof d.amount === "number" ? d.amount : null, amount_refunded: null,
+    currency: d.currency ?? null, dispute_reason: d.reason ?? null, dispute_status: d.status ?? null,
+    action: "dispute_logged", event_created: new Date(event.created * 1000).toISOString(),
+  });
+  return { status: 200, body: { received: true, action: "dispute_logged" } };
 }
