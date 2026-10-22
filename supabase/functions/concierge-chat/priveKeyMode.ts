@@ -155,12 +155,17 @@ export async function runPriveKey(body: KeyBody, deps: PriveKeyDeps): Promise<Ke
   }));
   const cityCur = String(city.city?.currency ?? "");
   const fx = wish.budget && cityCur && wish.budget.currency !== cityCur && deps.fx ? await deps.fx().catch(() => DEFAULT_FX) : DEFAULT_FX;
-  const result: KeyResult = buildKey(cands, wish, { lang, todayISO: deps.todayISO, fx, exclude, seed: `${deps.userId}|${deps.todayISO}` });
+  const hotel = wish.trip ? hotelForPlan(tr, cands, String(city.city?.name ?? "")) : null;
+  const result: KeyResult = buildKey(cands, wish, { lang, todayISO: deps.todayISO, fx, exclude, seed: `${deps.userId}|${deps.todayISO}`,
+    hotel: hotel?.lat != null ? { name: hotel.name, lat: hotel.lat, lng: hotel.lng } : null });
   const ms = (deps.now?.() ?? Date.now()) - t0;
   const out = {
     ok: true, ...result, ...meta,
     destination: city.city ? { slug: city.city.slug, name: city.city.name, timezone: city.city.timezone, currency: city.city.currency } : null,
     coverage: city.coverage ?? null, age_locked: !!city.age_locked,
+    hotel: hotel ? { name: hotel.name, located: hotel.lat != null, source: hotel.source } : null,
+    hotel_note: hotel && hotel.lat == null ? (lang === "en" ? `Transfers from ${hotel.name} aren't calculated: we don't have its exact location.`
+      : `Los traslados desde ${hotel.name} no están calculados: no tenemos su ubicación exacta.`) : null,
     fx_note: fx !== DEFAULT_FX || (wish.budget && cityCur && wish.budget.currency !== cityCur)
       ? (lang === "en" ? "Amounts in another currency are converted at an approximate rate." : "Los montos en otra moneda se convierten con un tipo de cambio aproximado.") : null,
   };
@@ -183,4 +188,23 @@ export function memoryCache(max = 500): KeyCache {
     get: (k) => { const v = m.get(k); if (v) { m.delete(k); m.set(k, v); } return v; },
     set: (k, v) => { m.set(k, v); while (m.size > max) m.delete(m.keys().next().value as string); },
   };
+}
+
+/**
+ * Hotel del viaje en ese destino (Doc B §2 punto 9). Coordenadas solo si el viaje las trae o si el hotel está en el
+ * catálogo Privé con coordenadas; nunca se geocodifica aquí (sería una API de pago) ni se inventa.
+ */
+export function hotelForPlan(trip: { hospedaje_json?: unknown } | null, cands: KeyCandidate[], cityName: string):
+  { name: string; lat: number | null; lng: number | null; source: "viaje" | "catalogo_prive" | "sin_ubicacion" } | null {
+  const list = Array.isArray(trip?.hospedaje_json) ? (trip!.hospedaje_json as Record<string, unknown>[]) : [];
+  const n = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const inCity = list.filter((h) => h && (!h.ciudad || !cityName || n(h.ciudad).includes(n(cityName).split(" ")[0]) || n(cityName).includes(n(h.ciudad))));
+  const h = inCity[0];
+  const name = String(h?.nombre ?? h?.hotel ?? "").slice(0, 120);
+  if (!h || !name) return null;
+  const lat = Number(h.lat ?? h.latitud), lng = Number(h.lng ?? h.longitud);
+  if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0)) return { name, lat, lng, source: "viaje" };
+  const c = cands.find((x) => x.universe === "private_stays" && x.lat != null && x.lng != null && (n(x.name).includes(n(name)) || n(name).includes(n(x.name))));
+  if (c) return { name, lat: Number(c.lat), lng: Number(c.lng), source: "catalogo_prive" };
+  return { name, lat: null, lng: null, source: "sin_ubicacion" };
 }

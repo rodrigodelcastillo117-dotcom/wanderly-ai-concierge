@@ -2,7 +2,7 @@
 // costo. Nada llama a un modelo de IA: no hay ninguna llave ni fetch en estas pruebas.
 import { describe, expect, it, vi } from "vitest";
 import fixture from "./fixtures/priveKeyCatalog.json";
-import { KEY_DAILY_LIMIT, memoryCache, parseAnswers, runPriveKey, type PriveKeyDeps } from "../../supabase/functions/concierge-chat/priveKeyMode";
+import { hotelForPlan, KEY_DAILY_LIMIT, memoryCache, parseAnswers, runPriveKey, type PriveKeyDeps } from "../../supabase/functions/concierge-chat/priveKeyMode";
 import { runSearchPrive } from "../../supabase/functions/concierge-chat/prive";
 
 const TODAY = "2026-10-22";
@@ -159,5 +159,29 @@ describe("Iato en el chat usa las mismas propuestas (search_prive con key)", () 
       { rpc, priveSession: "ps-token", todayISO: TODAY }) as any;
     expect(out.key.propuestas.map((p: any) => p.nivel)).toEqual(["THE SIGNATURE", "THE INSIDER", "THE UNEXPECTED"]);
     expect(out.key.nota).toMatch(/Propuestas, no reservas/);
+  });
+});
+
+describe("hotel del viaje (traslados desde el hotel)", () => {
+  const cands = (fixture as any).cities.cdmx.items;
+  it("con coordenadas en el viaje: se usan", () => {
+    expect(hotelForPlan({ hospedaje_json: [{ nombre: "Hotel X", ciudad: "Ciudad de México", lat: 19.43, lng: -99.19 }] }, cands, "Ciudad de México"))
+      .toEqual({ name: "Hotel X", lat: 19.43, lng: -99.19, source: "viaje" });
+  });
+  it("si el hotel está en el catálogo Privé, sus coordenadas", () => {
+    expect(hotelForPlan({ hospedaje_json: [{ nombre: "Las Alcobas", ciudad: "Ciudad de México" }] }, cands, "Ciudad de México")?.source).toBe("catalogo_prive");
+  });
+  it("sin ubicación: no se inventa y se dice", async () => {
+    const trip = { ...CDMX_TRIP, hospedaje_json: [{ nombre: "Hotel Sin Datos", ciudad: "Ciudad de México" }] };
+    const out = await runPriveKey({ wish: "Organiza una noche especial, sin tope" }, deps({ trips: [trip] }));
+    expect(out.body.hotel).toMatchObject({ name: "Hotel Sin Datos", located: false });
+    expect(String(out.body.hotel_note)).toMatch(/no están calculados/);
+  });
+  it("con hotel ubicado: el plan calcula el regreso al hotel (ESTIMADO)", async () => {
+    const trip = { ...CDMX_TRIP, hospedaje_json: [{ nombre: "Hotel X", ciudad: "Ciudad de México", lat: 19.4326, lng: -99.1332 }] };
+    const out = await runPriveKey({ wish: "Organiza una noche especial, sin tope" }, deps({ trips: [trip] }));
+    const p = (out.body.proposals as any[])[0];
+    expect(p.return_to_hotel?.label).toBe("ESTIMADO");
+    expect(p.steps[0].transfer?.minutes).toBeGreaterThan(0);
   });
 });

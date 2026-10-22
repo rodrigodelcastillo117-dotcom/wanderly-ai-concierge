@@ -32,9 +32,10 @@
 .pk-tier-photo .pk-fallback { position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 1rem; color: var(--pv-champagne);
   background: radial-gradient(90% 80% at 80% 10%, rgba(201, 169, 97, 0.25), transparent 60%), linear-gradient(160deg, #1f1b15, #0b0b0c); }
 .pk-tier-photo figure { position: absolute; inset: 0; }
-.pk-tier-photo::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to top, rgba(7, 7, 7, 0.92), rgba(7, 7, 7, 0) 60%); }
-.pk-tier-head { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 1rem 1.1rem; }
-.pk-tier-title { font-family: var(--pv-serif); letter-spacing: 0.24em; font-size: 0.95rem; color: var(--pv-gold); }
+.pk-tier-photo::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to top, rgba(7, 7, 7, 0.96) 0%, rgba(7, 7, 7, 0.78) 35%, rgba(7, 7, 7, 0) 75%); }
+.pk-tier-head { position: absolute; left: 0; right: 0; bottom: 1.25rem; z-index: 2; padding: 0.75rem 1.1rem; pointer-events: none; }
+.pk-tier-title { font-family: var(--pv-serif); letter-spacing: 0.24em; font-size: 0.95rem; color: var(--pv-gold-soft); font-weight: 600; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.9); }
+.pk-tier-head p { text-shadow: 0 1px 14px rgba(0, 0, 0, 0.85); }
 .pk-timeline { position: relative; margin-left: 0.4rem; padding-left: 1.1rem; border-left: 1px solid var(--pv-line-strong); }
 .pk-timeline > li { position: relative; padding-bottom: 1rem; }
 .pk-timeline > li::before { content: ""; position: absolute; left: calc(-1.1rem - 5px); top: 0.35rem; width: 9px; height: 9px; border-radius: 999px;

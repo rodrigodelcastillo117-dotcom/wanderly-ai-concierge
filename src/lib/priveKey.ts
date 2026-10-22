@@ -26,6 +26,8 @@ export interface KeyResponse extends Partial<KeyResult> {
   destination?: { slug: string; name: string; timezone?: string; currency?: string } | null;
   coverage?: string | null;
   fx_note?: string | null;
+  hotel?: { name: string; located: boolean; source: string } | null;
+  hotel_note?: string | null;
   cost?: { ai_calls: number; ai_tokens: number; db_rpc_calls: number; cache: "hit" | "miss"; est_usd: number; ms: number };
 }
 

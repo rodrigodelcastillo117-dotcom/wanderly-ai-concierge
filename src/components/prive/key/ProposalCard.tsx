@@ -34,15 +34,15 @@ function StepBooking({ s, tripId, city, onOpened }: { s: KeyStep; tripId?: strin
   );
 }
 
-export function ProposalCard({ p, lang, t, tripId, saved, inTrip, busy, onSave, onAddTrip, askHref, onTrack, onLocked, featured = false }: {
+export function ProposalCard({ p, lang, t, tripId, saved, inTrip, busy, onSave, onAddTrip, askHref, onTrack, onLocked, featured = false, photoStep = 0 }: {
   p: KeyProposal; lang: KeyLang; t: KeyText; tripId?: string | null; saved: boolean; inTrip: boolean; busy?: boolean;
   onSave: () => void; onAddTrip: () => void; askHref: string; onTrack: (event: "booking_opened" | "request_started" | "ask_iato" | "proposal_opened") => void;
-  onLocked: (code: PriveLockedError["code"]) => void; featured?: boolean;
+  onLocked: (code: PriveLockedError["code"]) => void; featured?: boolean; photoStep?: number;
 }) {
   const [openBooking, setOpenBooking] = useState<number | null>(null);
   const [request, setRequest] = useState<KeyStep | null>(null);
-  const lead = p.steps[0];
-  const city = lead?.experience.destination?.name ?? null;
+  const lead = p.steps[Math.min(photoStep, p.steps.length - 1)] ?? p.steps[0];
+  const city = p.steps[0]?.experience.destination?.name ?? null;
   const tracked = useRef(new Set<string>()).current;
   const once = (k: string, fn: () => void) => { if (!tracked.has(k)) { tracked.add(k); fn(); } };
   return (

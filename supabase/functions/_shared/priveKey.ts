@@ -530,6 +530,10 @@ function summarizeBudget(costs: Cost[], budget: Budget | null, open: boolean, la
     status = "probable";
     text = t(lang, `Debería caber: ${money(total)} de ${money(budget.amount)}, con montos estimados${converted ? " y tipo de cambio aproximado" : ""}. Confírmalos.`,
       `Should fit: ${money(total)} of ${money(budget.amount)}, with estimated amounts${converted ? " and an approximate exchange rate" : ""}. Please confirm them.`);
+  } else if (total === 0) {
+    status = "no_verificable";
+    text = t(lang, `Ninguno de estos lugares publica precio con fuente, así que no puedo asegurar que cabe en tus ${money(budget.amount)}.`,
+      `None of these venues publishes a sourced price, so I can't promise it fits your ${money(budget.amount)}.`);
   } else {
     status = "no_verificable";
     text = t(lang, `Lo conocido suma ${money(total)} de ${money(budget.amount)}; ${unknown} ${unknown === 1 ? "lugar no publica" : "lugares no publican"} precio, así que no puedo asegurar que cabe.`,

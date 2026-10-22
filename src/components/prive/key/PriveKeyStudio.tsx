@@ -12,6 +12,14 @@ import { KeyQuestions } from "./KeyQuestions";
 import { TripPickerDialog } from "./TripPickerDialog";
 import "./key.css";
 
+/** Foto de cada nivel: el primer paso cuyo universo no ilustró ya otro nivel (evita tres fotos iguales). */
+function photoIndex(ps: KeyProposal[], i: number): number {
+  const used = new Set<string>();
+  for (let k = 0; k < i; k++) { const s = ps[k].steps[photoIndex(ps, k)]; if (s) used.add(s.experience.universe); }
+  const idx = ps[i].steps.findIndex((s) => !used.has(s.experience.universe));
+  return idx < 0 ? 0 : idx;
+}
+
 type Props = { lang: KeyLang; t: KeyText; initialWish?: string | null; initialMode?: KeyMode | null; autoSubmit?: boolean; onPlanSaved?: () => void; startedAt?: number };
 
 export function PriveKeyStudio({ lang, t, initialWish, initialMode, autoSubmit, onPlanSaved, startedAt }: Props) {
@@ -166,6 +174,7 @@ export function PriveKeyStudio({ lang, t, initialWish, initialMode, autoSubmit, 
           <div className="space-y-1 text-sm">
             {res.trip && <p className="prive-champagne">{t.forTrip(res.trip.label)}</p>}
             {res.trip_note && <p className="prive-muted">{res.trip_note}</p>}
+            {res.hotel_note && <p className="prive-muted">{res.hotel_note}</p>}
             {res.wish?.notes?.map((n) => <p key={n} className="prive-muted">{n}</p>)}
             {res.note && <p className="prive-champagne" role="status">{res.note}</p>}
             {res.fx_note && <p className="text-xs prive-muted">{res.fx_note}</p>}
@@ -173,7 +182,7 @@ export function PriveKeyStudio({ lang, t, initialWish, initialMode, autoSubmit, 
           {proposals.length > 0 && (
             <div className={surprise ? "max-w-xl" : "grid gap-5 lg:grid-cols-3"}>
               {proposals.map((p, i) => (
-                <ProposalCard key={p.tier + p.title} p={p} lang={lang} t={t} tripId={tripId} featured={i === 0}
+                <ProposalCard key={p.tier + p.title} p={p} lang={lang} t={t} tripId={tripId} featured={i === 0} photoStep={photoIndex(proposals, i)}
                   saved={!!saved[p.tier + p.title]} inTrip={!!inTrip[p.tier + p.title]} busy={busy === p.tier}
                   onSave={() => void save(p)} onAddTrip={() => { setPickerMsg(null); setPicker(p); }}
                   askHref={askIatoHref(askIatoAbout(p, lang))} onLocked={onLocked}
