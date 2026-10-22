@@ -6,7 +6,7 @@ import type { VaultItem } from "@/lib/boveda/types";
 const host = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; } };
 
 /** Beneficios: los curados (con fuente y fecha de verificación) + los que escribió la persona. */
-export function BenefitsBlock({ item }: { item: Pick<VaultItem, "program_id" | "tier_id" | "benefits" | "benefits_unverified"> }) {
+export function BenefitsBlock({ item, onAdd }: { item: Pick<VaultItem, "program_id" | "tier_id" | "benefits" | "benefits_unverified">; onAdd?: () => void }) {
   const curated = curatedBenefits(item.program_id, item.tier_id);
   const program = getProgram(item.program_id);
   const own = item.benefits ?? [];
@@ -14,6 +14,11 @@ export function BenefitsBlock({ item }: { item: Pick<VaultItem, "program_id" | "
     return (
       <div className="rounded-xl border border-dashed border-border/70 p-3 text-sm text-muted-foreground" data-testid="no-benefits">
         <p>{NO_BENEFITS_COPY}.</p>
+        {onAdd && (
+          <button type="button" onClick={onAdd} className="mt-1 mr-3 inline-flex items-center gap-1 text-foreground text-xs underline underline-offset-2">
+            <PenLine className="w-3 h-3" aria-hidden="true" /> Agregar mis beneficios
+          </button>
+        )}
         {program?.officialUrl && (
           <a href={program.officialUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-primary text-xs">
             Fuente oficial: {host(program.officialUrl)} <ExternalLink className="w-3 h-3" aria-hidden="true" />

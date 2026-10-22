@@ -121,6 +121,13 @@ describe("Bóveda · alertas de vigencia y requisitos", () => {
     expect(buildAlerts([passport("2027-07-01")], [trip({ destino: "París" })], TODAY).some((x) => x.id.startsWith("pp-"))).toBe(false);
   });
 
+  it("un mismo problema del pasaporte en varios viajes es UNA alerta con todos los destinos", () => {
+    const a = buildAlerts([passport("2027-03-10")], [trip({ destino: "Nueva York" }), trip({ destino: "Londres", fecha_salida: "2027-01-08", fecha_regreso: "2027-01-16" })], TODAY);
+    const pp = a.filter((x) => x.id.startsWith("pp-"));
+    expect(pp).toHaveLength(1);
+    expect(pp[0].title).toBe("Pasaporte con menos de 6 meses de vigencia para Nueva York y Londres");
+  });
+
   it("EUA con pasaporte mexicano y sin visa: crítica con travel.state.gov; con visa vigente no", () => {
     const t = trip({ destino: "Nueva York" });
     const none = buildAlerts([passport("2030-01-01")], [t], TODAY).find((x) => x.id === `entry-${t.id}`);

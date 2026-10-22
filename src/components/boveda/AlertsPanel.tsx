@@ -9,11 +9,11 @@ const TONE = {
   info: "border-border/70 bg-surface/60 [&_svg.lead]:text-primary",
 } as const;
 
-/** Alertas compactas: se ven 2 y el resto se despliega (sin scroll largo). */
+/** Alertas compactas: se ve la más urgente y el resto se despliega (sin scroll largo). */
 export function AlertsPanel({ alerts, onOpenItem }: { alerts: VaultAlert[]; onOpenItem: (id: string) => void }) {
   const [all, setAll] = useState(false);
   if (!alerts.length) return null;
-  const shown = all ? alerts : alerts.slice(0, 2);
+  const shown = all ? alerts : alerts.slice(0, 1);
   return (
     <section aria-label="Alertas de tu bóveda" className="space-y-1.5">
       {shown.map((a) => {
@@ -31,17 +31,17 @@ export function AlertsPanel({ alerts, onOpenItem }: { alerts: VaultAlert[]; onOp
                   </a>
                 )}
                 {a.itemId && (
-                  <button type="button" onClick={() => onOpenItem(a.itemId as string)} className="text-[11px] text-foreground/80 underline underline-offset-2">Ver documento</button>
+                  <button type="button" onClick={() => onOpenItem(a.itemId as string)} className="text-[11px] text-foreground/80 underline underline-offset-2">Abrir</button>
                 )}
               </div>
             </div>
           </div>
         );
       })}
-      {alerts.length > 2 && (
+      {alerts.length > 1 && (
         <button type="button" onClick={() => setAll((v) => !v)} aria-expanded={all}
           className="w-full h-8 text-[12px] text-muted-foreground hover:text-foreground inline-flex items-center justify-center gap-1">
-          {all ? "Ver menos" : `Ver ${alerts.length - 2} alerta${alerts.length - 2 === 1 ? "" : "s"} más`}
+          {all ? "Ver menos" : `Ver ${alerts.length - 1} alerta${alerts.length - 1 === 1 ? "" : "s"} más`}
           <ChevronDown className={`w-3.5 h-3.5 transition ${all ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
       )}

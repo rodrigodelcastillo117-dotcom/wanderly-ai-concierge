@@ -145,6 +145,11 @@ const addMonths = (iso: string, months: number) => {
 export const fmtDate = (iso: string) => formatLocalDate(iso, { day: "numeric", month: "short", year: "numeric" });
 const fmt = fmtDate;
 
+const listJoin = (xs: string[]) => {
+  const u = Array.from(new Set(xs));
+  return u.length <= 1 ? (u[0] ?? "") : `${u.slice(0, -1).join(", ")} y ${u[u.length - 1]}`;
+};
+
 const tripEnd = (t: TripLite) => t.fecha_regreso || t.fecha_salida;
 
 /** Viajes por venir (o en curso) con fechas, ordenados por salida. */
@@ -163,6 +168,7 @@ export function buildAlerts(items: VaultItem[], trips: TripLite[], today = local
   const passports = items.filter((i) => i.kind === "pasaporte").sort((a, b) => (b.expires_on ?? "9999").localeCompare(a.expires_on ?? "9999"));
   const passport = passports[0] ?? null;
   const nationality = passport?.country_code ?? null;
+  const ppNone: TripLite[] = [], ppExp: TripLite[] = [], pp6m: TripLite[] = [];
 
   for (const trip of upcomingTrips(trips, today).slice(0, 6)) {
     const country = countryOfTrip(trip);
@@ -172,21 +178,10 @@ export function buildAlerts(items: VaultItem[], trips: TripLite[], today = local
     if (domestic) continue;
     const where = trip.destino;
 
-    // Pasaporte
-    if (!passport) {
-      alerts.push({ id: `pp-none-${trip.id}`, level: "aviso", tripId: trip.id, title: `Agrega tu pasaporte para ${where}`,
-        detail: "Así revisamos su vigencia contra las fechas de tu viaje." });
-    } else if (passport.expires_on && passport.expires_on < end) {
-      alerts.push({ id: `pp-exp-${trip.id}`, level: "critica", tripId: trip.id, itemId: passport.id,
-        title: `Tu pasaporte vence antes de tu viaje a ${where}`,
-        detail: `Vence el ${fmt(passport.expires_on)} y regresas el ${fmt(end)}. Renuévalo antes de viajar.`,
-        sourceUrl: "https://www.gob.mx/sre", sourceLabel: "SRE" });
-    } else if (passport.expires_on && passport.expires_on < addMonths(end, 6)) {
-      alerts.push({ id: `pp-6m-${trip.id}`, level: "aviso", tripId: trip.id, itemId: passport.id,
-        title: `Pasaporte con menos de 6 meses de vigencia para ${where}`,
-        detail: `Vence el ${fmt(passport.expires_on)}. Muchos países piden 6 meses de vigencia al entrar: confirma el requisito de tu destino.`,
-        sourceUrl: SRE_GUIDE.url, sourceLabel: SRE_GUIDE.label });
-    }
+    // Pasaporte: se junta en UNA alerta por problema con todos los destinos afectados.
+    if (!passport) ppNone.push(trip);
+    else if (passport.expires_on && passport.expires_on < end) ppExp.push(trip);
+    else if (passport.expires_on && passport.expires_on < addMonths(end, 6)) pp6m.push(trip);
 
     // Visas guardadas para ese destino que vencen antes del viaje (cualquier nacionalidad).
     const visaKey = country && SCHENGEN.has(country) ? ["EU", country] : country ? [country] : [];
@@ -225,6 +220,25 @@ export function buildAlerts(items: VaultItem[], trips: TripLite[], today = local
       alerts.push({ id: `ins-${trip.id}`, level: "aviso", tripId: trip.id, title: `Tu seguro de viaje no cubre todo tu viaje a ${where}`,
         detail: "Revisa las fechas de tu póliza o agrega la de este viaje." });
     }
+  }
+
+  const places = (ts: TripLite[]) => listJoin(ts.map((t) => t.destino));
+  if (ppNone.length) {
+    alerts.push({ id: `pp-none-${ppNone[0].id}`, level: "aviso", tripId: ppNone[0].id, title: `Agrega tu pasaporte para ${places(ppNone)}`,
+      detail: "Así revisamos su vigencia contra las fechas de tus viajes." });
+  }
+  if (passport?.expires_on && ppExp.length) {
+    const end = tripEnd(ppExp[0]) as string;
+    alerts.push({ id: `pp-exp-${ppExp[0].id}`, level: "critica", tripId: ppExp[0].id, itemId: passport.id,
+      title: `Tu pasaporte vence antes de tu viaje a ${places(ppExp)}`,
+      detail: `Vence el ${fmt(passport.expires_on)} y regresas el ${fmt(end)}. Renuévalo antes de viajar.`,
+      sourceUrl: "https://www.gob.mx/sre", sourceLabel: "SRE" });
+  }
+  if (passport?.expires_on && pp6m.length) {
+    alerts.push({ id: `pp-6m-${pp6m[0].id}`, level: "aviso", tripId: pp6m[0].id, itemId: passport.id,
+      title: `Pasaporte con menos de 6 meses de vigencia para ${places(pp6m)}`,
+      detail: `Vence el ${fmt(passport.expires_on)}. Muchos países piden 6 meses de vigencia al entrar: confirma el requisito de tu destino.`,
+      sourceUrl: SRE_GUIDE.url, sourceLabel: SRE_GUIDE.label });
   }
 
   // Vigencias generales.

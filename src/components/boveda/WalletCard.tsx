@@ -33,7 +33,7 @@ export function WalletCard({ item, revealed, filesCount, hasPdf, onOpen, onToggl
   const isCard = item.section === "tarjeta";
   const shown = item.number ? (isCard ? cardDisplay(item.number) : revealed ? groupNumber(item.number) : maskNumber(item.number)) : null;
   const btn = look.light ? "hover:bg-black/10 focus-visible:ring-black/40" : "hover:bg-white/10 focus-visible:ring-white/50";
-  const bottomLeft = item.holder_name || (item.section === "tarjeta" ? null : item.issuer) || (item.tier && item.section !== "membresia" ? item.tier : null);
+  const bottomLeft = item.holder_name || (item.section === "documento" || item.section === "seguro" ? item.issuer : null);
   return (
     <article
       role="button"

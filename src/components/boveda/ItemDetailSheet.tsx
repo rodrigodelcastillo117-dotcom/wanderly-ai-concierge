@@ -43,7 +43,7 @@ export function ItemDetailSheet({ item, files, revealed, uploading, onOpenChange
 
   return (
     <Sheet open={!!item} onOpenChange={(o) => { if (!o) setConfirm(false); onOpenChange(o); }}>
-      <SheetContent side={isMobile ? "bottom" : "right"}
+      <SheetContent side={isMobile ? "bottom" : "right"} onOpenAutoFocus={(e) => e.preventDefault()}
         className={`${isMobile ? "max-h-[92dvh] rounded-t-3xl" : "w-full sm:max-w-md"} overflow-y-auto border-border/60 bg-background p-0`}>
         {item && (
           <div className="p-4 sm:p-5 space-y-5 pb-[calc(env(safe-area-inset-bottom)+20px)]">
@@ -72,7 +72,7 @@ export function ItemDetailSheet({ item, files, revealed, uploading, onOpenChange
               </Button>
             </div>
 
-            <dl className="rounded-2xl border border-border/60 bg-surface/60 px-3">
+            <dl className="rounded-2xl border border-border/60 bg-surface/60 px-3 empty:hidden">
               <Row label={item.section === "seguro" ? "Aseguradora" : item.section === "tarjeta" ? "Banco" : "Emisor"} value={item.issuer} />
               <Row label="Titular" value={item.holder_name} />
               <Row label={item.kind === "pasaporte" ? "País emisor" : "País"} value={country} />
@@ -90,7 +90,7 @@ export function ItemDetailSheet({ item, files, revealed, uploading, onOpenChange
             {showBenefits && (
               <section aria-labelledby="vault-benefits-h">
                 <h4 id="vault-benefits-h" className="font-display text-base mb-2">{item.section === "seguro" ? "Coberturas" : "Beneficios"}</h4>
-                <BenefitsBlock item={item} />
+                <BenefitsBlock item={item} onAdd={onEdit} />
               </section>
             )}
 

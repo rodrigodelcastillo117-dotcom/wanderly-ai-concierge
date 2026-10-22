@@ -26,7 +26,7 @@ export type VaultKind = (typeof KINDS_BY_SECTION)[VaultSection][number];
 export const KIND_LABEL: Record<VaultKind, string> = {
   pasaporte: "Pasaporte",
   visa: "Visa",
-  autorizacion: "Autorización electrónica (eTA, ETA, ESTA)",
+  autorizacion: "eTA / ETA / ESTA",
   ine: "INE",
   licencia: "Licencia de manejo",
   vacuna: "Certificado de vacunación",

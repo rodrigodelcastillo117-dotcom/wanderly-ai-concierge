@@ -32,9 +32,9 @@ const VISA_COUNTRIES = [["US", "EUA"], ["CA", "Canadá"], ["GB", "Reino Unido"],
 
 const inputCls = "w-full h-11 rounded-xl bg-input border border-border px-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40";
 
-function Field({ label, id, hint, children, wide }: { label: string; id: string; hint?: string; children: React.ReactNode; wide?: boolean }) {
+function Field({ label, id, hint, children, half }: { label: string; id: string; hint?: string; children: React.ReactNode; half?: boolean }) {
   return (
-    <div className={wide ? "sm:col-span-2" : ""}>
+    <div className={half ? "col-span-1 min-w-0" : "col-span-2"}>
       <label htmlFor={id} className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground mb-1.5">{label}</label>
       {children}
       {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
@@ -141,9 +141,29 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
   const numberLabel = isCard ? "Últimos 4 dígitos" : kind === "pasaporte" ? "Número de pasaporte" : kind === "viajero_confiable" ? "Número (KTN / PASSID)"
     : kind === "ine" ? "Clave de elector o CIC" : isInsurance ? "Número de póliza" : isMembership ? "Número de socio" : "Número";
 
+  const photoSection = !editing && (
+    <div className="space-y-2">
+      <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{isDoc ? "Foto del documento" : "Foto o PDF (opcional)"}</p>
+      {pending.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {pending.map((p) => (
+            <div key={p.id} className="relative rounded-xl overflow-hidden border border-border/60 bg-surface aspect-[4/3] grid place-items-center">
+              {p.preview ? <img src={p.preview} alt="Vista previa sin metadatos" className="w-full h-full object-cover" /> : <span className="text-xs text-muted-foreground">PDF</span>}
+              <button type="button" aria-label="Quitar archivo" onClick={() => setPending((l) => l.filter((x) => x.id !== p.id))}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white grid place-items-center"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      {pending.length < LIMITS.filesPerItem && <CaptureInputs onFiles={(f) => void addFiles(f)} disabled={preparing} compact />}
+      {preparing && <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Quitando datos ocultos de la foto…</p>}
+      <p className="text-[11px] text-muted-foreground leading-relaxed">{FILES_HINT}</p>
+    </div>
+  );
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side={isMobile ? "bottom" : "right"}
+      <SheetContent side={isMobile ? "bottom" : "right"} onOpenAutoFocus={(e) => { if (isMobile) e.preventDefault(); }}
         className={`${isMobile ? "max-h-[94dvh] rounded-t-3xl" : "w-full sm:max-w-lg"} overflow-y-auto border-border/60 bg-background p-0`}>
         <div className="p-4 sm:p-5 space-y-5 pb-[calc(env(safe-area-inset-bottom)+20px)]">
           <SheetHeader className="text-left space-y-1 pr-8">
@@ -162,6 +182,7 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
 
           {!kind ? <KindPicker onPick={pick} section={defaultSection} /> : (
             <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+              {isDoc && photoSection}
               {category && programs.length > 0 && (
                 <Field id="vf-program" label={isCard ? "Tarjeta o banco" : "Programa"}>
                   <select id="vf-program" className={inputCls} value={form.program_id}
@@ -175,8 +196,8 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
                 </Field>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field id="vf-title" label={isCard ? "Nombre de la tarjeta" : isInsurance ? "Plan o póliza" : "Nombre"} wide>
+              <div className="grid grid-cols-2 gap-3">
+                <Field id="vf-title" label={isCard ? "Nombre de la tarjeta" : isInsurance ? "Plan o póliza" : "Nombre"}>
                   <input id="vf-title" className={inputCls} value={form.title} maxLength={LIMITS.title} placeholder={titlePlaceholder}
                     onChange={(e) => set("title", e.target.value)} />
                 </Field>
@@ -204,11 +225,11 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
                 )}
                 {kind === "visa" && (
                   <>
-                    <Field id="vf-visatype" label="Tipo">
+                    <Field id="vf-visatype" label="Tipo" half>
                       <input id="vf-visatype" className={inputCls} value={form.visa_type} maxLength={LIMITS.visaType} placeholder="B1/B2 turista, Schengen C…"
                         onChange={(e) => set("visa_type", e.target.value)} />
                     </Field>
-                    <Field id="vf-entries" label="Entradas">
+                    <Field id="vf-entries" label="Entradas" half>
                       <select id="vf-entries" className={inputCls} value={form.entries} onChange={(e) => set("entries", e.target.value as VaultForm["entries"])}>
                         <option value="">—</option>
                         {(Object.keys(ENTRIES_LABEL) as (keyof typeof ENTRIES_LABEL)[]).map((k) => <option key={k} value={k}>{ENTRIES_LABEL[k]}</option>)}
@@ -231,10 +252,12 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
                         </select>
                       </Field>
                     )}
-                    <Field id="vf-tier" label={program && program.tiers.length ? "Nivel como aparece en tu cuenta" : "Nivel"}>
-                      <input id="vf-tier" className={inputCls} value={form.tier} maxLength={LIMITS.tier} placeholder="Gold, Platino, Prestige…"
-                        onChange={(e) => set("tier", e.target.value)} />
-                    </Field>
+                    {(!program || !program.tiers.length || program.note) && (
+                      <Field id="vf-tier" label={program && program.tiers.length ? "Tu nivel, como aparece en tu cuenta" : "Nivel"}>
+                        <input id="vf-tier" className={inputCls} value={form.tier} maxLength={LIMITS.tier} placeholder="Gold, Platino, Prestige…"
+                          onChange={(e) => set("tier", e.target.value)} />
+                      </Field>
+                    )}
                   </>
                 )}
 
@@ -262,11 +285,11 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
                 {!isCard && (
                   <>
                     {(isDoc || isInsurance) && (
-                      <Field id="vf-from" label={isInsurance ? "Vigente desde" : kind === "vacuna" ? "Fecha de aplicación" : "Expedición"}>
+                      <Field id="vf-from" half label={isInsurance ? "Vigente desde" : kind === "vacuna" ? "Aplicación" : "Expedición"}>
                         <input id="vf-from" type="date" className={inputCls} value={form.valid_from} onChange={(e) => set("valid_from", e.target.value)} />
                       </Field>
                     )}
-                    <Field id="vf-exp" label={isMembership ? "Vigencia del nivel o membresía" : "Vence"}>
+                    <Field id="vf-exp" half={isDoc || isInsurance} label={isMembership ? "Vigencia del nivel o membresía" : "Vence"}>
                       <input id="vf-exp" type="date" className={inputCls} value={form.expires_on} onChange={(e) => set("expires_on", e.target.value)} />
                     </Field>
                   </>
@@ -285,25 +308,7 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
                 </div>
               )}
 
-              {!editing && (
-                <div className="space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{isDoc ? "Foto del documento" : "Foto o PDF (opcional)"}</p>
-                  {pending.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2">
-                      {pending.map((p) => (
-                        <div key={p.id} className="relative rounded-xl overflow-hidden border border-border/60 bg-surface aspect-[4/3] grid place-items-center">
-                          {p.preview ? <img src={p.preview} alt="Vista previa sin metadatos" className="w-full h-full object-cover" /> : <span className="text-xs text-muted-foreground">PDF</span>}
-                          <button type="button" aria-label="Quitar archivo" onClick={() => setPending((l) => l.filter((x) => x.id !== p.id))}
-                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white grid place-items-center"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {pending.length < LIMITS.filesPerItem && <CaptureInputs onFiles={(f) => void addFiles(f)} disabled={preparing} compact />}
-                  {preparing && <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Quitando datos ocultos de la foto…</p>}
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">{FILES_HINT}</p>
-                </div>
-              )}
+              {!isDoc && photoSection}
 
               <Field id="vf-notes" label="Notas">
                 <textarea id="vf-notes" rows={2} className={`${inputCls} h-auto py-2.5`} value={form.notes} maxLength={LIMITS.notes}

@@ -22,7 +22,7 @@ import {
 const TAB_KEY = "iatos.boveda.tab";
 const REVEAL_MS = 30_000;
 /** En móvil las tarjetas se apilan como en una cartera: de cada una se ve la franja superior. */
-const STACK_OVERLAP = "-mt-[134px] md:mt-0";
+const STACK_OVERLAP = "-mt-[120px] md:mt-0";
 
 const readTab = (): VaultSection => {
   try {
@@ -81,9 +81,16 @@ const Benefits = () => {
 
   const setTab = (t: VaultSection) => { setTabState(t); try { localStorage.setItem(TAB_KEY, t); } catch { /* sin almacenamiento */ } };
 
+  // Los viajes solo alimentan las alertas: si fallan, la bóveda se muestra igual.
   const load = useCallback(async () => {
-    const [v, t] = await Promise.all([listVault(), listUpcomingTrips()]);
-    setItems(v.items); setFiles(v.files); setUnavailable(v.unavailable); setTrips(t); setLoading(false);
+    try {
+      const [v, t] = await Promise.all([listVault(), listUpcomingTrips().catch(() => [] as TripLite[])]);
+      setItems(v.items); setFiles(v.files); setUnavailable(v.unavailable); setTrips(t);
+    } catch {
+      setUnavailable(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const userId = user?.id;
@@ -205,8 +212,8 @@ const Benefits = () => {
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.32em] text-primary flex items-center gap-1.5"><Lock className="w-3 h-3" aria-hidden="true" /> Bóveda privada</p>
-            <h1 className="font-display text-[30px] md:text-[40px] leading-[1.05] mt-1">Todo tu viaje, a la mano</h1>
-            <p className="text-[13px] text-muted-foreground mt-1">Documentos, membresías, tarjetas y seguros, con sus beneficios. Solo tú lo ves.</p>
+            <h1 className="font-display text-[27px] md:text-[40px] leading-[1.05] mt-1">Todo tu viaje, a la mano</h1>
+            <p className="hidden sm:block text-[13px] text-muted-foreground mt-1">Documentos, membresías, tarjetas y seguros, con sus beneficios. Solo tú lo ves.</p>
           </div>
           <div className="grid grid-cols-2 md:flex gap-2">
             <Button variant="outline" onClick={() => setSummaryOpen(true)} className="h-11 rounded-xl border-primary/40 hover:bg-primary/10">
@@ -225,7 +232,7 @@ const Benefits = () => {
             <button key={s} type="button" role="tab" aria-selected={tab === s} onClick={() => setTab(s)}
               className={`h-10 rounded-xl text-[12px] sm:text-[13px] font-medium transition flex items-center justify-center gap-1 ${tab === s ? "bg-primary text-primary-foreground shadow-[0_6px_18px_-8px_hsl(41_47%_59%/.7)]" : "text-muted-foreground hover:text-foreground"}`}>
               <span>{SECTION_LABEL[s]}</span>
-              {counts[s] > 0 && <span className="text-[10px] tabular-nums opacity-70">{counts[s]}</span>}
+              {counts[s] > 0 && <span className="hidden sm:inline text-[10px] tabular-nums opacity-70">{counts[s]}</span>}
             </button>
           ))}
         </div>

@@ -153,10 +153,12 @@ async function newPage(browser, vp) {
   const context = await browser.newContext({
     viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor, isMobile: vp.isMobile, hasTouch: vp.hasTouch,
     locale: "es-MX", timezoneId: "America/Mexico_City",
+    // El service worker de la app cachea /rest/v1/trips y sus peticiones no pasan por page.route.
+    serviceWorkers: "block",
   });
   await context.route("**/*", async (route) => {
     const u = new URL(route.request().url());
-    if (u.host === MOCK_HOST) return handle(route);
+    if (u.host === MOCK_HOST) return handle(route).catch((e) => { console.log("HANDLE ERROR", u.pathname, e.message); return route.abort(); });
     if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return route.continue();
     if (u.host === "fonts.googleapis.com" || u.host === "fonts.gstatic.com") {
       const f = fetchFont(u.toString());
@@ -189,6 +191,8 @@ async function openVault(page) {
   await page.getByText("Todo tu viaje, a la mano").waitFor({ timeout: 20000 });
   await sleep(1200);
 }
+// En móvil las tarjetas se enciman: se toca la franja visible, como en la app.
+const openCard = (page, name) => page.getByRole("button", { name }).first().click({ position: { x: 60, y: 28 } });
 const tab = (page, name) => page.getByRole("tablist", { name: "Secciones de tu bóveda" }).getByRole("tab", { name: new RegExp(name) }).click();
 
 async function run(browser, vp) {
@@ -196,6 +200,7 @@ async function run(browser, vp) {
   server = { items: FULL, files: FILES, trips: TRIPS, calls: [] };
   let { context, page } = await newPage(browser, vp);
   await openVault(page);
+  if (process.env.DEBUG_CALLS) { console.log(server.calls.map((c) => `${c.method} ${c.p}`).join("\n")); page.on("console", (m) => console.log("console", m.type(), m.text().slice(0, 160))); page.on("requestfailed", (r) => console.log("FAILED", r.method(), r.url().slice(0, 140), r.failure()?.errorText)); await sleep(3000); console.log(server.calls.slice(-5).map((c) => c.p).join(" ")); }
   await shot(page, "01-documentos", vp);
   await shot(page, "01b-documentos-pagina-completa", vp, true);
 
@@ -208,14 +213,14 @@ async function run(browser, vp) {
 
   // Detalle de una membresía con beneficios curados y fuente.
   await tab(page, "Membresías"); await sleep(400);
-  await page.getByRole("button", { name: "Abrir Marriott Bonvoy" }).click();
+  await openCard(page, "Abrir Marriott Bonvoy");
   await page.getByText("Beneficios de Marriott Bonvoy").waitFor();
   await sleep(700);
   await shot(page, "05-detalle-marriott-beneficios-verificados", vp);
   await page.keyboard.press("Escape"); await sleep(500);
 
   // Programa sin beneficios curados: no se inventan.
-  await page.getByRole("button", { name: /Abrir Volaris/ }).click();
+  await openCard(page, /Abrir Volaris/);
   await page.getByTestId("no-benefits").waitFor();
   await sleep(600);
   await shot(page, "06-detalle-sin-beneficios-curados", vp);
@@ -223,7 +228,7 @@ async function run(browser, vp) {
 
   // Pasaporte: número oculto, mostrar y foto protegida → revelada (enlace firmado simulado).
   await tab(page, "Documentos"); await sleep(400);
-  await page.getByRole("button", { name: "Abrir Pasaporte mexicano" }).click();
+  await openCard(page, "Abrir Pasaporte mexicano");
   await page.getByRole("dialog").getByText("Fotos del documento").waitFor();
   await sleep(600);
   await shot(page, "07-pasaporte-detalle-oculto", vp);
