@@ -45,3 +45,8 @@ Ningún hallazgo AUD-01…AUD-08 se corrigió entre el ZIP y HEAD: todos siguen 
 
 ## Nota de proceso
 Desde la instrucción "OPERACIÓN CIERRE TOTAL" no se ha pedido ningún despliegue, migración, correo ni cambio en producción. Dos acciones ya solicitadas antes de esa instrucción terminaron después: el despliegue de `health-check` y la publicación del frontend de `f62466e`.
+
+## Acciones en producción autorizadas explícitamente por el dueño durante el cierre
+| Hora (UTC) | Acción | Autorización | Resultado |
+|---|---|---|---|
+| 13:44 | Reenviar la invitación Privé a rodrigo.delcastillo@vonhaucke.mx (cuenta 82c06fbd). Como la membresía ya estaba activa (el flujo normal no reenvía), se creó una invitación nueva, la membresía pasó a `invited` solo durante el envío (`prive-cron`) y se restauró a `active` con su `activated_at` original (13:04:03). Contraseña Privé sin cambios. Registrado en `prive_membership_events` (`invitation_resent`). | Mensaje del dueño: "send the PRIVE invitation to my mail rodrigo.delcastillo@vonhaucke.mx" | Resend: `sent` 13:44:35. El enlace abre Privé directamente (`prive_accept_invitation` responde `already`). |
