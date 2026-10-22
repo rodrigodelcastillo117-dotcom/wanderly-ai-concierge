@@ -1418,6 +1418,86 @@ export type Database = {
           },
         ]
       }
+      trip_quotes: {
+        Row: {
+          breakdown: Json
+          created_at: string
+          currency: string
+          date_from: string | null
+          date_to: string | null
+          fx_at: string
+          fx_is_fallback: boolean
+          fx_rate: number
+          fx_source: string
+          id: string
+          line_items: Json
+          nights: number
+          origin: string
+          rooms: number
+          sources: Json
+          total: number
+          travelers: number
+          trip_id: string
+          user_id: string
+          valid_until: string
+          version: number
+        }
+        Insert: {
+          breakdown?: Json
+          created_at?: string
+          currency?: string
+          date_from?: string | null
+          date_to?: string | null
+          fx_at: string
+          fx_is_fallback?: boolean
+          fx_rate: number
+          fx_source: string
+          id?: string
+          line_items?: Json
+          nights: number
+          origin: string
+          rooms?: number
+          sources?: Json
+          total: number
+          travelers: number
+          trip_id: string
+          user_id: string
+          valid_until: string
+          version?: number
+        }
+        Update: {
+          breakdown?: Json
+          created_at?: string
+          currency?: string
+          date_from?: string | null
+          date_to?: string | null
+          fx_at?: string
+          fx_is_fallback?: boolean
+          fx_rate?: number
+          fx_source?: string
+          id?: string
+          line_items?: Json
+          nights?: number
+          origin?: string
+          rooms?: number
+          sources?: Json
+          total?: number
+          travelers?: number
+          trip_id?: string
+          user_id?: string
+          valid_until?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_quotes_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_split_expenses: {
         Row: {
           amount: number
@@ -1491,6 +1571,9 @@ export type Database = {
       }
       trips: {
         Row: {
+          current_quote_id: string | null
+          quote_basis: Json | null
+          quote_needs_update: boolean
           analisis_ai: string | null
           ciudad_origen: string | null
           cover_image_url: string | null
@@ -1520,6 +1603,9 @@ export type Database = {
           vuelos_json: Json | null
         }
         Insert: {
+          current_quote_id?: string | null
+          quote_basis?: Json | null
+          quote_needs_update?: boolean
           analisis_ai?: string | null
           ciudad_origen?: string | null
           cover_image_url?: string | null
@@ -1549,6 +1635,9 @@ export type Database = {
           vuelos_json?: Json | null
         }
         Update: {
+          current_quote_id?: string | null
+          quote_basis?: Json | null
+          quote_needs_update?: boolean
           analisis_ai?: string | null
           ciudad_origen?: string | null
           cover_image_url?: string | null

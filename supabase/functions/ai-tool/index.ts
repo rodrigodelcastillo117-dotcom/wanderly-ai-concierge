@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     const __rl = await enforceRateLimit(req, "ai-tool", u.user.id, { perMinute: 10, perHour: 80, ipPerMinute: 30 });
     if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
-    const { prompt, system, model = "google/gemini-2.5-flash", json = false } = (await req.json()) as {
+    const { prompt, system, model = "google/gemini-flash-latest", json = false } = (await req.json()) as {
       prompt: string; system?: string; model?: string; json?: boolean;
     };
     if (!prompt || typeof prompt !== "string") {

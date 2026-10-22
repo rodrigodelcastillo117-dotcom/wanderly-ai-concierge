@@ -1,6 +1,8 @@
 // supabase/functions/nightlife-discover/index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { callClaudeWithFallback, parseJsonLoose, responseText } from "../_shared/claude.ts";
+import { aiFetch } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +12,8 @@ const corsHeaders = {
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -104,7 +108,7 @@ Deno.serve(async (req) => {
     }
 
     // 2. Descubrir con Perplexity
-    if (!PERPLEXITY_API_KEY || !ANTHROPIC_API_KEY) {
+    if (!PERPLEXITY_API_KEY || !(ANTHROPIC_API_KEY || GEMINI_API_KEY || LOVABLE_API_KEY)) {
       return new Response(JSON.stringify({ ciudad: body.ciudad, venues: existentes ?? [], fuente: "cache_parcial",
         mensaje: "Curaduría parcial (faltan claves de IA)." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -141,35 +145,50 @@ Para cada uno: nombre exacto, dirección, dress code, precio estimado, si requie
     // 3. Claude estructura el JSON (con master prompt + system específico)
     const systemFinal = [MASTER_PROMPT_IATOS, SYSTEM_PROMPT].filter(Boolean).join("\n\n---\n\n");
 
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+    const userContent = `Ciudad: ${body.ciudad}${body.pais ? `, ${body.pais}` : ""}\n\nINVESTIGACIÓN:\n${investigacion}\n\nEstructura los venues premium en JSON. Excluye estrictamente strip clubs, adult clubs, o servicios sexuales. Responde SOLO con el objeto JSON, sin texto adicional.`;
+
+    let parsed: any = null;
+    if (ANTHROPIC_API_KEY) {
+      const claudeRes = await callClaudeWithFallback({
         max_tokens: 4000,
-        temperature: 0,
         system: systemFinal,
-        messages: [{
-          role: "user",
-          content: `Ciudad: ${body.ciudad}${body.pais ? `, ${body.pais}` : ""}\n\nINVESTIGACIÓN:\n${investigacion}\n\nEstructura los venues premium en JSON. Excluye estrictamente strip clubs, adult clubs, o servicios sexuales.`,
-        }],
-      }),
-    });
-    if (!claudeRes.ok) {
-      return new Response(JSON.stringify({ error: "claude_error", venues: existentes ?? [] }), {
+        messages: [{ role: "user", content: userContent }],
+      }, { apiKey: ANTHROPIC_API_KEY });
+      if (claudeRes.ok) {
+        parsed = parseJsonLoose(responseText(await claudeRes.json()));
+        if (!parsed) console.warn("nightlife-discover: Claude sin JSON legible; usando respaldo Gemini");
+      } else {
+        console.error("nightlife-discover: Claude no disponible; usando respaldo Gemini", claudeRes.status, (await claudeRes.text()).slice(0, 500));
+      }
+    }
+
+    // Respaldo: Gemini (aiFetch) con el mismo prompt.
+    if (!parsed && (GEMINI_API_KEY || LOVABLE_API_KEY)) {
+      const r = await aiFetch({
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY ?? ""}` },
+        body: JSON.stringify({
+          model: "google/gemini-flash-latest",
+          messages: [
+            { role: "system", content: systemFinal },
+            { role: "user", content: userContent },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        parsed = parseJsonLoose(j?.choices?.[0]?.message?.content ?? "");
+      } else {
+        console.error("nightlife-discover: respaldo Gemini falló", r.status, (await r.text()).slice(0, 500));
+      }
+    }
+
+    if (!parsed) {
+      return new Response(JSON.stringify({ error: "ai_unavailable", venues: existentes ?? [] }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const claudeData = await claudeRes.json();
-    const textBlock = (claudeData.content ?? []).find((b: any) => b.type === "text");
-    const raw = textBlock?.text ?? "{}";
-    let parsed: any = { venues: [] };
-    try { parsed = JSON.parse(raw); }
-    catch { const m = raw.match(/\{[\s\S]*\}/); if (m) parsed = JSON.parse(m[0]); }
 
     // 4. Filtrar categorías permitidas + insertar (dedupe contra existentes)
     const existingNames = new Set((existentes ?? []).map((v: any) => (v.nombre ?? "").toLowerCase().trim()));

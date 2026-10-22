@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatMoney, fxLabel, summarizeSpend, type SpendItem } from "@/lib/fx";
+import { useFxTable } from "@/hooks/useFxTable";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
@@ -9,30 +11,21 @@ const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte",
 
 const SmartSpendPanel = () => {
   const { user } = useAuth();
-  const [items, setItems] = useState<{ amount: number; category: string; expense_date: string }[]>([]);
+  const [items, setItems] = useState<SpendItem[]>([]);
+  const fx = useFxTable();
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("expenses").select("amount,category,expense_date").eq("user_id", user.id)
+    supabase.from("expenses").select("amount,currency,category,expense_date").eq("user_id", user.id)
       .then(({ data }) => setItems((data as any) ?? []));
   }, [user]);
 
-  const { thisMonth, lastMonth, byCat, total } = useMemo(() => {
-    const now = new Date();
-    const m0 = new Date(now.getFullYear(), now.getMonth(), 1);
-    const m1 = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    let thisMonth = 0, lastMonth = 0;
-    const byCat: Record<string, number> = {};
-    items.forEach((x) => {
-      const d = new Date(x.expense_date);
-      const amt = Number(x.amount);
-      if (d >= m0) thisMonth += amt;
-      else if (d >= m1) lastMonth += amt;
-      byCat[x.category] = (byCat[x.category] ?? 0) + amt;
-    });
-    const total = Object.values(byCat).reduce((a, b) => a + b, 0);
-    return { thisMonth, lastMonth, byCat, total };
-  }, [items]);
+  // Todo convertido a MXN con el tipo de cambio indicado (antes se sumaban MXN, USD y EUR como
+  // si fueran la misma moneda) y con fechas leídas como fecha local.
+  const { thisMonth, lastMonth, byCat, total, unconvertedCount, unconvertedCurrencies } = useMemo(
+    () => (fx ? summarizeSpend(items, "MXN", fx) : { thisMonth: 0, lastMonth: 0, byCat: {} as Record<string, number>, total: 0, unconvertedCount: 0, unconvertedCurrencies: [] as string[] }),
+    [items, fx],
+  );
 
   const delta = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0;
   const data = CATEGORIAS.map((c) => ({ name: c, value: byCat[c] ?? 0 })).filter((d) => d.value > 0);
@@ -42,7 +35,7 @@ const SmartSpendPanel = () => {
       <div className="glass-card rounded-2xl p-6 md:p-8 mb-6">
         <p className="text-xs text-primary tracking-[0.2em] uppercase mb-2">Este mes</p>
         <div className="flex items-end gap-4 flex-wrap">
-          <p className="font-display text-4xl md:text-5xl">${thisMonth.toLocaleString("es-MX")}</p>
+          <p className="font-display text-4xl md:text-5xl">{formatMoney(Math.round(thisMonth), "MXN", 0)}</p>
           {lastMonth > 0 && (
             <span className={`flex items-center gap-1 text-sm ${delta >= 0 ? "text-destructive" : "text-emerald-500"}`}>
               {delta >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
@@ -50,6 +43,12 @@ const SmartSpendPanel = () => {
             </span>
           )}
         </div>
+        {fx && items.length > 0 && (
+          <p className="text-[11px] text-muted-foreground mt-2">
+            En pesos mexicanos · {fxLabel(fx)}
+            {unconvertedCount > 0 && ` · ${unconvertedCount} gasto(s) sin convertir (${unconvertedCurrencies.join(", ")}: sin tipo de cambio)`}
+          </p>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -66,7 +65,7 @@ const SmartSpendPanel = () => {
                   </Pie>
                   <Tooltip
                     contentStyle={{ background: "hsl(var(--surface))", border: "1px solid hsl(var(--border))", borderRadius: 12 }}
-                    formatter={(v: number) => `$${v.toLocaleString("es-MX")}`}
+                    formatter={(v: number) => formatMoney(Math.round(v), "MXN", 0)}
                   />
                 </PieChart>
               </ResponsiveContainer>

@@ -2,6 +2,8 @@
 // Busca promociones reales en tiempo real (Perplexity) basadas en la Bóveda de Beneficios del usuario.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { callClaudeWithFallback, parseJsonLoose, toolInput } from "../_shared/claude.ts";
+import { aiFetch } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +13,8 @@ const corsHeaders = {
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 
@@ -124,7 +128,7 @@ const TOOL_SCHEMA = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    if (!ANTHROPIC_API_KEY || !PERPLEXITY_API_KEY) {
+    if (!PERPLEXITY_API_KEY || !(ANTHROPIC_API_KEY || GEMINI_API_KEY || LOVABLE_API_KEY)) {
       return new Response(JSON.stringify({ error: "Claves de IA no configuradas" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -164,36 +168,58 @@ Deno.serve(async (req) => {
 
     const investigacion = await buscarConPerplexity(vaultDesc, body);
 
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4000,
-        temperature: 0,
-        system: "Estructuras promociones de viaje reales en español de México. Solo usa datos de la investigación; no inventes promos. Si la investigación no menciona una promo clara, no la incluyas.",
-        tools: [TOOL_SCHEMA],
-        tool_choice: { type: "tool", name: "entregar_promociones" },
-        messages: [{
-          role: "user",
-          content: `BÓVEDA DEL USUARIO:\n${vaultDesc}\n\nINVESTIGACIÓN PERPLEXITY:\n${investigacion.texto}\n\nFUENTES:\n${investigacion.citations.map((c, i) => `[${i+1}] ${c}`).join("\n")}\n\nEstructura las promociones aplicables.`
-        }],
-      }),
-    });
+    const system = "Estructuras promociones de viaje reales en español de México. Solo usa datos de la investigación; no inventes promos. Si la investigación no menciona una promo clara, no la incluyas.";
+    const userContent = `BÓVEDA DEL USUARIO:\n${vaultDesc}\n\nINVESTIGACIÓN PERPLEXITY:\n${investigacion.texto}\n\nFUENTES:\n${investigacion.citations.map((c, i) => `[${i+1}] ${c}`).join("\n")}\n\nEstructura las promociones aplicables.`;
 
-    if (!claudeRes.ok) {
-      const t = await claudeRes.text();
-      return new Response(JSON.stringify({ error: `Claude ${claudeRes.status}`, detail: t }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // 1) Claude (modelo vigente). El modelo actual no acepta forzar la herramienta: se pide en el prompt.
+    let out: any = null;
+    if (ANTHROPIC_API_KEY) {
+      const claudeRes = await callClaudeWithFallback({
+        max_tokens: 4000,
+        system: `${system}\n\nEntrega SIEMPRE el resultado llamando a la herramienta "entregar_promociones", sin texto adicional.`,
+        tools: [TOOL_SCHEMA],
+        tool_choice: { type: "auto" },
+        messages: [{ role: "user", content: userContent }],
+      }, { apiKey: ANTHROPIC_API_KEY });
+      if (claudeRes.ok) {
+        out = toolInput(await claudeRes.json(), "entregar_promociones");
+        if (!out) console.warn("buscar-promociones: Claude no llamó la herramienta; usando respaldo Gemini");
+      } else {
+        console.error("buscar-promociones: Claude no disponible; usando respaldo Gemini", claudeRes.status, (await claudeRes.text()).slice(0, 500));
+      }
     }
-    const claudeData = await claudeRes.json();
-    const toolUse = (claudeData.content ?? []).find((b: any) => b.type === "tool_use");
-    const out = toolUse?.input ?? { resumen: "Sin resultados", promociones: [] };
+
+    // 2) Respaldo: Gemini (aiFetch) con la misma estructura en JSON.
+    if (!out && (GEMINI_API_KEY || LOVABLE_API_KEY)) {
+      const r = await aiFetch({
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY ?? ""}` },
+        body: JSON.stringify({
+          model: "google/gemini-flash-latest",
+          messages: [
+            { role: "system", content: `${system}\n\nDevuelve SOLO un JSON válido con esta forma: ${JSON.stringify(TOOL_SCHEMA.input_schema)}` },
+            { role: "user", content: userContent },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        out = parseJsonLoose(j?.choices?.[0]?.message?.content ?? "");
+      } else {
+        console.error("buscar-promociones: respaldo Gemini falló", r.status, (await r.text()).slice(0, 500));
+      }
+    }
+
+    if (!out) {
+      return new Response(JSON.stringify({
+        error: "ai_unavailable",
+        message: "No pudimos estructurar las promociones ahora. Intenta de nuevo en unos minutos.",
+        promociones: [],
+        fuentes: investigacion.citations,
+      }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!Array.isArray(out.promociones)) out.promociones = [];
 
     return new Response(JSON.stringify({ ...out, fuentes: investigacion.citations }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

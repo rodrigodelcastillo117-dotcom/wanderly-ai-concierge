@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calculator, PiggyBank, AlertTriangle, CheckCircle2, Plane, Wallet } from "lucide-react";
+import { convert, fxLabel, type FxTable } from "@/lib/fx";
+import { useFxTable } from "@/hooks/useFxTable";
 
 export type Trip = {
   id: string;
@@ -64,13 +66,15 @@ export const defaultState = (): State => ({
   variables: Object.fromEntries(VAR_FIELDS.map(f => [f.key, ""])),
 });
 
+// Montos negativos no tienen sentido aquí (antes "-5000" restaba gastos o sumaba ingreso).
+const pos = (v: unknown) => Math.max(0, Number(v) || 0);
 const sum = (obj: Record<string, string>) =>
-  Object.values(obj).reduce((acc, v) => acc + (Number(v) || 0), 0);
+  Object.values(obj).reduce((acc, v) => acc + pos(v), 0);
 
 const fmtMoney = (n: number, currency = "MXN") =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
 
-export type SavingsState = "pagado" | "sin_ingresos" | "sin_costo" | "sin_fecha" | "ok" | "ajustado" | "imposible";
+export type SavingsState = "pagado" | "sin_tipo_cambio" | "sin_ingresos" | "sin_costo" | "sin_fecha" | "ok" | "ajustado" | "imposible";
 
 const today = () => {
   const d = new Date();
@@ -81,16 +85,24 @@ const today = () => {
 export const isUpcoming = (t: Pick<Trip, "fecha_salida">, now = today()) =>
   !t.fecha_salida || new Date(t.fecha_salida + "T00:00:00") >= now;
 
-export function computeSavings(state: State, trip: Trip | null, now = new Date()) {
-  const sueldo = Number(state.sueldo) || 0;
-  const extras = Number(state.extras) || 0;
-  const patrimonio = Number(state.patrimonio) || 0;
+/**
+ * Ingresos, gastos y ahorro se capturan en MXN. Si el viaje está cotizado en otra moneda, su costo
+ * se convierte a MXN con `fx` (fuente y fecha visibles); sin tipo de cambio no se calcula nada
+ * (antes se comparaban pesos contra dólares como si fueran la misma moneda).
+ */
+export function computeSavings(state: State, trip: Trip | null, now = new Date(), fx: FxTable | null = null) {
+  const sueldo = pos(state.sueldo);
+  const extras = pos(state.extras);
+  const patrimonio = pos(state.patrimonio);
   const fijos = sum(state.fijos);
   const variables = sum(state.variables);
   const ingreso = sueldo + extras;
   const capacidadAhorro = ingreso - fijos - variables;
 
-  const costoViaje = Number(trip?.total_estimado ?? 0);
+  const monedaViaje = String(trip?.moneda || "MXN").toUpperCase();
+  const costoOriginal = pos(trip?.total_estimado ?? 0);
+  const costoConvertido = monedaViaje === "MXN" ? costoOriginal : fx ? convert(costoOriginal, monedaViaje, "MXN", fx) : null;
+  const costoViaje = costoConvertido ?? 0;
   const faltante = Math.max(0, costoViaje - patrimonio);
 
   let meses = 0;
@@ -107,7 +119,8 @@ export function computeSavings(state: State, trip: Trip | null, now = new Date()
   const ratio = capacidadAhorro > 0 ? ahorroRequerido / capacidadAhorro : Infinity;
 
   let estado: SavingsState = "ok";
-  if (costoViaje === 0) estado = "sin_costo";
+  if (costoOriginal > 0 && costoConvertido == null) estado = "sin_tipo_cambio";
+  else if (costoViaje === 0) estado = "sin_costo";
   else if (faltante === 0) estado = "pagado";
   else if (!fechaViaje) estado = "sin_fecha";
   else if (ingreso === 0) estado = "sin_ingresos";
@@ -121,7 +134,10 @@ export function computeSavings(state: State, trip: Trip | null, now = new Date()
     ingreso, sueldo, extras, patrimonio, fijos, variables,
     capacidadAhorro, costoViaje, faltante, meses, fechaViaje,
     ahorroRequerido, ratio, estado, recorteSugerido,
-    currency: trip?.moneda || "MXN",
+    currency: "MXN",
+    monedaViaje,
+    costoOriginal,
+    convertido: monedaViaje !== "MXN" && costoConvertido != null,
   };
 }
 
@@ -162,7 +178,8 @@ export const TripSavingsCalculator = () => {
 
   const trip = trips.find(t => t.id === state.tripId) ?? null;
 
-  const computed = useMemo(() => computeSavings(state, trip), [state, trip]);
+  const fx = useFxTable();
+  const computed = useMemo(() => computeSavings(state, trip, new Date(), fx), [state, trip, fx]);
 
   const setFijo = (k: string, v: string) => setState(s => ({ ...s, fijos: { ...s.fijos, [k]: v } }));
   const setVar = (k: string, v: string) => setState(s => ({ ...s, variables: { ...s.variables, [k]: v } }));
@@ -215,7 +232,11 @@ export const TripSavingsCalculator = () => {
                 {trip.total_estimado && (
                   <span className="px-3 py-1.5 rounded-full border border-border bg-surface">
                     Costo estimado: <strong className="text-primary">{fmtMoney(Number(trip.total_estimado), trip.moneda || "MXN")}</strong>
+                    {computed.convertido && <> ≈ <strong className="text-primary">{fmtMoney(computed.costoViaje, "MXN")}</strong></>}
                   </span>
+                )}
+                {computed.convertido && fx && (
+                  <span className="px-3 py-1.5 text-[11px] text-muted-foreground">{fxLabel(fx)}</span>
                 )}
               </div>
             )}
@@ -270,8 +291,8 @@ export const TripSavingsCalculator = () => {
               {computed.estado === "pagado" && (
                 <Verdict
                   icon={<CheckCircle2 className="w-6 h-6 text-emerald-400" />}
-                  title="Ya lo tienes pagado"
-                  body={`Tu patrimonio (${fmtMoney(computed.patrimonio, computed.currency)}) cubre el viaje (${fmtMoney(computed.costoViaje, computed.currency)}). Reserva con calma.`}
+                  title="Tu ahorro ya cubre el costo estimado"
+                  body={`Tu ahorro (${fmtMoney(computed.patrimonio, computed.currency)}) alcanza para el costo estimado del viaje (${fmtMoney(computed.costoViaje, computed.currency)}). Confirma los precios antes de reservar.`}
                 />
               )}
               {computed.estado === "sin_ingresos" && (
@@ -328,6 +349,11 @@ export const TripSavingsCalculator = () => {
                   />
                 );
               })()}
+              {computed.estado === "sin_tipo_cambio" && (
+                <p className="text-sm text-muted-foreground">
+                  Este viaje está cotizado en {computed.monedaViaje} y no tenemos tipo de cambio para pasarlo a pesos ahora. Intenta más tarde.
+                </p>
+              )}
               {computed.estado === "sin_costo" && (
                 <p className="text-sm text-muted-foreground">Este viaje todavía no tiene costo estimado. Termina de planearlo y vuelve.</p>
               )}

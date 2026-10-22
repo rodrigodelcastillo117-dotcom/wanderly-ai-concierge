@@ -53,7 +53,7 @@ NO inventes nombres. Si no estás 100% seguro de uno, omítelo.`;
       signal: ctrl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-flash-latest",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       }),

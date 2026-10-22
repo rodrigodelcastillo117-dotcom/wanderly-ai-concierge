@@ -19,6 +19,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { toast } from "sonner";
+import { staleQuoteMessage } from "@/lib/quote";
 import { useAuth } from "@/contexts/AuthContext";
 import { reanalyzeTripInPlace } from "@/lib/tripReanalysis";
 import { deleteOwnedTrip, leaveSharedTrip, MEMBERSHIP_MESSAGES } from "@/lib/tripMembership";
@@ -40,6 +41,8 @@ const EditTrip = () => {
   const [fechaRegreso, setFechaRegreso] = useState("");
   const [numViajeros, setNumViajeros] = useState(2);
   const [presupuesto, setPresupuesto] = useState<number | null>(null);
+  // Viajeros y fechas con que está cotizado el viaje (para avisar si se cambian sin recotizar).
+  const [original, setOriginal] = useState<{ travelers: number; dateFrom: string | null; dateTo: string | null; hasQuote: boolean } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -54,6 +57,13 @@ const EditTrip = () => {
         setFechaRegreso(data.fecha_regreso ?? "");
         setNumViajeros(data.num_viajeros ?? 2);
         setPresupuesto(data.presupuesto_objetivo ?? null);
+        const basis = (data as any).quote_basis;
+        setOriginal({
+          travelers: Number(basis?.num_viajeros ?? data.num_viajeros ?? 2),
+          dateFrom: basis?.fecha_salida ?? data.fecha_salida ?? null,
+          dateTo: basis?.fecha_regreso ?? data.fecha_regreso ?? null,
+          hasQuote: data.total_estimado != null,
+        });
       }
       setLoading(false);
     })();
@@ -79,9 +89,18 @@ const EditTrip = () => {
       toast.error("No pudimos guardar los cambios. Intenta de nuevo.");
       return;
     }
-    toast.success("Cambios guardados");
+    if (quoteBasisChanged && original) {
+      // El total guardado sigue siendo el de antes: se avisa en vez de repartirlo en silencio.
+      toast.warning("Cambios guardados", { description: `${staleQuoteMessage(original)} con «Re-analizar con IA».` });
+    } else {
+      toast.success("Cambios guardados");
+    }
     navigate(`/dashboard/viajes/${id}`);
   };
+
+  const quoteBasisChanged = !!original?.hasQuote && (
+    numViajeros !== original.travelers || (fechaSalida || null) !== original.dateFrom || (fechaRegreso || null) !== original.dateTo
+  );
 
   // Re-analiza SOBRE el mismo viaje (mismo id): diario, packing, split, gastos,
   // reservas, alertas y colaboradores se conservan. Nunca borra el viaje original.
@@ -243,6 +262,12 @@ const EditTrip = () => {
             </button>
           </div>
         </div>
+
+        {quoteBasisChanged && original && (
+          <p role="status" className="mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-500">
+            {staleQuoteMessage(original)}. Guardar no cambia los precios: usa «Re-analizar con IA» para cotizar con los nuevos viajeros o fechas.
+          </p>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3 mt-8">
           <Button

@@ -11,6 +11,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import SmartSpendPanel from "@/components/SmartSpendPanel";
 import { TripSavingsCalculator } from "@/components/TripSavingsCalculator";
 import { localISODate } from "@/lib/localDate";
+import { formatDateOnly } from "@/lib/dateUtils";
+import { convertedTotal, formatMoney, fxLabel, subtotalsByCurrency } from "@/lib/fx";
+import { useFxTable } from "@/hooks/useFxTable";
 
 
 const CATEGORIAS = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"] as const;
@@ -54,8 +57,14 @@ export const Gastos = () => {
 
   useEffect(() => { load(); }, [user]);
 
+  const fx = useFxTable();
+
   const handleSave = async () => {
     if (!user || !form.amount) return;
+    if (!(Number(form.amount) > 0)) {
+      toast.error("El monto debe ser mayor a 0");
+      return;
+    }
     setSaving(true);
     try {
       let receipt_url: string | null = null;
@@ -92,7 +101,11 @@ export const Gastos = () => {
     setItems((s) => s.filter((x) => x.id !== id));
   };
 
-  const total = items.reduce((s, x) => s + Number(x.amount), 0);
+  // Nunca se suman monedas distintas como si fueran una: subtotal por moneda y, aparte, el total
+  // convertido a MXN con el tipo de cambio indicado (fuente y fecha).
+  const subtotals = subtotalsByCurrency(items);
+  const currencies = Object.keys(subtotals);
+  const enMxn = fx ? convertedTotal(items, "MXN", fx) : null;
 
   return (
     <DashboardLayout>
@@ -141,7 +154,20 @@ export const Gastos = () => {
         <div className="glass-card rounded-2xl p-6 mb-6 flex items-center justify-between">
           <div>
             <p className="text-xs text-primary tracking-[0.2em] uppercase mb-1">Total registrado</p>
-            <p className="font-display text-3xl">${total.toLocaleString("es-MX")}</p>
+            {currencies.length === 0 ? (
+              <p className="font-display text-3xl">$0 MXN</p>
+            ) : (
+              <p className="font-display text-2xl md:text-3xl break-words">
+                {currencies.map((c) => formatMoney(subtotals[c], c)).join(" · ")}
+              </p>
+            )}
+            {currencies.length > 1 && enMxn && (
+              <p className="text-xs text-muted-foreground mt-1">
+                ≈ {formatMoney(Math.round(enMxn.total), "MXN", 0)} en total
+                {enMxn.unconvertedCount > 0 && ` (sin contar ${Object.keys(enMxn.unconverted).join(", ")}: no tenemos tipo de cambio)`}
+                <span className="block text-[10px] text-muted-foreground/80">{fxLabel(fx!)}</span>
+              </p>
+            )}
           </div>
           <Receipt className="w-10 h-10 text-primary/60" />
         </div>
@@ -157,7 +183,7 @@ export const Gastos = () => {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Monto</label>
-                  <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" />
+                  <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" />
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Moneda</label>
@@ -204,13 +230,13 @@ export const Gastos = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary">{x.category}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(x.expense_date).toLocaleDateString("es-MX")}</span>
+                  {/* Fecha local: new Date("2026-10-01") es UTC y en México se mostraba el 30 sep. */}
+                  <span className="text-xs text-muted-foreground">{formatDateOnly(x.expense_date)}</span>
                 </div>
                 <p className="text-sm truncate">{x.description ?? "—"}</p>
               </div>
               <div className="text-right">
-                <p className="font-display text-lg">${Number(x.amount).toLocaleString("es-MX")}</p>
-                <p className="text-xs text-muted-foreground">{x.currency}</p>
+                <p className="font-display text-lg">{formatMoney(Number(x.amount), x.currency)}</p>
               </div>
               <button onClick={() => remove(x.id)} className="text-muted-foreground hover:text-destructive p-2">
                 <Trash2 className="w-4 h-4" />

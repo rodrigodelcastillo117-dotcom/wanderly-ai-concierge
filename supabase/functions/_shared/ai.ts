@@ -17,6 +17,19 @@ const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat
 // Alias que Google mantiene apuntando a su modelo Flash vigente: los nombres fijos (2.5-flash,
 // 2.5-flash-lite) se retiran y devuelven 404.
 const GEMINI_FALLBACK_MODEL = "gemini-flash-latest";
+// El gateway de Lovable usa sus propios nombres: no está verificado que acepte el alias
+// "gemini-flash-latest", así que al caer a Lovable se traduce a un nombre que sí publica.
+const LOVABLE_MODEL_ALIASES: Record<string, string> = {
+  "google/gemini-flash-latest": "google/gemini-2.5-flash",
+};
+
+/** Petición para el gateway de Lovable: igual a la original salvo el nombre del modelo si es un alias. */
+function lovableInit(init: RequestInit, body: ChatBody | null): RequestInit {
+  const model = typeof body?.model === "string" ? body.model : "";
+  const mapped = LOVABLE_MODEL_ALIASES[model];
+  if (!body || !mapped) return init;
+  return { ...init, body: JSON.stringify({ ...body, model: mapped }) };
+}
 
 type ChatBody = Record<string, unknown> & { model?: string; modalities?: unknown; tool_choice?: unknown };
 
@@ -71,5 +84,5 @@ export async function aiFetch(init: RequestInit): Promise<Response> {
     }
   }
 
-  return fetch(LOVABLE_URL, init);
+  return fetch(LOVABLE_URL, lovableInit(init, body));
 }

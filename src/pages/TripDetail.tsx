@@ -22,7 +22,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
-import { getYourGuideLink, viatorLink, googleMapsSearchLink, theforkLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
+import { getYourGuideLink, viatorLink, googleMapsSearchLink, theforkLink, ensureAviasalesMarker, bookingLink } from "@/lib/affiliateLinks";
+import { logBookingClick, trackBookingClick } from "@/lib/trackBooking";
+import { computeTripDesglose, quoteStaleness, quoteValidity, staleQuoteMessage, tripNights, roomsFor, type QuoteSnapshot } from "@/lib/quote";
 
 
 const fmtMXN = (n: number) =>
@@ -52,6 +54,8 @@ const TripDetail = () => {
   const [editingDates, setEditingDates] = useState(false);
   const [editingTravelers, setEditingTravelers] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
+  // Cotización vigente (snapshot inmutable de trip_quotes), si existe.
+  const [quote, setQuote] = useState<QuoteSnapshot | null>(null);
 
   async function saveTripMeta(patch: Record<string, any>) {
     if (!trip?.id) return;
@@ -59,7 +63,12 @@ const TripDetail = () => {
     const { error } = await supabase.from("trips").update(patch as any).eq("id", trip.id);
     setSavingMeta(false);
     if (error) return toast.error("No se pudo guardar");
-    toast.success("Actualizado");
+    // Cambiar viajeros o fechas no recotiza: el total guardado sigue siendo el de antes.
+    if (trip.total_estimado && ("num_viajeros" in patch || "fecha_salida" in patch || "fecha_regreso" in patch)) {
+      toast.success("Actualizado", { description: "La cotización es de antes del cambio: actualízala para ver precios correctos." });
+    } else {
+      toast.success("Actualizado");
+    }
     setEditingDates(false);
     setEditingTravelers(false);
     loadTrip();
@@ -112,6 +121,13 @@ const TripDetail = () => {
     if (!id) return;
     const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
     setTrip(data);
+    const quoteId = (data as any)?.current_quote_id;
+    if (quoteId) {
+      const { data: q, error: qErr } = await supabase.from("trip_quotes").select("*").eq("id", quoteId).maybeSingle();
+      setQuote(qErr ? null : ((q as unknown as QuoteSnapshot) ?? null));
+    } else {
+      setQuote(null);
+    }
     // Experiencias arrancan sin seleccionar — el usuario elige cuál le interesa.
     setLoading(false);
   };
@@ -214,36 +230,27 @@ const TripDetail = () => {
     return remaining[Math.min(idx, remaining.length - 1)] ?? label;
   };
 
-  const dias = itinDays.length;
-  const noches = Math.max(1, dias - 1);
+  // Noches por fechas (como el servidor); el itinerario solo si no hay fechas.
+  const noches = trip ? tripNights(trip, itinDays.length) : 1;
   const viajeros = trip?.num_viajeros ?? 1;
-  const baseDesglose = trip?.desglose_presupuesto ?? {};
 
-  const nochesEfectivas = nochesHospedaje ?? noches;
+  // Si el usuario cambió viajeros o fechas después de cotizar, el total guardado es para la base
+  // anterior: se muestra para esa base (sin repartirlo entre el nuevo número de viajeros) y se
+  // pide actualizar la cotización.
+  const staleness = quoteStaleness(trip, quote);
+  const quoteTravelers = staleness.stale && staleness.basis ? staleness.basis.travelers : viajeros;
+  const quoteNights = staleness.stale && staleness.basis?.dateFrom && staleness.basis?.dateTo
+    ? tripNights({ fecha_salida: staleness.basis.dateFrom, fecha_regreso: staleness.basis.dateTo }, itinDays.length)
+    : noches;
+  const validity = quoteValidity(trip, quote);
 
-  // Recalcular desglose en base a selecciones (-1 = "ya lo tengo / no aplica")
-  const computedDesglose = useMemo(() => {
-    if (!trip) return {};
-    const vuelo = selVuelo >= 0 ? trip.vuelos_json?.[selVuelo] : null;
-    const hosp = selHospedaje >= 0 ? trip.hospedaje_json?.[selHospedaje] : null;
-    const toursSum = (trip.tours_json ?? []).reduce(
-      (s: number, t: any, i: number) =>
-        selTours.has(i) ? s + Number(t.precio_por_persona ?? 0) * viajeros : s,
-      0,
-    );
-    // Comida y transporte se prorratean a los días realmente "fuera"
-    // Si tiene hospedaje propio parte del viaje, asumimos que sigue gastando en comida/transporte todos los días
-    const factorDias = dias > 0 ? dias / Math.max(1, dias) : 1;
-    return {
-      vuelos: selVuelo === -2 ? 0 : vuelo ? Number(vuelo.precio_por_persona ?? 0) * viajeros : Number(baseDesglose.vuelos ?? 0),
-      hospedaje: selHospedaje === -2 ? 0 : hosp ? Number(hosp.precio_por_noche ?? 0) * nochesEfectivas : Number(baseDesglose.hospedaje ?? 0),
-      comida: Number(baseDesglose.comida ?? 0) * factorDias,
-      tours: toursSum || Number(baseDesglose.tours ?? 0),
-      transporte_local: Number(baseDesglose.transporte_local ?? 0) * factorDias,
-      extras: Number(baseDesglose.extras ?? 0),
-    };
-  }, [trip, selVuelo, selHospedaje, selTours, viajeros, nochesEfectivas, dias]);
+  const nochesEfectivas = nochesHospedaje ?? quoteNights;
 
+  // Recalcular desglose en base a selecciones (-2 = "ya lo tengo / no aplica")
+  const computedDesglose = useMemo(
+    () => computeTripDesglose(trip, { selVuelo, selHospedaje, nochesHospedaje: nochesEfectivas, selTours }, quoteTravelers),
+    [trip, selVuelo, selHospedaje, selTours, quoteTravelers, nochesEfectivas],
+  );
 
   const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
 
@@ -446,7 +453,17 @@ const TripDetail = () => {
         {/* Total + Análisis narrativo */}
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           {(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0) ? (
-            <RealTripTotal trip={trip} noches={noches} viajeros={viajeros} onUpdated={loadTrip} />
+            <RealTripTotal
+              trip={trip}
+              noches={quoteNights}
+              viajeros={quoteTravelers}
+              onUpdated={loadTrip}
+              staleMessage={staleness.stale && staleness.basis ? staleQuoteMessage(staleness.basis) : null}
+              validityLabel={validity.label}
+              validityExpired={validity.expired}
+              fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatDateOnly(quote.fx_at)})` : null}
+              onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
+            />
           ) : (
             <LiveTripQuote
               origin={trip.ciudad_origen}
@@ -538,7 +555,7 @@ const TripDetail = () => {
                           const i = (trip.vuelos_json ?? []).indexOf(v);
                           const active = selVuelo === i;
                           return isMulti ? (
-                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(active ? -1 : i)} />
+                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(active ? -1 : i)} quotedAt={quote?.created_at ?? trip.created_at} />
                           ) : (
                             <ExpandableItemCard
                               key={i}
@@ -551,16 +568,23 @@ const TripDetail = () => {
                               selectable
                               onToggle={() => setSelVuelo(active ? -1 : i)}
                             >
+                              <PriceSourceBadge source={v.fuente_precio} estado={v.estado_dato} consultadoAt={v.consultado_at ?? (quote?.created_at ?? trip.created_at)} approximateDates={v.approximate_dates} className="mb-2" />
                               {v.notas && <p>{v.notas}</p>}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const bookingUrl = v.booking_link || v.cta_action;
                                   if (bookingUrl) {
-                                    window.open(ensureAviasalesMarker(bookingUrl), "_blank", "noopener,noreferrer");
+                                    // Abre en el mismo gesto y registra el clic sin esperar (iOS).
+                                    trackBookingClick({
+                                      category: "flight", provider: v.aerolinea || "Aviasales",
+                                      title: `${trip.ciudad_origen ?? ""} → ${city}`.trim(),
+                                      subtitle: `${v.tier ?? ""} · ${fmtMXN(v.precio_por_persona)} / persona`,
+                                      bookingUrl: ensureAviasalesMarker(bookingUrl), city, startAt: trip.fecha_salida ?? undefined,
+                                    });
                                     return;
                                   }
-                                  const u = `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "Mexico City")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida}&return=${trip.fecha_regreso}&travelers=${trip.viajeros ?? 1}&auto=1`;
+                                  const u = `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "Mexico City")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida}&return=${trip.fecha_regreso}&travelers=${trip.num_viajeros ?? 1}&auto=1`;
                                   window.location.href = u;
                                 }}
                                 className="mt-2 text-xs px-3 py-1.5 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition"
@@ -587,7 +611,7 @@ const TripDetail = () => {
                           const active = selHospedaje === i;
                           return (
                             <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
-                              <HotelCard hotel={h} city={city} active={active} onClick={() => setSelHospedaje(active ? -1 : i)} />
+                              <HotelCard hotel={h} city={city} trip={trip} active={active} onClick={() => setSelHospedaje(active ? -1 : i)} />
                             </div>
                           );
                         })}
@@ -648,8 +672,10 @@ const TripDetail = () => {
                                 selectable
                                 onToggle={() => toggleTour(i)}
                                 actions={[
-                                  { label: "Reservar en GetYourGuide", href: getYourGuideLink(city, t.nombre), primary: true },
-                                  { label: "Ver en Viator", href: viatorLink(city, t.nombre) },
+                                  { label: "Reservar en GetYourGuide", href: getYourGuideLink(city, t.nombre), primary: true,
+                                    onClick: () => void logBookingClick({ category: "activity", provider: "GetYourGuide", title: t.nombre, city, bookingUrl: getYourGuideLink(city, t.nombre), startAt: trip.fecha_salida ?? undefined }) },
+                                  { label: "Ver en Viator", href: viatorLink(city, t.nombre),
+                                    onClick: () => void logBookingClick({ category: "activity", provider: "Viator", title: t.nombre, city, bookingUrl: viatorLink(city, t.nombre), startAt: trip.fecha_salida ?? undefined }) },
                                   { label: "Ubicación", href: googleMapsSearchLink(t.nombre, city) },
                                 ]}
                               >
@@ -659,7 +685,7 @@ const TripDetail = () => {
                                     {t.num_reviews != null && ` · ${t.num_reviews} reseñas`}
                                   </p>
                                 )}
-                                {t.fuente && <PriceSourceBadge source={t.fuente} className="mb-2" />}
+                                <PriceSourceBadge source={t.fuente} estado={t.estado_dato} consultadoAt={t.consultado_at} className="mb-2" />
                                 <p className="italic">{t.por_que}</p>
                               </ExpandableItemCard>
                             </div>
@@ -685,7 +711,8 @@ const TripDetail = () => {
                                 price={r.rango_precio}
                                 actions={[
                                   { label: "Reservar / Ver", href: googleMapsSearchLink(cleanName, city), primary: true },
-                                  { label: "TheFork", href: theforkLink(city, cleanName) },
+                                  { label: "TheFork", href: theforkLink(city, cleanName),
+                                    onClick: () => void logBookingClick({ category: "restaurant", provider: "TheFork", title: cleanName, city, bookingUrl: theforkLink(city, cleanName) }) },
                                 ]}
                               >
                                 <p className="italic">{r.por_que}</p>
@@ -961,7 +988,7 @@ const MODE_LABEL: Record<string, string> = {
   vuelo_interno: "Vuelo interno",
 };
 
-const ArrivalOptionCard = ({ option, active, onClick }: { option: any; active: boolean; onClick: () => void }) => {
+const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any; active: boolean; onClick: () => void; quotedAt?: string | null }) => {
   const Icon = MODE_ICON[option.mode] || Plane;
   const modeLabel = MODE_LABEL[option.mode] || "Transporte";
   return (
@@ -1002,13 +1029,13 @@ const ArrivalOptionCard = ({ option, active, onClick }: { option: any; active: b
           <span className="text-xs text-muted-foreground ml-1">/ persona</span>
         </p>
       )}
-      {option.fuente_precio && <PriceSourceBadge source={option.fuente_precio} className="mt-2" />}
+      <PriceSourceBadge source={option.fuente_precio} estado={option.estado_dato} consultadoAt={option.consultado_at ?? quotedAt} approximateDates={option.approximate_dates} className="mt-2" />
       {option.notas && <p className="text-xs text-muted-foreground mt-2 italic">{option.notas}</p>}
     </div>
   );
 };
 
-const HotelCard = ({ hotel, city, active, onClick }: { hotel: any; city: string; active: boolean; onClick: () => void }) => {
+const HotelCard = ({ hotel, city, trip, active, onClick }: { hotel: any; city: string; trip: any; active: boolean; onClick: () => void }) => {
   const img = useCityImage(`${hotel.nombre} ${city} hotel`);
   return (
     <div
@@ -1041,20 +1068,23 @@ const HotelCard = ({ hotel, city, active, onClick }: { hotel: any; city: string;
         <p className="text-xs text-muted-foreground mb-2">{hotel.barrio} · ★ {hotel.rating}</p>
         <p className="font-medium text-sm mb-2">
           {fmtMXN(hotel.precio_por_noche)}
-          <span className="text-xs text-muted-foreground ml-1">/ noche</span>
+          <span className="text-xs text-muted-foreground ml-1">/ noche por habitación</span>
+          {roomsFor(trip?.num_viajeros ?? 1) > 1 && (
+            <span className="block text-[11px] text-muted-foreground">× {roomsFor(trip?.num_viajeros ?? 1)} hab. para {trip?.num_viajeros} viajeros</span>
+          )}
         </p>
-        {hotel.fuente_precio && <PriceSourceBadge source={hotel.fuente_precio} className="mb-2" />}
+        <PriceSourceBadge source={hotel.fuente_precio} estado={hotel.estado_dato} consultadoAt={hotel.consultado_at ?? trip?.created_at} className="mb-2" />
         <p className="text-xs text-muted-foreground italic line-clamp-3 mb-2">{hotel.por_que}</p>
         <button
           onClick={(e) => {
             e.stopPropagation();
-            const bookingUrl = hotel.booking_link || hotel.booking_url || hotel.cta_action;
-            if (bookingUrl) {
-              window.open(bookingUrl, "_blank", "noopener,noreferrer");
-              return;
-            }
-            const u = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(`${hotel.nombre} ${city}`)}`;
-            window.open(u, "_blank", "noopener,noreferrer");
+            // Sin link propio: búsqueda de Booking con el link de afiliado (antes iba sin atribución).
+            const bookingUrl = hotel.booking_link || hotel.booking_url || hotel.cta_action
+              || bookingLink(`${hotel.nombre} ${city}`, trip?.fecha_salida ?? "", trip?.fecha_regreso ?? "", trip?.num_viajeros ?? 2);
+            trackBookingClick({
+              category: "hotel", provider: "Booking.com", title: hotel.nombre, subtitle: `${fmtMXN(hotel.precio_por_noche)} / noche`,
+              bookingUrl, city, startAt: trip?.fecha_salida ?? undefined,
+            });
           }}
           className="text-xs px-3 py-1.5 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition"
         >

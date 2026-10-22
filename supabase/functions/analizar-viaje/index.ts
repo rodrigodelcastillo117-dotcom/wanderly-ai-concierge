@@ -6,7 +6,12 @@ import { consumeQuota, quotaDeniedResponse } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
 import { aiFetch } from "../_shared/ai.ts";
+import { callClaudeWithFallback } from "../_shared/claude.ts";
+import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
+import { buildQuoteSnapshot, saveQuoteSnapshot } from "../_shared/quotes.ts";
+import { resolveTpMarker } from "../_shared/tp-params.ts";
 import { enforceSources, hotelPreference } from "./sources.ts";
+import { normalizarVuelos, reconcileBudget } from "./budget.ts";
 
 // Las miniaturas de Google (googleusercontent) aceptan el tamaño en el sufijo "=w..-h..".
 function largeGooglePhoto(url: unknown): string | null {
@@ -35,43 +40,13 @@ const corsHeaders = {
 };
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-const ANTHROPIC_MODEL = (Deno.env.get("ANTHROPIC_MODEL") ?? "").trim();
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
 const MASTER_PROMPT_IATOS = (Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim();
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const USD_MXN_FALLBACK = 20.5;
-const FX_TTL_MS = 6 * 60 * 60 * 1000;
-let fxCache: { rate: number; fetchedAt: number } | null = null;
-
-async function getUsdMxnRate(): Promise<number> {
-  const now = Date.now();
-  if (fxCache && now - fxCache.fetchedAt < FX_TTL_MS) return fxCache.rate;
-  try {
-    const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=MXN");
-    if (!r.ok) throw new Error(`fx ${r.status}`);
-    const j = await r.json();
-    const rate = Number(j?.rates?.MXN);
-    if (!Number.isFinite(rate) || rate < 10 || rate > 40) {
-      console.warn("fx rate out of range or invalid:", rate);
-      return USD_MXN_FALLBACK;
-    }
-    fxCache = { rate, fetchedAt: now };
-    return rate;
-  } catch (e) {
-    console.warn("fx fetch failed, using fallback:", (e as Error).message);
-    return USD_MXN_FALLBACK;
-  }
-}
-
-// Los modelos Claude 3.x y Sonnet 4 ya están retirados (el chequeo diario lo detectó en oct 2026).
-const CURRENT_CLAUDE_MODEL = "claude-sonnet-5-5";
-const CLAUDE_MODEL_FALLBACKS = [
-  ANTHROPIC_MODEL,
-  CURRENT_CLAUDE_MODEL,
-].filter((model, index, arr) => model && arr.indexOf(model) === index);
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 
 interface AnalisisRequest {
@@ -84,7 +59,11 @@ interface AnalisisRequest {
   presupuesto_objetivo?: number | null;
   notas_usuario?: string | null;
   trip_length_days?: number | null;
+  /** Re-análisis de un viaje existente: se actualiza esa fila (mismo id) en lugar de crear otra. */
+  trip_id?: string | null;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function resolverFechasSiFaltan(
   authHeader: string,
@@ -125,9 +104,7 @@ async function resolverFechasSiFaltan(
   };
 }
 
-const TIER_ORDER = ["ahorro", "equilibrio", "premium"];
-
-const DEFAULT_TP_MARKER = (Deno.env.get("TRAVELPAYOUTS_MARKER") || "533299").trim() || "533299";
+const DEFAULT_TP_MARKER = resolveTpMarker(Deno.env.get("TRAVELPAYOUTS_MARKER"));
 
 /**
  * CAPA DE SEGURIDAD (sub-regla 15.1): garantiza que TODO link de Aviasales
@@ -150,54 +127,6 @@ function ensureMarkerInFlightLinks(vuelos: any[]): any[] {
     if (v.cta_action) v.cta_action = fix(v.cta_action);
   }
   return vuelos;
-}
-
-function normalizarVuelos(vuelos: any[]): any[] {
-  if (!Array.isArray(vuelos)) return [];
-
-  const agrupados = new Map<string, any>();
-  for (const vuelo of vuelos) {
-    const tier = TIER_ORDER.includes(vuelo?.tier) ? vuelo.tier : "equilibrio";
-    const precio = Number(vuelo?.precio_por_persona) || 0;
-    const existente = agrupados.get(tier);
-
-    if (!existente) {
-      agrupados.set(tier, {
-        ...vuelo,
-        tier,
-        precio_por_persona: precio,
-        _segmentos: [vuelo],
-      });
-      continue;
-    }
-
-    existente.precio_por_persona += precio;
-    existente._segmentos.push(vuelo);
-  }
-
-  return TIER_ORDER.map((tier) => agrupados.get(tier))
-    .filter(Boolean)
-    .map((vuelo) => {
-      const segmentos = vuelo._segmentos ?? [];
-      const aerolineas = [...new Set(segmentos.map((s: any) => s?.aerolinea).filter(Boolean))];
-      const notasSegmentos = segmentos
-        .map(
-          (s: any) =>
-            `${s?.aerolinea ?? "Vuelo"}: $${Math.round(Number(s?.precio_por_persona) || 0).toLocaleString("es-MX")} MXN`,
-        )
-        .join(" + ");
-
-      const normalizado = {
-        ...vuelo,
-        aerolinea: segmentos.length > 1 ? aerolineas.join(" + ") : vuelo.aerolinea,
-        duracion: segmentos.length > 1 ? "Ruta completa, varios segmentos" : vuelo.duracion,
-        escalas: segmentos.length > 1 ? `${segmentos.length} segmentos sumados` : vuelo.escalas,
-        precio_por_persona: Math.round(vuelo.precio_por_persona),
-        notas: segmentos.length > 1 ? `Total por persona sumando todos los tramos: ${notasSegmentos}` : vuelo.notas,
-      };
-      delete normalizado._segmentos;
-      return normalizado;
-    });
 }
 
 const buildSystemPrompt = (fxUsd: number, fxEur: number) => `Eres un consultor de viajes premium con 20 años de experiencia, tono sofisticado, cálido y específico, como un concierge personal. Siempre respondes en español de México y todos los precios en pesos mexicanos (MXN).
@@ -516,49 +445,6 @@ Tipo de cambio actual USD→MXN y EUR→MXN. Sé exhaustivo con cifras puntuales
   };
 }
 
-async function callClaudeWithFallback(payload: Record<string, unknown>) {
-  let lastErrorText = "";
-  let lastStatus = 0;
-
-  for (const model of CLAUDE_MODEL_FALLBACKS) {
-    const current = model === CURRENT_CLAUDE_MODEL;
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-        // Si Claude Sonnet 5.5 declina por política, el servidor reintenta en otro modelo.
-        ...(current ? { "anthropic-beta": "server-side-fallback-2026-07-01" } : {}),
-      },
-      body: JSON.stringify({
-        ...payload,
-        model,
-        // Sonnet 5.5: sin razonamiento extendido para no alargar la espera; respuesta en una sola
-        // llamada a la herramienta. Solo se manda a ese modelo (otros rechazan estos campos).
-        ...(current ? { thinking: { type: "between_tools" }, output_config: { effort: "medium" }, fallbacks: "default" } : {}),
-      }),
-    });
-
-    if (res.ok) {
-      console.log("Claude model usado:", model);
-      return res;
-    }
-
-    const text = await res.text();
-    lastStatus = res.status;
-    lastErrorText = text;
-    console.warn("Claude model falló:", model, res.status, text.slice(0, 500));
-
-    const shouldTryNext =
-      res.status === 404 && /model|not_found|not found/i.test(text) ||
-      res.status === 400 && /model/i.test(text);
-    if (!shouldTryNext) break;
-  }
-
-  return new Response(lastErrorText, { status: lastStatus || 502 });
-}
-
 async function callLovableGatewayAnalysis(systemFinal: string, userPrompt: string) {
   if (!LOVABLE_API_KEY) {
     return new Response(JSON.stringify({ error: "LOVABLE_API_KEY no configurada" }), { status: 500 });
@@ -577,7 +463,7 @@ async function callLovableGatewayAnalysis(systemFinal: string, userPrompt: strin
       "Lovable-API-Key": LOVABLE_API_KEY,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-flash-latest",
       messages: [
         {
           role: "system",
@@ -652,6 +538,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Re-análisis en sitio: solo si el usuario es dueño o colaborador aceptado del viaje. Se revisa
+    // antes de la cuota y de las llamadas caras para que un trip_id ajeno no gaste nada.
+    const targetTripId = typeof body.trip_id === "string" && body.trip_id ? body.trip_id : null;
+    if (targetTripId) {
+      const { data: allowed, error: accessErr } = UUID_RE.test(targetTripId)
+        ? await supabase.rpc("has_trip_access", { p_trip: targetTripId, p_user: user.id })
+        : { data: false, error: null };
+      if (accessErr || allowed !== true) {
+        return new Response(JSON.stringify({ error: "trip_not_found", message: "No encontramos ese viaje o no tienes acceso." }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Gate PRO / cuota gratuita (1 análisis de viaje gratis de por vida). Va DESPUÉS de validar:
     // antes, un cuerpo incompleto respondía 400 pero ya había gastado el único análisis gratis.
     // Si no se puede verificar el plan, se niega con 503 (no 402): no regalamos análisis por una caída.
@@ -720,8 +621,11 @@ Deno.serve(async (req) => {
     if (vault?.hotel_loyalty?.length) boveda.push(`Hoteles ${vault.hotel_loyalty.map((h: any) => `${h.chain_name} ${h.status_tier}`).join(", ")}`);
     ctxLines.push(boveda.length ? `Bóveda: ${boveda.join("; ")}` : "Bóveda: vacía");
     const userContext = ctxLines.join("\n");
-    const fxUsd = await getUsdMxnRate();
-    const fxEur = Math.round(fxUsd * 1.08 * 10) / 10;
+    // Tipo de cambio en vivo con su fuente y fecha (se guardan con la cotización). El EUR sale de su
+    // propia tasa, no de USD × 1.08 fijo.
+    const [fxUsdInfo, fxEurInfo] = await Promise.all([getUsdMxnRateInfo(), getEurMxnRateInfo()]);
+    const fxUsd = fxUsdInfo.rate;
+    const fxEur = Math.round(fxEurInfo.rate * 100) / 100;
     const systemFinal = [MASTER_PROMPT_IATOS, userContext, buildSystemPrompt(fxUsd, fxEur)].filter(Boolean).join("\n\n---\n\n");
 
 
@@ -816,6 +720,7 @@ Deno.serve(async (req) => {
       googleFlightsPromise,
     ]);
 
+    const liveConsultedAt = new Date().toISOString();
     const investigacion = perplexityResult.status === "fulfilled"
       ? perplexityResult.value
       : { texto: `(Perplexity falló: ${(perplexityResult as any).reason?.message ?? "error"})`, citations: [] };
@@ -851,7 +756,7 @@ Deno.serve(async (req) => {
         const priceMxn = Math.round((Number(f.price) || 0) * fxUsd);
         return `${i + 1}. ${f.airline} ${f.flight_number} — ${f.origin_airport}→${f.destination_airport} — USD ${f.price} (~$${priceMxn.toLocaleString("es-MX")} MXN) — ${f.stops} escalas — sale ${f.departure_at ?? "?"} — LINK: ${f.booking_link}`;
       }).join("\n");
-      return `Fuente: Travelpayouts/Aviasales (precios oficiales del inventario, consultados ${tpFlights.consulted_at}).\nRuta: ${tpFlights.origin}→${tpFlights.destination}\n${lines}`;
+      return `Fuente: Travelpayouts/Aviasales (tarifas reales de la caché de búsquedas de las últimas 48 h${tpFlights.approximate_dates ? "; NO hay tarifa para la fecha exacta, son fechas cercanas del mismo mes" : ""}; consultado ${tpFlights.consulted_at}).\nRuta: ${tpFlights.origin}→${tpFlights.destination}\n${lines}`;
     })();
 
     const googleFlightsBlock = (() => {
@@ -1002,96 +907,84 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     a.vuelos = normalizarVuelos(a.vuelos);
     // Sub-regla 15.1: re-inyecta ?marker=... si Claude lo truncó al copiar el booking_link.
     a.vuelos = ensureMarkerInFlightLinks(a.vuelos);
-    const vueloEquilibrio = a.vuelos.find((v: any) => v.tier === "equilibrio") ?? a.vuelos[0];
-    const vuelosGrupo = Math.round(
-      (Number(vueloEquilibrio?.precio_por_persona) || Number(a.desglose_presupuesto?.vuelos) || 0) * body.num_viajeros,
-    );
-    if (vuelosGrupo > 0) {
-      a.desglose_presupuesto = { ...a.desglose_presupuesto, vuelos: vuelosGrupo };
-    }
 
-    // Igual que con vuelos: el renglón de hospedaje del desglose DEBE coincidir con una opción
-    // real mostrada, no con lo que Claude haya escrito aparte. Tomamos la opción de precio medio
-    // (sin tag de tier explícito en hospedaje) como referencia "equilibrio".
-    if (Array.isArray(a.hospedaje) && a.hospedaje.length > 0) {
-      const hospedajeOrdenado = [...a.hospedaje].sort(
-        (x: any, y: any) => (Number(x?.precio_por_noche) || 0) - (Number(y?.precio_por_noche) || 0),
-      );
-      const hotelReferencia = hospedajeOrdenado[Math.floor(hospedajeOrdenado.length / 2)];
-      const hospedajeGrupo = Math.round((Number(hotelReferencia?.precio_por_noche) || 0) * dias);
-      if (hospedajeGrupo > 0) {
-        a.desglose_presupuesto = { ...a.desglose_presupuesto, hospedaje: hospedajeGrupo };
-      }
-    }
+    // El servidor decide el origen de cada precio: un vuelo u hotel solo conserva la etiqueta de
+    // una fuente en vivo si su precio (y nombre, en hoteles) está en la lista que trajo esa fuente.
+    enforceSources(a, tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : [], placesSource, {
+      tpFlights: Array.isArray(tpFlights?.flights) ? tpFlights.flights : [],
+      tpApproximateDates: !!tpFlights?.approximate_dates,
+      googleFlights: googleFlightsLive ? googleFlights.results : [],
+      fxUsd,
+      consultedAt: liveConsultedAt,
+    });
 
-    // Comida no tiene un array de opciones contra el cual recalcular, así que la acotamos con el
-    // techo que el propio prompt le dio a Claude (fine dining: hasta $4,000 MXN p/p por comida,
-    // 3 comidas/día). Si el modelo se pasa de ahí, es un error de redondeo, no un dato real.
-    const COMIDA_TECHO_DIA_PP = 12000;
-    const comidaTecho = COMIDA_TECHO_DIA_PP * dias * body.num_viajeros;
-    const comidaDeclarada = Number(a.desglose_presupuesto?.comida) || 0;
-    if (comidaDeclarada > comidaTecho) {
-      console.warn("analizar-viaje: comida fuera de rango, acotando", {
-        destino: body.destino, declarada: comidaDeclarada, techo: comidaTecho,
-      });
-      a.desglose_presupuesto = { ...a.desglose_presupuesto, comida: comidaTecho };
+    // COHERENCIA DE PRESUPUESTO (no negociable): renglones recalculados con las opciones que el
+    // usuario verá (vuelo equilibrio × viajeros; hotel medio × noches × habitaciones), respetando
+    // lo que el usuario excluyó, y total_estimado = suma exacta del desglose.
+    const budget = reconcileBudget(a, { dias, viajeros: body.num_viajeros, notas: body.notas_usuario });
+    if (budget.desglose.comida < (Number(a.desglose_presupuesto?.comida) || 0) && !budget.exclusions.comida) {
+      console.warn("analizar-viaje: comida fuera de rango, acotada", { destino: body.destino, declarada: a.desglose_presupuesto?.comida, techo: budget.desglose.comida });
     }
-
-    // COHERENCIA DE PRESUPUESTO (no negociable): total_estimado = suma exacta del desglose.
-    a.desglose_presupuesto = Object.fromEntries(
-      Object.entries(a.desglose_presupuesto ?? {}).map(([k, v]) => [k, Math.round(Number(v) || 0)]),
-    );
-    const sumaDesglose = Object.values(a.desglose_presupuesto).reduce(
-      (sum: number, value: any) => sum + (Number(value) || 0),
-      0,
-    );
-    if (sumaDesglose > 0) {
-      a.total_estimado = sumaDesglose;
-    } else if (!(Number(a.total_estimado) > 0)) {
-      // Nunca guardar un viaje con total 0: es peor que un error visible.
-      console.error("analizar-viaje: desglose vacío y total 0", { destino: body.destino });
+    if (!budget.exclusions.vuelos && !(Number(a.desglose_presupuesto?.vuelos) > 0)) {
+      console.warn("analizar-viaje: el modelo dejó vuelos en 0 sin exclusión detectada; se respeta", body.destino);
+    }
+    a.desglose_presupuesto = budget.desglose;
+    if (!budget.valido) {
+      // Nunca guardar un viaje con total 0 ni un total que no sea la suma del desglose.
+      console.error("analizar-viaje: desglose vacío", { destino: body.destino });
       return new Response(JSON.stringify({
         error: "no_pricing_available",
         message: "No pudimos armar una cotización confiable ahora mismo. Intenta de nuevo en unos minutos.",
       }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    a.total_estimado = budget.total;
     // Trazabilidad de campos vacíos para monitoreo (no bloquea, pero queda en logs).
     const camposVacios = ["vuelos", "hospedaje", "restaurantes", "tours", "itinerario"]
       .filter((k) => !Array.isArray(a[k]) ? !a[k] : a[k].length === 0);
     if (camposVacios.length) console.warn("analizar-viaje: campos vacíos", camposVacios, body.destino);
-    enforceSources(a, tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : [], placesSource);
 
 
-    const { data: trip, error: insertErr } = await supabase
-      .from("trips")
-      .insert({
-        user_id: user.id,
-        destino: body.destino,
-        pais_destino: a.pais_destino ?? body.pais_destino,
-        ciudad_origen: body.ciudad_origen,
-        fecha_salida: body.fecha_salida,
-        fecha_regreso: body.fecha_regreso,
-        num_viajeros: body.num_viajeros,
-        presupuesto_objetivo: body.presupuesto_objetivo,
-        status: "listo",
-        total_estimado: a.total_estimado,
-        moneda: "MXN",
-        match_score: a.match_score,
-        analisis_ai: a.analisis_narrativo,
-        desglose_presupuesto: a.desglose_presupuesto,
-        vuelos_json: a.vuelos,
-        hospedaje_json: a.hospedaje,
-        itinerario_json: a.itinerario,
-        restaurantes_json: a.restaurantes,
-        tours_json: a.tours,
-        tips_personalizados: a.tips_personalizados,
-        cruceros_json: a.cruceros_alternativas ?? [],
-        dates_optimized: datesOptimized,
-        dates_optimization_meta: datesOptimized ? resolved.optimization : null,
-        cover_image_url: pickCover(tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : []),
-      })
-      .select()
-      .single();
+    const cover = pickCover(tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : []);
+    const tripFields = {
+      destino: body.destino,
+      pais_destino: a.pais_destino ?? body.pais_destino,
+      ciudad_origen: body.ciudad_origen,
+      fecha_salida: body.fecha_salida,
+      fecha_regreso: body.fecha_regreso,
+      num_viajeros: body.num_viajeros,
+      presupuesto_objetivo: body.presupuesto_objetivo,
+      status: "listo",
+      total_estimado: a.total_estimado,
+      moneda: "MXN",
+      match_score: a.match_score,
+      analisis_ai: a.analisis_narrativo,
+      desglose_presupuesto: a.desglose_presupuesto,
+      vuelos_json: a.vuelos,
+      hospedaje_json: a.hospedaje,
+      itinerario_json: a.itinerario,
+      restaurantes_json: a.restaurantes,
+      tours_json: a.tours,
+      tips_personalizados: a.tips_personalizados,
+      cruceros_json: a.cruceros_alternativas ?? [],
+      dates_optimized: datesOptimized,
+      dates_optimization_meta: datesOptimized ? resolved.optimization : null,
+    };
+
+    // Con trip_id se actualiza ese viaje (mismo id: diario, packing, split, gastos y colaboradores
+    // se conservan; user_id nunca se toca). Sin trip_id se crea como siempre. RLS vuelve a exigir
+    // que el usuario tenga acceso al UPDATE.
+    const { data: trip, error: insertErr } = targetTripId
+      ? await supabase
+        .from("trips")
+        .update({ ...tripFields, ...(cover ? { cover_image_url: cover } : {}) })
+        .eq("id", targetTripId)
+        .select()
+        .single()
+      : await supabase
+        .from("trips")
+        .insert({ user_id: user.id, ...tripFields, cover_image_url: cover })
+        .select()
+        .single();
 
     if (insertErr) {
       console.error("Insert error:", insertErr);
@@ -1100,6 +993,39 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Snapshot inmutable de esta cotización (moneda, tipo de cambio, fuentes, viajeros, noches,
+    // habitaciones, estado por renglón y vigencia). Solo el service role escribe en trip_quotes.
+    const admin = SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : null;
+    const quote = await saveQuoteSnapshot(admin, buildQuoteSnapshot({
+      tripId: trip.id,
+      userId: user.id,
+      origin: "analizar-viaje",
+      breakdown: a.desglose_presupuesto,
+      travelers: body.num_viajeros,
+      nights: dias,
+      rooms: budget.rooms,
+      dateFrom: body.fecha_salida,
+      dateTo: body.fecha_regreso,
+      fx: fxUsdInfo,
+      reference: { vuelos: budget.vueloReferencia, hospedaje: budget.hotelReferencia },
+      excluded: budget.exclusions,
+      optional: (Array.isArray(a.cruceros_alternativas) ? a.cruceros_alternativas : []).map((c: any) => ({
+        category: "crucero",
+        label: `Crucero alternativo: ${c?.naviera ?? ""} ${c?.nombre_itinerario ?? ""}`.trim(),
+        amount: (Number(c?.precio_por_persona) || 0) * body.num_viajeros,
+      })),
+      sources: {
+        vuelos: budget.vueloReferencia?.fuente_precio ?? "estimado",
+        hospedaje: budget.hotelReferencia?.fuente_precio ?? "estimado",
+        tours: tripadvisorLive ? placesSource : "estimado",
+        travelpayouts: { count: tpFlights?.flights?.length ?? 0, consulted_at: tpFlights?.consulted_at ?? null, approximate_dates: !!tpFlights?.approximate_dates, cache_max_age_h: 48 },
+        google_flights: { live: googleFlightsLive, consulted_at: googleFlights?.consulted_at ?? null },
+        google_hotels: { live: serpHotelsLive, consulted_at: serpHotels?.consulted_at ?? null },
+        fx_eur: fxEurInfo,
+        perplexity_citations: investigacion.citations.length,
+      },
+    }));
 
     // Email de cotización lista (fire-and-forget: nunca bloquea la respuesta).
     try {
@@ -1124,7 +1050,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
 
 
     return new Response(JSON.stringify({
-      trip,
+      trip: quote ? { ...trip, current_quote_id: quote.id } : trip,
+      quote,
       fuentes: investigacion.citations,
       travelpayouts: {
         flights: {
