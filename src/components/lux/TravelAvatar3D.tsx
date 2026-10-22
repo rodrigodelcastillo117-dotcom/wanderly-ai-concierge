@@ -1,7 +1,6 @@
-import { Suspense, useRef } from "react";
+import { Suspense, useRef, type ElementRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Float, Stars } from "@react-three/drei";
-import * as THREE from "three";
 
 export type AvatarStyle = "foodie" | "adventurer" | "luxury" | "cultural" | "relax" | "nightlife";
 
@@ -15,7 +14,7 @@ const STYLE_COLORS: Record<AvatarStyle, { body: string; accent: string; bg: stri
 };
 
 function Figure({ style }: { style: AvatarStyle }) {
-  const group = useRef<THREE.Group>(null);
+  const group = useRef<ElementRef<"group">>(null);
   const colors = STYLE_COLORS[style] ?? STYLE_COLORS.cultural;
 
   useFrame((_, dt) => {
