@@ -531,4 +531,16 @@ describe("AUD-05 E · cancelación programada, vencimiento, reactivación, suscr
     await run(ev("evt_dup_updated", "customer.subscription.updated", T + 5, subObj({ id: "sub_aud_dup" })));
     expect(db.bells.size).toBe(1);
   });
+
+  it("mejora: una suscripción que cobra sin cuenta de IATOS (sin metadata ni cliente conocido) avisa a administradores", async () => {
+    db.rows.clear();
+    stripe.subs.set("sub_huerfana", subObj({ id: "sub_huerfana", customer: "cus_desconocido", metadata: {} }));
+    const out = await run(ev("evt_huerfana", "customer.subscription.created", T, subObj({ id: "sub_huerfana" })));
+    expect(out.body).toMatchObject({ applied: false, reason: "unknown_user" });
+    expect([...db.bells]).toEqual(["stripe:unknown_user:sub_huerfana"]);
+    // Una suscripción ya cancelada sin cuenta no cobra: no hay aviso.
+    stripe.subs.set("sub_huerfana_2", subObj({ id: "sub_huerfana_2", customer: "cus_desconocido", metadata: {}, status: "canceled" }));
+    await run(ev("evt_huerfana_2", "customer.subscription.updated", T, subObj({ id: "sub_huerfana_2" })));
+    expect(db.bells.size).toBe(1);
+  });
 });

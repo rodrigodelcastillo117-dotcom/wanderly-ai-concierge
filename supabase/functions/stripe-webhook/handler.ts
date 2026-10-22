@@ -141,14 +141,29 @@ const CHARGING = new Set(["active", "trialing", "past_due"]);
  * suscripción (solo ids de Stripe). Si la campana no se guarda, 500 para que Stripe reintente.
  */
 async function alertDuplicate(deps: WebhookDeps, r: ApplyResult, sub: StripeSubscriptionLike, eventId: string): Promise<void> {
-  if (r.reason !== "other_live_subscription" || !CHARGING.has(sub.status) || !deps.alertAdmins) return;
-  const status = await deps.alertAdmins({
-    key: `stripe:dup_sub:${sub.id}`,
-    title: "Posible cobro doble: segunda suscripción PRO viva",
-    body: `La cuenta ya tiene otra suscripción PRO viva. La suscripción ${sub.id} (cliente ${idOf(sub.customer) ?? "?"}) ` +
-      "no se aplicó en IATOS pero Stripe la sigue cobrando. Revisa en Stripe: cancela y reembolsa la duplicada (no la original).",
-  });
-  if (status === "fallido") throw new Error(`aviso de suscripción duplicada falló (${eventId})`);
+  if (!CHARGING.has(sub.status) || !deps.alertAdmins) return;
+  const customer = idOf(sub.customer) ?? "?";
+  let alert: { key: string; title: string; body: string } | null = null;
+  if (r.reason === "other_live_subscription") {
+    alert = {
+      key: `stripe:dup_sub:${sub.id}`,
+      title: "Posible cobro doble: segunda suscripción PRO viva",
+      body: `La cuenta ya tiene otra suscripción PRO viva. La suscripción ${sub.id} (cliente ${customer}) ` +
+        "no se aplicó en IATOS pero Stripe la sigue cobrando. Revisa en Stripe: cancela y reembolsa la duplicada (no la original).",
+    };
+  } else if (r.reason === "unknown_user") {
+    // Mejora (cierre): alguien paga y el webhook no sabe de qué cuenta es (suscripción creada fuera
+    // del checkout, sin metadata y con un cliente que IATOS no conoce): paga sin recibir PRO.
+    alert = {
+      key: `stripe:unknown_user:${sub.id}`,
+      title: "Pago de PRO sin cuenta de IATOS",
+      body: `La suscripción ${sub.id} (cliente ${customer}) cobra en Stripe pero no corresponde a ninguna cuenta de IATOS ` +
+        "(sin metadata supabase_user_id y cliente desconocido). Liga la cuenta o cancela y reembolsa en Stripe.",
+    };
+  }
+  if (!alert) return;
+  const status = await deps.alertAdmins(alert);
+  if (status === "fallido") throw new Error(`aviso a administradores falló (${eventId})`);
 }
 
 const ok = (r: ApplyResult): WebhookOutcome => ({
