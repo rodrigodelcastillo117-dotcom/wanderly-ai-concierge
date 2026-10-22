@@ -11,18 +11,16 @@ import { fetchMembersAccess, type MembersAccess } from "@/lib/membersAccess";
 import { useSubscription } from "@/hooks/useSubscription";
 import { membersOnlySubtitle } from "@/lib/planCopy";
 import { PriveEntryLink } from "@/components/PriveEntryLink";
+import {
+  MEMBERS_CATEGORIES, OTHER_CATEGORY, cityNames, countByCategory, fetchMembersCities, fetchMembersVenues,
+  matchesCategory, venueEmoji, type MembersCity, type MembersVenue,
+} from "@/lib/membersVenues";
+import { MembersVenueMeta } from "@/components/MembersVenueMeta";
 
-const CATEGORIES: { id: string; emoji: string; label: string }[] = [
-  { id: "cabaret", emoji: "🎭", label: "Cabaret" },
-  { id: "burlesque", emoji: "💃", label: "Burlesque" },
-  { id: "members_club", emoji: "🥃", label: "Members Club" },
-  { id: "speakeasy", emoji: "🍸", label: "Speakeasy" },
-  { id: "rooftop", emoji: "🌃", label: "Rooftop" },
-  { id: "casino_vip", emoji: "🎰", label: "Casino VIP" },
-  { id: "jazz_lounge", emoji: "🎷", label: "Jazz Lounge" },
-  { id: "evento_vip", emoji: "🥂", label: "Evento VIP" },
-];
+// Lista de siempre + la categoría "Otros" para lo curado que no encaja (coctelería, mezcalería…).
+const CATEGORIES = [...MEMBERS_CATEGORIES, OTHER_CATEGORY];
 
+// Respaldo si members_cities falla; normalmente las ciudades salen del servidor (las que tienen lugares).
 const FEATURED_CITIES = [
   "París", "Londres", "Nueva York", "Las Vegas", "Ciudad de México",
   "Dubái", "Tokio", "Berlín", "Ibiza", "Miami",
@@ -30,23 +28,7 @@ const FEATURED_CITIES = [
   "Saint-Tropez", "Mykonos", "Tulum",
 ];
 
-
-interface Venue {
-  id: string;
-  ciudad: string;
-  ciudad_display: string;
-  categoria: string;
-  emoji: string | null;
-  nombre: string;
-  por_que: string | null;
-  descripcion: string | null;
-  dress_code: string | null;
-  precio_estimado: string | null;
-  reserva_requerida: boolean;
-  tags: string[] | null;
-  address: string | null;
-  website: string | null;
-}
+type Venue = MembersVenue;
 
 const norm = (s: string) => s.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -59,7 +41,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
   const { user } = useAuth();
   const { loading: subLoading, isPro } = useSubscription();
   // Members Only es exclusivo de IATOS PRO: el servidor decide el acceso (members_access_state) y
-  // la RLS de nightlife_premium no devuelve lugares sin derecho. Antes este panel no tenía candado.
+  // la RPC members_venues no devuelve lugares sin derecho. Antes este panel no tenía candado.
   const [access, setAccess] = useState<MembersAccess | null>(null);
   const refreshAccess = () => { fetchMembersAccess(supabase).then(setAccess); };
   useEffect(() => { if (user) refreshAccess(); }, [user?.id]);
@@ -71,37 +53,32 @@ export function MembersOnlyPanel({ onReserve }: Props) {
   const [loadingVenues, setLoadingVenues] = useState(false);
   const [reservingId, setReservingId] = useState<string | null>(null);
   const [detailVenue, setDetailVenue] = useState<Venue | null>(null);
+  const [cities, setCities] = useState<MembersCity[] | null>(null);
 
   useEffect(() => {
     if (!city || !access?.access) return;
     setLoadingVenues(true);
     (async () => {
-      const { data, error } = await supabase
-        .from("nightlife_premium")
-        .select("*")
-        .eq("ciudad", norm(city))
-        .order("nombre");
+      const { venues: list, error } = await fetchMembersVenues(supabase, city);
       if (error) {
-        toast({ title: "Error cargando venues", description: error.message, variant: "destructive" });
-        setVenues([]);
-      } else {
-        setVenues((data ?? []) as Venue[]);
+        toast({ title: "Error cargando venues", description: "No pudimos cargar los lugares. Intenta de nuevo.", variant: "destructive" });
       }
+      setVenues(list);
       setLoadingVenues(false);
     })();
   }, [city, access?.access]);
 
+  // Ciudades con lugares (solo nombres y conteos). Si falla, se usa la lista fija.
+  useEffect(() => {
+    if (!access?.access) return;
+    fetchMembersCities(supabase).then(setCities);
+  }, [access?.access]);
+  const allCities = useMemo(() => cityNames(cities, FEATURED_CITIES), [cities]);
+  const featuredCities = allCities.slice(0, FEATURED_CITIES.length);
 
-  const filteredVenues = useMemo(() => {
-    if (!activeCat) return venues;
-    return venues.filter((v) => v.categoria === activeCat);
-  }, [venues, activeCat]);
+  const filteredVenues = useMemo(() => venues.filter((v) => matchesCategory(v, activeCat)), [venues, activeCat]);
 
-  const categoryCounts = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const v of venues) m[v.categoria] = (m[v.categoria] ?? 0) + 1;
-    return m;
-  }, [venues]);
+  const categoryCounts = useMemo(() => countByCategory(venues), [venues]);
 
   const handleReserve = async (v: Venue) => {
     if (!user) return;
@@ -184,7 +161,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
             </button>
           )}
           <datalist id="cities-list-members">
-            {FEATURED_CITIES.map((c) => <option key={c} value={c} />)}
+            {allCities.map((c) => <option key={c} value={c} />)}
           </datalist>
         </div>
       </div>
@@ -252,12 +229,14 @@ export function MembersOnlyPanel({ onReserve }: Props) {
                 className="cursor-pointer rounded-2xl border border-primary/15 bg-gradient-to-b from-black/60 to-black/30 backdrop-blur-xl p-6 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_20px_60px_-20px_rgba(201,169,97,0.3)]"
               >
                 <div className="flex items-start gap-4 mb-3">
-                  <div className="text-4xl">{v.emoji ?? "✨"}</div>
+                  <div className="text-4xl">{venueEmoji(v)}</div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-fraunces text-xl text-foreground leading-tight">{v.nombre}</h4>
                     {v.por_que && <p className="text-primary text-xs mt-1 leading-snug">{v.por_que}</p>}
                   </div>
                 </div>
+
+                <MembersVenueMeta venue={v} />
 
                 {v.descripcion && (
                   <p className="text-sm text-muted-foreground leading-relaxed mb-4">{v.descripcion}</p>
@@ -317,7 +296,7 @@ export function MembersOnlyPanel({ onReserve }: Props) {
       <div>
         <p className="text-xs tracking-[0.18em] uppercase text-muted-foreground mb-4">Ciudades destacadas</p>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {FEATURED_CITIES.map((c) => (
+          {featuredCities.map((c) => (
             <CityVideoCard
               key={c}
               city={c}

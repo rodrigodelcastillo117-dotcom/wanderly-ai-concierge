@@ -1,5 +1,7 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { MapPin, ExternalLink, CalendarCheck, X, Sparkles } from "lucide-react";
+import { MembersVenueMeta } from "@/components/MembersVenueMeta";
+import { venueEmoji, type MembersVenue } from "@/lib/membersVenues";
 
 interface Venue {
   id: string;
@@ -16,17 +18,24 @@ interface Venue {
   tags: string[] | null;
   address: string | null;
   website: string | null;
+  // Solo lo curado de Privé (members_venues): barrio, fuente y fecha de verificación.
+  fuente?: MembersVenue["fuente"];
+  neighborhood?: string | null;
+  source_url?: string | null;
+  verified_at?: string | null;
+  season_state?: string | null;
+  age_policy?: string | null;
 }
 
-interface Props {
-  venue: Venue | null;
+interface Props<V extends Venue> {
+  venue: V | null;
   open: boolean;
   onClose: () => void;
-  onReserve: (v: Venue) => void;
+  onReserve: (v: V) => void;
   reserving: boolean;
 }
 
-export function VenueDetailDialog({ venue, open, onClose, onReserve, reserving }: Props) {
+export function VenueDetailDialog<V extends Venue>({ venue, open, onClose, onReserve, reserving }: Props<V>) {
   if (!venue) return null;
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -46,7 +55,7 @@ export function VenueDetailDialog({ venue, open, onClose, onReserve, reserving }
           </div>
 
           <div className="flex items-start gap-4 mb-4">
-            <div className="text-5xl">{venue.emoji ?? "✨"}</div>
+            <div className="text-5xl">{venueEmoji(venue)}</div>
             <div className="flex-1 min-w-0">
               <h3 className="font-fraunces text-3xl text-foreground leading-tight">{venue.nombre}</h3>
               {venue.por_que && (
@@ -56,6 +65,12 @@ export function VenueDetailDialog({ venue, open, onClose, onReserve, reserving }
               )}
             </div>
           </div>
+
+          <MembersVenueMeta venue={{
+            categoria: venue.categoria, ciudad_display: venue.ciudad_display, neighborhood: venue.neighborhood ?? null,
+            season_state: venue.season_state ?? null, age_policy: venue.age_policy ?? null,
+            fuente: venue.fuente ?? "members", source_url: venue.source_url ?? null, verified_at: venue.verified_at ?? null,
+          }} />
 
           {venue.descripcion && (
             <p className="text-sm text-muted-foreground leading-relaxed mb-5">{venue.descripcion}</p>
