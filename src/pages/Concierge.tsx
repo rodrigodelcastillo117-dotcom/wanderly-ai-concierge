@@ -26,7 +26,7 @@ import { notifyAccessChanged } from "@/hooks/useSubscription";
 import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
 import { loadConversation } from "@/lib/conciergeHistory";
 import { readPriveSession } from "@/lib/priveSession";
-import { streamConcierge } from "@/lib/conciergeStream";
+import { incompleteReplyText, streamConcierge } from "@/lib/conciergeStream";
 import { buildChips, welcomeText, type Chip, type ChipIcon } from "@/lib/conciergeChips";
 import { ActionCard } from "@/components/concierge/ActionCard";
 import type { ProposedAction } from "../../supabase/functions/concierge-chat/actions.ts";
@@ -327,7 +327,7 @@ const Concierge = () => {
       else {
         patchMsg(replyId, (m) => ({
           ...m, streaming: false, steps: m.steps?.map((x) => (x.state === "running" ? { ...x, state: "error" } : x)),
-          text: m.text.trim() ? m.text : `${info.message} Puedes intentarlo de nuevo o tocar **Contactar Fixer**.`,
+          text: incompleteReplyText(m.text, info.message),
         }));
       }
     } finally {

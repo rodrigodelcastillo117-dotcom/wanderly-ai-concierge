@@ -166,7 +166,10 @@ export async function runAgentTurn(a: AgentInput): Promise<AgentResult> {
         const err = e instanceof ProviderError ? e : new ProviderError("network", 0, (e as Error)?.message ?? "error");
         lastErr = err;
         res.failures.push({ key: step.key, kind: err.kind, status: err.status });
-        a.breaker.recordFailure(step.key, err.kind, a.cooldownMs);
+        // MEJ-01: una respuesta que SÍ estaba llegando y solo rebasó el tope total no dice que el
+        // proveedor esté caído: se pasa al respaldo sin abrir el breaker para todos los usuarios.
+        const cutWhileStreaming = err.kind === "timeout" && /timeout_total/.test(err.detail) && !!err.partialText;
+        a.breaker.recordFailure(step.key, cutWhileStreaming ? "bad_request" : err.kind, a.cooldownMs);
         if (shown) a.emit.reset();
         result = null;
         stepIdx++;
