@@ -9,6 +9,7 @@ import {
   openTableSearchUrl, parseAviasalesSearch, parseBookingSearch, roomsForAdults, viatorSearchUrl,
 } from "./links.ts";
 import type { RequestLang } from "./messages.ts";
+import { hotelPriceRooms } from "../rooms.ts";
 import { langForCountry } from "./messages.ts";
 import { type ChannelCandidate, type ExactCandidate, type LinkCandidate, resolveBookingActions, type ResolverInput } from "./resolver.ts";
 import type { BookingOffer, ProductType, SourceTrust } from "./types.ts";
@@ -365,7 +366,8 @@ export function offerFromTripHotel(h: any, ctx: OfferContext & { city?: string |
     provider_offer_id: null,
     product_type: "hotel", title: name, subtitle: [str(h?.barrio), h?.rating ? `★ ${h.rating}` : null].filter(Boolean).join(" · ") || null, city,
     source_url: raw,
-    price: nightly && nights ? nightly * nights * roomsForAdults(adults) : null,
+    // Mismo criterio que la cotización: precio en vivo = grupo completo; estimado = por habitación doble.
+    price: nightly && nights ? nightly * nights * hotelPriceRooms(h, adults) : null,
     currency: nightly ? "MXN" : null,
     taxes: { included: null, note: "Impuestos y cargos según el proveedor." },
     price_checked_at: str(h?.consultado_at) ?? trip.created_at ?? null,
