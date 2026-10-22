@@ -5,10 +5,13 @@
 // el packing y el split; gastos, reservas y alertas de precio quedaban huérfanos y los
 // colaboradores perdían el acceso.
 //
-// Ahora: el resultado del análisis (fila temporal) se COPIA sobre la fila original
-// (mismo id, mismos hijos) y solo se borra la fila temporal, que acaba de crearse y no
-// tiene contenido del usuario. Si el servidor algún día actualiza en sitio (devuelve el
-// mismo id), no hay nada que copiar ni borrar.
+// Ahora: se manda trip_id y analizar-viaje ACTUALIZA esa misma fila (mismo id, mismos hijos,
+// misma cotización en trip_quotes y el correo enlaza a este viaje). No hay nada que copiar
+// ni borrar.
+//
+// Respaldo solo para cuando corre una versión vieja del servidor que todavía crea una fila
+// nueva: el resultado se copia sobre el original y se borra la fila temporal (recién creada,
+// sin contenido del usuario). Se puede quitar cuando todos los entornos tengan el servidor nuevo.
 
 // Columnas que produce el análisis. NO incluye id, user_id, created_at ni updated_at.
 export const REANALYSIS_FIELDS = [
@@ -65,8 +68,7 @@ export async function reanalyzeTripInPlace(
   tripId: string,
   request: Record<string, unknown>,
 ): Promise<ReanalysisOutcome> {
-  // trip_id va como pista para cuando el servidor soporte actualizar en sitio;
-  // hoy analizar-viaje lo ignora y crea una fila nueva.
+  // Con trip_id el servidor actualiza el viaje en sitio y devuelve el mismo id.
   const { data, error } = await client.functions.invoke("analizar-viaje", { body: { ...request, trip_id: tripId } });
   if (error) throw error;
   const fresh = data?.trip;
@@ -74,6 +76,7 @@ export async function reanalyzeTripInPlace(
 
   if (fresh.id === tripId) return { status: "updated", tripId, tempCleanup: "not_needed" };
 
+  // Servidor viejo (creó otra fila): respaldo de copiar y borrar la temporal.
   // Copiamos el análisis sobre el viaje original. `.select("id")` nos dice si RLS
   // realmente dejó escribir (un UPDATE bloqueado por RLS no devuelve error, solo 0 filas).
   const { data: updated, error: updErr } = await client

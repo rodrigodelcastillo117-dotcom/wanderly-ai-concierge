@@ -59,7 +59,11 @@ interface AnalisisRequest {
   presupuesto_objetivo?: number | null;
   notas_usuario?: string | null;
   trip_length_days?: number | null;
+  /** Re-análisis de un viaje existente: se actualiza esa fila (mismo id) en lugar de crear otra. */
+  trip_id?: string | null;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function resolverFechasSiFaltan(
   authHeader: string,
@@ -534,6 +538,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Re-análisis en sitio: solo si el usuario es dueño o colaborador aceptado del viaje. Se revisa
+    // antes de la cuota y de las llamadas caras para que un trip_id ajeno no gaste nada.
+    const targetTripId = typeof body.trip_id === "string" && body.trip_id ? body.trip_id : null;
+    if (targetTripId) {
+      const { data: allowed, error: accessErr } = UUID_RE.test(targetTripId)
+        ? await supabase.rpc("has_trip_access", { p_trip: targetTripId, p_user: user.id })
+        : { data: false, error: null };
+      if (accessErr || allowed !== true) {
+        return new Response(JSON.stringify({ error: "trip_not_found", message: "No encontramos ese viaje o no tienes acceso." }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Gate PRO / cuota gratuita (1 análisis de viaje gratis de por vida). Va DESPUÉS de validar:
     // antes, un cuerpo incompleto respondía 400 pero ya había gastado el único análisis gratis.
     // Si no se puede verificar el plan, se niega con 503 (no 402): no regalamos análisis por una caída.
@@ -925,36 +944,47 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     if (camposVacios.length) console.warn("analizar-viaje: campos vacíos", camposVacios, body.destino);
 
 
-    const { data: trip, error: insertErr } = await supabase
-      .from("trips")
-      .insert({
-        user_id: user.id,
-        destino: body.destino,
-        pais_destino: a.pais_destino ?? body.pais_destino,
-        ciudad_origen: body.ciudad_origen,
-        fecha_salida: body.fecha_salida,
-        fecha_regreso: body.fecha_regreso,
-        num_viajeros: body.num_viajeros,
-        presupuesto_objetivo: body.presupuesto_objetivo,
-        status: "listo",
-        total_estimado: a.total_estimado,
-        moneda: "MXN",
-        match_score: a.match_score,
-        analisis_ai: a.analisis_narrativo,
-        desglose_presupuesto: a.desglose_presupuesto,
-        vuelos_json: a.vuelos,
-        hospedaje_json: a.hospedaje,
-        itinerario_json: a.itinerario,
-        restaurantes_json: a.restaurantes,
-        tours_json: a.tours,
-        tips_personalizados: a.tips_personalizados,
-        cruceros_json: a.cruceros_alternativas ?? [],
-        dates_optimized: datesOptimized,
-        dates_optimization_meta: datesOptimized ? resolved.optimization : null,
-        cover_image_url: pickCover(tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : []),
-      })
-      .select()
-      .single();
+    const cover = pickCover(tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : []);
+    const tripFields = {
+      destino: body.destino,
+      pais_destino: a.pais_destino ?? body.pais_destino,
+      ciudad_origen: body.ciudad_origen,
+      fecha_salida: body.fecha_salida,
+      fecha_regreso: body.fecha_regreso,
+      num_viajeros: body.num_viajeros,
+      presupuesto_objetivo: body.presupuesto_objetivo,
+      status: "listo",
+      total_estimado: a.total_estimado,
+      moneda: "MXN",
+      match_score: a.match_score,
+      analisis_ai: a.analisis_narrativo,
+      desglose_presupuesto: a.desglose_presupuesto,
+      vuelos_json: a.vuelos,
+      hospedaje_json: a.hospedaje,
+      itinerario_json: a.itinerario,
+      restaurantes_json: a.restaurantes,
+      tours_json: a.tours,
+      tips_personalizados: a.tips_personalizados,
+      cruceros_json: a.cruceros_alternativas ?? [],
+      dates_optimized: datesOptimized,
+      dates_optimization_meta: datesOptimized ? resolved.optimization : null,
+    };
+
+    // Con trip_id se actualiza ese viaje (mismo id: diario, packing, split, gastos y colaboradores
+    // se conservan; user_id nunca se toca). Sin trip_id se crea como siempre. RLS vuelve a exigir
+    // que el usuario tenga acceso al UPDATE.
+    const { data: trip, error: insertErr } = targetTripId
+      ? await supabase
+        .from("trips")
+        .update({ ...tripFields, ...(cover ? { cover_image_url: cover } : {}) })
+        .eq("id", targetTripId)
+        .select()
+        .single()
+      : await supabase
+        .from("trips")
+        .insert({ user_id: user.id, ...tripFields, cover_image_url: cover })
+        .select()
+        .single();
 
     if (insertErr) {
       console.error("Insert error:", insertErr);
