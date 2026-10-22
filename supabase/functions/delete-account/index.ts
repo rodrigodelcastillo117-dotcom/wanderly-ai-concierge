@@ -9,6 +9,8 @@ import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { processRequest } from "../_shared/account-deletion-runtime.ts";
 import { confirmedDeletion } from "./validation.ts";
+import { sendEmail } from "../_shared/email.ts";
+import { accountDeletedEmail } from "../_shared/email-templates.ts";
 
 const respond = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
@@ -33,6 +35,13 @@ Deno.serve(async req => {
     if (error || !requestId) throw new Error(error?.message ?? "no_request");
     const outcome = await processRequest(admin, String(requestId));
     if (outcome.identityDeleted) {
+      // Confirmación por correo a la dirección de la sesión (ya no queda guardada en ningún lado).
+      // Un envío fallido no cambia el resultado del borrado.
+      if (user.email) {
+        const mail = accountDeletedEmail({ pending: (outcome.pending?.length ?? 0) > 0, siteUrl: Deno.env.get("SITE_URL") });
+        const sent = await sendEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text }).catch(() => ({ ok: false }));
+        if (!sent.ok) console.error("delete-account: correo de confirmación no enviado");
+      }
       // Lo no bloqueante (cliente de Stripe, PostHog) puede quedar pendiente: lo termina el reintento.
       return respond({ ok: true, request_id: requestId, pending: outcome.pending });
     }

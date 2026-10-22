@@ -14,6 +14,9 @@ const FILES = [
   "src/components/ProGate.tsx",
   "src/pages/Legal.tsx",
   "supabase/functions/_shared/email.ts",
+  "supabase/functions/_shared/email-templates.ts",
+  "supabase/functions/_shared/email-kit.ts",
+  "supabase/functions/_shared/email-ops.ts",
   "supabase/functions/concierge-chat/prompt.ts",
 ];
 

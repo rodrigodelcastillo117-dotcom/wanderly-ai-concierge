@@ -17,7 +17,10 @@ import {
   type WorkResult,
 } from "../_shared/reservation.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
+import { sendEmail } from "../_shared/email.ts";
+import { tripQuoteEmail } from "../_shared/email-templates.ts";
+import { heroPhoto } from "../_shared/hero-photo.ts";
+import { buildQuoteEmailInput } from "./quoteEmail.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { callClaudeWithFallback } from "../_shared/claude.ts";
 import { internalHeaders, logUsage } from "../_shared/serpRuntime.ts";
@@ -51,6 +54,9 @@ function pickCover(places: any[], hotels: any[]): string | null {
   }
   return null;
 }
+
+// Mantiene vivo el envío del correo después de responder (Supabase Edge Runtime).
+declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1046,7 +1052,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // Snapshot inmutable de esta cotización (moneda, tipo de cambio, fuentes, viajeros, noches,
     // habitaciones, estado por renglón y vigencia). Solo el service role escribe en trip_quotes.
     const admin = SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : null;
-    const quote = await saveQuoteSnapshot(admin, buildQuoteSnapshot({
+    const snapshot = buildQuoteSnapshot({
       tripId: trip.id,
       userId: user.id,
       origin: "analizar-viaje",
@@ -1074,29 +1080,35 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         fx_eur: fxEurInfo,
         perplexity_citations: investigacion.citations.length,
       },
-    }));
+    });
+    const quote = await saveQuoteSnapshot(admin, snapshot);
 
-    // Email de cotización lista (fire-and-forget: nunca bloquea la respuesta).
-    try {
-      const { data: perfilEmail } = await supabase
-        .from("profiles").select("email, full_name").eq("id", user.id).maybeSingle();
-      const destinatario = perfilEmail?.email ?? user.email;
-      if (destinatario) {
-        const { subject, html } = tripQuoteEmail({
-          nombre: perfilEmail?.full_name?.split(" ")[0] ?? null,
-          destino: trip.destino,
-          fechaSalida: trip.fecha_salida,
-          fechaRegreso: trip.fecha_regreso,
-          total: Number(trip.total_estimado) || 0,
-          desglose: (trip.desglose_presupuesto ?? {}) as Record<string, unknown>,
-          tripId: trip.id,
-        });
-        void sendEmail({ to: destinatario, subject, html });
+    // Correo "Tu viaje está cotizado" en segundo plano: nunca bloquea ni rompe la respuesta. Lleva
+    // cada renglón con su procedencia (en vivo / estimado / no disponible), tarjetas de vuelo y hotel
+    // solo con datos reales de las listas en vivo y la portada de Pexels con su crédito.
+    const sendQuoteEmail = async () => {
+      try {
+        const { data: perfilEmail } = await supabase
+          .from("profiles").select("email, full_name").eq("id", user.id).maybeSingle();
+        const destinatario = perfilEmail?.email ?? user.email;
+        if (!destinatario) return;
+        const hero = await heroPhoto(trip.destino, { fn: "analizar-viaje", userId: user.id });
+        const mail = tripQuoteEmail(buildQuoteEmailInput({
+          trip, snapshot, saved: quote, firstName: perfilEmail?.full_name ?? null,
+          vueloReferencia: budget.vueloReferencia, hotelReferencia: budget.hotelReferencia,
+          googleFlights: googleFlightsLive ? googleFlights.results : [],
+          tpFlights: Array.isArray(tpFlights?.flights) ? tpFlights.flights : [],
+          liveHotels: serpHotelsLive ? serpHotels.results : [],
+          fxUsd, hero, siteUrl: Deno.env.get("SITE_URL"),
+        }));
+        const sent = await sendEmail({ to: destinatario, subject: mail.subject, html: mail.html, text: mail.text });
+        if (!sent.ok) console.warn("analizar-viaje: email no enviado", sent.error);
+      } catch (e) {
+        console.warn("analizar-viaje: email no enviado", (e as Error).message);
       }
-    } catch (e) {
-      console.warn("analizar-viaje: email no enviado", (e as Error).message);
-    }
-
+    };
+    const emailTask = sendQuoteEmail();
+    if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime?.waitUntil === "function") EdgeRuntime.waitUntil(emailTask);
 
     return { ok: true, tripId: trip.id, response: new Response(JSON.stringify({
       trip: quote ? { ...trip, current_quote_id: quote.id } : trip,

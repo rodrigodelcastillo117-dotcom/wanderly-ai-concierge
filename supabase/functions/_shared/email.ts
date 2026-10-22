@@ -1,6 +1,7 @@
 // Envío de emails transaccionales vía el gateway de Resend de Lovable.
 // Uso server-side (edge functions): no requiere JWT de usuario.
 import { redactPii } from "./redact.ts";
+import { opsNoticeEmail } from "./email-ops.ts";
 
 // Para importar las plantillas desde Vitest (Node) sin el runtime de Deno.
 declare const Deno: { env: { get(name: string): string | undefined } };
@@ -72,105 +73,17 @@ export async function sendEmail(opts: {
 }
 
 
-/** Asunto/encabezado en texto plano de una línea: sin caracteres de control ni saltos, recortado. */
-export function oneLine(v: unknown, max: number): string {
-  // deno-lint-ignore no-control-regex
-  return String(v ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
-}
+// Utilidades de texto (comparten implementación con el sistema de correo premium).
+export { escapeHtml, oneLine } from "./email-format.ts";
 
-/** Escapa texto de usuario antes de meterlo en el HTML de un correo. */
-export const escapeHtml = (v: unknown) =>
-  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-
-const money = (n: number) =>
-  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n || 0);
-
+/**
+ * Envoltura de los avisos internos (health-check, stripe-webhook): mismo sistema visual que el resto
+ * de los correos (_shared/email-kit.ts), versión compacta para el equipo. `title` e `inner` llegan
+ * como HTML ya escapado por quien llama.
+ */
 export function layout(title: string, inner: string) {
-  return `<!doctype html><html lang="es"><body style="margin:0;background:#0b0b0c;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#eae6df">
-  <div style="max-width:600px;margin:0 auto;padding:32px 20px">
-    <div style="font-size:13px;letter-spacing:.28em;color:#c9a227;text-transform:uppercase;margin-bottom:24px">IATOS AI</div>
-    <h1 style="font-size:24px;line-height:1.25;margin:0 0 16px;color:#fff">${title}</h1>
-    ${inner}
-    <p style="margin-top:32px;font-size:12px;color:#8a8578">
-      IATOS AI · <a href="https://traveliatos.life" style="color:#c9a227">traveliatos.life</a><br/>
-      Recibes este correo porque tienes una cuenta en IATOS AI.
-    </p>
-  </div></body></html>`;
+  return opsNoticeEmail({ title, html: inner });
 }
 
-export function tripQuoteEmail(opts: {
-  nombre?: string | null;
-  destino: string;
-  fechaSalida?: string | null;
-  fechaRegreso?: string | null;
-  total: number;
-  desglose?: Record<string, unknown> | null;
-  tripId: string;
-}) {
-  const rows = Object.entries(opts.desglose ?? {})
-    .filter(([, v]) => Number(v) > 0)
-    .map(([k, v]) =>
-      `<tr><td style="padding:8px 0;color:#b8b2a6;text-transform:capitalize">${escapeHtml(k.replace(/_/g, " "))}</td>
-       <td style="padding:8px 0;text-align:right;color:#fff">${money(Number(v))}</td></tr>`)
-    .join("");
-
-  const inner = `
-  <p style="font-size:15px;line-height:1.6;color:#cfc9bd">
-    ${opts.nombre ? `${escapeHtml(opts.nombre)}, t` : "T"}u cotización para <strong style="color:#fff">${escapeHtml(opts.destino)}</strong> está lista.
-    ${opts.fechaSalida ? `Fechas: ${escapeHtml(opts.fechaSalida)}${opts.fechaRegreso ? ` → ${escapeHtml(opts.fechaRegreso)}` : ""}.` : ""}
-  </p>
-  <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px">
-    ${rows}
-    <tr><td style="padding:12px 0;border-top:1px solid #2a2823;color:#c9a227;font-weight:600">Total estimado</td>
-        <td style="padding:12px 0;border-top:1px solid #2a2823;text-align:right;color:#c9a227;font-weight:600">${money(opts.total)}</td></tr>
-  </table>
-  <a href="https://traveliatos.life/dashboard/viajes/${encodeURIComponent(opts.tripId)}"
-     style="display:inline-block;background:#c9a227;color:#141310;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600">
-    Ver mi cotización completa
-  </a>
-  <p style="font-size:12px;color:#8a8578;margin-top:18px">
-    Precios estimados con datos en vivo de aerolíneas y hoteles al momento de la cotización; pueden variar hasta la reserva.
-  </p>`;
-  return { subject: `Tu cotización a ${opts.destino} está lista`, html: layout("Tu viaje está cotizado", inner) };
-}
-
-export function tripInviteEmail(opts: {
-  invitado?: string | null;
-  anfitrion?: string | null;
-  destino: string;
-  fechaSalida?: string | null;
-  fechaRegreso?: string | null;
-  tripId: string;
-}) {
-  const fechas = opts.fechaSalida
-    ? `<p style="font-size:14px;color:#8a8578">${escapeHtml(opts.fechaSalida)}${opts.fechaRegreso ? ` → ${escapeHtml(opts.fechaRegreso)}` : ""}</p>`
-    : "";
-  const inner = `
-  <p style="font-size:15px;line-height:1.6;color:#cfc9bd">
-    ${opts.invitado ? `${escapeHtml(opts.invitado)}, ` : ""}${opts.anfitrion ? escapeHtml(opts.anfitrion) : "Un amigo"} te invitó a colaborar en su viaje a
-    <strong style="color:#fff">${escapeHtml(opts.destino)}</strong>.
-  </p>
-  ${fechas}
-  <a href="https://traveliatos.life/dashboard/viajes/${encodeURIComponent(opts.tripId)}"
-     style="display:inline-block;background:#c9a227;color:#141310;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600">
-    Ver el viaje
-  </a>`;
-  return { subject: `Te invitaron a un viaje a ${opts.destino}`, html: layout("Te invitaron a un viaje", inner) };
-}
-
-export function welcomeEmail(nombre?: string | null) {
-  const inner = `
-  <p style="font-size:15px;line-height:1.6;color:#cfc9bd">
-    ${nombre ? `${escapeHtml(nombre)}, b` : "B"}ienvenido a IATOS AI. Soy <strong style="color:#fff">Iato</strong>, tu concierge de viajes.
-  </p>
-  <ul style="font-size:14px;line-height:1.9;color:#cfc9bd;padding-left:18px">
-    <li>Cotiza un viaje completo con vuelos y hoteles reales.</li>
-    <li>Pídeme ideas de transfers, restaurantes y experiencias cuando quieras.</li>
-    <li>Guarda tus tarjetas y programas de lealtad en la Bóveda para exprimir beneficios.</li>
-  </ul>
-  <a href="https://traveliatos.life/dashboard"
-     style="display:inline-block;background:#c9a227;color:#141310;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600">
-    Entrar a mi dashboard
-  </a>`;
-  return { subject: "Bienvenido a IATOS AI", html: layout("Tu concierge ya está listo", inner) };
-}
+// Las plantillas de la persona viven en _shared/email-templates.ts (cotización, bienvenida,
+// invitación, alertas, cuenta eliminada) y las internas en _shared/email-ops.ts.
