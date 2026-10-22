@@ -11,7 +11,7 @@ import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
 import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
-import { RealTripTotal } from "@/components/RealTripTotal";
+import { RealTripTotal, tripTotals } from "@/components/RealTripTotal";
 import { InviteFriendDialog } from "@/components/InviteFriendDialog";
 import { PriceWatchCard } from "@/components/PriceWatchCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +31,9 @@ import {
 import { deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
 import { BookingStateBadge } from "@/components/BookingStateBadge";
 import { TripDocuments } from "@/components/TripDocuments";
+import { TripNextStep } from "@/components/TripNextStep";
+import { TripDetailSkeleton } from "@/components/PageSkeletons";
+import { quoteTrust } from "@/lib/quoteTrust";
 
 
 const fmtMXN = (n: number) =>
@@ -253,7 +256,8 @@ const TripDetail = () => {
       toast.success("PDF descargado");
     } catch (e: any) {
       console.error(e);
-      toast.error("No pude generar el PDF", { description: e?.message });
+      // Sin el texto técnico del error: solo qué pasó y qué hacer.
+      toast.error("No pudimos generar el PDF", { description: "Intenta de nuevo en un momento." });
     } finally {
       setGeneratingPdf(false);
     }
@@ -328,9 +332,7 @@ const TripDetail = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-        </div>
+        <TripDetailSkeleton />
       </DashboardLayout>
     );
   }
@@ -338,15 +340,23 @@ const TripDetail = () => {
   if (!trip) {
     return (
       <DashboardLayout>
-        <div className="p-10 text-center">
-          <p className="text-muted-foreground mb-4">Viaje no encontrado.</p>
-          <button onClick={() => navigate("/dashboard")} className="text-primary hover:underline">
-            Volver al inicio
-          </button>
+        <div className="px-4 py-16 md:p-16 max-w-xl mx-auto text-center" role="alert">
+          <h1 className="font-display text-3xl mb-3">No encontramos este viaje</h1>
+          <p className="text-muted-foreground mb-8">Puede que se haya eliminado o que ya no esté compartido contigo.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => navigate("/dashboard/viajes")} className="bg-gradient-gold text-primary-foreground rounded-2xl min-h-[48px]">Ir a Mis viajes</Button>
+            <Button variant="outline" onClick={() => navigate("/dashboard/planear")} className="rounded-2xl min-h-[48px]">Planear un viaje</Button>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
+
+  const trust = quoteTrust(quote);
+  const hasQuotedTotal = !!(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0);
+  const isOwner = user?.id === trip.user_id;
+  const stickyTotalValue = hasQuotedTotal ? tripTotals(trip, quoteTravelers, currentSel ? computedDesglose : null).total : 0;
+  const stickyTotal = stickyTotalValue > 0 ? `Total ${fmtMXN(stickyTotalValue)}` : null;
 
   const toggleTour = (i: number) => {
     setSelTours((prev) => {
@@ -362,7 +372,9 @@ const TripDetail = () => {
   return (
     <DashboardLayout>
       {/* HERO */}
-      <div className="relative h-[calc(100vh-3.25rem)] min-h-[560px] md:h-[60vh] md:min-h-[420px] overflow-hidden">
+      {/* Portada más baja en móvil (antes ocupaba la pantalla completa y el total quedaba dos
+          pantallas abajo). */}
+      <div className="relative h-[52vh] min-h-[380px] max-h-[560px] md:h-[60vh] md:min-h-[420px] md:max-h-none overflow-hidden">
         {trip.cover_image_url ? (
           <img src={trip.cover_image_url} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
@@ -392,7 +404,7 @@ const TripDetail = () => {
           <InviteFriendDialog tripId={trip.id} isOwner={user?.id === trip.user_id} />
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
         </div>
-        <div className="absolute inset-x-0 bottom-36 max-w-5xl p-4 sm:bottom-28 sm:p-6 md:bottom-0 md:p-12">
+        <div className="absolute inset-x-0 bottom-0 max-w-5xl p-4 sm:p-6 md:p-12">
           {trip.match_score && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium mb-4">
               <Star className="w-3 h-3 fill-current" /> {trip.match_score}% match con tu perfil
@@ -449,37 +461,9 @@ const TripDetail = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl space-y-8 p-4 sm:p-6 md:p-12">
+      <div className="max-w-5xl space-y-8 p-4 pb-24 sm:p-6 md:p-12">
         {/* Reservado vs. cotizado ("listo" no lo distingue): derivado de las reservas confirmadas. */}
         <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} />
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-2 min-[380px]:grid-cols-3 md:grid-cols-7 gap-3"
-        >
-          {[
-            { icon: Radio, label: "Live", to: `/dashboard/viajes/${id}/live` },
-            { icon: MapIcon, label: "Mapa", to: `/dashboard/viajes/${id}/mapa` },
-            { icon: Backpack, label: "Packing", to: `/dashboard/viajes/${id}/packing` },
-            { icon: Cloud, label: "Clima", to: `/dashboard/viajes/${id}/clima` },
-            { icon: Languages, label: "Traductor", to: `/dashboard/viajes/${id}/traductor` },
-            { icon: BookHeart, label: "Diario", to: `/dashboard/viajes/${id}/diario` },
-            { icon: Wallet, label: "Split", to: `/dashboard/viajes/${id}/split` },
-          ].map(({ icon: Icon, label, to }) => (
-            <button
-              key={label}
-              onClick={() => navigate(to)}
-              className="glass-card rounded-2xl p-3 hover:border-primary/60 transition-all group flex flex-col items-center gap-2"
-            >
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Icon className="w-5 h-5 text-primary" />
-              </div>
-              <span className="text-xs font-medium">{label}</span>
-            </button>
-          ))}
-        </motion.div>
-
         {/* Smart Date Resolution: fechas optimizadas por IATOS */}
         {trip.dates_optimized && (
           <motion.div
@@ -497,11 +481,11 @@ const TripDetail = () => {
                   <p className="text-sm">
                     <span className="font-semibold text-primary">Fechas Optimizadas por IATOS:</span>{" "}
                     <span className="text-muted-foreground">
-                      Como no nos diste fechas, buscamos el momento más inteligente para viajar. Cotizamos tarifas reales para la temporada ideal{" "}
+                      Como no nos diste fechas, IATOS propuso estas y cotizó con ellas{" "}
                       <span className="text-foreground font-medium">
                         ({formatDateOnly(trip.fecha_salida, { day: "numeric", month: "long" })} – {formatDateOnly(trip.fecha_regreso, { day: "numeric", month: "long", year: "numeric" })})
                       </span>
-                      , asegurando menos multitudes y el mejor precio.
+                      . Puedes cambiarlas y volver a cotizar cuando quieras.
                     </span>
                   </p>
                   {trip.dates_optimization_meta?.reason && (
@@ -525,8 +509,8 @@ const TripDetail = () => {
 
 
         {/* Total + Análisis narrativo */}
-        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          {(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0) ? (
+        <motion.section id="trip-total" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="scroll-mt-20 focus:outline-none">
+          {hasQuotedTotal ? (
             <RealTripTotal
               trip={trip}
               noches={quoteNights}
@@ -538,6 +522,7 @@ const TripDetail = () => {
               validityExpired={validity.expired}
               fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatInstant(quote.fx_at)})` : null}
               onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
+              trust={trust}
             />
           ) : (
             <LiveTripQuote
@@ -553,7 +538,42 @@ const TripDetail = () => {
           )}
         </motion.section>
 
-        {user?.id === trip.user_id && (
+        {/* Qué sigue: guardado, cuánto falta y UNA acción principal. */}
+        <TripNextStep trip={trip} quote={quote} isOwner={isOwner} />
+
+        {/* Herramientas del viaje: después del total y de "qué sigue" (antes iban primero y empujaban
+            el precio fuera de la pantalla); en móvil, una fila deslizable. */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 md:grid md:grid-cols-7 md:gap-3"
+          role="group"
+          aria-label="Herramientas del viaje"
+        >
+          {[
+            { icon: Radio, label: "Live", to: `/dashboard/viajes/${id}/live` },
+            { icon: MapIcon, label: "Mapa", to: `/dashboard/viajes/${id}/mapa` },
+            { icon: Backpack, label: "Packing", to: `/dashboard/viajes/${id}/packing` },
+            { icon: Cloud, label: "Clima", to: `/dashboard/viajes/${id}/clima` },
+            { icon: Languages, label: "Traductor", to: `/dashboard/viajes/${id}/traductor` },
+            { icon: BookHeart, label: "Diario", to: `/dashboard/viajes/${id}/diario` },
+            { icon: Wallet, label: "Split", to: `/dashboard/viajes/${id}/split` },
+          ].map(({ icon: Icon, label, to }) => (
+            <button
+              key={label}
+              onClick={() => navigate(to)}
+              className="glass-card shrink-0 min-w-[84px] rounded-2xl p-3 hover:border-primary/60 transition-all group flex flex-col items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Icon className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-xs font-medium">{label}</span>
+            </button>
+          ))}
+        </motion.div>
+
+
+        {isOwner && (
           <PriceWatchCard tripId={trip.id} departureDate={trip.fecha_salida} />
         )}
 
@@ -573,7 +593,7 @@ const TripDetail = () => {
         )}
 
         {/* TODO POR DESTINO — un menú único, plegable, colapsado por default */}
-        <div className="space-y-4">
+        <div id="trip-destinos" className="space-y-4 scroll-mt-20 focus:outline-none">
           <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <RouteIcon className="w-5 h-5 text-primary shrink-0" />
@@ -938,6 +958,8 @@ const TripDetail = () => {
         <TripDocuments tripId={trip.id} ownerId={trip.user_id} />
 
       </div>
+      {/* Acción principal al alcance del pulgar en móvil, encima de la barra de navegación. */}
+      <TripNextStep trip={trip} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} />
     </DashboardLayout>
   );
 };

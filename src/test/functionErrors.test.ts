@@ -128,3 +128,16 @@ describe("textos del aviso de límite alineados con planCopy", () => {
     for (const t of all) expect(t).not.toMatch(/ilimitad|24\/7|con tarjeta|se requiere (una )?tarjeta|renueva automáticamente/i);
   });
 });
+
+describe("readFunctionError · nunca muestra texto técnico del navegador (godtier)", () => {
+  it("'Failed to fetch' y errores de JavaScript se cambian por el texto de la pantalla", async () => {
+    for (const m of ["Failed to fetch", "TypeError: Cannot read properties of undefined (reading 'id')", "Unexpected token < in JSON at position 0", "NetworkError when attempting to fetch resource."]) {
+      const info = await readFunctionError(new Error(m), "No pudimos generar el análisis. Intenta de nuevo.");
+      expect(info.message).toBe("No pudimos generar el análisis. Intenta de nuevo.");
+    }
+  });
+  it("un mensaje humano lanzado por la pantalla sí se conserva", async () => {
+    const info = await readFunctionError(new Error("IATOS no pudo elegir un destino."), "x");
+    expect(info.message).toBe("IATOS no pudo elegir un destino.");
+  });
+});

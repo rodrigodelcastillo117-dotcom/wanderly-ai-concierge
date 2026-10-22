@@ -79,6 +79,11 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        // Barra indeterminada del análisis (sin porcentaje inventado).
+        indeterminate: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(300%)" },
+        },
         "accordion-down": {
           from: {
             height: "0",
@@ -99,6 +104,7 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        indeterminate: "indeterminate 1.6s ease-in-out infinite",
       },
     },
   },
