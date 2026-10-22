@@ -16,6 +16,7 @@ import { AnalysisProgress } from "@/components/AnalysisProgress";
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
+import { claimIntent, completeIntent, intentFingerprint, releaseIntent } from "@/lib/autoIntent";
 
 const EMOCIONES: Array<{ key: string; label: string; sub: string; Icon: any }> = [
   { key: "Inspiración",  label: "Inspiración",  sub: "Quiero descubrir\nalgo nuevo",        Icon: Heart },
@@ -33,7 +34,7 @@ const EMOCIONES: Array<{ key: string; label: string; sub: string; Icon: any }> =
 const PlanTrip = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const [step, setStep] = useState(0);
   const mode = params.get("mode"); // "emocion" => IATOS elige destino
   const isEmocionMode = mode === "emocion";
@@ -64,7 +65,29 @@ const PlanTrip = () => {
       .then(({ data }) => {
         if (data?.ciudad_origen) setCiudadOrigen(data.ciudad_origen);
       });
-  }, [user]);
+  }, [user?.id]);
+
+  // Quita de la URL las intenciones de un solo uso (?q, ?autoCheapest) en cuanto se
+  // consumen. Así "Atrás" desde el viaje generado no vuelve a disparar el análisis.
+  const consumeUrlIntent = () => {
+    const next = new URLSearchParams(params);
+    next.delete("q");
+    next.delete("autoCheapest");
+    setParams(next, { replace: true });
+  };
+
+  // Si la intención ya se procesó en esta pestaña, no repetimos el análisis.
+  const handlePriorIntent = (claim: ReturnType<typeof claimIntent>): boolean => {
+    if (claim.status === "done") {
+      navigate(`/dashboard/viajes/${claim.tripId}`, { replace: true });
+      return true;
+    }
+    if (claim.status === "in_flight") {
+      toast.info("Tu análisis anterior sigue en proceso. Lo verás en Mis viajes en cuanto termine.");
+      return true;
+    }
+    return false;
+  };
 
   // Auto-cheapest: si llega ?destino=X&autoCheapest=1, prellena fechas heurísticas
   // (martes a martes, ~60 días fuera — ventana históricamente más barata) y dispara análisis.
@@ -73,6 +96,10 @@ const PlanTrip = () => {
     if (autoFiredRef.current) return;
     if (params.get("autoCheapest") !== "1") return;
     if (!destino || !ciudadOrigen) return;
+    autoFiredRef.current = true;
+    const fp = intentFingerprint("cheap", destino);
+    consumeUrlIntent();
+    if (handlePriorIntent(claimIntent(fp))) return;
 
     // Próximo martes ~60 días a futuro (martes/miércoles suelen ser los más baratos)
     const out = new Date();
@@ -85,7 +112,6 @@ const PlanTrip = () => {
     const fr = fmt(ret);
     setFechaSalida(fs);
     setFechaRegreso(fr);
-    autoFiredRef.current = true;
     runAnalisis({
       destino,
       ciudad_origen: ciudadOrigen,
@@ -93,11 +119,14 @@ const PlanTrip = () => {
       fecha_regreso: fr,
       num_viajeros: 2,
       presupuesto_objetivo: null,
-    });
+    }, fp);
   }, [destino, ciudadOrigen, params]);
 
 
 
+
+  // Evita dobles envíos (doble clic, efecto que se repite) mientras hay un análisis en curso.
+  const inFlightRef = useRef(false);
 
   const runAnalisis = async (args: {
     destino: string;
@@ -107,7 +136,9 @@ const PlanTrip = () => {
     num_viajeros: number;
     presupuesto_objetivo?: number | null;
     notas_usuario?: string | null;
-  }) => {
+  }, intentFp?: string) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setDestino(args.destino);
     setAnalizando(true);
     try {
@@ -119,11 +150,17 @@ const PlanTrip = () => {
         viajeros: args.num_viajeros,
         total_estimado: data.trip.total_estimado ?? null,
       });
-      navigate(`/dashboard/viajes/${data.trip.id}`);
+      if (intentFp) completeIntent(intentFp, data.trip.id);
+      // replace: el viaje sustituye a la pantalla del asistente en el historial,
+      // así "Atrás" regresa a donde estabas antes de planear (no re-analiza).
+      navigate(`/dashboard/viajes/${data.trip.id}`, { replace: true });
     } catch (e: any) {
       console.error(e);
+      if (intentFp) releaseIntent(intentFp);
       toast.error(e?.message ?? "No pudimos generar el análisis. Intenta de nuevo.");
       setAnalizando(false);
+    } finally {
+      inFlightRef.current = false;
     }
   };
 
@@ -233,6 +270,9 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   useEffect(() => {
     const q = params.get("q");
     if (!q || !user) return;
+    const fp = intentFingerprint("q", q);
+    consumeUrlIntent();
+    if (handlePriorIntent(claimIntent(fp))) return;
     let cancelled = false;
     (async () => {
       setInterpretando(true);
@@ -258,6 +298,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
             viajeros: "2",
             auto: "1",
           });
+          releaseIntent(fp);
           if (!cancelled) navigate(`/dashboard/ruta?${qs.toString()}`, { replace: true });
           return;
         }
@@ -265,7 +306,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         const { data, error } = await supabase.functions.invoke("parsear-viaje", {
           body: { prompt: q },
         });
-        if (cancelled) return;
+        if (cancelled) { releaseIntent(fp); return; }
         if (error) throw error;
 
         const origen = data?.ciudad_origen || prof?.ciudad_origen || "Ciudad de México";
@@ -285,6 +326,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
             auto: "1",
           });
           if (data?.presupuesto_objetivo) qs.set("presupuesto", String(data.presupuesto_objetivo));
+          releaseIntent(fp);
           if (!cancelled) navigate(`/dashboard/ruta?${qs.toString()}`, { replace: true });
           return;
         }
@@ -298,8 +340,9 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
           num_viajeros: Number(data?.num_viajeros) || 2,
           presupuesto_objetivo: data?.presupuesto_objetivo ?? null,
           notas_usuario: q,
-        });
+        }, fp);
       } catch (e: any) {
+        releaseIntent(fp);
         if (cancelled) return;
         console.error(e);
         // Sin IA: rescatar lo que se pueda de la frase para no perderla.
@@ -319,8 +362,9 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     return () => {
       cancelled = true;
     };
+    // Depende del id (no del objeto user, que cambia en cada refresh de token).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user?.id]);
 
 
   if (interpretando) {
