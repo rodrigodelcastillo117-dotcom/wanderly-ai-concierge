@@ -6,8 +6,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Wifi, WifiOff } from "lucide-react";
-import { ArticleView, Cover, IssueIndex, useOnline } from "@/components/prive/edition/Magazine";
-import { DEFAULT_PREFS, formatDate, personalizeIssue, reconcilePack, resolveLanguage, type EditionImage, type IssuePayload } from "@/lib/priveEdition";
+import { ArticleView, Cover, IssueIndex, ReadingModeToggle, useOnline, useReadingMode } from "@/components/prive/edition/Magazine";
+import { DEFAULT_PREFS, formatDate, personalizeIssue, reconcilePack, resolveLanguage, txt, type EditionImage, type IssuePayload } from "@/lib/priveEdition";
 import { cachedImageUrl, listOfflinePacks, readOfflinePack, replaceOfflinePayload, storedUserId, type OfflineIndexEntry, type OfflinePack } from "@/lib/priveEditionOffline";
 import { priveApi } from "@/lib/priveApi";
 import { readPriveSession } from "@/lib/priveSession";
@@ -45,6 +45,7 @@ export default function EditionOfflinePage() {
   const slug = params.get("a");
   const lang = pack?.lang ?? resolveLanguage(null, typeof navigator !== "undefined" ? navigator.language : "es");
   const T = editionText(lang);
+  const [reading, setReading] = useReadingMode();
 
   useEffect(() => { if (uid) void listOfflinePacks(uid).then(setPacks); else setPacks([]); }, [uid]);
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function EditionOfflinePage() {
 
   return (
     <div className="prive-root">
-      <div className="ped" lang={lang} data-testid="edition-offline">
+      <div className="ped" lang={lang} data-testid="edition-offline" data-reading={reading}>
         <div className={`ped-banner ${online ? "!bg-[#0f1a12] !text-[#cde8cf] !border-[#2d5a35]" : ""}`} role="status">
           {online ? <Wifi className="inline h-4 w-4 mr-2" aria-hidden="true" /> : <WifiOff className="inline h-4 w-4 mr-2" aria-hidden="true" />}
           {online ? T.offline.online : T.offline.banner}
@@ -96,7 +97,8 @@ export default function EditionOfflinePage() {
           ) : online ? (
             <Link to="/prive/edicion" className="inline-flex items-center gap-1 min-h-[44px] text-xs tracking-[0.2em] uppercase text-[color:var(--ped-muted)]"><ArrowLeft className="h-4 w-4" aria-hidden="true" />{T.brand}</Link>
           ) : <span />}
-          <span className="ped-masthead text-sm text-[color:var(--ped-champagne)]">{T.offline.title}</span>
+          <span className="inline-flex items-center gap-3"><span className="ped-masthead text-sm text-[color:var(--ped-champagne)]">{T.offline.title}</span>
+            <ReadingModeToggle mode={reading} onChange={setReading} lang={lang} /></span>
         </div>
         {!uid || (packs && packs.length === 0) ? (
           <p className="ped-dek px-4 py-24 text-center" data-testid="offline-empty">{T.library.noOffline}</p>
@@ -118,6 +120,22 @@ export default function EditionOfflinePage() {
             <div className="mx-auto max-w-4xl px-4 sm:px-8 py-12">
               <p className="ped-meta">{pack.title} · {pack.article_count} · {Math.round(pack.bytes / 1024)} KB</p>
               <IssueIndex sections={ed.sections.filter((s) => s.key !== "oportunidades")} lang={lang} hrefFor={hrefFor} readingMinutes={ed.readingMinutes} moreTime={ed.moreTime} />
+              {pack.guide && pack.guide.tips.length > 0 && (
+                <section className="mt-14" aria-labelledby="offline-guide" data-testid="offline-guide">
+                  <p className="ped-kicker">{T.flight.guideKicker}</p>
+                  <h2 id="offline-guide" className="ped-display text-4xl mt-2">{T.flight.guideTitle(pack.guide.destination)}</h2>
+                  <p className="ped-meta mt-2">{T.flight.guideNote(formatDate(pack.guide.as_of, lang))}</p>
+                  <ol className="list-none p-0 mt-6 space-y-6">
+                    {pack.guide.tips.map((tip) => (
+                      <li key={tip.id} className="border-t border-[color:var(--ped-line,rgba(201,169,97,.2))] pt-4">
+                        <h3 className="ped-display text-2xl">{txt(tip.title, lang)}</h3>
+                        <p className="mt-2 text-[1.05rem] leading-relaxed text-[color:var(--ped-body)]">{txt(tip.body, lang)}</p>
+                        <p className="ped-meta mt-2">{T.opp.source}: {tip.source.name} · {T.flight.checked} {formatDate(tip.source.checked_at, lang)}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
             </div>
           </>
         )}

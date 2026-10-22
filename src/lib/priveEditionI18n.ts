@@ -110,6 +110,17 @@ const es = {
     storage: (used: string, quota: string) => `Espacio del navegador: ${used} de ${quota}`,
     generated: "Generada el", privacy: "El PDF es una copia: no podemos borrarlo de tu dispositivo a distancia. Promociones y noticias son información a la fecha de generación.",
     audio: "Audio Edition: fase posterior (derechos y costos por medir).",
+    nextTrip: "Tu próximo viaje", guideKicker: "Guía práctica", guideTitle: (d: string) => `Antes de llegar a ${d}`,
+    guideNote: (d: string) => `Consejos del Insider's Notebook de IATOS Privé, cada uno con su fuente; información a la fecha ${d}. Comprueba horarios y requisitos antes de salir.`,
+    checked: "revisado el", guideTips: (n: number) => `${n} consejo${n === 1 ? "" : "s"} prácticos con fuente`, guideNone: "Para este destino aún no hay consejos prácticos verificados; la guía lleva solo las piezas del número.",
+    pdfBtn: "DESCARGAR REVISTA PDF", pdfExplain: "Un archivo PDF para guardar en tu teléfono o computadora, imprimir o abrir en cualquier lector. No depende de esta app ni del navegador.",
+    offlineBtn: "GUARDAR PARA LEER SIN INTERNET", offlineExplain: "Guarda la revista dentro de esta app (textos, fotos y la app misma) para abrirla en modo avión desde IATOS, con su portada, índice y artículos.",
+    estimate: (mb: string) => `Ocupará aproximadamente ${mb} en este dispositivo.`,
+    used: (mb: string) => `Ocupa ${mb} en este dispositivo (textos, fotos y app).`,
+    persisted: "El navegador marcó esta copia como persistente: no la borrará por falta de espacio sin avisar.",
+    notPersisted: "El navegador no garantizó guardar esta copia de forma permanente: si le falta espacio podría borrarla. Antes de volar, ábrela una vez en modo avión para comprobarla.",
+    iosNotice: "En iPhone y iPad, Safari puede borrar las copias de sitios que no abres en 7 días. Para el vuelo: guárdala el mismo día, ábrela una vez sin red y, si puedes, agrega IATOS a tu pantalla de inicio. El PDF no tiene ese límite.",
+    share: "Compartir o guardar en Archivos", openOffline: "Abrir la copia sin conexión",
   },
   // Library
   library: {
@@ -122,8 +133,23 @@ const es = {
     title: "Lectura sin conexión", banner: "Sin conexión · leyendo la copia guardada", generated: "Copia generada el",
     online: "Con conexión", updated: (n: number, r: number) => `Al volver la red: ${n} corregido${n === 1 ? "" : "s"}, ${r} retirado${r === 1 ? "" : "s"}.`,
     pick: "Elige una edición guardada",
+    openSaved: "Leer THE PRIVATE EDITION guardada en este dispositivo (sin conexión)",
   },
   teaser: { cta: "Abrir la revista", insider: "Del número de este mes" },
+  // Sección protagonista en FOR YOU / INSIDER
+  section: {
+    pitch: "La revista mensual de IATOS Privé: reportajes, guías y noticias verificadas, con fuentes y fechas, ordenados según tus intereses. Léela aquí, descárgala en PDF o guárdala para el avión.",
+    myEdition: "Mi edición personalizada", read: "Leer revista", interests: "Elegir intereses", flight: "Descargar para un vuelo", library: "Biblioteca",
+    chooseToPersonalize: "Elige tus intereses para que la portada, el índice y la selección se ordenen a tu medida.",
+    reviewBadge: "En revisión editorial",
+    inReview: "Primer número en revisión editorial. Lo publicamos cuando cada dato, fuente y foto esté aprobado; mientras tanto puedes elegir tus intereses para que llegue ordenado a tu medida.",
+    inPreparation: "El próximo número está en preparación. Preferimos publicar tarde a publicar sin fuentes.",
+    firstInPreparation: "El primer número está en preparación editorial. Preferimos publicar tarde a publicar sin fuentes; mientras tanto puedes elegir tus intereses.",
+    scheduled: (d: string) => `Próximo número programado para el ${d}. Elige tus intereses para recibirlo ordenado a tu medida.`,
+    membersOnly: "Exclusiva para miembros Privé: entra con tu clave Privé para leerla.",
+    insiderTitle: "Del número de este mes, sobre este destino",
+    navLabel: "Revista",
+  },
 };
 
 type Dict = typeof es;
@@ -220,6 +246,17 @@ const en: Dict = {
     storage: (used: string, quota: string) => `Browser storage: ${used} of ${quota}`,
     generated: "Generated on", privacy: "The PDF is a copy: we cannot delete it from your device remotely. Promotions and news are information as of the generation date.",
     audio: "Audio Edition: later phase (rights and costs to be measured).",
+    nextTrip: "Your next trip", guideKicker: "Practical guide", guideTitle: (d: string) => `Before you arrive in ${d}`,
+    guideNote: (d: string) => `Advice from the IATOS Privé Insider's Notebook, each with its source; information as of ${d}. Check opening hours and requirements before you leave.`,
+    checked: "checked on", guideTips: (n: number) => `${n} practical tip${n === 1 ? "" : "s"} with sources`, guideNone: "There is no verified practical advice for this destination yet; the guide only carries this issue's pieces.",
+    pdfBtn: "DOWNLOAD MAGAZINE PDF", pdfExplain: "A PDF file to keep on your phone or computer, print or open in any reader. It does not depend on this app or the browser.",
+    offlineBtn: "SAVE TO READ WITHOUT INTERNET", offlineExplain: "Stores the magazine inside this app (texts, photos and the app itself) so you can open it in airplane mode from IATOS, with its cover, contents and stories.",
+    estimate: (mb: string) => `It will take about ${mb} on this device.`,
+    used: (mb: string) => `It takes ${mb} on this device (texts, photos and app).`,
+    persisted: "The browser marked this copy as persistent: it will not delete it for lack of space without warning.",
+    notPersisted: "The browser did not guarantee to keep this copy permanently: it could delete it if space runs low. Before flying, open it once in airplane mode to check it.",
+    iosNotice: "On iPhone and iPad, Safari may delete copies from sites you have not opened in 7 days. For your flight: save it the same day, open it once offline and, if you can, add IATOS to your home screen. The PDF has no such limit.",
+    share: "Share or save to Files", openOffline: "Open the offline copy",
   },
   library: {
     title: "LIBRARY", sub: "Past issues and your Reading List", issues: "Issues", readingList: "The Reading List", readingListSub: "Saved stories",
@@ -229,8 +266,22 @@ const en: Dict = {
   offline: {
     title: "Offline reading", banner: "Offline · reading the saved copy", generated: "Copy generated on", online: "Online",
     updated: (n: number, r: number) => `Back online: ${n} corrected, ${r} withdrawn.`, pick: "Choose a saved edition",
+    openSaved: "Read THE PRIVATE EDITION saved on this device (offline)",
   },
   teaser: { cta: "Open the magazine", insider: "From this month's issue" },
+  section: {
+    pitch: "IATOS Privé's monthly magazine: features, guides and verified news, with sources and dates, ordered by your interests. Read it here, download it as a PDF or save it for the plane.",
+    myEdition: "My personalised edition", read: "Read the magazine", interests: "Choose interests", flight: "Download for a flight", library: "Library",
+    chooseToPersonalize: "Choose your interests so the cover, contents and selection are ordered for you.",
+    reviewBadge: "In editorial review",
+    inReview: "First issue in editorial review. We publish it once every fact, source and photo is approved; meanwhile you can choose your interests so it arrives tailored to you.",
+    inPreparation: "The next issue is in preparation. We would rather publish late than publish without sources.",
+    firstInPreparation: "The first issue is in editorial preparation. We would rather publish late than publish without sources; meanwhile you can choose your interests.",
+    scheduled: (d: string) => `Next issue scheduled for ${d}. Choose your interests to receive it tailored to you.`,
+    membersOnly: "Exclusive to Privé members: enter with your Privé key to read it.",
+    insiderTitle: "From this month's issue, about this destination",
+    navLabel: "Magazine",
+  },
 };
 
 export const EDITION_TEXT: Record<Lang, Dict> = { es, en };

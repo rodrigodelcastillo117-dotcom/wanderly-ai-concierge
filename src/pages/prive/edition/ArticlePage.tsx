@@ -47,7 +47,7 @@ export default function ArticlePage() {
           <p className="ped-kicker">{T.retracted} · {formatDate(remote.retracted.at, lang)}</p>
           <h1 className="ped-display text-4xl mt-3">{txt(remote.retracted.title, lang)}</h1>
           <p className="ped-note mt-6">{remote.retracted.note}</p>
-          <Link to="/prive/edicion" className="ped-btn ghost mt-6">{T.back}</Link>
+          <Link to="/prive/edicion" className="ped-btn ghost mt-6">{T.teaser.cta}</Link>
         </section>
       );
     }
@@ -55,7 +55,7 @@ export default function ArticlePage() {
       return (
         <section className="mx-auto max-w-2xl px-4 py-20 text-center" data-testid="edition-not-found">
           <p className="ped-dek">{failed ? T.loadError : T.notFound}</p>
-          <Link to="/prive/edicion" className="ped-btn ghost mt-6">{T.back}</Link>
+          <Link to="/prive/edicion" className="ped-btn ghost mt-6">{T.teaser.cta}</Link>
         </section>
       );
     }

@@ -11,7 +11,7 @@
  * · Sin conexión NO se reserva, ni paga, ni se consulta disponibilidad: la pantalla offline no llama a la red.
  * · Al volver la red, reconcilePack() quita lo retirado y actualiza lo corregido.
  */
-import type { EditionArticle, IssuePayload, Lang } from "@/lib/priveEdition";
+import type { EditionArticle, IssuePayload, Lang, PracticalGuide } from "@/lib/priveEdition";
 import { imageAllowed } from "@/lib/priveEdition";
 
 export const EDITION_CACHE = "iatos-edition-v1";
@@ -31,6 +31,8 @@ export interface OfflinePack {
   article_count: number;
   payload: IssuePayload;    // solo los artículos de la copia
   versions: Record<string, number>;
+  guide?: PracticalGuide | null;   // Flight Edition: guía práctica del destino (texto con fuentes; sin fotos)
+  persisted?: boolean;             // ¿el navegador concedió almacenamiento persistente?
 }
 export type OfflineIndexEntry = Omit<OfflinePack, "payload">;
 
@@ -109,6 +111,35 @@ export async function warmAppShell(): Promise<number> {
   return n;
 }
 
+/** Promedio medido de las fotos del Nº 01 en el CDN (12 fotos, 188–566 KB): base de la estimación previa. */
+export const AVG_IMAGE_BYTES = 340_000;
+/** Lo que ocupará una copia ANTES de guardarla: JSON real de la selección + fotos estimadas. */
+export function estimateOfflineBytes(payload: IssuePayload, articles: EditionArticle[], guide?: PracticalGuide | null): number {
+  const p = packPayload(payload, articles);
+  return JSON.stringify(p).length + JSON.stringify(guide ?? null).length + offlineImageUrls(p, p.articles ?? []).length * AVG_IMAGE_BYTES;
+}
+export const formatMB = (b: number) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`);
+
+/** iPhone/iPad (incluye iPadOS que se presenta como Mac con pantalla táctil). */
+export function isIOS(nav: { userAgent?: string; platform?: string; maxTouchPoints?: number } | undefined = typeof navigator !== "undefined" ? navigator : undefined): boolean {
+  if (!nav?.userAgent) return false;
+  return /iPhone|iPad|iPod/.test(nav.userAgent) || (/Macintosh/.test(nav.userAgent) && (nav.maxTouchPoints ?? 0) > 1);
+}
+/** ¿Abierta como app instalada (pantalla de inicio)? En iOS esto evita el borrado a los 7 días sin uso. */
+export function isStandalone(): boolean {
+  try {
+    return (typeof matchMedia !== "undefined" && matchMedia("(display-mode: standalone)").matches)
+      || (typeof navigator !== "undefined" && (navigator as Navigator & { standalone?: boolean }).standalone === true);
+  } catch { return false; }
+}
+/** Pide almacenamiento persistente. Devuelve lo que el navegador concedió (false si no lo soporta). */
+export async function requestPersist(): Promise<boolean> {
+  try {
+    if (await navigator.storage?.persisted?.()) return true;
+    return (await navigator.storage?.persist?.()) ?? false;
+  } catch { return false; }
+}
+
 export interface StorageInfo { usage: number; quota: number; persisted: boolean }
 export async function storageInfo(): Promise<StorageInfo | null> {
   try {
@@ -119,7 +150,7 @@ export async function storageInfo(): Promise<StorageInfo | null> {
   } catch { return null; }
 }
 
-export interface SaveResult { ok: boolean; bytes: number; images: number; articles: number; reason?: "unsupported" | "quota" | "image" | "network" | "write" }
+export interface SaveResult { ok: boolean; bytes: number; images: number; articles: number; persisted?: boolean; reason?: "unsupported" | "quota" | "image" | "network" | "write" }
 
 /**
  * Descarga y guarda una copia. Atómica para el miembro: si algo falla, se borra lo parcial y ok=false.
@@ -127,7 +158,7 @@ export interface SaveResult { ok: boolean; bytes: number; images: number; articl
  */
 export async function saveOfflinePack(
   uid: string,
-  input: { id: string; kind: "issue" | "flight"; title: string; lang: Lang; payload: IssuePayload; articles: EditionArticle[] },
+  input: { id: string; kind: "issue" | "flight"; title: string; lang: Lang; payload: IssuePayload; articles: EditionArticle[]; guide?: PracticalGuide | null },
   fetchImpl: typeof fetch = fetch,
 ): Promise<SaveResult> {
   if (!offlineSupported()) return { ok: false, bytes: 0, images: 0, articles: 0, reason: "unsupported" };
@@ -139,7 +170,7 @@ export async function saveOfflinePack(
   const info = await storageInfo();
   const need = 200_000 + urls.length * 600_000;
   if (info && info.quota > 0 && info.quota - info.usage < need) return { ok: false, bytes: 0, images: 0, articles: 0, reason: "quota" };
-  try { await navigator.storage?.persist?.(); } catch { /* opcional */ }
+  const persisted = await requestPersist();
 
   const stored: string[] = [];
   let bytes = 0;
@@ -166,7 +197,7 @@ export async function saveOfflinePack(
   const pack: OfflinePack = {
     id: input.id, kind: input.kind, title: input.title, issue: payload.issue?.slug ?? "", lang: input.lang,
     generated_at: payload.generated_at ?? now, saved_at: now, bytes: 0, image_count: stored.length,
-    article_count: payload.articles?.length ?? 0, payload, versions,
+    article_count: payload.articles?.length ?? 0, payload, versions, guide: input.guide ?? null, persisted,
   };
   const body = JSON.stringify(pack);
   pack.bytes = bytes + body.length;
@@ -181,7 +212,7 @@ export async function saveOfflinePack(
     await cache.delete(packUrl(uk, input.id));
     return { ok: false, bytes: 0, images: 0, articles: 0, reason: "write" };
   }
-  return { ok: true, bytes: pack.bytes, images: stored.length, articles: pack.article_count };
+  return { ok: true, bytes: pack.bytes, images: stored.length, articles: pack.article_count, persisted };
 }
 
 export async function listOfflinePacks(uid: string): Promise<OfflineIndexEntry[]> {

@@ -2,8 +2,11 @@
 // INSIDER · EXPLORE · MY PRIVÉ. Escritorio: en la barra superior. Teléfono: barra inferior con cinco
 // (Para ti, The Key, Explorar, Drops, Mi Privé) e Insider en la barra superior, así las seis siguen a
 // un toque sin esconder funciones. Todo es navegación interna (misma pestaña).
+// THE PRIVATE EDITION (la revista) no es un área más: es un acceso visible en la cabecera (escritorio y
+// teléfono) que lleva a /prive/edicion; la sección completa vive en FOR YOU.
 import { NavLink, Link } from "react-router-dom";
-import { BookOpen, Compass, Gem, KeyRound, Sparkles, UserRound } from "lucide-react";
+import { BookOpen, Compass, Gem, KeyRound, Newspaper, Sparkles, UserRound } from "lucide-react";
+import { editionText } from "@/lib/priveEditionI18n";
 import { usePriveT } from "@/components/prive/PriveLang";
 
 export const PRIVE_AREAS = [
@@ -42,8 +45,27 @@ export function PriveTopNav({ pathname }: { pathname: string }) {
             </NavLink>
           </li>
         ))}
+        <li aria-hidden="true" className="mx-1 h-4 w-px bg-[color:var(--pv-line,rgba(201,169,97,.18))]" />
+        <li><PriveEditionLink pathname={pathname} /></li>
       </ul>
     </nav>
+  );
+}
+
+export const isEditionPath = (pathname: string) => pathname.startsWith("/prive/edicion");
+
+/** Acceso a THE PRIVATE EDITION en la cabecera Privé ("Revista" / "Magazine"). */
+export function PriveEditionLink({ pathname, compact = false }: { pathname: string; compact?: boolean }) {
+  const t = usePriveT();
+  const on = isEditionPath(pathname);
+  const label = editionText(t.lang === "en" ? "en" : "es").section.navLabel;
+  return (
+    <Link to="/prive/edicion" data-testid="prive-edition-nav" aria-current={on ? "page" : undefined} title="THE PRIVATE EDITION"
+      className={compact
+        ? `inline-flex items-center gap-1.5 min-h-[44px] text-xs tracking-[0.2em] uppercase ${on ? "prive-champagne" : "prive-muted"}`
+        : `prive-nav-link inline-flex items-center gap-1.5 ${on ? "is-active" : ""}`}>
+      <Newspaper className="w-4 h-4" aria-hidden="true" />{label}
+    </Link>
   );
 }
 
@@ -51,9 +73,12 @@ export function PriveInsiderShortcut({ pathname }: { pathname: string }) {
   const t = usePriveT();
   const on = activeArea(pathname) === "insider";
   return (
-    <Link to="/prive/insider" className={`lg:hidden inline-flex items-center gap-1.5 min-h-[44px] text-xs tracking-[0.2em] uppercase ${on ? "prive-champagne" : "prive-muted"}`} aria-current={on ? "page" : undefined}>
-      <BookOpen className="w-4 h-4" aria-hidden="true" />{t.shell.insider}
-    </Link>
+    <span className="lg:hidden inline-flex items-center gap-4">
+      <PriveEditionLink pathname={pathname} compact />
+      <Link to="/prive/insider" className={`inline-flex items-center gap-1.5 min-h-[44px] text-xs tracking-[0.2em] uppercase ${on ? "prive-champagne" : "prive-muted"}`} aria-current={on ? "page" : undefined}>
+        <BookOpen className="w-4 h-4" aria-hidden="true" />{t.shell.insider}
+      </Link>
+    </span>
   );
 }
 

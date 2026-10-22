@@ -154,3 +154,26 @@
 
 @media (prefers-reduced-motion: reduce) { .ped-card .ph img { transition: none; } .ped-card:hover .ph img { transform: none; } }
 @media print { .ped-nav, .ped-actions, .ped-progress { display: none !important; } }
+
+/* ───────── modo lectura «papel» (alternativa clara para leer largo; la portada sigue sobre foto) ───────── */
+.ped[data-reading="paper"] {
+  --ped-bg: #f4efe4;
+  --ped-ink: #1b1814;
+  --ped-body: #2b2620;
+  --ped-muted: #6a6157;
+  --ped-gold: #8a6a2e;
+  --ped-champagne: #5b4524;
+  --ped-line: rgba(138, 106, 46, 0.28);
+  --ped-surface: #ebe4d5;
+}
+.ped[data-reading="paper"] :is(.ped-cover, .ped-opener-photo) { --ped-champagne: #e8dcc2; --ped-ink: #f5f2ea; --ped-muted: #d2cabd; --ped-gold: #c9a961; }
+.ped[data-reading="paper"] .ped-card.typo { background: linear-gradient(160deg, #e7dcc4, #efe8da); }
+.ped[data-reading="paper"] .ped-note { background: #ebe2cf; }
+.ped[data-reading="paper"] .ped-note.disclaimer { background: #e4e6ea; }
+.ped[data-reading="paper"] .ped-input { background: #fbf8f1; }
+.ped[data-reading="paper"] .ped-choice[aria-pressed="true"], .ped[data-reading="paper"] .ped-choice[aria-checked="true"] { color: var(--ped-ink); background: rgba(138,106,46,.16); }
+.ped[data-reading="paper"] .ped-link:hover { color: #000; }
+.ped[data-reading="paper"] .ped-btn.ghost { color: var(--ped-champagne); border-color: rgba(138,106,46,.5); }
+.ped[data-reading="paper"] .ped-nav a[aria-current="page"], .ped[data-reading="paper"] .ped-nav a:hover { color: var(--ped-ink); }
+.ped-reading-toggle { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; min-width: 44px; border-radius: 999px; border: 1px solid var(--ped-line); color: var(--ped-muted); background: transparent; }
+.ped-reading-toggle[aria-pressed="true"] { color: var(--ped-ink); border-color: var(--ped-gold); }

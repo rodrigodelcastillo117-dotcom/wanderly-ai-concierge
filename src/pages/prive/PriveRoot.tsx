@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { PriveProvider, usePriveAccess } from "@/hooks/usePriveAccess";
 import { PriveBottomNav, PriveInsiderShortcut, PriveTopNav } from "@/components/prive/shell/PriveNav";
 import { Monogram } from "@/components/prive/Monogram";
+import { PriveBackProvider, usePriveBackTarget } from "@/components/prive/shell/PriveBack";
 import { PriveLangProvider, usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import "@/components/prive/prive.css";
 
@@ -57,7 +58,9 @@ function PriveFrame() {
   }, []);
   return (
     <PriveProvider>
-      <FrameInner immersive={immersive} pathname={pathname} lang={lang} t={t} />
+      <PriveBackProvider>
+        <FrameInner immersive={immersive} pathname={pathname} lang={lang} t={t} />
+      </PriveBackProvider>
     </PriveProvider>
   );
 }
@@ -67,12 +70,21 @@ function FrameInner({ immersive, pathname, lang, t }: { immersive: boolean; path
   // Las seis áreas solo para quien ya está dentro (con candado o sin membresía no hay a dónde ir).
   const nav = !immersive && view === "unlocked";
   const hubPath = pathname === "/prive" || pathname === "/prive/";
+  // El único botón de regresar de Privé: sube un nivel si la página lo pide; si no, sale a IATOS.
+  const backTarget = usePriveBackTarget();
   return (
       <div className={`prive-root ${nav ? "has-bottom-nav" : ""}`} lang={lang === "en" ? "en" : "es-MX"}>
+        {/* El body ya deja la franja de la hora (index.css: padding-top = área segura); la barra suma solo
+            1rem de aire. Antes sumaba otra vez el área segura (hueco enorme) y luego quedó pegada a la hora. */}
         {!immersive && (
-          <header className={`${hubPath ? "absolute inset-x-0 top-0" : "relative"} z-30 flex items-center justify-between gap-4 px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-3`}>
-            <Link to="/dashboard" className="inline-flex items-center gap-2 min-h-[44px] text-xs tracking-[0.2em] uppercase prive-muted hover:text-[color:var(--pv-champagne)]">
-              <ArrowLeft className="w-4 h-4" aria-hidden="true" /> {t.common.back}
+          <header className={`${hubPath ? "absolute inset-x-0 top-0" : "relative"} z-30 flex items-center justify-between gap-4 px-4 sm:px-8 pt-4 pb-3`}>
+            <Link
+              to={backTarget?.to ?? "/dashboard"}
+              data-testid="prive-back"
+              className="inline-flex items-center gap-2 min-h-[44px] min-w-0 text-xs tracking-[0.2em] uppercase prive-muted hover:text-[color:var(--pv-champagne)]"
+            >
+              <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="truncate max-w-[9.5rem] sm:max-w-none">{backTarget?.label ?? t.common.back}</span>
             </Link>
             <Link to="/prive" className="inline-flex items-center gap-2 min-h-[44px]" aria-label={t.common.homeAria}>
               <Monogram size={30} />
@@ -92,7 +104,7 @@ function FrameInner({ immersive, pathname, lang, t }: { immersive: boolean; path
         )}
         {/* En /prive la barra flota sobre la portada; el relleno reserva su alto desde el primer render
             (sin él, la portada subía al cargar: CLS 0.12 medido). */}
-        <main id="prive-main" className={hubPath && !immersive ? "pt-[calc(max(env(safe-area-inset-top),1rem)+44px+0.75rem)]" : undefined}>
+        <main id="prive-main" className={hubPath && !immersive ? "pt-[calc(1rem+44px+0.75rem)]" : undefined}>
           <Suspense fallback={<Spinner />}>
             <Outlet />
           </Suspense>

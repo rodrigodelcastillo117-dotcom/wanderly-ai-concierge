@@ -57,7 +57,7 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- IATOS Edition: lectura con prive_require; edición con edition_admin_require (admins); edition_is_admin solo
   -- responde por uno mismo; la revisión de enlaces es de service_role o de un admin (SN1).
   ('prive_edition_issue'),('prive_edition_article'),('prive_edition_library'),('prive_edition_saved'),('prive_edition_save'),
-  ('prive_edition_prefs'),('prive_edition_prefs_save'),('prive_edition_world_brief'),('prive_edition_log_download'),
+  ('prive_edition_prefs'),('prive_edition_prefs_save'),('prive_edition_world_brief'),('prive_edition_log_download'),('prive_edition_status'),
   ('edition_is_admin'),('edition_admin_overview'),('edition_admin_preview'),('edition_admin_article_update'),
   ('edition_admin_article_transition'),('edition_admin_article_correct'),('edition_admin_issue_transition'),
   ('edition_admin_image_license'),('edition_record_link_check'),('edition_sources_to_check'),
@@ -308,7 +308,7 @@ DO $$ DECLARE q text; n int := 0; ok int := 0; BEGIN
     $x$SELECT public.prive_edition_issue('x', NULL)$x$, $x$SELECT public.prive_edition_article('x', 'y')$x$, $x$SELECT public.prive_edition_library('x')$x$,
     $x$SELECT public.prive_edition_saved('x')$x$, $x$SELECT public.prive_edition_save('x', 'y', true)$x$, $x$SELECT public.prive_edition_prefs('x')$x$,
     $x$SELECT public.prive_edition_prefs_save('x', '{}'::jsonb)$x$, $x$SELECT public.prive_edition_world_brief('x')$x$,
-    $x$SELECT public.prive_edition_log_download('x', 'y', 'pdf', 'full', 1, 1, 1, 1, 'es')$x$] LOOP
+    $x$SELECT public.prive_edition_log_download('x', 'y', 'pdf', 'full', 1, 1, 1, 1, 'es')$x$, $x$SELECT public.prive_edition_status('x')$x$] LOOP
     n := n + 1;
     BEGIN EXECUTE q; RAISE NOTICE 'FALLA SN2 respondió sin sesión Privé: %', q;
     EXCEPTION WHEN raise_exception THEN

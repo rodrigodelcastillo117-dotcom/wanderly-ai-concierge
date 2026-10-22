@@ -40,13 +40,16 @@ export default function OpportunitiesPage() {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;
-    const interests = Object.keys(effectiveWeights(prefs));
-    api.opportunities({ interests: interests.length ? interests : null }).then((d) => { if (alive) setData(d); })
+    // Sin filtrar por intereses en el servidor: un interés no elegido no debe esconder una oferta real.
+    // Los intereses solo ordenan (primero lo que coincide con tu edición).
+    api.opportunities({}).then((d) => { if (alive) setData(d); })
       .catch((e) => { if (!alive) return; if (e instanceof PriveLockedError) setLocked(e.code); else setFailed(true); });
     return () => { alive = false; };
   }, [api, prefs]);
   if (locked) return <PriveLocked code={locked as never} />;
-  const items = liveOpportunities(data?.items);
+  const weights = effectiveWeights(prefs);
+  const rel = (o: Opportunity) => (o.interests ?? []).reduce((n, k) => n + (weights[k] ?? 0), 0);
+  const items = liveOpportunities(data?.items).map((o, i) => ({ o, i })).sort((a, b) => rel(b.o) - rel(a.o) || a.i - b.i).map((x) => x.o);
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-8 py-10">
       <p className="ped-kicker">{T.opp.sub}</p>

@@ -13,7 +13,7 @@
 import type jsPDFType from "jspdf";
 import {
   blockText, formatDate, imageAllowed, imageCredit, txt, type Block, type EditionArticle, type EditionImage, type IssuePayload, type Lang,
-  type Opportunity, resolveAction,
+  type Opportunity, type PracticalGuide, resolveAction, todayInMexicoCity, upcomingAgenda,
 } from "@/lib/priveEdition";
 import { editionText } from "@/lib/priveEditionI18n";
 
@@ -26,6 +26,7 @@ export interface PdfInput {
   destinationLabel?: string | null;    // Flight Edition: destino o viaje
   opportunities?: Opportunity[] | null;
   opportunitiesAsOf?: string | null;
+  guide?: PracticalGuide | null;       // Flight Edition: guía práctica del destino (Insider), con fuentes
   appOrigin?: string;                  // para enlaces "Abrir en IATOS"
   now?: Date;
 }
@@ -282,7 +283,8 @@ export async function buildEditionPdf(input: PdfInput, deps: PdfDeps = {}): Prom
         return;
       }
       case "agenda":
-        for (const it of b.items) {
+        // Solo fechas que no han terminado a la fecha de generación.
+        for (const it of upcomingAgenda(b.items, todayInMexicoCity(input.now ?? new Date())).items) {
           const when = it.end ? `${formatDate(it.date, lang, { day: "numeric", month: "short" })} - ${formatDate(it.end, lang, { day: "numeric", month: "short", year: "numeric" })}`
             : formatDate(it.date, lang, { day: "numeric", month: "short", year: "numeric" });
           ensure(30);
@@ -357,6 +359,25 @@ export async function buildEditionPdf(input: PdfInput, deps: PdfDeps = {}): Prom
         y += 11;
       }
       writeLines(T.offlineNoBooking, 6.5, 8.5, "italic", GREY, "helvetica");
+    }
+  }
+
+  // ───────────── Guía práctica del destino (Insider's Notebook, con fuente y fecha) ─────────────
+  if (input.guide && input.guide.tips.length) {
+    newPage();
+    font("helvetica", "bold", 7.5); setText(GOLD);
+    doc.text(pdfSafe(T.flight.guideKicker.toUpperCase()), M, y, { charSpace: 1.2 });
+    y += 26;
+    font("times", "normal", 24); setText(INK);
+    doc.text(pdfSafe(T.flight.guideTitle(input.guide.destination)), M, y);
+    y += 22;
+    writeLines(T.flight.guideNote(formatDate(input.guide.as_of, lang)), 8, 11, "italic", GREY, "helvetica", W - 2 * M, () => M);
+    y += 6; colTop = y;
+    for (const tip of input.guide.tips) {
+      writeLines(txt(tip.title, lang), 11.5, 14.5, "bold");
+      writeLines(txt(tip.body, lang), 9.4, 13);
+      writeLines(`${T.opp.source}: ${tip.source.name} · ${tip.source.url} · ${T.flight.checked} ${formatDate(tip.source.checked_at, lang)}`, 6.8, 9, "normal", GREY, "helvetica");
+      y += 9;
     }
   }
 
@@ -466,4 +487,18 @@ export function downloadPdf(result: PdfResult) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+/**
+ * iPhone/iPad: además de la descarga (Safari abre el visor del PDF), ofrece la hoja de compartir para
+ * "Guardar en Archivos" o AirDrop. Debe llamarse desde un toque del usuario. Devuelve false si no se puede.
+ */
+export async function sharePdf(result: PdfResult): Promise<boolean> {
+  try {
+    const file = new File([result.bytes as Uint8Array<ArrayBuffer>], result.filename, { type: "application/pdf" });
+    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    if (!nav.share || !nav.canShare?.({ files: [file] })) return false;
+    await nav.share({ files: [file], title: result.filename });
+    return true;
+  } catch { return false; }
 }

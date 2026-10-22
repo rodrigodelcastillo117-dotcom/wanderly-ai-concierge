@@ -183,7 +183,9 @@ describe("navegación de seis áreas", () => {
     await screen.findByTestId("prive-hero");
     const navs = screen.getAllByRole("navigation", { name: "Secciones de IATOS Privé" });
     expect(navs).toHaveLength(2);
-    expect(within(navs[0]).getAllByRole("link").map((a) => a.textContent)).toEqual(["Para ti", "The Key", "Drops", "Insider", "Explorar", "Mi Privé"]);
+    // Las seis áreas y, aparte (separador), el acceso a THE PRIVATE EDITION.
+    expect(within(navs[0]).getAllByRole("link").map((a) => a.textContent)).toEqual(["Para ti", "The Key", "Drops", "Insider", "Explorar", "Mi Privé", "Revista"]);
+    expect(screen.getAllByTestId("prive-edition-nav").every((a) => a.getAttribute("href") === "/prive/edicion")).toBe(true);
     const bottom = screen.getByTestId("prive-bottom-nav");
     expect(within(bottom).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/prive", "/prive/key", "/prive/explorar", "/prive/drops", "/prive/mi"]);
     expect(within(bottom).getByRole("link", { name: /Para ti/ })).toHaveAttribute("aria-current", "page");
@@ -303,6 +305,37 @@ describe("EXPLORE y universos", () => {
     expect(screen.queryByText("Quintonil")).toBeNull();
     fireEvent.click(within(filter).getByRole("button", { name: "Todos los destinos" }));
     expect(screen.getByText("Quintonil")).toBeInTheDocument();
+  });
+});
+
+describe("un solo botón de regresar en todo Privé (arriba a la izquierda)", () => {
+  // El dueño veía dos: "← IATOS" (barra) y "← IATOS Privé" (página). Ahora la barra tiene el único
+  // y sabe a dónde volver; ninguna página dibuja su propio "← …".
+  const arrows = (c: HTMLElement) => c.querySelectorAll("a svg.lucide-arrow-left").length;
+  it("portada y áreas principales: uno solo, que sale de Privé", async () => {
+    for (const [path, ready] of [["/prive/drops", "prive-drops-empty"], ["/prive/insider", "prive-insider-index"], ["/prive/explorar", "prive-twelve"]] as const) {
+      const { container, unmount } = renderAt(path);
+      await screen.findByTestId(ready);
+      expect(screen.getAllByTestId("prive-back")).toHaveLength(1);
+      expect(screen.getByTestId("prive-back")).toHaveAttribute("href", "/dashboard");
+      expect(arrows(container)).toBe(1);
+      unmount();
+    }
+  });
+  it("página interna: el mismo botón sube un nivel (universo → Explorar)", async () => {
+    const { container } = renderAt("/prive/universo/the_table?destino=paris");
+    await screen.findByTestId("prive-universe-hero");
+    const back = screen.getByTestId("prive-back");
+    expect(back).toHaveAttribute("href", "/prive/explorar");
+    expect(back).toHaveTextContent("Explorar");
+    expect(arrows(container)).toBe(1);
+  });
+  it("iPhone: la barra no suma otra vez la franja de la hora (ya la deja el body) y tiene 1rem de aire", async () => {
+    renderAt("/prive/drops");
+    await screen.findByTestId("prive-drops-empty");
+    const header = screen.getByTestId("prive-back").closest("header")!;
+    expect(header.className).toContain("pt-4");
+    expect(header.className).not.toContain("safe-area-inset-top");
   });
 });
 

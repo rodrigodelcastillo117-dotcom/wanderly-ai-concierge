@@ -5,6 +5,7 @@ import { PriveLockedError } from "@/lib/priveCatalogApi";
 import type { PriveErrorCode } from "@/lib/priveApi";
 import { DEFAULT_PREFS, resolveLanguage, type EditionPrefs, type IssuePayload, type Lang } from "@/lib/priveEdition";
 import { useEditionApi, type EditionApi } from "@/lib/priveEditionApi";
+import { invalidateEditionSection } from "./PrivateEditionTeaser";
 
 const LANG_KEY = "iatos_edition_lang";
 const readLocalLang = (): Lang | null => {
@@ -69,6 +70,7 @@ export function EditionProvider({ children }: { children: ReactNode }) {
       const r = await api.savePrefs(p);
       setPrefs({ ...DEFAULT_PREFS, ...r, section_order: (r.section_order ?? []) as EditionPrefs["section_order"] });
       setPrefsSaved(true);
+      invalidateEditionSection();
       return true;
     } catch (e) {
       if (e instanceof PriveLockedError) setLocked(e.code);
