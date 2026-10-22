@@ -14,8 +14,17 @@ $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/trial_no_card.sql" 2>&1 | grep -o 'OK
 $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/plan_limits_recommended.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA plan_limits_recommended.sql"
 # AUD-05: efectos de Stripe repetidos, fuera de orden, con fallas a medias (imprime OK/FALLA por caso).
 $PSQL -d "$DB" -f "$DIR/stripe_events.sql" 2>&1 | grep -o 'OK AP.*\|FALLA.*\|ERROR.*' || echo "FALLA stripe_events.sql"
+# Segunda auditoría (r2, grupo cuentas): casos adversariales del auditor y regresiones propias.
+$PSQL -d "$DB" -f "$DIR/aud2_pagos_adversarial.sql" 2>&1 | grep -o 'OK X.*\|FALLA.*\|PENDIENTE.*\|ERROR.*' || echo "FALLA aud2_pagos_adversarial.sql"
+$PSQL -d "$DB" -f "$DIR/r2_cuentas.sql" 2>&1 | grep -o 'OK RC.*\|FALLA.*\|ERROR.*' || echo "FALLA r2_cuentas.sql"
 # Re-correr la siembra no pisa lo que el dueño editó (plan_limits_recommended.sql dejó free/live_searches=7).
 $PSQL -d "$DB" -f "$DIR/../../migrations/20261022135300_pay_plan_limits_recommended.sql" >/dev/null 2>&1
+# Esa siembra redefine is_pro con la versión anterior: se vuelven a aplicar las migraciones r2 (idempotentes).
+for f in "$DIR"/../../migrations/20261026*_r2_cuentas_*.sql; do
+  [ -f "$f" ] || continue
+  out=$($PSQL -v ON_ERROR_STOP=1 -d "$DB" -f "$f" 2>&1 >/dev/null | grep ERROR | head -1)
+  [ -n "$out" ] && echo "FALLA migración $(basename "$f") no es idempotente: $out"
+done
 if [ "$($PSQL -d "$DB" -At -c "SELECT limit_value FROM public.plan_limits WHERE plan='free' AND kind='live_searches'")" = "7" ]; then
   echo "OK L7 re-correr la migración respeta los límites editados por el dueño"
 else

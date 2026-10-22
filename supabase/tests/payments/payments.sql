@@ -3,12 +3,14 @@
 \set ON_ERROR_STOP 1
 SET client_min_messages = notice;
 
-INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
-  ('11111111-0000-0000-0000-000000000001', 'free@test.mx', now()),
-  ('11111111-0000-0000-0000-000000000002', 'pro@test.mx', now()),
-  ('11111111-0000-0000-0000-000000000003', 'stripe@test.mx', now()),
-  ('11111111-0000-0000-0000-000000000004', 'comped@test.mx', now()),
-  ('11111111-0000-0000-0000-000000000005', 'vuelve@test.mx', now());
+-- r2 (N-01): las cuentas se crearon hace un día y confirmaron su correo con el enlace (no al instante:
+-- un correo confirmado en el mismo momento del registro es un autoconfirm y no comprueba el buzón).
+INSERT INTO auth.users (id, email, email_confirmed_at, created_at) VALUES
+  ('11111111-0000-0000-0000-000000000001', 'free@test.mx', now(), now() - interval '1 day'),
+  ('11111111-0000-0000-0000-000000000002', 'pro@test.mx', now(), now() - interval '1 day'),
+  ('11111111-0000-0000-0000-000000000003', 'stripe@test.mx', now(), now() - interval '1 day'),
+  ('11111111-0000-0000-0000-000000000004', 'comped@test.mx', now(), now() - interval '1 day'),
+  ('11111111-0000-0000-0000-000000000005', 'vuelve@test.mx', now(), now() - interval '1 day');
 INSERT INTO public.subscriptions (user_id, status, stripe_subscription_id, current_period_end)
 VALUES ('11111111-0000-0000-0000-000000000002', 'active', 'sub_pro', now() + interval '20 days');
 
@@ -127,7 +129,7 @@ DECLARE st text;
 BEGIN
   -- C1: correo de cortesía sin confirmar no recibe PRO; al confirmar, sí.
   INSERT INTO public.comp_grants (email) VALUES ('nuevo@test.mx'), ('pagador@test.mx'), ('stripe@test.mx');
-  INSERT INTO auth.users (id, email) VALUES ('11111111-0000-0000-0000-000000000006', 'Nuevo@Test.mx');
+  INSERT INTO auth.users (id, email, created_at) VALUES ('11111111-0000-0000-0000-000000000006', 'Nuevo@Test.mx', now() - interval '1 hour');
   IF EXISTS (SELECT 1 FROM public.subscriptions WHERE user_id = '11111111-0000-0000-0000-000000000006') THEN
     RAISE EXCEPTION 'C1a comped sin confirmar'; END IF;
   UPDATE auth.users SET email_confirmed_at = now() WHERE id = '11111111-0000-0000-0000-000000000006';
