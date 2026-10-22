@@ -12,6 +12,20 @@
 --    siguen.
 -- Idempotente.
 
+-- Destino raíz de una familia (San José del Cabo → Los Cabos; Punta Mita → Riviera Nayarit). Sirve para
+-- que un mismo lugar no exista dos veces bajo destinos que se contienen.
+CREATE OR REPLACE FUNCTION public.prive_destination_root(_id uuid)
+RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  WITH RECURSIVE up AS (
+    SELECT d.id, d.parent_id, 0 AS depth FROM public.prive_destinations d WHERE d.id = _id
+    UNION ALL
+    SELECT p.id, p.parent_id, up.depth + 1 FROM up JOIN public.prive_destinations p ON p.id = up.parent_id
+     WHERE p.is_destination AND p.kind <> 'area' AND up.depth < 6)
+  SELECT id FROM up ORDER BY depth DESC LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION public.prive_destination_root(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.prive_destination_root(uuid) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.prive_import_batch(p_rows jsonb, p_batch text, p_dry_run boolean DEFAULT true)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -41,6 +55,15 @@ BEGIN
         IF v_id IS NULL AND (r->>'keep_existing')::boolean AND r->>'original_name' IS NOT NULL THEN
           SELECT id INTO v_id FROM public.prive_experiences
            WHERE destination_id = v_dest AND dedupe_key = public.prive_dedupe_key(r->>'original_name');
+        END IF;
+        -- El mismo nombre ya existe en otro destino de la misma familia: duplicado, no se crea otro.
+        IF v_id IS NULL AND EXISTS (SELECT 1 FROM public.prive_experiences x
+             WHERE x.dedupe_key = v_key AND x.destination_id <> v_dest AND x.active
+               AND public.prive_destination_root(x.destination_id) = public.prive_destination_root(v_dest)) THEN
+          RAISE EXCEPTION 'duplicado en la jerarquía de destinos: "%" ya existe en %', v_name,
+            (SELECT d.slug FROM public.prive_experiences x JOIN public.prive_destinations d ON d.id = x.destination_id
+              WHERE x.dedupe_key = v_key AND x.destination_id <> v_dest AND x.active
+                AND public.prive_destination_root(x.destination_id) = public.prive_destination_root(v_dest) LIMIT 1);
         END IF;
         IF v_id IS NULL THEN
           INSERT INTO public.prive_experiences (slug, destination_id, universe, subcategory, name, data_state, age_policy)
