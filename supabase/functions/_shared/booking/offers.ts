@@ -10,7 +10,7 @@ import {
 } from "./links.ts";
 import { airlineCode } from "../airlines.ts";
 import { airlineFitsRoute, cityAirports, codeServesCity, mainAirport, maxPlausibleHours } from "../airports.ts";
-import { tripFlightRoute, type TripFlightRoute } from "./tripRoute.ts";
+import { stayForCity, tripFlightRoute, type TripFlightRoute } from "./tripRoute.ts";
 import { TP_PUBLIC_MARKER } from "../tp-params.ts";
 import type { RequestLang } from "./messages.ts";
 import { hotelPriceRooms } from "../rooms.ts";
@@ -59,6 +59,7 @@ export type TripLike = {
   fecha_regreso?: string | null;
   num_viajeros?: number | null;
   quote_needs_update?: boolean | null;
+  itinerario_json?: any;
   created_at?: string | null;
 };
 
@@ -464,8 +465,10 @@ export function offerFromTripHotel(h: any, ctx: OfferContext & { city?: string |
   const adults = Math.max(1, Math.round(Number(trip.num_viajeros) || 1));
   const city = ctx.city ?? trip.destino ?? null;
   const name = str(h?.nombre) ?? "Hospedaje";
-  const ci = isIsoDate(trip.fecha_salida) ? trip.fecha_salida! : null;
-  const co = isIsoDate(trip.fecha_regreso) ? trip.fecha_regreso! : null;
+  // Multi-destino: las noches de ESA ciudad (Roma 22–26 oct), no todo el viaje.
+  const stay = stayForCity(trip as never, h?.ciudad ?? null);
+  const ci = stay?.checkin ?? (isIsoDate(trip.fecha_salida) ? trip.fecha_salida! : null);
+  const co = stay?.checkout ?? (isIsoDate(trip.fecha_regreso) ? trip.fecha_regreso! : null);
   const rejected: Array<{ url: string; reason: string }> = [];
   const searches: LinkCandidate[] = [];
   const raw = str(h?.booking_link, 2000) ?? str(h?.booking_url, 2000) ?? str(h?.cta_action, 2000);

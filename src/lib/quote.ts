@@ -10,6 +10,7 @@
 import { diffDateOnlyDays, formatDateOnly } from "@/lib/dateUtils";
 import { formatAge, LIVE_TTL_HOURS } from "@/lib/provenance";
 import { sameSelections } from "@/lib/tripSelections";
+import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 
 export type QuoteSnapshot = {
   id: string;
@@ -130,6 +131,8 @@ export type Selection = {
   selHospedaje: number;
   nochesHospedaje: number;
   selTours: Set<number>;
+  /** Multi-destino: hotel elegido por ciudad (índice en hospedaje_json; -2 = "ya tengo"). */
+  selHoteles?: Record<string, number> | null;
 };
 
 /**
@@ -148,9 +151,18 @@ export function computeTripDesglose(trip: any, sel: Selection, viajeros: number)
     (s: number, t: any, i: number) => (sel.selTours.has(i) ? s + (Number(t?.precio_por_persona) || 0) * n : s),
     0,
   );
+  // Multi-destino: un hotel por ciudad con las noches de esa ciudad (no un hotel por todo el viaje).
+  // Sin ninguna elección se conserva el renglón de la cotización.
+  const multiHotels = hasCityHotels(trip);
+  const anyHotelSel = sel.selHospedaje !== -1 || Object.keys(sel.selHoteles ?? {}).length > 0;
+  const multiHospedaje = multiHotels && anyHotelSel
+    ? cityHotelChoices({ ...trip, num_viajeros: n }, sel).reduce((s2, c) => s2 + (c.index === -2 ? 0 : c.total ?? 0), 0)
+    : null;
   return {
     vuelos: sel.selVuelo === -2 ? 0 : vuelo ? (Number(vuelo.precio_por_persona) || 0) * n : Number(base.vuelos) || 0,
-    hospedaje: sel.selHospedaje === -2
+    hospedaje: multiHospedaje != null
+      ? (sel.selHospedaje === -2 && !Object.keys(sel.selHoteles ?? {}).length ? 0 : multiHospedaje)
+      : sel.selHospedaje === -2
       ? 0
       : hosp
         ? (Number(hosp.precio_por_noche) || 0) * Math.max(0, Number(sel.nochesHospedaje) || 0) * hotelPriceRooms(hosp, n)

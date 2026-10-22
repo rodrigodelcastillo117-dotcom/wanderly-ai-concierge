@@ -96,3 +96,66 @@ export function tripCountry(trip: TripRouteLike | null | undefined): string | nu
   const first = tripDestinations(trip)[0];
   return first ? cityAirports(first)?.country ?? null : null;
 }
+
+// ───────────────────────── Estancia por ciudad (multi-destino) ─────────────────────────
+
+export type CityStay = { city: string; checkin: string; checkout: string; nights: number };
+
+const addDaysIso = (iso: string, n: number) => {
+  const t = Date.parse(`${iso}T00:00:00Z`) + n * 86400000;
+  return new Date(t).toISOString().slice(0, 10);
+};
+const nightsBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+
+/** Mismo reparto que logistics-plan (splitNights): base igual y el sobrante a las primeras ciudades. */
+export function splitNights(total: number, cities: number): number[] {
+  const base = Math.max(1, Math.floor(total / cities));
+  const arr = new Array(cities).fill(base);
+  let rest = total - base * cities;
+  for (let i = 0; rest > 0; i++, rest--) arr[i % cities] += 1;
+  return arr;
+}
+
+/**
+ * Noches y fechas de cada ciudad de un viaje multi-destino. Usa el plan guardado
+ * (itinerario_json.logistics.per_destination) si cuadra con las fechas del viaje; si no (el usuario
+ * cambió fechas), los días del itinerario por ciudad; y si tampoco, el mismo reparto que el servidor.
+ * [] si el viaje no tiene fechas o es de un solo destino.
+ */
+export function cityStays(trip: TripRouteLike | null | undefined): CityStay[] {
+  const cities = tripDestinations(trip);
+  const start = isIsoDate(trip?.fecha_salida) ? trip!.fecha_salida! : null;
+  const end = isIsoDate(trip?.fecha_regreso) ? trip!.fecha_regreso! : null;
+  if (cities.length < 2 || !start || !end || end <= start) return [];
+  const total = nightsBetween(start, end);
+  const per: any[] = Array.isArray(trip?.itinerario_json?.logistics?.per_destination) ? trip!.itinerario_json.logistics.per_destination : [];
+  const fromPlan = per.length === cities.length && per[0]?.checkin === start && per[per.length - 1]?.checkout === end
+    && per.every((p) => isIsoDate(p?.checkin) && isIsoDate(p?.checkout) && p.checkout > p.checkin);
+  if (fromPlan) return per.map((p, i) => ({ city: cities[i], checkin: p.checkin, checkout: p.checkout, nights: nightsBetween(p.checkin, p.checkout) }));
+  const days: any[] = Array.isArray(trip?.itinerario_json?.days) ? trip!.itinerario_json.days : [];
+  const byDays = cities.map((c) => days.filter((d) => sameCity(d?.ciudad, c)).length);
+  let nights = byDays.every((n) => n > 0) && byDays.reduce((a, b) => a + b, 0) === total ? byDays : splitNights(total, cities.length);
+  if (nights.reduce((a, b) => a + b, 0) !== total) nights = splitNights(total, cities.length);
+  let cursor = start;
+  return cities.map((city, i) => {
+    const checkin = cursor;
+    const checkout = addDaysIso(checkin, nights[i]);
+    cursor = checkout;
+    return { city, checkin, checkout, nights: nights[i] };
+  });
+}
+
+/** ¿Dos nombres son la misma ciudad? ("Venecia" = "Venice" = "venecia, Italia"). */
+export function sameCity(a: unknown, b: unknown): boolean {
+  const x = cityAirports(a);
+  const y = cityAirports(b);
+  if (x && y) return x.metro === y.metro;
+  const n = (s: unknown) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().split(",")[0].trim();
+  return !!n(a) && n(a) === n(b);
+}
+
+/** Estancia de la ciudad de un hotel (por su campo `ciudad`) o null si no aplica. */
+export function stayForCity(trip: TripRouteLike | null | undefined, city: unknown): CityStay | null {
+  if (!city) return null;
+  return cityStays(trip).find((s) => sameCity(s.city, city)) ?? null;
+}

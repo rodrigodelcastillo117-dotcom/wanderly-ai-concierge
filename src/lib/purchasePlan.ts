@@ -14,6 +14,7 @@ import {
 import { isConfirmedBooking, type BookingLike } from "@/lib/bookingState";
 import { parseAviasalesSearch, parseBookingSearch, parseGoogleFlightsSearch } from "../../supabase/functions/_shared/booking/links.ts";
 import { airlineName } from "@/lib/airlines";
+import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { codeServesCity } from "../../supabase/functions/_shared/airports.ts";
 
 export type PurchaseKind = "vuelo" | "hospedaje" | "auto" | "actividad" | "restaurante";
@@ -44,6 +45,8 @@ export type PurchaseItem = {
   buttonLabel?: string | null;
   /** Ruta interna cuando no hay enlace externo fiable (p. ej. buscar vuelos reales). */
   fallbackHref: string | null;
+  /** Ciudad del elemento (hoteles de un viaje multi-destino). */
+  city?: string | null;
   /** Índice en trips.*_json (para el Booking Bridge). */
   col: "vuelos_json" | "hospedaje_json" | "tours_json" | "restaurantes_json" | null;
   index: number;
@@ -145,7 +148,7 @@ export function primaryAction(actions: BookingAction[]): BookingAction | null {
 
 const isGround = (v: any) => v?.modo === "autobus" || v?.modo === "auto";
 
-type Sel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[] };
+type Sel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[]; selHoteles?: Record<string, number> | null };
 
 /**
  * Lo cotizado, en el orden en que conviene comprarlo: vuelo, hospedaje, auto (opcional), actividades
@@ -205,28 +208,39 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     }
   }
 
-  // 2 · Hospedaje
+  // 2 · Hospedaje. Multi-destino: un hotel por ciudad con las noches y fechas de esa ciudad (Roma
+  // 22–26 oct · 4 noches), no todas las noches en la primera ciudad.
   const hoteles: any[] = Array.isArray(trip.hospedaje_json) ? trip.hospedaje_json : [];
-  if (sel.selHospedaje !== -2 && hoteles.length) {
-    const i = sel.selHospedaje >= 0 && hoteles[sel.selHospedaje] ? sel.selHospedaje : 0;
-    const h = hoteles[i];
-    const hCity = h?.ciudad ?? city;
+  const pushHotel = (i: number, h: any, hCity: string | null, stay: { checkin: string; checkout: string; nights: number } | null) => {
     const offer = offerFromTripHotel(h, { trip, city: hCity, index: i });
-    const nights = Number((offer.details as any)?.nights) || null;
+    const nights = stay?.nights ?? (Number((offer.details as any)?.nights) || null);
     items.push(base({
       key: `hospedaje:${i}:${norm(h?.nombre)}`, kind: "hospedaje", category: "hotel",
       title: `Hospedaje · ${h?.nombre ?? "Hotel"}`,
-      subtitle: [hCity, fmtRange(trip.fecha_salida, trip.fecha_regreso), nights ? plural(nights, "noche", "noches") : null].filter(Boolean).join(" · "),
+      subtitle: [hCity, fmtRange(stay?.checkin ?? trip.fecha_salida, stay?.checkout ?? trip.fecha_regreso), nights ? plural(nights, "noche", "noches") : null].filter(Boolean).join(" · "),
       price: offer.price, currency: offer.currency ?? "MXN",
       priceNote: nights && num(h?.precio_por_noche) ? `${plural(nights, "noche", "noches")} · $${Math.round(Number(h.precio_por_noche)).toLocaleString("es-MX")} MXN por noche` : null,
       source: { fuente: h?.fuente_precio ?? null, estado: h?.estado_dato ?? null, consultadoAt: checked(h) },
       estimate: offer.price_is_estimate, action: pick(offer, "hospedaje_json", i), optional: false, fallbackHref: null,
-      col: "hospedaje_json", index: i, offer,
+      col: "hospedaje_json", index: i, offer, city: hCity,
     }));
+  };
+  if (hasCityHotels(trip)) {
+    for (const c of cityHotelChoices(trip, sel)) {
+      if (c.index === -2 || !c.hotel) continue;
+      pushHotel(c.index, c.hotel, c.stay.city, c.stay);
+    }
+  } else if (sel.selHospedaje !== -2 && hoteles.length) {
+    const i = sel.selHospedaje >= 0 && hoteles[sel.selHospedaje] ? sel.selHospedaje : 0;
+    const h = hoteles[i];
+    pushHotel(i, h, h?.ciudad ?? city, null);
   }
 
   // 3 · Renta de auto (opcional, no cotizada): Kayak con ciudad y fechas del viaje.
-  if (city && isIso(trip.fecha_salida) && isIso(trip.fecha_regreso)) {
+  // Multi-destino: se recoge en la primera ciudad ("Roma → Florencia → Venecia" no es una ciudad).
+  const carCity = route.multi ? route.cities[0] ?? null : city;
+  if (carCity && isIso(trip.fecha_salida) && isIso(trip.fecha_regreso)) {
+    const city = carCity;
     const url = kayakCarsLink(city, trip.fecha_salida, trip.fecha_regreso);
     const ok = checkAllowlisted(url);
     const d = describePrefill(ok.ok ? ok.url : null, "Kayak", trip);

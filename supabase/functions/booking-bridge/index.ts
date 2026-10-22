@@ -31,7 +31,7 @@ const FLAG_EXACT_FLIGHT = Deno.env.get("BOOKING_EXACT_FLIGHT_FORM") === "true";
 const FLAG_RESERVAS_EMAIL = Deno.env.get("BOOKING_RESERVAS_EMAIL") === "true";
 
 const TRIP_COLS = "id, user_id, destino, pais_destino, ciudad_origen, fecha_salida, fecha_regreso, num_viajeros, quote_needs_update, created_at, " +
-  "vuelos_json, hospedaje_json, tours_json, restaurantes_json";
+  "vuelos_json, hospedaje_json, tours_json, restaurantes_json, itinerario_json";
 const INTENT_COLS = "id, trip_id, offer_id, product_type, provider, action_kind, booking_mode, state, verification, title, target_host, processor, channel, " +
   "price, currency, price_checked_at, offer_expires_at, user_report, concierge_request_id, redirected_at, redirect_count, state_changed_at, created_at";
 
