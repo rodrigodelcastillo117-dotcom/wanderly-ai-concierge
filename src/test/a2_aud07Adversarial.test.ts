@@ -51,7 +51,7 @@ describe("A2 · defectos encontrados", () => {
     }
     for (const h of ["fresyogurt.com", "deltaburger.mx", "unitedtacos.com", "quintonil.com", "botin.es", "www.fourseasons.com", "pujol.com.mx",
       "www.expedia.com", "www.expedia.mx", "www.hotels.com", "www.tripadvisor.com.mx", "hotel-delta.com", "rosy.mx", "della.com.mx", "resto.com",
-      "lalibrairie.fr", "villa-italia.com", "gogole-pizza.com.mx", "kayakmexico-tours.com.mx", "maps.google.com", "sevilla.es", "lavilla.mx"]) {
+      "lalibrairie.fr", "villa-italia.com", "gogo-pizza.com.mx", "kayakmexico-tours.com.mx", "maps.google.com", "sevilla.es", "lavilla.mx"]) {
       expect(looksLikeBrandImpersonation(h), h).toBe(false);
     }
   });

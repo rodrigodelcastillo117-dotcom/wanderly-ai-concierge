@@ -135,8 +135,11 @@ function brands(): Array<[string, "long" | "token"]> {
   if (BRANDS) return BRANDS;
   const m = new Map<string, "long" | "token">();
   for (const p of PROVIDERS) {
-    const label = (pslRegistrableDomain(p.domain) ?? p.domain).split(".")[0];
+    const reg = pslRegistrableDomain(p.domain) ?? p.domain;
+    const label = reg.split(".")[0];
     if (label.length >= 3) m.set(label, TOKEN_ONLY.has(label) ? "token" : "long"); // aa, wa, tp: demasiado cortas
+    // A2-F2: con etiqueta corta, la marca es el dominio sin puntos ("tp-media.com" imita a tp.media).
+    else m.set(reg.replace(/\./g, ""), reg === "tp.media" ? "long" : "token");
   }
   for (const [b, mode] of EXTRA_BRANDS) m.set(b, mode);
   return (BRANDS = [...m.entries()]);
@@ -195,10 +198,15 @@ function basicCheck(raw: unknown): { ok: true; u: URL; reason?: undefined } | { 
   return { ok: true, u };
 }
 
-/** Variantes de la etiqueta con las sustituciones típicas de phishing (0→o, 1→l/i, rn→m, vv→w…). */
+/**
+ * Variantes de la etiqueta con las sustituciones típicas de phishing (0→o, 1→l/i, rn→m, vv→w…).
+ * A2-F2: también l↔i ("vlator" → viator, "googIe" → google) y sin guiones ("air-bnb" → airbnb).
+ */
 function skeletons(label: string): string[] {
   const base = label.replace(/0/g, "o").replace(/3/g, "e").replace(/5/g, "s").replace(/4/g, "a").replace(/7/g, "t").replace(/rn/g, "m").replace(/vv/g, "w");
-  return [...new Set([label, base.replace(/1/g, "l"), base.replace(/1/g, "i")])];
+  const v = [label, base.replace(/1/g, "l"), base.replace(/1/g, "i")];
+  const li = v.flatMap((x) => [x.replace(/l/g, "i"), x.replace(/i/g, "l")]);
+  return [...new Set([...v, ...li].flatMap((x) => [x, x.replace(/-/g, "")]))];
 }
 
 /** Distancia de edición ≤ 1 (sustitución, inserción, borrado o transposición de dos letras). */
@@ -234,10 +242,16 @@ export function looksLikeBrandImpersonation(host: string): boolean {
       if (sk === b || sub.includes(b)) return true;
       if (mode === "token") {
         if (words.includes(b) && (hasBait || words.length === 1)) return true;
+        // A2-F2: marca pegada a una palabra de phishing ("deltaairlines", "vuelosdelta").
+        if (words.some((w) => (w.startsWith(b) && PHISHING_WORDS.has(w.slice(b.length))) || (w.endsWith(b) && PHISHING_WORDS.has(w.slice(0, -b.length))))) return true;
+        // A2-F2: una letra de más o de menos ("reesy", "resyy"), misma inicial; no sustituciones
+        // ("rosy", "della" son nombres reales).
+        if (b.length >= 4 && (hasBait || words.length === 1) && words.some((w) => w[0] === b[0] && w.length !== b.length && withinOneEdit(w, b))) return true;
         continue;
       }
       if (sk.includes(b)) return true;
-      if (b.length >= 7 && words.some((w) => w[0] === b[0] && withinOneEdit(w, b))) return true;
+      // A2-F2: a una letra de diferencia desde 5 letras (antes 7: "googie", "vlator" no se veían).
+      if (b.length >= 5 && words.some((w) => w[0] === b[0] && withinOneEdit(w, b))) return true;
     }
   }
   return false;
