@@ -6,8 +6,9 @@ import path from "path";
 // función falla en producción o paga un viaje extra de 404 en cada llamada.
 const RETIRED = [/"google\/gemini-2\.5-flash(-lite)?"/, /claude-sonnet-4-2025/, /claude-3/];
 
-// Archivos de otros equipos todavía pendientes de migrar (ver reporte). Quitar de aquí al migrarlos.
-const PENDING_OTHER_OWNERS = new Set(["concierge-chat/index.ts", "health-check/index.ts", "health-check/checks.ts"]);
+// health-check llama directo al gateway de Lovable (sin aiFetch) para probar el respaldo; ahí el
+// nombre con versión es el que Lovable acepta.
+const PENDING_OTHER_OWNERS = new Set(["health-check/checks.ts"]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const f of readdirSync(dir)) {

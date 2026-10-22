@@ -404,7 +404,7 @@ Deno.serve(async (req) => {
       const res = await aiFetch({
         method: "POST",
         headers: { "Content-Type": "application/json", "Lovable-API-Key": LOVABLE_API_KEY },
-        body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: msgs, tools: TOOLS, tool_choice: opts.toolChoice }),
+        body: JSON.stringify({ model: "google/gemini-flash-latest", messages: msgs, tools: TOOLS, tool_choice: opts.toolChoice }),
       });
       if (!res.ok) throw new ModelHttpError(res.status, await res.text());
       const data = await res.json();
@@ -457,7 +457,7 @@ Deno.serve(async (req) => {
             const rs = await aiFetch({
               method: "POST",
               headers: { "Content-Type": "application/json", "Lovable-API-Key": LOVABLE_API_KEY },
-              body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "user", content: promptResumen }] }),
+              body: JSON.stringify({ model: "google/gemini-flash-latest", messages: [{ role: "user", content: promptResumen }] }),
             });
             if (rs.ok) {
               const js = await rs.json();
