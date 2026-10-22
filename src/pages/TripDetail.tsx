@@ -43,7 +43,7 @@ import { useTripOffers, type TripOfferActions } from "@/components/booking/useTr
 import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
-import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
+import { RoadTripJump, RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
 
@@ -530,6 +530,9 @@ const TripDetail = () => {
         )}
 
 
+
+        {/* roadtrip: acceso directo al panel de los tramos en coche, que va más abajo. */}
+        {isMulti && logistics?.road_trip && <RoadTripJump plan={logistics.road_trip} />}
 
         {/* Total + Análisis narrativo */}
         <motion.section id="trip-total" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="scroll-mt-20 focus:outline-none">

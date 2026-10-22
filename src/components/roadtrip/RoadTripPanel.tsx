@@ -19,6 +19,31 @@ const hours = (min: number | null) => {
 const money = (n: number, cur: string) => `${n.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
 const day = (d: string | null) => (d ? formatDateOnly(d, { day: "numeric", month: "short" }) : "sin fecha");
 
+export const ROADTRIP_ANCHOR = "trip-roadtrip";
+
+/**
+ * Acceso arriba en el viaje: el panel completo va después del total y de "Comprar mi viaje", y en
+ * un viaje largo había que bajar mucho para encontrarlo. Un toque lleva directo a los tramos.
+ */
+export function RoadTripJump({ plan }: { plan: RoadTripPlan | null | undefined }) {
+  if (!plan?.legs?.length) return null;
+  const totalKm = plan.legs.reduce((s, l) => s + (l.distance_km ?? 0), 0);
+  const totalMin = plan.legs.reduce((s, l) => s + (l.duration_min ?? 0), 0);
+  return (
+    <button
+      type="button"
+      data-testid="roadtrip-jump"
+      onClick={() => document.getElementById(ROADTRIP_ANCHOR)?.scrollIntoView?.({ behavior: "smooth", block: "start" })}
+      className="w-full flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-left text-sm hover:bg-primary/10 transition"
+    >
+      <Car className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+      <span className="font-medium">Road trip en coche</span>
+      <span className="text-muted-foreground">{plan.legs.length} {plan.legs.length === 1 ? "tramo" : "tramos"} · {km(totalKm)} · {hours(totalMin)} de manejo</span>
+      <span className="ml-auto text-primary">Ver ruta ↓</span>
+    </button>
+  );
+}
+
 export function RoadTripPanel({ plan, tripId, preview = false, returnCity }: {
   plan: RoadTripPlan | null | undefined;
   tripId?: string | null;
@@ -33,7 +58,7 @@ export function RoadTripPanel({ plan, tripId, preview = false, returnCity }: {
   const allLive = plan.legs.every((l) => l.estado === "CONSULTADO");
   const totals = Object.entries(plan.totals_by_currency ?? {});
   return (
-    <section className="rounded-3xl border border-border bg-card overflow-hidden" data-testid="roadtrip-panel" aria-label="Road trip en coche">
+    <section id={preview ? undefined : ROADTRIP_ANCHOR} className="rounded-3xl border border-border bg-card overflow-hidden scroll-mt-20" data-testid="roadtrip-panel" aria-label="Road trip en coche">
       <div className="px-5 md:px-6 py-3 border-b border-border flex flex-wrap items-center gap-2 text-sm">
         <Car className="w-4 h-4 text-primary" aria-hidden="true" />
         <span className="text-primary tracking-[0.25em] uppercase text-xs">Road trip en coche{preview ? " · vista previa" : ""}</span>

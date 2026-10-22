@@ -26,7 +26,7 @@ vi.mock("@/components/media/SmartImage", () => ({
 }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
 
-import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
+import { ROADTRIP_ANCHOR, RoadTripJump, RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TransportModePicker } from "@/components/roadtrip/TransportModePicker";
 import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
 import { buildRoadTripPlan } from "@/lib/roadtrip";
@@ -88,6 +88,24 @@ describe("RoadTripPanel", () => {
     render(<MemoryRouter><RoadTripPanel plan={PLAN} preview /></MemoryRouter>);
     expect(screen.getByText(/vista previa/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Buscar auto de renta/ })).toBeNull();
+  });
+
+  it("acceso directo: resume los tramos y lleva al panel (sin tener que bajar)", () => {
+    render(<MemoryRouter><RoadTripJump plan={PLAN} /><RoadTripPanel plan={PLAN} tripId="11111111-1111-4111-8111-111111111111" /></MemoryRouter>);
+    const panel = screen.getByTestId("roadtrip-panel");
+    expect(panel.id).toBe(ROADTRIP_ANCHOR);
+    const scroll = vi.fn();
+    panel.scrollIntoView = scroll;
+    const jump = screen.getByTestId("roadtrip-jump");
+    expect(jump).toHaveTextContent("2 tramos");
+    fireEvent.click(jump);
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  it("acceso directo: sin tramos no aparece; la vista previa no lleva ancla", () => {
+    const { container } = render(<MemoryRouter><RoadTripJump plan={null} /><RoadTripPanel plan={PLAN} preview /></MemoryRouter>);
+    expect(container.querySelector('[data-testid="roadtrip-jump"]')).toBeNull();
+    expect(screen.getByTestId("roadtrip-panel").id).toBe("");
   });
 });
 
