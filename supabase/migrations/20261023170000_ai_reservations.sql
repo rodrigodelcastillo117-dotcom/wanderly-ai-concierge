@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS public.ai_reservations (
   -- Secreto de la dirección de respuesta reservas+<token>@<dominio de recepción>. Nunca se expone al cliente.
   reply_token         text NOT NULL UNIQUE CHECK (reply_token ~ '^[0-9a-f]{24}$'),
   venue_name          text NOT NULL CHECK (length(btrim(venue_name)) BETWEEN 1 AND 160),
-  venue_place_id      text CHECK (venue_place_id IS NULL OR venue_place_id ~ '^[A-Za-z0-9_-]{10,300}$'),
+  venue_place_id      text CHECK (venue_place_id IS NULL OR (length(venue_place_id) BETWEEN 10 AND 300 AND venue_place_id ~ '^[A-Za-z0-9_-]+$')),
   venue_experience_id uuid REFERENCES public.prive_experiences(id) ON DELETE SET NULL,
   venue_address       text CHECK (venue_address IS NULL OR length(venue_address) <= 300),
   venue_city          text CHECK (venue_city IS NULL OR length(venue_city) <= 120),
@@ -213,7 +213,7 @@ DROP TRIGGER IF EXISTS ai_reservations_guard ON public.ai_reservations;
 CREATE TRIGGER ai_reservations_guard BEFORE INSERT OR UPDATE ON public.ai_reservations
   FOR EACH ROW EXECUTE FUNCTION public.ai_reservations_guard();
 
--- Textos honestos del aviso en la app por estado. Nunca "mesa confirmada" antes de la confirmación
+-- Textos honestos del aviso en la app por estado. Nunca se dice que hay lugar antes de la confirmación
 -- escrita verificada; y aun entonces se dice quién confirmó.
 CREATE OR REPLACE FUNCTION public.ai_reservation_notice(_status text, _reason text, _venue text, _local text, _party int, _code text)
 RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
@@ -358,7 +358,7 @@ BEGIN
   END IF;
 
   v_email := lower(nullif(btrim(v->>'email'), ''));
-  IF v_email IS NOT NULL AND (jsonb_typeof(v->'email_source') <> 'object' OR coalesce(v->'email_source'->>'kind', '') NOT IN ('catalog','google','website')) THEN
+  IF v_email IS NOT NULL AND (jsonb_typeof(v->'email_source') IS DISTINCT FROM 'object' OR coalesce(v->'email_source'->>'kind', '') NOT IN ('catalog','google','website')) THEN
     RETURN jsonb_build_object('ok', false, 'code', 'EMAIL_SOURCE_REQUIRED');
   END IF;
   v_status := CASE WHEN v_email IS NULL THEN 'needs_user' ELSE 'awaiting_user_ok' END;
@@ -414,8 +414,9 @@ BEGIN
   IF r.status = 'sent' THEN RETURN jsonb_build_object('ok', false, 'code', 'ALREADY_SENT', 'reservation', public.ai_reservation_json(r)); END IF;
   IF r.status <> 'awaiting_user_ok' THEN RETURN jsonb_build_object('ok', false, 'code', 'NOT_SENDABLE', 'status', r.status); END IF;
   IF r.venue_email IS NULL THEN RETURN jsonb_build_object('ok', false, 'code', 'NO_CONTACT'); END IF;
-  IF jsonb_typeof(_consent) <> 'object' OR _consent->>'confirmed' <> 'true'
-     OR jsonb_typeof(_consent->'share_contact') <> 'boolean' OR jsonb_typeof(_consent->'cc_user') <> 'boolean' THEN
+  -- IS DISTINCT FROM: una llave ausente (NULL) también es "sin consentimiento".
+  IF jsonb_typeof(_consent) IS DISTINCT FROM 'object' OR (_consent->>'confirmed') IS DISTINCT FROM 'true'
+     OR jsonb_typeof(_consent->'share_contact') IS DISTINCT FROM 'boolean' OR jsonb_typeof(_consent->'cc_user') IS DISTINCT FROM 'boolean' THEN
     RETURN jsonb_build_object('ok', false, 'code', 'CONSENT_REQUIRED');
   END IF;
   IF r.requested_for < now() + make_interval(mins => (v_lim->>'min_lead_minutes')::int) THEN
@@ -454,7 +455,7 @@ BEGIN
   IF NOT public._ai_res_enabled() THEN RETURN jsonb_build_object('ok', false, 'code', 'FEATURE_DISABLED'); END IF;
   SELECT * INTO r FROM public.ai_reservations WHERE id = _id AND user_id = _user_id FOR UPDATE;
   IF NOT FOUND THEN RETURN jsonb_build_object('ok', false, 'code', 'NOT_FOUND'); END IF;
-  IF r.status <> 'needs_user' OR r.reason <> 'alternative_offered' THEN
+  IF r.status <> 'needs_user' OR r.reason IS DISTINCT FROM 'alternative_offered' THEN
     RETURN jsonb_build_object('ok', false, 'code', 'NO_ALTERNATIVES', 'status', r.status);
   END IF;
   v_alt := r.alternatives -> _index;

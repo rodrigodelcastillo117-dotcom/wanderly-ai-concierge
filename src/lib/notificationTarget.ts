@@ -8,5 +8,7 @@ export function notificationTarget(n: { type: string; related_id: string | null;
   // servidor la busca por cuenta). Los avisos de seguridad (contraseña, sesiones, accesos) llevan a
   // la membresía. /prive/invitacion también resuelve bien cualquier estado (p. ej. "ya activa").
   if (n.type === "prive") return /invitaci/i.test(n.title ?? "") || !n.title ? "/prive/invitacion" : "/prive/membresia";
+  // Reservas IA (correo al restaurante): la tarjeta vive en Mis reservas.
+  if (n.type === "ai_reservation") return "/dashboard/reservas#reservas-ia";
   return null;
 }

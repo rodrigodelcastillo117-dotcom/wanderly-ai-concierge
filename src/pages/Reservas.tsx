@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { splitBookings } from "@/lib/bookingKinds";
 import { formatInstant } from "@/lib/localDate";
+import { AiReservationsPanel } from "@/components/reservas/AiReservationsPanel";
 
 type Booking = {
   id: string;
@@ -100,6 +101,9 @@ const Reservas = () => {
         </div>
 
         {loading && <p className="text-sm text-muted-foreground">Cargando…</p>}
+
+        {/* Reservas IA por correo: solo aparece si hay alguna (la función está apagada por defecto). */}
+        <AiReservationsPanel />
 
         {!loading && (
           <section aria-labelledby="reservas-confirmadas" className="space-y-3">
