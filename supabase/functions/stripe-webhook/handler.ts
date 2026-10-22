@@ -36,6 +36,8 @@ export type StripeSubscriptionLike = {
   latest_invoice?: string | { id: string } | null;
   metadata?: Record<string, string> | null;
   items?: { data?: Array<{ current_period_end?: number | null; price?: { id?: string | null } | null }> } | null;
+  /** Tarjeta guardada (Checkout la deja aquí). Id o el objeto expandido. */
+  default_payment_method?: string | { id: string; card?: { fingerprint?: string | null } | null } | null;
 };
 
 export type StripeInvoiceLike = {
@@ -74,11 +76,74 @@ export interface WebhookDeps extends Partial<Omit<PaymentDeps, "retrieveSubscrip
   applySubscription(args: ApplyArgs): PromiseLike<{ data: unknown; error: { message: string } | null }>;
   /** IATOS Privé: guarda el periodo PAGADO de la factura (antigüedad). Opcional: sin ella no se registra. */
   recordPaidPeriod?(args: RecordPaidPeriodArgs): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  /** D-P2-2: huella de la tarjeta guardada en la suscripción (payment_method.card.fingerprint). */
+  cardFingerprint?(sub: StripeSubscriptionLike): Promise<string | null>;
+  /** D-P2-2: claim_trial_fingerprint (¿es la primera prueba de esa tarjeta?). */
+  claimTrialFingerprint?(args: ClaimTrialArgs): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  /** D-P2-2: termina la prueba YA en Stripe (trial_end='now'): Stripe cobra el primer mes en ese momento. */
+  endTrialNow?(subscriptionId: string): Promise<void>;
   // Reembolsos y disputas (payments.ts): si falta alguna dependencia y llega uno de esos eventos,
   // se responde 500 (Stripe reintenta) en lugar de ignorarlo.
 }
 
 export type WebhookOutcome = { status: number; body: Record<string, unknown> };
+
+export type ClaimTrialArgs = { _fingerprint: string; _subscription_id: string; _customer_id: string | null };
+
+/** Marca que stripe-checkout pone en subscription_data.metadata cuando da la prueba de 30 días con tarjeta. */
+export const CARD_TRIAL_METADATA = { key: "iatos_trial", value: "card" } as const;
+
+/**
+ * D-P2-2 · una prueba de 30 días por tarjeta. La tarjeta no se conoce al crear la Checkout Session,
+ * así que se revisa aquí, en cuanto Stripe la guarda: si su huella ya tuvo prueba en otra suscripción
+ * (otra cuenta, otro cliente), la prueba termina YA (Stripe cobra el primer mes) y se escribe el estado
+ * real. Sin huella todavía (el evento llegó antes de que Stripe guardara la tarjeta) se deja como está:
+ * el siguiente evento de la misma suscripción vuelve a revisar. Un error al reclamar → 500 y reintento.
+ */
+async function enforceCardTrialOnce(
+  deps: WebhookDeps,
+  sub: StripeSubscriptionLike,
+  eventId: string,
+): Promise<{ sub: StripeSubscriptionLike; trial: string | null }> {
+  if (sub.status !== "trialing" || sub.metadata?.[CARD_TRIAL_METADATA.key] !== CARD_TRIAL_METADATA.value) {
+    return { sub, trial: null };
+  }
+  if (!deps.cardFingerprint || !deps.claimTrialFingerprint || !deps.endTrialNow) {
+    throw new Error(`prueba con tarjeta sin revisión de huella configurada (${eventId})`);
+  }
+  const fingerprint = await deps.cardFingerprint(sub);
+  if (!fingerprint) {
+    console.warn("webhook: prueba con tarjeta sin huella todavía", eventId, sub.id);
+    return { sub, trial: "sin_huella_todavia" };
+  }
+  const { data, error } = await deps.claimTrialFingerprint({
+    _fingerprint: fingerprint,
+    _subscription_id: sub.id,
+    _customer_id: idOf(sub.customer),
+  });
+  if (error) throw new Error(`claim_trial_fingerprint falló (${eventId}): ${error.message}`);
+  if ((data as { first?: boolean } | null)?.first === true) return { sub, trial: "primera_prueba_de_la_tarjeta" };
+  await deps.endTrialNow(sub.id);
+  console.warn("webhook: tarjeta que ya tuvo prueba; se terminó la prueba", eventId, sub.id);
+  return { sub: await deps.retrieveSubscription(sub.id), trial: "tarjeta_ya_tuvo_prueba_cobro_inmediato" };
+}
+
+/** Huella de la tarjeta de la suscripción (o la predeterminada del cliente). Sin dependencias del SDK. */
+export async function cardFingerprintFrom(
+  sub: StripeSubscriptionLike,
+  stripe: {
+    retrievePaymentMethod(id: string): Promise<{ card?: { fingerprint?: string | null } | null }>;
+    retrieveCustomerDefaultPaymentMethod(customerId: string): Promise<string | null>;
+  },
+): Promise<string | null> {
+  const ref = sub.default_payment_method ?? null;
+  if (ref && typeof ref === "object" && ref.card?.fingerprint) return ref.card.fingerprint;
+  let pmId = typeof ref === "string" ? ref : ref?.id ?? null;
+  const customer = idOf(sub.customer);
+  if (!pmId && customer) pmId = await stripe.retrieveCustomerDefaultPaymentMethod(customer);
+  if (!pmId) return null;
+  return (await stripe.retrievePaymentMethod(pmId)).card?.fingerprint ?? null;
+}
 
 const idOf = (v: string | { id: string } | null | undefined): string | null =>
   typeof v === "string" ? v : v?.id ?? null;
@@ -171,6 +236,9 @@ const ok = (r: ApplyResult): WebhookOutcome => ({
   body: { received: true, applied: r.applied, reason: r.reason },
 });
 
+const withTrial = (o: WebhookOutcome, trial: string | null): WebhookOutcome =>
+  trial ? { ...o, body: { ...o.body, trial } } : o;
+
 export async function handleStripeEvent(event: StripeEventLike, deps: WebhookDeps): Promise<WebhookOutcome> {
   try {
     // Evento tardío de una cuenta eliminada: no se recrean filas ni se da acceso.
@@ -190,20 +258,20 @@ export async function handleStripeEvent(event: StripeEventLike, deps: WebhookDep
         const userId = session.client_reference_id || session.metadata?.supabase_user_id || null;
         const subId = idOf(session.subscription);
         if (!subId) return { status: 200, body: { received: true, ignored: "sin_suscripcion" } };
-        const sub = await deps.retrieveSubscription(subId);
+        const { sub, trial } = await enforceCardTrialOnce(deps, await deps.retrieveSubscription(subId), event.id);
         const r = await apply(deps, subscriptionArgs(sub, event.created, userId), event.id);
         await alertDuplicate(deps, r, sub, event.id);
-        return ok(r);
+        return withTrial(ok(r), trial);
       }
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.paused":
       case "customer.subscription.resumed": {
         const payload = event.data.object as StripeSubscriptionLike;
-        const sub = await deps.retrieveSubscription(payload.id);
+        const { sub, trial } = await enforceCardTrialOnce(deps, await deps.retrieveSubscription(payload.id), event.id);
         const r = await apply(deps, subscriptionArgs(sub, event.created), event.id);
         await alertDuplicate(deps, r, sub, event.id);
-        return ok(r);
+        return withTrial(ok(r), trial);
       }
       case "customer.subscription.deleted": {
         // Terminal: el payload basta (y la suscripción ya no cambiará).

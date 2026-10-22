@@ -9,6 +9,7 @@ import { redactPii } from "../_shared/redact.ts";
 import { missingRpcAsSkip } from "../_shared/prive-tenure.ts";
 import type { AdminAlert, StripeChargeLike } from "./payments.ts";
 import {
+  cardFingerprintFrom,
   handleStripeEvent,
   type StripeEventLike,
   type StripeInvoiceLike,
@@ -62,6 +63,23 @@ Deno.serve(async (req) => {
     retrieveInvoice: (id) => stripe.invoices.retrieve(id) as unknown as Promise<StripeInvoiceLike>,
     applySubscription: (args) => adminClient().rpc("apply_stripe_subscription", args),
     // IATOS Privé: periodos pagados (antigüedad) y su estado ante reembolsos y disputas.
+    // D-P2-2: una prueba de 30 días por tarjeta (huella de la tarjeta guardada por Checkout).
+    cardFingerprint: (sub) =>
+      cardFingerprintFrom(sub, {
+        retrievePaymentMethod: (id) => stripe.paymentMethods.retrieve(id) as unknown as Promise<{ card?: { fingerprint?: string | null } | null }>,
+        retrieveCustomerDefaultPaymentMethod: async (customerId) => {
+          const c = await stripe.customers.retrieve(customerId) as unknown as {
+            deleted?: boolean;
+            invoice_settings?: { default_payment_method?: string | { id: string } | null } | null;
+          };
+          const pm = c.deleted ? null : c.invoice_settings?.default_payment_method ?? null;
+          return typeof pm === "string" ? pm : pm?.id ?? null;
+        },
+      }),
+    claimTrialFingerprint: (args) => adminClient().rpc("claim_trial_fingerprint", args),
+    endTrialNow: async (id) => {
+      await stripe.subscriptions.update(id, { trial_end: "now", proration_behavior: "none" });
+    },
     recordPaidPeriod: async (args) =>
       missingRpcAsSkip(await adminClient().rpc("prive_record_paid_period", args), "prive_record_paid_period", console.warn),
     markPaidPeriod: async (args) =>

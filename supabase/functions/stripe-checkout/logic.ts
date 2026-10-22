@@ -18,6 +18,9 @@ export type StripeSubSummary = {
 
 export type CheckoutBlock = { status: 409; reason: string; message: string; portal: boolean };
 
+/** D-P2-2: misma marca que lee stripe-webhook (handler.ts, CARD_TRIAL_METADATA). */
+export const CARD_TRIAL_METADATA = { key: "iatos_trial", value: "card" } as const;
+
 export const TRIAL_DAYS = 30;
 
 // Estados de Stripe en los que la suscripción sigue cobrando (o cobrará): contratar otra duplicaría el cargo.
@@ -140,11 +143,15 @@ export function checkoutSessionParams(o: {
   trialDays: number | null;
   trialEndUnix?: number | null;
 }) {
+  const cardTrial = Boolean(o.trialDays);
   return {
     mode: "subscription" as const,
     customer: o.customerId,
     client_reference_id: o.userId,
     line_items: [{ price: o.priceId, quantity: 1 }],
+    // D-P2-2: con prueba de 30 días se pide SIEMPRE una tarjeta (aunque hoy no se cobre) y solo tarjeta,
+    // para que el webhook lea su huella (card.fingerprint) y no regale otra prueba a la misma tarjeta.
+    ...(cardTrial ? { payment_method_collection: "always" as const, payment_method_types: ["card" as const] } : {}),
     // Siempre en pesos: Adaptive Pricing (si el panel lo tiene encendido) convertía a USD.
     currency: EXPECTED_PRICE.currency,
     adaptive_pricing: { enabled: false },
@@ -152,7 +159,10 @@ export function checkoutSessionParams(o: {
       ...(o.trialDays ? { trial_period_days: o.trialDays } : {}),
       // Durante una prueba sin tarjeta: sin cobro hasta que termine (noCardTrialEnd).
       ...(o.trialEndUnix ? { trial_end: o.trialEndUnix } : {}),
-      metadata: { supabase_user_id: o.userId },
+      metadata: {
+        supabase_user_id: o.userId,
+        ...(cardTrial ? { [CARD_TRIAL_METADATA.key]: CARD_TRIAL_METADATA.value } : {}),
+      },
     },
     // Con un precio "inclusive", Stripe Tax desglosa el IVA dentro de los $99 (no lo suma).
     automatic_tax: { enabled: true },

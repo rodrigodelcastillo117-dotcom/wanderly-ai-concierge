@@ -53,5 +53,28 @@ SELECT rc.ok('RC6a el cambio de correo sin confirmar no da cortesía', rc.st(6) 
 UPDATE auth.users SET email_confirmed_at = clock_timestamp() + interval '1 second' WHERE id = rc.u(6);
 SELECT rc.ok('RC6b al confirmar el correo nuevo con el enlace sí se aplica', rc.st(6) = 'comped', rc.st(6));
 
+-- ===================================================================== D-P2-2 una prueba de 30 días por tarjeta
+SELECT public.claim_trial_fingerprint('fp_rc_tarjeta_1', 'sub_rc10_a', 'cus_rc10_a') AS c10a \gset
+SELECT public.claim_trial_fingerprint('fp_rc_tarjeta_1', 'sub_rc10_a', 'cus_rc10_a') AS c10b \gset
+SELECT rc.ok('RC10 la primera suscripción con una tarjeta tiene prueba (y el reintento del webhook también)',
+  (:'c10a'::jsonb->>'first')::boolean AND (:'c10b'::jsonb->>'first')::boolean
+  AND (:'c10b'::jsonb->>'reason') = 'same_subscription', :'c10a' || ' ' || :'c10b');
+SELECT public.claim_trial_fingerprint('fp_rc_tarjeta_1', 'sub_rc11_otra_cuenta', 'cus_rc11_otra') AS c11 \gset
+SELECT rc.ok('RC11 la misma tarjeta en otra suscripción (otra cuenta, otro cliente de Stripe): sin prueba',
+  NOT (:'c11'::jsonb->>'first')::boolean AND (:'c11'::jsonb->>'reason') = 'card_already_had_trial'
+  AND (SELECT subscription_id FROM public.stripe_trial_fingerprints WHERE fingerprint = 'fp_rc_tarjeta_1') = 'sub_rc10_a', :'c11');
+SELECT rc.ok('RC12 otra tarjeta sí tiene su prueba',
+  (public.claim_trial_fingerprint('fp_rc_tarjeta_2', 'sub_rc12', 'cus_rc12')->>'first')::boolean);
+DO $$ BEGIN
+  PERFORM public.claim_trial_fingerprint(NULL, 'sub_x', NULL);
+  RAISE NOTICE 'FALLA RC13 aceptó una huella nula';
+EXCEPTION WHEN raise_exception THEN RAISE NOTICE 'OK RC13 huella nula o inválida: error (el webhook responde 500 y Stripe reintenta)';
+END $$;
+SELECT rc.ok('RC14 solo service_role reclama huellas (authenticated no ve la tabla ni la función)',
+  NOT has_function_privilege('authenticated', 'public.claim_trial_fingerprint(text, text, text)', 'EXECUTE')
+  AND NOT has_table_privilege('authenticated', 'public.stripe_trial_fingerprints', 'SELECT')
+  AND has_function_privilege('service_role', 'public.claim_trial_fingerprint(text, text, text)', 'EXECUTE'));
+DELETE FROM public.stripe_trial_fingerprints WHERE fingerprint LIKE 'fp_rc_%';
+
 DROP SCHEMA rc CASCADE;
 DELETE FROM public.comp_grants WHERE email LIKE 'rc-%@example.test';
