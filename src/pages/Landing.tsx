@@ -27,8 +27,13 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* NAV */}
-      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/60 border-b border-border/40">
+      {/* NAV. En iPhone la página ocupa también la franja de la hora y la Isla Dinámica
+          (viewport-fit=cover + barra translúcida): sin este margen, "Iniciar sesión" quedaba debajo
+          del wifi y la batería, e iOS se quedaba con los toques de esa franja. */}
+      <nav
+        data-testid="landing-nav"
+        className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/60 border-b border-border/40 pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
+      >
         <div className="container mx-auto flex items-center justify-between gap-2 py-4 px-4">
           {/* El logo puede encogerse (min-w-0): a 320 px los dos botones no cabían y "Empezar gratis"
               quedaba cortado fuera de la pantalla. */}

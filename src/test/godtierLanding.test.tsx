@@ -49,3 +49,11 @@ it("el diálogo de límite ya no viaja en la carga inicial, pero aparece al nece
   expect(screen.getByRole("button", { name: "Conocer IATOS PRO" })).toBeInTheDocument();
   act(() => closeFreeLimitDialog());
 });
+
+it("iPhone: la barra de arriba deja la franja de la hora y la Isla Dinámica (los botones se pueden tocar)", () => {
+  render(<MemoryRouter><Landing /></MemoryRouter>);
+  const nav = screen.getByTestId("landing-nav");
+  // index.html usa viewport-fit=cover y barra translúcida: la barra fija debe sumar el área segura.
+  expect(nav.className).toContain("pt-[env(safe-area-inset-top)]");
+  expect(nav).toContainElement(screen.getByRole("button", { name: "Iniciar sesión" }));
+});
