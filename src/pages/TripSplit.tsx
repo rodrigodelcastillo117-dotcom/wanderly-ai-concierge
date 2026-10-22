@@ -117,14 +117,14 @@ const TripSplit = () => {
         <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6">
           <h2 className="font-medium mb-3">Personas</h2>
           <div className="flex gap-2 mb-3">
-            <Input placeholder="Nombre" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && addPerson()} />
-            <Button onClick={addPerson} className="shrink-0"><Plus className="w-4 h-4" /></Button>
+            <Input aria-label="Nombre de la persona" placeholder="Nombre" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && addPerson()} />
+            <Button onClick={addPerson} className="shrink-0" aria-label="Agregar persona"><Plus className="w-4 h-4" aria-hidden="true" /></Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {people.map(p => (
               <span key={p.id} className="px-3 py-1.5 rounded-full bg-primary/10 text-sm flex items-center gap-2">
                 {p.name}
-                <button onClick={() => removePerson(p.id)}><Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" /></button>
+                <button onClick={() => removePerson(p.id)} aria-label={`Quitar a ${p.name}`} className="p-1.5 -m-1.5"><Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" aria-hidden="true" /></button>
               </span>
             ))}
           </div>
@@ -134,8 +134,8 @@ const TripSplit = () => {
           <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6">
             <h2 className="font-medium mb-3">Agregar gasto</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-              <Input placeholder="Descripción" value={desc} onChange={e => setDesc(e.target.value)} />
-              <Input type="number" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} />
+              <Input aria-label="Descripción del gasto" placeholder="Descripción" value={desc} onChange={e => setDesc(e.target.value)} />
+              <Input type="number" aria-label="Monto del gasto" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} />
             </div>
             <select className="w-full bg-background border border-border rounded-md p-2 mb-3 text-sm" value={payer} onChange={e => setPayer(e.target.value)}>
               <option value="">¿Quién pagó?</option>
@@ -185,7 +185,7 @@ const TripSplit = () => {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-sm font-medium">${Number(e.amount).toFixed(2)}</span>
-                      <button onClick={() => removeExp(e.id)}><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" /></button>
+                      <button onClick={() => removeExp(e.id)} aria-label={`Eliminar gasto ${e.description ?? ""}`.trim()} className="p-2 -m-2"><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" aria-hidden="true" /></button>
                     </div>
                   </div>
                 );

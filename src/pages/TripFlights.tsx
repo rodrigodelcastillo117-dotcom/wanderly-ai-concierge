@@ -87,24 +87,24 @@ const TripFlights = () => {
         <div className="glass-card rounded-xl p-4 md:p-6 space-y-3">
           <div className="grid md:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
-              <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ciudad de México" />
+              <label htmlFor="tripflights-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
+              <Input id="tripflights-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ciudad de México" />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
-              <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Madrid" />
+              <label htmlFor="tripflights-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
+              <Input id="tripflights-destino" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Madrid" />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Salida</label>
-              <Input type="date" value={depart} onChange={(e) => setDepart(e.target.value)} />
+              <label htmlFor="tripflights-salida" className="text-xs uppercase tracking-wide text-muted-foreground">Salida</label>
+              <Input id="tripflights-salida" type="date" value={depart} onChange={(e) => setDepart(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Regreso (opcional)</label>
-              <Input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
+              <label htmlFor="tripflights-regreso-opcional" className="text-xs uppercase tracking-wide text-muted-foreground">Regreso (opcional)</label>
+              <Input id="tripflights-regreso-opcional" type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Viajeros</label>
-              <Input type="number" min={1} max={9} value={travelers} onChange={(e) => setTravelers(Number(e.target.value))} />
+              <label htmlFor="tripflights-viajeros" className="text-xs uppercase tracking-wide text-muted-foreground">Viajeros</label>
+              <Input id="tripflights-viajeros" type="number" min={1} max={9} value={travelers} onChange={(e) => setTravelers(Number(e.target.value))} />
             </div>
           </div>
           <Button onClick={search} disabled={loading} className="w-full">

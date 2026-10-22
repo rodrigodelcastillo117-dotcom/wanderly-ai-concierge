@@ -1,10 +1,20 @@
 import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Wand2, Upload, RefreshCw, Check, Sparkles, ArrowLeft } from "lucide-react";
+import { Camera, Wand2, Upload, RefreshCw, Check, Sparkles, ArrowLeft, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+export const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
+export const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
+
+/** Motivo para rechazar una foto de avatar, o null si es válida. */
+export function avatarFileError(f: { size: number; type: string }): string | null {
+  if (!AVATAR_TYPES.includes(f.type)) return "Formato no admitido: usa una foto JPG, PNG o WebP";
+  if (f.size > AVATAR_MAX_BYTES) return "Imagen muy grande (máx 8 MB)";
+  return null;
+}
 
 type Mode = "choose" | "photo" | "builder" | "preview";
 
@@ -100,7 +110,10 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
   const [builderStep, setBuilderStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState<string | null>(null);
+  // Dos entradas separadas: la galería no lleva `capture` (en iPhone y Android forzaba la cámara
+  // y no dejaba elegir una selfie existente); la cámara es una opción explícita aparte.
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   const builderSteps: { key: keyof Builder; title: string; options: { id: string; label: string; emoji?: string; color?: string }[]; type: "grid" | "swatch" | "text" }[] = [
     { key: "gender", title: "¿Cómo te identificas?", options: GENDERS, type: "grid" },
@@ -114,8 +127,9 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
   ];
 
   const handleFile = (f: File) => {
-    if (f.size > 8 * 1024 * 1024) {
-      toast.error("Imagen muy grande (máx 8MB)");
+    const err = avatarFileError(f);
+    if (err) {
+      toast.error(err);
       return;
     }
     const reader = new FileReader();
@@ -215,37 +229,40 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
           </p>
         </div>
 
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => !selfie && fileRef.current?.click()}
-          onKeyDown={(e) => { if (!selfie && (e.key === "Enter" || e.key === " ")) fileRef.current?.click(); }}
-          className="rounded-2xl border-2 border-dashed border-primary/50 bg-surface/50 p-8 text-center cursor-pointer hover:border-primary transition"
-        >
+        <div className="rounded-2xl border-2 border-dashed border-primary/50 bg-surface/50 p-6 sm:p-8 text-center">
           {selfie ? (
-            <div className="space-y-4">
-              <img src={selfie} alt="Tu foto" className="mx-auto max-h-80 rounded-xl object-cover" />
-              <button onClick={() => fileRef.current?.click()} className="text-xs text-primary hover:underline">
-                Cambiar foto
-              </button>
-            </div>
+            <img src={selfie} alt="Tu foto" className="mx-auto max-h-80 rounded-xl object-cover mb-4" />
           ) : (
-            <div className="space-y-3 py-8">
-              <Camera className="w-12 h-12 text-primary mx-auto" />
-              <p className="font-display text-lg">Sube o toma una foto clara de tu cara</p>
-              <p className="text-xs text-muted-foreground">JPG o PNG · máx 8MB · de frente y bien iluminada = mejor parecido</p>
-              <Button className="bg-gradient-gold text-primary-foreground gold-glow">
-                <Upload className="w-4 h-4 mr-2" /> Seleccionar foto
-              </Button>
+            <div className="space-y-2 py-4">
+              <Camera className="w-12 h-12 text-primary mx-auto" aria-hidden="true" />
+              <p className="font-display text-lg">Elige una foto clara de tu cara</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG o WebP · máx 8 MB · de frente y bien iluminada = mejor parecido</p>
             </div>
           )}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+            <Button type="button" onClick={() => fileRef.current?.click()} className="bg-gradient-gold text-primary-foreground gold-glow h-11">
+              <ImageIcon className="w-4 h-4 mr-2" aria-hidden="true" /> {selfie ? "Elegir otra foto" : "Elegir de mi galería"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()} className="h-11">
+              <Camera className="w-4 h-4 mr-2" aria-hidden="true" /> Tomar una foto
+            </Button>
+          </div>
           <input
             ref={fileRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept={AVATAR_TYPES.join(",")}
+            className="hidden"
+            aria-label="Elegir foto de la galería"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }}
+          />
+          <input
+            ref={cameraRef}
+            type="file"
+            accept={AVATAR_TYPES.join(",")}
             capture="user"
             className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            aria-label="Tomar una foto con la cámara"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }}
           />
         </div>
 

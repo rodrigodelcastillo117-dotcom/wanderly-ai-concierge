@@ -2,7 +2,7 @@
 // Flujo: Perplexity (sonar-pro) investiga precios reales -> Claude estructura el análisis premium.
 // FIX v3: Perplexity opcional — si falta la key, continúa sin contexto cualitativo (no 500).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
+import { consumeQuota, quotaDeniedResponse } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendEmail, tripQuoteEmail } from "../_shared/email.ts";
 import { aiFetch } from "../_shared/ai.ts";
@@ -526,18 +526,19 @@ Deno.serve(async (req) => {
     });
     if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
-    // Gate PRO / cuota gratuita (1 análisis de viaje gratis de por vida)
-    const quota = await consumeQuota(user.id, "trip_analysis");
-    if (!quota.allowed) return paywallResponse("trip_analysis", corsHeaders);
-
-
-    const body = (await req.json()) as AnalisisRequest;
-    if (!body.destino || !body.ciudad_origen) {
+    const body = (await req.json().catch(() => null)) as AnalisisRequest | null;
+    if (!body?.destino || !body?.ciudad_origen) {
       return new Response(JSON.stringify({ error: "Faltan datos requeridos" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Gate PRO / cuota gratuita (1 análisis de viaje gratis de por vida). Va DESPUÉS de validar:
+    // antes, un cuerpo incompleto respondía 400 pero ya había gastado el único análisis gratis.
+    // Si no se puede verificar el plan, se niega con 503 (no 402): no regalamos análisis por una caída.
+    const quota = await consumeQuota(user.id, "trip_analysis");
+    if (!quota.allowed) return quotaDeniedResponse(quota, "trip_analysis", corsHeaders);
 
     const { data: travelProfile } = await supabase
       .from("travel_profiles")

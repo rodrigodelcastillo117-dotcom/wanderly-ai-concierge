@@ -193,7 +193,7 @@ export const ConciergeActions = ({
                   </h3>
                 </div>
               </div>
-              <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1"><X className="w-5 h-5" /></button>
+              <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X className="w-5 h-5" aria-hidden="true" /></button>
             </div>
 
             {!coords && (

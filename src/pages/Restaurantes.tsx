@@ -39,13 +39,13 @@ const Restaurantes = () => {
           <UtensilsCrossed className="w-8 h-8 text-primary mt-1" />
           <div>
             <h1 className="font-display text-3xl md:text-4xl">Reservar mesa</h1>
-            <p className="text-sm text-muted-foreground mt-1">OpenTable, TheFork, Yelp y TripAdvisor — disponibilidad real</p>
+            <p className="text-sm text-muted-foreground mt-1">OpenTable, TheFork, Yelp y TripAdvisor — la disponibilidad la ves en el sitio de cada uno</p>
           </div>
         </div>
 
         <div className="glass-card rounded-xl p-4 md:p-5 space-y-3">
-          <label className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad</label>
-          <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Roma, CDMX, París…" />
+          <label htmlFor="restaurantes-ciudad" className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad</label>
+          <Input id="restaurantes-ciudad" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Roma, CDMX, París…" />
         </div>
 
         <div className="grid md:grid-cols-2 gap-3">
@@ -61,7 +61,7 @@ const Restaurantes = () => {
         </div>
 
         <p className="text-xs text-muted-foreground text-center pt-4">
-          Cada reserva queda guardada en <button onClick={() => navigate("/dashboard/reservas")} className="text-primary underline">Mis reservas</button>.
+          Cada sitio que abras queda en <button onClick={() => navigate("/dashboard/reservas")} className="text-primary underline">Mis reservas › Búsquedas/visitas a socios</button>. La reserva se completa en el sitio del socio.
         </p>
       </div>
     </DashboardLayout>

@@ -551,18 +551,24 @@ export type Database = {
       }
       health_checks: {
         Row: {
+          email_error: string | null
+          email_status: string | null
           id: number
           ok: boolean
           ran_at: string
           results: Json
         }
         Insert: {
+          email_error?: string | null
+          email_status?: string | null
           id?: number
           ok: boolean
           ran_at?: string
           results: Json
         }
         Update: {
+          email_error?: string | null
+          email_status?: string | null
           id?: number
           ok?: boolean
           ran_at?: string
@@ -931,6 +937,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active_trip_id: string | null
           avatar_url: string | null
           ciudad_origen: string | null
           created_at: string
@@ -949,6 +956,7 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          active_trip_id?: string | null
           avatar_url?: string | null
           ciudad_origen?: string | null
           created_at?: string
@@ -967,6 +975,7 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          active_trip_id?: string | null
           avatar_url?: string | null
           ciudad_origen?: string | null
           created_at?: string
@@ -1326,7 +1335,15 @@ export type Database = {
           trip_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trip_collaborators_trip_fk"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trip_journal_entries: {
         Row: {

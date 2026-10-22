@@ -100,25 +100,29 @@ function useOnboardingState() {
     [user]
   );
 
+  // Devuelve false si no se pudo guardar: así la pantalla avisa y NO navega
+  // (navegar sin guardar hacía que el guard regresara al usuario a /onboarding).
   const markOnboardingComplete = useCallback(
-    async (finalData: Partial<OnboardingState>) => {
-      if (!user) return;
+    async (finalData: Partial<OnboardingState>): Promise<boolean> => {
+      if (!user) return false;
       const patch = {
         ...finalData,
         completed_onboarding: true,
         completed_at: new Date().toISOString(),
         current_step: 5,
       };
-      const { data: upd } = await supabase
+      const { data: upd, error } = await supabase
         .from("user_onboarding_state")
         .update(patch as any)
         .eq("user_id", user.id)
         .select()
         .maybeSingle();
+      if (error) return false;
       if (upd) setStatus((s) => (s ? { ...s, ...(upd as any) } : s));
       track("onboarding_completed");
       // Correo de bienvenida (solo al propio usuario, fire-and-forget).
       void supabase.functions.invoke("email-bienvenida", { body: {} }).catch(() => {});
+      return true;
     },
     [user]
   );

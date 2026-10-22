@@ -71,8 +71,11 @@ const Benefits = () => {
         <div className="flex items-start gap-3">
           <Crown className="w-8 h-8 text-primary mt-1" />
           <div>
-            <h1 className="font-display text-3xl md:text-4xl">Beneficios IATOS PRO</h1>
-            <p className="text-sm text-muted-foreground mt-1">Servicios curados que usan los viajeros frecuentes</p>
+            <h1 className="font-display text-3xl md:text-4xl">Beneficios de socios</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Ofertas públicas de terceros que usan los viajeros frecuentes. No son exclusivas de IATOS PRO;
+              las condiciones las pone cada socio y pueden cambiar: verifícalas en su sitio.
+            </p>
           </div>
         </div>
 
@@ -84,14 +87,14 @@ const Benefits = () => {
               </div>
               <h3 className="font-display text-lg mb-1">{b.name}</h3>
               <p className="text-xs text-muted-foreground mb-3">{b.desc}</p>
-              <div className="text-[11px] px-2 py-1.5 rounded bg-primary/10 text-primary border border-primary/20 mb-3">
-                {b.perk}
+              <div className="text-xs px-2 py-1.5 rounded bg-primary/10 text-primary border border-primary/20 mb-3">
+                <span className="font-medium">Referencia del socio:</span> {b.perk}
               </div>
               <Button onClick={() => "category" in b
                 ? trackBookingClick({ category: b.category, provider: b.name, title: b.name, subtitle: b.perk, bookingUrl: b.url })
                 : window.open(b.url, "_blank")
               } variant="outline" size="sm" className="w-full">
-                Ver más <ExternalLink className="w-3 h-3 ml-1" />
+                Ver en {b.name} <ExternalLink className="w-3 h-3 ml-1" aria-hidden="true" />
               </Button>
             </div>
           ))}

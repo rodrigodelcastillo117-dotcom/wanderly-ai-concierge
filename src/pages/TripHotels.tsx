@@ -84,12 +84,12 @@ const TripHotels = () => {
         <div className="glass-card rounded-xl p-4 md:p-6 space-y-3">
           <div className="grid md:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad</label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Madrid" />
+              <label htmlFor="triphotels-ciudad" className="text-xs uppercase tracking-wide text-muted-foreground">Ciudad</label>
+              <Input id="triphotels-ciudad" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Madrid" />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Categoría</label>
-              <select value={hotelClass} onChange={(e) => setHotelClass(e.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <label htmlFor="triphotels-categoria" className="text-xs uppercase tracking-wide text-muted-foreground">Categoría</label>
+              <select id="triphotels-categoria" value={hotelClass} onChange={(e) => setHotelClass(e.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">Todos</option>
                 <option value="3">3 estrellas</option>
                 <option value="4">4 estrellas</option>
@@ -98,16 +98,16 @@ const TripHotels = () => {
               </select>
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Check-in</label>
-              <Input type="date" value={checkin} onChange={(e) => setCheckin(e.target.value)} />
+              <label htmlFor="triphotels-check-in" className="text-xs uppercase tracking-wide text-muted-foreground">Check-in</label>
+              <Input id="triphotels-check-in" type="date" value={checkin} onChange={(e) => setCheckin(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Check-out</label>
-              <Input type="date" value={checkout} onChange={(e) => setCheckout(e.target.value)} />
+              <label htmlFor="triphotels-check-out" className="text-xs uppercase tracking-wide text-muted-foreground">Check-out</label>
+              <Input id="triphotels-check-out" type="date" value={checkout} onChange={(e) => setCheckout(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Adultos</label>
-              <Input type="number" min={1} max={8} value={adults} onChange={(e) => setAdults(Number(e.target.value))} />
+              <label htmlFor="triphotels-adultos" className="text-xs uppercase tracking-wide text-muted-foreground">Adultos</label>
+              <Input id="triphotels-adultos" type="number" min={1} max={8} value={adults} onChange={(e) => setAdults(Number(e.target.value))} />
             </div>
           </div>
           <Button onClick={search} disabled={loading} className="w-full">

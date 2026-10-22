@@ -1,4 +1,5 @@
 // Analytics de producto (PostHog). No-op si VITE_POSTHOG_KEY no está configurada.
+// Solo se inicia tras el consentimiento del usuario (ver lib/consent.ts y CookieBanner).
 import posthog from "posthog-js";
 
 const KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
@@ -7,7 +8,12 @@ const HOST = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? "https
 let enabled = false;
 
 export function initAnalytics() {
-  if (enabled || !KEY) return;
+  if (!KEY) return;
+  if (enabled) {
+    // Re-aceptó después de haber rechazado en esta misma sesión.
+    try { posthog.opt_in_capturing(); } catch { /* noop */ }
+    return;
+  }
   try {
     posthog.init(KEY, {
       api_host: HOST,
@@ -53,6 +59,16 @@ export function resetAnalytics() {
   if (!enabled) return;
   try {
     posthog.reset();
+  } catch {
+    /* noop */
+  }
+}
+
+/** Deja de enviar eventos (el usuario eligió "Solo esenciales"). */
+export function optOutAnalytics() {
+  if (!enabled) return;
+  try {
+    posthog.opt_out_capturing();
   } catch {
     /* noop */
   }
