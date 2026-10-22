@@ -19,7 +19,6 @@ export const SHORT_TRIP_CANDIDATE_KM = 500;
 const ROAD_FACTOR = 1.3;
 /** Velocidad media de manejo/autobús en carretera, con entradas y salidas de ciudad. */
 const AVG_ROAD_KMH = 75;
-const TP_MARKER = "533299";
 
 type City = { key: string; name: string; lat: number; lng: number; aliases: string[] };
 
@@ -230,12 +229,12 @@ export function isReasonableShortFlight(stops: number | null, minutes: number | 
 }
 
 /** Ligas de búsqueda: Omio (afiliado Travelpayouts, autobuses) y la ruta en Google Maps (auto). */
-export function groundSearchLinks(origin: string, destination: string, date?: string | null) {
-  const p = new URLSearchParams({ fromCity: origin, toCity: destination, adults: "1", marker: TP_MARKER });
-  if (date) p.set("outboundDate", date);
-  const omio = `https://www.omio.com/search?${p.toString()}`;
-  // tp.media/click responde 400 desde 2026-10 (ver src/lib/affiliateLinks.ts): enlace directo a Omio.
-  const bus = omio;
+export function groundSearchLinks(origin: string, destination: string, _date?: string | null) {
+  // Autobús: rutas en transporte público de Google Maps (formato documentado, EV-MAPS-URLS). Antes era
+  // https://www.omio.com/search?fromCity=…, que responde 410 "This page doesn't exist" (también
+  // /buses/mexico-city/puebla): el botón llevaba a un error (A-OMIO.jpg). Google Maps no recibe la fecha
+  // por enlace; el boleto se compra con la línea de autobús.
+  const bus = `https://www.google.com/maps/dir/?${new URLSearchParams({ api: "1", origin, destination, travelmode: "transit" }).toString()}`;
   const car = `https://www.google.com/maps/dir/?${new URLSearchParams({ api: "1", origin, destination, travelmode: "driving" }).toString()}`;
   return { bus, car };
 }
