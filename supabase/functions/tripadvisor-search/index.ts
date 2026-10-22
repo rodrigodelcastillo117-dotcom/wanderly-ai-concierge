@@ -8,6 +8,7 @@ import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { serpFetchFor } from "../_shared/serpRuntime.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
+import { callError } from "../_shared/google-maps.ts";
 import { CATEGORY_SEARCH, placeCard, rankByQuality, searchText } from "../_shared/google-places.ts";
 
 const KEY = Deno.env.get("TRIPADVISOR_API_KEY");
@@ -104,7 +105,7 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({ ok: true, source: "google_places", consulted_at: r.consultado_at, atribucion: "Google Maps", results }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-        if (!r.ok) console.warn("tripadvisor-search: Google Places", r.error.kind, r.error.message);
+        if (!r.ok) console.warn("tripadvisor-search: Google Places", callError(r).kind, callError(r).message);
       }
       // 2) Último recurso: Google Maps vía SerpApi (gasta de la bolsa compartida).
       if (SERP_KEY) {

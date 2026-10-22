@@ -9,7 +9,7 @@
 // Por eso el contenido (nombre, calificación, horario) se consulta cada vez y se entrega con su
 // fecha de consulta; lo único que se guarda es el place_id de una búsqueda (findPlaceId).
 import {
-  coalesce, type GoogleError, type GoogleTransport, googleJson,
+  callError, coalesce, type GoogleError, type GoogleTransport, googleJson,
 } from "./google-maps.ts";
 import { type CacheStore, cacheGet, cacheKey } from "./serpCache.ts";
 
@@ -342,7 +342,7 @@ export async function searchText(t: GoogleTransport, r: TextSearchRequest, o: Ca
   const mask = fieldMask("text", preset);
   return coalesce(`text|${mask}|${JSON.stringify(body)}`, async () => {
     const res = await googleJson<{ places?: any[] }>(t, "places", sku, "/v1/places:searchText", { body, fieldMask: mask });
-    if (!res.ok) return { ok: false as const, sku, error: res.error };
+    if (!res.ok) return { ok: false as const, sku, error: callError(res) };
     const at = new Date((o.now ?? Date.now)()).toISOString();
     return finish(res.data?.places ?? [], sku, at, r.dropClosed !== false);
   });
@@ -377,7 +377,7 @@ export async function searchNearby(t: GoogleTransport, r: NearbyRequest, o: Call
   const mask = fieldMask("nearby", preset);
   return coalesce(`nearby|${mask}|${JSON.stringify(body)}`, async () => {
     const res = await googleJson<{ places?: any[] }>(t, "places", sku, "/v1/places:searchNearby", { body, fieldMask: mask });
-    if (!res.ok) return { ok: false as const, sku, error: res.error };
+    if (!res.ok) return { ok: false as const, sku, error: callError(res) };
     const at = new Date((o.now ?? Date.now)()).toISOString();
     return finish(res.data?.places ?? [], sku, at, r.dropClosed !== false);
   });
@@ -397,7 +397,7 @@ export async function placeDetails(
   const query = new URLSearchParams({ languageCode: opts.language ?? "es" });
   return coalesce(`details|${mask}|${id}|${query}`, async () => {
     const res = await googleJson<any>(t, "places", sku, `/v1/places/${encodeURIComponent(id)}`, { method: "GET", fieldMask: mask, query });
-    if (!res.ok) return { ok: false as const, sku, error: res.error };
+    if (!res.ok) return { ok: false as const, sku, error: callError(res) };
     const at = new Date((opts.now ?? Date.now)()).toISOString();
     return { ok: true as const, place: normalizePlace(res.data, at), sku };
   });

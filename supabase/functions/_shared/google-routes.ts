@@ -9,7 +9,7 @@
 // Caché: los términos de Google restringen guardar contenido de Routes; aquí solo se juntan
 // peticiones idénticas en curso. Si Google no responde, `estimatedLeg` da una aproximación por
 // línea recta SIEMPRE etiquetada ESTIMADO (nunca se presenta como dato de Google).
-import { coalesce, type GoogleError, type GoogleTransport, googleJson } from "./google-maps.ts";
+import { callError, coalesce, type GoogleError, type GoogleTransport, googleJson } from "./google-maps.ts";
 import { haversineKm } from "./geo-distance.ts";
 
 export type TravelMode = "DRIVE" | "TRANSIT" | "WALK" | "BICYCLE";
@@ -110,7 +110,7 @@ export async function computeRoute(t: GoogleTransport, r: RouteRequest, o: { now
   const sku = routeSku(mode, !!r.trafficAware);
   return coalesce(`route|${JSON.stringify(body)}`, async (): Promise<RouteLeg> => {
     const res = await googleJson<{ routes?: any[] }>(t, "routes", sku, "/directions/v2:computeRoutes", { body, fieldMask: ROUTE_FIELD_MASK });
-    if (!res.ok) return { ok: false, mode, error: res.error };
+    if (!res.ok) return { ok: false, mode, error: callError(res) };
     const route = res.data?.routes?.[0];
     // Sin tráfico, `duration` ya es el tiempo sin tráfico; con tráfico es el tiempo con tráfico.
     const sec = parseDuration(route?.duration) ?? parseDuration(route?.staticDuration);
@@ -174,7 +174,7 @@ export async function computeRouteMatrix(
   const sku = mode === "DRIVE" && r.trafficAware ? "Compute Route Matrix Pro" : "Compute Route Matrix Essentials";
   return coalesce(`matrix|${JSON.stringify(body)}`, async (): Promise<MatrixResult> => {
     const res = await googleJson<any[]>(t, "routes", sku, "/distanceMatrix/v2:computeRouteMatrix", { body, fieldMask: MATRIX_FIELD_MASK });
-    if (!res.ok) return { ok: false, mode, error: res.error };
+    if (!res.ok) return { ok: false, mode, error: callError(res) };
     const rows = Array.isArray(res.data) ? res.data : [];
     const elements: MatrixElement[] = rows.map((e: any) => {
       const sec = parseDuration(e?.duration);

@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getYourGuideLink, viatorLink, tripadvisorLink, openTableLink } from "@/lib/affiliateLinks";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
-import { placePhotoUrl } from "@/lib/googleMaps";
+import { PlacePhoto } from "@/components/PlacePhoto";
 
 type TAResult = {
   id: string; name: string; address: string; rating: number | null;
@@ -92,8 +92,12 @@ const TripActivities = () => {
             <h2 className="font-display text-xl">Top resultados</h2>
             {results.map((r) => (
               <div key={r.id} className="glass-card rounded-2xl overflow-hidden border border-white/10">
-                {(r.photos[0] || r.photo_ref) && (
-                  <img src={r.photos[0] || placePhotoUrl(r.photo_ref!, 800)} alt={r.name} className="w-full h-48 object-cover" loading="lazy" />
+                {/* Google Places trae el nombre de la foto (no una URL): se pide con la sesión (PlacePhoto). */}
+                {!r.photos[0] && r.photo_ref && (
+                  <PlacePhoto photoRef={r.photo_ref} name={r.name} family={cat === "restaurants" ? "food" : cat === "hotels" ? "lodging" : "sight"} className="h-48" />
+                )}
+                {r.photos[0] && (
+                  <img src={r.photos[0]} alt={r.name} className="w-full h-48 object-cover" loading="lazy" />
                 )}
                 <div className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">

@@ -187,7 +187,7 @@ export async function timeZoneAt(t: GoogleTransport, lat: number, lng: number, a
   const r = await googleJson<{ timeZoneId?: string; rawOffset?: number; dstOffset?: number; timeZoneName?: string }>(
     t, "timezone", "Time Zone", "/maps/api/timezone/json", { query },
   );
-  if (!r.ok) return r;
+  if (!r.ok) return { ok: false, error: callError(r) };
   if (!r.data?.timeZoneId) return { ok: false, error: { kind: "not_found", status: 200, message: "sin zona horaria" } };
   return {
     ok: true,
@@ -229,3 +229,10 @@ export function googleListPriceUsd(sku: string, events = 1): number {
   const p = GOOGLE_SKU_PRICING[sku];
   return p ? Math.round(((p.usdPer1000 * events) / 1000) * 1e6) / 1e6 : 0;
 }
+
+/**
+ * El error de un resultado fallido ({ ok: false, error }). Existe porque el tsconfig de la app (con
+ * el que también se revisan estas pruebas) no estrecha uniones discriminadas sin strictNullChecks.
+ */
+export const callError = (r: unknown): GoogleError =>
+  (r as { error?: GoogleError }).error ?? { kind: "error", status: 0, message: "error desconocido" };

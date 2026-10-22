@@ -6,7 +6,7 @@
 // reservaciones vienen de Google y llevan la fecha de consulta. Un modelo de IA puede redactar el
 // "por qué", pero no puede poner restaurantes que no estén en la lista de Google (si la hay).
 import type { GoogleTransport } from "./google-maps.ts";
-import { googleErrorMessage } from "./google-maps.ts";
+import { callError, googleErrorMessage } from "./google-maps.ts";
 import {
   type GooglePlace, type PlacesResult, rankByQuality, restaurantFromPlace, samePlaceName, searchText,
 } from "./google-places.ts";
@@ -56,7 +56,7 @@ export async function suggestRestaurants(
   let consultado: string | null = null;
   results.forEach((r, i) => {
     if (!r.ok) {
-      fallas.push({ ciudad: cities[i], motivo: googleErrorMessage(r.error.kind) });
+      fallas.push({ ciudad: cities[i], motivo: googleErrorMessage(callError(r).kind) });
       return;
     }
     consultado = consultado ?? r.consultado_at;

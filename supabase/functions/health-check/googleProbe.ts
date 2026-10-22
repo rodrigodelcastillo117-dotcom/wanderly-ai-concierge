@@ -5,7 +5,7 @@
 //
 // Cada prueba usa el SKU más barato posible (la primera es gratis: Text Search "IDs Only"):
 // una corrida completa cuesta menos de USD 0.05 a precio de lista y cae en la franja gratis.
-import { type GoogleErrorKind, type GoogleTransport, googleJson, timeZoneAt } from "../_shared/google-maps.ts";
+import { type GoogleError, type GoogleErrorKind, type GoogleTransport, googleJson, timeZoneAt } from "../_shared/google-maps.ts";
 import { computeRoute, computeRouteMatrix } from "../_shared/google-routes.ts";
 import { searchText } from "../_shared/google-places.ts";
 
@@ -20,14 +20,18 @@ const statusOf = (kind: GoogleErrorKind): ApiStatus =>
 const ZOCALO = { lat: 19.4326, lng: -99.1332 };
 const BELLAS_ARTES = { lat: 19.4352, lng: -99.1412 };
 
-async function timed(api: string, fn: () => Promise<{ ok: true } | { ok: false; kind: GoogleErrorKind; http: number; message: string }>): Promise<ProbeResult> {
+// Sin uniones discriminadas: el tsconfig de la app (Vitest/tsc) no las estrecha sin strictNullChecks.
+type Outcome = { ok: boolean; kind?: GoogleErrorKind; http?: number; message?: string };
+const errorOf = (r: unknown): GoogleError => (r as { error: GoogleError }).error;
+
+async function timed(api: string, fn: () => Promise<Outcome>): Promise<ProbeResult> {
   const t0 = Date.now();
   try {
     const r = await fn();
     if (r.ok) return { api, status: "enabled", http: 200, detail: null, ms: Date.now() - t0 };
     // Un "no encontrado" o petición inválida significa que la API sí respondió.
-    if (r.kind === "not_found" || r.kind === "invalid_request") return { api, status: "enabled", http: r.http, detail: r.message, ms: Date.now() - t0 };
-    return { api, status: statusOf(r.kind), http: r.http || null, detail: r.message, ms: Date.now() - t0 };
+    if (r.kind === "not_found" || r.kind === "invalid_request") return { api, status: "enabled", http: r.http ?? null, detail: r.message ?? null, ms: Date.now() - t0 };
+    return { api, status: statusOf(r.kind ?? "error"), http: r.http || null, detail: r.message ?? null, ms: Date.now() - t0 };
   } catch (e) {
     return { api, status: "error", http: null, detail: String((e as Error)?.name ?? "error"), ms: Date.now() - t0 };
   }
@@ -39,47 +43,47 @@ export async function probeGoogleApis(t: GoogleTransport | null): Promise<{ ok: 
   }
   let photoName: string | null = null;
   let placeId: string | null = null;
-  const fail = (e: { kind: GoogleErrorKind; status: number; message: string }) => ({ ok: false as const, kind: e.kind, http: e.status, message: e.message });
+  const fail = (r: unknown): Outcome => { const e = errorOf(r); return { ok: false, kind: e.kind, http: e.status, message: e.message }; };
 
   const results: ProbeResult[] = [];
   results.push(await timed("Places API (New) · Text Search", async () => {
     const r = await searchText(t, { query: "Zócalo Ciudad de México", preset: "ids", maxResults: 1, dropClosed: false });
-    if (!r.ok) return fail(r.error);
+    if (!r.ok) return fail(r);
     placeId = r.places[0]?.place_id ?? null;
     return { ok: true };
   }));
   results.push(await timed("Places API (New) · Place Details", async () => {
-    if (!placeId) return { ok: false, kind: "error", http: 0, message: "sin place_id de la prueba anterior" };
+    if (!placeId) return { ok: false, kind: "error" as GoogleErrorKind, http: 0, message: "sin place_id de la prueba anterior" };
     const r = await googleJson<{ photos?: Array<{ name?: string }> }>(t, "places", "Place Details Essentials",
       `/v1/places/${encodeURIComponent(placeId)}`, { method: "GET", fieldMask: "id,photos" });
-    if (!r.ok) return fail(r.error);
+    if (!r.ok) return fail(r);
     photoName = r.data?.photos?.[0]?.name ?? null;
     return { ok: true };
   }));
   results.push(await timed("Places API (New) · Place Photos", async () => {
-    if (!photoName) return { ok: false, kind: "error", http: 0, message: "el lugar de prueba no trajo fotos" };
+    if (!photoName) return { ok: false, kind: "error" as GoogleErrorKind, http: 0, message: "el lugar de prueba no trajo fotos" };
     const r = await googleJson(t, "places", "Place Details Photos", `/v1/${photoName}/media`, {
       method: "GET", query: new URLSearchParams({ maxWidthPx: "100", skipHttpRedirect: "true" }),
     });
-    return r.ok ? { ok: true } : fail(r.error);
+    return r.ok ? { ok: true } : fail(r);
   }));
   results.push(await timed("Routes API · computeRoutes", async () => {
     const r = await computeRoute(t, { origin: ZOCALO, destination: BELLAS_ARTES, mode: "WALK" });
-    return r.ok ? { ok: true } : fail(r.error);
+    return r.ok ? { ok: true } : fail(r);
   }));
   results.push(await timed("Routes API · computeRouteMatrix", async () => {
     const r = await computeRouteMatrix(t, { origins: [ZOCALO], destinations: [BELLAS_ARTES], mode: "WALK" });
-    return r.ok ? { ok: true } : fail(r.error);
+    return r.ok ? { ok: true } : fail(r);
   }));
   results.push(await timed("Geocoding API", async () => {
     const r = await googleJson(t, "geocoding", "Geocoding", "/maps/api/geocode/json", {
       method: "GET", query: new URLSearchParams({ address: "Zócalo, Ciudad de México", language: "es" }),
     });
-    return r.ok ? { ok: true } : fail(r.error);
+    return r.ok ? { ok: true } : fail(r);
   }));
   results.push(await timed("Time Zone API", async () => {
     const r = await timeZoneAt(t, ZOCALO.lat, ZOCALO.lng);
-    return r.ok ? { ok: true } : fail(r.error);
+    return r.ok ? { ok: true } : fail(r);
   }));
   return { ok: results.every((r) => r.status === "enabled"), mode: t.mode, results };
 }
