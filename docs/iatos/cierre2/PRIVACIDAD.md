@@ -108,9 +108,12 @@ API de Storage (en producción, borrar desde SQL no borra el archivo).
   - `purge_account_data` y `account_deletion_files`: se redefinen (versión del repositorio más los
     cambios de este grupo). Si otro grupo también las toca, hay que fusionar a mano.
   - `profiles_guard_sensitive`: lo mismo.
-- **Pruebas que reaplican su migración** (`\ir`, para probar el relleno de datos viejos). En
-  `security/run.sh`, después de cada una se vuelven a aplicar en orden todas las `r2_privacidad`
-  (Q-L1).
+- **Pruebas que reaplican su migración** (`\ir`, para probar el relleno de datos viejos). En la
+  rama, `security/run.sh` volvía a aplicar en orden todas las `r2_privacidad` después de cada una. En
+  la integración (`claude/r2-integ`, formato de `r2-pruebas`) ya no se reaplica nada sobre la base de
+  las pruebas: las `r2_privacidad_*.sql` corren en una copia de la base y cada `\ir <migración N>` se
+  sustituye por N y todas las posteriores en orden (Q-L1). Las migraciones se renumeraron a
+  `20261026110000`…`20261026170000` porque chocaban con las de `reservas`.
 
 ## Resultados de las suites (bases nuevas, rama final)
 
