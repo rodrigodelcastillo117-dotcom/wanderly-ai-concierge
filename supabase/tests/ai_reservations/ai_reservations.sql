@@ -41,9 +41,12 @@ CREATE FUNCTION rt.consent() RETURNS jsonb LANGUAGE sql AS $$ SELECT '{"confirme
 -- AUD-06: evidencia del correo recibido tal como la registra ai_reservation_inbound_attach (los
 -- datos vienen del proveedor, no del modelo) y la confirmación completa que arma decideReply().
 CREATE FUNCTION rt.ev(email_id text, from_addr text, auth jsonb, reply text, mid text, quoted boolean DEFAULT false,
-  method text DEFAULT 'reply_token', body_hash text DEFAULT repeat('a', 64)) RETURNS jsonb LANGUAGE sql AS $$
+  method text DEFAULT 'reply_token', body_hash text DEFAULT NULL) RETURNS jsonb LANGUAGE sql AS $$
+  -- r2 (A2-RES-12): la huella del cuerpo sale del texto, como en el servicio (antes una constante para todos:
+  -- con la deduplicación por cuerpo, correos distintos habrían parecido el mismo).
   SELECT jsonb_build_object('provider', 'resend', 'provider_email_id', email_id, 'message_id', mid, 'received_at', now(),
-    'from_address', from_addr, 'auth', auth, 'reply_text', reply, 'body_sha256', body_hash, 'raw_sha256', repeat('b', 64),
+    'from_address', from_addr, 'auth', auth, 'reply_text', reply,
+    'body_sha256', coalesce(body_hash, encode(sha256(convert_to(reply, 'UTF8')), 'hex')), 'raw_sha256', repeat('b', 64),
     'raw_pointer', 'resend:emails/receiving/' || email_id, 'linkage', jsonb_build_object('method', method, 'quoted_request', quoted),
     'sender', jsonb_build_object('verified', true, 'basis', 'dmarc_aligned'))
 $$;
@@ -198,7 +201,9 @@ SELECT rt.ok('R25 "confirmed" sin remitente verificado o sin cita → CHECK lo r
   :'no_ev' LIKE '23514%' AND :'no_quote' LIKE '23514%' AND (SELECT status FROM ai_reservations WHERE id = :'id1') = 'sent', :'no_ev');
 
 SELECT rt.as_service(); SET ROLE service_role;
-SELECT public.ai_reservation_apply_reply(:'id1', :'inb1', '{"outcome":"ignored","excerpt":"Fuera de la oficina","quotes":[]}') AS ap_ign \gset
+-- A2-RES-12: cada correo recibido tiene UNA decisión; la respuesta automática es otro correo (su propio inbound).
+SELECT (public.ai_reservation_inbound_claim('msg_evt_1ign', 'em_1ign', :'tok1', 'casaoaxaca.com.mx'))->>'inbound_id' AS inb1ign \gset
+SELECT public.ai_reservation_apply_reply(:'id1', :'inb1ign', '{"outcome":"ignored","excerpt":"Fuera de la oficina","quotes":[]}') AS ap_ign \gset
 -- AUD-06: la confirmación necesita la evidencia del proveedor (Message-ID, huellas, SPF/DKIM/DMARC, texto
 -- original) registrada antes, y condiciones aceptadas + decisión con modelo (ver R44–R57).
 SELECT public.ai_reservation_inbound_attach(:'inb1', rt.ev('em_1', 'reservas@casaoaxaca.com.mx', rt.pass(),
@@ -346,7 +351,7 @@ SELECT public.ai_reservation_apply_reply(:'id61', :'inb61', rt.dec(rt.conf(:'id6
 RESET ROLE;
 SELECT rt.ok('R44 con evidencia completa del proveedor → confirmed; queda la decisión con el modelo, el historial con el correo y la evidencia sellada',
   (:'att61'::jsonb)->>'ok' = 'true' AND (:'ap61'::jsonb)->>'status' = 'confirmed'
-  AND (SELECT message_id_hash ~ '^[0-9a-f]{64}$' AND body_sha256 = repeat('a', 64) AND provider = 'resend' AND auth->>'dmarc' = 'pass'
+  AND (SELECT message_id_hash ~ '^[0-9a-f]{64}$' AND body_sha256 = encode(sha256(convert_to(reply_text, 'UTF8')), 'hex') AND provider = 'resend' AND auth->>'dmarc' = 'pass'
          AND from_address = 'reservas@casa61.mx' AND provider_received_at IS NOT NULL AND reply_text LIKE 'Con gusto%' AND attached_at IS NOT NULL
        FROM ai_reservation_inbound WHERE id = :'inb61')
   AND EXISTS (SELECT 1 FROM ai_reservation_decisions WHERE inbound_id = :'inb61' AND reservation_id = :'id61' AND decision = 'confirmed' AND model = 'claude-test-model')
