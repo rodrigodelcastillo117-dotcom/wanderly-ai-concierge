@@ -17,6 +17,7 @@ import { PriceWatchCard } from "@/components/PriceWatchCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateTripPDF } from "@/lib/tripPdf";
 import { formatDateOnly } from "@/lib/dateUtils";
+import { formatInstant } from "@/lib/localDate";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,10 @@ const TripDetail = () => {
       .select("id, guardado")
       .eq("user_id", user.id)
       .eq("titulo", trip.destino)
+      // Puede haber filas repetidas de antes (doble toque): con maybeSingle() la consulta
+      // fallaba y el corazón nunca aparecía marcado. Tomamos la guardada si existe.
+      .order("guardado", { ascending: false })
+      .limit(1)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
@@ -90,7 +95,18 @@ const TripDetail = () => {
       });
   }, [user, trip?.destino]);
 
+  // Doble toque = dos filas en recomendaciones; se ignora el segundo mientras se guarda.
+  const [savingFav, setSavingFav] = useState(false);
   const toggleFavorite = async () => {
+    if (!user || !trip || savingFav) return;
+    setSavingFav(true);
+    try {
+      await toggleFavoriteNow();
+    } finally {
+      setSavingFav(false);
+    }
+  };
+  const toggleFavoriteNow = async () => {
     if (!user || !trip) return;
     if (isFavorite && favRecoId) {
       await supabase.from("recomendaciones").update({ guardado: false }).eq("id", favRecoId);
@@ -303,6 +319,7 @@ const TripDetail = () => {
         <div className="absolute top-4 inset-x-4 z-20 flex flex-wrap items-start justify-end gap-2 md:top-6 md:right-6 md:left-auto md:flex-nowrap">
           <button
             onClick={toggleFavorite}
+            disabled={savingFav}
             aria-label={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
             className="inline-flex items-center justify-center w-9 h-9 rounded-full glass-card hover:gold-border transition shrink-0"
           >
@@ -461,7 +478,7 @@ const TripDetail = () => {
               staleMessage={staleness.stale && staleness.basis ? staleQuoteMessage(staleness.basis) : null}
               validityLabel={validity.label}
               validityExpired={validity.expired}
-              fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatDateOnly(quote.fx_at)})` : null}
+              fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatInstant(quote.fx_at)})` : null}
               onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
             />
           ) : (
