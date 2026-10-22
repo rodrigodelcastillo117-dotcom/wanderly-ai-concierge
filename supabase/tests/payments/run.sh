@@ -10,6 +10,7 @@ PSQL="psql -U ${PGUSER:-postgres} -q -X"
 $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/payments.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA payments.sql"
 $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/quota_reservations.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA quota_reservations.sql"
 $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/plan_limits.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA plan_limits.sql"
+$PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$DIR/trial_no_card.sql" 2>&1 | grep -o 'OK .*\|ERROR.*' || echo "FALLA trial_no_card.sql"
 
 # Concurrencia: la sesión 1 consume el análisis gratis y tarda en confirmar; la sesión 2 llega en
 # medio. Con el UPDATE condicional, la 2 espera el candado y luego ve el contador en 1 → negada.

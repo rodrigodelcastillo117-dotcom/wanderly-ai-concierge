@@ -66,7 +66,9 @@ export function useSubscription() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const status = subscription?.status ?? null;
-  const isTrialing = status === "trialing";
+  // Una prueba vencida (p. ej. la de 30 días sin tarjeta) queda como 'trialing' en la fila, pero
+  // ya no da acceso: solo cuenta como prueba mientras el servidor diga que es PRO.
+  const isTrialing = status === "trialing" && Boolean(access?.is_pro);
   const isComped = status === "comped";
   const trialDaysLeft = isTrialing ? daysLeft(subscription?.trial_end ?? subscription?.current_period_end) : null;
 

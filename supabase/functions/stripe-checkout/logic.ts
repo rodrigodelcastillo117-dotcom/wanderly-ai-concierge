@@ -83,7 +83,25 @@ export function trialEligible(stored: StoredSubscription, history: StripeSubSumm
 
 export type CheckoutPlan =
   | { kind: "blocked"; block: CheckoutBlock }
-  | { kind: "create"; trialDays: number | null };
+  // trialDays: prueba de Stripe (solo primera vez). trialEndUnix: fin de una prueba sin tarjeta en
+  // curso, para que Stripe no cobre antes de que termine. Nunca vienen los dos.
+  | { kind: "create"; trialDays: number | null; trialEndUnix?: number | null };
+
+// Stripe exige que trial_end de una Checkout Session esté al menos 48 h en el futuro.
+const STRIPE_MIN_TRIAL_MS = 48 * 3600 * 1000;
+const SAFETY_MS = 3600 * 1000;
+
+/**
+ * Prueba sin tarjeta (DEC-02) en curso: fila 'trialing' sin suscripción de Stripe y con trial_end
+ * futuro. Devuelve hasta cuándo Stripe NO debe cobrar. Si faltan menos de 48 h se usa el mínimo de
+ * Stripe (la persona gana horas de más, nunca se le cobra antes de que termine su prueba).
+ */
+export function noCardTrialEnd(stored: StoredSubscription, now = Date.now()): number | null {
+  if (!stored || stored.status !== "trialing" || stored.stripe_subscription_id || !stored.trial_end) return null;
+  const end = Date.parse(stored.trial_end);
+  if (Number.isNaN(end) || end <= now) return null;
+  return Math.ceil(Math.max(end, now + STRIPE_MIN_TRIAL_MS + SAFETY_MS) / 1000);
+}
 
 /**
  * Decide si se crea la sesión y con cuántos días de prueba.
@@ -101,5 +119,9 @@ export async function planCheckout(
   const stripeBlock = blockFromStripe(history);
   if (stripeBlock) return { kind: "blocked", block: stripeBlock };
 
-  return { kind: "create", trialDays: trialEligible(stored, history) ? TRIAL_DAYS : null };
+  // Una prueba sin tarjeta cuenta como "ya tuvo prueba" (trial_end guardado): no hay prueba extra de
+  // Stripe; si sigue vigente, el primer cobro espera a que termine; si ya venció, se cobra desde el día 1.
+  const trialEndUnix = noCardTrialEnd(stored, now);
+  if (trialEndUnix) return { kind: "create", trialDays: null, trialEndUnix };
+  return { kind: "create", trialDays: trialEligible(stored, history) ? TRIAL_DAYS : null, trialEndUnix: null };
 }

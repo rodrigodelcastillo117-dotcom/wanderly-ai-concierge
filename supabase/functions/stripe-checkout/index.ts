@@ -82,6 +82,8 @@ Deno.serve(async (req) => {
       line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
       subscription_data: {
         ...(plan.trialDays ? { trial_period_days: plan.trialDays } : {}),
+        // Durante una prueba sin tarjeta: sin cobro hasta que termine (logic.ts noCardTrialEnd).
+        ...(plan.trialEndUnix ? { trial_end: plan.trialEndUnix } : {}),
         metadata: { supabase_user_id: user.id },
       },
       automatic_tax: { enabled: true },

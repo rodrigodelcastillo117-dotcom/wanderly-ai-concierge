@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { planCheckout, trialEligible } from "../../supabase/functions/stripe-checkout/logic";
+import { planCheckout, trialEligible, noCardTrialEnd } from "../../supabase/functions/stripe-checkout/logic";
 import { safeOrigin } from "../../supabase/functions/_shared/origin";
 
 const NOW = Date.parse("2026-10-22T12:00:00Z");
@@ -38,26 +38,26 @@ describe("stripe-checkout: no duplicar suscripciones (A-05/A-08)", () => {
   it("una fila active con periodo vencido no bloquea (webhook perdido)", async () => {
     const plan = await planCheckout(row({ status: "active", stripe_customer_id: "cus_1", stripe_subscription_id: "sub_1", current_period_end: past }),
       async () => [{ id: "sub_1", status: "canceled", trial_end: 1 }], NOW);
-    expect(plan).toEqual({ kind: "create", trialDays: null });
+    expect(plan).toMatchObject({ kind: "create", trialDays: null, trialEndUnix: null });
   });
 });
 
 describe("stripe-checkout: prueba de 30 días solo la primera vez (A-04)", () => {
   it("primera vez, sin customer: 30 días y no consulta Stripe", async () => {
     const list = vi.fn();
-    expect(await planCheckout(null, list, NOW)).toEqual({ kind: "create", trialDays: 30 });
+    expect(await planCheckout(null, list, NOW)).toMatchObject({ kind: "create", trialDays: 30, trialEndUnix: null });
     expect(list).not.toHaveBeenCalled();
   });
 
   it("customer creado en un checkout abandonado sigue teniendo su prueba", async () => {
     expect(await planCheckout(row({ status: "incomplete", stripe_customer_id: "cus_1" }), async () => [], NOW))
-      .toEqual({ kind: "create", trialDays: 30 });
+      .toMatchObject({ kind: "create", trialDays: 30, trialEndUnix: null });
   });
 
   it("quien canceló y vuelve paga desde el día 1 (sin otra prueba)", async () => {
     const plan = await planCheckout(row({ status: "canceled", stripe_customer_id: "cus_1", stripe_subscription_id: "sub_1", trial_end: past }),
       async () => [{ id: "sub_1", status: "canceled", trial_start: 1, trial_end: 2 }], NOW);
-    expect(plan).toEqual({ kind: "create", trialDays: null });
+    expect(plan).toMatchObject({ kind: "create", trialDays: null, trialEndUnix: null });
   });
 
   it("el historial de Stripe manda aunque la fila local esté vacía", () => {
@@ -77,5 +77,37 @@ describe("origin de regreso", () => {
     expect(safeOrigin("https://evil.lovable.app")).toBe("https://traveliatos.life");
     expect(safeOrigin("https://traveliatos.life.evil.com")).toBe("https://traveliatos.life");
     expect(safeOrigin(undefined)).toBe("https://traveliatos.life");
+  });
+});
+
+describe("stripe-checkout durante la prueba sin tarjeta (DEC-02)", () => {
+  const noCard = (trial_end: string) => row({ status: "trialing", trial_end, current_period_end: trial_end });
+
+  it("prueba vigente: sin prueba extra de Stripe y el primer cobro espera a que termine", async () => {
+    const end = "2026-11-10T12:00:00Z";
+    const list = vi.fn();
+    const plan = await planCheckout(noCard(end), list, NOW);
+    expect(plan).toEqual({ kind: "create", trialDays: null, trialEndUnix: Date.parse(end) / 1000 });
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("si faltan menos de 48 h, usa el mínimo de Stripe: nunca cobra antes de que termine", () => {
+    const end = new Date(NOW + 5 * 3600 * 1000).toISOString();
+    const unix = noCardTrialEnd(noCard(end), NOW)!;
+    expect(unix * 1000).toBeGreaterThanOrEqual(NOW + 48 * 3600 * 1000);
+    expect(unix * 1000).toBeGreaterThan(Date.parse(end));
+  });
+
+  it("prueba ya vencida: cuenta como 'ya tuvo prueba' y se cobra desde el día 1", async () => {
+    const plan = await planCheckout(noCard("2026-10-01T00:00:00Z"), vi.fn(), NOW);
+    expect(plan).toEqual({ kind: "create", trialDays: null, trialEndUnix: null });
+  });
+
+  it("con el interruptor apagado no existe la fila: la primera vez sigue siendo 30 días de Stripe", async () => {
+    expect(await planCheckout(null, vi.fn(), NOW)).toMatchObject({ trialDays: 30, trialEndUnix: null });
+  });
+
+  it("una prueba de Stripe (con suscripción) no se confunde con la prueba sin tarjeta", () => {
+    expect(noCardTrialEnd(row({ status: "trialing", stripe_subscription_id: "sub_1", trial_end: "2026-11-10T00:00:00Z" }), NOW)).toBeNull();
   });
 });
