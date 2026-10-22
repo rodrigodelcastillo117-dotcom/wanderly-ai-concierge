@@ -40,7 +40,7 @@ Duffel (Links: país de la empresa NO VERIFICADO), Booking.com Demand API (manag
 
 ## Flujos E2E
 
-**Aprobados (automatizados con proveedores simulados, `bookingBridgeE2E.test.ts`, 22/22):** 1 cotización de vuelo y botón · 2 vuelo con dos escalas · 3 cambio de fechas · 4 oferta caducada · 5 precio diferente · 6 hotel con disponibilidad · 7 hotel agotado · 8 habitación incorrecta · 9 restaurante con sistema · 10 restaurante sin sistema · 11 tour con compra externa · 12 Privé con solicitud · 13 abandono · 14 regreso a IATOS · 15 comprobante · 16 sin API · 17 proveedor caído · 18 link roto · 19 URL manipulada · 20 compras repetidas. Más 35 casos SQL (`supabase/tests/bridge`), 67 unitarios, 4 de UI y 6 de revisión de enlaces.
+**Aprobados (automatizados con proveedores simulados, `bookingBridgeE2E.test.ts`, 24/24):** 1 cotización de vuelo y botón · 2 vuelo con dos escalas · 3 cambio de fechas · 4 oferta caducada · 5 precio diferente · 6 hotel con disponibilidad · 7 hotel agotado · 8 habitación incorrecta · 9 restaurante con sistema · 10 restaurante sin sistema · 11 tour con compra externa · 12 Privé con solicitud · 13 abandono · 14 regreso a IATOS · 15 comprobante · 16 sin API · 17 proveedor caído · 18 link roto · 19 URL manipulada · 20 compras repetidas. Más 35 casos SQL (`supabase/tests/bridge`), 67 unitarios, 4 de UI y 6 de revisión de enlaces.
 
 **Con enlaces reales (no destructivo):** 10 vuelos (9 válidos + 1 formato descartado), 11 hoteles (10 + el redirect de afiliado roto), 10 restaurantes, 10 experiencias, roto (soft 404 de Resy detectado), homónimos (Maps), móvil (iPhone ×3), bloqueado (403 ×7), 9 redirecciones peligrosas rechazadas por la lista blanca.
 

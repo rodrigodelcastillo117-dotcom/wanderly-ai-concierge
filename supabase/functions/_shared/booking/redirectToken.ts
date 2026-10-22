@@ -41,12 +41,12 @@ export async function verifyRedirect(secret: string, token: unknown, nowMs = Dat
   if (!secret || typeof token !== "string" || token.length > 1200) return { ok: false, reason: "formato" };
   const m = /^([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]{43})$/.exec(token);
   if (!m) return { ok: false, reason: "formato" };
-  const expected = await hmac(secret, m[1]);
-  let given: Uint8Array;
-  try { given = fromB64url(m[2]); } catch { return { ok: false, reason: "formato" }; }
-  // Tiempo constante.
+  // Se compara la firma CODIFICADA (forma canónica): así un token con los bits de relleno del último
+  // carácter cambiados no pasa por válido. Tiempo constante.
+  const expected = b64url(await hmac(secret, m[1]));
+  const given = m[2];
   let diff = expected.length ^ given.length;
-  for (let i = 0; i < expected.length; i++) diff |= expected[i] ^ (given[i] ?? 0);
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ (given.charCodeAt(i) || 0);
   if (diff !== 0) return { ok: false, reason: "firma" };
   let claims: RedirectClaims;
   try {

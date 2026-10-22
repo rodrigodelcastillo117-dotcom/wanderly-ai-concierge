@@ -325,6 +325,24 @@ describe("Fase 11 · los 20 recorridos E2E (simulados, sin compras reales)", () 
   });
 });
 
+describe("restaurante con datos de Google Places (googlemax) en el viaje", () => {
+  const PLACES_TRIP: TripRow = { ...TRIP, restaurantes_json: [{ nombre: "Sobrino de Botín", fuente: "google_places", place_id: "ChIJx5Rc1n0oQg0R5B1hVIKdWUU",
+    website: "https://botin.es/", telefono: "+34 913 66 42 17", maps_url: "https://maps.google.com/?cid=1", consultado_at: "2026-10-22T10:00:00Z" }] };
+  it("sitio y teléfono oficiales, ficha exacta de Maps; WhatsApp no (no verificado)", async () => {
+    const t = setup({ trip: PLACES_TRIP });
+    const o = (await t.call("resolve", { source: tripItem("restaurantes_json", 0) })).body.offer as any;
+    expect(o.actions.map((a: any) => a.kind)).toEqual(["equivalent_search", "official_website", "phone", "maps_listing", "assisted_request", "save_for_later"]);
+    expect(o.actions.find((a: any) => a.kind === "phone")).toMatchObject({ url: "tel:+34913664217", label: "Llamar al restaurante" });
+    expect(o.actions.find((a: any) => a.kind === "maps_listing").url).toContain("query_place_id=ChIJx5Rc1n0oQg0R5B1hVIKdWUU");
+  });
+  it("un sitio que viene del viaje (editable) no se firma en booking-go: se abre directo", async () => {
+    const t = setup({ trip: { ...PLACES_TRIP, restaurantes_json: [{ ...PLACES_TRIP.restaurantes_json![0], website: "https://phishing-ejemplo.example/" }] } });
+    const s = await t.call("start_booking", { source: tripItem("restaurantes_json", 0), action_kind: "official_website", idempotency_key: key(), consent: true });
+    expect(s.body).toMatchObject({ ok: true, go_url: null, direct_url: "https://phishing-ejemplo.example/" });
+    expect(t.store.intents[0].target_url).toBeNull();
+  });
+});
+
 describe("canales de un toque desde el servidor", () => {
   it("WhatsApp verificado del sitio oficial: mensaje en el idioma del lugar; REQUESTED al tocar", async () => {
     const venue = venueFromPriveRow({ id: "e9", slug: "roma-x", name: "Da Enzo", website: "https://daenzo.it",

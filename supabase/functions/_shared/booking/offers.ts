@@ -14,15 +14,21 @@ import { langForCountry } from "./messages.ts";
 import { type ChannelCandidate, type ExactCandidate, type LinkCandidate, resolveBookingActions, type ResolverInput } from "./resolver.ts";
 import type { BookingOffer, ProductType, SourceTrust } from "./types.ts";
 
-/** FNV-1a de 64 bits en hex: id estable de la oferta (mismo en el cliente y en el servidor). */
+/**
+ * Id estable de la oferta (16 hex, mismo en el cliente y en el servidor): dos FNV-1a de 32 bits con
+ * semillas distintas. Sin BigInt: el build del cliente apunta a Safari 13.
+ */
 export function stableId(parts: unknown[]): string {
-  let h = 0xcbf29ce484222325n;
   const s = parts.map((p) => (p === null || p === undefined ? "" : String(p))).join("|");
-  for (let i = 0; i < s.length; i++) {
-    h ^= BigInt(s.charCodeAt(i));
-    h = (h * 0x100000001b3n) & 0xffffffffffffffffn;
-  }
-  return h.toString(16).padStart(16, "0");
+  const fnv = (seed: number) => {
+    let h = seed >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, "0");
+  };
+  return fnv(0x811c9dc5) + fnv(0x9747b28c);
 }
 
 const num = (v: unknown): number | null => {

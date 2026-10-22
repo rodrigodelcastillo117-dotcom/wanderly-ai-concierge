@@ -327,7 +327,10 @@ describe("token de salida firmado (sin open redirects)", () => {
     const [body, sig] = t.split(".");
     const forged = btoa(JSON.stringify({ i: I, u: "44444444-4444-4444-8444-444444444444", o: "x", x: NOW + 9e9 })).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
     expect((await verifyRedirect("secreto", `${forged}.${sig}`, NOW)).ok).toBe(false);
-    expect((await verifyRedirect("secreto", `${body}.${sig.slice(0, -1)}A`, NOW)).ok).toBe(false);
+    // Mismo valor binario con otros bits de relleno en el último carácter: también se rechaza.
+    const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const twin = ALPHA[ALPHA.indexOf(sig.slice(-1)) ^ 1];
+    expect((await verifyRedirect("secreto", `${body}.${sig.slice(0, -1)}${twin}`, NOW)).ok).toBe(false);
   });
 });
 
