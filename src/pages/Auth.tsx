@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Compass, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,14 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { claimPendingReferral } from "@/lib/referral";
 import { TRIAL_LINE } from "@/lib/planCopy";
+import { safeRedirectPath } from "@/lib/safeRedirect";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Ruta que se pidió antes de iniciar sesión (ProtectedRoute la manda en state.from). Solo rutas internas.
+  const returnTo = safeRedirectPath((location.state as { from?: unknown } | null)?.from);
   const { user, signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">(searchParams.get("mode") === "signup" ? "signup" : "login");
   const [email, setEmail] = useState("");
@@ -33,10 +37,10 @@ const Auth = () => {
           supabase.from("travel_profiles").select("completado").eq("user_id", user.id).maybeSingle(),
         ]);
         const done = (prefs as any)?.completado || (tp as any)?.completado;
-        navigate(done ? "/dashboard" : "/onboarding", { replace: true });
+        navigate(done ? (returnTo ?? "/dashboard") : "/onboarding", { replace: true });
       })();
     }
-  }, [user, navigate]);
+  }, [user, navigate, returnTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
