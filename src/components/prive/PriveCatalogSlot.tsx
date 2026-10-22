@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { usePriveAccess } from "@/hooks/usePriveAccess";
 import { messageFor } from "@/lib/priveCopy";
 import type { PriveErrorCode } from "@/lib/priveApi";
+import { CATALOG_HUB_SECTIONS } from "@/components/prive/catalog/hubSections";
 
 export type PriveHubSection = {
   id: string;
@@ -19,7 +20,8 @@ export type PriveHubSection = {
   render: (data: unknown) => React.ReactNode | null;
 };
 
-export const PRIVE_HUB_SECTIONS: PriveHubSection[] = [];
+// Secciones del grupo catalog (destinos con contenido y universos), registradas aquí.
+export const PRIVE_HUB_SECTIONS: PriveHubSection[] = [...CATALOG_HUB_SECTIONS];
 
 type Loaded = { id: string; node: React.ReactNode | null } | { id: string; error: PriveErrorCode };
 

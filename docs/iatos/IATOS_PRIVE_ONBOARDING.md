@@ -1,6 +1,6 @@
 # IATOS Privé · Guía de inicio (mini onboarding)
 
-> Parte de la serie Privé. Ceremonia y Grand Welcome: [Cinematic Welcome](IATOS_PRIVE_CINEMATIC_WELCOME.md). Textos permitidos: [Calidad §4](IATOS_PRIVE_CALIDAD_FUENTES.md#4-lenguaje-permitido-y-prohibido).
+> Parte de la serie Privé. Ceremonia y Grand Welcome: [Cinematic Welcome](IATOS_PRIVE_CINEMATIC_WELCOME.md). Textos permitidos: [Calidad §4](IATOS_PRIVE_CURATION_STANDARD.md#4-lenguaje-permitido-y-prohibido).
 > Rama `claude/wc-prive-ui`. Componente: `src/components/prive/PriveOnboarding.tsx`; estado: `src/lib/priveOnboarding.ts`.
 
 ## Resumen para fundadores

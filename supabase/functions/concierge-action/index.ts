@@ -5,7 +5,7 @@ import { redactPii } from "../_shared/redact.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-prive-session",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -34,6 +34,7 @@ const labelByType: Record<string, string> = {
   jet: "Solicitud de cotización de jet privado recibida",
   alert: "Alerta recibida",
   members_nightlife_reservation: "Solicitud de reserva recibida",
+  prive_request: "Solicitud Privé recibida",
 };
 
 Deno.serve(async (req) => {
@@ -83,6 +84,32 @@ Deno.serve(async (req) => {
     const title = body.title.slice(0, 200);
     const payload = body.payload && typeof body.payload === "object" ? body.payload : {};
 
+    // Solicitud Privé: la crea la RPC prive_request_create con el JWT y la sesión Privé del usuario
+    // (valida acceso, experiencia publicable, edad y viaje; fija "solicitado" y escribe el historial).
+    // Aquí solo se avisa al equipo. No es una reserva.
+    let priveRow: { id: string; status: string } | null = null;
+    if (body.type === "prive_request") {
+      const ps = req.headers.get("x-prive-session") ?? "";
+      const p = payload as Record<string, unknown>;
+      const { data: created, error: pErr } = await supaUser.rpc("prive_request_create", {
+        _ps: ps,
+        _experience_id: typeof p.experience_id === "string" && UUID.test(p.experience_id) ? p.experience_id : null,
+        _requested_for: typeof p.requested_for === "string" ? p.requested_for : null,
+        _party_size: Number.isFinite(Number(p.party_size)) ? Math.round(Number(p.party_size)) : null,
+        _preferences: typeof p.preferences === "string" ? p.preferences.slice(0, 1000) : null,
+        _contact_method: typeof p.contact_method === "string" ? p.contact_method : "app",
+        _trip_id: typeof body.trip_id === "string" && UUID.test(body.trip_id) ? body.trip_id : null,
+        _plan_group: typeof p.plan_group === "string" && UUID.test(p.plan_group) ? p.plan_group : null,
+      });
+      const code = /PRIVE_[A-Z_]+/.exec(pErr?.message ?? "")?.[0];
+      if (pErr || !(created as any)?.ok) {
+        return new Response(JSON.stringify({ code: code ?? (created as any)?.code ?? "PRIVE_REQUEST_FAILED", error: "prive_request_not_created" }), {
+          status: code ? 403 : 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      priveRow = { id: (created as any).id, status: (created as any).status };
+    }
+
     // Solo se liga a un viaje al que el usuario tiene acceso (RLS de trips con su propio token).
     let tripId: string | null = null;
     if (typeof body.trip_id === "string" && UUID.test(body.trip_id)) {
@@ -93,19 +120,21 @@ Deno.serve(async (req) => {
     // Service client for inserts (RLS still respected via explicit user_id)
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // 1) Insert concierge_request (status = pending: espera respuesta humana)
-    const { data: reqRow, error: reqErr } = await admin
-      .from("concierge_requests")
-      .insert({
-        user_id: userId,
-        trip_id: tripId,
-        type: body.type,
-        title,
-        payload,
-        status: "pending",
-      })
-      .select()
-      .single();
+    // 1) Insert concierge_request (status = pending: espera respuesta humana). La Privé ya existe.
+    const { data: reqRow, error: reqErr } = priveRow
+      ? { data: priveRow, error: null }
+      : await admin
+        .from("concierge_requests")
+        .insert({
+          user_id: userId,
+          trip_id: tripId,
+          type: body.type,
+          title,
+          payload,
+          status: "pending",
+        })
+        .select()
+        .single();
 
     if (reqErr) {
       console.error("concierge_requests insert error", reqErr.code ?? "", redactPii(reqErr.message));
@@ -114,8 +143,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2) Insert immediate "received" notification
-    await admin.from("notifications").insert({
+    // 2) Insert immediate "received" notification (la Privé ya la dejó prive_request_create)
+    if (!priveRow) await admin.from("notifications").insert({
       user_id: userId,
       type: body.type,
       title: labelByType[body.type] ?? "Solicitud recibida",

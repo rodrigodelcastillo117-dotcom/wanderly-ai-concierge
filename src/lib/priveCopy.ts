@@ -1,5 +1,5 @@
 // Textos fijos de IATOS Privé (es-MX). Las líneas ceremoniales en inglés son del dueño y van tal
-// cual (contrato Privé §6). Lenguaje permitido y prohibido: docs/iatos/IATOS_PRIVE_CALIDAD_FUENTES.md §4
+// cual (contrato Privé §6). Lenguaje permitido y prohibido: docs/iatos/IATOS_PRIVE_CURATION_STANDARD.md §4
 // (nada de "VIP", "exclusivo", "garantizado" ni "reservado" sin evidencia).
 import type { PriveErrorCode } from "@/lib/priveApi";
 
@@ -130,7 +130,7 @@ export function ceremonialCode(activatedAt: string | null | undefined): string {
 /** Contacto de soporte que ya usa la app (Legal, correos). */
 export const SUPPORT_EMAIL = "hola@traveliatos.life";
 
-/** Seis destinos del piloto de curaduría (IATOS_PRIVE_COBERTURA_GLOBAL.md §3). Fotos ilustrativas. */
+/** Seis destinos del piloto de curaduría (IATOS_PRIVE_GLOBAL_DESTINATIONS.md §3). Fotos ilustrativas. */
 export const WELCOME_DESTINATIONS = [
   { city: "París", query: "Paris Eiffel Tower dusk" },
   { city: "Ciudad de México", query: "Mexico City Palacio de Bellas Artes" },

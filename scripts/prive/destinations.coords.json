@@ -1,0 +1,774 @@
+{
+ "_source": "Wikidata (propiedad P625, coordenada del elemento ligado al artículo de Wikipedia en inglés), consulta SPARQL del 2026-10-22. Redondeo a 4 decimales (~11 m).",
+ "_retrieved": "2026-10-22",
+ "mc": {
+  "lat": 43.7311,
+  "lng": 7.42,
+  "qid": "Q235",
+  "source": "https://www.wikidata.org/wiki/Q235",
+  "wiki": "https://en.wikipedia.org/wiki/Monaco"
+ },
+ "om": {
+  "lat": 21,
+  "lng": 57,
+  "qid": "Q842",
+  "source": "https://www.wikidata.org/wiki/Q842",
+  "wiki": "https://en.wikipedia.org/wiki/Oman"
+ },
+ "sg": {
+  "lat": 1.3,
+  "lng": 103.8,
+  "qid": "Q334",
+  "source": "https://www.wikidata.org/wiki/Q334",
+  "wiki": "https://en.wikipedia.org/wiki/Singapore"
+ },
+ "hk": {
+  "lat": 22.2783,
+  "lng": 114.1586,
+  "qid": "Q8646",
+  "source": "https://www.wikidata.org/wiki/Q8646",
+  "wiki": "https://en.wikipedia.org/wiki/Hong_Kong"
+ },
+ "sc": {
+  "lat": -7.1,
+  "lng": 52.7667,
+  "qid": "Q1042",
+  "source": "https://www.wikidata.org/wiki/Q1042",
+  "wiki": "https://en.wikipedia.org/wiki/Seychelles"
+ },
+ "mu": {
+  "lat": -20.2,
+  "lng": 57.5,
+  "qid": "Q1027",
+  "source": "https://www.wikidata.org/wiki/Q1027",
+  "wiki": "https://en.wikipedia.org/wiki/Mauritius"
+ },
+ "mv": {
+  "lat": 4.18,
+  "lng": 73.51,
+  "qid": "Q826",
+  "source": "https://www.wikidata.org/wiki/Q826",
+  "wiki": "https://en.wikipedia.org/wiki/Maldives"
+ },
+ "monaco-monte-carlo": {
+  "lat": 43.7389,
+  "lng": 7.4252,
+  "qid": "Q45240",
+  "source": "https://www.wikidata.org/wiki/Q45240",
+  "wiki": "https://en.wikipedia.org/wiki/Monte_Carlo"
+ },
+ "paris": {
+  "lat": 48.8567,
+  "lng": 2.3522,
+  "qid": "Q90",
+  "source": "https://www.wikidata.org/wiki/Q90",
+  "wiki": "https://en.wikipedia.org/wiki/Paris"
+ },
+ "londres": {
+  "lat": 51.5072,
+  "lng": -0.1275,
+  "qid": "Q84",
+  "source": "https://www.wikidata.org/wiki/Q84",
+  "wiki": "https://en.wikipedia.org/wiki/London"
+ },
+ "milan": {
+  "lat": 45.4669,
+  "lng": 9.19,
+  "qid": "Q490",
+  "source": "https://www.wikidata.org/wiki/Q490",
+  "wiki": "https://en.wikipedia.org/wiki/Milan"
+ },
+ "roma": {
+  "lat": 41.8931,
+  "lng": 12.4828,
+  "qid": "Q220",
+  "source": "https://www.wikidata.org/wiki/Q220",
+  "wiki": "https://en.wikipedia.org/wiki/Rome"
+ },
+ "florencia": {
+  "lat": 43.7714,
+  "lng": 11.2542,
+  "qid": "Q2044",
+  "source": "https://www.wikidata.org/wiki/Q2044",
+  "wiki": "https://en.wikipedia.org/wiki/Florence"
+ },
+ "venecia": {
+  "lat": 45.4397,
+  "lng": 12.3319,
+  "qid": "Q641",
+  "source": "https://www.wikidata.org/wiki/Q641",
+  "wiki": "https://en.wikipedia.org/wiki/Venice"
+ },
+ "capri": {
+  "lat": 40.55,
+  "lng": 14.2333,
+  "qid": "Q173292",
+  "source": "https://www.wikidata.org/wiki/Q173292",
+  "wiki": "https://en.wikipedia.org/wiki/Capri"
+ },
+ "costa-amalfitana": {
+  "lat": 40.6333,
+  "lng": 14.6,
+  "qid": "Q212214",
+  "source": "https://www.wikidata.org/wiki/Q212214",
+  "wiki": "https://en.wikipedia.org/wiki/Amalfi_Coast"
+ },
+ "lago-de-como": {
+  "lat": 46,
+  "lng": 9.2667,
+  "qid": "Q15523",
+  "source": "https://www.wikidata.org/wiki/Q15523",
+  "wiki": "https://en.wikipedia.org/wiki/Lake_Como"
+ },
+ "saint-tropez": {
+  "lat": 43.2697,
+  "lng": 6.6386,
+  "qid": "Q1813",
+  "source": "https://www.wikidata.org/wiki/Q1813",
+  "wiki": "https://en.wikipedia.org/wiki/Saint-Tropez"
+ },
+ "cannes": {
+  "lat": 43.5525,
+  "lng": 7.0214,
+  "qid": "Q39984",
+  "source": "https://www.wikidata.org/wiki/Q39984",
+  "wiki": "https://en.wikipedia.org/wiki/Cannes"
+ },
+ "niza": {
+  "lat": 43.7019,
+  "lng": 7.2683,
+  "qid": "Q33959",
+  "source": "https://www.wikidata.org/wiki/Q33959",
+  "wiki": "https://en.wikipedia.org/wiki/Nice"
+ },
+ "courchevel": {
+  "lat": 45.415,
+  "lng": 6.6339,
+  "qid": "Q290817",
+  "source": "https://www.wikidata.org/wiki/Q290817",
+  "wiki": "https://en.wikipedia.org/wiki/Courchevel"
+ },
+ "megeve": {
+  "lat": 45.8569,
+  "lng": 6.6175,
+  "qid": "Q259283",
+  "source": "https://www.wikidata.org/wiki/Q259283",
+  "wiki": "https://en.wikipedia.org/wiki/Meg%C3%A8ve"
+ },
+ "gstaad": {
+  "lat": 46.4667,
+  "lng": 7.2833,
+  "qid": "Q37149",
+  "source": "https://www.wikidata.org/wiki/Q37149",
+  "wiki": "https://en.wikipedia.org/wiki/Gstaad"
+ },
+ "st-moritz": {
+  "lat": 46.4972,
+  "lng": 9.8378,
+  "qid": "Q68986",
+  "source": "https://www.wikidata.org/wiki/Q68986",
+  "wiki": "https://en.wikipedia.org/wiki/St._Moritz"
+ },
+ "zurich": {
+  "lat": 47.3744,
+  "lng": 8.5411,
+  "qid": "Q72",
+  "source": "https://www.wikidata.org/wiki/Q72",
+  "wiki": "https://en.wikipedia.org/wiki/Zurich"
+ },
+ "ginebra": {
+  "lat": 46.2,
+  "lng": 6.15,
+  "qid": "Q71",
+  "source": "https://www.wikidata.org/wiki/Q71",
+  "wiki": "https://en.wikipedia.org/wiki/Geneva"
+ },
+ "madrid": {
+  "lat": 40.4169,
+  "lng": -3.7033,
+  "qid": "Q2807",
+  "source": "https://www.wikidata.org/wiki/Q2807",
+  "wiki": "https://en.wikipedia.org/wiki/Madrid"
+ },
+ "barcelona": {
+  "lat": 41.3825,
+  "lng": 2.1769,
+  "qid": "Q1492",
+  "source": "https://www.wikidata.org/wiki/Q1492",
+  "wiki": "https://en.wikipedia.org/wiki/Barcelona"
+ },
+ "marbella": {
+  "lat": 36.5114,
+  "lng": -4.8834,
+  "qid": "Q484799",
+  "source": "https://www.wikidata.org/wiki/Q484799",
+  "wiki": "https://en.wikipedia.org/wiki/Marbella"
+ },
+ "ibiza": {
+  "lat": 38.98,
+  "lng": 1.43,
+  "qid": "Q52631",
+  "source": "https://www.wikidata.org/wiki/Q52631",
+  "wiki": "https://en.wikipedia.org/wiki/Ibiza"
+ },
+ "formentera": {
+  "lat": 38.7,
+  "lng": 1.45,
+  "qid": "Q52626",
+  "source": "https://www.wikidata.org/wiki/Q52626",
+  "wiki": "https://en.wikipedia.org/wiki/Formentera"
+ },
+ "mallorca": {
+  "lat": 39.6167,
+  "lng": 2.9833,
+  "qid": "Q8828",
+  "source": "https://www.wikidata.org/wiki/Q8828",
+  "wiki": "https://en.wikipedia.org/wiki/Mallorca"
+ },
+ "mykonos": {
+  "lat": 37.446,
+  "lng": 25.3286,
+  "qid": "Q190210",
+  "source": "https://www.wikidata.org/wiki/Q190210",
+  "wiki": "https://en.wikipedia.org/wiki/Mykonos"
+ },
+ "santorini": {
+  "lat": 36.415,
+  "lng": 25.4325,
+  "qid": "Q129296",
+  "source": "https://www.wikidata.org/wiki/Q129296",
+  "wiki": "https://en.wikipedia.org/wiki/Santorini"
+ },
+ "atenas": {
+  "lat": 37.9842,
+  "lng": 23.7281,
+  "qid": "Q1524",
+  "source": "https://www.wikidata.org/wiki/Q1524",
+  "wiki": "https://en.wikipedia.org/wiki/Athens"
+ },
+ "viena": {
+  "lat": 48.2083,
+  "lng": 16.3725,
+  "qid": "Q1741",
+  "source": "https://www.wikidata.org/wiki/Q1741",
+  "wiki": "https://en.wikipedia.org/wiki/Vienna"
+ },
+ "berlin": {
+  "lat": 52.5167,
+  "lng": 13.3833,
+  "qid": "Q64",
+  "source": "https://www.wikidata.org/wiki/Q64",
+  "wiki": "https://en.wikipedia.org/wiki/Berlin"
+ },
+ "amsterdam": {
+  "lat": 52.3667,
+  "lng": 4.8833,
+  "qid": "Q727",
+  "source": "https://www.wikidata.org/wiki/Q727",
+  "wiki": "https://en.wikipedia.org/wiki/Amsterdam"
+ },
+ "lisboa": {
+  "lat": 38.708,
+  "lng": -9.139,
+  "qid": "Q597",
+  "source": "https://www.wikidata.org/wiki/Q597",
+  "wiki": "https://en.wikipedia.org/wiki/Lisbon"
+ },
+ "porto": {
+  "lat": 41.15,
+  "lng": -8.6108,
+  "qid": "Q36433",
+  "source": "https://www.wikidata.org/wiki/Q36433",
+  "wiki": "https://en.wikipedia.org/wiki/Porto"
+ },
+ "nueva-york": {
+  "lat": 40.7128,
+  "lng": -74.0061,
+  "qid": "Q60",
+  "source": "https://www.wikidata.org/wiki/Q60",
+  "wiki": "https://en.wikipedia.org/wiki/New_York_City"
+ },
+ "miami": {
+  "lat": 25.7742,
+  "lng": -80.1936,
+  "qid": "Q8652",
+  "source": "https://www.wikidata.org/wiki/Q8652",
+  "wiki": "https://en.wikipedia.org/wiki/Miami"
+ },
+ "miami-beach": {
+  "lat": 25.8139,
+  "lng": -80.1325,
+  "qid": "Q201516",
+  "source": "https://www.wikidata.org/wiki/Q201516",
+  "wiki": "https://en.wikipedia.org/wiki/Miami_Beach%2C_Florida"
+ },
+ "los-angeles": {
+  "lat": 34.0522,
+  "lng": -118.2437,
+  "qid": "Q65",
+  "source": "https://www.wikidata.org/wiki/Q65",
+  "wiki": "https://en.wikipedia.org/wiki/Los_Angeles"
+ },
+ "beverly-hills": {
+  "lat": 34.0731,
+  "lng": -118.3994,
+  "qid": "Q127856",
+  "source": "https://www.wikidata.org/wiki/Q127856",
+  "wiki": "https://en.wikipedia.org/wiki/Beverly_Hills%2C_California"
+ },
+ "malibu": {
+  "lat": 34.035,
+  "lng": -118.695,
+  "qid": "Q387047",
+  "source": "https://www.wikidata.org/wiki/Q387047",
+  "wiki": "https://en.wikipedia.org/wiki/Malibu%2C_California"
+ },
+ "las-vegas": {
+  "lat": 36.1672,
+  "lng": -115.1486,
+  "qid": "Q23768",
+  "source": "https://www.wikidata.org/wiki/Q23768",
+  "wiki": "https://en.wikipedia.org/wiki/Las_Vegas"
+ },
+ "aspen": {
+  "lat": 39.1922,
+  "lng": -106.8244,
+  "qid": "Q205842",
+  "source": "https://www.wikidata.org/wiki/Q205842",
+  "wiki": "https://en.wikipedia.org/wiki/Aspen%2C_Colorado"
+ },
+ "vail": {
+  "lat": 39.6358,
+  "lng": -106.3631,
+  "qid": "Q747987",
+  "source": "https://www.wikidata.org/wiki/Q747987",
+  "wiki": "https://en.wikipedia.org/wiki/Vail%2C_Colorado"
+ },
+ "jackson-hole": {
+  "lat": 43.5167,
+  "lng": -110.8333,
+  "qid": "Q1677361",
+  "source": "https://www.wikidata.org/wiki/Q1677361",
+  "wiki": "https://en.wikipedia.org/wiki/Jackson_Hole"
+ },
+ "napa-valley": {
+  "lat": 38.5,
+  "lng": -122.32,
+  "qid": "Q6159125",
+  "source": "https://www.wikidata.org/wiki/Q6159125",
+  "wiki": "https://en.wikipedia.org/wiki/Napa_Valley"
+ },
+ "san-francisco": {
+  "lat": 37.7775,
+  "lng": -122.4164,
+  "qid": "Q62",
+  "source": "https://www.wikidata.org/wiki/Q62",
+  "wiki": "https://en.wikipedia.org/wiki/San_Francisco"
+ },
+ "chicago": {
+  "lat": 41.8819,
+  "lng": -87.6278,
+  "qid": "Q1297",
+  "source": "https://www.wikidata.org/wiki/Q1297",
+  "wiki": "https://en.wikipedia.org/wiki/Chicago"
+ },
+ "boston": {
+  "lat": 42.3603,
+  "lng": -71.0578,
+  "qid": "Q100",
+  "source": "https://www.wikidata.org/wiki/Q100",
+  "wiki": "https://en.wikipedia.org/wiki/Boston"
+ },
+ "palm-beach": {
+  "lat": 26.7056,
+  "lng": -80.0364,
+  "qid": "Q695411",
+  "source": "https://www.wikidata.org/wiki/Q695411",
+  "wiki": "https://en.wikipedia.org/wiki/Palm_Beach%2C_Florida"
+ },
+ "hamptons": {
+  "lat": 40.8849,
+  "lng": -72.5011,
+  "qid": "Q1574020",
+  "source": "https://www.wikidata.org/wiki/Q1574020",
+  "wiki": "https://en.wikipedia.org/wiki/The_Hamptons"
+ },
+ "toronto": {
+  "lat": 43.6703,
+  "lng": -79.3867,
+  "qid": "Q172",
+  "source": "https://www.wikidata.org/wiki/Q172",
+  "wiki": "https://en.wikipedia.org/wiki/Toronto"
+ },
+ "vancouver": {
+  "lat": 49.2608,
+  "lng": -123.1139,
+  "qid": "Q24639",
+  "source": "https://www.wikidata.org/wiki/Q24639",
+  "wiki": "https://en.wikipedia.org/wiki/Vancouver"
+ },
+ "whistler": {
+  "lat": 50.1208,
+  "lng": -122.9544,
+  "qid": "Q203122",
+  "source": "https://www.wikidata.org/wiki/Q203122",
+  "wiki": "https://en.wikipedia.org/wiki/Whistler%2C_British_Columbia"
+ },
+ "montreal": {
+  "lat": 45.5033,
+  "lng": -73.5868,
+  "qid": "Q340",
+  "source": "https://www.wikidata.org/wiki/Q340",
+  "wiki": "https://en.wikipedia.org/wiki/Montreal"
+ },
+ "cdmx": {
+  "lat": 19.3538,
+  "lng": -99.1359,
+  "qid": "Q1489",
+  "source": "https://www.wikidata.org/wiki/Q1489",
+  "wiki": "https://en.wikipedia.org/wiki/Mexico_City"
+ },
+ "cdmx-polanco": {
+  "lat": 19.4333,
+  "lng": -99.2,
+  "qid": "Q785318",
+  "source": "https://www.wikidata.org/wiki/Q785318",
+  "wiki": "https://en.wikipedia.org/wiki/Polanco"
+ },
+ "interlomas": {
+  "lat": null,
+  "lng": null,
+  "qid": "Q5918995",
+  "wiki": "https://en.wikipedia.org/wiki/Interlomas",
+  "note": "Wikidata da 19.2299,-99.2816, que cae al sur de la CDMX y no coincide con Interlomas (Huixquilucan, al poniente). No se pudo verificar con una segunda fuente: queda sin coordenada."
+ },
+ "valle-de-bravo": {
+  "lat": 19.1925,
+  "lng": -100.1306,
+  "qid": "Q3058725",
+  "source": "https://www.wikidata.org/wiki/Q3058725",
+  "wiki": "https://en.wikipedia.org/wiki/Valle_de_Bravo"
+ },
+ "san-miguel-de-allende": {
+  "lat": 20.9153,
+  "lng": -100.7439,
+  "qid": "Q753891",
+  "source": "https://www.wikidata.org/wiki/Q753891",
+  "wiki": "https://en.wikipedia.org/wiki/San_Miguel_de_Allende"
+ },
+ "guadalajara": {
+  "lat": 20.6764,
+  "lng": -103.3422,
+  "qid": "Q9022",
+  "source": "https://www.wikidata.org/wiki/Q9022",
+  "wiki": "https://en.wikipedia.org/wiki/Guadalajara"
+ },
+ "puerto-vallarta": {
+  "lat": 20.6413,
+  "lng": -105.2233,
+  "qid": "Q853258",
+  "source": "https://www.wikidata.org/wiki/Q853258",
+  "wiki": "https://en.wikipedia.org/wiki/Puerto_Vallarta"
+ },
+ "riviera-nayarit": {
+  "lat": null,
+  "lng": null,
+  "wiki": "Riviera Nayarit",
+  "qid": "Q7338874",
+  "note": "Wikidata no tiene coordenada (P625) para este elemento"
+ },
+ "punta-mita": {
+  "lat": 20.7752,
+  "lng": -105.527,
+  "qid": "Q7260546",
+  "source": "https://www.wikidata.org/wiki/Q7260546",
+  "wiki": "https://en.wikipedia.org/wiki/Punta_Mita"
+ },
+ "los-cabos": {
+  "lat": 23.2667,
+  "lng": -109.7667,
+  "qid": "Q659516",
+  "source": "https://www.wikidata.org/wiki/Q659516",
+  "wiki": "https://en.wikipedia.org/wiki/Los_Cabos"
+ },
+ "san-jose-del-cabo": {
+  "lat": 23.0617,
+  "lng": -109.7114,
+  "qid": "Q2088134",
+  "source": "https://www.wikidata.org/wiki/Q2088134",
+  "wiki": "https://en.wikipedia.org/wiki/San_Jos%C3%A9_del_Cabo"
+ },
+ "todos-santos": {
+  "lat": 23.4469,
+  "lng": -110.2231,
+  "qid": "Q1658489",
+  "source": "https://www.wikidata.org/wiki/Q1658489",
+  "wiki": "https://en.wikipedia.org/wiki/Todos_Santos%2C_Baja_California_Sur"
+ },
+ "cancun": {
+  "lat": 21.1614,
+  "lng": -86.8248,
+  "qid": "Q8969",
+  "source": "https://www.wikidata.org/wiki/Q8969",
+  "wiki": "https://en.wikipedia.org/wiki/Canc%C3%BAn"
+ },
+ "riviera-maya": {
+  "lat": 20.6314,
+  "lng": -87.0731,
+  "qid": "Q2061038",
+  "source": "https://www.wikidata.org/wiki/Q2061038",
+  "wiki": "https://en.wikipedia.org/wiki/Riviera_Maya"
+ },
+ "tulum": {
+  "lat": 20.2147,
+  "lng": -87.4289,
+  "qid": "Q725883",
+  "source": "https://www.wikidata.org/wiki/Q725883",
+  "wiki": "https://en.wikipedia.org/wiki/Tulum"
+ },
+ "merida": {
+  "lat": 20.97,
+  "lng": -89.62,
+  "qid": "Q165204",
+  "source": "https://www.wikidata.org/wiki/Q165204",
+  "wiki": "https://en.wikipedia.org/wiki/M%C3%A9rida%2C_Yucat%C3%A1n"
+ },
+ "oaxaca": {
+  "lat": 17.0606,
+  "lng": -96.7253,
+  "qid": "Q131429",
+  "source": "https://www.wikidata.org/wiki/Q131429",
+  "wiki": "https://en.wikipedia.org/wiki/Oaxaca_City"
+ },
+ "valle-de-guadalupe": {
+  "lat": 32.0978,
+  "lng": -116.5669,
+  "qid": "Q834310",
+  "source": "https://www.wikidata.org/wiki/Q834310",
+  "wiki": "https://en.wikipedia.org/wiki/Valle_de_Guadalupe"
+ },
+ "puebla": {
+  "lat": 19.0514,
+  "lng": -98.2178,
+  "qid": "Q125293",
+  "source": "https://www.wikidata.org/wiki/Q125293",
+  "wiki": "https://en.wikipedia.org/wiki/Puebla_(city)"
+ },
+ "queretaro": {
+  "lat": 20.5881,
+  "lng": -100.3881,
+  "qid": "Q173121",
+  "source": "https://www.wikidata.org/wiki/Q173121",
+  "wiki": "https://en.wikipedia.org/wiki/Quer%C3%A9taro_(city)"
+ },
+ "monterrey": {
+  "lat": 25.6844,
+  "lng": -100.3181,
+  "qid": "Q81033",
+  "source": "https://www.wikidata.org/wiki/Q81033",
+  "wiki": "https://en.wikipedia.org/wiki/Monterrey"
+ },
+ "dubai": {
+  "lat": 25.2697,
+  "lng": 55.3094,
+  "qid": "Q612",
+  "source": "https://www.wikidata.org/wiki/Q612",
+  "wiki": "https://en.wikipedia.org/wiki/Dubai"
+ },
+ "abu-dabi": {
+  "lat": 24.4511,
+  "lng": 54.3969,
+  "qid": "Q1519",
+  "source": "https://www.wikidata.org/wiki/Q1519",
+  "wiki": "https://en.wikipedia.org/wiki/Abu_Dhabi"
+ },
+ "doha": {
+  "lat": 25.2861,
+  "lng": 51.5294,
+  "qid": "Q3861",
+  "source": "https://www.wikidata.org/wiki/Q3861",
+  "wiki": "https://en.wikipedia.org/wiki/Doha"
+ },
+ "riad": {
+  "lat": 24.6383,
+  "lng": 46.715,
+  "qid": "Q3692",
+  "source": "https://www.wikidata.org/wiki/Q3692",
+  "wiki": "https://en.wikipedia.org/wiki/Riyadh"
+ },
+ "mascate": {
+  "lat": 23.6139,
+  "lng": 58.5922,
+  "qid": "Q3826",
+  "source": "https://www.wikidata.org/wiki/Q3826",
+  "wiki": "https://en.wikipedia.org/wiki/Muscat"
+ },
+ "tokio": {
+  "lat": 35.6894,
+  "lng": 139.6917,
+  "qid": "Q1490",
+  "source": "https://www.wikidata.org/wiki/Q1490",
+  "wiki": "https://en.wikipedia.org/wiki/Tokyo"
+ },
+ "kioto": {
+  "lat": 35.0116,
+  "lng": 135.7681,
+  "qid": "Q34600",
+  "source": "https://www.wikidata.org/wiki/Q34600",
+  "wiki": "https://en.wikipedia.org/wiki/Kyoto"
+ },
+ "osaka": {
+  "lat": 34.6938,
+  "lng": 135.5021,
+  "qid": "Q35765",
+  "source": "https://www.wikidata.org/wiki/Q35765",
+  "wiki": "https://en.wikipedia.org/wiki/Osaka"
+ },
+ "seul": {
+  "lat": 37.56,
+  "lng": 126.99,
+  "qid": "Q8684",
+  "source": "https://www.wikidata.org/wiki/Q8684",
+  "wiki": "https://en.wikipedia.org/wiki/Seoul"
+ },
+ "bangkok": {
+  "lat": 13.75,
+  "lng": 100.5167,
+  "qid": "Q1861",
+  "source": "https://www.wikidata.org/wiki/Q1861",
+  "wiki": "https://en.wikipedia.org/wiki/Bangkok"
+ },
+ "phuket": {
+  "lat": 7.89,
+  "lng": 98.3983,
+  "qid": "Q182565",
+  "source": "https://www.wikidata.org/wiki/Q182565",
+  "wiki": "https://en.wikipedia.org/wiki/Phuket_province"
+ },
+ "bali": {
+  "lat": -8.5,
+  "lng": 115,
+  "qid": "Q3125978",
+  "source": "https://www.wikidata.org/wiki/Q3125978",
+  "wiki": "https://en.wikipedia.org/wiki/Bali"
+ },
+ "yakarta": {
+  "lat": -6.1753,
+  "lng": 106.8269,
+  "qid": "Q3630",
+  "source": "https://www.wikidata.org/wiki/Q3630",
+  "wiki": "https://en.wikipedia.org/wiki/Jakarta"
+ },
+ "sidney": {
+  "lat": -33.8678,
+  "lng": 151.21,
+  "qid": "Q3130",
+  "source": "https://www.wikidata.org/wiki/Q3130",
+  "wiki": "https://en.wikipedia.org/wiki/Sydney"
+ },
+ "melbourne": {
+  "lat": -37.8142,
+  "lng": 144.9631,
+  "qid": "Q3141",
+  "source": "https://www.wikidata.org/wiki/Q3141",
+  "wiki": "https://en.wikipedia.org/wiki/Melbourne"
+ },
+ "queenstown": {
+  "lat": -45.0311,
+  "lng": 168.6625,
+  "qid": "Q613602",
+  "source": "https://www.wikidata.org/wiki/Q613602",
+  "wiki": "https://en.wikipedia.org/wiki/Queenstown%2C_New_Zealand"
+ },
+ "cartagena": {
+  "lat": 10.4236,
+  "lng": -75.5253,
+  "qid": "Q657461",
+  "source": "https://www.wikidata.org/wiki/Q657461",
+  "wiki": "https://en.wikipedia.org/wiki/Cartagena%2C_Colombia"
+ },
+ "bogota": {
+  "lat": 4.6097,
+  "lng": -74.0817,
+  "qid": "Q2841",
+  "source": "https://www.wikidata.org/wiki/Q2841",
+  "wiki": "https://en.wikipedia.org/wiki/Bogot%C3%A1"
+ },
+ "medellin": {
+  "lat": 6.2502,
+  "lng": -75.5676,
+  "qid": "Q48278",
+  "source": "https://www.wikidata.org/wiki/Q48278",
+  "wiki": "https://en.wikipedia.org/wiki/Medell%C3%ADn"
+ },
+ "buenos-aires": {
+  "lat": -34.5997,
+  "lng": -58.3819,
+  "qid": "Q1486",
+  "source": "https://www.wikidata.org/wiki/Q1486",
+  "wiki": "https://en.wikipedia.org/wiki/Buenos_Aires"
+ },
+ "mendoza": {
+  "lat": -32.8897,
+  "lng": -68.8444,
+  "qid": "Q44237",
+  "source": "https://www.wikidata.org/wiki/Q44237",
+  "wiki": "https://en.wikipedia.org/wiki/Mendoza%2C_Argentina"
+ },
+ "punta-del-este": {
+  "lat": -34.9557,
+  "lng": -54.9381,
+  "qid": "Q56069",
+  "source": "https://www.wikidata.org/wiki/Q56069",
+  "wiki": "https://en.wikipedia.org/wiki/Punta_del_Este"
+ },
+ "rio-de-janeiro": {
+  "lat": -22.9111,
+  "lng": -43.2056,
+  "qid": "Q8678",
+  "source": "https://www.wikidata.org/wiki/Q8678",
+  "wiki": "https://en.wikipedia.org/wiki/Rio_de_Janeiro"
+ },
+ "sao-paulo": {
+  "lat": -23.5504,
+  "lng": -46.6339,
+  "qid": "Q174",
+  "source": "https://www.wikidata.org/wiki/Q174",
+  "wiki": "https://en.wikipedia.org/wiki/S%C3%A3o_Paulo"
+ },
+ "lima": {
+  "lat": -12.06,
+  "lng": -77.0375,
+  "qid": "Q2868",
+  "source": "https://www.wikidata.org/wiki/Q2868",
+  "wiki": "https://en.wikipedia.org/wiki/Lima"
+ },
+ "cusco": {
+  "lat": -13.5169,
+  "lng": -71.9786,
+  "qid": "Q5582862",
+  "source": "https://www.wikidata.org/wiki/Q5582862",
+  "wiki": "https://en.wikipedia.org/wiki/Cusco"
+ },
+ "marrakech": {
+  "lat": 31.6295,
+  "lng": -7.9811,
+  "qid": "Q101625",
+  "source": "https://www.wikidata.org/wiki/Q101625",
+  "wiki": "https://en.wikipedia.org/wiki/Marrakesh"
+ },
+ "ciudad-del-cabo": {
+  "lat": -33.9253,
+  "lng": 18.4239,
+  "qid": "Q5465",
+  "source": "https://www.wikidata.org/wiki/Q5465",
+  "wiki": "https://en.wikipedia.org/wiki/Cape_Town"
+ },
+ "bora-bora": {
+  "lat": -16.498,
+  "lng": -151.736,
+  "qid": "Q183113",
+  "source": "https://www.wikidata.org/wiki/Q183113",
+  "wiki": "https://en.wikipedia.org/wiki/Bora_Bora"
+ }
+}

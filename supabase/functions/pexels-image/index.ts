@@ -57,7 +57,17 @@ Deno.serve(async (req) => {
     const photo = data?.photos?.[0];
     const image =
       photo?.src?.landscape ?? photo?.src?.large ?? photo?.src?.medium ?? null;
-    const result = { image, photographer: photo?.photographer ?? null };
+    // Crédito completo (guía de la API de Pexels): página de la foto y perfil del fotógrafo. Privé lo
+    // muestra como "Foto ilustrativa · Pexels · <fotógrafo>". Los campos son nuevos y opcionales: lo
+    // que ya estaba en caché sin ellos sigue sirviendo (el cliente enlaza a pexels.com).
+    const safe = (u: unknown) => (typeof u === 'string' && u.startsWith('https://') ? u : null);
+    const result = {
+      image,
+      photographer: photo?.photographer ?? null,
+      photographer_url: safe(photo?.photographer_url),
+      page_url: safe(photo?.url),
+      alt: typeof photo?.alt === 'string' ? photo.alt.slice(0, 200) : null,
+    };
     // Solo se guarda una respuesta válida de Pexels (también "sin foto": evita repetir la consulta).
     if (res.ok) {
       await cachePut(store, key, 'pexels_photo', result);

@@ -1,6 +1,6 @@
 # IATOS Privé · Modelo de datos, personalización e Iato
 
-> Parte de la serie Privé. Antecedentes: [Auditoría](IATOS_PRIVE_AUDITORIA.md). Reglas de estados y fuentes: [Calidad y fuentes](IATOS_PRIVE_CALIDAD_FUENTES.md).
+> Parte de la serie Privé. Antecedentes: [Auditoría](IATOS_PRIVE_AUDITORIA.md). Reglas de estados y fuentes: [Estándar de curaduría](IATOS_PRIVE_CURATION_STANDARD.md).
 > Nada de esto está aplicado. Es un diseño para que el dueño lo apruebe; cada migración se prueba primero en una réplica (como `scratchpad/pgtest2/replay.sh`).
 
 ## Resumen para fundadores
@@ -85,7 +85,7 @@ CREATE UNIQUE INDEX prive_dest_unique_name ON public.prive_destinations (coalesc
 - Las experiencias cuelgan de una `locality`, con un `neighborhood` opcional.
 - Los `corridor` agrupan localidades **sin duplicarlas**. Ejemplo: el corredor "Riviera Nayarit y Vallarta" contiene Punta Mita (Nayarit) y Puerto Vallarta (Jalisco), porque Puerto Vallarta no pertenece a Nayarit.
 - La pertenencia a un corredor va en `prive_destination_members(corridor_id, destination_id)`.
-- La normalización de la lista objetivo del dueño está en [Cobertura global](IATOS_PRIVE_COBERTURA_GLOBAL.md).
+- La normalización de la lista objetivo del dueño está en [Destinos globales](IATOS_PRIVE_GLOBAL_DESTINATIONS.md).
 - **RLS:** lectura para `authenticated` (los nombres de ciudades no son contenido reservado); escritura solo para `service_role`.
 
 ```sql
@@ -231,7 +231,7 @@ La vista pública calcula `effective_commercial_status`: vuelve a `none` o `exte
 
 ### 3.4 Estados de datos
 
-Son seis. DESACTUALIZADO se calcula. Las definiciones operativas están en [Calidad §3](IATOS_PRIVE_CALIDAD_FUENTES.md#3-qué-cuenta-como-cada-estado).
+Son seis. DESACTUALIZADO se calcula. Las definiciones operativas están en [Calidad §3](IATOS_PRIVE_CURATION_STANDARD.md#3-qué-cuenta-como-cada-estado).
 
 ```sql
 CREATE VIEW public.prive_experiences_v WITH (security_invoker = true) AS
@@ -292,7 +292,7 @@ CREATE POLICY prive_exp_read ON public.prive_experiences FOR SELECT TO authentic
 - **Se guarda en la fila:** `image_url`, `image_photographer`, `image_photographer_url`, `image_page_url` y `image_checked_at`. Así la tarjeta no llama a Pexels cada vez. Se refresca cada 90 días, junto con la verificación.
 - **Cambio menor necesario:** que `pexels-image` devuelva también `photographer_url`, `url` (la página de la foto) y `alt`. Hoy solo devuelve `{image, photographer}`.
 - `image_is_illustrative = true` siempre, salvo que una persona marque `verified_image = true` porque la foto muestra **ese** lugar.
-- La política completa está en [Calidad §5](IATOS_PRIVE_CALIDAD_FUENTES.md#5-política-de-imágenes).
+- La política completa está en [Calidad §5](IATOS_PRIVE_CURATION_STANDARD.md#5-política-de-imágenes).
 
 ---
 
@@ -530,7 +530,9 @@ Se agrega a `TOOLS` y `TOOL_FUNCTIONS` en `supabase/functions/concierge-chat/ind
 
 ### 9.1 Lista de migraciones (nombres propuestos; todas idempotentes)
 
-1. `20261023100000_prive_destinations.sql`: `prive_norm()`, `prive_destinations`, `prive_destination_aliases`, `prive_destination_members`, RLS, siembra de las 36 ciudades piloto con barrios y corredores (§2, [Cobertura §3](IATOS_PRIVE_COBERTURA_GLOBAL.md#3-piloto-36-ciudades-en-curaduría)).
+> **Implementado (rama `claude/wc-prive-catalog`, sin aplicar en producción):** `20261023100000_prive_destinations`, `…100010_prive_destinations_seed` (lista exacta del dueño, 111 destinos), `…100100_prive_experiences` (alianzas, experiencias, etiquetas con evidencia, cobertura calculada, 18+), `…100200_prive_legacy_backfill`, `…100250_prive_metrics`, `…100300_prive_requests_lifecycle`, `…100400_prive_content` (RPC con `prive_require`, personalización con consentimiento, guardados y viaje), `…100500_prive_import` y `…100600_prive_nightlife_compat` (vista con otro nombre; el renombre de la fase 6 queda pendiente). La parte de derechos de la migración 7 la hizo el grupo core; aquí solo quedó la declaración 18+ (`prive_age_confirmations`). Detalle: [Estándar de curaduría](IATOS_PRIVE_CURATION_STANDARD.md), [Destinos globales](IATOS_PRIVE_GLOBAL_DESTINATIONS.md) y [Experience Planner](IATOS_PRIVE_EXPERIENCE_PLANNER.md).
+
+1. `20261023100000_prive_destinations.sql`: `prive_norm()`, `prive_destinations`, `prive_destination_aliases`, `prive_destination_members`, RLS, siembra de la lista del dueño con barrios y áreas (§2, [Cobertura §3](IATOS_PRIVE_GLOBAL_DESTINATIONS.md#3-estado-de-cada-destino)).
 2. `20261023100100_prive_experiences.sql`: `prive_partner_agreements`, `prive_experiences` con los CHECK, `prive_agreement_active()`, `prive_experiences_v`, `prive_dedupe_candidates`, RLS y `prive_teaser()`.
 3. `20261023100200_prive_legacy_backfill.sql`: copia de `nightlife_premium` a `prive_experiences` como PENDIENTE, normalización de sitios y avisos de duplicados (§5.1–5.2).
 4. `20261023100300_prive_requests_lifecycle.sql`: columnas y CHECK de `concierge_requests`, `concierge_request_events`, trigger de guarda (IATOS-114), `prive_request_transition()`, `recomendaciones.experience_id` + índice único.
@@ -557,7 +559,7 @@ Se agrega a `TOOLS` y `TOOL_FUNCTIONS` en `supabase/functions/concierge-chat/ind
    - `city_key` → `destination_id` por alias. Si no se resuelve, la fila se rechaza en el reporte.
    - `neighborhood` → barrio (se crea como `PENDIENTE` de revisión si no existe).
    - `universe` (o, si falta, `category_group`: `the_table`, `after_dark`, `extraordinary` → `culture_access` con aviso).
-   - `status`: `verificado` → `CURADO` con `verified_at`. Pasa a `VERIFICADO` solo cuando el muestreo humano del lote aprueba ([Calidad §2](IATOS_PRIVE_CALIDAD_FUENTES.md#2-proceso-de-verificación-y-cadencia)). `no_confirmado` → `CURADO` si trae un reconocimiento o fuente con URL; si no, `PENDIENTE`.
+   - `status`: `verificado` → `CURADO` con `verified_at`. Pasa a `VERIFICADO` solo cuando el muestreo humano del lote aprueba ([Calidad §2](IATOS_PRIVE_CURATION_STANDARD.md#2-proceso-de-verificación-y-cadencia)). `no_confirmado` → `CURADO` si trae un reconocimiento o fuente con URL; si no, `PENDIENTE`.
    - `image.*` de Wikimedia o Google (si alguna versión anterior lo trae) **se ignora**: decisión Pexels. Se queda `image_query`.
 3. **`keep_existing` / `replaces_existing_name`:**
    - Si existe la fila heredada (`legacy_nightlife_id`) con la misma llave, se actualiza con los campos curados.

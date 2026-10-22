@@ -81,7 +81,8 @@ export function findCity(text: unknown): City | null {
   return best?.city ?? null;
 }
 
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+// Exportada para reutilizarla en el planificador de Privé (_shared/privePlanner.ts).
+export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371;
   const rad = (d: number) => (d * Math.PI) / 180;
   const dLat = rad(b.lat - a.lat);

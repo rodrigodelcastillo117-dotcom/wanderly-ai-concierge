@@ -1,7 +1,7 @@
 # IATOS Privé · Fase 1: auditoría de lo que ya existe
 
 > Iniciativa **P2**. No debe retrasar seguridad, pagos ni cotizaciones. Este documento solo lee código y datos: no se cambió código ni producción.
-> Documentos hermanos: [Modelo de datos](IATOS_PRIVE_MODELO_DE_DATOS.md) · [Cobertura global](IATOS_PRIVE_COBERTURA_GLOBAL.md) · [UX](IATOS_PRIVE_UX.md) · [Calidad y fuentes](IATOS_PRIVE_CALIDAD_FUENTES.md) · [Pruebas](IATOS_PRIVE_TEST_MATRIX.md) · [Alianzas](IATOS_PRIVE_ALIANZAS_COMERCIALES.md).
+> Documentos hermanos: [Modelo de datos](IATOS_PRIVE_MODELO_DE_DATOS.md) · [Destinos globales](IATOS_PRIVE_GLOBAL_DESTINATIONS.md) · [UX](IATOS_PRIVE_UX.md) · [Estándar de curaduría](IATOS_PRIVE_CURATION_STANDARD.md) · [Pruebas](IATOS_PRIVE_TEST_MATRIX.md) · [Alianzas](IATOS_PRIVE_ALIANZAS_COMERCIALES.md).
 > Convención: **VERIFICADO** = lo comprobamos hoy (2026-10-22), leyendo el repo o probando el enlace; se indica la fuente. **SUPUESTO** = inferencia que alguien debe confirmar.
 
 ---
