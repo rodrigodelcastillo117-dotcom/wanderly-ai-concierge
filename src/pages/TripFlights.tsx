@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { toastFunctionError } from "@/lib/functionErrors";
 import { googleFlightsLink, skyscannerLink, kayakFlightsLink, ensureAviasalesMarker } from "@/lib/affiliateLinks";
 import { trackBookingClick } from "@/lib/trackBooking";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
@@ -37,6 +38,8 @@ const TripFlights = () => {
   const [source, setSource] = useState<string>("");
   const [meta, setMeta] = useState<any>(null);
   const [consultedAt, setConsultedAt] = useState<string | null>(null);
+  // El servidor marca OBSOLETO un precio guardado (uso justo); nunca se presenta como "en vivo".
+  const [estadoDato, setEstadoDato] = useState<string | null>(null);
   // Link de búsqueda (sin precio) cuando el proveedor en vivo no respondió.
   const [unavailableUrl, setUnavailableUrl] = useState<string | null>(null);
 
@@ -58,6 +61,9 @@ const TripFlights = () => {
       setResults(list);
       setMeta(data.meta);
       setConsultedAt(data.consulted_at ?? null);
+      setEstadoDato(data.estado_dato ?? null);
+      // Límite de búsquedas en vivo del plan: se muestra lo que sí hubo y el aviso.
+      if (data.aviso_limite) toast.info(data.aviso_limite);
       if (data.disponible === false || list.length === 0) {
         setSource("");
         setUnavailableUrl(data.search_url ?? data.google_flights_url ?? "");
@@ -65,7 +71,8 @@ const TripFlights = () => {
         setSource(data.source);
       }
     } catch (e: any) {
-      toast.error(e.message ?? "Error buscando vuelos");
+      // FREE_LIMIT_REACHED (búsquedas en vivo del día) abre el diálogo de límite.
+      await toastFunctionError(e, "No pudimos buscar vuelos. Intenta de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -114,7 +121,7 @@ const TripFlights = () => {
         </div>
         {source && (
           <div className="flex items-center gap-2 flex-wrap">
-            <PriceSourceBadge source={source === "serpapi" ? "google_flights" : source} consultadoAt={consultedAt} />
+            <PriceSourceBadge source={source === "serpapi" ? "google_flights" : source} estado={estadoDato} consultadoAt={consultedAt} />
             {meta && (
               <span className="text-xs text-muted-foreground">{meta.dep_iata} → {meta.arr_iata}</span>
             )}

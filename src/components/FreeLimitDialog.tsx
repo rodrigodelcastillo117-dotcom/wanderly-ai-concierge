@@ -16,6 +16,12 @@ export function FreeLimitDialog({ info, onClose, onUpgrade }: {
 }) {
   const title = !info
     ? ""
+    : info.quota === "price_watches_active"
+      ? (info.upgradeAvailable && !info.limit ? "Alertas de precio con IATOS PRO" : "Llegaste al máximo de alertas")
+    : info.quota === "tracked_flights_active"
+      ? "Llegaste al máximo de vuelos seguidos"
+    : info.quota.startsWith("live_searches_")
+      ? "Usaste tus búsquedas en vivo"
     : !info.upgradeAvailable
       ? "Llegaste al límite de tu plan"
       : info.quota.endsWith("_trial")

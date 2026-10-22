@@ -15,7 +15,10 @@ export const PRO_PATH = "/dashboard/pro";
 
 export type QuotaName =
   | "concierge_monthly" | "trip_analysis_once" | "trip_analysis_monthly"
-  | "concierge_trial" | "trip_analysis_trial" | "concierge_daily" | "trip_analysis_daily";
+  | "concierge_trial" | "trip_analysis_trial" | "concierge_daily" | "trip_analysis_daily"
+  // Alertas y vuelos activos a la vez, y bolsa de búsquedas en vivo (supabase/functions/_shared/quota.ts).
+  | "price_watches_active" | "tracked_flights_active"
+  | "live_searches_daily" | "live_searches_monthly" | "live_searches_trial";
 
 export type FreeLimitInfo = {
   quota: QuotaName;
@@ -41,6 +44,8 @@ const GENERIC_SUPABASE = /edge function returned a non-2xx status code|failed to
 const QUOTAS: QuotaName[] = [
   "concierge_monthly", "trip_analysis_once", "trip_analysis_monthly",
   "concierge_trial", "trip_analysis_trial", "concierge_daily", "trip_analysis_daily",
+  "price_watches_active", "tracked_flights_active",
+  "live_searches_daily", "live_searches_monthly", "live_searches_trial",
 ];
 /** Solo los límites mensuales y diarios se renuevan; los de una vez y los de la prueba, no. */
 const renews = (q: QuotaName) => q.endsWith("_monthly") || q.endsWith("_daily");
@@ -74,12 +79,31 @@ export function formatRenewal(iso: string | null | undefined): string | null {
   return d.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 /** Texto del aviso de límite. Mismo texto que el servidor (supabase/functions/_shared/quota.ts). */
 export function freeLimitCopy(info: FreeLimitInfo): string {
   const q = info.quota;
   const fecha = formatRenewal(info.renewsAt) ?? (q.endsWith("_daily") ? "mañana" : "próximo mes");
   // Precio desde la fuente única de textos comerciales (planCopy).
   const pro = `Puedes seguir usando las funciones gratuitas o activar IATOS PRO por ${PRICE_LINE}, sujeto a las condiciones vigentes.`;
+  const n = typeof info.limit === "number" && info.limit >= 0 ? info.limit : null;
+  if (q === "price_watches_active") {
+    if (info.upgradeAvailable && !n) return `Las alertas de precio están incluidas en IATOS PRO. ${pro}`;
+    const tope = n ? `Ya tienes ${plural(n, "alerta de precio activa", "alertas de precio activas")}, el máximo de tu plan.` : "Llegaste al máximo de alertas de precio de tu plan.";
+    return `${tope} Desactiva una para activar otra.${info.upgradeAvailable ? ` ${pro}` : ""}`;
+  }
+  if (q === "tracked_flights_active") {
+    const tope = n ? `Ya sigues ${plural(n, "vuelo", "vuelos")} a la vez, el máximo de tu plan.` : "Llegaste al máximo de vuelos seguidos de tu plan.";
+    return `${tope} Deja de seguir uno para agregar otro.${info.upgradeAvailable ? ` ${pro}` : ""}`;
+  }
+  if (q.startsWith("live_searches_") && info.upgradeAvailable) {
+    const cuantas = n ? `tus ${plural(n, "búsqueda", "búsquedas")} en vivo` : "tus búsquedas en vivo";
+    if (q === "live_searches_trial") return `Usaste ${cuantas} de tu prueba gratuita de IATOS PRO. ${pro}`;
+    return q === "live_searches_daily"
+      ? `Usaste ${cuantas} de hoy (vuelos y hoteles); se renuevan el ${fecha}. ${pro}`
+      : `Usaste ${cuantas} de este mes (vuelos y hoteles); se renuevan el ${fecha}. ${pro}`;
+  }
   // Un plan de pago que llega a su límite no recibe oferta de "mejorar".
   if (!info.upgradeAvailable) {
     return q.endsWith("_daily")

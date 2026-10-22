@@ -94,6 +94,8 @@ export type FlightsSearchEnv = {
   tpToken?: string | null;
   lovableKey?: string | null;
   marker?: string | null;
+  /** fetch para SerpApi: el de la caché compartida (_shared/serpCache.ts) en producción. */
+  serpFetch?: typeof fetch;
 };
 
 export type SearchResult = { status: number; body: Record<string, unknown> };
@@ -140,7 +142,7 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
     try {
       const ctrl = new AbortController();
       const tid = setTimeout(() => ctrl.abort(), 18000);
-      const r = await fetch(u.toString(), { signal: ctrl.signal }).finally(() => clearTimeout(tid));
+      const r = await (env.serpFetch ?? fetch)(u.toString(), { signal: ctrl.signal }).finally(() => clearTimeout(tid));
       if (r.ok) {
         const j = await r.json();
         google_flights_url = j?.search_metadata?.google_flights_url ?? null;
@@ -168,6 +170,9 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
         });
         if (results.length > 0) source = "serpapi";
         else fallas.push("google_flights_sin_resultados");
+      } else if (r.headers.get("x-iatos-cache") === "limit") {
+        // La bolsa de búsquedas en vivo del plan se agotó: no se llamó a SerpApi.
+        fallas.push("google_flights_limite_del_plan");
       } else {
         // Nunca registrar la URL: lleva la API key.
         console.error("serpapi flights status:", r.status);
