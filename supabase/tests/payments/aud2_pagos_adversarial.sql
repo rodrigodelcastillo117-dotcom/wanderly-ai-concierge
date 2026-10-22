@@ -99,12 +99,16 @@ SELECT public.stripe_commit_payment_event(jsonb_build_object('event_id','evt_ax8
 SELECT ax.chk('X08 reembolso total de factura anterior: periodo refunded',
   (SELECT status FROM pro_paid_periods WHERE stripe_invoice_id = 'in_ax8') = 'refunded');
 
--- X09 disputa: si no hay administradores, notify_admins devuelve 0 y el webhook lo toma como
--- "campana_ya_enviada" (éxito): nadie se entera de la disputa.
-SELECT count(*) AS x9admins FROM public.admins \gset
+-- X09 disputa: si no hay administradores, notify_admins devolvía 0 (lo mismo que "ya enviado") y el
+-- webhook lo tomaba como "campana_ya_enviada" (200): nadie se enteraba de la disputa.
+-- r2 (D-P3-3): sin administradores devuelve -1 (sin destinatarios); con administradores, 1 la primera
+-- vez y 0 en el reintento. Se prueba sin administradores dentro de una transacción que se deshace.
+BEGIN;
+DELETE FROM public.admins;
 SELECT public.notify_admins('stripe:evt_ax9', 'Disputa abierta en Stripe', 'prueba') AS x9 \gset
-SELECT ax.chk('X09 sin administradores, el aviso de disputa no se da por enviado',
-  :x9admins > 0 OR :x9 > 0, 'admins=' || :x9admins || ' notify_admins=' || :x9 || ' (index.ts lo traduce a "campana_ya_enviada" y responde 200)');
+ROLLBACK;
+SELECT ax.chk('X09 sin administradores, el aviso de disputa no se da por enviado (notify_admins = -1, no 0)',
+  :x9 = -1, 'notify_admins=' || :x9 || ' (0 se lee como "campana_ya_enviada" y el webhook responde 200)');
 
 -- X10 cortesía por correo: con email_confirmed_at lleno al registrarse (mailer_autoconfirm=true),
 -- quien registre primero un correo de comp_grants obtiene PRO comped sin vencimiento y plan 'pro'

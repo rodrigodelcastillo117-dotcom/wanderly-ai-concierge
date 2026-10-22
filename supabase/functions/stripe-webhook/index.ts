@@ -7,6 +7,7 @@ import { escapeHtml, layout, sendEmail } from "../_shared/email.ts";
 import { isAlreadyGone } from "../_shared/stripe-billing.ts";
 import { redactPii } from "../_shared/redact.ts";
 import { missingRpcAsSkip } from "../_shared/prive-tenure.ts";
+import { deliverAdminAlert } from "./alerts.ts";
 import type { AdminAlert, StripeChargeLike } from "./payments.ts";
 import {
   cardFingerprintFrom,
@@ -149,36 +150,25 @@ async function invoiceForPaymentIntent(stripe: Stripe, pi: string): Promise<stri
 }
 
 // Aviso a administradores: campana (notify_admins, una vez por evento) y correo si hay Resend y
-// destinatario (HEALTH_ALERT_EMAIL o los correos de admins). Nunca lanza: un aviso fallido no
-// debe hacer que Stripe reintente el evento.
-async function alertAdmins(alert: AdminAlert): Promise<string> {
-  let status = "sin_aviso";
-  try {
-    const db = adminClient();
-    const { data: n, error } = await db.rpc("notify_admins", { _dedup_key: alert.key, _title: alert.title, _body: alert.body });
-    if (error) throw new Error(error.message);
-    status = Number(n) > 0 ? "campana" : "campana_ya_enviada";
-    if (Number(n) > 0 && Deno.env.get("RESEND_API_KEY")) {
-      const to: string[] = [];
-      const fixed = (Deno.env.get("HEALTH_ALERT_EMAIL") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
-      if (fixed.length) to.push(...fixed);
-      else {
-        const { data: admins } = await db.from("admins").select("user_id");
-        for (const a of admins ?? []) {
-          const { data } = await db.auth.admin.getUserById((a as { user_id: string }).user_id);
-          if (data?.user?.email) to.push(data.user.email);
-        }
+// destinatario (HEALTH_ALERT_EMAIL o los correos de admins). La decisión está en alerts.ts
+// (D-P3-3: sin administradores no cuenta como enviado). Nunca lanza.
+function alertAdmins(alert: AdminAlert): Promise<string> {
+  const db = adminClient();
+  return deliverAdminAlert(alert, {
+    notifyAdmins: (a) => db.rpc("notify_admins", { _dedup_key: a.key, _title: a.title, _body: a.body }),
+    emailConfigured: Boolean(Deno.env.get("RESEND_API_KEY")),
+    fixedRecipients: (Deno.env.get("HEALTH_ALERT_EMAIL") ?? "").split(",").map((x) => x.trim()).filter(Boolean),
+    adminEmails: async () => {
+      const out: string[] = [];
+      const { data: admins } = await db.from("admins").select("user_id");
+      for (const a of admins ?? []) {
+        const { data } = await db.auth.admin.getUserById((a as { user_id: string }).user_id);
+        if (data?.user?.email) out.push(data.user.email);
       }
-      let sent = 0;
-      for (const address of to) {
-        const r = await sendEmail({ to: address, subject: `[IATOS] ${alert.title}`, html: layout(escapeHtml(alert.title), `<p>${escapeHtml(alert.body)}</p>`) });
-        if (r.ok) sent++;
-      }
-      status = to.length ? (sent === to.length ? "campana_y_correo" : "campana_correo_parcial") : status;
-    }
-  } catch (e) {
-    console.error("webhook: aviso a administradores falló", redactPii((e as Error).message));
-    status = "fallido";
-  }
-  return status;
+      return out;
+    },
+    sendEmail: async (to, a) =>
+      (await sendEmail({ to, subject: `[IATOS] ${a.title}`, html: layout(escapeHtml(a.title), `<p>${escapeHtml(a.body)}</p>`) })).ok,
+    logError: (msg, detail) => console.error(msg, redactPii(String(detail ?? ""))),
+  });
 }

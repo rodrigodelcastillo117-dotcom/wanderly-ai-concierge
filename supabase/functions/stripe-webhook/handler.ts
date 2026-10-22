@@ -17,6 +17,7 @@
 //   Cada paso es idempotente, así que el reintento de Stripe converge al mismo estado final.
 
 import { handlePaymentEvent, PAYMENT_EVENTS, type PaymentDeps } from "./payments.ts";
+import { alertDelivered } from "./alerts.ts";
 import {
   invoiceNeedsRetrieve,
   paidPeriodFromInvoice,
@@ -228,7 +229,7 @@ async function alertDuplicate(deps: WebhookDeps, r: ApplyResult, sub: StripeSubs
   }
   if (!alert) return;
   const status = await deps.alertAdmins(alert);
-  if (status === "fallido") throw new Error(`aviso a administradores falló (${eventId})`);
+  if (!alertDelivered(status)) throw new Error(`aviso a administradores no entregado: ${status} (${eventId})`);
 }
 
 const ok = (r: ApplyResult): WebhookOutcome => ({

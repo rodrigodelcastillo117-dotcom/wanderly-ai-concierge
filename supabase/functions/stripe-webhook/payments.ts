@@ -25,6 +25,7 @@
 
 import type { ApplyArgs, StripeEventLike, StripeInvoiceLike, StripeSubscriptionLike, WebhookOutcome } from "./handler.ts";
 import { tenureEventFor, type TenureEvent } from "../_shared/prive-tenure.ts";
+import { alertDelivered } from "./alerts.ts";
 
 export type StripeChargeLike = {
   id: string;
@@ -238,7 +239,8 @@ export async function handlePaymentEvent(event: StripeEventLike, deps: PaymentDe
   // AUD-05: en una disputa el aviso a administradores ES el efecto obligatorio (hay plazo para
   // responder en Stripe). Si la campana no se pudo guardar, no se marca el evento como hecho: 500 y
   // Stripe reintenta (el aviso lleva llave por evento, así que el reintento no lo duplica).
-  if (isDispute && alertStatus === "fallido") {
+  // D-P3-3: "sin_destinatarios" (no hay administradores ni correo de alerta) tampoco es un aviso.
+  if (isDispute && alertStatus !== null && !alertDelivered(alertStatus)) {
     throw new Error(`aviso a administradores falló (${event.id}); se reintentará`);
   }
 
