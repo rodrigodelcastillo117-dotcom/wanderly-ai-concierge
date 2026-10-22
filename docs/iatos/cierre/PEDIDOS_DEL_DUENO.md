@@ -47,3 +47,4 @@ Cada pedido tiene un equipo responsable y un estado. Nada se publica sin autoriz
 | 41 | THE PRIVÉ KEY + YOUR WORLD IS READY + Curated for You + Your Next Journey + 48 Hours + Surprise Me | wc-privekey | En curso |
 | 42 | PRIVÉ DROPS, PRIVILEGE RADAR, INSIDER'S NOTEBOOK, PRIVATE EDIT, PASSPORT, vista previa antes del día 90, costos y métricas | wc-privevalor | En curso |
 | 43 | Publicación: el dueño dio su OK y prefiere **una sola salida con todo** | lead | Pendiente de cerrar todo |
+| 44 | THE PRIVATE EDITION: revista personalizada (Latest Issue, My Edition, World Briefing, Privé Opportunities, Flight Edition PDF/offline, Library), panel editorial, fuentes y licencias, From Page to Experience | wc-edition (Privé Drops = fuente única de oportunidades; The Private Edit se integra aquí) | En curso |
