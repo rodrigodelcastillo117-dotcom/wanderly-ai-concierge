@@ -7,7 +7,11 @@ import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { ReadonlyBudget } from "@/components/ReadonlyBudget";
-import { CityCollapsible, useCityImage } from "@/components/CityCollapsible";
+import { CityCollapsible } from "@/components/CityCollapsible";
+import { IllustrativeCaption, SmartImage } from "@/components/media/SmartImage";
+import { AirlineLogo } from "@/components/media/AirlineLogo";
+import { activityQuery, cuisineQuery, flightBackdropQuery, hotelQuery } from "@/lib/categoryImagery";
+import { airlineCode } from "@/lib/airlines";
 import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
@@ -387,6 +391,11 @@ const TripDetail = () => {
           <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         )}
         <div className="absolute inset-0 bg-gradient-overlay" />
+        {/* El video/foto de stock muestra el destino, no un lugar del viaje: se marca. */}
+        {!trip.cover_image_url && <IllustrativeCaption className="bottom-3 right-3" />}
+        {trip.cover_image_url && /googleusercontent\.com/.test(trip.cover_image_url) && (
+          <span className="absolute bottom-3 right-3 z-[2] text-[9px] text-white/70 drop-shadow pointer-events-none">Foto: Google</span>
+        )}
 
 
         <div className="absolute top-4 inset-x-4 z-20 flex flex-wrap items-start justify-end gap-2 md:top-6 md:right-6 md:left-auto md:flex-nowrap">
@@ -661,7 +670,17 @@ const TripDetail = () => {
                           ) : (
                             <ExpandableItemCard
                               key={i}
-                              imageQuery={v.modo === "autobus" ? "intercity bus highway" : v.modo === "auto" ? "car road trip highway" : `${v.aerolinea} airplane airline`}
+                              // Foto ilustrativa del medio (marcada) + logo real de la aerolínea en su ficha:
+                              // una foto de stock "de Aeroméxico" sería un avión cualquiera. Un solo fondo
+                              // para todos los vuelos (una llamada): lo que distingue cada tarjeta es el logo.
+                              image={{
+                                alt: "",
+                                stockQuery: v.modo === "autobus" ? "intercity bus highway" : v.modo === "auto" ? "car road trip highway" : flightBackdropQuery(0),
+                                icon: v.modo === "autobus" ? Bus : v.modo === "auto" ? Car : Plane,
+                              }}
+                              overlay={!isGroundOption(v) ? (
+                                <div className="absolute left-3 bottom-3 z-[3]"><AirlineLogo airline={v.aerolinea} size={34} /></div>
+                              ) : undefined}
                               eyebrow={v.tier}
                               title={v.aerolinea}
                               subtitle={`${v.duracion} · ${v.escalas}`}
@@ -700,7 +719,7 @@ const TripDetail = () => {
                           const active = selHospedaje === i;
                           return (
                             <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
-                              <HotelCard hotel={h} city={city} trip={trip} active={active} onClick={() => setSelHospedaje(active ? -1 : i)} index={i} serverOffers={serverOffers} />
+                              <HotelCard hotel={h} city={city} trip={trip} active={active} variant={cityHosp.indexOf(h)} onClick={() => setSelHospedaje(active ? -1 : i)} index={i} serverOffers={serverOffers} />
                             </div>
                           );
                         })}
@@ -764,7 +783,14 @@ const TripDetail = () => {
                             <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
 
                               <ExpandableItemCard
-                                imageQuery={`${t.nombre} ${city} experience tour`}
+                                // El lugar real si Google lo reconoce (por su place_id o por el mismo
+                                // nombre); si no, una foto ilustrativa del tipo de experiencia.
+                                image={{
+                                  alt: t.nombre,
+                                  lookup: t.place_id ? { placeId: t.place_id } : { name: t.nombre, city },
+                                  stockQuery: activityQuery(t.nombre, city, cityTours.indexOf(t)),
+                                  icon: Compass,
+                                }}
                                 eyebrow={t.duracion}
                                 title={t.nombre}
                                 price={t.precio_por_persona > 0 ? fmtMXN(t.precio_por_persona) : undefined}
@@ -802,7 +828,15 @@ const TripDetail = () => {
                           return (
                             <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
                               <ExpandableItemCard
-                                imageQuery={`${r.nombre} ${city} restaurant food`}
+                                // Foto real del restaurante (Google); si no hay, comida de su cocina, marcada
+                                // como ilustrativa ("Italiana" → pasta), nunca otro restaurante.
+                                image={{
+                                  alt: cleanName,
+                                  photoRef: r.photo_ref ?? null,
+                                  lookup: r.place_id ? { placeId: r.place_id } : { name: cleanName, city },
+                                  stockQuery: cuisineQuery(r.cocina, cleanName, i),
+                                  icon: Utensils,
+                                }}
                                 eyebrow={r.cocina}
                                 title={cleanName}
                                 price={r.rango_precio}
@@ -1119,10 +1153,15 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any;
         </div>
       )}
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center">
-          <Icon className="w-4 h-4 text-primary" />
-        </div>
-        <div>
+        {airlineCode(option.aerolinea) ? (
+          // Vuelo con aerolínea conocida: su logo real (CDN de Travelpayouts) en ficha blanca.
+          <AirlineLogo airline={option.aerolinea} size={32} />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center">
+            <Icon className="w-4 h-4 text-primary" />
+          </div>
+        )}
+        <div className="min-w-0">
           <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{modeLabel}{option.tier ? ` · ${option.tier}` : ""}</p>
           <p className="font-medium text-sm">{option.aerolinea || option.provider}</p>
         </div>
@@ -1150,25 +1189,27 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt }: { option: any;
   );
 };
 
-const HotelCard = ({ hotel, city, trip, active, onClick, index, serverOffers }: { hotel: any; city: string; trip: any; active: boolean; onClick: () => void; index: number; serverOffers: TripOfferActions }) => {
-  const img = useCityImage(`${hotel.nombre} ${city} hotel`);
+const HotelCard = ({ hotel, city, trip, active, variant = 0, onClick, index, serverOffers }: { hotel: any; city: string; trip: any; active: boolean; variant?: number; onClick: () => void; index: number; serverOffers: TripOfferActions }) => {
   return (
     <div
       onClick={onClick}
-      className={`relative rounded-xl overflow-hidden cursor-pointer transition border ${
+      className={`group relative rounded-xl overflow-hidden cursor-pointer transition border ${
         active ? "border-primary ring-1 ring-primary/40" : "border-border/60 hover:border-primary/50"
       }`}
     >
-      <div className="relative h-32 w-full overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: img
-              ? `url(${img})`
-              : "linear-gradient(135deg, hsl(var(--surface)), hsl(var(--card)))",
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
+      <div className="relative h-40 w-full overflow-hidden">
+        {/* Foto real del hotel (Google, solo si encuentra ESE hotel); si no, una ilustrativa marcada. */}
+        <SmartImage
+          alt={hotel.nombre}
+          imageUrl={hotel.thumbnail ?? hotel.foto ?? null}
+          lookup={hotel.place_id ? { placeId: hotel.place_id } : { name: hotel.nombre, city }}
+          stockQuery={hotelQuery(hotel.tier || hotel.tipo, variant)}
+          icon={Hotel}
+          className="!absolute inset-0"
+          imgClassName="group-hover:scale-105"
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+        </SmartImage>
         {active && (
           <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
             <Check className="w-3.5 h-3.5" />

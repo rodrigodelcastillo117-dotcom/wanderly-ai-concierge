@@ -5,6 +5,10 @@ import {
   Utensils, UserRound, CalendarCheck, Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SmartImage } from "@/components/media/SmartImage";
+import { AirlineLogo } from "@/components/media/AirlineLogo";
+import { airlineCode } from "@/lib/airlines";
+import { activityQuery, cuisineQuery, hotelQuery } from "@/lib/categoryImagery";
 import { ActionButton as AffiliateActionButton } from "@/components/ActionButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -258,15 +262,46 @@ const Rating = ({ value }: { value?: number }) =>
     </span>
   ) : null;
 
+/** Ciudad de la card si el subtítulo la trae ("París · 5★" → "París"). */
+const cardCity = (card: ConciergeCard) => String(card.subtitle ?? "").split(/[·•|,]/)[0]?.trim().slice(0, 60) || null;
+
+/** De qué buscar una foto ilustrativa si el lugar no tiene foto real. */
+function stockFor(card: ConciergeCard): string {
+  if (card.type === "restaurant") return cuisineQuery(`${card.meta ?? ""} ${card.subtitle ?? ""}`, card.title);
+  if (card.type === "hotel") return hotelQuery(card.subtitle, card.title);
+  return activityQuery(card.title, cardCity(card));
+}
+
+/**
+ * Portada de una card de lugar: la foto que trajo la herramienta (Google Hotels / TripAdvisor), la
+ * foto de Google Places del lugar (photo_ref o place_id de la evidencia) o, si Google no encuentra
+ * ESE lugar, una foto ilustrativa de su tipo marcada como tal.
+ */
 function MediaHeader({ card, Icon }: { card: ConciergeCard; Icon: typeof Utensils }) {
   const img = safeHttpsUrl(card.image_url);
+  const photoRef = typeof card.photo_ref === "string" ? card.photo_ref : null;
+  const placeId = typeof card.place_id === "string" ? card.place_id : null;
   return (
-    <div className="h-32 bg-muted flex items-center justify-center relative overflow-hidden">
-      {img ? <img src={img} alt={card.title} className="h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
-        : <Icon className="w-10 h-10 text-primary/40" />}
-      <span className="absolute top-3 right-3"><Rating value={card.rating} /></span>
-    </div>
+    <SmartImage
+      alt={card.title}
+      imageUrl={img ?? null}
+      photoRef={photoRef}
+      lookup={placeId ? { placeId } : { name: card.title, city: cardCity(card) }}
+      stockQuery={stockFor(card)}
+      icon={Icon}
+      className="h-40 w-full"
+      captionPosition="bottom-left"
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+      <span className="absolute top-3 right-3 z-[2]"><Rating value={card.rating} /></span>
+    </SmartImage>
   );
+}
+
+/** Aerolínea de una card de vuelo (proveedor o título: "Aeroméxico · MEX → MAD", "AM 401"). */
+function airlineOf(card: ConciergeCard): string | null {
+  for (const v of [card.provider, card.title, card.subtitle]) if (airlineCode(v)) return String(v);
+  return null;
 }
 
 const LINK_ICON: Record<CardLink["kind"], typeof Navigation> = {
@@ -309,9 +344,13 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
       <div className="rounded-2xl border border-border bg-card p-4" data-card-type="flight">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-              <Plane className="w-5 h-5 text-primary" />
-            </div>
+            {airlineOf(card) ? (
+              <AirlineLogo airline={airlineOf(card)} size={36} />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                <Plane className="w-5 h-5 text-primary" />
+              </div>
+            )}
             <div className="min-w-0">
               <h4 className="font-display text-base leading-tight truncate">{card.title}</h4>
               {card.subtitle && <p className="text-xs text-muted-foreground">{card.subtitle}</p>}
@@ -352,9 +391,17 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
     return (
       <div className="rounded-2xl border border-border bg-card p-4" data-card-type="place">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-            <MapPin className="w-5 h-5 text-primary" aria-hidden="true" />
-          </div>
+          <SmartImage
+            alt={card.title}
+            imageUrl={safeHttpsUrl(card.image_url) ?? null}
+            photoRef={typeof card.photo_ref === "string" ? card.photo_ref : null}
+            lookup={typeof card.place_id === "string" ? { placeId: card.place_id } : { name: card.title, city: cardCity(card) }}
+            stockQuery={activityQuery(card.title, cardCity(card))}
+            size="thumb"
+            icon={MapPin}
+            className="w-20 h-20 rounded-xl shrink-0 ring-1 ring-white/[0.06]"
+            captionPosition="bottom-left"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <h4 className="font-display text-base leading-tight">{card.title}</h4>
@@ -505,9 +552,11 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
   if (card.type === "jet") {
     return (
       <div className="rounded-2xl border border-primary/50 bg-gradient-to-br from-stone-950 via-stone-900 to-black overflow-hidden gold-glow" data-card-type="jet">
-        <div className="relative h-32 flex items-center justify-center overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
-          <Plane className="w-16 h-16 text-primary relative" />
+        <div className="relative h-36 flex items-center justify-center overflow-hidden">
+          {/* Foto ilustrativa (marcada): no hay proveedor de jets conectado ni avión asignado. */}
+          <SmartImage alt="" stockQuery="private jet luxury" icon={Plane} className="!absolute inset-0" captionPosition="bottom-right">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20" />
+          </SmartImage>
           <span className="absolute top-3 left-3 px-2 py-1 rounded-full bg-primary text-primary-foreground text-[10px] tracking-widest uppercase font-medium">
             Aviación privada
           </span>

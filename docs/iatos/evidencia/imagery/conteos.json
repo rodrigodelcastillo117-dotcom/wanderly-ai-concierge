@@ -1,0 +1,16 @@
+{
+  "_nota": "Llamadas a funciones de imagen (pexels-image, place-photo, buscar-video) medidas con Playwright, cuenta A, viaje 92a52e51 (E2E PRUEBA Puebla). 'viewport' = primera pantalla sin desplazar; 'scroll' = recorriendo toda la página; 'revisita' = recargar en la misma sesión. Antes = producción (traveliatos.life); después = vite local contra la misma API de producción, con place-photo SIN el modo 'resolve' publicado (devuelve 400, el cliente deja de intentarlo y usa la ilustrativa). Fecha 2026-10-22.",
+  "antes": {
+    "inicio": { "390": { "viewport": 1, "scroll": 3 }, "1440": { "viewport": 2, "scroll": 3 } },
+    "mis_viajes": { "390": { "viewport": 3, "scroll": 3 }, "1440": { "viewport": 3, "scroll": 3 } },
+    "detalle_viaje": { "390": { "viewport": 14, "scroll": 14, "revisita": 14 }, "1440": { "viewport": 14, "scroll": 14, "revisita": 14 } },
+    "reservas": { "390": { "viewport": 0, "scroll": 0 }, "1440": { "viewport": 0, "scroll": 0 } }
+  },
+  "despues": {
+    "inicio": { "390": { "viewport": 1, "scroll": 3 }, "1440": { "viewport": 2, "scroll": 3 } },
+    "mis_viajes": { "390": { "viewport": 2, "scroll": 2 }, "1440": { "viewport": 2, "scroll": 2 } },
+    "detalle_viaje": { "390": { "viewport": 1, "scroll": 14, "revisita": 0 }, "1440": { "viewport": 1, "scroll": 17, "revisita": 0 } },
+    "reservas": { "390": { "viewport": 2, "scroll": 2 }, "1440": { "viewport": 2, "scroll": 2 } },
+    "members_simulado": { "1440": { "viewport": 2, "scroll": 4 } }
+  }
+}

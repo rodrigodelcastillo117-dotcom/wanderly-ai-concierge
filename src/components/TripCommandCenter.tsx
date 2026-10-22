@@ -5,6 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatLocalDate } from "@/lib/localDate";
 import { flightStatusLine, nextTripAction, quoteFreshness, tripTiming, type TrackedFlightLike } from "@/lib/tripCommand";
 import { fetchWeatherNow, type WeatherNow } from "@/lib/weatherNow";
+import { SmartImage } from "@/components/media/SmartImage";
+import { AirlineLogo } from "@/components/media/AirlineLogo";
+import { airlineCode } from "@/lib/airlines";
+import { destinationQuery } from "@/lib/categoryImagery";
 
 type TripSummary = {
   id: string;
@@ -99,6 +103,21 @@ export function TripCommandCenter({ trip, today }: Props) {
       aria-labelledby="command-center-title"
       className="animate-fade-up relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.12] via-white/[0.02] to-transparent p-5 md:p-8"
     >
+      {/* Portada del destino a sangre completa, oscurecida para que el texto se lea: la foto real
+          del viaje si existe; si no, una ilustrativa del destino (marcada). */}
+      <SmartImage
+        alt=""
+        imageUrl={trip.cover_image_url ?? null}
+        stockQuery={destinationQuery(trip.destino, trip.pais_destino)}
+        size="hero"
+        eager
+        className="!absolute inset-0"
+        imgClassName="scale-[1.02]"
+        captionPosition="top-right"
+      >
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/75 to-black/55" />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+      </SmartImage>
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.16),transparent_55%)]" />
       <div className="relative grid gap-6 lg:grid-cols-[1.15fr_1fr] lg:gap-10">
         <div className="min-w-0">
@@ -142,8 +161,8 @@ export function TripCommandCenter({ trip, today }: Props) {
               </li>
             )}
             {flights.map((f) => (
-              <li key={`${f.flight}-${f.flight_date}`} className="flex items-center gap-1.5 text-muted-foreground">
-                <Plane className="w-3.5 h-3.5 text-primary/80 shrink-0" aria-hidden /> {flightStatusLine(f)}
+              <li key={`${f.flight}-${f.flight_date}`} className="flex items-center gap-2 text-muted-foreground">
+                {airlineCode(f.flight) ? <AirlineLogo airline={f.flight} size={20} className="!rounded-md" /> : <Plane className="w-3.5 h-3.5 text-primary/80 shrink-0" aria-hidden />} {flightStatusLine(f)}
               </li>
             ))}
             {weather && (

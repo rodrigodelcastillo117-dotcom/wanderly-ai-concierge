@@ -1,4 +1,6 @@
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
+import { SmartImage } from "@/components/media/SmartImage";
+import { hotelQuery } from "@/lib/categoryImagery";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Hotel, Search, ExternalLink, Loader2, Star } from "lucide-react";
@@ -40,6 +42,8 @@ const TripHotels = () => {
   const [hotelClass, setHotelClass] = useState("4,5");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<HotelResult[]>([]);
+  // Ciudad de los resultados mostrados (para buscar la foto del hotel sin depender de lo que se teclea).
+  const [searchedCity, setSearchedCity] = useState("");
   const [source, setSource] = useState("");
   const [consultedAt, setConsultedAt] = useState<string | null>(null);
   // El servidor marca OBSOLETO un precio guardado (uso justo); nunca se presenta como "en vivo".
@@ -63,6 +67,7 @@ const TripHotels = () => {
       if (!data?.ok) throw new Error(data?.error ?? "Error");
       const list = data.results ?? [];
       setResults(list);
+      setSearchedCity(city.trim());
       setConsultedAt(data.consulted_at ?? null);
       setEstadoDato(data.estado_dato ?? null);
       // Límite de búsquedas en vivo del plan: se muestra lo que sí hubo y el aviso.
@@ -145,13 +150,10 @@ const TripHotels = () => {
         <div className="grid md:grid-cols-2 gap-3">
           {results.map((h, i) => (
             <div key={i} className="glass-card rounded-xl overflow-hidden">
-              {h.thumbnail ? (
-                <img src={h.thumbnail} alt={h.name} className="w-full h-40 object-cover" loading="lazy" />
-              ) : (
-                <div className="w-full h-40 bg-primary/5 flex items-center justify-center">
-                  <Hotel className="w-10 h-10 text-primary/40" />
-                </div>
-              )}
+              {/* Miniatura de Google Hotels; si no viene, la foto real del hotel por su nombre o una
+                  ilustrativa marcada como tal (nunca un recuadro vacío). */}
+              <SmartImage alt={h.name} imageUrl={h.thumbnail ?? null} lookup={{ name: h.name, city: searchedCity }}
+                stockQuery={hotelQuery(null, i)} icon={Hotel} className="w-full h-40" />
               <div className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-medium text-sm leading-tight">{h.name}</h3>

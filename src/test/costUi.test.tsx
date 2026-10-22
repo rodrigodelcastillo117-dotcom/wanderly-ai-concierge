@@ -5,6 +5,8 @@ const env: Record<string, string> = {};
 (globalThis as unknown as { Deno: unknown }).Deno = { env: { get: (k: string) => env[k] } };
 
 const { invoke, rpc, fromRows } = vi.hoisted(() => ({ invoke: vi.fn(), rpc: vi.fn(), fromRows: {} as Record<string, unknown> }));
+// Las fotos (SmartImage) piden place-photo/pexels-image; esta prueba cuenta solo las llamadas de precios.
+vi.mock("@/components/media/SmartImage", () => ({ SmartImage: () => null, IllustrativeCaption: () => null }));
 vi.mock("@/integrations/supabase/client", () => {
   const chain = (table: string) => {
     const q: Record<string, unknown> = {};

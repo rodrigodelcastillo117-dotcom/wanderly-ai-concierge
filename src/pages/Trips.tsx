@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Pencil, Users, Sparkles, Plus, Trash2, LogOut, RefreshCw } from "lucide-react";
+import { Pencil, Users, Sparkles, Plus, Trash2, LogOut, RefreshCw, MapPin } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
+import { SmartImage } from "@/components/media/SmartImage";
+import { destinationQuery } from "@/lib/categoryImagery";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -29,8 +31,6 @@ import { groupTripsForList } from "@/lib/tripList";
 import { tripTiming } from "@/lib/tripCommand";
 import { localISODate } from "@/lib/localDate";
 
-const cache = new Map<string, string | null>();
-
 const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: string; onDeleted: (id: string) => void; bookings?: BookingLike[] }) => {
   const [deleting, setDeleting] = useState(false);
   // Un viaje compartido conmigo no es mío: no puedo borrarlo, solo salir de él.
@@ -52,31 +52,6 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
     onDeleted(t.id);
   };
 
-
-  // Foto real del destino (Google) guardada con el viaje; si no hay, una de stock.
-  const [img, setImg] = useState<string | null>(t.cover_image_url ?? cache.get(t.destino) ?? null);
-
-  useEffect(() => {
-    if (t.cover_image_url || cache.has(t.destino)) return;
-    const key = `pexels:${t.destino}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      cache.set(t.destino, stored);
-      setImg(stored);
-      return;
-    }
-    supabase.functions
-      .invoke("pexels-image", {
-        body: { query: `${t.destino} ${t.pais_destino ?? ""} travel` },
-      })
-      .then(({ data }) => {
-        const image = (data as any)?.image ?? null;
-        cache.set(t.destino, image);
-        if (image) localStorage.setItem(key, image);
-        setImg(image);
-      })
-      .catch(() => {});
-  }, [t.destino, t.pais_destino, t.cover_image_url]);
 
   return (
     <div className="relative glass-card rounded-2xl overflow-hidden hover:gold-border transition group">
@@ -123,19 +98,19 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
       </div>
 
       <Link to={`/dashboard/viajes/${t.id}`} className="block">
-        <div className="relative h-44 w-full overflow-hidden bg-surface">
-          {img ? (
-            <img
-              src={img}
-              alt={t.destino}
-              loading="lazy"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/10 to-surface" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-        </div>
+        {/* Portada real del viaje (foto de Google guardada al cotizar); si no hay, una foto
+            ilustrativa del destino marcada como tal. Se pide solo cuando la tarjeta se ve. */}
+        <SmartImage
+          alt={t.destino}
+          imageUrl={t.cover_image_url ?? null}
+          stockQuery={destinationQuery(t.destino, t.pais_destino)}
+          icon={MapPin}
+          className="h-44 w-full"
+          imgClassName="group-hover:scale-105"
+          captionPosition="bottom-right"
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+        </SmartImage>
         <div className="p-5">
           <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{t.pais_destino}</p>
           <h3 className="font-display text-2xl mb-2 group-hover:text-primary transition">{t.destino}</h3>

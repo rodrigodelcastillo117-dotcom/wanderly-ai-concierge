@@ -7,6 +7,7 @@
 
 import { slimToolResult } from "./tools.ts";
 import { neutralizeDeep } from "./guard.ts";
+import { isPhotoRef } from "../_shared/placePhotoRef.ts";
 
 export const CARD_TYPES = ["flight", "hotel", "attraction", "restaurant", "place", "source", "transport", "alert", "luggage", "jet"] as const;
 export type CardType = typeof CARD_TYPES[number];
@@ -49,6 +50,10 @@ export interface ConciergeCard {
   consultado_at?: string;
   price_note?: string;
   links?: CardLink[];
+  /** Foto real del lugar (Google Places), tomada de la herramienta de este turno, no del modelo. */
+  photo_ref?: string;
+  /** place_id de Google del lugar (de la herramienta): la app pide su foto real con él. */
+  place_id?: string;
 }
 
 /** Solo https: (nada de javascript:, data:, http:, ni URLs con usuario/contraseña). */
@@ -197,6 +202,8 @@ export function hostBacked(url: string, ev: Pick<Evidence, "hosts">): boolean {
 export interface EvidencePlace {
   name: string; address?: string; lat?: number; lng?: number; placeId?: string; phone?: string;
   website?: string; mapsUrl?: string; rating?: number; openNow?: boolean | null; hours?: string[];
+  /** Nombre de la primera foto de Google Places ("places/…/photos/…"). */
+  photoRef?: string;
 }
 
 const normName = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -220,6 +227,7 @@ function collectPlaces(tool: string, res: Record<string, unknown>, out: Evidence
       website: safeHttpsUrl(o.website), mapsUrl: safeHttpsUrl(o.maps_url ?? o.google_maps_url ?? o.web_url ?? o.url),
       rating: num(o.rating), openNow: typeof o.open_now === "boolean" ? o.open_now : null,
       hours: Array.isArray(o.opening_hours) ? o.opening_hours.map(String).slice(0, 7) : undefined,
+      photoRef: isPhotoRef(o.photo_ref) ? o.photo_ref : undefined,
     };
     // El mismo lugar en la búsqueda y en el detalle: se combinan (el detalle trae teléfono y horario).
     const same = out.find((x) => normName(x.name) === normName(name));
@@ -469,6 +477,10 @@ export function enforceAvailabilityHonesty(text: string, ev: Evidence): string {
   return `${lines.join(" ")} ${text}`.trim();
 }
 
+/** place_id de Google ("ChIJ…"); los id de Members Only son UUID y no sirven para pedir su foto. */
+export const isGooglePlaceId = (v: unknown): v is string =>
+  typeof v === "string" && /^[A-Za-z0-9_-]{16,300}$/.test(v) && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(v);
+
 const telUrl = (phone: string | undefined) => {
   const digits = String(phone ?? "").replace(/[^\d+]/g, "");
   return digits.replace(/\D/g, "").length >= 7 ? `tel:${digits}` : undefined;
@@ -518,6 +530,9 @@ export function enrichCardLinks(
     }
     const out: ConciergeCard = { ...c };
     if (links.length) out.links = links.slice(0, 5);
+    // Foto real del lugar: solo de la evidencia (la herramienta), nunca una que escriba el modelo.
+    if (p?.photoRef && !out.image_url) out.photo_ref = p.photoRef;
+    if (p?.placeId && isGooglePlaceId(p.placeId)) out.place_id = p.placeId;
     if (p && c.type === "place") {
       if (!out.subtitle && p.address) out.subtitle = p.address.slice(0, 160);
       if (!out.meta && p.hours?.length) out.meta = p.hours.slice(0, 2).join(" · ").slice(0, 200);

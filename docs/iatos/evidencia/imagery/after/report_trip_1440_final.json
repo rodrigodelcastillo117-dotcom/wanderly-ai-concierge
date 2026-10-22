@@ -1,0 +1,33 @@
+{
+  "trip_1440": {
+    "viewport": 1,
+    "calls": 17,
+    "by": {
+      "pexels-image": 13,
+      "place-photo": 4
+    },
+    "imgs": {
+      "total": 18,
+      "broken": [],
+      "ilustrativa": 13,
+      "google": 1
+    }
+  },
+  "trip_open_1440": {
+    "viewport": 0,
+    "calls": 0,
+    "by": {},
+    "imgs": {
+      "total": 13,
+      "broken": [],
+      "ilustrativa": 8,
+      "google": 1
+    }
+  },
+  "trip_revisit_1440": {
+    "calls": 0,
+    "by": {}
+  },
+  "errors_1440": [],
+  "tripId": "92a52e51-e159-4a70-b5cf-3e35914a5da4"
+}

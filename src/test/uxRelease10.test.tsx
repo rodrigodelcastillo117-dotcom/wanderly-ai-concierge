@@ -185,28 +185,31 @@ describe("UX10-12 · Editar con IA: diálogo accesible, sobre la barra inferior 
 });
 
 describe("UX10-13 · fotos del detalle de viaje: sin amplificar errores", () => {
-  it("si la llamada falla no reintenta con otras consultas; si no hubo foto, sí", async () => {
-    const { resolveCityImage } = await import("@/components/CityCollapsible");
-    const fail = vi.fn(async () => ({ image: null, failed: true, rateLimited: true }));
-    expect(await resolveCityImage("Museo Amparo Puebla Centro", fail)).toBeNull();
-    expect(fail).toHaveBeenCalledTimes(1);
-
-    const empty = vi.fn(async (q: string) => ({ image: q === "Museo" ? "https://img/m.jpg" : null, failed: false, rateLimited: false }));
-    expect(await resolveCityImage("Museo Amparo Puebla", empty)).toBe("https://img/m.jpg");
-    expect(empty.mock.calls.map((c) => c[0])).toEqual(["Museo Amparo Puebla", "Museo Amparo", "Museo"]);
+  // Desde el grupo imagery las fotos ilustrativas van por src/lib/stockPhoto.ts: una consulta por
+  // tarjeta (sin reintentos con consultas más cortas), caché en la sesión y pausa tras un 429.
+  it("si la llamada falla no reintenta ni con otras consultas ni en la misma sesión", async () => {
+    const { getStockPhoto, __resetStockPhotos } = await import("@/lib/stockPhoto");
+    __resetStockPhotos();
+    const invoke = vi.mocked(supabase.functions.invoke);
+    invoke.mockReset();
+    invoke.mockResolvedValue({ data: { image: null }, error: null } as never);
+    expect(await getStockPhoto("Museo Amparo Puebla Centro")).toBeNull();
+    expect(await getStockPhoto("Museo Amparo Puebla Centro")).toBeNull();
+    expect(invoke).toHaveBeenCalledTimes(1);
+    __resetStockPhotos();
   });
 
-  it("tras un 429 deja de llamar a pexels-image por un minuto", async () => {
-    const { resolveCityImage, __resetCityImageBlock } = await import("@/components/CityCollapsible");
-    __resetCityImageBlock();
+  it("tras un 429 deja de llamar a pexels-image", async () => {
+    const { getStockPhoto, __resetStockPhotos } = await import("@/lib/stockPhoto");
+    __resetStockPhotos();
     const invoke = vi.mocked(supabase.functions.invoke);
     invoke.mockReset();
     invoke.mockResolvedValue({ data: null, error: Object.assign(new Error("x"), { context: { status: 429 } }) } as never);
-    await resolveCityImage("Catedral de Puebla");
-    await resolveCityImage("Biblioteca Palafoxiana");
-    await resolveCityImage("Callejón de los Sapos");
+    await getStockPhoto("Catedral de Puebla");
+    await getStockPhoto("Biblioteca Palafoxiana");
+    await getStockPhoto("Callejón de los Sapos");
     expect(invoke).toHaveBeenCalledTimes(1);
-    __resetCityImageBlock();
+    __resetStockPhotos();
   });
 });
 

@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
+import { IllustrativeCaption, SmartImage } from "@/components/media/SmartImage";
+import { destinationQuery } from "@/lib/categoryImagery";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { useSavedDestinations } from "@/hooks/useSavedDestinations";
 import { homeTrips } from "@/lib/homeTrips";
@@ -452,6 +454,7 @@ const DashboardHome = () => {
                   <div className="relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-white/[0.05]">
                     <DestinationVideo query={d.image_query} fallbackImage={santorini} alt={d.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+                    <IllustrativeCaption className="top-11 left-3" />
                     <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-primary/30 text-primary text-[10px] font-medium tracking-wider">
                       {d.score}% MATCH
                     </div>
@@ -515,13 +518,17 @@ const DashboardHome = () => {
                     : "TERMINADO";
                   return (
                     <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-3 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group min-w-0">
-                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden bg-surface flex-shrink-0 ring-1 ring-white/[0.06]">
-                        {t.cover_image_url ? (
-                          <img src={t.cover_image_url} alt={t.destino} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                        ) : (
-                          <DestinationVideo query={`${t.destino} ${t.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={t.destino} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                        )}
-                      </div>
+                      {/* Portada real del viaje; si no hay, foto ilustrativa del destino (marcada). */}
+                      <SmartImage
+                        alt={t.destino}
+                        imageUrl={t.cover_image_url ?? null}
+                        stockQuery={destinationQuery(t.destino, t.pais_destino)}
+                        size="thumb"
+                        icon={MapPin}
+                        className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex-shrink-0 ring-1 ring-white/[0.06]"
+                        imgClassName="group-hover:scale-110"
+                        captionPosition="bottom-left"
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="font-display text-sm md:text-base truncate">{t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
                         <p className="text-[11px] text-muted-foreground tracking-wide">

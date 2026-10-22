@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { AirlineLogo } from "@/components/media/AirlineLogo";
+import { airlineCode, airlineName } from "@/lib/airlines";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plane, Loader2, ExternalLink, Clock, MapPin, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -133,6 +135,13 @@ export const FlightStatusDialog = ({
             {data && (
               <div className="space-y-3">
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  {airlineCode(flight) && (
+                    <div className="flex items-center gap-3 mb-3 pb-3 border-b border-primary/10">
+                      {/* Logo real de la aerolínea (CDN de Travelpayouts), deducido del número de vuelo. */}
+                      <AirlineLogo airline={flight} size={32} />
+                      <p className="text-sm font-medium truncate">{airlineName(airlineCode(flight))} · {flight.trim().toUpperCase()}</p>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] tracking-[0.3em] text-primary uppercase">Estado</span>
                     <span className={`text-sm font-semibold capitalize ${statusColor(data.status)}`}>{data.status ?? "—"}</span>

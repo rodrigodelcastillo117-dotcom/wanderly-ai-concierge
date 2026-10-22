@@ -1,4 +1,6 @@
 import { Fragment, useState } from "react";
+import { SmartImage } from "@/components/media/SmartImage";
+import { destinationQuery } from "@/lib/categoryImagery";
 import { useNavigate } from "react-router-dom";
 import { GitCompare, Sparkles, X, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -117,10 +119,13 @@ const Compare = () => {
             <div className="space-y-4 md:hidden">
               {rows.map((r, i) => (
                 <div key={i} className="glass-card rounded-2xl overflow-hidden">
-                  <div className="bg-primary/10 px-4 py-3 border-b border-border">
-                    <p className="text-primary text-[10px] tracking-[0.2em] uppercase">Destino {i + 1}</p>
-                    <h3 className="font-display text-xl">{r.destino}</h3>
-                  </div>
+                  <SmartImage alt={r.destino} stockQuery={destinationQuery(r.destino)} className="h-32 w-full" captionPosition="top-right">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                    <div className="absolute inset-x-4 bottom-3 z-[2]">
+                      <p className="text-primary text-[10px] tracking-[0.2em] uppercase">Destino {i + 1}</p>
+                      <h3 className="font-display text-xl text-white">{r.destino}</h3>
+                    </div>
+                  </SmartImage>
                   <div className="divide-y divide-border/40">
                     {fields.map(f => (
                       <div key={f.key} className="px-4 py-3">
@@ -138,7 +143,13 @@ const Compare = () => {
               <div className="grid gap-px bg-border rounded-2xl overflow-hidden" style={{ gridTemplateColumns: `160px repeat(${rows.length}, minmax(180px, 1fr))` }}>
                 <div className="bg-card p-3 text-xs uppercase tracking-wider text-muted-foreground">Aspecto</div>
                 {rows.map((r, i) => (
-                  <div key={i} className="bg-card p-3 font-display text-lg">{r.destino}</div>
+                  <div key={i} className="bg-card">
+                    {/* Foto ilustrativa del destino (marcada) sobre el nombre. */}
+                    <SmartImage alt={r.destino} stockQuery={destinationQuery(r.destino)} className="h-28 w-full" captionPosition="top-right">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                      <p className="absolute inset-x-3 bottom-2 z-[2] font-display text-lg text-white">{r.destino}</p>
+                    </SmartImage>
+                  </div>
                 ))}
                 {fields.map(f => (
                   <Fragment key={f.key}>

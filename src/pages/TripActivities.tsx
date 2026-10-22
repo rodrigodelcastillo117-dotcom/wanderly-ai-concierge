@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Sparkles, ExternalLink, Search, Star, Loader2, MapPin, Phone } from "lucide-react";
+import { Sparkles, ExternalLink, Search, Star, Loader2, MapPin, Phone, UtensilsCrossed, BedDouble, Landmark } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getYourGuideLink, viatorLink, tripadvisorLink, openTableLink } from "@/lib/affiliateLinks";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
-import { PlacePhoto } from "@/components/PlacePhoto";
+import { SmartImage } from "@/components/media/SmartImage";
+import { activityQuery, cuisineQuery, hotelQuery } from "@/lib/categoryImagery";
 
 type TAResult = {
   id: string; name: string; address: string; rating: number | null;
@@ -29,6 +30,8 @@ const TripActivities = () => {
   const [cat, setCat] = useState<"attractions" | "restaurants" | "hotels">("attractions");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TAResult[]>([]);
+  // Ciudad y categoría de la búsqueda mostrada (escribir otra ciudad no vuelve a pedir fotos).
+  const [searched, setSearched] = useState<{ city: string; cat: typeof cat }>({ city: "", cat: "attractions" });
   // "google_maps" = datos de Google (Places API o, como último recurso, Google Maps vía SerpApi).
   const [source, setSource] = useState<"tripadvisor" | "google_maps">("tripadvisor");
 
@@ -50,6 +53,7 @@ const TripActivities = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResults(data?.results ?? []);
+      setSearched({ city: city.trim(), cat });
       setSource(data?.source === "google_maps" || data?.source === "google_places" ? "google_maps" : "tripadvisor");
       if (!data?.results?.length) toast.message("Sin resultados para ese destino");
     } catch (e: any) {
@@ -91,15 +95,19 @@ const TripActivities = () => {
         {results.length > 0 && (
           <div className="space-y-3">
             <h2 className="font-display text-xl">Top resultados</h2>
-            {results.map((r) => (
+            {results.map((r, idx) => (
               <div key={r.id} className="glass-card rounded-2xl overflow-hidden border border-white/10">
-                {/* Google Places trae el nombre de la foto (no una URL): se pide con la sesión (PlacePhoto). */}
-                {!r.photos[0] && r.photo_ref && (
-                  <PlacePhoto photoRef={r.photo_ref} name={r.name} family={cat === "restaurants" ? "food" : cat === "hotels" ? "lodging" : "sight"} className="h-48" />
-                )}
-                {r.photos[0] && (
-                  <img src={r.photos[0]} alt={r.name} className="w-full h-48 object-cover" loading="lazy" />
-                )}
+                {/* Foto real (la del resultado o la de Google Places por su photo_ref, pedida solo al
+                    verse); si el lugar no tiene, una ilustrativa de la categoría, marcada como tal. */}
+                <SmartImage
+                  alt={r.name}
+                  imageUrl={r.photos[0] ?? null}
+                  photoRef={r.photo_ref ?? null}
+                  lookup={{ name: r.name, city: searched.city }}
+                  stockQuery={searched.cat === "restaurants" ? cuisineQuery(null, r.name, idx) : searched.cat === "hotels" ? hotelQuery(null, idx) : activityQuery(r.name, searched.city)}
+                  icon={searched.cat === "restaurants" ? UtensilsCrossed : searched.cat === "hotels" ? BedDouble : Landmark}
+                  className="h-48 w-full"
+                />
                 <div className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-display text-lg">{r.name}</h3>

@@ -1,4 +1,7 @@
 import { useEffect } from "react";
+import { AirlineLogo } from "@/components/media/AirlineLogo";
+import { SmartImage } from "@/components/media/SmartImage";
+import { hotelQuery } from "@/lib/categoryImagery";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { Plane, Hotel, Sparkles, RefreshCw } from "lucide-react";
 import { useLiveQuote, type LiveQuote } from "@/hooks/useLiveQuote";
@@ -87,9 +90,7 @@ export function LiveTripQuote({ tripId, origin, destination, depart, return_date
                 <Plane className="w-3 h-3" /> Vuelo round-trip
               </div>
               <div className="flex min-w-0 items-center gap-3">
-                {q.flight.airline_logo && (
-                  <img src={q.flight.airline_logo} alt={q.flight.airline} className="w-8 h-8 rounded object-contain bg-white/90 p-0.5" />
-                )}
+                <AirlineLogo airline={q.flight.airline} logoUrl={q.flight.airline_logo} size={36} shape="square" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{q.flight.airline}</p>
                   <p className="text-xs text-muted-foreground">
@@ -106,9 +107,9 @@ export function LiveTripQuote({ tripId, origin, destination, depart, return_date
                 <Hotel className="w-3 h-3" /> Hospedaje {q.hotel.hotel_class ? `${q.hotel.hotel_class}★` : "premium"}
               </div>
               <div className="flex min-w-0 items-center gap-3">
-                {q.hotel.thumbnail && (
-                  <img src={q.hotel.thumbnail} alt={q.hotel.name} className="w-10 h-10 rounded object-cover" />
-                )}
+                {/* Miniatura de Google Hotels; si no viene, la foto real del hotel por su nombre (o ilustrativa marcada). */}
+                <SmartImage alt={q.hotel.name} imageUrl={q.hotel.thumbnail ?? null} lookup={{ name: q.hotel.name, city: destination ?? null }}
+                  stockQuery={hotelQuery(null)} size="thumb" icon={Hotel} className="w-14 h-14 rounded-lg shrink-0" captionPosition="bottom-left" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{q.hotel.name}</p>
                   <p className="text-xs text-muted-foreground">

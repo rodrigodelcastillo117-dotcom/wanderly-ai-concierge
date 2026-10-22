@@ -1,7 +1,7 @@
 import { useState, ReactNode } from "react";
 import { ChevronDown, Check, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCityImage } from "@/components/CityCollapsible";
+import { SmartImage, type SmartImageProps } from "@/components/media/SmartImage";
 
 export interface ExpandableItemCardAction {
   label: string;
@@ -12,7 +12,13 @@ export interface ExpandableItemCardAction {
 }
 
 interface ExpandableItemCardProps {
-  imageQuery: string;
+  /**
+   * Origen de la foto (reglas en SmartImage): foto real de Google si hay (photoRef / lookup) y si
+   * no, una ilustrativa de la categoría marcada como tal.
+   */
+  image: Omit<SmartImageProps, "className" | "children" | "alt"> & { alt?: string };
+  /** Algo encima de la foto (p. ej. el logo de la aerolínea). */
+  overlay?: ReactNode;
   eyebrow?: string;
   title: string;
   subtitle?: string;
@@ -28,7 +34,8 @@ interface ExpandableItemCardProps {
 }
 
 export const ExpandableItemCard = ({
-  imageQuery,
+  image,
+  overlay,
   eyebrow,
   title,
   subtitle,
@@ -43,7 +50,6 @@ export const ExpandableItemCard = ({
 }: ExpandableItemCardProps) => {
 
   const [open, setOpen] = useState(defaultOpen);
-  const img = useCityImage(imageQuery);
 
   return (
     <div
@@ -61,15 +67,16 @@ export const ExpandableItemCard = ({
         }}
         className="relative block w-full h-40 overflow-hidden text-left"
       >
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-          style={{
-            backgroundImage: img
-              ? `url(${img})`
-              : "linear-gradient(135deg, hsl(var(--primary) / 0.25), hsl(var(--surface)))",
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
+        <SmartImage
+          alt={image.alt ?? ""}
+          {...image}
+          className="!absolute inset-0"
+          imgClassName="group-hover:scale-105"
+          captionPosition={image.captionPosition ?? "bottom-right"}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/25 to-transparent" />
+        </SmartImage>
+        {overlay}
 
 
         {eyebrow && (

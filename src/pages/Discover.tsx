@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
+import { IllustrativeCaption } from "@/components/media/SmartImage";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, RefreshCw, Sparkles, Loader2 } from "lucide-react";
@@ -67,6 +68,7 @@ const Discover = () => {
                     className="relative aspect-[4/5] rounded-2xl overflow-hidden mb-3">
                     <DestinationVideo query={d.image_query} fallbackImage={santorini} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-overlay" />
+                    <IllustrativeCaption className="top-[3.25rem] left-4" />
                     <div className="absolute top-4 left-4 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium">
                       {d.score}% match
                     </div>
