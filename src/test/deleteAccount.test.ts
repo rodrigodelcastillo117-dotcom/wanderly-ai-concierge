@@ -7,7 +7,7 @@ import {
   type BillingDeps,
   type StripeCallResult,
   type StripeSub,
-} from "../../supabase/functions/delete-account/billing";
+} from "../../supabase/functions/_shared/stripe-billing";
 
 describe("account deletion confirmation", () => {
   it("requires both explicit confirmations", () => {

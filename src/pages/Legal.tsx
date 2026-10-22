@@ -116,11 +116,19 @@ export const Privacidad = () => (
     </section>
     <section>
       <h2>4. Con quién los compartimos</h2>
-      <p>Compartimos únicamente lo necesario con proveedores que operan la plataforma: Supabase (base de datos y autenticación), Stripe (pagos), Anthropic y Google (modelos de IA que procesan tus consultas), SerpApi y Travelpayouts (búsqueda de precios), Resend (correo), Sentry (monitoreo de errores) y Google Maps (mapas y lugares). No vendemos tus datos personales.</p>
+      <p>Compartimos únicamente lo necesario con proveedores que operan la plataforma: Supabase (base de datos y autenticación), Stripe (pagos), Anthropic y Google (modelos de IA que procesan tus consultas), SerpApi y Travelpayouts (búsqueda de precios), Resend (correo), Sentry (monitoreo de errores), PostHog (analítica de uso, solo si la aceptas) y Google Maps (mapas y lugares). A Sentry y PostHog solo les enviamos un identificador interno, no tu correo. No vendemos tus datos personales.</p>
     </section>
     <section>
-      <h2>5. Conservación</h2>
-      <p>Conservamos tus datos mientras tu cuenta esté activa y hasta 12 meses después de su eliminación por obligaciones fiscales y de seguridad.</p>
+      <h2>5. Conservación y eliminación de tu cuenta</h2>
+      <p>Conservamos tus datos mientras tu cuenta esté activa. Si eliminas tu cuenta desde tu perfil:</p>
+      <ul>
+        <li>Borramos tu perfil, viajes, conversaciones, preferencias, beneficios y los archivos que subiste.</li>
+        <li>Cancelamos tu suscripción y quitamos tus métodos de pago guardados en Stripe, para que no haya cobros nuevos.</li>
+        <li>Pedimos a PostHog que borre tu historial de uso, y en Stripe quitamos tu nombre, correo, teléfono y dirección de tu ficha de cliente.</li>
+        <li><strong>Lo que no podemos borrar:</strong> Stripe conserva las facturas y los cargos ya hechos (con los datos con que se emitieron) porque la ley lo exige para fines fiscales y para atender aclaraciones o contracargos. También guardamos un registro de pagos, reembolsos y de la solicitud de eliminación que no incluye tu nombre ni tu correo.</li>
+        <li>Los correos que ya te enviamos y las copias de seguridad se borran conforme vencen sus plazos de retención, no al instante.</li>
+      </ul>
+      <p>Algunos pasos con proveedores externos pueden tardar unos días; si alguno falla, lo volvemos a intentar automáticamente.</p>
     </section>
     <section>
       <h2>6. Tus derechos ARCO</h2>
@@ -185,6 +193,8 @@ export const Reembolsos = () => (
         <li><strong>Cargo duplicado o error de facturación:</strong> reembolso íntegro siempre, sin límite de tiempo, en cuanto lo verifiquemos.</li>
         <li><strong>Falla del servicio:</strong> si la plataforma estuvo inoperante por una causa atribuible a nosotros durante una parte significativa del mes, reembolsamos la parte proporcional.</li>
         <li>Fuera de esos supuestos, los meses ya iniciados no son reembolsables de forma prorrateada; lo que hacemos es cancelar la renovación y dejarte el acceso hasta el fin del periodo.</li>
+        <li>Si te reembolsamos un cargo completo, la suscripción se cancela y el acceso PRO que pagaba ese cargo termina en ese momento (salvo que tengas otro acceso vigente, como una cortesía). Un reembolso parcial no cambia tu acceso.</li>
+        <li>Si abres un contracargo con tu banco, tu acceso sigue mientras se resuelve; si el banco lo resuelve a tu favor, el acceso de ese cargo termina.</li>
       </ul>
     </section>
     <section>

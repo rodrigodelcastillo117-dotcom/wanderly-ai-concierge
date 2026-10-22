@@ -1,10 +1,14 @@
 // Delete only the authenticated caller; privileged credentials stay server-side.
+// Ronda sec2-b: el borrado es una solicitud por pasos (deletion_requests), idempotente y reanudable
+// (_shared/account-deletion.ts). Volver a pedirlo reanuda la misma solicitud; lo que quede pendiente
+// lo reintenta account-deletion-retry. La identidad se borra solo cuando Stripe ya no puede cobrar,
+// los archivos se borraron y la base se purgó.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { processRequest } from "../_shared/account-deletion-runtime.ts";
 import { confirmedDeletion } from "./validation.ts";
-import { cancelAllSubscriptions, stripeFetchDeps } from "./billing.ts";
 
 const respond = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
@@ -24,52 +28,20 @@ Deno.serve(async req => {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !key) return respond({ error: "deletion_unavailable" }, 503);
   const admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  let stage = "subscription";
   try {
-    const { data: subscription, error: subscriptionError } = await admin.from("subscriptions")
-      .select("stripe_subscription_id,stripe_customer_id,status").eq("user_id", user.id).maybeSingle();
-    if (subscriptionError) throw subscriptionError;
-    // Se cancelan TODAS las suscripciones vivas del cliente en Stripe (no solo la guardada) y una
-    // que Stripe ya dio por cancelada o no encuentra no bloquea el borrado (billing.ts).
-    if (subscription?.stripe_subscription_id || subscription?.stripe_customer_id) {
-      const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-      if (stripeKey) {
-        const outcome = await cancelAllSubscriptions(stripeFetchDeps(stripeKey), {
-          customerId: subscription.stripe_customer_id,
-          subscriptionId: subscription.stripe_subscription_id,
-        });
-        if (!outcome.ok) throw new Error("billing_cancellation_failed");
-      } else if (!["canceled", "incomplete_expired"].includes(String(subscription.status))) {
-        // Sin llave de Stripe solo se sigue si la fila ya estaba terminada (como antes): si puede
-        // haber un cobro vivo, no se borra la cuenta a ciegas.
-        return respond({ error: "billing_cancellation_unavailable" }, 503);
-      }
+    const { data: requestId, error } = await admin.rpc("start_account_deletion", { _account_id: user.id });
+    if (error || !requestId) throw new Error(error?.message ?? "no_request");
+    const outcome = await processRequest(admin, String(requestId));
+    if (outcome.identityDeleted) {
+      // Lo no bloqueante (cliente de Stripe, PostHog) puede quedar pendiente: lo termina el reintento.
+      return respond({ ok: true, request_id: requestId, pending: outcome.pending });
     }
-    stage = "storage";
-    // Requery after each batch: RPC responses are capped by the API row limit.
-    for (;;) {
-      const { data: files, error } = await admin.rpc("account_deletion_files", { p_user_id: user.id });
-      if (error) throw error;
-      if (!files?.length) break;
-      const grouped = new Map<string, string[]>();
-      for (const file of files) grouped.set(file.bucket_id, [...(grouped.get(file.bucket_id) ?? []), file.name]);
-      for (const [bucket, paths] of grouped) {
-        for (let i = 0; i < paths.length; i += 100) {
-          const { error: removeError } = await admin.storage.from(bucket).remove(paths.slice(i, i + 100));
-          if (removeError) throw removeError;
-        }
-      }
-    }
-    stage = "data";
-    const { error: purgeError } = await admin.rpc("purge_account_data", { p_user_id: user.id });
-    if (purgeError) throw purgeError;
-    stage = "identity";
-    const { error: authError } = await admin.auth.admin.deleteUser(user.id);
-    if (authError) throw authError;
-    return respond({ ok: true });
+    // Sin borrar la identidad: la persona puede volver a intentarlo y el cron lo reintenta.
+    console.error("delete-account: pendiente en", outcome.blockedAt);
+    return respond({ error: "deletion_pending", stage: outcome.blockedAt, request_id: requestId }, 503);
   } catch {
     // Do not log PII, tokens, storage paths or payloads.
-    console.error("delete-account failed at stage:", stage);
-    return respond({ error: "deletion_failed", stage }, 500);
+    console.error("delete-account failed to start");
+    return respond({ error: "deletion_failed" }, 500);
   }
 });

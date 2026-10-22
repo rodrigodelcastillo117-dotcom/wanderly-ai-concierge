@@ -28,7 +28,9 @@ export function DeleteAccountSection() {
       });
       if (requestError || data?.ok !== true) throw new Error("deletion_failed");
     } catch {
-      setError("No se pudo completar la eliminación. Algunos datos podrían haberse borrado; intenta de nuevo.");
+      // El servidor guarda la solicitud por pasos: si algo falló (p. ej. cancelar el cobro en Stripe)
+      // queda pendiente y se reintenta; volver a intentarlo aquí reanuda la misma solicitud.
+      setError("No pudimos terminar de eliminar tu cuenta. Tu solicitud quedó registrada y la seguiremos intentando; también puedes volver a intentarlo en unos minutos.");
       setDeleting(false);
       return;
     }
@@ -49,7 +51,7 @@ export function DeleteAccountSection() {
           <AlertDialogDescription>
             {step === 1
               ? "Perderás tu cuenta y todos tus datos de IATOS, incluidas fotos y aportaciones a viajes compartidos. Los viajes de otras personas se conservarán. No podrás recuperarlos."
-              : "Escribe ELIMINAR para borrar permanentemente tu cuenta. Se cancelará tu suscripción de IATOS, si tienes una; esto no cancela reservas con proveedores externos. Los emails ya enviados y respaldos sujetos a retención no se eliminan con esta acción."}
+              : "Escribe ELIMINAR para borrar permanentemente tu cuenta. Se cancelará tu suscripción de IATOS, si tienes una, y se quitarán tus métodos de pago guardados; esto no cancela reservas con proveedores externos. Stripe conserva las facturas y cargos ya emitidos por obligaciones legales y fiscales, y los emails ya enviados y respaldos sujetos a retención no se eliminan con esta acción."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {step === 2 && <div className="space-y-2">

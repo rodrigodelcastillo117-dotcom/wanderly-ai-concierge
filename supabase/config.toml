@@ -162,3 +162,7 @@ verify_jwt = false
 
 [functions.health-check]
 verify_jwt = false
+
+# reintentos de borrado de cuenta (pg_cron): autenticación de cron interna, falla cerrada
+[functions.account-deletion-retry]
+verify_jwt = false
