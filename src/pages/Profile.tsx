@@ -6,7 +6,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import BenefitsVault from "@/components/BenefitsVault";
 import PromocionesActivas from "@/components/PromocionesActivas";
 import AvatarCreator from "@/components/AvatarCreator";
-import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp, BarChart3 } from "lucide-react";
+import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp, BarChart3, FileUp } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,11 +20,19 @@ import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { InviteFriendsCard } from "@/components/InviteFriendsCard";
 import { dnaForDisplay } from "../../supabase/functions/_shared/dnaVoice";
+import { AvatarCircle } from "@/components/avatar/AvatarCircle";
+import { PriveSeal } from "@/components/PriveSeal";
+import { useMyAvatar } from "@/hooks/useMyAvatar";
+import { usePriveSeal } from "@/hooks/usePriveSeal";
+import { DNA_ARCHETYPES } from "@/lib/travelDna";
+import { useAutoEvolveAvatar } from "@/components/avatar/useAutoEvolveAvatar";
 
 const Profile = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // Una sola fuente del avatar para toda la app (antes aquí salía la "R" y en el DNA la imagen).
+  const { url: avatarUrl } = useMyAvatar();
+  const prive = usePriveSeal();
   const [fullName, setFullName] = useState<string>("");
   const [openAvatar, setOpenAvatar] = useState(false);
   const { dna, reload } = useTravelDNA();
@@ -33,6 +42,8 @@ const Profile = () => {
     updated_at: null,
   });
   const tipDNA = useTooltipShown("travel_dna_perfil");
+  // Viaje que terminó hace poco y aún no da su recuerdo: se pide (idempotente en el servidor).
+  useAutoEvolveAvatar(!!avatarUrl);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -46,10 +57,9 @@ const Profile = () => {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("avatar_url, full_name")
+        .select("full_name")
         .eq("id", user.id)
         .maybeSingle();
-      setAvatarUrl((data as any)?.avatar_url ?? null);
       setFullName((data as any)?.full_name ?? "");
 
       const { data: prefs } = await supabase
@@ -90,14 +100,13 @@ const Profile = () => {
     }
   };
 
-  const initial = (fullName?.[0] ?? "V").toUpperCase();
 
   // "Evolución detectada" te habla de tú (los DNA guardados antes en tercera persona se convierten).
   const divergencias: string[] = (dnaForDisplay(dna?.perfil)?.divergencias_detectadas as string[] | undefined) ?? [];
   const evolucionMsg =
     divergencias[0] ??
     (dna && dna.tripCount > 0
-      ? `Tu estilo dominante es ${dna.dominant}. Sigue viajando para refinar tu Travel DNA.`
+      ? `Tu estilo dominante: ${dna.dominant ? DNA_ARCHETYPES[dna.dominant].label.toLowerCase() : "por descubrir"}. Sigue viajando para refinar tu Travel DNA.`
       : "Crea tu primer viaje para activar la evolución de tu avatar.");
 
   const diasDesde = (iso: string | null) => {
@@ -112,18 +121,18 @@ const Profile = () => {
       <div className="px-4 py-6 md:p-10 max-w-5xl space-y-12">
         {/* HEADER */}
         <section className="flex flex-col md:flex-row md:items-center gap-6">
-          <div className="relative">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl overflow-hidden border border-border bg-surface flex items-center justify-center gold-glow">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Tu Travel Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <span className="font-display text-5xl text-primary">{initial}</span>
-              )}
-            </div>
-          </div>
+          <AvatarCircle url={avatarUrl} name={fullName || "Viajero"} size="md" prive={prive} />
           <div className="flex-1">
             <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Tu Travel Avatar</p>
-            <h1 className="font-display text-3xl md:text-4xl mb-1">{fullName || "Viajero"}</h1>
+            <h1 className="font-display text-3xl md:text-4xl mb-1 flex items-center gap-2 flex-wrap">
+              <span>{fullName || "Viajero"}</span>
+              {prive && <PriveSeal size="md" />}
+            </h1>
+            <p className="text-sm mb-1 flex items-center gap-1.5" data-testid="profile-dna-archetype">
+              <Crown className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+              <span className="text-muted-foreground">Travel DNA:</span>
+              <span className="gold-text font-medium">{dna?.dominant ? DNA_ARCHETYPES[dna.dominant].label : dna ? "por descubrir" : "…"}</span>
+            </p>
             {user?.email && (
               <p className="text-sm text-muted-foreground mb-3" data-testid="profile-signed-in-email">
                 Sesión iniciada como <span className="text-foreground">{user.email}</span>
@@ -132,7 +141,7 @@ const Profile = () => {
             <p className="text-muted-foreground mb-4">
               {avatarUrl
                 ? "Este avatar te representa en todo IATOS: perfil, viajes, social y compatibilidad."
-                : "Crea tu Travel Avatar estilo Pixar. Aparecerá en todo IATOS."}
+                : "Crea tu Travel Avatar a partir de tu selfie: se parece a ti y evoluciona con cada viaje."}
             </p>
             <Button onClick={() => setOpenAvatar(true)} className="bg-gradient-gold text-primary-foreground gold-glow">
               <Wand2 className="w-4 h-4 mr-2" />
@@ -178,7 +187,7 @@ const Profile = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* AVATAR CINEMATICO */}
             <div className="lg:col-span-2">
-              <TravelAvatarCinematic dna={dna} />
+              <TravelAvatarCinematic dna={dna} onEditAvatar={() => setOpenAvatar(true)} />
               <p className="text-xs text-muted-foreground mt-2 px-1">
                 {dna
                   ? `${dna.tripCount} viajes · ${dna.visitCount} lugares · DNA evoluciona con cada experiencia`
@@ -192,7 +201,7 @@ const Profile = () => {
                 <Sparkles className="w-3 h-3" /> Travel DNA
               </p>
               {dna ? (
-                <TravelDNAStats stats={dna.stats} />
+                <TravelDNAStats dna={dna} />
               ) : (
                 <p className="text-xs text-muted-foreground">Cargando…</p>
               )}
@@ -212,6 +221,20 @@ const Profile = () => {
                 </ul>
               )}
             </div>
+
+            {/* VIAJES PASADOS */}
+            <Link
+              to="/dashboard/viajes/importar"
+              className="glass-card rounded-3xl p-5 border border-primary/15 hover:border-primary/40 transition flex items-start gap-3 lg:col-span-3"
+            >
+              <FileUp className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                <span className="block font-medium">Sube un viaje que ya hiciste</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  Boletos, pases de abordar o reservas de hotel: la IA arma el viaje con lo que pagaste, lo guarda en Mis viajes y tu avatar gana un detalle del destino.
+                </span>
+              </span>
+            </Link>
 
             {/* COMPATIBILIDAD */}
             <div className="glass-card rounded-3xl p-5">
@@ -318,7 +341,6 @@ const Profile = () => {
                 if (error) {
                   toast.error("No se pudo guardar el avatar");
                 } else {
-                  setAvatarUrl(url);
                   toast.success("¡Avatar actualizado en todo IATOS!");
                 }
               }

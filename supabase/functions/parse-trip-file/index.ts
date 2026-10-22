@@ -4,6 +4,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { currenciesUsed, moneyMeta, normalizeCurrency, readMoney, type MxnRates } from "./money.ts";
+import { validateExtraction } from "./schema.ts";
 // viaje TAL CUAL aparece en los documentos. Devuelve datos mapeados al
 // schema interno (vuelos_json, hospedaje_json, cruceros_json, itinerario_json).
 
@@ -26,6 +27,10 @@ const SYSTEM = `Eres un EXTRACTOR EXPERTO de itinerarios de viaje. Recibirás PD
 
 🚨 REGLA #5 — Códigos de reserva (PNR, confirmaciones) suelen aparecer en una tabla al final. Cruza esos códigos con los vuelos y hoteles que ya extrajiste.
 
+🚨 REGLA #6 — PRECIOS: copia SOLO montos que aparecen impresos en el documento (total pagado, tarifa, impuestos incluidos si el documento da el total). Si un boleto o pase de abordar NO muestra precio, el precio es null. Nunca estimes, promedies ni completes precios.
+
+🚨 REGLA #7 — Los archivos vienen numerados en el orden recibido (0, 1, 2…). En "documentos" di qué es cada uno y en cada vuelo/hotel/crucero pon en "archivo" el número del archivo de donde salió.
+
 Devuelve SOLO este JSON estricto, sin markdown:
 
 {
@@ -39,6 +44,7 @@ Devuelve SOLO este JSON estricto, sin markdown:
   "presupuesto_total": number|null,          // total del viaje TAL CUAL aparece (en moneda_original)
   "presupuesto_pagado": number|null,         // lo que ya está pagado (en moneda_original)
   "moneda_original": string|null,            // código ISO de la moneda principal del documento: "MXN", "USD", "EUR"
+  "documentos": [ { "archivo": number, "tipo": "boleto"|"pase_abordar"|"hotel"|"crucero"|"transfer"|"itinerario"|"otro", "pagado": boolean|null } ],
   "vuelos": [
     {
       "aerolinea": string,                   // "Air France", "Iberia", etc.
@@ -58,7 +64,8 @@ Devuelve SOLO este JSON estricto, sin markdown:
       "precio_por_persona": number|null,
       "moneda": string|null,                 // "MXN", "USD", "EUR"… de ESTE precio
       "confirmacion": string|null,           // PNR
-      "notas": string|null
+      "notas": string|null,
+      "archivo": number|null                 // de qué archivo salió (0, 1, 2…)
     }
   ],
   "hoteles": [
@@ -78,7 +85,8 @@ Devuelve SOLO este JSON estricto, sin markdown:
       "costo_cero": boolean,                 // true si es gratis/AMOR/casa de amigo/$0
       "motivo_gratis": string|null,          // "Departamento de un amigo en París"
       "confirmacion": string|null,
-      "notas": string|null
+      "notas": string|null,
+      "archivo": number|null
     }
   ],
   "cruceros": [
@@ -149,10 +157,23 @@ Deno.serve(async (req) => {
     const userParts: any[] = [
       { type: "text", text: `Fecha actual: ${new Date().toISOString().slice(0, 10)}.\n\nExtrae el viaje COMPLETO de estos archivos exactamente como aparece. Recuerda: hospedajes gratis/AMOR/CASA SÍ se incluyen (con costo_cero=true). Crucero con TODOS sus puertos. Itinerario día por día. NO inventes nada.${extra ? `\n\nContexto extra del usuario: ${extra}` : ""}` },
     ];
-    for (const f of files) {
-      const dataUrl = `data:${f.mime};base64,${f.data_base64}`;
-      userParts.push({ type: "image_url", image_url: { url: dataUrl } });
+    if (files.length > 8) {
+      return new Response(JSON.stringify({ error: "Máximo 8 archivos por viaje" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    for (const f of files) {
+      if (typeof f?.data_base64 !== "string" || !/^(application\/pdf|image\/(jpeg|png|webp|heic|heif))$/.test(String(f?.mime))) {
+        return new Response(JSON.stringify({ error: "Formato no admitido: sube PDF o imágenes (JPG, PNG, WEBP, HEIC)" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+    files.forEach((f, i) => {
+      const dataUrl = `data:${f.mime};base64,${f.data_base64}`;
+      userParts.push({ type: "text", text: `Archivo ${i}${f.name ? ` (${String(f.name).slice(0, 80)})` : ""}:` });
+      userParts.push({ type: "image_url", image_url: { url: dataUrl } });
+    });
 
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 110000);
@@ -185,13 +206,16 @@ Deno.serve(async (req) => {
     }
 
     const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content ?? "{}";
-    let parsed: any;
-    try { parsed = JSON.parse(content); }
-    catch {
-      const m = content.match(/\{[\s\S]*\}/);
-      parsed = m ? JSON.parse(m[0]) : {};
+    const content = data?.choices?.[0]?.message?.content ?? "";
+    // IATOS-064: la respuesta del modelo se valida campo por campo antes de usarla.
+    const checked = validateExtraction(content);
+    if (!checked.ok) {
+      console.warn("parse-trip-file: respuesta inválida:", checked.error);
+      return new Response(JSON.stringify({ ok: false, code: "no_legible", error: "No pudimos leer un viaje en esos archivos. Prueba con un PDF o una captura más clara." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    const parsed: any = checked.data;
 
     // Montos: el modelo copia el original y aquí se convierte con el tipo de cambio de _shared/fx.ts
     // (fuente y fecha). Solo se piden las tasas de las monedas que aparecen.
@@ -294,6 +318,10 @@ Deno.serve(async (req) => {
       pendientes: parsed.pendientes ?? [],
       contactos: parsed.contactos ?? [],
       notas_generales: parsed.notas_generales ?? "",
+      // Lo leído tal cual (montos en su moneda original, ya validado) para la vista previa de
+      // "Sube un viaje que ya hiciste", y los avisos de lo que no se pudo leer.
+      extraccion: parsed,
+      avisos: checked.avisos,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error(e);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Pencil, Users, Sparkles, Plus, Trash2, LogOut, RefreshCw, MapPin } from "lucide-react";
+import { Pencil, Users, Sparkles, Plus, Trash2, LogOut, RefreshCw, MapPin, FileUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -30,6 +30,7 @@ import { TripCardsSkeleton } from "@/components/PageSkeletons";
 import { groupTripsForList } from "@/lib/tripList";
 import { tripTiming } from "@/lib/tripCommand";
 import { localISODate } from "@/lib/localDate";
+import { formatPaid, PAID_LABEL } from "@/lib/tripImport";
 
 const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: string; onDeleted: (id: string) => void; bookings?: BookingLike[] }) => {
   const [deleting, setDeleting] = useState(false);
@@ -115,7 +116,11 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
           <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{t.pais_destino}</p>
           <h3 className="font-display text-2xl mb-2 group-hover:text-primary transition">{t.destino}</h3>
           {/* "listo" no distingue cotizado de reservado: se deriva de las reservas confirmadas. */}
-          <div className="mb-3"><BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact /></div>
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
+            {t.fuente === "documento"
+              ? <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] rounded-full border border-primary/40 text-primary px-2 py-0.5"><FileUp className="w-3 h-3" aria-hidden="true" /> De tus documentos</span>
+              : <BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact />}
+          </div>
           <div className="flex items-end justify-between gap-3 text-sm text-muted-foreground">
             <span className="min-w-0">
               <span className="block">{t.fecha_salida ? formatDateOnly(t.fecha_salida) : "Sin fechas"}</span>
@@ -127,8 +132,17 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
                 );
               })()}
             </span>
-            {/* Un borrador no cuesta "$0": se dice que aún no tiene cotización. */}
-            {Number(t.total_estimado) > 0 ? (
+            {/* Importado de sus documentos: lo que PAGÓ, en la moneda del documento. */}
+            {t.fuente === "documento" ? (
+              Number(t.pagado_total) > 0 && t.pagado_moneda ? (
+                <span className="text-right shrink-0">
+                  <span className="block text-foreground font-medium">{formatPaid(Number(t.pagado_total), t.pagado_moneda)}</span>
+                  <span className="block text-[11px] text-muted-foreground/80">{PAID_LABEL}</span>
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground shrink-0 text-right">Sin precio en tus documentos</span>
+              )
+            ) : /* Un borrador no cuesta "$0": se dice que aún no tiene cotización. */ Number(t.total_estimado) > 0 ? (
               <span className="text-right shrink-0">
                 <span className="block text-foreground font-medium">${Math.round(Number(t.total_estimado)).toLocaleString("es-MX")} MXN</span>
                 <span className="block text-[11px] text-muted-foreground/80">total cotizado</span>
@@ -214,6 +228,12 @@ const Trips = () => {
             </p>
             <h1 className="font-display text-3xl md:text-5xl leading-[1.05] text-white">Mis viajes</h1>
             <p className="text-xs md:text-sm text-white/70 mt-1.5">Cada travesía guardada — vuelos, hospedaje, experiencias.</p>
+            <Link
+              to="/dashboard/viajes/importar"
+              className="mt-3 self-start inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-black/40 backdrop-blur px-3.5 min-h-10 text-xs text-primary hover:bg-primary/10"
+            >
+              <FileUp className="w-3.5 h-3.5" aria-hidden="true" /> Sube un viaje que ya hiciste
+            </Link>
           </div>
         </section>
 
@@ -232,9 +252,14 @@ const Trips = () => {
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
               Cuando planeas un viaje, IATOS guarda aquí su cotización, itinerario y documentos para que los tengas a la mano.
             </p>
-            <Button onClick={() => navigate("/dashboard/planear")} className="bg-gradient-gold text-primary-foreground gold-glow rounded-2xl min-h-[48px] px-6">
-              <Plus className="w-4 h-4 mr-2" /> Crear mi primer viaje
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button onClick={() => navigate("/dashboard/planear")} className="bg-gradient-gold text-primary-foreground gold-glow rounded-2xl min-h-[48px] px-6">
+                <Plus className="w-4 h-4 mr-2" /> Crear mi primer viaje
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/dashboard/viajes/importar")} className="rounded-2xl min-h-[48px] px-6 border-primary/40">
+                <FileUp className="w-4 h-4 mr-2" aria-hidden="true" /> Sube un viaje que ya hiciste
+              </Button>
+            </div>
           </div>
         ) : (
           // Próximos primero (por fecha de salida) y los pasados aparte: antes todo iba revuelto

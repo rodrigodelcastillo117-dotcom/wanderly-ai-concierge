@@ -1,0 +1,19 @@
+{
+  "_doc": "Respuesta de ejemplo para una confirmación de hotel (Booking) en pesos, con fecha en formato equivocado y un hospedaje sin nombre.",
+  "summary": "Hospedaje en Oaxaca.",
+  "destino": "Oaxaca",
+  "destinations": ["Oaxaca"],
+  "ciudad_origen": null,
+  "fecha_salida": null,
+  "fecha_regreso": null,
+  "num_viajeros": "2",
+  "moneda_original": "MXN",
+  "vuelos": {},
+  "hoteles": [
+    { "nombre": "Casa Antigua", "ciudad": "Oaxaca", "check_in": "2025-11-01", "check_out": "2025-11-04", "noches": 3,
+      "precio_total": "$ 7,350.00", "moneda": "MXN", "costo_cero": false, "confirmacion": "4417 220 981", "archivo": 0 },
+    { "nombre": "", "ciudad": "Oaxaca", "precio_total": 100 },
+    { "nombre": "Depto de Sofía", "ciudad": "Oaxaca", "check_in": "15/11/2025", "costo_cero": true, "precio_total": 999, "motivo_gratis": "casa de una amiga" }
+  ],
+  "pendientes": ["Reservar tour a Hierve el Agua"]
+}

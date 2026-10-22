@@ -46,6 +46,10 @@ verify_jwt = true
 [functions.flight-watch-cron]
 verify_jwt = false
 
+# Tarea programada (x-cron-secret) y llamada con sesión; la función valida ambas.
+[functions.avatar-evolve]
+verify_jwt = false
+
 [functions.flights-search]
 verify_jwt = true
 

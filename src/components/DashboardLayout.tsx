@@ -6,6 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
 import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationBell } from "@/components/NotificationBell";
+import { AvatarCircle } from "@/components/avatar/AvatarCircle";
+import { useMyAvatar } from "@/hooks/useMyAvatar";
+import { usePriveSeal } from "@/hooks/usePriveSeal";
 // Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
 import iatosLogo from "@/assets/iatos-logo-320.png";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -49,7 +52,10 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const { loading: subLoading, isPro, isTrialing, isComped, trialDaysLeft } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
-  const [profile, setProfile] = useState<{ full_name?: string | null; avatar_url?: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name?: string | null } | null>(null);
+  // Avatar: la misma fuente que el perfil y la tarjeta del Travel DNA (useMyAvatar).
+  const { url: avatarUrl } = useMyAvatar();
+  const prive = usePriveSeal();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = mobileMoreNav.some((n) => location.pathname.startsWith(n.to));
   // En el chat del Concierge el área de escritura va pegada abajo: reservamos el alto
@@ -59,19 +65,12 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data: prof }, { data: prefs }] = await Promise.all([
-        supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).maybeSingle(),
-        supabase.from("ai_user_preferences").select("perfil_ia").eq("user_id", user.id).maybeSingle(),
-      ]);
-      const iaAvatar = (prefs?.perfil_ia as any)?.avatar_url ?? null;
-      // profiles.avatar_url is the single source of truth (Travel Avatar)
-      setProfile({ full_name: prof?.full_name ?? null, avatar_url: prof?.avatar_url ?? iaAvatar ?? null });
+      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      setProfile({ full_name: prof?.full_name ?? null });
     })();
   }, [user]);
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Viajero";
-  const initial = firstName.charAt(0).toUpperCase();
-  const avatarUrl = profile?.avatar_url ?? null;
 
   return (
     <div className="min-h-screen flex w-full bg-background relative overflow-x-hidden">
@@ -166,13 +165,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           onClick={() => navigate("/dashboard/perfil")}
           className="flex items-center gap-2 px-3 py-3 border-t border-white/[0.04] hover:bg-white/[0.03] transition"
         >
-          <div className="w-9 h-9 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] overflow-hidden ring-1 ring-primary/30 flex-shrink-0">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
-            ) : (
-              initial
-            )}
-          </div>
+          <AvatarCircle url={avatarUrl} name={firstName} size="sm" prive={prive} glow={false} />
           <div className="flex-1 text-left min-w-0">
             <p className="text-[13px] font-medium truncate">{firstName}</p>
             {/* Con qué cuenta estás dentro (antes no se veía en ningún lado). */}
@@ -216,13 +209,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <button
               onClick={() => navigate("/dashboard/perfil")}
               aria-label="Mi perfil"
-              className="ml-1 w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium text-sm shadow-[0_6px_20px_-6px_hsl(41_47%_59%/0.5)] ring-1 ring-primary/30 active:scale-95 transition overflow-hidden"
+              className="ml-1 w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition"
             >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
-              ) : (
-                initial
-              )}
+              <AvatarCircle url={avatarUrl} name={firstName} size="sm" prive={prive} glow={false} />
             </button>
           </div>
         </div>

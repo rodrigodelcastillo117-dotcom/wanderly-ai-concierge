@@ -1,0 +1,29 @@
+{
+  "_doc": "Respuesta de ejemplo del modelo para un pase de abordar + e-ticket de Aeroméxico (formato del SYSTEM de parse-trip-file). Sin llamadas a la IA en pruebas.",
+  "summary": "Vuelo redondo CDMX - Nueva York con Aeroméxico en mayo de 2026.",
+  "destino": "Nueva York",
+  "destinations": ["Nueva York"],
+  "ciudad_origen": "Ciudad de México",
+  "fecha_salida": "2026-05-02",
+  "fecha_regreso": "2026-05-08",
+  "num_viajeros": 1,
+  "presupuesto_total": null,
+  "presupuesto_pagado": null,
+  "moneda_original": "USD",
+  "documentos": [{ "archivo": 0, "tipo": "pase_abordar", "pagado": true }, { "archivo": 1, "tipo": "boleto", "pagado": true }],
+  "vuelos": [
+    { "aerolinea": "Aeroméxico", "numero_vuelo": "AM 0402", "from_ciudad": "Ciudad de México", "from_iata": "mex", "to_ciudad": "Nueva York", "to_iata": "JFK",
+      "fecha": "2026-05-02", "hora_salida": "8:05", "hora_llegada": "14:40", "duracion": "4h 35m", "escalas": "directo", "clase": "Turista",
+      "pasajeros": 1, "precio_total": "812.40", "precio_por_persona": null, "moneda": "US$", "confirmacion": "zxc 789", "notas": null, "archivo": 1 },
+    { "aerolinea": "Aeroméxico", "numero_vuelo": "AM403", "from_ciudad": "Nueva York", "from_iata": "JFK", "to_ciudad": "Ciudad de México", "to_iata": "MEX",
+      "fecha": "2026-05-08", "hora_salida": "16:10", "hora_llegada": "19:55", "duracion": null, "escalas": "directo", "clase": "Turista",
+      "pasajeros": 1, "precio_total": "—", "precio_por_persona": null, "moneda": "USD", "confirmacion": "ZXC789", "notas": null, "archivo": 0 }
+  ],
+  "hoteles": [],
+  "cruceros": [],
+  "transfers": [],
+  "itinerario": [],
+  "pendientes": [],
+  "contactos": [],
+  "notas_generales": ""
+}

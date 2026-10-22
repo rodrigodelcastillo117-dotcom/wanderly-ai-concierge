@@ -35,6 +35,7 @@ import {
 } from "@/lib/tripSelections";
 import { deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
 import { BookingStateBadge } from "@/components/BookingStateBadge";
+import { ImportedTripBanner } from "@/components/ImportedTripBanner";
 import { TripDocuments } from "@/components/TripDocuments";
 import { BookingActions } from "@/components/booking/BookingActions";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
@@ -479,8 +480,11 @@ const TripDetail = () => {
       </div>
 
       <div className="max-w-5xl space-y-8 p-4 pb-24 sm:p-6 md:p-12">
-        {/* Reservado vs. cotizado ("listo" no lo distingue): derivado de las reservas confirmadas. */}
-        <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} />
+        {/* Reservado vs. cotizado ("listo" no lo distingue): derivado de las reservas confirmadas.
+            Un viaje importado de documentos dice lo que se PAGÓ, no un estado de cotización. */}
+        {(trip as any).fuente === "documento"
+          ? <ImportedTripBanner trip={trip} />
+          : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} />}
         {/* Smart Date Resolution: fechas optimizadas por IATOS */}
         {trip.dates_optimized && (
           <motion.div

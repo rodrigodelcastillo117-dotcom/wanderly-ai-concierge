@@ -1,13 +1,16 @@
 import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Wand2, Upload, RefreshCw, Check, Sparkles, ArrowLeft, ImageIcon } from "lucide-react";
+import { Camera, Wand2, RefreshCw, Check, Sparkles, ArrowLeft, ImageIcon, X, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { notifyAvatarUpdated } from "@/hooks/useMyAvatar";
 
 export const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
+/** Hasta 3 fotos de la misma persona (de frente + otros ángulos) = mejor parecido. */
+export const MAX_SELFIES = 3;
 
 /** Motivo para rechazar una foto de avatar, o null si es válida. */
 export function avatarFileError(f: { size: number; type: string }): string | null {
@@ -15,6 +18,56 @@ export function avatarFileError(f: { size: number; type: string }): string | nul
   if (f.size > AVATAR_MAX_BYTES) return "Imagen muy grande (máx 8 MB)";
   return null;
 }
+
+/** Etiqueta honesta del parecido medido por el juez (0-100) o null si no se pudo medir. */
+export function likenessLabel(score: number | null | undefined): string {
+  if (score === null || score === undefined) return "Parecido sin verificar";
+  if (score >= 85) return `Parecido alto · ${score}/100`;
+  if (score >= 72) return `Se parece · ${score}/100`;
+  return `Parecido bajo · ${score}/100`;
+}
+
+/**
+ * Selfie lista para enviar: orientación correcta (EXIF), lado mayor de 1024 px y JPEG 0.9.
+ * Antes se mandaba la foto original (hasta 8 MB, a veces de lado): la cara llegaba girada o el
+ * servicio la recortaba.
+ */
+export async function prepareSelfie(file: File, max = 1024): Promise<string> {
+  let source: CanvasImageSource & { width: number; height: number };
+  try {
+    source = await createImageBitmap(file, { imageOrientation: "from-image" } as ImageBitmapOptions);
+  } catch {
+    const url = URL.createObjectURL(file);
+    source = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = url;
+    });
+  }
+  const scale = Math.min(1, max / Math.max(source.width, source.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(source.width * scale);
+  canvas.height = Math.round(source.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas");
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+/** Mensaje del servidor en un error de functions.invoke (cuerpo {error}). */
+export async function invokeErrorMessage(error: unknown, fallback: string): Promise<string> {
+  try {
+    const ctx = (error as { context?: { json?: () => Promise<unknown>; clone?: () => { json: () => Promise<unknown> } } })?.context;
+    const body = ctx?.clone ? await ctx.clone().json() : ctx?.json ? await ctx.json() : null;
+    const msg = (body as { error?: unknown } | null)?.error;
+    return typeof msg === "string" && msg.trim() ? msg : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+type Variant = { id: string; url: string; score: number | null };
 
 type Mode = "choose" | "photo" | "builder" | "preview";
 
@@ -102,14 +155,18 @@ type Props = {
   onSkip: () => void;
 };
 
+
 export default function AvatarCreator({ onComplete, onSkip }: Props) {
   // La ruta principal es la selfie: el avatar debe PARECERSE al usuario.
   const [mode, setMode] = useState<Mode>("photo");
-  const [selfie, setSelfie] = useState<string | null>(null);
+  const [selfies, setSelfies] = useState<string[]>([]);
   const [builder, setBuilder] = useState<Builder>(DEFAULT_BUILDER);
   const [builderStep, setBuilderStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [generated, setGenerated] = useState<string | null>(null);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [lastSource, setLastSource] = useState<"selfie" | "builder">("selfie");
   // Dos entradas separadas: la galería no lleva `capture` (en iPhone y Android forzaba la cámara
   // y no dejaba elegir una selfie existente); la cámara es una opción explícita aparte.
   const fileRef = useRef<HTMLInputElement>(null);
@@ -126,53 +183,65 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
     { key: "dream_destination", title: "Tu destino soñado de fondo", options: [], type: "text" },
   ];
 
-  const handleFile = (f: File) => {
+  const handleFile = async (f: File) => {
     const err = avatarFileError(f);
     if (err) {
       toast.error(err);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setSelfie(reader.result as string);
-    reader.readAsDataURL(f);
+    if (selfies.length >= MAX_SELFIES) {
+      toast.error(`Máximo ${MAX_SELFIES} fotos`);
+      return;
+    }
+    try {
+      const dataUrl = await prepareSelfie(f);
+      setSelfies((prev) => [...prev, dataUrl].slice(0, MAX_SELFIES));
+    } catch {
+      toast.error("No pudimos abrir esa foto. Prueba con otra.");
+    }
   };
 
-  const generateFromSelfie = async () => {
-    if (!selfie) return;
+  const create = async (source: "selfie" | "builder") => {
     setLoading(true);
+    setLastSource(source);
+    setVariants([]);
+    setPicked(null);
     setMode("preview");
     try {
       const { data, error } = await supabase.functions.invoke("generate-avatar", {
-        body: { selfie },
+        body: source === "selfie" ? { action: "crear", selfies } : { action: "crear", builder },
       });
-      if (error) throw error;
-      if (!data?.url) throw new Error("Sin imagen");
-      setGenerated(data.url);
-    } catch (e: any) {
-      toast.error("No se pudo crear tu avatar. Intenta de nuevo.");
-      console.error(e);
-      setMode("photo");
+      if (error) throw new Error(await invokeErrorMessage(error, "No se pudo crear tu avatar. Intenta de nuevo."));
+      const list: Variant[] = Array.isArray(data?.variants) ? data.variants : [];
+      if (!list.length) throw new Error(data?.error ?? "No se pudo crear tu avatar. Intenta de nuevo.");
+      setVariants(list);
+      setPicked(list[0].id);
+    } catch (e) {
+      toast.error((e as Error).message);
+      setMode(source === "selfie" ? "photo" : "builder");
     } finally {
       setLoading(false);
     }
   };
+  const generateFromSelfie = () => create("selfie");
+  const generateFromBuilder = () => create("builder");
 
-  const generateFromBuilder = async () => {
-    setLoading(true);
-    setMode("preview");
+  const choose = async () => {
+    if (!picked) return;
+    setSaving(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-avatar", {
-        body: { builder },
-      });
-      if (error) throw error;
-      if (!data?.url) throw new Error("Sin imagen");
-      setGenerated(data.url);
-    } catch (e: any) {
-      toast.error("No se pudo crear tu avatar. Intenta de nuevo.");
-      console.error(e);
-      setMode("builder");
+      const { data, error } = await supabase.functions.invoke("generate-avatar", { body: { action: "elegir", variant_id: picked } });
+      if (error) throw new Error(await invokeErrorMessage(error, "No se pudo guardar tu avatar."));
+      if (!data?.url) throw new Error(data?.error ?? "No se pudo guardar tu avatar.");
+      // La selfie ya no se necesita: se borra de la memoria de esta pantalla.
+      setSelfies([]);
+      notifyAvatarUpdated(data.url);
+      if (data.reaplicando) toast.message("Estamos agregando a tu avatar los recuerdos de tus viajes; aparecerán en unos minutos.");
+      onComplete(data.url);
+    } catch (e) {
+      toast.error((e as Error).message);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -189,14 +258,9 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
           >
             <Camera className="w-10 h-10 text-primary mb-4" />
             <div className="font-display text-2xl mb-2">Sube una foto</div>
-            <p className="text-sm text-muted-foreground mb-4">
-              La IA convierte tu selfie en una caricatura premium estilo Pixar en 15 segundos.
-            </p>
-            <div className="inline-flex items-center gap-1 text-xs text-primary">
-              <Sparkles className="w-3 h-3" /> Recomendado
-            </div>
+            <p className="text-sm text-muted-foreground mb-4">La IA convierte tu selfie en un retrato ilustrado premium que se parece a ti.</p>
+            <div className="inline-flex items-center gap-1 text-xs text-primary"><Sparkles className="w-3 h-3" /> Recomendado</div>
           </button>
-
           <button
             type="button"
             onClick={() => setMode("builder")}
@@ -204,14 +268,10 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
           >
             <Wand2 className="w-10 h-10 text-primary mb-4" />
             <div className="font-display text-2xl mb-2">Diséñalo tú</div>
-            <p className="text-sm text-muted-foreground">
-              Elige cara, pelo, outfit, accesorio y fondo. Como un Mii, pero de lujo.
-            </p>
+            <p className="text-sm text-muted-foreground">Elige piel, pelo, outfit y accesorio.</p>
           </button>
         </div>
-        <button onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground transition">
-          Saltar por ahora →
-        </button>
+        <button onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground transition">Saltar por ahora →</button>
       </div>
     );
   }
@@ -225,25 +285,43 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
           </div>
           <h3 className="font-display text-2xl">Crea tu avatar a partir de tu selfie</h3>
           <p className="text-sm text-muted-foreground">
-            La IA conserva tus rasgos reales y los convierte en un retrato premium estilo Pixar. Se parecerá a ti de verdad.
+            La IA conserva tu cara, tono de piel, pelo, barba y lentes, y verifica el parecido antes de mostrártelo. Te damos 2 versiones para elegir.
           </p>
         </div>
 
         <div className="rounded-2xl border-2 border-dashed border-primary/50 bg-surface/50 p-6 sm:p-8 text-center">
-          {selfie ? (
-            <img src={selfie} alt="Tu foto" className="mx-auto max-h-80 rounded-xl object-cover mb-4" />
+          {selfies.length ? (
+            <div className="flex flex-wrap justify-center gap-3 mb-2" aria-label="Fotos elegidas">
+              {selfies.map((s, i) => (
+                <div key={i} className="relative">
+                  <img src={s} alt={`Foto ${i + 1}`} className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border border-primary/50" />
+                  <button
+                    type="button"
+                    onClick={() => setSelfies((prev) => prev.filter((_, k) => k !== i))}
+                    aria-label={`Quitar foto ${i + 1}`}
+                    className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-background border border-border flex items-center justify-center hover:border-destructive"
+                  >
+                    <X className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                  {i === 0 && <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[9px] uppercase tracking-wider bg-primary text-primary-foreground rounded-full px-2 py-0.5">Principal</span>}
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="space-y-2 py-4">
               <Camera className="w-12 h-12 text-primary mx-auto" aria-hidden="true" />
               <p className="font-display text-lg">Elige una foto clara de tu cara</p>
-              <p className="text-xs text-muted-foreground">JPG, PNG o WebP · máx 8 MB · de frente y bien iluminada = mejor parecido</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG o WebP · máx 8 MB · de frente, sin lentes oscuros y con buena luz = mejor parecido</p>
             </div>
           )}
+          {selfies.length > 0 && selfies.length < MAX_SELFIES && (
+            <p className="text-xs text-muted-foreground mt-3">Opcional: agrega {MAX_SELFIES - selfies.length === 1 ? "1 foto más" : `hasta ${MAX_SELFIES - selfies.length} fotos más`} desde otro ángulo para que se parezca todavía más.</p>
+          )}
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
-            <Button type="button" onClick={() => fileRef.current?.click()} className="bg-gradient-gold text-primary-foreground gold-glow h-11">
-              <ImageIcon className="w-4 h-4 mr-2" aria-hidden="true" /> {selfie ? "Elegir otra foto" : "Elegir de mi galería"}
+            <Button type="button" onClick={() => fileRef.current?.click()} disabled={selfies.length >= MAX_SELFIES} className="bg-gradient-gold text-primary-foreground gold-glow h-11">
+              <ImageIcon className="w-4 h-4 mr-2" aria-hidden="true" /> {selfies.length ? "Agregar otra foto" : "Elegir de mi galería"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()} className="h-11">
+            <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()} disabled={selfies.length >= MAX_SELFIES} className="h-11">
               <Camera className="w-4 h-4 mr-2" aria-hidden="true" /> Tomar una foto
             </Button>
           </div>
@@ -253,7 +331,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
             accept={AVATAR_TYPES.join(",")}
             className="hidden"
             aria-label="Elegir foto de la galería"
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }}
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void handleFile(f); }}
           />
           <input
             ref={cameraRef}
@@ -262,11 +340,16 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
             capture="user"
             className="hidden"
             aria-label="Tomar una foto con la cámara"
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }}
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void handleFile(f); }}
           />
         </div>
 
-        {selfie && (
+        <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+          Tu selfie solo se usa para crear el avatar: no se guarda ni se publica. Las versiones que no elijas se borran.
+        </p>
+
+        {selfies.length > 0 && (
           <Button onClick={generateFromSelfie} disabled={loading} className="w-full h-12 bg-gradient-gold text-primary-foreground gold-glow">
             <Sparkles className="w-4 h-4 mr-2" /> Crear mi avatar con mi cara
           </Button>
@@ -274,19 +357,16 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
           <button
-            onClick={() => { setSelfie(null); setMode("builder"); }}
+            onClick={() => { setSelfies([]); setMode("builder"); }}
             className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
           >
             <Wand2 className="w-3 h-3" /> Prefiero diseñarlo por rasgos
           </button>
-          <button onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground transition">
-            Saltar por ahora →
-          </button>
+          <button onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground transition">Saltar por ahora →</button>
         </div>
       </div>
     );
   }
-
 
   if (mode === "builder") {
     const step = builderSteps[builderStep];
@@ -374,50 +454,69 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
     );
   }
 
-  // preview
+
+  // preview: 2 versiones para elegir
   return (
     <div className="space-y-6 text-center">
-      <div className="relative mx-auto w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden border border-border bg-surface">
-        {loading || !generated ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            <div className="absolute inset-0 bg-gradient-gold opacity-10 animate-pulse" />
-            <Sparkles className="w-10 h-10 text-primary animate-pulse" />
-            <p className="text-sm text-muted-foreground">Creando tu avatar único...</p>
-            <p className="text-xs text-muted-foreground">Esto toma unos 15-30 segundos</p>
-          </div>
-        ) : (
-          <motion.img
-            key={generated}
-            src={generated}
-            alt="Tu Travel Avatar"
-            initial={{ opacity: 0, scale: 1.05, filter: "blur(20px)" }}
-            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.8 }}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-      </div>
-
-      {generated && !loading && (
+      {loading || !variants.length ? (
+        <div className="relative mx-auto w-56 h-56 sm:w-64 sm:h-64 rounded-full overflow-hidden border border-primary/40 bg-surface flex flex-col items-center justify-center gap-3" aria-busy="true">
+          <div className="absolute inset-0 bg-gradient-gold opacity-10 animate-pulse" />
+          <Sparkles className="w-10 h-10 text-primary animate-pulse" />
+          <p className="text-sm text-muted-foreground px-6">Creando y verificando tu parecido…</p>
+          <p className="text-xs text-muted-foreground">Toma de 20 a 60 segundos</p>
+        </div>
+      ) : (
         <>
           <div>
-            <h3 className="font-display text-2xl mb-1">¡Te ves increíble!</h3>
-            <p className="text-sm text-muted-foreground">Este será tu Travel Avatar en IATOS.</p>
+            <h3 className="font-display text-2xl mb-1">Elige tu versión</h3>
+            <p className="text-sm text-muted-foreground">
+              {lastSource === "selfie" ? "Comparamos cada versión con tu foto para que se parezca a ti." : "Elige la que más te guste."}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4 max-w-md mx-auto" role="radiogroup" aria-label="Versiones de tu avatar">
+            {variants.map((v, i) => {
+              const sel = picked === v.id;
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={sel}
+                  onClick={() => setPicked(v.id)}
+                  className="flex flex-col items-center gap-2 focus:outline-none group"
+                >
+                  <span className={`relative block w-full aspect-square rounded-full p-[3px] transition ${sel ? "avatar-ring shadow-[0_0_24px_-4px_rgba(212,175,55,0.7)]" : "bg-white/10 group-hover:bg-primary/40"}`}>
+                    <motion.img
+                      src={v.url}
+                      alt={`Versión ${i + 1} de tu avatar`}
+                      initial={{ opacity: 0, filter: "blur(12px)" }}
+                      animate={{ opacity: 1, filter: "blur(0px)" }}
+                      transition={{ duration: 0.6 }}
+                      className="w-full h-full rounded-full object-cover bg-[#0b0806]"
+                      style={{ objectPosition: "50% 18%" }}
+                    />
+                    {sel && <Check className="absolute top-1 right-1 w-6 h-6 p-1 rounded-full bg-primary text-primary-foreground" aria-hidden="true" />}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {lastSource === "selfie" ? likenessLabel(v.score) : `Versión ${i + 1}`}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setGenerated(null);
-                selfie ? generateFromSelfie() : generateFromBuilder();
-              }}
-            >
-              <RefreshCw className="w-4 h-4 mr-2" /> Regenerar
+            <Button variant="outline" disabled={saving} onClick={() => (lastSource === "selfie" ? generateFromSelfie() : generateFromBuilder())}>
+              <RefreshCw className="w-4 h-4 mr-2" /> Volver a generar
             </Button>
-            <Button onClick={() => onComplete(generated)} className="bg-gradient-gold text-primary-foreground gold-glow">
-              <Check className="w-4 h-4 mr-2" /> Usar este avatar
+            <Button onClick={choose} disabled={!picked || saving} className="bg-gradient-gold text-primary-foreground gold-glow">
+              <Check className="w-4 h-4 mr-2" /> {saving ? "Guardando…" : "Usar esta versión"}
             </Button>
           </div>
+          {lastSource === "selfie" && (
+            <button type="button" onClick={() => setMode("photo")} className="text-xs text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="w-3 h-3 inline mr-1" aria-hidden="true" /> Cambiar mis fotos
+            </button>
+          )}
         </>
       )}
     </div>

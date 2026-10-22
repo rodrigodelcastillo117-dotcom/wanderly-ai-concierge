@@ -27,6 +27,7 @@ const PlanTrip = lazyWithRetry(() => import("./pages/PlanTrip"));
 const TripDetail = lazyWithRetry(() => import("./pages/TripDetail"));
 const EditTrip = lazyWithRetry(() => import("./pages/EditTrip"));
 const Trips = lazyWithRetry(() => import("./pages/Trips"));
+const ImportPastTrip = lazyWithRetry(() => import("./pages/ImportPastTrip"));
 const MultiDestRoute = lazyWithRetry(() => import("./pages/MultiDestRoute"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Discover = lazyWithRetry(() => import("./pages/Discover"));
@@ -114,6 +115,7 @@ const App = () => (
             <Route path="/dashboard/planear" element={<ProtectedRoute><PlanTrip /></ProtectedRoute>} />
             <Route path="/dashboard/ruta" element={<ProtectedRoute><MultiDestRoute /></ProtectedRoute>} />
             <Route path="/dashboard/viajes" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
+            <Route path="/dashboard/viajes/importar" element={<ProtectedRoute><ImportPastTrip /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id/editar" element={<ProtectedRoute><EditTrip /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id/live" element={<ProtectedRoute><LiveTrip /></ProtectedRoute>} />

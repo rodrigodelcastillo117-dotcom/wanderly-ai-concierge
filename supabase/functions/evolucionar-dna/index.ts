@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     ] = await Promise.all([
       supabase.from("travel_profiles").select("*").eq("user_id", uid).maybeSingle(),
       supabase.from("ai_user_preferences").select("*").eq("user_id", uid).maybeSingle(),
-      supabase.from("trips").select("destino, pais_destino, total_estimado, num_viajeros, match_score, status, fecha_salida, fecha_regreso").eq("user_id", uid).order("created_at", { ascending: false }).limit(20),
+      supabase.from("trips").select("destino, pais_destino, total_estimado, num_viajeros, match_score, status, fecha_salida, fecha_regreso, fuente, pagado_total, pagado_moneda").eq("user_id", uid).order("created_at", { ascending: false }).limit(20),
       // user_visits no tiene "rating": pedirlo hacía fallar la consulta y el DNA nunca veía tus visitas.
       supabase.from("user_visits").select("place_name, category, visited_at").eq("user_id", uid).order("visited_at", { ascending: false }).limit(50),
       supabase.from("recomendaciones").select("tipo, titulo").eq("user_id", uid).eq("guardado", true).limit(30),
@@ -87,11 +87,16 @@ Deno.serve(async (req) => {
     }).catch(() => ({ profile: null }));
     const gustos = renderTasteProfile(taste, { maxTokens: 600, omitDeclared: true });
 
-    // Resumen de viajes (pasado o planeado: un viaje futuro no es comportamiento todavía)
+    // Resumen de viajes
+    // Viajes ya hechos (incluidos los importados de boletos y reservas, con lo que de verdad se
+    // pagó) pesan más que los planeados: son comportamiento real.
     const tripsResumen = (trips ?? []).map((t: any) => {
-      const fin = String(t.fecha_regreso ?? t.fecha_salida ?? "");
-      const cuando = fin && fin < today ? "hecho" : "planeado";
-      return `${t.destino}${t.pais_destino ? ` (${t.pais_destino})` : ""} — ${cuando}, $${Math.round(Number(t.total_estimado) || 0).toLocaleString("es-MX")} MXN, ${t.num_viajeros} viajero(s)`;
+      const fin = t.fecha_regreso || t.fecha_salida;
+      const hecho = fin && fin < today;
+      const dinero = t.fuente === "documento" && t.pagado_total != null
+        ? `pagó ${Number(t.pagado_total).toLocaleString("es-MX")} ${t.pagado_moneda} (de sus documentos)`
+        : t.total_estimado ? `$${Math.round(Number(t.total_estimado)).toLocaleString("es-MX")} MXN cotizado` : "sin precio";
+      return `${hecho ? "[HECHO]" : "[PLANEADO]"} ${t.destino}${t.pais_destino ? ` (${t.pais_destino})` : ""}${t.fecha_salida ? `, ${t.fecha_salida}` : ""} — ${dinero}, ${t.num_viajeros ?? "?"} viajero(s)`;
     }).join("\n") || "Sin viajes aún.";
 
     // Categorías de visitas agregadas
@@ -172,6 +177,10 @@ Genera el Travel DNA evolucionado. Detecta divergencias entre lo declarado y lo 
 
     // Persiste el DNA evolucionado + sube la versión
     const nuevaVersion = (prefs?.dna_version ?? 1) + 1;
+    // El avatar vive en profiles.avatar_url; aun así no se borran las llaves del avatar que
+    // perfil_ia guardaba (antes se perdían al recalcular el DNA).
+    const anterior = (prefs?.perfil_ia ?? {}) as Record<string, unknown>;
+    for (const k of ["avatar_url", "avatar_meta"]) if (anterior[k] !== undefined && dna && typeof dna === "object") dna[k] = anterior[k];
     await supabase.from("ai_user_preferences").upsert({
       user_id: uid,
       perfil_ia: dna,
