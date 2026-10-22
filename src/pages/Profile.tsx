@@ -6,7 +6,11 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import BenefitsVault from "@/components/BenefitsVault";
 import PromocionesActivas from "@/components/PromocionesActivas";
 import AvatarCreator from "@/components/AvatarCreator";
-import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp, BarChart3, FileUp } from "lucide-react";
+import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp, BarChart3, FileUp, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +26,7 @@ import { InviteFriendsCard } from "@/components/InviteFriendsCard";
 import { dnaForDisplay } from "../../supabase/functions/_shared/dnaVoice";
 import { AvatarCircle } from "@/components/avatar/AvatarCircle";
 import { PriveSeal } from "@/components/PriveSeal";
-import { useMyAvatar } from "@/hooks/useMyAvatar";
+import { notifyAvatarUpdated, useMyAvatar } from "@/hooks/useMyAvatar";
 import { usePriveSeal } from "@/hooks/usePriveSeal";
 import { DNA_ARCHETYPES } from "@/lib/travelDna";
 import { useAutoEvolveAvatar } from "@/components/avatar/useAutoEvolveAvatar";
@@ -35,6 +39,20 @@ const Profile = () => {
   const prive = usePriveSeal();
   const [fullName, setFullName] = useState<string>("");
   const [openAvatar, setOpenAvatar] = useState(false);
+  const [confirmDeleteAvatar, setConfirmDeleteAvatar] = useState(false);
+  const [deletingAvatar, setDeletingAvatar] = useState(false);
+
+  // "Borrar mi avatar" (lo promete el Aviso de Privacidad): el servidor borra la imagen pública, la
+  // base y las variantes privadas, profiles.avatar_url y los recuerdos del avatar.
+  const deleteMyAvatar = async () => {
+    setDeletingAvatar(true);
+    const { data, error } = await supabase.functions.invoke("generate-avatar", { body: { action: "eliminar" } });
+    setDeletingAvatar(false);
+    setConfirmDeleteAvatar(false);
+    if (error || !(data as { ok?: boolean } | null)?.ok) { toast.error("No pudimos borrar tu avatar. Intenta de nuevo."); return; }
+    notifyAvatarUpdated(null);
+    toast.success("Borramos tu avatar y sus imágenes.");
+  };
   const { dna, reload } = useTravelDNA();
   const [evolving, setEvolving] = useState(false);
   const [dnaMeta, setDnaMeta] = useState<{ version: number | null; updated_at: string | null }>({
@@ -143,10 +161,18 @@ const Profile = () => {
                 ? "Este avatar te representa en todo IATOS: perfil, viajes, social y compatibilidad."
                 : "Crea tu Travel Avatar a partir de tu selfie: se parece a ti y evoluciona con cada viaje."}
             </p>
-            <Button onClick={() => setOpenAvatar(true)} className="bg-gradient-gold text-primary-foreground gold-glow">
-              <Wand2 className="w-4 h-4 mr-2" />
-              {avatarUrl ? "Cambiar mi avatar" : "Crear mi avatar"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setOpenAvatar(true)} className="bg-gradient-gold text-primary-foreground gold-glow">
+                <Wand2 className="w-4 h-4 mr-2" />
+                {avatarUrl ? "Cambiar mi avatar" : "Crear mi avatar"}
+              </Button>
+              {avatarUrl && (
+                <Button variant="ghost" onClick={() => setConfirmDeleteAvatar(true)} disabled={deletingAvatar}
+                  className="text-muted-foreground hover:text-destructive">
+                  <Trash2 className="w-4 h-4 mr-2" aria-hidden="true" /> Borrar mi avatar
+                </Button>
+              )}
+            </div>
           </div>
         </section>
 
@@ -332,24 +358,32 @@ const Profile = () => {
             <DialogTitle className="font-display text-2xl">Tu Travel Avatar</DialogTitle>
           </DialogHeader>
           <AvatarCreator
-            onComplete={async (url) => {
-              if (url && user) {
-                const { error } = await (supabase as any)
-                  .from("profiles")
-                  .update({ avatar_url: url })
-                  .eq("id", user.id);
-                if (error) {
-                  toast.error("No se pudo guardar el avatar");
-                } else {
-                  toast.success("¡Avatar actualizado en todo IATOS!");
-                }
-              }
+            onComplete={(url) => {
+              // generate-avatar ("elegir") ya lo guardó con la llave de servicio: profiles.avatar_url
+              // solo la escribe el servidor (N-L1). Aquí solo se avisa.
+              if (url) toast.success("¡Avatar actualizado en todo IATOS!");
               setOpenAvatar(false);
             }}
             onSkip={() => setOpenAvatar(false)}
           />
         </DialogContent>
       </Dialog>
+      <AlertDialog open={confirmDeleteAvatar} onOpenChange={setConfirmDeleteAvatar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Borrar tu Travel Avatar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Borramos la imagen que ven tus amigos, la imagen base y las versiones guardadas, y los recuerdos de viaje dibujados en él.
+              Tus viajes no se tocan. Puedes crear otro cuando quieras.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void deleteMyAvatar()} disabled={deletingAvatar}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Borrar mi avatar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

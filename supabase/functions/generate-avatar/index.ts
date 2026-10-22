@@ -6,6 +6,9 @@
 //                                              el bucket PRIVADO avatar-private y se devuelven con enlaces
 //                                              firmados de 15 min. La selfie NO se guarda en ningún lado.
 //   {action:"crear", builder:{…}}             → "diséñalo tú" (sin foto, sin juez).
+//   {action:"eliminar"}                       → "Borrar mi avatar" (T-P2-5, lo promete el Aviso de
+//                                              Privacidad): borra la copia pública, la base y las
+//                                              variantes privadas, profiles.avatar_url y los recuerdos.
 //   {action:"elegir", variant_id}             → la variante elegida queda como imagen base (privada) y
 //                                              su copia pública como avatar (profiles.avatar_url, única
 //                                              fuente). Las otras variantes se borran. En segundo plano
@@ -20,6 +23,8 @@ import { toDataUrl, validSelfie, type BuilderTraits } from "../_shared/avatar-pr
 import {
   admin, coreDeps, imageBytes, PRIVATE_BUCKET, publishAvatar, rebuildWithHistory, runInBackground,
 } from "../_shared/avatar-runtime.ts";
+import { deleteAvatar } from "../_shared/avatar-delete.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,6 +51,46 @@ function json(b: unknown, status = 200) {
 }
 const fail = (code: string, status: number) => json({ ok: false, code, error: MESSAGES[code] ?? MESSAGES.error }, status);
 
+/** "Borrar mi avatar" con la llave de servicio (profiles.avatar_url solo la escribe el servidor). */
+function removeAvatar(db: SupabaseClient, uid: string) {
+  const check = (r: { error: { message: string } | null }) => { if (r.error) throw new Error(r.error.message); };
+  return deleteAvatar({
+    knownPaths: async (userId) => {
+      const [{ data: ap }, { data: vs }] = await Promise.all([
+        db.from("avatar_profiles").select("current_path, base_path").eq("user_id", userId).maybeSingle(),
+        db.from("avatar_variants").select("storage_path").eq("user_id", userId),
+      ]);
+      return {
+        public: [ap?.current_path].filter((p): p is string => typeof p === "string" && !!p),
+        private: [ap?.base_path, ...((vs ?? []) as Array<{ storage_path: string }>).map((v) => v.storage_path)]
+          .filter((p): p is string => typeof p === "string" && !!p),
+      };
+    },
+    list: async (bucket, prefix) => {
+      const { data, error } = await db.storage.from(bucket).list(prefix, { limit: 1000 });
+      if (error) throw new Error(error.message);
+      const items = (data ?? []) as Array<{ name: string; id: string | null }>;
+      return { files: items.filter((i) => i.id).map((i) => i.name), folders: items.filter((i) => !i.id).map((i) => i.name) };
+    },
+    remove: async (bucket, paths) => {
+      const { error } = await db.storage.from(bucket).remove(paths);
+      return { error: error ? error.message : null };
+    },
+    clearRows: async (userId) => {
+      check(await db.from("profiles").update({ avatar_url: null }).eq("id", userId));
+      check(await db.from("avatar_variants").delete().eq("user_id", userId));
+      check(await db.from("avatar_souvenirs").delete().eq("user_id", userId));
+      check(await db.from("avatar_profiles").delete().eq("user_id", userId));
+      const { data: prefs } = await db.from("ai_user_preferences").select("perfil_ia").eq("user_id", userId).maybeSingle();
+      const perfil = prefs?.perfil_ia as Record<string, unknown> | null | undefined;
+      if (perfil && typeof perfil === "object" && ("avatar_url" in perfil || "avatar_meta" in perfil)) {
+        const { avatar_url: _u, avatar_meta: _m, ...rest } = perfil;
+        check(await db.from("ai_user_preferences").update({ perfil_ia: rest }).eq("user_id", userId));
+      }
+    },
+  }, uid);
+}
+
 function cleanBuilder(b: unknown): BuilderTraits | null {
   if (!b || typeof b !== "object") return null;
   const out: BuilderTraits = {};
@@ -59,7 +104,6 @@ function cleanBuilder(b: unknown): BuilderTraits | null {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    if (!Deno.env.get("LOVABLE_API_KEY")) return fail("sin_creditos", 503);
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "No autorizado" }, 401);
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } });
@@ -72,6 +116,14 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const db = admin();
+
+    // Borrar no depende del servicio de imágenes.
+    if (body?.action === "eliminar") {
+      const r = await removeAvatar(db, uid);
+      if (!r.ok) return json({ ok: false, error: "No pudimos borrar tu avatar. Intenta de nuevo." }, 500);
+      return json({ ok: true, borrados: r.removed });
+    }
+    if (!Deno.env.get("LOVABLE_API_KEY")) return fail("sin_creditos", 503);
 
     if (body?.action === "elegir") {
       const id = String(body?.variant_id ?? "");
