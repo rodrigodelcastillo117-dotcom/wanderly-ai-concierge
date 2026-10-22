@@ -326,12 +326,12 @@ export async function renderPostcard(p: PostcardInput): Promise<Blob | null> {
 export type ShareOutcome = "shared" | "downloaded" | "cancelled" | "failed";
 
 /** Comparte con Web Share (si el dispositivo comparte archivos) o descarga el PNG. */
-export async function shareOrDownload(blob: Blob, filename: string, text: string, preferDownload = false): Promise<ShareOutcome> {
+export async function shareOrDownload(blob: Blob, filename: string, text: string, preferDownload = false, title = "Postal IATOS"): Promise<ShareOutcome> {
   const file = typeof File !== "undefined" ? new File([blob], filename, { type: "image/png" }) : null;
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
   if (!preferDownload && file && nav.share && nav.canShare?.({ files: [file] })) {
     try {
-      await nav.share({ files: [file], title: "Postal IATOS", text });
+      await nav.share({ files: [file], title, text });
       return "shared";
     } catch (e) {
       if ((e as { name?: string })?.name === "AbortError") return "cancelled";
