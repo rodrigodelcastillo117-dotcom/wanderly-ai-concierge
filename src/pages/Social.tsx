@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles } from "lucide-react";
+import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles, ChevronRight, Plane } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FriendAvatar } from "@/components/social/FriendAvatar";
+import { PriveSeal } from "@/components/PriveSeal";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchFriendProfiles } from "@/lib/friendProfiles";
+import { firstName, parseFriendSummaries, showAfinidad, summaryLine, type FriendSummary } from "@/lib/social";
 import { useAuth } from "@/contexts/AuthContext";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
@@ -18,7 +20,6 @@ type Amigo = {
   full_name: string | null;
   avatar_url: string | null;
   username: string | null;
-  compat?: { score: number; detalles: string[] } | null;
 };
 
 type Badge = {
@@ -64,7 +65,8 @@ export default function Social() {
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [misiones, setMisiones] = useState<Mision[]>([]);
   const [loadingMisiones, setLoadingMisiones] = useState(true);
-  const [perfilOpen, setPerfilOpen] = useState<Amigo | null>(null);
+  const [resumen, setResumen] = useState<Map<string, FriendSummary>>(new Map());
+  const navigate = useNavigate();
   const tipSocial = useTooltipShown("social");
 
   const shareLink = useMemo(
@@ -90,20 +92,13 @@ export default function Social() {
     const profs = await fetchFriendProfiles(supabase);
     if (profs.length === 0) { setAmigos([]); setLoadingAmigos(false); return; }
     const base: Amigo[] = profs.map((p) => ({
-      amigo_id: p.id, full_name: p.full_name, avatar_url: p.avatar_url, username: p.username, compat: null,
+      amigo_id: p.id, full_name: p.full_name, avatar_url: p.avatar_url, username: p.username,
     }));
     setAmigos(base);
     setLoadingAmigos(false);
-    // compat en paralelo
-    base.forEach(async (a) => {
-      const { data } = await supabase.rpc("compatibilidad_viaje", { p_otro: a.amigo_id });
-      const r: any = data;
-      if (r?.ok) {
-        setAmigos((prev) => prev.map((x) =>
-          x.amigo_id === a.amigo_id ? { ...x, compat: { score: r.score ?? 0, detalles: r.detalles ?? [] } } : x
-        ));
-      }
-    });
+    // Viajes juntos, lo que tienen en común y saludos por devolver: una sola llamada (amigos_resumen).
+    const { data } = await supabase.rpc("amigos_resumen");
+    setResumen(parseFriendSummaries(data));
   }
 
   async function loadGamification() {
@@ -201,27 +196,43 @@ export default function Social() {
                 <p className="text-muted-foreground text-sm">Invita a tu primer compañero de viaje desde "Conectar".</p>
               </div>
             ) : (
-              amigos.map((a) => (
-                <div key={a.amigo_id}
-                  className="glass-card rounded-2xl p-3 md:p-4 flex items-center gap-3 md:gap-4 border border-white/[0.04] hover:border-primary/20 transition">
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground font-medium shrink-0 overflow-hidden text-sm md:text-base">
-                    {a.avatar_url
-                      ? <img src={a.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : (a.full_name?.[0] ?? "?").toUpperCase()}
+              amigos.map((a) => {
+                const r = resumen.get(a.amigo_id);
+                const nombre = a.full_name ?? a.username ?? "Viajero";
+                const open = () => navigate(`/dashboard/social/amigo/${a.amigo_id}`);
+                return (
+                  // Toda la tarjeta abre el perfil con el mouse o el dedo; con teclado, el botón "Ver".
+                  <div key={a.amigo_id} onClick={open}
+                    className="group cursor-pointer glass-card rounded-2xl p-3 md:p-4 flex items-center gap-3 md:gap-4 border border-white/[0.04] hover:border-primary/25 transition">
+                    <div className="relative">
+                      <FriendAvatar name={nombre} url={a.avatar_url} className="w-12 h-12 md:w-14 md:h-14 text-base md:text-lg" />
+                      {r?.saludo_por_devolver && (
+                        <span className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-primary text-[11px] flex items-center justify-center shadow ring-2 ring-background" aria-label="Te mandó un saludo">👋</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm md:text-base flex items-center gap-1.5 min-w-0">
+                        <span className="truncate">{nombre}</span>
+                        {r?.is_prive && <PriveSeal size="sm" />}
+                      </p>
+                      <p className={`text-[11px] md:text-xs truncate ${r?.saludo_por_devolver ? "text-primary" : "text-muted-foreground"}`}>
+                        {summaryLine(r, firstName(a))}
+                      </p>
+                    </div>
+                    {r && r.viajes_juntos > 0 && (
+                      <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary" title="Viajes juntos">
+                        <Plane className="w-3 h-3" /> {r.viajes_juntos}
+                      </span>
+                    )}
+                    {r && showAfinidad(r.afinidad) && <div className="hidden sm:block"><CompatRing score={r.afinidad} /></div>}
+                    <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10 text-xs md:text-sm px-2 md:px-3"
+                      aria-label={`Ver perfil de ${nombre}`}
+                      onClick={(e) => { e.stopPropagation(); open(); }}>
+                      Ver <ChevronRight className="w-3.5 h-3.5 ml-0.5 transition group-hover:translate-x-0.5" />
+                    </Button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm md:text-base truncate">{a.full_name ?? a.username ?? "Viajero"}</p>
-                    <p className="text-[11px] md:text-xs text-muted-foreground truncate">
-                      {a.compat?.detalles?.[0] ?? (a.compat ? "Sin coincidencias aún" : "Calculando compatibilidad…")}
-                    </p>
-                  </div>
-                  {a.compat && <div className="hidden sm:block"><CompatRing score={a.compat.score} /></div>}
-                  <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10 text-xs md:text-sm px-2 md:px-3"
-                    onClick={() => setPerfilOpen(a)}>
-                    Ver
-                  </Button>
-                </div>
-              ))
+                );
+              })
             )}
           </TabsContent>
 
@@ -344,34 +355,6 @@ export default function Social() {
       </div>
 
 
-      <Dialog open={!!perfilOpen} onOpenChange={(o) => !o && setPerfilOpen(null)}>
-        <DialogContent className="bg-card border-primary/20 max-w-[92vw] md:max-w-lg rounded-2xl p-5 md:p-6">
-          <DialogHeader>
-            <DialogTitle className="font-display text-xl md:text-2xl flex items-center gap-3">
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground overflow-hidden text-sm md:text-base">
-                {perfilOpen?.avatar_url
-                  ? <img src={perfilOpen.avatar_url} alt="" className="w-full h-full object-cover" />
-                  : (perfilOpen?.full_name?.[0] ?? "?").toUpperCase()}
-              </div>
-              <span className="truncate">{perfilOpen?.full_name ?? perfilOpen?.username ?? "Viajero"}</span>
-            </DialogTitle>
-          </DialogHeader>
-          {perfilOpen?.compat && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 md:gap-4">
-                <CompatRing score={perfilOpen.compat.score} />
-                <div className="min-w-0">
-                  <p className="font-medium gold-text text-sm md:text-base">{perfilOpen.compat.score}% compatibles</p>
-                  <p className="text-[11px] md:text-xs text-muted-foreground">Basado en tu perfil de viaje</p>
-                </div>
-              </div>
-              <ul className="text-xs md:text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                {perfilOpen.compat.detalles.map((d, i) => <li key={i}>{d}</li>)}
-              </ul>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }

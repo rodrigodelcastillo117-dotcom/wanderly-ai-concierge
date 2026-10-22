@@ -356,7 +356,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
               {card.subtitle && <p className="text-xs text-muted-foreground">{card.subtitle}</p>}
             </div>
           </div>
-          <PriceBlock card={card} suffix="total" />
+          <PriceBlock card={card} suffix={card.price_basis ?? "total"} />
         </div>
         {card.meta && <p className="text-xs text-muted-foreground mb-2">{card.meta}</p>}
         <div className="mb-3"><ProvenanceBadge card={card} /></div>
@@ -376,7 +376,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
               <h4 className="font-display text-lg leading-tight">{card.title}</h4>
               {card.subtitle && <p className="text-sm text-muted-foreground mb-1">{card.subtitle}</p>}
             </div>
-            <PriceBlock card={card} suffix={card.type === "hotel" ? card.meta ?? undefined : undefined} />
+            <PriceBlock card={card} suffix={card.type === "hotel" ? card.price_basis ?? card.meta ?? undefined : undefined} />
           </div>
           {card.meta && card.type !== "hotel" && <p className="text-xs text-primary mb-2">{card.meta}</p>}
           <div className="my-3"><ProvenanceBadge card={card} /></div>

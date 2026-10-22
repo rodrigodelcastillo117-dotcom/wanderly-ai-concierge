@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useBookingExitNotice } from "@/lib/bookingExit";
 import {
   BookmarkCheck, ExternalLink, Calendar, MapPin, MousePointerClick, UtensilsCrossed, TrainFront, Ship, Plane, Hotel, Car,
   Compass, Wifi, Shield,
@@ -79,6 +80,7 @@ const CATEGORY_ICON: Record<string, typeof BookmarkCheck> = {
 };
 
 const Reservas = () => {
+  useBookingExitNotice(); // motivo con el que booking-go regresó a IATOS (AUD-04)
   const { user } = useAuth();
   const [items, setItems] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);

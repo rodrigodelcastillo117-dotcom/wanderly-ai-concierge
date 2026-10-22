@@ -11,7 +11,7 @@ type VenueLike = {
  * por nombre y ciudad) o, si no, una foto ilustrativa de su categoría marcada como tal.
  */
 export function VenueImage({ venue, className = "h-44 w-full", size = "card" }: {
-  venue: VenueLike; className?: string; size?: "card" | "hero";
+  venue: VenueLike; className?: string; size?: "card" | "hero" | "thumb";
 }) {
   return (
     <SmartImage

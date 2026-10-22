@@ -25,7 +25,7 @@ export function pickBatch(rows: DueLink[], perRun = 20): DueLink[] {
   const hosts = new Set<string>();
   const out: DueLink[] = [];
   for (const r of rows) {
-    const h = registrableDomain(r.host);
+    const h = registrableDomain(r.host) ?? r.host;
     if (hosts.has(h)) continue;
     hosts.add(h);
     out.push(r);
@@ -70,8 +70,12 @@ export async function checkOne(link: DueLink, doFetch: typeof fetch, now = Date.
       if (!loc) break;
       const next = new URL(loc, current).toString();
       const nh = new URL(next).hostname;
-      // Una redirección a otro dominio que no es un proveedor conocido = sospechosa (no se sigue).
-      if (registrableDomain(nh) !== registrableDomain(u.hostname) && !providerFor(nh, new URL(next).pathname)) {
+      // Una redirección a otro dominio que no es un proveedor conocido = sospechosa (no se sigue). El
+      // dominio registrable sale de la Public Suffix List (AUD-07): "chef.wixsite.com" →
+      // "pagos.wixsite.com" es OTRO dueño, aunque compartan "wixsite.com".
+      const same = registrableDomain(nh) !== null && registrableDomain(nh) === registrableDomain(u.hostname);
+      // Tampoco se sigue un salto a http, a una IP o a un host interno (no se pide nada inseguro).
+      if (!checkTrustedSource(next).ok || (!same && !providerFor(nh, new URL(next).pathname))) {
         return { ...base, status: "redirected_offsite", http_status: res.status, final_host: nh };
       }
       current = next;

@@ -49,18 +49,21 @@ Claude clasifica (salida estructurada) → reglas verificables deciden:
 4. **Sin correo**, la solicitud queda en `needs_user` con opciones (teléfono, WhatsApp si el número es internacional, enlace del lugar y Fixer).
 
 ### Cuándo se considera confirmada (regla de honestidad)
-Las cuatro condiciones a la vez:
-1. **Remitente verificado.**
-   - El dominio es el mismo al que escribimos, o un subdominio suyo.
-   - En gmail, hotmail y similares, se exige la misma dirección exacta.
-   - Resend debe reportar DMARC `pass`, o bien SPF y DKIM `pass`.
-2. **Al menos una cita textual** que de verdad aparece en el correo. Si el modelo «cita» algo que no está escrito, se descarta.
-3. **Fecha, hora y personas que no contradicen la solicitud.**
-   - «Sí, pero a las 21:15» es un **alterno**, no una confirmación.
-   - Si el restaurante dice que ya lo apartó y el usuario lo acepta, entonces sí se confirma, con esa cita.
-4. **Sin petición de tarjeta o pago.** Si la piden, la decisión es del usuario, directamente con el restaurante.
+Actualizado en el cierre de auditoría (AUD-02, AUD-03, AUD-06; detalle en `docs/iatos/cierre/RESERVAS.md`). Todas las condiciones a la vez, sin importar lo que diga el modelo:
+1. **Remitente con autenticación fuerte** (`senderAuthentication` en `core.ts`, y la misma regla en SQL `ai_res_sender_strong`). Resend da `authentication.{spf,dkim,dmarc}` = `pass | fail | gray | processing_failed | unknown`, calculados por el servidor que recibe.
+   - DMARC `pass` y el From en el dominio exacto al que escribimos (o un subdominio suyo); **o**
+   - el From es **exactamente** la dirección a la que escribimos y DKIM `pass` (Resend reporta `gray` si el firmante no coincide con el From), sin DMARC `fail`.
+   - SPF solo nunca basta. DMARC `fail` siempre descarta. Dominio padre, dominios parecidos (guion, otro TLD, IDN/punycode), From con varios buzones, varias @ o parte local entre comillas → no verificado.
+   - El From del webhook, el del correo descargado y el encabezado From crudo deben coincidir.
+   - En gmail, hotmail y similares se exige la misma dirección exacta.
+2. **Una cita textual** que aparece en el correo y que es una frase **explícita** de confirmación («confirmamos», «confirmed», «nous confirmons»…). «Sí, perfecto», «tenemos disponibilidad», «podemos recibirlos» o «nos vemos» no confirman.
+3. **Sin dudas, negaciones, condiciones, pendientes, preguntas ni pago** en la respuesta (`evidence.ts`). Si piden tarjeta o garantía → decide el usuario.
+4. **Fecha, hora, personas y nombre aceptados**: escritos por el restaurante e iguales a la solicitud, o ligados a nuestra solicitud exacta (la respuesta cita el folio y las tres líneas de la solicitud sin cambios). El nombre también queda ligado por el token único del hilo. Cualquier contradicción (otra hora, otro número de personas, otro día, otro nombre) → queda para revisión.
+   - «Sí, pero a las 21:15» es un **alterno**. Solo cuenta como «apartado» si el correo lo dice explícitamente con las mismas exigencias; si el usuario lo acepta, entonces se confirma con esa cita.
+5. **Número de confirmación** solo si está escrito junto a «confirmación/código/folio…»; nunca se inventa.
+6. **Evidencia del proveedor guardada** (AUD-06): Message-ID (único: un correo repetido no se procesa dos veces), huellas SHA-256 del cuerpo y del .eml, fecha de recepción, SPF/DKIM/DMARC, texto del restaurante y ligadura con la solicitud; y la decisión registrada con el id del modelo.
 
-La base de datos lo vuelve a exigir con el CHECK `ai_res_confirmed_has_evidence`. Una confirmación sin id de correo, cita y remitente verificado no se puede guardar ni con la llave de servicio. Solo al confirmarse se crea la constancia en `bookings`, que aparece en **Mis reservas**.
+La base de datos lo vuelve a exigir por su cuenta: el CHECK `ai_res_confirmed_has_evidence` y el trigger `ai_reservations_guard_evidence` (migración `20261024170000_aud_reservas_evidence.sql`) recalculan el remitente con los datos del proveedor y comprueban cita, código, condiciones y registro de la decisión. El texto que produce la IA, por sí solo, no puede confirmar nada ni con la llave de servicio. Solo al confirmarse se crea la constancia en `bookings`, que aparece en **Mis reservas**.
 
 ## 3. Qué es honesto y qué todavía no es posible
 
@@ -80,7 +83,7 @@ La base de datos lo vuelve a exigir con el CHECK `ai_res_confirmed_has_evidence`
   - Sin secreto → 503.
   - Sin firma o con firma inválida → 401.
   - Más de 5 min de diferencia → rechazado.
-  - Es idempotente por `svix-id` y `email_id`.
+  - Es idempotente por `svix-id`, `email_id` y `Message-ID` (AUD-06).
   - Si falla la descarga o Claude, responde 500 y Resend reintenta: el reintento retoma la misma fila.
 - **Límites** (ajustables en `app_flags.ai_reservations_limits`):
   - 5 envíos por usuario al día y 5 solicitudes activas por usuario.
@@ -90,7 +93,7 @@ La base de datos lo vuelve a exigir con el CHECK `ai_res_confirmed_has_evidence`
 - **Datos que guardamos de la respuesta:**
   - Un **extracto** sin correos, teléfonos ni números tipo tarjeta.
   - Las citas, los ids de correo y el dominio del remitente.
-  - Nunca el correo completo ni la dirección completa de quien respondió.
+  - Desde AUD-06, como evidencia (solo `service_role`, se borra con la cuenta): el texto que escribió el restaurante (sin lo citado), su dirección From y Reply-To, SPF/DKIM/DMARC, el hash del Message-ID, las huellas SHA-256 del cuerpo y del .eml y el puntero al correo en Resend. El .eml completo no se guarda.
 - **Correo del usuario.** El usuario puede borrar su cuenta: `purge_account_data` borra sus reservas IA, su historial y los correos recibidos (prueba R43).
 
 ## 5. Pasos del dueño para encenderlo

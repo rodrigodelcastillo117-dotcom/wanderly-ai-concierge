@@ -18,6 +18,7 @@ import { Tooltip as InlineTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { InviteFriendsCard } from "@/components/InviteFriendsCard";
+import { dnaForDisplay } from "../../supabase/functions/_shared/dnaVoice";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -91,7 +92,8 @@ const Profile = () => {
 
   const initial = (fullName?.[0] ?? "V").toUpperCase();
 
-  const divergencias: string[] = dna?.perfil?.divergencias_detectadas ?? [];
+  // "Evolución detectada" te habla de tú (los DNA guardados antes en tercera persona se convierten).
+  const divergencias: string[] = (dnaForDisplay(dna?.perfil)?.divergencias_detectadas as string[] | undefined) ?? [];
   const evolucionMsg =
     divergencias[0] ??
     (dna && dna.tripCount > 0
@@ -121,7 +123,12 @@ const Profile = () => {
           </div>
           <div className="flex-1">
             <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Tu Travel Avatar</p>
-            <h1 className="font-display text-3xl md:text-4xl mb-2">{fullName || "Viajero"}</h1>
+            <h1 className="font-display text-3xl md:text-4xl mb-1">{fullName || "Viajero"}</h1>
+            {user?.email && (
+              <p className="text-sm text-muted-foreground mb-3" data-testid="profile-signed-in-email">
+                Sesión iniciada como <span className="text-foreground">{user.email}</span>
+              </p>
+            )}
             <p className="text-muted-foreground mb-4">
               {avatarUrl
                 ? "Este avatar te representa en todo IATOS: perfil, viajes, social y compatibilidad."
@@ -217,7 +224,7 @@ const Profile = () => {
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <p className="text-[10px] tracking-[0.3em] text-primary uppercase">Mejores momentos</p>
                 <p className="text-[10px] text-muted-foreground">
-                  Sube fotos de tus mejores viajes — IATOS construirá tu galería
+                  Sube fotos de tus mejores viajes — Iato aprende qué te encanta
                 </p>
               </div>
               <BestMomentsPanel />

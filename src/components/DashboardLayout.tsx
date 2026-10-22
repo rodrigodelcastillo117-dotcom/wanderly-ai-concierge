@@ -16,7 +16,7 @@ const links = [
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend" },
+  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
   // "Concierge", no "Concierge Pro": la pestaña está abierta a todas las cuentas.
   { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
 ];
@@ -35,7 +35,7 @@ export const mobileMoreNav = [
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/gastos", icon: Wallet, label: "Smart Spend (gastos)" },
+  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos y ahorro" },
   { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
   { to: "/dashboard/pro", icon: Sparkles, label: "Plan IATOS PRO" },
   // Entrada discreta a IATOS Privé: /prive muestra a cada cuenta lo que le corresponde (adelanto,
@@ -175,7 +175,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           </div>
           <div className="flex-1 text-left min-w-0">
             <p className="text-[13px] font-medium truncate">{firstName}</p>
-            <p className="text-[10px] text-muted-foreground truncate tracking-wide">Explorador</p>
+            {/* Con qué cuenta estás dentro (antes no se veía en ningún lado). */}
+            <p className="text-[10px] text-muted-foreground truncate tracking-wide" title={user?.email ?? undefined} data-testid="sidebar-signed-in-email">{user?.email ?? "Explorador"}</p>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         </button>
@@ -310,6 +311,11 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                 </NavLink>
               </li>
             ))}
+            {user?.email && (
+              <li className="col-span-2 px-1 pt-1 text-xs text-muted-foreground truncate" data-testid="more-signed-in-email">
+                Sesión iniciada como <span className="text-foreground">{user.email}</span>
+              </li>
+            )}
             <li className="col-span-2">
               <button
                 type="button"

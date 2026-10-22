@@ -23,6 +23,14 @@ const RATE_LIMITED_MSG = "Generaste muchas recomendaciones seguidas. Intenta de 
 const cache = new Map<string, AIRecommendation[]>();
 const inflight = new Map<string, Promise<AIRecommendation[]>>();
 
+/**
+ * Cambiaron tus gustos (por ejemplo, subiste un Mejor momento): la próxima vez que Inicio o
+ * Descubrir pidan recomendaciones irán al servidor, que las regenera si el perfil cambió.
+ */
+export function invalidateRecommendations() {
+  cache.clear();
+}
+
 /** Solo para pruebas. */
 export function __resetRecommendationsCache() {
   cache.clear();

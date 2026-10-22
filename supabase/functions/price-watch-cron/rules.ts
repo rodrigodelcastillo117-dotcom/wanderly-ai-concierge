@@ -69,6 +69,17 @@ export function formatMxn(n: number): string {
   return `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 }
 
+/**
+ * Texto del aviso de baja de precio. AUD-OPS-08: si frankfurter no respondió y se usó la tabla de
+ * respaldo (fx.ts), los pesos son aproximados: no se dice "al tipo de cambio de hoy".
+ */
+export function priceDropBody(p: { price: number; before: number; totalSaving: number; adults: number; fxIsFallback: boolean }): string {
+  const fx = p.fxIsFallback ? "al tipo de cambio de referencia, aproximado" : "al tipo de cambio de hoy";
+  return p.adults > 1
+    ? `Ahora ${formatMxn(p.price)} por persona (antes ${formatMxn(p.before)}, ${fx}). Ahorras ${formatMxn(p.totalSaving)} para ${p.adults} viajeros.`
+    : `Ahora ${formatMxn(p.price)} (antes ${formatMxn(p.before)}, ${fx}). Ahorras ${formatMxn(p.totalSaving)}.`;
+}
+
 /** Llave única del aviso: la misma baja (misma base y mismo monto) nunca se avisa dos veces. */
 export const priceDedupKey = (watchId: string, baselineAmount: number, amount: number, currency: string) =>
   `price:${watchId}:${baselineAmount}:${amount}:${currency.toUpperCase()}`;

@@ -7,7 +7,9 @@
 // Por qué existe: "¿dónde está la Centurion dentro de la T1 de CDMX?" no tiene respuesta en TripAdvisor;
 // sin una herramienta de datos prácticos Iato inventaba "dos salas, entre las puertas 8 y 11".
 
-import { cacheGet, cacheKey, cachePut, type CacheStore, freshnessOf, type LiveGate } from "../_shared/serpCache.ts";
+import {
+  type AccountBrake, cacheGet, cacheKey, cachePut, type CacheStore, freshnessOf, isSerpQuotaError, type LiveGate,
+} from "../_shared/serpCache.ts";
 
 export const WEB_ENGINE = "google_web";
 
@@ -18,6 +20,12 @@ export interface WebSearchDeps {
   serpKey?: string;
   store?: CacheStore | null;
   gate?: LiveGate;
+  /**
+   * Freno de toda la cuenta de SerpApi (presupuesto del mes/día y pausa de 1 h por cuota agotada), el
+   * mismo que usan vuelos, hoteles y lugares (AUD-IATO-06: antes Iato seguía gastando con la cuenta
+   * en pausa y no avisaba a las demás funciones cuando SerpApi decía que no quedaban búsquedas).
+   */
+  brake?: AccountBrake;
   /** Búsqueda real cobrada por SerpApi (para ai_usage_log). */
   onLive?: (ok: boolean) => void | Promise<void>;
   timeoutMs?: number;
@@ -96,6 +104,14 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
 
   if (!deps.serpKey) return (await fallback("la búsqueda de Google no está configurada")) ?? { error: "no_configurado" };
 
+  // Cuenta en pausa (presupuesto o cuota): lo guardado con su fecha, o el respaldo gratuito.
+  let paused: "budget" | "quota" | null = null;
+  try { paused = deps.brake ? await deps.brake.paused() : null; } catch { paused = null; }
+  if (paused) {
+    if (cached) return { ok: true, source: "google_web", ...(cached.response as Record<string, unknown>), consulted_at: cached.fetched_at, from_cache: true, precio_guardado: true };
+    return (await fallback("las búsquedas en vivo de Google están en pausa")) ?? { error: "busquedas_en_pausa" };
+  }
+
   let refund: (() => Promise<void>) | undefined;
   if (deps.gate) {
     const d = await deps.gate();
@@ -122,6 +138,9 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
   try { await deps.onLive?.(billable); } catch { /* registrar nunca rompe la búsqueda */ }
   if (!billable) {
     if (refund) await refund().catch(() => {});
+    if (deps.brake && isSerpQuotaError(r.status, r.json)) {
+      try { await deps.brake.tripQuota(); } catch { /* el freno es una ayuda, no un requisito */ }
+    }
     // SerpApi responde {error:"Google hasn't returned any results"} cuando no hay resultados.
     const msg = String((r.json as { error?: unknown } | null)?.error ?? "");
     if (r.ok && /no results|hasn't returned any results/i.test(msg)) return { ok: true, source: "google_web", results: [] };

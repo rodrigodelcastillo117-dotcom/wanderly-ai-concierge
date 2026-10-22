@@ -19,6 +19,7 @@ $PSQL -X -d "$DB" -f "$DIR/hardening.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.
 $PSQL -X -d "$DB" -f "$DIR/round_b.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
 $PSQL -X -d "$DB" -f "$DIR/concierge_requests.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
 $PSQL -X -d "$DB" -f "$DIR/trip_delete_conversation.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*\|D[0-9].*'
+$PSQL -X -d "$DB" -f "$DIR/taste_profile.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*'
 $PSQL -d "$DB" -f "$DIR/profiles_tier.sql" 2>&1 | grep -E 'T[0-9]|denied' | sed 's/^ *//'
 $PSQL -X -d "$DB" -f "$DIR/aud_seguridad.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | grep -v 'violates row-level security'
 "$DIR/concurrent_rate_limit.sh" "$DB"

@@ -49,6 +49,12 @@ export interface ConciergeCard {
   estado_dato?: EstadoDato;
   consultado_at?: string;
   price_note?: string;
+  /**
+   * Base del precio, la pone SOLO el servidor según el campo del resultado que coincidió
+   * (AUD-IATO-05): "por persona", "total", "por noche · con impuestos", "total de la estancia · sin
+   * impuestos"… Antes la pantalla decía "total" aunque el modelo hubiera copiado el precio por persona.
+   */
+  price_basis?: string;
   links?: CardLink[];
   /** Foto real del lugar (Google Places), tomada de la herramienta de este turno, no del modelo. */
   photo_ref?: string;
@@ -120,6 +126,9 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
   if (r.error === "timeout") {
     return { disponible: false, estado: "no_respondio", error: "timeout", motivo: "El servicio tardó demasiado en responder; no hay datos en vivo ahora." };
   }
+  if (r.error === "busquedas_en_pausa") {
+    return { disponible: false, estado: "no_respondio", error: "busquedas_en_pausa", motivo: "Las búsquedas en vivo están en pausa por ahora; no hay datos en vivo." };
+  }
   if (r.error === "no_configurado") {
     return { disponible: false, estado: "no_respondio", error: "no_configurado", motivo: "Esta búsqueda no está disponible en este momento." };
   }
@@ -166,7 +175,13 @@ export interface ToolRun { name: string; args?: Record<string, unknown>; result:
 
 export interface Evidence {
   /** at = cuándo se consultó de verdad (caché incluida); stale = precio guardado (OBSOLETO). */
-  prices: { tool: string; value: number; currency: string; source: string; at?: string; stale?: boolean }[];
+  prices: {
+    tool: string; value: number; currency: string; source: string; at?: string; stale?: boolean;
+    /** Campo del resultado (price_per_person_usd, nightly_usd…): de ahí sale la base del precio. */
+    key?: string;
+    /** Opción a la que pertenece el precio (nombre del hotel, aerolínea), normalizada (AUD-IATO-04). */
+    item?: string;
+  }[];
   ratings: { tool: string; value: number }[];
   available: Record<string, boolean>;
   unavailable: Record<string, string>;
@@ -246,6 +261,33 @@ export function matchPlace(title: string, places: EvidencePlace[]): EvidencePlac
     ?? null;
 }
 
+/** Campos que nombran una opción de un resultado (en orden de preferencia). */
+const ITEM_LABEL_KEYS = ["name", "nombre", "title", "airline", "aerolinea", "hotel"];
+
+/** ¿El título de la card nombra esa opción? (mismo nombre normalizado o uno contiene al otro). */
+export function sameItemName(title: string, item: string): boolean {
+  const t = normName(title);
+  if (!t || !item) return false;
+  return t === item || (item.length >= 3 && t.includes(item)) || (t.length >= 3 && item.includes(t));
+}
+
+/**
+ * Base del precio según el campo del resultado que coincidió (AUD-IATO-05). Google Hotels da la
+ * tarifa con impuestos y cargos; *_before_taxes_* es antes de impuestos. Google Flights da el total
+ * del grupo (price_usd) y el precio por persona (price_per_person_usd).
+ */
+export function priceBasis(tool: string, key: string | undefined): string | undefined {
+  if (!key) return undefined;
+  const k = key.toLowerCase();
+  const sinImpuestos = /before_tax|antes_de_impuestos|sin_impuestos/.test(k);
+  const taxes = sinImpuestos ? " · sin impuestos" : tool === "search_hotels" ? " · con impuestos" : "";
+  if (/per_person|por_persona|(^|_)pp(_|$)/.test(k)) return `por persona${taxes}`;
+  if (/nightly|per_night|por_noche/.test(k)) return `por noche${taxes}`;
+  if (tool === "search_hotels" && /total/.test(k)) return `total de la estancia${taxes}`;
+  if (tool === "search_flights") return `total${taxes}`;
+  return undefined;
+}
+
 const PRICE_KEY = /(^|_)(price|precio|nightly|total|amount|rate|tarifa|costo|cost)(_|$)|_usd$/i;
 const RATING_KEY = /^(rating|overall_rating|calificacion)$/i;
 
@@ -289,24 +331,27 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
     const topSource = typeof res.source === "string" ? res.source : DEFAULT_SOURCE[run.name] ?? run.name;
     const at = typeof res.consulted_at === "string" && Number.isFinite(Date.parse(res.consulted_at)) ? res.consulted_at : undefined;
     const stale = res.precio_guardado === true || res.estado_dato === "OBSOLETO";
-    const visit = (node: unknown, currency: string, source: string, depth: number) => {
+    const visit = (node: unknown, currency: string, source: string, depth: number, item?: string) => {
       if (depth > 8 || !node) return;
       if (typeof node === "string") { addHost(node); return; }
       if (typeof node !== "object") return;
-      if (Array.isArray(node)) { node.forEach((n) => visit(n, currency, source, depth + 1)); return; }
+      if (Array.isArray(node)) { node.forEach((n) => visit(n, currency, source, depth + 1, item)); return; }
       const obj = node as Record<string, unknown>;
       const cur = typeof obj.currency === "string" ? obj.currency.toUpperCase() : currency;
       const src = typeof obj.source === "string" && !isAiSource(obj.source) ? obj.source : source;
+      // El precio pertenece a la opción más cercana que tiene nombre (hotel, aerolínea, lugar).
+      const label = ITEM_LABEL_KEYS.map((k) => obj[k]).find((v) => typeof v === "string" && v.trim());
+      const own = typeof label === "string" ? normName(label) || item : item;
       for (const [k, v] of Object.entries(obj)) {
         if (typeof v === "number" && Number.isFinite(v) && v > 0) {
-          if (PRICE_KEY.test(k)) ev.prices.push({ tool: run.name, value: v, currency: /_usd$/i.test(k) ? "USD" : cur, source: src, ...(at ? { at } : {}), ...(stale ? { stale } : {}) });
+          if (PRICE_KEY.test(k)) ev.prices.push({ tool: run.name, value: v, currency: /_usd$/i.test(k) ? "USD" : cur, source: src, key: k, ...(own ? { item: own } : {}), ...(at ? { at } : {}), ...(stale ? { stale } : {}) });
           else if (RATING_KEY.test(k)) ev.ratings.push({ tool: run.name, value: v });
         } else if (typeof v === "string" && /^https:\/\//i.test(v)) {
           addHost(v);
         } else if (typeof v === "string" && RATING_KEY.test(k) && Number.isFinite(Number(v)) && Number(v) > 0) {
           // TripAdvisor devuelve el rating como texto ("4.5").
           ev.ratings.push({ tool: run.name, value: Number(v) });
-        } else if (v && typeof v === "object") visit(v, cur, src, depth + 1);
+        } else if (v && typeof v === "object") visit(v, cur, src, depth + 1, own);
       }
     };
     visit(res, "USD", topSource, 0);
@@ -421,7 +466,11 @@ export function validateCards(raw: unknown, ev: Evidence, consultadoAt: string =
     if (price !== undefined && price > 0) {
       const currency = normCurrency(r.currency) ?? "USD";
       const tools = PRICE_TOOLS[type] ?? [];
-      const match = ev.prices.find((p) => tools.includes(p.tool) && p.currency === currency && approxEq(p.value, price));
+      // AUD-IATO-04: el precio tiene que ser de LA opción que nombra la card, no de otra del mismo
+      // resultado (antes "Air France" con el precio de Iberia salía "consultado en vivo"). Un precio
+      // sin opción con nombre (nivel superior del resultado) se sigue aceptando.
+      const match = ev.prices.find((p) => tools.includes(p.tool) && p.currency === currency && approxEq(p.value, price)
+        && (!p.item || sameItemName(title, p.item)));
       if (match) {
         card.price = price;
         if (currency === "USD") card.price_usd = price;
@@ -431,6 +480,8 @@ export function validateCards(raw: unknown, ev: Evidence, consultadoAt: string =
         card.estado_dato = match.stale ? "OBSOLETO" : "CONSULTADO_EN_VIVO";
         card.consultado_at = match.at ?? consultadoAt;
         if (match.stale) card.price_note = "precio guardado";
+        const basis = priceBasis(match.tool, match.key);
+        if (basis) card.price_basis = basis;
       } else {
         card.estado_dato = "NO_VERIFICADO";
         card.price_note = "precio no verificado";

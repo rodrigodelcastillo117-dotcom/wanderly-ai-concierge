@@ -20,6 +20,8 @@ async function run(c: (typeof fixtures.cases)[number]) {
   const venueEmail = (c as { venue_email?: string }).venue_email ?? req.venue_email;
   const decision = decideReply(row, cls, {
     replyText: text, verifiedSender: senderVerified(from, venueEmail, c.reply.authentication), fromDomain: domainOf(from), inboundEmailId: `em_${c.name}`,
+    // Llegó a la dirección de respuesta única de esta reserva (token) el 2 de noviembre.
+    fullText: c.reply.text, linkage: "reply_token", receivedAt: "2026-11-02T18:00:00Z",
   });
   return { call, cls, decision, text };
 }

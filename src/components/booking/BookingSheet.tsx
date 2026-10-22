@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { bridge, type BridgeSource, newIdempotencyKey } from "@/lib/bookingBridgeApi";
 import { logBookingClick } from "@/lib/trackBooking";
 import type { BookingAction, BookingOffer } from "@/lib/booking";
+import { linkKindLine } from "@/lib/bookingExit";
 import { ProofForm } from "./ProofForm";
 
 const CATEGORY: Record<string, "flight" | "hotel" | "restaurant" | "activity" | "other"> = {
@@ -27,6 +28,7 @@ function ago(iso: string | null): string | null {
 }
 
 const fmtPrice = (n: number, cur: string | null) => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? ""}`.trim();
+
 
 export function BookingSheet({ open, onOpenChange, offer, action, source, tripId }: {
   open: boolean; onOpenChange: (v: boolean) => void; offer: BookingOffer; action: BookingAction; source: BridgeSource; tripId?: string | null;
@@ -118,6 +120,8 @@ export function BookingSheet({ open, onOpenChange, offer, action, source, tripId
           <div className="space-y-4">
             <div className="rounded-lg border border-border/60 bg-surface/40 p-3 text-sm space-y-1">
               <p className="flex items-center gap-2 font-medium"><ShieldCheck className="w-4 h-4 text-primary" /> Continúas en {action.processor}</p>
+              {linkKindLine(action) && <p className="text-xs font-medium" data-testid="link-kind">{linkKindLine(action)}</p>}
+              {action.host && <p className="text-xs text-muted-foreground break-all">Destino: {action.host.replace(/^www\./, "")}</p>}
               {priceLine && <p className="text-xs text-muted-foreground">Precio visto en IATOS: {priceLine}{offer.price_is_estimate ? " (estimado)" : ""}</p>}
               <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
                 {action.disclosures.map((d) => <li key={d}>{d}</li>)}

@@ -14,6 +14,7 @@ import { untrustedBlock, UNTRUSTED_POLICY, type ChatMessage } from "./guard.ts";
 import type { ActiveTripReason } from "../_shared/activeTrip.ts";
 import { BOOKING_STATE_RULE } from "./context.ts";
 import { DATA_SENTINEL } from "./stream.ts";
+import { TASTE_CITATION_RULE } from "../_shared/tasteProfile.ts";
 
 export const SYSTEM = `Eres Iato, el concierge de viajes de IATOS. Hablas español de México: cálido, seguro y directo, como el mejor concierge humano. Resuelves; no das rodeos.
 
@@ -118,6 +119,15 @@ export const MEMORY_RULES = [
   "4. No digas 'según nuestro chat anterior'; habla con naturalidad.",
 ].join("\n");
 
+export const TASTE_RULES = [
+  "═══ REGLAS — GUSTOS DEL USUARIO ═══",
+  "<gustos_usuario> resume lo que a esta persona le ha gustado DE VERDAD: fotos que eligió destacar en Mejores momentos (lo que más pesa), favoritos, lugares visitados, viajes pasados (también los importados de documentos) y, al final, lo que declaró.",
+  "1. Úsalo para elegir y ordenar restaurantes, hoteles, experiencias y destinos. Lo demostrado gana a lo declarado.",
+  `2. ${TASTE_CITATION_RULE}`,
+  "3. Respeta 'Evitar' siempre (alergias, deal breakers).",
+  "4. No recites el perfil ni digas 'según tu perfil de gustos'; úsalo con naturalidad, una mención por respuesta como máximo.",
+].join("\n");
+
 export const FIXER_RULE = [
   "═══ REGLA — ESCALACIÓN A FIXER HUMANO ═══",
   "Propón la acción fixer_request (y menciona el botón 'Contactar Fixer') cuando la consulta pida a una persona:",
@@ -156,7 +166,7 @@ export const GOD_MODE_LINE = EXIGENTE_LINE;
 export const NORMAL_LINE = "MODO: NORMAL. Respuesta corta (2–6 líneas) + cards y 1–3 acciones si ayudan.";
 
 export function buildStableSystem(masterPrompt = ""): string {
-  return [masterPrompt.trim(), UNTRUSTED_POLICY, TRIP_RULES, GAP_RULES, MEMORY_RULES, FIXER_RULE, SYSTEM]
+  return [masterPrompt.trim(), UNTRUSTED_POLICY, TRIP_RULES, GAP_RULES, MEMORY_RULES, TASTE_RULES, FIXER_RULE, SYSTEM]
     .filter((s) => s && s.trim().length > 0).join("\n\n---\n\n");
 }
 
@@ -184,6 +194,8 @@ export function buildSystemContent(parts: {
 
 export interface ContextData {
   perfil?: Record<string, unknown> | null;
+  /** Perfil de gustos ya renderizado y acotado (_shared/tasteProfile.ts renderTasteProfile). */
+  gustos?: string | null;
   viajes?: unknown[] | null;
   viajeEnContexto?: Record<string, unknown> | null;
   faltantes?: unknown[] | null;
@@ -195,6 +207,7 @@ export interface ContextData {
 export function buildContextMessage(data: ContextData): ChatMessage | null {
   const blocks: string[] = [];
   if (data.perfil && Object.keys(data.perfil).length) blocks.push(untrustedBlock("perfil_usuario", data.perfil));
+  if (data.gustos && data.gustos.trim()) blocks.push(untrustedBlock("gustos_usuario", data.gustos));
   if (data.viajes?.length) blocks.push(untrustedBlock("viajes_usuario", data.viajes));
   if (data.viajeEnContexto) blocks.push(untrustedBlock("viaje_en_contexto", data.viajeEnContexto));
   if (data.faltantes?.length) blocks.push(untrustedBlock("faltantes_viaje", data.faltantes));

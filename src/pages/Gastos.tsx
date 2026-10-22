@@ -1,11 +1,12 @@
 import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { lazyWithRetry } from "@/lib/lazyRetry";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Receipt, Upload, PieChart, Calculator } from "lucide-react";
+import { Plus, Trash2, Receipt, Upload, PieChart, PiggyBank } from "lucide-react";
 import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,11 +19,34 @@ import { currencyName, destinationCurrency } from "@/lib/currencies";
 import { canonicalCategory, DEFAULT_EXPENSE_CATEGORY, EXPENSE_CATEGORIES } from "@/lib/expenseCategories";
 import { useFxTable } from "@/hooks/useFxTable";
 import { safeFileName, uploadProblem } from "@/lib/uploadRules";
-import { useActiveTrip } from "@/hooks/useActiveTrip";
+import { ACTIVE_TRIP_COLUMNS, useActiveTrip } from "@/hooks/useActiveTrip";
 import { isTripEnded, tripLabel } from "@/lib/activeTrip";
 
-// Smart Spend usa recharts (~100 kB comprimidos): se carga solo al abrir esa pestaña.
+// El Resumen usa recharts (~100 kB comprimidos): se carga solo al abrir esa pestaña.
 const SmartSpendPanel = lazyWithRetry(() => import("@/components/SmartSpendPanel"));
+
+/**
+ * Tres pestañas, cada una responde UNA pregunta (antes: "Lista", "Smart Spend" y "Calculadora de
+ * viaje", sin explicar qué era cada una):
+ *  - Mis gastos: ¿qué gasté? (registrar y ver cada gasto)
+ *  - Resumen: ¿en qué se me va el dinero? (por categoría y por viaje, en pesos)
+ *  - Ahorro: ¿cuánto aparto al mes para mi próximo viaje? (sin necesidad de un viaje planeado)
+ * No se juntan "Mis gastos" y "Resumen" porque la lista crece con el tiempo y el resumen quedaría
+ * enterrado al final (o la lista, debajo de gráficas): separadas, cada una cabe en una pantalla.
+ */
+export const GASTOS_TABS = [
+  { id: "gastos", label: "Mis gastos", icon: Receipt, title: "Mis gastos",
+    explainer: "Anota cada gasto en cualquier moneda y guarda el recibo. Te lo sumamos en pesos." },
+  { id: "resumen", label: "Resumen", icon: PieChart, title: "En qué se te va el dinero",
+    explainer: "Tus gastos por categoría y por viaje, todo convertido a pesos." },
+  { id: "ahorro", label: "Ahorro", icon: PiggyBank, title: "Ahorro para tu viaje",
+    explainer: "Elige destino, fecha y costo: te decimos cuánto apartar cada mes. No necesitas un viaje planeado." },
+] as const;
+export type GastosTab = (typeof GASTOS_TABS)[number]["id"];
+// Enlaces viejos (?tab=lista|smart|calc) siguen funcionando.
+const LEGACY_TAB: Record<string, GastosTab> = { lista: "gastos", smart: "resumen", calc: "ahorro" };
+const tabFrom = (v: string | null): GastosTab =>
+  (GASTOS_TABS.some((t) => t.id === v) ? (v as GastosTab) : LEGACY_TAB[v ?? ""] ?? "gastos");
 
 
 // Categorías y monedas: catálogos en lib/expenseCategories y lib/currencies (las filas con las
@@ -44,7 +68,15 @@ export const Gastos = () => {
   const [items, setItems] = useState<Expense[]>([]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState<"lista" | "smart" | "calc">("lista");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = tabFrom(searchParams.get("tab"));
+  const setTab = (next: GastosTab) => {
+    const sp = new URLSearchParams(searchParams);
+    if (next === "gastos") sp.delete("tab"); else sp.set("tab", next);
+    setSearchParams(sp, { replace: true });
+  };
+  const current = GASTOS_TABS.find((t) => t.id === tab)!;
+  const startExpense = () => { setTab("gastos"); setOpen(true); };
 
   const [form, setForm] = useState({
     amount: "",
@@ -58,7 +90,8 @@ export const Gastos = () => {
   });
 
   // El gasto se liga al viaje activo (el mismo que Iato y el Dashboard), y se puede cambiar.
-  const active = useActiveTrip<any>();
+  // Con presupuesto y moneda del viaje: el Resumen compara el gasto por día contra el presupuesto.
+  const active = useActiveTrip<any>({ columns: `${ACTIVE_TRIP_COLUMNS}, total_estimado, moneda` });
   const tripOptions = active.trips.filter((t) => !isTripEnded(t, localISODate()) || t.id === active.trip?.id);
   const formTripId = form.trip_id !== undefined ? form.trip_id : active.trip?.id ?? "";
   const tripName = (id?: string | null) => active.trips.find((t) => t.id === id)?.destino ?? null;
@@ -151,59 +184,65 @@ export const Gastos = () => {
   return (
     <DashboardLayout>
       <div className="px-4 py-6 md:p-10 max-w-5xl">
-        <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
+        <div className="flex items-end justify-between mb-5 md:mb-6 flex-wrap gap-4">
           <div>
-            <h1 className="font-display text-3xl md:text-5xl mb-2">Gastos</h1>
-            <p className="text-muted-foreground">Registra, categoriza y analiza cada gasto de tu viaje.</p>
+            <h1 className="font-display text-3xl md:text-5xl mb-1 md:mb-2">Gastos</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Lo que gastas, en qué se te va y cuánto ahorrar para tu próximo viaje.</p>
           </div>
-          {tab === "lista" && (
+          {tab === "gastos" && (
             <Button onClick={() => setOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="w-4 h-4" /> Nuevo gasto
             </Button>
           )}
         </div>
 
-        <div className="inline-flex p-1 rounded-full border border-border bg-surface mb-8">
-          <button
-            onClick={() => setTab("lista")}
-            className={`px-5 py-2 rounded-full text-sm transition flex items-center gap-2 ${tab === "lista" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Receipt className="w-4 h-4" /> Lista
-          </button>
-          <button
-            onClick={() => setTab("smart")}
-            className={`px-5 py-2 rounded-full text-sm transition flex items-center gap-2 ${tab === "smart" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <PieChart className="w-4 h-4" /> Smart Spend
-          </button>
-          <button
-            onClick={() => setTab("calc")}
-            className={`px-5 py-2 rounded-full text-sm transition flex items-center gap-2 ${tab === "calc" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Calculator className="w-4 h-4" /> Calculadora de viaje
-          </button>
+        <div role="tablist" aria-label="Secciones de Gastos" className="grid grid-cols-3 sm:inline-grid p-1 rounded-full border border-border bg-surface w-full sm:w-auto">
+          {GASTOS_TABS.map((t) => {
+            const Icon = t.icon;
+            const selected = tab === t.id;
+            return (
+              <button key={t.id} role="tab" id={`gastos-tab-${t.id}`} aria-selected={selected} aria-controls="gastos-panel"
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setTab(t.id)}
+                onKeyDown={(e) => {
+                  // Patrón de pestañas: flechas, Inicio y Fin cambian de pestaña (y mueven el foco).
+                  const i = GASTOS_TABS.findIndex((x) => x.id === t.id);
+                  const n = GASTOS_TABS.length;
+                  const to = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i - 1 + n) % n
+                    : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+                  if (to < 0) return;
+                  e.preventDefault();
+                  setTab(GASTOS_TABS[to].id);
+                  document.getElementById(`gastos-tab-${GASTOS_TABS[to].id}`)?.focus();
+                }}
+                className={`px-3 sm:px-5 py-2 rounded-full text-sm transition flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${selected ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                <Icon className="w-4 h-4 shrink-0" aria-hidden="true" /> {t.label}
+              </button>
+            );
+          })}
+        </div>
+        {/* Qué es esta pestaña, en una línea. */}
+        <div className="mt-3 mb-5 md:mb-7" data-testid="gastos-explainer">
+          <p className="font-display text-lg md:text-xl">{current.title}</p>
+          <p className="text-sm text-muted-foreground">{current.explainer}</p>
         </div>
 
-        {tab === "calc" ? (
+        <div role="tabpanel" id="gastos-panel" aria-labelledby={`gastos-tab-${tab}`}>
+        {tab === "ahorro" ? (
           <TripSavingsCalculator />
-        ) : tab === "smart" ? (
-          <Suspense fallback={<div className="glass-card rounded-2xl p-10 text-center text-sm text-muted-foreground" role="status">Cargando Smart Spend…</div>}>
-            <SmartSpendPanel />
+        ) : tab === "resumen" ? (
+          <Suspense fallback={<div className="glass-card rounded-2xl p-10 text-center text-sm text-muted-foreground">Cargando resumen…</div>}>
+            <SmartSpendPanel items={items} trips={active.trips} activeTripId={active.trip?.id ?? null} onAddExpense={startExpense} />
           </Suspense>
         ) : (
         <>
-
-
+        {items.length > 0 && (
         <div className="glass-card rounded-2xl p-6 mb-6 flex items-center justify-between">
           <div>
             <p className="text-xs text-primary tracking-[0.2em] uppercase mb-1">Total registrado</p>
-            {currencies.length === 0 ? (
-              <p className="font-display text-3xl">$0 MXN</p>
-            ) : (
-              <p className="font-display text-2xl md:text-3xl break-words">
-                {currencies.map((c) => formatMoney(subtotals[c], c)).join(" · ")}
-              </p>
-            )}
+            <p className="font-display text-2xl md:text-3xl break-words">
+              {currencies.map((c) => formatMoney(subtotals[c], c)).join(" · ")}
+            </p>
             {currencies.length > 1 && enMxn && (
               <p className="text-xs text-muted-foreground mt-1">
                 ≈ {formatMoney(Math.round(enMxn.total), "MXN", 0)} en total
@@ -214,6 +253,7 @@ export const Gastos = () => {
           </div>
           <Receipt className="w-10 h-10 text-primary/60" />
         </div>
+        )}
 
         <AnimatePresence>
           {open && (
@@ -287,7 +327,20 @@ export const Gastos = () => {
 
         <div className="space-y-2">
           {items.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">Aún no hay gastos registrados.</p>
+            !open && (
+              <div className="glass-card rounded-2xl p-6 md:p-10 text-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 border border-primary/30 grid place-items-center mb-4">
+                  <Receipt className="w-5 h-5 text-primary" aria-hidden="true" />
+                </div>
+                <p className="font-display text-2xl mb-2">Aún no registras gastos</p>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
+                  Anota la cena, el taxi o las compras en la moneda en que pagaste. Te mostramos el total en pesos y en qué se te va.
+                </p>
+                <Button onClick={() => setOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  <Plus className="w-4 h-4" aria-hidden="true" /> Registra tu primer gasto
+                </Button>
+              </div>
+            )
           ) : items.map((x) => (
             <div key={x.id} className="glass-card rounded-xl p-4 flex items-center gap-4">
               <div className="flex-1 min-w-0">
@@ -310,6 +363,7 @@ export const Gastos = () => {
         </div>
         </>
         )}
+        </div>
       </div>
     </DashboardLayout>
   );

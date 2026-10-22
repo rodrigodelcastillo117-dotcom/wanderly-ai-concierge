@@ -99,9 +99,20 @@ async function openSession(deps: PriveAccessDeps, ctx: PriveRequestCtx, password
   return fail(String(r.reason ?? "WRONG_PASSWORD"), r.locked_until ? { locked_until: r.locked_until } : {});
 }
 
+/**
+ * Forma canónica de una contraseña Privé: Unicode NFC y sin espacios al inicio ni al final.
+ * El dueño quedó fuera de Privé con su propia contraseña: lo más probable es un espacio que el
+ * teclado agregó al final o un acento compuesto distinto (iPhone vs Mac). Para el servidor eran
+ * contraseñas distintas. Se aplica igual al crear, cambiar, restablecer y entrar.
+ */
+export function canonicalPassword(v: unknown): unknown {
+  return typeof v === "string" ? v.normalize("NFC").trim() : v;
+}
+
 export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, deps: PriveAccessDeps): Promise<ActionOutcome> {
   if (!body || typeof body !== "object" || Array.isArray(body)) return invalid("body");
-  const b = body as Record<string, unknown>;
+  const b = { ...(body as Record<string, unknown>) };
+  for (const k of ["password", "new_password", "old_password"]) if (k in b) b[k] = canonicalPassword(b[k]);
   const action = b.action;
   if (typeof action !== "string" || !(ACTIONS as readonly string[]).includes(action)) return invalid("action");
   const uid = ctx.user.id;

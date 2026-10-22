@@ -1,15 +1,21 @@
 // Clasificación de la respuesta del restaurante con Claude (herramienta estricta = salida
 // estructurada) y la decisión que se toma con ella. El modelo SOLO extrae lo que dice el correo; la
-// decisión de confirmar la toma decideReply() con reglas verificables:
-//   1. remitente verificado (mismo dominio/dirección + DMARC o SPF+DKIM),
-//   2. al menos una cita textual que de verdad aparece en el correo,
-//   3. fecha, hora y personas declaradas que no contradicen la solicitud.
-// Si algo falla, nunca se confirma: queda para que el usuario lo revise.
+// decisión de confirmar la toma decideReply() con reglas verificables (AUD-02/AUD-03), sin importar
+// lo que diga el modelo:
+//   1. remitente con autenticación fuerte (DMARC alineado o dirección exacta + DKIM; core.ts),
+//   2. una cita textual que de verdad aparece en el correo y que es una frase EXPLÍCITA de confirmación,
+//   3. sin dudas, negaciones, condiciones, pendientes, preguntas ni pago (evidence.ts),
+//   4. fecha, hora, personas y nombre: escritos en el correo y iguales a la solicitud, o ligados a
+//      nuestra solicitud exacta (respuesta en nuestro hilo que la cita sin cambios); nada contradictorio,
+//   5. lo que el modelo dice que está escrito (fecha, hora, personas, nombre, alternos) debe estar escrito.
+// Si algo falla, nunca se confirma: queda pendiente para que el usuario lo revise.
 // Sin Deno ni red: la llamada al modelo se inyecta (probado con respuestas grabadas en
 // src/test/fixtures/ai-reservations/).
+import { type AiReservationRow, type Alternative, isLocalDateTime, quoteAppearsIn, redactExcerpt, type VenueLanguage } from "./core.ts";
 import {
-  type AiReservationRow, type Alternative, isLocalDateTime, minutesBetween, quoteAppearsIn, redactExcerpt,
-} from "./core.ts";
+  analyzeReply, CONFIRM_RE, contradictions, dateStated, fold, nameMatches, quotedRequestLinked, type ReplyAnalysis, RULES_VERSION,
+  validConfirmationCode,
+} from "./evidence.ts";
 
 export const CLASSIFY_TOOL_NAME = "record_reply_classification";
 
@@ -31,6 +37,8 @@ export type Classification = {
   evidence_quotes: string[];
   reply_language: string;
   summary_es: string;
+  /** Id del modelo que respondió (campo "model" de la Messages API), para el registro de decisiones. */
+  model?: string | null;
 };
 
 const nullable = (type: "string" | "integer", description: string) => ({ type: [type, "null"], description });
@@ -186,7 +194,9 @@ export async function classifyReply(call: ModelCall, input: ClassifyInput): Prom
   const msg = res.data as ClaudeMessage;
   if (msg?.stop_reason === "refusal") return null;
   const block = (msg?.content ?? []).find((b) => b?.type === "tool_use" && b?.name === CLASSIFY_TOOL_NAME);
-  return block ? parseClassification(block.input) : null;
+  const cls = block ? parseClassification(block.input) : null;
+  const model = (msg as { model?: unknown })?.model;
+  return cls ? { ...cls, model: typeof model === "string" ? model.slice(0, 100) : null } : null;
 }
 
 // ───────────────────────────── Decisión ─────────────────────────────
@@ -204,20 +214,57 @@ export type ReplyDecision = {
   /** Por qué no se confirmó aunque el modelo dijera "confirmed" (para el historial y las pruebas). */
   why?: string;
   claude_calls: number;
+  /** Registro de la decisión (AUD-06): salida del clasificador, modelo, reglas y lo que se comprobó. */
+  log?: Record<string, unknown>;
 };
 
+export type Linkage = "reply_token" | "ref_subject";
+
 export type DecideContext = {
+  /** Solo lo que escribió el restaurante (sin lo citado). */
   replyText: string;
+  /** El correo completo (con lo citado): para comprobar que cita nuestra solicitud exacta. */
+  fullText?: string | null;
   verifiedSender: boolean;
   fromDomain: string | null;
   inboundEmailId: string;
+  /** Cómo se ligó el correo a esta reserva: token único de la dirección de respuesta o folio + remitente exacto. */
+  linkage?: Linkage | null;
+  /** Fecha de recepción del proveedor: resuelve "mañana"/"hoy" en la zona del lugar. */
+  receivedAt?: string | null;
 };
 
-export function decideReply(
-  row: Pick<AiReservationRow, "requested_local" | "party_size">,
-  cls: Classification | null,
-  ctx: DecideContext,
-): ReplyDecision {
+type DecideRow = Pick<AiReservationRow, "requested_local" | "party_size"> &
+  Partial<Pick<AiReservationRow, "customer_name" | "ref_code" | "venue_timezone">> & { venue_language?: VenueLanguage | null };
+
+export type ConditionBasis = "stated" | "thread_quote" | Linkage;
+export type Conditions = {
+  date: { value: string; basis: ConditionBasis | null };
+  time: { value: string; basis: ConditionBasis | null };
+  party_size: { value: number; basis: ConditionBasis | null };
+  name: { value: string | null; basis: ConditionBasis | null };
+};
+
+function conditionsFor(
+  slot: { date: string; time: string }, row: DecideRow, a: ReplyAnalysis, link: { method: Linkage | null; quoted_request: boolean },
+): Conditions {
+  const [reqDate, reqTime] = row.requested_local.split("T");
+  const name = row.customer_name ?? null;
+  // Escrito por el restaurante: "a nombre de Ana López" (y ningún otro nombre), o el nombre completo en el texto.
+  const nameStated = !!name && ((a.names.length > 0 && a.names.every((n) => nameMatches(n, name))) || (a.names.length === 0 && a.text.includes(fold(name))));
+  return {
+    // La ligadura con la solicitud citada solo cubre los datos de ESA solicitud (no un horario distinto).
+    date: { value: slot.date, basis: dateStated(a, slot.date) ? "stated" : link.quoted_request && slot.date === reqDate ? "thread_quote" : null },
+    time: { value: slot.time, basis: a.times.includes(slot.time) ? "stated" : link.quoted_request && slot.time === reqTime ? "thread_quote" : null },
+    party_size: { value: row.party_size, basis: a.parties.includes(row.party_size) ? "stated" : link.quoted_request ? "thread_quote" : null },
+    // El token único de la respuesta (o folio + remitente exacto) liga el correo a la solicitud que
+    // llevaba el nombre; si el restaurante escribe otro nombre, eso es una contradicción (abajo).
+    name: { value: name, basis: nameStated ? "stated" : link.method ?? (link.quoted_request ? "thread_quote" : null) },
+  };
+}
+const missingConditions = (c: Conditions) => (Object.keys(c) as Array<keyof Conditions>).filter((k) => c[k].basis === null);
+
+export function decideReply(row: DecideRow, cls: Classification | null, ctx: DecideContext): ReplyDecision {
   const base = {
     excerpt: redactExcerpt(ctx.replyText),
     verified_sender: ctx.verifiedSender,
@@ -225,73 +272,112 @@ export function decideReply(
     inbound_email_id: ctx.inboundEmailId,
     claude_calls: 1,
   };
-  if (!cls) return { ...base, outcome: "ambiguous", quotes: [], summary_es: "No pudimos interpretar la respuesta automáticamente.", why: "classification_unavailable" };
+  const log: Record<string, unknown> = { rules_version: RULES_VERSION, model: cls?.model ?? null, classifier: cls, verified_sender: ctx.verifiedSender };
+  if (!cls) return { ...base, outcome: "ambiguous", quotes: [], summary_es: "No pudimos interpretar la respuesta automáticamente.", why: "classification_unavailable", log };
   const quotes = cls.evidence_quotes.filter((q) => quoteAppearsIn(q, ctx.replyText));
-  const out = { ...base, quotes, summary_es: cls.summary_es };
+  const fin = (d: Omit<ReplyDecision, keyof typeof base | "quotes" | "summary_es" | "log"> & Record<string, unknown>, extra: Record<string, unknown> = {}): ReplyDecision =>
+    ({ ...base, quotes, summary_es: cls.summary_es, ...d, log: { ...log, ...extra, outcome: d.outcome, why: d.why ?? null } }) as ReplyDecision;
 
   // Respuestas automáticas y correos sin relación no cambian nada (la solicitud sigue esperando).
-  if (cls.automatic_reply || cls.outcome === "unrelated") return { ...out, outcome: "ignored", why: cls.automatic_reply ? "automatic_reply" : "unrelated" };
+  if (cls.automatic_reply || cls.outcome === "unrelated") return fin({ outcome: "ignored", why: cls.automatic_reply ? "automatic_reply" : "unrelated" });
   // Nada sustantivo cuenta si no podemos verificar que lo escribió el restaurante.
-  if (!ctx.verifiedSender) return { ...out, outcome: "unverified", why: "sender_unverified" };
-  if (cls.outcome === "declined") return { ...out, outcome: "declined" };
-  // Nunca pasamos datos de tarjeta: si piden garantía o pago, decide el usuario directamente.
-  if (cls.requires_payment_or_card) return { ...out, outcome: "payment_required", info_requested: cls.info_requested };
-  if (cls.outcome === "needs_info") return { ...out, outcome: "needs_info", info_requested: cls.info_requested };
+  if (!ctx.verifiedSender) return fin({ outcome: "unverified", why: "sender_unverified" });
+  if (cls.outcome === "declined") return fin({ outcome: "declined" });
+
+  const tz = row.venue_timezone ?? null;
+  const a = analyzeReply(ctx.replyText, { receivedAt: ctx.receivedAt ?? null, timezone: tz });
+  const link = { method: ctx.linkage ?? null, quoted_request: quotedRequestLinked(ctx.fullText, { ...row, customer_name: row.customer_name ?? "", ref_code: row.ref_code ?? "" }) };
+  const facts = { analysis: a, linkage: link };
+  // Nunca pasamos datos de tarjeta: si piden garantía o pago (lo diga o no el modelo), decide el usuario.
+  if (cls.requires_payment_or_card || a.payment) return fin({ outcome: "payment_required", info_requested: cls.info_requested ?? "El restaurante pide tarjeta, garantía o pago.", why: cls.requires_payment_or_card ? undefined : "payment_language" }, facts);
+  if (cls.outcome === "needs_info") return fin({ outcome: "needs_info", info_requested: cls.info_requested }, facts);
 
   const [reqDate, reqTime] = row.requested_local.split("T");
-  const code = cls.confirmation_code && ctx.replyText.toLowerCase().includes(cls.confirmation_code.toLowerCase()) ? cls.confirmation_code : null;
+  const code = validConfirmationCode(cls.confirmation_code, ctx.replyText, { ...row, ref_code: row.ref_code });
+  const confirmQuote = quotes.find((q) => CONFIRM_RE.test(fold(q))) ?? null;
+  const altBase = { verified_sender: true, inbound_email_id: ctx.inboundEmailId, from_domain: ctx.fromDomain ?? undefined };
+
+  /** ¿Un horario propuesto puede quedar "apartado" (y confirmarse solo cuando el usuario lo acepte)? */
+  const holdable = (slot: { date: string; time: string }) => {
+    const c = conditionsFor(slot, row, a, link);
+    const contra = contradictions(a, { dates: [slot.date, reqDate], times: [slot.time, reqTime], party: row.party_size, name: row.customer_name });
+    const fails = [...contra, ...missingConditions(c).map((k) => `condition_missing:${k}`)];
+    if (!cls.booking_held) fails.push("model_not_held");
+    if (!confirmQuote) fails.push("no_explicit_confirmation");
+    if (a.pending) fails.push("pending_language");
+    if (a.hedges.includes("condition")) fails.push("conditional_language");
+    return { held: fails.length === 0, conditions: c, fails };
+  };
 
   if (cls.outcome === "confirmed") {
-    if (quotes.length === 0) return { ...out, outcome: "ambiguous", why: "no_verbatim_quote" };
-    if (cls.stated_party_size !== null && cls.stated_party_size !== row.party_size) {
-      return { ...out, outcome: "ambiguous", why: "party_size_mismatch" };
-    }
-    const dateOk = cls.stated_date === null || cls.stated_date === reqDate;
-    const timeOk = cls.stated_time === null || minutesBetween(cls.stated_time, reqTime) === 0;
-    if (dateOk && timeOk) {
-      return {
-        ...out,
-        outcome: "confirmed",
-        confirmation: {
-          channel: "venue_email",
-          inbound_email_id: ctx.inboundEmailId,
-          quote: quotes[0],
-          verified_sender: true,
-          from_domain: ctx.fromDomain,
-          code,
-          stated: { date: cls.stated_date, time: cls.stated_time, party_size: cls.stated_party_size, name: cls.stated_name },
-          // Lo que el restaurante no repitió: confirmó la solicitud que le mandamos con esos datos.
-          implicit: [cls.stated_date === null && "date", cls.stated_time === null && "time", cls.stated_party_size === null && "party_size"].filter(Boolean),
-        },
-      };
-    }
+    if (quotes.length === 0) return fin({ outcome: "ambiguous", why: "no_verbatim_quote" }, facts);
+    // Lo que el modelo dice que está escrito debe estar escrito.
+    const unsupported: string[] = [];
+    if (cls.stated_time && !a.times.includes(cls.stated_time)) unsupported.push("stated_time_unsupported");
+    if (cls.stated_date && !dateStated(a, cls.stated_date)) unsupported.push("stated_date_unsupported");
+    if (cls.stated_party_size !== null && !a.parties.includes(cls.stated_party_size)) unsupported.push("stated_party_unsupported");
+    if (cls.stated_name && (!row.customer_name || !fold(ctx.replyText).includes(fold(cls.stated_name)))) unsupported.push("stated_name_unsupported");
+    const slotDiffers = (cls.stated_date !== null && cls.stated_date !== reqDate) || (cls.stated_time !== null && cls.stated_time !== reqTime);
+
     // "Sí, pero a otra hora": es un alterno, no una confirmación de lo que pidió el usuario.
-    const local = `${cls.stated_date ?? reqDate}T${cls.stated_time ?? reqTime}`;
-    if (!isLocalDateTime(local)) return { ...out, outcome: "ambiguous", why: "bad_alternative" };
-    return {
-      ...out,
-      outcome: "alternative_offered",
-      why: "confirmed_different_slot",
-      alternatives: [{
-        local, note: null, held: cls.booking_held, verified_sender: true, inbound_email_id: ctx.inboundEmailId,
-        quote: quotes[0], code, from_domain: ctx.fromDomain ?? undefined,
-      }],
-    };
+    if (slotDiffers && unsupported.length === 0) {
+      const local = `${cls.stated_date ?? reqDate}T${cls.stated_time ?? reqTime}`;
+      if (!isLocalDateTime(local)) return fin({ outcome: "ambiguous", why: "bad_alternative" }, facts);
+      const [d, t] = local.split("T");
+      const h = holdable({ date: d, time: t });
+      return fin({
+        outcome: "alternative_offered", why: "confirmed_different_slot",
+        alternatives: [{
+          local, note: null, held: h.held, ...altBase, quote: confirmQuote ?? quotes[0], code: h.held ? code : null,
+          conditions: h.conditions, contradictions: [], stated_party_size: cls.stated_party_size,
+        } as Alternative],
+      }, { ...facts, hold_checks: h.fails });
+    }
+
+    const conditions = conditionsFor({ date: reqDate, time: reqTime }, row, a, link);
+    const contra = contradictions(a, { dates: [reqDate], times: [reqTime], party: row.party_size, name: row.customer_name });
+    if (cls.stated_name && row.customer_name && !nameMatches(cls.stated_name, row.customer_name)) contra.push("name_mismatch");
+    const failures = [...unsupported, ...contra, ...a.hedges.map((h) => `hedge_${h}`)];
+    if (!cls.booking_held) failures.push("model_not_held");
+    if (!confirmQuote) failures.push("no_explicit_confirmation");
+    if (cls.alternatives.length) failures.push("alternatives_listed");
+    if (cls.info_requested) failures.push("info_requested");
+    const missing = missingConditions(conditions);
+    if (missing.length) failures.push(`conditions_not_confirmed:${missing.join(",")}`);
+    if (failures.length) return fin({ outcome: "ambiguous", why: failures[0] }, { ...facts, failures, conditions });
+    return fin({
+      outcome: "confirmed",
+      confirmation: {
+        channel: "venue_email",
+        inbound_email_id: ctx.inboundEmailId,
+        quote: confirmQuote,
+        verified_sender: true,
+        from_domain: ctx.fromDomain,
+        code,
+        stated: { date: cls.stated_date, time: cls.stated_time, party_size: cls.stated_party_size, name: cls.stated_name },
+        // Cómo quedó aceptada cada condición: escrita por el restaurante ("stated"), citada sin cambios
+        // de nuestra solicitud ("thread_quote") o ligada por el token único del hilo ("reply_token").
+        conditions,
+        contradictions: [],
+        linkage: link,
+        classifier: { model: cls.model ?? null, outcome: cls.outcome, booking_held: cls.booking_held },
+        rules_version: RULES_VERSION,
+      },
+    }, { ...facts, conditions });
   }
 
-  // alternative_offered
-  const alternatives: Alternative[] = cls.alternatives
-    .map((a) => ({ local: `${a.date ?? reqDate}T${a.time}`, note: a.note }))
-    .filter((a) => isLocalDateTime(a.local) && a.local !== row.requested_local)
-    .map((a, _i, all) => ({
-      ...a,
-      // Solo un alterno puede estar "apartado"; con varios, el restaurante espera que elijamos.
-      held: cls.booking_held && all.length === 1,
-      verified_sender: true,
-      inbound_email_id: ctx.inboundEmailId,
-      quote: quotes[0],
-      from_domain: ctx.fromDomain ?? undefined,
-    }));
-  if (alternatives.length === 0) return { ...out, outcome: "needs_info", info_requested: cls.info_requested ?? "El restaurante propone otra opción; revisa su respuesta.", why: "no_valid_alternatives" };
-  return { ...out, outcome: "alternative_offered", alternatives };
+  // alternative_offered: solo horarios que el correo menciona de verdad.
+  const alternatives = cls.alternatives
+    .map((x) => ({ local: `${x.date ?? reqDate}T${x.time}`, note: x.note, date: x.date }))
+    .filter((x) => isLocalDateTime(x.local) && x.local !== row.requested_local && a.times.includes(x.local.slice(11)) && (x.date === null || dateStated(a, x.date)));
+  const hold = alternatives.length === 1 ? holdable({ date: alternatives[0].local.slice(0, 10), time: alternatives[0].local.slice(11) }) : null;
+  const alts: Alternative[] = alternatives.map((x) => ({
+    local: x.local, note: x.note,
+    // Solo un alterno puede estar "apartado", y solo si el correo lo dice explícitamente sin condiciones.
+    held: hold?.held === true,
+    ...altBase, quote: confirmQuote ?? quotes[0],
+    ...(hold?.held ? { conditions: hold.conditions, contradictions: [], code } : {}),
+  } as Alternative));
+  if (alts.length === 0) return fin({ outcome: "needs_info", info_requested: cls.info_requested ?? "El restaurante propone otra opción; revisa su respuesta.", why: "no_valid_alternatives" }, facts);
+  return fin({ outcome: "alternative_offered", alternatives: alts }, { ...facts, hold_checks: hold?.fails ?? null });
 }

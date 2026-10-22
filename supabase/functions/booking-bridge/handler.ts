@@ -5,7 +5,7 @@
 // _shared/booking a partir de datos que él mismo carga (viaje con el JWT del usuario, catálogo Privé
 // con service role) o de parámetros estructurados, vuelve a correr el resolver y solo entonces guarda
 // el destino de la intención y firma el enlace de salida (booking-go).
-import { checkAllowlisted } from "../_shared/booking/allowlist.ts";
+import { checkAllowlisted, checkTrustedSource, checkUntrusted } from "../_shared/booking/allowlist.ts";
 import { containsCardNumber, countryIso } from "../_shared/booking/channels.ts";
 import { offerForIato } from "../_shared/booking/iato.ts";
 import { langForCountry, REQUEST_LANGS, type RequestLang } from "../_shared/booking/messages.ts";
@@ -47,8 +47,10 @@ export type BridgeDeps = {
   tripDocumentOk(docId: string, tripId: string | null): Promise<boolean>;
   recheckFlight(q: Parameters<typeof import("../_shared/booking/recheck.ts").recheckFlight>[0]): Promise<RecheckResult>;
   recheckHotel(q: Parameters<typeof import("../_shared/booking/recheck.ts").recheckHotel>[0]): Promise<RecheckResult>;
-  /** URL de booking-go firmada para la intención. */
-  goUrl(intentId: string): Promise<string | null>;
+  /** URL de booking-go firmada para la intención, atada al destino guardado y a su nivel (AUD-04). */
+  goUrl(intentId: string, target: { url: string; tier: SignTier }): Promise<string | null>;
+  /** Destino guardado de una intención del usuario (service role, filtrado por dueño) y la fuente de su acción. */
+  intentTarget(intentId: string): Promise<{ target_url: string | null; action_trust: string | null } | null>;
   priveSession?: string | null;
   now?: () => number;
   flags?: { exact_flight_form?: boolean; reservas_email?: boolean };
@@ -179,6 +181,26 @@ async function buildOffer(src: Source, deps: BridgeDeps, draft: Draft | null): P
   };
 }
 
+export type SignTier = "allowlist" | "trusted_source";
+
+/**
+ * ¿booking-go puede firmar la salida a este destino, y con qué nivel? (AUD-04)
+ *  * "allowlist": la URL pasa la lista estricta; si la escribió la IA o la mandó el cliente, además
+ *    sin redirects opacos (google.com/aclk, /travel/clk).
+ *  * "trusted_source": fuera de la lista, solo si vino del catálogo curado o del escaneo del sitio
+ *    oficial (datos que el usuario no puede editar).
+ *  * null: no se firma. Un sitio que vino de trips.*_json (editable) se abre directo en el cliente,
+ *    así nadie fabrica un enlace de IATOS hacia otro dominio.
+ */
+function signTier(url: string | null, trust: string | null | undefined): SignTier | null {
+  if (!url) return null;
+  if ((trust === "ai" || trust === "client" ? checkUntrusted(url) : checkAllowlisted(url)).ok) return "allowlist";
+  if ((trust === "curated_catalog" || trust === "official_site_scan") && checkTrustedSource(url).ok) return "trusted_source";
+  return null;
+}
+
+const PRE_EXIT: IntentState[] = ["SELECTED", "PRICE_RECHECK_REQUIRED", "READY_TO_BOOK"];
+
 function pickAction(offer: BookingOffer, kind: ActionKind): BookingAction | null {
   return offer.actions.find((a) => a.kind === kind) ?? null;
 }
@@ -257,9 +279,9 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
       // toque; no pasan por booking-go.
       const isWeb = !!a.url && a.url.startsWith("https://") && !["whatsapp", "email", "sms", "phone"].includes(a.kind);
       // booking-go solo firma destinos de la lista blanca o de fuentes que el usuario NO puede editar
-      // (catálogo y escaneo de sitios oficiales). Un sitio que viene de trips.*_json (editable por su
-      // dueño) se abre directo en el cliente: así nadie puede fabricar un enlace de IATOS a otro dominio.
-      const web = isWeb && (checkAllowlisted(a.url).ok || a.trust === "curated_catalog" || a.trust === "official_site_scan");
+      // (catálogo y escaneo de sitios oficiales); ver signTier.
+      const tier = isWeb ? signTier(a.url, a.trust) : null;
+      const web = isWeb && tier !== null;
       let conciergeId: string | null = null;
 
       if (a.kind === "prive_request") {
@@ -289,7 +311,24 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
         },
       });
       if (error || !data?.ok) return fail(error ? 500 : 409, data?.code ?? "INTENT_NOT_SAVED", "No se pudo guardar tu selección.");
-      const intent = data.intent;
+      let intent = data.intent;
+      // Ya había una intención viva de esta oferta (o es un reintento): su destino guardado puede ser
+      // OTRO (el usuario eligió antes "Buscar en Booking" y ahora "Ver en Google Maps"). La salida
+      // firmada siempre lleva al destino guardado, así que primero se alinea con lo que eligió ahora
+      // (queda en el historial); si ya salió al proveedor, no se reescribe y no se firma (AUD-04).
+      let canSign = web;
+      if (web && (data.existing || data.replay) && !data.already_confirmed) {
+        const stored = await deps.intentTarget(intent.id);
+        if (stored?.target_url !== a.url) {
+          canSign = false;
+          if (PRE_EXIT.includes(intent.state)) {
+            const t = await deps.rpc("booking_intent_transition", { _id: intent.id, _user: deps.userId, _to: intent.state, _actor: "usuario",
+              _note: `Cambió la forma de continuar: ${a.label}`, _patch: { target_url: a.url, target_host: a.host, processor: a.processor, channel: "web",
+                action_kind: a.kind, booking_mode: a.mode, offer: snapshot(offer, a) } });
+            if (!t.error && t.data?.ok) { intent = t.data.intent; canSign = true; }
+          }
+        }
+      }
       if (data.already_confirmed) {
         return ok({ intent: withStatus(intent), already_confirmed: true, message: "Ya tienes esta reserva confirmada en tu viaje." });
       }
@@ -299,10 +338,11 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
           party: draft?.party_size ?? offer.traveler_count, state: "REQUESTED", user_label: deps.userLabel, message: draft?.notes ?? null, intent_id: intent.id });
         await deps.notifyTeam(mail.subject, mail.html).catch(() => false);
       }
-      const go = web && intent.state !== "PRICE_RECHECK_REQUIRED" ? await deps.goUrl(intent.id) : null;
+      const go = canSign && tier && intent.state !== "PRICE_RECHECK_REQUIRED" ? await deps.goUrl(intent.id, { url: a.url!, tier }) : null;
       return ok({
         intent: withStatus(intent), replay: !!data.replay, existing: !!data.existing,
-        go_url: go, direct_url: isWeb && !web ? a.url : null, target_host: a.host, processor: a.processor, disclosures: a.disclosures, preserves: a.preserves,
+        go_url: go, direct_url: isWeb && !canSign ? a.url : null,
+        booking_mode: a.mode, target_host: a.host, processor: a.processor, disclosures: a.disclosures, preserves: a.preserves,
         // Canales: el cliente abre su propio enlace (wa.me / mailto / tel) en el mismo toque.
         channel: a.channel ?? null,
         needs_price_ack: intent.state === "PRICE_RECHECK_REQUIRED",
@@ -315,7 +355,10 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
       const { data, error } = await deps.rpc("booking_intent_transition", { _id: body.intent_id, _user: deps.userId, _to: "READY_TO_BOOK", _actor: "usuario",
         _note: "Continuar sin reconfirmar el precio", _patch: {} });
       if (error || !data?.ok) return fail(409, data?.code ?? "TRANSITION_FAILED", "No se pudo continuar.");
-      return ok({ intent: withStatus(data.intent), go_url: await deps.goUrl(body.intent_id) });
+      // Se firma el destino que quedó guardado, con el nivel de la fuente de su acción (AUD-04).
+      const stored = await deps.intentTarget(body.intent_id);
+      const tier = signTier(stored?.target_url ?? null, stored?.action_trust);
+      return ok({ intent: withStatus(data.intent), go_url: tier ? await deps.goUrl(body.intent_id, { url: stored!.target_url!, tier }) : null });
     }
 
     case "recheck_price": {
