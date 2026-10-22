@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { PriveLockedError } from "@/lib/priveCatalogApi";
 import type { PriveErrorCode } from "@/lib/priveApi";
 
+/** Marca de error genérico: el marco lo muestra en el idioma de la persona. */
+export const LOAD_ERROR = "No se pudo cargar esta selección. Intenta de nuevo en un momento.";
+
 /** Carga con estados honestos: cargando, bloqueado (PRIVE_*), error, listo. */
 export function usePriveLoad<T>(load: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | null>(null);
@@ -17,7 +20,7 @@ export function usePriveLoad<T>(load: () => Promise<T>, deps: unknown[]) {
       .catch((e) => {
         if (!alive) return;
         if (e instanceof PriveLockedError) setLocked(e.code);
-        else setError("No se pudo cargar esta selección. Intenta de nuevo en un momento.");
+        else setError(LOAD_ERROR);
       })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };

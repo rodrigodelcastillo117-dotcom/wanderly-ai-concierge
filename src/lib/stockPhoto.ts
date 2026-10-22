@@ -15,7 +15,7 @@ export type StockPhoto = { image: string; photographer: string | null; page_url:
 export const PEXELS_PER_MINUTE = 20;
 const KEY = "iatos_stock_photo_v1:";
 const memory = new Map<string, StockPhoto | null>();
-const inflight = new Map<string, Promise<StockPhoto | null>>();
+const inflight = new Map<string, Promise<StockPhotoLoad>>();
 export const pexelsBudget = createBudget({ perMinute: PEXELS_PER_MINUTE, concurrency: 3, cooldownMs: 60_000 });
 
 export const stockKey = (q: string) => q.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 100);
@@ -53,12 +53,18 @@ export function cachedStockPhoto(query: string): StockPhoto | null | undefined {
   return s;
 }
 
-/** Foto ilustrativa para la consulta, o null. Nunca lanza. */
-export function getStockPhoto(query: string): Promise<StockPhoto | null> {
+/**
+ * Resultado con el motivo: `transient` = no hubo respuesta definitiva (429, error de red, la fila en
+ * pausa o Pexels caído); no se recuerda y se puede volver a pedir. `photo: null` sin `transient` = la
+ * consulta no tiene foto (se recuerda en la sesión). Nunca lanza.
+ */
+export type StockPhotoLoad = { photo: StockPhoto | null; transient: boolean };
+
+export function loadStockPhoto(query: string): Promise<StockPhotoLoad> {
   const k = stockKey(query);
-  if (!k) return Promise.resolve(null);
+  if (!k) return Promise.resolve({ photo: null, transient: false });
   const hit = cachedStockPhoto(k);
-  if (hit !== undefined) return Promise.resolve(hit);
+  if (hit !== undefined) return Promise.resolve({ photo: hit, transient: false });
   const running = inflight.get(k);
   if (running) return running;
   const PAUSED = Symbol("paused");
@@ -67,24 +73,31 @@ export function getStockPhoto(query: string): Promise<StockPhoto | null> {
       const { data, error } = await supabase.functions.invoke("pexels-image", { body: { query: k } });
       if (error) {
         if (invokeStatus(error) === 429) pexelsBudget.block(invokeRetryAfter(error));
-        return PAUSED; // error temporal: no se recuerda, se intentará en otra visita
+        return PAUSED; // error temporal (429, 503 de Pexels, red): no se recuerda
       }
-      const d = data as { image?: unknown; photographer?: unknown; page_url?: unknown } | null;
+      const d = data as { image?: unknown; photographer?: unknown; page_url?: unknown; upstream_error?: unknown } | null;
+      // La función marca cuando Pexels mismo falló (cuota por hora): eso no es "sin foto".
+      if (d?.upstream_error) return PAUSED;
       return isSafeStockUrl(d?.image)
         ? { image: d!.image as string, photographer: typeof d?.photographer === "string" ? d.photographer : null, page_url: typeof d?.page_url === "string" ? d.page_url : null }
         : null;
     } catch {
       return PAUSED;
     }
-  }, PAUSED).then((r) => {
+  }, PAUSED).then((r): StockPhotoLoad => {
     inflight.delete(k);
-    if (r === PAUSED) return null;
+    if (r === PAUSED) return { photo: null, transient: true };
     memory.set(k, r);
     writeSession(k, r);
-    return r;
+    return { photo: r, transient: false };
   });
   inflight.set(k, p);
   return p;
+}
+
+/** Foto ilustrativa para la consulta, o null. Nunca lanza. */
+export function getStockPhoto(query: string): Promise<StockPhoto | null> {
+  return loadStockPhoto(query).then((r) => r.photo);
 }
 
 /** Solo pruebas. */

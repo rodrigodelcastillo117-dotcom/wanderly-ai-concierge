@@ -1,16 +1,10 @@
 import { motion } from "framer-motion";
 import { Monogram } from "@/components/prive/Monogram";
 import { EASE, usePriveMotion } from "@/components/prive/motion";
-import { ceremonialCode, formatDateEs } from "@/lib/priveCopy";
+import { ceremonialCode, formatDate } from "@/lib/priveCopy";
+import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 
 export type MemberCardStatus = "active" | "paused_pro" | "paused_tenure" | "revoked";
-
-const STATUS_LABEL: Record<MemberCardStatus, string> = {
-  active: "Miembro activo",
-  paused_pro: "Pausada · tu PRO terminó",
-  paused_tenure: "Pausada · antigüedad en revisión",
-  revoked: "No activa",
-};
 
 /**
  * Tarjeta digital de miembro. SOLO datos públicos: nombre, estado, fecha de activación, código de
@@ -25,7 +19,10 @@ export function MemberCard({ firstName, status, activatedAt, memberCode, reveal 
   reveal?: boolean;
 }) {
   const { reduce, rise } = usePriveMotion();
-  const since = formatDateEs(activatedAt);
+  const t = usePriveT();
+  const lang = usePriveLang();
+  const C = t.card;
+  const since = formatDate(activatedAt, lang);
   const anim = reveal
     ? reduce
       ? rise()
@@ -33,25 +30,25 @@ export function MemberCard({ firstName, status, activatedAt, memberCode, reveal 
     : { initial: false as const };
   return (
     <figure className="flex flex-col items-center gap-3" style={{ perspective: 1200 }}>
-      <motion.div {...anim} className="prive-card text-left" data-testid="prive-member-card" aria-label="Tarjeta de miembro IATOS Privé">
+      <motion.div {...anim} className="prive-card text-left" data-testid="prive-member-card" aria-label={C.aria}>
         <div className="flex items-start justify-between">
           <div>
             <p className="prive-eyebrow">IATOS Privé</p>
-            <p className="text-[11px] tracking-[0.2em] uppercase prive-muted mt-1">Member</p>
+            <p className="text-[11px] tracking-[0.2em] uppercase prive-muted mt-1">{C.member}</p>
           </div>
           <Monogram size={46} />
         </div>
         <div>
-          <p className="prive-serif text-2xl sm:text-[1.7rem] leading-tight text-[color:var(--pv-text)]">{firstName ?? "Miembro"}</p>
-          <p className="text-xs mt-1 prive-champagne">{STATUS_LABEL[status]}</p>
+          <p className="prive-serif text-2xl sm:text-[1.7rem] leading-tight text-[color:var(--pv-text)]">{firstName ?? C.fallbackName}</p>
+          <p className="text-xs mt-1 prive-champagne">{C.status[status]}</p>
         </div>
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] tracking-[0.2em] uppercase prive-muted">Código de miembro</p>
+            <p className="text-[10px] tracking-[0.2em] uppercase prive-muted">{C.code}</p>
             <p className="prive-card-code text-sm prive-champagne truncate">{memberCode ?? "—"}</p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-[10px] tracking-[0.2em] uppercase prive-muted">Miembro desde</p>
+            <p className="text-[10px] tracking-[0.2em] uppercase prive-muted">{C.since}</p>
             <p className="text-sm prive-champagne">{since ?? "—"}</p>
           </div>
         </div>
@@ -60,12 +57,8 @@ export function MemberCard({ firstName, status, activatedAt, memberCode, reveal 
         <p className="prive-serif text-lg tracking-[0.3em] prive-gold" aria-describedby="prive-ceremonial-note">
           {ceremonialCode(activatedAt)}
         </p>
-        <p id="prive-ceremonial-note" className="text-[11px] prive-muted mt-1">
-          Código ceremonial: es solo un adorno con tu fecha de activación. No es una contraseña ni da acceso a nada.
-        </p>
-        <p className="text-[11px] prive-muted mt-1">
-          Tu código de miembro es público: identifica tu membresía, pero no sirve para entrar.
-        </p>
+        <p id="prive-ceremonial-note" className="text-[11px] prive-muted mt-1">{C.ceremonialNote}</p>
+        <p className="text-[11px] prive-muted mt-1">{C.publicNote}</p>
       </figcaption>
     </figure>
   );

@@ -8,12 +8,15 @@
 import { useEffect, useState } from "react";
 import { usePriveAccess } from "@/hooks/usePriveAccess";
 import { messageFor } from "@/lib/priveCopy";
+import type { PriveText } from "@/lib/priveI18n";
+import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import type { PriveErrorCode } from "@/lib/priveApi";
 import { CATALOG_HUB_SECTIONS } from "@/components/prive/catalog/hubSections";
 
 export type PriveHubSection = {
   id: string;
-  title: string;
+  /** Título fijo o según el idioma. */
+  title: string | ((t: PriveText) => string);
   rpc: string;
   args?: Record<string, unknown>;
   /** Devuelve null si los datos vienen vacíos (entonces se muestra "en curaduría"). */
@@ -25,8 +28,14 @@ export const PRIVE_HUB_SECTIONS: PriveHubSection[] = [...CATALOG_HUB_SECTIONS];
 
 type Loaded = { id: string; node: React.ReactNode | null } | { id: string; error: PriveErrorCode };
 
-export function PriveCatalogSlot({ sections = PRIVE_HUB_SECTIONS }: { sections?: PriveHubSection[] }) {
+export function PriveCatalogSlot({ sections = PRIVE_HUB_SECTIONS, onContent }: {
+  sections?: PriveHubSection[];
+  /** Avisa si hay contenido publicable (el hub oculta entonces las fichas estáticas de universos). */
+  onContent?: (has: boolean) => void;
+}) {
   const { content, unlocked } = usePriveAccess();
+  const t = usePriveT();
+  const lang = usePriveLang();
   const [loaded, setLoaded] = useState<Loaded[] | null>(sections.length ? null : []);
 
   useEffect(() => {
@@ -42,19 +51,18 @@ export function PriveCatalogSlot({ sections = PRIVE_HUB_SECTIONS }: { sections?:
   }, [unlocked, sections, content]);
 
   const visible = (loaded ?? []).filter((l) => ("node" in l ? l.node != null : l.error !== "NOT_AVAILABLE"));
+  const has = visible.some((l) => "node" in l);
+  useEffect(() => { if (loaded !== null) onContent?.(has); }, [loaded, has, onContent]);
 
   if (loaded === null) {
-    return <p role="status" className="text-sm prive-muted">Cargando tu selección…</p>;
+    return <p role="status" className="text-sm prive-muted">{t.hub.loadingSelection}</p>;
   }
   if (visible.length === 0) {
     return (
       <div className="prive-panel p-6 sm:p-8" data-testid="prive-curating">
-        <p className="prive-eyebrow mb-3">Para ti</p>
-        <h2 className="text-2xl sm:text-3xl mb-3">Contenido en curaduría</h2>
-        <p className="text-sm prive-muted max-w-prose">
-          Estamos revisando cada lugar con fuentes y fechas antes de mostrártelo. Cuando las primeras fichas verificadas estén
-          listas, aparecerán aquí, ordenadas para ti. No mostramos nada que no hayamos podido comprobar.
-        </p>
+        <p className="prive-eyebrow mb-3">{t.hub.forYou}</p>
+        <h2 className="text-2xl sm:text-3xl mb-3">{t.hub.curatingTitle}</h2>
+        <p className="text-sm prive-muted max-w-prose">{t.hub.curatingBody}</p>
       </div>
     );
   }
@@ -64,8 +72,8 @@ export function PriveCatalogSlot({ sections = PRIVE_HUB_SECTIONS }: { sections?:
         const s = sections.find((x) => x.id === l.id)!;
         return (
           <section key={l.id} aria-labelledby={`prive-sec-${l.id}`}>
-            <h2 id={`prive-sec-${l.id}`} className="text-2xl mb-4">{s.title}</h2>
-            {"node" in l ? l.node : <p role="alert" className="text-sm prive-muted">{messageFor(l.error)}</p>}
+            <h2 id={`prive-sec-${l.id}`} className="text-3xl sm:text-4xl mb-6">{typeof s.title === "function" ? s.title(t) : s.title}</h2>
+            {"node" in l ? l.node : <p role="alert" className="text-sm prive-muted">{messageFor(l.error, lang)}</p>}
           </section>
         );
       })}

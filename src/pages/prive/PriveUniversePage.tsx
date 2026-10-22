@@ -1,6 +1,8 @@
 import { useParams, useSearchParams } from "react-router-dom";
 import { usePriveCatalog, type PriveUniverse } from "@/lib/priveCatalogApi";
 import { universeMeta } from "@/lib/priveCatalogView";
+import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
+import { ShowMore } from "@/components/prive/catalog/ShowMore";
 import { AgeGate } from "@/components/prive/catalog/AgeGate";
 import { ExperienceCard } from "@/components/prive/catalog/ExperienceCard";
 import { PriveCatalogShell } from "@/components/prive/catalog/PriveCatalogShell";
@@ -13,12 +15,14 @@ export default function PriveUniversePage() {
   const { key = "" } = useParams();
   const [sp] = useSearchParams();
   const dest = sp.get("destino");
-  const meta = universeMeta(key);
+  const t = usePriveT();
+  const lang = usePriveLang();
+  const meta = universeMeta(key, lang);
   const { data, loading, locked, error, reload } = usePriveLoad(() => api.universe(key as PriveUniverse, dest), [key, dest]);
   return (
     <PriveCatalogShell loading={loading} locked={locked} error={error}>
       {!meta || !data?.found ? (
-        <p className={PRIVE.muted} role="status">Ese universo no existe en IATOS Privé.</p>
+        <p className={PRIVE.muted} role="status">{t.catalog.universeNotFound}</p>
       ) : (
         <div className="space-y-6">
           <header className="space-y-2">
@@ -29,11 +33,9 @@ export default function PriveUniversePage() {
           </header>
           <AgeGate count={data.age_locked_count ?? 0} termsVersion={(data as { adult_terms_version?: string }).adult_terms_version ?? ""} onConfirmed={reload} />
           {data.experiences.length === 0 ? (
-            <p className={`${PRIVE.card} p-5 text-sm ${PRIVE.muted}`} role="status">Todavía no hay experiencias verificadas en este universo.</p>
+            <p className={`${PRIVE.card} p-5 text-sm ${PRIVE.muted}`} role="status">{t.catalog.universeEmpty}</p>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {data.experiences.map((e) => <ExperienceCard key={e.id} e={e} />)}
-            </div>
+            <ShowMore items={data.experiences} resetKey={`${key}|${dest ?? ""}`} render={(e) => <ExperienceCard key={e.id} e={e} />} />
           )}
         </div>
       )}

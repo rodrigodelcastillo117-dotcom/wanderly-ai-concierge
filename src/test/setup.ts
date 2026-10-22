@@ -25,3 +25,9 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+// jsdom dice "en-US"; la mayoría de los usuarios de IATOS usan español de México. IATOS Privé elige su
+// idioma con navigator.languages (priveI18n.ts): las pruebas lo fijan en es-MX y las que prueban
+// inglés lo cambian a propósito (src/test/priveUx.test.tsx).
+Object.defineProperty(window.navigator, "languages", { configurable: true, get: () => ["es-MX", "es"] });
+Object.defineProperty(window.navigator, "language", { configurable: true, get: () => "es-MX" });

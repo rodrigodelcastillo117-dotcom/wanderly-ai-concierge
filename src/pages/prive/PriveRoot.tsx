@@ -5,6 +5,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { PriveProvider } from "@/hooks/usePriveAccess";
 import { Monogram } from "@/components/prive/Monogram";
+import { PriveLangProvider, usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import "@/components/prive/prive.css";
 
 const FONT_ID = "prive-font-cormorant";
@@ -24,14 +25,27 @@ function usePriveFont() {
   }, []);
 }
 
-const Spinner = () => (
-  <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-label="Cargando IATOS Privé">
-    <Monogram size={56} className="opacity-60" />
-  </div>
-);
+const Spinner = () => {
+  const t = usePriveT();
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-label={t.common.loadingPrive}>
+      <Monogram size={56} className="opacity-60" />
+    </div>
+  );
+};
 
 export default function PriveRoot() {
+  return (
+    <PriveLangProvider>
+      <PriveFrame />
+    </PriveLangProvider>
+  );
+}
+
+function PriveFrame() {
   usePriveFont();
+  const t = usePriveT();
+  const lang = usePriveLang();
   const { pathname } = useLocation();
   // La invitación es una ceremonia a pantalla completa: sin barra.
   const immersive = pathname.startsWith("/prive/invitacion");
@@ -42,18 +56,18 @@ export default function PriveRoot() {
   }, []);
   return (
     <PriveProvider>
-      <div className="prive-root">
+      <div className="prive-root" lang={lang === "en" ? "en" : "es-MX"}>
         {!immersive && (
           <header className="flex items-center justify-between px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-3">
             <Link to="/dashboard" className="inline-flex items-center gap-2 min-h-[44px] text-xs tracking-[0.2em] uppercase prive-muted hover:text-[color:var(--pv-champagne)]">
-              <ArrowLeft className="w-4 h-4" aria-hidden="true" /> IATOS
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" /> {t.common.back}
             </Link>
-            <Link to="/prive" className="inline-flex items-center gap-2 min-h-[44px]" aria-label="IATOS Privé, inicio">
+            <Link to="/prive" className="inline-flex items-center gap-2 min-h-[44px]" aria-label={t.common.homeAria}>
               <Monogram size={30} />
               <span className="prive-eyebrow hidden sm:inline">IATOS Privé</span>
             </Link>
             <Link to="/prive/membresia" className="inline-flex items-center min-h-[44px] text-xs tracking-[0.2em] uppercase prive-muted hover:text-[color:var(--pv-champagne)]">
-              Membresía
+              {t.common.membership}
             </Link>
           </header>
         )}

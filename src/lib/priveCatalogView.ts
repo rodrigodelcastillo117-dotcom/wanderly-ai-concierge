@@ -5,115 +5,115 @@
  */
 import type { PriveCoverage, PriveExperience, PriveLabel, PriveState, PriveUniverse } from "@/lib/priveCatalogApi";
 import { zonedIso } from "../../supabase/functions/_shared/privePlanner";
+import { PRIVE_LOCALE, PRIVE_TEXT, type PriveLang } from "@/lib/priveI18n";
+import { PRIVE_DESTINATION_INDEX } from "@/lib/priveDestinationIndex";
 
-export const UNIVERSES: { key: PriveUniverse; title: string; es: string; imageQuery: string; note?: string }[] = [
-  { key: "the_table", title: "THE TABLE", es: "Mesas de autor, alta cocina y chef's tables", imageQuery: "fine dining tasting menu plating" },
-  { key: "after_dark", title: "AFTER DARK", es: "Coctelería, jazz, rooftops y clubes", imageQuery: "candlelit cocktail bar night" },
-  { key: "casino_grand_nights", title: "CASINO & GRAND NIGHTS", es: "Casinos con licencia: arquitectura, historia y reglas de entrada", imageQuery: "grand casino architecture chandelier",
-    note: "Información práctica. IATOS no promueve ni intermedia apuestas. Juega con responsabilidad." },
-  { key: "yacht_sea", title: "YACHT & SEA", es: "Navegación, yates y costas", imageQuery: "luxury yacht harbour sunset" },
-  { key: "private_stays", title: "PRIVATE STAYS", es: "Estancias, villas y hoteles de autor", imageQuery: "boutique hotel suite terrace" },
-  { key: "iconic_events", title: "ICONIC EVENTS", es: "Eventos y temporadas con fecha", imageQuery: "gala event night lights" },
-  { key: "culture_access", title: "CULTURE & ACCESS", es: "Arte, museos y cultura", imageQuery: "museum gallery interior art" },
-  { key: "wellness_escape", title: "WELLNESS & ESCAPE", es: "Spa, bienestar y retiros", imageQuery: "luxury spa pool calm" },
-  { key: "adventure_elite", title: "ADVENTURE ELITE", es: "Aventura con operadores autorizados y requisitos de seguridad", imageQuery: "helicopter mountains adventure",
-    note: "Solo operadores autorizados; revisa los requisitos de seguridad antes de solicitar." },
-  { key: "sport_leisure", title: "SPORT & LEISURE", es: "Golf, tenis, esquí y deporte", imageQuery: "golf course sunrise" },
-  { key: "celebrations", title: "CELEBRATIONS", es: "Celebraciones y momentos especiales", imageQuery: "romantic dinner celebration candles" },
-  { key: "signature_mexico", title: "SIGNATURE MEXICO", es: "Lo auténtico de México: cocina, cultura y artesanos", imageQuery: "mexican artisan craft workshop" },
+const UNIVERSE_QUERIES: { key: PriveUniverse; imageQuery: string }[] = [
+  { key: "the_table", imageQuery: "fine dining tasting menu plating" },
+  { key: "after_dark", imageQuery: "candlelit cocktail bar night" },
+  { key: "casino_grand_nights", imageQuery: "grand casino architecture chandelier" },
+  { key: "yacht_sea", imageQuery: "luxury yacht harbour sunset" },
+  { key: "private_stays", imageQuery: "boutique hotel suite terrace" },
+  { key: "iconic_events", imageQuery: "gala event night lights" },
+  { key: "culture_access", imageQuery: "museum gallery interior art" },
+  { key: "wellness_escape", imageQuery: "luxury spa pool calm" },
+  { key: "adventure_elite", imageQuery: "helicopter mountains adventure" },
+  { key: "sport_leisure", imageQuery: "golf course sunrise" },
+  { key: "celebrations", imageQuery: "romantic dinner celebration candles" },
+  { key: "signature_mexico", imageQuery: "mexican artisan craft workshop" },
 ];
-export const universeMeta = (k: string) => UNIVERSES.find((u) => u.key === k) ?? null;
+export type UniverseView = { key: PriveUniverse; title: string; name: string; es: string; imageQuery: string; note?: string };
+/** Universos con título (mayúsculas), nombre, descripción y nota en el idioma pedido. `es` = descripción. */
+export const universesView = (lang: PriveLang = "es"): UniverseView[] => UNIVERSE_QUERIES.map((u) => {
+  const t = PRIVE_TEXT[lang].universes[u.key];
+  return { key: u.key, imageQuery: u.imageQuery, name: t.name, title: t.name.toLocaleUpperCase(PRIVE_LOCALE[lang]), es: t.desc, ...(t.note ? { note: t.note } : {}) };
+});
+export const UNIVERSES = universesView("es");
+export const universeMeta = (k: string, lang: PriveLang = "es") => universesView(lang).find((u) => u.key === k) ?? null;
 
-export const STATE_TEXT: Record<PriveState, { label: string; tone: "ok" | "info" | "warn" | "muted"; hint: string }> = {
-  VERIFICADO: { label: "Verificado", tone: "ok", hint: "Revisado en el sitio oficial y en una muestra humana" },
-  CURADO: { label: "Curado", tone: "info", hint: "Curado: pendiente de verificación en sitio oficial" },
-  ESTIMADO: { label: "Estimado", tone: "warn", hint: "Un dato práctico (precio, horario o reserva) es estimado" },
-  DESACTUALIZADO: { label: "Por verificar", tone: "muted", hint: "La última revisión tiene más de 90 días" },
-  PENDIENTE: { label: "Pendiente", tone: "muted", hint: "Sin revisar: no se publica" },
-  NO_DISPONIBLE: { label: "No disponible", tone: "muted", hint: "Cerrado, fuera de temporada o evento pasado" },
+const tone: Record<PriveState, "ok" | "info" | "warn" | "muted"> = {
+  VERIFICADO: "ok", CURADO: "info", ESTIMADO: "warn", DESACTUALIZADO: "muted", PENDIENTE: "muted", NO_DISPONIBLE: "muted",
 };
+export const stateText = (lang: PriveLang = "es"): Record<PriveState, { label: string; tone: "ok" | "info" | "warn" | "muted"; hint: string }> =>
+  Object.fromEntries((Object.keys(tone) as PriveState[]).map((k) => [k, { ...PRIVE_TEXT[lang].catalog.state[k], tone: tone[k] }])) as Record<PriveState, { label: string; tone: "ok" | "info" | "warn" | "muted"; hint: string }>;
+export const STATE_TEXT = stateText("es");
 
-export const LABEL_TEXT: Record<PriveLabel, string> = {
-  EXPERIENCIA_CURADA: "Experiencia curada",
-  PARTNER_VERIFICADO: "Partner verificado",
-  BENEFICIO_EXCLUSIVO: "Beneficio para miembros",
-  EXPERIENCIA_PRIVADA: "Experiencia privada",
-  ACCESO_CONFIRMADO: "Acceso confirmado",
-};
+export const LABEL_TEXT: Record<PriveLabel, string> = PRIVE_TEXT.es.catalog.label;
 
 /** Etiqueta + evidencia legible. Sin evidencia no hay etiqueta (null). */
-export function labelWithEvidence(e: Pick<PriveExperience, "label" | "label_evidence" | "verified_at">): { title: string; evidence: string } | null {
+export function labelWithEvidence(e: Pick<PriveExperience, "label" | "label_evidence" | "verified_at">, lang: PriveLang = "es"): { title: string; evidence: string } | null {
   if (!e.label) return null;
   const ev = (e.label_evidence ?? {}) as Record<string, unknown>;
+  const T = PRIVE_TEXT[lang].catalog;
+  const d = (v: unknown) => (v ? shortDate(String(v), lang) : null);
   switch (e.label) {
     case "EXPERIENCIA_CURADA":
-      return { title: LABEL_TEXT.EXPERIENCIA_CURADA, evidence: `Lugar público seleccionado por IATOS con ${ev.sources ?? 1} fuente(s)${e.verified_at ? `, revisado el ${shortDate(e.verified_at)}` : ""}. IATOS no tiene acuerdo comercial con el lugar.` };
+      return { title: T.label.EXPERIENCIA_CURADA, evidence: T.evidence.curated(ev.sources, d(e.verified_at)) };
     case "PARTNER_VERIFICADO":
       if (!ev.partner) return null;
-      return { title: LABEL_TEXT.PARTNER_VERIFICADO, evidence: `Acuerdo documentado con ${ev.partner}${ev.valid_to ? `, vigente hasta el ${shortDate(String(ev.valid_to))}` : ""}.` };
+      return { title: T.label.PARTNER_VERIFICADO, evidence: T.evidence.partner(ev.partner, d(ev.valid_to)) };
     case "BENEFICIO_EXCLUSIVO":
       if (!ev.benefit) return null;
-      return { title: LABEL_TEXT.BENEFICIO_EXCLUSIVO, evidence: `${ev.benefit}. Condiciones: ${ev.conditions ?? "según el acuerdo"}${ev.valid_to ? ` (vigente hasta el ${shortDate(String(ev.valid_to))})` : ""}.` };
+      return { title: T.label.BENEFICIO_EXCLUSIVO, evidence: T.evidence.benefit(ev.benefit, ev.conditions, d(ev.valid_to)) };
     case "EXPERIENCIA_PRIVADA":
       if (!ev.operator) return null;
-      return { title: LABEL_TEXT.EXPERIENCIA_PRIVADA, evidence: `Operada por ${ev.operator}. ${ev.conditions ?? ""}`.trim() };
+      return { title: T.label.EXPERIENCIA_PRIVADA, evidence: T.evidence.privateOp(ev.operator, ev.conditions) };
     case "ACCESO_CONFIRMADO":
-      return { title: LABEL_TEXT.ACCESO_CONFIRMADO, evidence: "El proveedor confirmó esta solicitud." };
+      return { title: T.label.ACCESO_CONFIRMADO, evidence: T.evidence.confirmed };
   }
   return null;
 }
 
-export const COVERAGE_TEXT: Record<PriveCoverage, string> = {
-  PILOTO_VERIFICADO: "Selección IATOS Privé",
-  COBERTURA_PARCIAL: "Selección en crecimiento",
-  DESCUBRIMIENTO_BAJO_DEMANDA: "Aún no curamos este destino: Iato puede buscar opciones en vivo, no verificadas por IATOS",
-  SIN_COBERTURA_VERIFICADA: "Aún no tenemos selección verificada para este destino",
-};
+export const COVERAGE_TEXT: Record<PriveCoverage, string> = PRIVE_TEXT.es.browse.coverage;
 
-export function shortDate(iso?: string | null): string {
+export function shortDate(iso?: string | null, lang: PriveLang = "es"): string {
   if (!iso) return "";
   const d = new Date(String(iso).length <= 10 ? `${iso}T12:00:00Z` : String(iso));
   if (!Number.isFinite(d.getTime())) return "";
-  return d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).replace(".", "");
+  return d.toLocaleDateString(PRIVE_LOCALE[lang], { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).replace(".", "");
 }
 
 /** Consultas de Pexels en orden: la del curador, "<subcategoría> <ciudad>", y la del universo. */
 export function imageQueries(e: Pick<PriveExperience, "image" | "subcategory" | "destination" | "universe">): string[] {
-  const out = [e.image?.query, `${(e.subcategory ?? "").replace(/_/g, " ")} ${e.destination?.name ?? ""}`.trim(), universeMeta(e.universe)?.imageQuery]
+  // La ciudad va en inglés (Pexels busca mejor así): "alta cocina Mónaco" → "alta cocina Monaco".
+  const city = (e.destination?.slug && PRIVE_DESTINATION_INDEX[e.destination.slug]?.en) || e.destination?.name || "";
+  const out = [e.image?.query, `${(e.subcategory ?? "").replace(/_/g, " ")} ${city}`.trim(), universeMeta(e.universe)?.imageQuery]
     .map((q) => (q ?? "").trim().slice(0, 100)).filter(Boolean);
   return [...new Set(out)];
 }
 
 /** Crédito obligatorio. Una foto de Pexels es ilustrativa salvo que una persona confirme que es el lugar. */
-export function pexelsCredit(photographer: string | null | undefined, illustrative = true): string {
-  return `${illustrative ? "Foto ilustrativa" : "Foto del lugar"} · Pexels${photographer ? ` · ${photographer}` : ""}`;
+export function pexelsCredit(photographer: string | null | undefined, illustrative = true, lang: PriveLang = "es"): string {
+  return PRIVE_TEXT[lang].common.photoCredit(photographer, illustrative);
 }
 
 /** Precio honesto: solo con fuente; si no, "precio por confirmar" con el nivel relativo. */
-export function priceText(e: Pick<PriveExperience, "price" | "price_level" | "price_note">): string {
+export function priceText(e: Pick<PriveExperience, "price" | "price_level" | "price_note">, lang: PriveLang = "es"): string {
+  const P = PRIVE_TEXT[lang].catalog.price;
   if (e.price?.source && (e.price.min != null || e.price.max != null)) {
     const r = e.price.min != null && e.price.max != null && e.price.max !== e.price.min ? `${e.price.min}–${e.price.max}` : `${e.price.min ?? e.price.max}`;
-    return `${r} ${e.price.currency ?? ""}${e.price.basis === "por_persona" || e.price.basis === "menu_degustacion" ? " por persona" : ""} · según la fuente${e.price.stale ? " (revisión de precio vencida)" : ""}`.replace(/\s+/g, " ").trim();
+    return `${r} ${e.price.currency ?? ""}${e.price.basis === "por_persona" || e.price.basis === "menu_degustacion" ? P.perPerson : ""}${P.bySource}${e.price.stale ? P.stale : ""}`.replace(/\s+/g, " ").trim();
   }
-  return `Precio por confirmar${e.price_level ? ` · nivel ${"$".repeat(e.price_level)}` : ""}`;
+  return `${P.tbc}${e.price_level ? P.level("$".repeat(e.price_level)) : ""}`;
 }
 
-export function hoursText(e: Pick<PriveExperience, "opening_hours">): string {
-  return e.opening_hours?.source ? "Horario según el sitio oficial" : "Horario por confirmar";
+export function hoursText(e: Pick<PriveExperience, "opening_hours">, lang: PriveLang = "es"): string {
+  return e.opening_hours?.source ? PRIVE_TEXT[lang].catalog.hoursOfficial : PRIVE_TEXT[lang].catalog.hoursTbc;
 }
 
-export function seasonText(e: Pick<PriveExperience, "season">): string | null {
+export function seasonText(e: Pick<PriveExperience, "season">, lang: PriveLang = "es"): string | null {
   const s = e.season;
   if (!s) return null;
-  if (s.state === "cerrado_por_temporada") return `Cerrado por temporada${s.reopens_on ? ` · reabre el ${shortDate(s.reopens_on)}` : ""}${s.note ? ` · ${s.note}` : ""}`;
-  if (s.state === "en_temporada") return `En temporada${s.closes_on ? ` hasta el ${shortDate(s.closes_on)}` : ""}`;
+  const S = PRIVE_TEXT[lang].catalog.season;
+  if (s.state === "cerrado_por_temporada") return S.closed(s.reopens_on ? shortDate(s.reopens_on, lang) : null, s.note ?? null);
+  if (s.state === "en_temporada") return S.open(s.closes_on ? shortDate(s.closes_on, lang) : null);
   return s.note ?? null;
 }
 
 /** Puede pedirse solo lo publicable; nunca lo pendiente, desactualizado o no disponible. */
 export const canRequest = (e: Pick<PriveExperience, "state">) => e.state === "VERIFICADO" || e.state === "CURADO" || e.state === "ESTIMADO";
 
-export const AGE_TEXT: Record<string, string> = { todas: "Todas las edades", "18+": "Solo mayores de 18", "21+": "Solo mayores de 21" };
+export const AGE_TEXT: Record<string, string> = PRIVE_TEXT.es.catalog.ageText;
 
 /**
  * Fecha y hora pedidas en una solicitud, en la hora local del destino y con su desfase
