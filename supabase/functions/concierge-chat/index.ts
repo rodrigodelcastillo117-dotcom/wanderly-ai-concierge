@@ -11,7 +11,7 @@
 //   context.ts — datos relevantes del viaje, faltantes (gaps) y guardarraíl de transfers
 //   ../_shared/activeTrip.ts — viaje en contexto (mención > selector > fijado > en curso > único)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { consumeQuota, paywallResponse } from "../_shared/entitlements.ts";
+import { commitQuota, quotaDeniedResponse, releaseQuota, reserveQuota } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { buildTripQuestion, needsSpecificTrip, resolveActiveTrip } from "../_shared/activeTrip.ts";
@@ -206,6 +206,7 @@ const tripSummary = (t: any) => ({
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  let quotaReservation: string | undefined; // cuota: mensaje apartado, se libera si no hay respuesta
 
   try {
     if (!LOVABLE_API_KEY) return json({ error: "LOVABLE_API_KEY no configurada" }, 500);
@@ -229,9 +230,11 @@ Deno.serve(async (req) => {
     const lastUserMsg = [...clientMessages].reverse().find((m) => m.role === "user")?.content ?? "";
     if (!lastUserMsg.trim()) return json({ error: "Escribe un mensaje para Iato." }, 400);
 
-    // Gate PRO / cuota gratuita (3 mensajes al mes sin suscripción)
-    const quota = await consumeQuota(u.user.id, "concierge");
-    if (!quota.allowed) return paywallResponse("concierge", corsHeaders);
+    // Cuota (3 mensajes al mes sin suscripción): se APARTA el mensaje y solo se cobra si Iato
+    // responde de verdad (commit al final). Aclaraciones y errores lo liberan. Falla cerrado.
+    const quota = await reserveQuota(u.user.id, "concierge", `s:${crypto.randomUUID()}`);
+    if (!quota.allowed) return quotaDeniedResponse(quota, "concierge", corsHeaders);
+    quotaReservation = quota.reservation_id;
 
     // B-16: "hoy" en la zona del usuario, no en UTC.
     const today = resolveToday({ clientDate: body.client_date, tz: body.tz });
@@ -285,6 +288,7 @@ Deno.serve(async (req) => {
     // llamar al modelo (antes se respondía sobre el viaje creado más recientemente).
     if (resolution.reason === "ambiguous" && needsSpecificTrip(lastUserMsg)) {
       logInsight(supabase, u.user.id, lastUserMsg, []).catch(() => {});
+      await releaseQuota(quotaReservation, "trip_clarification"); // preguntar "¿cuál viaje?" no gasta mensaje
       return json({ text: buildTripQuestion(resolution.candidates), cards: [], _tools_used: [], _gaps: [], ...tripMeta });
     }
 
@@ -416,6 +420,7 @@ Deno.serve(async (req) => {
     try {
       loop = await runConciergeLoop(messages, callModel, execTool);
     } catch (e) {
+      await releaseQuota(quotaReservation, "model_error"); // sin respuesta del modelo no se cobra
       if (e instanceof ModelHttpError) {
         if (e.status === 429) return json({ error: "Demasiadas solicitudes, intenta en un momento." }, 429);
         if (e.status === 402) return json({ error: "Nuestro asistente no está disponible en este momento. Intenta de nuevo en unos minutos." }, 503);
@@ -499,8 +504,10 @@ Deno.serve(async (req) => {
     if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime?.waitUntil === "function") EdgeRuntime.waitUntil(bg);
     else await bg;
 
+    if (quotaReservation) await commitQuota(quotaReservation); // Iato respondió: ahora sí cuenta
     return json(parsed);
   } catch (e: any) {
+    await releaseQuota(quotaReservation, "error");
     console.error("concierge-chat error", e);
     return json({ error: e?.message ?? "Error" }, 500);
   }
