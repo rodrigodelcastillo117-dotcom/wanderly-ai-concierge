@@ -74,10 +74,10 @@ function FrameInner({ immersive, pathname, lang, t }: { immersive: boolean; path
   const backTarget = usePriveBackTarget();
   return (
       <div className={`prive-root ${nav ? "has-bottom-nav" : ""}`} lang={lang === "en" ? "en" : "es-MX"}>
-        {/* El body ya deja la franja de la hora (index.css: padding-top = área segura). La barra solo
-            completa hasta 1rem; antes la sumaba otra vez y en iPhone quedaba un hueco enorme arriba. */}
+        {/* El body ya deja la franja de la hora (index.css: padding-top = área segura); la barra suma solo
+            1rem de aire. Antes sumaba otra vez el área segura (hueco enorme) y luego quedó pegada a la hora. */}
         {!immersive && (
-          <header className={`${hubPath ? "absolute inset-x-0 top-0" : "relative"} z-30 flex items-center justify-between gap-4 px-4 sm:px-8 pt-[calc(max(env(safe-area-inset-top),1rem)-env(safe-area-inset-top))] pb-3`}>
+          <header className={`${hubPath ? "absolute inset-x-0 top-0" : "relative"} z-30 flex items-center justify-between gap-4 px-4 sm:px-8 pt-4 pb-3`}>
             <Link
               to={backTarget?.to ?? "/dashboard"}
               data-testid="prive-back"
@@ -104,7 +104,7 @@ function FrameInner({ immersive, pathname, lang, t }: { immersive: boolean; path
         )}
         {/* En /prive la barra flota sobre la portada; el relleno reserva su alto desde el primer render
             (sin él, la portada subía al cargar: CLS 0.12 medido). */}
-        <main id="prive-main" className={hubPath && !immersive ? "pt-[calc(max(env(safe-area-inset-top),1rem)-env(safe-area-inset-top)+44px+0.75rem)]" : undefined}>
+        <main id="prive-main" className={hubPath && !immersive ? "pt-[calc(1rem+44px+0.75rem)]" : undefined}>
           <Suspense fallback={<Spinner />}>
             <Outlet />
           </Suspense>

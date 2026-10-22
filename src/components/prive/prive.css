@@ -305,7 +305,7 @@
   position: relative; isolation: isolate; overflow: hidden; width: 100%;
   height: 88svh; min-height: 560px; max-height: 980px;
   /* Sube detrás de la barra de PriveRoot (logo y enlaces quedan sobre la foto). */
-  margin-top: calc(-1 * (max(env(safe-area-inset-top), 1rem) + 44px + 0.75rem));
+  margin-top: calc(-1 * (env(safe-area-inset-top) + 1rem + 44px + 0.75rem));
 }
 .prive-hero .prive-photo-box { height: 100%; }
 .prive-hero-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.6s ease; z-index: 0; }
@@ -321,7 +321,7 @@
   display: flex; align-items: center; justify-content: center; color: var(--pv-champagne); opacity: 0.7; animation: prive-cue 2.6s ease-in-out infinite; }
 @keyframes prive-cue { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 6px); } }
 .prive-photo-credit.is-hero { top: auto; bottom: 18px; right: 16px; z-index: 3; }
-@media (max-width: 639px) { .prive-photo-credit.is-hero { bottom: auto; top: calc(max(env(safe-area-inset-top), 1rem) + 56px); } }
+@media (max-width: 639px) { .prive-photo-credit.is-hero { bottom: auto; top: calc(env(safe-area-inset-top) + 1rem + 56px); } }
 .prive-kenburns .prive-photo-img.is-loaded { animation: prive-kenburns 32s ease-in-out infinite alternate; transform-origin: 60% 40%; }
 @keyframes prive-kenburns { from { transform: scale(1.02) translate3d(0, 0, 0); } to { transform: scale(1.14) translate3d(-1.5%, -1%, 0); } }
 
@@ -406,7 +406,7 @@
 @media (max-width: 1023px) { .prive-editorial-photo { aspect-ratio: 4 / 3; } }
 .prive-hero-editorial .prive-hero-title { font-size: clamp(2.4rem, 7vw, 5.6rem); text-shadow: none; }
 /* B · club */
-.prive-hero-club { position: relative; isolation: isolate; overflow: hidden; margin-top: calc(-1 * (max(env(safe-area-inset-top), 1rem) + 44px + 0.75rem)); }
+.prive-hero-club { position: relative; isolation: isolate; overflow: hidden; margin-top: calc(-1 * (env(safe-area-inset-top) + 1rem + 44px + 0.75rem)); }
 .prive-hero-club .prive-photo-box { height: 100%; }
 .prive-hero-club .prive-hero-title { font-size: clamp(2.1rem, 6vw, 4rem); }
 .prive-club-tile { display: flex; flex-direction: column; justify-content: flex-end; min-height: 120px; padding: 1rem; border-radius: 18px;

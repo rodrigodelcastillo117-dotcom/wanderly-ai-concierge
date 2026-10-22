@@ -330,6 +330,13 @@ describe("un solo botón de regresar en todo Privé (arriba a la izquierda)", ()
     expect(back).toHaveTextContent("Explorar");
     expect(arrows(container)).toBe(1);
   });
+  it("iPhone: la barra no suma otra vez la franja de la hora (ya la deja el body) y tiene 1rem de aire", async () => {
+    renderAt("/prive/drops");
+    await screen.findByTestId("prive-drops-empty");
+    const header = screen.getByTestId("prive-back").closest("header")!;
+    expect(header.className).toContain("pt-4");
+    expect(header.className).not.toContain("safe-area-inset-top");
+  });
 });
 
 describe("MY PRIVÉ", () => {
