@@ -186,7 +186,7 @@ export function TripSharedTab(p: Props) {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm truncate">{e.description}</p>
                     <p className="text-[11px] text-muted-foreground truncate">
-                      Pagó {name(e.payer_id)} · entre {n} {n === 1 ? "persona" : "personas"}
+                      {e.payer_id === meId ? "Pagaste tú" : `Pagó ${name(e.payer_id)}`} · entre {n} {n === 1 ? "persona" : "personas"}
                       {e.split_mode === "exact" ? " (montos exactos)" : e.split_mode === "percent" ? " (porcentajes)" : ""}
                       {e.expense_date ? ` · ${formatDateOnly(e.expense_date)}` : ""}{e.city ? ` · ${e.city}` : ""}
                     </p>
@@ -216,7 +216,9 @@ export function TripSharedTab(p: Props) {
           <ul>
             {payments.map((x) => (
               <li key={x.id} className="flex items-center gap-2 py-2 text-sm border-b border-border/30 last:border-0">
-                <span className="truncate">{name(x.from_person)} le pagó a {name(x.to_person)}</span>
+                <span className="truncate">
+                  {x.from_person === meId ? `Le pagaste a ${name(x.to_person)}` : x.to_person === meId ? `${name(x.from_person)} te pagó` : `${name(x.from_person)} le pagó a ${name(x.to_person)}`}
+                </span>
                 {x.paid_on && <span className="text-[11px] text-muted-foreground shrink-0">{formatDateOnly(x.paid_on)}</span>}
                 <span className="ml-auto shrink-0">{formatMoney(x.amount, x.currency)}</span>
                 {(x.created_by === userId || iAmOwner) && (

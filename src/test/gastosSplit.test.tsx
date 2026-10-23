@@ -60,7 +60,9 @@ vi.mock("@/integrations/supabase/client", () => {
     },
   };
 });
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }, loading: false }) }));
+// Como en la app, el usuario es el mismo objeto entre renders (Gastos recarga cuando cambia).
+const auth = vi.hoisted(() => ({ user: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }, loading: false }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("@/components/DashboardLayout", () => ({ DashboardLayout: ({ children }: any) => <div>{children}</div> }));
 vi.mock("@/components/Tooltip", () => ({ FeatureTooltip: () => null }));
 vi.mock("@/hooks/useTooltipShown", () => ({ useTooltipShown: () => ({ shouldShow: false, dismiss: () => {} }) }));
@@ -285,9 +287,9 @@ describe("Gastos del viaje: dos pestañas", () => {
     expect(saldo).toHaveTextContent("Debes €45 a Ana López");
     const personas = screen.getByRole("region", { name: "Personas del viaje" });
     const names = within(personas).getAllByRole("listitem").map((li) => li.textContent);
-    expect(names[0]).toMatch(/^Rodrigo del Castillo\(tú\)/);
-    expect(names[1]).toMatch(/^Ana López.*Miembro del viaje/);
-    expect(names[2]).toMatch(/^Memo.*Sin la app/);
+    expect(names[0]).toMatch(/Rodrigo del Castillo\(tú\)/);
+    expect(names[1]).toMatch(/Ana López.*Miembro del viaje/);
+    expect(names[2]).toMatch(/Memo.*Sin la app/);
     fireEvent.click(screen.getByRole("button", { name: /Liquidar: Tú paga €45 a Ana López/ }));
     fireEvent.change(screen.getByLabelText("Monto del pago"), { target: { value: "45" } });
     fireEvent.click(screen.getByRole("button", { name: "Registrar pago" }));

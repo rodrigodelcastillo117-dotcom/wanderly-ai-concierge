@@ -366,7 +366,7 @@ export const Gastos = () => {
                 </div>
                 <p className="text-sm truncate">{x.description ?? "—"}</p>
                 {x.shared && (
-                  <p className="text-[11px] text-muted-foreground">Tu parte de {formatMoney(x.shared.total, x.currency)} compartido · pagó {x.shared.paidByMe ? "tú" : x.shared.payerName}</p>
+                  <p className="text-[11px] text-muted-foreground">Tu parte de {formatMoney(x.shared.total, x.currency)} compartido · {x.shared.paidByMe ? "pagaste tú" : `pagó ${x.shared.payerName}`}</p>
                 )}
               </div>
               <div className="text-right">

@@ -288,10 +288,11 @@ CREATE POLICY split_shares_select ON public.trip_split_shares FOR SELECT TO auth
   USING (public.has_trip_access(trip_id, auth.uid()));
 DROP POLICY IF EXISTS split_shares_insert ON public.trip_split_shares;
 CREATE POLICY split_shares_insert ON public.trip_split_shares FOR INSERT TO authenticated
-  WITH CHECK (public.trip_split_can_edit(expense_id));
+  WITH CHECK (public.has_trip_access(trip_id, auth.uid()) AND public.trip_split_can_edit(expense_id));
 DROP POLICY IF EXISTS split_shares_update ON public.trip_split_shares;
 CREATE POLICY split_shares_update ON public.trip_split_shares FOR UPDATE TO authenticated
-  USING (public.trip_split_can_edit(expense_id)) WITH CHECK (public.trip_split_can_edit(expense_id));
+  USING (public.has_trip_access(trip_id, auth.uid()) AND public.trip_split_can_edit(expense_id))
+  WITH CHECK (public.has_trip_access(trip_id, auth.uid()) AND public.trip_split_can_edit(expense_id));
 DROP POLICY IF EXISTS split_shares_delete ON public.trip_split_shares;
 CREATE POLICY split_shares_delete ON public.trip_split_shares FOR DELETE TO authenticated
   USING (public.trip_split_can_edit(expense_id));
@@ -468,7 +469,8 @@ CREATE POLICY split_payments_select ON public.trip_split_payments FOR SELECT TO 
   USING (public.has_trip_access(trip_id, auth.uid()));
 DROP POLICY IF EXISTS split_payments_insert ON public.trip_split_payments;
 CREATE POLICY split_payments_insert ON public.trip_split_payments FOR INSERT TO authenticated
-  WITH CHECK (created_by = auth.uid() AND public.trip_split_payment_party_ok(trip_id, from_person, to_person));
+  WITH CHECK (created_by = auth.uid() AND public.has_trip_access(trip_id, auth.uid())
+              AND public.trip_split_payment_party_ok(trip_id, from_person, to_person));
 DROP POLICY IF EXISTS split_payments_delete ON public.trip_split_payments;
 CREATE POLICY split_payments_delete ON public.trip_split_payments FOR DELETE TO authenticated
   USING (public.has_trip_access(trip_id, auth.uid())

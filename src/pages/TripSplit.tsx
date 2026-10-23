@@ -293,7 +293,7 @@ const TripSplit = () => {
         {settle && (
           <section aria-label="Registrar pago" className="glass-card rounded-2xl p-4 mb-4 border-primary/40">
             <p className="text-sm font-medium mb-2 flex items-center gap-2"><HandCoins className="w-4 h-4 text-primary" aria-hidden="true" /> Registrar pago</p>
-            <p className="text-sm mb-3">{nameOf(settle.from)} le paga a {nameOf(settle.to)}</p>
+            <p className="text-sm mb-3">{settle.from === me?.id ? `Le pagas a ${nameOf(settle.to)}` : settle.to === me?.id ? `${nameOf(settle.from)} te paga` : `${nameOf(settle.from)} le paga a ${nameOf(settle.to)}`}</p>
             <div className="flex gap-2 items-center">
               <Input aria-label="Monto del pago" type="number" min="0.01" step="0.01" inputMode="decimal" value={settle.input}
                 onChange={(e) => setSettle({ ...settle, input: e.target.value })} className="w-36" />

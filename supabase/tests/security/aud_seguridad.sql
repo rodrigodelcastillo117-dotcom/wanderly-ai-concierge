@@ -75,7 +75,16 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   ('import_past_trip'),
   -- IATOS Wrapped (20261026310000): sin parámetro de usuario; solo nombres y número de viajes de quienes
   -- comparten viaje con auth.uid() (dueño o colaborador aceptado). Pruebas en supabase/tests/wrapped.
-  ('wrapped_companions')),
+  ('wrapped_companions'),
+  -- Gastos del viaje (20261027020000_gastos_split): todas exigen has_trip_access(viaje, auth.uid()).
+  -- trip_split_members: nombre/usuario/avatar solo de los miembros del viaje y solo para otro miembro.
+  -- trip_split_sync_members: crea la persona de cada miembro (nada del cliente salvo el viaje).
+  -- trip_split_claim_guest: solo convierte una persona SIN app en la de auth.uid().
+  -- trip_split_unlink: solo el propio miembro o el dueño, y solo ligas hechas por nombre.
+  -- trip_split_can_edit / trip_split_payment_party_ok: las usan las políticas; responden por auth.uid().
+  -- Pruebas de abuso en supabase/tests/gastos.
+  ('trip_split_members'),('trip_split_sync_members'),('trip_split_claim_guest'),('trip_split_unlink'),
+  ('trip_split_can_edit'),('trip_split_payment_party_ok')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)

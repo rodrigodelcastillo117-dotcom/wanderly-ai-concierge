@@ -6,7 +6,11 @@ import { canonicalCategory } from "@/lib/expenseCategories";
 import type { TripSpendItem, TripSpendSummary } from "@/lib/tripSpend";
 
 const mxn = (n: number) => formatMoney(Math.round(n), "MXN", 0);
-const dayLabel = (d: string) => (d === "sin-fecha" ? "Sin fecha" : formatDateOnly(d, { weekday: "short", day: "numeric", month: "short" }));
+const dayLabel = (d: string) => {
+  if (d === "sin-fecha") return "Sin fecha";
+  const s = formatDateOnly(d, { weekday: "short", day: "numeric", month: "short" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 type Props = {
   items: TripSpendItem[];
@@ -70,7 +74,7 @@ export function TripPersonalTab({ items, summary, fx, removing, onRemovePersonal
           <div className="mt-4">
             <div className="flex items-baseline justify-between text-xs mb-1.5">
               <span>{b.source === "presupuesto" ? "Tu presupuesto" : "Cotización del viaje"}{b.travelers > 1 ? ` por persona (${mxn(b.total)} entre ${b.travelers})` : ""}</span>
-              <span className="font-medium">{mxn(b.perPerson)}</span>
+              <span className="font-medium whitespace-nowrap ml-3">{mxn(b.perPerson)}</span>
             </div>
             <div className="h-2 rounded-full bg-surface overflow-hidden" role="progressbar" aria-label="Presupuesto usado"
               aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(1, b.used) * 100)}>
@@ -103,7 +107,7 @@ export function TripPersonalTab({ items, summary, fx, removing, onRemovePersonal
           <ul className="space-y-2">
             {summary.byDay.map((d) => (
               <li key={d.date} className="flex items-center gap-3 text-sm">
-                <span className="w-24 shrink-0 text-muted-foreground capitalize">{dayLabel(d.date)}</span>
+                <span className="w-24 shrink-0 text-muted-foreground">{dayLabel(d.date)}</span>
                 <div className="flex-1 h-1.5 rounded-full bg-surface overflow-hidden"><div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.max(3, (d.mxn / maxDay) * 100)}%` }} /></div>
                 <span className="w-24 text-right shrink-0">{mxn(d.mxn)}</span>
               </li>
@@ -130,7 +134,7 @@ export function TripPersonalTab({ items, summary, fx, removing, onRemovePersonal
                 </div>
                 <p className="text-sm truncate mt-0.5">{x.description || "—"}</p>
                 {x.kind === "compartido" && x.total != null && (
-                  <p className="text-[11px] text-muted-foreground">Tu parte de {formatMoney(x.total, x.currency)} · pagó {x.paidByMe ? "tú" : x.payerName}</p>
+                  <p className="text-[11px] text-muted-foreground">Tu parte de {formatMoney(x.total, x.currency)} · {x.paidByMe ? "pagaste tú" : `pagó ${x.payerName}`}</p>
                 )}
               </div>
               <span className="text-sm font-medium shrink-0">{formatMoney(x.amount, x.currency)}</span>
