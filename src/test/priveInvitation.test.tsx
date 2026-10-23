@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { activeStatus, baseStatus, motionState, priveMock, SESSION_TOKEN, futureIso } from "./helpers/priveTestKit";
 
+// La tarjeta de rango se pide al servidor (my_member_card); aquí sin red: la de Privé de siempre.
+vi.mock("@/lib/memberCard", async (orig) => ({ ...(await orig<any>()), useMemberCard: () => ({ card: null, loading: false }) }));
 vi.mock("framer-motion", async () => (await import("./helpers/priveTestKit")).framerMotionMock);
 vi.mock("@/lib/priveApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/priveApi")>();
