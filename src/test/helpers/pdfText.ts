@@ -21,7 +21,7 @@ function parseObjects(pdf: Buffer): Map<number, Obj> {
       if (body[start] === "\r") start++;
       if (body[start] === "\n") start++;
       const end = body.lastIndexOf("endstream");
-      let raw = Buffer.from(body.slice(start, end), "latin1");
+      let raw: Buffer = Buffer.from(body.slice(start, end), "latin1");
       if (/\/FlateDecode/.test(dict)) {
         try { raw = inflateSync(raw); } catch { /* flujo sin comprimir */ }
       }
