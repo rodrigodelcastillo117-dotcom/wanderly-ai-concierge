@@ -117,6 +117,17 @@ export function splitNights(total: number, cities: number): number[] {
 }
 
 /**
+ * Noches por ciudad que eligió el viajero (planeador) si son válidas: una por ciudad, enteras ≥ 1 y que
+ * sumen las noches del viaje. null si no (logistics-plan usa entonces splitNights).
+ */
+export function chosenNights(raw: unknown, cities: number, total: number): number[] | null {
+  if (!Array.isArray(raw) || raw.length !== cities) return null;
+  const arr = raw.map((n) => Number(n));
+  if (!arr.every((n) => Number.isInteger(n) && n >= 1 && n <= 60)) return null;
+  return arr.reduce((a, b) => a + b, 0) === total ? arr : null;
+}
+
+/**
  * Noches y fechas de cada ciudad de un viaje multi-destino. Usa el plan guardado
  * (itinerario_json.logistics.per_destination) si cuadra con las fechas del viaje; si no (el usuario
  * cambió fechas), los días del itinerario por ciudad; y si tampoco, el mismo reparto que el servidor.

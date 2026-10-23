@@ -45,6 +45,7 @@ import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, typ
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
 import { SendSelectionEmail } from "@/components/booking/SendSelectionEmail";
+import { ConvertToRouteBanner, convertToRouteHref } from "@/components/route/ConvertToRouteBanner";
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
@@ -293,7 +294,7 @@ const TripDetail = () => {
       // jsPDF, el armado del PDF y sus fuentes solo se descargan al pedir el PDF, no al abrir el viaje.
       const { generateTripPDF } = await import("@/lib/tripPdf");
       // El total es EXACTAMENTE el de la página (RealTripTotal / barra inferior), con la misma selección.
-      const shown = tripTotals(trip, quoteTravelers, currentSel ? computedDesglose : null);
+      const shown = pageTotalsOf(trip);
       await generateTripPDF(trip, {
         theme,
         sel: { selVuelo, selHospedaje, selTours, selHoteles, nochesHospedaje: nochesEfectivas },
@@ -376,6 +377,9 @@ const TripDetail = () => {
 
   const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
 
+  // Total que muestra la página (RealTripTotal recibe exactamente estos argumentos).
+  const pageTotalsOf = (t: any) => tripTotals(t, quoteTravelers, currentSel ? computedDesglose : null);
+
   // Lo mismo que muestra "Comprar" (buildBuyFlow): qué está elegido y qué ya se compró.
   const buyItems = useMemo(
     () => (trip ? buildBuyFlow(trip, { selVuelo, selHospedaje, selTours, selHoteles }, serverOffers, { quoteCreatedAt: quote?.created_at ?? null }).items : []),
@@ -416,6 +420,8 @@ const TripDetail = () => {
     porCotizar: Array.isArray(quote?.sources?.por_cotizar) ? quote!.sources!.por_cotizar : null,
   });
   const quotedTotalValue = tripTotals(trip, quoteTravelers, null).quotedTotal;
+  // La cifra grande de la página (RealTripTotal): la misma en el resumen de Comprar, el correo y el PDF.
+  const pageTotal = hasQuotedTotal ? pageTotalsOf(trip).total : 0;
   // Los renglones de la cotización solo se muestran si suman lo mismo que el total de arriba (si no,
   // serían una segunda cifra sin explicación).
   const trustForTotal = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal) ? trust : null;
@@ -561,6 +567,10 @@ const TripDetail = () => {
 
       {/* Secciones del viaje (pestañas fijas arriba): la página muestra una sección a la vez, así se
           entiende sin bajar tanto. Antes eran ~3 pantallas completas con todo seguido (caso 22-oct-2026). */}
+      {/* Destino con varias ciudades guardado como uno solo ("paris roma y atenas 10 dias"): armarlo como ruta. */}
+      {isOwner && convertToRouteHref(trip) && (
+        <div className="max-w-5xl px-4 pt-4 sm:px-6 md:px-12"><ConvertToRouteBanner trip={trip} /></div>
+      )}
       <TripSectionNav sections={sections} active={section} onChange={showSection} />
 
       <div className="max-w-5xl p-4 pb-24 sm:p-6 md:px-12 md:pt-8">
@@ -713,18 +723,23 @@ const TripDetail = () => {
 
         <div role="tabpanel" id="panel-comprar" aria-labelledby="tab-comprar" data-trip-panel="comprar" hidden={section !== "comprar"} className="space-y-6">
           {(trip as any).fuente !== "documento" && hasQuotedTotal ? (
-            <>
             <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
               marksState={purchaseMarks}
               onSelectVuelo={(i) => setSelVuelo(i)}
               onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => ({ ...prev, [c]: i })) : setSelHospedaje(i))}
-              onToggleTour={toggleTour} />
-            {/* Correo con SOLO lo elegido y el total de esta página (enviar-seleccion). */}
-            <SendSelectionEmail trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
-              travelers={quoteTravelers} nights={nochesEfectivas} desglose={computedDesglose} total={stickyTotalValue}
-              serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null} />
-            </>
+              onToggleTour={toggleTour}
+              // Paso final "Listo · Revisa y compra": el mismo total de la página y volver al Resumen.
+              selectionTotal={pageTotal > 0 ? pageTotal : null}
+              onViewTrip={() => showSection("resumen")}
+              // "Enviarme mi selección por correo" (enviar-seleccion): SOLO lo elegido y el total de esta página.
+              sendSelectionSlot={
+                <div className="w-full">
+                  <SendSelectionEmail trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
+                    travelers={quoteTravelers} nights={nochesEfectivas} desglose={computedDesglose} total={pageTotal}
+                    serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null} />
+                </div>
+              } />
           ) : (
             <p className="rounded-2xl border border-border/60 p-4 text-sm text-muted-foreground">
               {(trip as any).fuente === "documento" ? "Este viaje viene de tus documentos: ya está pagado." : "Aún no hay cotización para comprar. Revisa el total en Resumen."}

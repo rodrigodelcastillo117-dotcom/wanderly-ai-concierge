@@ -18,7 +18,7 @@ import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { codeServesCity } from "../../supabase/functions/_shared/airports.ts";
 
 export type PurchaseKind = "vuelo" | "hospedaje" | "auto" | "actividad" | "restaurante";
-export type PurchaseCategory = "flight" | "hotel" | "car" | "activity" | "restaurant";
+export type PurchaseCategory = "flight" | "hotel" | "car" | "activity" | "restaurant" | "train";
 
 export type PurchaseItem = {
   /** Estable entre recargas mientras la cotización no cambie: tipo, índice y nombre. */
@@ -214,11 +214,15 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
   // 2 · Hospedaje. Multi-destino: un hotel por ciudad con las noches y fechas de esa ciudad (Roma
   // 22–26 oct · 4 noches), no todas las noches en la primera ciudad.
   const hoteles: any[] = Array.isArray(trip.hospedaje_json) ? trip.hospedaje_json : [];
+  // La misma ciudad dos veces (Delhi al llegar y al final, caso India): el mismo hotel son dos estancias.
+  const hotelSeen = new Set<number>();
   const pushHotel = (i: number, h: any, hCity: string | null, stay: { checkin: string; checkout: string; nights: number } | null) => {
+    const repeat = hotelSeen.has(i);
+    hotelSeen.add(i);
     const offer = offerFromTripHotel(h, { trip, city: hCity, index: i });
     const nights = stay?.nights ?? (Number((offer.details as any)?.nights) || null);
     items.push(base({
-      key: `hospedaje:${i}:${norm(h?.nombre)}`, kind: "hospedaje", category: "hotel",
+      key: `hospedaje:${i}:${norm(h?.nombre)}${repeat && stay ? `:${stay.checkin}` : ""}`, kind: "hospedaje", category: "hotel",
       title: `Hospedaje · ${h?.nombre ?? "Hotel"}`,
       subtitle: [hCity, fmtRange(stay?.checkin ?? trip.fecha_salida, stay?.checkout ?? trip.fecha_regreso), nights ? plural(nights, "noche", "noches") : null].filter(Boolean).join(" · "),
       price: offer.price, currency: offer.currency ?? "MXN",

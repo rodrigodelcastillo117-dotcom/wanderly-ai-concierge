@@ -5,9 +5,10 @@ import {
   ArrowRight, MapPin, Plus, X, Sparkles, Train, Mountain, Wallet,
   Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt, Wand2,
 } from "lucide-react";
-import { multiDestTripRows } from "@/lib/multiDestTrip";
+import { generateMultiDestTrip } from "@/lib/multiDestGenerate";
+import { fitNights, nightsFromQuery } from "@/lib/multiCityText";
+import { CityNightsEditor } from "@/components/route/CityNightsEditor";
 import { diffLocalDays, formatLocalDate } from "@/lib/localDate";
-import { countryForStops } from "@/lib/booking";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { toastFunctionError } from "@/lib/functionErrors";
-import { clearRequestKey, getRequestKey } from "@/lib/requestKey";
 // roadtrip: coche como modo entre paradas, vista previa estimada y panel del road trip.
 import { TransportModePicker } from "@/components/roadtrip/TransportModePicker";
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
@@ -239,6 +239,17 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
 
   const canStart = origin.trim().length > 1 && validStops.length >= 2;
 
+  // Noches por ciudad (?noches=3|3|3 desde el planeador o "Convertir en ruta"): siempre suman las noches
+  // del viaje; si cambian las fechas o las ciudades, se vuelven a repartir como el servidor.
+  const [nightsSel, setNightsSel] = useState<number[] | null>(() => nightsFromQuery(params.get("noches")));
+  const totalNights = fechaSalida && fechaRegreso ? diffLocalDays(fechaSalida, fechaRegreso) : 0;
+  const nightsPerCity = useMemo(
+    () => fitNights(nightsSel, validStops.length, totalNights),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nightsSel, validStops.length, totalNights],
+  );
+  const fromTripId = params.get("desde_viaje");
+
   // roadtrip: modo por tramo efectivo y vista previa ESTIMADA (sin llamadas de API).
   const legModes = useMemo(
     () => (transportMode ? resolveLegModes(validStops.length, transportMode, legModesSel, "tren") : []),
@@ -274,104 +285,20 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
     setConfigOpen(false);
     setGenerating(true);
     try {
-      // Telemetría
-      if (user) {
-        await supabase.from("behavioral_insights").insert([{
-          user_id: user.id,
-          action: "planned",
-          target_type: "multi_destination",
-          target_label: validStops.join(" → "),
-          metadata: { autonomous, prefs: p as any, origin } as any,
-        }]);
-      }
-
-      // Logística real via edge function. Misma llave al reintentar o recargar (auto=1): si el plan
-      // ya se generó, el servidor lo devuelve sin gastar otro análisis.
-      const planArgs = {
+      // Logística real (logistics-plan), filas del viaje y trips.insert: lib compartida con el planeador
+      // normal (una ruta escrita en "Planear" sale igual que una armada aquí).
+      const { logistics, tripId } = await generateMultiDestTrip(supabase, {
+        userId: user?.id ?? null,
         origin,
-        destinations: validStops,
-        fecha_salida: fechaSalida || undefined,
-        fecha_regreso: fechaRegreso || undefined,
-        num_viajeros: viajeros,
+        stops: validStops,
+        fechaSalida,
+        fechaRegreso,
+        viajeros,
+        presupuesto,
         prefs: transportMode ? { ...p, transport_mode: transportMode, leg_modes: legModes } : p,
-      };
-      const request_key = getRequestKey("logistics-plan", planArgs);
-      const { data, error } = await supabase.functions.invoke("logistics-plan", {
-        body: { ...planArgs, request_key },
+        nightsPerCity: nightsPerCity,
+        telemetry: { autonomous },
       });
-      if (error) throw error;
-      if (!data?.logistics) throw new Error("La IA no devolvió logística");
-
-      const logistics = data.logistics;
-      // Filas del viaje: vuelos (solo vuelos), hoteles, restaurantes y experiencias por ciudad. Coche y
-      // tren quedan en el plan (logistics) y TripDetail los muestra como transporte por tierra.
-      const { vuelos_json, hospedaje_json, restaurantes_json, tours_json } = multiDestTripRows(logistics, validStops, origin);
-
-      // itinerario_json: TripDetail espera un array de días.
-      const itinerarioDays = (logistics.days ?? []).map((d: any) => ({
-        dia: d.dia,
-        titulo: d.ciudad ? `${d.ciudad} — ${d.titulo}` : d.titulo,
-        ciudad: d.ciudad,
-        "mañana": d["mañana"] ?? d.manana ?? "",
-        tarde: d.tarde ?? "",
-        noche: d.noche ?? "",
-      }));
-
-      // Persistir como trip
-      let tripId: string | undefined;
-      if (user) {
-        const { data: trip, error: tErr } = await supabase
-          .from("trips")
-          .insert({
-            user_id: user.id,
-            destino: validStops.join(" → "),
-            // País de la primera ciudad ("Italia"), nunca el nombre de la última ciudad ("Venecia").
-            pais_destino: countryForStops(validStops),
-            ciudad_origen: origin.trim(),
-            fecha_salida: fechaSalida || null,
-            fecha_regreso: fechaRegreso || null,
-            num_viajeros: viajeros,
-            presupuesto_objetivo: presupuesto ? Number(presupuesto) : null,
-            // Total real calculado en el servidor (suma del desglose del tier del usuario).
-            total_estimado: Number(logistics.total_estimado_mxn) || null,
-            desglose_presupuesto: logistics.desglose_presupuesto ?? null,
-            moneda: "MXN",
-            status: "listo",
-            analisis_ai: logistics.resumen ?? null,
-            vuelos_json,
-            hospedaje_json,
-            restaurantes_json,
-            tours_json,
-            itinerario_json: {
-              multi: true,
-              destinations: validStops,
-              logistics,
-              days: itinerarioDays,
-            },
-            // Guardamos logistics completa dentro de tips para no perderla
-            tips_personalizados: logistics.resumen ? [logistics.resumen] : null,
-          })
-          .select("id")
-          .single();
-        if (tErr) console.error(tErr);
-        else {
-          tripId = trip?.id;
-          // Snapshot inmutable de la cotización (trip_quotes, solo service role): el servidor lo arma
-          // con el plan que él generó para esta llave. Si falla, el viaje queda igual que antes.
-          if (tripId) {
-            try {
-              const { data: snap, error: snapErr } = await supabase.functions.invoke("logistics-plan", {
-                body: { action: "snapshot", trip_id: tripId, request_key },
-              });
-              if (snapErr || !snap?.ok) console.warn("logistics-plan snapshot no guardado", snapErr?.message ?? snap?.error);
-            } catch (e) {
-              console.warn("logistics-plan snapshot no guardado", (e as Error)?.message);
-            }
-          }
-          clearRequestKey("logistics-plan");
-        }
-      }
-
 
       setGenerated({ logistics, autonomous, tripId });
       toast.success("Travesía lista. Abriendo tu viaje completo…");
@@ -494,6 +421,15 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             </p>
 
           </div>
+
+          {validStops.length >= 2 && nightsPerCity && (
+            <CityNightsEditor cities={validStops} nights={nightsPerCity} onChange={setNightsSel} />
+          )}
+          {fromTripId && (
+            <p className="text-xs text-muted-foreground" data-testid="ruta-desde-viaje">
+              Armamos la ruta con las ciudades de tu viaje. Se guarda como un viaje nuevo; el anterior se queda en Mis viajes.
+            </p>
+          )}
 
           {/* roadtrip: modo de transporte entre paradas (avión, tren, coche o mezcla por tramo) */}
           {validStops.length >= 2 && (
