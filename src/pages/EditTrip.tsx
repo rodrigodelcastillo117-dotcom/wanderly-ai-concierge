@@ -5,6 +5,7 @@ import { Save, Sparkles, Trash2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { BudgetField, nightsBetween } from "@/components/BudgetField";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -235,32 +236,7 @@ const EditTrip = () => {
             <Slider aria-labelledby="edit-viajeros-label" value={[numViajeros]} onValueChange={(v) => setNumViajeros(v[0])} min={1} max={10} step={1} />
           </div>
           <div>
-            <div className="flex items-baseline justify-between mb-3">
-              <span className="text-sm text-muted-foreground">
-                {presupuesto === null ? "Sin presupuesto fijo" : "Presupuesto"}
-              </span>
-              {presupuesto !== null && (
-                <span className="font-display text-2xl gold-text">
-                  ${presupuesto.toLocaleString("es-MX")}
-                  <span className="text-sm text-muted-foreground ml-1">MXN</span>
-                </span>
-              )}
-            </div>
-            <Slider
-              aria-label="Presupuesto objetivo en MXN"
-              value={[presupuesto ?? 30000]}
-              onValueChange={(v) => setPresupuesto(v[0])}
-              min={5000}
-              max={200000}
-              step={1000}
-            />
-            <button
-              type="button"
-              onClick={() => setPresupuesto(presupuesto === null ? 30000 : null)}
-              className="text-xs text-primary hover:underline mt-2"
-            >
-              {presupuesto === null ? "Establecer un presupuesto" : "Quitar presupuesto fijo"}
-            </button>
+            <BudgetField value={presupuesto} onChange={setPresupuesto} travelers={numViajeros} nights={nightsBetween(fechaSalida, fechaRegreso)} size="sm" />
           </div>
         </div>
 

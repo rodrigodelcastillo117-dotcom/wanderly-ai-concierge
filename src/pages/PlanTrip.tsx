@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, MapPin, Calendar, Users, Wallet, Sparkles, Route
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { BudgetField, nightsBetween } from "@/components/BudgetField";
 import { useAuth } from "@/contexts/AuthContext";
 import { track } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
@@ -947,33 +948,11 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     },
     {
       icon: Wallet,
-      title: "Presupuesto objetivo",
-      sub: "Opcional. Si lo dejas, ajustamos las recomendaciones.",
+      title: "Presupuesto del viaje",
+      sub: "Opcional. Es el total para todos, no por día. Si lo dejas, ajustamos las recomendaciones.",
       canNext: () => true,
       render: () => (
-        <div className="space-y-6">
-          <div className="flex items-baseline justify-between">
-            <span className="text-muted-foreground text-sm">{presupuesto === null ? "Sin presupuesto fijo" : "Presupuesto"}</span>
-            {presupuesto !== null && (
-              <span className="font-display text-4xl gold-text">${presupuesto.toLocaleString("es-MX")}<span className="text-base text-muted-foreground ml-1">MXN</span></span>
-            )}
-          </div>
-          <Slider
-            aria-label="Presupuesto objetivo en MXN"
-            value={[presupuesto ?? 30000]}
-            onValueChange={(v) => setPresupuesto(v[0])}
-            min={5000}
-            max={200000}
-            step={1000}
-          />
-          <button
-            type="button"
-            onClick={() => setPresupuesto(presupuesto === null ? 30000 : null)}
-            className="text-sm text-primary hover:underline"
-          >
-            {presupuesto === null ? "Establecer un presupuesto" : "Quitar presupuesto fijo"}
-          </button>
-        </div>
+        <BudgetField value={presupuesto} onChange={setPresupuesto} travelers={numViajeros} nights={nightsBetween(fechaSalida, fechaRegreso)} />
       ),
     },
   ];

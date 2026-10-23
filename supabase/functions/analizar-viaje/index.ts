@@ -926,7 +926,7 @@ VIAJE
 - Destino: ${body.destino}
 - Fechas: ${body.fecha_salida} al ${body.fecha_regreso} (${dias} días)
 - Viajeros: ${body.num_viajeros}
-- Presupuesto objetivo (MXN): ${body.presupuesto_objetivo ?? "sin presupuesto fijo"}
+- Presupuesto objetivo TOTAL del viaje para todos los viajeros, todo incluido (MXN; no es por día ni por persona): ${body.presupuesto_objetivo ?? "sin presupuesto fijo"}
 
 ==========================================
 INSTRUCCIONES LITERALES DEL USUARIO (prioridad MÁXIMA — léelas palabra por palabra y obedece SIN excepciones)
