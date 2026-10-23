@@ -231,9 +231,18 @@ describe("navegación de seis áreas", () => {
   });
 });
 
-describe("FOR YOU: búsqueda, ficha en ≤3 acciones y propuestas de portada", () => {
+// Dueño, 23-oct-2026: la búsqueda universal se mudó de "Para ti" a Explorar · Catálogo (Para ti es personal).
+describe("EXPLORE · Catálogo: búsqueda, ficha en ≤3 acciones; propuestas de portada de Para ti", () => {
+  it("Para ti ya no tiene buscador; en Explorar · Catálogo sí", async () => {
+    const { unmount } = renderAt("/prive");
+    await screen.findByTestId("prive-catalog-home");
+    expect(screen.queryByTestId("prive-search-input")).toBeNull();
+    unmount();
+    renderAt("/prive/explorar?vista=catalogo");
+    expect(await screen.findByTestId("prive-search-input")).toBeInTheDocument();
+  });
   it("escribir muestra destinos al instante; confirmar busca experiencias con prive_search; abrir la ficha", async () => {
-    renderAt("/prive");
+    renderAt("/prive/explorar?vista=catalogo");
     const input = await screen.findByTestId("prive-search-input");
     expect(input).toHaveAttribute("placeholder", "Un destino, una experiencia, una noche extraordinaria…");
     fireEvent.change(input, { target: { value: "cdmx" } });
@@ -249,7 +258,7 @@ describe("FOR YOU: búsqueda, ficha en ≤3 acciones y propuestas de portada", (
     expect(screen.getByTestId("where")).toHaveTextContent("q=Una+cena+rom");
   });
   it("un restaurante por su nombre, sin ciudad: se busca en los destinos destacados", async () => {
-    renderAt("/prive");
+    renderAt("/prive/explorar?vista=catalogo");
     const input = await screen.findByTestId("prive-search-input");
     fireEvent.change(input, { target: { value: "Quintonil" } });
     fireEvent.submit(input.closest("form")!);
@@ -258,7 +267,7 @@ describe("FOR YOU: búsqueda, ficha en ≤3 acciones y propuestas de portada", (
     expect(api.content).toHaveBeenCalledWith("prive_search", expect.anything(), expect.objectContaining({ _keywords: ["quintonil"], _cities: expect.arrayContaining(["cdmx"]) }));
   });
   it("sin resultados lo dice y ofrece preguntarle a Iato con la misma frase", async () => {
-    renderAt("/prive");
+    renderAt("/prive/explorar?vista=catalogo");
     const input = await screen.findByTestId("prive-search-input");
     fireEvent.change(input, { target: { value: "Zzyzx imposible" } });
     fireEvent.submit(input.closest("form")!);
@@ -313,7 +322,7 @@ describe("un solo botón de regresar en todo Privé (arriba a la izquierda)", ()
   // y sabe a dónde volver; ninguna página dibuja su propio "← …".
   const arrows = (c: HTMLElement) => c.querySelectorAll("a svg.lucide-arrow-left").length;
   it("portada y áreas principales: uno solo, que sale de Privé", async () => {
-    for (const [path, ready] of [["/prive/drops", "prive-drops-empty"], ["/prive/insider", "prive-insider-index"], ["/prive/explorar", "prive-twelve"]] as const) {
+    for (const [path, ready] of [["/prive/drops", "prive-drops-empty"], ["/prive/insider", "prive-insider-index"], ["/prive/explorar", "prive-explore-tabs"], ["/prive/explorar?vista=catalogo", "prive-twelve"]] as const) {
       const { container, unmount } = renderAt(path);
       await screen.findByTestId(ready);
       expect(screen.getAllByTestId("prive-back")).toHaveLength(1);

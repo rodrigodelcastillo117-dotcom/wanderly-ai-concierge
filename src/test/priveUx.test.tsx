@@ -324,6 +324,7 @@ describe("hub desbloqueado en español y navegación interna en la misma pestañ
     (api.content as any).mockImplementation(async (fn: string) =>
       fn === "prive_home" ? { ok: true, data: home }
         : fn === "prive_universe" ? { ok: true, data: { found: true, universe: "the_table", experiences: EXPS, age_locked_count: 0, adult_confirmed: false } }
+          : fn === "prive_ideas" ? { ok: true, data: [{ slug: "paris", name: "París", name_en: "Paris", universe: "the_table", month: 4, saved_at: "2026-10-20T10:00:00Z" }] }
           : fn === "prive_for_you" ? { ok: true, data: EXPS.slice(0, 2) } : { ok: true, data: [] });
     return render(
       <MemoryRouter initialEntries={["/prive"]}>
@@ -340,9 +341,10 @@ describe("hub desbloqueado en español y navegación interna en la misma pestañ
     const text = container.textContent ?? "";
     for (const line of ENGLISH_CEREMONY) expect(text).not.toContain(line);
     expect(text).not.toMatch(ENGLISH_WORDS);
-    // Las colecciones van con conteo y foto dentro del explorador; no se duplican con las fichas estáticas.
+    // Para ti es personal (dueño, 23-oct-2026): ni colecciones ni fichas estáticas; el catálogo vive en Explorar.
     expect(screen.queryByRole("list", { name: "Las 12 colecciones" })).toBeNull();
-    expect(screen.getByRole("link", { name: /The Art of Dining · El arte de la mesa · 40 experiencias/ })).toHaveAttribute("href", "/prive/universo/the_table");
+    expect(screen.queryByRole("link", { name: /The Art of Dining/ })).toBeNull();
+    expect(screen.getByTestId("prive-explore-access")).toHaveAttribute("href", "/prive/explorar");
     expect(container.querySelector(".prive-root")).toHaveAttribute("lang", "es-MX");
   });
   it("portada cinematográfica con el nombre, Para ti, colecciones con foto y la experiencia de la semana", async () => {
@@ -371,12 +373,13 @@ describe("hub desbloqueado en español y navegación interna en la misma pestañ
     const spot = await screen.findByTestId("prive-spotlight");
     expect(within(spot).getByText("Experiencia de la semana")).toBeInTheDocument();
     expect(within(spot).getByRole("link")).toHaveAttribute("href", expect.stringMatching(/^\/prive\/experiencia\/(quintonil|pujol)$/));
-    const edit = screen.getByTestId("prive-edit");
-    for (const n of ["The Art of Dining", "Escape to the Sea", "Extraordinary Stays", "Signature Mexico"]) expect(within(edit).getByText(n)).toBeInTheDocument();
-    expect(within(edit).getByText("El arte de la mesa")).toBeInTheDocument();
-    // Los doce universos viven en Explorar, no duplicados en la portada.
-    expect(screen.queryByTestId("prive-twelve")).toBeNull();
-    expect(screen.getByRole("link", { name: /The Twelve Universes/ })).toHaveAttribute("href", "/prive/explorar");
+    // Para ti ya no trae el catálogo genérico (dueño, 23-oct-2026): ni buscador, ni destinos destacados, ni
+    // colecciones, ni los doce universos. Queda un acceso claro "Explorar el mundo Privé →".
+    for (const id of ["prive-edit", "prive-featured-destinations", "prive-twelve", "prive-search-input", "prive-region-tabs"]) expect(screen.queryByTestId(id), id).toBeNull();
+    expect(screen.getByRole("link", { name: /Explorar el mundo Privé/ })).toHaveAttribute("href", "/prive/explorar");
+    // Lo nuevo de esta semana (Drops y la revista) y las ideas propias sí están.
+    expect(screen.getByTestId("prive-new-this-week")).toBeInTheDocument();
+    expect(await screen.findByTestId("prive-ideas")).toBeInTheDocument();
     expect(screen.queryByText(/Selección en crecimiento/)).toBeNull();
   });
   it("Para ti usa el viaje activo: prive_for_you con el destino y las fechas del viaje", async () => {

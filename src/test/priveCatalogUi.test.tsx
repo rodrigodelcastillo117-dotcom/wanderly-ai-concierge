@@ -195,20 +195,19 @@ describe("ficha", () => {
 });
 
 describe("hub", () => {
-  it("la sección del catálogo se registra en PRIVE_HUB_SECTIONS y no se dibuja sin contenido", async () => {
+  it("la sección del catálogo se registra en PRIVE_HUB_SECTIONS, no se dibuja sin contenido y es personal (sin catálogo genérico)", async () => {
     const { PRIVE_HUB_SECTIONS } = await import("@/components/prive/PriveCatalogSlot");
     const sec = PRIVE_HUB_SECTIONS.find((x) => x.id === "catalogo")!;
     expect(sec.rpc).toBe("prive_home");
     expect(sec.render({ total: 0, universes: [], destinations: [] })).toBeNull();
     render(<MemoryRouter>{sec.render({ total: 3, universes: [{ key: "the_table", count: 3 }],
       destinations: [{ slug: "mc", name: "Mónaco", region_group: "europa", kind: "country", coverage: "COBERTURA_PARCIAL", count: 3 }] })}</MemoryRouter>);
-    // Mónaco aparece en Destacados y en su región (Europa): esos enlaces van al destino. Con wave2 la sección
-    // también monta el acceso a The Privé Key (privekey), cuyo ejemplo "Estoy en Mónaco…" abre The Key con la petición.
-    const links = screen.getAllByRole("link", { name: /Mónaco/ });
-    const dest = links.filter((l) => !l.getAttribute("href")!.startsWith("/prive/key"));
-    expect(dest.length).toBeGreaterThan(0);
-    for (const l of dest) expect(l).toHaveAttribute("href", "/prive/destino/mc");
-    for (const l of links.filter((x) => !dest.includes(x))) expect(l.getAttribute("href")).toMatch(/^\/prive\/key\?w=Estoy%20en%20M%C3%B3naco/);
-    expect(screen.getByRole("link", { name: /The Art of Dining · El arte de la mesa · 3 experiencias/ })).toHaveAttribute("href", "/prive/universo/the_table");
+    // Dueño, 23-oct-2026: la sección es "Para ti", 100 % personal. Los destinos destacados, las regiones y las
+    // colecciones (The Art of Dining…) se mudaron a Explorar; aquí queda el acceso claro a Explorar. Con wave2 la
+    // sección también monta el acceso a The Privé Key, cuyo ejemplo "Estoy en Mónaco…" abre The Key con la petición.
+    expect(screen.getByTestId("prive-catalog-home")).toBeInTheDocument();
+    for (const l of screen.queryAllByRole("link", { name: /Mónaco/ })) expect(l.getAttribute("href")).toMatch(/^\/prive\/key\?w=Estoy%20en%20M%C3%B3naco/);
+    expect(screen.queryByRole("link", { name: /The Art of Dining/ })).toBeNull();
+    expect(screen.getByTestId("prive-explore-access")).toHaveAttribute("href", "/prive/explorar");
   });
 });
