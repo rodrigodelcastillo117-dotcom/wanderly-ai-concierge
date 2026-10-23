@@ -1,8 +1,8 @@
-// Guía de fuerza de la contraseña Privé (decisión D5 del contrato: 12–72 bytes, bcrypt en el
+// Guía de fuerza de la contraseña Privé (decisión D5 del contrato, 8–72 bytes desde 20261027130000; bcrypt en el
 // servidor, y el servidor también la compara con filtraciones conocidas). Esta guía solo ayuda a
 // elegir bien: la decisión final la toma el servidor (PASSWORD_WEAK / PASSWORD_BREACHED).
 
-export const PRIVE_PW_MIN = 12;
+export const PRIVE_PW_MIN = 8;
 /** bcrypt usa como máximo 72 bytes; más allá se ignoraría en silencio, por eso se limita. */
 export const PRIVE_PW_MAX = 72;
 
@@ -59,7 +59,9 @@ export function checkPrivePassword(pw: string, confirm?: string): PasswordCheck 
 
   let score = 0;
   if (bytes >= PRIVE_PW_MIN) score = 1;
-  if (bytes >= 14 && classes >= 2) score = 2;
+  // Desde 8 caracteres con dos tipos (p. ej. letras y números) ya es "Aceptable"; las secuencias, las
+  // palabras obvias y las repeticiones siguen bajándola a "Débil".
+  if (bytes >= PRIVE_PW_MIN && classes >= 2) score = 2;
   if (bytes >= 16 && (classes >= 3 || words >= 3)) score = 3;
   if (bytes >= 20 && (classes >= 3 || words >= 4)) score = 4;
   // Una frase de 4 palabras o más es fuerte aunque sea solo de minúsculas.

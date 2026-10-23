@@ -88,8 +88,11 @@ describe("HaveIBeenPwned (anonimato k)", () => {
 });
 
 describe("contraseña y frase generada", () => {
-  it("12 a 72 bytes y al menos 5 caracteres distintos (igual que la SQL)", () => {
-    expect(passwordShapeProblem("corta-11ch")).toBe("PASSWORD_WEAK");
+  it("8 a 72 bytes y al menos 5 caracteres distintos (igual que la SQL)", () => {
+    expect(passwordShapeProblem("corta-7")).toBe("PASSWORD_WEAK"); // 7 bytes
+    expect(passwordShapeProblem("Corta-8x")).toBeNull(); // 8 bytes: el nuevo mínimo
+    expect(passwordShapeProblem("ñañaña1")).toBe("PASSWORD_WEAK"); // 7 caracteres (10 bytes), solo 3 distintos
+    expect(passwordShapeProblem("aaaabbbb")).toBe("PASSWORD_WEAK");
     expect(passwordShapeProblem("aaaabbbbaaaabbbb")).toBe("PASSWORD_WEAK");
     expect(passwordShapeProblem("ñ".repeat(37))).toBe("PASSWORD_WEAK"); // 74 bytes
     expect(passwordShapeProblem(12345678901234)).toBe("PASSWORD_WEAK");
@@ -100,7 +103,7 @@ describe("contraseña y frase generada", () => {
     expect(new Set(PASSPHRASE_WORDS).size).toBe(256);
     expect(PASSPHRASE_WORDS.every((w) => /^[a-z]{3,9}$/.test(w))).toBe(true);
   });
-  it("6 palabras + 2 dígitos, siempre dentro de 12–72 bytes, y distinta cada vez", () => {
+  it("6 palabras + 2 dígitos, siempre dentro de 8–72 bytes, y distinta cada vez", () => {
     const a = generatePassphrase();
     expect(a).toMatch(/^([a-z]+-){6}\d{2}$/);
     expect(passwordShapeProblem(a)).toBeNull();

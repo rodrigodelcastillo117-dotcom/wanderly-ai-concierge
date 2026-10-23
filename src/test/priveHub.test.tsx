@@ -132,28 +132,46 @@ describe("candado y sesión Privé", () => {
     fireEvent.change(input, { target: { value: "faro lento sobre bahía 1987" } });
     fireEvent.click(screen.getByRole("button", { name: "Ingresar" }));
     expect(await screen.findByText(/más allá de lo ordinario/i)).toBeInTheDocument();
-    expect(api.access).toHaveBeenCalledWith("unlock", { password: "faro lento sobre bahía 1987" });
+    expect(api.access).toHaveBeenCalledWith("unlock", { password: "faro lento sobre bahía 1987", remember: true });
     const stored = JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!);
     expect(stored).toMatchObject({ token: SESSION_TOKEN, userId: "u1" });
+    // El servidor no confirmó remember: queda como sesión normal (con la cookie de sesión del navegador).
+    expect(stored.remember).toBeUndefined();
     expect(Object.keys({ ...localStorage }).filter((k) => k !== PRIVE_SESSION_KEY)).toEqual([]);
     expect(screen.getByTestId("prive-curating")).toHaveTextContent("Contenido en curaduría");
   });
 
-  it("mantener la sesión (30 días): opcional, apagado por omisión; solo se recuerda si el servidor lo aceptó", async () => {
+  it("sesión recordada siempre (sin casilla); solo se guarda como recordada si el servidor lo aceptó", async () => {
     setStatus(activeStatus());
     state.handler = (action) => (action === "unlock"
-      ? { ok: true, data: { ok: true, prive_session: SESSION_TOKEN, expires_at: new Date(Date.now() + 30 * 86400e3).toISOString(), remember: true } }
+      ? { ok: true, data: { ok: true, prive_session: SESSION_TOKEN, expires_at: new Date(Date.now() + 365 * 86400e3).toISOString(), remember: true } }
       : { ok: true, data: {} });
     renderAt();
     const input = await screen.findByLabelText("Contraseña Privé");
-    const box = screen.getByTestId("prive-remember") as HTMLInputElement;
-    expect(box.checked).toBe(false);
-    fireEvent.click(box);
+    expect(screen.queryByTestId("prive-remember")).toBeNull();
     fireEvent.change(input, { target: { value: "faro lento sobre bahía 1987" } });
     fireEvent.click(screen.getByRole("button", { name: "Ingresar" }));
     expect(await screen.findByText("The World, Beyond Ordinary.")).toBeInTheDocument();
     expect(api.access).toHaveBeenCalledWith("unlock", { password: "faro lento sobre bahía 1987", remember: true });
     expect(JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!)).toMatchObject({ token: SESSION_TOKEN, remember: true });
+  });
+
+  it("sesión recordada: cada uso con el servidor corre su vencimiento local a 365 días; la normal no cambia", async () => {
+    setStatus(activeStatus());
+    const soon = new Date(Date.now() + 10 * 86400e3).toISOString();
+    localStorage.setItem(PRIVE_SESSION_KEY, JSON.stringify({ token: SESSION_TOKEN, expiresAt: soon, userId: "u1", remember: true }));
+    const view = renderAt();
+    await waitFor(() => expect(api.content).toHaveBeenCalled());
+    await waitFor(() => expect(Date.parse(JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!).expiresAt)).toBeGreaterThan(Date.now() + 364 * 86400e3));
+    expect(JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!)).toMatchObject({ token: SESSION_TOKEN, remember: true });
+    view.unmount();
+    localStorage.clear();
+    api.content.mockClear();
+    withSession();
+    const before = JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!).expiresAt;
+    renderAt();
+    await waitFor(() => expect(api.content).toHaveBeenCalled());
+    expect(JSON.parse(localStorage.getItem(PRIVE_SESSION_KEY)!).expiresAt).toBe(before);
   });
 
   it("contraseña incorrecta y bloqueo temporal: mensajes calmados", async () => {

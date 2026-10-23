@@ -86,11 +86,11 @@ export async function hibpCheck(
   }
 }
 
-/** Reglas de longitud de la contraseña Privé (las mismas que la SQL): 12 a 72 bytes. */
+/** Reglas de longitud de la contraseña Privé (las mismas que la SQL): 8 a 72 bytes. */
 export function passwordShapeProblem(pw: unknown): "PASSWORD_WEAK" | null {
   if (typeof pw !== "string") return "PASSWORD_WEAK";
   const n = byteLength(pw);
-  if (n < 12 || n > 72) return "PASSWORD_WEAK";
+  if (n < 8 || n > 72) return "PASSWORD_WEAK";
   if (new Set([...pw]).size < 5) return "PASSWORD_WEAK";
   return null;
 }

@@ -91,8 +91,11 @@ async function checkNewPassword(deps: PriveAccessDeps, pw: unknown): Promise<{ p
 /** Sin sesión de Auth comprobable no hay sesión Privé (AUD-01): "vuelve a iniciar sesión". */
 const authSessionInvalid = () => fail("UNAUTHENTICATED", {}, 401);
 
-/** Abre una sesión Privé (después de fijar, cambiar o restablecer la contraseña). */
-async function openSession(deps: PriveAccessDeps, ctx: PriveRequestCtx, password: string, remember = false): Promise<ActionOutcome> {
+/**
+ * Abre una sesión Privé (al entrar y después de fijar, cambiar o restablecer la contraseña). Desde
+ * 20261027130000 toda sesión nueva queda recordada (365 días desde el último uso; la base decide).
+ */
+async function openSession(deps: PriveAccessDeps, ctx: PriveRequestCtx, password: string, remember = true): Promise<ActionOutcome> {
   // AUD-01: una sesión Privé siempre queda ligada al session_id del JWT. Sin él (JWT raro, de servicio
   // o manipulado) no se emite; la base lo vuelve a comprobar contra auth.sessions.
   if (!ctx.authSessionId) return authSessionInvalid();
@@ -101,7 +104,7 @@ async function openSession(deps: PriveAccessDeps, ctx: PriveRequestCtx, password
   if (r.ok === true) {
     if (r.notice === "new_access") await deps.sendNotice("new_access", ctx.user);
     if (remember && typeof r.session_id === "string") {
-      // "Mantener mi sesión en este dispositivo (30 días)": la base decide; si no se puede, queda la
+      // Sesión recordada (365 días desde el último uso): la base decide; si no se puede, queda la
       // sesión normal de 12 h (nunca al revés).
       const { data, error } = await deps.rpc("prive_remember_session", { _user: ctx.user.id, _session_id: r.session_id });
       const m = (data ?? {}) as Record<string, unknown>;
@@ -187,7 +190,7 @@ export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, dep
         return ok({
           breach_check: breach,
           ...(generated ? { generated_password: generated } : {}),
-          ...(s.body.ok ? { prive_session: s.body.prive_session, expires_at: s.body.expires_at } : {}),
+          ...(s.body.ok ? { prive_session: s.body.prive_session, expires_at: s.body.expires_at, ...(s.body.remember ? { remember: true } : {}) } : {}),
         });
       }
 
@@ -195,7 +198,8 @@ export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, dep
         const password = str(b.password);
         if (!password) return invalid("password");
         if (b.remember !== undefined && typeof b.remember !== "boolean") return invalid("remember");
-        return await openSession(deps, ctx, password, b.remember === true);
+        // Recordada por omisión; solo remember: false pide la sesión corta de 12 h.
+        return await openSession(deps, ctx, password, b.remember !== false);
       }
 
       case "lock": {
@@ -218,7 +222,7 @@ export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, dep
         }
         await deps.sendNotice("password_changed", ctx.user);
         const s = await openSession(deps, ctx, b.new_password as string);
-        return ok(s.body.ok ? { prive_session: s.body.prive_session, expires_at: s.body.expires_at } : {});
+        return ok(s.body.ok ? { prive_session: s.body.prive_session, expires_at: s.body.expires_at, ...(s.body.remember ? { remember: true } : {}) } : {});
       }
 
       case "request_reset": {
@@ -244,7 +248,7 @@ export async function handlePriveAction(body: unknown, ctx: PriveRequestCtx, dep
         if (r.ok !== true) return fail(String(r.code ?? "RESET_INVALID"));
         await deps.sendNotice("password_reset", ctx.user);
         const s = await openSession(deps, ctx, b.new_password as string);
-        return ok(s.body.ok ? { prive_session: s.body.prive_session, expires_at: s.body.expires_at } : {});
+        return ok(s.body.ok ? { prive_session: s.body.prive_session, expires_at: s.body.expires_at, ...(s.body.remember ? { remember: true } : {}) } : {});
       }
 
       case "report_compromised": {

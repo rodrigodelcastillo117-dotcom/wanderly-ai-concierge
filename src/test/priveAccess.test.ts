@@ -191,9 +191,11 @@ describe("desbloqueo y sesiones", () => {
 
   it("cambiar contraseña: revisa la nueva, avisa y abre sesión nueva", async () => {
     rpcImpl.prive_change_password = () => okData({ ok: true, notice: "password_changed" });
+    rpcImpl.prive_remember_session = () => okData({ ok: true, expires_at: "2027-10-22T22:00:00Z" });
     const out = await run({ action: "change_password", prive_session: PS, old_password: "Una-frase-muy-propia-77", new_password: "Otra-frase-muy-propia-88" });
-    expect(out.body).toEqual({ ok: true, prive_session: PS, expires_at: "2026-10-22T22:00:00Z" });
-    expect(calls.map(([fn]) => fn)).toEqual(["prive_change_password", "prive_unlock"]);
+    // La sesión nueva también queda recordada (toda sesión nueva lo está).
+    expect(out.body).toEqual({ ok: true, prive_session: PS, expires_at: "2027-10-22T22:00:00Z", remember: true });
+    expect(calls.map(([fn]) => fn)).toEqual(["prive_change_password", "prive_unlock", "prive_remember_session"]);
     expect(notices).toEqual(["password_changed"]);
     breach = "breached";
     expect((await run({ action: "change_password", prive_session: PS, old_password: "a-b-c-d-e-f-1", new_password: "Password123456" })).body)
@@ -311,13 +313,26 @@ describe("AUD-01 · sesión de Auth: falla cerrado", () => {
   });
 });
 
-describe("mantener mi sesión en este dispositivo (30 días)", () => {
-  it("unlock con remember: abre la sesión y la base la convierte en recordada (vence en 30 días)", async () => {
-    rpcImpl.prive_remember_session = () => okData({ ok: true, expires_at: "2026-11-21T10:00:00Z" });
+describe("sesión recordada por omisión (365 días desde el último uso)", () => {
+  it("unlock con remember: abre la sesión y la base la convierte en recordada", async () => {
+    rpcImpl.prive_remember_session = () => okData({ ok: true, expires_at: "2027-10-22T10:00:00Z" });
     const out = await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: true });
-    expect(out).toEqual({ status: 200, body: { ok: true, prive_session: PS, expires_at: "2026-11-21T10:00:00Z", remember: true } });
+    expect(out).toEqual({ status: 200, body: { ok: true, prive_session: PS, expires_at: "2027-10-22T10:00:00Z", remember: true } });
     expect(calls.map(([fn]) => fn)).toEqual(["prive_unlock", "prive_remember_session"]);
     expect(calls[1][1]).toEqual({ _user: UID, _session_id: "s1" });
+  });
+
+  it("sin el campo remember también se recuerda; al fijar o restablecer la contraseña, igual", async () => {
+    rpcImpl.prive_remember_session = () => okData({ ok: true, expires_at: "2027-10-22T10:00:00Z" });
+    expect((await run({ action: "unlock", password: "Una-frase-muy-propia-77" })).body)
+      .toEqual({ ok: true, prive_session: PS, expires_at: "2027-10-22T10:00:00Z", remember: true });
+    expect(calls.map(([fn]) => fn)).toEqual(["prive_unlock", "prive_remember_session"]);
+    rpcImpl.prive_set_password = () => okData({ ok: true });
+    expect((await run({ action: "set_password", password: "Una-frase-muy-propia-77" })).body)
+      .toMatchObject({ ok: true, prive_session: PS, expires_at: "2027-10-22T10:00:00Z", remember: true });
+    rpcImpl.prive_complete_reset = () => okData({ ok: true });
+    expect((await run({ action: "complete_reset", token: TOKEN, new_password: "Otra-frase-muy-propia-88" })).body)
+      .toEqual({ ok: true, prive_session: PS, expires_at: "2027-10-22T10:00:00Z", remember: true });
   });
 
   it("si la base no la recuerda, queda la sesión normal de 12 h (nunca al revés)", async () => {
@@ -329,8 +344,8 @@ describe("mantener mi sesión en este dispositivo (30 días)", () => {
       .toEqual({ ok: true, prive_session: PS, expires_at: "2026-10-22T22:00:00Z" });
   });
 
-  it("sin remember (o contraseña equivocada) no se pide recordar; remember con otro tipo → 400", async () => {
-    await run({ action: "unlock", password: "Una-frase-muy-propia-77" });
+  it("remember: false (o contraseña equivocada) no se pide recordar; remember con otro tipo → 400", async () => {
+    await run({ action: "unlock", password: "Una-frase-muy-propia-77", remember: false });
     rpcImpl.prive_unlock = () => okData({ ok: false, reason: "WRONG_PASSWORD" });
     await run({ action: "unlock", password: "mala-clave-larga", remember: true });
     expect(calls.map(([fn]) => fn)).toEqual(["prive_unlock", "prive_unlock"]);

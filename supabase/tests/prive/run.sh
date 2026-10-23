@@ -29,7 +29,8 @@ main() {
   $PSQL -At -d "$DB" -f "$DIR/prive.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
   # Cierre de auditoría: AUD-01 (sesión de Auth, fail closed) y NEW-01 (revocar concesión con invitación).
   # aud_session.sql incluye (\ir) 20261024020000 y 20261024030000 para probar su limpieza de datos y al
-  # final restaura la última versión de prive_sweep (20261026260000_r2_cuentas_prive_sweep_schema_probe).
+  # final restaura la última versión de prive_sweep (20261026260000_r2_cuentas_prive_sweep_schema_probe) y
+  # de prive_require / prive_remember_session / prive_session_idle_limit (20261027130000_prive_sesion_larga).
   $PSQL -At -d "$DB" -f "$DIR/aud_session.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
   $PSQL -At -d "$DB" -f "$DIR/aud_seg_strength.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
   # Segunda auditoría (r2, grupo cuentas): casos del auditor (aud2_prive.sql) y regresiones propias.

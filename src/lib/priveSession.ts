@@ -13,7 +13,8 @@
 // sin la contraseña Privé), una sesión NORMAL se acompaña de una cookie de sesión del navegador (sin
 // fecha, sin el token; compartida entre pestañas, se borra al cerrar el navegador). Sin esa cookie, la
 // sesión guardada se descarta. Solo la sesión que la persona pidió recordar ("mantener mi sesión en
-// este dispositivo", 30 días, decidido y vigilado por el servidor) sobrevive al cierre.
+// este dispositivo"; desde 20261027130000 toda sesión, 365 días desde el último uso, decidido y vigilado
+// por el servidor) sobrevive al cierre.
 //
 // Este módulo va en el paquete inicial (lo importa AuthContext para limpiar al cerrar sesión), por
 // eso es diminuto y no importa nada.

@@ -74,9 +74,9 @@ function ChangePassword() {
         submitLabel={M.saveNew}
         onChosen={async (pw) => {
           if (!old) return { ok: false, code: "WRONG_PASSWORD" };
-          const r = await call<{ prive_session?: string; expires_at?: string }>("change_password", { old_password: old, new_password: pw }, { withSession: true });
+          const r = await call<{ prive_session?: string; expires_at?: string; remember?: boolean }>("change_password", { old_password: old, new_password: pw }, { withSession: true });
           // Con la contraseña nueva el servidor abre otra sesión Privé; la anterior ya no vale.
-          if (r.ok && r.data.prive_session) adoptSession(r.data.prive_session, r.data.expires_at ?? new Date(Date.now() + 12 * 3600e3).toISOString());
+          if (r.ok && r.data.prive_session) adoptSession(r.data.prive_session, r.data.expires_at ?? new Date(Date.now() + 12 * 3600e3).toISOString(), r.data.remember === true);
           return r;
         }}
         onComplete={() => { setOld(""); setDone(true); }}

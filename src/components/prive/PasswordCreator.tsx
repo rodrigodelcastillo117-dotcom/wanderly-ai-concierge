@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 type GenResult = PriveResult<{ generated_password?: string; passphrase?: string }>;
 
 /**
- * Crear una contraseña Privé: elegida por la persona (con guía de fuerza, 12–72 caracteres) o una
+ * Crear una contraseña Privé: elegida por la persona (con guía de fuerza, 8–72 caracteres) o una
  * frase generada por el servidor que se muestra UNA sola vez. La frase vive solo en el estado de
  * este componente mientras está en pantalla: no se guarda en ningún almacenamiento y se borra al
  * pulsar "La guardé".

@@ -150,9 +150,9 @@ export default function PriveInvitation() {
   // La contraseña recién creada abre la primera sesión Privé (si el servidor no la emitió ya).
   const startSession = async (r: PriveResult, password: string | null) => {
     if (!r.ok) return;
-    const d = r.data as { prive_session?: unknown; expires_at?: unknown };
+    const d = r.data as { prive_session?: unknown; expires_at?: unknown; remember?: unknown };
     if (typeof d.prive_session === "string" && d.prive_session) {
-      adoptSession(d.prive_session, typeof d.expires_at === "string" ? d.expires_at : new Date(Date.now() + 12 * 3600e3).toISOString());
+      adoptSession(d.prive_session, typeof d.expires_at === "string" ? d.expires_at : new Date(Date.now() + 12 * 3600e3).toISOString(), d.remember === true);
     } else if (password) {
       await unlock(password);
     }
