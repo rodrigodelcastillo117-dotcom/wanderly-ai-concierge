@@ -12,6 +12,8 @@ import { describePrefill } from "@/lib/purchasePlan";
 import { trainlineLink } from "@/lib/affiliateLinks";
 import { cityAirports, distanceKm, mainAirport } from "../../supabase/functions/_shared/airports.ts";
 import { googleFlightsSearchUrl } from "../../supabase/functions/_shared/booking/links.ts";
+import { operatorHint, PRICE_AT_OPERATOR, routeOperators } from "../../supabase/functions/_shared/booking/railOperators.ts";
+import { transitScheduleUrl } from "@/lib/takeMeThere";
 
 export type BuySel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[]; selHoteles?: Record<string, number> | null;
   /** Modo elegido por traslado ("traslado:roma>florencia" → "tren"). */
@@ -48,6 +50,9 @@ export function hotelTotal(h: any, nights: number, travelers: number): number | 
 const isoOk = (d: unknown): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d);
 const normKey = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
+/** Botón extra de un tramo: otro operador oficial, Trainline como alternativa u horarios en Google Maps. */
+export type LegLink = { kind: "operador" | "alternativa" | "horarios" | "info"; label: string; url: string; site: string };
+
 /** Una forma de ir de una ciudad a la siguiente, con su botón de compra o búsqueda. */
 export type LegChoice = {
   mode: "vuelo" | "tren" | "coche" | "bus" | "ferry" | string;
@@ -66,6 +71,8 @@ export type LegChoice = {
   /** Ruta interna cuando no hay sitio externo fiable (buscador de trenes, renta de auto). */
   fallbackHref: string | null;
   row: LegOption["row"] | null;
+  /** Tren/autobús: otros operadores oficiales, Trainline y "Ver horarios en Google Maps" (transit). */
+  links?: LegLink[];
 };
 
 const MODE_LABEL: Record<string, string> = { vuelo: "Avión", tren: "Tren", coche: "Coche", bus: "Autobús", ferry: "Ferry", taxi: "Taxi", traslado: "Traslado", otro: "Transporte" };
@@ -106,10 +113,25 @@ export function legStep(trip: any, from: string, to: string, date: string | null
   }
   // Tren: Trainline en Europa; fuera, nuestro buscador de trenes ("por cotizar").
   if (planOf("tren") || km == null || km < 1200) {
-    const url = europe ? trainlineLink(from, to, date8 ?? "") : null;
-    choices.push(base("tren", { url, site: url ? "Trainline" : null, buttonLabel: url ? "Buscar tren en Trainline" : "Buscar tren",
-      completa: url ? `Trainline no recibe la ruta por enlace: escribe ${from} → ${to}${date8 ? ` y el ${fmtDayShort(date8)}` : ""}.` : `Tren por cotizar: búscalo con ${from} → ${to}${date8 ? ` y el ${fmtDayShort(date8)}` : ""}.`,
-      fallbackHref: url ? null : `/dashboard/trenes?origin=${encodeURIComponent(from)}&dest=${encodeURIComponent(to)}${date8 ? `&date=${date8}` : ""}` }));
+    const tl = europe ? trainlineLink(from, to, date8 ?? "") : null;
+    // Compra en el operador oficial del país (catálogo railOperators.ts); Trainline queda como alternativa.
+    const ops = routeOperators({ from, to, provider: planOf("tren")?.provider, country: trip?.pais_destino });
+    const main = ops.find((x) => !x.informativo) ?? null;
+    const sched = transitScheduleUrl(from, to);
+    const links: LegLink[] = [
+      ...ops.filter((x) => x !== main).map((x): LegLink => ({ kind: x.informativo ? "info" : "operador", label: x.informativo ? `${x.name} (informativo)` : `Comprar en ${x.name}`, url: x.url, site: x.name })),
+      ...(main && tl ? [{ kind: "alternativa" as const, label: "Buscar tren en Trainline", url: tl, site: "Trainline" }] : []),
+      ...(sched ? [{ kind: "horarios" as const, label: "Ver horarios en Google Maps", url: sched, site: "Google Maps" }] : []),
+    ];
+    const day = date8 ? fmtDayShort(date8) : null;
+    if (main) {
+      choices.push(base("tren", { url: main.url, site: main.name, buttonLabel: `Comprar en ${main.name}`, completa: operatorHint(main, from, to, day), links }));
+    } else {
+      const url = tl;
+      choices.push(base("tren", { url, site: url ? "Trainline" : null, buttonLabel: url ? "Buscar tren en Trainline" : "Buscar tren",
+        completa: url ? `Trainline no recibe la ruta por enlace: escribe ${from} → ${to}${day ? ` y el ${day}` : ""}.` : `Tren por cotizar: búscalo con ${from} → ${to}${day ? ` y el ${day}` : ""}.`,
+        fallbackHref: url ? null : `/dashboard/trenes?origin=${encodeURIComponent(from)}&dest=${encodeURIComponent(to)}${date8 ? `&date=${date8}` : ""}`, links }));
+    }
   }
   // Coche (o coche con chofer): la ruta en Google Maps y la renta de auto.
   if (planOf("coche") || km == null || km < 900) {
@@ -120,7 +142,15 @@ export function legStep(trip: any, from: string, to: string, date: string | null
       fallbackHref: carHref(trip, from, to) }));
   }
   // Autobús, taxi, traslado, ferry: no hay buscador fiable por enlace; se dice en vez de inventar uno.
-  for (const p of plan) if (!choices.some((c) => c.mode === p.mode)) choices.push(base(p.mode, { completa: `Precio y compra con el operador${p.provider ? ` (${p.provider})` : ""}.` }));
+  for (const p of plan) {
+    if (choices.some((c) => c.mode === p.mode)) continue;
+    // Autobús: el operador oficial si el plan lo nombra (ALSA, FlixBus, ADO) y los horarios en Google Maps.
+    const busOp = p.mode === "bus" ? routeOperators({ from, to, provider: p.provider, kind: "bus" })[0] ?? null : null;
+    const sched = p.mode === "bus" ? transitScheduleUrl(from, to) : null;
+    choices.push(base(p.mode, { completa: `Precio y compra con el operador${p.provider ? ` (${p.provider})` : ""}.`,
+      ...(busOp ? { url: busOp.url, site: busOp.name, buttonLabel: `Comprar en ${busOp.name}` } : {}),
+      ...(sched ? { links: [{ kind: "horarios" as const, label: "Ver horarios en Google Maps", url: sched, site: "Google Maps" }] } : {}) }));
+  }
   // Primero lo que trae el plan (en su orden), luego las búsquedas.
   choices.sort((x, y) => Number(y.fromPlan) - Number(x.fromPlan) || (x.fromPlan ? plan.findIndex((p) => p.mode === x.mode) - plan.findIndex((p) => p.mode === y.mode) : 0));
   // Sin elección: lo realista (Europa, India): tierra en tramos cortos; si no, lo primero del plan.
@@ -142,7 +172,8 @@ export function legStep(trip: any, from: string, to: string, date: string | null
     key: `traslado:${normKey(from)}>${normKey(to)}`, kind: "vuelo", category: chosen?.mode === "tren" ? "train" : chosen?.mode === "coche" ? "car" : "flight",
     title: `${from} → ${to}`, subtitle: [date8 ? fmtDayShort(date8) : null, `${travelers} ${travelers === 1 ? "viajero" : "viajeros"}`, chosen?.label ?? null].filter(Boolean).join(" · "),
     price: legPrice, currency: "MXN",
-    priceNote: chosen?.pricePp ? `Estimado: $${chosen.pricePp.toLocaleString("es-MX")} MXN por persona. Confirma el precio en el sitio.` : "Por cotizar: IATOS no tiene precio real de este traslado.",
+    priceNote: chosen?.pricePp ? `Estimado: $${chosen.pricePp.toLocaleString("es-MX")} MXN por persona. Confirma el precio en el sitio.`
+      : chosen?.mode === "tren" || chosen?.mode === "bus" ? `Por cotizar: ${PRICE_AT_OPERATOR.toLowerCase()}.` : "Por cotizar: IATOS no tiene precio real de este traslado.",
     source: { fuente: chosen?.fromPlan ? "estimado" : null, estado: chosen?.fromPlan ? "ESTIMADO" : null, consultadoAt: null }, estimate: true,
     site: chosen?.site ?? null, url: chosen?.url ?? null, action: null, lleva: chosen?.lleva ?? [], completa: chosen?.completa ?? null,
     buttonLabel: chosen?.buttonLabel ?? null, optional: false, fallbackHref: chosen?.fallbackHref ?? null, col: null, index: -1, offer: null, city: to,

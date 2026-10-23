@@ -46,6 +46,7 @@ import { completeAnthropic, ProviderError } from "./anthropic.ts";
 import { runConciergeTurn } from "./turn.ts";
 import { encodeEvent, type ConciergeStreamEvent } from "./stream.ts";
 import { runWebSearch } from "./webSearch.ts";
+import { runEventSearch } from "./events.ts";
 import { executeAction } from "./actionExec.ts";
 import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempotency.ts";
 import type { ActionContext } from "./actions.ts";
@@ -77,7 +78,7 @@ const TOOL_FUNCTIONS: Record<string, string> = {
 /** Tope por herramienta: se sigue con lo que llegó (B-15). */
 const TOOL_TIMEOUTS: Record<string, number> = {
   check_flight_status: 9000, search_flights: 14000, search_hotels: 14000, search_places: 8000,
-  search_nearby: 7000, web_search: 8000, search_attractions: 8000, search_members_venues: 5000, search_prive: 8000,
+  search_nearby: 7000, web_search: 8000, search_events: 8000, search_attractions: 8000, search_members_venues: 5000, search_prive: 8000,
 };
 /** Frase de inicio (planner.leadSentence) si las herramientas previstas siguen corriendo a los 700 ms. */
 const LEAD_AFTER_MS = 700;
@@ -682,6 +683,14 @@ function makeExecTool(c: { supabase: any; authHeader: string; userId: string; pr
       return runWebSearch(args, {
         fetchImpl: fetch, serpKey: SERPAPI_KEY, store, gate: liveSearchGateFor(c.userId), brake: accountBrake(store), timeoutMs: TOOL_TIMEOUTS.web_search - 500, background: bg,
         onLive: (ok) => (ok ? logUsage({ user_id: c.userId, function: "concierge-chat", provider: "serpapi", model: "google_web", searches: 1 }) : undefined),
+      });
+    }
+    if (name === "search_events") {
+      const store = dbCacheStore();
+      return runEventSearch(args, {
+        fetchImpl: fetch, serpKey: SERPAPI_KEY, store, gate: liveSearchGateFor(c.userId), brake: accountBrake(store), timeoutMs: TOOL_TIMEOUTS.search_events - 500, background: bg,
+        now: Date.now,
+        onLive: (ok) => (ok ? logUsage({ user_id: c.userId, function: "concierge-chat", provider: "serpapi", model: "google_events", searches: 1 }) : undefined),
       });
     }
     if (name === "search_places") return searchPlaces(args, c.authHeader);

@@ -47,6 +47,8 @@ const SAMPLE: Record<string, ConciergeCard> = {
   alert: { type: "alert", title: "Falta seguro", body: "No veo seguro de viaje" },
   luggage: { type: "luggage", title: "Equipaje Invisible", from: "Hotel", to: "CDG", estado_dato: "SOLICITUD_HUMANA" },
   jet: { type: "jet", title: "Aviación privada", route: "MEX→TEB", estado_dato: "SOLICITUD_HUMANA" },
+  event: { type: "event", title: "La Traviata", subtitle: "mié 9 dic · 19:30", meta: "Teatro Real", fuente: "google_events", consultado_at: new Date().toISOString(),
+    links: [{ kind: "tickets", label: "Boletos en Teatro Real", url: "https://www.teatroreal.es/es/espectaculo/traviata" }] },
 };
 
 beforeEach(() => { invoke.mockReset(); inserts.length = 0; updates.length = 0; });

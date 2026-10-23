@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, BadgeCheck, BedDouble, Car, ExternalLink, Globe, Landmark, Luggage, MapPin, Navigation, Phone, Plane, Sparkles, Star,
-  Utensils, UserRound, CalendarCheck, Link2,
+  Utensils, UserRound, CalendarCheck, Link2, Ticket, Navigation2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SmartImage } from "@/components/media/SmartImage";
@@ -17,7 +17,7 @@ import { track } from "@/lib/analytics";
 import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
 import { TakeMeThereButton } from "./TakeMeThereButton";
 import { ReservationStateBadge } from "./ReservationStateBadge";
-import { canTakeMeThere } from "@/lib/takeMeThere";
+import { canTakeMeThere, isMobileDevice, mapsDirectionsUrl } from "@/lib/takeMeThere";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 import { frescuraPrecio } from "../../../supabase/functions/_shared/priceFreshness.ts";
 import {
@@ -67,6 +67,7 @@ const SOURCE_NAME: Record<string, string> = {
   google_hotels: "Google Hotels",
   tripadvisor: "TripAdvisor",
   google_maps: "Google Maps",
+  google_events: "Google Events",
   travelpayouts: "Aviasales · tarifa de referencia (últimas 48 h)",
   aviasales: "Aviasales · tarifa de referencia (últimas 48 h)",
 };
@@ -343,7 +344,7 @@ function airlineOf(card: ConciergeCard): string | null {
 }
 
 const LINK_ICON: Record<CardLink["kind"], typeof Navigation> = {
-  directions: Navigation, ride: Car, call: Phone, website: Globe, maps: MapPin, booking: CalendarCheck,
+  directions: Navigation, ride: Car, call: Phone, website: Globe, maps: MapPin, booking: CalendarCheck, tickets: Ticket,
 };
 
 /**
@@ -353,7 +354,7 @@ const LINK_ICON: Record<CardLink["kind"], typeof Navigation> = {
  */
 /** Etiqueta corta para las burbujas compactas (la completa queda como nombre accesible y título). */
 const SHORT_LABEL: Record<CardLink["kind"], string> = {
-  directions: "Cómo llegar", ride: "Uber", call: "Llamar", website: "Sitio", maps: "Maps", booking: "Reservar",
+  directions: "Cómo llegar", ride: "Uber", call: "Llamar", website: "Sitio", maps: "Maps", booking: "Reservar", tickets: "Boletos",
 };
 
 export function CardLinks({ card, onOpen, compact = false, children }: { card: ConciergeCard; onOpen?: (url: string) => void; compact?: boolean; children?: ReactNode }) {
@@ -467,6 +468,41 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           {canTakeMeThere(takeMeTarget(card)) && <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />}
         </CardLinks>
         {!card.links?.length && <div className="mt-2"><ExternalCta card={card} label={card.cta_label ?? "Ver en Google Maps"} onOpen={onOpen} /></div>}
+      </div>
+    );
+  }
+
+  if (card.type === "event") {
+    // Event Radar: todo sale de Google Events de este turno (eventCards en el servidor). Sin precio.
+    const at = card.consultado_at ? new Date(card.consultado_at) : null;
+    const hhmm = at && Number.isFinite(at.getTime()) ? at.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }) : null;
+    const place = [card.meta, card.address].filter(Boolean).join(", ");
+    const go = place ? mapsDirectionsUrl({ destination: place, mobile: isMobileDevice() }) : null;
+    return (
+      <div className={CARD_SHELL} data-card-type="event">
+        <div className="flex items-start gap-3">
+          <SmartImage alt={card.title} imageUrl={safeHttpsUrl(card.image_url) ?? null} stockQuery={activityQuery(card.title, null)} size="thumb" icon={Ticket}
+            className="w-16 h-16 rounded-xl shrink-0 ring-1 ring-white/[0.06]" captionPosition="bottom-left" />
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-medium leading-tight break-words">{card.title}</h4>
+            {card.subtitle && <p className="text-xs text-primary mt-0.5" data-testid="event-when">{card.subtitle}</p>}
+            {card.meta && <p className="text-xs text-muted-foreground mt-0.5">{card.meta}</p>}
+            {card.address && <p className="text-xs text-muted-foreground">{card.address}</p>}
+            <p className="text-[10px] text-muted-foreground mt-1" data-testid="event-source">Fuente: Google Events{hhmm ? ` · consultado ${hhmm}` : ""}</p>
+          </div>
+        </div>
+        <CardLinks card={card} onOpen={onOpen}>
+          {go && (
+            <a href={go} target="_blank" rel="noopener noreferrer" data-testid="take-me-there" onClick={() => onOpen(go)}
+              aria-label={`Llévame a ${card.meta ?? card.title} con Google Maps`}
+              className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-[11px] text-primary hover:bg-primary/20 transition min-h-[32px]">
+              <Navigation2 className="w-3.5 h-3.5" aria-hidden="true" /> Llévame
+            </a>
+          )}
+        </CardLinks>
+        {card.links?.some((l) => l.kind === "tickets") && (
+          <p className="text-[10px] text-muted-foreground mt-1">Los boletos se compran en el sitio de boletos; el precio lo ves ahí.</p>
+        )}
       </div>
     );
   }

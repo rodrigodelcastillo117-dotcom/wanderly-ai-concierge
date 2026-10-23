@@ -9,6 +9,8 @@ import { offerFromTripFlight, isGroundTripOption, transportModeOf } from "@/lib/
 import { prefillMatchesTrip } from "@/lib/purchasePlan";
 import { logBookingClick } from "@/lib/trackBooking";
 import { trainlineLink } from "@/lib/affiliateLinks";
+import { transitScheduleUrl } from "@/lib/takeMeThere";
+import { operatorHint, PRICE_AT_OPERATOR, routeOperators } from "../../../supabase/functions/_shared/booking/railOperators.ts";
 import { mainAirport } from "../../../supabase/functions/_shared/airports.ts";
 import { googleFlightsSearchUrl, kayakFlightsSearchUrl } from "../../../supabase/functions/_shared/booking/links.ts";
 import { stayForCity } from "../../../supabase/functions/_shared/booking/tripRoute.ts";
@@ -74,22 +76,56 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
   const to = String(option?.to ?? option?.ciudad ?? "").trim();
   const pickup = stayForCity(trip, to)?.checkin ?? trip?.fecha_salida ?? "";
   const fromAirport = /aeropuerto|airport|\([A-Z]{3}\)/i.test(rawFrom);
+  const op = String(option?.aerolinea ?? option?.provider ?? "").trim();
+  // Horarios reales y gratis: Google Maps en transporte público (Maps URLs, travelmode=transit).
+  const sched = mode === "tren" || mode === "bus" ? transitScheduleUrl(from, to) : null;
+  const schedLink = sched ? (
+    <a href={sched} target="_blank" rel="noopener noreferrer" data-testid="ground-schedule" className={`${btn} border border-border/70 hover:border-primary/50`}>
+      Ver horarios en Google Maps <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+    </a>
+  ) : null;
   if (mode !== "coche" && (mode !== "tren" || fromAirport)) {
-    const op = String(option?.aerolinea ?? option?.provider ?? "").trim();
+    // Autobús: el operador oficial si el plan lo nombra (ALSA, FlixBus, ADO).
+    const busOp = mode === "bus" ? routeOperators({ from, to, provider: op, kind: "bus" })[0] ?? null : null;
     return (
-      <p className="mt-3 text-xs text-muted-foreground" data-testid="ground-buy-operator" onClick={(e) => e.stopPropagation()}>
-        Precio y compra con el operador{op ? ` (${op})` : ""}.
-      </p>
+      <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+        <p className="text-xs text-muted-foreground" data-testid="ground-buy-operator">
+          Precio y compra con el operador{op ? ` (${op})` : ""}.
+        </p>
+        {(busOp || schedLink) && (
+          <div className="flex flex-wrap gap-2">
+            {busOp && (
+              <a href={busOp.url} target="_blank" rel="noopener noreferrer" data-testid="ground-operator" className={`${btn} border border-primary/40 text-primary`}>
+                Comprar en {busOp.name} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+              </a>
+            )}
+            {schedLink}
+          </div>
+        )}
+      </div>
     );
   }
   if (mode === "tren") {
     const url = trainlineLink(from, to, pickup);
+    const ops = routeOperators({ from, to, provider: op, country: trip?.pais_destino });
+    const main = ops.find((x) => !x.informativo) ?? null;
     return (
       <div className="mt-3 space-y-1" onClick={(e) => e.stopPropagation()} data-testid="ground-buy-buttons">
-        <a href={url} target="_blank" rel="noopener noreferrer" className={`${btn} border border-border/70 hover:border-primary/50`}>
-          <Train className="w-4 h-4" aria-hidden="true" /> Buscar tren en Trainline <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-        </a>
-        <p className="text-[11px] text-muted-foreground">Trainline no recibe la ruta por enlace: escribe {from} → {to} y la fecha.</p>
+        <div className="flex flex-wrap gap-2">
+          {ops.map((o) => (
+            <a key={o.id} href={o.url} target="_blank" rel="noopener noreferrer" data-testid="ground-operator" data-operator={o.id}
+              className={`${btn} ${o === main ? "border border-primary/40 text-primary" : "border border-border/70 hover:border-primary/50"}`}>
+              <Train className="w-4 h-4" aria-hidden="true" /> {o.informativo ? `${o.name} (informativo)` : `Comprar en ${o.name}`} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+            </a>
+          ))}
+          <a href={url} target="_blank" rel="noopener noreferrer" className={`${btn} border border-border/70 hover:border-primary/50`}>
+            <Train className="w-4 h-4" aria-hidden="true" /> Buscar tren en Trainline <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+          </a>
+          {schedLink}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {main ? operatorHint(main, from, to) : `Trainline no recibe la ruta por enlace: escribe ${from} → ${to} y la fecha. ${PRICE_AT_OPERATOR}.`}
+        </p>
       </div>
     );
   }

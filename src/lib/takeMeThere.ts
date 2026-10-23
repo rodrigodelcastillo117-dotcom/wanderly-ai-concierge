@@ -57,6 +57,29 @@ export function takeMeThereUrl(
   return url;
 }
 
+/**
+ * Ruta de Google Maps por TEXTO (dirección, nombre del lugar o ciudad), misma URL oficial (Maps URLs,
+ * api=1: origin/destination aceptan "address, place name or lat/lng"). Para tramos entre ciudades
+ * ("Ver horarios en Google Maps" en modo transit: horarios y operadores reales, gratis) y para el
+ * recinto de un evento, que Google Events da como dirección. Sin origin, Maps usa el dispositivo.
+ */
+export function mapsDirectionsUrl(p: { destination: string | null | undefined; origin?: string | null; mode?: TravelMode | string | null; mobile?: boolean }): string | null {
+  const destination = String(p.destination ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  if (!destination) return null;
+  const mode: TravelMode = (TRAVEL_MODES as readonly string[]).includes(String(p.mode)) ? (p.mode as TravelMode) : "driving";
+  const origin = String(p.origin ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  const enc = encodeURIComponent;
+  let url = "https://www.google.com/maps/dir/?api=1";
+  if (origin) url += `&origin=${enc(origin)}`;
+  url += `&destination=${enc(destination)}&travelmode=${mode}`;
+  if (p.mobile) url += "&dir_action=navigate";
+  return url;
+}
+
+/** "Ver horarios en Google Maps" de un tramo en tren o autobús: modo transit, sin fecha (Maps no la recibe). */
+export const transitScheduleUrl = (origin: string | null | undefined, destination: string | null | undefined) =>
+  String(origin ?? "").trim() ? mapsDirectionsUrl({ origin, destination, mode: "transit" }) : null;
+
 /** Móvil (teléfono o tableta) por el navegador; sin permisos ni sensores. */
 export function isMobileDevice(nav: { userAgent?: string; maxTouchPoints?: number } | undefined = typeof navigator !== "undefined" ? navigator : undefined): boolean {
   if (!nav) return false;
