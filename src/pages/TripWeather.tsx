@@ -1,12 +1,54 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Cloud, CloudRain, Sun, CloudSnow, Wind, Droplets, MapPin, Calendar, Thermometer } from "lucide-react";
+import { Cloud, CloudRain, Sun, CloudSnow, Wind, Droplets, MapPin, Calendar, Thermometer, Radar, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { motion } from "framer-motion";
+import { buildCityWeather, cityWeatherRanges, rangeDays, type CityBlock } from "@/lib/tripWeather";
+import { cityAirports } from "../../supabase/functions/_shared/airports.ts";
+
+// El radar (mapa, cuadros animados y viento) se descarga solo al abrirlo.
+const WeatherRadar = lazy(() => import("@/components/weather/WeatherRadar"));
+
+/** Icono de "Hoy en …" con movimiento sutil (lluvia que cae, nubes que se mueven); quieto con
+ *  "reducir movimiento" (motion-safe). */
+function AnimatedTodayIcon({ code }: { code: number }) {
+  const Icon = codeIcon(code);
+  const rain = code >= 51 && !(code >= 71 && code <= 77);
+  return (
+    <span className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center" data-testid="today-icon" data-anim={rain ? "lluvia" : code === 0 ? "sol" : "nubes"} aria-hidden="true">
+      <Icon className={`h-8 w-8 text-primary ${rain || code === 0 ? "" : "motion-safe:animate-cloud-drift"} ${code === 0 ? "motion-safe:animate-[spin_24s_linear_infinite]" : ""}`} />
+      {rain && [0, 1, 2].map((i) => (
+        <span key={i} className="absolute bottom-0 h-2 w-px rounded bg-sky-300 opacity-0 motion-safe:animate-rain-fall"
+          style={{ left: `${12 + i * 7}px`, animationDelay: `${i * 0.35}s` }} />
+      ))}
+    </span>
+  );
+}
+
+/** Radar plegado: se abre al tocar (y entonces se descarga). */
+function RadarToggle({ city }: { city: string }) {
+  const [open, setOpen] = useState(false);
+  const loc = cityAirports(city);
+  if (!loc) return <p className="mt-2 text-[11px] text-muted-foreground">Radar no disponible para {city}: no tenemos su ubicación.</p>;
+  return (
+    <div className="mt-3">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="radar-toggle"
+        className="inline-flex min-h-[44px] w-full items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/[0.06] px-3 text-sm text-primary hover:bg-primary/10 sm:w-auto">
+        <span className="inline-flex items-center gap-2"><Radar className="h-4 w-4" aria-hidden="true" /> {open ? "Ocultar radar" : `Ver radar de lluvia y viento en ${city}`}</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      {open && (
+        <Suspense fallback={<div className="mt-3 h-60 animate-pulse rounded-2xl bg-white/[0.04]" aria-label="Cargando radar" />}>
+          <WeatherRadar city={city} lat={loc.lat} lng={loc.lng} />
+        </Suspense>
+      )}
+    </div>
+  );
+}
 
 const codeIcon = (c: number) => {
   if (c === 0) return Sun;
@@ -25,111 +67,6 @@ const codeLabel = (c: number) => {
   return "Tormenta";
 };
 
-type DayData = {
-  date: string;
-  tmax: number;
-  tmin: number;
-  code: number;
-  precip: number;     // mm o % según source
-  wind: number;
-  source: "forecast" | "historical";
-};
-
-type CityBlock = {
-  city: string;
-  start: string;
-  end: string;
-  today: { tmax: number; tmin: number; code: number; wind: number; precip: number } | null;
-  days: DayData[];
-};
-
-const toISO = (d: Date) => d.toISOString().slice(0, 10);
-const daysBetween = (a: Date, b: Date) =>
-  Math.round((b.getTime() - a.getTime()) / 86400000);
-
-async function geocode(city: string) {
-  try {
-    const g = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`
-    ).then((r) => r.json());
-    return g?.results?.[0] ?? null;
-  } catch { return null; }
-}
-
-async function buildCity(city: string, tripStart: string, tripEnd: string): Promise<CityBlock | null> {
-  const loc = await geocode(city);
-  if (!loc) return null;
-
-  // Clima de hoy
-  const todayRes = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=1&timezone=auto`
-  ).then((r) => r.json()).catch(() => null);
-
-  const today = todayRes?.current
-    ? {
-        tmax: Math.round(todayRes.daily?.temperature_2m_max?.[0] ?? todayRes.current.temperature_2m),
-        tmin: Math.round(todayRes.daily?.temperature_2m_min?.[0] ?? todayRes.current.temperature_2m),
-        code: todayRes.current.weather_code ?? 0,
-        wind: Math.round(todayRes.current.wind_speed_10m ?? 0),
-        precip: todayRes.daily?.precipitation_probability_max?.[0] ?? 0,
-      }
-    : null;
-
-  // Días del viaje en esta ciudad
-  const start = new Date(tripStart);
-  const end = new Date(tripEnd);
-  const today0 = new Date(); today0.setHours(0, 0, 0, 0);
-  const daysUntilStart = daysBetween(today0, start);
-
-  const days: DayData[] = [];
-  if (daysUntilStart <= 16 && daysBetween(today0, end) <= 16) {
-    // Pronóstico real (dentro de la ventana de 16 días)
-    const fStart = toISO(start);
-    const fEnd = toISO(end);
-    const f = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&start_date=${fStart}&end_date=${fEnd}&timezone=auto`
-    ).then((r) => r.json()).catch(() => null);
-    if (f?.daily?.time) {
-      f.daily.time.forEach((d: string, i: number) => {
-        days.push({
-          date: d,
-          tmax: Math.round(f.daily.temperature_2m_max[i]),
-          tmin: Math.round(f.daily.temperature_2m_min[i]),
-          code: f.daily.weather_code[i],
-          precip: f.daily.precipitation_probability_max[i] ?? 0,
-          wind: Math.round(f.daily.wind_speed_10m_max[i] ?? 0),
-          source: "forecast",
-        });
-      });
-    }
-  } else {
-    // Históricos: mismas fechas hace 1 año (clima esperado)
-    const lastYearStart = new Date(start); lastYearStart.setFullYear(start.getFullYear() - 1);
-    const lastYearEnd = new Date(end); lastYearEnd.setFullYear(end.getFullYear() - 1);
-    const h = await fetch(
-      `https://archive-api.open-meteo.com/v1/archive?latitude=${loc.latitude}&longitude=${loc.longitude}&start_date=${toISO(lastYearStart)}&end_date=${toISO(lastYearEnd)}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&timezone=auto`
-    ).then((r) => r.json()).catch(() => null);
-    if (h?.daily?.time) {
-      h.daily.time.forEach((d: string, i: number) => {
-        // Re-mapeamos al año del viaje para que se vea correcto
-        const realDate = new Date(d);
-        realDate.setFullYear(start.getFullYear());
-        days.push({
-          date: toISO(realDate),
-          tmax: Math.round(h.daily.temperature_2m_max[i]),
-          tmin: Math.round(h.daily.temperature_2m_min[i]),
-          code: h.daily.weather_code[i] ?? 0,
-          precip: Math.round(h.daily.precipitation_sum[i] ?? 0),
-          wind: Math.round(h.daily.wind_speed_10m_max[i] ?? 0),
-          source: "historical",
-        });
-      });
-    }
-  }
-
-  return { city, start: tripStart, end: tripEnd, today, days };
-}
-
 const TripWeather = () => {
   const { id } = useParams();
   const [trip, setTrip] = useState<any>(null);
@@ -144,43 +81,9 @@ const TripWeather = () => {
       setTrip(t);
       if (!t) { setLoading(false); return; }
 
-      // Reúne ciudades con sus rangos de fechas (desde hospedaje_json si está)
-      const map = new Map<string, { start: string; end: string }>();
-      const hosp = Array.isArray(t.hospedaje_json) ? t.hospedaje_json : [];
-      hosp.forEach((h: any) => {
-        const c = (h?.ciudad ?? h?.city ?? "").toString().trim();
-        if (!c) return;
-        const ci = h?.check_in ?? h?.entrada ?? h?.fecha_entrada ?? t.fecha_salida;
-        const co = h?.check_out ?? h?.salida ?? h?.fecha_salida ?? t.fecha_regreso;
-        if (!ci || !co) return;
-        const cur = map.get(c);
-        if (!cur) map.set(c, { start: ci, end: co });
-        else map.set(c, {
-          start: ci < cur.start ? ci : cur.start,
-          end: co > cur.end ? co : cur.end,
-        });
-      });
-
-      // Fallback: ciudades[] sin fechas → usa rango total del viaje
-      if (map.size === 0) {
-        const list: string[] = Array.isArray(t.ciudades) ? t.ciudades : [];
-        list.forEach((c) => {
-          if (c && t.fecha_salida && t.fecha_regreso) {
-            map.set(c.trim(), { start: t.fecha_salida, end: t.fecha_regreso });
-          }
-        });
-      }
-      if (map.size === 0 && t.destino && t.fecha_salida && t.fecha_regreso) {
-        String(t.destino).split(/[,&]| y /).forEach((c) => {
-          const cc = c.trim();
-          if (cc) map.set(cc, { start: t.fecha_salida, end: t.fecha_regreso });
-        });
-      }
-
-      const arr = Array.from(map.entries());
-      const results = await Promise.all(
-        arr.map(([city, r]) => buildCity(city, r.start, r.end))
-      );
+      // Cada ciudad con SUS días (noches por ciudad de cityStays), no todo el viaje en cada una.
+      const ranges = cityWeatherRanges(t);
+      const results = await Promise.all(ranges.map((r) => buildCityWeather(r)));
       setBlocks(results.filter(Boolean) as CityBlock[]);
       setLoading(false);
     })();
@@ -189,7 +92,7 @@ const TripWeather = () => {
   return (
     <DashboardLayout>
       <FeatureTooltip id="clima" icon="☁️" text="Pronóstico día por día para empacar y planear con tiempo." shouldShow={tipClima.shouldShow} onDismiss={tipClima.dismiss} />
-      <div className="p-6 md:p-10 max-w-5xl mx-auto">
+      <div className="px-4 py-6 md:p-10 max-w-5xl mx-auto">
         <div className="mb-8">
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">Clima</p>
           <h1 className="font-display text-3xl md:text-4xl">{trip?.destino || "Cargando..."}</h1>
@@ -205,39 +108,41 @@ const TripWeather = () => {
 
         <div className="space-y-10">
           {blocks.map((b, idx) => {
-            const TodayIcon = b.today ? codeIcon(b.today.code) : Cloud;
             return (
               <motion.section
                 key={b.city + idx}
+                data-testid={`city-weather-${b.city}`}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
               >
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
                   <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
                     <MapPin className="w-4 h-4 text-primary" />
                   </div>
                   <h2 className="font-display text-xl md:text-2xl uppercase tracking-wide">
                     {b.city} <span className="text-primary">· Clima</span>
                   </h2>
-                  <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                  <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1" data-testid="city-weather-range">
                     <Calendar className="w-3 h-3" />
-                    {formatDateOnly(b.start, { day: "numeric", month: "short" })} –{" "}
-                    {formatDateOnly(b.end, { day: "numeric", month: "short" })}
+                    {b.start === b.end
+                      ? formatDateOnly(b.start, { day: "numeric", month: "short" })
+                      : `${formatDateOnly(b.start, { day: "numeric", month: "short" })} – ${formatDateOnly(b.end, { day: "numeric", month: "short" })}`}
+                    {" · "}{rangeDays(b)} {rangeDays(b) === 1 ? "día" : "días"}
                   </span>
                 </div>
 
                 {/* Hoy */}
                 {b.today && (
                   <div className="mb-3 flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/[0.05] p-3">
-                    <TodayIcon className="w-8 h-8 text-primary" />
+                    <AnimatedTodayIcon code={b.today.code} />
                     <div className="flex-1 min-w-0">
                       <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Hoy en {b.city}</div>
                       <div className="text-sm">
                         {codeLabel(b.today.code)} · {b.today.tmax}° / {b.today.tmin}°
                       </div>
                     </div>
-                    <div className="flex gap-3 text-[11px] text-muted-foreground">
+                    <div className="flex shrink-0 flex-col gap-1 text-[11px] text-muted-foreground sm:flex-row sm:gap-3">
                       <span className="flex items-center gap-1"><Droplets className="w-3 h-3" />{b.today.precip}%</span>
                       <span className="flex items-center gap-1"><Wind className="w-3 h-3" />{b.today.wind} km/h</span>
                     </div>
@@ -258,6 +163,7 @@ const TripWeather = () => {
                         return (
                           <div
                             key={d.date}
+                            data-testid="weather-day" data-date={d.date}
                             className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 flex flex-col items-center text-center"
                           >
                             <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -291,6 +197,8 @@ const TripWeather = () => {
                     </div>
                   </>
                 )}
+
+                <RadarToggle city={b.city} />
               </motion.section>
             );
           })}

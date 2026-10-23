@@ -79,6 +79,16 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        // Clima "Hoy en …": gotas que caen y nubes que se mueven (solo con motion-safe).
+        "rain-fall": {
+          "0%": { transform: "translateY(-3px)", opacity: "0" },
+          "30%": { opacity: "1" },
+          "100%": { transform: "translateY(7px)", opacity: "0" },
+        },
+        "cloud-drift": {
+          "0%, 100%": { transform: "translateX(-2px)" },
+          "50%": { transform: "translateX(2px)" },
+        },
         // Barra indeterminada del análisis (sin porcentaje inventado).
         indeterminate: {
           "0%": { transform: "translateX(-100%)" },
@@ -105,6 +115,8 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         indeterminate: "indeterminate 1.6s ease-in-out infinite",
+        "rain-fall": "rain-fall 1.1s linear infinite",
+        "cloud-drift": "cloud-drift 4s ease-in-out infinite",
       },
     },
   },
