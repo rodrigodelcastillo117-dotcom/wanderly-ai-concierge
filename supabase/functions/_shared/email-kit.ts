@@ -165,6 +165,8 @@ export function photoCredit(image?: HeroImage | null): string {
 export type Provenance =
   | { kind: "live"; source: string; at?: string | null }
   | { kind: "estimate"; source?: string | null }
+  /** Precio real de un proveedor que no se consultó en vivo (caché de Aviasales, o en vivo ya vencido). */
+  | { kind: "reference"; source?: string | null }
   | { kind: "pending" }
   | { kind: "confirmed" }
   | { kind: "unavailable" }
@@ -174,6 +176,7 @@ export type Provenance =
 const CHIP: Record<Provenance["kind"], { label: string; color: string; dot: string }> = {
   live: { label: "En vivo", color: EK.live, dot: "●" },
   estimate: { label: "Estimado", color: EK.warn, dot: "◐" },
+  reference: { label: "Referencia", color: EK.warn, dot: "◑" },
   pending: { label: "Por confirmar", color: EK.warn, dot: "◌" },
   confirmed: { label: "Confirmado", color: EK.live, dot: "✓" },
   unavailable: { label: "No disponible", color: EK.bad, dot: "○" },
@@ -188,7 +191,7 @@ export function provenanceText(p: Provenance, fmtTime?: (at: string) => string |
     const t = p.at && fmtTime ? fmtTime(p.at) : null;
     return [base, p.source, t].filter(Boolean).join(" · ");
   }
-  if (p.kind === "estimate" && p.source) return `${base} · ${p.source}`;
+  if ((p.kind === "estimate" || p.kind === "reference") && p.source) return `${base} · ${p.source}`;
   return base;
 }
 
@@ -293,6 +296,8 @@ export type RichCard = {
   provenance?: Provenance | null;
   photo?: { url: string; alt: string } | null;
   note?: string | null;
+  /** Filas <tr> extra al pie de la tarjeta (botón de compra, estado), ya escapadas. */
+  footer?: string | null;
 };
 
 /** Tarjeta rica de vuelo u hotel. Solo pinta lo que viene en los datos. */
@@ -324,7 +329,7 @@ export function richCard(c: RichCard, fmtTime?: (at: string) => string | null): 
       <td valign="top" style="padding-left:12px;">${label(c.eyebrow)}<div style="height:4px;font-size:1px;line-height:4px;">&nbsp;</div>
         <div style="font-family:${SERIF};font-size:24px;line-height:29px;color:${EK.ivory};">${escapeHtml(c.title)}</div></td>
     </tr></table></td></tr>
-    ${facts}${times}${price}${note}`, { goldTop: false });
+    ${facts}${times}${price}${note}${c.footer ?? ""}`, { goldTop: false });
 }
 
 export type LedgerLine = {

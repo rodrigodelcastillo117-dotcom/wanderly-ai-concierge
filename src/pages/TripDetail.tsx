@@ -44,6 +44,7 @@ import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts
 import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
+import { SendSelectionEmail } from "@/components/booking/SendSelectionEmail";
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
@@ -712,12 +713,18 @@ const TripDetail = () => {
 
         <div role="tabpanel" id="panel-comprar" aria-labelledby="tab-comprar" data-trip-panel="comprar" hidden={section !== "comprar"} className="space-y-6">
           {(trip as any).fuente !== "documento" && hasQuotedTotal ? (
+            <>
             <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
               marksState={purchaseMarks}
               onSelectVuelo={(i) => setSelVuelo(i)}
               onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => ({ ...prev, [c]: i })) : setSelHospedaje(i))}
               onToggleTour={toggleTour} />
+            {/* Correo con SOLO lo elegido y el total de esta página (enviar-seleccion). */}
+            <SendSelectionEmail trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
+              travelers={quoteTravelers} nights={nochesEfectivas} desglose={computedDesglose} total={stickyTotalValue}
+              serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null} />
+            </>
           ) : (
             <p className="rounded-2xl border border-border/60 p-4 text-sm text-muted-foreground">
               {(trip as any).fuente === "documento" ? "Este viaje viene de tus documentos: ya está pagado." : "Aún no hay cotización para comprar. Revisa el total en Resumen."}

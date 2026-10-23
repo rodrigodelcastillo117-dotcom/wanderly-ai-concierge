@@ -18,10 +18,6 @@ import {
   type WorkResult,
 } from "../_shared/reservation.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { sendEmail } from "../_shared/email.ts";
-import { tripQuoteEmail } from "../_shared/email-templates.ts";
-import { heroPhoto } from "../_shared/hero-photo.ts";
-import { buildQuoteEmailInput } from "./quoteEmail.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { callClaudeWithFallback } from "../_shared/claude.ts";
 import { internalHeaders, logUsage } from "../_shared/serpRuntime.ts";
@@ -62,9 +58,6 @@ function pickCover(places: any[], hotels: any[]): string | null {
   }
   return null;
 }
-
-// Mantiene vivo el envío del correo después de responder (Supabase Edge Runtime).
-declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1167,32 +1160,12 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     });
     const quote = await saveQuoteSnapshot(admin, snapshot);
 
-    // Correo "Tu viaje está cotizado" en segundo plano: nunca bloquea ni rompe la respuesta. Lleva
-    // cada renglón con su procedencia (en vivo / estimado / no disponible), tarjetas de vuelo y hotel
-    // solo con datos reales de las listas en vivo y la portada de Pexels con su crédito.
-    const sendQuoteEmail = async () => {
-      try {
-        const { data: perfilEmail } = await supabase
-          .from("profiles").select("email, full_name").eq("id", user.id).maybeSingle();
-        const destinatario = perfilEmail?.email ?? user.email;
-        if (!destinatario) return;
-        const hero = await heroPhoto(trip.destino, { fn: "analizar-viaje", userId: user.id });
-        const mail = tripQuoteEmail(buildQuoteEmailInput({
-          trip, snapshot, saved: quote, firstName: perfilEmail?.full_name ?? null,
-          vueloReferencia: budget.vueloReferencia, hotelReferencia: budget.hotelReferencia,
-          googleFlights: googleFlightsLive ? googleFlights.results : [],
-          tpFlights: Array.isArray(tpFlights?.flights) ? tpFlights.flights : [],
-          liveHotels: serpHotelsLive ? serpHotels.results : [],
-          fxUsd, hero, siteUrl: Deno.env.get("SITE_URL"),
-        }));
-        const sent = await sendEmail({ to: destinatario, subject: mail.subject, html: mail.html, text: mail.text });
-        if (!sent.ok) console.warn("analizar-viaje: email no enviado", sent.error);
-      } catch (e) {
-        console.warn("analizar-viaje: email no enviado", (e as Error).message);
-      }
-    };
-    const emailTask = sendQuoteEmail();
-    if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime?.waitUntil === "function") EdgeRuntime.waitUntil(emailTask);
+    // Sin correo al crear (ni al re-cotizar) el viaje. Antes salía aquí, en segundo plano, "Tu viaje
+    // está cotizado" con el desglose del snapshot: se mandaba antes de que la persona eligiera nada y
+    // leía los renglones de desglose_presupuesto (que el modelo puede dejar en 0 y reconcileBudget
+    // respeta), no las opciones en vivo de vuelos_json / hospedaje_json que ve la página, así que
+    // llegaba todo "NO DISPONIBLE". La persona ya está viendo su viaje: el correo con lo que eligió lo
+    // pide ella desde "Comprar" (enviar-seleccion).
 
     return { ok: true, tripId: trip.id, response: new Response(JSON.stringify({
       trip: quote ? { ...trip, current_quote_id: quote.id } : trip,

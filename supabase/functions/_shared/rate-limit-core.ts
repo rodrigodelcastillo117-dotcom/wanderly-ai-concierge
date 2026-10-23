@@ -32,7 +32,7 @@ export const PAID_BUCKETS: ReadonlySet<string> = new Set([
   "geocode", "geocode-address", "get-routes", "mark-visited", "nearby-places", "place-details", "place-photo",
   "places-nearby", "places-search",
   // Correos (Resend) y avisos a otras personas
-  "concierge-action", "email-bienvenida", "enviar-email-fixer", "send-email", "share-trip-notify",
+  "concierge-action", "email-bienvenida", "enviar-email-fixer", "enviar-seleccion", "send-email", "share-trip-notify",
 ]);
 
 export const isPaidBucket = (bucket: string) => PAID_BUCKETS.has(bucket);
