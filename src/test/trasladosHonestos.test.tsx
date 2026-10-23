@@ -164,8 +164,10 @@ describe("Página del viaje con el fixture", () => {
     const panel = await screen.findByTestId("ciudad-Granada");
     const destinos = document.getElementById("panel-destinos")!;
     const cards = within(destinos).getAllByTestId("arrival-option");
+    // Cada ciudad lleva primero el tramo que suma el total (internal_transport) y luego las alternativas
+    // del plan; el AVE Granada → Barcelona del plan es el mismo tramo cotizado (Renfe AVE) y no se repite.
     expect(cards.map((c) => c.getAttribute("data-mode")).sort()).toEqual(
-      ["bus", "coche", "coche", "taxi", "tren", "tren", "tren", "tren", "tren"]);
+      ["bus", "coche", "coche", "taxi", "tren", "tren", "tren", "tren", "tren", "tren", "tren", "tren"]);
     expect(destinos.innerHTML).not.toMatch(/Aerolínea por confirmar|Escalas por confirmar|google\.com\/travel\/flights|kayak/i);
     expect(within(destinos).queryAllByTestId("flight-buy-buttons")).toHaveLength(0);
     expect(within(panel).getByText(/Precio y compra con el operador \(ALSA\)/)).toBeInTheDocument();

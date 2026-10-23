@@ -127,8 +127,9 @@ describe("TripDetail: expediente", () => {
   it("muestra 'Cotizado · sin reservar' y por tipo, y la sección de documentos del viaje", async () => {
     db.bookings = [{ trip_id: TRIP, category: "flight", status: "pending", title: "clic" }];
     renderTrip();
-    expect(await screen.findByText("Cotizado · sin reservar")).toBeInTheDocument();
-    expect(screen.getByText("Vuelo: Cotizado · no reservado")).toBeInTheDocument();
+    // El vuelo de la cotización es estimado (sin tarifa de un proveedor): no se llama "Cotizado" a secas.
+    expect(await screen.findByText("Cotizado · incluye estimados · sin reservar")).toBeInTheDocument();
+    expect(screen.getByText("Vuelo: Estimado · no reservado")).toBeInTheDocument();
     expect(screen.getByTestId("docs")).toHaveTextContent(TRIP);
   });
 

@@ -10,7 +10,7 @@ import { Check, ChevronLeft, ChevronRight, ExternalLink, Sparkles, Star, Ticket,
 import { SmartImage } from "@/components/media/SmartImage";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { activityQuery, cuisineQuery } from "@/lib/categoryImagery";
-import { buildPickCards, parsePriceRange, SLOT_LABEL, TIER_LABEL, tierOf, type PickCard, type PickKind, type TasteProfile } from "@/lib/tripPicks";
+import { buildPickCards, parsePriceRange, restaurantPriceLabel, SLOT_LABEL, TIER_LABEL, tierOf, tripUsdMxnRate, type PickCard, type PickKind, type TasteProfile } from "@/lib/tripPicks";
 import { logBookingClick } from "@/lib/trackBooking";
 
 export type PickAction = { url: string; site: string | null } | null;
@@ -35,18 +35,22 @@ type Props = {
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 
-function priceText(kind: PickKind, x: any): { text: string; note: string | null } {
+function priceText(kind: PickKind, x: any, trip?: any): { text: string; note: string | null } {
   if (kind === "experiencia") {
     const p = Number(x?.precio_por_persona);
     if (p > 0) return { text: `${money(p)} por persona`, note: ["google_places", "tripadvisor", "getyourguide", "viator"].includes(String(x?.fuente_precio ?? "")) ? null : "estimado" };
     return { text: "Precio en el sitio", note: null };
   }
   const raw = String(x?.rango_precio ?? "").trim();
-  if (parsePriceRange(raw)) return { text: `${raw} por persona`, note: null };
+  // Nunca "€€€ (40-60 USD)" en una página en pesos: se convierte con la tasa con fuente o se dice en su moneda.
+  const label = restaurantPriceLabel(raw, tripUsdMxnRate(trip));
+  if (label && parsePriceRange(raw)) return label;
   if (x?.nivel_precio) return { text: String(x.nivel_precio), note: raw && raw !== x.nivel_precio && /^[$€]+$/.test(raw) ? raw : null };
   if (/^[$€]{1,4}$/.test(raw)) {
     const t = tierOf("restaurante", x);
-    return { text: `${raw}${t ? ` · ${TIER_LABEL[t]}` : ""}`, note: String(x?.fuente ?? "").startsWith("google") ? null : "sin verificar" };
+    // "€€" no es un precio en pesos: solo el nivel en palabras.
+    const sym = raw.startsWith("€") ? "" : raw;
+    return { text: sym ? `${sym}${t ? ` · ${TIER_LABEL[t]}` : ""}` : t ? TIER_LABEL[t] : "Precio no publicado", note: String(x?.fuente ?? "").startsWith("google") ? null : "sin verificar" };
   }
   return { text: raw && raw !== "Precio no publicado" ? raw : "Precio no publicado", note: null };
 }
@@ -129,7 +133,7 @@ function Card({ card, kind, city, list, trip, actionFor, isChosen, onChoose, ext
   const x = list[i];
   const name = String(x?.nombre ?? (kind === "restaurante" ? "Restaurante" : "Experiencia")).replace(` · ${city}`, "").trim();
   const tipo = kind === "restaurante" ? (x?.cocina || "Restaurante") : (x?.duracion || "Experiencia");
-  const price = priceText(kind, x);
+  const price = priceText(kind, x, trip);
   const rating = ratingText(x);
   const action = actionFor(i);
   const chosen = isChosen(i);

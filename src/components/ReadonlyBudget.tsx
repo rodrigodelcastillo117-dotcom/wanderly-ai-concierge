@@ -24,28 +24,31 @@ type Props = {
   embedded?: boolean;
   /** Rubros con precio estimado: se marcan "estimado" en su renglón. */
   estimatedKeys?: string[];
+  /** Nombre de un rubro como lo dicen las tarjetas (transporte_local → "Transporte entre ciudades"). */
+  labels?: Record<string, string>;
 };
 
 const ORDER: Array<{ key: string; label: string; color: string }> = [
   { key: "vuelos", label: "Vuelos", color: "hsl(var(--primary))" },
   { key: "hospedaje", label: "Hospedaje", color: "hsl(41 60% 70%)" },
   { key: "comida", label: "Comida", color: "hsl(28 50% 55%)" },
-  { key: "tours", label: "Tours", color: "hsl(35 40% 45%)" },
-  { key: "transporte_local", label: "Transporte", color: "hsl(25 30% 35%)" },
+  { key: "tours", label: "Experiencias", color: "hsl(35 40% 45%)" },
+  { key: "transporte_local", label: "Transporte local", color: "hsl(25 30% 35%)" },
   { key: "extras", label: "Extras", color: "hsl(40 20% 50%)" },
 ];
 
 const fmtMXN = (n: number) =>
   `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 
-export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1, embedded = false, estimatedKeys = [] }: Props) => {
+export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1, embedded = false, estimatedKeys = [], labels = {} }: Props) => {
   const [flightsOpen, setFlightsOpen] = useState(false);
   const items = useMemo(
     () =>
       ORDER
-        .map((o) => ({ ...o, value: Number(desglose?.[o.key] ?? 0) }))
+        .map((o) => ({ ...o, label: labels[o.key] || o.label, value: Number(desglose?.[o.key] ?? 0) }))
         .filter((i) => i.value > 0),
-    [desglose],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [desglose, JSON.stringify(labels)],
   );
 
   // Tramos de vuelo: agrupar por ruta (from→to) y quedarnos con la opción más barata

@@ -7,7 +7,7 @@
 //    road_trip), que TripDetail muestra como transporte por tierra;
 //  - un vuelo estimado (sin tarifa de un proveedor) no nombra aerolínea ni dice "Directo".
 import { mainAirport } from "../../supabase/functions/_shared/airports.ts";
-import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { sameCity, stayForCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { airportCityName } from "../../supabase/functions/_shared/airports.ts";
 import { layoverCodesFromAviasalesLink } from "../../supabase/functions/_shared/fareGuard.ts";
 import { transportModeOf } from "../../supabase/functions/_shared/booking/offers.ts";
@@ -120,15 +120,28 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
  * en viajes viejos, las filas de tierra que quedaron mezcladas en vuelos_json.
  */
 export function groundOptionsForCity(trip: any, city: string): any[] {
-  const per: any[] = Array.isArray(trip?.itinerario_json?.logistics?.per_destination) ? trip.itinerario_json.logistics.per_destination : [];
+  const logistics = trip?.itinerario_json?.logistics;
+  const fx = Number(logistics?.fx_usd_mxn) || 0;
+  const per: any[] = Array.isArray(logistics?.per_destination) ? logistics.per_destination : [];
+  // Una sola fuente de verdad (E2E España, 23-oct-2026): el tramo por tierra que SUMA el total
+  // (logistics.internal_transport) va primero, con su precio, operador y duración; antes Destinos
+  // pintaba arrival_options (AVE a 1,219) mientras Comprar y el total sumaban otro (AVE a 1,032).
+  const quoted = (Array.isArray(logistics?.internal_transport) ? logistics.internal_transport : [])
+    .filter((t: any) => sameCity(t?.to, city) && t?.from && !sameCity(t.from, city) && !isFlightMode(t?.mode))
+    .map((t: any) => ({ mode: t.mode, aerolinea: t.provider ?? null, duracion: t.duration ?? null,
+      precio_por_persona: Math.round((Number(t.price_per_person_usd) || 0) * fx) || null,
+      fuente_precio: "estimado", estado_dato: "ESTIMADO", from: t.from, to: city, notas: t.luggage_note ?? null, quoted: true }));
+  // Las demás opciones del plan son alternativas: no suman al total y llevan su propia fuente.
+  const alt = quoted.length > 0;
   const fromPlan = per.filter((pd) => sameCity(pd?.city, city)).flatMap((pd) => (pd?.arrival_options ?? []).filter((o: any) => !isFlightMode(o?.mode)))
     .map((o: any) => ({ mode: o.mode, aerolinea: o.provider, duracion: o.duration,
-      precio_por_persona: Math.round((Number(o.price_per_person_usd) || 0) * (Number(trip?.itinerario_json?.logistics?.fx_usd_mxn) || 0)) || null,
-      fuente_precio: "estimado", estado_dato: "ESTIMADO", from: o.from, to: city, notas: o.notes ?? null }));
+      precio_por_persona: Math.round((Number(o.price_per_person_usd) || 0) * fx) || null,
+      fuente_precio: "estimado", estado_dato: "ESTIMADO", from: o.from, to: city, notas: o.notes ?? null, ...(alt ? { alternativa: true } : {}) }));
   const legacy = (Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : []).filter((v: any) => !isFlightMode(v?.mode) && sameCity(v?.ciudad ?? v?.to, city));
   const origin = String(trip?.ciudad_origen ?? "");
   const seen = new Set<string>();
-  return [...legacy, ...fromPlan].filter((o) => {
+  // Dedup por modo + operador: si el plan repite el tramo cotizado (mismo tren, mismo operador), queda el cotizado.
+  return [...quoted, ...legacy, ...fromPlan].filter((o) => {
     // Lo que "sale" del origen (otro continente) no es una forma de llegar por tierra.
     if (origin && sameCity(String(o?.from ?? "").replace(/\(.*?\)/g, " "), origin)) return false;
     const k = `${o?.mode}|${String(o?.aerolinea ?? "").toLowerCase()}`;
@@ -136,6 +149,24 @@ export function groundOptionsForCity(trip: any, city: string): any[] {
     seen.add(k);
     return true;
   });
+}
+
+/**
+ * Fechas de una renta de auto para un tramo (recoger en `from`, devolver en `to`). Un tramo de ida
+ * entre dos ciudades (Madrid → Córdoba) se recoge y se devuelve el día del tramo (la llegada a `to`);
+ * antes la devolución era el regreso del viaje (2027-05-19 en vez de 2027-05-07). En la misma ciudad
+ * se devuelve al salir de ella (o al final del viaje si no se sabe).
+ */
+export function legCarRentalDates(trip: any, from: string, to: string): { pickup: string | null; dropoff: string | null } {
+  const iso = (d: unknown) => (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null);
+  const cleanFrom = String(from ?? "").replace(/\(.*?\)/g, " ").trim();
+  const oneWay = !!cleanFrom && !!to && !sameCity(cleanFrom, to);
+  if (oneWay) {
+    const day = iso(stayForCity(trip, to)?.checkin) ?? iso(stayForCity(trip, cleanFrom)?.checkout) ?? iso(trip?.fecha_salida);
+    return { pickup: day, dropoff: day };
+  }
+  const stay = stayForCity(trip, to || cleanFrom);
+  return { pickup: iso(stay?.checkin) ?? iso(trip?.fecha_salida), dropoff: iso(stay?.checkout) ?? iso(trip?.fecha_regreso) };
 }
 
 export type LegOption = {

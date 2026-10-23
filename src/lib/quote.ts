@@ -9,7 +9,7 @@
  */
 import { diffDateOnlyDays, formatDateOnly } from "@/lib/dateUtils";
 import { formatAge, LIVE_TTL_HOURS } from "@/lib/provenance";
-import { sameSelections } from "@/lib/tripSelections";
+import { restoreSelections, sameQuotedSelections, sameSelections } from "@/lib/tripSelections";
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 
 export type QuoteSnapshot = {
@@ -57,8 +57,26 @@ export function quoteStaleness(trip: any, snapshot?: QuoteSnapshot | null): Stal
   const reasons: Staleness["reasons"] = [];
   if (Number(trip?.num_viajeros || 1) !== basis.travelers) reasons.push("viajeros");
   if ((trip?.fecha_salida ?? null) !== basis.dateFrom || (trip?.fecha_regreso ?? null) !== basis.dateTo) reasons.push("fechas");
-  if (!sameSelections(trip?.selections ?? null, trip?.quote_basis?.selections ?? null)) reasons.push("seleccion");
-  return { stale: reasons.length > 0 || trip?.quote_needs_update === true, basis, reasons };
+  const cur = trip?.selections ?? null;
+  const base = trip?.quote_basis?.selections ?? null;
+  const rawSame = sameSelections(cur, base);
+  // Elegir a mano el mismo hotel que trae la cotización no la cambia (sameQuotedSelections), siempre que
+  // el hospedaje que suma la página sea el mismo con una y otra selección (nada se esconde).
+  if (!rawSame && !(sameQuotedSelections(trip, cur, base) && sameHotelLine(trip, cur, base))) reasons.push("seleccion");
+  // trips.quote_needs_update compara el JSON tal cual en la base: con una selección distinta en el JSON
+  // pero equivalente para la cotización, manda lo que se calcula aquí (el aviso se quita al volver a la
+  // selección original). Con el mismo JSON, el aviso del servidor se respeta.
+  return { stale: reasons.length > 0 || (rawSame && trip?.quote_needs_update === true), basis, reasons };
+}
+
+/** ¿El renglón de hospedaje de la página es el mismo con dos selecciones guardadas? */
+function sameHotelLine(trip: any, a: unknown, b: unknown): boolean {
+  const n = Math.max(1, Number(trip?.num_viajeros) || 1);
+  const line = (raw: unknown) => {
+    const ui = restoreSelections(trip, raw);
+    return Math.round(Number(computeTripDesglose(trip, { ...ui, nochesHospedaje: Number(ui.nochesHospedaje) || 0 }, n).hospedaje) || 0);
+  };
+  return line(a) === line(b);
 }
 
 /** "Cotización para 2 viajeros del 10 nov al 15 nov 2026; actualiza la cotización". */

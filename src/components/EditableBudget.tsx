@@ -18,8 +18,8 @@ const ORDER: Array<{ key: string; label: string; color: string }> = [
   { key: "vuelos", label: "Vuelos", color: "hsl(var(--primary))" },
   { key: "hospedaje", label: "Hospedaje", color: "hsl(41 60% 70%)" },
   { key: "comida", label: "Comida", color: "hsl(28 50% 55%)" },
-  { key: "tours", label: "Tours", color: "hsl(35 40% 45%)" },
-  { key: "transporte_local", label: "Transporte", color: "hsl(25 30% 35%)" },
+  { key: "tours", label: "Experiencias", color: "hsl(35 40% 45%)" },
+  { key: "transporte_local", label: "Transporte local", color: "hsl(25 30% 35%)" },
   { key: "extras", label: "Extras", color: "hsl(40 20% 50%)" },
 ];
 

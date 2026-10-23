@@ -28,10 +28,10 @@ import { TripDeleteButton } from "@/components/TripDeleteButton";
 import santorini from "@/assets/hero-santorini.jpg";
 import { computeTripDesglose, quoteStaleness, quoteValidity, staleQuoteMessage, tripNights, hotelPriceRooms, type QuoteSnapshot } from "@/lib/quote";
 import {
-  readLocalSelections, restoreSelections, sameSelections, serializeSelections, writeLocalSelections, type PersistedSelections,
+  readLocalSelections, restoreSelections, sameSelections, serializeSelections, withCityHotel, writeLocalSelections, type PersistedSelections,
 } from "@/lib/tripSelections";
 import { deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
-import { BookingStateBadge } from "@/components/BookingStateBadge";
+import { BookingStateBadge, estimatedKindsOf } from "@/components/BookingStateBadge";
 import { ImportedTripBanner } from "@/components/ImportedTripBanner";
 import { TripDocuments } from "@/components/TripDocuments";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
@@ -426,6 +426,9 @@ const TripDetail = () => {
   // serían una segunda cifra sin explicación).
   const trustForTotal = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal) ? trust : null;
   const stickyTotal = hasQuotedTotal && totalSummary.total > 0 ? totalSummary.barTotal : null;
+  // "Actualizar cotización" (y la barra fija del celular) siguen al cálculo de la página: al volver a la
+  // selección cotizada se quitan aunque trips.quote_needs_update (JSON tal cual) siga en true.
+  const tripForNextStep = trip.quote_needs_update && !staleness.stale ? { ...trip, quote_needs_update: false } : trip;
 
   const toggleTour = (i: number) => {
     setSelTours((prev) => {
@@ -579,7 +582,7 @@ const TripDetail = () => {
             Un viaje importado de documentos dice lo que se PAGÓ, no un estado de cotización. */}
         {(trip as any).fuente === "documento"
           ? <ImportedTripBanner trip={trip} />
-          : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} />}
+          : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} estimated={estimatedKindsOf(totalSummary.estimatedKeys)} />}
         {/* Smart Date Resolution: fechas optimizadas por IATOS */}
         {trip.dates_optimized && (
           <motion.div
@@ -651,7 +654,7 @@ const TripDetail = () => {
               {/* Un solo desglose, plegado bajo el mismo total (sin repetir título ni cifra). */}
               {computedTotal > 0 ? (
                 <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
-                  embedded estimatedKeys={totalSummary.estimatedKeys} />
+                  embedded estimatedKeys={totalSummary.estimatedKeys} labels={{ transporte_local: transportRubroLabel(trip) }} />
               ) : null}
             </RealTripTotal>
           ) : (
@@ -674,14 +677,14 @@ const TripDetail = () => {
                 <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
               </summary>
               <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40">
-                <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={viajeros} embedded />
+                <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={viajeros} embedded labels={{ transporte_local: transportRubroLabel(trip) }} />
               </div>
             </details>
           )}
         </motion.section>
 
         {/* Qué sigue: guardado, cuánto falta y UNA acción principal. */}
-        <TripNextStep trip={trip} quote={quote} isOwner={isOwner} />
+        <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} />
 
         {isOwner && (
           <PriceWatchCard tripId={trip.id} departureDate={trip.fecha_salida} />
@@ -727,7 +730,7 @@ const TripDetail = () => {
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
               marksState={purchaseMarks}
               onSelectVuelo={(i) => setSelVuelo(i)}
-              onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => ({ ...prev, [c]: i })) : setSelHospedaje(i))}
+              onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => withCityHotel(prev, c, i)) : setSelHospedaje(i))}
               onToggleTour={toggleTour}
               // Paso final "Listo · Revisa y compra": el mismo total de la página y volver al Resumen.
               selectionTotal={pageTotal > 0 ? pageTotal : null}
@@ -985,7 +988,7 @@ const TripDetail = () => {
         </div>
       </div>
       {/* Acción principal al alcance del pulgar en móvil, encima de la barra de navegación. */}
-      <TripNextStep trip={trip} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} totalNote={stickyTotal ? totalSummary.barNote : null} />
+      <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} totalNote={stickyTotal ? totalSummary.barNote : null} />
     </DashboardLayout>
   );
 };
@@ -1132,6 +1135,9 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 
         </p>
       )}
       <PriceSourceBadge source={option.fuente_precio} estado={option.estado_dato} consultadoAt={option.consultado_at ?? quotedAt} approximateDates={option.approximate_dates} className="mt-2" />
+      {/* El tramo que suma el total (el mismo de Comprar) y las alternativas del plan, que no suman. */}
+      {option.quoted && <p className="mt-2 text-[11px] text-primary" data-testid="arrival-quoted">Opción principal · suma al total (la misma de Comprar)</p>}
+      {option.alternativa && <p className="mt-2 text-[11px] text-muted-foreground" data-testid="arrival-alternativa">Alternativa del plan · no suma al total</p>}
       {option.notas && <p className="text-xs text-muted-foreground mt-2 italic">{option.notas}</p>}
       {/* Comprar aquí mismo (punto 8): vuelo → Google Flights/Kayak precargados; coche → road trip y renta. */}
       {trip && <FlightBuyButtons option={option} trip={trip} index={index} />}
