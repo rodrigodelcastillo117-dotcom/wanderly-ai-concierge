@@ -198,6 +198,12 @@ describe("Comprar del viaje por la India: todos los tramos, 'Siguiente →' y re
     expect(legs[1].chosen).toBe("coche");
     // Ranthambore → Delhi: sin plan; por cotizar (sin precio inventado).
     expect(legs[3].choices.every((c: any) => c.pricePp == null)).toBe(true);
+    // Delhi dos veces: dos estancias con sus fechas y noches (no la primera repetida).
+    const delhi = flow.steps.filter((s) => s.title === "Hotel en Delhi") as any[];
+    expect(delhi.map((h) => h.item.subtitle)).toEqual(["Delhi · 21–25 nov 2026 · 4 noches", "Delhi · 3–5 dic 2026 · 2 noches"]);
+    expect(new Set(delhi.map((h) => h.item.key)).size).toBe(2);
+    // Jaipur → Ranthambore (sin aeropuerto en Ranthambore): el tren del plan.
+    expect(legs[2].chosen).toBe("tren");
     // Agra no tiene hotel cotizado: el paso existe y queda por elegir.
     const agra = flow.steps.find((s) => s.title === "Hotel en Agra") as any;
     expect(agra.chosen).toBe(-1);
@@ -224,7 +230,7 @@ describe("Comprar del viaje por la India: todos los tramos, 'Siguiente →' y re
     const agra = document.getElementById("paso-4")!;
     expect(within(agra).getByTestId("comprar-falta-paso")).toHaveTextContent("Te falta elegir hotel en Agra");
     const next = within(agra).getByTestId("comprar-siguiente");
-    expect(next).toHaveTextContent("Siguiente de todos modos");
+    expect(next).toHaveTextContent("Seguir de todos modos");
     expect(next).not.toBeDisabled();
     fireEvent.click(next);
     expect(scrolled.at(-1)).toBe("paso-5");

@@ -120,9 +120,12 @@ export function legStep(trip: any, from: string, to: string, date: string | null
   for (const p of plan) if (!choices.some((c) => c.mode === p.mode)) choices.push(base(p.mode, {}));
   // Primero lo que trae el plan (en su orden), luego las búsquedas.
   choices.sort((x, y) => Number(y.fromPlan) - Number(x.fromPlan) || (x.fromPlan ? plan.findIndex((p) => p.mode === x.mode) - plan.findIndex((p) => p.mode === y.mode) : 0));
-  // Sin elección: tren si el plan lo trae y es un tramo corto (lo realista en Europa o India); si no, lo primero del plan.
-  const trainFirst = km != null && km < 800 && choices.some((c) => c.mode === "tren" && c.fromPlan);
-  const chosen = choices.find((c) => c.mode === chosenMode) ?? (trainFirst ? choices.find((c) => c.mode === "tren") : null) ?? choices[0] ?? null;
+  // Sin elección: lo realista (Europa, India): tierra en tramos cortos; si no, lo primero del plan.
+  // Sin distancia conocida (Ranthambore no tiene aeropuerto) cuenta como tramo corto.
+  // En tramos cortos se prefiere tierra (tren y luego coche del plan) sobre un vuelo.
+  const short = km == null || km < 800;
+  const groundPick = short ? choices.find((c) => c.mode === "tren" && c.fromPlan) ?? choices.find((c) => c.mode === "coche" && c.fromPlan) : null;
+  const chosen = choices.find((c) => c.mode === chosenMode) ?? groundPick ?? choices[0] ?? null;
   const item: PurchaseItem = {
     key: `traslado:${normKey(from)}>${normKey(to)}`, kind: "vuelo", category: chosen?.mode === "tren" ? "train" : chosen?.mode === "coche" ? "car" : "flight",
     title: `${from} → ${to}`, subtitle: [date8 ? fmtDayShort(date8) : null, `${travelers} ${travelers === 1 ? "viajero" : "viajeros"}`, chosen?.label ?? null].filter(Boolean).join(" · "),
@@ -149,8 +152,10 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
 
   if (hasCityHotels(trip)) {
     const choices = cityHotelChoices(trip, sel);
+    const hotelItems = items.filter((i) => i.kind === "hospedaje");
     choices.forEach((c, k) => {
-      const item = items.find((i) => i.kind === "hospedaje" && i.index === c.index) ?? null;
+      // En orden: buildPurchasePlan agrega un hotel por estancia (Delhi puede aparecer dos veces).
+      const item = (c.index >= 0 && c.hotel ? hotelItems.shift() : null) ?? null;
       steps.push({ kind: "hospedaje", n: n++, title: `Hotel en ${c.stay.city}`, city: c.stay.city, stay: c.stay, item,
         options: c.options.slice(0, 3).concat(c.index >= 0 && !c.options.slice(0, 3).includes(c.index) ? [c.index] : []),
         chosen: c.index, skipped: c.index === -2, nights: c.stay.nights });

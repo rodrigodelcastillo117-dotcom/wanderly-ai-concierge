@@ -123,7 +123,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
         {missing && <p className="mr-auto text-xs text-amber-400/90" role="status" data-testid="comprar-falta-paso">{missing}</p>}
         <button type="button" onClick={() => goTo(next.id)} data-testid="comprar-siguiente" data-next={next.id}
           className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-primary/50 bg-primary/10 px-4 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-          {missing ? "Siguiente de todos modos" : "Siguiente"}: <span className="max-w-[12rem] truncate font-normal text-muted-foreground">{next.title}</span> <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          {missing ? "Seguir de todos modos" : "Siguiente:"}<span className={`max-w-[12rem] truncate font-normal text-muted-foreground ${missing ? "hidden sm:inline" : ""}`}>{next.title}</span> <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
     );

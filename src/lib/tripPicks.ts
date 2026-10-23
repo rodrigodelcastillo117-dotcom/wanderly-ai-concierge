@@ -91,8 +91,15 @@ export type TasteProfile = {
 export function tasteFrom(tp: any, foodDna: any): TasteProfile {
   const arr = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean) : []);
   const declared = [...arr(tp?.preferencias_comida), ...arr(tp?.intereses), ...arr(tp?.estilo_viaje)];
+  // El ADN guarda tipos de Google en inglés ("seafood_restaurant"): se dicen en español.
+  const ES: Record<string, string> = { seafood: "mariscos", italian: "cocina italiana", japanese: "cocina japonesa", mexican: "cocina mexicana",
+    french: "cocina francesa", steak: "carne", "steak house": "carne", vegetarian: "comida vegetariana", vegan: "comida vegana", cafe: "café",
+    "coffee shop": "café", pizza: "pizza", sushi: "sushi", chinese: "cocina china", thai: "cocina tailandesa", indian: "cocina india",
+    greek: "cocina griega", spanish: "cocina española", mediterranean: "cocina mediterránea", bar: "bares", "wine bar": "bares de vino",
+    "fine dining": "alta cocina", bakery: "panaderías", ramen: "ramen", korean: "cocina coreana", peruvian: "cocina peruana" };
   const cuisinesVisited = (Array.isArray(foodDna?.top_cuisines) ? foodDna.top_cuisines : [])
-    .map((c: any) => String(c?.key ?? c ?? "").replace(/_restaurant$/i, "").replace(/_/g, " ").trim()).filter(Boolean);
+    .map((c: any) => String(c?.key ?? c ?? "").replace(/_restaurant$/i, "").replace(/_/g, " ").trim().toLowerCase())
+    .filter(Boolean).map((k: string) => ES[k] ?? k);
   const b = norm(tp?.presupuesto_rango ?? foodDna?.preferred_price);
   const budget: PickTier | null = /econ|bajo|mochil|ahorro|inexpensive|\$(?!\$)/.test(b) ? "economico"
     : /lujo|luxury|premium|alto|expensive/.test(b) ? "caro"
