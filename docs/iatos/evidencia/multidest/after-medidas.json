@@ -1,0 +1,120 @@
+{
+  "generated_at": "2026-10-23T00:11:26.759Z",
+  "mode": "after",
+  "base": "http://127.0.0.1:8094",
+  "resultados": [
+    {
+      "viewport": "390",
+      "altura_px": 1782,
+      "alturas_por_seccion_px": {
+        "resumen": 1782,
+        "comprar": 3036,
+        "ruta": 3065,
+        "destinos": 1672,
+        "documentos": 1094
+      },
+      "desborde_horizontal_px": 0,
+      "recorrido": {
+        "taps": 5,
+        "scroll": 1996,
+        "log": [
+          {
+            "paso": "Pestaña Comprar",
+            "toque": "Comprar",
+            "desplazamiento_px": 0
+          },
+          {
+            "paso": "Comprar el vuelo (Google Flights)",
+            "toque": "Comprar en Google Flights",
+            "desplazamiento_px": 471
+          },
+          {
+            "paso": "Comprar hotel en Roma",
+            "toque": "Comprar en Booking.com",
+            "desplazamiento_px": 508
+          },
+          {
+            "paso": "Comprar hotel en Florencia",
+            "toque": "Comprar en Booking.com",
+            "desplazamiento_px": 509
+          },
+          {
+            "paso": "Comprar hotel en Venecia",
+            "toque": "Comprar en Booking.com",
+            "desplazamiento_px": 508
+          }
+        ]
+      },
+      "errores": []
+    },
+    {
+      "viewport": "1440",
+      "altura_px": 1478,
+      "alturas_por_seccion_px": {
+        "resumen": 1478,
+        "comprar": 2132,
+        "ruta": 2135,
+        "destinos": 1643,
+        "documentos": 900
+      },
+      "desborde_horizontal_px": 0,
+      "recorrido": {
+        "taps": 5,
+        "scroll": 1232,
+        "log": [
+          {
+            "paso": "Pestaña Comprar",
+            "toque": "Comprar",
+            "desplazamiento_px": 0
+          },
+          {
+            "paso": "Comprar el vuelo (Google Flights)",
+            "toque": "Comprar en Google Flights",
+            "desplazamiento_px": 0
+          },
+          {
+            "paso": "Comprar hotel en Roma",
+            "toque": "Comprar en Booking.com",
+            "desplazamiento_px": 703
+          },
+          {
+            "paso": "Comprar hotel en Florencia",
+            "toque": "Comprar en Booking.com",
+            "desplazamiento_px": 0
+          },
+          {
+            "paso": "Comprar hotel en Venecia",
+            "toque": "Comprar en Booking.com",
+            "desplazamiento_px": 529
+          }
+        ]
+      },
+      "errores": []
+    }
+  ],
+  "archivos": [
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-pagina-completa__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-resumen__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-comprar__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-ruta__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-destinos__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-documentos__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-01__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-02__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-03__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-04__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-05__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-pagina-completa__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-resumen__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-comprar__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-ruta__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-destinos__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-seccion-documentos__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-01__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-02__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-03__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-04__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_after/after-recorrido-05__1440.png"
+  ],
+  "bloqueados": []
+}

@@ -17,11 +17,13 @@ export type PersistedSelections = {
   hospedaje: PickedItem;
   noches_hospedaje: number | null;
   tours: Array<{ i: number; key: string }>;
+  /** Multi-destino: hotel elegido por ciudad (-2 = "ya tengo dónde quedarme"). Opcional (v1). */
+  hoteles?: Array<{ ciudad: string; i: number; key: string | null }>;
 };
 
 export type UiSelection = Omit<Selection, "nochesHospedaje"> & { nochesHospedaje: number | null };
 
-export const DEFAULT_SELECTION: UiSelection = { selVuelo: -1, selHospedaje: -1, nochesHospedaje: null, selTours: new Set() };
+export const DEFAULT_SELECTION: UiSelection = { selVuelo: -1, selHospedaje: -1, nochesHospedaje: null, selTours: new Set(), selHoteles: {} };
 
 const norm = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
@@ -39,7 +41,10 @@ const pick = (list: any[] | undefined, i: number): PickedItem =>
 /** Lo que se guarda en trips.selections. null si todo está por defecto. */
 export function serializeSelections(trip: any, sel: UiSelection): PersistedSelections | null {
   const tours = [...sel.selTours].filter((i) => i >= 0).sort((a, b) => a - b);
-  const isDefault = sel.selVuelo === -1 && sel.selHospedaje === -1 && sel.nochesHospedaje == null && tours.length === 0;
+  const hoteles = Object.entries(sel.selHoteles ?? {}).filter(([, i]) => typeof i === "number" && (i >= 0 || i === -2))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([ciudad, i]) => ({ ciudad, ...pick(trip?.hospedaje_json, i) }));
+  const isDefault = sel.selVuelo === -1 && sel.selHospedaje === -1 && sel.nochesHospedaje == null && tours.length === 0 && hoteles.length === 0;
   if (isDefault) return null;
   return {
     v: 1,
@@ -47,6 +52,7 @@ export function serializeSelections(trip: any, sel: UiSelection): PersistedSelec
     hospedaje: pick(trip?.hospedaje_json, sel.selHospedaje),
     noches_hospedaje: sel.nochesHospedaje == null ? null : Math.max(0, Math.round(Number(sel.nochesHospedaje) || 0)),
     tours: tours.map((i) => ({ i, key: itemKey(trip?.tours_json?.[i]) })),
+    ...(hoteles.length ? { hoteles } : {}),
   };
 }
 
@@ -73,11 +79,17 @@ export function restoreSelections(trip: any, raw: unknown): UiSelection {
     if (i >= 0) tours.add(i);
   }
   const noches = s.noches_hospedaje;
+  const selHoteles: Record<string, number> = {};
+  for (const h of Array.isArray(s.hoteles) ? s.hoteles : []) {
+    const i = resolvePick(trip?.hospedaje_json, { i: h?.i, key: h?.key ?? null });
+    if (typeof h?.ciudad === "string" && (i >= 0 || i === -2)) selHoteles[h.ciudad] = i;
+  }
   return {
     selVuelo: resolvePick(trip?.vuelos_json, s.vuelo),
     selHospedaje: resolvePick(trip?.hospedaje_json, s.hospedaje),
     nochesHospedaje: typeof noches === "number" && Number.isFinite(noches) ? noches : null,
     selTours: tours,
+    selHoteles,
   };
 }
 
@@ -87,7 +99,7 @@ export function sameSelections(a: unknown, b: unknown): boolean {
     if (!x || typeof x !== "object") return "null";
     const s = x as PersistedSelections;
     return JSON.stringify([s.vuelo?.i ?? -1, s.vuelo?.key ?? null, s.hospedaje?.i ?? -1, s.hospedaje?.key ?? null,
-      s.noches_hospedaje ?? null, (s.tours ?? []).map((t) => [t.i, t.key])]);
+      s.noches_hospedaje ?? null, (s.tours ?? []).map((t) => [t.i, t.key]), (s.hoteles ?? []).map((h) => [h.ciudad, h.i, h.key])]);
   };
   return canon(a) === canon(b);
 }

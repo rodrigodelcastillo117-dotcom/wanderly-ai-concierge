@@ -11,7 +11,7 @@ describe("PriceSourceBadge", () => {
   });
   it("Travelpayouts no dice 'verificado en vivo'", () => {
     const { container } = render(<PriceSourceBadge source="travelpayouts" consultadoAt="2026-10-22T10:00:00Z" now={now} />);
-    expect(screen.getByText("Precio de referencia (caché ≤48 h) · puede variar")).toBeInTheDocument();
+    expect(screen.getByText("Precio de referencia de los últimos 2 días · puede cambiar")).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/verificado|en vivo/i);
   });
   it("precio viejo: OBSOLETO con la antigüedad", () => {

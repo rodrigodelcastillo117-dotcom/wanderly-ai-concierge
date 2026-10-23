@@ -104,7 +104,7 @@ describe("purchaseMarks (lógica pura)", () => {
   it("la etiqueta dice quién y cuándo, en español: 'Ya lo reservé · Carlos Ruiz · 22 oct'", () => {
     const [mk] = marksFromGroup([carlosMark()]).values();
     const now = new Date("2026-10-23T12:00:00Z");
-    expect(markLabel(mk, "u-lia", now)).toBe("Ya lo reservé · Carlos Ruiz · 22 oct");
+    expect(markLabel(mk, "u-lia", now)).toBe("Ya lo compré · Carlos Ruiz · 22 oct");
     expect(shortMarkDate("2025-12-03T12:00:00Z", now)).toBe("3 dic 2025");
     expect(shortMarkDate("no es fecha", now)).toBeNull();
     expect(markerName({ ...mk, name: null }, "u-carlos")).toBe("tú");
@@ -211,7 +211,7 @@ describe("TripPurchasePlan con marcas del grupo (render)", () => {
     ui("u-lia");
     const card = screen.getByTestId("comprar-vuelo");
     await waitFor(() => expect(card).toHaveAttribute("data-state", "marcado"));
-    expect(within(card).getByTestId("comprar-vuelo-marca").textContent).toBe("Ya lo reservé · Carlos Ruiz · 22 oct");
+    expect(within(card).getByTestId("comprar-vuelo-marca").textContent).toBe("Ya lo compré · Carlos Ruiz · 22 oct");
     expect(within(card).getByText("Marcado a mano · sin verificar")).toBeInTheDocument();
     expect(within(card).queryByRole("button", { name: /como pendiente/ })).toBeNull();
     expect(screen.getByTestId("trip-comprar-progreso").textContent).toBe("1 de 2 reservados");
@@ -245,6 +245,6 @@ describe("TripPurchasePlan con marcas del grupo (render)", () => {
     await waitFor(() => expect(S.calls.some((c) => c.table === "trip_purchase_marks" && c.op === "select")).toBe(true));
     fireEvent.click(screen.getByTestId("comprar-hospedaje-marcar"));
     const card = screen.getByTestId("comprar-hospedaje");
-    await waitFor(() => expect(within(card).getByTestId("comprar-hospedaje-marca").textContent).toBe("Ya lo reservé · lia.viaja · 22 oct"));
+    await waitFor(() => expect(within(card).getByTestId("comprar-hospedaje-marca").textContent).toBe("Ya lo compré · lia.viaja · 22 oct"));
   });
 });

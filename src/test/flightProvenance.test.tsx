@@ -41,11 +41,12 @@ it("un vuelo estimado o viejo nunca se presenta como en vivo", () => {
   expect(screen.queryByText(/en vivo/)).toBeNull();
 });
 
-it("TripDetail pasa la insignia de los vuelos como badge visible (igual que los hoteles)", () => {
-  const src = readFileSync(path.resolve(__dirname, "../pages/TripDetail.tsx"), "utf8");
-  const flightCard = src.slice(src.indexOf("<ExpandableItemCard", src.indexOf("cityVuelos.map(")));
-  const cardProps = flightCard.slice(0, flightCard.indexOf("\n                            >\n"));
-  // Punto 3 (caso Roma): el título no afirma la aerolínea de un estimado (flightAirlineLabel).
-  expect(cardProps).toContain("title={flightAirlineLabel(v)}");
-  expect(cardProps).toMatch(/badge=\{<PriceSourceBadge source=\{v\.fuente_precio\} estado=\{v\.estado_dato\}/);
+it("las opciones de vuelo (Comprar) muestran la insignia de su precio a la vista (igual que los hoteles)", () => {
+  // Rediseño del caso Roma: las tarjetas de vuelo viven en "Comprar" (TripPurchasePlan), no en Destinos.
+  const src = readFileSync(path.resolve(__dirname, "../components/booking/TripPurchasePlan.tsx"), "utf8");
+  const option = src.slice(src.indexOf('data-testid="vuelo-opcion"'));
+  const card = option.slice(0, option.indexOf("</button>"));
+  // Punto 3: el título no afirma la aerolínea de un estimado (flightAirlineLabel).
+  expect(card).toContain("{flightAirlineLabel(v)}");
+  expect(card).toMatch(/<PriceSourceBadge className="mt-1" source=\{v\?\.fuente_precio\} estado=\{v\?\.estado_dato\}/);
 });

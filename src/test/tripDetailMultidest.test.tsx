@@ -1,8 +1,9 @@
-// Puntos 7, 8 y 11 del caso Roma → Florencia → Venecia en la página del viaje (TripDetail) con los
-// datos del caso: cada vuelo con su botón de compra precargado, el coche no es un vuelo (va al road
-// trip y a la renta de auto), escalas con sus ciudades o "por confirmar".
+// Puntos 7, 8, 10 y 11 del caso Roma → Florencia → Venecia en la página del viaje (TripDetail) con
+// los datos del caso: pestañas (Resumen · Comprar · Destinos · Documentos), "Comprar" como flujo de
+// elegir y comprar (vuelo, un hotel por ciudad, auto) con botón precargado en cada paso, el coche no es
+// un vuelo (va al road trip y a la renta de auto) y escalas con sus ciudades o "por confirmar".
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { vi, it, expect, beforeEach, describe } from "vitest";
 
@@ -54,7 +55,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: v
 
 import TripDetail from "@/pages/TripDetail";
 import { CASO_TRIP } from "./fixtures/casoRomaFlorenciaVenecia";
-import { parseGoogleFlightsSearch } from "../../supabase/functions/_shared/booking/links";
+import { parseBookingSearch, parseGoogleFlightsSearch } from "../../supabase/functions/_shared/booking/links";
 
 const renderTrip = () => render(
   <MemoryRouter initialEntries={[`/dashboard/viajes/${CASO_TRIP.id}`]}>
@@ -70,47 +71,131 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe("Cómo llegar: comprar desde cada opción (punto 8)", () => {
-  it("cada vuelo lleva 'Ver y comprar en Google Flights' con la ruta del viaje, fechas y 2 pasajeros; nada de BUH", async () => {
+const AF = "https://www.aviasales.com/search/MEX2210ROM01112?t=AF1793MEXCDGFCO1793VCECDGMEX_ab_1100&marker=533299";
+const realFare = { tier: "equilibrio", mode: "vuelo", aerolinea: "Air France", duracion: "16h 10m", escalas: "1 escala(s)", precio_por_persona: 21000,
+  fuente_precio: "travelpayouts", estado_dato: "ESTIMADO", consultado_at: "2026-10-22T15:00:00Z", booking_link: AF,
+  ciudad: "Roma", from: "Ciudad de México", to: "Roma" };
+
+describe("Pestañas de la página del viaje (punto 11)", () => {
+  it("barra de secciones con Resumen, Comprar, Destinos y Documentos; una sección a la vez", async () => {
     renderTrip();
-    const buttons = await screen.findAllByTestId("flight-buy-google");
-    expect(buttons.length).toBeGreaterThan(0);
-    for (const b of buttons) {
-      expect(b).toHaveTextContent("Ver y comprar en Google Flights");
-      expect(b).toHaveAttribute("target", "_blank");
-      const q = parseGoogleFlightsSearch(b.getAttribute("href")!)!;
-      expect(q.destination === "FCO" || q.destination === "VCE").toBe(true);
-      expect(q.adults).toBe(2);
-      // Ninguna aerolínea de una tarifa estimada o imposible como filtro.
-      expect(q.airlines).toEqual([]);
-    }
-    expect(document.body.innerHTML).not.toMatch(/BUH|Volaris/);
+    const nav = await screen.findByTestId("trip-secciones");
+    const tabs = within(nav).getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual(["Resumen", "Comprar", "Destinos", "Documentos"]);
+    expect(screen.getByTestId("tab-resumen")).toHaveAttribute("aria-selected", "true");
+    expect(document.getElementById("panel-comprar")).toHaveAttribute("hidden");
+    fireEvent.click(screen.getByTestId("tab-comprar"));
+    expect(screen.getByTestId("tab-comprar")).toHaveAttribute("aria-selected", "true");
+    expect(document.getElementById("panel-comprar")).not.toHaveAttribute("hidden");
+    expect(document.getElementById("panel-resumen")).toHaveAttribute("hidden");
   });
 
+  it("un solo desglose: el de abajo ya no repite el total (va plegado bajo el total)", async () => {
+    renderTrip();
+    await screen.findByTestId("trip-secciones");
+    expect(screen.queryAllByText("Desglose de presupuesto").length + screen.queryAllByText("Ver desglose del total").length).toBe(1);
+    expect(screen.getByTestId("trip-desglose").closest("[data-trip-panel]")).toHaveAttribute("data-trip-panel", "resumen");
+  });
+
+  it("'Elegir vuelo y hotel' de 'Qué sigue' abre la sección Comprar", async () => {
+    // Un viaje que aún no empieza (el del caso sale hoy y "Qué sigue" ofrece el Modo viaje).
+    Object.assign(db.trip, { fecha_salida: "2099-10-22", fecha_regreso: "2099-11-01", created_at: new Date(Date.now() - 3600_000).toISOString() });
+    renderTrip();
+    const btns = await screen.findAllByRole("button", { name: /Elegir vuelo y hotel/ });
+    fireEvent.click(btns[0]);
+    await waitFor(() => expect(screen.getByTestId("tab-comprar")).toHaveAttribute("aria-selected", "true"));
+  });
+});
+
+describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
+  it("pasos numerados y 'Te falta': vuelo y un hotel por ciudad, más el auto", async () => {
+    renderTrip();
+    const pasos = await screen.findByTestId("comprar-pasos");
+    expect(within(pasos).getAllByRole("listitem").map((li) => li.textContent?.trim())).toEqual(
+      ["1. Vuelo", "2. Hotel en Roma", "3. Hotel en Florencia", "4. Hotel en Venecia", "5. Auto (opcional)"]);
+    expect(screen.getByTestId("trip-comprar-falta")).toHaveTextContent("Te falta: vuelo · hotel en Roma · hotel en Florencia · hotel en Venecia");
+  });
+
+  it("vuelo sin tarifa real: lo dice y su botón lleva la búsqueda del viaje (MEX→FCO, regreso VCE→MEX, 2 adultos); nada de BUH ni Volaris", async () => {
+    renderTrip();
+    const step = await screen.findByTestId("comprar-vuelo");
+    expect(within(step).getByTestId("vuelo-sin-precio")).toHaveTextContent("Aún no tenemos precio real para esta ruta: búscalo en Google Flights.");
+    // Los estimados de IA (Aeroméxico, Iberia "Directo") y la tarifa de otra ruta no son opciones.
+    expect(within(step).queryAllByTestId("vuelo-opcion")).toHaveLength(0);
+    const a = within(step).getByTestId("comprar-vuelo-abrir");
+    expect(a).toHaveTextContent("Comprar en Google Flights");
+    expect(parseGoogleFlightsSearch(a.getAttribute("href")!)).toMatchObject({ origin: "MEX", destination: "FCO", return_from: "VCE", adults: 2, airlines: [] });
+    expect(document.body.innerHTML).not.toMatch(/BUH|Volaris|Retiro de Coche/);
+  });
+
+  it("con una tarifa real: se ve como opción con aerolínea, escalas con sus ciudades, total y por persona; elegirla cambia el total", async () => {
+    db.trip.vuelos_json = [...db.trip.vuelos_json, realFare];
+    renderTrip();
+    const opt = (await screen.findAllByTestId("vuelo-opcion"))[0];
+    expect(opt).toHaveTextContent("Air France · Equilibrado");
+    expect(opt).toHaveTextContent("Escalas: París");
+    expect(opt).toHaveTextContent("$42,000 MXN");
+    expect(opt).toHaveTextContent("$21,000 MXN por persona");
+    expect(opt).toHaveAttribute("aria-checked", "true");
+    // El botón precarga la ruta del viaje y SOLO Air France (tarifa real, aerolínea que opera la ruta).
+    expect(parseGoogleFlightsSearch(screen.getByTestId("comprar-vuelo-abrir").getAttribute("href")!)).toMatchObject({ destination: "FCO", airlines: ["AF"] });
+  });
+
+  it("un hotel por ciudad con 3 opciones, noches de esa ciudad y Booking con sus fechas; elegir otro en Florencia se guarda y cambia el total", async () => {
+    renderTrip();
+    const steps = await screen.findAllByTestId("comprar-hospedaje");
+    expect(steps.map((s) => s.getAttribute("data-city"))).toEqual(["Roma", "Florencia", "Venecia"]);
+    for (const s of steps) expect(within(s).getAllByTestId("hotel-opcion")).toHaveLength(3);
+    const flor = steps[1];
+    expect(parseBookingSearch(within(flor).getByTestId("comprar-hotel-Florencia-abrir").getAttribute("href")!)).toMatchObject({ checkin: "2026-10-26", checkout: "2026-10-29", adults: 2 });
+    expect(within(flor).getByRole("radio", { checked: true })).toHaveTextContent("Four Seasons Firenze");
+    fireEvent.click(within(flor).getByRole("radio", { name: /Milu/ }));
+    await waitFor(() => expect(within(screen.getAllByTestId("comprar-hospedaje")[1]).getByRole("radio", { checked: true })).toHaveTextContent("Milu"));
+    // Total: hospedaje por ciudad con Milu (7,017 × 3) en lugar de Four Seasons (37,035 × 3).
+    const expected = 561468 - 401960 + (32795 * 4 + 7017 * 3 + 53226 * 3);
+    await waitFor(() => expect(screen.getByTestId("trip-total-amount")).toHaveTextContent(`$${expected.toLocaleString("es-MX")} MXN`));
+    await waitFor(() => expect(db.updates.find((u) => u.table === "trips")?.payload.selections).toMatchObject({ hoteles: [{ ciudad: "Florencia", i: 4 }] }), { timeout: 2000 });
+  });
+
+  it("restaurantes y experiencias van plegados con su botón para reservar", async () => {
+    renderTrip();
+    const extras = await screen.findByTestId("comprar-extras");
+    expect(extras.tagName).toBe("DETAILS");
+    expect(extras).not.toHaveAttribute("open");
+    expect(within(extras).getByText(/3 experiencias y 3 restaurantes para reservar \(opcional\)/)).toBeInTheDocument();
+    expect(within(extras).getAllByText("Reservar").length).toBeGreaterThan(0);
+  });
+});
+
+describe("Destinos: cómo llegar por tierra (punto 8)", () => {
   it("el coche no es un vuelo: sin icono de avión, con 'Ver el road trip' y 'Rentar auto'", async () => {
     renderTrip();
-    await screen.findAllByTestId("flight-buy-google");
+    await screen.findByTestId("trip-secciones");
     const cars = Array.from(document.querySelectorAll('[data-testid="arrival-option"][data-mode="coche"]')) as HTMLElement[];
     expect(cars.length).toBeGreaterThan(0);
     for (const c of cars) {
+      expect(c.closest("[data-trip-panel]")).toHaveAttribute("data-trip-panel", "destinos");
       expect(c.querySelector(".lucide-plane")).toBeNull();
       expect(c.querySelector('[data-testid="ground-buy-buttons"]')).not.toBeNull();
       expect(c.textContent).toMatch(/Ver el road trip/);
       const rent = Array.from(c.querySelectorAll("a")).find((a) => /Rentar auto/.test(a.textContent ?? ""))!;
       expect(rent.getAttribute("href")).toMatch(/^\/dashboard\/autos\?city=/);
     }
-    // La renta "desde Ciudad de México (vía Aeropuerto FCO)" ya no aparece como forma de llegar.
-    expect(screen.queryByText(/Retiro de Coche/)).toBeNull();
+    // Ninguna tarjeta de vuelo se repite en Destinos (se eligen en Comprar).
+    expect(document.querySelectorAll('#panel-destinos [data-testid="arrival-option"][data-mode="vuelo"]')).toHaveLength(0);
   });
+});
 
-  it("los vuelos estimados no dicen aerolínea ni 'Directo'", async () => {
-    renderTrip();
-    await screen.findAllByTestId("flight-buy-google");
-    const flights = Array.from(document.querySelectorAll('[data-testid="arrival-option"][data-mode="vuelo"]')) as HTMLElement[];
-    expect(flights.length).toBeGreaterThan(0);
-    for (const f of flights) {
-      expect(f.textContent).not.toMatch(/Directo|Iberia|Aeroméxico/);
-      expect(f.textContent).toMatch(/Aerolínea por confirmar/);
-    }
+describe("FlightBuyButtons (punto 8): comprar desde una opción de vuelo", () => {
+  it("lleva la ruta del viaje, fechas y 2 pasajeros; si no hay destino, lo dice", async () => {
+    const { FlightBuyButtons } = await import("@/components/booking/FlightBuyButtons");
+    const { unmount } = render(<MemoryRouter><FlightBuyButtons option={db.trip.vuelos_json[5]} trip={db.trip} /></MemoryRouter>);
+    const g = screen.getByTestId("flight-buy-google");
+    expect(g).toHaveTextContent("Ver y comprar en Google Flights");
+    expect(parseGoogleFlightsSearch(g.getAttribute("href")!)).toMatchObject({ origin: "MEX", destination: "FCO", return_from: "VCE", adults: 2, airlines: [] });
+    unmount();
+    const lost = { ...db.trip, destino: "Xyzópolis → Abcville", itinerario_json: { destinations: ["Xyzópolis", "Abcville"] } };
+    render(<MemoryRouter><FlightBuyButtons option={{ aerolinea: "Iberia", fuente_precio: "estimado", from: "Ciudad de México", to: "Xyzópolis" }} trip={lost} /></MemoryRouter>);
+    expect(screen.getByTestId("flight-buy-google")).toHaveTextContent("Abre Google Flights y escribe el destino");
   });
 });

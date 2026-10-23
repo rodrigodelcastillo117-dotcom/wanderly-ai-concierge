@@ -9,11 +9,9 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { ReadonlyBudget } from "@/components/ReadonlyBudget";
 import { CityCollapsible } from "@/components/CityCollapsible";
-import { IllustrativeCaption, SmartImage } from "@/components/media/SmartImage";
+import { IllustrativeCaption } from "@/components/media/SmartImage";
 import { AirlineLogo } from "@/components/media/AirlineLogo";
-import { activityQuery, cuisineQuery, flightBackdropQuery, hotelQuery } from "@/lib/categoryImagery";
 import { airlineCode } from "@/lib/airlines";
-import { ExpandableItemCard } from "@/components/ExpandableItemCard";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
 import { RealTripTotal, tripTotals } from "@/components/RealTripTotal";
@@ -27,8 +25,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import santorini from "@/assets/hero-santorini.jpg";
-import { getYourGuideLink, viatorLink, googleMapsSearchLink, theforkLink, ensureAviasalesMarker, bookingLink } from "@/lib/affiliateLinks";
-import { logBookingClick, trackBookingClick } from "@/lib/trackBooking";
 import { computeTripDesglose, quoteStaleness, quoteValidity, staleQuoteMessage, tripNights, hotelPriceRooms, type QuoteSnapshot } from "@/lib/quote";
 import {
   readLocalSelections, restoreSelections, sameSelections, serializeSelections, writeLocalSelections, type PersistedSelections,
@@ -37,17 +33,17 @@ import { deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
 import { BookingStateBadge } from "@/components/BookingStateBadge";
 import { ImportedTripBanner } from "@/components/ImportedTripBanner";
 import { TripDocuments } from "@/components/TripDocuments";
-import { BookingActions } from "@/components/booking/BookingActions";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
 import { isGroundTripOption, tripCountryLabel, tripFlightProblems } from "@/lib/booking";
 import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightStopsLabel } from "@/lib/flightDisplay";
 import { groundOptionsForCity } from "@/lib/multiDestTrip";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
-import { offerFromTripFlight, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
+import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
-import { RoadTripJump, RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
+import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
 
@@ -69,6 +65,10 @@ const TripDetail = () => {
   const [selHospedaje, setSelHospedaje] = useState<number>(-1);
   const [nochesHospedaje, setNochesHospedaje] = useState<number | null>(null); // null = usar todas las noches
   const [selTours, setSelTours] = useState<Set<number>>(new Set());
+  // Multi-destino: hotel elegido por ciudad (Roma, Florencia, Venecia).
+  const [selHoteles, setSelHoteles] = useState<Record<string, number>>({});
+  // Sección visible (pestañas): Resumen · Comprar · Ruta · Destinos · Documentos.
+  const [section, setSection] = useState<TripSection>(() => sectionFromHash());
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const toggleCity = (city: string) => {
     setActiveCity((prev) => (prev === city ? null : city));
@@ -178,6 +178,7 @@ const TripDetail = () => {
       setSelHospedaje(r.selHospedaje);
       setNochesHospedaje(r.nochesHospedaje);
       setSelTours(r.selTours);
+      setSelHoteles(r.selHoteles ?? {});
       setSavedSel(serializeSelections(data, r));
       restoredFor.current = id;
       void Promise.resolve(
@@ -244,7 +245,7 @@ const TripDetail = () => {
   // cotización como "por actualizar" si difiere de la selección con que se cotizó.
   useEffect(() => {
     if (!trip?.id || restoredFor.current !== trip.id) return;
-    const next = serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours });
+    const next = serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles });
     if (sameSelections(next, savedSel)) return;
     const tripId = trip.id;
     const timer = setTimeout(async () => {
@@ -263,7 +264,17 @@ const TripDetail = () => {
     }, 500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selVuelo, selHospedaje, nochesHospedaje, selTours, trip?.id, savedSel]);
+  }, [selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles, trip?.id, savedSel]);
+
+  // Otra parte de la página (p. ej. "Qué sigue" → "Elige y reserva") pide mostrar una sección.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (isTripSection(id)) setSection(id);
+    };
+    window.addEventListener(TRIP_SECTION_EVENT, on);
+    return () => window.removeEventListener(TRIP_SECTION_EVENT, on);
+  }, []);
 
   const handleDownloadPdf = async () => {
     if (!trip) return;
@@ -330,7 +341,7 @@ const TripDetail = () => {
   // Si el usuario cambió viajeros o fechas después de cotizar, el total guardado es para la base
   // anterior: se muestra para esa base (sin repartirlo entre el nuevo número de viajeros) y se
   // pide actualizar la cotización.
-  const currentSel = trip ? serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours }) : null;
+  const currentSel = trip ? serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles }) : null;
   const staleness = quoteStaleness(trip ? { ...trip, selections: currentSel } : trip, quote);
   const quoteTravelers = staleness.stale && staleness.basis ? staleness.basis.travelers : viajeros;
   const quoteNights = staleness.stale && staleness.basis?.dateFrom && staleness.basis?.dateTo
@@ -342,8 +353,8 @@ const TripDetail = () => {
 
   // Recalcular desglose en base a selecciones (-2 = "ya lo tengo / no aplica")
   const computedDesglose = useMemo(
-    () => computeTripDesglose(trip, { selVuelo, selHospedaje, nochesHospedaje: nochesEfectivas, selTours }, quoteTravelers),
-    [trip, selVuelo, selHospedaje, selTours, quoteTravelers, nochesEfectivas],
+    () => computeTripDesglose(trip, { selVuelo, selHospedaje, nochesHospedaje: nochesEfectivas, selTours, selHoteles }, quoteTravelers),
+    [trip, selVuelo, selHospedaje, selTours, selHoteles, quoteTravelers, nochesEfectivas],
   );
 
   const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
@@ -386,15 +397,31 @@ const TripDetail = () => {
     });
   };
 
-  const selectedClass = (active: boolean) =>
-    `cursor-pointer transition relative ${active ? "gold-border ring-1 ring-primary/50" : "hover:gold-border"}`;
+  const hasRoadTrip = !!(isMulti && logistics?.road_trip);
+  const sections: Array<{ id: TripSection; label: string }> = [
+    { id: "resumen", label: "Resumen" },
+    { id: "comprar", label: "Comprar" },
+    ...(hasRoadTrip ? [{ id: "ruta" as TripSection, label: "Ruta" }] : []),
+    { id: "destinos", label: "Destinos" },
+    { id: "documentos", label: "Documentos" },
+  ];
+  const showSection = (id: TripSection) => {
+    setSection(id);
+    try { window.history.replaceState(window.history.state, "", `#${id}`); } catch { /* sin historial */ }
+    // La sección empieza arriba, debajo de las pestañas (sin saltos a media página).
+    const nav = document.getElementById("trip-secciones");
+    if (nav && typeof window.scrollTo === "function") {
+      const top = nav.getBoundingClientRect().top + window.scrollY;
+      if (window.scrollY > top) window.scrollTo({ top, behavior: "auto" });
+    }
+  };
 
   return (
     <DashboardLayout>
       {/* HERO */}
       {/* Portada más baja en móvil (antes ocupaba la pantalla completa y el total quedaba dos
           pantallas abajo). */}
-      <div className="relative h-[52vh] min-h-[380px] max-h-[560px] md:h-[60vh] md:min-h-[420px] md:max-h-none overflow-hidden">
+      <div className="relative h-[36vh] min-h-[300px] max-h-[420px] md:h-[44vh] md:min-h-[360px] md:max-h-[520px] overflow-hidden">
         {trip.cover_image_url ? (
           <img src={trip.cover_image_url} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
@@ -486,7 +513,12 @@ const TripDetail = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl space-y-8 p-4 pb-24 sm:p-6 md:p-12">
+      {/* Secciones del viaje (pestañas fijas arriba): la página muestra una sección a la vez, así se
+          entiende sin bajar tanto. Antes eran ~3 pantallas completas con todo seguido (caso 22-oct-2026). */}
+      <TripSectionNav sections={sections} active={section} onChange={showSection} />
+
+      <div className="max-w-5xl p-4 pb-24 sm:p-6 md:px-12 md:pt-8">
+        <div role="tabpanel" id="panel-resumen" aria-labelledby="tab-resumen" data-trip-panel="resumen" hidden={section !== "resumen"} className="space-y-6">
         {/* Reservado vs. cotizado ("listo" no lo distingue): derivado de las reservas confirmadas.
             Un viaje importado de documentos dice lo que se PAGÓ, no un estado de cotización. */}
         {(trip as any).fuente === "documento"
@@ -536,9 +568,6 @@ const TripDetail = () => {
 
 
 
-        {/* roadtrip: acceso directo al panel de los tramos en coche, que va más abajo. */}
-        {isMulti && logistics?.road_trip && <RoadTripJump plan={logistics.road_trip} />}
-
         {/* Tarifas guardadas que eran de otra ruta: se descartan y se dice (nunca se muestran como vuelo del viaje). */}
         {discardedFares > 0 && (
           <div role="status" data-testid="trip-tarifas-descartadas" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-500">
@@ -574,21 +603,30 @@ const TripDetail = () => {
               fallbackMxn={computedTotal}
             />
           )}
+          {/* Un solo desglose (antes se repetía abajo con el mismo total). */}
+          {computedTotal > 0 && (
+            <details className="group glass-card rounded-2xl -mt-4" data-testid="trip-desglose">
+              <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 p-4 sm:px-5">
+                <span className="inline-flex items-center gap-2 text-sm"><Compass className="w-4 h-4 text-primary shrink-0" /> Ver desglose del total</span>
+                <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40">
+                <ReadonlyBudget
+                  desglose={computedDesglose}
+                  total={computedTotal}
+                  vuelos={(trip.vuelos_json ?? []).filter((v: any) => !isGroundTripOption(v) && tripFlightProblems(v, trip).length === 0)}
+                  travelers={viajeros}
+                />
+              </div>
+            </details>
+          )}
         </motion.section>
 
         {/* Qué sigue: guardado, cuánto falta y UNA acción principal. */}
         <TripNextStep trip={trip} quote={quote} isOwner={isOwner} />
 
-        {/* Comprar mi viaje: lo cotizado, a qué sitio lleva cada botón, qué datos van precargados y
-            "Ya lo reservé" (cierre 2, grupo enlaces). Un viaje importado de documentos ya está pagado. */}
-        {(trip as any).fuente !== "documento" && hasQuotedTotal && (
-          <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours}
-            serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null} />
-        )}
-
-        {/* roadtrip: tramos en coche, costos etiquetados, avisos por país y renta del auto. */}
-        {isMulti && logistics?.road_trip && (
-          <RoadTripPanel plan={logistics.road_trip} tripId={trip.id} returnCity={destinationsMulti[0] ?? null} />
+        {isOwner && (
+          <PriceWatchCard tripId={trip.id} departureDate={trip.fecha_salida} />
         )}
 
         {/* Herramientas del viaje: después del total y de "qué sigue" (antes iban primero y empujaban
@@ -623,10 +661,20 @@ const TripDetail = () => {
         </motion.div>
 
 
-        {isOwner && (
-          <PriceWatchCard tripId={trip.id} departureDate={trip.fecha_salida} />
-        )}
+        </div>
 
+        <div role="tabpanel" id="panel-comprar" aria-labelledby="tab-comprar" data-trip-panel="comprar" hidden={section !== "comprar"} className="space-y-6">
+          {(trip as any).fuente !== "documento" && hasQuotedTotal ? (
+            <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
+              serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
+              onSelectVuelo={(i) => setSelVuelo(i)}
+              onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => ({ ...prev, [c]: i })) : setSelHospedaje(i))}
+              onToggleTour={toggleTour} />
+          ) : (
+            <p className="rounded-2xl border border-border/60 p-4 text-sm text-muted-foreground">
+              {(trip as any).fuente === "documento" ? "Este viaje viene de tus documentos: ya está pagado." : "Aún no hay cotización para comprar. Revisa el total en Resumen."}
+            </p>
+          )}
         {/* Selector noches (solo single + hospedaje seleccionado) */}
         {!isMulti && selHospedaje >= 0 && noches > 1 && trip.hospedaje_json?.length > 0 && (
           <div className="glass-card rounded-xl p-5">
@@ -642,134 +690,58 @@ const TripDetail = () => {
           </div>
         )}
 
-        {/* TODO POR DESTINO — un menú único, plegable, colapsado por default */}
-        <div id="trip-destinos" className="space-y-4 scroll-mt-20 focus:outline-none">
+        </div>
+
+        {hasRoadTrip && (
+          <div role="tabpanel" id="panel-ruta" aria-labelledby="tab-ruta" data-trip-panel="ruta" hidden={section !== "ruta"} className="space-y-6">
+        {/* roadtrip: tramos en coche, costos etiquetados, avisos por país y renta del auto. */}
+        {isMulti && logistics?.road_trip && (
+          <RoadTripPanel plan={logistics.road_trip} tripId={trip.id} returnCity={destinationsMulti[0] ?? null} />
+        )}
+
+          </div>
+        )}
+
+        <div role="tabpanel" id="panel-destinos" aria-labelledby="tab-destinos" data-trip-panel="destinos" hidden={section !== "destinos"} className="space-y-6">
+        {/* Destinos: el itinerario de cada ciudad y cómo llegar por tierra. El vuelo, los hoteles, las
+            experiencias y los restaurantes se eligen y compran en "Comprar" (no se repiten aquí). */}
+        <div id="trip-destinos" className="space-y-4 scroll-mt-28 focus:outline-none">
           <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <RouteIcon className="w-5 h-5 text-primary shrink-0" />
               <h2 className="font-display text-2xl sm:text-3xl break-words">Tu viaje por destino</h2>
             </div>
-            <span className="text-xs text-muted-foreground italic sm:ml-auto">Toca cada destino para explorar</span>
+            <button type="button" onClick={() => showSection("comprar")} className="text-xs text-primary underline-offset-2 hover:underline sm:ml-auto text-left">
+              Vuelo, hoteles y reservas: elígelos en Comprar →
+            </button>
           </div>
 
           {(isMulti ? destinationsMulti : [trip.destino]).map((city: string, cityIdx: number, allCities: string[]) => {
             const cityKey = isMulti ? cityKeyFor(city) : city;
-            // Tarifas de otra ruta (MEX→BUH presentada como Roma) o imposibles no se muestran.
-            const cityVuelos = (isMulti
-              ? (trip.vuelos_json ?? []).filter((v: any) => (v.ciudad || v.to) === cityKey || (v.ciudad || v.to) === city)
-              : (trip.vuelos_json ?? [])).filter((v: any) => tripFlightProblems(v, trip).length === 0 && !(isMulti && isGroundTripOption(v)));
-            // Multi-destino: coche, tren, bus y ferry van aparte (no son vuelos), del plan guardado.
-            const cityGround = isMulti ? groundOptionsForCity(trip, cityKey) : [];
-            const priceNum = (s: any) => {
-              if (typeof s === "number") return s;
-              if (typeof s !== "string") return 0;
-              const m = s.replace(/[,\s]/g, "").match(/\d+(\.\d+)?/);
-              return m ? Number(m[0]) : 0;
-            };
-            const cityHosp = (isMulti
-              ? (trip.hospedaje_json ?? []).filter((h: any) => h.ciudad === cityKey)
-              : (trip.hospedaje_json ?? [])
-            ).slice().sort((a: any, b: any) => (Number(a?.precio_por_noche) || 0) - (Number(b?.precio_por_noche) || 0));
+            // Coche, tren, bus y ferry (no son vuelos), del plan guardado; en viajes viejos, los que
+            // quedaron mezclados en vuelos_json.
+            const cityGround = isMulti ? groundOptionsForCity(trip, cityKey) : (trip.vuelos_json ?? []).filter(isGroundOption);
             const cityDays = isMulti
               ? itinDays.filter((d: any) => d.ciudad === cityKey)
               : itinDays;
-            const cityTours = (isMulti
-              ? (trip.tours_json ?? []).filter((t: any) => t.ciudad === cityKey)
-              : (trip.tours_json ?? [])
-            ).slice().sort((a: any, b: any) => (Number(a?.precio_por_persona) || 0) - (Number(b?.precio_por_persona) || 0));
-            const cityRest = (isMulti
-              ? (trip.restaurantes_json ?? []).filter((r: any) => r.ciudad === cityKey)
-              : (trip.restaurantes_json ?? [])
-            ).slice().sort((a: any, b: any) => priceNum(a?.rango_precio) - priceNum(b?.rango_precio));
-
-            const totalItems =
-              cityVuelos.length + cityGround.length + cityHosp.length + cityDays.length + cityTours.length + cityRest.length;
-
+            const stay = isMulti ? cityStays(trip).find((st) => st.city === city) ?? null : null;
             return (
               <div key={`${city}-${cityIdx}`}>
               <CityCollapsible
                 city={city}
-                subtitle={`${cityDays.length || "·"} días · ${cityHosp.length} hoteles · ${cityTours.length} experiencias · ${cityRest.length} mesas`}
+                subtitle={[stay ? `${stay.nights} ${stay.nights === 1 ? "noche" : "noches"}` : null, `${cityDays.length || "·"} días de itinerario`, cityGround.length ? `${cityGround.length} por tierra` : null].filter(Boolean).join(" · ")}
                 imageQuery={`${city} skyline landmark travel`}
                 open={activeCity === city}
                 onToggle={() => toggleCity(city)}
-                count={totalItems}
+                count={cityDays.length + cityGround.length}
               >
                 <div className="space-y-6">
-                  {/* Cómo llegar */}
-                  {(cityVuelos.length > 0 || cityGround.length > 0) && (
-                    <SubBlock icon={isMulti ? RouteIcon : Plane} title={isMulti || cityVuelos.some(isGroundOption) ? "Cómo llegar" : "Vuelos sugeridos"}>
+                  {cityGround.length > 0 && (
+                    <SubBlock icon={Car} title="Cómo llegar por tierra">
                       <div className="grid min-w-0 md:grid-cols-2 gap-3">
-                        {cityVuelos.map((v: any) => {
-                          const i = (trip.vuelos_json ?? []).indexOf(v);
-                          const active = selVuelo === i;
-                          return isMulti ? (
-                            <ArrivalOptionCard key={i} option={v} active={active} onClick={() => setSelVuelo(active ? -1 : i)} quotedAt={quote?.created_at ?? trip.created_at} trip={trip} index={i} />
-                          ) : (
-                            <ExpandableItemCard
-                              key={i}
-                              // Foto ilustrativa del medio (marcada) + logo real de la aerolínea en su ficha:
-                              // una foto de stock "de Aeroméxico" sería un avión cualquiera. Un solo fondo
-                              // para todos los vuelos (una llamada): lo que distingue cada tarjeta es el logo.
-                              image={{
-                                alt: "",
-                                stockQuery: v.modo === "autobus" ? "intercity bus highway" : v.modo === "auto" ? "car road trip highway" : flightBackdropQuery(0),
-                                icon: v.modo === "autobus" ? Bus : v.modo === "auto" ? Car : Plane,
-                              }}
-                              overlay={!isGroundOption(v) && !flightIsEstimate(v) ? (
-                                <div className="absolute left-3 bottom-3 z-[3]"><AirlineLogo airline={v.aerolinea} size={34} /></div>
-                              ) : undefined}
-                              eyebrow={v.tier}
-                              title={flightAirlineLabel(v)}
-                              subtitle={[flightDurationLabel(v), flightStopsLabel(v) ?? (isGroundOption(v) ? v.escalas : null)].filter(Boolean).join(" · ")}
-                              price={flightPriceLabel(v)}
-                              // Igual que en los hoteles, la procedencia del precio se ve sin abrir el detalle (N-07).
-                              badge={<PriceSourceBadge source={v.fuente_precio} estado={v.estado_dato} consultadoAt={v.consultado_at ?? (quote?.created_at ?? trip.created_at)} approximateDates={v.approximate_dates} />}
-                              active={active}
-                              selectable
-                              onToggle={() => setSelVuelo(active ? -1 : i)}
-                            >
-                              {v.notas && <p>{v.notas}</p>}
-                              {/* Booking Bridge: solo acciones reales (búsqueda ≠ compra) y aviso antes de salir. */}
-                              <BookingActions className="mt-2" tripId={trip.id}
-                                offer={offerFromTripFlight(v, { trip, city, index: i })}
-                                source={{ type: "trip_item", trip_id: trip.id, col: "vuelos_json", index: i, name: v.aerolinea }}
-                                serverActions={serverOffers.vuelos_json?.[i]}
-                                fallbackInternal={isGroundOption(v) ? null : { label: "Buscar vuelos reales en IATOS →",
-                                  href: `/dashboard/vuelos?origin=${encodeURIComponent(trip.ciudad_origen ?? "")}&destination=${encodeURIComponent(city)}&depart=${trip.fecha_salida ?? ""}&return=${trip.fecha_regreso ?? ""}&travelers=${trip.num_viajeros ?? 1}&auto=1&trip=${trip.id}` }} />
-                            </ExpandableItemCard>
-                          );
-                        })}
                         {cityGround.map((g: any, gi: number) => (
                           <ArrivalOptionCard key={`tierra-${gi}`} option={g} active={false} quotedAt={quote?.created_at ?? trip.created_at} trip={trip} />
                         ))}
-                        {!isMulti && (
-                          <SkipCard active={selVuelo === -2} onClick={() => setSelVuelo(selVuelo === -2 ? -1 : -2)}
-                            title="Ya tengo vuelo" subtitle="O viajo por mi cuenta" />
-                        )}
-                      </div>
-                    </SubBlock>
-                  )}
-
-                  {/* Hospedaje */}
-                  {cityHosp.length > 0 && (
-                    <SubBlock icon={Hotel} title="Hospedaje">
-                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
-                        {cityHosp.map((h: any) => {
-                          const i = (trip.hospedaje_json ?? []).indexOf(h);
-                          const active = selHospedaje === i;
-                          return (
-                            <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
-                              <HotelCard hotel={h} city={city} trip={trip} active={active} variant={cityHosp.indexOf(h)} onClick={() => setSelHospedaje(active ? -1 : i)} index={i} serverOffers={serverOffers} />
-                            </div>
-                          );
-                        })}
-                        {!isMulti && (
-                          <div className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
-                            <SkipCard active={selHospedaje === -2} onClick={() => setSelHospedaje(selHospedaje === -2 ? -1 : -2)}
-                              title="Ya tengo dónde quedarme" subtitle="Casa de un amigo, Airbnb propio…" />
-                          </div>
-                        )}
                       </div>
                     </SubBlock>
                   )}
@@ -813,90 +785,8 @@ const TripDetail = () => {
                     </SubBlock>
                   )}
 
-                  {/* Experiencias */}
-                  {cityTours.length > 0 && (
-                    <SubBlock icon={Compass} title="Experiencias">
-                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
-                        {cityTours.map((t: any) => {
-                          const i = (trip.tours_json ?? []).indexOf(t);
-                          const active = selTours.has(i);
-                          return (
-                            <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
-
-                              <ExpandableItemCard
-                                // El lugar real si Google lo reconoce (por su place_id o por el mismo
-                                // nombre); si no, una foto ilustrativa del tipo de experiencia.
-                                image={{
-                                  alt: t.nombre,
-                                  lookup: t.place_id ? { placeId: t.place_id } : { name: t.nombre, city },
-                                  stockQuery: activityQuery(t.nombre, city, cityTours.indexOf(t)),
-                                  icon: Compass,
-                                }}
-                                eyebrow={t.duracion}
-                                title={t.nombre}
-                                price={t.precio_por_persona > 0 ? fmtMXN(t.precio_por_persona) : undefined}
-                                active={active}
-                                selectable
-                                onToggle={() => toggleTour(i)}
-                              >
-                                {(t.fuente === "tripadvisor" || t.fuente === "google_maps") && (
-                                  <p className="text-xs text-muted-foreground mb-1">
-                                    {t.rating != null && `★ ${t.rating}/5`}
-                                    {t.num_reviews != null && ` · ${t.num_reviews} reseñas`}
-                                  </p>
-                                )}
-                                <PriceSourceBadge source={t.fuente} estado={t.estado_dato} consultadoAt={t.consultado_at} className="mb-2" />
-                                <p className="italic">{t.por_que}</p>
-                                <BookingActions className="mt-2" tripId={trip.id}
-                                  offer={offerFromTripTour(t, { trip, city, index: i })}
-                                  source={{ type: "trip_item", trip_id: trip.id, col: "tours_json", index: i, name: t.nombre }}
-                                  serverActions={serverOffers.tours_json?.[i]} />
-                              </ExpandableItemCard>
-                            </div>
-
-                          );
-                        })}
-                      </div>
-                    </SubBlock>
-                  )}
-
-                  {/* Restaurantes recomendados */}
-                  {cityRest.length > 0 && (
-                    <SubBlock icon={Utensils} title="Restaurantes recomendados">
-                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scroll-smooth">
-                        {cityRest.map((r: any, i: number) => {
-                          const cleanName = r.nombre.replace(` · ${city}`, "");
-                          return (
-                            <div key={i} className="snap-start shrink-0 w-[88%] min-[380px]:w-[82%] sm:w-[48%] md:w-[32%]">
-                              <ExpandableItemCard
-                                // Foto real del restaurante (Google); si no hay, comida de su cocina, marcada
-                                // como ilustrativa ("Italiana" → pasta), nunca otro restaurante.
-                                image={{
-                                  alt: cleanName,
-                                  photoRef: r.photo_ref ?? null,
-                                  lookup: r.place_id ? { placeId: r.place_id } : { name: cleanName, city },
-                                  stockQuery: cuisineQuery(r.cocina, cleanName, i),
-                                  icon: Utensils,
-                                }}
-                                eyebrow={r.cocina}
-                                title={cleanName}
-                                price={r.rango_precio}
-                              >
-                                <p className="italic">{r.por_que}</p>
-                                <RestaurantFacts r={r} />
-                                {/* Booking Bridge: página de reservas, sitio y teléfono oficiales (Google Places o
-                                    catálogo), WhatsApp solo si está verificado, o solicitud asistida. */}
-                                <BookingActions className="mt-2" tripId={trip.id}
-                                  offer={offerFromTripRestaurant(r, { trip, city, index: (trip.restaurantes_json ?? []).indexOf(r), venue: venueFromTripPlace(r, city, trip.pais_destino) })}
-                                  source={{ type: "trip_item", trip_id: trip.id, col: "restaurantes_json", index: (trip.restaurantes_json ?? []).indexOf(r), name: r.nombre }}
-                                  serverActions={serverOffers.restaurantes_json?.[(trip.restaurantes_json ?? []).indexOf(r)]} />
-                              </ExpandableItemCard>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </SubBlock>
-
+                  {cityDays.length === 0 && cityGround.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Sin itinerario día por día para esta ciudad.</p>
                   )}
                 </div>
               </CityCollapsible>
@@ -991,24 +881,6 @@ const TripDetail = () => {
           </details>
         )}
 
-        {/* Desglose */}
-        {computedTotal > 0 && (
-          <div className="glass-card rounded-2xl">
-            <div className="flex items-center gap-3 p-4 sm:p-5">
-              <Compass className="w-5 h-5 text-primary shrink-0" />
-              <h2 className="font-display text-lg sm:text-xl break-words">Desglose de presupuesto</h2>
-            </div>
-            <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40">
-              <ReadonlyBudget
-                desglose={computedDesglose}
-                total={computedTotal}
-                vuelos={(trip.vuelos_json ?? []).filter((v: any) => !isGroundTripOption(v) && tripFlightProblems(v, trip).length === 0)}
-                travelers={viajeros}
-              />
-            </div>
-          </div>
-        )}
-
         {/* Tips */}
         {trip.tips_personalizados?.length > 0 && (
           <details className="glass-card rounded-2xl group">
@@ -1031,10 +903,14 @@ const TripDetail = () => {
           </details>
         )}
 
+        </div>
+
+        <div role="tabpanel" id="panel-documentos" aria-labelledby="tab-documentos" data-trip-panel="documentos" hidden={section !== "documentos"} className="space-y-6">
         {/* Documentos del viaje: boletos, pasaporte, pólizas (bucket privado trip-documents). */}
         <TripBookingIntents tripId={trip.id} />
         <TripDocuments tripId={trip.id} ownerId={trip.user_id} />
 
+        </div>
       </div>
       {/* Acción principal al alcance del pulgar en móvil, encima de la barra de navegación. */}
       <TripNextStep trip={trip} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} />
@@ -1095,61 +971,6 @@ const FlightConnector = ({ from, to }: { from: string; to: string }) => (
 );
 
 
-// Agrupa items por su campo `ciudad`, respetando el orden de `cityOrder`
-const groupByCity = <T extends { ciudad?: string }>(items: T[], cityOrder: string[]): [string, T[]][] => {
-  const groups = new Map<string, T[]>();
-  for (const it of items) {
-    const c = it.ciudad || "Otros";
-    if (!groups.has(c)) groups.set(c, []);
-    groups.get(c)!.push(it);
-  }
-  const ordered: [string, T[]][] = [];
-  for (const c of cityOrder) {
-    if (groups.has(c)) {
-      ordered.push([c, groups.get(c)!]);
-      groups.delete(c);
-    }
-  }
-  for (const [c, arr] of groups) ordered.push([c, arr]);
-  return ordered;
-};
-
-const SelectedBadge = () => (
-  <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-    <Check className="w-3.5 h-3.5" />
-  </div>
-);
-
-const SkipCard = ({ active, onClick, title, subtitle }: { active: boolean; onClick: () => void; title: string; subtitle: string }) => (
-  <div
-    onClick={onClick}
-    className={`rounded-xl p-6 border-2 border-dashed cursor-pointer transition flex flex-col items-center justify-center text-center min-h-[160px] ${
-      active ? "border-primary bg-primary/5" : "border-border/40 hover:border-primary/50 hover:bg-surface/40"
-    }`}
-  >
-    <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${active ? "bg-primary text-primary-foreground" : "bg-surface text-muted-foreground"}`}>
-      {active ? <Check className="w-5 h-5" /> : <X className="w-5 h-5" />}
-    </div>
-    <p className="font-medium text-sm mb-1">{title}</p>
-    <p className="text-xs text-muted-foreground">{subtitle}</p>
-    <p className="text-[11px] text-primary mt-2">No suma al presupuesto</p>
-  </div>
-);
-
-
-const Section = ({ icon: Icon, title, hint, children }: any) => (
-  <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
-    <div className="flex items-center justify-between gap-3 mb-5">
-      <div className="flex items-center gap-3">
-        <Icon className="w-5 h-5 text-primary" />
-        <h2 className="font-display text-3xl">{title}</h2>
-      </div>
-      {hint && <span className="text-xs text-muted-foreground italic">{hint}</span>}
-    </div>
-    {children}
-  </motion.section>
-);
-
 const MODE_ICON: Record<string, any> = {
   vuelo: Plane,
   tren: Train,
@@ -1176,14 +997,6 @@ const MODE_LABEL: Record<string, string> = {
 
 // Trayectos cortos (N-06): opciones por carretera, siempre estimadas y con rango de precio.
 const isGroundOption = (v: any) => v?.modo === "autobus" || v?.modo === "auto";
-function flightPriceLabel(v: any): string {
-  if (Number(v?.precio_min) > 0 && Number(v?.precio_max) > 0) {
-    return `${fmtMXN(v.precio_min)}–${fmtMXN(v.precio_max)} / persona (estimado)`;
-  }
-  if (!(Number(v?.precio_por_persona) > 0)) return "Precio no disponible: consúltalo en el buscador";
-  return `${fmtMXN(v.precio_por_persona)} / persona`;
-}
-
 const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 }: { option: any; active: boolean; onClick?: () => void; quotedAt?: string | null; trip?: any; index?: number }) => {
   // Coche, tren, bus o ferry con su icono (antes un coche salía con avión: MODE_ICON no tenía "coche").
   const mode = String(option.mode ?? option.modo ?? "vuelo");
@@ -1243,85 +1056,4 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 
   );
 };
 
-const HotelCard = ({ hotel, city, trip, active, variant = 0, onClick, index, serverOffers }: { hotel: any; city: string; trip: any; active: boolean; variant?: number; onClick: () => void; index: number; serverOffers: TripOfferActions }) => {
-  return (
-    <div
-      onClick={onClick}
-      className={`group relative rounded-xl overflow-hidden cursor-pointer transition border ${
-        active ? "border-primary ring-1 ring-primary/40" : "border-border/60 hover:border-primary/50"
-      }`}
-    >
-      <div className="relative h-40 w-full overflow-hidden">
-        {/* Foto real del hotel (Google, solo si encuentra ESE hotel); si no, una ilustrativa marcada. */}
-        <SmartImage
-          alt={hotel.nombre}
-          imageUrl={hotel.thumbnail ?? hotel.foto ?? null}
-          lookup={hotel.place_id ? { placeId: hotel.place_id } : { name: hotel.nombre, city }}
-          stockQuery={hotelQuery(hotel.tier || hotel.tipo, variant)}
-          icon={Hotel}
-          className="!absolute inset-0"
-          imgClassName="group-hover:scale-105"
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
-        </SmartImage>
-        {active && (
-          <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-            <Check className="w-3.5 h-3.5" />
-          </div>
-        )}
-        <p className="absolute top-3 left-3 text-[10px] tracking-[0.2em] uppercase text-primary bg-background/70 backdrop-blur-sm px-2 py-0.5 rounded-full border border-primary/30">
-          {hotel.tier || hotel.tipo}
-        </p>
-      </div>
-      <div className="p-5 bg-card">
-        <p className="font-display text-lg mb-1 leading-tight">{hotel.nombre}</p>
-        <p className="text-xs text-muted-foreground mb-2">{[hotel.barrio, hotel.rating ? `★ ${hotel.rating}` : null].filter(Boolean).join(" · ")}</p>
-        <p className="font-medium text-sm mb-2">
-          {fmtMXN(hotel.precio_por_noche)}
-          {/* Un precio en vivo ya es para todo el grupo; uno estimado es por habitación doble. */}
-          {hotelPriceRooms(hotel, trip?.num_viajeros ?? 1) === 1 && (trip?.num_viajeros ?? 1) > 1 ? (
-            <span className="text-xs text-muted-foreground ml-1">/ noche para {trip?.num_viajeros} viajeros</span>
-          ) : (
-            <span className="text-xs text-muted-foreground ml-1">/ noche por habitación</span>
-          )}
-          {hotelPriceRooms(hotel, trip?.num_viajeros ?? 1) > 1 && (
-            <span className="block text-[11px] text-muted-foreground">× {hotelPriceRooms(hotel, trip?.num_viajeros ?? 1)} hab. para {trip?.num_viajeros} viajeros</span>
-          )}
-        </p>
-        <PriceSourceBadge source={hotel.fuente_precio} estado={hotel.estado_dato} consultadoAt={hotel.consultado_at ?? trip?.created_at} className="mb-2" />
-        <p className="text-xs text-muted-foreground italic line-clamp-3 mb-2">{hotel.por_que}</p>
-        <BookingActions tripId={trip?.id}
-          offer={offerFromTripHotel(hotel, { trip, city, index })}
-          source={{ type: "trip_item", trip_id: trip?.id, col: "hospedaje_json", index, name: hotel.nombre }}
-          serverActions={serverOffers.hospedaje_json?.[index]} />
-      </div>
-    </div>
-  );
-};
-
 export default TripDetail;
-
-/**
- * Datos reales del restaurante cuando vienen de Google Places (calificación, reseñas, horario de
- * hoy, reservaciones) con la fuente y la fecha de consulta. Si no vienen de Google, se dice que es
- * una sugerencia sin verificar.
- */
-function RestaurantFacts({ r }: { r: any }) {
-  if (r?.fuente === "google_places") {
-    const rating = typeof r.rating === "number" ? `${r.rating.toFixed(1)} ★${r.num_reviews ? ` (${Number(r.num_reviews).toLocaleString("es-MX")} reseñas)` : ""}` : null;
-    const at = r.consultado_at ? new Date(r.consultado_at) : null;
-    const when = at && Number.isFinite(at.getTime()) ? at.toLocaleDateString("es-MX", { day: "numeric", month: "short" }) : null;
-    return (
-      <div className="mt-2 space-y-0.5 text-xs text-muted-foreground not-italic">
-        {(rating || r.nivel_precio) && <p>{[rating, r.nivel_precio].filter(Boolean).join(" · ")}</p>}
-        {r.horario_hoy && <p>{r.horario_hoy}</p>}
-        {r.reservable === true && <p>Acepta reservaciones</p>}
-        <p>Datos de Google Maps{when ? ` · consultado el ${when}` : ""}</p>
-      </div>
-    );
-  }
-  if (r?.verificado === false) {
-    return <p className="mt-2 text-xs text-muted-foreground not-italic">Sugerencia sin verificar en Google Maps.</p>;
-  }
-  return null;
-}

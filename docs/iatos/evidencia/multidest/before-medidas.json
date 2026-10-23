@@ -1,0 +1,136 @@
+{
+  "generated_at": "2026-10-22T23:29:57.736Z",
+  "mode": "before",
+  "base": "http://127.0.0.1:8093",
+  "resultados": [
+    {
+      "viewport": "390",
+      "altura_px": 11672,
+      "alturas_por_seccion_px": {},
+      "desborde_horizontal_px": 0,
+      "recorrido": {
+        "taps": 8,
+        "scroll": 13892,
+        "log": [
+          {
+            "paso": "Vuelo (Comprar mi viaje)",
+            "toque": "Abrir en Google Flights",
+            "desplazamiento_px": 1656
+          },
+          {
+            "paso": "Hotel (Comprar mi viaje: solo Roma, 10 noches)",
+            "toque": "Abrir en Booking.com",
+            "desplazamiento_px": 30
+          },
+          {
+            "paso": "Abrir Florencia (Tu viaje por destino)",
+            "toque": "DESTINO Florencia 3 días · 3 hoteles · 1 experiencias · 1 me",
+            "desplazamiento_px": 7894
+          },
+          {
+            "paso": "Botón de reserva del hotel en Florencia",
+            "toque": "Ver tarifas del hotel · Booking.com",
+            "desplazamiento_px": 2177
+          },
+          {
+            "paso": "Confirmar salida a Booking (Florencia)",
+            "toque": "Continuar en Booking.com",
+            "desplazamiento_px": 0
+          },
+          {
+            "paso": "Abrir Venecia (Tu viaje por destino)",
+            "toque": "DESTINO Venecia 3 días · 3 hoteles · 1 experiencias · 1 mesa",
+            "desplazamiento_px": 1153
+          },
+          {
+            "paso": "Botón de reserva del hotel en Venecia",
+            "toque": "Ver tarifas del hotel · Booking.com",
+            "desplazamiento_px": 982
+          },
+          {
+            "paso": "Confirmar salida a Booking (Venecia)",
+            "toque": "Continuar en Booking.com",
+            "desplazamiento_px": 0
+          }
+        ]
+      },
+      "errores": []
+    },
+    {
+      "viewport": "1440",
+      "altura_px": 8493,
+      "alturas_por_seccion_px": {},
+      "desborde_horizontal_px": 0,
+      "recorrido": {
+        "taps": 8,
+        "scroll": 10552,
+        "log": [
+          {
+            "paso": "Vuelo (Comprar mi viaje)",
+            "toque": "Abrir en Google Flights",
+            "desplazamiento_px": 1150
+          },
+          {
+            "paso": "Hotel (Comprar mi viaje: solo Roma, 10 noches)",
+            "toque": "Abrir en Booking.com",
+            "desplazamiento_px": 0
+          },
+          {
+            "paso": "Abrir Florencia (Tu viaje por destino)",
+            "toque": "DESTINO Florencia 3 días · 3 hoteles · 1 experiencias · 1 me",
+            "desplazamiento_px": 5675
+          },
+          {
+            "paso": "Botón de reserva del hotel en Florencia",
+            "toque": "Ver tarifas del hotel · Booking.com",
+            "desplazamiento_px": 1570
+          },
+          {
+            "paso": "Confirmar salida a Booking (Florencia)",
+            "toque": "Continuar en Booking.com",
+            "desplazamiento_px": 0
+          },
+          {
+            "paso": "Abrir Venecia (Tu viaje por destino)",
+            "toque": "DESTINO Venecia 3 días · 3 hoteles · 1 experiencias · 1 mesa",
+            "desplazamiento_px": 1187
+          },
+          {
+            "paso": "Botón de reserva del hotel en Venecia",
+            "toque": "Ver tarifas del hotel · Booking.com",
+            "desplazamiento_px": 970
+          },
+          {
+            "paso": "Confirmar salida a Booking (Venecia)",
+            "toque": "Continuar en Booking.com",
+            "desplazamiento_px": 0
+          }
+        ]
+      },
+      "errores": []
+    }
+  ],
+  "archivos": [
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-pagina-completa__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-01__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-02__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-03__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-04__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-05__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-06__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-07__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-08__390.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-pagina-completa__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-01__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-02__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-03__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-04__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-05__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-06__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-07__1440.png",
+    "/tmp/claude-0/-home-user-reto/8647f9df-5459-5399-a533-ae256c643445/scratchpad/ui_before/before-recorrido-08__1440.png"
+  ],
+  "bloqueados": [
+    "pics.avs.io"
+  ]
+}

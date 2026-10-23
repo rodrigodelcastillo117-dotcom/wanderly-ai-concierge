@@ -16,8 +16,20 @@ const IN_PAGE_TARGET: Record<string, string[]> = {
 export function scrollToSection(id: string) {
   const el = typeof document !== "undefined" ? document.getElementById(id) : null;
   if (!el) return;
+  // Con la página en pestañas (TripDetail), si el destino está en otra sección, primero se muestra.
+  const panel = el.closest?.("[data-trip-panel]");
+  if (panel && panel.hasAttribute("hidden")) {
+    window.dispatchEvent(new CustomEvent("iatos:trip-section", { detail: panel.getAttribute("data-trip-panel") }));
+    const later = (f: () => void) => (typeof window.requestAnimationFrame === "function" ? window.requestAnimationFrame(f) : setTimeout(f, 0));
+    later(() => later(() => scrollNow(el)));
+    return;
+  }
+  scrollNow(el);
+}
+
+function scrollNow(el: HTMLElement) {
   const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  el.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" });
   // Lleva el foco al destino para lectores de pantalla y teclado.
   if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
   (el as HTMLElement).focus({ preventScroll: true });

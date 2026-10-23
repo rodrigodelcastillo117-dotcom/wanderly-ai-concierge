@@ -55,7 +55,8 @@ import TripDetail from "@/pages/TripDetail";
 
 const baseTrip = () => ({
   id: TRIP, user_id: "u1", destino: "Madrid", pais_destino: "España", ciudad_origen: "CDMX",
-  fecha_salida: "2099-11-10", fecha_regreso: "2099-11-15", num_viajeros: 2, created_at: "2026-10-22T00:00:00Z",
+  fecha_salida: "2099-11-10", fecha_regreso: "2099-11-15", num_viajeros: 2, // Cotizado "hace un momento" (con una fecha fija, al día siguiente la acción pasaba a "revisar precios").
+  created_at: new Date(Date.now() - 3600_000).toISOString(),
   total_estimado: 50000, status: "listo",
   desglose_presupuesto: { vuelos: 18000, hospedaje: 20000, comida: 12000 },
   vuelos_json: [{ aerolinea: "Iberia", tier: "equilibrio", precio_por_persona: 9000, duracion: "11h", escalas: "Directo" }],

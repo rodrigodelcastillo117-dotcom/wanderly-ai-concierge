@@ -172,7 +172,7 @@ export function provenanceOf(input: ProvenanceInput, now: Date = new Date()): Pr
     // precio de referencia (ESTIMADO), nunca como verificado.
     return {
       state: "ESTIMADO",
-      label: "Precio de referencia (caché ≤48 h) · puede variar",
+      label: "Precio de referencia de los últimos 2 días · puede cambiar",
       detail: "Tarifa que otros viajeros encontraron en Aviasales durante las últimas 48 h. No la consultamos en vivo: el precio final se confirma al reservar.",
       provider,
       trusted: false,

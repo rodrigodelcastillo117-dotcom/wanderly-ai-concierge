@@ -38,7 +38,8 @@ describe("provenanceOf: caché de Travelpayouts", () => {
       const p = provenanceOf({ source, consultadoAt: hoursAgo(1) }, now);
       expect(p.state).toBe("ESTIMADO");
       expect(p.trusted).toBe(false);
-      expect(p.label).toBe("Precio de referencia (caché ≤48 h) · puede variar");
+      // Sin jerga ("caché ≤48 h"): palabras normales (rediseño del caso Roma).
+      expect(p.label).toBe("Precio de referencia de los últimos 2 días · puede cambiar");
       expect(p.label).not.toMatch(/verificado|en vivo/i);
     }
   });

@@ -80,9 +80,9 @@ export function markerName(mark: GroupMark, userId: string | null): string {
   return "alguien del viaje";
 }
 
-/** "Ya lo reservé · Ana · 22 oct". */
+/** "Ya lo compré · Ana · 22 oct" (antes "Ya lo reservé": mismo verbo que el botón). */
 export function markLabel(mark: GroupMark, userId: string | null, now = new Date()): string {
-  return ["Ya lo reservé", markerName(mark, userId), shortMarkDate(mark.at, now)].filter(Boolean).join(" · ");
+  return ["Ya lo compré", markerName(mark, userId), shortMarkDate(mark.at, now)].filter(Boolean).join(" · ");
 }
 
 /** Quitar una marca: quien la puso o el dueño del viaje (la base lo vuelve a comprobar). */

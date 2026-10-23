@@ -175,8 +175,8 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
   const vuelos: any[] = Array.isArray(trip.vuelos_json) ? trip.vuelos_json : [];
   const route = tripFlightRoute(trip);
   if (sel.selVuelo !== -2 && (vuelos.length || route.multi)) {
-    const usable = (v: any) => !isGroundTripOption(v) && tripFlightProblems(v, trip).length === 0 && isTripInternationalRow(v, route);
-    const i = sel.selVuelo >= 0 && vuelos[sel.selVuelo] ? sel.selVuelo : vuelos.findIndex(usable);
+    // Sin selección: la primera tarifa REAL (no un estimado de IA) que sirve; si no hay, "por cotizar".
+    const i = sel.selVuelo >= 0 && vuelos[sel.selVuelo] ? sel.selVuelo : (realFlightOptions(trip)[0] ?? -1);
     const v = i >= 0 ? vuelos[i] : null;
     const tripRange = [route.multi && route.cities.length ? `${trip.ciudad_origen?.trim() ?? ""} → ${route.cities[0]} · regreso desde ${route.cities[route.cities.length - 1]}`.trim()
       : trip.ciudad_origen && city ? `${String(trip.ciudad_origen).trim()} → ${city}` : null, fmtRange(trip.fecha_salida, trip.fecha_regreso), plural(travelers, "viajero", "viajeros")].filter(Boolean).join(" · ");
@@ -287,6 +287,31 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     }));
   });
   return items;
+}
+
+const TIER_ORDER: Record<string, number> = { ahorro: 0, equilibrio: 1, premium: 2 };
+
+/**
+ * Opciones de vuelo que se pueden ofrecer (índices en vuelos_json, máximo 3, ahorro → premium): solo
+ * tarifas reales del vuelo del viaje, sin las de otro destino, con duración absurda o aerolínea que no
+ * opera la ruta, ni estimados de IA. En un viaje de un destino también los trayectos por carretera.
+ */
+export function realFlightOptions(trip: any, max = 3): number[] {
+  const vuelos: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
+  const route = tripFlightRoute(trip);
+  const seen = new Set<string>();
+  return vuelos.map((v, i) => [v, i] as const)
+    .filter(([v]) => (isGroundTripOption(v) ? !route.multi && (v?.modo === "autobus" || v?.modo === "auto")
+      : !isEstimatedTripFlight(v) && isTripInternationalRow(v, route) && tripFlightProblems(v, trip).length === 0))
+    .filter(([v]) => {
+      const k = `${norm(v?.aerolinea)}|${Number(v?.precio_por_persona) || ""}|${v?.modo ?? ""}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .sort((a, b) => (TIER_ORDER[a[0]?.tier] ?? 9) - (TIER_ORDER[b[0]?.tier] ?? 9) || (Number(a[0]?.precio_por_persona) || 0) - (Number(b[0]?.precio_por_persona) || 0))
+    .slice(0, max)
+    .map(([, i]) => i);
 }
 
 /**
