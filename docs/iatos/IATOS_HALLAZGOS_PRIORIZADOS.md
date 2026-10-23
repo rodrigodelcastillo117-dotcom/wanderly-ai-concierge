@@ -1983,3 +1983,15 @@ Verificado en vivo (health-check `action=google_apis`, vía el conector de Lovab
 6. **Places Autocomplete (New)** con session token en Planear, origen y destinos: es la mejora que más sube la precisión de destinos.
 
 Nota: el cliente OAuth "Mi Bot Comentarios Web" **no** participa en IATOS (no hay inicio de sesión con Google en la app).
+
+## Para después del 27-oct-2026 — diferenciador "IATO: BUILD MY PERFECT TRIP" (idea del dueño, 23-oct)
+
+Iato prepara **tres maneras de vivir el mismo viaje**, construidas con el mismo motor de datos reales (no tres historias inventadas). El usuario puede combinar partes de ellas.
+
+- **The Essentials:** los destinos más relevantes según sus intereses, sin llenar la agenda.
+- **The Slow Journey:** menos traslados, estancias más largas, tiempo para disfrutar.
+- **The Extraordinary:** experiencias especiales, gastronomía y actividades según el presupuesto.
+
+Requisitos: una sola representación canónica del viaje (tramos, estancias, ofertas con procedencia y costos deterministas); las tres opciones comparten vuelos, hoteles por estancia, transporte interurbano y regreso a casa; cada precio con su estado (verificado / estimado / obsoleto / pendiente / no disponible); combinar estancias de distintas opciones sin rehacer el viaje.
+
+**Regla de producto del dueño:** cada nueva mejora debe responder "¿ayuda a alguien a planear, pagar, disfrutar o resolver mejor un viaje real?". Si la respuesta es no, se pospone.
