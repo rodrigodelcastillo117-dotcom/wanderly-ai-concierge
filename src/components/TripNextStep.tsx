@@ -42,6 +42,8 @@ type Props = {
   /** "fixed" = barra inferior en móvil (encima de la navegación), "card" = tarjeta en la página. */
   variant?: "card" | "bar";
   totalLabel?: string | null;
+  /** Estado del total bajo la cifra en la barra ("Estimado · falta elegir", "Tu selección"…). */
+  totalNote?: string | null;
   now?: Date;
 };
 
@@ -50,7 +52,7 @@ type Props = {
  * principal (la misma regla que el centro de mando de Inicio). Antes, al terminar el análisis el
  * usuario llegaba a una página larguísima sin saber si su cotización estaba guardada ni qué hacer.
  */
-export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabel, now }: Props) {
+export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabel, totalNote, now }: Props) {
   const navigate = useNavigate();
   const today = localISODate(now ?? new Date());
   const action = nextTripAction(trip, { today, quote, now });
@@ -71,6 +73,7 @@ export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabe
           <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground truncate">{timing.label}</p>
             {totalLabel && <p className="text-sm font-medium truncate">{totalLabel}</p>}
+            {totalLabel && totalNote && <p className="text-[11px] text-muted-foreground truncate" data-testid="trip-next-bar-note">{totalNote}</p>}
           </div>
           <button type="button" onClick={go}
             className="shrink-0 min-h-[44px] inline-flex items-center gap-1.5 rounded-xl bg-gradient-gold px-4 text-sm font-medium text-primary-foreground active:scale-[0.98] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">

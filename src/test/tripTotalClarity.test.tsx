@@ -30,6 +30,8 @@ describe("Total del viaje inequívoco", () => {
   it("se mantiene lo demás: selección del usuario y cotización guardada", () => {
     render(<RealTripTotal trip={CASO_TRIP} noches={10} viajeros={2} selectionDesglose={{ vuelos: 0, hospedaje: 401960, comida: 71293 }} />);
     expect(screen.getByTestId("trip-total-amount")).toHaveTextContent("$473,253 MXN");
-    expect(screen.getByText(/Total con tu selección/)).toBeInTheDocument();
+    expect(screen.getByTestId("trip-total-title")).toHaveTextContent("Total de tu selección");
+    // Ya no se muestra una segunda cifra (la de la cotización guardada) junto al total.
+    expect(screen.queryByText(/561,468/)).toBeNull();
   });
 });

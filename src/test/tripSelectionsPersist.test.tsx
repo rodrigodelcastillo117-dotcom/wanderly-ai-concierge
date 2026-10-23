@@ -87,10 +87,14 @@ describe("TripDetail: selecciones guardadas (E-12)", () => {
     renderTrip();
     // Sin vuelo ("ya lo tengo"): 0 + hospedaje 20,000 + comida 12,000.
     expect(await screen.findByText(/Cambiaste tu selección de vuelo, hotel o experiencias/)).toBeInTheDocument();
-    // Total del viaje (RealTripTotal) y el desglose dicen lo mismo.
-    expect(screen.getAllByText("$32,000 MXN").length).toBeGreaterThanOrEqual(2);
+    // Un solo total (el desglose ya no repite la cifra) y la barra móvil dice lo mismo.
+    expect(screen.getByTestId("trip-total-amount")).toHaveTextContent(/^\$32,000 MXN$/);
+    expect(screen.getAllByText("$32,000 MXN")).toHaveLength(1);
+    expect(screen.getByTestId("trip-next-bar")).toHaveTextContent("Total $32,000 MXN");
     expect(screen.queryByText("$50,000 MXN")).toBeNull();
-    expect(screen.getByText(/Total con tu selección/)).toBeInTheDocument();
+    // Ya tiene vuelo pero no eligió hotel: el total se dice estimado y qué falta elegir.
+    expect(screen.getByTestId("trip-total-title")).toHaveTextContent("Total estimado");
+    expect(screen.getByTestId("trip-total-hint")).toHaveTextContent("Elige hotel para ver el total real.");
     // Restaurar no vuelve a escribir.
     await new Promise((r) => setTimeout(r, 700));
     expect(db.updates.filter((u) => u.table === "trips")).toHaveLength(0);
@@ -112,7 +116,8 @@ describe("TripDetail: selecciones guardadas (E-12)", () => {
     await waitFor(() => expect(localStorage.getItem(`iatos_trip_selections_${TRIP}`)).toContain('"i":-2'), { timeout: 2000 });
     unmount();
     renderTrip();
-    expect((await screen.findAllByText("$32,000 MXN")).length).toBeGreaterThanOrEqual(2);
+    expect(await screen.findByTestId("trip-total-amount")).toHaveTextContent(/^\$32,000 MXN$/);
+    expect(screen.getByTestId("trip-next-bar")).toHaveTextContent("Total $32,000 MXN");
   });
 });
 

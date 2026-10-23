@@ -47,6 +47,10 @@ import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
+import { buildBuyFlow } from "@/lib/buyFlow";
+import { itemPurchaseState } from "@/lib/purchasePlan";
+import { tripTotalSummary } from "@/lib/tripTotal";
+import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
 
 
 const fmtMXN = (n: number) =>
@@ -91,6 +95,8 @@ const TripDetail = () => {
   const [bookings, setBookings] = useState<BookingLike[]>([]);
   // Booking Bridge: acciones de reserva con datos del servidor (catálogo, enlaces verificados).
   const serverOffers = useTripOffers(trip?.id, trip?.current_quote_id ?? trip?.updated_at ?? null);
+  // "Ya lo compré" del grupo: lo usan "Comprar" y el total ("Ya compraste $X · Falta $Y"), una sola carga.
+  const purchaseMarks = useTripPurchaseMarks({ trip: trip as any, userId: user?.id ?? null, bookings: bookings as any });
 
   async function saveTripMeta(patch: Record<string, any>) {
     if (!trip?.id) return;
@@ -360,6 +366,12 @@ const TripDetail = () => {
 
   const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
 
+  // Lo mismo que muestra "Comprar" (buildBuyFlow): qué está elegido y qué ya se compró.
+  const buyItems = useMemo(
+    () => (trip ? buildBuyFlow(trip, { selVuelo, selHospedaje, selTours, selHoteles }, serverOffers, { quoteCreatedAt: quote?.created_at ?? null }).items : []),
+    [trip, selVuelo, selHospedaje, selTours, selHoteles, serverOffers, quote?.created_at],
+  );
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -387,8 +399,16 @@ const TripDetail = () => {
   const discardedFares = (trip.vuelos_json ?? []).filter((v: any) => tripFlightProblems(v, trip).length > 0).length;
   const hasQuotedTotal = !!(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0);
   const isOwner = user?.id === trip.user_id;
-  const stickyTotalValue = hasQuotedTotal ? tripTotals(trip, quoteTravelers, currentSel ? computedDesglose : null).total : 0;
-  const stickyTotal = stickyTotalValue > 0 ? `Total ${fmtMXN(stickyTotalValue)}` : null;
+  // Un solo total con su estado (estimado · de tu selección · ya comprado); la barra móvil dice lo mismo.
+  const totalSummary = tripTotalSummary({
+    trip, sel: { selVuelo, selHospedaje, selTours, selHoteles }, desglose: computedDesglose, items: buyItems,
+    itemState: (it) => itemPurchaseState(it, purchaseMarks.rows, purchaseMarks.marks),
+  });
+  const quotedTotalValue = tripTotals(trip, quoteTravelers, null).quotedTotal;
+  // Los renglones de la cotización solo se muestran si suman lo mismo que el total de arriba (si no,
+  // serían una segunda cifra sin explicación).
+  const trustForTotal = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal) ? trust : null;
+  const stickyTotal = hasQuotedTotal && totalSummary.total > 0 ? totalSummary.barTotal : null;
 
   const toggleTour = (i: number) => {
     setSelTours((prev) => {
@@ -591,8 +611,15 @@ const TripDetail = () => {
               validityExpired={validity.expired}
               fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatInstant(quote.fx_at)})` : null}
               onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
-              trust={trust}
-            />
+              trust={trustForTotal}
+              summary={totalSummary}
+            >
+              {/* Un solo desglose, plegado bajo el mismo total (sin repetir título ni cifra). */}
+              {computedTotal > 0 ? (
+                <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
+                  embedded estimatedKeys={totalSummary.estimatedKeys} />
+              ) : null}
+            </RealTripTotal>
           ) : (
             <LiveTripQuote
               tripId={trip.id}
@@ -605,20 +632,15 @@ const TripDetail = () => {
               fallbackMxn={computedTotal}
             />
           )}
-          {/* Un solo desglose (antes se repetía abajo con el mismo total). */}
-          {computedTotal > 0 && (
+          {/* Sin cotización (LiveTripQuote): el desglose de la estimación, sin repetir el total. */}
+          {!hasQuotedTotal && computedTotal > 0 && (
             <details className="group glass-card rounded-2xl -mt-4" data-testid="trip-desglose">
               <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 p-4 sm:px-5">
                 <span className="inline-flex items-center gap-2 text-sm"><Compass className="w-4 h-4 text-primary shrink-0" /> Ver desglose del total</span>
                 <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
               </summary>
               <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40">
-                <ReadonlyBudget
-                  desglose={computedDesglose}
-                  total={computedTotal}
-                  vuelos={(trip.vuelos_json ?? []).filter((v: any) => !isGroundTripOption(v) && tripFlightProblems(v, trip).length === 0)}
-                  travelers={viajeros}
-                />
+                <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={viajeros} embedded />
               </div>
             </details>
           )}
@@ -669,6 +691,7 @@ const TripDetail = () => {
           {(trip as any).fuente !== "documento" && hasQuotedTotal ? (
             <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
+              marksState={purchaseMarks}
               onSelectVuelo={(i) => setSelVuelo(i)}
               onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => ({ ...prev, [c]: i })) : setSelHospedaje(i))}
               onToggleTour={toggleTour} />
@@ -915,7 +938,7 @@ const TripDetail = () => {
         </div>
       </div>
       {/* Acción principal al alcance del pulgar en móvil, encima de la barra de navegación. */}
-      <TripNextStep trip={trip} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} />
+      <TripNextStep trip={trip} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} totalNote={stickyTotal ? totalSummary.barNote : null} />
     </DashboardLayout>
   );
 };
