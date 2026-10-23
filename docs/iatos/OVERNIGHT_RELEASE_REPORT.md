@@ -53,3 +53,43 @@ Pedirle a Iato lugares cerca o en otra ciudad (con "Llévame"); crear un viaje a
 6. Build My Perfect Trip.
 
 El detalle completo está en `docs/iatos/IATOS_HALLAZGOS_PRIORIZADOS.md`.
+
+## Cierre de la liberación `8fbbbcb` — GO (23-oct-2026)
+Frontend publicado con Lovable y verificado en traveliatos.life: el JS en vivo contiene "Precio y compra con el operador". Funciones `booking-bridge` y `enviar-seleccion` desplegadas desde `8fbbbcb`.
+
+**Smoke E2E real** (viaje España 09c6b32e, cuenta demo, escritorio 1440 + móvil 390, 0 llamadas de IA, 0 compras):
+| Paso | Estado | Evidencia |
+|---|---|---|
+| Tramos por tierra (taxi, tren, coche, ALSA) | PASS | Cada uno con su modo e ícono; "Aerolínea por confirmar", Google Flights y Kayak aparecen 0 veces |
+| Comprar = total | PASS | 49,530 + 73,113 + 9,118 + 53,470 + 15,796 + 2,870 = **$203,897**, igual a la página; el rubro dice "Transporte entre ciudades" |
+| Cambiar hotel | PASS | Catalonia ($13,959) → Ibis ($9,849): el total pasa a $199,787 (exacto) |
+| Guardado y reapertura | PASS | Navegador nuevo: la selección persiste y el total es $199,787 |
+| Volver a la selección original | PASS | El total regresa a $203,897 |
+| Móvil 390 | PASS | Sin scroll horizontal |
+
+**Rollback:** no fue necesario.
+
+**Defectos abiertos (ninguno es regresión):**
+- MEDIA: el precio del transporte por tierra difiere entre Destinos y Comprar (dos fuentes); el total usa el de Comprar.
+- MEDIA-BAJA:
+  - el aviso "actualiza la cotización" no desaparece al volver a la selección original;
+  - no se puede quitar la selección de un hotel.
+- BAJA:
+  - las etiquetas "Transporte" y "Tours" del desglose no coinciden con "Transporte entre ciudades" y "Experiencias";
+  - "Rentar auto" en un tramo de ida manda la fecha de devolución del final del viaje;
+  - restaurantes con USD o € en una página en pesos.
+
+**Pendientes reales (no prometer):** vuelos multidestino con precio estimado; trenes, autobuses y autos sin cotización; ninguna reserva integrada operativa (todo abre al proveedor; Reservas IA por correo y la compra exacta de vuelo siguen apagadas).
+
+## Siguiente mejora pedida por el dueño (empezar con su OK)
+**"Planear viaje" igual que Google Flights:**
+1. Al pulsar "Planear viaje" se abre una ventana con el buscador simple (ida y vuelta / solo ida / multiciudad, personas, clase, origen ⇄ destino, fechas, botón dorado "Explorar").
+2. Debajo, "¿Flexible? Descríbele tu viaje a Iato" (la frase completa → recorrido).
+3. Más abajo, "Vuelos baratos desde tu ciudad" (tarjetas "CDMX → Cancún desde $X") y un mapa chico.
+4. "Explorar destinos" abre una pantalla completa: lista con foto, fechas, escalas y precio, más el mapa del mundo con precios, igual que Google Flights.
+
+Reglas:
+- Negro y dorado de IATOS.
+- **El gasto solo ocurre al pulsar "Planear viaje"** (una búsqueda guardada unas horas por ciudad de origen, dentro de la cuota del plan).
+- Los precios son "desde $X · consultado a las HH:MM" y se reconsultan antes de comprar.
+- Fuente: SerpApi Google Flights, ya contratado (por confirmar si existe la búsqueda Explore; si no, búsquedas normales a destinos populares).
