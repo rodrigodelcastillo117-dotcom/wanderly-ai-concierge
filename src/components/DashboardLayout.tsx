@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,16 @@ import { MemberCardButton } from "@/components/membercard/MemberCardButton";
 // Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
 import iatosLogo from "@/assets/iatos-logo-320.png";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+
+// Ventana "Planear viaje" (la nueva puerta de entrada). Se carga solo al pulsar el botón: hasta
+// entonces no hay ni código ni llamadas de red. /dashboard/planear sigue siendo la ruta del enlace
+// (clic con Ctrl/⌘ o "abrir en otra pestaña" lleva al asistente de siempre).
+const PlanTripDialog = lazy(() => import("@/components/plan/PlanTripDialog"));
+
+/** Clic normal → abre la ventana; con modificadores o botón central se deja el enlace. */
+export function shouldOpenPlanDialog(e: React.MouseEvent): boolean {
+  return !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
+}
 
 const links = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
@@ -67,6 +77,14 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   // Tu tarjeta de rango (la calcula el servidor: my_member_card).
   const { card, loading: cardLoading } = useMemberCard(user?.id ?? null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [planMounted, setPlanMounted] = useState(false);
+  const openPlan = (e: React.MouseEvent) => {
+    if (!shouldOpenPlanDialog(e)) return;
+    e.preventDefault();
+    setPlanMounted(true);
+    setPlanOpen(true);
+  };
   const moreActive = mobileMoreNav.some((n) => location.pathname.startsWith(n.to));
   // En el chat del Concierge el área de escritura va pegada abajo: reservamos el alto
   // de la barra inferior y del área segura para que no quede oculta debajo.
@@ -105,6 +123,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         {/* Acción principal también en escritorio (en móvil es el botón dorado del centro). */}
         <NavLink
           to="/dashboard/planear"
+          onClick={openPlan}
+          aria-haspopup="dialog"
           className={({ isActive }) =>
             `mx-2 mt-3 mb-1 flex items-center justify-center gap-2 min-h-[44px] rounded-xl bg-gradient-gold text-primary-foreground text-[13px] font-medium tracking-wide shadow-[0_8px_24px_-8px_hsl(41_47%_59%/0.6)] hover:opacity-90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isActive ? "ring-1 ring-primary/60" : ""}`
           }
@@ -282,6 +302,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             {/* Planear: botón dorado redondo DENTRO de su propia columna (no tapa otras pestañas) */}
             <NavLink
               to="/dashboard/planear"
+              onClick={openPlan}
+              aria-haspopup="dialog"
               aria-label="Planear un viaje nuevo"
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center gap-1 min-h-[52px] min-w-[44px] rounded-xl ${isActive ? "text-primary" : "text-foreground"}`
@@ -365,6 +387,11 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           </ul>
         </SheetContent>
       </Sheet>
+      {planMounted && (
+        <Suspense fallback={null}>
+          <PlanTripDialog open={planOpen} onOpenChange={setPlanOpen} />
+        </Suspense>
+      )}
     </div>
   );
 };

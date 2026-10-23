@@ -231,11 +231,34 @@ const PlanTrip = () => {
         .maybeSingle(),
     )
       .then(({ data }) => {
-        if (data?.ciudad_origen) setCiudadOrigen(data.ciudad_origen);
+        // Un origen ya elegido (p. ej. en la ventana "Planear viaje") no se pisa con el del perfil.
+        if (data?.ciudad_origen) setCiudadOrigen((prev) => prev || data.ciudad_origen);
       })
       .catch(() => {})
       .finally(() => setProfileLoaded(true));
   }, [user?.id]);
+
+  // Llegada desde la ventana "Planear viaje" (?desde=ventana): destino, origen, fechas y viajeros ya
+  // elegidos en campos separados (nunca la frase completa como destino). Se abre el paso de fechas
+  // para revisar; nada se cotiza hasta que la persona confirma.
+  const fromDialogRef = useRef(false);
+  const claseParam = params.get("clase");
+  const CLASE_TXT: Record<string, string> = { premium: "Premium", business: "Business", primera: "Primera" };
+  useEffect(() => {
+    if (fromDialogRef.current || params.get("desde") !== "ventana" || !params.get("destino")) return;
+    fromDialogRef.current = true;
+    const o = params.get("origen");
+    const fs = params.get("fecha_salida");
+    const fr = params.get("fecha_regreso");
+    const v = Number(params.get("viajeros"));
+    if (o) setCiudadOrigen(o);
+    if (fs && /^\d{4}-\d{2}-\d{2}$/.test(fs)) setFechaSalida(fs);
+    if (fr && /^\d{4}-\d{2}-\d{2}$/.test(fr)) setFechaRegreso(fr);
+    if (Number.isInteger(v) && v >= 1 && v <= 10) setNumViajeros(v);
+    setStep(1);
+    setStepNotice(`Llenamos tu viaje a ${params.get("destino")}${o ? ` desde ${o}` : ""}. Revisa las fechas y continúa.${fr ? "" : " Falta la fecha de regreso."}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // "10 dias": con la salida elegida y sin regreso, el regreso se propone solo (se puede cambiar).
   useEffect(() => {
@@ -476,6 +499,8 @@ const PlanTrip = () => {
       fecha_regreso: fechaRegreso,
       num_viajeros: numViajeros,
       presupuesto_objetivo: presupuesto,
+      // Clase elegida en la ventana "Planear viaje" (Turista no se anota: es lo de siempre).
+      ...(claseParam && CLASE_TXT[claseParam] ? { notas_usuario: `Clase de vuelo preferida: ${CLASE_TXT[claseParam]}.` } : {}),
     });
   };
 

@@ -1,0 +1,20 @@
+{
+  "search_metadata": { "id": "fixture-explore", "status": "Success" },
+  "search_parameters": { "engine": "google_travel_explore", "departure_id": "MEX", "currency": "MXN", "hl": "es", "gl": "mx" },
+  "destinations": [
+    { "destination_id": "/m/01w2v", "name": "Cancún", "country": "México", "gps_coordinates": { "latitude": 21.1619, "longitude": -86.8515 },
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:cancun", "destination_airport": { "code": "CUN" },
+      "start_date": "2027-01-14", "end_date": "2027-01-23", "flight_price": 2130, "flight_duration": 135, "number_of_stops": 0, "airline": "Viva Aerobus", "airline_code": "VB" },
+    { "destination_id": "/m/0f04v", "name": "Los Ángeles", "country": "Estados Unidos", "gps_coordinates": { "latitude": 34.0522, "longitude": -118.2437 },
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:lax", "destination_airport": { "code": "LAX" },
+      "start_date": "2027-02-03", "end_date": "2027-02-10", "flight_price": 6480, "flight_duration": 235, "number_of_stops": 0, "airline": "Aeroméxico", "airline_code": "AM" },
+    { "destination_id": "/m/0rh6k", "name": "Tijuana", "country": "México", "gps_coordinates": { "latitude": 32.5149, "longitude": -117.0382 },
+      "destination_airport": { "code": "TIJ" },
+      "start_date": "2026-11-20", "end_date": "2026-11-27", "flight_price": 2890, "flight_duration": 210, "number_of_stops": 1, "airline": "Volaris", "airline_code": "Y4" },
+    { "destination_id": "/m/04jpl", "name": "Madrid", "country": "España", "gps_coordinates": { "latitude": 40.4168, "longitude": -3.7038 },
+      "destination_airport": { "code": "MAD" },
+      "start_date": "2027-03-02", "end_date": "2027-03-12", "flight_price": 15890, "flight_duration": 645, "number_of_stops": 0, "airline": "Iberia", "airline_code": "IB" },
+    { "destination_id": "/m/05qtj", "name": "Bogotá", "country": "Colombia", "gps_coordinates": { "latitude": 4.711, "longitude": -74.0721 },
+      "destination_airport": { "code": "BOG" }, "start_date": "2027-01-09", "end_date": "2027-01-16", "number_of_stops": 0, "airline": "Avianca" }
+  ]
+}

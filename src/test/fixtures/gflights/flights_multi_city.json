@@ -1,0 +1,16 @@
+{
+  "search_metadata": { "id": "fixture-multi", "google_flights_url": "https://www.google.com/travel/flights?fixture=multi" },
+  "search_parameters": { "engine": "google_flights", "type": "3", "currency": "USD" },
+  "best_flights": [
+    { "price": 1840, "total_duration": 640, "flights": [
+      { "airline": "Iberia", "flight_number": "IB 6400", "departure_airport": { "id": "MEX", "name": "Ciudad de México", "time": "2027-03-02 18:05" },
+        "arrival_airport": { "id": "MAD", "name": "Madrid-Barajas", "time": "2027-03-03 12:45" }, "duration": 640, "airplane": "Airbus A350", "travel_class": "Turista" } ],
+      "departure_token": "TOKEN_TRAMO_2" }
+  ],
+  "other_flights": [
+    { "price": 2210, "total_duration": 760, "flights": [
+      { "airline": "Air France", "departure_airport": { "id": "MEX", "time": "2027-03-02 21:00" }, "arrival_airport": { "id": "CDG", "time": "2027-03-03 15:00" }, "duration": 600 },
+      { "airline": "Air France", "departure_airport": { "id": "CDG", "time": "2027-03-03 17:00" }, "arrival_airport": { "id": "MAD", "time": "2027-03-03 19:00" }, "duration": 120 } ],
+      "departure_token": "TOKEN_B" }
+  ]
+}

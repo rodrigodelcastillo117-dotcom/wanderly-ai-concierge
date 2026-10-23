@@ -23,6 +23,7 @@ export const CACHE_TTL_SECONDS: Record<string, number> = {
   pexels_photo: 7 * DAY,
   pexels_video: 7 * DAY,
   trip_quote: DAY, // cotización en vivo de un viaje manual (serpapi-quote)
+  google_travel_explore: 12 * HOUR, // "Vuelos baratos desde…" / Explorar destinos (por origen y mes)
 };
 
 export type CacheRow = { response: unknown; fetched_at: string; ttl_seconds: number };
@@ -104,6 +105,7 @@ const KEEP: Record<string, string[]> = {
   google_hotels: ["properties"],
   google_maps: ["local_results", "place_results"],
   google: ["flight_result"],
+  google_travel_explore: ["destinations", "search_parameters"],
 };
 
 export function trimForCache(engine: string, json: unknown): unknown {

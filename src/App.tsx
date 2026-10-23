@@ -23,6 +23,7 @@ const Onboarding = lazyWithRetry(() => import("./pages/Onboarding"));
 const OnboardingDeep = lazyWithRetry(() => import("./pages/OnboardingDeep"));
 const DashboardHome = lazyWithRetry(loadDashboardHome);
 const PlanTrip = lazyWithRetry(() => import("./pages/PlanTrip"));
+const ExploreDestinations = lazyWithRetry(() => import("./pages/ExploreDestinations"));
 const TripDetail = lazyWithRetry(loadTripDetail);
 const EditTrip = lazyWithRetry(() => import("./pages/EditTrip"));
 const Trips = lazyWithRetry(loadTrips);
@@ -131,6 +132,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><DashboardHome /></ProtectedRoute>} />
             <Route path="/dashboard/planear" element={<ProtectedRoute><PlanTrip /></ProtectedRoute>} />
             <Route path="/dashboard/ruta" element={<ProtectedRoute><MultiDestRoute /></ProtectedRoute>} />
+            <Route path="/dashboard/explorar" element={<ProtectedRoute><ExploreDestinations /></ProtectedRoute>} />
             <Route path="/dashboard/viajes" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/importar" element={<ProtectedRoute><ImportPastTrip /></ProtectedRoute>} />
             <Route path="/dashboard/viajes/:id" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
