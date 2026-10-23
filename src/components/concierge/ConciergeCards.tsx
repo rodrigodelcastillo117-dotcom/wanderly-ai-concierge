@@ -50,7 +50,8 @@ export function savedPrice(card: ConciergeCard): { amount: number; currency: str
 
 const formatMoney = (amount: number, currency: string) => {
   try {
-    return new Intl.NumberFormat("es-MX", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
+    // Solo el símbolo ($3,110): el código de moneda va aparte (antes salía "USD 3,110 USD").
+    return new Intl.NumberFormat("es-MX", { style: "currency", currency, currencyDisplay: "narrowSymbol", maximumFractionDigits: 0 }).format(amount);
   } catch {
     return `$${Math.round(amount).toLocaleString("es-MX")}`;
   }

@@ -13,7 +13,7 @@
 //      nunca "reservé", aviso si una búsqueda no trajo datos, transfers con datos del viaje.
 
 import { splitAnswer } from "./stream.ts";
-import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enrichCardLinks, type ToolRun, validateCards } from "./cards.ts";
+import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enforceFlightSellerHonesty, enrichCardLinks, type ToolRun, validateCards } from "./cards.ts";
 import { correctFailureClaims, enforceNoFakeBooking, labelUnverifiedFacts } from "./guard.ts";
 import { type ActionContext, type ProposedAction, restaurantBookingLinks, validateAction, validateActions } from "./actions.ts";
 import { directionsLink, uberLink, type TurnPlan } from "./planner.ts";
@@ -122,6 +122,9 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
   const b4 = text;
   text = enforceAvailabilityHonesty(text, ev);
   if (text !== b4) guards.push("aviso_disponibilidad");
+  const b5 = text;
+  text = enforceFlightSellerHonesty(text, ev);
+  if (text !== b5) guards.push("vuelo_misma_fuente");
 
   let out: { text: string; cards: ConciergeCard[] } = { text, cards };
   if (i.requestIntel) {

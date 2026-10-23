@@ -1,0 +1,587 @@
+{
+ "internal_transport": [
+  {
+   "from": "Roma (Roma Termini)",
+   "duration": "1h 35m",
+   "fuente_precio": "estimado",
+   "mode": "Tren de alta velocidad",
+   "to": "Florencia (Firenze SMN)",
+   "provider": "Trenitalia Frecciarossa / Italo",
+   "luggage_note": "Tren de alta velocidad con espacio para equipaje en cabina sin recargo.",
+   "price_per_person_usd": 55,
+   "scenic": true,
+   "estado_dato": "ESTIMADO"
+  },
+  {
+   "mode": "Tren de alta velocidad",
+   "to": "Venecia (Venezia Santa Lucia)",
+   "scenic": true,
+   "fuente_precio": "estimado",
+   "price_per_person_usd": 60,
+   "duration": "2h 15m",
+   "luggage_note": "Llegada directa al Gran Canal en la estación Venezia Santa Lucia.",
+   "from": "Florencia (Firenze SMN)",
+   "provider": "Trenitalia Frecciarossa / Italo",
+   "estado_dato": "ESTIMADO"
+  }
+ ],
+ "resumen": "Un recorrido clásico y armonioso diseñado para Sofía por las tres joyas de Italia: Roma, Florencia y Venecia, con conexiones en tren de alta velocidad de centro a centro. El itinerario ofrece un ritmo equilibrado combinando arte universal, paseos memorables y auténtica gastronomía local.",
+ "mandatory_costs": {
+  "currency_buffer_pct": 3,
+  "currency_buffer_usd": 80,
+  "visa_fees_usd": 0,
+  "notes": "Impuestos turísticos municipales calculados para 2 personas en categoría hotelera 4 estrellas (Roma ~7.50€/noche/persona, Florencia ~7.00€/noche/persona, Venecia ~4.50€/noche/persona). Mexicanos no requieren visa Schengen para estancias turísticas menores a 90 días (previsto registro ETIAS cuando aplique).",
+  "city_taxes_usd": 146
+ },
+ "days": [
+  {
+   "dia": 1,
+   "ciudad": "Roma",
+   "titulo": "Llegada a la Ciudad Eterna y primeras plazas"
+  },
+  {
+   "dia": 2,
+   "ciudad": "Roma",
+   "titulo": "El esplendor de la Roma Clásica e Imperial"
+  },
+  {
+   "dia": 3,
+   "ciudad": "Roma",
+   "titulo": "Tesoros del Vaticano y riberas del Tíber"
+  },
+  {
+   "dia": 4,
+   "ciudad": "Florencia",
+   "titulo": "Rumbo a la cuna del Renacimiento"
+  },
+  {
+   "dia": 5,
+   "ciudad": "Florencia",
+   "titulo": "Arte renacentista y atardecer panorámico"
+  },
+  {
+   "dia": 6,
+   "ciudad": "Florencia",
+   "titulo": "El David y aromas de la gastronomía toscana"
+  },
+  {
+   "dia": 7,
+   "ciudad": "Venecia",
+   "titulo": "Llegada a la Serenísima y el Gran Canal"
+  },
+  {
+   "dia": 8,
+   "ciudad": "Venecia",
+   "titulo": "Palacio Ducal, Basílica y canales en góndola"
+  },
+  {
+   "dia": 9,
+   "ciudad": "Venecia",
+   "titulo": "Las islas de la laguna veneciana y despedida"
+  }
+ ],
+ "flights": [
+  {
+   "airline_suggested": "Aerolínea por confirmar",
+   "stops": "Escalas por confirmar",
+   "tier": "ahorro",
+   "fuente_precio": "estimado",
+   "to": "FCO / VCE",
+   "duration": "16-20h (1 escala)",
+   "price_per_person_usd": 1050,
+   "from": "MEX",
+   "booking_link": "https://www.google.com/travel/flights",
+   "notes": "Tarifa económica estándar con 1 o 2 escalas competitivas (ida MEX-FCO, regreso VCE-MEX). Equipaje documentado a verificar.",
+   "estado_dato": "ESTIMADO"
+  },
+  {
+   "stops": "Escalas por confirmar",
+   "fuente_precio": "estimado",
+   "booking_link": "https://www.google.com/travel/flights",
+   "tier": "equilibrio",
+   "to": "FCO / VCE",
+   "duration": "14-17h (1 escala corta)",
+   "airline_suggested": "Aerolínea por confirmar",
+   "price_per_person_usd": 1320,
+   "notes": "Ruta multiciudad óptima (MEX-FCO / VCE-MEX) con escalas eficientes y equipaje de bodega incluido.",
+   "from": "MEX",
+   "estado_dato": "ESTIMADO"
+  },
+  {
+   "airline_suggested": "Aerolínea por confirmar",
+   "price_per_person_usd": 2150,
+   "notes": "Premium Economy con selección de asientos, mayor franquicia de equipaje, prioridad y cambios flexibles.",
+   "duration": "13-16h (1 escala premium)",
+   "booking_link": "https://www.google.com/travel/flights",
+   "from": "MEX",
+   "to": "FCO / VCE",
+   "fuente_precio": "estimado",
+   "tier": "premium",
+   "stops": "Escalas por confirmar",
+   "estado_dato": "ESTIMADO"
+  }
+ ],
+ "per_destination": [
+  {
+   "arrival_options": [
+    {
+     "tier": "equilibrio",
+     "price_per_person_usd": 16,
+     "mode": "Tren exprés",
+     "fuente_precio": "estimado",
+     "notes": "Tren directo sin paradas intermedias desde la terminal aérea hasta Roma Termini.",
+     "scenic": false,
+     "provider": "Leonardo Express (Trenitalia)",
+     "duration": "32 min",
+     "from": "Aeropuerto Fiumicino (FCO)",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "fuente_precio": "estimado",
+     "scenic": false,
+     "duration": "45-60 min",
+     "from": "Aeropuerto Fiumicino (FCO)",
+     "provider": "Taxi oficial Comune di Roma",
+     "tier": "premium",
+     "mode": "Taxi oficial",
+     "price_per_person_usd": 30,
+     "notes": "Tarifa plana regulada para traslados desde FCO hasta el interior de las Murallas Aurelianas (hasta 4 pasajeros con equipaje).",
+     "estado_dato": "ESTIMADO"
+    }
+   ],
+   "hospedaje": [
+    {
+     "tier": "ahorro",
+     "tipo": "4★",
+     "nombre": "Rome Central Rooms Guest House",
+     "barrio": "Roma",
+     "rating": 4.9,
+     "price_per_night_usd": 173,
+     "booking_url": "https://www.booking.com/searchresults.html?ss=Rome+Central+Rooms+Guest+House+Roma&checkin=2027-05-10&checkout=2027-05-13&group_adults=2&no_rooms=1",
+     "fuente_precio": "serpapi",
+     "por_que": "Excelente relación calidad-precio y conectividad inmejorable para explorar la ciudad a pie o en transporte público.",
+     "consultado_at": "2026-10-23T06:12:25.775Z",
+     "estado_dato": "CONSULTADO_EN_VIVO"
+    },
+    {
+     "tier": "equilibrio",
+     "tipo": "4★",
+     "nombre": "iQ Hotel Roma",
+     "barrio": "Roma",
+     "rating": 4.8,
+     "price_per_night_usd": 387,
+     "booking_url": "https://www.booking.com/searchresults.html?ss=iQ+Hotel+Roma+Roma&checkin=2027-05-10&checkout=2027-05-13&group_adults=2&no_rooms=1",
+     "fuente_precio": "serpapi",
+     "por_que": "Moderno hotel con terraza panorámica, sauna y un balance óptimo de confort urbano pensado para una estancia relajada y funcional.",
+     "consultado_at": "2026-10-23T06:12:25.775Z",
+     "estado_dato": "CONSULTADO_EN_VIVO"
+    },
+    {
+     "tier": "premium",
+     "tipo": "4★",
+     "nombre": "master Trevi Rome",
+     "barrio": "Roma",
+     "rating": 5,
+     "price_per_night_usd": 722,
+     "booking_url": "https://www.booking.com/searchresults.html?ss=master+Trevi+Rome+Roma&checkin=2027-05-10&checkout=2027-05-13&group_adults=2&no_rooms=1",
+     "fuente_precio": "serpapi",
+     "por_que": "Ubicación privilegiada a unos pasos de la Fontana di Trevi, diseño sofisticado y servicio de alto nivel para una experiencia memorable.",
+     "consultado_at": "2026-10-23T06:12:25.775Z",
+     "estado_dato": "CONSULTADO_EN_VIVO"
+    }
+   ],
+   "nights": 3,
+   "experiencias": [
+    {
+     "duracion": "3 horas",
+     "price_per_person_usd": 75,
+     "rating": 4.8,
+     "fuente": "google_places",
+     "nombre": "Coliseo de Roma",
+     "por_que": "Acceso prioritario con guía oficial para recorrer la arena del anfiteatro y conectar con la historia imperial a ritmo pausado.",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "por_que": "Admira la cúpula de hormigón no armado más grande del mundo y su óculo místico en el corazón histórico de Roma.",
+     "fuente": "google_places",
+     "nombre": "Panteon de Roma",
+     "duracion": "1.5 horas",
+     "rating": 4.8,
+     "price_per_person_usd": 20,
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "por_que": "Visita guiada imprescindible para apreciar la Piedad de Miguel Ángel y la majestuosidad de la arquitectura renacentista y barroca.",
+     "nombre": "Basílica de San Pedro",
+     "price_per_person_usd": 45,
+     "fuente": "google_places",
+     "duracion": "2.5 horas",
+     "rating": 4.8,
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "rating": 4.8,
+     "por_que": "Paseo arqueológico esencial entre los templos y basílicas donde latía la vida cívica y política de la antigua Roma.",
+     "nombre": "Foro Romano",
+     "fuente": "google_places",
+     "duracion": "2 horas",
+     "price_per_person_usd": 35,
+     "estado_dato": "ESTIMADO"
+    }
+   ],
+   "restaurantes": [
+    {
+     "nombre": "Roscioli Salumeria con Cucina",
+     "cocina": "Romana tradicional",
+     "rango_precio": "$$$ (40-65 USD)",
+     "por_que": "Famoso por su icónica carbonara y una selección curada de embutidos y quesos artesanales en un ambiente vibrante."
+    },
+    {
+     "rango_precio": "$$ (25-45 USD)",
+     "por_que": "Ubicado en las callejuelas de Trastevere, célebre por sus alcachofas a la judía (carciofi alla giudia) y cacio e pepe auténtico.",
+     "nombre": "Da Enzo al 29",
+     "cocina": "Trattoria clásica romana"
+    },
+    {
+     "nombre": "Armando al Pantheon",
+     "cocina": "Romana contemporánea",
+     "rango_precio": "$$$ (45-70 USD)",
+     "por_que": "Institución gastronómica junto al Panteón que combina recetas tradicionales romanas con una ejecución refinada."
+    },
+    {
+     "nombre": "Pizzarium Bonci",
+     "cocina": "Pizza al taglio y panadería artesanal",
+     "por_que": "Ideal para un almuerzo informal de primer nivel probando masas fermentadas con ingredientes de temporada excepcionales.",
+     "rango_precio": "$ (10-20 USD)"
+    }
+   ],
+   "city": "Roma",
+   "checkin": "2027-05-10",
+   "checkout": "2027-05-13"
+  },
+  {
+   "hospedaje": [
+    {
+     "tier": "ahorro",
+     "tipo": "4★",
+     "nombre": "I Parigi Corbinelli b&b",
+     "barrio": "Florencia",
+     "rating": 4.9,
+     "price_per_night_usd": 166,
+     "booking_url": "https://www.booking.com/searchresults.html?ss=I+Parigi+Corbinelli+b%26b+Florencia&checkin=2027-05-13&checkout=2027-05-16&group_adults=2&no_rooms=1",
+     "fuente_precio": "serpapi",
+     "por_que": "Ubicado en una histórica colina toscana a minutos del centro, combina ambiente campestre de relax, jardines serenos y una puntuación casi perfecta a un precio muy accesible.",
+     "consultado_at": "2026-10-23T06:12:27.054Z",
+     "estado_dato": "CONSULTADO_EN_VIVO"
+    },
+    {
+     "tier": "equilibrio",
+     "tipo": "4★",
+     "nombre": "B&B HOTEL Firenze Laurus al Duomo",
+     "barrio": "Florencia",
+     "rating": 4.8,
+     "price_per_night_usd": 314,
+     "booking_url": "https://www.booking.com/searchresults.html?ss=B%26B+HOTEL+Firenze+Laurus+al+Duomo+Florencia&checkin=2027-05-13&checkout=2027-05-16&group_adults=2&no_rooms=1",
+     "fuente_precio": "serpapi",
+     "por_que": "El balance ideal entre diseño contemporáneo y confort; cuenta con spa, bar en azotea y ubicación estratégica a corta distancia a pie del Duomo y la Galería de la Academia.",
+     "consultado_at": "2026-10-23T06:12:27.054Z",
+     "estado_dato": "CONSULTADO_EN_VIVO"
+    },
+    {
+     "tier": "premium",
+     "tipo": "4★",
+     "nombre": "Milu Hotel",
+     "barrio": "Florencia",
+     "rating": 4.9,
+     "price_per_night_usd": 528,
+     "booking_url": "https://www.booking.com/searchresults.html?ss=Milu+Hotel+Florencia&checkin=2027-05-13&checkout=2027-05-16&group_adults=2&no_rooms=1",
+     "fuente_precio": "serpapi",
+     "por_que": "Propiedad íntima y refinada con spa privado, diseño de autor sofisticado y servicio ultra personalizado para una estancia memorable en Florencia.",
+     "consultado_at": "2026-10-23T06:12:27.054Z",
+     "estado_dato": "CONSULTADO_EN_VIVO"
+    }
+   ],
+   "restaurantes": [
+    {
+     "cocina": "Toscana tradicional y carnes a la brasa",
+     "por_que": "Institución familiar desde 1953 junto al Mercato Centrale, famosa por su auténtica bistecca alla fiorentina y ribollita servidas en mesas compartidas llenas de calidez toscana.",
+     "nombre": "Trattoria Mario",
+     "rango_precio": "$$ (30-45 USD por persona)"
+    },
+    {
+     "por_que": "Ubicado en el bohemio Oltrarno, es el clásico favorito de florentinos y viajeros conocedores por sus alcachofas fritas, pasta con trufa y cuidada bodega.",
+     "nombre": "Trattoria Cammillo",
+     "rango_precio": "$$$ (55-80 USD por persona)",
+     "cocina": "Cucina fiorentina refinada y pastas artesanales"
+    },
+    {
+     "nombre": "Ristorante La Giostra",
+     "rango_precio": "$$$ (65-95 USD por persona)",
+     "por_que": "Fundado por nobles Habsburgo-Lorena; un ambiente de bóvedas medievales a la luz de las velas famoso por sus legendarios raviolis de pera y pecorino.",
+     "cocina": "Italiana romántica / Toscana histórica"
+    },
+    {
+     "nombre": "Osteria dell'Enoteca",
+     "por_que": "Propuesta moderna enfocada en maridajes excepcionales de vinos del Chianti y cortes toscanos preparados a la leña en una atmósfera íntima y elegante.",
+     "cocina": "Enoteca y gastronomía toscana contemporánea",
+     "rango_precio": "$$$ (60-85 USD por persona)"
+    }
+   ],
+   "city": "Florencia",
+   "nights": 3,
+   "arrival_options": [
+    {
+     "mode": "Tren de Alta Velocidad",
+     "price_per_person_usd": 55,
+     "from": "Roma (Roma Termini)",
+     "provider": "Trenitalia / Italo",
+     "fuente_precio": "estimado",
+     "duration": "1h 36m",
+     "scenic": true,
+     "notes": "Frecciarossa o Italo directo al centro histórico de Florencia (estación Firenze Santa Maria Novella). Salidas cada 20-30 minutos; cómodo, eficiente y panorámico cruzando los valles de Umbría y Toscana.",
+     "tier": "recomendado",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "from": "Roma (Roma Termini)",
+     "notes": "Opción clásica para un trayecto relajado atravesando la campiña toscana a menor costo y con paradas intermedias pintorescas.",
+     "fuente_precio": "estimado",
+     "mode": "Tren Intercity",
+     "tier": "ahorro",
+     "duration": "3h 15m",
+     "scenic": true,
+     "price_per_person_usd": 28,
+     "provider": "Trenitalia Intercity",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "from": "Roma",
+     "duration": "4h 30m",
+     "notes": "Vehículo privado con chofer atravesando la Toscana, con tiempo para almorzar y catar vinos en Montalcino o Montepulciano antes de llegar a Florencia.",
+     "price_per_person_usd": 310,
+     "fuente_precio": "estimado",
+     "mode": "Traslado privado con parada en Val d'Orcia",
+     "provider": "Servicio privado de chofer / tour panorámico",
+     "tier": "premium",
+     "scenic": true,
+     "estado_dato": "ESTIMADO"
+    }
+   ],
+   "experiencias": [
+    {
+     "price_per_person_usd": 45,
+     "duracion": "2.5 horas",
+     "rating": 4.8,
+     "nombre": "Catedral de Santa María del Fiore y Cúpula de Brunelleschi",
+     "fuente": "google_places",
+     "por_que": "El ícono renacentista de Florencia. La subida a la cúpula ofrece una vista incomparable de los tejados toscanos y permite apreciar la genialidad arquitectónica de Brunelleschi.",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "nombre": "David en la Galería de la Academia",
+     "rating": null,
+     "duracion": "2 horas",
+     "por_que": "Acceso prioritario para contemplar la obra cumbre de Miguel Ángel en persona, una pieza obligada con detalles anatómicos conmovedores.",
+     "fuente": "estimado",
+     "price_per_person_usd": 35,
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "duracion": "2.5 horas",
+     "por_que": "Paseo que cruza el río Arno por el puente medieval de orfebres y asciende a la colina panorámica para presenciar la puesta de sol más fotogénica de la Toscana.",
+     "nombre": "Ponte Vecchio y atardecer en Piazzale Michelangelo",
+     "rating": 4.8,
+     "price_per_person_usd": 0,
+     "fuente": "google_places",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "price_per_person_usd": 12,
+     "fuente": "google_places",
+     "duracion": "1.5 horas",
+     "rating": 4.8,
+     "nombre": "Basílica de la Santa Cruz",
+     "por_que": "El Panteón de las glorias italianas, donde descansan Miguel Ángel, Galileo Galilei y Maquiavelo, rodeado de frescos de Giotto.",
+     "estado_dato": "ESTIMADO"
+    }
+   ],
+   "checkin": "2027-05-13",
+   "checkout": "2027-05-16"
+  },
+  {
+   "restaurantes": [
+    {
+     "cocina": "Veneciana tradicional y mariscos",
+     "nombre": "Trattoria Antiche Carampane",
+     "por_que": "Auténtico santuario gastronómico veneciano famoso por sus pescados y mariscos fresquísimos traídos del mercado de Rialto.",
+     "rango_precio": "$$$ (60-90 USD)"
+    },
+    {
+     "nombre": "Cantina Do Spade",
+     "rango_precio": "$ (15-30 USD)",
+     "por_que": "Uno de los bàcari más antiguos de Venecia, perfecto para disfrutar de cicchetti variados y buen vino veneciano en un ambiente distendido.",
+     "cocina": "Bàcaro tradicional (Cicchetti)"
+    },
+    {
+     "cocina": "Italiana contemporánea y veneciana",
+     "por_que": "Íntimo bistró de pocas mesas con menú diario según la pesca del día, maridajes excepcionales y atención cercana.",
+     "rango_precio": "$$$$ (100-140 USD)",
+     "nombre": "Osteria Alle Testiere"
+    },
+    {
+     "rango_precio": "$$$$ (180-250 USD)",
+     "por_que": "Exclusivo restaurante con estrellas Michelin en un jardín secreto junto al Gran Canal, ideal para una velada gastronómica memorable.",
+     "nombre": "Ristorante Glam Enrico Bartolini",
+     "cocina": "Veneciana de autor"
+    }
+   ],
+   "hospedaje": [
+    {
+     "tier": "ahorro",
+     "tipo": "4★",
+     "nombre": "Casa sulla Laguna Venezia",
+     "barrio": "Venecia",
+     "rating": 4.9,
+     "price_per_night_usd": 234,
+     "booking_url": "https://www.booking.com/searchresults.html?ss=Casa+sulla+Laguna+Venezia+Venecia&checkin=2027-05-16&checkout=2027-05-19&group_adults=2&no_rooms=1",
+     "fuente_precio": "serpapi",
+     "por_que": "Excelente opción de tarifa accesible con vistas a la laguna y calificación casi perfecta, lejos del bullicio intenso.",
+     "consultado_at": "2026-10-23T06:12:26.270Z",
+     "estado_dato": "CONSULTADO_EN_VIVO"
+    },
+    {
+     "tier": "equilibrio",
+     "tipo": "4★",
+     "nombre": "Ca' Pisani Deco Design Hotel",
+     "barrio": "Venecia",
+     "rating": 4.8,
+     "price_per_night_usd": 429,
+     "booking_url": "https://www.booking.com/searchresults.html?ss=Ca%27+Pisani+Deco+Design+Hotel+Venecia&checkin=2027-05-16&checkout=2027-05-19&group_adults=2&no_rooms=1",
+     "fuente_precio": "serpapi",
+     "por_que": "Palacio histórico veneciano con elegancia clásica, servicio impecable y ubicación estratégica a minutos a pie de Plaza San Marcos.",
+     "consultado_at": "2026-10-23T06:12:26.270Z",
+     "estado_dato": "CONSULTADO_EN_VIVO"
+    },
+    {
+     "tier": "premium",
+     "tipo": "4★",
+     "nombre": "Hotel Ai Cavalieri",
+     "barrio": "Venecia",
+     "rating": 4.8,
+     "price_per_night_usd": 774,
+     "booking_url": "https://www.booking.com/searchresults.html?ss=Hotel+Ai+Cavalieri+Venecia&checkin=2027-05-16&checkout=2027-05-19&group_adults=2&no_rooms=1",
+     "fuente_precio": "serpapi",
+     "por_que": "Residencia noble junto al canal con suntuosos frescos, terraza con vistas y atención personalizada de alto nivel.",
+     "consultado_at": "2026-10-23T06:12:26.270Z",
+     "estado_dato": "CONSULTADO_EN_VIVO"
+    }
+   ],
+   "experiencias": [
+    {
+     "rating": 4.7,
+     "fuente": "google_places",
+     "price_per_person_usd": 38,
+     "por_que": "Obra maestra del gótico veneciano que albergó el poder de la Serenísima y el célebre Puente de los Suspiros.",
+     "nombre": "Palacio Ducal de Venecia",
+     "duracion": "2-3 horas",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "price_per_person_usd": 25,
+     "nombre": "Basílica de San Marcos",
+     "fuente": "google_places",
+     "rating": 4.7,
+     "por_que": "Fascinante basílica con mosaicos dorados bizantinos y la Pala d'Oro, símbolo indiscutible de Venecia.",
+     "duracion": "1.5 horas",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "nombre": "Piazza San Marcos",
+     "por_que": "El corazón monumental de la ciudad, ideal para pasear con calma y contemplar los históricos cafés y orquestas al aire libre.",
+     "rating": 4.7,
+     "price_per_person_usd": 0,
+     "duracion": "1 hora",
+     "fuente": "google_places",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "price_per_person_usd": 0,
+     "nombre": "Puente de Rialto",
+     "fuente": "google_places",
+     "por_que": "El puente más icónico sobre el Gran Canal, rodeado de ambiente mercantil tradicional y vistas panorámicas.",
+     "rating": 4.7,
+     "duracion": "1 hora",
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "price_per_person_usd": 18,
+     "nombre": "Campanario de San Marcos",
+     "duracion": "45 minutos",
+     "rating": 4.7,
+     "por_que": "Subida en ascensor al punto más alto de la ciudad para obtener una panorámica de 360 grados sobre toda la laguna.",
+     "fuente": "google_places",
+     "estado_dato": "ESTIMADO"
+    }
+   ],
+   "city": "Venecia",
+   "arrival_options": [
+    {
+     "notes": "Conexión directa y sumamente cómoda en Frecciarossa o Italo hasta la estación Venezia Santa Lucia a orillas del Gran Canal.",
+     "provider": "Trenitalia / Italo",
+     "price_per_person_usd": 55,
+     "duration": "2h 15m",
+     "fuente_precio": "estimado",
+     "tier": "equilibrio",
+     "from": "Florencia (Firenze Santa Maria Novella)",
+     "mode": "Tren de alta velocidad",
+     "scenic": true,
+     "estado_dato": "ESTIMADO"
+    },
+    {
+     "duration": "2h 15m",
+     "provider": "Frecciarossa Business / Italo Prima",
+     "tier": "premium",
+     "from": "Florencia (Firenze Santa Maria Novella)",
+     "mode": "Tren de alta velocidad (Clase Ejecutiva/Prima)",
+     "notes": "Asientos amplios, servicio de bebidas de bienvenida y mayor espacio para equipaje directo al corazón de Venecia.",
+     "price_per_person_usd": 95,
+     "fuente_precio": "estimado",
+     "scenic": true,
+     "estado_dato": "ESTIMADO"
+    }
+   ],
+   "nights": 3,
+   "checkin": "2027-05-16",
+   "checkout": "2027-05-19"
+  }
+ ],
+ "leg_modes": [],
+ "road_trip": null,
+ "selected_tier": "equilibrio",
+ "presupuesto_rango": null,
+ "fx_usd_mxn": 18.7613,
+ "nights": 9,
+ "desglose_presupuesto": {
+  "vuelos": 49530,
+  "hospedaje": 63601,
+  "comida": 32082,
+  "tours": 13057,
+  "transporte_local": 4315,
+  "extras": 4240
+ },
+ "total_estimado_mxn": 166825,
+ "total_estimado_usd": 8892,
+ "pricing_sources": {
+  "vuelos": "estimado",
+  "hospedaje": "serpapi",
+  "experiencias": "google_places"
+ },
+ "fx_source": "frankfurter",
+ "fx_at": "2026-10-22T00:00:00Z",
+ "fx_is_fallback": false,
+ "quoted_at": "2026-10-23T06:12:51.670Z",
+ "rooms": 1,
+ "travelers": 2,
+ "date_from": "2027-05-10",
+ "date_to": "2027-05-19"
+}

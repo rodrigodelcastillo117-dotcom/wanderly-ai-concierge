@@ -181,6 +181,10 @@ export interface Evidence {
     key?: string;
     /** Opción a la que pertenece el precio (nombre del hotel, aerolínea), normalizada (AUD-IATO-04). */
     item?: string;
+    /** Vuelos: enlace de compra de ESA opción en la fuente que dio el precio (buy_url de flights-search). */
+    buyUrl?: string;
+    /** Vuelos: ¿la búsqueda fue ida y vuelta? (false = solo se consultó la ida). */
+    roundTrip?: boolean;
   }[];
   ratings: { tool: string; value: number }[];
   available: Record<string, boolean>;
@@ -331,6 +335,8 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
     const topSource = typeof res.source === "string" ? res.source : DEFAULT_SOURCE[run.name] ?? run.name;
     const at = typeof res.consulted_at === "string" && Number.isFinite(Date.parse(res.consulted_at)) ? res.consulted_at : undefined;
     const stale = res.precio_guardado === true || res.estado_dato === "OBSOLETO";
+    // Sentido de la búsqueda de vuelos: lo que dice flights-search (meta) o lo que pidió el modelo.
+    const roundTrip = run.name === "search_flights" && (res.meta || run.args) ? !!((res.meta as any)?.return_date ?? run.args?.return_date) : undefined;
     const visit = (node: unknown, currency: string, source: string, depth: number, item?: string) => {
       if (depth > 8 || !node) return;
       if (typeof node === "string") { addHost(node); return; }
@@ -342,9 +348,11 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
       // El precio pertenece a la opción más cercana que tiene nombre (hotel, aerolínea, lugar).
       const label = ITEM_LABEL_KEYS.map((k) => obj[k]).find((v) => typeof v === "string" && v.trim());
       const own = typeof label === "string" ? normName(label) || item : item;
+      const buyUrl = run.name === "search_flights" ? safeHttpsUrl(obj.buy_url) : undefined;
       for (const [k, v] of Object.entries(obj)) {
         if (typeof v === "number" && Number.isFinite(v) && v > 0) {
-          if (PRICE_KEY.test(k)) ev.prices.push({ tool: run.name, value: v, currency: /_usd$/i.test(k) ? "USD" : cur, source: src, key: k, ...(own ? { item: own } : {}), ...(at ? { at } : {}), ...(stale ? { stale } : {}) });
+          if (PRICE_KEY.test(k)) ev.prices.push({ tool: run.name, value: v, currency: /_usd$/i.test(k) ? "USD" : cur, source: src, key: k, ...(own ? { item: own } : {}), ...(at ? { at } : {}), ...(stale ? { stale } : {}),
+            ...(buyUrl ? { buyUrl } : {}), ...(roundTrip !== undefined ? { roundTrip } : {}) });
           else if (RATING_KEY.test(k)) ev.ratings.push({ tool: run.name, value: v });
         } else if (typeof v === "string" && /^https:\/\//i.test(v)) {
           addHost(v);
@@ -482,12 +490,54 @@ export function validateCards(raw: unknown, ev: Evidence, consultadoAt: string =
         if (match.stale) card.price_note = "precio guardado";
         const basis = priceBasis(match.tool, match.key);
         if (basis) card.price_basis = basis;
+        if (type === "flight") flightFromSameSource(card, match);
       } else {
         card.estado_dato = "NO_VERIFICADO";
         card.price_note = "precio no verificado";
       }
     }
     out.cards.push(card);
+  }
+  return out;
+}
+
+/**
+ * Vuelo con precio de una búsqueda (caso CDMX → Tokio, 23-oct-2026): el precio era de Google Flights y
+ * el botón llevaba a una búsqueda genérica de Aviasales, y la card decía "ida y vuelta" sin que se
+ * consultara el regreso. El botón es el de la MISMA fuente y opción que dio el precio; "ida y vuelta"
+ * no se afirma: solo ida → "solo ida"; ida y vuelta → el precio es ida y vuelta pero los horarios son
+ * de la ida (lo dice la base del precio, no el itinerario).
+ */
+function flightFromSameSource(card: ConciergeCard, match: Evidence["prices"][number]) {
+  if (match.buyUrl) card.cta_action = match.buyUrl;
+  const claims = /\b(?:ida y vuelta|redondo)\b/i;
+  if (match.roundTrip === undefined || !(claims.test(card.subtitle ?? "") || claims.test(card.meta ?? ""))) return;
+  const fix = (v: string | undefined) => {
+    if (!v) return v;
+    const out = match.roundTrip ? v.replace(/\b(?:ida y vuelta|redondo)\b\s*/gi, "") : v.replace(/\b(?:ida y vuelta|redondo)\b/gi, "solo ida");
+    return out.replace(/\s{2,}/g, " ").replace(/\s*·\s*$/, "").trim() || undefined;
+  };
+  card.subtitle = fix(card.subtitle);
+  card.meta = fix(card.meta);
+  if (!card.subtitle) delete card.subtitle;
+  if (!card.meta) delete card.meta;
+  const basis = card.price_basis ?? "total";
+  card.price_basis = match.roundTrip ? `${basis} ida y vuelta · horarios de la ida` : `${basis} · solo ida`;
+}
+
+/**
+ * Texto de Iato: si el precio de un vuelo salió de Google Flights y el texto manda a comprar a
+ * Aviasales, se dice que es otra búsqueda y que el precio puede variar; si solo se buscó la ida, el
+ * texto no dice "ida y vuelta".
+ */
+export function enforceFlightSellerHonesty(text: string, ev: Pick<Evidence, "prices">): string {
+  const flights = ev.prices.filter((p) => p.tool === "search_flights");
+  if (!flights.length) return text;
+  let out = text;
+  if (flights.every((p) => p.roundTrip === false)) out = out.replace(/\bida y vuelta\b/gi, "solo ida");
+  const fromGoogle = flights.some((p) => p.buyUrl && /(^|\.)google\.com$/.test(new URL(p.buyUrl).hostname.replace(/^www\./, "")));
+  if (fromGoogle && /aviasales/i.test(out) && !/precio puede variar/i.test(out)) {
+    out = `${out.trim()}\n\nEl precio es de Google Flights y el botón te lleva ahí. Aviasales es una búsqueda alternativa: el precio puede variar.`;
   }
   return out;
 }

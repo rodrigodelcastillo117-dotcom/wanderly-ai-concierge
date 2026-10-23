@@ -7,6 +7,8 @@
 import { aiFetch } from "../_shared/ai.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
 import { mainAirport } from "../_shared/airports.ts";
+import { googleFlightsSearchUrl } from "../_shared/booking/links.ts";
+import { airlineCode } from "../_shared/airlines.ts";
 
 const SERPAPI = "https://serpapi.com/search.json";
 
@@ -118,12 +120,17 @@ const hm = (m: number | null) => (m === null ? "—" : `${Math.floor(m / 60)}h $
  * vuelo, horarios, avión y clase; escalas con su duración; emisiones. `price` es el total para
  * todos los viajeros (ida y vuelta si es redondo, como lo muestra Google Flights).
  */
-export function googleFlightResult(f: any, travelers: number, roundTrip: boolean, searchLink: string) {
+export function googleFlightResult(f: any, travelers: number, roundTrip: boolean, searchLink: string,
+  q?: { origin: string; destination: string; depart: string; ret?: string | null }) {
   const segs: any[] = Array.isArray(f?.flights) ? f.flights : [];
   const dur = minutes(f?.total_duration) ?? 0;
   const airline = segs[0]?.airline ?? "—";
   const airlines = [...new Set(segs.map((s) => s?.airline).filter(Boolean))];
   const price = Number(f?.price ?? 0);
+  // Se compra en la MISMA fuente que dio el precio: Google Flights con ruta, fechas y pasajeros (tfs).
+  // Aviasales queda como búsqueda alternativa, dicho así (su precio puede no coincidir).
+  const gf = q ? googleFlightsSearchUrl({ ...q, ret: roundTrip ? q.ret ?? null : null, adults: travelers,
+    airline: airlines.length === 1 ? airlineCode(String(airline)) : null }) : null;
   return {
     price_usd: price,
     price_per_person_usd: Math.round(price / Math.max(1, travelers)),
@@ -160,7 +167,10 @@ export function googleFlightResult(f: any, travelers: number, roundTrip: boolean
     price_note: `Precio total para ${Math.max(1, travelers)} ${travelers === 1 ? "viajero" : "viajeros"}${roundTrip ? ", ida y vuelta" : ", solo ida"}, según Google Flights.`,
     booking_token: f?.booking_token ?? null,
     departure_token: f?.departure_token ?? null,
-    buy_url: searchLink,
+    buy_url: gf ?? searchLink,
+    ...(gf ? { alt_buy_url: searchLink, alt_buy_note: "Búsqueda alternativa en Aviasales: el precio puede variar." } : {}),
+    // Google Flights da el precio ida y vuelta, pero los tramos son solo de la ida.
+    tramos: roundTrip ? "solo la ida (el regreso se elige al comprar; el precio ya es ida y vuelta)" : "solo ida",
     airline_buy_url: airlineSite(airline),
     fuente: "google_flights",
   };
@@ -214,7 +224,7 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
           .filter((f: any) => Number(f?.price ?? 0) > 0)
           .sort((a: any, b: any) => Number(a.price) - Number(b.price))
           .slice(0, 12);
-        results = all.map((f: any) => googleFlightResult(f, travelers, roundTrip, searchLink));
+        results = all.map((f: any) => googleFlightResult(f, travelers, roundTrip, searchLink, { origin: dep!, destination: arr!, depart, ret: return_date ?? null }));
         if (results.length > 0) source = "serpapi";
         else fallas.push("google_flights_sin_resultados");
       } else if (r.headers.get("x-iatos-cache") === "limit") {

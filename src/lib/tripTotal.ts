@@ -27,6 +27,13 @@ export type TripTotalSummary = {
   estimatedIn: string[];
   /** Claves del desglose con precio estimado (para marcarlas en el desglose). */
   estimatedKeys: string[];
+  /**
+   * Vuelo u hospedaje que el total suma SIN un precio verificable (estimado por la IA o sin tarifa
+   * real): "vuelos", "hospedaje". La página, Comprar y el PDF lo dicen junto al total.
+   */
+  sinPrecioReal: string[];
+  /** "Incluye estimados: vuelos." (o "" si todo lo grande tiene precio verificable). */
+  estimadosNote: string;
   /** Lo marcado como comprado o confirmado (MXN) y lo que falta pagar. */
   paid: number;
   pending: number;
@@ -152,17 +159,34 @@ export function tripTotalSummary({ trip, sel, desglose, items, itemState, porCot
   const pending = Math.max(0, Math.round(total) - paid);
   const state_: TotalState = bought.length > 0 ? "comprado" : complete ? "seleccion" : "estimado";
 
+  const sinPrecioReal = unverifiedInTotal(desglose, items, sel);
+  const estimadosNote = sinPrecioReal.length ? `Incluye estimados: ${listaHumana(sinPrecioReal)}.` : "";
   const title = complete ? "Total de tu selección" : "Total estimado";
   const faltaCotizar = porCotizar.length ? `Falta cotizar ${listaHumana(porCotizar)}: no está sumado al total.` : "";
   const hint = complete
     ? estimatedIn.length ? `Incluye precios estimados en: ${listaHumana(estimatedIn)}.` : "Con los precios consultados de lo que elegiste."
-    : [missing.length ? `Elige ${listaHumana(missing)} para ver el total real.` : "", faltaCotizar].filter(Boolean).join(" ");
+    : [missing.length ? `Elige ${listaHumana(missing)} para ver el total real.` : "", faltaCotizar, estimadosNote].filter(Boolean).join(" ");
   const barLabel = state_ === "comprado"
     ? `Total ${fmtTotalMXN(total)} · falta ${fmtTotalMXN(pending)}`
     : `Total ${fmtTotalMXN(total)} · ${complete ? "tu selección" : "estimado"}`;
 
   const barTotal = `Total ${fmtTotalMXN(total)}`;
   const barNote = state_ === "comprado" ? `Falta ${fmtTotalMXN(pending)} · ya compraste ${fmtTotalMXN(paid)}`
-    : complete ? "Tu selección" : porCotizar.length && !missing.length ? `Estimado · falta cotizar ${listaHumana(porCotizar)}` : "Estimado · falta elegir";
-  return { state: state_, total, complete, missing, porCotizar, estimatedIn, estimatedKeys, paid, pending, boughtCount: bought.length, title, hint, barLabel, barTotal, barNote };
+    : complete ? (sinPrecioReal.length ? "Tu selección · incluye estimados" : "Tu selección") : porCotizar.length && !missing.length ? `Estimado · falta cotizar ${listaHumana(porCotizar)}` : "Estimado · falta elegir";
+  return { state: state_, total, complete, missing, porCotizar, estimatedIn, estimatedKeys, sinPrecioReal, estimadosNote, paid, pending, boughtCount: bought.length, title, hint, barLabel, barTotal, barNote };
+}
+
+/**
+ * Vuelo y hospedaje que el total suma sin precio verificable (caso Roma → Florencia → Venecia: el
+ * total incluía "Vuelos · estimado $49,530" de la IA mientras Comprar decía "Aún no tenemos precio
+ * real"). Verificable = el elemento de Comprar que corresponde tiene precio y no es un estimado.
+ */
+export function unverifiedInTotal(desglose: Record<string, number>, items: PurchaseItem[], sel: Pick<Sel, "selVuelo">): string[] {
+  const real = (it: PurchaseItem | undefined) => !!it && Number(it.price) > 0 && !it.estimate;
+  const out: string[] = [];
+  const flight = items.find((i) => i.kind === "vuelo" && i.col === "vuelos_json") ?? items.find((i) => i.kind === "vuelo");
+  if (Number(desglose?.vuelos) > 0 && sel.selVuelo !== -2 && !real(flight)) out.push("vuelos");
+  const hotels = items.filter((i) => i.kind === "hospedaje");
+  if (Number(desglose?.hospedaje) > 0 && (!hotels.length || !hotels.every(real))) out.push("hospedaje");
+  return out;
 }

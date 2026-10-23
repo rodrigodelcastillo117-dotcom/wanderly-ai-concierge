@@ -35,7 +35,10 @@ export function flightStopsLabel(v: any): string | null {
   if (cities && cities.length) return `Escalas: ${cities.join(" · ")}`;
   const s = String(v?.escalas ?? "").trim();
   if (cities && cities.length === 0) return "Directo";
-  if (/^directo$/i.test(s) && ["serpapi", "google_flights"].includes(String(v?.fuente_precio ?? "").toLowerCase())) return "Directo";
+  const live = ["serpapi", "google_flights"].includes(String(v?.fuente_precio ?? "").toLowerCase());
+  if (/^directo$/i.test(s) && live) return "Directo";
+  // Tarifa en vivo de Google Flights con el número de escalas ("1 escala"): se muestra tal cual.
+  if (live && /^\d\s+escalas?$/i.test(s)) return s;
   return "Escalas por confirmar";
 }
 

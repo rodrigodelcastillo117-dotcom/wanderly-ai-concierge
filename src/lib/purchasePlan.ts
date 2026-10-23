@@ -179,7 +179,11 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
   const route = tripFlightRoute(trip);
   if (sel.selVuelo !== -2 && (vuelos.length || route.multi)) {
     // Sin selección: la primera tarifa REAL (no un estimado de IA) que sirve; si no hay, "por cotizar".
-    const i = sel.selVuelo >= 0 && vuelos[sel.selVuelo] ? sel.selVuelo : (realFlightOptions(trip)[0] ?? -1);
+    // Entre las reales, la que suma el total de la página (desglose_presupuesto.vuelos), si alguna cuadra.
+    const real = realFlightOptions(trip);
+    const quoted = Math.round(Number(trip.desglose_presupuesto?.vuelos) || 0);
+    const i = sel.selVuelo >= 0 && vuelos[sel.selVuelo] ? sel.selVuelo
+      : (real.find((k) => quoted > 0 && Math.round((Number(vuelos[k]?.precio_por_persona) || 0) * travelers) === quoted) ?? real[0] ?? -1);
     const v = i >= 0 ? vuelos[i] : null;
     const tripRange = [route.multi && route.cities.length ? `${trip.ciudad_origen?.trim() ?? ""} → ${route.cities[0]} · regreso desde ${route.cities[route.cities.length - 1]}`.trim()
       : trip.ciudad_origen && city ? `${String(trip.ciudad_origen).trim()} → ${city}` : null, fmtRange(trip.fecha_salida, trip.fecha_regreso), plural(travelers, "viajero", "viajeros")].filter(Boolean).join(" · ");
@@ -238,7 +242,7 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
       pushHotel(c.index, c.hotel, c.stay.city, c.stay);
     }
   } else if (sel.selHospedaje !== -2 && hoteles.length) {
-    const i = sel.selHospedaje >= 0 && hoteles[sel.selHospedaje] ? sel.selHospedaje : 0;
+    const i = sel.selHospedaje >= 0 && hoteles[sel.selHospedaje] ? sel.selHospedaje : quotedHotelIndex(trip);
     const h = hoteles[i];
     pushHotel(i, h, h?.ciudad ?? city, null);
   }
@@ -294,6 +298,21 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     }));
   });
   return items;
+}
+
+/**
+ * Sin hotel elegido (un destino), el que suma el total de la página: el total usa
+ * desglose_presupuesto.hospedaje (analizar-viaje: hotel de precio medio), así que "Comprar" muestra el
+ * hotel cuyo precio es ese monto; si ninguno cuadra, el de precio medio (el mismo criterio).
+ */
+export function quotedHotelIndex(trip: any): number {
+  const hoteles: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
+  if (!hoteles.length) return -1;
+  const quoted = Math.round(Number(trip?.desglose_presupuesto?.hospedaje) || 0);
+  const match = quoted > 0 ? hoteles.findIndex((h, i) => offerFromTripHotel(h, { trip, city: h?.ciudad ?? trip?.destino ?? null, index: i }).price === quoted) : -1;
+  if (match >= 0) return match;
+  const sorted = hoteles.map((h, i) => [Number(h?.precio_por_noche) || 0, i] as const).sort((a, b) => a[0] - b[0]);
+  return sorted[Math.floor(sorted.length / 2)][1];
 }
 
 const TIER_ORDER: Record<string, number> = { ahorro: 0, equilibrio: 1, premium: 2 };

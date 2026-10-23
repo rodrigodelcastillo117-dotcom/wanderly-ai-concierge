@@ -298,7 +298,7 @@ const TripDetail = () => {
       await generateTripPDF(trip, {
         theme,
         sel: { selVuelo, selHospedaje, selTours, selHoteles, nochesHospedaje: nochesEfectivas },
-        totals: { total: shown.total, porPersona: shown.porPersona, travelers: quoteTravelers, nights: quoteNights, desglose: computedDesglose, fromSelection: shown.fromSelection, quotedTotal: shown.quotedTotal },
+        totals: { total: shown.total, porPersona: shown.porPersona, travelers: quoteTravelers, nights: quoteNights, desglose: computedDesglose, fromSelection: shown.fromSelection, quotedTotal: shown.quotedTotal, estimadosNote: totalSummary.estimadosNote },
         bookings: bookings as any, userId: user?.id ?? null, serverOffers, quoteCreatedAt: quote?.created_at ?? null, trust: quoteTrust(quote),
       });
       toast.success("PDF descargado");
@@ -731,6 +731,7 @@ const TripDetail = () => {
               onToggleTour={toggleTour}
               // Paso final "Listo · Revisa y compra": el mismo total de la página y volver al Resumen.
               selectionTotal={pageTotal > 0 ? pageTotal : null}
+              selectionDesglose={pageTotal > 0 ? computedDesglose : null} estimadosNote={totalSummary.estimadosNote}
               onViewTrip={() => showSection("resumen")}
               // "Enviarme mi selección por correo" (enviar-seleccion): SOLO lo elegido y el total de esta página.
               sendSelectionSlot={

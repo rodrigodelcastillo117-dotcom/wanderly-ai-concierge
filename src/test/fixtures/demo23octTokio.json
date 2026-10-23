@@ -1,0 +1,337 @@
+{
+ "id": "31e66367-ced4-4f79-8ab8-3aead52b380c",
+ "user_id": "95aac578-9281-4668-9f68-7996966f2cb5",
+ "destino": "Tokio",
+ "pais_destino": "Japón",
+ "ciudad_origen": "Ciudad de México",
+ "fecha_salida": "2027-02-10",
+ "fecha_regreso": "2027-02-20",
+ "num_viajeros": 2,
+ "presupuesto_objetivo": null,
+ "status": "listo",
+ "total_estimado": 152988,
+ "moneda": "MXN",
+ "vuelos_json": [
+  {
+   "tier": "ahorro",
+   "notas": "Tarifa de caché cercana (sale 2 feb 00:25, MEX→NRT), no para 10 feb exacto. Salida de madrugada (red-eye). Verifica fecha y equipaje al reservar; las tarifas de bajo costo suelen cobrar maleta y asiento aparte.",
+   "escalas": "1 escala",
+   "duracion": "No especificada en la fuente",
+   "aerolinea": "Viva Aerobus / F8 2821 (vía Vancouver)",
+   "estado_dato": "ESTIMADO",
+   "nota_precio": "Precio de referencia (Aviasales, búsquedas de las últimas 48 h); puede variar.",
+   "booking_link": "https://www.aviasales.com/search/MEX0202TYO15021?t=ZG18015279001801659600001295MEXYVRNRT18027072001802733900001345NRTYVRMEX_532886a6dfec8d347e4937a065bffd14_91211&search_date=20102026&expected_price_uuid=01a15980-867b-8030-2f7f-3e2806c84356&static_fare_key=TY%7CP1%7CH0%7CL0%7CCH0%7CR0%7CTBC0&itinerary_key=qU6rGTJUXtc0aZnrz3yqFg&expected_price_source=share&expected_price_currency=usd&expected_price=1100&marker=533299",
+   "consultado_at": "2026-10-23T06:04:58.130Z",
+   "fuente_precio": "travelpayouts",
+   "approximate_dates": true,
+   "precio_por_persona": 20637
+  },
+  {
+   "tier": "equilibrio",
+   "notas": "Sale 10 feb 05:45, viaje redondo, tarifa turista. Llega a Haneda, el aeropuerto más cercano al centro. Precio estimado, verifica al reservar.",
+   "escalas": "1 escala",
+   "duracion": "18h 5m",
+   "aerolinea": "United (MEX→HND)",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "booking_link": "https://www.aviasales.com/search/MEX1002HND20022?marker=533299",
+   "consultado_at": "2026-10-23T06:01:25.07007+00:00",
+   "fuente_precio": "serpapi",
+   "precio_por_persona": 29174
+  },
+  {
+   "tier": "premium",
+   "notas": "Sale 10 feb 05:45, aerolínea de servicio completo, redondo a Haneda, tarifa turista. Para un trayecto de 18 h considera pagar upgrade de cabina o Premium Economy en el sitio de la aerolínea.",
+   "escalas": "1 escala",
+   "duracion": "18h 40m",
+   "aerolinea": "American (MEX→HND)",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "booking_link": "https://www.aviasales.com/search/MEX1002HND20022?marker=533299",
+   "consultado_at": "2026-10-23T06:01:25.07007+00:00",
+   "fuente_precio": "serpapi",
+   "precio_por_persona": 29455
+  }
+ ],
+ "hospedaje_json": [
+  {
+   "tipo": "Hotel 4★",
+   "barrio": "Haneda (zona aeropuerto)",
+   "nombre": "メルキュール東京羽田エアポート (Mercure Tokyo Haneda Airport)",
+   "rating": 4.8,
+   "por_que": "La tarifa más baja de la lista con 4.8 de rating. Conviene por logística si llegas a Haneda, aunque queda lejos del centro (~30 min en tren).",
+   "estado_dato": "ESTIMADO",
+   "booking_link": "https://www.booking.com/searchresults.html?ss=%E3%83%A1%E3%83%AB%E3%82%AD%E3%83%A5%E3%83%BC%E3%83%AB%E6%9D%B1%E4%BA%AC%E7%BE%BD%E7%94%B0%E3%82%A8%E3%82%A2%E3%83%9D%E3%83%BC%E3%83%88+Tokio&checkin=2027-02-10&checkout=2027-02-20&group_adults=2&no_rooms=1",
+   "fuente_precio": "estimado",
+   "precio_por_noche": 1632
+  },
+  {
+   "tipo": "Hotel 3★",
+   "barrio": "Ueno / Iriya",
+   "nombre": "Sakura Cross Hotel Ueno-Iriya Annex",
+   "rating": 4.9,
+   "por_que": "Mi recomendación: 4.9 de rating, barrio con parque, museos y acceso directo a Narita/Haneda por Keisei y JR. Buen equilibrio precio-ubicación para tu ritmo equilibrado.",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "booking_link": "https://www.booking.com/searchresults.html?ss=Sakura+Cross+Hotel+Ueno-Iriya+Annex+Tokio&checkin=2027-02-10&checkout=2027-02-20&group_adults=2&no_rooms=1",
+   "consultado_at": "2026-10-23T06:05:01.063Z",
+   "fuente_precio": "serpapi",
+   "precio_por_noche": 2664
+  },
+  {
+   "tipo": "Apart-hotel 4★",
+   "barrio": "Kinshicho (cerca de Skytree)",
+   "nombre": "MIMARU Tokyo Kinshicho",
+   "rating": 4.9,
+   "por_que": "Suites tipo apartamento con más espacio y cocineta, 4.9 de rating, a pocas paradas de Skytree y Asakusa. Mayor comodidad para 10 noches.",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "booking_link": "https://www.booking.com/searchresults.html?ss=MIMARU+Tokyo+Kinshicho+Tokio&checkin=2027-02-10&checkout=2027-02-20&group_adults=2&no_rooms=1",
+   "consultado_at": "2026-10-23T06:05:01.063Z",
+   "fuente_precio": "serpapi",
+   "precio_por_noche": 4540
+  }
+ ],
+ "restaurantes_json": [
+  {
+   "tip": "Acepta reservaciones, sirve cena.",
+   "ciudad": "Tokio",
+   "cocina": "Restaurante izakaya",
+   "fuente": "google_places",
+   "nombre": "Gyopao Gyoza Shinjuku east",
+   "rating": 4.9,
+   "por_que": "4.8 ★ con más de 11,000 reseñas; gyoza al vapor y sake en formato informal.",
+   "website": "https://gyopao-shinjuku-east.com/?utm_source=google&utm_medium=meo",
+   "maps_url": "https://maps.google.com/?cid=2243458544602860014&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJm-OlrOeNGGAR7kle86hdIh8",
+   "telefono": "+81 50-1792-2680",
+   "direccion": "Japón, 〒160-0022 Tokyo, Shinjuku City, Shinjuku, 3-chōme−23−１２ パンドラビル B1",
+   "photo_ref": "places/ChIJm-OlrOeNGGAR7kle86hdIh8/photos/Aa-ngMZs4SNkXZ6DaOHOZsCjWbtTpaWI9ZvMiH2MSoivKyU-6x92LQ58tdu87oYtq5s1TAlMbP_N7l5ZFVU6dEz_fyjeQ47dfPnK2ZUtTwL8Jy03ve38_z0jfr2-mYR9QpPZMa99xnlQqxwkmj9dZHUCcSTz-gbinGWbgUQv2eeI8NH6_7ydNzlfcHVpvV5Ik8xrFmNrgrX5qU2TDEjO52AAUSTgR_O4Lp9ZPDrbbA3gSLi8kiR7K0HYAhkfpw_Ov4zNbzx0_k991Rm7iNdrFsr9_m9_AqzSVddAhuzSf7ANSNaasyOn91WvfWpq8Z_K982zmem0MDhYCgt-f_vybjYiGYuRyDTs5uyTcPXudqGbljfNxNViL-BkLYOWRBT9Sgy17cVCRT0HjlfbE9wd6g8O_N1Vw0E",
+   "cta_action": "https://gyopao-shinjuku-east.com/?utm_source=google&utm_medium=meo",
+   "reservable": true,
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "horario_hoy": "viernes: 12:00–23:45",
+   "num_reviews": 5059,
+   "nivel_precio": "Precio moderado",
+   "rango_precio": "JPY 2,000–3,000",
+   "abierto_ahora": true,
+   "consultado_at": "2026-10-23T06:04:57.885Z"
+  },
+  {
+   "tip": "Sirve cena.",
+   "ciudad": "Tokio",
+   "cocina": "Restaurante especializado en ramen",
+   "fuente": "google_places",
+   "nombre": "Tsujita Ginza",
+   "rating": 4.7,
+   "por_que": "4.7 ★ con más de 6,600 reseñas; tsukemen de referencia, ideal tras Ginza.",
+   "website": "https://tsukemen-tsujita.com/shop/?id=0010024",
+   "maps_url": "https://maps.google.com/?cid=12118886423874460458&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJ1WzWeC-LGGARKltXcP7uLqg",
+   "telefono": "+81 3-5579-5696",
+   "direccion": "Japón, 〒104-0061 Tokyo, Chuo City, Ginza, 3-chōme−8−１２ 銀座ヤマトビル １Ｆ",
+   "photo_ref": "places/ChIJ1WzWeC-LGGARKltXcP7uLqg/photos/Aa-ngMak4Fhh4-zrkqffPp7m8Ntu2GZZTGQxuTWY1i5gwwssPBfgI0hVCSF9EwczcjZa9a-QDsWG5lbJndNptFxymOEwDU_4srs5TQNqKC7hyFPL6VA-E7diuxRI3XFmZeRgY_R5mN23geYjw6rEyEXcCD_zqzZKxf2b0P8EBZLes_H52JCeMr15jG0Fl7nhQGFwxnFLcTpnfcBsdEX-X0k4PjtRV6fchE2G3AFJPUGwXwNRTybm5RglUZWr6fj4sUQTwqF8r4bkvhUoL1P1628bSfRLmGAMTq9zrEjsyceVPouTj8P7kwOkiR3NZPBZQlg7-Ht1bmuOX4GOqoibJCNN4CLEXUdiLDROG2CImlt6bj1JW4Zk44F_vt0t3Cm1IBAkCFE5H1e3wW9bfIWiBeHMyqReTk24",
+   "cta_action": "https://tsukemen-tsujita.com/shop/?id=0010024",
+   "reservable": false,
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "horario_hoy": "viernes: 11:00–22:00",
+   "num_reviews": 6672,
+   "nivel_precio": "Precio moderado",
+   "rango_precio": "JPY 1,000–2,000",
+   "abierto_ahora": true,
+   "consultado_at": "2026-10-23T06:04:57.885Z"
+  },
+  {
+   "tip": "Acepta reservaciones, sirve cena.",
+   "ciudad": "Tokio",
+   "cocina": "Restaurante especializado en filetes",
+   "fuente": "google_places",
+   "nombre": "Godaime Wagyu Tokyo",
+   "rating": 4.7,
+   "por_que": "4.7 ★ con más de 8,300 reseñas; wagyu con reservaciones.",
+   "website": "https://steak.halal-food-wagyu.com/tokyo/ginzatsukiji/?utm_source=google-maps-hp&utm_medium=organic&utm_campaign=profile",
+   "maps_url": "https://maps.google.com/?cid=11265066035121321357&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJr-_pfgiLGGARjXW5wt-NVZw",
+   "telefono": "+81 3-6826-9680",
+   "direccion": "Japón, 〒104-0061 Tokyo, Chuo City, Ginza, 8-chōme−18−４ The Forme Ginza, B1",
+   "photo_ref": "places/ChIJr-_pfgiLGGARjXW5wt-NVZw/photos/Aa-ngMYxuc1iBbC5XpLmcC3QMQDF7k_NR7AOMjn5mLg598nb5NGQyQ6KzlsmEO81eJps7pI8xzniRooIe3oYj0ryyeRofWEhQZA4j-b276EYk0uOJRQNyjn--5FavXc7KN3kauABwEApBvXFX_Tx96SkLsRMqkOK1ibkCMdQAAy2-VSNLUtM8ssZZTb0vJHwOxgDjC4wWBCnxC0U6y6SJM-SlTChDCwiZwMwIhgGTqMKwpvE9HyNSEyTI-VbNnE49M8KSPhm4IzmRJtHXSzYgHDPDffIKJ2kp_jm9xDKdpeX8LG070dnmDp1d0lXxpcdXaqsAWveUTiWz3rEV9Nwq9UAXweLoKawvyJ1ZhL1sREdLHdUcg-XrhRJvMeFnzzngPD3OVYDA7GDbKo4jnv9i5ZMX3xV4ntefeKRvbQL9_wNpY6X",
+   "cta_action": "https://steak.halal-food-wagyu.com/tokyo/ginzatsukiji/?utm_source=google-maps-hp&utm_medium=organic&utm_campaign=profile",
+   "reservable": true,
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "horario_hoy": "viernes: 10:00–1:00",
+   "num_reviews": 8317,
+   "nivel_precio": "Muy caro",
+   "rango_precio": "Desde JPY 10,000",
+   "abierto_ahora": true,
+   "consultado_at": "2026-10-23T06:04:57.885Z"
+  },
+  {
+   "tip": "Acepta reservaciones, sirve cena.",
+   "ciudad": "Tokio",
+   "cocina": "Restaurante de alta cocina",
+   "fuente": "google_places",
+   "nombre": "Kagurazaka Ishikawa",
+   "rating": 4.6,
+   "por_que": "Cocina japonesa tradicional (kaiseki) en un espacio sereno y compacto; reserva con anticipación.",
+   "website": "http://kagurazaka-ishikawa.co.jp/",
+   "maps_url": "https://maps.google.com/?cid=3630657673924918079&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJa0WEW1qMGGARPztXG-uvYjI",
+   "telefono": "+81 3-5225-0173",
+   "direccion": "Japón, 〒162-0825 Tokyo, Shinjuku City, Kagurazaka, 5-chōme−３７ 高村ビル 1f",
+   "photo_ref": "places/ChIJa0WEW1qMGGARPztXG-uvYjI/photos/Aa-ngMa93Dcq51BJtmlYmHUu5jWML9l2-YewKHy-cMSHuRDcWcdYS5GrIYPtV7GKnw8JIOfbraEAsdg1XS5z7uWlRC1RRGbq65pMkuU8VgM7GKpfiSTiZlgpFHyL2xZs-TBoIusAZRp-xcHYtGlsQ5pcCDyuX7NvEF-LqCa7yC3UCut-TjIUxZwnIvw-MAqhgnRYVP1vHnxNFDAn0jnaHRgTdP1VzbKZnUJukkY6KQq6nGidsTIAk6Al2B-2n0Fb5vCMWXC5jc67I_CGlYTjfYHib3t9Le388QT-F1CPPWWZ8gl8f28Rm38IKd1fRRsD0da51oB3LPpwdQX1MjuRCoHpHbV-Xr4R-9nTF6EQ5AltyTIEcBMMniCcaMtL4t4yT-E2BGnDQ2EILeHz9VIyzsdJYZYjliX_Qj8",
+   "cta_action": "http://kagurazaka-ishikawa.co.jp/",
+   "reservable": true,
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "horario_hoy": "viernes: 17:00–22:00",
+   "num_reviews": 314,
+   "nivel_precio": "Muy caro",
+   "rango_precio": "Desde JPY 10,000",
+   "abierto_ahora": false,
+   "consultado_at": "2026-10-23T06:04:57.885Z"
+  },
+  {
+   "tip": "Acepta reservaciones, sirve cena.",
+   "ciudad": "Tokio",
+   "cocina": "Restaurante francés",
+   "fuente": "google_places",
+   "nombre": "L’Effervescence",
+   "rating": 4.6,
+   "por_que": "Menú degustación francés con sensibilidad japonesa, 4.6 ★; para una cena especial.",
+   "website": "http://www.leffervescence.jp/",
+   "maps_url": "https://maps.google.com/?cid=16148763003083117490&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJV7oGAWWLGGARslO9OGTuG-A",
+   "telefono": "+81 3-5766-9500",
+   "direccion": "2-chōme-26-4 Nishiazabu, Minato City, Tokyo 106-0031, Japón",
+   "photo_ref": "places/ChIJV7oGAWWLGGARslO9OGTuG-A/photos/Aa-ngMYpHxKeZRfP9DB75gjxAnp8_dHQ6S9q8qSitMGK1VDYz6b9gEBM6hWbEkNDSZtJ6GblA4vgX8nUbMEkdClXiXlu-9Kwek6_Bb8FSShi8MbiGbrrrdjmcpeGJ3qL-cBsX-CIlF0oW-9sYpvQI66JSz6eYO_YEn9CUEitDbYgS2ffsV61LgX4hn3Fp6Tik2m9tIC737Vj12a9jSxKzNQbmbHSVY2q9l0sw-8-iBGLzHtKe8u-VpnQ00ZOxI0bEBqAmBZFMXM866rqF0Nq1BykWDWI0EeTT1lzxVmhuloahSR3VpoeUZbgwCnw6_yDf7Ohsgrq4JGxMudXsgilPDk0i_kh60H-fTy6McA8LCa9ssJyZdx7VUo8rd9OZi9TtZauwBRyeo1LqqDk9qWqDGym11bqX3gG",
+   "cta_action": "http://www.leffervescence.jp/",
+   "reservable": true,
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "horario_hoy": "viernes: 11:30–12:30, 18:00–20:00",
+   "num_reviews": 989,
+   "nivel_precio": "Muy caro",
+   "rango_precio": "Desde JPY 10,000",
+   "abierto_ahora": false,
+   "consultado_at": "2026-10-23T06:04:57.885Z"
+  }
+ ],
+ "tours_json": [
+  {
+   "fuente": "google_places",
+   "nombre": "Santuario Meiji",
+   "rating": 4.7,
+   "por_que": "Santuario sintoísta entre bosque en pleno Shibuya. Entrada gratuita; precio estimado.",
+   "duracion": "1.5-2 horas",
+   "maps_url": "https://maps.google.com/?cid=10361244767556222835&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJ5SZMmreMGGARcz8QSTiJyo8",
+   "estado_dato": "ESTIMADO",
+   "num_reviews": 53990,
+   "precio_por_persona": 0
+  },
+  {
+   "fuente": "google_places",
+   "nombre": "Sensō-ji",
+   "rating": 4.6,
+   "por_que": "El templo más antiguo de Tokio, en Asakusa. Acceso libre; precio estimado.",
+   "duracion": "2-3 horas",
+   "maps_url": "https://maps.google.com/?cid=7785923974874169613&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJ8T1GpMGOGGARDYGSgpooDWw",
+   "estado_dato": "ESTIMADO",
+   "num_reviews": 100484,
+   "precio_por_persona": 0
+  },
+  {
+   "fuente": "google_places",
+   "nombre": "Jardín Nacional Shinjuku Gyoen",
+   "rating": 4.6,
+   "por_que": "Pausa tranquila para tu ritmo equilibrado; en febrero hay ciruelos. Entrada estimada.",
+   "duracion": "2 horas",
+   "maps_url": "https://maps.google.com/?cid=7646744610971579015&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJPyOTG8KMGGARh_IXobWxHmo",
+   "estado_dato": "ESTIMADO",
+   "num_reviews": 46074,
+   "precio_por_persona": 400
+  },
+  {
+   "fuente": "google_places",
+   "nombre": "Jardines de Hamarikyu",
+   "rating": 4.5,
+   "por_que": "Jardín junto a la bahía con casa de té tradicional. Entrada estimada.",
+   "duracion": "1.5 horas",
+   "maps_url": "https://maps.google.com/?cid=11189930762912151578&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJwfegutyLGGARGjiY-L2eSps",
+   "estado_dato": "ESTIMADO",
+   "num_reviews": 12827,
+   "precio_por_persona": 500
+  },
+  {
+   "fuente": "google_places",
+   "nombre": "Tokyo Skytree",
+   "rating": 4.6,
+   "por_que": "Miradores a 350-450 m con vista a todo Tokio. Boleto estimado.",
+   "duracion": "2 horas",
+   "maps_url": "https://maps.google.com/?cid=4590918393013628892&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJiXsyjf-PGGAR3G9iaPQ3tj8",
+   "estado_dato": "ESTIMADO",
+   "num_reviews": 15680,
+   "precio_por_persona": 1700
+  },
+  {
+   "fuente": "google_places",
+   "nombre": "Tokyo Disneyland",
+   "rating": 4.6,
+   "por_que": "Opción para un día de parque si te interesa. Boleto de un día, estimado; varía por fecha.",
+   "duracion": "Día completo",
+   "maps_url": "https://maps.google.com/?cid=16490271119724106699&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "place_id": "ChIJszdHEQN9GGARy9MJ1TY22eQ",
+   "estado_dato": "ESTIMADO",
+   "num_reviews": 127139,
+   "precio_por_persona": 1800
+  }
+ ],
+ "desglose_presupuesto": {
+  "tours": 13000,
+  "comida": 34000,
+  "extras": 12000,
+  "vuelos": 58348,
+  "hospedaje": 26640,
+  "transporte_local": 9000
+ },
+ "created_at": "2026-10-23T06:05:37.503553+00:00",
+ "cruceros_json": [],
+ "quote_basis": {
+  "selections": null,
+  "fecha_salida": "2027-02-10",
+  "num_viajeros": 2,
+  "fecha_regreso": "2027-02-20"
+ },
+ "selections": null,
+ "fuente": "plan",
+ "itinerario_json": [
+  {
+   "dia": 1
+  },
+  {
+   "dia": 2
+  },
+  {
+   "dia": 3
+  },
+  {
+   "dia": 4
+  },
+  {
+   "dia": 5
+  },
+  {
+   "dia": 6
+  },
+  {
+   "dia": 7
+  },
+  {
+   "dia": 8
+  },
+  {
+   "dia": 9
+  },
+  {
+   "dia": 10
+  }
+ ]
+}

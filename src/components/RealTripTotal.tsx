@@ -91,7 +91,7 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
   // Un solo total con su estado: estimado (falta elegir), de tu selección o con lo ya comprado.
   const title = summary?.title ?? (fromSelection ? "Total de tu selección" : "Total estimado");
   const hint = summary?.hint ?? (fromSelection ? null : "Elige vuelo y hotel en Comprar para ver el total real.");
-  const estimated = summary?.state === "estimado" || (!summary && !fromSelection);
+  const estimated = summary?.state === "estimado" || !!summary?.sinPrecioReal?.length || (!summary && !fromSelection);
   const quien = viajeros > 1 ? `Total para ${viajeros} personas` : "Total para 1 persona";
 
   return (

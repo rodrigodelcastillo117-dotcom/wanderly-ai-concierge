@@ -59,7 +59,8 @@ describe("tripTotalSummary (lógica)", () => {
     const { s } = summaryFor({ selVuelo: -1, selHospedaje: -1, selTours: [], selHoteles: {} });
     expect(s.state).toBe("estimado");
     expect(s.title).toBe("Total estimado");
-    expect(s.hint).toBe("Elige vuelo y hoteles para ver el total real.");
+    // El vuelo de la cotización es un estimado (sin tarifa real): el total lo dice (P1-2, 23-oct).
+    expect(s.hint).toBe("Elige vuelo y hoteles para ver el total real. Incluye estimados: vuelos.");
     expect(s.total).toBe(561468);
     expect(s.barLabel).toBe("Total $561,468 MXN · estimado");
   });
@@ -140,7 +141,7 @@ describe("TripDetail: un solo total", () => {
     const card = await screen.findByTestId("trip-total-card");
     expect(card).toHaveAttribute("data-state", "estimado");
     expect(within(card).getByTestId("trip-total-title")).toHaveTextContent("Total estimado");
-    expect(within(card).getByTestId("trip-total-hint")).toHaveTextContent("Elige vuelo y hoteles para ver el total real.");
+    expect(within(card).getByTestId("trip-total-hint")).toHaveTextContent("Elige vuelo y hoteles para ver el total real. Incluye estimados: vuelos.");
     expect(within(card).getByTestId("trip-total-label")).toHaveTextContent("Total para 2 personas");
     expect(within(card).getByTestId("trip-total-label")).toHaveTextContent(/aproximado/i);
     // Una sola cifra en lo que se ve; el resumen final de Comprar (pestaña oculta) repite la misma cifra.

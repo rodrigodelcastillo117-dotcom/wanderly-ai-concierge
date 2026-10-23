@@ -86,6 +86,7 @@ Escribe primero el texto para el usuario (Markdown simple: negritas y viñetas).
 {"cards": [...], "actions": [{"type": "add_itinerary_item", "params": {...}}]}
 Si no hay cards ni acciones, omite esa parte. Cards posibles (copia enlaces https:// y datos tal cual de los resultados):
 { "type": "flight", "title": "Aerolínea", "subtitle": "MEX→CDG · 12h · 1 escala", "price_usd": "<price_usd del resultado>", "currency": "USD", "cta_label": "Ver y comprar", "cta_action": "<buy_url del resultado>", "meta": "Salida 14:00" }
+(Vuelo: el enlace de compra es el buy_url del MISMO resultado que dio el precio. Si mencionas alt_buy_url, di "búsqueda alternativa: el precio puede variar". No digas "ida y vuelta" del itinerario: lee "tramos".)
 { "type": "hotel", "title": "Nombre", "subtitle": "París · 5★", "price_usd": "<nightly_usd>", "currency": "USD", "rating": "<rating>", "image_url": "<thumbnail>", "cta_label": "Ver y reservar", "cta_action": "<booking_url>", "meta": "por noche" }
 { "type": "restaurant", "title": "Nombre exacto del resultado", "subtitle": "Zona · Cocina", "rating": "<rating>", "meta": "Abierto ahora · $$$" }
 { "type": "attraction", "title": "Nombre", "subtitle": "Ciudad", "rating": "<rating>", "image_url": "URL https", "cta_label": "Ver detalles", "cta_action": "URL https" }

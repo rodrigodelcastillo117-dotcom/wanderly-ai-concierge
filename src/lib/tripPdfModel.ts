@@ -15,6 +15,7 @@
 import { tripTotals } from "@/components/RealTripTotal";
 import { computeTripDesglose } from "@/lib/quote";
 import { buildBuyFlow, TIER_WORD } from "@/lib/buyFlow";
+import { listaHumana, unverifiedInTotal } from "@/lib/tripTotal";
 import { describePrefill, fmtDay, fmtRange, itemPurchaseState, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
 import { markLabel, type GroupMark } from "@/lib/purchaseMarks";
 import { provenanceOf } from "@/lib/provenance";
@@ -52,6 +53,8 @@ export type PageTotals = {
   desglose: Record<string, number>;
   fromSelection: boolean;
   quotedTotal: number;
+  /** "Incluye estimados: vuelos." de la página (tripTotalSummary); si falta se calcula igual. */
+  estimadosNote?: string;
 };
 
 export type TripPdfOptions = {
@@ -391,9 +394,11 @@ export function buildTripPdfModel(trip: any, opts: TripPdfOptions): TripPdfModel
 
   const datesLabel = fmtRange(trip?.fecha_salida ?? null, trip?.fecha_regreso ?? null);
   const title = clean(trip?.destino) || "Tu viaje";
-  const totalNote = totals.fromSelection
+  // Lo que el total suma sin precio verificable, dicho junto al total (igual que en la página y en Comprar).
+  const estimadosNote = totals.estimadosNote ?? ((s) => (s.length ? `Incluye estimados: ${listaHumana(s)}.` : ""))(unverifiedInTotal(totals.desglose ?? {}, flow.items, sel));
+  const totalNote = [totals.fromSelection
     ? `Total con tu selección de vuelo, hotel o experiencias (estimado con los precios de la cotización de ${money(totals.quotedTotal)}).`
-    : "Total de la cotización guardada; no se agregan extras automáticos.";
+    : "Total de la cotización guardada; no se agregan extras automáticos.", estimadosNote].filter(Boolean).join(" ");
   const desglose = Object.entries(totals.desglose ?? {}).filter(([, v]) => Number(v) > 0).map(([k, v]) => ({ label: LABELS[k] ?? k, amount: Number(v) }));
   const totalKm = driving.length ? driving.reduce((s, l) => s + (l.km ?? 0), 0) : null;
   const totalMinutes = driving.length ? driving.reduce((s, l) => s + (l.minutes ?? 0), 0) : null;

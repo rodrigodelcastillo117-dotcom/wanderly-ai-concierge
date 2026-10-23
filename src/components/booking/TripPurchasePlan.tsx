@@ -24,6 +24,7 @@ import { useTasteProfile } from "@/hooks/useTasteProfile";
 import { TripPicksCarousel, type PickAction } from "@/components/booking/TripPicksCarousel";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 
+const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras" };
 const money = (n: number, cur: string | null = "MXN") => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? "MXN"}`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -49,6 +50,10 @@ type Props = {
   marksState?: ReturnType<typeof useTripPurchaseMarks> | null;
   /** Último paso "Listo · Revisa y compra": total del viaje con la selección (el mismo de la página). */
   selectionTotal?: number | null;
+  /** El desglose que suma ese total (computeTripDesglose de la página): las partidas del resumen salen de aquí. */
+  selectionDesglose?: Record<string, number> | null;
+  /** "Incluye estimados: vuelos." (tripTotalSummary), la misma nota del total de la página. */
+  estimadosNote?: string | null;
   /** "Ver mi viaje" (p. ej. ir a Resumen). */
   onViewTrip?: () => void;
   /** Hueco para "Enviarme mi selección por correo" (lo hace la rama claude/correo-seleccion). */
@@ -64,7 +69,7 @@ function buyLabel(it: PurchaseItem): string {
 }
 
 export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHoteles, serverOffers = {}, bookings, userId, ownerId, quoteCreatedAt, onChanged,
-  onSelectVuelo, onSelectHotel, onToggleTour, marksState, selectionTotal, onViewTrip, sendSelectionSlot }: Props) {
+  onSelectVuelo, onSelectHotel, onToggleTour, marksState, selectionTotal, selectionDesglose, estimadosNote, onViewTrip, sendSelectionSlot }: Props) {
   const [selLegs, setSelLeg] = useLegChoices(trip?.id ?? null);
   const flow = useMemo(
     () => buildBuyFlow(trip, { selVuelo, selHospedaje, selTours, selHoteles, selLegs }, serverOffers, { quoteCreatedAt }),
@@ -478,14 +483,33 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
         </h3>
         {(() => {
           const missing = flow.steps.map(missingOf).filter(Boolean) as string[];
-          const rowsList: Array<{ key: string; label: string; sub: string | null; price: number | null; est: boolean; it: PurchaseItem }> = [];
+          const rowsList: Array<{ key: string; label: string; sub: string | null; price: number | null; est: boolean; it: PurchaseItem | null }> = [];
+          // Las partidas son las MISMAS que suma el total (selectionDesglose): el vuelo y el hotel de un
+          // destino llevan el monto del desglose; si no es de una tarifa real, dice "estimado".
+          const d = selectionDesglose ?? null;
+          const fromTotal = (k: string, own: number | null) => (d ? (Number(d[k]) > 0 ? Math.round(Number(d[k])) : null) : own);
           for (const st of flow.steps) {
             if ((st.kind === "vuelo" || st.kind === "hospedaje") && st.skipped) continue;
             if (!st.item) continue;
+            const core = st.kind === "vuelo" ? "vuelos" : st.kind === "hospedaje" && !st.stay ? "hospedaje" : null;
             rowsList.push({ key: st.item.key, label: st.kind === "traslado" ? `${st.title} · ${st.choices.find((c) => c.mode === st.chosen)?.label ?? "por elegir"}` : st.item.title,
-              sub: st.item.subtitle, price: st.item.price, est: st.item.estimate || st.kind === "traslado", it: st.item });
+              sub: st.item.subtitle, price: core ? fromTotal(core, st.item.price) : st.item.price,
+              est: st.item.estimate || st.kind === "traslado" || (!!core && !(Number(st.item.price) > 0)), it: st.item });
           }
           for (const it of items.filter((x) => x.kind === "actividad")) rowsList.push({ key: it.key, label: it.title, sub: it.subtitle, price: it.price, est: it.estimate, it });
+          // Lo que el total suma sin ser algo que se compra aquí (comida, transporte local, extras…).
+          if (d) {
+            const has = (pred: (r: typeof rowsList[number]) => boolean) => rowsList.some(pred);
+            const covered: Record<string, boolean> = {
+              vuelos: has((r) => r.key.startsWith("vuelo:")),
+              hospedaje: has((r) => r.it?.kind === "hospedaje"), tours: has((r) => r.it?.kind === "actividad"),
+              transporte_local: has((r) => r.key.startsWith("traslado:")),
+            };
+            for (const [k, v] of Object.entries(d)) {
+              if (covered[k] || !(Math.round(Number(v) || 0) > 0)) continue;
+              rowsList.push({ key: `desglose:${k}`, label: DESGLOSE_LABEL[k] ?? k, sub: "De la cotización", price: Math.round(Number(v)), est: true, it: null });
+            }
+          }
           for (const it of items.filter((x) => x.kind === "restaurante" && restPicks.includes(restKey(trip.restaurantes_json?.[x.index], x.index)))) rowsList.push({ key: it.key, label: it.title, sub: it.subtitle, price: null, est: false, it });
           return (
             <>
@@ -499,15 +523,15 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                     </span>
                     <span className="shrink-0 text-right text-sm tabular-nums">{r.price ? money(r.price) : <span className="text-xs text-muted-foreground">Precio en el sitio</span>}
                       {r.price && r.est ? <span className="block text-[10px] text-muted-foreground">estimado</span> : null}</span>
-                    <span className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{state(r.it) !== "pendiente"
+                    {r.it && <span className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{state(r.it) !== "pendiente"
                       ? <span className="inline-flex items-center gap-1 text-xs text-emerald-400"><Check className="h-3.5 w-3.5" aria-hidden="true" /> {state(r.it) === "confirmado" ? "Confirmado" : "Ya lo compraste"}</span>
-                      : buyButton(r.it, `listo-${r.key}`)}</span>
+                      : buyButton(r.it, `listo-${r.key}`)}</span>}
                   </li>
                 ))}
               </ul>
               {selectionTotal != null && selectionTotal > 0 && (
                 <p className="mt-3 flex items-baseline justify-between gap-3 border-t border-border/50 pt-3" data-testid="comprar-listo-total">
-                  <span className="text-sm text-muted-foreground">Total del viaje con tu selección<span className="block text-[11px]">Incluye comida y transporte local estimados del análisis.</span></span>
+                  <span className="text-sm text-muted-foreground">Total del viaje con tu selección<span className="block text-[11px]" data-testid="comprar-listo-total-nota">{estimadosNote ? `${estimadosNote} ` : ""}Comida, transporte local y extras son estimados del análisis.</span></span>
                   <span className="font-display text-2xl tabular-nums">{money(selectionTotal)}</span>
                 </p>
               )}
