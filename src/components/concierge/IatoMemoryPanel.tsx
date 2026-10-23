@@ -35,7 +35,7 @@ const fmt = (iso: string) => {
   return Number.isFinite(d.getTime()) ? d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "";
 };
 
-export function IatoMemoryPanel({ userId, trips }: { userId: string; trips: { id: string; destino?: string | null }[] }) {
+export function IatoMemoryPanel({ userId, trips, compact = false }: { userId: string; trips: { id: string; destino?: string | null }[]; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [convs, setConvs] = useState<ConvRow[]>([]);
@@ -106,9 +106,17 @@ export function IatoMemoryPanel({ userId, trips }: { userId: string; trips: { id
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <button className="flex items-center gap-1.5 text-[11px] text-primary/90 hover:text-primary transition">
-          <Brain className="w-3 h-3" /> Lo que Iato recuerda
-        </button>
+        {compact ? (
+          // Encabezado compacto del chat: solo el ícono (con nombre accesible) para no desbordar.
+          <button type="button" aria-label="Lo que Iato recuerda" title="Lo que Iato recuerda"
+            className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-primary/90 hover:text-primary hover:bg-primary/10 transition">
+            <Brain className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+        ) : (
+          <button className="flex items-center gap-1.5 text-[11px] text-primary/90 hover:text-primary transition">
+            <Brain className="w-3 h-3" /> Lo que Iato recuerda
+          </button>
+        )}
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
