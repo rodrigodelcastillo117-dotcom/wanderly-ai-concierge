@@ -3,6 +3,7 @@
 import {
   deriveTripBookingState, isConfirmedBooking, itemBookingState, type ItemKind,
 } from "../_shared/bookingState.ts";
+import { isVerifiedConfirmed, reservationStateLabel, type ReservationStateRow } from "../_shared/reservationState.ts";
 
 export const normText = (value: unknown) => String(value ?? "")
   .toLowerCase()
@@ -54,6 +55,34 @@ export function tripBookingContext(trip: any, bookings: any[]) {
     cruceros: tagItems("crucero", trip?.cruceros_json, confirmed),
     reservas_confirmadas_bookings: confirmed,
     clics_a_socios_sin_confirmar: summary.clics_sin_confirmar,
+  };
+}
+
+/**
+ * God Mode F1: estados vigentes del usuario y del viaje (RPC my_open_reservations, con el JWT del
+ * usuario: la RLS deja ver solo lo suyo). Si la RPC falla o aún no existe, no hay estados: el
+ * guardarraíl de texto lo toma como "nada confirmado".
+ */
+export async function loadReservationStates(
+  rpc: (fn: string, params: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>,
+  tripId: string | null | undefined,
+): Promise<ReservationStateRow[]> {
+  try {
+    const { data, error } = await rpc("my_open_reservations", { _trip: tripId ?? null });
+    return !error && Array.isArray(data) ? (data as ReservationStateRow[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Para el guardarraíl de texto: ¿hay algo confirmado con evidencia? y las solicitudes abiertas. */
+export function reservationGuardInput(rows: ReservationStateRow[]) {
+  return {
+    hasVerifiedReservation: rows.some(isVerifiedConfirmed),
+    openRequests: rows
+      .filter((r) => r.canonical_state === "REQUESTED" || r.canonical_state === "PENDING_CONFIRMATION")
+      .slice(0, 3)
+      .map((r) => ({ title: String(r.title ?? "").slice(0, 80), label: reservationStateLabel(r).label })),
   };
 }
 

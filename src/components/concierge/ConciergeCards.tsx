@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { track } from "@/lib/analytics";
 import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
 import { TakeMeThereButton } from "./TakeMeThereButton";
+import { ReservationStateBadge } from "./ReservationStateBadge";
 import { canTakeMeThere } from "@/lib/takeMeThere";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 import { frescuraPrecio } from "../../../supabase/functions/_shared/priceFreshness.ts";
@@ -218,6 +219,9 @@ export function useConciergeRequest(tripId?: string | null) {
   const [state, setState] = useState<RequestState>("idle");
   const [folio, setFolio] = useState<string | null>(null);
   const [humanNotified, setHumanNotified] = useState<boolean | null>(null);
+  // God Mode F1: estado real que devolvió el servidor ("solicitado"), para la etiqueta honesta.
+  const [status, setStatus] = useState<string | null>(null);
+  const [requestType, setRequestType] = useState<string | null>(null);
   // AUD-SEG-05: la misma solicitud reintentada (tras un timeout) lleva la misma clave y el servidor
   // devuelve el mismo folio en vez de crear otra. Tras el éxito, o si cambia la solicitud, clave nueva.
   const idem = useRef<{ sig: string; key: string } | null>(null);
@@ -236,6 +240,8 @@ export function useConciergeRequest(tripId?: string | null) {
       idem.current = null;
       setFolio(String(data.request.id).slice(0, 8).toUpperCase());
       setHumanNotified(data.human_notified !== false);
+      setStatus(typeof data.request.status === "string" ? data.request.status : "solicitado");
+      setRequestType(payload.type);
       setState("confirmed");
       toast.success("Solicitud recibida", { description: "Un humano te responderá con disponibilidad y precio." });
     } catch (e: any) {
@@ -243,7 +249,7 @@ export function useConciergeRequest(tripId?: string | null) {
       toast.error(e?.message ?? "No pudimos registrar la solicitud");
     }
   };
-  return { state, folio, humanNotified, run };
+  return { state, folio, humanNotified, status, requestType, run };
 }
 
 export function RequestButton({ state, label, onClick, className = "" }: {
@@ -259,14 +265,19 @@ export function RequestButton({ state, label, onClick, className = "" }: {
   );
 }
 
-function RequestNote({ state, folio, humanNotified }: { state: RequestState; folio: string | null; humanNotified: boolean | null }) {
+function RequestNote({ state, folio, humanNotified, status, requestType }: {
+  state: RequestState; folio: string | null; humanNotified: boolean | null; status?: string | null; requestType?: string | null;
+}) {
   if (state === "confirmed") {
     return (
-      <p className="text-[11px] text-muted-foreground mt-2" role="status">
+      <>
+      <div className="mt-2"><ReservationStateBadge status={status ?? "solicitado"} type={requestType} /></div>
+      <p className="text-[11px] text-muted-foreground mt-1" role="status">
         Folio {folio}. {humanNotified
           ? "Un humano del equipo IATOS te responderá con disponibilidad y precio. Todavía no es una reserva."
           : "Quedó registrada, pero no pudimos avisar al equipo al instante. Si no te respondemos pronto, usa \"Contactar Fixer\"."}
       </p>
+      </>
     );
   }
   return (

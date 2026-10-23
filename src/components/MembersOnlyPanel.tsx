@@ -18,6 +18,7 @@ import {
 } from "@/lib/membersVenues";
 import { matchCities, normText, orderCities, resolveCityName } from "@/lib/cityVisuals";
 import { MembersVenueMeta } from "@/components/MembersVenueMeta";
+import { reservationStateLabel, requestStatusToCanonical } from "../../supabase/functions/_shared/reservationState.ts";
 
 // Lista de siempre + la categoría "Otros" para lo curado que no encaja (coctelería, mezcalería…).
 const CATEGORIES = [...MEMBERS_CATEGORIES, OTHER_CATEGORY];
@@ -187,7 +188,7 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
       if (data?.error) throw new Error(data.error);
       toast({
         title: "Solicitud enviada al Concierge",
-        description: `Tu solicitud para ${v.nombre} quedó con el equipo (estado: solicitado). Aún no es una reserva: te avisamos cuando el lugar responda.`,
+        description: `${v.nombre}: ${reservationStateLabel({ canonical_state: requestStatusToCanonical(data?.request?.status ?? "solicitado") }).label}. Te avisamos cuando el lugar responda.`,
       });
       onReserve?.(v);
     } catch (e: any) {

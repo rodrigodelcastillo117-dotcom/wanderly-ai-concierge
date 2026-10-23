@@ -6,6 +6,7 @@ import { localISODate } from "@/lib/localDate";
 import { readPriveSession } from "@/lib/priveSession";
 import { buildIcs, type ProposedAction, type CalendarEvent } from "../../../supabase/functions/concierge-chat/actions.ts";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
+import { ReservationStateBadge } from "./ReservationStateBadge";
 
 // Tarjeta de acción de Iato (Concierge 2.0): "Iato propone, tú confirmas". El resumen lo arma el
 // servidor con los datos validados; al tocar Confirmar el servidor vuelve a validar permisos, viaje y
@@ -35,6 +36,8 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
   const [state, setState] = useState<State>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
+  // God Mode F1: estado real de la solicitud creada (Fixer / Privé), con etiqueta honesta.
+  const [reqStatus, setReqStatus] = useState<string | null>(null);
   // AUD-SEG-05: una clave por tarjeta; "Reintentar" manda la misma y el servidor no repite la acción.
   const [idemKey] = useState(newIdemKey);
 
@@ -71,6 +74,9 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
       setState(data?.ok ? "done" : "error");
       setMessage(String(data?.message ?? (data?.ok ? "Listo." : "No pude completar la acción.")));
       if (typeof data?.link === "string" && data.link.startsWith("/")) setLink(data.link);
+      if (data?.ok && (action.type === "fixer_request" || action.type === "prive_request")) {
+        setReqStatus(typeof data?.data?.status === "string" ? data.data.status : "solicitado");
+      }
     } catch {
       setState("error");
       setMessage("No pude conectar. Revisa tu internet e intenta de nuevo.");
@@ -97,6 +103,9 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
                 <button type="button" onClick={() => navigate(link)} className="ml-1 text-primary underline underline-offset-2">Ver</button>
               )}
             </p>
+          )}
+          {state === "done" && reqStatus && (
+            <div className="mt-1.5"><ReservationStateBadge status={reqStatus} type={action.type === "prive_request" ? "prive_request" : null} /></div>
           )}
           {state !== "done" && (
             <div className="flex flex-wrap gap-2 mt-2">

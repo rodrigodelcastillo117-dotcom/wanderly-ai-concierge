@@ -35,6 +35,7 @@ export interface TurnDeps {
   actionCtx: ActionContext;
   requestIntel?: unknown;
   hasConfirmedBookings?: boolean;
+  openRequests?: { title: string; label: string }[];
   city?: string;
   party?: number;
   exigente: boolean;
@@ -149,7 +150,7 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
   // 3) Respuesta validada.
   const final = finalizeTurn({
     raw: agent.finalText, toolRuns: agent.toolRuns, plan: d.plan, actionCtx: d.actionCtx,
-    requestIntel: d.requestIntel, hasConfirmedBookings: d.hasConfirmedBookings, city: d.city, party: d.party,
+    requestIntel: d.requestIntel, hasConfirmedBookings: d.hasConfirmedBookings, openRequests: d.openRequests, city: d.city, party: d.party,
     exigente: d.exigente, userMessage: d.userMessage, tripScope: d.tripScope ?? null,
   });
   if (shownLead) final.text = joinLead(shownLead, final.text);

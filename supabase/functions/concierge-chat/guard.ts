@@ -185,25 +185,34 @@ export function correctFailureClaims(text: string, states: Record<string, string
 }
 
 const FIRST_PERSON_BOOKING = /\b(?:ya\s+)?(?:te\s+|les\s+)?(?:reservé|hice\s+(?:la|tu|su)\s+reserva(?:ci[oó]n)?|confirmé\s+(?:tu|la|su)\s+(?:mesa|reserva(?:ci[oó]n)?|habitaci[oó]n|lugar)|(?:te|les)\s+aparté)(?![\wáéíóúñ])/i;
-const STATE_BOOKING = /\b(?:tu|la|su)\s+(?:mesa|reserva(?:ci[oó]n)?|habitaci[oó]n|cena)\s+(?:ya\s+)?(?:est[aá]|qued[oó])\s+(?:confirmad[ao]|reservad[ao]|list[ao]|apartad[ao])\b|\breserva(?:ci[oó]n)?\s+confirmada\b/i;
+const STATE_BOOKING = /\b(?:tu|la|su)\s+(?:mesa|reserva(?:ci[oó]n)?|habitaci[oó]n|cena)(?:\s+(?:en|de|del|para)\s+[^.,;!?]{1,40}?)?\s+(?:ya\s+)?(?:est[aá]|qued[oó])\s+(?:confirmad[ao]|reservad[ao]|list[ao]|apartad[ao])\b|\breserva(?:ci[oó]n)?\s+confirmada\b/i;
+// God Mode F1: "ya quedó reservado" y "tu boleto ya está comprado" (abrir un enlace no es compra).
+const STATE_BOOKED_OR_BOUGHT = /\b(?:ya\s+)(?:est[aá]|qued[oó])\s+reservad[ao]s?\b|\b(?:tu|tus|el|los|su|sus)\s+(?:vuelos?|boletos?|billetes?|entradas?|hotel(?:es)?|tour(?:s)?)\s+(?:ya\s+)?(?:est[aá]n?|qued[oó]|quedaron)\s+(?:comprad[oa]s?|pagad[oa]s?)\b/i;
 
 export const NOT_BOOKED_LINE = "Aún no está reservado: Iato no puede reservar directamente. Te dejo el camino más corto para hacerlo o pedírselo al Fixer.";
 
 /**
  * Iato no tiene contratos ni APIs de reserva: nunca dice "reservé" ni "tu mesa está confirmada". Las
- * frases que lo afirman se quitan y se agrega la aclaración. Con reservas confirmadas reales en el viaje,
- * "tu hotel está reservado" es válido; "te reservé…" nunca.
+ * frases que lo afirman se quitan y se agrega la aclaración. Con una reserva confirmada CON EVIDENCIA en
+ * el contexto (bookings confirmadas del viaje o reservation_state_v CONFIRMED verificada), "tu hotel está
+ * reservado" es válido; "te reservé…" nunca. Si hay solicitudes abiertas, se dice su estado real.
  */
-export function enforceNoFakeBooking(text: string, opts: { hasConfirmedBookings?: boolean } = {}): string {
+export function enforceNoFakeBooking(text: string, opts: {
+  hasConfirmedBookings?: boolean;
+  openRequests?: { title: string; label: string }[];
+} = {}): string {
   const t = String(text ?? "");
   const sentences = t.split(/(?<=[.!?])\s+/);
   let changed = false;
   const kept = sentences.filter((s) => {
-    const bad = FIRST_PERSON_BOOKING.test(s) || (!opts.hasConfirmedBookings && STATE_BOOKING.test(s));
+    const bought = STATE_BOOKED_OR_BOUGHT.test(s) && !/^\W*(?:si|cuando|en\s+cuanto)\b/i.test(s); // "Si tu vuelo ya está pagado…" es condicional
+    const bad = FIRST_PERSON_BOOKING.test(s) || (!opts.hasConfirmedBookings && (STATE_BOOKING.test(s) || bought));
     if (bad) changed = true;
     return !bad;
   });
   if (!changed) return t;
   const rest = kept.join(" ").trim();
-  return `${NOT_BOOKED_LINE}${rest ? ` ${rest}` : ""}`;
+  const real = (opts.openRequests ?? []).filter((r) => r.title).slice(0, 2)
+    .map((r) => `${r.title}: ${r.label}.`).join(" ");
+  return `${NOT_BOOKED_LINE}${real ? ` ${real}` : ""}${rest ? ` ${rest}` : ""}`;
 }

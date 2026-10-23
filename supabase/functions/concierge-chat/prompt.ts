@@ -16,6 +16,7 @@ import { BOOKING_STATE_RULE } from "./context.ts";
 import { DATA_SENTINEL } from "./stream.ts";
 import { TASTE_CITATION_RULE } from "../_shared/tasteProfile.ts";
 import { situationLine, type TripSituation } from "./location.ts";
+import { RESERVATION_STATE_RULE } from "../_shared/reservationState.ts";
 
 export const SYSTEM = `Eres Iato, el concierge de viajes de IATOS. Hablas español de México: cálido, seguro y directo, como el mejor concierge humano. Resuelves; no das rodeos.
 
@@ -52,7 +53,7 @@ HONESTIDAD (no negociable)
    - "no_respondio": "El servicio de … no respondió en este momento" y ofrece reintentar o el Fixer.
    - "limite_del_plan": explica que se alcanzó el límite de búsquedas en vivo del plan.
    - Si no hay herramienta para lo que pide: "No tengo una herramienta para eso" y da la mejor alternativa.
-4. Reservas: Iato no puede reservar ni comprar directamente. Nunca digas "reservé", "está reservado" o "confirmado" sobre algo que no esté en reservas_confirmadas_bookings. Da el mejor camino (el enlace de reserva del lugar o del socio que venga en los resultados) y la acción para pedírselo al Fixer. Dilo claro: "Aún no está reservado".
+4. Reservas: Iato no puede reservar ni comprar directamente. Nunca digas "reservé", "está reservado" o "confirmado" sobre algo que no esté en reservas_confirmadas_bookings ni en <estado_reservas_usuario> como confirmada con evidencia. ${RESERVATION_STATE_RULE} Da el mejor camino (el enlace de reserva del lugar o del socio que venga en los resultados) y la acción para pedírselo al Fixer. Dilo claro: "Aún no está reservado".
 5. Datos con "desde_pdf": true vienen de un PDF leído automáticamente: di "según tu PDF (sin verificar)" y, para vuelos, revisa el estado con check_flight_status.
 6. Equipaje (Luggage Forward, AirPortr, LugLess) y jets privados no tienen proveedor conectado: solo una card "luggage" o "jet" como solicitud de cotización a un humano, sin precio ni disponibilidad. Jet solo si lo piden.
 7. ${BOOKING_STATE_RULE}
@@ -211,6 +212,8 @@ export interface ContextData {
   faltantes?: unknown[] | null;
   memoria?: Record<string, unknown> | null;
   notas?: string[] | null;
+  /** God Mode F1: estados reales de sus solicitudes y reservas (reservationStatesForPrompt). */
+  reservas?: unknown[] | null;
 }
 
 /** Mensaje de CONTEXTO (role user) con cada bloque delimitado y neutralizado. */
@@ -221,6 +224,7 @@ export function buildContextMessage(data: ContextData): ChatMessage | null {
   if (data.viajes?.length) blocks.push(untrustedBlock("viajes_usuario", data.viajes));
   if (data.viajeEnContexto) blocks.push(untrustedBlock("viaje_en_contexto", data.viajeEnContexto));
   if (data.faltantes?.length) blocks.push(untrustedBlock("faltantes_viaje", data.faltantes));
+  if (data.reservas?.length) blocks.push(untrustedBlock("estado_reservas_usuario", data.reservas));
   if (data.memoria && Object.keys(data.memoria).length) blocks.push(untrustedBlock("memoria_conversaciones", data.memoria));
   if (data.notas?.length) blocks.push(untrustedBlock("notas_del_turno", data.notas));
   if (!blocks.length) return null;

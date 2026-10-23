@@ -105,6 +105,8 @@ describe("Jet y equipaje (B-04)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Solicitar cotización" }));
     expect(await screen.findByRole("button", { name: "✓ Solicitud recibida" })).toBeDisabled();
     expect(screen.getByText(/Folio ABCDEF12/)).toBeInTheDocument();
+    // God Mode F1: el estado real con etiqueta honesta.
+    expect(screen.getByText("Solicitud enviada · aún no es una reserva")).toBeInTheDocument();
     expect(invoke).toHaveBeenCalledWith("concierge-action", { body: expect.objectContaining({ type: "jet", trip_id: "paris" }) });
   });
 
