@@ -6,7 +6,8 @@
 //   · Kilómetros: haversine entre coordenadas reales (geocodificadas) de tu ciudad de origen y tus
 //     destinos, en orden; la vuelta a casa solo si el viaje tiene fecha de regreso. Sin coordenadas,
 //     no hay tarjeta.
-//   · Fotos: solo las tuyas (Mejores momentos y tus entradas del diario). Al compartir, las fotos y el
+//   · Fotos: solo las tuyas (Recuerdos del año, Mejores momentos y tus entradas del diario; las
+//     favoritas ⭐ de Recuerdos primero). Al compartir, las fotos y el
 //     avatar NO van salvo que la persona active «Incluir mis fotos» (buildCardSpec).
 //   · De otras personas solo se muestra el nombre (wrapped_companions en la base).
 import { matchCity, matchCountry, norm } from "../../supabase/functions/_shared/souvenirs.ts";
@@ -30,6 +31,8 @@ export type WrappedTrip = {
 };
 export type WrappedMoment = { id: string; trip_id?: string | null; caption?: string | null; destino?: string | null; created_at: string; tags?: string[] | null; photoUrl?: string | null };
 export type WrappedJournal = { id: string; trip_id: string; text?: string | null; created_at: string; photoUrl?: string | null };
+/** Foto de Recuerdos (tabla recuerdos): fecha de captura y estrella de favorita. */
+export type WrappedRecuerdo = { id: string; trip_id?: string | null; taken_on: string; favorite?: boolean | null; photoUrl?: string | null };
 export type WrappedExpense = { amount: number; currency?: string | null; category?: string | null; expense_date: string };
 export type WrappedVisit = { category?: string | null; visited_at?: string | null };
 export type WrappedVisitedPlace = { visited_at?: string | null };
@@ -48,6 +51,8 @@ export type WrappedInput = {
   trips: WrappedTrip[];
   moments?: WrappedMoment[];
   journal?: WrappedJournal[];
+  /** Fotos de Recuerdos del año (las favoritas ⭐ van primero en la tarjeta y en el video). */
+  recuerdos?: WrappedRecuerdo[];
   expenses?: WrappedExpense[];
   visits?: WrappedVisit[];
   visitedPlaces?: WrappedVisitedPlace[];
@@ -177,7 +182,7 @@ export function geocodeQueries(trips: WrappedTrip[], homeCity?: string | null, m
 
 // ───────────────────────── resultado ─────────────────────────
 export type WrappedTripSummary = { id: string; label: string; start: string; end: string; days: number; month: number };
-export type WrappedPhoto = { url: string; caption?: string | null; place?: string | null };
+export type WrappedPhoto = { url: string; caption?: string | null; place?: string | null; favorite?: boolean };
 export type WrappedStats = {
   year: number;
   firstName: string | null;
@@ -286,9 +291,15 @@ export function computeWrapped(input: WrappedInput): WrappedStats {
   const journal = (input.journal ?? []).filter((j) => tripIds.has(j.trip_id)).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const placeOf = (tripId?: string | null, destino?: string | null) =>
     clean(String(destino ?? "")) || summaries.find((s) => s.id === tripId)?.label || null;
+  // Recuerdos: los de la fecha del año (la foto se tomó ese año), ya sin repetir.
+  const recuerdos = (input.recuerdos ?? []).filter((r) => r.photoUrl && yearOf(r.taken_on) === year)
+    .sort((a, b) => a.taken_on.localeCompare(b.taken_on) || a.id.localeCompare(b.id));
+  const recPhoto = (r: WrappedRecuerdo): WrappedPhoto => ({ url: r.photoUrl!, caption: null, place: placeOf(r.trip_id), favorite: !!r.favorite });
   const photos: WrappedPhoto[] = [
+    ...recuerdos.filter((r) => r.favorite).map(recPhoto),
     ...moments.filter((m) => m.photoUrl).map((m) => ({ url: m.photoUrl!, caption: m.caption ?? null, place: placeOf(m.trip_id, m.destino) })),
     ...journal.filter((j) => j.photoUrl).map((j) => ({ url: j.photoUrl!, caption: null, place: placeOf(j.trip_id) })),
+    ...recuerdos.filter((r) => !r.favorite).map(recPhoto),
   ];
   const whenOf = (tripId: string | null | undefined, created: string) => {
     const s = summaries.find((x) => x.id === tripId);

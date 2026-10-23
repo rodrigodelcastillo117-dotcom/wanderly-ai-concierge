@@ -165,7 +165,7 @@ SELECT public.rc_ok('R16 Sara no puede marcar como favorita ni mover una foto de
   AND NOT (SELECT favorite FROM public.recuerdos WHERE id = 'c3000000-0000-0000-0000-000000000001'));
 SELECT public.rc_ok('R17 Olga marca favorita y mueve a mano la foto sin viaje a Roma (trip_source = manual)',
   public.rc_as('c1000000-0000-0000-0000-000000000001', $q$WITH x AS (UPDATE public.recuerdos SET favorite = true, trip_id = 'c2000000-0000-0000-0000-000000000002' WHERE id = 'c3000000-0000-0000-0000-000000000003' RETURNING trip_source) SELECT string_agg(trip_source, ',') FROM x$q$) = 'manual'
-  AND (SELECT favorite FROM public.recuerdos WHERE id = 'c3000000-0000-0000-0000-000000000003'));
+  AND public.rc_as('c1000000-0000-0000-0000-000000000001', $q$SELECT favorite::text FROM public.recuerdos WHERE id = 'c3000000-0000-0000-0000-000000000003'$q$) = 'true');
 SELECT public.rc_ok('R18 Olga no puede cambiar la ruta del archivo ni moverla a un viaje ajeno',
   public.rc_as('c1000000-0000-0000-0000-000000000001', $q$UPDATE public.recuerdos SET storage_path = 'x' WHERE id = 'c3000000-0000-0000-0000-000000000003' RETURNING 'x'$q$) LIKE 'ERR:permission denied%'
   AND public.rc_as('c1000000-0000-0000-0000-000000000001', $q$UPDATE public.recuerdos SET trip_id = 'c2000000-0000-0000-0000-000000000003' WHERE id = 'c3000000-0000-0000-0000-000000000003' RETURNING 'x'$q$) LIKE 'ERR:%row-level security%');
@@ -240,8 +240,9 @@ SELECT public.rc_ok('R35 la foto de Carlos (colaborador) se queda en su calendar
 -- ───── Borrar la cuenta ─────
 SELECT public.rc_ok('R36 account_deletion_files de Olga incluye sus archivos de recuerdos',
   (SELECT count(*) FROM public.account_deletion_files('c1000000-0000-0000-0000-000000000001') f WHERE f.bucket_id = 'recuerdos') = 4);
+CREATE TEMP TABLE rc_purge AS SELECT public.purge_account_data('c1000000-0000-0000-0000-000000000001') AS r;
 SELECT public.rc_ok('R37 purge_account_data borra los recuerdos y álbumes de Olga y no toca los de los demás',
-  (public.purge_account_data('c1000000-0000-0000-0000-000000000001') ->> 'ok') = 'true'
+  (SELECT (r ->> 'ok') = 'true' FROM rc_purge)
   AND NOT EXISTS (SELECT 1 FROM public.recuerdos WHERE user_id = 'c1000000-0000-0000-0000-000000000001')
   AND NOT EXISTS (SELECT 1 FROM public.recuerdos_album_shares WHERE user_id = 'c1000000-0000-0000-0000-000000000001')
   AND (SELECT count(*) FROM public.recuerdos WHERE user_id <> 'c1000000-0000-0000-0000-000000000001' AND id::text LIKE 'c3000000-%') = 2);

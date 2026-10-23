@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyAvatarUpdated } from "@/hooks/useMyAvatar";
+import { useCameraCapture } from "@/components/camera/CameraCapture";
 
 export const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
@@ -171,6 +172,15 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
   // y no dejaba elegir una selfie existente); la cámara es una opción explícita aparte.
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  // "Tomar una foto": en el celular, el input con capture (cámara del sistema); en la computadora,
+  // `capture` no hace nada y se abría el selector de archivos: ahí se abre la cámara en vivo.
+  const camera = useCameraCapture({
+    facing: "user",
+    inputRef: cameraRef,
+    title: "Tómate una selfie",
+    onFile: (f) => { void handleFileRef.current(f); },
+    onPickGallery: () => fileRef.current?.click(),
+  });
 
   const builderSteps: { key: keyof Builder; title: string; options: { id: string; label: string; emoji?: string; color?: string }[]; type: "grid" | "swatch" | "text" }[] = [
     { key: "gender", title: "¿Cómo te identificas?", options: GENDERS, type: "grid" },
@@ -200,6 +210,9 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
       toast.error("No pudimos abrir esa foto. Prueba con otra.");
     }
   };
+
+  const handleFileRef = useRef(handleFile);
+  handleFileRef.current = handleFile;
 
   const create = async (source: "selfie" | "builder") => {
     setLoading(true);
@@ -321,7 +334,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
             <Button type="button" onClick={() => fileRef.current?.click()} disabled={selfies.length >= MAX_SELFIES} className="bg-gradient-gold text-primary-foreground gold-glow h-11">
               <ImageIcon className="w-4 h-4 mr-2" aria-hidden="true" /> {selfies.length ? "Agregar otra foto" : "Elegir de mi galería"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()} disabled={selfies.length >= MAX_SELFIES} className="h-11">
+            <Button type="button" variant="outline" onClick={camera.openCamera} disabled={selfies.length >= MAX_SELFIES} className="h-11">
               <Camera className="w-4 h-4 mr-2" aria-hidden="true" /> Tomar una foto
             </Button>
           </div>
@@ -342,6 +355,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
             aria-label="Tomar una foto con la cámara"
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void handleFile(f); }}
           />
+          {camera.dialog}
         </div>
 
         <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">

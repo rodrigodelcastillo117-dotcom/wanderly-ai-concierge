@@ -15,5 +15,7 @@ export function notificationTarget(n: { type: string; related_id: string | null;
   if (n.type === "friend_accepted") return n.related_id ? `/dashboard/social/amigo/${n.related_id}` : "/dashboard/social";
   // Reservas IA (correo al restaurante): la tarjeta vive en Mis reservas.
   if (n.type === "ai_reservation") return "/dashboard/reservas#reservas-ia";
+  // Avisos del sistema a administradores (p. ej. se acabaron los créditos de IA): el panel de admin.
+  if (n.type === "system_alert") return "/dashboard/admin";
   return null;
 }

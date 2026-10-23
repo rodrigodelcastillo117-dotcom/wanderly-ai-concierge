@@ -151,7 +151,9 @@ BEGIN
       RAISE EXCEPTION 'recuerdos_cupo' USING ERRCODE = '54000';
     END IF;
     NEW.created_at := now();
-    IF NEW.trip_id IS NULL THEN NEW.trip_source := 'ninguno'; END IF;
+    IF NEW.trip_id IS NULL THEN NEW.trip_source := 'ninguno';
+    ELSIF NEW.trip_source = 'ninguno' THEN NEW.trip_source := 'manual';
+    END IF;
   ELSE
     IF NEW.trip_id IS NULL THEN NEW.trip_source := 'ninguno';
     ELSIF NEW.trip_id IS DISTINCT FROM OLD.trip_id AND NEW.trip_source = 'ninguno' THEN NEW.trip_source := 'manual';
