@@ -1959,3 +1959,39 @@ Iniciativa "OPERACIÓN IATOS BOOKING BRIDGE" + complemento "IATOS UNIVERSAL BOOK
 | BB-09 | P3 | OpenTable, algunas páginas de Tock, GetYourGuide y Viator responden 403 a navegadores automáticos: el enlace no se puede monitorear desde servidor. | **WONTFIX** técnico (no se evaden protecciones); revisar a mano |
 | BB-10 | P3 | No hay fuente de eventos ni compra integrada; Amadeus Self-Service cerrado (17-jul-2026). | **OPEN** (hoja de ruta comercial) |
 | BB-11 | P2 | Conectar el envío por Reservas IA (correo que escribe IATOS, con confirmación del usuario) desde `start_booking` usando `createIntentFromBridgeOffer`, y llamar `booking_intent_apply_external` cuando cambie `ai_reservations`. | **OPEN** (ambos módulos existen en la base; bandera `BOOKING_RESERVAS_EMAIL` apagada) |
+
+## Pendientes después del 27-oct-2026 — auditoría de Google APIs (23-oct-2026, cerrada)
+
+Verificado en vivo (health-check `action=google_apis`, vía el conector de Lovable con la llave del dueño): Places (New) Text Search / Details / Photos, Routes computeRoutes / computeRouteMatrix, Geocoding y Time Zone → **200 OK**. Weather API habilitada en Google Cloud, pero **no conectada** (duplicaría MET Norway, que ya funciona).
+
+1. **Route Matrix en Iato e itinerarios:** reutilizar `_shared/google-routes.ts` `computeRouteMatrix` (hoy solo lo usa health-check) para ordenar las actividades del día. Costo: ~$0.005 USD por elemento.
+2. **Aprovechar mejor el clima de MET Norway** (ya integrado, CC BY): adaptar el itinerario al pronóstico real, con fuente y fecha. Nunca inventar pronósticos.
+3. **Optimizar costos de Places:**
+   - field masks Enterprise → Pro en los listados;
+   - unificar `nearby-places` y `places-nearby`;
+   - `geocode-address` (Text Search Pro) → `geocode` (6 veces más barato);
+   - `get-routes`: un modo por clic, sin tráfico;
+   - `place-photo` resolve con Details Essentials;
+   - borrar `places-search`, `place-details` y `libraries=places`;
+   - registrar el uso de las funciones antiguas en `ai_usage_log`.
+4. **Restringir la API Key "Maps Platform API Key"** (hoy permite 33 APIs) a Places (New), Routes, Geocoding y Time Zone, **después** de verificar todas sus dependencias (incluida la llave de navegador `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY`). Sin cambios hasta tener autorización.
+5. **Licencias de fotos de Google:**
+   - mostrar `authorAttributions` (hoy solo dice "Foto: Google", en `src/components/PlacePhoto.tsx:90`);
+   - no guardar URLs de googleusercontent como `trips.cover_image_url` (`analizar-viaje/index.ts:43-60, 1110-1116`; 9 viajes en producción);
+   - caducidad de `visited_places`.
+   - Privé y la revista offline: sin riesgo.
+6. **Places Autocomplete (New)** con session token en Planear, origen y destinos: es la mejora que más sube la precisión de destinos.
+
+Nota: el cliente OAuth "Mi Bot Comentarios Web" **no** participa en IATOS (no hay inicio de sesión con Google en la app).
+
+## Para después del 27-oct-2026 — diferenciador "IATO: BUILD MY PERFECT TRIP" (idea del dueño, 23-oct)
+
+Iato prepara **tres maneras de vivir el mismo viaje**, construidas con el mismo motor de datos reales (no tres historias inventadas). El usuario puede combinar partes de ellas.
+
+- **The Essentials:** los destinos más relevantes según sus intereses, sin llenar la agenda.
+- **The Slow Journey:** menos traslados, estancias más largas, tiempo para disfrutar.
+- **The Extraordinary:** experiencias especiales, gastronomía y actividades según el presupuesto.
+
+Requisitos: una sola representación canónica del viaje (tramos, estancias, ofertas con procedencia y costos deterministas); las tres opciones comparten vuelos, hoteles por estancia, transporte interurbano y regreso a casa; cada precio con su estado (verificado / estimado / obsoleto / pendiente / no disponible); combinar estancias de distintas opciones sin rehacer el viaje.
+
+**Regla de producto del dueño:** cada nueva mejora debe responder "¿ayuda a alguien a planear, pagar, disfrutar o resolver mejor un viaje real?". Si la respuesta es no, se pospone.
