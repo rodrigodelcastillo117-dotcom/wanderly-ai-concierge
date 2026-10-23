@@ -5,6 +5,7 @@
  * THE PRIVILEGE RADAR, …) se quedan en inglés con su subtítulo en el idioma de la persona.
  */
 import { useMemo } from "react";
+import { usePriveLang } from "@/components/prive/PriveLang";
 import type { DropStatus, DropType, PassportKind, RadarState, TipCategory, ValueKind } from "@/lib/priveValueModel";
 
 export type ValueLang = "es" | "en";
@@ -110,8 +111,8 @@ const es = {
     temporada: "Temporada", itinerario: "Itinerario", ocasiones: "Ocasiones especiales", llegada: "Al llegar", documentos: "Documentos",
   } as Record<TipCategory, string>,
   passport: {
-    member: "Member", memberSince: "Member Since · Miembro desde", memberNumber: "Número de miembro", tenure: "Antigüedad", status: "Estado",
-    active: "Activa", inactive: "No activa", founding: "Founding Member · Miembro fundador",
+    member: "Miembro", memberSince: "Miembro desde", memberNumber: "Número de miembro", tenure: "Antigüedad", status: "Estado",
+    active: "Activa", inactive: "No activa", founding: "Miembro fundador", cardAria: "IATOS Privé · Tarjeta de miembro",
     foundingCriteria: (d: string) => `Activaste IATOS Privé en o antes del ${d}, la fecha de corte de la primera generación.`,
     tenureText: (y: number, m: number, d: number) => [y ? `${y} ${y === 1 ? "año" : "años"}` : "", m ? `${m} ${m === 1 ? "mes" : "meses"}` : "", !y && !m ? `${d} ${d === 1 ? "día" : "días"}` : ""].filter(Boolean).join(" y "),
     privacy: "Tu pasaporte es privado: solo tú lo ves. Nada se comparte ni se publica.", numberNote: "Tu número de miembro no es sensible: no sirve para entrar.",
@@ -234,7 +235,7 @@ const en: Dict = {
   },
   passport: {
     member: "Member", memberSince: "Member Since", memberNumber: "Member number", tenure: "Tenure", status: "Status",
-    active: "Active", inactive: "Inactive", founding: "Founding Member",
+    active: "Active", inactive: "Inactive", founding: "Founding Member", cardAria: "IATOS Privé · Member card",
     foundingCriteria: (d: string) => `You activated IATOS Privé on or before ${d}, the first-generation cut-off date.`,
     tenureText: (y: number, m: number, d: number) => [y ? `${y} ${y === 1 ? "year" : "years"}` : "", m ? `${m} ${m === 1 ? "month" : "months"}` : "", !y && !m ? `${d} ${d === 1 ? "day" : "days"}` : ""].filter(Boolean).join(" and "),
     privacy: "Your passport is private: only you can see it. Nothing is shared or published.", numberNote: "Your member number is not sensitive: it cannot be used to sign in.",
@@ -271,8 +272,14 @@ const en: Dict = {
 export const VALUE_TEXT: Record<ValueLang, Dict> = { es, en };
 export type ValueText = Dict;
 
+/**
+ * Sin `lang`, el MISMO idioma que el resto de /prive (PriveLangProvider). Antes cada pantalla de privevalor
+ * volvía a detectar el idioma por su cuenta, así que THE PRIVÉ PASSPORT podía salir en otro idioma que la
+ * página que lo contiene.
+ */
 export function useValueText(lang?: ValueLang): ValueText {
-  return useMemo(() => VALUE_TEXT[lang ?? detectValueLang()], [lang]);
+  const shell = usePriveLang();
+  return useMemo(() => VALUE_TEXT[lang ?? shell], [lang, shell]);
 }
 
 export function formatValueDate(iso: string | null | undefined, lang: ValueLang): string {

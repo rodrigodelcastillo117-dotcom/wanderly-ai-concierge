@@ -9,6 +9,8 @@ import { usePriveSeal } from "@/hooks/usePriveSeal";
 import { AvatarCircle } from "@/components/avatar/AvatarCircle";
 import { AvatarEvolutionTimeline } from "@/components/avatar/AvatarEvolutionTimeline";
 import { useAvatarSouvenirs } from "@/components/avatar/useAvatarSouvenirs";
+import { useMemberCard, tierText } from "@/lib/memberCard";
+import { MemberCardButton } from "@/components/membercard/MemberCardButton";
 import type { DNAResult } from "./TravelDNAStats";
 
 type Props = {
@@ -29,6 +31,8 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
   const { url: avatarUrl } = useMyAvatar();
   const prive = usePriveSeal();
   const { rows } = useAvatarSouvenirs();
+  // Credencial junto al avatar: la misma tarjeta de rango del menú (my_member_card).
+  const { card, loading: cardLoading } = useMemberCard(user?.id ?? null);
   const [lastTrip, setLastTrip] = useState<LastTrip | null>(null);
   const [version, setVersion] = useState<number | null>(null);
 
@@ -77,8 +81,8 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
         ) : null}
       </div>
 
-      {/* Avatar circular dentro del anillo decorativo */}
-      <div className="relative z-10 flex items-center justify-center py-8 md:py-10">
+      {/* Avatar circular dentro del anillo decorativo y, a su lado, su credencial (tarjeta de rango). */}
+      <div className="relative z-10 flex flex-col items-center justify-center gap-14 py-10 md:py-12">
         <div className="relative flex items-center justify-center">
           <div
             aria-hidden="true"
@@ -92,6 +96,18 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
           />
           <AvatarCircle url={avatarUrl} name={user?.user_metadata?.full_name ?? null} size="lg" prive={prive} badges={badges} />
         </div>
+        {card || cardLoading ? (
+          <figure className="w-[188px] sm:w-[204px] shrink-0" data-testid="avatar-member-card">
+            <div className="sm:-rotate-[3deg] motion-reduce:rotate-0 drop-shadow-[0_24px_30px_rgba(0,0,0,0.55)]">
+              <MemberCardButton card={card} loading={cardLoading} testId="avatar-card" />
+            </div>
+            {card ? (
+              <figcaption className="mt-3 text-center text-[10px] tracking-[0.24em] uppercase text-foreground/70">
+                Credencial · <span style={{ color: culture.palette.accent }}>{tierText(card.tier).name}</span>
+              </figcaption>
+            ) : null}
+          </figure>
+        ) : null}
       </div>
 
       {/* Información */}

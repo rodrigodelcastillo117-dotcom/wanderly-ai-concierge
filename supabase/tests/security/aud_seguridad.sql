@@ -78,7 +78,10 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   ('wrapped_companions'),
   -- Ideas de la ruleta de Explorar (20261027060000): prive_require(_ps), user_id de la sesión, solo destinos del
   -- catálogo; sin privilegios directos sobre prive_ideas. Pruebas en supabase/tests/prive_ideas.
-  ('prive_ideas'),('prive_idea_save')),
+  ('prive_ideas'),('prive_idea_save'),
+  -- Tarjetas de rango (20261027070000): sin parámetros; solo la tarjeta de auth.uid() (rango calculado en el
+  -- servidor; solo lee founders/member_card_grants, nunca escribe). Pruebas en supabase/tests/tarjetas.
+  ('my_member_card')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)

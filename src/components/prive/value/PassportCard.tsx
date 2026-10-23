@@ -9,6 +9,8 @@ import { isFoundingMember, localToday, passportEntryError, tenureParts, type Pas
 import { usePriveValue } from "@/lib/priveValueApi";
 import { formatValueDate, useValueText, type ValueLang, type ValueText } from "@/lib/priveValueI18n";
 import { BrandTitle, Chip, Field, inputCls, smallBtn, smallGoldBtn, textareaCls } from "./ValueUi";
+import { CARD_TEXT, daysToPlatinum2, tierRank, tierText, useMemberCard } from "@/lib/memberCard";
+import { TierCard } from "@/components/membercard/TierCard";
 
 const KINDS: PassportKind[] = ["visitado", "experiencia", "favorito", "deseo", "recuerdo"];
 
@@ -27,6 +29,11 @@ export function PassportCard({ lang }: { lang?: ValueLang } = {}) {
   const m = data?.member;
   const tp = tenureParts(m?.tenure_days);
   const founding = isFoundingMember(m);
+  // El rango de la tarjeta lo da el servidor (my_member_card): Platinum I/II o Fundador. Sin respuesta, la
+  // tarjeta clásica del Passport (nunca un rango supuesto).
+  const { card: tierCard } = useMemberCard();
+  const ranked = tierCard && tierRank(tierCard.tier) >= tierRank("platinum_1") ? tierCard : null;
+  const left = ranked ? daysToPlatinum2(ranked) : null;
   return (
     <section aria-labelledby="prive-passport" className="space-y-6" data-testid="prive-passport">
       <BrandTitle id="prive-passport" name={t.brand.passport.name} sub={t.brand.passport.sub} />
@@ -35,11 +42,33 @@ export function PassportCard({ lang }: { lang?: ValueLang } = {}) {
       {data && m ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-start">
           <div className="space-y-3">
-            <div className="prive-card text-left" data-testid="prive-passport-card" aria-label="IATOS Privé · Member card">
+            {ranked ? (
+              <div className="space-y-3" data-testid="prive-passport-card" data-tier={ranked.tier}>
+                <TierCard tier={ranked.tier} name={ranked.name ?? m.first_name} number={ranked.number ?? m.member_code} since={ranked.since ?? m.member_since}
+                  lang={t.lang} interactive testId="prive-passport-tier-card" />
+                <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
+                  <p className="prive-serif text-xl" data-testid="prive-passport-rank">{tierText(ranked.tier, t.lang).name}</p>
+                  <p className="text-xs prive-champagne">{t.passport.status}: {m.status === "active" ? t.passport.active : t.passport.inactive}</p>
+                </div>
+                <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+                  <div>
+                    <p className="text-[10px] tracking-[0.2em] uppercase prive-muted">{t.passport.memberNumber}</p>
+                    <p className="prive-card-code whitespace-nowrap text-sm prive-champagne" data-testid="prive-member-number">{ranked.number ?? m.member_code ?? "—"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] tracking-[0.2em] uppercase prive-muted">{t.passport.memberSince}</p>
+                    <p className="text-sm prive-champagne">{formatValueDate(m.member_since, t.lang) || "—"}</p>
+                  </div>
+                </div>
+                {founding ? <p><Chip tone="gold" testId="prive-founding">{t.passport.founding}</Chip></p> : null}
+                {left != null ? <p className="text-[11px] prive-muted" data-testid="prive-passport-days-left">{CARD_TEXT[t.lang].daysLeft(left)}</p> : null}
+              </div>
+            ) : (
+            <div className="prive-card text-left" data-testid="prive-passport-card" aria-label={t.passport.cardAria}>
               <div className="flex items-start justify-between">
                 <div>
                   <p className="prive-eyebrow">IATOS Privé</p>
-                  <p className="mt-1 text-[11px] tracking-[0.2em] uppercase prive-muted" lang="en">{t.passport.member}</p>
+                  <p className="mt-1 text-[11px] tracking-[0.2em] uppercase prive-muted">{t.passport.member}</p>
                 </div>
                 <Monogram size={46} />
               </div>
@@ -59,6 +88,7 @@ export function PassportCard({ lang }: { lang?: ValueLang } = {}) {
                 </div>
               </div>
             </div>
+            )}
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div className="prive-panel p-4"><dt className="text-[10px] tracking-[0.2em] uppercase prive-muted">{t.passport.tenure}</dt><dd className="prive-serif text-xl">{tp ? t.passport.tenureText(tp.years, tp.months, tp.days) : "—"}</dd></div>
               <div className="prive-panel p-4"><dt className="text-[10px] tracking-[0.2em] uppercase prive-muted">{t.passportKind.visitado}</dt><dd className="prive-serif text-xl">{t.passport.countries(data.stats.countries)}</dd></div>

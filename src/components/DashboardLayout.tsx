@@ -9,6 +9,8 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { AvatarCircle } from "@/components/avatar/AvatarCircle";
 import { useMyAvatar } from "@/hooks/useMyAvatar";
 import { usePriveSeal } from "@/hooks/usePriveSeal";
+import { useMemberCard, tierText } from "@/lib/memberCard";
+import { MemberCardButton } from "@/components/membercard/MemberCardButton";
 // Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
 import iatosLogo from "@/assets/iatos-logo-320.png";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -59,6 +61,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   // Avatar: la misma fuente que el perfil y la tarjeta del Travel DNA (useMyAvatar).
   const { url: avatarUrl } = useMyAvatar();
   const prive = usePriveSeal();
+  // Tu tarjeta de rango (la calcula el servidor: my_member_card).
+  const { card, loading: cardLoading } = useMemberCard(user?.id ?? null);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = mobileMoreNav.some((n) => location.pathname.startsWith(n.to));
   // En el chat del Concierge el área de escritura va pegada abajo: reservamos el alto
@@ -136,6 +140,11 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             </NavLink>
           ))}
         </nav>
+
+        {/* Tu tarjeta de rango (mini): al tocarla se abre grande con el detalle. */}
+        <div className="mx-3 mb-2.5" data-testid="sidebar-member-card">
+          <MemberCardButton card={card} loading={cardLoading} testId="sidebar-card" />
+        </div>
 
         {/* Estado de membresía */}
         <Link
@@ -287,6 +296,20 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <SheetTitle>Más opciones</SheetTitle>
             <SheetDescription>Todas las secciones de IATOS.</SheetDescription>
           </SheetHeader>
+          {card || cardLoading ? (
+            <div className="mt-4 flex items-center gap-4" data-testid="more-member-card">
+              <div className="w-[148px] shrink-0">
+                <MemberCardButton card={card} loading={cardLoading} testId="more-card" />
+              </div>
+              {card ? (
+                <div className="min-w-0">
+                  <p className="text-[10px] tracking-[0.24em] uppercase text-muted-foreground">Tu tarjeta</p>
+                  <p className="font-display text-xl leading-tight">{tierText(card.tier).name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Tócala para ver el detalle</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <ul className="mt-4 grid grid-cols-2 gap-2">
             {mobileMoreNav.map((n) => (
               <li key={n.to}>
