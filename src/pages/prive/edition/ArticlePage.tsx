@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useEdition } from "@/components/prive/edition/EditionContext";
 import { ArticleView, useOnline } from "@/components/prive/edition/Magazine";
+import { MagazineReader } from "@/components/prive/edition/MagazineReader";
+import { IssueMagazine, MagazineSwitch } from "./LatestIssuePage";
 import { PriveLocked } from "@/components/prive/catalog/PriveLocked";
 import { PriveLockedError } from "@/lib/priveCatalogApi";
 import { formatDate, personalizeIssue, txt, type EditionArticle, type EditionImage } from "@/lib/priveEdition";
@@ -13,7 +15,7 @@ import { editionText } from "@/lib/priveEditionI18n";
 export default function ArticlePage() {
   const { slug = "" } = useParams();
   const [params] = useSearchParams();
-  const { issue, lang, prefs, api, saved, toggleSave } = useEdition();
+  const { issue, lang, prefs, api, saved, toggleSave, view, setView } = useEdition();
   const online = useOnline();
   const T = editionText(lang);
   const inIssue = !params.get("numero") ? issue?.articles?.find((a) => a.slug === slug) : undefined;
@@ -61,10 +63,25 @@ export default function ArticlePage() {
     }
     return <div className="min-h-[50vh]" role="status" aria-label={lang === "en" ? "Loading" : "Cargando"} />;
   }
+  if (view === "magazine") {
+    // Del índice o de un enlace: la revista abre en la apertura de este artículo (todo el número alrededor).
+    if (inIssue && issue?.found && order.some((a) => a.slug === article.slug)) {
+      const name = prefs.show_name_on_cover && prefs.first_name ? prefs.first_name : null;
+      return <IssueMagazine key={article.slug} payload={issue} startSlug={article.slug} memberName={name} hrefFor={(s) => `/prive/edicion/articulo/${s}`} />;
+    }
+    // Otro número o una pieza fuera de tu selección: el artículo solo, con la misma maquetación.
+    return (
+      <MagazineReader key={article.slug} issue={null} ed={null} single={article} images={images} lang={lang} offline={!online}
+        isSaved={(s) => saved.has(s) || (s === article.slug && !!remote?.saved)} onToggleSave={(s) => void toggleSave(s)}
+        onExit={() => setView("continuous")} />
+    );
+  }
   const idx = order.findIndex((a) => a.slug === article.slug);
   const prev = idx > 0 ? order[idx - 1] : null;
   const next = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
   return (
+    <>
+    <MagazineSwitch lang={lang} onClick={() => setView("magazine")} />
     <ArticleView article={article} images={images} lang={lang} issue={issue?.issue} offline={!online}
       saved={saved.has(article.slug) || !!remote?.saved} onToggleSave={() => void toggleSave(article.slug)}
       prevNext={(prev || next) ? (
@@ -73,5 +90,6 @@ export default function ArticlePage() {
           {next ? <Link to={`/prive/edicion/articulo/${next.slug}`} className="ped-panel block text-right"><span className="ped-kicker">{T.next} →</span><span className="block ped-display text-2xl mt-1">{txt(next.title, lang)}</span></Link> : <span />}
         </nav>
       ) : null} />
+    </>
   );
 }

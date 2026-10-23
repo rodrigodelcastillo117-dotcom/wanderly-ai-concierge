@@ -30,6 +30,8 @@ import { notifyAvatarUpdated, useMyAvatar } from "@/hooks/useMyAvatar";
 import { usePriveSeal } from "@/hooks/usePriveSeal";
 import { DNA_ARCHETYPES } from "@/lib/travelDna";
 import { useAutoEvolveAvatar } from "@/components/avatar/useAutoEvolveAvatar";
+import { ProfileWrappedLink } from "@/components/wrapped/WrappedPromo";
+import { localISODate } from "@/lib/localDate";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -175,6 +177,9 @@ const Profile = () => {
             </div>
           </div>
         </section>
+
+        {/* IATOS Wrapped: tu año en viajes */}
+        <ProfileWrappedLink today={localISODate()} />
 
         {/* TRAVEL DNA — HERO */}
         <section className="glass-card rounded-3xl p-6 md:p-8 border border-primary/20 gold-glow space-y-6">
