@@ -27,6 +27,8 @@ export type SubscriptionRow = {
   current_period_end: string | null;
   cancel_at_period_end: boolean | null;
   stripe_customer_id: string | null;
+  /** Fin de una cortesía con fecha (promoción de referidos); null = sin vencimiento. */
+  comped_until?: string | null;
 };
 
 const daysLeft = (iso?: string | null) => {
@@ -89,7 +91,7 @@ export function useSubscription() {
           supabase.rpc("get_access_state", { _user_id: uid }),
           supabase
             .from("subscriptions")
-            .select("status, plan, trial_end, current_period_end, cancel_at_period_end, stripe_customer_id")
+            .select("status, plan, trial_end, current_period_end, cancel_at_period_end, stripe_customer_id, comped_until")
             .eq("user_id", uid)
             .maybeSingle(),
         ]),
@@ -122,7 +124,8 @@ export function useSubscription() {
   // Una prueba vencida (p. ej. la de 30 días sin tarjeta) queda como 'trialing' en la fila, pero
   // ya no da acceso: solo cuenta como prueba mientras el servidor diga que es PRO.
   const isTrialing = status === "trialing" && Boolean(access?.is_pro);
-  const isComped = status === "comped";
+  // Una cortesía con fecha (premio de referidos) ya vencida no cuenta: el servidor dice si es PRO.
+  const isComped = status === "comped" && (!subscription?.comped_until || Boolean(access?.is_pro));
   const trialDaysLeft = isTrialing ? daysLeft(subscription?.trial_end ?? subscription?.current_period_end) : null;
 
   const startCheckout = useCallback(async () => {

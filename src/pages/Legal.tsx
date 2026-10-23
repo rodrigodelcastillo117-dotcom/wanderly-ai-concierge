@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { openCookieSettings } from "@/lib/consent";
 // Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
 import iatosLogo from "@/assets/iatos-logo-320.png";
@@ -15,10 +16,35 @@ const TrialPolicyItems = () => {
   return <>{copy.policy.map((t) => <li key={t}>{t}</li>)}</>;
 };
 
+// Promoción de referidos (migración 20261027080000_referidos_promo.sql). La tarjeta de invitar enlaza
+// aquí con /terminos#promo-referidos.
+export const PROMO_REFERIDOS_ID = "promo-referidos";
+const PromoReferidosSection = ({ n }: { n: number }) => {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash === `#${PROMO_REFERIDOS_ID}`) document.getElementById(PROMO_REFERIDOS_ID)?.scrollIntoView?.({ block: "start" });
+  }, [hash]);
+  return (
+    <section id={PROMO_REFERIDOS_ID} className="scroll-mt-6">
+      <h2>{n}. Promoción «Invita 5 amigos y gana 1 mes de PRO»</h2>
+      <ul>
+        <li>Por cada 5 amigos que cuenten ganas 1 mes (30 días) de IATOS PRO. Se acumula: 10 amigos son 2 meses.</li>
+        <li>Un amigo cuenta cuando crea su cuenta con tu enlace, confirma su correo y crea su primer viaje. Cada amigo cuenta una sola vez.</li>
+        <li>No cuentan tu propia cuenta ni otras cuentas tuyas (mismo correo o misma tarjeta), ni quien ya se unió con el enlace de otra persona.</li>
+        <li>Con plan gratuito, el mes se activa al momento como PRO de cortesía; si ya tienes uno de la promoción, se suman los días. Al terminar vuelves al plan gratuito: no se te cobra nada.</li>
+        <li>Si ya pagas IATOS PRO, eres miembro Privé o tienes PRO de cortesía sin vencimiento, tu mes queda guardado y no se pierde; te avisaremos cuando se aplique.</li>
+        <li>El premio no se cambia por dinero ni se transfiere. Podemos anular premios obtenidos con cuentas falsas o abuso, y cambiar o terminar la promoción avisando en esta página; lo ya ganado se respeta.</li>
+      </ul>
+    </section>
+  );
+};
+
 const UPDATED = "24 de agosto de 2026";
+// Términos: se agregó la promoción de referidos (sección 5).
+const TERMS_UPDATED = "23 de octubre de 2026";
 const CONTACT = "hola@traveliatos.life";
 
-const Shell = ({ title, description, children }: { title: string; description: string; children: React.ReactNode }) => (
+const Shell = ({ title, description, children, updated = UPDATED }: { title: string; description: string; children: React.ReactNode; updated?: string }) => (
   <div className="min-h-screen bg-background">
     <header className="border-b border-border/40">
       <div className="container mx-auto flex items-center justify-between py-5">
@@ -28,7 +54,7 @@ const Shell = ({ title, description, children }: { title: string; description: s
     </header>
     <main className="container mx-auto max-w-3xl py-12 px-4">
       <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-2">{title}</h1>
-      <p className="text-sm text-muted-foreground mb-10">{description} · Última actualización: {UPDATED}</p>
+      <p className="text-sm text-muted-foreground mb-10">{description} · Última actualización: {updated}</p>
       <article className="space-y-8 text-[15px] leading-relaxed text-muted-foreground [&_h2]:text-foreground [&_h2]:text-lg [&_h2]:font-medium [&_h2]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1">
         {children}
       </article>
@@ -45,7 +71,7 @@ const Shell = ({ title, description, children }: { title: string; description: s
 );
 
 export const Terminos = () => (
-  <Shell title="Términos y Condiciones" description="Condiciones de uso de IATOS AI">
+  <Shell title="Términos y Condiciones" description="Condiciones de uso de IATOS AI" updated={TERMS_UPDATED}>
     <section>
       <h2>1. Qué es IATOS AI</h2>
       <p>IATOS AI es una plataforma de planeación de viajes asistida por inteligencia artificial. Nuestro concierge digital, Iato, genera itinerarios, cotizaciones estimadas y recomendaciones personalizadas. <strong>IATOS AI no es una agencia de viajes ni una OTA:</strong> no vendemos boletos de avión, hospedaje, tours ni seguros, y no emitimos reservaciones a tu nombre.</p>
@@ -69,20 +95,21 @@ export const Terminos = () => (
         <li>IATOS PRO incluye: {PRO_FEATURES.join("; ")}. Los límites se aplican por cuenta y pueden ajustarse con aviso previo.</li>
       </ul>
     </section>
+    <PromoReferidosSection n={5} />
     <section>
-      <h2>5. Uso aceptable</h2>
+      <h2>6. Uso aceptable</h2>
       <p>No puedes usar la plataforma para actividades ilícitas, para extraer datos de forma automatizada, ni para saturar nuestros servicios. Aplicamos límites de uso por usuario y por dirección IP; el abuso puede resultar en suspensión de la cuenta sin reembolso.</p>
     </section>
     <section>
-      <h2>6. Contenido generado por IA</h2>
+      <h2>7. Contenido generado por IA</h2>
       <p>Las respuestas de Iato pueden contener errores u omisiones. Verifica siempre requisitos de visa, vacunas, horarios, direcciones y condiciones de reserva con fuentes oficiales antes de viajar.</p>
     </section>
     <section>
-      <h2>7. Limitación de responsabilidad</h2>
+      <h2>8. Limitación de responsabilidad</h2>
       <p>IATOS AI se ofrece "tal cual". No somos responsables por pérdidas derivadas de vuelos cancelados, reservaciones no honradas, cambios de precio o decisiones tomadas con base en recomendaciones de la plataforma. Nuestra responsabilidad máxima se limita al monto que hayas pagado por la suscripción en los últimos 3 meses.</p>
     </section>
     <section>
-      <h2>8. Cambios y contacto</h2>
+      <h2>9. Cambios y contacto</h2>
       <p>Podemos actualizar estos términos; publicaremos la fecha de la última actualización en esta página. Dudas: <a href={`mailto:${CONTACT}`} className="text-primary">{CONTACT}</a>.</p>
     </section>
   </Shell>

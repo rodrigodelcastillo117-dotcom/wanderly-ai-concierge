@@ -7,6 +7,8 @@ export type StoredSubscription = {
   stripe_subscription_id: string | null;
   trial_end: string | null;
   current_period_end: string | null;
+  /** Cortesía con fecha de fin (promoción de referidos, 20261027080000); null/ausente = sin vencimiento. */
+  comped_until?: string | null;
 } | null;
 
 export type StripeSubSummary = {
@@ -59,7 +61,12 @@ const msgFor = (status: string): CheckoutBlock => {
 /** ¿La fila guardada ya da (o cobra) PRO? Entonces no se abre otro checkout. */
 export function blockFromStored(stored: StoredSubscription, now = Date.now()): CheckoutBlock | null {
   if (!stored?.status) return null;
-  if (stored.status === "comped") return msgFor("comped");
+  if (stored.status === "comped") {
+    // Una cortesía de referidos ya vencida no da PRO (is_pro) ni impide contratar.
+    const until = stored.comped_until ? Date.parse(stored.comped_until) : NaN;
+    if (!stored.comped_until || Number.isNaN(until) || until > now) return msgFor("comped");
+    return null;
+  }
   if (stored.status === "past_due" || stored.status === "unpaid") return msgFor(stored.status);
   if (stored.status === "active" || stored.status === "trialing") {
     // Solo si de verdad está vigente (una fila vieja con periodo vencido no bloquea).

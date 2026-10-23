@@ -7,6 +7,7 @@ import { sendEmail } from "../_shared/email.ts";
 import { redactSecrets } from "../_shared/redact.ts";
 import type { ClaimedInvitation } from "../_shared/prive-invite-sender.ts";
 import { runPriveCron } from "./run.ts";
+import { stripeCreditWith } from "../_shared/referral-rewards.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -17,6 +18,7 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const emailReady = Boolean(Deno.env.get("LOVABLE_API_KEY") && Deno.env.get("RESEND_API_KEY"));
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
   const result = await runPriveCron({
     evaluate: (limit) => db.rpc("prive_evaluate_eligibility", { _limit: limit }),
     sender: emailReady
@@ -32,9 +34,20 @@ Deno.serve(async (req) => {
       }
       : null,
     sweep: () => db.rpc("prive_sweep"),
+    // Promoción de referidos: barrido diario y, solo con el flag referral_stripe_apply_enabled
+    // encendido en app_flags, el saldo a favor en Stripe (la base no entrega nada con el flag apagado).
+    referralSweep: () => db.rpc("referral_rewards_sweep", { _limit: 500 }),
+    referralStripe: stripeKey
+      ? {
+        claim: (limit) => db.rpc("referral_claim_stripe_rewards", { _limit: limit }),
+        credit: stripeCreditWith(stripeKey),
+        mark: (id, ok, ref, error) =>
+          db.rpc("referral_mark_stripe_reward", { _reward_id: id, _ok: ok, _stripe_ref: ref, _error: error }),
+      }
+      : null,
     warn: (...a) => console.warn(...a.map((x) => redactSecrets(x) ?? "")),
   });
   // Solo conteos: nunca correos, nombres ni tokens.
-  console.log("prive-cron:", JSON.stringify({ invited: result.body.invited, emails: result.body.emails, ok: result.body.ok }));
+  console.log("prive-cron:", JSON.stringify({ invited: result.body.invited, emails: result.body.emails, referrals: result.body.referrals, ok: result.body.ok }));
   return json(result.body, result.status);
 });

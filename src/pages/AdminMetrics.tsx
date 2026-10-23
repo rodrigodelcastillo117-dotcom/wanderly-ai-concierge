@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ServiceHealthCard } from "@/components/ServiceHealthCard";
 import { AdminCostCard } from "@/components/AdminCostCard";
+import { AdminReferralRewardsCard } from "@/components/AdminReferralRewardsCard";
 import { Button } from "@/components/ui/button";
 
 type Weekly = { week: string; signups: number; trips: number; bookings: number };
@@ -235,6 +236,7 @@ const AdminMetrics = () => {
               <p className="text-[11px] text-muted-foreground mt-3">Escalaciones al Fixer humano: {n(m.fixer.total)} ({n(m.fixer.last_30d)} en 30 días)</p>
             </div>
           </div>
+          <AdminReferralRewardsCard />
         </Section>
 
         <AdminCostCard />

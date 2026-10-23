@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       readSubscription: async (userId) => {
         const { data, error } = await db
           .from("subscriptions")
-          .select("stripe_customer_id, stripe_subscription_id, status, trial_end, current_period_end")
+          .select("stripe_customer_id, stripe_subscription_id, status, trial_end, current_period_end, comped_until")
           .eq("user_id", userId)
           .maybeSingle();
         if (error) throw new Error(`lectura de suscripción: ${error.message}`);

@@ -17,12 +17,18 @@ export type ProStatusInput = {
     stripe_customer_id: string | null;
     trial_end?: string | null;
     current_period_end: string | null;
+    /** Cortesía con fecha de fin (premio de la promoción de referidos); null = sin vencimiento. */
+    comped_until?: string | null;
   } | null;
 };
 
 export function proStatusLabel(v: ProStatusInput): string {
   const sub = v.subscription;
-  if (v.isComped) return "PRO de cortesía · acceso permanente";
+  if (v.isComped) {
+    return sub?.comped_until
+      ? `PRO de cortesía hasta el ${fmtProDate(sub.comped_until)} · premio por invitar a tus amigos`
+      : "PRO de cortesía · acceso permanente";
+  }
   if (v.isTrialing) {
     if (!sub?.stripe_customer_id) {
       return `Prueba gratis sin tarjeta · ${v.trialDaysLeft ?? 0} días restantes; al terminar vuelves al plan gratuito`;

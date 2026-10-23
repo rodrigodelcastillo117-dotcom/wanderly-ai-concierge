@@ -111,3 +111,24 @@ describe("stripe-checkout durante la prueba sin tarjeta (DEC-02)", () => {
     expect(noCardTrialEnd(row({ status: "trialing", stripe_subscription_id: "sub_1", trial_end: "2026-11-10T00:00:00Z" }), NOW)).toBeNull();
   });
 });
+
+describe("stripe-checkout: cortesía con fecha de fin (promoción de referidos)", () => {
+  it("vigente: bloquea igual que cualquier cortesía (no se cobra mientras dura)", async () => {
+    const list = vi.fn();
+    const plan = await planCheckout(row({ status: "comped", comped_until: future }), list, NOW);
+    expect(plan).toMatchObject({ kind: "blocked", block: { reason: "comped" } });
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("vencida: ya no bloquea y la persona puede contratar PRO (con las mismas reglas de prueba)", async () => {
+    const list = vi.fn(async () => []);
+    const plan = await planCheckout(row({ status: "comped", comped_until: past, stripe_customer_id: "cus_1" }), list, NOW);
+    expect(plan.kind).toBe("create");
+    expect(list).toHaveBeenCalledWith("cus_1");
+  });
+
+  it("sin fecha (cortesía de siempre): sigue bloqueando", async () => {
+    const plan = await planCheckout(row({ status: "comped", comped_until: null }), vi.fn(), NOW);
+    expect(plan).toMatchObject({ kind: "blocked", block: { reason: "comped" } });
+  });
+});

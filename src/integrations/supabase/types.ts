@@ -4942,6 +4942,7 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          comped_until: string | null
           cancel_at_period_end: boolean
           created_at: string
           currency: string
@@ -4958,6 +4959,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          comped_until?: string | null
           cancel_at_period_end?: boolean
           created_at?: string
           currency?: string
@@ -4974,6 +4976,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          comped_until?: string | null
           cancel_at_period_end?: boolean
           created_at?: string
           currency?: string

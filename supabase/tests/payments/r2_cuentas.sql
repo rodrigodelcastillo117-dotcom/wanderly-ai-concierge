@@ -119,6 +119,9 @@ SELECT rc.ok('RC27 la antigüedad solo suma periodos en MXN de al menos $99 (60 
 SELECT rc.mk(27);
 INSERT INTO public.subscriptions (user_id, status, plan) VALUES (rc.u(27), 'active', 'pro');
 \ir ../../migrations/20261026250000_r2_cuentas_is_pro_price_period.sql
+-- 20261027080000 (promoción de referidos) redefine is_pro después (cortesía con fecha de fin): se vuelve a
+-- aplicar para que la base termine con la versión que queda en producción (run_all.sh lo comprueba).
+\ir ../../migrations/20261027080000_referidos_promo.sql
 SELECT rc.ok('RC26 PRO dado a mano (active sin Stripe ni fecha): la migración lo deja como comped y sigue siendo PRO',
   rc.st(27) = 'comped' AND public.is_pro(rc.u(27)), rc.st(27));
 DROP SCHEMA rc CASCADE;
