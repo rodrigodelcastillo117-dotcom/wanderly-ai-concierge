@@ -53,3 +53,16 @@ export async function tripIdForTracking(raw: unknown, canSee: (id: string) => Pr
     return null;
   }
 }
+
+/**
+ * "Hoy" del usuario. La app lo manda en su zona horaria, pero el valor viene del cliente: antes se
+ * aceptaba cualquier fecha y el plan gratuito ("solo el día del vuelo") se saltaba mandando
+ * today = fecha del vuelo. Ahora solo se acepta si está a ±1 día del día UTC del servidor (lo que
+ * abarcan las zonas horarias reales); si no, se usa el día UTC.
+ */
+export function resolveToday(clientToday: unknown, now: Date = new Date()): string {
+  const utc = now.toISOString().slice(0, 10);
+  if (typeof clientToday !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(clientToday)) return utc;
+  const diff = (Date.parse(`${clientToday}T00:00:00Z`) - Date.parse(`${utc}T00:00:00Z`)) / 86_400_000;
+  return Number.isFinite(diff) && Math.abs(diff) <= 1 ? clientToday : utc;
+}

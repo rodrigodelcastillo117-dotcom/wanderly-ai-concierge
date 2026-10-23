@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { trackError, normalizeFlight } from "../../supabase/functions/track-flight/rules";
+import { trackError, normalizeFlight, resolveToday, freePlanDateError } from "../../supabase/functions/track-flight/rules";
 import { localISODate, localISODatePlus } from "@/lib/localDate";
 
 describe("track-flight rules", () => {
@@ -36,5 +36,20 @@ describe("localISODate", () => {
     expect(localISODate(evening)).toBe("2026-10-22");
     expect(localISODatePlus(1, evening)).toBe("2026-10-23");
     expect(localISODatePlus(10, new Date(2026, 11, 28))).toBe("2027-01-07");
+  });
+});
+
+describe("track-flight: el 'hoy' del cliente no puede falsearse", () => {
+  const now = new Date("2026-10-23T05:00:00Z");
+  it("acepta el día del usuario solo a ±1 día del servidor", () => {
+    expect(resolveToday("2026-10-22", now)).toBe("2026-10-22");
+    expect(resolveToday("2026-10-24", now)).toBe("2026-10-24");
+    expect(resolveToday("2026-12-01", now)).toBe("2026-10-23");
+    expect(resolveToday("basura", now)).toBe("2026-10-23");
+    expect(resolveToday(undefined, now)).toBe("2026-10-23");
+  });
+  it("el plan gratuito ya no se salta mandando today = fecha del vuelo", () => {
+    const today = resolveToday("2026-12-01", now);
+    expect(freePlanDateError("2026-12-01", today)).toBeTruthy();
   });
 });

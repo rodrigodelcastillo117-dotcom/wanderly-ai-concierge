@@ -2,7 +2,7 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { enforceRateLimit, rateLimitResponse } from '../_shared/rate-limit.ts';
-import { freePlanDateError, HARD_CAP_ACTIVE_PER_USER, normalizeFlight, trackError, tripIdForTracking } from './rules.ts';
+import { freePlanDateError, HARD_CAP_ACTIVE_PER_USER, normalizeFlight, resolveToday, trackError, tripIdForTracking } from './rules.ts';
 import { planLimit, serviceUnavailableResponse } from '../_shared/entitlements.ts';
 import { activeLimitDecision } from '../_shared/planGate.ts';
 
@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // "Hoy" del usuario (lo manda la app en su zona horaria); si no llega, el de UTC.
-    const todayISO = typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today) ? today : new Date().toISOString().slice(0, 10);
+    // "Hoy" del usuario (zona horaria de la app), acotado a ±1 día del servidor: no se puede falsear.
+    const todayISO = resolveToday(today);
     const why = trackError({ flight, flight_date }, todayISO);
     if (why) return bad(why);
 
