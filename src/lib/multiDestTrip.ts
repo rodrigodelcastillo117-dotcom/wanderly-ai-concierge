@@ -10,6 +10,7 @@ import { mainAirport } from "../../supabase/functions/_shared/airports.ts";
 import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { airportCityName } from "../../supabase/functions/_shared/airports.ts";
 import { layoverCodesFromAviasalesLink } from "../../supabase/functions/_shared/fareGuard.ts";
+import { transportModeOf } from "../../supabase/functions/_shared/booking/offers.ts";
 
 /** Ciudades de escala de la tarifa: las que mandó logistics-plan o las del enlace de Aviasales. */
 const defaultLayovers: LayoverFn = (link) => {
@@ -18,7 +19,8 @@ const defaultLayovers: LayoverFn = (link) => {
 };
 
 const isEstimated = (fuente: unknown) => String(fuente ?? "estimado").toLowerCase() !== "travelpayouts" && String(fuente ?? "estimado").toLowerCase() !== "serpapi";
-const isFlightMode = (m: unknown) => !m || m === "vuelo" || m === "vuelo_interno";
+// El modo viene en texto libre ("Tren de alta velocidad", "Vuelo directo"): se lee su palabra clave.
+const isFlightMode = (m: unknown) => { const t = transportModeOf(m); return t == null || t === "vuelo"; };
 
 /** Ciudades de escala de un enlace de Aviasales (token t: "…MEXCUNMADOTP…"). */
 export type LayoverFn = (link: string | null | undefined, origin: string | null, destination: string | null) => string[] | null;
@@ -137,7 +139,7 @@ export function groundOptionsForCity(trip: any, city: string): any[] {
 }
 
 export type LegOption = {
-  /** "vuelo" | "tren" | "coche" | "bus" | "ferry" */
+  /** "vuelo" | "tren" | "coche" | "bus" | "ferry" | "taxi" | "traslado" | "otro" (transportModeOf) */
   mode: string;
   provider: string | null;
   duration: string | null;
@@ -147,16 +149,13 @@ export type LegOption = {
   from: string;
   to: string;
   row: any;
+  /** Tramo de logistics.internal_transport: es el que suma el total ("Transporte entre ciudades"). */
+  quoted?: boolean;
+  /** USD por persona del tramo cotizado (para cobrar exactamente lo que suma el servidor). */
+  priceUsdPp?: number | null;
 };
 
-const legMode = (m: unknown) => {
-  const s = String(m ?? "").toLowerCase();
-  if (!s || s === "vuelo" || s === "vuelo_interno" || s === "avion") return "vuelo";
-  if (s === "train") return "tren";
-  if (s === "roadtrip" || s === "auto" || s === "car") return "coche";
-  if (s === "autobus") return "bus";
-  return s;
-};
+const legMode = (m: unknown): string => transportModeOf(m) ?? "vuelo";
 
 /**
  * Cómo ir de una ciudad del viaje a la siguiente (París → Roma): vuelos internos guardados en
@@ -167,22 +166,37 @@ export function legOptionsFor(trip: any, from: string, to: string): LegOption[] 
   const fx = Number(trip?.itinerario_json?.logistics?.fx_usd_mxn) || 0;
   const out: LegOption[] = [];
   const fromOk = (f: unknown) => !f || sameCity(String(f).replace(/\(.*?\)/g, " "), from);
+  // Primero el tramo de logistics.internal_transport: es el que suma el total del viaje (el servidor
+  // suma esos tramos en "transporte_local"). Va antes para que la deduplicación lo conserve a él y no a
+  // una opción parecida de arrival_options con otro precio (AVE Granada → Barcelona a 115 vs 85 USD).
+  for (const t of Array.isArray(trip?.itinerario_json?.logistics?.internal_transport) ? trip.itinerario_json.logistics.internal_transport : []) {
+    if (!sameCity(t?.to, to) || !sameCity(t?.from, from)) continue;
+    const mode = legMode(t?.mode);
+    const usd = Number(t?.price_per_person_usd) > 0 ? Number(t.price_per_person_usd) : null;
+    out.push({ mode, provider: mode === "vuelo" ? null : t?.provider ?? null, duration: t?.duration || null,
+      pricePp: fx > 0 && usd ? Math.round(usd * fx) : null, fuente: "estimado", from, to, quoted: true, priceUsdPp: usd,
+      row: { mode, aerolinea: t?.provider ?? null, duracion: t?.duration ?? null, from, to, fuente_precio: "estimado" } });
+  }
   for (const v of Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : []) {
     if (!isFlightMode(v?.mode) || !sameCity(v?.to ?? v?.ciudad, to) || !v?.from || !sameCity(v.from, from)) continue;
     out.push({ mode: "vuelo", provider: isEstimated(v?.fuente_precio) ? null : v?.aerolinea ?? null, duration: v?.duracion || null,
       pricePp: Number(v?.precio_por_persona) > 0 ? Math.round(Number(v.precio_por_persona)) : null, fuente: String(v?.fuente_precio ?? "estimado"), from, to, row: v });
   }
+  // Vuelos internos que el plan propone en arrival_options ("Vuelo directo" Granada → Barcelona) y que
+  // un viaje guardado antes no pasó a vuelos_json.
+  for (const pd of Array.isArray(trip?.itinerario_json?.logistics?.per_destination) ? trip.itinerario_json.logistics.per_destination : []) {
+    if (!sameCity(pd?.city, to)) continue;
+    for (const o of Array.isArray(pd?.arrival_options) ? pd.arrival_options : []) {
+      if (transportModeOf(o?.mode) !== "vuelo" || !o?.from || !fromOk(o.from)) continue;
+      const usd = Number(o?.price_per_person_usd) > 0 ? Number(o.price_per_person_usd) : null;
+      out.push({ mode: "vuelo", provider: null, duration: o?.duration || null, pricePp: fx > 0 && usd ? Math.round(usd * fx) : null, fuente: "estimado", from, to,
+        row: { mode: "vuelo", duracion: o?.duration ?? null, from, to, fuente_precio: "estimado", estado_dato: "ESTIMADO" } });
+    }
+  }
   for (const g of groundOptionsForCity(trip, to)) {
     if (!fromOk(g?.from)) continue;
     out.push({ mode: legMode(g?.mode ?? g?.modo), provider: g?.aerolinea ?? null, duration: g?.duracion || null,
       pricePp: Number(g?.precio_por_persona) > 0 ? Math.round(Number(g.precio_por_persona)) : null, fuente: "estimado", from, to, row: { ...g, from, to } });
-  }
-  for (const t of Array.isArray(trip?.itinerario_json?.logistics?.internal_transport) ? trip.itinerario_json.logistics.internal_transport : []) {
-    if (!sameCity(t?.to, to) || !sameCity(t?.from, from)) continue;
-    const mode = legMode(t?.mode);
-    out.push({ mode, provider: mode === "vuelo" ? null : t?.provider ?? null, duration: t?.duration || null,
-      pricePp: fx > 0 && Number(t?.price_per_person_usd) > 0 ? Math.round(Number(t.price_per_person_usd) * fx) : null, fuente: "estimado", from, to,
-      row: { mode, aerolinea: t?.provider ?? null, duracion: t?.duration ?? null, from, to, fuente_precio: "estimado" } });
   }
   const seen = new Set<string>();
   return out.filter((o) => {
@@ -191,4 +205,16 @@ export function legOptionsFor(trip: any, from: string, to: string): LegOption[] 
     seen.add(k);
     return true;
   });
+}
+
+/**
+ * Nombre del rubro "transporte_local" del desglose. logistics-plan suma ahí los tramos de
+ * logistics.internal_transport (trenes, coches o vuelos de una ciudad a otra): si los hay, es
+ * "Transporte entre ciudades"; si no, "Transporte local". Sin cambiar el esquema (sigue siendo
+ * transporte_local).
+ */
+export function transportRubroLabel(trip: any): string {
+  const legs: any[] = Array.isArray(trip?.itinerario_json?.logistics?.internal_transport) ? trip.itinerario_json.logistics.internal_transport : [];
+  const intercity = legs.some((l) => l?.from && l?.to && !sameCity(String(l.from), String(l.to)) && Number(l?.price_per_person_usd) > 0);
+  return intercity ? "Transporte entre ciudades" : "Transporte local";
 }

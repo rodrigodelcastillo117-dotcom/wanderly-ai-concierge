@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { Link } from "react-router-dom";
-import { ArrowRight, Bus, Car, Check, ChevronDown, ExternalLink, Hotel, ListChecks, Plane, Ship, ShieldCheck, Train, Undo2, Utensils } from "lucide-react";
+import { ArrowRight, Bus, Car, CarTaxiFront, Check, ChevronDown, ExternalLink, Hotel, ListChecks, Plane, Route as RouteIcon, Ship, ShieldCheck, Train, Undo2, Utensils } from "lucide-react";
 import { toast } from "sonner";
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { SmartImage } from "@/components/media/SmartImage";
@@ -23,6 +23,7 @@ import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
 import { useTasteProfile } from "@/hooks/useTasteProfile";
 import { TripPicksCarousel, type PickAction } from "@/components/booking/TripPicksCarousel";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
+import { transportRubroLabel } from "@/lib/multiDestTrip";
 
 const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras" };
 const money = (n: number, cur: string | null = "MXN") => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? "MXN"}`;
@@ -376,12 +377,12 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
             const legKey = it.key;
             return (
               <li key={`leg-${s.n}`} id={id} className={box(done, id)} data-testid="comprar-traslado" data-from={s.from} data-to={s.to} data-state={state(it)} data-chosen={s.chosen ?? ""}>
-                <StepHeader n={s.n} title={s.title} icon={MODE_ICON[s.chosen ?? ""] ?? Plane} done={done} />
+                <StepHeader n={s.n} title={s.title} icon={MODE_ICON[s.chosen ?? ""] ?? RouteIcon} done={done} />
                 {it.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
                 {s.choices.length > 0 ? (
                   <div role="radiogroup" aria-label={`Cómo ir de ${s.from} a ${s.to}`} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                     {s.choices.map((c) => {
-                      const OIcon = MODE_ICON[c.mode] ?? Plane;
+                      const OIcon = MODE_ICON[c.mode] ?? RouteIcon;
                       const on = s.chosen === c.mode;
                       return (
                         <button key={c.mode} type="button" role="radio" aria-checked={on} data-testid="traslado-opcion" data-mode={c.mode}
@@ -507,7 +508,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
             };
             for (const [k, v] of Object.entries(d)) {
               if (covered[k] || !(Math.round(Number(v) || 0) > 0)) continue;
-              rowsList.push({ key: `desglose:${k}`, label: DESGLOSE_LABEL[k] ?? k, sub: "De la cotización", price: Math.round(Number(v)), est: true, it: null });
+              rowsList.push({ key: `desglose:${k}`, label: k === "transporte_local" ? transportRubroLabel(trip) : DESGLOSE_LABEL[k] ?? k, sub: "De la cotización", price: Math.round(Number(v)), est: true, it: null });
             }
           }
           for (const it of items.filter((x) => x.kind === "restaurante" && restPicks.includes(restKey(trip.restaurantes_json?.[x.index], x.index)))) rowsList.push({ key: it.key, label: it.title, sub: it.subtitle, price: null, est: false, it });
@@ -531,7 +532,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
               </ul>
               {selectionTotal != null && selectionTotal > 0 && (
                 <p className="mt-3 flex items-baseline justify-between gap-3 border-t border-border/50 pt-3" data-testid="comprar-listo-total">
-                  <span className="text-sm text-muted-foreground">Total del viaje con tu selección<span className="block text-[11px]" data-testid="comprar-listo-total-nota">{estimadosNote ? `${estimadosNote} ` : ""}Comida, transporte local y extras son estimados del análisis.</span></span>
+                  <span className="text-sm text-muted-foreground">Total del viaje con tu selección<span className="block text-[11px]" data-testid="comprar-listo-total-nota">{estimadosNote ? `${estimadosNote} ` : ""}Comida, {transportRubroLabel(trip).toLowerCase()} y extras son estimados del análisis.</span></span>
                   <span className="font-display text-2xl tabular-nums">{money(selectionTotal)}</span>
                 </p>
               )}
@@ -552,7 +553,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
   );
 }
 
-const MODE_ICON: Record<string, typeof Plane> = { vuelo: Plane, tren: Train, coche: Car, bus: Bus, ferry: Ship };
+const MODE_ICON: Record<string, typeof Plane> = { vuelo: Plane, tren: Train, coche: Car, bus: Bus, ferry: Ship, taxi: CarTaxiFront, traslado: Car, otro: RouteIcon };
 
 /** Cómo ir entre ciudades elegido por la persona (no cambia el total: es una comodidad de este navegador). */
 function useLegChoices(tripId: string | null): [Record<string, string>, (key: string, mode: string) => void] {

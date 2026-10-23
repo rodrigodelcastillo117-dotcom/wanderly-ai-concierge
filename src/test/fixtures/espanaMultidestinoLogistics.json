@@ -1,0 +1,941 @@
+{
+ "logistics": {
+  "days": [
+   {
+    "mañana": "Llegada al Aeropuerto de Adolfo Suárez Madrid-Barajas, traslado al hotel en el centro y check-in con tiempo para aclimatarse.",
+    "tarde": "Paseo introductorio por la Gran Vía y la Puerta del Sol, disfrutando de la arquitectura madrileña a ritmo pausado.",
+    "dia": 1,
+    "ciudad": "Madrid",
+    "noche": "Paseo relajado por la Plaza Mayor y cena de bienvenida de tapas en una taberna tradicional de La Latina.",
+    "titulo": "Bienvenida a Madrid y primeras tapas"
+   },
+   {
+    "mañana": "Visita cultural al Museo del Prado con acceso prioritario para admirar las obras maestras de Velázquez y Goya.",
+    "noche": "Tapeo castizo por el Barrio de las Letras (Huertas), degustando vinos locales y raciones tradicionales.",
+    "titulo": "Arte clásico y pulmón verde madrileño",
+    "dia": 2,
+    "tarde": "Caminata tranquila por el Parque de El Retiro, descubriendo el Palacio de Cristal y el Estanque Grande.",
+    "ciudad": "Madrid"
+   },
+   {
+    "noche": "Cena gourmet en el Mercado de San Miguel o en un bistró contemporáneo del barrio de Salamanca.",
+    "titulo": "Historia real y vanguardia urbana",
+    "dia": 3,
+    "tarde": "Exploración del bohemio barrio de Chueca y Malasaña con paradas en cafeterías de especialidad y tiendas de diseño local.",
+    "mañana": "Recorrido por el Palacio Real y los Jardines de Sabatini, apreciando los salones de gala de la monarquía española.",
+    "ciudad": "Madrid"
+   },
+   {
+    "dia": 4,
+    "titulo": "Llegada a Córdoba y orillas del Guadalquivir",
+    "noche": "Cena de cocina andaluza en un patio tradicional cordobés, probando salmorejo y berenjenas con miel.",
+    "ciudad": "Córdoba",
+    "mañana": "Traslado en tren de alta velocidad Renfe AVE desde Madrid Puerta de Atocha hacia Córdoba y check-in en la judería.",
+    "tarde": "Paseo inicial por el Puente Romano de Córdoba y la Ribera del Guadalquivir al atardecer."
+   },
+   {
+    "ciudad": "Córdoba",
+    "mañana": "Visita guiada profunda a la Mezquita-Catedral de Córdoba, admirando su bosque de columnas y arcos de herradura.",
+    "tarde": "Pérdida intencionada por el laberinto blanco de la Judería y visita al Zoco Municipal de artesanos.",
+    "titulo": "El esplendor omeya y la Judería",
+    "noche": "Cena relajada y copas en una terraza con vistas panorámicas a la torre campanario de la Mezquita.",
+    "dia": 5
+   },
+   {
+    "titulo": "Patios floreados y vestigios califales",
+    "dia": 6,
+    "noche": "Cena tranquila y cata de vinos de la D.O. Montilla-Moriles en una taberna histórica.",
+    "ciudad": "Córdoba",
+    "tarde": "Ruta fotográfica por los famosos Patios de Córdoba del barrio de San Basilio y visita al Palacio de Viana.",
+    "mañana": "Excursión corta a los restos arqueológicos de Medina Azahara, la resplandeciente ciudad palatina califal."
+   },
+   {
+    "mañana": "Tren Renfe Avant hacia Sevilla Santa Justa; llegada, check-in y acomodación en el barrio de Santa Cruz.",
+    "tarde": "Caminata por el Parque de María Luisa y contemplación de la majestuosa arquitectura de la Plaza de España.",
+    "dia": 7,
+    "ciudad": "Sevilla",
+    "titulo": "Bienvenida a Sevilla y la majestuosidad del sur",
+    "noche": "Paseo nocturno por la animada ribera de la calle Betis en Triana, disfrutando de pescaíto frito junto al río."
+   },
+   {
+    "ciudad": "Sevilla",
+    "titulo": "Giralda, Alcázar y duende flamenco",
+    "tarde": "Recorrido por la Catedral de Sevilla y ascenso por las rampas de la Giralda para contemplar la vista panorámica.",
+    "noche": "Espectáculo íntimo de flamenco tradicional en un tablao auténtico del barrio de Santa Cruz.",
+    "dia": 8,
+    "mañana": "Visita imprescindible al Real Alcázar de Sevilla, explorando sus palacios mudéjares y extensos jardines."
+   },
+   {
+    "dia": 9,
+    "noche": "Cena de despedida sevillana con tapas de autor en un local de moda en la Alameda de Hércules.",
+    "titulo": "Tradición alfarera y contrastes sevillanos",
+    "mañana": "Paseo por el carismático barrio de Triana, cruzando el puente y conociendo su tradición alfarera y mercado local.",
+    "ciudad": "Sevilla",
+    "tarde": "Visita al mirador panorámico de las Setas de Sevilla (Metropol Parasol) y tiempo para compras locales."
+   },
+   {
+    "mañana": "Viaje en tren Renfe Avant hacia Granada; llegada, check-in con vistas a la sierra y orientación urbana.",
+    "noche": "Ruta de tapas tradicionales granadinas por la zona de Plaza Nueva y Calle Navas.",
+    "titulo": "Llegada a Granada y el cauce del Darro",
+    "dia": 10,
+    "tarde": "Paseo sosegado por la Carrera del Darro a orillas del río y exploración baja del pintoresco barrio del Albaicín.",
+    "ciudad": "Granada"
+   },
+   {
+    "tarde": "Subida pausada al Mirador de San Nicolás para disfrutar de una de las puestas de sol más célebres del mundo.",
+    "ciudad": "Granada",
+    "dia": 11,
+    "titulo": "La joya de la Alhambra y atardecer en San Nicolás",
+    "mañana": "Visita completa y detenida a la Alhambra, incluyendo los Palacios Nazaríes, el Generalife y la Alcazaba.",
+    "noche": "Cena andalusí con vistas directas a la Alhambra iluminada desde un mirador privado."
+   },
+   {
+    "noche": "Sesión relajante de baño y masaje en un auténtico Hammam árabe tradicional.",
+    "titulo": "Herencia renacentista y misticismo del Sacromonte",
+    "ciudad": "Granada",
+    "tarde": "Recorrido por las cuevas flamencas del barrio de Sacromonte y su entorno natural con vistas a la colina roja.",
+    "dia": 12,
+    "mañana": "Descubrimiento de la Capilla Real y la Catedral de Granada, explorando los sepulcros de los Reyes Católicos."
+   },
+   {
+    "tarde": "Caminata por el Passeig de Gràcia admirando las fachadas modernistas de Casa Batlló y La Pedrera.",
+    "dia": 13,
+    "titulo": "De Andalucía al Modernismo catalán",
+    "noche": "Cena de cocina catalana y mariscos en el vibrante barrio de El Born.",
+    "ciudad": "Barcelona",
+    "mañana": "Tren de alta velocidad Renfe AVE directo hacia Barcelona Sants; llegada al hotel y acomodación en el Eixample."
+   },
+   {
+    "mañana": "Visita guiada con entrada preferente a la Basílica de la Sagrada Familia de Antoni Gaudí.",
+    "noche": "Paseo y cena mediterránea junto al mar en el barrio costero de La Barceloneta.",
+    "titulo": "El legado inmortal de Gaudí",
+    "dia": 14,
+    "tarde": "Paseo por el Park Güell para contemplar sus mosaicos de trencadís y vistas sobre el Mediterráneo.",
+    "ciudad": "Barcelona"
+   },
+   {
+    "dia": 15,
+    "mañana": "Recorrido histórico por el Barrio Gótico, visitando la Catedral de Barcelona y la Plaza del Rey.",
+    "noche": "Cena de despedida con menú degustación mediterráneo en una bodega histórica.",
+    "titulo": "Secretos del Gótico y despedida de España",
+    "tarde": "Paseo por el animado Mercado de La Boqueria y compras de recuerdos por las Ramblas y Rambla de Catalunya.",
+    "ciudad": "Barcelona"
+   }
+  ],
+  "flights": [
+   {
+    "duration": "14h 30m (vía escala)",
+    "airline_suggested": "Aerolínea por confirmar",
+    "to": "MAD / BCN",
+    "stops": "Escalas por confirmar",
+    "notes": "Tarifa multidestino económica con 1 escala tanto a la ida (MEX-MAD) como al regreso (BCN-MEX). Equipaje de mano incluido.",
+    "price_per_person_usd": 980,
+    "tier": "ahorro",
+    "fuente_precio": "estimado",
+    "from": "MEX",
+    "booking_link": "https://www.google.com/travel/flights",
+    "estado_dato": "ESTIMADO"
+   },
+   {
+    "airline_suggested": "Aerolínea por confirmar",
+    "stops": "Escalas por confirmar",
+    "notes": "Ruta open-jaw balanceada en clase turista estándar con selección de asiento y equipaje documentado incluido. Ideal para equilibrio.",
+    "from": "MEX",
+    "duration": "11h 45m (ida directa / regreso conexión óptima)",
+    "to": "MAD / BCN",
+    "tier": "equilibrio",
+    "price_per_person_usd": 1320,
+    "booking_link": "https://www.google.com/travel/flights",
+    "fuente_precio": "estimado",
+    "estado_dato": "ESTIMADO"
+   },
+   {
+    "airline_suggested": "Aerolínea por confirmar",
+    "stops": "Escalas por confirmar",
+    "booking_link": "https://www.google.com/travel/flights",
+    "tier": "premium",
+    "duration": "11h 00m",
+    "to": "MAD / BCN",
+    "notes": "Opción en cabina Premium Economy con conexiones prioritarias, mayor franquicia de equipaje y flexibilidad de cambios.",
+    "fuente_precio": "estimado",
+    "from": "MEX",
+    "price_per_person_usd": 2150,
+    "estado_dato": "ESTIMADO"
+   }
+  ],
+  "mandatory_costs": {
+   "city_taxes_usd": 68,
+   "notes": "Tasa turística de Cataluña (~5.50-7.50 EUR por persona/noche según categoría de hotel) y buffer de contingencia de divisa EUR/USD del 3%. Mexicanos no requieren visa Schengen para estancias turísticas menores a 90 días.",
+   "currency_buffer_pct": 3,
+   "currency_buffer_usd": 85,
+   "visa_fees_usd": 0
+  },
+  "resumen": "Itinerario de 15 días diseñado a un ritmo equilibrado para descubrir lo mejor del patrimonio español, desde el Madrid castizo hasta la arquitectura de Gaudí en Barcelona, pasando por las joyas andaluzas de Córdoba, Sevilla y Granada. Los tramos internos se realizan fluidamente en trenes de alta velocidad para maximizar el confort y el tiempo en cada destino.",
+  "internal_transport": [
+   {
+    "price_per_person_usd": 55,
+    "fuente_precio": "estimado",
+    "duration": "1h 50m",
+    "provider": "Renfe AVE",
+    "from": "Madrid",
+    "mode": "Tren de alta velocidad",
+    "scenic": true,
+    "luggage_note": "Incluye hasta 3 bultos por pasajero en trenes de alta velocidad.",
+    "to": "Córdoba",
+    "estado_dato": "ESTIMADO"
+   },
+   {
+    "duration": "0h 45m",
+    "provider": "Renfe Avant",
+    "luggage_note": "Equipaje estándar permitido en trenes regionales de media distancia y alta velocidad.",
+    "to": "Sevilla",
+    "fuente_precio": "estimado",
+    "mode": "Tren de alta velocidad",
+    "from": "Córdoba",
+    "price_per_person_usd": 25,
+    "scenic": false,
+    "estado_dato": "ESTIMADO"
+   },
+   {
+    "scenic": true,
+    "price_per_person_usd": 48,
+    "provider": "Renfe Avant",
+    "duration": "2h 30m",
+    "luggage_note": "Espacio amplio para maletas en cabeceras de vagón.",
+    "fuente_precio": "estimado",
+    "to": "Granada",
+    "from": "Sevilla",
+    "mode": "Tren de media distancia / alta velocidad",
+    "estado_dato": "ESTIMADO"
+   },
+   {
+    "duration": "6h 15m",
+    "provider": "Renfe AVE",
+    "to": "Barcelona",
+    "from": "Granada",
+    "mode": "Tren de alta velocidad",
+    "fuente_precio": "estimado",
+    "luggage_note": "Equipaje documentado y de mano sin costo extra en Renfe AVE.",
+    "price_per_person_usd": 115,
+    "scenic": true,
+    "estado_dato": "ESTIMADO"
+   }
+  ],
+  "per_destination": [
+   {
+    "hospedaje": [
+     {
+      "tier": "ahorro",
+      "tipo": "4★",
+      "nombre": "Hotel Ibis Styles Madrid City Las Ventas",
+      "barrio": "Madrid",
+      "rating": 4.7,
+      "price_per_night_usd": 175,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Hotel+Ibis+Styles+Madrid+City+Las+Ventas+Madrid&checkin=2027-05-04&checkout=2027-05-07&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Excelente ubicación en plena Gran Vía con diseño moderno de Tomás Alía, terraza con vistas y precio ajustado para el centro neurálgico.",
+      "consultado_at": "2026-10-23T07:01:12.789793+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "equilibrio",
+      "tipo": "4★",
+      "nombre": "Hotel Catalonia Plaza Mayor",
+      "barrio": "Madrid",
+      "rating": 4.7,
+      "price_per_night_usd": 248,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Hotel+Catalonia+Plaza+Mayor+Madrid&checkin=2027-05-04&checkout=2027-05-07&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Ubicado en la peatonal Calle de las Huertas, combina un entorno histórico tranquilo con fácil acceso a pie a los principales museos y plazas.",
+      "consultado_at": "2026-10-23T07:01:12.789793+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "premium",
+      "tipo": "4★",
+      "nombre": "DoubleTree by Hilton Madrid - Prado",
+      "barrio": "Madrid",
+      "rating": 4.7,
+      "price_per_night_usd": 364,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=DoubleTree+by+Hilton+Madrid+-+Prado+Madrid&checkin=2027-05-04&checkout=2027-05-07&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Propuesta de categoría superior con apartamentos prémium, piscina en azotea y máximo confort para una estancia prolongada y espaciosa.",
+      "consultado_at": "2026-10-23T07:01:12.789793+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     }
+    ],
+    "nights": 3,
+    "experiencias": [
+     {
+      "price_per_person_usd": 16,
+      "duracion": "2-3 horas",
+      "nombre": "Palacio Real de Madrid",
+      "rating": 4.7,
+      "por_que": "El palacio real más grande de Europa occidental; visita imprescindible con salones oficiales, armería y jardines históricos.",
+      "fuente": "google_places",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "duracion": "2 horas",
+      "fuente": "google_places",
+      "price_per_person_usd": 0,
+      "nombre": "Parque de El Retiro",
+      "por_que": "Patrimonio Mundial de la UNESCO, perfecto para pasear a ritmo tranquilo, ver el Palacio de Cristal y relajarse junto al estanque.",
+      "rating": 4.8,
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "fuente": "google_places",
+      "por_que": "El corazón del Madrid de los Austrias, ideal para comenzar a explorar la historia de la ciudad y degustar el clásico bocadillo de calamares.",
+      "duracion": "1.5-2 horas",
+      "nombre": "Plaza Mayor",
+      "rating": 4.6,
+      "price_per_person_usd": 0,
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "fuente": "google_places",
+      "price_per_person_usd": 38,
+      "duracion": "2 horas",
+      "nombre": "Estadio Santiago Bernabéu",
+      "rating": 4.8,
+      "por_que": "Icono de la arquitectura deportiva mundial renovada y museo imprescindible para amantes del deporte y la cultura pop madrileña.",
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "arrival_options": [
+     {
+      "fuente_precio": "estimado",
+      "from": "Aeropuerto Adolfo Suárez Madrid-Barajas (MAD)",
+      "duration": "30-40 min",
+      "notes": "Tarifa plana oficial regulada de 33 EUR para traslados desde el aeropuerto al interior de la M-30. Ideal y cómodo tras un vuelo transatlántico.",
+      "price_per_person_usd": 18,
+      "tier": "equilibrio",
+      "mode": "Taxi oficial / Traslado privado",
+      "scenic": false,
+      "provider": "Taxi de Madrid / VTC",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "from": "Aeropuerto Adolfo Suárez Madrid-Barajas (MAD)",
+      "duration": "25-35 min",
+      "notes": "Conexión directa desde la Terminal T4 hasta estaciones clave del centro como Chamartín, Nuevos Ministerios o Atocha. Opción rápida y económica.",
+      "price_per_person_usd": 3.5,
+      "provider": "Renfe Cercanías",
+      "scenic": false,
+      "tier": "ahorro",
+      "mode": "Tren de Cercanías Renfe (Línea C-1 / C-10)",
+      "fuente_precio": "estimado",
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "city": "Madrid",
+    "restaurantes": [
+     {
+      "nombre": "Mercado de San Miguel",
+      "cocina": "Española / Mercado tradicional",
+      "por_que": "Espacio gastronómico histórico perfecto para tapear de forma dinámica, probando ibéricos, quesos artesanos y mariscos al propio ritmo.",
+      "rango_precio": "$$"
+     },
+     {
+      "por_que": "Un clásico de La Latina con décadas de historia, famoso por sus huevos estrellados y su atmósfera castiza inigualable.",
+      "cocina": "Tradicional madrileña",
+      "rango_precio": "$$$",
+      "nombre": "Casa Lucio"
+     },
+     {
+      "por_que": "Reconocido por el Récord Guinness como el restaurante en funcionamiento continuo más antiguo del mundo (1725), célebre por su cochinillo asado.",
+      "cocina": "Castellana tradicional",
+      "nombre": "Sobrino de Botín",
+      "rango_precio": "$$$"
+     },
+     {
+      "nombre": "La Gabinoteca",
+      "rango_precio": "$$",
+      "cocina": "Española contemporánea / Tapas de autor",
+      "por_que": "Cocina creativa, divertida y de alta calidad técnica en un ambiente relajado fuera del circuito puramente turístico."
+     }
+    ],
+    "checkin": "2027-05-04",
+    "checkout": "2027-05-07"
+   },
+   {
+    "hospedaje": [
+     {
+      "tier": "ahorro",
+      "tipo": "3★",
+      "nombre": "Hotel Viento10",
+      "barrio": "Córdoba",
+      "rating": 4.8,
+      "price_per_night_usd": 150,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Hotel+Viento10+C%C3%B3rdoba&checkin=2027-05-07&checkout=2027-05-10&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Hotel boutique íntimo y de diseño contemporáneo en una zona tranquila y accesible del casco histórico.",
+      "consultado_at": "2026-10-23T07:01:12.383275+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "equilibrio",
+      "tipo": "4★",
+      "nombre": "Suites La Posada de Pilar",
+      "barrio": "Córdoba",
+      "rating": 4.7,
+      "price_per_night_usd": 252,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Suites+La+Posada+de+Pilar+C%C3%B3rdoba&checkin=2027-05-07&checkout=2027-05-10&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Elegante palacete rehabilitado con patio tradicional y terraza panorámica en el corazón de la ciudad.",
+      "consultado_at": "2026-10-23T07:01:12.383275+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "premium",
+      "tipo": "4★",
+      "nombre": "Hotel Balcón de Córdoba",
+      "barrio": "Córdoba",
+      "rating": 4.6,
+      "price_per_night_usd": 526,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Hotel+Balc%C3%B3n+de+C%C3%B3rdoba+C%C3%B3rdoba&checkin=2027-05-07&checkout=2027-05-10&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Exclusivo remanso de lujo con patios andaluces serenos y azotea con vistas directas a la Mezquita.",
+      "consultado_at": "2026-10-23T07:01:12.383275+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     }
+    ],
+    "arrival_options": [
+     {
+      "from": "Madrid (Atocha)",
+      "notes": "Conexión directa y muy cómoda en alta velocidad desde Madrid-Puerta de Atocha hasta Córdoba Central.",
+      "scenic": true,
+      "price_per_person_usd": 65,
+      "mode": "Tren de Alta Velocidad (AVE / Iryo)",
+      "duration": "1h 45m",
+      "fuente_precio": "estimado",
+      "provider": "Renfe AVE / Iryo",
+      "tier": "recomendado",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "from": "Madrid",
+      "notes": "Ruta directa por la autovía del Sur (A-4), ideal para mayor flexibilidad de horarios y paradas intermedias.",
+      "duration": "4h 15m",
+      "mode": "Auto de Alquiler",
+      "fuente_precio": "estimado",
+      "scenic": false,
+      "tier": "alternativo",
+      "price_per_person_usd": 45,
+      "provider": "Alquiler de vehículo privado",
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "experiencias": [
+     {
+      "por_que": "El monumento cumbre de Córdoba, con sus arcos califales únicos y la historia viva de las tres culturas.",
+      "duracion": "2h 30m",
+      "nombre": "Visita guiada a la Mezquita-Catedral y Judería",
+      "price_per_person_usd": 35,
+      "fuente": "estimado",
+      "rating": 4.9,
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "fuente": "estimado",
+      "duracion": "3h",
+      "rating": 4.8,
+      "por_que": "Ideal en mayo durante el apogeo floral tradicional cordobés, explorando patios históricos repletos de macetas y fuentes.",
+      "price_per_person_usd": 28,
+      "nombre": "Ruta de los Patios de Córdoba y Palacio de Viana",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "price_per_person_usd": 32,
+      "nombre": "Excursión a Medina Azahara con guía oficial",
+      "por_que": "Yacimiento arqueológico de la fastuosa ciudad palatina mandada construir por Abderramán III, a pocos minutos de la ciudad.",
+      "rating": 4.7,
+      "duracion": "3h 30m",
+      "fuente": "estimado",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "price_per_person_usd": 0,
+      "nombre": "Paseo al atardecer por el Puente Romano y Torre de la Calahorra",
+      "fuente": "estimado",
+      "rating": 4.8,
+      "por_que": "Caminata escénica junto al río Guadalquivir con vistas privilegiadas del perfil monumental de la ciudad.",
+      "duracion": "1h 30m",
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "city": "Córdoba",
+    "nights": 3,
+    "restaurantes": [
+     {
+      "nombre": "Bodegas Campos",
+      "rango_precio": "€€€ (40-60 USD)",
+      "por_que": "Institución gastronómica cordobesa famosa por su rabo de toro, salmorejo y ambiente señorial.",
+      "cocina": "Andaluza tradicional e innovadora"
+     },
+     {
+      "cocina": "Tapas andaluzas de taberna",
+      "por_que": "Trato familiar, cálido y auténtica cocina casera andaluza con productos frescos de mercado.",
+      "rango_precio": "€€ (25-40 USD)",
+      "nombre": "Taberna Luque"
+     },
+     {
+      "nombre": "Noor Restaurant",
+      "rango_precio": "€€€€ (160-250 USD)",
+      "por_que": "Experiencia 3 estrellas Michelin de Paco Morales reinterpretando la cocina histórica del Al-Ándalus.",
+      "cocina": "Creativa andalusí de vanguardia"
+     },
+     {
+      "rango_precio": "€ (10-20 USD)",
+      "por_que": "Clásico punto junto a la muralla de la Mezquita para degustar su famosa tortilla gigante española.",
+      "nombre": "Bar Santos",
+      "cocina": "Tapeo tradicional y vino de Montilla-Moriles"
+     }
+    ],
+    "checkin": "2027-05-07",
+    "checkout": "2027-05-10"
+   },
+   {
+    "experiencias": [
+     {
+      "por_que": "Complejo palaciego mudéjar imprescindible, con espectaculares patios, azulejos y jardines históricos.",
+      "nombre": "Real Alcázar de Sevilla",
+      "price_per_person_usd": 22,
+      "duracion": "2.5 horas",
+      "rating": 4.7,
+      "fuente": "google_places",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "duracion": "1.5 horas",
+      "price_per_person_usd": 16,
+      "por_que": "Subida a la emblemática torre campanario para disfrutar de las mejores vistas panorámicas de la ciudad.",
+      "nombre": "La Giralda y Catedral de Sevilla",
+      "rating": 4.7,
+      "fuente": "google_places",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "nombre": "Plaza de España y Parque de María Luisa",
+      "duracion": "2 horas",
+      "por_que": "Paseo arquitectónico y botánico icónico por la monumental plaza de cerámica y sus jardines sombreados.",
+      "rating": 4.8,
+      "price_per_person_usd": 0,
+      "fuente": "google_places",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "duracion": "1.5 horas",
+      "rating": 4.8,
+      "por_que": "Tradición musical y artística andaluza en un tablao íntimo a orillas del Guadalquivir.",
+      "fuente": "estimado",
+      "nombre": "Espectáculo de Flamenco en el Barrio de Triana",
+      "price_per_person_usd": 38,
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "nights": 3,
+    "restaurantes": [
+     {
+      "cocina": "Tapas andaluzas de autor",
+      "por_que": "Famoso bar de tapas creativas galardonadas en el barrio de San Lorenzo; visita obligada en Sevilla.",
+      "rango_precio": "$$ (25-40 USD)",
+      "nombre": "Eslava"
+     },
+     {
+      "cocina": "Tapas clásicas sevillanas",
+      "rango_precio": "$$ (20-35 USD)",
+      "por_que": "La taberna más antigua de Sevilla (desde 1670), perfecta para probar jamón ibérico de bellota y espinacas con garbanzos.",
+      "nombre": "El Rinconcillo"
+     },
+     {
+      "cocina": "Cocina andaluza contemporánea",
+      "rango_precio": "$$$$ (90-140 USD)",
+      "nombre": "Cañabota",
+      "por_que": "Restaurante con estrella Michelin centrado en pescados y mariscos de las costas andaluzas preparados con maestría."
+     },
+     {
+      "nombre": "La Azotea",
+      "por_que": "Propuesta fresca de producto de temporada con excelente selección de vinos y ambiente distendido.",
+      "cocina": "Tapas gourmet y vinos",
+      "rango_precio": "$$$ (35-55 USD)"
+     }
+    ],
+    "arrival_options": [
+     {
+      "tier": "recomendado",
+      "provider": "Renfe",
+      "fuente_precio": "estimado",
+      "notes": "Conexión ultrarrápida y frecuente entre Córdoba Central y Sevilla Santa Justa. La opción más cómoda y eficiente.",
+      "duration": "45 min",
+      "mode": "Tren de Alta Velocidad (AVE / Avant)",
+      "from": "Córdoba",
+      "price_per_person_usd": 28,
+      "scenic": false,
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "duration": "1h 35 min",
+      "mode": "Auto de alquiler / Conducción",
+      "provider": "Renta de auto (estimado por tramo)",
+      "fuente_precio": "estimado",
+      "scenic": false,
+      "from": "Córdoba",
+      "notes": "Por la autovía A-4 conectando ambas ciudades del valle del Guadalquivir a ritmo independiente.",
+      "price_per_person_usd": 45,
+      "tier": "alternativo",
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "city": "Sevilla",
+    "hospedaje": [
+     {
+      "tier": "ahorro",
+      "tipo": "4★",
+      "nombre": "Hotel Posada del Lucero | Monumento Nacional",
+      "barrio": "Sevilla",
+      "rating": 4.7,
+      "price_per_night_usd": 187,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Hotel+Posada+del+Lucero+%7C+Monumento+Nacional+Sevilla&checkin=2027-05-10&checkout=2027-05-13&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Posada histórica del siglo XVI catalogada monumento, con encanto tradicional andaluz a precio muy accesible.",
+      "consultado_at": "2026-10-23T07:01:12.439667+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "equilibrio",
+      "tipo": "4★",
+      "nombre": "El Rey Moro Hotel Boutique",
+      "barrio": "Sevilla",
+      "rating": 4.8,
+      "price_per_night_usd": 279,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=El+Rey+Moro+Hotel+Boutique+Sevilla&checkin=2027-05-10&checkout=2027-05-13&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Ubicación privilegiada en el Paseo Cristóbal Colón con vistas directas a Triana y terraza con alberca. Equilibrio ideal.",
+      "consultado_at": "2026-10-23T07:01:12.439667+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "premium",
+      "tipo": "4★",
+      "nombre": "Hotel Hospes las Casas del Rey de Baeza",
+      "barrio": "Sevilla",
+      "rating": 4.7,
+      "price_per_night_usd": 400,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Hotel+Hospes+las+Casas+del+Rey+de+Baeza+Sevilla&checkin=2027-05-10&checkout=2027-05-13&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Exclusivo hotel boutique en un palacete restaurado de 1928, con diseño refinado y atención de alto nivel.",
+      "consultado_at": "2026-10-23T07:01:12.439667+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     }
+    ],
+    "checkin": "2027-05-10",
+    "checkout": "2027-05-13"
+   },
+   {
+    "restaurantes": [
+     {
+      "nombre": "Bar Los Diamantes",
+      "por_que": "Un clásico granadino imperdible para degustar fritura de pescado y mariscos al ritmo de la clásica caña con tapa.",
+      "rango_precio": "$15 - $30 USD por persona",
+      "cocina": "Andaluza tradicional y tapas de autor"
+     },
+     {
+      "nombre": "Restaurante Carmen de San Miguel",
+      "cocina": "Mediterránea / Vistas a la Alhambra",
+      "rango_precio": "$50 - $80 USD por persona",
+      "por_que": "Cocina cuidada con una de las terrazas panorámicas más privilegiadas de la colina de la Alhambra."
+     },
+     {
+      "rango_precio": "$35 - $60 USD por persona",
+      "cocina": "Andaluza contemporánea",
+      "nombre": "Restaurante Chikito",
+      "por_que": "Histórico rincón literario frecuentado antaño por Federico García Lorca, célebre por su rabo de toro y habas con jamón."
+     },
+     {
+      "por_que": "Cava vinícola excepcional guiada por expertos, acompañada de embutidos ibéricos, salmorejo y quesos locales de altísima calidad.",
+      "cocina": "Tapas y cocina nazarí de autor",
+      "rango_precio": "$25 - $45 USD por persona",
+      "nombre": "Taberna La Tana"
+     }
+    ],
+    "hospedaje": [
+     {
+      "tier": "ahorro",
+      "tipo": "3★",
+      "nombre": "Oripando Hostel",
+      "barrio": "Granada",
+      "rating": 4.8,
+      "price_per_night_usd": 64,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Oripando+Hostel+Granada&checkin=2027-05-13&checkout=2027-05-16&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Excelente ubicación tradicional en el Albaicín con patio andaluz y gran ambiente para quienes buscan optimizar presupuesto sin perder encanto.",
+      "consultado_at": "2026-10-23T07:01:12.473339+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "equilibrio",
+      "tipo": "4★",
+      "nombre": "Boutique Hotel Luna Triunfo Granada",
+      "barrio": "Granada",
+      "rating": 4.7,
+      "price_per_night_usd": 158,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Boutique+Hotel+Luna+Triunfo+Granada+Granada&checkin=2027-05-13&checkout=2027-05-16&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Espacio refinado con arquitectura señorial andaluza y magnífico confort para una estancia equilibrada y céntrica para dos viajeros.",
+      "consultado_at": "2026-10-23T07:01:12.473339+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "premium",
+      "tipo": "4★",
+      "nombre": "Áurea Catedral",
+      "barrio": "Granada",
+      "rating": 4.6,
+      "price_per_night_usd": 222,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=%C3%81urea+Catedral+Granada&checkin=2027-05-13&checkout=2027-05-16&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Palacete del siglo XVI a orillas del Río Darro frente a la Alhambra, ideal para una experiencia romántica y distinguida.",
+      "consultado_at": "2026-10-23T07:01:12.473339+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     }
+    ],
+    "nights": 3,
+    "experiencias": [
+     {
+      "fuente": "google_places",
+      "price_per_person_usd": 48,
+      "nombre": "Palacios Nazaríes",
+      "por_que": "La joya cumbre de la Alhambra; una inmersión arquitectónica andalusí imprescindible con patios intrincados y arquerías de ensueño.",
+      "rating": 4.9,
+      "duracion": "3 horas",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "nombre": "Generalife",
+      "duracion": "2 horas",
+      "por_que": "Palacio de descanso y jardines históricos con fuentes y acequias, ofreciendo perspectivas panorámicas inigualables.",
+      "fuente": "google_places",
+      "price_per_person_usd": 22,
+      "rating": 4.8,
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "fuente": "google_places",
+      "price_per_person_usd": 0,
+      "por_que": "Ubicado en el corazón del Albaicín, es el punto icónico para admirar el atardecer sobre la Alhambra con músicos locales de fondo.",
+      "nombre": "Mirador de San Nicolás",
+      "rating": 4.7,
+      "duracion": "1.5 horas",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "nombre": "Capilla Real de Granada",
+      "por_que": "Mausoleo histórico de los Reyes Católicos, con imponentes rejas renacentistas y una destacada colección de arte sacro flamenco.",
+      "duracion": "1.5 horas",
+      "fuente": "google_places",
+      "rating": 4.6,
+      "price_per_person_usd": 9,
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "city": "Granada",
+    "arrival_options": [
+     {
+      "price_per_person_usd": 52,
+      "mode": "Tren Renfe Avant",
+      "provider": "Renfe",
+      "scenic": true,
+      "fuente_precio": "estimado",
+      "tier": "equilibrio",
+      "from": "Sevilla",
+      "notes": "Conexión directa de alta velocidad media distancia desde Sevilla Santa Justa hasta Granada. Cómodo, puntual y sin complicaciones de equipaje.",
+      "duration": "2h 35m",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "tier": "ahorro",
+      "from": "Sevilla",
+      "notes": "Salida desde Estación Plaza de Armas en Sevilla directo a la Estación de Autobuses de Granada. Opción práctica y económica.",
+      "scenic": false,
+      "fuente_precio": "estimado",
+      "duration": "3h 00m",
+      "provider": "ALSA",
+      "mode": "Autobús ALSA",
+      "price_per_person_usd": 28,
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "checkin": "2027-05-13",
+    "checkout": "2027-05-16"
+   },
+   {
+    "arrival_options": [
+     {
+      "duration": "1h 30m",
+      "price_per_person_usd": 95,
+      "mode": "Vuelo directo",
+      "from": "Granada",
+      "provider": "Aerolínea por confirmar",
+      "fuente_precio": "estimado",
+      "notes": "Vuelo directo doméstico entre Granada (GRX) y Barcelona (BCN), la opción más rápida y cómoda para conectar ambas regiones.",
+      "scenic": false,
+      "tier": "rápido",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "tier": "panorámico",
+      "fuente_precio": "estimado",
+      "provider": "Renfe AVE",
+      "from": "Granada",
+      "mode": "Tren de alta velocidad",
+      "scenic": true,
+      "notes": "Servicio directo de Renfe AVE entre Granada y Barcelona Sants sin necesidad de transbordo en Madrid. Cómodo y panorámico.",
+      "price_per_person_usd": 85,
+      "duration": "6h 15m",
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "restaurantes": [
+     {
+      "nombre": "Bar Cañete",
+      "cocina": "Tapas de autor y cocina de mercado",
+      "rango_precio": "$$$ (45-70 USD/persona)",
+      "por_que": "Clásico barcelonés de barra animada con mariscos fresquísimos y platillos tradicionales preparados con técnica refinada."
+     },
+     {
+      "rango_precio": "$$$$ (220-300 USD/persona)",
+      "por_que": "Para una experiencia gastronómica cumbre mundial; vanguardia culinaria con técnicas innovadoras y producto mediterráneo.",
+      "cocina": "Catalana mediterránea contemporánea",
+      "nombre": "Disfrutar"
+     },
+     {
+      "por_que": "Auténtica taberna tradicional en El Born para disfrutar de cava artesanal, anchoas de Santoña y bocados catalanes clásicos.",
+      "rango_precio": "$$ (25-40 USD/persona)",
+      "cocina": "Tapas creativas y producto local",
+      "nombre": "El Xampanyet"
+     },
+     {
+      "rango_precio": "$$$ (50-75 USD/persona)",
+      "nombre": "Can Solé",
+      "cocina": "Marisquería y arroces marineros",
+      "por_que": "Referente histórico en La Barceloneta fundado en 1903, célebre por sus arroces caldosos, paellas marineras y pescados del día."
+     }
+    ],
+    "nights": 3,
+    "hospedaje": [
+     {
+      "tier": "ahorro",
+      "tipo": "3★",
+      "nombre": "Onefam Batlló Hostel Barcelona",
+      "barrio": "Barcelona",
+      "rating": 4.8,
+      "price_per_night_usd": 108,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Onefam+Batll%C3%B3+Hostel+Barcelona+Barcelona&checkin=2027-05-16&checkout=2027-05-19&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Excelente alternativa accesible con puntuaciones sobresalientes y ubicación céntrica en el Eixample, perfecta para optimizar presupuesto.",
+      "consultado_at": "2026-10-23T07:01:11.659101+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "equilibrio",
+      "tipo": "3★",
+      "nombre": "Yurbban Ramblas Boutique Hotel",
+      "barrio": "Barcelona",
+      "rating": 4.9,
+      "price_per_night_usd": 362,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Yurbban+Ramblas+Boutique+Hotel+Barcelona&checkin=2027-05-16&checkout=2027-05-19&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Alojamiento con balance ideal entre confort moderno, espacio y ubicación prime junto al paseo más distinguido de la ciudad.",
+      "consultado_at": "2026-10-23T07:01:11.659101+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     },
+     {
+      "tier": "premium",
+      "tipo": "4★",
+      "nombre": "Seventy Barcelona",
+      "barrio": "Barcelona",
+      "rating": 4.7,
+      "price_per_night_usd": 483,
+      "booking_url": "https://www.booking.com/searchresults.html?ss=Seventy+Barcelona+Barcelona&checkin=2027-05-16&checkout=2027-05-19&group_adults=2&no_rooms=1",
+      "fuente_precio": "serpapi",
+      "por_que": "Propiedad boutique refinada con calificación impecable, servicio personalizado e inmersión en el encanto histórico gótico.",
+      "consultado_at": "2026-10-23T07:01:11.659101+00:00",
+      "estado_dato": "CONSULTADO_EN_VIVO"
+     }
+    ],
+    "experiencias": [
+     {
+      "por_que": "La obra maestra inconclusa de Gaudí; una visita imprescindible con acceso guiado y subida a las torres para apreciar su arquitectura de vanguardia.",
+      "fuente": "google_places",
+      "nombre": "Basílica de la Sagrada Família",
+      "price_per_person_usd": 38,
+      "rating": 4.8,
+      "duracion": "2h",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "rating": 4.7,
+      "nombre": "Casa Batlló",
+      "duracion": "1.5h",
+      "price_per_person_usd": 35,
+      "por_que": "Joya del modernismo catalán en el Passeig de Gràcia, célebre por su fachada orgánica y su innovadora museografía inmersiva.",
+      "fuente": "google_places",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "rating": 4.6,
+      "nombre": "La Pedrera - Casa Milà",
+      "price_per_person_usd": 32,
+      "duracion": "1.5h",
+      "por_que": "Emblemático edificio gaudiniano con su icónica azotea de chimeneas escultóricas y vistas panorámicas del Eixample.",
+      "fuente": "google_places",
+      "estado_dato": "ESTIMADO"
+     },
+     {
+      "nombre": "Basílica de Santa Maria del Mar",
+      "rating": 4.7,
+      "duracion": "1h",
+      "fuente": "google_places",
+      "price_per_person_usd": 12,
+      "por_que": "Magnífico ejemplo del gótico catalán puro en el corazón de El Born, con una acústica y sobriedad arquitectónica únicas.",
+      "estado_dato": "ESTIMADO"
+     }
+    ],
+    "city": "Barcelona",
+    "checkin": "2027-05-16",
+    "checkout": "2027-05-19"
+   }
+  ],
+  "leg_modes": [],
+  "road_trip": null,
+  "selected_tier": "equilibrio",
+  "presupuesto_rango": null,
+  "fx_usd_mxn": 18.7613,
+  "nights": 15,
+  "desglose_presupuesto": {
+   "vuelos": 49530,
+   "hospedaje": 73113,
+   "comida": 53470,
+   "tours": 15796,
+   "transporte_local": 9118,
+   "extras": 2870
+  },
+  "total_estimado_mxn": 203897,
+  "total_estimado_usd": 10868,
+  "pricing_sources": {
+   "vuelos": "estimado",
+   "hospedaje": "serpapi",
+   "experiencias": "google_places"
+  },
+  "fx_source": "frankfurter",
+  "fx_at": "2026-10-22T00:00:00Z",
+  "fx_is_fallback": false,
+  "quoted_at": "2026-10-23T10:18:56.695Z",
+  "rooms": 1,
+  "travelers": 2,
+  "date_from": "2027-05-04",
+  "date_to": "2027-05-19"
+ }
+}

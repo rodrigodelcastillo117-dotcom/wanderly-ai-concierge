@@ -66,7 +66,7 @@ export type LegChoice = {
   row: LegOption["row"] | null;
 };
 
-const MODE_LABEL: Record<string, string> = { vuelo: "Avión", tren: "Tren", coche: "Coche", bus: "Autobús", ferry: "Ferry" };
+const MODE_LABEL: Record<string, string> = { vuelo: "Avión", tren: "Tren", coche: "Coche", bus: "Autobús", ferry: "Ferry", taxi: "Taxi", traslado: "Traslado", otro: "Transporte" };
 // Donde lo normal es contratar coche con chofer (no manejar uno mismo).
 const DRIVER_COUNTRIES = new Set(["IN", "EG", "MA", "TH", "ID"]);
 
@@ -117,7 +117,8 @@ export function legStep(trip: any, from: string, to: string, date: string | null
       completa: driver ? "Coche con chofer: reserva con tu hotel o una agencia local; Google Maps solo da la ruta y el tiempo." : "Google Maps no recibe la fecha: la renta de auto se reserva aparte.",
       fallbackHref: `/dashboard/autos?city=${encodeURIComponent(from)}&dropoff=${encodeURIComponent(to)}${date8 ? `&pickup=${date8}` : ""}${trip?.id ? `&trip=${trip.id}` : ""}` }));
   }
-  for (const p of plan) if (!choices.some((c) => c.mode === p.mode)) choices.push(base(p.mode, {}));
+  // Autobús, taxi, traslado, ferry: no hay buscador fiable por enlace; se dice en vez de inventar uno.
+  for (const p of plan) if (!choices.some((c) => c.mode === p.mode)) choices.push(base(p.mode, { completa: `Precio y compra con el operador${p.provider ? ` (${p.provider})` : ""}.` }));
   // Primero lo que trae el plan (en su orden), luego las búsquedas.
   choices.sort((x, y) => Number(y.fromPlan) - Number(x.fromPlan) || (x.fromPlan ? plan.findIndex((p) => p.mode === x.mode) - plan.findIndex((p) => p.mode === y.mode) : 0));
   // Sin elección: lo realista (Europa, India): tierra en tramos cortos; si no, lo primero del plan.
@@ -125,11 +126,20 @@ export function legStep(trip: any, from: string, to: string, date: string | null
   // En tramos cortos se prefiere tierra (tren y luego coche del plan) sobre un vuelo.
   const short = km == null || km < 800;
   const groundPick = short ? choices.find((c) => c.mode === "tren" && c.fromPlan) ?? choices.find((c) => c.mode === "coche" && c.fromPlan) : null;
-  const chosen = choices.find((c) => c.mode === chosenMode) ?? groundPick ?? choices[0] ?? null;
+  // Por defecto, el tramo que suma el total (logistics.internal_transport), con su mismo precio: Comprar
+  // y el total no pueden decir cosas distintas (antes marcaba "Vuelo directo" a $1,782 y el total sumaba el AVE).
+  const quoted = plan.find((p) => p.quoted) ?? null;
+  const quotedPick = quoted ? choices.find((c) => c.mode === quoted.mode) ?? null : null;
+  const chosen = choices.find((c) => c.mode === chosenMode) ?? quotedPick ?? groundPick ?? choices[0] ?? null;
+  const fx = Number(trip?.itinerario_json?.logistics?.fx_usd_mxn) || 0;
+  const chosenPlan = chosen ? planOf(chosen.mode) : null;
+  // Mismo redondeo que logistics-plan (usdToMxn(precio × viajeros)) para que el peso cuadre con el total.
+  const legPrice = chosenPlan?.quoted && chosenPlan.priceUsdPp && fx > 0 ? Math.round(chosenPlan.priceUsdPp * travelers * fx)
+    : chosen?.pricePp ? chosen.pricePp * travelers : null;
   const item: PurchaseItem = {
     key: `traslado:${normKey(from)}>${normKey(to)}`, kind: "vuelo", category: chosen?.mode === "tren" ? "train" : chosen?.mode === "coche" ? "car" : "flight",
     title: `${from} → ${to}`, subtitle: [date8 ? fmtDayShort(date8) : null, `${travelers} ${travelers === 1 ? "viajero" : "viajeros"}`, chosen?.label ?? null].filter(Boolean).join(" · "),
-    price: chosen?.pricePp ? chosen.pricePp * travelers : null, currency: "MXN",
+    price: legPrice, currency: "MXN",
     priceNote: chosen?.pricePp ? `Estimado: $${chosen.pricePp.toLocaleString("es-MX")} MXN por persona. Confirma el precio en el sitio.` : "Por cotizar: IATOS no tiene precio real de este traslado.",
     source: { fuente: chosen?.fromPlan ? "estimado" : null, estado: chosen?.fromPlan ? "ESTIMADO" : null, consultadoAt: null }, estimate: true,
     site: chosen?.site ?? null, url: chosen?.url ?? null, action: null, lleva: chosen?.lleva ?? [], completa: chosen?.completa ?? null,

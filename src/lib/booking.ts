@@ -4,8 +4,8 @@
 export { checkAllowlisted, checkTrustedSource, processorLabel } from "../../supabase/functions/_shared/booking/allowlist.ts";
 export { resolveBookingActions } from "../../supabase/functions/_shared/booking/resolver.ts";
 export {
-  offerFromFlightResult, offerFromHotelResult, offerFromTripFlight, tripFlightProblems, isGroundTripOption, isEstimatedTripFlight, isTripInternationalRow, durationHours, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, offerFromVenue,
-  venueFromTripPlace,
+  offerFromFlightResult, offerFromHotelResult, offerFromTripFlight, tripFlightProblems, isGroundTripOption, transportModeOf, isEstimatedTripFlight, isTripInternationalRow, durationHours, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, offerFromVenue,
+  venueFromTripPlace, type TransportMode,
   type FlightResultLike, type FlightSearchMeta, type HotelResultLike, type HotelSearchMeta, type VenueInfo,
 } from "../../supabase/functions/_shared/booking/offers.ts";
 export { intentStatusText, TERMINAL_STATES, type FollowUpOutcome, type Verification } from "../../supabase/functions/_shared/booking/states.ts";

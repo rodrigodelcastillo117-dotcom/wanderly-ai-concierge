@@ -225,10 +225,39 @@ function parsedRoute(raw: string | null, depart: string | null, ret: string | nu
   return p ? { origin: p.origin, destination: p.destination, depart, return_date: ret, adults } : null;
 }
 
-/** Modos de tierra de vuelos_json: `modo` (analizar-viaje) o `mode` (ruta multi-destino). */
-const GROUND_MODES = new Set(["autobus", "auto", "coche", "tren", "bus", "ferry", "roadtrip", "car", "train"]);
+export type TransportMode = "vuelo" | "tren" | "bus" | "coche" | "taxi" | "traslado" | "ferry" | "otro";
+
+// Palabras que delatan el modo de un tramo. logistics-plan escribe el modo en texto libre
+// ("Tren de alta velocidad", "Taxi oficial / Traslado privado", "Autobús ALSA", "Auto de alquiler");
+// antes solo se reconocían "tren", "coche"… y todo lo demás se pintaba como vuelo con enlace de
+// Google Flights (caso España multidestino, 23-oct-2026). El orden importa: "Taxi / Traslado" es taxi.
+const MODE_WORDS: Array<[TransportMode, RegExp]> = [
+  ["vuelo", /^(vuelos?|avion(es)?|aereo|flights?|plane|airline)$/],
+  ["tren", /^(tren(es)?|trains?|ave|avant|alvia|iryo|ouigo|renfe|cercanias|rail|railway|tgv|frecciarossa|italo|shinkansen|eurostar|ferrocarril)$/],
+  ["bus", /^(autobus(es)?|bus(es)?|autocar|coach|camion|alsa|flixbus)$/],
+  ["ferry", /^(ferry|ferri|ferries|barco|ship|boat|crucero|cruise|lancha|catamaran)$/],
+  ["taxi", /^(taxi|taxis|uber|cabify|vtc)$/],
+  ["traslado", /^(traslados?|transfer|shuttle)$/],
+  ["coche", /^(coche|auto|autos|carro|car|roadtrip|campervan|camper|renta|alquiler|conduccion|driving|vehiculo|manejando)$/],
+];
+
+/**
+ * Modo canónico de un tramo a partir de su texto (`mode` o `modo`). null si viene vacío (las filas
+ * viejas de vuelos_json sin modo son vuelos); "otro" si dice algo que no se reconoce (no se afirma
+ * que sea un vuelo).
+ */
+export function transportModeOf(raw: unknown): TransportMode | null {
+  const s = String(raw ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+  if (!s) return null;
+  const words = s.split(/[^a-z0-9]+/).filter(Boolean);
+  for (const [mode, re] of MODE_WORDS) if (words.some((w) => re.test(w))) return mode;
+  return "otro";
+}
+
+/** ¿El tramo NO es un vuelo (tren, bus, coche, taxi, traslado, ferry…)? Lee `modo` (analizar-viaje) o `mode`. */
 export function isGroundTripOption(v: any): boolean {
-  return GROUND_MODES.has(String(v?.modo ?? "").toLowerCase()) || GROUND_MODES.has(String(v?.mode ?? "").toLowerCase());
+  const m = transportModeOf(v?.modo) ?? transportModeOf(v?.mode);
+  return m != null && m !== "vuelo";
 }
 
 /** ¿La fila la escribió la IA como estimación (sin tarifa verificada)? */

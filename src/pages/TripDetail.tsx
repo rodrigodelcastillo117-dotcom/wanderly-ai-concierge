@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useBookingExitNotice } from "@/lib/bookingExit";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, Route as RouteIcon, ChevronDown, Download, Radio, Map as MapIcon, Backpack, Cloud, Languages, BookHeart, Wallet, Sparkles, Pencil, Heart } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Users, Plane, Hotel, Utensils, Compass, Lightbulb, Star, Check, X, Train, Car, Mountain, ArrowRight, Bus, Ship, CarTaxiFront, Route as RouteIcon, ChevronDown, Download, Radio, Map as MapIcon, Backpack, Cloud, Languages, BookHeart, Wallet, Sparkles, Pencil, Heart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -36,9 +36,9 @@ import { ImportedTripBanner } from "@/components/ImportedTripBanner";
 import { TripDocuments } from "@/components/TripDocuments";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
-import { isGroundTripOption, tripCountryLabel, tripFlightProblems } from "@/lib/booking";
+import { isGroundTripOption, transportModeOf, tripCountryLabel, tripFlightProblems } from "@/lib/booking";
 import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightStopsLabel } from "@/lib/flightDisplay";
-import { groundOptionsForCity } from "@/lib/multiDestTrip";
+import { groundOptionsForCity, legOptionsFor, transportRubroLabel } from "@/lib/multiDestTrip";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
@@ -409,7 +409,7 @@ const TripDetail = () => {
     );
   }
 
-  const trust = quoteTrust(quote);
+  const trust = quoteTrust(quote, new Date(), { transporte_local: transportRubroLabel(trip) });
   const discardedFares = (trip.vuelos_json ?? []).filter((v: any) => tripFlightProblems(v, trip).length > 0).length;
   const hasQuotedTotal = !!(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0);
   const isOwner = user?.id === trip.user_id;
@@ -862,7 +862,8 @@ const TripDetail = () => {
                 </div>
               </CityCollapsible>
               {isMulti && cityIdx < allCities.length - 1 && (
-                <FlightConnector from={city} to={allCities[cityIdx + 1]} />
+                // El ícono es el del tramo que suma el total (tren, coche…), no siempre un avión.
+                <FlightConnector from={city} to={allCities[cityIdx + 1]} mode={legOptionsFor(trip, cityKey, cityKeyFor(allCities[cityIdx + 1]))[0]?.mode ?? null} />
               )}
               </div>
             );
@@ -1000,9 +1001,11 @@ const SubBlock = ({ icon: Icon, title, children }: any) => (
   </div>
 );
 
-// Elegante conector de vuelo entre destinos (multi-ciudad)
-const FlightConnector = ({ from, to }: { from: string; to: string }) => (
-  <div className="relative my-5 md:my-7 select-none" aria-hidden="true">
+// Elegante conector entre destinos (multi-ciudad), con el ícono del modo del tramo (sin dato: una ruta).
+const FlightConnector = ({ from, to, mode }: { from: string; to: string; mode?: string | null }) => {
+  const LegIcon = (mode && MODE_ICON[mode]) || RouteIcon;
+  return (
+  <div className="relative my-5 md:my-7 select-none" aria-hidden="true" data-testid="leg-connector" data-mode={mode ?? ""}>
     <div className="flex items-center gap-4 px-2">
       <span className="hidden sm:inline text-[10px] tracking-[0.3em] uppercase text-muted-foreground whitespace-nowrap">
         {from}
@@ -1030,7 +1033,7 @@ const FlightConnector = ({ from, to }: { from: string; to: string }) => (
           <div className="-translate-x-1/2 relative">
             {/* glow */}
             <div className="absolute inset-0 blur-md bg-primary/40 rounded-full" />
-            <Plane className="relative w-4 h-4 text-primary rotate-90 drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]" />
+            <LegIcon className={`relative w-4 h-4 text-primary ${LegIcon === Plane ? "rotate-90" : ""} drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]`} />
           </div>
         </motion.div>
       </div>
@@ -1039,7 +1042,8 @@ const FlightConnector = ({ from, to }: { from: string; to: string }) => (
       </span>
     </div>
   </div>
-);
+  );
+};
 
 
 const MODE_ICON: Record<string, any> = {
@@ -1052,6 +1056,9 @@ const MODE_ICON: Record<string, any> = {
   bus: Bus,
   ferry: Ship,
   vuelo_interno: Plane,
+  taxi: CarTaxiFront,
+  traslado: Car,
+  otro: RouteIcon,
 };
 
 const MODE_LABEL: Record<string, string> = {
@@ -1064,14 +1071,19 @@ const MODE_LABEL: Record<string, string> = {
   bus: "Bus",
   ferry: "Ferry",
   vuelo_interno: "Vuelo interno",
+  taxi: "Taxi",
+  traslado: "Traslado",
+  otro: "Transporte",
 };
 
 // Trayectos cortos (N-06): opciones por carretera, siempre estimadas y con rango de precio.
 const isGroundOption = (v: any) => v?.modo === "autobus" || v?.modo === "auto";
 const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 }: { option: any; active: boolean; onClick?: () => void; quotedAt?: string | null; trip?: any; index?: number }) => {
   // Coche, tren, bus o ferry con su icono (antes un coche salía con avión: MODE_ICON no tenía "coche").
-  const mode = String(option.mode ?? option.modo ?? "vuelo");
-  const Icon = MODE_ICON[mode] || (isGroundTripOption(option) ? Car : Plane);
+  // El modo llega en texto libre ("Tren de alta velocidad", "Taxi oficial / Traslado privado"): se
+  // normaliza; un taxi o un tren nunca se pinta con avión (caso España multidestino, 23-oct-2026).
+  const mode = transportModeOf(option.modo) ?? transportModeOf(option.mode) ?? "vuelo";
+  const Icon = MODE_ICON[mode] || (isGroundTripOption(option) ? RouteIcon : Plane);
   const modeLabel = MODE_LABEL[mode] || "Transporte";
   const airline = flightAirlineLabel(option);
   return (

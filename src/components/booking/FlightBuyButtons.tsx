@@ -5,7 +5,7 @@
 // renta de auto o al buscador de trenes.
 import { Link } from "react-router-dom";
 import { Car, ExternalLink, Route as RouteIcon, Train } from "lucide-react";
-import { offerFromTripFlight, isGroundTripOption } from "@/lib/booking";
+import { offerFromTripFlight, isGroundTripOption, transportModeOf } from "@/lib/booking";
 import { prefillMatchesTrip } from "@/lib/purchasePlan";
 import { logBookingClick } from "@/lib/trackBooking";
 import { trainlineLink } from "@/lib/affiliateLinks";
@@ -60,13 +60,28 @@ export function FlightBuyButtons({ option, trip, index = 0 }: { option: any; tri
   );
 }
 
-/** Coche: al panel del road trip y a la renta de auto (recoger aquí, devolver allá). Tren: buscador de trenes. */
+/**
+ * Coche: al panel del road trip y a la renta de auto (recoger aquí, devolver allá). Tren entre ciudades:
+ * buscador de trenes. Autobús, taxi, traslado, ferry o un tren desde el aeropuerto: no hay enlace de
+ * compra fiable, así que se dice ("Precio y compra con el operador") en vez de inventar uno. Nunca un
+ * enlace de vuelos.
+ */
 export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
-  const mode = String(option?.mode ?? option?.modo ?? "");
-  const from = String(option?.from ?? "").replace(/\(.*?\)/g, "").trim();
+  const mode = transportModeOf(option?.modo) ?? transportModeOf(option?.mode);
+  const rawFrom = String(option?.from ?? "");
+  const from = rawFrom.replace(/\(.*?\)/g, "").trim();
   const to = String(option?.to ?? option?.ciudad ?? "").trim();
   const pickup = stayForCity(trip, to)?.checkin ?? trip?.fecha_salida ?? "";
-  if (mode === "tren" || mode === "train") {
+  const fromAirport = /aeropuerto|airport|\([A-Z]{3}\)/i.test(rawFrom);
+  if (mode !== "coche" && (mode !== "tren" || fromAirport)) {
+    const op = String(option?.aerolinea ?? option?.provider ?? "").trim();
+    return (
+      <p className="mt-3 text-xs text-muted-foreground" data-testid="ground-buy-operator" onClick={(e) => e.stopPropagation()}>
+        Precio y compra con el operador{op ? ` (${op})` : ""}.
+      </p>
+    );
+  }
+  if (mode === "tren") {
     const url = trainlineLink(from, to, pickup);
     return (
       <div className="mt-3 space-y-1" onClick={(e) => e.stopPropagation()} data-testid="ground-buy-buttons">

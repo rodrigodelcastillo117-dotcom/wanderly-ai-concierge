@@ -36,7 +36,11 @@ const LABELS: Record<string, string> = {
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 
-export function quoteTrust(snapshot: SnapshotLike, now: Date = new Date()): QuoteTrust {
+/**
+ * `labels` cambia el nombre que se muestra de un rubro (p. ej. transporte_local → "Transporte entre
+ * ciudades" cuando son trenes entre ciudades); el snapshot guardado no cambia.
+ */
+export function quoteTrust(snapshot: SnapshotLike, now: Date = new Date(), labels: Record<string, string> = {}): QuoteTrust {
   const items = Array.isArray(snapshot?.line_items) ? snapshot!.line_items! : [];
   const vu = snapshot?.valid_until ? new Date(snapshot.valid_until) : null;
   const expired = !!vu && Number.isFinite(vu.getTime()) && now.getTime() > vu.getTime();
@@ -52,7 +56,7 @@ export function quoteTrust(snapshot: SnapshotLike, now: Date = new Date()): Quot
           : state === "PENDIENTE" ? "por_verificar"
             : "estimado";
     const category = String(it?.category ?? "");
-    lines.push({ category, label: it?.label || LABELS[category] || category, amount, trust });
+    lines.push({ category, label: labels[category] || it?.label || LABELS[category] || category, amount, trust });
   }
   const sum = (t: TrustLine["trust"]) => lines.filter((l) => l.trust === t).reduce((s, l) => s + l.amount, 0);
   const verified = sum("verificado");
