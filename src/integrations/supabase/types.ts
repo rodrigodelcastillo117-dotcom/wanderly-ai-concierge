@@ -2372,6 +2372,7 @@ export type Database = {
       }
       member_card_grants: {
         Row: {
+          edition: string | null
           granted_at: string
           granted_by: string | null
           reason: string
@@ -2379,6 +2380,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          edition?: string | null
           granted_at?: string
           granted_by?: string | null
           reason: string
@@ -2386,6 +2388,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          edition?: string | null
           granted_at?: string
           granted_by?: string | null
           reason?: string
