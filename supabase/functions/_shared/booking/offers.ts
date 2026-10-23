@@ -652,8 +652,12 @@ export function offerFromVenue(
     const tripTo = isIsoDate(ctx.trip?.fecha_regreso) ? ctx.trip!.fecha_regreso! : null;
     const gyg = getYourGuideSearchUrl(city ?? "", name, TP_PUBLIC_MARKER, { from: tripFrom, to: tripTo });
     const via = viatorSearchUrl(city ?? "", name);
-    if (gyg) searches.push({ url: gyg, trust: "builder", evidence: EVIDENCE.TOURS_SEARCH, provider_label: "GetYourGuide", preserves: { product: false, dates: !!(tripFrom && tripTo), travelers: false, room_or_fare: false } });
-    if (via) searches.push({ url: via, trust: "builder", evidence: EVIDENCE.TOURS_SEARCH, provider_label: "Viator", preserves: { product: false, dates: false, travelers: false, room_or_fare: false } });
+    // Con fechas del viaje va primero GetYourGuide (filtra por ese rango); sin fechas, Viator con el
+    // código de afiliado directo de IATOS. Los dos quedan siempre como opción.
+    const gygFirst = !!(tripFrom && tripTo);
+    const viaEntry = via ? { url: via, trust: "builder" as const, evidence: EVIDENCE.TOURS_SEARCH, provider_label: "Viator", preserves: { product: false, dates: false, travelers: false, room_or_fare: false } } : null;
+    const gygEntry = gyg ? { url: gyg, trust: "builder" as const, evidence: EVIDENCE.TOURS_SEARCH, provider_label: "GetYourGuide", preserves: { product: false, dates: gygFirst, travelers: false, room_or_fare: false } } : null;
+    for (const e of gygFirst ? [gygEntry, viaEntry] : [viaEntry, gygEntry]) if (e) searches.push(e);
   }
   const lang: RequestLang = langForCountry(country);
   const draft = ctx.draft ?? { venue: name, product_type: product === "tour" ? "tour" : product === "event" ? "event" : product, lang };

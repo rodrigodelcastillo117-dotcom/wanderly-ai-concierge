@@ -284,10 +284,18 @@ export function getYourGuideSearchUrl(city: string, query?: string, marker = TP_
   return `https://www.getyourguide.com/s/?q=${encodeURIComponent(q)}${range}&marker=${marker}`;
 }
 
-export function viatorSearchUrl(city: string, query?: string, marker = TP_PUBLIC_MARKER): string | null {
+/**
+ * Afiliado directo de Viator de IATOS (enlace del dueño, 23-oct-2026: pid P00327354, mcid 42383,
+ * campaign IATOS). Son parámetros públicos de seguimiento, no un secreto: van en cada enlace a viator.com.
+ */
+export const VIATOR_AFFILIATE = { pid: "P00327354", mcid: "42383", medium: "link", medium_version: "selector", campaign: "IATOS" } as const;
+
+/** Búsqueda de Viator con el código de afiliado de IATOS (no es la ficha de un producto). */
+export function viatorSearchUrl(city: string, query?: string): string | null {
   const q = [query, city].filter(Boolean).join(" ").trim();
   if (!q) return null;
-  return `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}&marker=${marker}`;
+  const p = new URLSearchParams({ text: q, ...VIATOR_AFFILIATE });
+  return `https://www.viator.com/searchResults/all?${p.toString()}`;
 }
 
 /**

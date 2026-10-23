@@ -181,10 +181,13 @@ export function getYourGuideLink(city: string, query?: string, dates?: { from?: 
   return tpDeepLink(url, "tours");
 }
 
+/** Afiliado directo de Viator de IATOS (pid P00327354 · mcid 42383 · campaign IATOS): parámetros públicos. */
+export const VIATOR_AFFILIATE = { pid: "P00327354", mcid: "42383", medium: "link", medium_version: "selector", campaign: "IATOS" } as const;
+
 export function viatorLink(city: string, query?: string) {
   const q = query ? `${query} ${city}` : city;
-  const url = `https://www.viator.com/searchResults/all?text=${encodeURIComponent(q)}`;
-  return tpDeepLink(withMarker(url), "tours");
+  // Directo con el código de afiliado de IATOS (ya no pasa por Travelpayouts).
+  return `https://www.viator.com/searchResults/all?${new URLSearchParams({ text: q, ...VIATOR_AFFILIATE }).toString()}`;
 }
 
 export function tripadvisorLink(city: string, query?: string) {
