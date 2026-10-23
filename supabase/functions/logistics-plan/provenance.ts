@@ -48,11 +48,20 @@ const PLACE_SOURCES = new Set(["tripadvisor", "google_places", "google_maps"]);
  * atracciones que tripadvisor-search devolvió en este request (TripAdvisor o, si no responde,
  * Google Places / Google Maps: `source`). El precio siempre es una estimación.
  */
-export function labelExperiences(items: unknown, attractions: Array<{ name?: string }> | null, source = "tripadvisor"): any[] {
+export function labelExperiences(items: unknown, attractions: Array<{ name?: string; place_id?: string | null; web_url?: string | null; rating?: number | null; num_reviews?: number | null }> | null, source = "tripadvisor"): any[] {
   return (Array.isArray(items) ? items : []).map((e: any) => {
-    const real = !!attractions?.length && PLACE_SOURCES.has(e?.fuente) && attractions.some((a) => samePlace(a?.name, e?.nombre ?? e?.name));
+    const match = attractions?.length && PLACE_SOURCES.has(e?.fuente) ? attractions.find((a) => samePlace(a?.name, e?.nombre ?? e?.name)) : null;
+    const real = !!match;
     const out = { ...e, fuente: real ? source : "estimado", estado_dato: "ESTIMADO" };
-    if (!real) { out.rating = PLACE_SOURCES.has(e?.fuente) ? null : e?.rating ?? null; }
+    // Sin la lista del proveedor la calificación es del modelo: nunca se muestra (auditoría 23-oct-2026).
+    if (!real) out.rating = null;
+    else {
+      // Calificación, place_id y ficha de Maps del proveedor (antes se perdían en el multidestino).
+      out.rating = typeof match.rating === "number" ? match.rating : null;
+      if (typeof match.num_reviews === "number") out.num_reviews = match.num_reviews;
+      if (typeof match.place_id === "string" && match.place_id) out.place_id = match.place_id;
+      if (source !== "tripadvisor" && typeof match.web_url === "string" && match.web_url) out.maps_url = match.web_url;
+    }
     return out;
   });
 }

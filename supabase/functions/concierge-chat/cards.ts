@@ -203,6 +203,8 @@ export interface Evidence {
   webLinks: Set<string>;
   /** Experiencias Privé mostradas en este turno (solo esas se pueden solicitar). */
   priveIds: Set<string>;
+  /** Nombres del catálogo Privé (curado, con fuente) que trajo search_prive en este turno. */
+  priveNames?: string[];
   /** Dominios de los enlaces https que trajeron las herramientas de este turno (sin "www."). */
   hosts: string[];
 }
@@ -337,6 +339,9 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
     }
     if (run.name === "search_prive") {
       for (const c of Array.isArray(res.cities) ? res.cities : []) for (const it of (c as any)?.items ?? []) if (typeof it?.id === "string") ev.priveIds.add(it.id);
+      const names = (ev.priveNames ??= []);
+      const items = [...(Array.isArray(res.results) ? res.results : []), ...(Array.isArray(res.cities) ? res.cities.flatMap((c: any) => c?.items ?? []) : [])];
+      for (const it of items) { const n = (it as any)?.name ?? (it as any)?.nombre; if (typeof n === "string" && n.trim()) names.push(n); }
     }
     const topSource = typeof res.source === "string" ? res.source : DEFAULT_SOURCE[run.name] ?? run.name;
     const at = typeof res.consulted_at === "string" && Number.isFinite(Date.parse(res.consulted_at)) ? res.consulted_at : undefined;
@@ -434,6 +439,12 @@ export function validateCards(raw: unknown, ev: Evidence, consultadoAt: string =
     if (!title) { out.dropped.push({ type, reason: "sin_titulo" }); continue; }
     const needTool = REQUIRES_TOOL[type];
     if (needTool && !ev.available[needTool]) { out.dropped.push({ type, reason: "sin_respaldo_de_busqueda" }); continue; }
+    // Restaurante: el nombre tiene que salir de una búsqueda de lugares de ESTE turno (Google Maps,
+    // cercanos, atracciones, Members Only o el catálogo Privé). Si no, era un nombre escrito por el modelo: no se muestra
+    // (auditoría de lugares reales, 23-oct-2026).
+    if (type === "restaurant" && !matchPlace(title, ev.places) && !matchPlace(title, (ev.priveNames ?? []).map((name) => ({ name })))) {
+      out.dropped.push({ type, reason: "lugar_sin_respaldo" }); continue;
+    }
 
     const card: ConciergeCard = { type, title };
     const opt = (key: keyof ConciergeCard, max: number) => {

@@ -8,7 +8,9 @@
 // - Desglose real calculado en el servidor con FX dinámico (_shared/fx.ts). Nunca NULL, nunca 17.0.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
-import { internalHeaders } from "../_shared/serpRuntime.ts";
+import { dbCacheStore, internalHeaders } from "../_shared/serpRuntime.ts";
+import { restaurantsForCity, verifyRestaurants } from "../_shared/google-restaurants.ts";
+import { makeResolver, verifyTours } from "../_shared/place-verify.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import {
   invalidRequestResponse,
@@ -475,6 +477,7 @@ Deno.serve(async (req) => {
 
     // ───── Perfil + tier del presupuesto ─────
     let perfilLine = "Usuario sin perfil — nivel equilibrio.";
+    let foodPref: string | null = null;
     let presupuestoRango: string | null = null;
     try {
       const token = authHeader.replace(/^Bearer\s+/i, "");
@@ -498,6 +501,7 @@ Deno.serve(async (req) => {
           const presupuesto = presupuestoRango ?? "no especificado";
           const ritmo = tp?.ritmo_viaje ?? prefs?.ritmo_viaje ?? "equilibrado";
           const comida = [...(tp?.preferencias_comida ?? []), ...(prefs?.estilo_comida ?? [])].join(", ") || "abierto";
+          foodPref = (tp?.preferencias_comida ?? []).slice(0, 2).join(" ") || null;
           const aloj = [...(tp?.tipo_alojamiento_preferido ?? []), ...(prefs?.hospedaje_preferencias ?? [])].join(", ") || "flexible";
           const alergias = [...(tp?.alergias_restricciones ?? []), ...(prefs?.restricciones_alimentarias ?? [])].join(", ") || "ninguna";
           const acomp = tp?.acompanantes_tipico ?? prefs?.companeros_viaje ?? "no especificado";
@@ -576,6 +580,9 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
       currency: "usd",
     });
 
+    // Google Places (llave solo en el servidor): restaurantes reales por ciudad (la IA elige de la lista),
+    // validación de lugares fuera de la lista y, en roadtrip, distancia real por tramo.
+    const google = googleTransportFor("logistics-plan", __user.id);
     const cityLivePromises = cityWindows.map((w) =>
       Promise.all([
         invokeFn("hotels-search", authHeader, {
@@ -593,16 +600,19 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
           category: "attractions",
           language: "es_MX",
         }),
-      ]).then(([hotels, attractions]) => ({ hotels, attractions })),
+        // Una búsqueda por ciudad (Text Search Enterprise + Atmosphere, la misma de analizar-viaje).
+        google
+          ? restaurantsForCity(google, w.city, { preferences: foodPref }).then((r) => (r.ok ? r.places : [])).catch(() => [])
+          : Promise.resolve([]),
+      ]).then(([hotels, attractions, restaurants]) => ({ hotels, attractions, restaurants })),
     );
 
     // roadtrip: distancia y tiempo reales por tramo en coche (una llamada Essentials por tramo).
-    const google = legModes.includes("coche") ? googleTransportFor("logistics-plan", __user.id) : null;
     const roadTripPromise = planRoadTrip({
       destinations: body.destinations,
       legModes,
       legDates: body.destinations.slice(1).map((_, i) => cityWindows[i + 1]?.checkin ?? null),
-      route: google ? async (origin, destination) => {
+      route: google && legModes.includes("coche") ? async (origin, destination) => {
         const r = await computeRoute(google, { origin: { address: origin }, destination: { address: destination }, mode: "DRIVE" });
         return r.ok ? { ok: true, distance_meters: r.distance_meters, duration_seconds: r.duration_seconds, consultado_at: r.consultado_at } : null;
       } : null,
@@ -689,6 +699,14 @@ Entrega JSON con:
           ).join("\n")
         : `(Sin datos en vivo de atracciones — usa experiencias reales conocidas y pon fuente="estimado")`;
 
+      const restLive: any[] = Array.isArray(live?.restaurants) ? live.restaurants : [];
+      const restBlock = restLive.length
+        ? `GOOGLE MAPS (Places API; copia el nombre EXACTO; el servidor pone precio, calificación y enlace reales):\n` +
+          restLive.slice(0, 12).map((r: any, j: number) =>
+            `${j + 1}. ${r.name}${r.primary_type_label ? ` — ${r.primary_type_label}` : ""}${r.rating ? ` — ${r.rating}★ (${r.user_rating_count ?? "?"} reseñas)` : ""}${r.price_symbol ? ` — ${r.price_symbol}` : ""}`
+          ).join("\n")
+        : `(Sin lista de Google Maps — nombra restaurantes reales y conocidos; el servidor los busca en Google y quita los que no encuentre)`;
+
       const cityPrompt = `${perfilLine}${roadtripBlock}
 
 Ciudad: ${city}
@@ -703,6 +721,8 @@ HOSPEDAJE — ${hotelsBlock}
 ==========================================
 EXPERIENCIAS — ${attrBlock}
 ==========================================
+RESTAURANTES — ${restBlock}
+==========================================
 
 Entrega JSON con:
 - city: "${city}"
@@ -711,7 +731,7 @@ Entrega JSON con:
   ? `La PRINCIPAL es coche por carretera real con km, horas y 2-3 paradas escénicas en "notes".`
   : `Si es Europa <800km incluye tren real. Si son islas griegas incluye ferry real y vuelo Aegean/Sky Express.`} fuente_precio="estimado" salvo que se indique lo contrario.
 - hospedaje: EXACTAMENTE 3 (ahorro/equilibrio/premium). Si hay datos en vivo arriba, los 3 DEBEN salir de esa lista (el más barato = ahorro, uno intermedio = equilibrio, el más caro/mejor = premium), copiando nombre, precio y booking_url exactos con fuente_precio="serpapi".
-- restaurantes: 4-5 reales en ${city} acordes al estilo del usuario.
+- restaurantes: 4-5 en ${city} acordes al estilo del usuario; si arriba hay lista de GOOGLE MAPS, elige SOLO de esa lista (nombre exacto). Sin enlaces.
 - experiencias: 4-5 en ${city}; prioriza las de la lista de arriba con fuente="${attrSource}" y su rating real.`;
 
       return callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema, aiBudget())
@@ -820,6 +840,10 @@ Entrega JSON con:
           rating: h.rating ?? null,
           price_per_night_usd: Math.round(Number(h.nightly_usd)),
           booking_url: h.booking_url ?? null,
+          // Identificador de Google Hotels (SerpApi) y sitio del hotel que da el proveedor: para enlazar a
+          // la ficha y no a una búsqueda por nombre (auditoría de lugares reales, punto 4).
+          ...(h.property_token ? { property_token: h.property_token } : {}),
+          ...(typeof h.link === "string" && /^https:\/\//.test(h.link) ? { website: h.link } : {}),
           fuente_precio: "serpapi",
           por_que: (hospedaje.find((x: any) => x?.tier === tier)?.por_que) ?? "Tarifa real consultada hoy en Google Hotels.",
         };
@@ -856,6 +880,24 @@ Entrega JSON con:
 
       return { ...pd, hospedaje, experiencias, arrival_options };
     });
+
+    // ───── Lugares reales (auditoría de lugares reales, fase 1) ─────
+    // Restaurantes: solo los de la lista de Google o los que Google encuentra por nombre (los demás no se
+    // muestran). Experiencias fuera de la lista del proveedor: se buscan; si no aparecen, "Sin verificar".
+    // Presupuesto: hasta 10 s en total (sin pasar del tope de 130 s), 4 búsquedas a la vez y 3.5 s cada una;
+    // lo que no alcanza queda "Sin verificar", nunca como verificado.
+    const verifyDeadline = Math.min(Date.now() + 10_000, __deadline - 8_000);
+    const resolvePlaces = makeResolver(google, dbCacheStore(), { deadline: verifyDeadline, concurrency: 4, timeoutMs: 3_500 });
+    const verified = await Promise.all(perDestination.map(async (pd: any, i: number) => {
+      const places = Array.isArray((cityLive[i] as any)?.restaurants) ? (cityLive[i] as any).restaurants : [];
+      const [rest, exps] = await Promise.all([
+        verifyRestaurants(pd.restaurantes, places, pd.city, resolvePlaces, 5),
+        verifyTours(pd.experiencias, pd.city, resolvePlaces),
+      ]);
+      return { ...pd, restaurantes: rest.restaurantes, experiencias: exps.tours, _v: { rq: rest.quitados, rs: rest.sin_verificar, es: exps.sin_verificar } };
+    }));
+    console.log("logistics-plan lugares:", verified.map((pd: any) => ({ city: pd.city, ...pd._v })));
+    verified.forEach((pd: any, i: number) => { delete pd._v; perDestination[i] = pd; });
 
     // ───── DESGLOSE REAL (MXN) según el tier del usuario ─────
     const usdToMxn = (usd: number) => Math.round((Number(usd) || 0) * fxUsd);

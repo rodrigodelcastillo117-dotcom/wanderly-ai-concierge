@@ -37,6 +37,8 @@ export interface FinalizeInput {
   actionCtx: ActionContext;
   requestIntel?: unknown;
   hasConfirmedBookings?: boolean;
+  /** God Mode F1: solicitudes abiertas (reservation_state_v) para decir su estado real si el texto miente. */
+  openRequests?: { title: string; label: string }[];
   city?: string;
   party?: number;
   now?: Date;
@@ -117,7 +119,7 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
   text = labelUnverifiedFacts(text, ev.available);
   if (text !== b2) guards.push("sin_verificar");
   const b3 = text;
-  text = enforceNoFakeBooking(text, { hasConfirmedBookings: i.hasConfirmedBookings });
+  text = enforceNoFakeBooking(text, { hasConfirmedBookings: i.hasConfirmedBookings, openRequests: i.openRequests });
   if (text !== b3) guards.push("sin_reserva_falsa");
   const b4 = text;
   text = enforceAvailabilityHonesty(text, ev);

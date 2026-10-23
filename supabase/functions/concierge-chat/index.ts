@@ -28,8 +28,10 @@ import { todayLine, toolArgs } from "./tools.ts";
 import { resolveToday, sanitizeClientMessages } from "./guard.ts";
 import { buildContextMessage, buildDynamicSystem, buildMemoryData, buildStableSystem, capSummary } from "./prompt.ts";
 import {
-  asArray, buildRequestIntelligence, compactItem, compactTripForPrompt, computeTripGaps, tripBookingContext, tripListBookingState,
+  asArray, buildRequestIntelligence, compactItem, compactTripForPrompt, computeTripGaps, loadReservationStates, reservationGuardInput,
+  tripBookingContext, tripListBookingState,
 } from "./context.ts";
+import { reservationStatesForPrompt } from "../_shared/reservationState.ts";
 import { chatError, type ChatErrorCode, modelHttpErrorCode, toolErrorCode } from "./errors.ts";
 import { redactPii } from "../_shared/redact.ts";
 import { runSearchPrive } from "./prive.ts";
@@ -449,6 +451,10 @@ Deno.serve(async (req) => {
     const bookingTripIds = [...new Set([trip?.id, ...viajesVigentes.map((t: any) => t.id)].filter(Boolean))];
     const trip_id_activo = trip?.id ?? null;
     const convQuery = supabase.from("concierge_conversations").select("*").eq("user_id", userId);
+    // God Mode F1: estado real de sus solicitudes y reservas (vista canónica, con el JWT del usuario),
+    // a la vez que reservas y memoria.
+    const resStatesP = withTimeout(loadReservationStates((fn, params) => supabase.rpc(fn, params) as any, trip_id_activo), 1500)
+      .then((r) => (Array.isArray(r) ? r : [])).catch(() => []);
     const [bksRes, convRes] = await Promise.all([
       bookingTripIds.length
         ? supabase.from("bookings")
@@ -457,6 +463,8 @@ Deno.serve(async (req) => {
         : Promise.resolve({ data: [] as any[] }),
       trip_id_activo ? convQuery.eq("trip_id", trip_id_activo).maybeSingle() : convQuery.is("trip_id", null).maybeSingle(),
     ]);
+    const resStates = await resStatesP;
+    const reservationGuard = reservationGuardInput(resStates);
     if (bookingTripIds.length) {
       bookingsAll = (bksRes as any)?.data ?? [];
       bookings = trip?.id ? bookingsAll.filter((b: any) => b.trip_id === trip.id) : [];
@@ -540,7 +548,10 @@ Deno.serve(async (req) => {
     const taste = await tastePromise;
     // ≤ 350 tokens en el chat (lo declarado ya va en <perfil_usuario>): el contexto sigue compacto.
     const gustos = renderTasteProfile(taste.profile, { maxTokens: 350, omitDeclared: true });
-    const contextMessage = buildContextMessage({ perfil: compactItem(perfil), gustos, viajes, viajeEnContexto, faltantes: tripGaps, memoria, notas: plan.notes });
+    const contextMessage = buildContextMessage({
+      perfil: compactItem(perfil), gustos, viajes, viajeEnContexto, faltantes: tripGaps, memoria, notas: plan.notes,
+      reservas: reservationStatesForPrompt(resStates),
+    });
 
     const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords });
 
@@ -557,7 +568,8 @@ Deno.serve(async (req) => {
           todayISO, trips: trips.map((t) => ({ id: t.id, destino: t.destino, fecha_salida: t.fecha_salida, fecha_regreso: t.fecha_regreso, itinerario_json: t.itinerario_json, ciudad_origen: t.ciudad_origen })),
           activeTripId: trip?.id ?? null, hasPriveSession: !!priveSession,
         },
-        requestIntel, hasConfirmedBookings: confirmedBookings.length > 0,
+        requestIntel, hasConfirmedBookings: confirmedBookings.length > 0 || reservationGuard.hasVerifiedReservation,
+        openRequests: reservationGuard.openRequests,
         tripScope: { trip, position: situation?.position ?? "unknown", user: userLoc },
         // Enlaces de reserva (OpenTable/Maps): con la ciudad donde está el usuario si está fuera del viaje.
         city: turnPlace.searchCity || undefined,
@@ -679,7 +691,11 @@ function makeExecTool(c: { supabase: any; authHeader: string; userId: string; pr
       const { data, error } = await c.supabase.rpc("members_venues", { p_ciudad: city });
       if (error) return /MEMBERS_PRO_REQUIRED/.test(error.message ?? "") ? { code: "MEMBERS_PRO_REQUIRED" } : { error: "members_error" };
       const cat = typeof args.category === "string" ? args.category.toLowerCase() : "";
-      const rows = (Array.isArray(data) ? data : []).filter((v: any) => !cat || String(v?.categoria ?? "").toLowerCase().includes(cat)).slice(0, 8);
+      // Solo lo que tiene fuente (curado de Privé): las filas viejas de nightlife_premium las escribió la IA
+      // sin fuente (auditoría de lugares reales); mismo filtro que src/lib/membersVenues.ts (isSourcedVenue).
+      const rows = (Array.isArray(data) ? data : [])
+        .filter((v: any) => v?.fuente === "curaduria" || (typeof v?.source_url === "string" && !!v.source_url))
+        .filter((v: any) => !cat || String(v?.categoria ?? "").toLowerCase().includes(cat)).slice(0, 8);
       return {
         ok: true, source: "members_only",
         results: rows.map((v: any) => compactItem({

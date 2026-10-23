@@ -20,10 +20,11 @@ import {
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { callClaudeWithFallback } from "../_shared/claude.ts";
-import { internalHeaders, logUsage } from "../_shared/serpRuntime.ts";
+import { dbCacheStore, internalHeaders, logUsage } from "../_shared/serpRuntime.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { computeRoute } from "../_shared/google-routes.ts";
-import { enforceRestaurants, restaurantsForCity } from "../_shared/google-restaurants.ts";
+import { restaurantsForCity, verifyRestaurants } from "../_shared/google-restaurants.ts";
+import { makeResolver, verifyTours } from "../_shared/place-verify.ts";
 import { ratingText } from "../_shared/google-places.ts";
 import { usageFromClaude } from "../_shared/usage.ts";
 import { getTasteProfile } from "../_shared/tasteProfileStore.ts";
@@ -207,39 +208,7 @@ REGLAS ESTRICTAS DE PRECIOS:
      EJEMPLO INCORRECTO (NO HAGAS ESTO):
      - Prompt dice: LINK: https://www.aviasales.com/search/MEX0511SCL12111?marker=533299
      - booking_link: "https://www.aviasales.com/search/MEX0511SCL12111"   ← FALTA MARKER
-16. LINKS DE RESTAURANTES — REGLA NO NEGOCIABLE:
-    Para el campo cta_action de cada restaurante en el array "restaurantes", usa SIEMPRE
-    un link real útil. Orden de prioridad:
-    A) Sitio web oficial del restaurante si lo conoces con certeza (ej. lhardy.com,
-       botin.es, restaurantecoque.com, pujol.com.mx, quintonil.com). Verifica que sea el
-       dominio real (.com / .es / .mx según país); NO inventes dominios.
-     B) Si NO sabes el sitio oficial con certeza, usa el sistema de reserva conocido del
-        país EXACTO. SOLO usa thefork.com / thefork.fr / thefork.es / thefork.it si estás
-        SEGURO que el restaurante está listado ahí. NUNCA inventes una URL específica de
-        thefork si no la viste antes.
-        - España: https://www.thefork.es (genérica, sin /r/inventado)
-        - Francia: https://www.thefork.fr
-        - Italia: https://www.thefork.it
-        - UK: https://www.opentable.co.uk
-        - USA: https://www.opentable.com o https://resy.com
-        - México: https://www.opentable.com.mx
-        - Japón: https://tabelog.com
-
-        PAÍSES SIN PLATAFORMA RESERVA DOMINANTE (Argentina, Chile, Perú, Colombia, Brasil,
-        Grecia, Turquía, Egipto, Marruecos, Sudáfrica, India, Tailandia, Vietnam,
-        Indonesia, etc.): NO uses thefork.com ni inventes plataforma. SALTA directo a
-        opción C (Google Maps).
-    C) ÚLTIMO recurso si nada anterior aplica: link de búsqueda en Google Maps
-       https://www.google.com/maps/search/[NOMBRE+RESTAURANTE]+[CIUDAD]
-       (NO uses google.com/search ni búsquedas web genéricas — solo Google Maps porque
-       SÍ funciona en navegador y muestra el restaurante con info de reserva).
-    PROHIBIDO:
-    - Links de búsqueda genérica de Google (google.com/search?q=...)
-    - Links a Yelp, Tripadvisor sin URL específica
-    - Inventar dominios que no existen
-    - Dejar el campo cta_action vacío
-    Para restaurantes Michelin/World's 50 Best/icónicos: prefiere SIEMPRE el sitio
-    oficial del restaurante (regla A), no plataforma de reserva.`;
+16. RESTAURANTES: no escribas enlaces (cta_action). El servidor pone el sitio oficial o la ficha de Google Maps del lugar.`;
 
 const TOOL_SCHEMA = {
   name: "entregar_analisis_viaje",
@@ -327,7 +296,6 @@ const TOOL_SCHEMA = {
             cocina: { type: "string" },
             rango_precio: { type: "string" },
             por_que: { type: "string" },
-            cta_action: { type: "string", description: "Link de reserva oficial o plataforma de reserva real (TheFork, OpenTable, Resy, Tabelog, Google Maps). NUNCA google.com/search genérico." },
           },
           required: ["nombre", "cocina", "rango_precio", "por_que"],
         },
@@ -1027,10 +995,20 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       hotelsSaved: serpHotels?.precio_guardado === true,
       tpAt: sourceConsultedAt(tpFlights, liveConsultedAt),
     });
-    // Restaurantes: solo los que están en Google Maps, con sus datos reales.
-    const rest = enforceRestaurants(a.restaurantes, googleRestaurants, body.destino);
-    if (rest.quitados) console.warn("analizar-viaje: restaurantes fuera de la lista de Google quitados", rest.quitados, body.destino);
+    // Lugares reales (auditoría de lugares reales, fase 1): restaurantes y tours fuera de las listas del
+    // proveedor se buscan en Google (Text Search Pro, caché 30 días) con 8 s en total, 4 a la vez. Un
+    // restaurante que Google no encuentra no se muestra; un tour queda "Sin verificar"; sin tiempo, ambos
+    // quedan "Sin verificar". Ningún enlace escrito por la IA se guarda.
+    const resolvePlaces = makeResolver(google, dbCacheStore(), { deadline: Date.now() + 8_000, concurrency: 4, timeoutMs: 3_500 });
+    const [rest, toursV] = await Promise.all([
+      verifyRestaurants(a.restaurantes, googleRestaurants, body.destino, resolvePlaces),
+      verifyTours(a.tours, body.destino, resolvePlaces),
+    ]);
+    if (rest.quitados || rest.sin_verificar || toursV.sin_verificar) {
+      console.warn("analizar-viaje: lugares", { destino: body.destino, restaurantes_quitados: rest.quitados, restaurantes_sin_verificar: rest.sin_verificar, tours_sin_verificar: toursV.sin_verificar, resueltos: rest.resueltos + toursV.resueltos });
+    }
     a.restaurantes = rest.restaurantes;
+    a.tours = toursV.tours;
 
     // Trayecto corto: terrestre siempre "estimado" con liga de búsqueda; vuelos solo razonables; el
     // renglón de transporte sale de la opción con precio (0 si ninguna trae precio).

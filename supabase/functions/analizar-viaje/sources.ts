@@ -97,11 +97,16 @@ export function enforceSources(
     if (!h || typeof h !== "object") continue;
     const label = String(h.fuente_precio ?? "").toLowerCase();
     let ok = false;
+    let hit: any = null;
     if (LIVE_HOTEL_LABELS.has(label) && label !== "travelpayouts") {
       // Nombre de la lista Y precio por noche igual (±5 %) al de la lista convertido a MXN.
-      ok = hotels.some((x) => sameName(x?.name, h.nombre) &&
-        (!(live.fxUsd > 0) || !(Number(h.precio_por_noche) > 0) || samePrice(h.precio_por_noche, Number(x?.nightly_usd) * live.fxUsd, 0.05)));
+      hit = hotels.find((x) => sameName(x?.name, h.nombre) &&
+        (!(live.fxUsd > 0) || !(Number(h.precio_por_noche) > 0) || samePrice(h.precio_por_noche, Number(x?.nightly_usd) * live.fxUsd, 0.05))) ?? null;
+      ok = !!hit;
     }
+    // Identificador de Google Hotels y sitio del hotel del proveedor (no una búsqueda por nombre).
+    if (hit?.property_token) h.property_token = hit.property_token;
+    if (typeof hit?.link === "string" && /^https:\/\//.test(hit.link)) h.website = hit.link;
     // Travelpayouts ya no trae hoteles (Hotellook cerró): esa etiqueta nunca es real.
     if (ok) {
       h.fuente_precio = "serpapi";
@@ -111,6 +116,10 @@ export function enforceSources(
       if (label !== "perplexity") h.fuente_precio = "estimado";
       h.estado_dato = "ESTIMADO";
       delete h.consultado_at;
+      // Liga escrita por el modelo (p. ej. booking.com/hotel/<slug inventado>, dominios que no existen): se quita; la app arma la búsqueda.
+      delete h.booking_link;
+      delete h.website;
+      delete h.property_token;
     }
   }
 
