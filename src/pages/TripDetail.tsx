@@ -676,7 +676,11 @@ const TripDetail = () => {
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
               onSelectVuelo={(i) => setSelVuelo(i)}
               onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => ({ ...prev, [c]: i })) : setSelHospedaje(i))}
-              onToggleTour={toggleTour} />
+              onToggleTour={toggleTour}
+              // Paso final "Listo · Revisa y compra": el mismo total de la página y volver al Resumen.
+              // sendSelectionSlot: hueco para "Enviarme mi selección por correo" (rama claude/correo-seleccion).
+              selectionTotal={stickyTotalValue > 0 ? stickyTotalValue : null}
+              onViewTrip={() => showSection("resumen")} />
           ) : (
             <p className="rounded-2xl border border-border/60 p-4 text-sm text-muted-foreground">
               {(trip as any).fuente === "documento" ? "Este viaje viene de tus documentos: ya está pagado." : "Aún no hay cotización para comprar. Revisa el total en Resumen."}

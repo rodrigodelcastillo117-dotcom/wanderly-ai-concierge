@@ -26,10 +26,15 @@ import { diffLocalDays, formatLocalDate } from "@/lib/localDate";
 import { addIsoDays, describeMultiCity, fitNights, isMultiCity, moveCity, parseMultiCityText, routePlannerQuery } from "@/lib/multiCityText";
 import { generateMultiDestTrip } from "@/lib/multiDestGenerate";
 import { CityNightsEditor } from "@/components/route/CityNightsEditor";
+import { countryOnly } from "@/lib/multiCityText";
+import { cityReasons, countryRouteFor, describeProposal, proposeCountryRoute, weightedNights } from "@/lib/countryRoutes";
+import { useTasteProfile } from "@/hooks/useTasteProfile";
 import { fetchFriendProfiles } from "@/lib/friendProfiles";
 // roadtrip: "road trip por la Toscana" va a la ruta de varios destinos con el coche elegido.
 import { detectRoadTrip, routePlannerPath } from "@/lib/roadtrip";
 import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
+
+const RADIO = "min-h-[44px] rounded-xl border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
 const EMOCIONES: Array<{ key: string; label: string; sub: string; Icon: any }> = [
   { key: "Inspiración",  label: "Inspiración",  sub: "Quiero descubrir\nalgo nuevo",        Icon: Heart },
@@ -191,7 +196,15 @@ const PlanTrip = () => {
   const [showRoadTrips, setShowRoadTrips] = useState(false);
   // Ruta de varias ciudades entendida de la frase: orden, noches y si se arma como ruta. `text` es el
   // texto del campo al que corresponde (si la persona lo cambia, se vuelve a leer la frase).
-  const [routeEdit, setRouteEdit] = useState<{ text: string; cities: string[]; nights: number[] | null; asRoute: boolean; days: number | null; textNights: number | null } | null>(null);
+  const [routeEdit, setRouteEdit] = useState<{ text: string; cities: string[]; nights: number[] | null; asRoute: boolean; days: number | null; textNights: number | null;
+    /** Ruta propuesta para un país ("india"): se vuelve a proponer con las fechas mientras no se toquen las ciudades. */
+    country?: string | null; edited?: boolean } | null>(null);
+  // Destino tipo país: "Ajustar ruta" (agregar/quitar ciudades, noches) y "Solo una ciudad".
+  const [routeAdjust, setRouteAdjust] = useState(false);
+  const [pickOneCity, setPickOneCity] = useState(false);
+  const [addCityText, setAddCityText] = useState("");
+  const [addCityError, setAddCityError] = useState<string | null>(null);
+  const taste = useTasteProfile(user?.id ?? null);
   // Noches que decía la frase ("10 dias" → 9): al elegir la salida se propone el regreso.
   const [textNights, setTextNights] = useState<number | null>(null);
   const [companion, setCompanion] = useState<{ id: string; name: string } | null>(null);
@@ -343,19 +356,42 @@ const PlanTrip = () => {
   // ── Ruta de varias ciudades desde la frase ──
   const parsedRoute = parseMultiCityText(destino, { origin: ciudadOrigen || null });
   const routeBase = routeEdit && routeEdit.text === destino ? routeEdit : null;
-  const routeCities = routeBase?.cities ?? (isMultiCity(parsedRoute) ? parsedRoute.cities : []);
-  const routeOn = routeCities.length >= 2 && (routeBase ? routeBase.asRoute : true);
-  const routeDays = routeBase?.days ?? parsedRoute.days;
   const datesNights = fechaSalida && fechaRegreso && fechaRegreso > fechaSalida ? diffLocalDays(fechaSalida, fechaRegreso) : null;
   const routeTotalNights = datesNights ?? routeBase?.textNights ?? parsedRoute.nights;
-  const routeNights = routeOn ? fitNights(routeBase?.nights ?? null, routeCities.length, routeTotalNights) : null;
+  // País o región ("india"): IATOS propone un viaje completo con las ciudades que valen la pena para las
+  // noches disponibles (no una "ciudad" llamada India). Se rehace con las fechas si no se tocaron las ciudades.
+  const routeCountry = routeBase ? routeBase.country ?? null : countryOnly(parsedRoute);
+  const proposal = routeCountry && (!routeBase || !routeBase.edited) ? proposeCountryRoute(routeCountry, routeTotalNights ?? null) : null;
+  const routeCities = (proposal && routeBase && !routeBase.edited ? proposal.cities : null) ?? routeBase?.cities
+    ?? (isMultiCity(parsedRoute) ? parsedRoute.cities : proposal?.cities ?? []);
+  const routeOn = routeCities.length >= 2 && (routeBase ? routeBase.asRoute : true);
+  const routeDays = routeBase?.days ?? parsedRoute.days;
+  const proposalNights = proposal && proposal.cities.join("|") === routeCities.join("|") && routeTotalNights ? weightedNights(proposal.weights, routeTotalNights) : null;
+  const routeNights = routeOn ? fitNights(routeBase?.nights ?? proposalNights, routeCities.length, routeTotalNights) : null;
+  const routeWhy = routeCountry && proposal ? cityReasons({ country: routeCountry, cities: routeCities, why: routeCities.map((c) => proposal.why[proposal.cities.indexOf(c)] ?? "") }, {}, taste) : null;
+  const distinctCities = Array.from(new Set(routeCities));
   const routeTooShort = routeOn && datesNights != null && datesNights < routeCities.length;
   const editRoute = (patch: Partial<NonNullable<typeof routeEdit>>) => setRouteEdit({
     text: destino, cities: routeCities, nights: routeNights, asRoute: routeOn, days: routeDays,
-    textNights: routeBase?.textNights ?? parsedRoute.nights, ...patch,
+    textNights: routeBase?.textNights ?? parsedRoute.nights, country: routeCountry, edited: routeBase?.edited ?? false, ...patch,
   });
-  const moveRouteCity = (i: number, dir: -1 | 1) => editRoute({ cities: moveCity(routeCities, i, dir), nights: routeNights ? moveCity(routeNights, i, dir) : null });
-  const removeRouteCity = (i: number) => editRoute({ cities: routeCities.filter((_, j) => j !== i), nights: null });
+  const moveRouteCity = (i: number, dir: -1 | 1) => editRoute({ cities: moveCity(routeCities, i, dir), nights: routeNights ? moveCity(routeNights, i, dir) : null, edited: true });
+  const removeRouteCity = (i: number) => editRoute({ cities: routeCities.filter((_, j) => j !== i), nights: null, edited: true });
+  const addRouteCity = () => {
+    const found = parseMultiCityText(addCityText).cities;
+    if (found.length !== 1) { setAddCityError(addCityText.trim() ? `No reconocimos «${addCityText.trim()}» como ciudad.` : null); return; }
+    setAddCityError(null);
+    setAddCityText("");
+    // Antes del regreso a la ciudad de entrada (… → Ranthambore → Delhi), si lo hay.
+    const back = routeCities.length > 2 && routeCities[routeCities.length - 1] === routeCities[0];
+    const at = back ? routeCities.length - 1 : routeCities.length;
+    editRoute({ cities: [...routeCities.slice(0, at), found[0], ...routeCities.slice(at)], nights: null, edited: true });
+  };
+  const chooseOneCity = (city: string) => {
+    setPickOneCity(false);
+    setRouteEdit(null);
+    setDestino(city);
+  };
 
   const inviteCompanion = async (tripId: string) => {
     const amigo = companionRef.current;
@@ -376,7 +412,7 @@ const PlanTrip = () => {
     inFlightRef.current = true;
     const label = routeCities.join(" → ");
     setDestino(label);
-    setRouteEdit({ text: label, cities: routeCities, nights: routeNights, asRoute: true, days: routeDays, textNights: routeBase?.textNights ?? parsedRoute.nights });
+    setRouteEdit({ text: label, cities: routeCities, nights: routeNights, asRoute: true, days: routeDays, textNights: routeBase?.textNights ?? parsedRoute.nights, country: routeCountry, edited: true });
     setAnalysisSummary(analysisSummaryOf({ ciudad_origen: ciudadOrigen, fecha_salida: fechaSalida, fecha_regreso: fechaRegreso, num_viajeros: numViajeros }));
     setAnalizando(true);
     try {
@@ -925,29 +961,85 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                 </div>
               </div>
               {knownRoute && (
-                <div className="space-y-3 rounded-2xl border border-primary/30 bg-primary/[0.06] p-3.5 sm:p-4" data-testid="plan-multicity">
+                <div className="space-y-3 rounded-2xl border border-primary/30 bg-primary/[0.06] p-3.5 sm:p-4" data-testid="plan-multicity" data-country={routeCountry ?? ""}>
                   <p className="flex items-start gap-2 text-sm" role="status" data-testid="plan-multicity-entendimos">
                     <RouteIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                    <span>Entendimos: <span className="font-medium">{describeMultiCity({ cities: routeCities, days: routeDays, nights: null })}</span>
-                      <span className="text-muted-foreground"> · ¿lo armamos como ruta de {routeCities.length} ciudades?</span></span>
+                    {routeCountry ? (
+                      <span>Entendimos: <span className="font-medium">{routeCountry}{routeTotalNights ? ` · ${routeTotalNights} noches` : ""}</span>.
+                        {" "}Te proponemos: <span className="font-medium">{describeProposal(routeCities, routeNights && routeTotalNights ? routeNights : null)}</span>
+                        <span className="text-muted-foreground">. ¿La armamos así?</span></span>
+                    ) : (
+                      <span>Entendimos: <span className="font-medium">{describeMultiCity({ cities: routeCities, days: routeDays, nights: null })}</span>
+                        <span className="text-muted-foreground"> · ¿lo armamos como ruta de {routeCities.length} ciudades?</span></span>
+                    )}
                   </p>
-                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="¿Ruta de varias ciudades?">
-                    <button type="button" role="radio" aria-checked={routeOn} data-testid="plan-multicity-si"
-                      onClick={() => editRoute({ asRoute: true })}
-                      className={`min-h-[44px] rounded-xl border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${routeOn ? "border-primary bg-primary/15 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}>
-                      Sí, ruta de {routeCities.length} ciudades
-                    </button>
-                    <button type="button" role="radio" aria-checked={!routeOn} data-testid="plan-multicity-no"
-                      onClick={() => editRoute({ asRoute: false })}
-                      className={`min-h-[44px] rounded-xl border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${!routeOn ? "border-primary bg-primary/15 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}>
-                      No, solo {routeCities[0]}
-                    </button>
-                  </div>
-                  {routeOn && (
-                    <CityNightsEditor cities={routeCities} nights={routeNights} onChange={(n) => editRoute({ nights: n })}
-                      onMove={moveRouteCity} onRemove={removeRouteCity}
-                      pendingNote="Las noches por ciudad se reparten cuando elijas las fechas (siguiente paso)." />
+                  {routeCountry ? (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Ruta propuesta">
+                      <button type="button" aria-pressed={routeOn && !routeAdjust && !pickOneCity} data-testid="plan-multicity-si"
+                        onClick={() => { editRoute({ asRoute: true }); setRouteAdjust(false); setPickOneCity(false); }}
+                        className={`${RADIO} ${routeOn && !routeAdjust && !pickOneCity ? "border-primary bg-primary/15 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}>
+                        Sí, armar esta ruta
+                      </button>
+                      <button type="button" aria-pressed={routeAdjust} data-testid="plan-multicity-ajustar"
+                        onClick={() => { setRouteAdjust((v) => !v); setPickOneCity(false); }}
+                        className={`${RADIO} ${routeAdjust ? "border-primary bg-primary/15 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}>
+                        Ajustar ruta
+                      </button>
+                      <button type="button" aria-pressed={pickOneCity} data-testid="plan-multicity-una"
+                        onClick={() => { setPickOneCity((v) => !v); setRouteAdjust(false); }}
+                        className={`${RADIO} ${pickOneCity ? "border-primary bg-primary/15 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}>
+                        Solo una ciudad
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="¿Ruta de varias ciudades?">
+                      <button type="button" role="radio" aria-checked={routeOn} data-testid="plan-multicity-si"
+                        onClick={() => editRoute({ asRoute: true })}
+                        className={`${RADIO} ${routeOn ? "border-primary bg-primary/15 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}>
+                        Sí, ruta de {routeCities.length} ciudades
+                      </button>
+                      <button type="button" role="radio" aria-checked={!routeOn} data-testid="plan-multicity-no"
+                        onClick={() => editRoute({ asRoute: false })}
+                        className={`${RADIO} ${!routeOn ? "border-primary bg-primary/15 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}>
+                        No, solo {routeCities[0]}
+                      </button>
+                    </div>
                   )}
+                  {pickOneCity && (
+                    <div className="flex flex-wrap gap-2" data-testid="plan-multicity-elegir-una">
+                      <p className="w-full text-xs text-muted-foreground">¿Cuál? El viaje se arma solo en esa ciudad.</p>
+                      {distinctCities.map((c) => (
+                        <button key={c} type="button" onClick={() => chooseOneCity(c)}
+                          className="min-h-[40px] rounded-full border border-border/70 px-3.5 text-sm hover:border-primary/50">{c}</button>
+                      ))}
+                    </div>
+                  )}
+                  {routeOn && !pickOneCity && (routeCountry && !routeAdjust ? (
+                    // Propuesta: cada ciudad con sus noches y por qué vale la pena.
+                    <ol className="space-y-1.5" data-testid="plan-multicity-propuesta">
+                      {routeCities.map((c, i) => (
+                        <li key={`${c}-${i}`} className="rounded-xl border border-border/50 bg-surface/30 px-3 py-2">
+                          <p className="flex items-baseline justify-between gap-2 text-sm"><span className="font-medium">{i + 1}. {c}</span>
+                            {routeNights && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{routeNights[i]} {routeNights[i] === 1 ? "noche" : "noches"}</span>}</p>
+                          {routeWhy?.[i] && <p className="mt-0.5 text-xs text-muted-foreground" data-testid="city-why">{routeWhy[i]}</p>}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <>
+                      <CityNightsEditor cities={routeCities} nights={routeNights} onChange={(n) => editRoute({ nights: n })}
+                        onMove={moveRouteCity} onRemove={removeRouteCity} notes={routeAdjust ? routeWhy : null}
+                        pendingNote="Las noches por ciudad se reparten cuando elijas las fechas (siguiente paso)." />
+                      {(routeAdjust || !routeCountry) && (
+                        <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); addRouteCity(); }} data-testid="plan-multicity-agregar">
+                          <Input aria-label="Agregar ciudad a la ruta" placeholder="Agregar ciudad (p. ej. Udaipur)" value={addCityText}
+                            onChange={(e) => { setAddCityText(e.target.value); setAddCityError(null); }} className="h-11 bg-input border-border" />
+                          <Button type="submit" variant="outline" className="h-11 shrink-0" disabled={!addCityText.trim()}>Agregar</Button>
+                        </form>
+                      )}
+                      {addCityError && <p className="text-xs text-amber-400/90" role="alert">{addCityError}</p>}
+                    </>
+                  ))}
                   {parsedRoute.unknown.length > 0 && (
                     <p className="text-xs text-amber-400/90" data-testid="plan-multicity-desconocidas">
                       No reconocimos {parsedRoute.unknown.map((u) => `«${u}»`).join(", ")} como ciudad y no la agregamos. Escríbela de otra forma si va en tu ruta.
@@ -955,7 +1047,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   )}
                 </div>
               )}
-              {!knownRoute && parsedRoute.countries.length > 0 && (parsedRoute.countries.length > 1 || parsedRoute.cities.length > 0) && (
+              {!knownRoute && parsedRoute.countries.length > 0 && (parsedRoute.countries.length > 1 || parsedRoute.cities.length > 0 || !countryRouteFor(parsedRoute.countries[0])) && (
                 <p className="text-xs text-amber-400/90" role="status" data-testid="plan-multicity-paises">
                   {parsedRoute.countries.map((c) => `«${c}»`).join(", ")} {parsedRoute.countries.length === 1 ? "es un país" : "son países"}: escribe las ciudades (p. ej. «París, Roma y Atenas») para armar la ruta.
                 </p>
@@ -1120,13 +1212,15 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       const label = routeCities.join(" → ");
       const fb = parseTripFallback(destino);
       setRouteEdit({ text: label, cities: routeCities, nights: routeBase?.nights ?? null, asRoute: true, days: routeDays,
-        textNights: routeBase?.textNights ?? parsedRoute.nights });
+        textNights: routeBase?.textNights ?? parsedRoute.nights, country: routeCountry, edited: routeBase?.edited ?? false });
       setTextNights(fb.fechaSalida && fb.fechaRegreso ? null : routeBase?.textNights ?? parsedRoute.nights);
       if (parsedRoute.origin) setCiudadOrigen(parsedRoute.origin);
       if (fb.fechaSalida && fb.fechaRegreso) { setFechaSalida(fb.fechaSalida); setFechaRegreso(fb.fechaRegreso); }
       if (fb.viajeros && fb.viajeros >= 1 && fb.viajeros <= 20) setNumViajeros(fb.viajeros);
       setDestino(label);
-      setStepNotice(`Entendimos: ${describeMultiCity({ cities: routeCities, days: routeDays, nights: null })}. Elige las fechas y repartimos las noches entre las ${routeCities.length} ciudades.`);
+      setStepNotice(routeCountry
+        ? `Entendimos: ${routeCountry}. Te proponemos ${describeProposal(routeCities, null)}. Elige las fechas y repartimos las noches.`
+        : `Entendimos: ${describeMultiCity({ cities: routeCities, days: routeDays, nights: null })}. Elige las fechas y repartimos las noches entre las ${routeCities.length} ciudades.`);
       setStep(step + 1);
       return;
     }
@@ -1218,7 +1312,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   <>
                     <span className="inline-flex items-center font-display text-lg">
                       <Sparkles className="w-4 h-4 mr-2" />
-                      {isEmocionMode ? "Empezar análisis" : routeOn ? `Generar ruta de ${routeCities.length} ciudades` : "Generar análisis"}
+                      {isEmocionMode ? "Empezar análisis" : routeOn ? `Generar ruta de ${distinctCities.length} ciudades` : "Generar análisis"}
                     </span>
                     {isEmocionMode && (
                       <span className="text-xs font-normal opacity-80">IATOS AI creará tu próximo viaje ideal</span>

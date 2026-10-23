@@ -20,6 +20,7 @@ import { CITIES as AIRPORT_CITIES, cityAirports } from "../../supabase/functions
 import { catalogCities, matchCountry } from "../../supabase/functions/_shared/souvenirs.ts";
 import { sameCity, splitNights } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { COUNTRIES as PICKER_COUNTRIES } from "@/lib/countriesCities";
+import { countryRouteFor, ROUTE_CITIES } from "@/lib/countryRoutes";
 
 const norm = (s: unknown) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
   .replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -40,14 +41,24 @@ for (const c of AIRPORT_CITIES) {
   add(c.name, e);
   for (const a of c.aliases ?? []) add(a, e);
 }
-for (const c of catalogCities()) add(c.lugar, { name: c.lugar, country: null });
+// El catálogo de recuerdos tiene lugares que son países o regiones ("India", "Egipto", "Costa Rica"):
+// no son ciudades (caso "india" → un hotel "india · 14 noches").
+const isCountryName = (name: string) => {
+  const row = matchCountry(name);
+  return (!!row && norm(row[1]) === norm(name)) || PICKER_COUNTRIES.some((c) => norm(c.name) === norm(name));
+};
+const CITY_STATES = new Set(["singapur", "panama", "mexico"]);
+for (const c of catalogCities()) if (!isCountryName(c.lugar) || CITY_STATES.has(norm(c.lugar))) add(c.lugar, { name: c.lugar, country: null });
 for (const country of PICKER_COUNTRIES) for (const city of country.cities) add(city, { name: city, country: country.name });
+for (const r of ROUTE_CITIES) add(r.city, { name: r.city, country: r.country });
 const MAX_WORDS = 5;
 
 const COUNTRY_NAMES = new Set(PICKER_COUNTRIES.map((c) => norm(c.name)));
 function asCountry(chunk: string): string | null {
   const k = norm(chunk);
   if (!k || CATALOG.has(k)) return null;
+  const region = countryRouteFor(k);
+  if (region) return region.country;
   const picker = PICKER_COUNTRIES.find((c) => norm(c.name) === k);
   if (picker) return picker.name;
   const row = matchCountry(chunk);
@@ -193,6 +204,11 @@ export function parseMultiCityText(text: string, opts: { origin?: string | null 
   const home = origin ?? opts.origin ?? null;
   if (home && stops.length >= 3 && sameCity(stops[stops.length - 1], home)) stops.pop();
   return { cities: stops, origin, days, nights, unknown, countries };
+}
+
+/** ¿La frase es solo un país o región ("india", "Japón 10 días", "Europa")? Devuelve el país. */
+export function countryOnly(p: MultiCityParse | null | undefined): string | null {
+  return p && p.cities.length === 0 && p.countries.length === 1 && p.unknown.length === 0 ? p.countries[0] : null;
 }
 
 /** ¿La frase es una ruta de 2 o más ciudades? */

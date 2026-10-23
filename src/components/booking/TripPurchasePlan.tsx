@@ -5,9 +5,10 @@
 // mismo está el botón de compra precargado. El detalle ("Te lleva a…", "Va precargado…") va plegado en
 // "Ver detalles". "Ya lo compré" lo marca a mano el usuario (IATOS no ve la compra); en un viaje
 // compartido todos ven quién lo marcó (r2 grupo, useTripPurchaseMarks).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { Link } from "react-router-dom";
-import { Bus, Car, Check, ChevronDown, ExternalLink, Hotel, Plane, Ship, ShieldCheck, Train, Undo2, Utensils } from "lucide-react";
+import { ArrowRight, Bus, Car, Check, ChevronDown, ExternalLink, Hotel, ListChecks, Plane, Ship, ShieldCheck, Train, Undo2, Utensils } from "lucide-react";
 import { toast } from "sonner";
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { SmartImage } from "@/components/media/SmartImage";
@@ -44,6 +45,12 @@ type Props = {
   onSelectVuelo?: (i: number) => void;
   onSelectHotel?: (city: string | null, i: number) => void;
   onToggleTour?: (i: number) => void;
+  /** Último paso "Listo · Revisa y compra": total del viaje con la selección (el mismo de la página). */
+  selectionTotal?: number | null;
+  /** "Ver mi viaje" (p. ej. ir a Resumen). */
+  onViewTrip?: () => void;
+  /** Hueco para "Enviarme mi selección por correo" (lo hace la rama claude/correo-seleccion). */
+  sendSelectionSlot?: ReactNode;
 };
 
 /** Verbo del botón principal: "Comprar en Google Flights", "Buscar en Kayak"… */
@@ -55,11 +62,16 @@ function buyLabel(it: PurchaseItem): string {
 }
 
 export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHoteles, serverOffers = {}, bookings, userId, ownerId, quoteCreatedAt, onChanged,
-  onSelectVuelo, onSelectHotel, onToggleTour }: Props) {
+  onSelectVuelo, onSelectHotel, onToggleTour, selectionTotal, onViewTrip, sendSelectionSlot }: Props) {
+  const [selLegs, setSelLeg] = useLegChoices(trip?.id ?? null);
   const flow = useMemo(
-    () => buildBuyFlow(trip, { selVuelo, selHospedaje, selTours, selHoteles }, serverOffers, { quoteCreatedAt }),
-    [trip, selVuelo, selHospedaje, selTours, selHoteles, serverOffers, quoteCreatedAt],
+    () => buildBuyFlow(trip, { selVuelo, selHospedaje, selTours, selHoteles, selLegs }, serverOffers, { quoteCreatedAt }),
+    [trip, selVuelo, selHospedaje, selTours, selHoteles, selLegs, serverOffers, quoteCreatedAt],
   );
+  const reduce = usePrefersReducedMotion();
+  const [current, setCurrent] = useState<string | null>(null);
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (advanceTimer.current) clearTimeout(advanceTimer.current); }, []);
   const { rows, marks, mark: saveMark, unmark: removeMark } = useTripPurchaseMarks({ trip, userId, bookings });
   const owner = ownerId ?? trip?.user_id ?? null;
   const [busy, setBusy] = useState<string | null>(null);
@@ -73,6 +85,50 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
   const state = (it: PurchaseItem | null) => (it ? itemPurchaseState(it, rows, marks) : "pendiente");
   const doneCore = core.filter((i) => state(i) !== "pendiente").length;
   const stepDone = (s: BuyStep) => ((s.kind === "vuelo" || s.kind === "hospedaje") && s.skipped) || (!!s.item && state(s.item) !== "pendiente");
+
+  // ── Flujo guiado: "Siguiente →" en cada paso, los chips saltan y el último es "Listo · Revisa y compra". ──
+  const nav: Array<{ id: string; title: string }> = [
+    ...flow.steps.map((s) => ({ id: `paso-${s.n}`, title: s.title })),
+    ...(flow.extras.length ? [{ id: "paso-extras", title: "Restaurantes y experiencias" }] : []),
+    { id: "paso-listo", title: "Listo · Revisa y compra" },
+  ];
+  const goTo = (id: string) => {
+    setCurrent(id);
+    const el = document.getElementById(id);
+    el?.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    // El foco va al título del paso (lectores de pantalla y teclado).
+    (el?.querySelector("h3, h2") as HTMLElement | null)?.focus?.({ preventScroll: true });
+  };
+  const nextOf = (id: string) => nav[nav.findIndex((x) => x.id === id) + 1] ?? null;
+  /** Qué falta en un paso (no bloquea: "Siguiente" lo dice). */
+  const missingOf = (s: BuyStep): string | null => {
+    if (s.kind === "vuelo") return !s.skipped && s.options.length > 0 && s.chosen < 0 ? "Te falta elegir el vuelo" : null;
+    if (s.kind === "hospedaje") return !s.skipped && s.chosen < 0 ? `Te falta elegir hotel${s.city ? ` en ${s.city}` : ""}` : null;
+    if (s.kind === "traslado") return s.chosen ? null : `Te falta elegir cómo ir de ${s.from} a ${s.to}`;
+    return null;
+  };
+  /** Al elegir una opción se avanza solo al siguiente paso, con un desplazamiento suave. */
+  const chooseAndAdvance = (id: string, fn: () => void) => {
+    fn();
+    const next = nextOf(id);
+    if (!next) return;
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    advanceTimer.current = setTimeout(() => goTo(next.id), reduce ? 0 : 450);
+  };
+  const nextBar = (id: string, missing?: string | null) => {
+    const next = nextOf(id);
+    if (!next) return null;
+    return (
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border/40 pt-3" data-testid="comprar-siguiente-barra">
+        {missing && <p className="mr-auto text-xs text-amber-400/90" role="status" data-testid="comprar-falta-paso">{missing}</p>}
+        <button type="button" onClick={() => goTo(next.id)} data-testid="comprar-siguiente" data-next={next.id}
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-primary/50 bg-primary/10 px-4 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          {missing ? "Siguiente de todos modos" : "Siguiente"}: <span className="max-w-[12rem] truncate font-normal text-muted-foreground">{next.title}</span> <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+    );
+  };
+  const box = (done: boolean, id?: string) => `scroll-mt-28 rounded-xl border p-3 sm:p-4 transition-shadow duration-500 ${done ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-border/60 bg-surface/30"} ${id && current === id ? "ring-2 ring-primary/50" : ""}`;
   const falta = flow.steps.filter((s) => s.kind !== "auto" && !stepDone(s)).map((s) => s.title.replace(/^Hotel/, "hotel").replace(/^Vuelo/, "vuelo"));
   const travelers = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
 
@@ -157,7 +213,6 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
     </details>
   );
 
-  const box = (done: boolean) => `scroll-mt-28 rounded-xl border p-3 sm:p-4 ${done ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-border/60 bg-surface/30"}`;
 
   return (
     <section id="trip-comprar" aria-labelledby="trip-comprar-title" className="scroll-mt-28 rounded-2xl border border-primary/25 bg-card/60 p-4 sm:p-6 focus:outline-none" data-testid="trip-comprar">
@@ -173,14 +228,15 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
 
       {/* Pasos numerados con palomita en lo hecho; tocar uno lleva a ese paso. */}
       <ol className="mt-3 flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1" aria-label="Pasos para comprar" data-testid="comprar-pasos">
-        {flow.steps.map((s) => {
-          const done = stepDone(s);
+        {nav.map((x, k) => {
+          const st = flow.steps.find((s) => `paso-${s.n}` === x.id);
+          const done = st ? stepDone(st) : false;
           return (
-            <li key={`${s.kind}-${s.n}`} className="shrink-0">
-              <a href={`#paso-${s.n}`} onClick={(e) => { e.preventDefault(); document.getElementById(`paso-${s.n}`)?.scrollIntoView?.({ behavior: "smooth", block: "start" }); }}
-                className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full border px-3 text-xs ${done ? "border-emerald-500/40 text-emerald-400" : "border-border/70 text-foreground/90"}`}
+            <li key={x.id} className="shrink-0">
+              <a href={`#${x.id}`} onClick={(e) => { e.preventDefault(); goTo(x.id); }} aria-current={current === x.id ? "step" : undefined}
+                className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full border px-3 text-xs transition ${current === x.id ? "border-primary bg-primary/10" : done ? "border-emerald-500/40 text-emerald-400" : "border-border/70 text-foreground/90"}`}
                 data-done={done ? "1" : "0"}>
-                {done ? <Check className="w-3.5 h-3.5" aria-label="hecho" /> : <span className="font-medium text-primary">{s.n}.</span>} {s.title}
+                {done ? <Check className="w-3.5 h-3.5" aria-label="hecho" /> : <span className="font-medium text-primary">{k + 1}.</span>} {x.title}
               </a>
             </li>
           );
@@ -198,7 +254,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
           if (s.kind === "vuelo") {
             const it = s.item;
             return (
-              <li key="vuelo" id={`paso-${s.n}`} className={box(done)} data-testid="comprar-vuelo" data-state={it ? state(it) : "pendiente"}>
+              <li key="vuelo" id={`paso-${s.n}`} className={box(done, `paso-${s.n}`)} data-testid="comprar-vuelo" data-state={it ? state(it) : "pendiente"}>
                 <StepHeader n={s.n} title={s.title} icon={Plane} done={done} />
                 {it?.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
                 {s.skipped ? (
@@ -218,7 +274,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                           const chosen = s.chosen === i;
                           return (
                             <button key={i} type="button" role="radio" aria-checked={chosen} data-testid="vuelo-opcion" disabled={!onSelectVuelo}
-                              onClick={() => onSelectVuelo?.(i)}
+                              onClick={() => onSelectVuelo && chooseAndAdvance(`paso-${s.n}`, () => onSelectVuelo(i))}
                               className={`w-full min-w-0 rounded-lg border px-3 py-2 text-left transition disabled:cursor-default ${chosen ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40"}`}>
                               <span className="flex items-center justify-between gap-2">
                                 <span className="min-w-0 truncate text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{flightAirlineLabel(v)}{v?.tier && TIER_WORD[v.tier] ? <span className="font-normal text-muted-foreground"> · {TIER_WORD[v.tier]}</span> : null}</span>
@@ -247,6 +303,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                     {it && details(it, "comprar-vuelo")}
                   </>
                 )}
+                {nextBar(`paso-${s.n}`, missingOf(s))}
               </li>
             );
           }
@@ -254,7 +311,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
             const it = s.item;
             const cityId = s.stay ? s.stay.city : null;
             return (
-              <li key={`hotel-${s.n}`} id={`paso-${s.n}`} className={box(done)} data-testid="comprar-hospedaje" data-city={cityId ?? ""} data-state={it ? state(it) : "pendiente"}>
+              <li key={`hotel-${s.n}`} id={`paso-${s.n}`} className={box(done, `paso-${s.n}`)} data-testid="comprar-hospedaje" data-city={cityId ?? ""} data-state={it ? state(it) : "pendiente"}>
                 <StepHeader n={s.n} title={s.title} icon={Hotel} done={done} />
                 {it?.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
                 {s.skipped ? (
@@ -271,7 +328,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                         const total = hotelTotal(h, s.nights, travelers);
                         return (
                           <button key={i} type="button" role="radio" aria-checked={chosen} data-testid="hotel-opcion" disabled={!onSelectHotel}
-                            onClick={() => onSelectHotel?.(cityId, i)}
+                            onClick={() => onSelectHotel && chooseAndAdvance(`paso-${s.n}`, () => onSelectHotel(cityId, i))}
                             className={`flex w-full min-w-0 items-center gap-3 rounded-lg border p-2 text-left transition disabled:cursor-default ${chosen ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40"}`}>
                             <SmartImage alt={h?.nombre ?? "Hotel"} size="thumb" className="h-14 w-14 shrink-0 overflow-hidden rounded-md" imageUrl={h?.thumbnail ?? h?.foto ?? null}
                               lookup={h?.place_id ? { placeId: h.place_id } : { name: h?.nombre, city: h?.ciudad ?? cityId ?? trip.destino }} stockQuery={hotelQuery(h?.tier || h?.tipo, i)} icon={Hotel} />
@@ -299,53 +356,64 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                     {it && details(it, "comprar-hospedaje")}
                   </>
                 )}
+                {nextBar(`paso-${s.n}`, missingOf(s))}
               </li>
             );
           }
           if (s.kind === "traslado") {
             const it = s.item;
-            const flightOpt = s.options.find((o) => o.mode === "vuelo") ?? null;
-            const trainOpt = s.options.find((o) => o.mode === "tren") ?? null;
-            const LegIcon = s.options[0]?.mode === "tren" ? Train : s.options[0]?.mode === "ferry" ? Ship : s.options[0]?.mode === "bus" ? Bus : s.options[0]?.mode === "coche" ? Car : Plane;
+            const id = `paso-${s.n}`;
+            const chosenChoice = s.choices.find((c) => c.mode === s.chosen) ?? null;
+            const legKey = it.key;
             return (
-              <li key={`leg-${s.n}`} id={`paso-${s.n}`} className={box(done)} data-testid="comprar-traslado" data-from={s.from} data-to={s.to} data-state={state(it)}>
-                <StepHeader n={s.n} title={s.title} icon={LegIcon} done={done} />
+              <li key={`leg-${s.n}`} id={id} className={box(done, id)} data-testid="comprar-traslado" data-from={s.from} data-to={s.to} data-state={state(it)} data-chosen={s.chosen ?? ""}>
+                <StepHeader n={s.n} title={s.title} icon={MODE_ICON[s.chosen ?? ""] ?? Plane} done={done} />
                 {it.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
-                {s.options.length > 0 ? (
-                  <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label={`Cómo ir de ${s.from} a ${s.to}`}>
-                    {s.options.slice(0, 4).map((o, k) => {
-                      const OIcon = o.mode === "tren" ? Train : o.mode === "ferry" ? Ship : o.mode === "bus" ? Bus : o.mode === "coche" ? Car : Plane;
+                {s.choices.length > 0 ? (
+                  <div role="radiogroup" aria-label={`Cómo ir de ${s.from} a ${s.to}`} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {s.choices.map((c) => {
+                      const OIcon = MODE_ICON[c.mode] ?? Plane;
+                      const on = s.chosen === c.mode;
                       return (
-                        <li key={k} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2" data-testid="traslado-opcion" data-mode={o.mode}>
+                        <button key={c.mode} type="button" role="radio" aria-checked={on} data-testid="traslado-opcion" data-mode={c.mode}
+                          onClick={() => chooseAndAdvance(id, () => setSelLeg(legKey, c.mode))}
+                          className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition ${on ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40"}`}>
                           <span className="flex min-w-0 items-center gap-2">
                             <OIcon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                             <span className="min-w-0">
-                              <span className="block truncate text-sm">{LEG_MODE[o.mode] ?? o.mode}{o.provider ? ` · ${o.provider}` : o.mode === "vuelo" ? " · aerolínea por confirmar" : ""}</span>
-                              {o.duration && <span className="block truncate text-xs text-muted-foreground">{o.duration}</span>}
+                              <span className="block truncate text-sm">{on && <Check className="mr-1 inline h-3.5 w-3.5 text-primary" aria-hidden="true" />}{c.label}{c.provider ? ` · ${c.provider}` : ""}</span>
+                              <span className="block truncate text-xs text-muted-foreground">{c.duration ?? (c.fromPlan ? "" : "Búsqueda con tu fecha")}</span>
                             </span>
                           </span>
                           <span className="shrink-0 text-right text-xs tabular-nums">
-                            {o.pricePp ? <>{money(o.pricePp)}<span className="block text-[10px] text-muted-foreground">por persona · estimado</span></> : <span className="text-muted-foreground">Precio en el sitio</span>}
+                            {c.pricePp ? <>{money(c.pricePp)}<span className="block text-[10px] text-muted-foreground">por persona · estimado</span></> : <span className="text-muted-foreground">Por cotizar</span>}
                           </span>
-                        </li>
+                        </button>
                       );
                     })}
-                  </ul>
+                  </div>
                 ) : (
                   <p className="mt-2 text-sm" data-testid="traslado-sin-opciones">IATOS aún no cotizó este traslado: búscalo con tu fecha.</p>
                 )}
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  {/* Vuelo solo ida con la fecha y los pasajeros (los mismos enlaces que "Cómo llegar"). */}
-                  {(flightOpt || !trainOpt) && <FlightBuyButtons option={flightOpt?.row ?? { from: s.from, to: s.to, fuente_precio: "estimado" }} trip={trip} />}
-                  {trainOpt && <FlightBuyButtons option={{ ...trainOpt.row, mode: "tren" }} trip={trip} />}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {chosenChoice?.mode === "vuelo" && chosenChoice.url
+                    ? <FlightBuyButtons option={chosenChoice.row ?? { from: s.from, to: s.to, fuente_precio: "estimado" }} trip={trip} />
+                    : buyButton(it, `comprar-traslado-${s.n}-abrir`)}
+                  {chosenChoice?.mode === "coche" && chosenChoice.fallbackHref && (
+                    <Link to={chosenChoice.fallbackHref} className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-primary/40 px-3 text-sm text-primary">
+                      <Car className="h-4 w-4" aria-hidden="true" /> Rentar auto
+                    </Link>
+                  )}
+                  {markControl(it, "comprar-traslado")}
                 </div>
-                <div className="mt-2">{markControl(it, "comprar-traslado")}</div>
+                {it.completa && <p className="mt-1 text-[11px] text-muted-foreground">{it.completa}</p>}
+                {nextBar(id, missingOf(s))}
               </li>
             );
           }
           const it = s.item!;
           return (
-            <li key="auto" id={`paso-${s.n}`} className={box(done)} data-testid="comprar-auto" data-state={state(it)}>
+            <li key="auto" id={`paso-${s.n}`} className={box(done, `paso-${s.n}`)} data-testid="comprar-auto" data-state={state(it)}>
               <StepHeader n={s.n} title={s.title} icon={Car} done={done} />
               <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -353,6 +421,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                 {markControl(it, "comprar-auto")}
               </div>
               {details(it, "comprar-auto")}
+              {nextBar(`paso-${s.n}`)}
             </li>
           );
         })}
@@ -361,9 +430,9 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
       {/* Restaurantes y experiencias por ciudad: carrusel de 4 (Económico, Medio, Caro y Recomendado por
           IATOS) con foto, precio y calificación. Elegir una experiencia la suma al total (selTours). */}
       {flow.extras.length > 0 && (
-        <section className="mt-5 space-y-5 border-t border-border/40 pt-4" data-testid="comprar-extras" aria-labelledby="comprar-extras-title">
+        <section id="paso-extras" className={`mt-5 scroll-mt-28 space-y-5 rounded-xl border-t border-border/40 pt-4 ${current === "paso-extras" ? "ring-2 ring-primary/40" : ""}`} data-testid="comprar-extras" aria-labelledby="comprar-extras-title">
           <div>
-            <h3 id="comprar-extras-title" className="inline-flex items-center gap-2 text-base font-medium"><Utensils className="h-4 w-4 text-primary" aria-hidden="true" /> {extrasSummary(flow.extras)}</h3>
+            <h3 id="comprar-extras-title" tabIndex={-1} className="inline-flex items-center gap-2 text-base font-medium focus:outline-none"><Utensils className="h-4 w-4 text-primary" aria-hidden="true" /> {extrasSummary(flow.extras)}</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">Por precio y uno elegido para tu perfil. Fotos y calificaciones de Google Maps cuando las hay; «Foto ilustrativa» no es el lugar.</p>
           </div>
           {flow.extras.map((e) => {
@@ -393,10 +462,83 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
               </div>
             );
           })}
+          {nextBar("paso-extras")}
         </section>
       )}
+
+      {/* Último paso: todo lo elegido, el total y desde aquí se compra cada cosa. */}
+      <section id="paso-listo" className={`mt-5 scroll-mt-28 rounded-2xl border border-primary/40 bg-primary/[0.05] p-4 sm:p-5 ${current === "paso-listo" ? "ring-2 ring-primary/50" : ""}`}
+        data-testid="comprar-listo" aria-labelledby="comprar-listo-title">
+        <h3 id="comprar-listo-title" tabIndex={-1} className="flex items-center gap-2 font-display text-xl focus:outline-none">
+          <ListChecks className="h-5 w-5 text-primary" aria-hidden="true" /> Listo · Revisa y compra
+        </h3>
+        {(() => {
+          const missing = flow.steps.map(missingOf).filter(Boolean) as string[];
+          const rowsList: Array<{ key: string; label: string; sub: string | null; price: number | null; est: boolean; it: PurchaseItem }> = [];
+          for (const st of flow.steps) {
+            if ((st.kind === "vuelo" || st.kind === "hospedaje") && st.skipped) continue;
+            if (!st.item) continue;
+            rowsList.push({ key: st.item.key, label: st.kind === "traslado" ? `${st.title} · ${st.choices.find((c) => c.mode === st.chosen)?.label ?? "por elegir"}` : st.item.title,
+              sub: st.item.subtitle, price: st.item.price, est: st.item.estimate || st.kind === "traslado", it: st.item });
+          }
+          for (const it of items.filter((x) => x.kind === "actividad")) rowsList.push({ key: it.key, label: it.title, sub: it.subtitle, price: it.price, est: it.estimate, it });
+          for (const it of items.filter((x) => x.kind === "restaurante" && restPicks.includes(restKey(trip.restaurantes_json?.[x.index], x.index)))) rowsList.push({ key: it.key, label: it.title, sub: it.subtitle, price: null, est: false, it });
+          return (
+            <>
+              {missing.length > 0 && <p className="mt-2 text-sm text-amber-400/90" data-testid="comprar-listo-falta">{missing.join(" · ")}</p>}
+              <ul className="mt-3 divide-y divide-border/40" data-testid="comprar-listo-lista">
+                {rowsList.map((r) => (
+                  <li key={r.key} className="flex flex-wrap items-center justify-between gap-2 py-2.5" data-testid="comprar-listo-item">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm">{r.label}</span>
+                      {r.sub && <span className="block truncate text-xs text-muted-foreground">{r.sub}</span>}
+                    </span>
+                    <span className="shrink-0 text-right text-sm tabular-nums">{r.price ? money(r.price) : <span className="text-xs text-muted-foreground">Precio en el sitio</span>}
+                      {r.price && r.est ? <span className="block text-[10px] text-muted-foreground">estimado</span> : null}</span>
+                    <span className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{state(r.it) !== "pendiente"
+                      ? <span className="inline-flex items-center gap-1 text-xs text-emerald-400"><Check className="h-3.5 w-3.5" aria-hidden="true" /> {state(r.it) === "confirmado" ? "Confirmado" : "Ya lo compraste"}</span>
+                      : buyButton(r.it, `listo-${r.key}`)}</span>
+                  </li>
+                ))}
+              </ul>
+              {selectionTotal != null && selectionTotal > 0 && (
+                <p className="mt-3 flex items-baseline justify-between gap-3 border-t border-border/50 pt-3" data-testid="comprar-listo-total">
+                  <span className="text-sm text-muted-foreground">Total del viaje con tu selección<span className="block text-[11px]">Incluye comida y transporte local estimados del análisis.</span></span>
+                  <span className="font-display text-2xl tabular-nums">{money(selectionTotal)}</span>
+                </p>
+              )}
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {sendSelectionSlot}
+                {onViewTrip && (
+                  <button type="button" onClick={onViewTrip} data-testid="comprar-ver-viaje"
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-border/70 px-4 text-sm hover:border-primary/50">
+                    Ver mi viaje <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            </>
+          );
+        })()}
+      </section>
     </section>
   );
+}
+
+const MODE_ICON: Record<string, typeof Plane> = { vuelo: Plane, tren: Train, coche: Car, bus: Bus, ferry: Ship };
+
+/** Cómo ir entre ciudades elegido por la persona (no cambia el total: es una comodidad de este navegador). */
+function useLegChoices(tripId: string | null): [Record<string, string>, (key: string, mode: string) => void] {
+  const k = tripId ? `iatos:traslados:${tripId}` : null;
+  const [sel, setSel] = useState<Record<string, string>>(() => {
+    if (!k) return {};
+    try { const v = JSON.parse(localStorage.getItem(k) ?? "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
+  });
+  const choose = (key: string, mode: string) => setSel((prev) => {
+    const next = { ...prev, [key]: mode };
+    if (k) { try { localStorage.setItem(k, JSON.stringify(next)); } catch { /* sin almacenamiento */ } }
+    return next;
+  });
+  return [sel, choose];
 }
 
 /** ¿Todas las opciones tienen la misma fuente, estado y fecha de consulta? (una sola insignia). */
@@ -405,7 +547,6 @@ function oneSource(list: any[]): boolean {
   return list.length > 0 && list.every((x) => k(x) === k(list[0]));
 }
 
-const LEG_MODE: Record<string, string> = { vuelo: "Vuelo", tren: "Tren", coche: "En coche", bus: "Autobús", ferry: "Ferry" };
 
 const restKey = (r: any, i: number) => `${i}:${String(r?.nombre ?? "").toLowerCase()}`;
 
@@ -436,7 +577,7 @@ function extrasSummary(extras: Array<{ restaurants: number[]; tours: number[] }>
 function StepHeader({ n, title, icon: Icon, done }: { n: number; title: string; icon: typeof Plane; done: boolean }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <h3 className="flex items-center gap-2 text-base font-medium">
+      <h3 tabIndex={-1} className="flex items-center gap-2 text-base font-medium focus:outline-none">
         <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${done ? "bg-emerald-500/20 text-emerald-400" : "bg-primary/15 text-primary"}`}>
           {done ? <Check className="w-3.5 h-3.5" aria-label="hecho" /> : n}
         </span>

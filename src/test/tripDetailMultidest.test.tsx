@@ -112,7 +112,8 @@ describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
     renderTrip();
     const pasos = await screen.findByTestId("comprar-pasos");
     expect(within(pasos).getAllByRole("listitem").map((li) => li.textContent?.trim())).toEqual(
-      ["1. Vuelo de ida y regreso", "2. Hotel en Roma", "3. Roma → Florencia", "4. Hotel en Florencia", "5. Florencia → Venecia", "6. Hotel en Venecia", "7. Auto (opcional)"]);
+      ["1. Vuelo de ida y regreso", "2. Hotel en Roma", "3. Roma → Florencia", "4. Hotel en Florencia", "5. Florencia → Venecia", "6. Hotel en Venecia", "7. Auto (opcional)",
+        "8. Restaurantes y experiencias", "9. Listo · Revisa y compra"]);
     expect(screen.getByTestId("trip-comprar-falta")).toHaveTextContent("Te falta: vuelo de ida y regreso · hotel en Roma · Roma → Florencia · hotel en Florencia · Florencia → Venecia · hotel en Venecia");
   });
 

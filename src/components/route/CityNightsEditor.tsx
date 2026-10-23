@@ -13,6 +13,8 @@ type Props = {
   onRemove?: (i: number) => void;
   /** Texto cuando aún no hay noches (sin fechas). */
   pendingNote?: string;
+  /** "Por qué" de cada ciudad (ruta propuesta para un país). */
+  notes?: (string | null)[] | null;
   className?: string;
 };
 
@@ -20,7 +22,7 @@ const iconBtn = "inline-flex h-9 w-9 shrink-0 items-center justify-center rounde
 const ghostBtn = "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface hover:text-foreground disabled:opacity-25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const noches = (n: number) => `${n} ${n === 1 ? "noche" : "noches"}`;
 
-export function CityNightsEditor({ cities, nights, onChange, onMove, onRemove, pendingNote, className = "" }: Props) {
+export function CityNightsEditor({ cities, nights, onChange, onMove, onRemove, pendingNote, notes, className = "" }: Props) {
   const total = nights ? nights.reduce((a, b) => a + b, 0) : null;
   return (
     <div className={`space-y-2 ${className}`} data-testid="city-nights-editor">
@@ -54,6 +56,7 @@ export function CityNightsEditor({ cities, nights, onChange, onMove, onRemove, p
               <button type="button" className={ghostBtn} aria-label={`Quitar ${c}`} onClick={() => onRemove(i)}>
                 <X className="h-4 w-4" aria-hidden="true" /></button>
             )}
+            {notes?.[i] && <p className="order-last w-full pl-8 text-xs text-muted-foreground" data-testid="city-why">{notes[i]}</p>}
           </li>
         ))}
       </ol>

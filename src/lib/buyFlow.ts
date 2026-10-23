@@ -10,17 +10,21 @@ import { legOptionsFor, type LegOption } from "@/lib/multiDestTrip";
 import { checkAllowlisted } from "@/lib/booking";
 import { describePrefill } from "@/lib/purchasePlan";
 import { trainlineLink } from "@/lib/affiliateLinks";
-import { distanceKm, mainAirport } from "../../supabase/functions/_shared/airports.ts";
+import { cityAirports, distanceKm, mainAirport } from "../../supabase/functions/_shared/airports.ts";
 import { googleFlightsSearchUrl } from "../../supabase/functions/_shared/booking/links.ts";
 
-export type BuySel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[]; selHoteles?: Record<string, number> | null };
+export type BuySel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[]; selHoteles?: Record<string, number> | null;
+  /** Modo elegido por traslado ("traslado:roma>florencia" → "tren"). */
+  selLegs?: Record<string, string> | null };
 
 export type FlightStep = { kind: "vuelo"; n: number; title: string; item: PurchaseItem | null; options: number[]; chosen: number; skipped: boolean };
 export type HotelStep = { kind: "hospedaje"; n: number; title: string; city: string | null; stay: CityStay | null; item: PurchaseItem | null;
   options: number[]; chosen: number; skipped: boolean; nights: number };
 export type CarStep = { kind: "auto"; n: number; title: string; item: PurchaseItem | null };
 /** Multi-destino: cómo ir de una ciudad a la siguiente (París → Roma), con su fecha y opciones estimadas. */
-export type LegStep = { kind: "traslado"; n: number; title: string; from: string; to: string; date: string | null; options: LegOption[]; item: PurchaseItem };
+export type LegStep = { kind: "traslado"; n: number; title: string; from: string; to: string; date: string | null; options: LegOption[];
+  /** Avión, tren o coche/chofer, con su botón; `chosen` es el modo elegido. */
+  choices: LegChoice[]; chosen: string | null; item: PurchaseItem };
 export type BuyStep = FlightStep | HotelStep | CarStep | LegStep;
 
 export type BuyFlow = {
@@ -42,38 +46,93 @@ export function hotelTotal(h: any, nights: number, travelers: number): number | 
 const isoOk = (d: unknown): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d);
 const normKey = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
+/** Una forma de ir de una ciudad a la siguiente, con su botón de compra o búsqueda. */
+export type LegChoice = {
+  mode: "vuelo" | "tren" | "coche" | "bus" | "ferry" | string;
+  label: string;
+  provider: string | null;
+  duration: string | null;
+  /** MXN por persona; solo si el plan lo estimó (nunca inventado). */
+  pricePp: number | null;
+  /** Viene del plan del viaje (logistics-plan) o es solo una búsqueda "por cotizar". */
+  fromPlan: boolean;
+  url: string | null;
+  site: string | null;
+  buttonLabel: string | null;
+  completa: string | null;
+  lleva: string[];
+  /** Ruta interna cuando no hay sitio externo fiable (buscador de trenes, renta de auto). */
+  fallbackHref: string | null;
+  row: LegOption["row"] | null;
+};
+
+const MODE_LABEL: Record<string, string> = { vuelo: "Avión", tren: "Tren", coche: "Coche", bus: "Autobús", ferry: "Ferry" };
+// Donde lo normal es contratar coche con chofer (no manejar uno mismo).
+const DRIVER_COUNTRIES = new Set(["IN", "EG", "MA", "TH", "ID"]);
+
 /**
- * Paso "París → Roma": opciones estimadas (vuelo interno, tren…) y un botón de compra precargado. Si
- * hay tren (o la distancia es de tren, < 800 km en Europa) el botón principal es el buscador de trenes;
- * si no, Google Flights solo ida con la fecha y los pasajeros.
+ * Paso "París → Roma": se elige cómo ir (avión, tren o coche/chofer) entre las opciones del plan y las
+ * búsquedas precargadas. Precio solo el que estimó el plan; lo demás dice "por cotizar". El botón de
+ * compra es el de la opción elegida (`chosenMode`), o la primera del plan.
  */
-export function legStep(trip: any, from: string, to: string, date: string | null, n: number): LegStep {
-  const options = legOptionsFor(trip, from, to);
+export function legStep(trip: any, from: string, to: string, date: string | null, n: number, chosenMode?: string | null): LegStep {
+  const plan = legOptionsFor(trip, from, to);
   const travelers = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
   const km = distanceKm(from, to);
-  const trainFirst = options[0]?.mode === "tren" || (!options.some((o) => o.mode === "vuelo") && km != null && km < 800);
+  const a = cityAirports(from);
+  const b = cityAirports(to);
+  const europe = a?.region === "EU" && b?.region === "EU";
+  const driver = DRIVER_COUNTRIES.has(a?.iso2 ?? "") || DRIVER_COUNTRIES.has(b?.iso2 ?? "");
+  const date8 = isoOk(date) ? date : null;
+  const choices: LegChoice[] = [];
+  const planOf = (mode: string) => plan.find((o) => o.mode === mode) ?? null;
+  const base = (mode: string, extra: Partial<LegChoice>): LegChoice => {
+    const p = planOf(mode);
+    return { mode, label: mode === "coche" && driver ? "Coche con chofer" : MODE_LABEL[mode] ?? mode, provider: p?.provider ?? null, duration: p?.duration ?? null,
+      pricePp: p?.pricePp ?? null, fromPlan: !!p, url: null, site: null, buttonLabel: null, completa: null, lleva: [], fallbackHref: null, row: p?.row ?? null, ...extra };
+  };
+  // Avión: Google Flights solo ida con la fecha y los pasajeros (si ambos aeropuertos se conocen).
   const o = mainAirport(from);
   const d = mainAirport(to);
-  const gf = !trainFirst && o && d && isoOk(date) ? googleFlightsSearchUrl({ origin: o, destination: d, depart: date, adults: travelers }) : null;
+  const gf = o && d && date8 ? googleFlightsSearchUrl({ origin: o, destination: d, depart: date8, adults: travelers }) : null;
   const gfOk = gf ? checkAllowlisted(gf) : null;
-  const url = gfOk && gfOk.ok ? gfOk.url : trainFirst ? trainlineLink(from, to, date ?? "") : null;
-  const site = gfOk && gfOk.ok ? "Google Flights" : trainFirst ? "Trainline" : null;
-  const pre = describePrefill(url, site, trip);
-  const best = options[0] ?? null;
+  if ((gfOk && gfOk.ok) || planOf("vuelo")) {
+    const url = gfOk && gfOk.ok ? gfOk.url : null;
+    const pre = describePrefill(url, "Google Flights", trip);
+    choices.push(base("vuelo", { url, site: url ? "Google Flights" : null, buttonLabel: url ? "Buscar vuelo en Google Flights" : null, lleva: pre.lleva, completa: pre.completa,
+      fallbackHref: url ? null : `/dashboard/vuelos?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}${date8 ? `&depart=${date8}` : ""}&travelers=${travelers}` }));
+  }
+  // Tren: Trainline en Europa; fuera, nuestro buscador de trenes ("por cotizar").
+  if (planOf("tren") || km == null || km < 1200) {
+    const url = europe ? trainlineLink(from, to, date8 ?? "") : null;
+    choices.push(base("tren", { url, site: url ? "Trainline" : null, buttonLabel: url ? "Buscar tren en Trainline" : "Buscar tren",
+      completa: url ? `Trainline no recibe la ruta por enlace: escribe ${from} → ${to}${date8 ? ` y el ${fmtDayShort(date8)}` : ""}.` : `Tren por cotizar: búscalo con ${from} → ${to}${date8 ? ` y el ${fmtDayShort(date8)}` : ""}.`,
+      fallbackHref: url ? null : `/dashboard/trenes?origin=${encodeURIComponent(from)}&dest=${encodeURIComponent(to)}${date8 ? `&date=${date8}` : ""}` }));
+  }
+  // Coche (o coche con chofer): la ruta en Google Maps y la renta de auto.
+  if (planOf("coche") || km == null || km < 900) {
+    const maps = checkAllowlisted(`https://www.google.com/maps/dir/?${new URLSearchParams({ api: "1", origin: from, destination: to, travelmode: "driving" })}`);
+    const url = maps.ok ? maps.url : null;
+    choices.push(base("coche", { url, site: url ? "Google Maps" : null, buttonLabel: url ? "Ver ruta en Google Maps" : null,
+      completa: driver ? "Coche con chofer: reserva con tu hotel o una agencia local; Google Maps solo da la ruta y el tiempo." : "Google Maps no recibe la fecha: la renta de auto se reserva aparte.",
+      fallbackHref: `/dashboard/autos?city=${encodeURIComponent(from)}&dropoff=${encodeURIComponent(to)}${date8 ? `&pickup=${date8}` : ""}${trip?.id ? `&trip=${trip.id}` : ""}` }));
+  }
+  for (const p of plan) if (!choices.some((c) => c.mode === p.mode)) choices.push(base(p.mode, {}));
+  // Primero lo que trae el plan (en su orden), luego las búsquedas.
+  choices.sort((x, y) => Number(y.fromPlan) - Number(x.fromPlan) || (x.fromPlan ? plan.findIndex((p) => p.mode === x.mode) - plan.findIndex((p) => p.mode === y.mode) : 0));
+  // Sin elección: tren si el plan lo trae y es un tramo corto (lo realista en Europa o India); si no, lo primero del plan.
+  const trainFirst = km != null && km < 800 && choices.some((c) => c.mode === "tren" && c.fromPlan);
+  const chosen = choices.find((c) => c.mode === chosenMode) ?? (trainFirst ? choices.find((c) => c.mode === "tren") : null) ?? choices[0] ?? null;
   const item: PurchaseItem = {
-    key: `traslado:${normKey(from)}>${normKey(to)}`, kind: "vuelo", category: trainFirst ? "train" : "flight",
-    title: `${from} → ${to}`, subtitle: [isoOk(date) ? fmtDayShort(date) : null, `${travelers} ${travelers === 1 ? "viajero" : "viajeros"}`].filter(Boolean).join(" · "),
-    price: best?.pricePp ? best.pricePp * travelers : null, currency: "MXN",
-    priceNote: best?.pricePp ? `Estimado: $${best.pricePp.toLocaleString("es-MX")} MXN por persona. Confirma el precio en el sitio.` : null,
-    source: { fuente: best ? "estimado" : null, estado: best ? "ESTIMADO" : null, consultadoAt: null }, estimate: true,
-    site, url, action: null,
-    lleva: trainFirst ? [] : pre.lleva,
-    completa: trainFirst ? `Trainline no recibe la ruta por enlace: escribe ${from} → ${to}${isoOk(date) ? ` y el ${fmtDayShort(date)}` : ""}.` : pre.completa,
-    buttonLabel: url ? (trainFirst ? "Buscar tren en Trainline" : "Buscar vuelo en Google Flights") : null,
-    optional: false, fallbackHref: url ? null : `/dashboard/trenes?origin=${encodeURIComponent(from)}&dest=${encodeURIComponent(to)}${isoOk(date) ? `&date=${date}` : ""}`,
-    col: null, index: -1, offer: null, city: to,
+    key: `traslado:${normKey(from)}>${normKey(to)}`, kind: "vuelo", category: chosen?.mode === "tren" ? "train" : chosen?.mode === "coche" ? "car" : "flight",
+    title: `${from} → ${to}`, subtitle: [date8 ? fmtDayShort(date8) : null, `${travelers} ${travelers === 1 ? "viajero" : "viajeros"}`, chosen?.label ?? null].filter(Boolean).join(" · "),
+    price: chosen?.pricePp ? chosen.pricePp * travelers : null, currency: "MXN",
+    priceNote: chosen?.pricePp ? `Estimado: $${chosen.pricePp.toLocaleString("es-MX")} MXN por persona. Confirma el precio en el sitio.` : "Por cotizar: IATOS no tiene precio real de este traslado.",
+    source: { fuente: chosen?.fromPlan ? "estimado" : null, estado: chosen?.fromPlan ? "ESTIMADO" : null, consultadoAt: null }, estimate: true,
+    site: chosen?.site ?? null, url: chosen?.url ?? null, action: null, lleva: chosen?.lleva ?? [], completa: chosen?.completa ?? null,
+    buttonLabel: chosen?.buttonLabel ?? null, optional: false, fallbackHref: chosen?.fallbackHref ?? null, col: null, index: -1, offer: null, city: to,
   };
-  return { kind: "traslado", n, title: `${from} → ${to}`, from, to, date, options, item };
+  return { kind: "traslado", n, title: `${from} → ${to}`, from, to, date, options: plan, choices, chosen: chosen?.mode ?? null, item };
 }
 
 const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -97,7 +156,10 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
         chosen: c.index, skipped: c.index === -2, nights: c.stay.nights });
       // Entre ciudades (París → Roma), el día que se sale de esta ciudad.
       const next = choices[k + 1];
-      if (next) steps.push(legStep(trip, c.stay.city, next.stay.city, next.stay.checkin, n++));
+      if (next) {
+        const key = `traslado:${normKey(c.stay.city)}>${normKey(next.stay.city)}`;
+        steps.push(legStep(trip, c.stay.city, next.stay.city, next.stay.checkin, n++, sel.selLegs?.[key] ?? null));
+      }
     });
   } else {
     const hoteles: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];

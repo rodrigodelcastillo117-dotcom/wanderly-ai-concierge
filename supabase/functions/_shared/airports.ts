@@ -96,6 +96,19 @@ export const CITIES: CityAirports[] = [
   C("Singapur", "SIN", ["SIN"], "Singapur", "SG", "AS", 1.364, 103.991, ["singapore"]),
   C("Hong Kong", "HKG", ["HKG"], "Hong Kong", "HK", "AS", 22.308, 113.918),
   C("Sídney", "SYD", ["SYD"], "Australia", "AU", "OC", -33.946, 151.177, ["sydney", "sidney"]),
+  // Rutas por país (destino "India", "Japón", "Perú"…): ciudades de entrada/salida y tramos internos.
+  C("Delhi", "DEL", ["DEL"], "India", "IN", "AS", 28.556, 77.1, ["nueva delhi", "new delhi", "delhi"]),
+  C("Mumbai", "BOM", ["BOM"], "India", "IN", "AS", 19.089, 72.868, ["bombay"]),
+  C("Jaipur", "JAI", ["JAI"], "India", "IN", "AS", 26.824, 75.812),
+  C("Agra", "AGR", ["AGR"], "India", "IN", "AS", 27.156, 77.961),
+  C("Udaipur", "UDR", ["UDR"], "India", "IN", "AS", 24.618, 73.896),
+  C("Osaka", "OSA", ["KIX", "ITM"], "Japón", "JP", "AS", 34.434, 135.244),
+  C("Cusco", "CUZ", ["CUZ"], "Perú", "PE", "SA", -13.536, -71.939, ["cuzco"]),
+  C("Marrakech", "RAK", ["RAK"], "Marruecos", "MA", "AF", 31.607, -8.036, ["marrakesh"]),
+  C("El Cairo", "CAI", ["CAI"], "Egipto", "EG", "AF", 30.122, 31.406, ["cairo", "el cairo"]),
+  C("Luxor", "LXR", ["LXR"], "Egipto", "EG", "AF", 25.671, 32.707),
+  C("Phuket", "HKT", ["HKT"], "Tailandia", "TH", "AS", 8.113, 98.317),
+  C("Chiang Mai", "CNX", ["CNX"], "Tailandia", "TH", "AS", 18.767, 98.963),
 ];
 
 /** Normaliza un nombre de ciudad: sin acentos, minúsculas, sin "(vía …)", sin país tras la coma. */
