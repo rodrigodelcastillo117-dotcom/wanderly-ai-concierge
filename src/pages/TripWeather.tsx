@@ -214,8 +214,12 @@ const TripWeather = () => {
                     )}
                   </div>
                 ))}
-                {b.pastDays.length > 0 && b.days.length === 0 && b.typical.length === 0 && (
-                  <p className="text-xs text-muted-foreground pl-1">Estos días ya pasaron.</p>
+                {b.pastDays.length > 0 && (
+                  <p className="mt-2 text-[11px] text-muted-foreground pl-1" data-testid="weather-past">
+                    {b.pastDays.length === 1
+                      ? `${formatDateOnly(b.pastDays[0], { day: "numeric", month: "short" })} ya pasó: no hay pronóstico de días pasados.`
+                      : `${formatDateOnly(b.pastDays[0], { day: "numeric", month: "short" })} – ${formatDateOnly(b.pastDays[b.pastDays.length - 1], { day: "numeric", month: "short" })} ya pasaron: no hay pronóstico de días pasados.`}
+                  </p>
                 )}
                 {b.days.length === 0 && b.typical.length === 0 && b.pastDays.length === 0 && (
                   <p className="text-xs text-muted-foreground pl-10">Sin datos para esas fechas.</p>

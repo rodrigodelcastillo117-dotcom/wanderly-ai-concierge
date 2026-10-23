@@ -268,6 +268,15 @@ describe("pantalla Clima del viaje", () => {
     expect(urls.some((u) => /open-meteo/.test(u))).toBe(false);
   });
 
+  it("con el viaje ya empezado, dice qué día ya pasó (sin inventar su clima)", async () => {
+    vi.setSystemTime(new Date("2026-10-23T10:00:00Z"));
+    met.from = "2026-10-23T10:00:00Z";
+    renderPage();
+    const roma = await screen.findByTestId("city-weather-Roma");
+    expect(within(roma).getAllByTestId("weather-day").map((d) => d.getAttribute("data-date"))).toEqual(["2026-10-23", "2026-10-24", "2026-10-25"]);
+    expect(within(roma).getByTestId("weather-past")).toHaveTextContent("22 oct ya pasó: no hay pronóstico de días pasados.");
+  });
+
   it("'Hoy en …' con lluvia lleva gotas animadas que respetan 'reducir movimiento' (motion-safe)", async () => {
     renderPage();
     const roma = await screen.findByTestId("city-weather-Roma");
