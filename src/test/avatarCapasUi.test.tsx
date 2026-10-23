@@ -5,9 +5,11 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 
 const invoke = vi.fn();
+const rpc = vi.fn(async () => ({ data: true, error: null }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     functions: { invoke: (...a: unknown[]) => invoke(...a) },
+    rpc: (...a: unknown[]) => (rpc as any)(...a),
     from: () => ({ select: async () => ({ data: [{ id: "es-bernabeu", prompt_hash: "abcdabcdabcdabcd" }, { id: "c-paris-1", prompt_hash: "1234123412341234" }], error: null }) }),
     storage: { from: () => ({ getPublicUrl: (p: string) => ({ data: { publicUrl: `https://cdn.test/avatar-assets/${p}` } }) }) },
   },
@@ -29,7 +31,7 @@ const estado = (o: Record<string, unknown> = {}) => ({
   error: null,
 });
 
-beforeEach(() => invoke.mockReset());
+beforeEach(() => { invoke.mockReset(); rpc.mockClear(); rpc.mockImplementation(async () => ({ data: true, error: null })); });
 
 describe("panel de fondo y recuerdos", () => {
   it("hasta 3 fondos de SU país, inventario de sus viajes, máximo 3 y guardar sin costo", async () => {
@@ -71,7 +73,20 @@ describe("panel de fondo y recuerdos", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Crear mi avatar de cuerpo completo" }));
     expect(onRecreate).toHaveBeenCalled();
   });
+  it("bandera apagada (o encendida solo para fundadores y no lo es): el Perfil se ve como antes y no llama a avatar-capas", async () => {
+    rpc.mockImplementation(async () => ({ data: false, error: null }));
+    const { container } = render(<AvatarLayersPanel />);
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("avatar_capas_activo"));
+    expect(container.innerHTML).toBe("");
+    expect(invoke).not.toHaveBeenCalled();
+    // Sin la función en la base (migración sin aplicar): también apagado.
+    rpc.mockImplementation(async () => ({ data: null, error: { message: "function does not exist" } } as any));
+    const again = render(<AvatarLayersPanel />);
+    await waitFor(() => expect(rpc).toHaveBeenCalledTimes(2));
+    expect(again.container.innerHTML).toBe("");
+  });
   it("lee el estado del servidor de forma tolerante", () => {
+    expect(parseLayersState({ ok: true, habilitado: false })).toBeNull();
     expect(parseLayersState({ ok: false })).toBeNull();
     expect(parseLayersState({ ok: true, cara: [1, 2], mano: "x" })).toMatchObject({ capas: false, cara: null, mano: null, objetos: [] });
   });
@@ -85,7 +100,7 @@ describe("integración en Perfil y tarjeta del Travel DNA", () => {
   it("Perfil muestra el panel; la tarjeta del DNA usa el cuerpo completo y los círculos el recorte de la cara", () => {
     expect(readFileSync("src/pages/Profile.tsx", "utf8")).toMatch(/<AvatarLayersPanel/);
     const card = readFileSync("src/components/lux/TravelAvatarCinematic.tsx", "utf8");
-    expect(card).toMatch(/select\("version, cuerpo_url, capas"\)/);
+    expect(card).toMatch(/from\("avatar_profiles"\)\.select\("\*"\)/);
     expect(card).toMatch(/cuerpoUrl \?/);
     expect(card).toMatch(/useMyAvatar\(\)/); // los círculos siguen con profiles.avatar_url (recorte de la cara)
   });

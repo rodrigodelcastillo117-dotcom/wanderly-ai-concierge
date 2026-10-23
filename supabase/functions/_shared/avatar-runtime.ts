@@ -63,6 +63,19 @@ export function coreDeps(db: SupabaseClient, userId: string, kind: "crear" | "ev
   };
 }
 
+/**
+ * Bandera app_flags.avatar_capas_enabled (false | true | "founders"), decidida en la base de datos
+ * (avatar_capas_para). Si la función aún no existe o falla: apagada (todo como antes).
+ */
+export async function capasHabilitado(db: SupabaseClient, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await db.rpc("avatar_capas_para", { p_user: userId });
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
 /** Bytes de una imagen del modelo (data URL o https). */
 export async function imageBytes(url: string): Promise<{ bytes: Uint8Array; mime: string; ext: string } | null> {
   if (url.startsWith("data:")) return decodeDataUrl(url);
@@ -122,13 +135,15 @@ export async function publishImages(
   // profiles.avatar_url = la imagen de los círculos (en el avatar por capas, el recorte de la cara).
   const url = face.url;
 
-  const { data: prev } = await db.from("avatar_profiles").select("current_path, cuerpo_path, version").eq("user_id", userId).maybeSingle();
+  // select("*"): con la bandera apagada esto corre igual aunque la migración de capas no esté aplicada.
+  const { data: prev } = await db.from("avatar_profiles").select("*").eq("user_id", userId).maybeSingle();
   const version = Number(prev?.version ?? 0) + 1;
   const row: Record<string, unknown> = {
     user_id: userId, current_url: url, current_path: face.path, version, visible_keys: meta.visibleKeys,
-    cuerpo_url: full?.url ?? null, cuerpo_path: full?.path ?? null,
     updated_at: new Date().toISOString(),
   };
+  // Cuerpo completo solo en el avatar por capas (o para limpiar el de un avatar por capas anterior).
+  if (full || prev?.cuerpo_path) Object.assign(row, { cuerpo_url: full?.url ?? null, cuerpo_path: full?.path ?? null });
   if (meta.basePath) Object.assign(row, { base_path: meta.basePath, likeness_score: meta.score, model: meta.model });
   const { error: apErr } = await db.from("avatar_profiles").upsert(row, { onConflict: "user_id" });
   if (apErr) throw new Error(`avatar_profiles: ${apErr.message}`);
@@ -286,7 +301,7 @@ export function evolutionDeps(db: SupabaseClient, userId: string, tripId: string
     },
     setVisible: (keys) => setVisibleKeys(db, userId, keys),
     loadLayers: async () => {
-      const { data } = await db.from("avatar_profiles").select("capas, base_path, objetos").eq("user_id", userId).maybeSingle();
+      const { data } = await db.from("avatar_profiles").select("*").eq("user_id", userId).maybeSingle();
       return data?.capas && data.base_path ? { objetos: (data.objetos as string[] | null) ?? [] } : null;
     },
     publishLayers: (objetos) => composeAndPublish(db, userId, { objetos }),
@@ -347,7 +362,7 @@ export async function rebuildWithHistory(db: SupabaseClient, userId: string): Pr
     }).eq("id", id);
   }
 
-  const { data: ap } = await db.from("avatar_profiles").select("base_path, capas").eq("user_id", userId).maybeSingle();
+  const { data: ap } = await db.from("avatar_profiles").select("*").eq("user_id", userId).maybeSingle();
   const applied = (await ownedSouvenirs(db, userId)).filter((o) => o.status === "aplicado");
   if (ap?.capas && ap.base_path) {
     // Por capas: sin IA. El primer objeto de cada uno de los últimos 3 recuerdos.

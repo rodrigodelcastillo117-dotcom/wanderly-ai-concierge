@@ -99,3 +99,30 @@ ALTER TABLE public.avatar_variants ADD CONSTRAINT avatar_variants_cara_chk
 ALTER TABLE public.avatar_variants DROP CONSTRAINT IF EXISTS avatar_variants_mano_chk;
 ALTER TABLE public.avatar_variants ADD CONSTRAINT avatar_variants_mano_chk
   CHECK (mano IS NULL OR (cardinality(mano) = 2 AND 0 <= ALL (mano) AND 1 >= ALL (mano)));
+
+-- ───── 6) bandera: el avatar por capas sale apagado ─────
+-- app_flags.avatar_capas_enabled: false (por defecto: todo como antes: retrato, edición y recuerdos con
+-- IA) | true (para todos) | "founders" (solo cuentas de public.founders, para probarlo). Decide el
+-- servidor: generate-avatar (crear de cuerpo completo) y avatar-capas (panel "Fondo y recuerdos").
+INSERT INTO public.app_flags (key, value, note) VALUES
+  ('avatar_capas_enabled', 'false'::jsonb, 'Avatar por capas (cuerpo completo, fondo de su país, recuerdos sin IA): false | true | "founders"')
+ON CONFLICT (key) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.avatar_capas_para(p_user uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT CASE (SELECT value FROM public.app_flags WHERE key = 'avatar_capas_enabled')
+           WHEN 'true'::jsonb THEN true
+           WHEN '"founders"'::jsonb THEN p_user IS NOT NULL AND EXISTS (SELECT 1 FROM public.founders f WHERE f.user_id = p_user)
+           ELSE false
+         END;
+$$;
+REVOKE ALL ON FUNCTION public.avatar_capas_para(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.avatar_capas_para(uuid) TO service_role;
+
+-- La app solo pregunta por sí misma (para mostrar o esconder el panel); no ve la bandera ni founders.
+CREATE OR REPLACE FUNCTION public.avatar_capas_activo()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.avatar_capas_para(auth.uid());
+$$;
+REVOKE ALL ON FUNCTION public.avatar_capas_activo() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.avatar_capas_activo() TO authenticated, service_role;

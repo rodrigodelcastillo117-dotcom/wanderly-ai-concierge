@@ -68,6 +68,11 @@ verify_jwt = true
 [functions.avatar-capas]
 verify_jwt = true
 
+# Inventario del avatar (fondos y objetos) con los secretos del servidor. Puerta: x-cron-secret
+# (isAuthorizedCron); máximo 3 imágenes por llamada y topes de gasto.
+[functions.avatar-assets-gen]
+verify_jwt = false
+
 [functions.geocode]
 verify_jwt = true
 

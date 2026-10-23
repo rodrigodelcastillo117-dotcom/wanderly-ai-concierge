@@ -26,7 +26,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { createVariants } from "../_shared/avatar-flow.ts";
 import { toDataUrl, validSelfie, type BuilderTraits } from "../_shared/avatar-prompts.ts";
 import {
-  admin, composeAndPublish, coreDeps, imageBytes, paisDeFondo, PRIVATE_BUCKET, publishAvatar, rebuildWithHistory, runInBackground,
+  admin, capasHabilitado, composeAndPublish, coreDeps, imageBytes, paisDeFondo, PRIVATE_BUCKET, publishAvatar, rebuildWithHistory, runInBackground,
 } from "../_shared/avatar-runtime.ts";
 import { ASSETS_BUCKET, resolverFondo } from "../_shared/avatar-inventory.ts";
 import { deleteAvatar } from "../_shared/avatar-delete.ts";
@@ -84,7 +84,7 @@ function removeAvatar(db: SupabaseClient, uid: string) {
   return deleteAvatar({
     knownPaths: async (userId) => {
       const [{ data: ap }, { data: vs }] = await Promise.all([
-        db.from("avatar_profiles").select("current_path, cuerpo_path, base_path").eq("user_id", userId).maybeSingle(),
+        db.from("avatar_profiles").select("*").eq("user_id", userId).maybeSingle(),
         db.from("avatar_variants").select("storage_path").eq("user_id", userId),
       ]);
       return {
@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
         dataUrl = toDataUrl(new Uint8Array(await file.arrayBuffer()), mime);
       }
 
-      const { data: prevAp } = await db.from("avatar_profiles").select("base_path").eq("user_id", uid).maybeSingle();
+      const { data: prevAp } = await db.from("avatar_profiles").select("*").eq("user_id", uid).maybeSingle();
       let url: string;
       if (v.recortada) {
         // Por capas: la base es la persona recortada; el avatar público se compone sin IA.
@@ -181,7 +181,8 @@ Deno.serve(async (req) => {
         if (upErr) throw new Error(`avatar_profiles: ${upErr.message}`);
         url = await composeAndPublish(db, uid, { objetos: [] });
       } else {
-        await db.from("avatar_profiles").update({ capas: false, cara: null, mano: null, objetos: [] }).eq("user_id", uid);
+        // Solo si venía de un avatar por capas (con la bandera apagada nada de esto existe).
+        if (prevAp?.capas) await db.from("avatar_profiles").update({ capas: false, cara: null, mano: null, objetos: [] }).eq("user_id", uid);
         url = await publishAvatar(db, uid, dataUrl, {
           visibleKeys: [], model: v.model ?? null, score: v.likeness_score ?? null, basePath: v.storage_path,
         });
@@ -212,18 +213,20 @@ Deno.serve(async (req) => {
     if (rawSelfies.length > 3 || rawSelfies.some((s) => !validSelfie(s))) return fail("selfie_invalida", 400);
     const selfies = rawSelfies as string[];
 
+    // Bandera avatar_capas_enabled (false | true | "founders"): apagada = retrato de siempre.
+    const capas = await capasHabilitado(db, uid);
     const res = await createVariants(coreDeps(db, uid, "crear", "generate-avatar"), {
       selfies: selfies.length ? selfies : null,
       builder,
       variants: 2,
-      capas: true,
+      capas,
     });
     if (!res.ok) {
       if (res.code === "sin_creditos") alertNoCredits(db, "sin_saldo");
       return fail(res.code, res.code === "limite_diario" ? 429 : 502);
     }
 
-    const out: Array<{ id: string; url: string; score: number | null; recortada: boolean; cara: number[] | null; mano: number[] | null }> = [];
+    const out: Array<{ id: string; url: string; score: number | null; recortada?: boolean; cara?: number[] | null; mano?: number[] | null }> = [];
     for (const v of res.variants) {
       const img = await imageBytes(v.url);
       if (!img) continue;
@@ -232,19 +235,19 @@ Deno.serve(async (req) => {
       if (up.error) { console.error("variant upload:", up.error.message); continue; }
       const { data: row, error } = await db.from("avatar_variants").insert({
         user_id: uid, storage_path: path, model: v.model, likeness_score: v.score, diferencias: v.diferencias,
-        origen: selfies.length ? "selfie" : "rasgos", recortada: !!v.recortada,
-        cara: v.cara ? [v.cara.cx, v.cara.cy, v.cara.side] : null, mano: v.mano ?? null,
+        origen: selfies.length ? "selfie" : "rasgos",
+        ...(capas ? { recortada: !!v.recortada, cara: v.cara ? [v.cara.cx, v.cara.cy, v.cara.side] : null, mano: v.mano ?? null } : {}),
       }).select("id").single();
       if (error || !row) continue;
       const { data: signed } = await db.storage.from(PRIVATE_BUCKET).createSignedUrl(path, SIGNED_TTL_S);
       if (signed?.signedUrl) {
-        out.push({
-          id: row.id, url: signed.signedUrl, score: v.score, recortada: !!v.recortada,
-          cara: v.cara ? [v.cara.cx, v.cara.cy, v.cara.side] : null, mano: v.mano ?? null,
-        });
+        out.push(capas
+          ? { id: row.id, url: signed.signedUrl, score: v.score, recortada: !!v.recortada, cara: v.cara ? [v.cara.cx, v.cara.cy, v.cara.side] : null, mano: v.mano ?? null }
+          : { id: row.id, url: signed.signedUrl, score: v.score });
       }
     }
     if (!out.length) return fail("error", 500);
+    if (!capas) return json({ ok: true, variants: out, verificado: selfies.length > 0 });
     // Vista previa: las variantes recortadas se muestran sobre el primer fondo de su país.
     const { data: apRow } = await db.from("avatar_profiles").select("pais_fondo").eq("user_id", uid).maybeSingle();
     const fondo = resolverFondo(await paisDeFondo(db, uid, apRow?.pais_fondo ?? null), null);

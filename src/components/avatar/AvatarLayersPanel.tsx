@@ -63,10 +63,8 @@ export function AvatarLayersPanel({ onRecreate }: { onRecreate?: () => void }) {
     setObjetos(state.objetos);
   }, [state]);
 
-  if (loading) {
-    return <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-busy="true"><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Cargando tu avatar…</div>;
-  }
-  if (!state) return null;
+  // Mientras carga, o con la bandera apagada para esta persona, el Perfil se ve exactamente como antes.
+  if (loading || !state) return null;
 
   const paisActivo = state.pais ?? pais;
   const fondos = fondosDePais(paisActivo);

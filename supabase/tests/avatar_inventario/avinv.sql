@@ -153,5 +153,31 @@ SELECT public.ai_ok('AI30 nadie ve las variantes de otro ni las cambia',
   public.ai_as('e1000000-0000-4000-8000-000000000002', $q$SELECT count(*)::text FROM public.avatar_variants$q$) = '0'
   AND public.ai_as('e1000000-0000-4000-8000-000000000001', $q$UPDATE public.avatar_variants SET recortada = false RETURNING 'x'$q$) LIKE 'ERR:%');
 
+-- ───── bandera avatar_capas_enabled: false | true | "founders" ─────
+INSERT INTO public.founders(user_id, person) VALUES ('e1000000-0000-4000-8000-000000000001', 'rodrigo') ON CONFLICT DO NOTHING;
+SELECT public.ai_ok('AI31 sale apagada: nadie la tiene (ni fundadores)',
+  (SELECT value = 'false'::jsonb FROM public.app_flags WHERE key = 'avatar_capas_enabled')
+  AND NOT public.avatar_capas_para('e1000000-0000-4000-8000-000000000001')
+  AND public.ai_as('e1000000-0000-4000-8000-000000000001', $q$SELECT public.avatar_capas_activo()::text$q$) = 'false');
+UPDATE public.app_flags SET value = '"founders"'::jsonb WHERE key = 'avatar_capas_enabled';
+SELECT public.ai_ok('AI32 "founders": solo la cuenta fundadora la tiene',
+  public.ai_as('e1000000-0000-4000-8000-000000000001', $q$SELECT public.avatar_capas_activo()::text$q$) = 'true'
+  AND public.ai_as('e1000000-0000-4000-8000-000000000002', $q$SELECT public.avatar_capas_activo()::text$q$) = 'false'
+  AND NOT public.avatar_capas_para(NULL));
+UPDATE public.app_flags SET value = 'true'::jsonb WHERE key = 'avatar_capas_enabled';
+SELECT public.ai_ok('AI33 true: todos la tienen',
+  public.ai_as('e1000000-0000-4000-8000-000000000002', $q$SELECT public.avatar_capas_activo()::text$q$) = 'true');
+UPDATE public.app_flags SET value = '"otra cosa"'::jsonb WHERE key = 'avatar_capas_enabled';
+SELECT public.ai_ok('AI34 un valor desconocido cuenta como apagada (falla cerrada)',
+  NOT public.avatar_capas_para('e1000000-0000-4000-8000-000000000001'));
+UPDATE public.app_flags SET value = 'false'::jsonb WHERE key = 'avatar_capas_enabled';
+SELECT public.ai_ok('AI35 la app no pregunta por otros ni lee la bandera o la lista de fundadores',
+  public.ai_as('e1000000-0000-4000-8000-000000000002', $q$SELECT public.avatar_capas_para('e1000000-0000-4000-8000-000000000001')::text$q$) LIKE 'ERR:%'
+  AND public.ai_as('e1000000-0000-4000-8000-000000000002', $q$SELECT value::text FROM public.app_flags WHERE key = 'avatar_capas_enabled'$q$) LIKE 'ERR:%'
+  AND public.ai_as('e1000000-0000-4000-8000-000000000002', $q$SELECT count(*)::text FROM public.founders$q$) LIKE 'ERR:%');
+SELECT public.ai_ok('AI36 anon no puede consultar la bandera',
+  public.ai_anon($q$SELECT public.avatar_capas_activo()::text$q$) LIKE 'ERR:%');
+DELETE FROM public.founders WHERE user_id = 'e1000000-0000-4000-8000-000000000001';
+
 -- Limpieza: las funciones de apoyo no se quedan en la base (run_all compara funciones con la referencia).
 DROP FUNCTION public.ai_ok(text, boolean, text), public.ai_as(uuid, text), public.ai_anon(text), public.ai_service(text);

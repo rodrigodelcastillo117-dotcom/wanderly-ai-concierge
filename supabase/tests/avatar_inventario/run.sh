@@ -11,8 +11,8 @@ DIR=$(cd "$(dirname "$0")" && pwd); DB=${1:-iatos_avinv_test}
 . "$DIR/../lib.sh"
 PSQL="psql -U ${PGUSER:-postgres} -q"
 MIGS=("$T_MIG/20261027120000_avatar_inventario.sql")
-# 30 de avinv.sql (AI1–AI30) + 1 de idempotencia.
-ESPERADOS=31
+# 36 de avinv.sql (AI1–AI36, con la bandera avatar_capas_enabled) + 1 de idempotencia.
+ESPERADOS=37
 
 main() {
 t_build_db "$DB"

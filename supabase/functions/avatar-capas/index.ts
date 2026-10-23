@@ -8,10 +8,11 @@
 //                      → valida contra el catálogo (fondo de SU país; objetos de SU inventario, máx. 3),
 //                        guarda y, si su avatar es por capas, compone y publica el PNG de cuerpo completo
 //                        y el recorte de la cara (profiles.avatar_url). Sin LOVABLE_API_KEY: no hay IA aquí.
+// Solo con la bandera app_flags.avatar_capas_enabled encendida para la persona (true o "founders").
 // Solo el servidor escribe avatar_profiles y profiles.avatar_url (N-L1).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { admin, composeAndPublish, paisDeFondo, PRIVATE_BUCKET, setVisibleKeys } from "../_shared/avatar-runtime.ts";
+import { admin, capasHabilitado, composeAndPublish, paisDeFondo, PRIVATE_BUCKET, setVisibleKeys } from "../_shared/avatar-runtime.ts";
 import { fondosDePais, paisValido, recuerdosDeObjetos, resolverFondo, validarObjetos } from "../_shared/avatar-inventory.ts";
 
 const corsHeaders = {
@@ -50,6 +51,10 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const db = admin();
+    // Bandera avatar_capas_enabled (false | true | "founders"): apagada = no hay panel ni cambios.
+    if (!(await capasHabilitado(db, uid))) {
+      return body?.action === "estado" ? json({ ok: true, habilitado: false }) : json({ ok: false, error: "No disponible" }, 403);
+    }
     const { data: ap } = await db.from("avatar_profiles")
       .select("capas, base_path, pais_fondo, fondo_id, objetos, cara, mano, cuerpo_url").eq("user_id", uid).maybeSingle();
     const ganados = await recuerdos(db, uid);
@@ -64,6 +69,7 @@ Deno.serve(async (req) => {
       const pais = ap?.pais_fondo ?? null;
       return json({
         ok: true,
+        habilitado: true,
         capas: !!(ap?.capas && ap.base_path),
         pais, pais_sugerido: sugerido,
         fondo_id: resolverFondo(pais ?? sugerido, ap?.fondo_id ?? null)?.id ?? null,

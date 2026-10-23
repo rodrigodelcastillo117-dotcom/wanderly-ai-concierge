@@ -13,16 +13,13 @@
 //
 // Idempotente: se salta lo que ya está en avatar_assets con la misma huella del prompt. Si cambia el
 // prompt de una imagen, solo esa se vuelve a generar. Costo: imágenes × precio por imagen del modelo.
+// La generación vive en supabase/functions/_shared/avatar-assets-gen.ts (la misma que usa la Edge
+// Function avatar-assets-gen, para generar con los secretos del servidor sin tenerlos en una máquina).
 import { pathToFileURL } from "node:url";
 import { planDeAssets, promptHash, ASSETS_BUCKET, FONDOS, OBJETOS } from "../../supabase/functions/_shared/avatar-inventory.ts";
 import { generateImage, imageCostUsd, imageModels } from "../../supabase/functions/_shared/avatar-image.ts";
-import { decodeDataUrl } from "../../supabase/functions/_shared/avatar-prompts.ts";
-import { decodePng, encodePng, resize } from "../../supabase/functions/_shared/avatar-png.ts";
-import { chromaCutout, trimToContent } from "../../supabase/functions/_shared/avatar-cutout.ts";
-import { cover, CANVAS } from "../../supabase/functions/_shared/avatar-layers.ts";
+import { generarLote, processImage } from "../../supabase/functions/_shared/avatar-assets-gen.ts";
 import { usageRow } from "../../supabase/functions/_shared/usage.ts";
-
-export const OBJETO_MAX_PX = 512;
 
 export function parseArgs(argv) {
   const o = { confirm: false, solo: null, ids: null, limite: Infinity, forzar: false, maxUsd: 60, modelo: null };
@@ -56,20 +53,8 @@ export function buildPlan(opts, existing, usdPorImagen) {
   };
 }
 
-/** Bytes PNG listos para subir: fondo 4:5 opaco u objeto recortado (transparente, máx. 512 px). */
-export async function processImage(kind, pngBytes) {
-  const raster = await decodePng(pngBytes);
-  if (kind === "fondo") {
-    const out = cover(raster, CANVAS.w, CANVAS.h);
-    return { bytes: await encodePng(out), width: out.width, height: out.height };
-  }
-  const { image, report } = chromaCutout(raster);
-  if (!report.ok) throw new Error(`recorte: ${report.motivo}`);
-  let obj = trimToContent(image);
-  const k = Math.min(1, OBJETO_MAX_PX / Math.max(obj.width, obj.height));
-  if (k < 1) obj = resize(obj, obj.width * k, obj.height * k);
-  return { bytes: await encodePng(obj), width: obj.width, height: obj.height };
-}
+/** Re-exporta el procesado compartido (lo usa también la función avatar-assets-gen). */
+export { processImage };
 
 /**
  * deps: { log, listAssets(): Promise<Array<{id, prompt_hash}>>, generate(prompt): Promise<ImageResult>,
@@ -96,37 +81,11 @@ export async function run(argv, deps) {
     deps.log(`El costo estimado rebasa --max-usd=${opts.maxUsd}. Sube el tope o usa --limite.`);
     return { ok: false, code: 3, plan };
   }
-  let generados = 0, fallidos = 0, gastado = 0;
-  for (const a of plan.pendientes) {
-    try {
-      const res = await deps.generate(a.prompt, models);
-      for (const u of Array.isArray(res.usage) ? res.usage : [res.usage]) if (u) { deps.logUsage(u); gastado += Number(u.cost_estimate_usd) || 0; }
-      if (!res.ok) {
-        deps.log(`✗ ${a.id}: ${res.code}`);
-        fallidos++;
-        if (res.code === "sin_creditos" || res.code === "saturado") { deps.log("Se detiene: el servicio de imágenes no está disponible."); break; }
-        continue;
-      }
-      const raw = res.url.startsWith("data:") ? decodeDataUrl(res.url)?.bytes ?? null : await deps.fetchBytes(res.url);
-      if (!raw) throw new Error("imagen ilegible");
-      const out = await processImage(a.kind, raw);
-      await deps.upload(a.path, out.bytes);
-      const [kindPais, souvenir] = a.kind === "fondo"
-        ? [FONDOS.find((f) => f.id === a.id)?.pais ?? null, null]
-        : [null, OBJETOS.find((o) => o.id === a.id)?.souvenir ?? null];
-      await deps.upsertAsset({
-        id: a.id, kind: a.kind, pais: kindPais, souvenir_key: souvenir, path: a.path, prompt_hash: a.hash,
-        width: out.width, height: out.height, bytes: out.bytes.length, model: res.model, updated_at: new Date().toISOString(),
-      });
-      generados++;
-      deps.log(`✓ ${a.id} (${out.width}×${out.height}, ${Math.round(out.bytes.length / 1024)} KB)`);
-    } catch (e) {
-      fallidos++;
-      deps.log(`✗ ${a.id}: ${e?.message ?? e}`);
-    }
-  }
-  deps.log(`Listo: ${generados} generados, ${fallidos} fallidos, ~${gastado.toFixed(2)} USD.`);
-  return { ok: fallidos === 0, generados, fallidos, gastado, plan };
+  const lote = await generarLote(plan.pendientes.map((x) => x.id), existing, { models, maxUsd: Infinity, forzar: opts.forzar }, deps);
+  const generados = lote.resultados.filter((r) => r.estado === "generado").length;
+  const fallidos = lote.resultados.filter((r) => r.estado === "error").length;
+  deps.log(`Listo: ${generados} generados, ${fallidos} fallidos, ~${lote.gastado.toFixed(2)} USD.`);
+  return { ok: fallidos === 0, generados, fallidos, gastado: lote.gastado, plan, resultados: lote.resultados };
 }
 
 async function realDeps() {
@@ -158,7 +117,7 @@ async function realDeps() {
       const { error } = await db.from("avatar_assets").upsert(row, { onConflict: "id" });
       if (error) throw new Error(`avatar_assets: ${error.message}`);
     },
-    logUsage: (u) => { if (db) db.from("ai_usage_log").insert(usageRow({ ...u, function: "avatar-assets" })).then(() => {}, () => {}); },
+    logUsage: (u) => { if (db) db.from("ai_usage_log").insert(usageRow(u)).then(() => {}, () => {}); },
   };
 }
 

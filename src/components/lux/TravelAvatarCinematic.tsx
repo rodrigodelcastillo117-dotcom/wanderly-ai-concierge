@@ -50,7 +50,8 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
         supabase.from("trips").select("destino, pais_destino, fecha_salida, fecha_regreso")
           .eq("user_id", user.id).lt("fecha_salida", today)
           .order("fecha_salida", { ascending: false }).limit(1),
-        (supabase as any).from("avatar_profiles").select("version, cuerpo_url, capas").eq("user_id", user.id).maybeSingle(),
+        // select("*"): funciona igual antes y después de la migración de capas.
+        (supabase as any).from("avatar_profiles").select("*").eq("user_id", user.id).maybeSingle(),
       ]);
       if (cancelled) return;
       const t = trips?.[0] ?? null;

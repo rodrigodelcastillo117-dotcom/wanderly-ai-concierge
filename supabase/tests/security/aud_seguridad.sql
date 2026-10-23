@@ -107,7 +107,11 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- trip_split_can_edit / trip_split_payment_party_ok: las usan las políticas; responden por auth.uid().
   -- Pruebas de abuso en supabase/tests/gastos.
   ('trip_split_members'),('trip_split_sync_members'),('trip_split_claim_guest'),('trip_split_unlink'),
-  ('trip_split_can_edit'),('trip_split_payment_party_ok')),
+  ('trip_split_can_edit'),('trip_split_payment_party_ok'),
+  -- Avatar por capas (20261027120000_avatar_inventario): sin parámetros, solo responde true/false por auth.uid()
+  -- (bandera avatar_capas_enabled: false | true | "founders"); no expone la bandera ni la lista de founders.
+  -- avatar_capas_para(uuid) es solo de service_role. Pruebas en supabase/tests/avatar_inventario (AI31-AI36).
+  ('avatar_capas_activo')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)

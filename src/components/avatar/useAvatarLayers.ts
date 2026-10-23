@@ -30,7 +30,7 @@ export function assetUrl(path: string, version: string): string {
 /** Respuesta de "estado" → estado tipado (tolerante a campos ausentes). */
 export function parseLayersState(d: unknown): LayersState | null {
   const o = d as Record<string, unknown> | null;
-  if (!o || o.ok !== true) return null;
+  if (!o || o.ok !== true || o.habilitado === false) return null;
   const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
   const nums = (v: unknown, n: number) => (Array.isArray(v) && v.length === n && v.every((x) => typeof x === "number") ? (v as number[]) : null);
   const c = nums(o.cara, 3);
@@ -62,6 +62,10 @@ export function useAvatarLayers(enabled: boolean) {
     if (!uid || !enabled) { setLoading(false); return; }
     let cancelled = false;
     (async () => {
+      // La bandera la decide el servidor (avatar_capas_activo: false | true | solo fundadores).
+      const flag = await (supabase as any).rpc("avatar_capas_activo");
+      if (cancelled) return;
+      if (flag?.error || flag?.data !== true) { setState(null); setLoading(false); return; }
       const [estado, rows] = await Promise.all([
         supabase.functions.invoke("avatar-capas", { body: { action: "estado" } }),
         (supabase as any).from("avatar_assets").select("id, prompt_hash"),
