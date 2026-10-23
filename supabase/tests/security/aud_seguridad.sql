@@ -94,7 +94,11 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   ('amigo_viajes'),('amigo_actividad'),('amigos_actividad'),('amigos_avatares'),('social_puede_ver_objeto'),
   ('mi_privacidad_social'),('guardar_privacidad_social'),('mi_actividad_social'),('ocultar_social'),
   ('compartir_momento_social'),('recomendar_lugar'),('borrar_recomendacion'),('reaccionar_actividad'),
-  ('preguntar_actividad'),('responder_pregunta_social')),
+  ('preguntar_actividad'),('responder_pregunta_social'),
+  -- Recuerdos (20261027100000): ambas responden solo por auth.uid() (recuerdo_object_visible exige p_uid =
+  -- auth.uid()); true solo si quien pregunta y quien subió son miembros actuales del viaje y el álbum está
+  -- compartido. Las usan las políticas de recuerdos y del bucket recuerdos. Pruebas en supabase/tests/recuerdos.
+  ('recuerdo_shared_with_me'),('recuerdo_object_visible')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)

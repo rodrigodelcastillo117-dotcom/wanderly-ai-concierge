@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/BackButton";
@@ -20,6 +20,8 @@ const links = [
   { to: "/dashboard/viajes", icon: Map, label: "Mis viajes" },
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
+  // Recuerdos: fotos y videos por fecha y viaje (de ahí saca las fotos IATOS Wrapped).
+  { to: "/dashboard/recuerdos", icon: Images, label: "Recuerdos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
   // Documentos, membresías, tarjetas y seguros (antes "Beneficios").
@@ -41,6 +43,7 @@ export const mobilePrimaryNav = [
 export const mobileMoreNav = [
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
+  { to: "/dashboard/recuerdos", icon: Images, label: "Recuerdos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Gastos y ahorro" },
   { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },

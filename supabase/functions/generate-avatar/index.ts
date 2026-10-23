@@ -24,6 +24,8 @@ import {
   admin, coreDeps, imageBytes, PRIVATE_BUCKET, publishAvatar, rebuildWithHistory, runInBackground,
 } from "../_shared/avatar-runtime.ts";
 import { deleteAvatar } from "../_shared/avatar-delete.ts";
+import { alertAiCredits, type AiCreditsReason } from "../_shared/ai-credits-alert.ts";
+import { escapeHtml, layout, sendEmail } from "../_shared/email.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -50,6 +52,25 @@ function json(b: unknown, status = 200) {
   return new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 const fail = (code: string, status: number) => json({ ok: false, code, error: MESSAGES[code] ?? MESSAGES.error }, status);
+
+/**
+ * Sin créditos (o sin llave) del servicio de imágenes: la persona ve el mensaje amable de siempre y el
+ * equipo recibe UNA campana al día (más un correo a HEALTH_ALERT_EMAIL si está configurado). En segundo
+ * plano: no retrasa la respuesta. Ver _shared/ai-credits-alert.ts.
+ */
+function alertNoCredits(db: SupabaseClient, reason: AiCreditsReason) {
+  const emailTo = Deno.env.get("RESEND_API_KEY")
+    ? (Deno.env.get("HEALTH_ALERT_EMAIL") ?? "").split(",").map((x) => x.trim()).filter((x) => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(x))
+    : [];
+  runInBackground(alertAiCredits(reason, {
+    rpc: (service, r) => db.rpc("alert_admins_ai_credits", { p_service: service, p_reason: r }),
+    emailTo,
+    sendEmail: async (to, subject, text) => (await sendEmail({
+      to, subject, text, html: layout(subject, `<p>${escapeHtml(text).replace(/\n/g, "<br>")}</p>`),
+    })).ok,
+    log: (...a) => console.error(...a),
+  }).then((status) => console.warn("generate-avatar: sin créditos de IA, aviso:", status)));
+}
 
 /** "Borrar mi avatar" con la llave de servicio (profiles.avatar_url solo la escribe el servidor). */
 function removeAvatar(db: SupabaseClient, uid: string) {
@@ -123,7 +144,10 @@ Deno.serve(async (req) => {
       if (!r.ok) return json({ ok: false, error: "No pudimos borrar tu avatar. Intenta de nuevo." }, 500);
       return json({ ok: true, borrados: r.removed });
     }
-    if (!Deno.env.get("LOVABLE_API_KEY")) return fail("sin_creditos", 503);
+    if (!Deno.env.get("LOVABLE_API_KEY")) {
+      alertNoCredits(db, "sin_llave");
+      return fail("sin_creditos", 503);
+    }
 
     if (body?.action === "elegir") {
       const id = String(body?.variant_id ?? "");
@@ -172,7 +196,10 @@ Deno.serve(async (req) => {
       builder,
       variants: 2,
     });
-    if (!res.ok) return fail(res.code, res.code === "limite_diario" ? 429 : 502);
+    if (!res.ok) {
+      if (res.code === "sin_creditos") alertNoCredits(db, "sin_saldo");
+      return fail(res.code, res.code === "limite_diario" ? 429 : 502);
+    }
 
     const out: Array<{ id: string; url: string; score: number | null }> = [];
     for (const v of res.variants) {

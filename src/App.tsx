@@ -38,6 +38,8 @@ const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
 const Social = lazyWithRetry(() => import("./pages/Social"));
 const FriendProfile = lazyWithRetry(() => import("./pages/FriendProfile"));
 const Gastos = lazyWithRetry(() => import("./pages/Gastos"));
+// Recuerdos: fotos y videos por fecha y viaje (calendario y álbumes).
+const Recuerdos = lazyWithRetry(() => import("./pages/Recuerdos"));
 // IATOS Wrapped ("Tu año en viajes"): pantalla completa tipo stories, su propio chunk.
 const Wrapped = lazyWithRetry(() => import("./pages/Wrapped"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound.tsx"));
@@ -161,6 +163,7 @@ const App = () => (
             <Route path="/dashboard/social/amigo/:id" element={<ProtectedRoute><FriendProfile /></ProtectedRoute>} />
             <Route path="/dashboard/smart-spend" element={<Navigate to="/dashboard/gastos" replace />} />
             <Route path="/dashboard/gastos" element={<ProtectedRoute><Gastos /></ProtectedRoute>} />
+            <Route path="/dashboard/recuerdos" element={<ProtectedRoute><Recuerdos /></ProtectedRoute>} />
             <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
             <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
             <Route path="/dashboard/admin" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />

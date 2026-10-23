@@ -1,8 +1,9 @@
 // Carga de IATOS Wrapped desde Supabase. Todo sale de consultas que ya respetan RLS (cada tabla solo
-// devuelve filas de quien pregunta) más la RPC wrapped_companions (solo nombres de quienes compartieron
+// devuelve filas de quien pregunta; también las fotos de Recuerdos del año) más la RPC wrapped_companions (solo nombres de quienes compartieron
 // viaje con auth.uid(); migración 20261026310000). Las fotos están en buckets PRIVADOS: se piden enlaces
 // firmados de 1 h, igual que Mejores momentos y el diario. El cliente es inyectable para las pruebas.
 import { JOURNAL_BUCKET, MOMENTS_BUCKET, signPhotoPaths } from "@/lib/photoUpload";
+import { RECUERDOS_BUCKET } from "@/lib/recuerdos/model";
 import { fetchFxTable, type FxTable } from "@/lib/fx";
 import {
   computeWrapped, geocodeQueries, geoKey, tripsInYear, yearsWithTrips,
@@ -77,7 +78,7 @@ export async function loadWrapped(
 
   const ids = yearTrips.map((t) => t.id);
   const from = `${year}-01-01`, to = `${year}-12-31`;
-  const [momR, jouR, expR, visR, plcR, ubR, compR] = await Promise.all([
+  const [momR, jouR, expR, visR, plcR, ubR, compR, recR] = await Promise.all([
     client.from("travel_moments").select("id, trip_id, caption, destino, created_at, tags, image_path, image_url").eq("user_id", userId).order("created_at", { ascending: true }).limit(400),
     client.from("trip_journal_entries").select("id, trip_id, text, created_at, photo_path").eq("author_id", userId).in("trip_id", ids).limit(400),
     client.from("expenses").select("amount, currency, category, expense_date").eq("user_id", userId).gte("expense_date", from).lte("expense_date", to).limit(2000),
@@ -85,15 +86,21 @@ export async function loadWrapped(
     client.from("visited_places").select("visited_at").eq("user_id", userId).eq("status", "visited").gte("visited_at", from).lte("visited_at", `${to}T23:59:59.999Z`).limit(2000),
     client.from("user_badges").select("badge_id, unlocked_at").eq("user_id", userId),
     client.rpc("wrapped_companions", { p_year: year }),
+    // Recuerdos (fotos subidas por la persona) tomados ese año; las favoritas primero.
+    client.from("recuerdos").select("id, trip_id, taken_on, favorite, storage_path").eq("user_id", userId).eq("media_type", "foto")
+      .gte("taken_on", from).lte("taken_on", to).order("favorite", { ascending: false }).limit(400),
   ]);
 
   type M = { id: string; trip_id: string | null; caption: string | null; destino: string | null; created_at: string; tags: string[] | null; image_path: string | null; image_url: string | null };
   type J = { id: string; trip_id: string; text: string | null; created_at: string; photo_path: string | null };
   const moments = rows<M>(momR);
   const journal = rows<J>(jouR);
-  const [momSigned, jouSigned] = await Promise.all([
+  type R = { id: string; trip_id: string | null; taken_on: string; favorite: boolean | null; storage_path: string };
+  const recuerdos = rows<R>(recR);
+  const [momSigned, jouSigned, recSigned] = await Promise.all([
     signPhotoPaths(client as never, MOMENTS_BUCKET, moments.map((m) => m.image_path)),
     signPhotoPaths(client as never, JOURNAL_BUCKET, journal.map((j) => j.photo_path)),
+    signPhotoPaths(client as never, RECUERDOS_BUCKET, recuerdos.map((r) => r.storage_path)),
   ]);
 
   const ub = rows<{ badge_id: string; unlocked_at: string | null }>(ubR).filter((b) => String(b.unlocked_at ?? "").startsWith(String(year)));
@@ -112,6 +119,7 @@ export async function loadWrapped(
     ...base,
     moments: moments.map((m) => ({ ...m, photoUrl: (m.image_path && momSigned.get(m.image_path)) || (m.image_path ? null : m.image_url) || null })),
     journal: journal.map((j) => ({ ...j, photoUrl: (j.photo_path && jouSigned.get(j.photo_path)) || null })),
+    recuerdos: recuerdos.map((r) => ({ id: r.id, trip_id: r.trip_id, taken_on: r.taken_on, favorite: !!r.favorite, photoUrl: recSigned.get(r.storage_path) ?? null })),
     expenses,
     visits: rows(visR),
     visitedPlaces: rows(plcR),
