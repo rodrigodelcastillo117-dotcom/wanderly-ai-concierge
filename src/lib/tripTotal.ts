@@ -21,6 +21,8 @@ export type TripTotalSummary = {
   complete: boolean;
   /** Lo que falta elegir: "vuelo", "hotel en Florencia"… */
   missing: string[];
+  /** Renglones sin precio ("por cotizar"): no están sumados en el total. */
+  porCotizar: string[];
   /** Rubros cuyo precio es estimado o de referencia ("comida", "transporte local"…). */
   estimatedIn: string[];
   /** Claves del desglose con precio estimado (para marcarlas en el desglose). */
@@ -51,6 +53,8 @@ export type TripTotalInput = {
   items: PurchaseItem[];
   /** Estado de compra de cada elemento (itemPurchaseState con las marcas del grupo). */
   itemState?: (it: PurchaseItem) => PurchaseState;
+  /** Renglones que la cotización dejó "por cotizar" (trip_quotes.sources.por_cotizar). */
+  porCotizar?: string[] | null;
   now?: Date;
 };
 
@@ -71,7 +75,7 @@ export function listaHumana(xs: string[]): string {
   return `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`;
 }
 
-export function tripTotalSummary({ trip, sel, desglose, items, itemState, now = new Date() }: TripTotalInput): TripTotalSummary {
+export function tripTotalSummary({ trip, sel, desglose, items, itemState, porCotizar: pendingKeys, now = new Date() }: TripTotalInput): TripTotalSummary {
   const total = Object.values(desglose ?? {}).reduce((s: number, v) => s + (Number(v) || 0), 0);
   const state = (it: PurchaseItem): PurchaseState => (itemState ? itemState(it) : "pendiente");
   const bought = items.filter((it) => state(it) !== "pendiente" && !(it.optional && !(Number(it.price) > 0)));
@@ -97,7 +101,15 @@ export function tripTotalSummary({ trip, sel, desglose, items, itemState, now = 
   // "vuelo y hoteles" cuando no ha elegido ningún hotel de varias ciudades.
   if (multi && hotelMissing.length > 1 && hotelMissing.length === choices.filter((c) => c.options.length > 0).length) missing.push("hoteles");
   else missing.push(...hotelMissing);
-  const complete = missing.length === 0;
+  // Por cotizar: sin precio (y no "ya lo tengo"); si la persona ya eligió una opción con precio, ya no falta.
+  const porCotizar: string[] = [];
+  const skippedHotels = sel.selHospedaje === -2 || (multi && choices.length > 0 && choices.every((c) => c.index === -2));
+  for (const k of pendingKeys ?? []) {
+    if (Number(desglose?.[k]) > 0) continue;
+    if (k === "vuelos" && sel.selVuelo !== -2) porCotizar.push("el vuelo");
+    if (k === "hospedaje" && !skippedHotels) porCotizar.push("el hospedaje");
+  }
+  const complete = missing.length === 0 && porCotizar.length === 0;
 
   // ── Qué parte del total es estimada ───────────────────────────────────────────────────────
   const estimatedIn: string[] = [];
@@ -141,15 +153,16 @@ export function tripTotalSummary({ trip, sel, desglose, items, itemState, now = 
   const state_: TotalState = bought.length > 0 ? "comprado" : complete ? "seleccion" : "estimado";
 
   const title = complete ? "Total de tu selección" : "Total estimado";
+  const faltaCotizar = porCotizar.length ? `Falta cotizar ${listaHumana(porCotizar)}: no está sumado al total.` : "";
   const hint = complete
     ? estimatedIn.length ? `Incluye precios estimados en: ${listaHumana(estimatedIn)}.` : "Con los precios consultados de lo que elegiste."
-    : `Elige ${listaHumana(missing)} para ver el total real.`;
+    : [missing.length ? `Elige ${listaHumana(missing)} para ver el total real.` : "", faltaCotizar].filter(Boolean).join(" ");
   const barLabel = state_ === "comprado"
     ? `Total ${fmtTotalMXN(total)} · falta ${fmtTotalMXN(pending)}`
     : `Total ${fmtTotalMXN(total)} · ${complete ? "tu selección" : "estimado"}`;
 
   const barTotal = `Total ${fmtTotalMXN(total)}`;
   const barNote = state_ === "comprado" ? `Falta ${fmtTotalMXN(pending)} · ya compraste ${fmtTotalMXN(paid)}`
-    : complete ? "Tu selección" : "Estimado · falta elegir";
-  return { state: state_, total, complete, missing, estimatedIn, estimatedKeys, paid, pending, boughtCount: bought.length, title, hint, barLabel, barTotal, barNote };
+    : complete ? "Tu selección" : porCotizar.length && !missing.length ? `Estimado · falta cotizar ${listaHumana(porCotizar)}` : "Estimado · falta elegir";
+  return { state: state_, total, complete, missing, porCotizar, estimatedIn, estimatedKeys, paid, pending, boughtCount: bought.length, title, hint, barLabel, barTotal, barNote };
 }

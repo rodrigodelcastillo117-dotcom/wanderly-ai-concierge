@@ -1053,8 +1053,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     if (budget.desglose.comida < (Number(a.desglose_presupuesto?.comida) || 0) && !budget.exclusions.comida) {
       console.warn("analizar-viaje: comida fuera de rango, acotada", { destino: body.destino, declarada: a.desglose_presupuesto?.comida, techo: budget.desglose.comida });
     }
-    if (!budget.exclusions.vuelos && !(Number(a.desglose_presupuesto?.vuelos) > 0)) {
-      console.warn("analizar-viaje: el modelo dejó vuelos en 0 sin exclusión detectada; se respeta", body.destino);
+    if (budget.porCotizar.length) {
+      console.warn("analizar-viaje: renglones en 0 sin exclusión ni opción en vivo; quedan por cotizar", budget.porCotizar, body.destino);
     }
     a.desglose_presupuesto = budget.desglose;
     if (!budget.valido) {
@@ -1151,6 +1151,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         amount: (Number(c?.precio_por_persona) || 0) * body.num_viajeros,
       })),
       sources: {
+        // Renglones "por cotizar" (sin exclusión ni precio en vivo): no suman y la página dice que faltan.
+        por_cotizar: budget.porCotizar,
         vuelos: budget.vueloReferencia?.fuente_precio ?? "estimado",
         hospedaje: budget.hotelReferencia?.fuente_precio ?? "estimado",
         tours: tripadvisorLive ? placesSource : "estimado",

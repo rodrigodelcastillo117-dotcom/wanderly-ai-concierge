@@ -403,6 +403,7 @@ const TripDetail = () => {
   const totalSummary = tripTotalSummary({
     trip, sel: { selVuelo, selHospedaje, selTours, selHoteles }, desglose: computedDesglose, items: buyItems,
     itemState: (it) => itemPurchaseState(it, purchaseMarks.rows, purchaseMarks.marks),
+    porCotizar: Array.isArray(quote?.sources?.por_cotizar) ? quote!.sources!.por_cotizar : null,
   });
   const quotedTotalValue = tripTotals(trip, quoteTravelers, null).quotedTotal;
   // Los renglones de la cotización solo se muestran si suman lo mismo que el total de arriba (si no,

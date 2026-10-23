@@ -93,6 +93,24 @@ describe("tripTotalSummary (lógica)", () => {
     expect(s.estimatedIn.slice(0, 3)).toEqual(["hotel en Roma", "hotel en Florencia", "hotel en Venecia"]);
   });
 
+  it("renglón 'por cotizar' de la cotización: el total es estimado y dice que falta (no lo cuenta como $0)", () => {
+    const sel = { selVuelo: -2, selHospedaje: -1, selTours: [] as number[], selHoteles: ALL_HOTELS };
+    const items = buildBuyFlow(CASO_TRIP, sel).items;
+    const desglose = { ...computeTripDesglose(CASO_TRIP, { ...sel, nochesHospedaje: 10, selTours: new Set() }, 2), comida: 0 };
+    // "Ya tengo vuelo" (-2): el vuelo por cotizar ya no falta; la comida no es vuelo/hospedaje.
+    expect(tripTotalSummary({ trip: CASO_TRIP, sel, desglose, items, porCotizar: ["vuelos"], now: NOW }).porCotizar).toEqual([]);
+    const sel2 = { ...sel, selVuelo: -1 };
+    const d2 = { ...desglose, vuelos: 0 };
+    const s = tripTotalSummary({ trip: CASO_TRIP, sel: sel2, desglose: d2, items: buildBuyFlow(CASO_TRIP, sel2).items, porCotizar: ["vuelos"], now: NOW });
+    expect(s.porCotizar).toEqual(["el vuelo"]);
+    expect(s.complete).toBe(false);
+    expect(s.title).toBe("Total estimado");
+    expect(s.hint).toBe("Elige vuelo para ver el total real. Falta cotizar el vuelo: no está sumado al total.");
+    expect(s.total).toBe(Object.values(d2).reduce((a, b) => a + b, 0));
+    // Con hoteles elegidos y el vuelo con precio, ya no falta nada por cotizar.
+    expect(tripTotalSummary({ trip: CASO_TRIP, sel: sel2, desglose: { ...d2, vuelos: 40000 }, items: [], porCotizar: ["vuelos"], now: NOW }).porCotizar).toEqual([]);
+  });
+
   it("ya comprado: 'Ya compraste $X · Falta $Y' y las dos partes suman el total", () => {
     const { s } = summaryFor({ selVuelo: -2, selHospedaje: -1, selTours: [], selHoteles: ALL_HOTELS }, (it) => it.kind === "hospedaje" && it.city === "Roma");
     expect(s.state).toBe("comprado");
