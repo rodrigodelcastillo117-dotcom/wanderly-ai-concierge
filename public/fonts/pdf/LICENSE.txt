@@ -1,0 +1,4 @@
+Fuentes del PDF del viaje (src/lib/tripPdf.ts): Fraunces (c) The Fraunces Project Authors y Manrope (c) The
+Manrope Project Authors, derivadas de los WOFF2 de public/fonts (Google Fonts) con scripts/pdf/build-pdf-fonts.py:
+instancias estáticas por peso, latin + latin-ext (Manrope) y los signos → ↗ ★ ☆ ✓ dibujados para el PDF.
+Licencia: SIL Open Font License 1.1 — https://openfontlicense.org
