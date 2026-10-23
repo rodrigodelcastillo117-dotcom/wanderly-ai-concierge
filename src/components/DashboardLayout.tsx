@@ -144,10 +144,20 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           ))}
         </nav>
 
-        {/* Tu tarjeta de rango (mini): al tocarla se abre grande con el detalle. */}
-        <div className="mx-3 mb-2.5" data-testid="sidebar-member-card">
-          <MemberCardButton card={card} loading={cardLoading} testId="sidebar-card" />
-        </div>
+        {/* Tu tarjeta de rango, chica para no tapar el menú: al tocarla se abre grande con el detalle. */}
+        {card || cardLoading ? (
+          <div className="mx-3 mb-2 flex items-center gap-2.5" data-testid="sidebar-member-card">
+            <div className="w-[76px] shrink-0">
+              <MemberCardButton card={card} loading={cardLoading} testId="sidebar-card" />
+            </div>
+            {card ? (
+              <div className="min-w-0 leading-tight">
+                <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground">Tu tarjeta</p>
+                <p className="text-[12px] text-foreground truncate">{tierText(card.tier).name}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Estado de membresía */}
         <Link

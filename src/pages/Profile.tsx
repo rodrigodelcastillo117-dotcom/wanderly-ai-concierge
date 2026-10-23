@@ -29,6 +29,8 @@ import { AvatarCircle } from "@/components/avatar/AvatarCircle";
 import { PriveSeal } from "@/components/PriveSeal";
 import { notifyAvatarUpdated, useMyAvatar } from "@/hooks/useMyAvatar";
 import { usePriveSeal } from "@/hooks/usePriveSeal";
+import { useMemberCard } from "@/lib/memberCard";
+import { MemberCardButton } from "@/components/membercard/MemberCardButton";
 import { DNA_ARCHETYPES } from "@/lib/travelDna";
 import { useAutoEvolveAvatar } from "@/components/avatar/useAutoEvolveAvatar";
 import { ProfileWrappedLink } from "@/components/wrapped/WrappedPromo";
@@ -40,6 +42,8 @@ const Profile = () => {
   // Una sola fuente del avatar para toda la app (antes aquí salía la "R" y en el DNA la imagen).
   const { url: avatarUrl } = useMyAvatar();
   const prive = usePriveSeal();
+  // Tu tarjeta de rango (la calcula el servidor: my_member_card), junto al avatar.
+  const { card, loading: cardLoading } = useMemberCard(user?.id ?? null);
   const [fullName, setFullName] = useState<string>("");
   const [openAvatar, setOpenAvatar] = useState(false);
   const [confirmDeleteAvatar, setConfirmDeleteAvatar] = useState(false);
@@ -177,6 +181,12 @@ const Profile = () => {
               )}
             </div>
           </div>
+          {/* Tu tarjeta de rango a un lado del avatar (al tocarla se abre grande). */}
+          {card || cardLoading ? (
+            <div className="w-[280px] max-w-full shrink-0 self-center md:-rotate-[2deg] motion-reduce:rotate-0 drop-shadow-[0_18px_24px_rgba(0,0,0,0.5)]" data-testid="profile-member-card">
+              <MemberCardButton card={card} loading={cardLoading} testId="profile-card" />
+            </div>
+          ) : null}
         </section>
 
         {/* IATOS Wrapped: tu año en viajes */}
