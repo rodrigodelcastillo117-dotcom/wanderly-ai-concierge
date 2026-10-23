@@ -13,7 +13,7 @@
 //      nunca "reservé", aviso si una búsqueda no trajo datos, transfers con datos del viaje.
 
 import { splitAnswer } from "./stream.ts";
-import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enforceFlightSellerHonesty, enrichCardLinks, eventCards, MAX_CARDS, type ToolRun, validateCards } from "./cards.ts";
+import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enforceFlightSellerHonesty, enrichCardLinks, eventCards, MAX_CARDS, tourCards, type ToolRun, validateCards } from "./cards.ts";
 import { correctFailureClaims, enforceNoFakeBooking, labelUnverifiedFacts } from "./guard.ts";
 import { type ActionContext, type ProposedAction, restaurantBookingLinks, validateAction, validateActions } from "./actions.ts";
 import { directionsLink, uberLink, type TurnPlan } from "./planner.ts";
@@ -69,7 +69,9 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
     });
   // Event Radar: las cards de eventos salen SOLO de search_events de este turno (el modelo no las escribe).
   const events = eventCards(i.toolRuns, (i.now ?? new Date()).toISOString());
-  const cards = [...events, ...enrichCardLinks(merged, ev, {
+  // Tours de Viator: igual, solo de search_tours de este turno.
+  const tours = tourCards(i.toolRuns, (i.now ?? new Date()).toISOString());
+  const cards = [...events, ...tours, ...enrichCardLinks(merged, ev, {
     directions: (t) => directionsLink(t),
     ride: (t) => uberLink(t),
     booking: (v) => restaurantBookingLinks(v),

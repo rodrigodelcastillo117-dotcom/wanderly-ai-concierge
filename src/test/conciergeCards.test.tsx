@@ -49,6 +49,8 @@ const SAMPLE: Record<string, ConciergeCard> = {
   jet: { type: "jet", title: "Aviación privada", route: "MEX→TEB", estado_dato: "SOLICITUD_HUMANA" },
   event: { type: "event", title: "La Traviata", subtitle: "mié 9 dic · 19:30", meta: "Teatro Real", fuente: "google_events", consultado_at: new Date().toISOString(),
     links: [{ kind: "tickets", label: "Boletos en Teatro Real", url: "https://www.teatroreal.es/es/espectaculo/traviata" }] },
+  tour: { type: "tour", title: "Coliseo con guía", subtitle: "3 h", fuente: "viator", provider: "Viator", consultado_at: new Date().toISOString(), price: 1234, currency: "MXN", price_basis: "desde",
+    cta_label: "Ver en Viator", cta_action: "https://www.viator.com/tours/Rome/Colosseum/d511-12345P1?mcid=42383&pid=P00327354&medium=api" },
 };
 
 beforeEach(() => { invoke.mockReset(); inserts.length = 0; updates.length = 0; });
