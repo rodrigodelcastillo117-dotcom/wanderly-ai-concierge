@@ -82,3 +82,27 @@ export function daysFromToday(value?: string | null, now: Date = new Date()): nu
   if (!parseLocalDate(value)) return null;
   return diffLocalDays(localISODate(now), value);
 }
+
+/**
+ * Rango legible de un viaje: "22 oct – 1 nov 2026 · 10 noches" (mismo formato que formatLocalDate).
+ * Mismo mes: "10 – 15 nov 2026"; años distintos: "28 dic 2026 – 3 ene 2027". Si falta una fecha se
+ * muestra solo la que hay, sin inventar la otra ("Desde 22 oct 2026 · sin fecha de regreso").
+ * null si no hay ninguna fecha válida.
+ */
+export function formatTripDateRange(start?: string | null, end?: string | null, locale = "es-MX"): string | null {
+  const s = parseLocalDate(start);
+  const e = parseLocalDate(end);
+  const full = (v?: string | null) => formatLocalDate(v, { day: "numeric", month: "short", year: "numeric" }, locale);
+  if (!s && !e) return null;
+  if (s && !e) return `Desde ${full(start)} · sin fecha de regreso`;
+  if (!s && e) return `Hasta ${full(end)} · sin fecha de salida`;
+  const nights = diffLocalDays(start, end);
+  if (nights < 0) return `${full(start)} – ${full(end)}`;
+  if (nights === 0) return full(start);
+  const sameYear = s!.getFullYear() === e!.getFullYear();
+  const sameMonth = sameYear && s!.getMonth() === e!.getMonth();
+  const left = sameMonth
+    ? String(s!.getDate())
+    : formatLocalDate(start, sameYear ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", year: "numeric" }, locale);
+  return `${left} – ${full(end)} · ${nights} ${nights === 1 ? "noche" : "noches"}`;
+}

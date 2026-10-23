@@ -55,9 +55,53 @@ describe("respeta las exclusiones del usuario (D-05)", () => {
     expect(r.desglose.vuelos).toBe(0);
     expect(r.desglose.hospedaje).toBe(25000);
   });
-  it("vuelos en 0 del modelo se quedan en 0", () => {
+  it("con exclusión, el 0 se respeta aunque haya vuelos y hoteles EN VIVO", () => {
+    const live = analysis({
+      desglose_presupuesto: { vuelos: 0, hospedaje: 0, comida: 9000 },
+      vuelos: [{ tier: "equilibrio", precio_por_persona: 21000, fuente_precio: "google_flights", estado_dato: "CONSULTADO_EN_VIVO" }],
+      hospedaje: [{ nombre: "Hotel Vivo", precio_por_noche: 4000, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO" }],
+    });
+    const r = reconcileBudget(live, { dias: 5, viajeros: 2, notas: "Ya tengo vuelos y sin hotel, me quedo con familia" });
+    expect(r.exclusions).toMatchObject({ vuelos: true, hospedaje: "all" });
+    expect(r.desglose.vuelos).toBe(0);
+    expect(r.desglose.hospedaje).toBe(0);
+    expect(r.porCotizar).toEqual([]);
+    expect(r.procedencia).toEqual({ vuelos: null, hospedaje: null });
+  });
+  it("vuelos en 0 del modelo SIN exclusión y CON opción en vivo → precio en vivo de la opción equilibrio, con su procedencia", () => {
+    const r = reconcileBudget(analysis({
+      desglose_presupuesto: { vuelos: 0, hospedaje: 20000, comida: 9000 },
+      vuelos: [
+        { tier: "ahorro", aerolinea: "Volaris", precio_por_persona: 15000, fuente_precio: "travelpayouts", estado_dato: "ESTIMADO" },
+        { tier: "equilibrio", aerolinea: "Iberia", precio_por_persona: 21000, fuente_precio: "google_flights", estado_dato: "CONSULTADO_EN_VIVO", consultado_at: "2026-10-22T15:00:00Z" },
+        { tier: "premium", aerolinea: "Lufthansa", precio_por_persona: 40000, fuente_precio: "google_flights", estado_dato: "CONSULTADO_EN_VIVO" },
+      ],
+    }), { dias: 5, viajeros: 2 });
+    expect(r.desglose.vuelos).toBe(42000);
+    expect(r.porCotizar).toEqual([]);
+    expect(r.vueloReferencia.aerolinea).toBe("Iberia");
+    expect(r.procedencia.vuelos).toEqual({ fuente: "google_flights", estado: "CONSULTADO_EN_VIVO", consultado_at: "2026-10-22T15:00:00Z", nombre: "Iberia" });
+    expect(r.total).toBe(Object.values(r.desglose).reduce((a, b) => a + b, 0));
+  });
+  it("sin equilibrio en vivo usa la opción en vivo de precio medio (una caché de Travelpayouts no cuenta como en vivo)", () => {
+    const r = reconcileBudget(analysis({
+      desglose_presupuesto: { vuelos: 0, hospedaje: 20000 },
+      vuelos: [
+        { tier: "equilibrio", precio_por_persona: 18000, fuente_precio: "travelpayouts", estado_dato: "ESTIMADO" },
+        { tier: "ahorro", precio_por_persona: 20000, fuente_precio: "google_flights", estado_dato: "CONSULTADO_EN_VIVO" },
+        { tier: "premium", precio_por_persona: 30000, fuente_precio: "google_flights", estado_dato: "CONSULTADO_EN_VIVO" },
+        { tier: "premium", precio_por_persona: 50000, fuente_precio: "google_flights", estado_dato: "CONSULTADO_EN_VIVO" },
+      ],
+    }), { dias: 5, viajeros: 2 });
+    expect(r.desglose.vuelos).toBe(60000);
+  });
+  it("vuelos en 0 SIN exclusión y SIN opción en vivo → 'por cotizar': no suma (no es $0) y se dice que falta", () => {
     const r = reconcileBudget(analysis({ desglose_presupuesto: { vuelos: 0, hospedaje: 20000 } }), { dias: 5, viajeros: 2 });
     expect(r.desglose.vuelos).toBe(0);
+    expect(r.porCotizar).toEqual(["vuelos"]);
+    expect(r.procedencia.vuelos).toBeNull();
+    expect(r.total).toBe(25000);
+    expect(r.valido).toBe(true);
   });
   it("'sin hotel' → hospedaje 0; 'sin hotel en París' → se respeta el monto parcial del modelo", () => {
     expect(reconcileBudget(analysis(), { dias: 5, viajeros: 2, notas: "sin hotel, me quedo con familia" }).desglose.hospedaje).toBe(0);
@@ -65,8 +109,32 @@ describe("respeta las exclusiones del usuario (D-05)", () => {
     expect(parcial.exclusions.hospedaje).toBe("partial");
     expect(parcial.desglose.hospedaje).toBe(12000);
   });
-  it("hospedaje en 0 del modelo se queda en 0", () => {
-    expect(reconcileBudget(analysis({ desglose_presupuesto: { vuelos: 1, hospedaje: 0 } }), { dias: 5, viajeros: 4 }).desglose.hospedaje).toBe(0);
+  it("hospedaje en 0 SIN exclusión y SIN hotel en vivo → 'por cotizar' (no suma)", () => {
+    const r = reconcileBudget(analysis({ desglose_presupuesto: { vuelos: 1, hospedaje: 0 } }), { dias: 5, viajeros: 4 });
+    expect(r.desglose.hospedaje).toBe(0);
+    expect(r.porCotizar).toEqual(["hospedaje"]);
+  });
+  it("hospedaje en 0 SIN exclusión y CON hotel en vivo → precio en vivo (del grupo: no se multiplica por habitaciones)", () => {
+    const r = reconcileBudget(analysis({
+      desglose_presupuesto: { vuelos: 50000, hospedaje: 0 },
+      hospedaje: [
+        { nombre: "Estimado", precio_por_noche: 2000, fuente_precio: "estimado", estado_dato: "ESTIMADO" },
+        { nombre: "Hotel Vivo", tier: "equilibrio", precio_por_noche: 4000, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO", consultado_at: "2026-10-22T15:00:00Z" },
+      ],
+    }), { dias: 5, viajeros: 4 });
+    expect(r.desglose.hospedaje).toBe(20000);
+    expect(r.roomsPrecio).toBe(1);
+    expect(r.porCotizar).toEqual([]);
+    expect(r.procedencia.hospedaje).toMatchObject({ fuente: "serpapi", estado: "CONSULTADO_EN_VIVO", nombre: "Hotel Vivo" });
+  });
+  it("exclusión parcial de hospedaje con 0 del modelo: el 0 se respeta (no se rellena con el hotel en vivo)", () => {
+    const r = reconcileBudget(analysis({
+      desglose_presupuesto: { vuelos: 50000, hospedaje: 0 },
+      hospedaje: [{ nombre: "Hotel Vivo", precio_por_noche: 4000, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO" }],
+    }), { dias: 5, viajeros: 2, notas: "ya tengo dónde quedarme en Roma" });
+    expect(r.exclusions.hospedaje).toBe("partial");
+    expect(r.desglose.hospedaje).toBe(0);
+    expect(r.porCotizar).toEqual([]);
   });
   it("detecta exclusiones comunes", () => {
     expect(detectExclusions("Ya tengo mi vuelo")).toMatchObject({ vuelos: true, hospedaje: false });

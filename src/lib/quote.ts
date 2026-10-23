@@ -28,6 +28,8 @@ export type QuoteSnapshot = {
   fx_at: string;
   fx_is_fallback: boolean;
   line_items?: Array<{ category: string; amount: number; state: string }>;
+  /** Fuentes de la cotización; `por_cotizar`: renglones sin precio (no suman al total). */
+  sources?: { por_cotizar?: string[] } & Record<string, unknown>;
 };
 
 export type QuoteBasis = { travelers: number; dateFrom: string | null; dateTo: string | null };

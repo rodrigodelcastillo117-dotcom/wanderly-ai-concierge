@@ -116,8 +116,18 @@ export type BudgetInput = {
   notas?: string | null;
 };
 
+/** Procedencia del precio de un renglón (la de la opción que se usó para calcularlo). */
+export type Procedencia = { fuente: string | null; estado: string | null; consultado_at: string | null; nombre: string | null };
+
 export type BudgetResult = {
   desglose: Record<string, number>;
+  /**
+   * Renglones sin precio: el modelo los dejó en 0, el usuario NO los excluyó y no hay ninguna opción
+   * en vivo para calcularlos. Quedan "por cotizar": no suman al total (no son $0) y se dice que faltan.
+   */
+  porCotizar: Array<"vuelos" | "hospedaje">;
+  /** De dónde salió el precio de vuelos y hospedaje. */
+  procedencia: { vuelos: Procedencia | null; hospedaje: Procedencia | null };
   total: number;
   valido: boolean;
   exclusions: Exclusions;
@@ -130,9 +140,41 @@ export type BudgetResult = {
   vueloReferencia: any | null;
 };
 
+const LIVE_ESTADOS = new Set(["CONSULTADO_EN_VIVO", "VERIFICADO", "CONFIRMADO"]);
+const LIVE_FUENTES = new Set(["serpapi", "google_flights", "google_hotels", "serpapi-hotels"]);
+
+/**
+ * ¿La opción trae un precio consultado en vivo? Lo decide enforceSources (estado_dato); sin estado, solo
+ * una fuente en vivo conocida. Una tarifa de la caché de Travelpayouts ("ESTIMADO") no cuenta.
+ */
+export function isLiveOption(x: any): boolean {
+  const estado = String(x?.estado_dato ?? "").toUpperCase();
+  if (estado) return LIVE_ESTADOS.has(estado);
+  return LIVE_FUENTES.has(String(x?.fuente_precio ?? x?.fuente ?? "").toLowerCase());
+}
+
+/** La opción en vivo a usar: la del nivel "equilibrio" si es en vivo; si no, la de precio medio. */
+export function pickLiveOption(options: any[], priceKey: "precio_por_persona" | "precio_por_noche"): any | null {
+  const live = (Array.isArray(options) ? options : []).filter((o) => isLiveOption(o) && Number(o?.[priceKey]) > 0);
+  if (!live.length) return null;
+  const eq = live.find((o) => String(o?.tier ?? "").toLowerCase() === "equilibrio");
+  if (eq) return eq;
+  const sorted = [...live].sort((x, y) => Number(x[priceKey]) - Number(y[priceKey]));
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+const procedenciaDe = (x: any): Procedencia | null => x ? {
+  fuente: x?.fuente_precio ?? x?.fuente ?? null, estado: x?.estado_dato ?? null, consultado_at: x?.consultado_at ?? null,
+  nombre: x?.nombre ?? x?.aerolinea ?? null,
+} : null;
+
 /**
  * Desglose final de analizar-viaje:
- * - vuelos = vuelo "equilibrio" × viajeros, salvo que el usuario lo excluyó o el modelo lo dejó en 0.
+ * - vuelos = vuelo "equilibrio" × viajeros, salvo que el usuario lo excluyó (0).
+ * - Si el modelo dejó vuelos u hospedaje en 0 SIN que el usuario lo excluyera: con una opción en vivo
+ *   para esa categoría se usa su precio (con su procedencia); sin opción en vivo el renglón queda
+ *   "por cotizar" (porCotizar): no suma al total y se avisa que falta. Antes se respetaba el 0 y el
+ *   total y el correo decían "no disponible" en un viaje con vuelos y hoteles en vivo.
  * - hospedaje = hotel de precio medio × noches × habitaciones (ceil(viajeros/2) si el precio es
  *   estimado por habitación; 1 si es un precio en vivo que ya cubre al grupo); antes era una
  *   sola habitación sin importar cuántos viajaban. Si el usuario excluyó una ciudad se respeta el
@@ -148,27 +190,48 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
   const desglose: Record<string, number> = {};
   for (const [k, v] of Object.entries(a?.desglose_presupuesto ?? {})) desglose[k] = Number(v) || 0;
 
+  const porCotizar: BudgetResult["porCotizar"] = [];
   const vuelos: any[] = Array.isArray(a?.vuelos) ? a.vuelos : [];
-  const vueloReferencia = vuelos.find((v) => v?.tier === "equilibrio") ?? vuelos[0] ?? null;
+  let vueloReferencia = vuelos.find((v) => v?.tier === "equilibrio") ?? vuelos[0] ?? null;
   if (exclusions.vuelos) {
     desglose.vuelos = 0;
   } else if ((desglose.vuelos ?? 0) > 0) {
     const vuelosGrupo = Math.round((Number(vueloReferencia?.precio_por_persona) || 0) * viajeros);
     if (vuelosGrupo > 0) desglose.vuelos = vuelosGrupo;
+  } else {
+    // El modelo puso 0 sin exclusión: precio en vivo si lo hay; si no, "por cotizar" (no es $0).
+    const live = pickLiveOption(vuelos, "precio_por_persona");
+    if (live) {
+      vueloReferencia = live;
+      desglose.vuelos = Math.round(Number(live.precio_por_persona) * viajeros);
+    } else {
+      desglose.vuelos = 0;
+      porCotizar.push("vuelos");
+    }
   }
 
   const hoteles: any[] = Array.isArray(a?.hospedaje) ? a.hospedaje : [];
   const ordenados = [...hoteles].sort((x, y) => (Number(x?.precio_por_noche) || 0) - (Number(y?.precio_por_noche) || 0));
-  const hotelReferencia = ordenados.length ? ordenados[Math.floor(ordenados.length / 2)] : null;
+  let hotelReferencia = ordenados.length ? ordenados[Math.floor(ordenados.length / 2)] : null;
   // El precio en vivo ya es del grupo; uno estimado es por habitación (hotelPriceRooms).
-  const roomsPrecio = hotelReferencia ? hotelPriceRooms(hotelReferencia, viajeros) : rooms;
+  let roomsPrecio = hotelReferencia ? hotelPriceRooms(hotelReferencia, viajeros) : rooms;
   const hospedajeCompleto = Math.round((Number(hotelReferencia?.precio_por_noche) || 0) * dias * roomsPrecio);
   if (exclusions.hospedaje === "all") {
     desglose.hospedaje = 0;
   } else if (exclusions.hospedaje === "partial") {
     if (hospedajeCompleto > 0) desglose.hospedaje = Math.min(desglose.hospedaje ?? 0, hospedajeCompleto);
-  } else if ((desglose.hospedaje ?? 0) > 0 && hospedajeCompleto > 0) {
-    desglose.hospedaje = hospedajeCompleto;
+  } else if ((desglose.hospedaje ?? 0) > 0) {
+    if (hospedajeCompleto > 0) desglose.hospedaje = hospedajeCompleto;
+  } else {
+    const live = pickLiveOption(hoteles, "precio_por_noche");
+    if (live) {
+      hotelReferencia = live;
+      roomsPrecio = hotelPriceRooms(live, viajeros);
+      desglose.hospedaje = Math.round(Number(live.precio_por_noche) * dias * roomsPrecio);
+    } else {
+      desglose.hospedaje = 0;
+      porCotizar.push("hospedaje");
+    }
   }
 
   if (exclusions.tours) desglose.tours = 0;
@@ -181,5 +244,9 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
   }
   for (const k of Object.keys(desglose)) desglose[k] = Math.max(0, Math.round(desglose[k]));
   const total = Object.values(desglose).reduce((s, v) => s + v, 0);
-  return { desglose, total, valido: total > 0, exclusions, rooms, roomsPrecio, hotelReferencia, vueloReferencia };
+  const procedencia = {
+    vuelos: desglose.vuelos > 0 ? procedenciaDe(vueloReferencia) : null,
+    hospedaje: desglose.hospedaje > 0 ? procedenciaDe(hotelReferencia) : null,
+  };
+  return { desglose, total, valido: total > 0, exclusions, rooms, roomsPrecio, hotelReferencia, vueloReferencia, porCotizar, procedencia };
 }

@@ -17,6 +17,13 @@ type Props = {
   vuelos?: Flight[];
   /** Número de viajeros (para multiplicar precio_por_persona) */
   travelers?: number;
+  /**
+   * Dentro de la tarjeta del total (TripDetail): sin su propio título ni la cifra (ya están arriba)
+   * y sin tarjeta propia.
+   */
+  embedded?: boolean;
+  /** Rubros con precio estimado: se marcan "estimado" en su renglón. */
+  estimatedKeys?: string[];
 };
 
 const ORDER: Array<{ key: string; label: string; color: string }> = [
@@ -31,7 +38,7 @@ const ORDER: Array<{ key: string; label: string; color: string }> = [
 const fmtMXN = (n: number) =>
   `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 
-export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: Props) => {
+export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1, embedded = false, estimatedKeys = [] }: Props) => {
   const [flightsOpen, setFlightsOpen] = useState(false);
   const items = useMemo(
     () =>
@@ -62,14 +69,16 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
   if (items.length === 0 || total <= 0) return null;
 
   return (
-    <div className="glass-card rounded-2xl p-4 sm:p-6 md:p-8 max-w-full overflow-hidden">
-      <div className="mb-5">
-        <p className="text-xs tracking-[0.2em] uppercase text-primary mb-1">Total estimado</p>
-        <p className="font-display text-2xl sm:text-3xl md:text-4xl gold-text break-words">{fmtMXN(total)}</p>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          Calculado en base a las opciones seleccionadas arriba.
-        </p>
-      </div>
+    <div className={embedded ? "max-w-full overflow-hidden" : "glass-card rounded-2xl p-4 sm:p-6 md:p-8 max-w-full overflow-hidden"} data-testid="readonly-budget">
+      {!embedded && (
+        <div className="mb-5">
+          <p className="text-xs tracking-[0.2em] uppercase text-primary mb-1">Total estimado</p>
+          <p className="font-display text-2xl sm:text-3xl md:text-4xl gold-text break-words">{fmtMXN(total)}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Calculado en base a las opciones seleccionadas arriba.
+          </p>
+        </div>
+      )}
 
       <div className="relative flex h-5 rounded-full overflow-hidden mb-5">
         {items.map((it) => {
@@ -99,7 +108,10 @@ export const ReadonlyBudget = ({ desglose, total, vuelos = [], travelers = 1 }: 
                   {Math.round((it.value / total) * 100)}%
                 </span>
               </div>
-              <p className="text-sm font-medium">{fmtMXN(it.value)}</p>
+              <p className="text-sm font-medium" data-budget-key={it.key}>
+                {fmtMXN(it.value)}
+                {estimatedKeys.includes(it.key) && <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">estimado</span>}
+              </p>
             </div>
           </div>
         ))}

@@ -41,6 +41,8 @@ type Props = {
   onSelectVuelo?: (i: number) => void;
   onSelectHotel?: (city: string | null, i: number) => void;
   onToggleTour?: (i: number) => void;
+  /** Marcas ya cargadas por la página (el total también las usa): así no se cargan dos veces. */
+  marksState?: ReturnType<typeof useTripPurchaseMarks> | null;
 };
 
 /** Verbo del botón principal: "Comprar en Google Flights", "Buscar en Kayak"… */
@@ -52,12 +54,14 @@ function buyLabel(it: PurchaseItem): string {
 }
 
 export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHoteles, serverOffers = {}, bookings, userId, ownerId, quoteCreatedAt, onChanged,
-  onSelectVuelo, onSelectHotel, onToggleTour }: Props) {
+  onSelectVuelo, onSelectHotel, onToggleTour, marksState }: Props) {
   const flow = useMemo(
     () => buildBuyFlow(trip, { selVuelo, selHospedaje, selTours, selHoteles }, serverOffers, { quoteCreatedAt }),
     [trip, selVuelo, selHospedaje, selTours, selHoteles, serverOffers, quoteCreatedAt],
   );
-  const { rows, marks, mark: saveMark, unmark: removeMark } = useTripPurchaseMarks({ trip, userId, bookings });
+  // Con las marcas de la página, este hook queda inactivo (sin viaje no carga nada).
+  const ownMarks = useTripPurchaseMarks({ trip: marksState ? (null as any) : trip, userId, bookings });
+  const { rows, marks, mark: saveMark, unmark: removeMark } = marksState ?? ownMarks;
   const owner = ownerId ?? trip?.user_id ?? null;
   const [busy, setBusy] = useState<string | null>(null);
 
