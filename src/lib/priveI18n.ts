@@ -731,7 +731,7 @@ const es = {
     INVITATION_EXPIRED: "Esta invitación ya venció. Podemos enviarte una nueva a tu correo.",
     INVITATION_LINK_REQUIRED:
       "Por seguridad, esta invitación se abre desde el enlace que te enviamos por correo. Ábrelo en este dispositivo o pide uno nuevo.",
-    PASSWORD_WEAK: "Esa contraseña es fácil de adivinar. Usa al menos 12 caracteres, mejor una frase de varias palabras.",
+    PASSWORD_WEAK: "Esa contraseña es fácil de adivinar. Usa al menos 8 caracteres con letras y números, mejor una frase de varias palabras.",
     PASSWORD_BREACHED:
       "Esa contraseña aparece en filtraciones públicas conocidas. Por tu seguridad, elige otra que no uses en ningún otro sitio.",
     PASSWORD_ALREADY_SET: "Tu contraseña Privé ya estaba creada. Puedes entrar con ella o restablecerla.",
@@ -1433,7 +1433,7 @@ const en: PriveText = {
     INVITATION_OTHER_ACCOUNT: "This invitation does not belong to the account you signed in with. Sign out and enter with the account that received the email.",
     INVITATION_EXPIRED: "This invitation has expired. We can send a new one to your email.",
     INVITATION_LINK_REQUIRED: "For your security, this invitation opens from the link we sent to your email. Open it on this device or ask for a new one.",
-    PASSWORD_WEAK: "That password is easy to guess. Use at least 12 characters, ideally a phrase of several words.",
+    PASSWORD_WEAK: "That password is easy to guess. Use at least 8 characters with letters and numbers, ideally a phrase of several words.",
     PASSWORD_BREACHED: "That password appears in known public leaks. For your safety, choose another one you do not use anywhere else.",
     PASSWORD_ALREADY_SET: "Your Privé password was already created. You can enter with it or reset it.",
     WRONG_PASSWORD: "Incorrect Privé password. Check capital letters and spaces.",

@@ -19,8 +19,6 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [hard, setHard] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
-  // "Mantener mi sesión en este dispositivo (30 días)": apagado por omisión; el servidor decide.
-  const [remember, setRemember] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const id = useId();
   const statusLock = formatLockedUntil(status?.locked_until);
@@ -31,7 +29,9 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
     setBusy(true);
     setError(null);
     clearNotice();
-    const r = await unlock(pw, { remember });
+    // Toda sesión queda recordada (pedido del dueño): el servidor decide y la cierra al perder el derecho,
+    // al cerrar sesión en IATOS, al cambiar la contraseña o con "Cerrar todas mis sesiones".
+    const r = await unlock(pw, { remember: true });
     setBusy(false);
     if (r.ok) {
       setPw("");
@@ -96,19 +96,6 @@ export function LockScreen({ onUnlocked }: { onUnlocked?: () => void }) {
             Si tu navegador llenó el campo solo, puede ser la contraseña de tu cuenta IATOS: bórrala y escribe tu contraseña Privé (la que creaste al aceptar la invitación).
           </p>
         )}
-        <label className="flex items-start gap-3 text-sm prive-muted cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="mt-1 h-4 w-4 accent-[#c9a96e]"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-            data-testid="prive-remember"
-          />
-          <span>
-            Mantener mi sesión en este dispositivo (30 días)
-            <span className="block text-xs">Solo en un dispositivo que sea tuyo. La cierras cuando quieras en Membresía.</span>
-          </span>
-        </label>
         <button type="submit" disabled={!pw || busy} className="prive-btn prive-btn-gold w-full">
           {busy ? "Verificando…" : "Ingresar"}
         </button>

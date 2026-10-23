@@ -111,8 +111,15 @@ describe("priveSession: sesión Privé", () => {
 });
 
 describe("privePassword: guía de fuerza", () => {
-  it("exige 12–72 bytes", () => {
+  it("exige 8–72 bytes", () => {
     expect(checkPrivePassword("corta").acceptable).toBe(false);
+    // 7 bytes no; 8 con dos tipos de caracteres ya es "Aceptable" (el nuevo mínimo).
+    expect(checkPrivePassword("Faro202").rules.find((r) => r.id === "length")!.ok).toBe(false);
+    expect(checkPrivePassword("Faro202").acceptable).toBe(false);
+    expect(checkPrivePassword("Faro2026").acceptable).toBe(true);
+    expect(checkPrivePassword("Faro2026").score).toBe(2);
+    // 8 letras minúsculas solas siguen siendo débiles.
+    expect(checkPrivePassword("mariposa").acceptable).toBe(false);
     expect(checkPrivePassword("a".repeat(5) + "b".repeat(80)).rules.find((r) => r.id === "length")!.ok).toBe(false);
     expect(byteLength("ñ")).toBe(2);
     // 36 "ñ" = 72 bytes (límite de bcrypt); 37 ya no.
@@ -125,6 +132,11 @@ describe("privePassword: guía de fuerza", () => {
     expect(checkPrivePassword("qwertyuiop2026!").acceptable).toBe(false);
     expect(checkPrivePassword("password12345").acceptable).toBe(false);
     expect(checkPrivePassword("Privé2026!xyz").acceptable).toBe(false);
+    // Con el mínimo de 8 siguen bloqueadas las cortas obvias y las secuencias.
+    expect(checkPrivePassword("Iatos2026").acceptable).toBe(false);
+    expect(checkPrivePassword("Qwerty12").acceptable).toBe(false);
+    expect(checkPrivePassword("Abc123456").acceptable).toBe(false);
+    expect(checkPrivePassword("aaaaaaa1").acceptable).toBe(false);
   });
 
   it("una frase de varias palabras es fuerte o excelente", () => {

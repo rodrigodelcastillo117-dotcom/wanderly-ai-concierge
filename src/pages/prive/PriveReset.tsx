@@ -48,11 +48,11 @@ export default function PriveReset() {
 
   const complete = async (pw: string) => {
     if (!token) return { ok: false as const, code: "RESET_INVALID" as const };
-    const r = await call<{ prive_session?: string; expires_at?: string }>("complete_reset", { token, new_password: pw });
+    const r = await call<{ prive_session?: string; expires_at?: string; remember?: boolean }>("complete_reset", { token, new_password: pw });
     if (r.ok) {
       // Las sesiones anteriores se cerraron; si el servidor ya abrió una con la contraseña nueva, se usa.
       clearPriveSession();
-      if (r.data.prive_session) adoptSession(r.data.prive_session, r.data.expires_at ?? new Date(Date.now() + 12 * 3600e3).toISOString());
+      if (r.data.prive_session) adoptSession(r.data.prive_session, r.data.expires_at ?? new Date(Date.now() + 12 * 3600e3).toISOString(), r.data.remember === true);
     }
     if (!r.ok && r.code === "RESET_INVALID") {
       clearPendingToken("reset");

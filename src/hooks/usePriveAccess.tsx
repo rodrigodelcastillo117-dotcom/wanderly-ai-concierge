@@ -23,6 +23,9 @@ import { messageFor } from "@/lib/priveCopy";
 
 type CallOpts = { withSession?: boolean };
 
+/** Vigencia deslizante de la sesión recordada (la misma que la base: prive_session_idle_limit(true)). */
+const PRIVE_REMEMBER_MS = 365 * 86400e3;
+
 export type PriveAccess = {
   loading: boolean;
   status: PriveStatus | null;
@@ -34,7 +37,7 @@ export type PriveAccess = {
   notice: string | null;
   clearNotice: () => void;
   refresh: () => Promise<PriveStatus | null>;
-  /** remember: "mantener mi sesión en este dispositivo (30 días)"; el servidor decide. */
+  /** remember: sesión recordada (365 días desde el último uso; la pantalla siempre la pide); el servidor decide. */
   unlock: (password: string, opts?: { remember?: boolean }) => Promise<PriveResult>;
   lock: () => Promise<void>;
   /** Guarda una sesión que el servidor acaba de emitir (p. ej. al terminar la ceremonia). */
@@ -90,10 +93,12 @@ export function PriveProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [uid, refresh]);
 
-  // La sesión vence a las 12 h aunque nadie llame al servidor.
+  // La sesión vence a las 12 h aunque nadie llame al servidor. Un plazo más largo que el máximo de
+  // setTimeout (~24.8 días, la sesión recordada) no se programa: antes se recortaba y la cerraba antes.
   useEffect(() => {
     if (!session) return;
     const ms = Date.parse(session.expiresAt) - Date.now();
+    if (ms > 2 ** 31 - 1) return;
     const t = window.setTimeout(() => {
       clearPriveSession();
       setSession(null);
@@ -123,9 +128,24 @@ export function PriveProvider({ children }: { children: ReactNode }) {
     [uid],
   );
 
+  // La base corre el vencimiento de la sesión recordada en cada uso (prive_require): aquí se refleja,
+  // como mucho una vez al día, para que la copia local no la descarte antes que el servidor. Solo si
+  // la sesión guardada sigue siendo la misma con la que se llamó (un bloqueo o un cierre de sesión a
+  // mitad de la llamada no la revive).
+  const slideRemembered = useCallback((token: string) => {
+    const s = readPriveSession(uid);
+    if (!s || s.token !== token || !s.remember) return;
+    const next = Date.now() + PRIVE_REMEMBER_MS;
+    if (!(next - Date.parse(s.expiresAt) > 86400e3)) return;
+    const n: StoredPriveSession = { ...s, expiresAt: new Date(next).toISOString() };
+    savePriveSession(n);
+    setSession(n);
+  }, [uid]);
+
   const call = useCallback(
     async <T,>(action: PriveAction, body: Record<string, unknown> = {}, opts: CallOpts = {}): Promise<PriveResult<T>> => {
       let payload = body;
+      let sent: string | null = null;
       if (opts.withSession) {
         const s = readPriveSession(uid);
         if (!s) {
@@ -133,12 +153,14 @@ export function PriveProvider({ children }: { children: ReactNode }) {
           return { ok: false, code: "PRIVE_NO_SESSION" };
         }
         payload = { ...body, prive_session: s.token };
+        sent = s.token;
       }
       const r = await priveApi.access<T>(action, payload);
       if (!r.ok && isPriveSessionCode(r.code)) expire(r.code);
+      else if (r.ok && sent && action !== "change_password" && action !== "revoke_sessions") slideRemembered(sent);
       return r;
     },
-    [uid, expire],
+    [uid, expire, slideRemembered],
   );
 
   const content = useCallback(
@@ -147,9 +169,10 @@ export function PriveProvider({ children }: { children: ReactNode }) {
       if (!s) return { ok: false, code: "PRIVE_NO_SESSION" };
       const r = await priveApi.content<T>(fn, s.token, args);
       if (!r.ok && isPriveSessionCode(r.code)) expire(r.code);
+      else if (r.ok) slideRemembered(s.token);
       return r;
     },
-    [uid, expire],
+    [uid, expire, slideRemembered],
   );
 
   const unlock = useCallback(

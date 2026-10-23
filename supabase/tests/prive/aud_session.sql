@@ -366,6 +366,9 @@ SELECT aud.ok('N05 la limpieza de la migración retira solo la invitación de la
 -- (P3-4, grupo cuentas). Se vuelve a incluir para que el resto de las pruebas (y la base que queda) vean
 -- la versión de producción (Q-L1; run_all.sh compara el md5 de cada función con una base en orden).
 \ir ../../migrations/20261026260000_r2_cuentas_prive_sweep_schema_probe.sql
+-- 20261024030000 también redefine prive_require, prive_remember_session y prive_session_idle_limit; la
+-- última versión es la de la sesión larga (20261027130000): se vuelve a incluir por lo mismo.
+\ir ../../migrations/20261027130000_prive_sesion_larga.sql
 
 -- ===================================================================== T · solicitud Privé con el viaje de OTRA cuenta
 -- (reportado por aud-iato: concierge-chat → concierge-action reenvía trip_id sin revisar). La RPC
@@ -404,7 +407,7 @@ SELECT aud.ok('T02 con su propio viaje, con uno compartido con ella (colaborador
   AND NOT EXISTS (SELECT 1 FROM concierge_requests WHERE type = 'prive_request' AND user_id <> aud.u(1) AND experience_id = 'e1000000-0000-0000-0000-000000000001'),
   aud.req_create(1, 101, :'t1', NULL));
 
--- ===================================================================== R · "mantener mi sesión en este dispositivo (30 días)"
+-- ===================================================================== R · sesión recordada (365 días desde el último uso; 20261027130000)
 CREATE FUNCTION aud.remember(n int, tok text) RETURNS jsonb LANGUAGE plpgsql AS $$
 DECLARE r jsonb;
 BEGIN
@@ -416,9 +419,9 @@ END $$;
 SELECT aud.auth_login(12, 1202);
 SELECT (aud.unlock(12, 1202))->>'token' AS t12 \gset
 SELECT aud.remember(12, :'t12') AS rm12 \gset
-SELECT aud.ok('R01 recordar: la sesión vence a los 30 días, avisa en la app y queda en la bitácora',
+SELECT aud.ok('R01 recordar: la sesión vence a los 365 días, avisa en la app y queda en la bitácora',
   (:'rm12'::jsonb->>'ok')::boolean
-  AND (SELECT remember AND expires_at BETWEEN now() + interval '29 days 23 hours' AND now() + interval '30 days 1 minute'
+  AND (SELECT remember AND expires_at BETWEEN now() + interval '364 days 23 hours' AND now() + interval '365 days 1 minute'
          FROM prive_sessions WHERE token_hash = public.prive_sha256_hex(:'t12'))
   AND EXISTS (SELECT 1 FROM notifications WHERE user_id = aud.u(12) AND dedup_key LIKE 'prive_remember:%')
   AND EXISTS (SELECT 1 FROM prive_membership_events WHERE user_id = aud.u(12) AND event = 'session_remembered'), :'rm12');
@@ -426,12 +429,12 @@ UPDATE prive_sessions SET last_seen_at = now() - interval '3 hours' WHERE token_
 SET ROLE service_role; SELECT public.prive_sweep() AS swr \gset
 RESET ROLE;
 SELECT aud.ok('R02 recordada: 3 h sin uso no la cierran (ni prive_require ni el barrido)', aud.req_as(12, 1202, :'t12') = 'OK', aud.req_as(12, 1202, :'t12'));
-UPDATE prive_sessions SET last_seen_at = now() - interval '8 days' WHERE token_hash = public.prive_sha256_hex(:'t12');
-SELECT aud.ok('R03 recordada: 8 días sin uso → PRIVE_SESSION_EXPIRED', aud.req_as(12, 1202, :'t12') = 'PRIVE_SESSION_EXPIRED', aud.req_as(12, 1202, :'t12'));
+UPDATE prive_sessions SET last_seen_at = now() - interval '366 days' WHERE token_hash = public.prive_sha256_hex(:'t12');
+SELECT aud.ok('R03 recordada: 366 días sin uso → PRIVE_SESSION_EXPIRED', aud.req_as(12, 1202, :'t12') = 'PRIVE_SESSION_EXPIRED', aud.req_as(12, 1202, :'t12'));
 SELECT (aud.unlock(12, 1202))->>'token' AS t12b \gset
 SELECT aud.remember(12, :'t12b');
 UPDATE prive_sessions SET created_at = now() - interval '31 days', expires_at = now() - interval '1 day' WHERE token_hash = public.prive_sha256_hex(:'t12b');
-SELECT aud.ok('R03b recordada: a los 30 días vence aunque se use', aud.req_as(12, 1202, :'t12b') = 'PRIVE_SESSION_EXPIRED', aud.req_as(12, 1202, :'t12b'));
+SELECT aud.ok('R03b recordada: con el vencimiento ya pasado no sirve aunque se use (no se desliza después de vencer)', aud.req_as(12, 1202, :'t12b') = 'PRIVE_SESSION_EXPIRED', aud.req_as(12, 1202, :'t12b'));
 -- Sigue sujeta a todo lo de prive_require.
 SELECT (aud.unlock(12, 1202))->>'token' AS t12c \gset
 SELECT aud.remember(12, :'t12c');

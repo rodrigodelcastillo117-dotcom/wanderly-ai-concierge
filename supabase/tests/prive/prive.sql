@@ -539,7 +539,7 @@ SELECT pt.ok('P41 antes de activar: PRIVE_NOT_ACTIVATED para fijar contraseña o
 SELECT public.prive_accept_invitation(pt.u(29), NULL);
 SELECT pt.ok('P42 contraseña filtrada (HIBP) o débil se rechaza al fijarla',
   public.prive_set_password(pt.u(29), 'Password123456', 'breached')->>'code' = 'PASSWORD_BREACHED'
-  AND public.prive_set_password(pt.u(29), 'corta-11ch', 'ok')->>'code' = 'PASSWORD_WEAK'
+  AND public.prive_set_password(pt.u(29), 'corta-7', 'ok')->>'code' = 'PASSWORD_WEAK'
   AND public.prive_set_password(pt.u(29), repeat('ab-cd-ef-', 9), 'ok')->>'code' = 'PASSWORD_WEAK'
   AND public.prive_set_password(pt.u(29), 'aaaabbbbaaaabbbb', 'ok')->>'code' = 'PASSWORD_WEAK'
   AND public.prive_set_password(pt.u(29), 'Veintinueve-clave-29', 'mentira')->>'code' = 'PASSWORD_WEAK'

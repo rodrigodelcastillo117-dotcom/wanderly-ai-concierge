@@ -131,7 +131,7 @@ SELECT a2.login(3, 31);
 SELECT (a2.unlock(3, 31))->>'token' AS t3 \gset
 SELECT a2.remember(3, :'t3');
 UPDATE prive_sessions SET last_seen_at = now() - interval '6 days' WHERE token_hash = public.prive_sha256_hex(:'t3');
-SELECT a2.ok('C3h recordada con 6 días sin uso todavía vale (límite 7 d)', a2.req_as(3, 31, :'t3') = 'OK', a2.req_as(3, 31, :'t3'));
+SELECT a2.ok('C3h recordada con 6 días sin uso todavía vale (límite 365 d desde 20261027130000)', a2.req_as(3, 31, :'t3') = 'OK', a2.req_as(3, 31, :'t3'));
 DELETE FROM auth.sessions WHERE user_id = a2.u(3);
 SELECT a2.ok('C3i recordada: cierre global de IATOS la invalida', a2.req_as(3, 31, :'t3') = 'PRIVE_SESSION_INVALID');
 
