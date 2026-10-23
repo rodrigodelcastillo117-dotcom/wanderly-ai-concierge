@@ -9,15 +9,20 @@ set -u
 DIR=$(cd "$(dirname "$0")" && pwd); DB=${1:-iatos_social_test}
 . "$DIR/../lib.sh"
 PSQL="psql -U ${PGUSER:-postgres} -q"
-# 70 (social.sql y los saludos simultáneos K1) + 29 de consent.sql (T-P2-1, ronda r2 de privacidad).
-ESPERADOS=99
+# 70 (social.sql y los saludos simultáneos K1) + 29 de consent.sql (T-P2-1, ronda r2 de privacidad)
+# + 51 de amigos.sql (avatar, viajes, actividad, reacciones y preguntas de amigos; 20261027090000).
+ESPERADOS=150
 
 main() {
 t_build_db "$DB"
-t_idempotency "$DB" "$T_MIG"/20261024140000_social_friend_profile.sql "$T_MIG"/20261026110000_r2_privacidad_social_consent.sql
+t_idempotency "$DB" "$T_MIG"/20261024140000_social_friend_profile.sql "$T_MIG"/20261026110000_r2_privacidad_social_consent.sql \
+  "$T_MIG"/20261027090000_social_amigos.sql
 $PSQL -X -d "$DB" -f "$DIR/social.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
 # T-P2-1: amistad con consentimiento, código rotable, bloqueo y avisos de invitación acotados.
 $PSQL -X -d "$DB" -f "$DIR/consent.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
+# Perfil del amigo: avatar firmado, viajes, actividad opt-in, reacciones y preguntas; abuso (no amigo,
+# pendiente, bloqueado, anon, lo apagado) y fin de la amistad.
+$PSQL -X -d "$DB" -f "$DIR/amigos.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
 
 # Dos toques simultáneos de "Saludar" (dos sesiones): solo uno pasa y sale un solo aviso.
 A=5a000000-0000-0000-0000-00000000000a; F=5f000000-0000-0000-0000-00000000000f

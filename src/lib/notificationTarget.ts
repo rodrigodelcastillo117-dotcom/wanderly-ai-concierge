@@ -13,6 +13,10 @@ export function notificationTarget(n: { type: string; related_id: string | null;
   // Amistad (T-P2-1): la solicitud se responde en Social; la aceptada abre el perfil del amigo.
   if (n.type === "friend_request") return "/dashboard/social";
   if (n.type === "friend_accepted") return n.related_id ? `/dashboard/social/amigo/${n.related_id}` : "/dashboard/social";
+  // Actividad compartida con amigos (20261027090000): reacciones y preguntas se ven y responden en tu
+  // perfil ("Qué ven mis amigos"); una respuesta abre la actividad del amigo que respondió.
+  if (n.type === "social_reaccion" || n.type === "social_pregunta") return "/dashboard/perfil#que-ven-mis-amigos";
+  if (n.type === "social_respuesta") return n.related_id ? `/dashboard/social/amigo/${n.related_id}#actividad` : "/dashboard/social";
   // Reservas IA (correo al restaurante): la tarjeta vive en Mis reservas.
   if (n.type === "ai_reservation") return "/dashboard/reservas#reservas-ia";
   return null;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { CalendarHeart, Compass, Globe2, Lock, MapPin, MoreHorizontal, Plane, Sparkles, UserMinus, Users } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { CalendarHeart, Compass, Globe2, Lock, Map as MapIcon, MapPin, MoreHorizontal, Plane, Sparkles, UserMinus, Users, Utensils } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { SmartImage } from "@/components/media/SmartImage";
@@ -15,6 +15,10 @@ import { PriveSeal } from "@/components/PriveSeal";
 import { PokeButtons } from "@/components/social/PokeButtons";
 import { TripPostcard } from "@/components/social/TripPostcard";
 import { PlanTogetherDialog } from "@/components/social/PlanTogetherDialog";
+import { FriendTrips } from "@/components/social/FriendTrips";
+import { ActivityGrid } from "@/components/social/FriendActivity";
+import { useFriendAvatars } from "@/hooks/useFriendAvatars";
+import { loadFriendActivity, loadFriendTrips, type ActivityItem, type FriendTrip } from "@/lib/friendActivity";
 import { supabase } from "@/integrations/supabase/client";
 import { removeFriend as removeFriendRpc } from "@/lib/friendRequests";
 import { useAuth } from "@/contexts/AuthContext";
@@ -124,21 +128,31 @@ export default function FriendProfile() {
   const [postalKey, setPostalKey] = useState<string | null>(null);
   const postalRef = useRef<HTMLElement>(null);
   const today = localISODate();
+  const location = useLocation();
+  // Viajes que decidió mostrar y su actividad compartida (20261027090000_social_amigos.sql).
+  const [trips, setTrips] = useState<FriendTrip[] | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[] | null>(null);
 
   useEffect(() => {
     if (!user) return;
     let alive = true;
     setResult(null);
+    setTrips(null);
+    setActivity(null);
     if (!UUID.test(id)) { setResult({ status: "privado" }); return; }
     (async () => {
-      const [{ data, error }, { data: mine }] = await Promise.all([
+      const [{ data, error }, { data: mine }, t, a] = await Promise.all([
         supabase.rpc("amigo_perfil", { p_amigo: id }),
         supabase.from("profiles").select("full_name, username, avatar_url").eq("id", user.id).maybeSingle(),
+        loadFriendTrips(supabase as never, id),
+        loadFriendActivity(supabase as never, id),
       ]);
       if (!alive) return;
       const r = error ? ({ status: "error" } as const) : parseFriendProfile(data);
       setResult(r);
       if (r.status === "ok") setSaludos(r.data.saludos);
+      setTrips(t.status === "ok" ? t.viajes : []);
+      setActivity(a.status === "ok" ? a.items : []);
       const m = mine as { full_name?: string | null; username?: string | null; avatar_url?: string | null } | null;
       setMe({ name: firstName(m, "Tú"), avatar: m?.avatar_url ?? null, prive: r.status === "ok" && r.data.yo_prive });
     })();
@@ -151,6 +165,15 @@ export default function FriendProfile() {
   }, [result, navigate]);
 
   const data: FriendProfileData | null = result?.status === "ok" ? result.data : null;
+  // Avatar con enlace firmado (solo amigos aceptados y si no lo apagó); si no, la URL del perfil o la inicial.
+  const signedAvatars = useFriendAvatars(data ? [data.amigo.id] : []);
+  const friendAvatar = data ? signedAvatars.get(data.amigo.id) ?? data.amigo.avatar_url : null;
+
+  // Desde un aviso ("respondió tu pregunta") se llega con #actividad.
+  useEffect(() => {
+    if (location.hash !== "#actividad" || activity === null) return;
+    document.getElementById("actividad")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }, [location.hash, activity]);
   const nombre = data ? firstName(data.amigo, "Tu amigo") : "";
   const fullName = data ? (data.amigo.full_name ?? data.amigo.username ?? "Viajero") : "";
 
@@ -248,7 +271,7 @@ export default function FriendProfile() {
         <div className="px-4 md:px-10 max-w-5xl mx-auto -mt-36 md:-mt-48 relative z-10 space-y-10 md:space-y-14">
           {/* ENCABEZADO */}
           <section className="flex flex-col sm:flex-row sm:items-end gap-5 md:gap-8">
-            <FriendAvatar name={fullName} url={data.amigo.avatar_url} shape="portrait" testId="friend-avatar"
+            <FriendAvatar name={fullName} url={friendAvatar} shape="portrait" testId="friend-avatar"
               className="w-32 h-40 md:w-44 md:h-56 border border-primary/50 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.9),0_0_0_6px_hsl(var(--background))] text-5xl" />
             <div className="min-w-0 flex-1 pb-1">
               <p className="text-[10px] md:text-xs tracking-[0.3em] text-primary uppercase mb-2">Compañero de viaje</p>
@@ -266,6 +289,8 @@ export default function FriendProfile() {
             </div>
           </section>
 
+          {/* Pendiente (coordinación): aquí podría ir la tarjeta de membresía del amigo (MemberCard) cuando
+              su equipo publique una versión para terceros; hoy solo se muestra el sello Privé (booleano). */}
           {/* ACCIONES */}
           <section className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4" aria-label="Acciones">
             <div className="flex-1">
@@ -310,7 +335,7 @@ export default function FriendProfile() {
               <div className="glass-card rounded-3xl p-6 md:p-8 border border-primary/15 flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
                 <div className="flex -space-x-4 shrink-0">
                   <FriendAvatar name={me.name} url={me.avatar} className="w-14 h-14 text-lg border-2 border-background" />
-                  <FriendAvatar name={fullName} url={data.amigo.avatar_url} className="w-14 h-14 text-lg border-2 border-background" />
+                  <FriendAvatar name={fullName} url={friendAvatar} className="w-14 h-14 text-lg border-2 border-background" />
                 </div>
                 <div className="flex-1">
                   <p className="font-display text-xl md:text-2xl">Su primer viaje juntos está por escribirse</p>
@@ -324,6 +349,28 @@ export default function FriendProfile() {
                   <TripCard key={t.id} t={t} today={today} selected={postal.key === `trip:${t.id}`} onPostal={() => choosePostal(`trip:${t.id}`)} />
                 ))}
               </div>
+            )}
+          </section>
+
+          {/* VIAJES DE CARLO: los que decidió mostrar */}
+          <section aria-labelledby="sus-viajes">
+            <SectionTitle id="sus-viajes" eyebrow="Su mapa" title={`Viajes de ${nombre}`} icon={MapIcon} />
+            {trips === null ? <div className="h-32 rounded-2xl bg-white/[0.03] animate-pulse" /> : <FriendTrips trips={trips} nombre={nombre} />}
+          </section>
+
+          {/* LO QUE HA HECHO: actividad que decidió compartir */}
+          <section aria-labelledby="actividad" className="scroll-mt-20">
+            <SectionTitle id="actividad" eyebrow="Lo que ha hecho" title={`Lo que recomienda ${nombre}`} icon={Utensils} />
+            {activity === null ? (
+              <div className="h-40 rounded-2xl bg-white/[0.03] animate-pulse" />
+            ) : activity.length === 0 ? (
+              <div className="glass-card rounded-2xl p-5 md:p-6 border border-white/[0.05]" data-testid="activity-empty">
+                <p className="text-sm md:text-base">{nombre} aún no comparte sus reservas, recomendaciones ni lugares.</p>
+                <p className="text-xs text-muted-foreground mt-1">Cuando lo prenda en «Qué ven mis amigos», aquí verás a dónde fue, qué pidió y qué te recomienda.</p>
+              </div>
+            ) : (
+              <ActivityGrid items={activity} friendId={data.amigo.id} friendName={nombre}
+                onChange={(n) => setActivity((xs) => (xs ?? []).map((x) => (x.clave === n.clave ? n : x)))} />
             )}
           </section>
 
@@ -349,7 +396,7 @@ export default function FriendProfile() {
               <TripPostcard
                 key={postal.key}
                 me={me}
-                friend={{ name: nombre, avatar: data.amigo.avatar_url, prive: data.amigo.is_prive }}
+                friend={{ name: nombre, avatar: friendAvatar, prive: data.amigo.is_prive }}
                 place={postal.place}
                 country={postal.country}
                 year={postal.year}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Users, Copy, Share2, Lock, Check, Trophy, Sparkles, ChevronRight, Plane, UserPlus, RefreshCw, Ban, X } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -16,6 +16,9 @@ import {
 } from "@/lib/friendRequests";
 import { firstName, parseFriendSummaries, showAfinidad, summaryLine, type FriendSummary } from "@/lib/social";
 import { useAuth } from "@/contexts/AuthContext";
+import { ActivityGrid } from "@/components/social/FriendActivity";
+import { useFriendAvatars } from "@/hooks/useFriendAvatars";
+import { loadFriendsFeed, type ActivityItem } from "@/lib/friendActivity";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 
@@ -76,6 +79,14 @@ export default function Social() {
   const [rotating, setRotating] = useState(false);
   const navigate = useNavigate();
   const tipSocial = useTooltipShown("social");
+  // "Lo que hacen tus amigos" (lo que cada quien decidió compartir) y avatares firmados.
+  const [feed, setFeed] = useState<ActivityItem[] | null>(null);
+  const friendIds = useMemo(() => amigos.map((a) => a.amigo_id), [amigos]);
+  const signedAvatars = useFriendAvatars(friendIds);
+  const avatarOf = (id: string, fallback: string | null) => signedAvatars.get(id) ?? fallback;
+  const feedAvatars = useMemo(() => new Map(amigos.map((a) => [a.amigo_id, avatarOf(a.amigo_id, a.avatar_url)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [amigos, signedAvatars]);
 
   const shareLink = useMemo(
     () => myCode ? `${window.location.origin}/dashboard/social?codigo=${myCode}` : "",
@@ -157,6 +168,8 @@ export default function Social() {
     // Viajes juntos, lo que tienen en común y saludos por devolver: una sola llamada (amigos_resumen).
     const { data } = await supabase.rpc("amigos_resumen");
     setResumen(parseFriendSummaries(data));
+    const f = await loadFriendsFeed(supabase as never);
+    setFeed(f.status === "ok" ? f.items : []);
   }
 
   async function loadGamification() {
@@ -297,7 +310,7 @@ export default function Social() {
                   <div key={a.amigo_id} onClick={open}
                     className="group cursor-pointer glass-card rounded-2xl p-3 md:p-4 flex items-center gap-3 md:gap-4 border border-white/[0.04] hover:border-primary/25 transition">
                     <div className="relative">
-                      <FriendAvatar name={nombre} url={a.avatar_url} className="w-12 h-12 md:w-14 md:h-14 text-base md:text-lg" />
+                      <FriendAvatar name={nombre} url={avatarOf(a.amigo_id, a.avatar_url)} className="w-12 h-12 md:w-14 md:h-14 text-base md:text-lg" />
                       {r?.saludo_por_devolver && (
                         <span className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-primary text-[11px] flex items-center justify-center shadow ring-2 ring-background" aria-label="Te mandó un saludo">👋</span>
                       )}
@@ -325,6 +338,28 @@ export default function Social() {
                   </div>
                 );
               })
+            )}
+            {!loadingAmigos && amigos.length > 0 && (
+              <section aria-labelledby="feed-amigos" className="pt-4 md:pt-6 space-y-3" data-testid="friends-feed">
+                <div>
+                  <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1">Actividad</p>
+                  <h2 id="feed-amigos" className="font-display text-2xl md:text-3xl">Lo que hacen tus amigos</h2>
+                </div>
+                {feed === null ? (
+                  <div className="h-40 rounded-2xl bg-card/40 border border-white/[0.04] animate-pulse" />
+                ) : feed.length === 0 ? (
+                  <div className="glass-card rounded-2xl p-5 border border-white/[0.04]">
+                    <p className="text-sm">Aún no hay actividad compartida.</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Cuando tus amigos prendan «Qué ven mis amigos», aquí verás a dónde fueron, qué reservaron y qué recomiendan.
+                      <Link to="/dashboard/perfil#que-ven-mis-amigos" className="text-primary hover:underline ml-1">Comparte lo tuyo</Link>
+                    </p>
+                  </div>
+                ) : (
+                  <ActivityGrid items={feed} avatars={feedAvatars}
+                    onChange={(n) => setFeed((xs) => (xs ?? []).map((x) => (x.clave === n.clave && x.amigo?.id === n.amigo?.id ? n : x)))} />
+                )}
+              </section>
             )}
           </TabsContent>
 

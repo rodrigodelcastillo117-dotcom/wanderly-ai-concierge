@@ -85,7 +85,16 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- Promoción de referidos (20261027080000): referral_progress no recibe parámetros y solo responde por
   -- auth.uid() (nombre de pila e inicial, nunca correos); admin_referral_rewards exige auth.uid() en admins y
   -- solo da agregados. Pruebas en supabase/tests/referidos (RF1, RF2, RF9, RF16, RF33).
-  ('referral_progress'),('admin_referral_rewards')),
+  ('referral_progress'),('admin_referral_rewards'),
+  -- Social · perfil del amigo (20261027090000_social_amigos): lectura de otro solo con auth.uid() +
+  -- _social_son_amigos + lo que el dueño prendió (_social_pref); escritura solo de filas propias (ajustes,
+  -- ocultos, recomendaciones, momentos de auth.uid()) o de reacciones/preguntas a nombre de auth.uid() sobre
+  -- algo que hoy le es visible; social_puede_ver_objeto solo responde sí/no por auth.uid() (la usan las
+  -- políticas de storage). Pruebas de abuso en supabase/tests/social/amigos.sql (AM6-AM9, AM13, AM17).
+  ('amigo_viajes'),('amigo_actividad'),('amigos_actividad'),('amigos_avatares'),('social_puede_ver_objeto'),
+  ('mi_privacidad_social'),('guardar_privacidad_social'),('mi_actividad_social'),('ocultar_social'),
+  ('compartir_momento_social'),('recomendar_lugar'),('borrar_recomendacion'),('reaccionar_actividad'),
+  ('preguntar_actividad'),('responder_pregunta_social')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)
