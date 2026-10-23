@@ -79,7 +79,8 @@ const TOOL_FUNCTIONS: Record<string, string> = {
 /** Tope por herramienta: se sigue con lo que llegó (B-15). */
 const TOOL_TIMEOUTS: Record<string, number> = {
   check_flight_status: 9000, search_flights: 14000, search_hotels: 14000, search_places: 8000,
-  search_nearby: 7000, web_search: 8000, search_events: 8000, search_tours: 9000, search_attractions: 8000, search_members_venues: 5000, search_prive: 8000,
+  // search_events: google_events tarda más que una búsqueda web (prueba real 23-oct: se cortaba a 7.5 s).
+  search_nearby: 7000, web_search: 8000, search_events: 15000, search_tours: 9000, search_attractions: 8000, search_members_venues: 5000, search_prive: 8000,
 };
 /** Frase de inicio (planner.leadSentence) si las herramientas previstas siguen corriendo a los 700 ms. */
 const LEAD_AFTER_MS = 700;
