@@ -7433,6 +7433,22 @@ export type Database = {
         }
         Relationships: []
       }
+      reservation_state_v: {
+        Row: {
+          canonical_state: string | null
+          evidence_source: string | null
+          kind: string | null
+          raw_status: string | null
+          source_id: string | null
+          source_table: string | null
+          title: string | null
+          trip_id: string | null
+          updated_at: string | null
+          user_id: string | null
+          verification: string | null
+        }
+        Relationships: []
+      }
       user_autonomy: {
         Row: {
           dna_version: number | null
@@ -8229,6 +8245,28 @@ export type Database = {
       mi_actividad_social: { Args: { p_limite?: number }; Returns: Json }
       mi_privacidad_social: { Args: never; Returns: Json }
       my_member_card: { Args: never; Returns: Json }
+      my_open_reservations: {
+        Args: { _trip?: string }
+        Returns: {
+          canonical_state: string | null
+          evidence_source: string | null
+          kind: string | null
+          raw_status: string | null
+          source_id: string | null
+          source_table: string | null
+          title: string | null
+          trip_id: string | null
+          updated_at: string | null
+          user_id: string | null
+          verification: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "reservation_state_v"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       my_split_shares: {
         Args: { p_trip?: string }
         Returns: {
