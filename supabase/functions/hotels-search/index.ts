@@ -7,6 +7,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { isAnalysisCall, liveSearchGateFor, serpFetchFor } from "../_shared/serpRuntime.ts";
 import { finalizeSearchResponse } from "../_shared/liveSearch.ts";
 import { searchHotels } from "./search.ts";
+import { searchHotelOffers } from "./offers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,8 +28,13 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const analysis = await isAnalysisCall(req, __user.id);
     const serp = serpFetchFor("hotels-search", __user.id, analysis ? undefined : liveSearchGateFor(__user.id));
-    const result = await searchHotels(body, {
-      serpKey: Deno.env.get("SERPAPI_PRIVATE_KEY"),
+    // action "offers": ofertas por proveedor de un hotel (Property Details con su property_token), solo
+    // tras el botón "Ver ofertas reales"; misma caché, bolsa del plan y freno.
+    const serpKey = Deno.env.get("SERPAPI_PRIVATE_KEY");
+    const result = body?.action === "offers"
+      ? await searchHotelOffers(body, { serpKey, serpFetch: serp.fetch })
+      : await searchHotels(body, {
+      serpKey,
       marker: Deno.env.get("TRAVELPAYOUTS_MARKER"),
       serpFetch: serp.fetch,
     });

@@ -16,6 +16,7 @@ import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 import { BookingActions } from "@/components/booking/BookingActions";
 import { offerFromHotelResult } from "@/lib/booking";
+import { HotelOffersButton } from "@/components/booking/RealPriceButtons";
 
 interface HotelResult {
   name: string;
@@ -203,6 +204,11 @@ const TripHotels = () => {
                     offer={offerFromHotelResult(h, { city, checkin, checkout, adults, consulted_at: consultedAt, source })}
                     source={{ type: "hotel_result", result: h, meta: { city, checkin, checkout, adults, consulted_at: consultedAt, source }, trip_id: tripTool.tripId }} />
                 </div>
+                {/* Precio total por proveedor (Booking, Expedia, sitio oficial…) solo al pulsar. */}
+                {h.property_token && (
+                  <HotelOffersButton key={`${h.property_token}|${checkin}|${checkout}|${adults}`} className="pt-1"
+                    query={{ property_token: h.property_token, checkin, checkout, adults, name: h.name }} />
+                )}
               </div>
             </div>
           ))}

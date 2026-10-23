@@ -16,13 +16,14 @@ import { logBookingClick } from "@/lib/trackBooking";
 import { itemPurchaseState, primaryAction, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
 import { buildBuyFlow, hotelTotal, TIER_WORD, type BuyStep } from "@/lib/buyFlow";
 import { flightAirlineLabel, flightDurationLabel, flightStopsLabel } from "@/lib/flightDisplay";
-import { offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
+import { offerFromTripTour, tripDestinations, venueFromTripPlace } from "@/lib/booking";
 import { hotelQuery } from "@/lib/categoryImagery";
 import { canUnmark, markLabel } from "@/lib/purchaseMarks";
 import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
 import { useTasteProfile } from "@/hooks/useTasteProfile";
 import { TripPicksCarousel, type PickAction } from "@/components/booking/TripPicksCarousel";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
+import { HotelOffersButton, MultiCityFareButton } from "@/components/booking/RealPriceButtons";
 import { transportRubroLabel } from "@/lib/multiDestTrip";
 
 const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras" };
@@ -304,6 +305,10 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                     ) : (
                       <p className="mt-2 text-sm" data-testid="vuelo-sin-precio">Aún no tenemos precio real para esta ruta: búscalo en Google Flights.</p>
                     )}
+                    {/* Multidestino: precio real del recorrido (Google Flights, varias ciudades) solo al pulsar. */}
+                    {tripDestinations(trip).length > 1 && (
+                      <MultiCityFareButton trip={trip} interLegs={flow.steps.flatMap((x) => (x.kind === "traslado" ? [{ from: x.from, to: x.to, date: x.date, mode: x.chosen }] : []))} />
+                    )}
                     {it && (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {buyButton(it, "comprar-vuelo-abrir")}
@@ -362,6 +367,14 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                         );
                       })}
                     </div>
+                    {/* Ofertas reales por proveedor del hotel elegido (Google Hotels), solo al pulsar. */}
+                    {(() => {
+                      const h = s.chosen >= 0 ? trip.hospedaje_json?.[s.chosen] : null;
+                      const token = typeof h?.property_token === "string" ? h.property_token : null;
+                      return token ? (
+                        <HotelOffersButton key={token} className="mt-3" query={{ property_token: token, checkin: s.stay?.checkin ?? trip.fecha_salida, checkout: s.stay?.checkout ?? trip.fecha_regreso, adults: travelers, name: h?.nombre ?? null }} />
+                      ) : null;
+                    })()}
                     {it && (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {buyButton(it, cityId ? `comprar-hotel-${cityId}-abrir` : "comprar-hospedaje-abrir")}

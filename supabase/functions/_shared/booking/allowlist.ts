@@ -75,6 +75,7 @@ export const PROVIDERS: ProviderInfo[] = [
   P("airbnb.com", "airbnb", "Airbnb", "ota", "Búsqueda /s/<ciudad>/homes que arma src/lib/affiliateLinks.ts (airbnbLink)."),
   // Google Hotels (enlaces de precios que devuelve SerpApi: google.com/aclk) y Maps
   P("google.com", "google_hotels", "Google Hotels", "metasearch", "Enlaces de precio de Google Hotels vía SerpApi (EV-GHOTELS-PRICE-LINK): clic de anuncio, redirect opaco.", { paths: /^\/aclk(\?|$)/, redirector: "opaque", hosts: GOOGLE_HOSTS }),
+  P("google.com", "google_hotels", "Google Hotels", "metasearch", "Enlaces por proveedor de Google Hotels Property Details vía SerpApi (featured_prices[].link / prices[].link = /travel/lodging/clk, EV-GHOTELS-PRICE-LINK): redirect opaco.", { paths: /^\/travel\/lodging\/clk(\/|\?|$)/, redirector: "opaque", hosts: GOOGLE_HOSTS }),
   P("google.com", "google_hotels", "Google Hotels", "metasearch", "Ficha de Google Hotels (/travel/hotels) de SerpApi.", { paths: /^\/travel\/hotels(\/|\?|$)/, hosts: GOOGLE_HOSTS }),
   P("google.com", "google_maps", "Google Maps", "maps", "Google Maps URLs oficiales (EV-MAPS-URLS): /maps/search/?api=1 y /maps/dir/?api=1.", { paths: /^\/maps(\/|\?|$)/, hosts: [...GOOGLE_HOSTS, "maps.google.com"] }),
   // Restaurantes: sistemas públicos de reserva (no requieren ser socio para abrir su página pública)
