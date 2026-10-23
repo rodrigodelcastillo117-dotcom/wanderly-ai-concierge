@@ -54,7 +54,7 @@ END $$;
 ALTER TABLE public.concierge_requests DROP CONSTRAINT IF EXISTS concierge_request_status_ok;
 ALTER TABLE public.concierge_requests ADD CONSTRAINT concierge_request_status_ok CHECK (type = 'prive_request' OR status IN (
   'solicitado','pendiente_confirmacion','cancelado','rechazado','caducado','resuelto',
-  'in_progress','contacted','confirmed','cancelled','rejected','failed','expired',
+  'in_progress','processing','contacted','confirmed','cancelled','rejected','failed','expired',
   'draft','awaiting_user_ok','sent','venue_replied','needs_user','declined')) NOT VALID;
 DO $$
 BEGIN
@@ -63,7 +63,7 @@ EXCEPTION WHEN check_violation THEN
   RAISE WARNING 'concierge_request_status_ok queda NOT VALID: hay solicitudes con estados fuera de la lista (%)',
     (SELECT string_agg(DISTINCT status, ', ') FROM public.concierge_requests WHERE type <> 'prive_request' AND status NOT IN (
       'solicitado','pendiente_confirmacion','cancelado','rechazado','caducado','resuelto',
-      'in_progress','contacted','confirmed','cancelled','rejected','failed','expired',
+      'in_progress','processing','contacted','confirmed','cancelled','rejected','failed','expired',
       'draft','awaiting_user_ok','sent','venue_replied','needs_user','declined'));
 END $$;
 
