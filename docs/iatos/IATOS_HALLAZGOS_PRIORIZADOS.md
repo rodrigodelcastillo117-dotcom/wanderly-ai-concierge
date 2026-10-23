@@ -2017,3 +2017,20 @@ Solo evaluación escrita: no se integró nada ni se pidieron llaves. El dueño n
 - Fuentes: [Prerequisites (developers.booking.com)](https://developers.booking.com/demand/docs/getting-started/prerequisites), [Try out the API](https://developers.booking.com/demand/docs/getting-started/try-out-the-api), [Vorp Labs, de terceros](https://vorplabs.com/agent-tools/booking-demand-api).
 
 **Recomendación:** no contratar nada todavía. Primero encender BB-08 con SerpApi (lo que falta está arriba) y medir cuántos usuarios llegan a "Actualizar precio" → proveedor. Si hay volumen, pedir a Booking.com el contrato de afiliado gestionado (sin costo de entrada, pero con aprobación) antes que Duffel, que implica ser vendedor del boleto.
+
+## MISIÓN GOD MODE + GOD MODE 2.0 (dueño, 23-oct-2026) — "ONE BRAIN · TWO PERSONALITIES · REAL RESULTS"
+
+Candados que **no** se negocian: no eliminar ninguna función de Concierge PRO; conservar el negro y dorado; conservar la identidad de Privé; la invitación, ceremonia y Grand Welcome son intocables; no tocar PRO Fundadores $99 MXN ni la regla de 90 días; nada inventado; una sola inteligencia (Iato) compartida entre PRO y Privé.
+
+Orden de ejecución acordado (con créditos limitados hasta el 27-oct, 6 p. m.):
+- **AHORA:** terminar lo que está en curso (precio verificable, E2E mundo); **P0 del contexto** (separar ubicación física / viaje seleccionado / destino pedido; caso Interlomas contra India); **P1 "Llévame"** (Google Maps URL `api=1`, `destination_place_id`, `dir_action=navigate`, sin GPS propio).
+- **Después del 27-oct:**
+  - P2 Mission Engine (contrato canónico de estados de reserva: recomendado → consultado → … → confirmado por proveedor con evidencia; la IA nunca cambia estados con texto libre).
+  - P3 Event Radar: evaluar Ticketmaster Discovery y fuentes oficiales.
+  - P4 Reservation Hunter: reutilizar Reservas IA por correo y Booking Bridge; producción solo con dominio, recepción, webhooks y consentimiento certificados.
+  - P5 Personal Memory con controles de ver, corregir, borrar y desactivar.
+  - P6 Modo Exigente como investigador con límites de costo.
+  - P7 Privé Key, Desk, For You, Drops e Insider.
+  - P8 microinteracciones.
+- **Entregables pedidos:** matriz FUNCIÓN | YA EXISTE | QUÉ FALTA | PROVEEDOR REAL | COSTO | PRUEBA E2E | ESTADO PRODUCTIVO; inventario de preservación antes y después; pruebas de aceptación A–H (Interlomas/Llévame, conciertos, mesa para 4, España 15 días, vuelo cancelado, memoria "hoteles boutique", noche en París con The Key, mesa difícil en Modo Exigente).
+- Estados de entrega: E2E real verificado / probado con mocks / pendiente de configuración / bloqueado por proveedor o contrato / pendiente / no disponible.
