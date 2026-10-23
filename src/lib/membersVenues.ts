@@ -136,6 +136,16 @@ function toVenue(r: Record<string, unknown>): MembersVenue | null {
   };
 }
 
+/**
+ * ¿Se puede mostrar? Solo lo que tiene fuente: lo curado de Privé (VERIFICADO o CURADO, con fuente y
+ * fecha) o una fila con su fuente. Las filas viejas de nightlife_premium las escribió la IA sin fuente
+ * (auditoría de lugares reales: 35 % de Members Only, 38 % de sus enlaces rotos o equivocados, lugares
+ * que ya cerraron): no se muestran. Sin migración: el filtro va aquí y en concierge-chat.
+ */
+export function isSourcedVenue(v: Pick<MembersVenue, "fuente" | "source_url">): boolean {
+  return v.fuente === "curaduria" || !!v.source_url;
+}
+
 /** Lugares de una ciudad (cualquier nombre o sobrenombre: "CDMX", "Mexico City", "Polanco"). */
 export async function fetchMembersVenues(client: RpcClient, city: string): Promise<{ venues: MembersVenue[]; error: boolean }> {
   const { data, error } = await client.rpc("members_venues", { p_ciudad: city });
@@ -143,7 +153,7 @@ export async function fetchMembersVenues(client: RpcClient, city: string): Promi
   const venues = data
     .filter((r): r is Record<string, unknown> => !!r && typeof r === "object")
     .map(toVenue)
-    .filter((v): v is MembersVenue => !!v);
+    .filter((v): v is MembersVenue => !!v && isSourcedVenue(v));
   return { venues, error: false };
 }
 

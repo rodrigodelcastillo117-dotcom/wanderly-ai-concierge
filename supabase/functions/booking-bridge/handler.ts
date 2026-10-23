@@ -153,7 +153,7 @@ async function buildOffer(src: Source, deps: BridgeDeps, draft: Draft | null): P
     if (src.col === "vuelos_json") return { offer: offerFromTripFlight(item, { trip: trip!, city, index: src.index, now, flags }), trip };
     // Catálogo Privé primero; si no está, los datos de Google Places que el viaje ya trae (googlemax).
     const venue = (await deps.venueLookup({ name: name.replace(` · ${city}`, ""), city }))
-      ?? (src.col === "restaurantes_json" ? venueFromTripPlace(item, city, trip!.pais_destino) : null);
+      ?? (src.col === "restaurantes_json" || src.col === "tours_json" ? venueFromTripPlace(item, city, trip!.pais_destino) : null);
     const vCountry = venue?.country ?? country;
     const product = src.col === "restaurantes_json" ? "restaurant" : src.col === "hospedaje_json" ? "hotel" : "tour";
     const ctx = { trip: trip!, city, index: src.index, now, venue, country: vCountry,

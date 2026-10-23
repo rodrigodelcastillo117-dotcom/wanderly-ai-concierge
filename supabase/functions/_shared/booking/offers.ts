@@ -691,8 +691,10 @@ export function offerFromVenue(
 export function offerFromTripRestaurant(r: any, ctx: OfferContext & { city?: string | null; index?: number }): BookingOffer {
   const city = ctx.city ?? ctx.trip?.destino ?? null;
   const name = String(r?.nombre ?? "").replace(` · ${city}`, "").trim() || "Restaurante";
+  // Sin ai_url: el cta_action de un viaje lo escribió la IA (o es el sitio/ficha de Google, que ya llega
+  // por ctx.venue). Auditoría de lugares reales: 33 % de esos enlaces estaban rotos o eran de otro lugar.
   return offerFromVenue(ctx.venue ?? { name, city, country: ctx.country ?? null }, "restaurant",
-    { ...ctx, ai_url: str(r?.cta_action, 2000), price_label: str(r?.rango_precio), id_extra: [ctx.trip?.id, ctx.index ?? ""] });
+    { ...ctx, price_label: str(r?.rango_precio), id_extra: [ctx.trip?.id, ctx.index ?? ""] });
 }
 
 /** Experiencia del viaje (trips.tours_json). */

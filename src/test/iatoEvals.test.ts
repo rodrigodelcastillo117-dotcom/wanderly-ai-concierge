@@ -260,9 +260,10 @@ describe("E-05..E-11 · tools y cards con modelo y proveedores simulados", () =>
 
   it("cards mal formadas o de tipo desconocido se descartan", () => {
     const out = validateCards([null, "x", { type: "yacht", title: "Y" }, { type: "alert", title: "Sin cuerpo" }, { type: "restaurant" },
-      { type: "restaurant", title: "Pujol", rating: "4.8" }], collectEvidence([]));
-    expect(out.cards).toEqual([{ type: "restaurant", title: "Pujol" }]); // rating sin fuente fuera
-    expect(out.dropped.map((d) => d.reason)).toEqual(["mal_formada", "mal_formada", "tipo_desconocido", "alerta_sin_texto", "sin_titulo"]);
+      { type: "attraction", title: "Pujol", rating: "4.8" }, { type: "restaurant", title: "Pujol" }], collectEvidence([]));
+    expect(out.cards).toEqual([{ type: "attraction", title: "Pujol" }]); // rating sin fuente fuera
+    // Restaurante sin búsqueda de lugares en este turno: nombre escrito por el modelo, no se muestra.
+    expect(out.dropped.map((d) => d.reason)).toEqual(["mal_formada", "mal_formada", "tipo_desconocido", "alerta_sin_texto", "sin_titulo", "lugar_sin_respaldo"]);
   });
 });
 

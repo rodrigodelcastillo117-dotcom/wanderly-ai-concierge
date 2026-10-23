@@ -182,7 +182,10 @@ describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
     expect(within(rest).getAllByTestId("pick-card-vacia").map((c) => c.textContent)).toEqual([
       expect.stringContaining("Sin opción económica verificada"), expect.stringContaining("Sin opción de precio medio verificada")]);
     expect(within(rest).getAllByTestId("pick-card").find((c) => c.getAttribute("data-slot") === "caro")).toHaveTextContent("Roscioli");
-    expect(within(extras).getAllByText(/Reservar/).length).toBeGreaterThan(0);
+    // Cada botón dice lo que es (búsqueda, ficha o sitio oficial), nunca "Reservar" sin la página del lugar.
+    expect(within(extras).getAllByTestId("pick-reservar").map((a) => a.textContent)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^(Buscar en OpenTable|Ver en Google Maps|Buscar en Google Maps|Sitio oficial|Buscar en GetYourGuide)/)]));
+    expect(within(extras).queryAllByText(/^Reservar/)).toHaveLength(0);
     // Experiencia: "Agregar al total" la suma (selTours) y se guarda como antes.
     const exp = within(roma).getByTestId("picks-experiencia");
     fireEvent.click(within(exp).getAllByTestId("pick-elegir")[0]);

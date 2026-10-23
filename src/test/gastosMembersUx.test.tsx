@@ -260,7 +260,7 @@ describe("Ahorro para tu viaje: pantalla", () => {
 const venue = (over: Record<string, unknown>) => ({
   id: "x", ciudad: "ciudad de mexico", ciudad_display: "Ciudad de México", categoria: "speakeasy", emoji: null, nombre: "X",
   por_que: null, descripcion: null, dress_code: null, precio_estimado: null, reserva_requerida: false, tags: [], address: null,
-  website: null, fuente: "members", effective_state: null, effective_label: null, source_url: null, verified_at: null,
+  website: null, fuente: "curaduria", effective_state: null, effective_label: null, source_url: null, verified_at: null,
   neighborhood: null, season_state: null, age_policy: null, ...over,
 });
 const VENUES = [

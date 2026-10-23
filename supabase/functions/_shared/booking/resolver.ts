@@ -85,7 +85,8 @@ function labelFor(kind: ActionKind, p: ProductType, provider: string): string {
       if (p === "flight") return "Buscar este vuelo";
       // Es una búsqueda (Booking searchresults): nunca se presenta como tarifa garantizada.
       if (p === "hotel") return `Buscar en ${provider} · la tarifa puede variar`;
-      if (p === "restaurant") return "Buscar mesa";
+      // Es una búsqueda por nombre en la plataforma: el botón lo dice ("Buscar en OpenTable").
+      if (p === "restaurant") return `Buscar en ${provider}`;
       if (p === "transport") return "Buscar boletos";
       if (p === "event") return "Buscar entradas";
       return `Buscar en ${provider}`;
@@ -290,6 +291,8 @@ export function resolveBookingActions(input: ResolverInput): ResolvedActions {
     const url = mapsListingUrl(input.maps.query, input.maps.place_id);
     if (url) {
       push("maps_listing", {
+        // Sin place_id es una búsqueda por nombre: no se presenta como la ficha del lugar.
+        ...(input.maps.place_id ? {} : { label: "Buscar en Google Maps" }),
         url, host: "www.google.com", processor: "Google Maps",
         preserves: { ...NONE, product: !!input.maps.place_id },
         disclosures: input.maps.place_id ? ["Abre la ficha exacta del lugar en Google Maps."] : ["Es una búsqueda por nombre: confirma que sea el lugar correcto (puede haber homónimos)."],

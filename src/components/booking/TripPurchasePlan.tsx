@@ -16,7 +16,7 @@ import { logBookingClick } from "@/lib/trackBooking";
 import { itemPurchaseState, primaryAction, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
 import { buildBuyFlow, hotelTotal, TIER_WORD, type BuyStep } from "@/lib/buyFlow";
 import { flightAirlineLabel, flightDurationLabel, flightStopsLabel } from "@/lib/flightDisplay";
-import { offerFromTripTour } from "@/lib/booking";
+import { offerFromTripTour, venueFromTripPlace } from "@/lib/booking";
 import { hotelQuery } from "@/lib/categoryImagery";
 import { canUnmark, markLabel } from "@/lib/purchaseMarks";
 import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
@@ -455,13 +455,14 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
           {flow.extras.map((e) => {
             const restaurantAction = (i: number): PickAction => {
               const it = items.find((p) => p.kind === "restaurante" && p.index === i);
-              return it?.url ? { url: it.url, site: it.site } : null;
+              return it?.url ? { url: it.url, site: it.site, label: it.action?.label ?? null } : null;
             };
             const tourAction = (i: number): PickAction => {
               const t = trip.tours_json[i];
               const it = items.find((p) => p.kind === "actividad" && p.index === i) ?? null;
-              const a = it?.action ?? primaryAction(offerFromTripTour(t, { trip, city: t?.ciudad ?? trip.destino, index: i }).actions);
-              return a?.url ? { url: a.url, site: a.processor ?? null } : null;
+              const tCity = t?.ciudad ?? trip.destino;
+              const a = it?.action ?? primaryAction(offerFromTripTour(t, { trip, city: tCity, index: i, venue: venueFromTripPlace(t, tCity, trip.pais_destino) }).actions);
+              return a?.url ? { url: a.url, site: a.processor ?? null, label: a.label } : null;
             };
             return (
               <div key={e.city} className="space-y-4" data-testid="comprar-extras-ciudad" data-city={e.city}>

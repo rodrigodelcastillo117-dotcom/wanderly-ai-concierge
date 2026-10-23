@@ -34,20 +34,23 @@ const ATMOSPHERE_FIELDS = [
  * - rich: + calificación, reseñas, nivel de precio, horario, teléfono, sitio web (Enterprise).
  * - atmosphere: + resumen editorial, reservable, sirve desayuno/comida/cena… (Enterprise + Atmosphere).
  */
-export type PlacePreset = "ids" | "basic" | "rich" | "atmosphere";
+export type PlacePreset = "ids" | "verify" | "basic" | "rich" | "atmosphere";
 
 export const PRESET_FIELDS: Record<PlacePreset, string[]> = {
   ids: ["id"],
+  // Lo mínimo para comprobar que un nombre existe (resolvePlace): IDs Only no trae el nombre, así que
+  // no sirve para validar (devuelve el lugar más parecido aunque el nombre sea inventado). Pro.
+  verify: ["id", "displayName", "googleMapsUri", "businessStatus"],
   basic: PRO_FIELDS,
   rich: [...PRO_FIELDS, ...ENTERPRISE_FIELDS],
   atmosphere: [...PRO_FIELDS, ...ENTERPRISE_FIELDS, ...ATMOSPHERE_FIELDS],
 };
 
-const SKU_TIER: Record<PlacePreset, string> = { ids: "Essentials (IDs Only)", basic: "Pro", rich: "Enterprise", atmosphere: "Enterprise + Atmosphere" };
+const SKU_TIER: Record<PlacePreset, string> = { ids: "Essentials (IDs Only)", verify: "Pro", basic: "Pro", rich: "Enterprise", atmosphere: "Enterprise + Atmosphere" };
 
 /** SKU que cobra Google por una llamada con ese preset. */
 export function skuFor(method: "text" | "nearby" | "details", preset: PlacePreset): string {
-  if (method === "nearby") return `Nearby Search ${preset === "ids" || preset === "basic" ? "Pro" : SKU_TIER[preset]}`;
+  if (method === "nearby") return `Nearby Search ${preset === "ids" || preset === "verify" || preset === "basic" ? "Pro" : SKU_TIER[preset]}`;
   if (method === "text") return `Text Search ${SKU_TIER[preset]}`;
   // En Place Details, id/dirección/ubicación/fotos son Essentials; displayName ya es Pro.
   return `Place Details ${preset === "ids" ? "Essentials" : SKU_TIER[preset]}`;
@@ -301,6 +304,8 @@ export type TextSearchRequest = {
   priceLevels?: PriceLevel[];
   /** Quitar lugares cerrados permanente o temporalmente (default true). */
   dropClosed?: boolean;
+  /** Tiempo máximo de la llamada (default 12 s). */
+  timeoutMs?: number;
 };
 
 export type CallOptions = { now?: () => number };
@@ -341,7 +346,7 @@ export async function searchText(t: GoogleTransport, r: TextSearchRequest, o: Ca
   if (!body.textQuery) return { ok: false, sku, error: { kind: "invalid_request", status: 400, message: "query vacía" } };
   const mask = fieldMask("text", preset);
   return coalesce(`text|${mask}|${JSON.stringify(body)}`, async () => {
-    const res = await googleJson<{ places?: any[] }>(t, "places", sku, "/v1/places:searchText", { body, fieldMask: mask });
+    const res = await googleJson<{ places?: any[] }>(t, "places", sku, "/v1/places:searchText", { body, fieldMask: mask, timeoutMs: r.timeoutMs });
     if (!res.ok) return { ok: false as const, sku, error: callError(res) };
     const at = new Date((o.now ?? Date.now)()).toISOString();
     return finish(res.data?.places ?? [], sku, at, r.dropClosed !== false);

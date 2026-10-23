@@ -322,3 +322,16 @@ Verificación:
 - La lista de URLs y los resultados están en el *scratchpad* de la sesión (`auditoria-lugares-reales/urls.tsv` y `results.tsv`). No se versionan porque traen URLs de viajes de usuarios.
 - "Contenido equivocado" se decidió leyendo el `<title>` de la página: dominio en venta, plantilla, otro negocio. Los casos de "cerró" o "cambió de marca" son conocimiento del auditor y hay que confirmarlos con `businessStatus` (fase 2).
 - Los viajes incluyen 5 de prueba E2E ("E2E PRUEBA …"); no cambian las conclusiones.
+
+---
+
+## 8. Fase 1 hecha en `claude/lugares-reales-f1` (motor general, sin desplegar)
+
+- **Validación antes de mostrar** (`_shared/place-verify.ts`): `resolvePlace(nombre, ciudad)` busca con Text Search y el preset `verify` (id, displayName, googleMapsUri, businessStatus = **Text Search Pro**). IDs Only (gratis) no sirve para validar: no trae el nombre y siempre devuelve "el más parecido", aunque el nombre sea inventado. Caché en `serp_cache` (sin migración): solo `place_id`, 30 días; "no encontrado", 7 días. `makeResolver` pone concurrencia compartida (4), tiempo por búsqueda (3.5 s) y un plazo total; lo que no alcanza queda "Sin verificar".
+- **analizar-viaje**: restaurantes fuera de la lista de Google y tours fuera de la lista de atracciones se buscan (plazo 8 s). Restaurante no encontrado: no se muestra. Tour no encontrado o sin tiempo: `verificado: false` ("Sin verificar"). Se quitó la regla 16 del prompt y el `cta_action` del esquema.
+- **logistics-plan**: una búsqueda de restaurantes por ciudad (la misma `restaurantsForCity`, en paralelo con hoteles y atracciones) que la IA usa como lista; después, la misma validación (plazo 10 s, nunca después de `__deadline − 8 s`). `labelExperiences` ya conserva `place_id`, ficha y calificación del proveedor.
+- **multiDestTrip.ts**: sin "$$" por omisión; pasan `place_id`, ficha, sitio y `verificado`.
+- **Enlaces**: `offerFromTripRestaurant` ya no usa el `cta_action` guardado. Botones: "Buscar en OpenTable" (antes "Buscar mesa"), "Buscar en Google Maps" cuando no hay `place_id`, "Sitio oficial" solo con el website del proveedor; el carrusel de Comprar ya no dice "Reservar" en todo (usa la etiqueta del motor) y marca "Sin verificar".
+- **Concierge**: una tarjeta `restaurant` cuyo título no salió de `search_places`, `search_nearby`, `search_attractions`, `search_members_venues` o `search_prive` se descarta (`lugar_sin_respaldo`).
+- **Members Only**: sin migración. `fetchMembersVenues` y `search_members_venues` muestran solo lo curado o con fuente (`isSourcedVenue`). **Pendiente**: `members_cities()` y `members_teaser()` siguen contando las filas de `nightlife_premium`; para que los conteos cuadren hay que redefinir `members_venue_pool()` sin la parte `leg` (migración aditiva) y ajustar la suite `members_more`.
+- **Hoteles**: se guardan `property_token` y el sitio del hotel (`link` de SerpApi → `website`) cuando la tarifa coincide con la lista. **Pendiente**: enlazar a la ficha de Google Hotels por `property_token` (la URL `google.com/travel/hotels/entity/<token>` no está documentada y `google.com/travel` no está en la lista blanca del motor); por ahora el botón sigue siendo la búsqueda de Booking.
