@@ -7,7 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { track } from "@/lib/analytics";
 import { PRICE_LINE, PRO_FEATURES, freeUsageLines } from "@/lib/planCopy";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
-import { proStatusLabel } from "@/lib/proStatus";
+import { fmtProDate, proStatusLabel } from "@/lib/proStatus";
 
 // Mismo texto que Landing, Términos y correos (src/lib/planCopy.ts).
 const BENEFITS = PRO_FEATURES;
@@ -109,7 +109,11 @@ export default function Pro() {
               {isComped ? (
                 <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 text-sm flex items-start gap-2">
                   <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                  <span>Tienes acceso PRO de cortesía indefinido como miembro fundador. No necesitas hacer nada.</span>
+                  <span>
+                    {subscription?.comped_until
+                      ? `Tienes IATOS PRO de cortesía hasta el ${fmtProDate(subscription.comped_until)} por invitar a tus amigos. Al terminar vuelves al plan gratuito; no se te cobra nada.`
+                      : "Tienes acceso PRO de cortesía indefinido como miembro fundador. No necesitas hacer nada."}
+                  </span>
                 </div>
               ) : subscription?.stripe_customer_id && (isPro || subscription?.status) ? (
                 <div className="flex flex-col sm:flex-row gap-3">

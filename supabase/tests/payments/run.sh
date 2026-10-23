@@ -41,8 +41,8 @@ main() {
   fi
   # Segunda auditoría (r2, grupo cuentas): idempotencia de sus migraciones (en una copia), casos
   # adversariales del auditor y regresiones propias. r2_cuentas.sql hace \ir de 20261026250000 para
-  # probar la conversión de datos: es la última migración que define is_pro, pro_price_ok y
-  # prive_tenure_days, así que no deja versiones viejas.
+  # probar la conversión de datos y después de 20261027080000_referidos_promo (la última que define
+  # is_pro), así que no deja versiones viejas.
   t_idempotency "$DB" "$T_MIG"/20261026*_r2_cuentas_*.sql
   $PSQL -d "$DB" -f "$DIR/aud2_pagos_adversarial.sql" 2>&1 | grep -o 'OK X.*\|FALLA.*\|PENDIENTE.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
   $PSQL -d "$DB" -f "$DIR/r2_cuentas.sql" 2>&1 | grep -o 'OK RC.*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
