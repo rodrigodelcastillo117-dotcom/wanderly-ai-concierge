@@ -25,6 +25,15 @@ const isFlightMode = (m: unknown) => { const t = transportModeOf(m); return t ==
 /** Ciudades de escala de un enlace de Aviasales (token t: "…MEXCUNMADOTP…"). */
 export type LayoverFn = (link: string | null | undefined, origin: string | null, destination: string | null) => string[] | null;
 
+// Datos del proveedor de un restaurante (restaurantFromPlace / verifyRestaurants) que se guardan en el viaje.
+const PLACE_KEYS = ["fuente", "estado_dato", "verificado", "nota", "place_id", "maps_url", "website", "telefono", "direccion", "rating",
+  "num_reviews", "nivel_precio", "reservable", "photo_ref", "consultado_at", "tip"];
+const pick = (o: any, keys: string[]) => {
+  const out: Record<string, unknown> = {};
+  for (const k of keys) if (o?.[k] !== undefined && o?.[k] !== null) out[k] = o[k];
+  return out;
+};
+
 export function multiDestTripRows(logistics: any, stops: string[], origin: string, opts: { layovers?: LayoverFn } = {}) {
   const USD_MXN = Number(logistics?.fx_usd_mxn) > 0 ? Number(logistics.fx_usd_mxn) : 20.5;
   const mxn = (usd: unknown) => Math.round(Number(usd ?? 0) * USD_MXN);
@@ -95,6 +104,8 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
         ...(h.estado_dato ? { estado_dato: h.estado_dato } : {}),
         ...(h.consultado_at ? { consultado_at: h.consultado_at } : {}),
         booking_link: h.booking_url ?? null,
+        ...(h.property_token ? { property_token: h.property_token } : {}),
+        ...(h.website ? { website: h.website } : {}),
         por_que: h.por_que || "",
         ciudad: pd.city,
         tier: h.tier,
@@ -102,12 +113,18 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
       });
     });
     (pd?.restaurantes ?? []).forEach((r: any) => {
-      restaurantes_json.push({ nombre: r.nombre, cocina: r.cocina, rango_precio: r.rango_precio || "$$", por_que: r.por_que || "", ciudad: pd.city });
+      // Sin dato de precio no se inventa uno (antes "$$" por omisión en los 142 restaurantes del multidestino).
+      // Los datos de Google (place_id, sitio, ficha, calificación) pasan tal cual; ningún enlace de la IA.
+      restaurantes_json.push({
+        nombre: r.nombre, cocina: r.cocina, ...(r.rango_precio ? { rango_precio: r.rango_precio } : {}), por_que: r.por_que || "", ciudad: pd.city,
+        ...pick(r, PLACE_KEYS),
+      });
     });
     (pd?.experiencias ?? []).forEach((t: any) => {
       tours_json.push({
         nombre: t.nombre, duracion: t.duracion || "", precio_por_persona: mxn(t.price_per_person_usd), fuente: t.fuente ?? "estimado",
         ...(t.estado_dato ? { estado_dato: t.estado_dato } : {}), rating: t.rating ?? null, por_que: t.por_que || "", ciudad: pd.city,
+        ...pick(t, ["place_id", "maps_url", "num_reviews", "verificado", "nota_verificacion"]),
       });
     });
   });

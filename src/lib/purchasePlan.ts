@@ -272,7 +272,8 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
   for (const i of chosen) {
     const t = tours[i];
     const tCity = t?.ciudad ?? city;
-    const offer = offerFromTripTour(t, { trip, city: tCity, index: i });
+    // Con place_id de Google: la ficha exacta en Maps (no una búsqueda por nombre).
+    const offer = offerFromTripTour(t, { trip, city: tCity, index: i, venue: venueFromTripPlace(t, tCity, trip.pais_destino) });
     const pp = num(t?.precio_por_persona);
     items.push(base({
       key: `actividad:${i}:${norm(t?.nombre)}`, kind: "actividad", category: "activity", title: t?.nombre ?? "Experiencia",

@@ -13,7 +13,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     rpc: vi.fn(async (fn: string) => {
       rpcCalls.push(fn);
       if (fn === "members_venues") return {
-        data: state.access ? [{ id: "v1", ciudad: "paris", ciudad_display: "París", categoria: "cabaret", nombre: "Lugar Reservado", address: "1 Rue", reserva_requerida: true, tags: [], fuente: "members" }] : null,
+        data: state.access ? [{ id: "v1", ciudad: "paris", ciudad_display: "París", categoria: "cabaret", nombre: "Lugar Reservado", address: "1 Rue", reserva_requerida: true, tags: [], fuente: "curaduria" }] : null,
         error: state.access ? null : { message: "MEMBERS_PRO_REQUIRED" },
       };
       if (fn === "members_access_state") return { data: { ...state }, error: null };

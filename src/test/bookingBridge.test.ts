@@ -262,9 +262,10 @@ describe("adaptadores sobre lo que IATOS ya tiene", () => {
     expect(bookingPageMatchesName("https://www.opentable.com/r/botin-madrid", "Botín")).toBe(true);
     expect(bookingPageMatchesName("https://www.opentable.com/r/casa-botin-miami", "Sobrino de Botín")).toBe(false);
     const o = offerFromTripRestaurant({ nombre: "Sobrino de Botín", cta_action: "https://www.opentable.com/r/casa-botin-miami" }, { trip: TRIP, now: NOW });
-    expect(o.rejected[0].reason).toBe("no_coincide_con_el_lugar");
-    expect(o.actions[0].kind).toBe("equivalent_search"); // "Buscar mesa" (búsqueda), no "Abrir reservas"
-    expect(o.actions[0].label).toBe("Buscar mesa");
+    // Auditoría de lugares reales: el cta_action del viaje (escrito por la IA) ya ni se considera.
+    expect(o.actions.some((a) => a.url?.includes("casa-botin-miami"))).toBe(false);
+    expect(o.actions[0].kind).toBe("equivalent_search"); // búsqueda, no "Abrir reservas"
+    expect(o.actions[0].label).toBe("Buscar en OpenTable");
   });
   it("lugar del catálogo Privé: abre su página pública de reservas (Tock) y ofrece solicitud asistida", () => {
     const venue = venueFromPriveRow({ id: "e1", slug: "cdmx-quintonil", name: "Quintonil", website: "https://quintonil.com",

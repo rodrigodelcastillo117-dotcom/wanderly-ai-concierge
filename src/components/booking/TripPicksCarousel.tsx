@@ -13,7 +13,8 @@ import { activityQuery, cuisineQuery } from "@/lib/categoryImagery";
 import { buildPickCards, parsePriceRange, restaurantPriceLabel, SLOT_LABEL, TIER_LABEL, tierOf, tripUsdMxnRate, type PickCard, type PickKind, type TasteProfile } from "@/lib/tripPicks";
 import { logBookingClick } from "@/lib/trackBooking";
 
-export type PickAction = { url: string; site: string | null } | null;
+/** label: lo que el botón es ("Sitio oficial", "Ver en Google Maps", "Buscar en OpenTable"…), del motor de reservas. */
+export type PickAction = { url: string; site: string | null; label?: string | null } | null;
 
 type Props = {
   kind: PickKind;
@@ -53,6 +54,17 @@ function priceText(kind: PickKind, x: any, trip?: any): { text: string; note: st
     return { text: sym ? `${sym}${t ? ` · ${TIER_LABEL[t]}` : ""}` : t ? TIER_LABEL[t] : "Precio no publicado", note: String(x?.fuente ?? "").startsWith("google") ? null : "sin verificar" };
   }
   return { text: raw && raw !== "Precio no publicado" ? raw : "Precio no publicado", note: null };
+}
+
+/**
+ * Lugar sin respaldo de un proveedor (auditoría de lugares reales): un tour sin place_id que no vino de
+ * la lista de TripAdvisor/Google, o un restaurante marcado sin verificar por el servidor.
+ */
+export function unverifiedPlace(kind: PickKind, x: any): boolean {
+  if (!x) return false;
+  if (x.verificado === false) return true;
+  if (x.place_id || x.verificado === true) return false;
+  return kind === "experiencia" ? !["tripadvisor", "google_places", "google_maps"].includes(String(x.fuente ?? "")) : x.fuente !== "google_places";
 }
 
 function ratingText(x: any): string | null {
@@ -156,6 +168,7 @@ function Card({ card, kind, city, list, trip, actionFor, isChosen, onChoose, ext
         <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
           <span className="truncate">{tipo}</span>
           {rating && <span className="inline-flex shrink-0 items-center gap-0.5 text-foreground/90" aria-label={`Calificación ${rating}`}><Star className="h-3 w-3 fill-primary text-primary" aria-hidden="true" />{rating}</span>}
+          {unverifiedPlace(kind, x) && <span className="shrink-0 text-[11px] text-muted-foreground" data-testid="pick-sin-verificar">· Sin verificar</span>}
         </p>
         <p className="text-sm tabular-nums" data-testid="pick-price">{price.text}{price.note && <span className="ml-1 text-[11px] text-muted-foreground">· {price.note}</span>}</p>
         {reason && <p className="line-clamp-2 text-xs italic text-primary/90" data-testid="pick-reason">{reason}</p>}
@@ -165,7 +178,7 @@ function Card({ card, kind, city, list, trip, actionFor, isChosen, onChoose, ext
               onClick={() => void logBookingClick({ category: kind === "restaurante" ? "restaurant" : "activity", provider: action.site ?? "Proveedor", title: name,
                 bookingUrl: action.url, city: x?.ciudad ?? city, tripId: trip?.id, startAt: trip?.fecha_salida ?? undefined })}
               className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:bg-primary/90">
-              Reservar <ExternalLink className="h-3 w-3" aria-hidden="true" />
+              {action.label || "Abrir"} <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </a>
           ) : <span className="flex-1 text-[11px] text-muted-foreground">Sin enlace fiable para reservar</span>}
           {onChoose && (

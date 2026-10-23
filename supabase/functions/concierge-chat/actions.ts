@@ -388,18 +388,20 @@ function hash(s: string): number {
 export function restaurantBookingLinks(v: { name: string; city?: string; website?: string; mapsUrl?: string; date?: string; time?: string; party?: number }) {
   const links: Array<{ kind: "booking" | "website" | "maps"; label: string; url: string }> = [];
   const site = httpsUrl(v.website);
-  if (site) links.push({ kind: "website", label: "Sitio del lugar", url: site });
+  if (site) links.push({ kind: "website", label: "Sitio oficial", url: site });
   const ot = new URL("https://www.opentable.com/s");
   ot.searchParams.set("term", [v.name, v.city].filter(Boolean).join(" "));
   ot.searchParams.set("covers", String(Math.min(20, Math.max(1, Math.round(v.party ?? 2)))));
   if (v.date && ISO.test(v.date)) ot.searchParams.set("dateTime", `${v.date}T${v.time && TIME.test(v.time) ? v.time.padStart(5, "0") : "20:00"}`);
-  links.push({ kind: "booking", label: "Buscar mesa en OpenTable", url: ot.toString() });
-  const maps = httpsUrl(v.mapsUrl) ?? (() => {
+  links.push({ kind: "booking", label: "Buscar en OpenTable", url: ot.toString() });
+  const ficha = httpsUrl(v.mapsUrl);
+  const maps = ficha ?? (() => {
     const u = new URL("https://www.google.com/maps/search/");
     u.searchParams.set("api", "1");
     u.searchParams.set("query", [v.name, v.city].filter(Boolean).join(", "));
     return u.toString();
   })();
-  links.push({ kind: "maps", label: "Ver en Google Maps", url: maps });
+  // Sin la ficha del lugar es una búsqueda por nombre: el botón lo dice.
+  links.push({ kind: "maps", label: ficha ? "Ver en Google Maps" : "Buscar en Google Maps", url: maps });
   return links;
 }

@@ -88,7 +88,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const results = (data.places ?? []).map((p: any) => ({
+    // Un lugar cerrado definitivamente no se recomienda (auditoría de lugares reales, 23-oct-2026).
+    const results = (data.places ?? []).filter((p: any) => p?.businessStatus !== "CLOSED_PERMANENTLY").map((p: any) => ({
       placeId: p.id,
       name: p.displayName?.text ?? null,
       address: p.formattedAddress ?? null,

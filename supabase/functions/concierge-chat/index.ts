@@ -691,7 +691,11 @@ function makeExecTool(c: { supabase: any; authHeader: string; userId: string; pr
       const { data, error } = await c.supabase.rpc("members_venues", { p_ciudad: city });
       if (error) return /MEMBERS_PRO_REQUIRED/.test(error.message ?? "") ? { code: "MEMBERS_PRO_REQUIRED" } : { error: "members_error" };
       const cat = typeof args.category === "string" ? args.category.toLowerCase() : "";
-      const rows = (Array.isArray(data) ? data : []).filter((v: any) => !cat || String(v?.categoria ?? "").toLowerCase().includes(cat)).slice(0, 8);
+      // Solo lo que tiene fuente (curado de Privé): las filas viejas de nightlife_premium las escribió la IA
+      // sin fuente (auditoría de lugares reales); mismo filtro que src/lib/membersVenues.ts (isSourcedVenue).
+      const rows = (Array.isArray(data) ? data : [])
+        .filter((v: any) => v?.fuente === "curaduria" || (typeof v?.source_url === "string" && !!v.source_url))
+        .filter((v: any) => !cat || String(v?.categoria ?? "").toLowerCase().includes(cat)).slice(0, 8);
       return {
         ok: true, source: "members_only",
         results: rows.map((v: any) => compactItem({

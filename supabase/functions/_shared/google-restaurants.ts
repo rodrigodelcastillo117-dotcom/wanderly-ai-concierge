@@ -10,6 +10,7 @@ import { callError, googleErrorMessage } from "./google-maps.ts";
 import {
   type GooglePlace, type PlacesResult, rankByQuality, restaurantFromPlace, samePlaceName, searchText,
 } from "./google-places.ts";
+import type { ResolveInput, VerifyResult } from "./place-verify.ts";
 
 /** Consulta de Text Search para restaurantes de una ciudad, con la preferencia de comida si hay. */
 export function restaurantQuery(city: string, preferences?: string | null): string {
@@ -99,6 +100,9 @@ export function enforceRestaurants(model: unknown, places: GooglePlace[], city: 
         delete out.consultado_at;
         delete out.rating;
         delete out.num_reviews;
+        // Enlace escrito por la IA (auditoría: 33 % rotos o de otro lugar): nunca se guarda.
+        delete out.cta_action;
+        delete out.website;
         return out;
       }),
     };
@@ -120,4 +124,78 @@ export function enforceRestaurants(model: unknown, places: GooglePlace[], city: 
     out.push(restaurantFromPlace(p, city));
   }
   return { restaurantes: out, quitados };
+}
+
+/**
+ * Restaurantes del modelo validados antes de mostrarse (auditoría de lugares reales, fase 1):
+ * - en la lista de Google de la ciudad → datos de Google (place_id, nombre oficial, sitio oficial);
+ * - fuera de la lista → se busca por nombre (resolvePlace). Encontrado → place_id, nombre oficial y la
+ *   ficha de Maps (sin sitio: websiteUri costaría Enterprise). No encontrado → NO se muestra.
+ *   Sin tiempo o sin respuesta → "Sin verificar", sin enlace;
+ * - se completa hasta `min` con los mejores de la lista.
+ * Ningún enlace escrito por la IA (cta_action) se conserva.
+ */
+export async function verifyRestaurants(
+  model: unknown, places: GooglePlace[], city: string,
+  resolve: ((items: ResolveInput[]) => Promise<VerifyResult[]>) | null, min = 5,
+): Promise<{ restaurantes: any[]; quitados: number; resueltos: number; sin_verificar: number }> {
+  const list = (Array.isArray(model) ? model.filter((r) => r && typeof r === "object") : []) as any[];
+  const used = new Set<string>();
+  const slots: Array<any | null> = [];
+  const pending: Array<{ k: number; r: any }> = [];
+  for (const r of list) {
+    const p = places.find((x) => !used.has(x.place_id) && samePlaceName(x.name, r.nombre));
+    if (p) {
+      used.add(p.place_id);
+      const base = restaurantFromPlace(p, r.ciudad ?? city);
+      slots.push({ ...base, verificado: true, por_que: typeof r.por_que === "string" && r.por_que.trim() ? r.por_que : base.por_que, ...(r.tip ? { tip: r.tip } : {}) });
+    } else {
+      pending.push({ k: slots.length, r });
+      slots.push(null);
+    }
+  }
+  const results = pending.length && resolve
+    ? await resolve(pending.map(({ r }) => ({ name: String(r.nombre ?? ""), city: r.ciudad ?? city, includedType: "restaurant" })))
+    : pending.map((): VerifyResult => ({ status: "unchecked", reason: "sin_google" }));
+  let quitados = 0, resueltos = 0, sinVerificar = 0;
+  pending.forEach(({ k, r }, j) => {
+    const v = results[j] ?? { status: "unchecked", reason: "budget" };
+    if (v.status === "not_found") { quitados++; return; }
+    if (v.status === "found") {
+      if (used.has(v.place_id)) { quitados++; return; } // ya está (otro nombre del mismo lugar)
+      used.add(v.place_id);
+      const inList = places.find((x) => x.place_id === v.place_id);
+      if (inList) {
+        const base = restaurantFromPlace(inList, r.ciudad ?? city);
+        slots[k] = { ...base, verificado: true, por_que: typeof r.por_que === "string" && r.por_que.trim() ? r.por_que : base.por_que };
+      } else {
+        const out: any = {
+          nombre: v.name, ciudad: r.ciudad ?? city, cocina: typeof r.cocina === "string" ? r.cocina : "Restaurante",
+          por_que: typeof r.por_que === "string" ? r.por_que : "", ...(r.tip ? { tip: r.tip } : {}),
+          // El nivel de precio del modelo no tiene fuente: no se muestra.
+          rango_precio: "Precio no publicado", place_id: v.place_id, maps_url: v.maps_url,
+          fuente: "google_places", estado_dato: "CONSULTADO_EN_VIVO", verificado: true,
+          ...(v.place?.consultado_at ? { consultado_at: v.place.consultado_at } : {}),
+        };
+        slots[k] = out;
+      }
+      resueltos++;
+      return;
+    }
+    sinVerificar++;
+    const out: any = {
+      nombre: r.nombre, ciudad: r.ciudad ?? city, cocina: r.cocina ?? "Restaurante", por_que: r.por_que ?? "",
+      rango_precio: "Precio no publicado", fuente: r.fuente === "perplexity" ? "perplexity" : "estimado", estado_dato: "ESTIMADO",
+      verificado: false, nota: "Sin verificar en Google Maps; confirma que sigue abierto antes de ir.",
+    };
+    slots[k] = out;
+  });
+  const out = slots.filter(Boolean) as any[];
+  for (const p of places) {
+    if (out.length >= min) break;
+    if (used.has(p.place_id)) continue;
+    used.add(p.place_id);
+    out.push({ ...restaurantFromPlace(p, city), verificado: true });
+  }
+  return { restaurantes: out, quitados, resueltos, sin_verificar: sinVerificar };
 }

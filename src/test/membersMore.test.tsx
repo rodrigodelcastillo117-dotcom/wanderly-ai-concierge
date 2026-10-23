@@ -102,9 +102,8 @@ describe("Members Only con la curaduría", () => {
     expect(screen.getByText("Fuente: limantour.tech · verificado el 1 de octubre de 2026")).toBeInTheDocument();
     expect(screen.getByText("Roma-Condesa")).toBeInTheDocument();
     expect(screen.getByText("Cocktail bar")).toBeInTheDocument();
-    // Lo de siempre no inventa fuente.
-    const legacy = screen.getByText("Parker & Lenox").closest("article")!;
-    expect(within(legacy).queryByText(/Fuente:|verificado el/)).toBeNull();
+    // Lo de siempre (nightlife_premium, escrito por la IA sin fuente) ya no se muestra (auditoría de lugares reales).
+    expect(screen.queryByText("Parker & Lenox")).toBeNull();
     // "Otros" agrupa lo curado sin categoría conocida y filtra.
     fireEvent.click(screen.getByRole("button", { name: /Otros/ }));
     expect(screen.queryByText("Parker & Lenox")).toBeNull();
