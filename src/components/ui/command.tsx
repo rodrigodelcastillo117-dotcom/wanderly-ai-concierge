@@ -1,17 +1,25 @@
 import * as React from "react";
 import { type DialogProps } from "@radix-ui/react-dialog";
-import { Command as CommandPrimitive } from "cmdk";
+import { Command as CommandPrimitive, defaultFilter } from "cmdk";
 import { Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
+/** Sin acentos ni mayúsculas: "mexico" encuentra "México" y "cancun" encuentra "Cancún". */
+export const foldForSearch = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+export function accentInsensitiveFilter(value: string, search: string, keywords?: string[]): number {
+  return defaultFilter(foldForSearch(value), foldForSearch(search), keywords?.map(foldForSearch));
+}
+
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive>
->(({ className, ...props }, ref) => (
+>(({ className, filter, ...props }, ref) => (
   <CommandPrimitive
     ref={ref}
+    filter={filter ?? accentInsensitiveFilter}
     className={cn(
       "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
       className,
