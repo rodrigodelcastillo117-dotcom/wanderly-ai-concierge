@@ -2178,6 +2178,27 @@ export type Database = {
           },
         ]
       }
+      founders: {
+        Row: {
+          created_at: string
+          note: string | null
+          person: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          note?: string | null
+          person: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          note?: string | null
+          person?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       friendships: {
         Row: {
           addressee_id: string
@@ -2265,6 +2286,66 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_learnings: {
+        Row: {
+          categoria: string
+          cita: string
+          ciudad: string | null
+          created_at: string
+          edited_at: string | null
+          entry_id: string
+          id: string
+          lugar: string | null
+          sentimiento: string
+          texto: string
+          trip_id: string
+          user_id: string
+        }
+        Insert: {
+          categoria: string
+          cita: string
+          ciudad?: string | null
+          created_at?: string
+          edited_at?: string | null
+          entry_id: string
+          id?: string
+          lugar?: string | null
+          sentimiento: string
+          texto: string
+          trip_id: string
+          user_id: string
+        }
+        Update: {
+          categoria?: string
+          cita?: string
+          ciudad?: string | null
+          created_at?: string
+          edited_at?: string | null
+          entry_id?: string
+          id?: string
+          lugar?: string | null
+          sentimiento?: string
+          texto?: string
+          trip_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_learnings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "trip_journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_learnings_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       live_search_usage: {
         Row: {
           day: string
@@ -2285,6 +2366,30 @@ export type Database = {
           plan?: string
           searches?: number
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      member_card_grants: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          reason: string
+          tier: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          reason: string
+          tier: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          reason?: string
+          tier?: string
           user_id?: string
         }
         Relationships: []
@@ -3570,6 +3675,50 @@ export type Database = {
         }
         Relationships: []
       }
+      prive_ideas: {
+        Row: {
+          budget: string | null
+          created_at: string
+          destination_id: string
+          id: string
+          month: number | null
+          source: string
+          universe: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          budget?: string | null
+          created_at?: string
+          destination_id: string
+          id?: string
+          month?: number | null
+          source?: string
+          universe?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          budget?: string | null
+          created_at?: string
+          destination_id?: string
+          id?: string
+          month?: number | null
+          source?: string
+          universe?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prive_ideas_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "prive_destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prive_insider_tips: {
         Row: {
           before_you_go: boolean
@@ -4733,12 +4882,161 @@ export type Database = {
           },
         ]
       }
+      recuerdos: {
+        Row: {
+          bytes: number
+          created_at: string
+          date_source: string
+          duration_s: number | null
+          favorite: boolean
+          height: number | null
+          id: string
+          media_type: string
+          mime_type: string
+          storage_path: string
+          taken_at: string | null
+          taken_on: string
+          thumb_path: string | null
+          trip_id: string | null
+          trip_source: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          bytes: number
+          created_at?: string
+          date_source: string
+          duration_s?: number | null
+          favorite?: boolean
+          height?: number | null
+          id?: string
+          media_type: string
+          mime_type: string
+          storage_path: string
+          taken_at?: string | null
+          taken_on: string
+          thumb_path?: string | null
+          trip_id?: string | null
+          trip_source?: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          bytes?: number
+          created_at?: string
+          date_source?: string
+          duration_s?: number | null
+          favorite?: boolean
+          height?: number | null
+          id?: string
+          media_type?: string
+          mime_type?: string
+          storage_path?: string
+          taken_at?: string | null
+          taken_on?: string
+          thumb_path?: string | null
+          trip_id?: string | null
+          trip_source?: string
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recuerdos_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recuerdos_album_shares: {
+        Row: {
+          created_at: string
+          trip_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          trip_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          trip_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recuerdos_album_shares_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_rewards: {
+        Row: {
+          applied_at: string | null
+          claimed_at: string | null
+          comped_until_after: string | null
+          created_at: string
+          days: number
+          id: string
+          last_error: string | null
+          plan_at_award: string
+          referrals_covered: number
+          route: string
+          seq: number
+          status: string
+          stripe_attempts: number
+          stripe_ref: string | null
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          claimed_at?: string | null
+          comped_until_after?: string | null
+          created_at?: string
+          days?: number
+          id?: string
+          last_error?: string | null
+          plan_at_award: string
+          referrals_covered?: number
+          route: string
+          seq: number
+          status: string
+          stripe_attempts?: number
+          stripe_ref?: string | null
+          user_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          claimed_at?: string | null
+          comped_until_after?: string | null
+          created_at?: string
+          days?: number
+          id?: string
+          last_error?: string | null
+          plan_at_award?: string
+          referrals_covered?: number
+          route?: string
+          seq?: number
+          status?: string
+          stripe_attempts?: number
+          stripe_ref?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           code: string
           created_at: string
           id: string
           referrer_id: string
+          reward_id: string | null
           user_id: string
         }
         Insert: {
@@ -4746,6 +5044,7 @@ export type Database = {
           created_at?: string
           id?: string
           referrer_id: string
+          reward_id?: string | null
           user_id: string
         }
         Update: {
@@ -4753,9 +5052,18 @@ export type Database = {
           created_at?: string
           id?: string
           referrer_id?: string
+          reward_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "referrals_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "referral_rewards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       serp_cache: {
         Row: {
@@ -4787,6 +5095,50 @@ export type Database = {
         }
         Relationships: []
       }
+      social_momentos_compartidos: {
+        Row: {
+          created_at: string
+          moment_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          moment_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          moment_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_momentos_compartidos_moment_id_fkey"
+            columns: ["moment_id"]
+            isOneToOne: true
+            referencedRelation: "travel_moments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_ocultos: {
+        Row: {
+          clave: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          clave: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          clave?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       social_pokes: {
         Row: {
           created_at: string
@@ -4807,6 +5159,147 @@ export type Database = {
           friend_id?: string
           gesto?: string
           id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_preguntas: {
+        Row: {
+          clave: string
+          created_at: string
+          id: string
+          owner_id: string
+          pregunta: string
+          respondida_at: string | null
+          respuesta: string | null
+          user_id: string
+        }
+        Insert: {
+          clave: string
+          created_at?: string
+          id?: string
+          owner_id: string
+          pregunta: string
+          respondida_at?: string | null
+          respuesta?: string | null
+          user_id: string
+        }
+        Update: {
+          clave?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          pregunta?: string
+          respondida_at?: string | null
+          respuesta?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_privacidad: {
+        Row: {
+          avatar: boolean
+          favoritos: boolean
+          fechas_completas: boolean
+          momentos: boolean
+          recomendaciones: boolean
+          reservas: boolean
+          updated_at: string
+          user_id: string
+          viajes_pasados: boolean
+          viajes_proximos: boolean
+          visitados: boolean
+        }
+        Insert: {
+          avatar?: boolean
+          favoritos?: boolean
+          fechas_completas?: boolean
+          momentos?: boolean
+          recomendaciones?: boolean
+          reservas?: boolean
+          updated_at?: string
+          user_id: string
+          viajes_pasados?: boolean
+          viajes_proximos?: boolean
+          visitados?: boolean
+        }
+        Update: {
+          avatar?: boolean
+          favoritos?: boolean
+          fechas_completas?: boolean
+          momentos?: boolean
+          recomendaciones?: boolean
+          reservas?: boolean
+          updated_at?: string
+          user_id?: string
+          viajes_pasados?: boolean
+          viajes_proximos?: boolean
+          visitados?: boolean
+        }
+        Relationships: []
+      }
+      social_reacciones: {
+        Row: {
+          clave: string
+          created_at: string
+          emoji: string
+          id: string
+          owner_id: string
+          user_id: string
+        }
+        Insert: {
+          clave: string
+          created_at?: string
+          emoji: string
+          id?: string
+          owner_id: string
+          user_id: string
+        }
+        Update: {
+          clave?: string
+          created_at?: string
+          emoji?: string
+          id?: string
+          owner_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_recomendaciones: {
+        Row: {
+          categoria: string
+          ciudad: string | null
+          created_at: string
+          estrellas: number
+          id: string
+          nombre: string
+          nota: string | null
+          photo_ref: string | null
+          place_id: string | null
+          user_id: string
+        }
+        Insert: {
+          categoria?: string
+          ciudad?: string | null
+          created_at?: string
+          estrellas: number
+          id?: string
+          nombre: string
+          nota?: string | null
+          photo_ref?: string | null
+          place_id?: string | null
+          user_id: string
+        }
+        Update: {
+          categoria?: string
+          ciudad?: string | null
+          created_at?: string
+          estrellas?: number
+          id?: string
+          nombre?: string
+          nota?: string | null
+          photo_ref?: string | null
+          place_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -4835,6 +5328,24 @@ export type Database = {
           queued_at?: string
           reason?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      stripe_card_customers: {
+        Row: {
+          customer_id: string
+          fingerprint: string
+          first_seen_at: string
+        }
+        Insert: {
+          customer_id: string
+          fingerprint: string
+          first_seen_at?: string
+        }
+        Update: {
+          customer_id?: string
+          fingerprint?: string
+          first_seen_at?: string
         }
         Relationships: []
       }
@@ -4945,8 +5456,8 @@ export type Database = {
       }
       subscriptions: {
         Row: {
-          comped_until: string | null
           cancel_at_period_end: boolean
+          comped_until: string | null
           created_at: string
           currency: string
           current_period_end: string | null
@@ -4962,8 +5473,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          comped_until?: string | null
           cancel_at_period_end?: boolean
+          comped_until?: string | null
           created_at?: string
           currency?: string
           current_period_end?: string | null
@@ -4979,8 +5490,8 @@ export type Database = {
           user_id: string
         }
         Update: {
-          comped_until?: string | null
           cancel_at_period_end?: boolean
+          comped_until?: string | null
           created_at?: string
           currency?: string
           current_period_end?: string | null
@@ -5357,6 +5868,8 @@ export type Database = {
       }
       trip_journal_entries: {
         Row: {
+          ai_learn_status: string | null
+          ai_learned_at: string | null
           author_id: string
           created_at: string
           id: string
@@ -5366,6 +5879,8 @@ export type Database = {
           trip_id: string
         }
         Insert: {
+          ai_learn_status?: string | null
+          ai_learned_at?: string | null
           author_id: string
           created_at?: string
           id?: string
@@ -5375,6 +5890,8 @@ export type Database = {
           trip_id: string
         }
         Update: {
+          ai_learn_status?: string | null
+          ai_learned_at?: string | null
           author_id?: string
           created_at?: string
           id?: string
@@ -6956,10 +7473,37 @@ export type Database = {
       }
       _ai_res_enabled: { Args: never; Returns: boolean }
       _deploy_apply: { Args: { p_from: string; p_to: string }; Returns: string }
+      _social_ajustes: { Args: { p_user: string }; Returns: Json }
+      _social_avatar_path: { Args: { p_user: string }; Returns: string }
       _social_clean: { Args: { p: string[] }; Returns: string[] }
       _social_en_comun: { Args: { a: string; b: string }; Returns: Json }
+      _social_img_segura: { Args: { p: string }; Returns: string }
       _social_inter: { Args: { a: string[]; b: string[] }; Returns: string[] }
       _social_is_prive: { Args: { p_user: string }; Returns: boolean }
+      _social_item_para: {
+        Args: {
+          p_clave: string
+          p_fecha: string
+          p_item: Json
+          p_owner: string
+          p_tipo: string
+          p_viewer: string
+        }
+        Returns: Json
+      }
+      _social_item_visible: {
+        Args: { p_clave: string; p_owner: string; p_viewer: string }
+        Returns: Json
+      }
+      _social_items: {
+        Args: { p_owner: string; p_todo: boolean }
+        Returns: {
+          clave: string
+          fecha: string
+          item: Json
+          tipo: string
+        }[]
+      }
       _social_jaccard: { Args: { a: string[]; b: string[] }; Returns: number }
       _social_lock_pair: { Args: { a: string; b: string }; Returns: undefined }
       _social_lugares: {
@@ -6970,6 +7514,14 @@ export type Database = {
         }[]
       }
       _social_nombre_seguro: { Args: { p_user: string }; Returns: string }
+      _social_pref: {
+        Args: { p_tipo: string; p_user: string }
+        Returns: boolean
+      }
+      _social_puede_ver: {
+        Args: { p_owner: string; p_tipo: string; p_viewer: string }
+        Returns: boolean
+      }
       _social_saludos: {
         Args: { p_amigo: string; p_me: string }
         Returns: Json
@@ -6981,10 +7533,32 @@ export type Database = {
         }[]
       }
       _social_son_amigos: { Args: { a: string; b: string }; Returns: boolean }
+      _social_texto_aviso: { Args: { n?: number; p: string }; Returns: string }
+      _social_tipo_txt: { Args: { p_tipo: string }; Returns: string }
       _social_trip_ids: {
         Args: { p_user: string }
         Returns: {
           trip_id: string
+        }[]
+      }
+      _social_viajes: {
+        Args: { p_owner: string; p_viewer: string }
+        Returns: Json
+      }
+      _split_equal_assign: {
+        Args: { p_expense: string; p_people: string[] }
+        Returns: undefined
+      }
+      _split_norm: { Args: { p: string }; Returns: string }
+      _split_sync_trip: {
+        Args: { p_actor: string; p_trip: string }
+        Returns: number
+      }
+      _split_trip_members: {
+        Args: { p_trip: string }
+        Returns: {
+          is_owner: boolean
+          uid: string
         }[]
       }
       _trip_check_is_foreign: { Args: { p_user: string }; Returns: boolean }
@@ -7025,6 +7599,7 @@ export type Database = {
       admin_prive_metrics: { Args: { _days?: number }; Returns: Json }
       admin_prive_product_metrics: { Args: { _days?: number }; Returns: Json }
       admin_prive_requests: { Args: { _status?: string }; Returns: Json }
+      admin_referral_rewards: { Args: never; Returns: Json }
       admin_restore_prive: {
         Args: { _actor: string; _reason: string; _user: string }
         Returns: Json
@@ -7155,7 +7730,18 @@ export type Database = {
         Args: { _from: string; _to: string }
         Returns: boolean
       }
+      alert_admins_ai_credits: {
+        Args: { p_reason: string; p_service: string }
+        Returns: number
+      }
+      amigo_actividad: {
+        Args: { p_amigo: string; p_limite?: number }
+        Returns: Json
+      }
       amigo_perfil: { Args: { p_amigo: string }; Returns: Json }
+      amigo_viajes: { Args: { p_amigo: string }; Returns: Json }
+      amigos_actividad: { Args: { p_limite?: number }; Returns: Json }
+      amigos_avatares: { Args: { p_ids?: string[] }; Returns: Json }
       amigos_resumen: { Args: never; Returns: Json }
       app_flag: { Args: { _key: string }; Returns: boolean }
       apply_comp_grants_now: {
@@ -7262,6 +7848,7 @@ export type Database = {
         Args: { _city: string; _name: string }
         Returns: Json
       }
+      borrar_recomendacion: { Args: { p_id: string }; Returns: Json }
       cancelar_solicitud_amistad: { Args: { p_otro: string }; Returns: Json }
       check_rate_limit: {
         Args: {
@@ -7353,6 +7940,10 @@ export type Database = {
       }
       commit_quota: {
         Args: { _reservation_id: string; _result?: Json; _trip_id?: string }
+        Returns: Json
+      }
+      compartir_momento_social: {
+        Args: { p_compartir?: boolean; p_moment: string }
         Returns: Json
       }
       compatibilidad_viaje: { Args: { p_otro: string }; Returns: Json }
@@ -7491,25 +8082,9 @@ export type Database = {
           username: string
         }[]
       }
-      my_split_shares: {
-        Args: { p_trip?: string }
-        Returns: {
-          amount: number
-          category: string
-          city: string
-          currency: string
-          description: string
-          expense_date: string
-          expense_id: string
-          paid_by_me: boolean
-          payer_name: string
-          share_id: string
-          total: number
-          trip_id: string
-        }[]
-      }
       gen_invite_code: { Args: never; Returns: string }
       get_access_state: { Args: { _user_id: string }; Returns: Json }
+      guardar_privacidad_social: { Args: { p_ajustes: Json }; Returns: Json }
       has_comp_grant: { Args: { _user_id: string }; Returns: boolean }
       has_trip_access: {
         Args: { p_trip: string; p_user: string }
@@ -7556,6 +8131,9 @@ export type Database = {
         Args: { _subscription_id: string }
         Returns: Json
       }
+      member_card_for: { Args: { _user: string }; Returns: Json }
+      member_card_number: { Args: { _user: string }; Returns: string }
+      member_card_rank: { Args: { _tier: string }; Returns: number }
       members_access: { Args: never; Returns: boolean }
       members_access_state: { Args: never; Returns: Json }
       members_category: { Args: { _sub: string }; Returns: string }
@@ -7645,6 +8223,26 @@ export type Database = {
           website: string
         }[]
       }
+      mi_actividad_social: { Args: { p_limite?: number }; Returns: Json }
+      mi_privacidad_social: { Args: never; Returns: Json }
+      my_member_card: { Args: never; Returns: Json }
+      my_split_shares: {
+        Args: { p_trip?: string }
+        Returns: {
+          amount: number
+          category: string
+          city: string
+          currency: string
+          description: string
+          expense_date: string
+          expense_id: string
+          paid_by_me: boolean
+          payer_name: string
+          share_id: string
+          total: number
+          trip_id: string
+        }[]
+      }
       normalize_email: { Args: { _email: string }; Returns: string }
       notify_admins: {
         Args: { _body: string; _dedup_key: string; _title: string }
@@ -7661,7 +8259,15 @@ export type Database = {
         }
         Returns: string
       }
+      ocultar_social: {
+        Args: { p_clave: string; p_ocultar?: boolean }
+        Returns: Json
+      }
       plan_limit: { Args: { _kind: string; _user_id: string }; Returns: Json }
+      preguntar_actividad: {
+        Args: { p_amigo: string; p_clave: string; p_texto: string }
+        Returns: Json
+      }
       prive_accept_invitation: {
         Args: { _token_hash: string; _user: string }
         Returns: Json
@@ -7830,6 +8436,19 @@ export type Database = {
       prive_hash_password: { Args: { _pw: string }; Returns: string }
       prive_home: { Args: { _ps: string }; Returns: Json }
       prive_hours_ok: { Args: { _h: Json }; Returns: boolean }
+      prive_idea_save: {
+        Args: {
+          _budget?: string
+          _destination: string
+          _month?: number
+          _ps: string
+          _saved?: boolean
+          _source?: string
+          _universe?: string
+        }
+        Returns: Json
+      }
+      prive_ideas: { Args: { _ps: string }; Returns: Json }
       prive_import_batch: {
         Args: { p_batch: string; p_dry_run?: boolean; p_rows: Json }
         Returns: Json
@@ -8190,7 +8809,59 @@ export type Database = {
         }
         Returns: number
       }
+      reaccionar_actividad: {
+        Args: { p_amigo: string; p_clave: string; p_emoji: string }
+        Returns: Json
+      }
       rechazar_invitacion_viaje: { Args: { p_trip_id: string }; Returns: Json }
+      recomendar_lugar: {
+        Args: {
+          p_categoria?: string
+          p_ciudad?: string
+          p_estrellas: number
+          p_nombre: string
+          p_nota?: string
+          p_photo_ref?: string
+          p_place_id?: string
+        }
+        Returns: Json
+      }
+      recuerdo_object_visible: {
+        Args: { p_name: string; p_uid: string }
+        Returns: boolean
+      }
+      recuerdo_shared_with_me: {
+        Args: { p_owner: string; p_trip: string }
+        Returns: boolean
+      }
+      referral_apply_reward: {
+        Args: { _notify?: boolean; _reward_id: string }
+        Returns: string
+      }
+      referral_claim_stripe_rewards: {
+        Args: { _limit?: number }
+        Returns: Json
+      }
+      referral_display_name: { Args: { _full: string }; Returns: string }
+      referral_email_key: { Args: { _email: string }; Returns: string }
+      referral_evaluate: { Args: { _referrer: string }; Returns: number }
+      referral_fmt_date: { Args: { _t: string }; Returns: string }
+      referral_mark_stripe_reward: {
+        Args: {
+          _error: string
+          _ok: boolean
+          _reward_id: string
+          _stripe_ref: string
+        }
+        Returns: boolean
+      }
+      referral_progress: { Args: never; Returns: Json }
+      referral_reward_route: { Args: { _user: string }; Returns: string }
+      referral_rewards_sweep: { Args: { _limit?: number }; Returns: Json }
+      referral_status: {
+        Args: { _referred: string; _referrer: string }
+        Returns: string
+      }
       regenerar_codigo_invitacion: { Args: never; Returns: Json }
       release_quota: {
         Args: { _reason?: string; _reservation_id: string }
@@ -8198,6 +8869,10 @@ export type Database = {
       }
       reserve_quota: {
         Args: { _kind: string; _request_key: string; _user_id: string }
+        Returns: Json
+      }
+      responder_pregunta_social: {
+        Args: { p_pregunta: string; p_texto: string }
         Returns: Json
       }
       responder_solicitud_amistad: {
@@ -8243,6 +8918,10 @@ export type Database = {
         Args: { p_id: string; p_visibility: string }
         Returns: Json
       }
+      social_puede_ver_objeto: {
+        Args: { p_bucket: string; p_name: string }
+        Returns: boolean
+      }
       solicitudes_amistad: { Args: never; Returns: Json }
       start_account_deletion: { Args: { _account_id: string }; Returns: string }
       stripe_commit_payment_event: {
@@ -8283,7 +8962,9 @@ export type Database = {
         Returns: boolean
       }
       trip_document_path_trip: { Args: { p_name: string }; Returns: string }
+      trip_quotes_line_items_valid: { Args: { items: Json }; Returns: boolean }
       trip_receipt_path_trip: { Args: { p_name: string }; Returns: string }
+      trip_split_can_edit: { Args: { p_expense: string }; Returns: boolean }
       trip_split_claim_guest: { Args: { p_guest: string }; Returns: string }
       trip_split_members: {
         Args: { p_trip: string }
@@ -8294,13 +8975,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      trip_split_payment_party_ok: {
+        Args: { p_from: string; p_to: string; p_trip: string }
+        Returns: boolean
+      }
       trip_split_save_expense: {
         Args: { p_expense: Json; p_id?: string; p_shares: Json; p_trip: string }
         Returns: string
       }
       trip_split_sync_members: { Args: { p_trip: string }; Returns: number }
       trip_split_unlink: { Args: { p_person: string }; Returns: undefined }
-      trip_quotes_line_items_valid: { Args: { items: Json }; Returns: boolean }
       unlock_members_access: { Args: { p_password: string }; Returns: Json }
       vault_benefits_ok: { Args: { p: string[] }; Returns: boolean }
       vault_path_item: { Args: { p_name: string }; Returns: string }
