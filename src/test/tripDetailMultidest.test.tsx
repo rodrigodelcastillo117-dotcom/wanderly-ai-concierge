@@ -112,8 +112,8 @@ describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
     renderTrip();
     const pasos = await screen.findByTestId("comprar-pasos");
     expect(within(pasos).getAllByRole("listitem").map((li) => li.textContent?.trim())).toEqual(
-      ["1. Vuelo", "2. Hotel en Roma", "3. Hotel en Florencia", "4. Hotel en Venecia", "5. Auto (opcional)"]);
-    expect(screen.getByTestId("trip-comprar-falta")).toHaveTextContent("Te falta: vuelo · hotel en Roma · hotel en Florencia · hotel en Venecia");
+      ["1. Vuelo de ida y regreso", "2. Hotel en Roma", "3. Roma → Florencia", "4. Hotel en Florencia", "5. Florencia → Venecia", "6. Hotel en Venecia", "7. Auto (opcional)"]);
+    expect(screen.getByTestId("trip-comprar-falta")).toHaveTextContent("Te falta: vuelo de ida y regreso · hotel en Roma · Roma → Florencia · hotel en Florencia · Florencia → Venecia · hotel en Venecia");
   });
 
   it("vuelo sin tarifa real: lo dice y su botón lleva la búsqueda del viaje (MEX→FCO, regreso VCE→MEX, 2 adultos); nada de BUH ni Volaris", async () => {
@@ -157,13 +157,34 @@ describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
     await waitFor(() => expect(db.updates.find((u) => u.table === "trips")?.payload.selections).toMatchObject({ hoteles: [{ ciudad: "Florencia", i: 4 }] }), { timeout: 2000 });
   });
 
-  it("restaurantes y experiencias van plegados con su botón para reservar", async () => {
+  it("traslados entre ciudades: tren Roma → Florencia (estimado) con su buscador de trenes", async () => {
+    renderTrip();
+    const legs = await screen.findAllByTestId("comprar-traslado");
+    expect(legs.map((l) => `${l.getAttribute("data-from")}>${l.getAttribute("data-to")}`)).toEqual(["Roma>Florencia", "Florencia>Venecia"]);
+    const opts = within(legs[0]).getAllByTestId("traslado-opcion");
+    expect(opts.map((o) => o.getAttribute("data-mode"))).toEqual(expect.arrayContaining(["tren", "coche"]));
+    expect(within(legs[0]).getByText(/Buscar tren en Trainline/)).toBeInTheDocument();
+    expect(legs[0]).toHaveTextContent("por persona · estimado");
+    expect(within(legs[0]).getByTestId("comprar-traslado-marcar")).toBeInTheDocument();
+  });
+
+  it("restaurantes y experiencias en carrusel por ciudad con su botón para reservar", async () => {
     renderTrip();
     const extras = await screen.findByTestId("comprar-extras");
-    expect(extras.tagName).toBe("DETAILS");
-    expect(extras).not.toHaveAttribute("open");
-    expect(within(extras).getByText(/3 experiencias y 3 restaurantes para reservar \(opcional\)/)).toBeInTheDocument();
-    expect(within(extras).getAllByText("Reservar").length).toBeGreaterThan(0);
+    expect(within(extras).getByText(/Restaurantes y experiencias para reservar \(opcional\)/)).toBeInTheDocument();
+    expect(within(extras).getAllByTestId("comprar-extras-ciudad").map((c) => c.getAttribute("data-city"))).toEqual(["Roma", "Florencia", "Venecia"]);
+    const roma = within(extras).getAllByTestId("comprar-extras-ciudad")[0];
+    const rest = within(roma).getByTestId("picks-restaurante");
+    // Roscioli "$$$" (sin verificar) va en Caro; sin opción económica ni media no se inventa una.
+    expect(within(rest).getAllByTestId("pick-card-vacia").map((c) => c.textContent)).toEqual([
+      expect.stringContaining("Sin opción económica verificada"), expect.stringContaining("Sin opción de precio medio verificada")]);
+    expect(within(rest).getAllByTestId("pick-card").find((c) => c.getAttribute("data-slot") === "caro")).toHaveTextContent("Roscioli");
+    expect(within(extras).getAllByText(/Reservar/).length).toBeGreaterThan(0);
+    // Experiencia: "Agregar al total" la suma (selTours) y se guarda como antes.
+    const exp = within(roma).getByTestId("picks-experiencia");
+    fireEvent.click(within(exp).getAllByTestId("pick-elegir")[0]);
+    await waitFor(() => expect(within(exp).getAllByTestId("pick-elegir")[0]).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(db.updates.find((u) => u.table === "trips")?.payload.selections).toMatchObject({ tours: [{ i: 0 }] }), { timeout: 2000 });
   });
 });
 
