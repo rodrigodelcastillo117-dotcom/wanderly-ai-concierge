@@ -57,7 +57,7 @@ export type Prefetched = { travelProfile?: any; aiPrefs?: any };
 
 /** Todas las señales de UNA persona, en paralelo. Cada consulta que falle cuenta como vacía. */
 export async function fetchTasteInputs(db: Db, userId: string, todayISO: string, pre: Prefetched = {}): Promise<TasteInputs> {
-  const [trips, moments, visitedPlaces, userVisits, savedRecos, travelProfile, aiPrefs, expenses] = await Promise.all([
+  const [trips, moments, visitedPlaces, userVisits, savedRecos, travelProfile, aiPrefs, expenses, journalLearnings] = await Promise.all([
     ownTrips(db, userId),
     rows(db.from("travel_moments").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(60)),
     rows(db.from("visited_places").select("user_id, name, cuisine, price_level, primary_type, status, notes, visited_at")
@@ -69,8 +69,11 @@ export async function fetchTasteInputs(db: Db, userId: string, todayISO: string,
     pre.travelProfile !== undefined ? Promise.resolve(pre.travelProfile) : one(db.from("travel_profiles").select("*").eq("user_id", userId).maybeSingle()),
     pre.aiPrefs !== undefined ? Promise.resolve(pre.aiPrefs) : one(db.from("ai_user_preferences").select("*").eq("user_id", userId).maybeSingle()),
     rows(db.from("expenses").select("user_id, trip_id, amount, currency, category").eq("user_id", userId).limit(500)),
+    // Diario: solo lo aprendido de lo que ESTA persona escribió (journal_learnings.user_id = autor).
+    rows(db.from("journal_learnings").select("user_id, categoria, sentimiento, texto, lugar, ciudad, created_at")
+      .eq("user_id", userId).order("created_at", { ascending: false }).limit(60)),
   ]);
-  return { userId, todayISO, trips, moments, visitedPlaces, userVisits, savedRecos, travelProfile, aiPrefs, expenses };
+  return { userId, todayISO, trips, moments, visitedPlaces, userVisits, savedRecos, travelProfile, aiPrefs, expenses, journalLearnings };
 }
 
 export async function readTasteCache(db: Db, userId: string): Promise<{ row: CacheRow; error: boolean }> {

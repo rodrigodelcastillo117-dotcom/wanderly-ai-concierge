@@ -25,6 +25,7 @@ export const PAID_BUCKETS: ReadonlySet<string> = new Set([
   "card-benefits-lookup", "concierge-chat", "editar-viaje-ai", "evolucionar-dna", "generar-packing-list",
   "avatar-evolve", "generate-avatar", "logistics-plan", "nightlife-discover", "parse-trip-file", "parsear-viaje",
   "recomendar-destinos", "resolver-fechas", "suggest-packing", "suggest-restaurants", "tag-moment",
+  "aprender-diario", "transcribir-nota",
   // SerpApi / TripAdvisor / vuelos en vivo
   "flight-status", "flights-search", "hotels-search", "price-watch", "serpapi-quote", "track-flight",
   "tripadvisor-search",
