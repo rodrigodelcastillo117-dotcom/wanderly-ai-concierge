@@ -2,6 +2,11 @@
 // (_shared/quotes.ts) y de las listas en vivo que ya trajo analizar-viaje. Sin Deno, probado en
 // src/test/emailSystem.test.ts.
 //
+// YA NO SE ENVÍA al crear el viaje (23-oct-2026): leía los renglones del snapshot, que salen de
+// desglose_presupuesto y pueden quedar en 0 aunque vuelos_json / hospedaje_json traigan precios en vivo,
+// y llegaba todo "NO DISPONIBLE" antes de que la persona eligiera nada. El correo con lo elegido es
+// _shared/selection-email.ts (enviar-seleccion). Se conserva para las muestras y sus pruebas.
+//
 // Nada se inventa: los horarios y aeropuertos del vuelo solo se muestran si el vuelo sugerido es
 // el mismo de la lista en vivo (mismo precio ±3 % y misma aerolínea); la foto y las estrellas del
 // hotel, solo si el nombre coincide con el de Google Hotels. Si no, la tarjeta va sin esos datos.
