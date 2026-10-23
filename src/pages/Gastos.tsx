@@ -1,12 +1,12 @@
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { lazyWithRetry } from "@/lib/lazyRetry";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Receipt, Upload, PieChart, PiggyBank } from "lucide-react";
+import { Plus, Trash2, Receipt, Upload, PieChart, PiggyBank, Users } from "lucide-react";
 import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,6 +21,7 @@ import { useFxTable } from "@/hooks/useFxTable";
 import { safeFileName, uploadProblem } from "@/lib/uploadRules";
 import { ACTIVE_TRIP_COLUMNS, useActiveTrip } from "@/hooks/useActiveTrip";
 import { isTripEnded, tripLabel } from "@/lib/activeTrip";
+import { loadMySharedParts } from "@/lib/tripExpensesApi";
 
 // El Resumen usa recharts (~100 kB comprimidos): se carga solo al abrir esa pestaña.
 const SmartSpendPanel = lazyWithRetry(() => import("@/components/SmartSpendPanel"));
@@ -36,7 +37,7 @@ const SmartSpendPanel = lazyWithRetry(() => import("@/components/SmartSpendPanel
  */
 export const GASTOS_TABS = [
   { id: "gastos", label: "Mis gastos", icon: Receipt, title: "Mis gastos",
-    explainer: "Anota cada gasto en cualquier moneda y guarda el recibo. Te lo sumamos en pesos." },
+    explainer: "Anota cada gasto en cualquier moneda y guarda el recibo. En pesos, con tu parte de lo compartido." },
   { id: "resumen", label: "Resumen", icon: PieChart, title: "En qué se te va el dinero",
     explainer: "Tus gastos por categoría y por viaje, todo convertido a pesos." },
   { id: "ahorro", label: "Ahorro", icon: PiggyBank, title: "Ahorro para tu viaje",
@@ -61,11 +62,16 @@ type Expense = {
   expense_date: string;
   receipt_url: string | null;
   trip_id?: string | null;
+  /** Mi parte de un gasto compartido del viaje (se edita en Gastos del viaje, no aquí). */
+  shared?: { total: number; payerName: string; paidByMe: boolean };
 };
 
 export const Gastos = () => {
   const { user } = useAuth();
-  const [items, setItems] = useState<Expense[]>([]);
+  const [ownItems, setItems] = useState<Expense[]>([]);
+  const [sharedParts, setSharedParts] = useState<Expense[]>([]);
+  // Mis gastos + mi parte de lo compartido, por fecha (lo mismo que suma Gastos del viaje).
+  const items = useMemo(() => [...ownItems, ...sharedParts].sort((a, b) => String(b.expense_date).localeCompare(String(a.expense_date))), [ownItems, sharedParts]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -107,6 +113,14 @@ export const Gastos = () => {
       .eq("user_id", user.id)
       .order("expense_date", { ascending: false });
     setItems((data as Expense[]) ?? []);
+    // Mi parte de los gastos compartidos de mis viajes: cuenta en el total y en el Resumen igual que en
+    // la pestaña Gastos del viaje (lo que pagué por otros no es gasto mío: es lo que me deben).
+    const parts = await loadMySharedParts(supabase);
+    setSharedParts(parts.map((r) => ({
+      id: `share-${r.share_id}`, amount: r.amount, currency: r.currency, category: r.category, description: r.description,
+      expense_date: r.expense_date, receipt_url: null, trip_id: r.trip_id,
+      shared: { total: r.total, payerName: r.payer_name, paidByMe: r.paid_by_me },
+    })));
   };
 
   useEffect(() => { load(); }, [user]);
@@ -351,13 +365,22 @@ export const Gastos = () => {
                   {tripName(x.trip_id) && <span className="text-xs text-muted-foreground truncate">· {tripName(x.trip_id)}</span>}
                 </div>
                 <p className="text-sm truncate">{x.description ?? "—"}</p>
+                {x.shared && (
+                  <p className="text-[11px] text-muted-foreground">Tu parte de {formatMoney(x.shared.total, x.currency)} compartido · {x.shared.paidByMe ? "pagaste tú" : `pagó ${x.shared.payerName}`}</p>
+                )}
               </div>
               <div className="text-right">
                 <p className="font-display text-lg">{formatMoney(Number(x.amount), x.currency)}</p>
               </div>
+              {x.shared ? (
+                <Link to={`/dashboard/viajes/${x.trip_id}/split?tab=compartidos`} aria-label={`Ver gasto compartido ${x.description ?? ""}`.trim()} className="text-muted-foreground hover:text-primary p-2">
+                  <Users className="w-4 h-4" aria-hidden="true" />
+                </Link>
+              ) : (
               <button onClick={() => remove(x.id)} disabled={removingId === x.id} aria-label={`Eliminar gasto ${x.description ?? x.category ?? ""}`.trim()} className="text-muted-foreground hover:text-destructive p-2 disabled:opacity-40">
                 <Trash2 className="w-4 h-4" aria-hidden="true" />
               </button>
+              )}
             </div>
           ))}
         </div>

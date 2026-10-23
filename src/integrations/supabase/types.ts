@@ -2088,6 +2088,7 @@ export type Database = {
         Row: {
           amount: number
           category: string
+          city: string | null
           created_at: string
           currency: string
           description: string | null
@@ -2101,6 +2102,7 @@ export type Database = {
         Insert: {
           amount: number
           category: string
+          city?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -2114,6 +2116,7 @@ export type Database = {
         Update: {
           amount?: number
           category?: string
+          city?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -5549,30 +5552,63 @@ export type Database = {
       trip_split_expenses: {
         Row: {
           amount: number
+          category: string | null
+          city: string | null
           created_at: string
+          created_by: string | null
           currency: string
           description: string
+          expense_date: string | null
           id: string
+          merchant: string | null
           payer_id: string
+          receipt_path: string | null
+          scan: Json | null
+          split_mode: string
+          tax: number | null
+          tip: number | null
           trip_id: string
+          updated_at: string
         }
         Insert: {
           amount: number
+          category?: string | null
+          city?: string | null
           created_at?: string
+          created_by?: string | null
           currency?: string
           description: string
+          expense_date?: string | null
           id?: string
+          merchant?: string | null
           payer_id: string
+          receipt_path?: string | null
+          scan?: Json | null
+          split_mode?: string
+          tax?: number | null
+          tip?: number | null
           trip_id: string
+          updated_at?: string
         }
         Update: {
           amount?: number
+          category?: string | null
+          city?: string | null
           created_at?: string
+          created_by?: string | null
           currency?: string
           description?: string
+          expense_date?: string | null
           id?: string
+          merchant?: string | null
           payer_id?: string
+          receipt_path?: string | null
+          scan?: Json | null
+          split_mode?: string
+          tax?: number | null
+          tip?: number | null
           trip_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -5591,28 +5627,153 @@ export type Database = {
           },
         ]
       }
+      trip_split_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          from_person: string
+          id: string
+          note: string | null
+          paid_on: string
+          to_person: string
+          trip_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          from_person: string
+          id?: string
+          note?: string | null
+          paid_on?: string
+          to_person: string
+          trip_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          from_person?: string
+          id?: string
+          note?: string | null
+          paid_on?: string
+          to_person?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_split_payments_from_person_fkey"
+            columns: ["from_person"]
+            isOneToOne: false
+            referencedRelation: "trip_split_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_split_payments_to_person_fkey"
+            columns: ["to_person"]
+            isOneToOne: false
+            referencedRelation: "trip_split_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_split_payments_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_split_people: {
         Row: {
+          autolink_blocked: boolean
           created_at: string
+          created_by: string | null
           id: string
+          linked_by_name: boolean
+          member_id: string | null
           name: string
           trip_id: string
         }
         Insert: {
+          autolink_blocked?: boolean
           created_at?: string
+          created_by?: string | null
           id?: string
+          linked_by_name?: boolean
+          member_id?: string | null
           name: string
           trip_id: string
         }
         Update: {
+          autolink_blocked?: boolean
           created_at?: string
+          created_by?: string | null
           id?: string
+          linked_by_name?: boolean
+          member_id?: string | null
           name?: string
           trip_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "trip_split_people_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_split_shares: {
+        Row: {
+          amount: number
+          created_at: string
+          expense_id: string
+          id: string
+          percent: number | null
+          person_id: string
+          trip_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          expense_id: string
+          id?: string
+          percent?: number | null
+          person_id: string
+          trip_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expense_id?: string
+          id?: string
+          percent?: number | null
+          person_id?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_split_shares_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "trip_split_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_split_shares_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "trip_split_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_split_shares_trip_id_fkey"
             columns: ["trip_id"]
             isOneToOne: false
             referencedRelation: "trips"
@@ -7330,6 +7491,23 @@ export type Database = {
           username: string
         }[]
       }
+      my_split_shares: {
+        Args: { p_trip?: string }
+        Returns: {
+          amount: number
+          category: string
+          city: string
+          currency: string
+          description: string
+          expense_date: string
+          expense_id: string
+          paid_by_me: boolean
+          payer_name: string
+          share_id: string
+          total: number
+          trip_id: string
+        }[]
+      }
       gen_invite_code: { Args: never; Returns: string }
       get_access_state: { Args: { _user_id: string }; Returns: Json }
       has_comp_grant: { Args: { _user_id: string }; Returns: boolean }
@@ -8105,6 +8283,23 @@ export type Database = {
         Returns: boolean
       }
       trip_document_path_trip: { Args: { p_name: string }; Returns: string }
+      trip_receipt_path_trip: { Args: { p_name: string }; Returns: string }
+      trip_split_claim_guest: { Args: { p_guest: string }; Returns: string }
+      trip_split_members: {
+        Args: { p_trip: string }
+        Returns: {
+          avatar_url: string
+          is_owner: boolean
+          name: string
+          user_id: string
+        }[]
+      }
+      trip_split_save_expense: {
+        Args: { p_expense: Json; p_id?: string; p_shares: Json; p_trip: string }
+        Returns: string
+      }
+      trip_split_sync_members: { Args: { p_trip: string }; Returns: number }
+      trip_split_unlink: { Args: { p_person: string }; Returns: undefined }
       trip_quotes_line_items_valid: { Args: { items: Json }; Returns: boolean }
       unlock_members_access: { Args: { p_password: string }; Returns: Json }
       vault_benefits_ok: { Args: { p: string[] }; Returns: boolean }

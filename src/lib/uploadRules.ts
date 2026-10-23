@@ -3,7 +3,7 @@
 // para avisar antes de subir con un mensaje claro. src/test/uploadRules.test.ts verifica que ambas
 // listas coincidan.
 
-export type UploadBucket = "recibos" | "journal-photos" | "travel-moments" | "trip-documents";
+export type UploadBucket = "recibos" | "journal-photos" | "travel-moments" | "trip-documents" | "trip-receipts";
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -15,13 +15,15 @@ export const UPLOAD_RULES: Record<UploadBucket, { maxBytes: number; types: strin
   "travel-moments": { maxBytes: MAX_UPLOAD_BYTES, types: [...IMAGES, "image/gif"] },
   // Documentos del viaje (bucket privado, migración 20261022143100_trip_documents.sql).
   "trip-documents": { maxBytes: MAX_UPLOAD_BYTES, types: ["application/pdf", ...IMAGES] },
+  // Fotos de tickets de los gastos del viaje (bucket privado, 20261027020000_gastos_split.sql).
+  "trip-receipts": { maxBytes: MAX_UPLOAD_BYTES, types: [...IMAGES, "application/pdf"] },
 };
 
 /** null si el archivo se puede subir; si no, el mensaje para el usuario. */
 export function uploadProblem(bucket: UploadBucket, file: { type: string; size: number }): string | null {
   const rule = UPLOAD_RULES[bucket];
   if (!rule.types.includes((file.type || "").toLowerCase())) {
-    return bucket === "recibos" || bucket === "trip-documents"
+    return bucket === "recibos" || bucket === "trip-documents" || bucket === "trip-receipts"
       ? "Sube una foto (JPG, PNG, WEBP o HEIC) o un PDF."
       : "Sube una foto en JPG, PNG, WEBP, HEIC o GIF.";
   }

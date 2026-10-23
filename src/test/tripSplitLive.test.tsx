@@ -68,7 +68,7 @@ beforeEach(() => {
 
 describe("TripSplit por moneda (D-18)", () => {
   it("salda euros en euros y pesos en pesos, con el total convertido y su fuente", async () => {
-    render(<MemoryRouter initialEntries={[`/dashboard/viajes/${TRIP}/split`]}><Routes><Route path="/dashboard/viajes/:id/split" element={<TripSplit />} /></Routes></MemoryRouter>);
+    render(<MemoryRouter initialEntries={[`/dashboard/viajes/${TRIP}/split?tab=compartidos`]}><Routes><Route path="/dashboard/viajes/:id/split" element={<TripSplit />} /></Routes></MemoryRouter>);
     expect(await screen.findByText("€50")).toBeInTheDocument();
     expect(screen.getByText("$500 MXN")).toBeInTheDocument();
     expect(screen.getByText(/Tipo de cambio de respaldo aproximado/)).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe("TripSplit por moneda (D-18)", () => {
   });
 
   it("no quita a quien tiene pagos (antes se borraban en cascada y cambiaban los saldos)", async () => {
-    render(<MemoryRouter initialEntries={[`/dashboard/viajes/${TRIP}/split`]}><Routes><Route path="/dashboard/viajes/:id/split" element={<TripSplit />} /></Routes></MemoryRouter>);
+    render(<MemoryRouter initialEntries={[`/dashboard/viajes/${TRIP}/split?tab=compartidos`]}><Routes><Route path="/dashboard/viajes/:id/split" element={<TripSplit />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: "Quitar a Ana" }));
     expect(toastSpy.error).toHaveBeenCalledWith("Ana tiene pagos registrados", expect.anything());
     expect(db.deletes).toHaveLength(0);
