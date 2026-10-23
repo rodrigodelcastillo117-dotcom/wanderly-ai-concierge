@@ -1,7 +1,7 @@
 // /wrapped y /wrapped/:year — "Tu año en viajes" (IATOS Wrapped). Cada quien ve solo el suyo: todo se
 // carga con la sesión de la persona (RLS) y la RPC wrapped_companions (src/lib/wrappedApi.ts).
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FileUp, Loader2, Plus, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,9 @@ export default function Wrapped() {
   const { year: param } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  // /wrapped?video=1 (desde Recuerdos): abre «Hazme mi video» de entrada.
+  const [search] = useSearchParams();
+  const wantsVideo = search.get("video") === "1";
   const today = localISODate();
   const parsed = parseWrappedYear(param, today);
   // Sin año: en enero, el que acaba de terminar; el resto del año, el actual (si no tiene viajes, abajo
@@ -53,7 +56,7 @@ export default function Wrapped() {
         if (cancelled) return;
         // /wrapped sin año y sin viajes este año: abre el año más reciente con viajes.
         if (parsed === null && !data.stats.trips.length && data.years.length && data.years[0] !== year) {
-          navigate(`/wrapped/${data.years[0]}`, { replace: true });
+          navigate(`/wrapped/${data.years[0]}${wantsVideo ? "?video=1" : ""}`, { replace: true });
           return;
         }
         setState({ status: "ready", data });
@@ -125,5 +128,5 @@ export default function Wrapped() {
     );
   }
 
-  return <WrappedStories key={year} stats={stats} cards={cards} onClose={close} otherYears={years.filter((y) => y !== year)} />;
+  return <WrappedStories key={year} stats={stats} cards={cards} onClose={close} otherYears={years.filter((y) => y !== year)} openVideo={wantsVideo} />;
 }
