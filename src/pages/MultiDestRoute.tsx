@@ -1,5 +1,5 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, MapPin, Plus, X, Sparkles, Train, Mountain, Wallet,
@@ -242,6 +242,23 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
   // Noches por ciudad (?noches=3|3|3 desde el planeador o "Convertir en ruta"): siempre suman las noches
   // del viaje; si cambian las fechas o las ciudades, se vuelven a repartir como el servidor.
   const [nightsSel, setNightsSel] = useState<number[] | null>(() => nightsFromQuery(params.get("noches")));
+  // La ventana de "Planear viaje" puede volver a mandar aquí estando ya en esta página (misma ruta, no se
+  // vuelve a montar): con su marca nueva se toma lo que trae la URL (ciudades, fechas, noches, viajeros).
+  const location = useLocation();
+  const ventana = (location.state as { ventana?: number } | null)?.ventana;
+  const ventanaVista = useRef(ventana);
+  useEffect(() => {
+    if (!ventana || ventana === ventanaVista.current) return;
+    ventanaVista.current = ventana;
+    const dest = (params.get("destinos") ?? "").split("|").map((s) => s.trim()).filter(Boolean);
+    if (dest.length) setStops(dest);
+    const o = params.get("origin");
+    if (o) setOrigin(o);
+    setFechaSalida(params.get("fecha_salida") ?? "");
+    setFechaRegreso(params.get("fecha_regreso") ?? "");
+    setViajeros(Number(params.get("viajeros") ?? "2") || 2);
+    setNightsSel(nightsFromQuery(params.get("noches")));
+  }, [ventana]); // eslint-disable-line react-hooks/exhaustive-deps
   const totalNights = fechaSalida && fechaRegreso ? diffLocalDays(fechaSalida, fechaRegreso) : 0;
   const nightsPerCity = useMemo(
     () => fitNights(nightsSel, validStops.length, totalNights),

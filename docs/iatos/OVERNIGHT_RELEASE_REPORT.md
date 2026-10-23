@@ -93,3 +93,20 @@ Reglas:
 - **El gasto solo ocurre al pulsar "Planear viaje"** (una búsqueda guardada unas horas por ciudad de origen, dentro de la cuota del plan).
 - Los precios son "desde $X · consultado a las HH:MM" y se reconsultan antes de comprar.
 - Fuente: SerpApi Google Flights, ya contratado (por confirmar si existe la búsqueda Explore; si no, búsquedas normales a destinos populares).
+
+## Etapa 2 (23-oct-2026): integridad + Planear viaje — GO por función
+| Función | Commit | Estado | Evidencia |
+|---|---|---|---|
+| Un precio por traslado (Destinos = Comprar = total) | `f250770` | **GO (probado con fixtures + verificado en vivo)** | Pruebas de regresión con el viaje real de España; el JS en vivo contiene "Quitar mi elección" |
+| Renta de auto con la fecha del tramo; monedas con fuente; etiquetas; quitar hotel; aviso obsoleto | `f250770` | **GO (probado con fixtures)** | 15 pruebas nuevas (14 fallan sin el arreglo) |
+| Ventana "Planear viaje" (buscador, Iato, ofertas, Explorar destinos) | `3dcfca5` | **GO (E2E real)** | Abre desde el menú y desde la barra móvil con 0 llamadas `live:true`; Madrid → /dashboard/planear con todo lleno y sin análisis; España → /dashboard/ruta con ciudades y noches; Explorar: 40 destinos con foto, escalas, precio y mapa; sin scroll horizontal a 390 |
+| Motor `google_travel_explore` | `3dcfca5` | **GO (1 llamada real)** | MEX: 40 destinos (Puerto Vallarta $1,688, Las Vegas $5,070…); la segunda consulta salió de caché. Costo: ≤ 1 búsqueda por origen y mes cada 12 h; abrir la ventana cuesta 0 |
+| Fechas al volver a /dashboard/ruta desde la ventana (D1) | este commit | **GO (prueba)** | La página relee la URL cuando llega una marca nueva de la ventana |
+| Multidestino `google_flights type=3` | `3dcfca5` | **PENDIENTE** | El servidor lo soporta, pero ningún botón lo usa todavía |
+
+**Pendientes de esta etapa (bajos):**
+- En móvil, la lista de Explorar recorta escalas y duración.
+- En el mapa, los precios se enciman en Europa y EE. UU.
+- "Consultado en vivo" se muestra para la caché de menos de 15 min (lleva la hora; ajustar el texto).
+- La clase todavía no filtra en Vuelos.
+- Las fotos de Explorar vienen de gstatic (miniaturas de Google vía SerpApi): revisar la licencia o usar Pexels / Places con atribución.

@@ -125,7 +125,9 @@ export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
   const go = (path: string) => {
     onOpenChange(false);
-    navigate(path);
+    // "ventana": marca única para que la página destino, si ya estaba abierta (misma ruta), vuelva a
+    // leer lo elegido aquí; sin esto MultiDestRoute conservaba las fechas viejas (E2E 23-oct, D1).
+    navigate(path, { state: { ventana: Date.now() } });
   };
 
   const explore = () => {
