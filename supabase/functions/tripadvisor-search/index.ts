@@ -66,7 +66,7 @@ type Body = {
 };
 
 async function getJSON(url: string, doFetch: typeof fetch = fetch) {
-  const r = await doFetch(url, { headers: { accept: "application/json", referer: "https://iatos-ai.lovable.app" } });
+  const r = await doFetch(url, { headers: { accept: "application/json", referer: "https://traveliatos.life" } });
   const t = await r.text();
   try { return { ok: r.ok, status: r.status, data: JSON.parse(t) }; }
   catch { return { ok: false, status: r.status, data: { raw: t } }; }
