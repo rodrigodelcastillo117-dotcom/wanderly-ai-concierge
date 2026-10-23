@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { sessionTrulyExpired } from "@/lib/authRestore";
 import { useAuth } from "@/contexts/AuthContext";
 
 export type AIRecommendation = {
@@ -46,9 +47,10 @@ function statusOf(error: unknown): number | null {
 }
 
 async function fetchRecommendations(refresh: boolean): Promise<AIRecommendation[]> {
-  // Asegurar sesión real contra backend antes de llamar Edge Functions.
-  const { data: verified, error: userError } = await supabase.auth.getUser();
-  if (userError || !verified.user) throw new SessionExpiredError();
+  // Sesión local (sin red): antes era getUser(), que va al servidor; un tropiezo de red al abrir
+  // la app se tomaba como "sesión vencida" y cerraba la sesión.
+  const { data: local } = await supabase.auth.getSession();
+  if (!local.session) throw new SessionExpiredError();
 
   const { data, error } = await supabase.functions.invoke("recomendar-destinos", {
     body: { refresh },
@@ -95,8 +97,12 @@ export function useAIRecommendations() {
       setRecos(result);
     } catch (e: unknown) {
       if (e instanceof SessionExpiredError) {
-        await supabase.auth.signOut({ scope: "local" });
-        setError("Tu sesión expiró. Vuelve a iniciar sesión.");
+        if (await sessionTrulyExpired(supabase.auth)) {
+          await supabase.auth.signOut({ scope: "local" });
+          setError("Tu sesión expiró. Vuelve a iniciar sesión.");
+        } else {
+          setError("No pudimos conectar. Intenta de nuevo en un momento.");
+        }
       } else if (e instanceof RateLimitedError) {
         setError(RATE_LIMITED_MSG);
       } else {

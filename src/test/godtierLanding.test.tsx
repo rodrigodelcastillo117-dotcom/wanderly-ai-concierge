@@ -7,7 +7,9 @@ import { vi, it, expect } from "vitest";
 
 const qb: any = { select: () => qb, eq: () => qb, maybeSingle: async () => ({ data: null, error: null }) };
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => qb, rpc: async () => ({ data: { trial_no_card_enabled: false }, error: null }) } }));
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" }, signOut: async () => {} }) }));
+// La landing es para quien no ha iniciado sesión (con sesión redirige a /dashboard); el layout, con sesión.
+const authState = vi.hoisted(() => ({ user: { id: "u1" } as { id: string } | null }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: authState.user, signOut: async () => {} }) }));
 vi.mock("@/hooks/useSubscription", () => ({ useSubscription: () => ({ loading: false, isPro: false }) }));
 vi.mock("@/components/NotificationBell", () => ({ NotificationBell: () => null }));
 
@@ -16,6 +18,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { PRO_PRICE_MXN } from "@/lib/planCopy";
 
 it("el hero dice qué hace la app y los 3 beneficios concretos están justo debajo", async () => {
+  authState.user = null;
   render(<MemoryRouter><Landing /></MemoryRouter>);
   expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Planea tu viaje.Conoce el costo antes de decidir.");
   for (const t of ["Un total claro en pesos", "Sabes qué precio es real", "Todo tu viaje en un lugar"]) {
@@ -31,6 +34,7 @@ it("el hero dice qué hace la app y los 3 beneficios concretos están justo deba
 });
 
 it("la navegación ofrece saltar al contenido y 'Planear viaje' también en escritorio", () => {
+  authState.user = { id: "u1" };
   render(<MemoryRouter initialEntries={["/dashboard"]}><DashboardLayout><p>PAGINA</p></DashboardLayout></MemoryRouter>);
   expect(screen.getByRole("link", { name: "Saltar al contenido" })).toHaveAttribute("href", "#contenido");
   expect(document.getElementById("contenido")?.tagName).toBe("MAIN");
@@ -51,6 +55,7 @@ it("el diálogo de límite ya no viaja en la carga inicial, pero aparece al nece
 });
 
 it("iPhone: la barra de arriba deja la franja de la hora y la Isla Dinámica (los botones se pueden tocar)", () => {
+  authState.user = null;
   render(<MemoryRouter><Landing /></MemoryRouter>);
   const nav = screen.getByTestId("landing-nav");
   // index.html usa viewport-fit=cover y barra translúcida: la barra fija debe sumar el área segura.

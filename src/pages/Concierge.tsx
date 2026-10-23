@@ -13,6 +13,7 @@ import { TravelerAvatar } from "@/components/TravelerAvatar";
 import { MembersOnlyPanel } from "@/components/MembersOnlyPanel";
 import { FixerButton } from "@/components/FixerButton";
 import { supabase } from "@/integrations/supabase/client";
+import { sessionTrulyExpired } from "@/lib/authRestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -291,7 +292,8 @@ const Concierge = () => {
       // Validar sesión antes de invocar el edge function (evita 401 "Sesión inválida")
       const { data: sess } = await supabase.auth.getSession();
       if (!sess.session) {
-        await supabase.auth.signOut();
+        // Sin sesión guardada: a iniciar sesión (cierre local; nunca cierra otros dispositivos).
+        await supabase.auth.signOut({ scope: "local" });
         toast.error("Tu sesión expiró. Vuelve a iniciar sesión.");
         window.location.href = "/auth";
         return;
@@ -338,8 +340,8 @@ const Concierge = () => {
       // Se decide por el código del servidor, no por el texto (IATOS-P1-FREE-01).
       const { readFunctionError, toastFunctionError } = await import("@/lib/functionErrors");
       const info = await readFunctionError(e, "El concierge no respondió");
-      if (info.status === 401 || info.code === "UNAUTHENTICATED") {
-        await supabase.auth.signOut();
+      if ((info.status === 401 || info.code === "UNAUTHENTICATED") && (await sessionTrulyExpired(supabase.auth))) {
+        await supabase.auth.signOut({ scope: "local" });
         toast.error("Tu sesión expiró. Vuelve a iniciar sesión.");
         window.location.href = "/auth";
         return;

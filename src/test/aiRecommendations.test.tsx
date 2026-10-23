@@ -3,10 +3,13 @@ import { renderHook, waitFor } from "@testing-library/react";
 
 const invoke = vi.fn();
 const getUser = vi.fn();
+const getSession = vi.fn();
+const refreshSession = vi.fn();
+const signOut = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     functions: { invoke: (...a: unknown[]) => invoke(...a) },
-    auth: { getUser: () => getUser(), signOut: vi.fn() },
+    auth: { getUser: () => getUser(), getSession: () => getSession(), refreshSession: () => refreshSession(), signOut: (...a: unknown[]) => signOut(...a) },
   },
 }));
 // Objeto nuevo en cada render, como un contexto que se re-crea: el hook no debe re-pedir.
@@ -21,6 +24,8 @@ describe("useAIRecommendations", () => {
     __resetRecommendationsCache();
     invoke.mockReset();
     getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    getSession.mockResolvedValue({ data: { session: { user: { id: "u1" } } }, error: null });
+    signOut.mockReset();
   });
 
   it("shares one request between pages and reuses it on remount", async () => {
@@ -54,5 +59,30 @@ describe("useAIRecommendations", () => {
     await result.current.refresh();
     expect(invoke).toHaveBeenLastCalledWith("recomendar-destinos", { body: { refresh: true } });
     expect(invoke).toHaveBeenCalledTimes(2);
+  });
+
+  it("un 401 con la red fallando al abrir la app NO cierra la sesión", async () => {
+    invoke.mockResolvedValue({ data: null, error: Object.assign(new Error("401"), { context: new Response("{}", { status: 401 }) }) });
+    refreshSession.mockResolvedValue({ data: { session: null }, error: Object.assign(new Error("Load failed"), { name: "AuthRetryableFetchError", status: 0 }) });
+    const { result } = renderHook(() => useAIRecommendations());
+    await waitFor(() => expect(result.current.error).toMatch(/No pudimos conectar/));
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("solo cierra sesión si Supabase confirma que el refresh token ya no sirve", async () => {
+    invoke.mockResolvedValue({ data: null, error: Object.assign(new Error("401"), { context: new Response("{}", { status: 401 }) }) });
+    refreshSession.mockResolvedValue({ data: { session: null }, error: Object.assign(new Error("Invalid Refresh Token"), { name: "AuthApiError", status: 400 }) });
+    const { result } = renderHook(() => useAIRecommendations());
+    await waitFor(() => expect(result.current.error).toMatch(/Tu sesión expiró/));
+    expect(signOut).toHaveBeenCalledWith({ scope: "local" });
+  });
+
+  it("revisar la sesión ya no va a internet (getUser) antes de pedir recomendaciones", async () => {
+    invoke.mockResolvedValue({ data: { destinations }, error: null });
+    getUser.mockRejectedValue(new Error("Load failed"));
+    const { result } = renderHook(() => useAIRecommendations());
+    await waitFor(() => expect(result.current.recos).toEqual(destinations));
+    expect(getUser).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
   });
 });

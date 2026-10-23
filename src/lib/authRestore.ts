@@ -67,3 +67,22 @@ export function restoreOutcome(args: { hasSession: boolean; error?: unknown; thr
   if (args.thrown || isRetryableAuthError(args.error)) return "retry";
   return "signed_out";
 }
+
+/**
+ * Una pantalla recibió "sesión inválida" (401). Antes eso cerraba la sesión de inmediato, y un
+ * tropiezo de red al abrir la app en frío (iPhone tras forzar el cierre) sacaba a la persona.
+ * Ahora se intenta renovar la sesión: solo si Supabase dice que el refresh token ya no sirve
+ * (error de auth, no de red) se considera vencida de verdad.
+ */
+export async function sessionTrulyExpired(auth: {
+  refreshSession: () => Promise<{ data: { session: unknown | null }; error: unknown }>;
+}): Promise<boolean> {
+  try {
+    const { data, error } = await auth.refreshSession();
+    if (data?.session) return false;
+    if (!error || isRetryableAuthError(error)) return false;
+    return true;
+  } catch {
+    return false; // red caída: no es un cierre de sesión
+  }
+}

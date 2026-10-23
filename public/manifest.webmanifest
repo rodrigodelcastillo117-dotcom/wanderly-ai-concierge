@@ -2,7 +2,7 @@
   "name": "IATOS AI",
   "short_name": "IATOS",
   "description": "AI que evoluciona con cada viaje",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

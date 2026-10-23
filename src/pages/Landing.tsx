@@ -1,6 +1,7 @@
 // Sin framer-motion: la landing es la primera página y debe cargar ligera (E-23).
 import { Reveal } from "@/components/Reveal";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { ArrowRight, Sparkles, Compass, Wallet, Check, Receipt, BadgeCheck, FolderHeart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroImg from "@/assets/hero-santorini.jpg";
@@ -24,6 +25,11 @@ import { useTrialCopy } from "@/hooks/usePlanConfig";
 const Landing = () => {
   const navigate = useNavigate();
   const { copy: trial } = useTrialCopy();
+  const { user } = useAuth();
+
+  // La app del celular abre en "/": con la sesión abierta se iba a la bienvenida con "Iniciar
+  // sesión" y parecía que se había cerrado. Con sesión, directo a tu Inicio.
+  if (user) return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
