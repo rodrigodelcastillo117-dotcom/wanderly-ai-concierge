@@ -21,7 +21,11 @@ import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
 import { claimIntent, completeIntent, intentFingerprint, releaseIntent } from "@/lib/autoIntent";
 import { analysisSummaryOf, datePresets, EXAMPLE_PROMPTS, looksLikeSentence, understandPlanText } from "@/lib/planDefaults";
-import { formatLocalDate } from "@/lib/localDate";
+import { diffLocalDays, formatLocalDate } from "@/lib/localDate";
+// Varias ciudades escritas en el planeador ("paris roma y atenas 10 dias") → ruta multi-destino.
+import { addIsoDays, describeMultiCity, fitNights, isMultiCity, moveCity, parseMultiCityText, routePlannerQuery } from "@/lib/multiCityText";
+import { generateMultiDestTrip } from "@/lib/multiDestGenerate";
+import { CityNightsEditor } from "@/components/route/CityNightsEditor";
 import { fetchFriendProfiles } from "@/lib/friendProfiles";
 // roadtrip: "road trip por la Toscana" va a la ruta de varios destinos con el coche elegido.
 import { detectRoadTrip, routePlannerPath } from "@/lib/roadtrip";
@@ -73,6 +77,21 @@ async function interpretarFrase(q: string, userId: string): Promise<Interpretaci
     const qs = new URLSearchParams(routePlannerPath(rt.route, rt.days).split("?")[1]);
     qs.set("origin", prof?.ciudad_origen || "Ciudad de México");
     qs.set("viajeros", "2");
+    return { kind: "ruta", qs: qs.toString() };
+  }
+
+  // Varias ciudades conocidas ("paris roma y atenas 10 dias"): ruta multi-destino sin IA ni costo, con
+  // las noches que diga la frase. Antes "dias" hacía que la frase se tomara como un solo destino.
+  const mc = parseMultiCityText(q, { origin: prof?.ciudad_origen ?? null });
+  if (isMultiCity(mc)) {
+    const fb = parseTripFallback(q);
+    const salida = fb.fechaSalida || defaultSalida;
+    const regreso = fb.fechaRegreso || (mc.nights ? addIsoDays(salida, mc.nights) : defaultRegreso);
+    const qs = new URLSearchParams(routePlannerQuery({
+      origin: mc.origin || prof?.ciudad_origen || "Ciudad de México", cities: mc.cities, fechaSalida: salida, fechaRegreso: regreso,
+      viajeros: fb.viajeros || 2,
+    }));
+    qs.set("auto", "1");
     return { kind: "ruta", qs: qs.toString() };
   }
 
@@ -170,6 +189,11 @@ const PlanTrip = () => {
   // con invitar_amigo_viaje (el servidor vuelve a comprobar la amistad).
   const conParam = params.get("con");
   const [showRoadTrips, setShowRoadTrips] = useState(false);
+  // Ruta de varias ciudades entendida de la frase: orden, noches y si se arma como ruta. `text` es el
+  // texto del campo al que corresponde (si la persona lo cambia, se vuelve a leer la frase).
+  const [routeEdit, setRouteEdit] = useState<{ text: string; cities: string[]; nights: number[] | null; asRoute: boolean; days: number | null; textNights: number | null } | null>(null);
+  // Noches que decía la frase ("10 dias" → 9): al elegir la salida se propone el regreso.
+  const [textNights, setTextNights] = useState<number | null>(null);
   const [companion, setCompanion] = useState<{ id: string; name: string } | null>(null);
   useEffect(() => {
     if (!user || !conParam || !/^[0-9a-f-]{36}$/i.test(conParam)) { setCompanion(null); return; }
@@ -198,6 +222,13 @@ const PlanTrip = () => {
       .catch(() => {})
       .finally(() => setProfileLoaded(true));
   }, [user?.id]);
+
+  // "10 dias": con la salida elegida y sin regreso, el regreso se propone solo (se puede cambiar).
+  useEffect(() => {
+    if (!textNights || !fechaSalida || fechaRegreso) return;
+    setFechaRegreso(addIsoDays(fechaSalida, textNights));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechaSalida, textNights]);
 
   // Quita de la URL las intenciones de un solo uso (?q, ?autoCheapest) en cuanto se
   // consumen. Así "Atrás" desde el viaje generado no vuelve a disparar el análisis.
@@ -291,16 +322,7 @@ const PlanTrip = () => {
       // El análisis terminó y quedó guardado: el siguiente es otro intento (llave nueva).
       clearRequestKey("analizar-viaje");
       if (intentFp) completeIntent(intentFp, data.trip.id);
-      const amigo = companionRef.current;
-      if (amigo) {
-        try {
-          const { data: inv } = await supabase.rpc("invitar_amigo_viaje", { p_trip_id: data.trip.id, p_friend_id: amigo.id });
-          if ((inv as { ok?: boolean } | null)?.ok) {
-            toast.success(`Invitamos a ${amigo.name} a este viaje`);
-            supabase.functions.invoke("send-email", { body: { trip_id: data.trip.id, friend_id: amigo.id } }).catch(() => {});
-          }
-        } catch { /* la invitación se puede mandar después desde "Compartir" */ }
-      }
+      await inviteCompanion(data.trip.id);
       // replace: el viaje sustituye a la pantalla del asistente en el historial,
       // así "Atrás" regresa a donde estabas antes de planear (no re-analiza).
       navigate(`/dashboard/viajes/${data.trip.id}`, { replace: true });
@@ -316,6 +338,64 @@ const PlanTrip = () => {
       if (!ok && intentFp) releaseIntent(intentFp);
     }
     return ok;
+  };
+
+  // ── Ruta de varias ciudades desde la frase ──
+  const parsedRoute = parseMultiCityText(destino, { origin: ciudadOrigen || null });
+  const routeBase = routeEdit && routeEdit.text === destino ? routeEdit : null;
+  const routeCities = routeBase?.cities ?? (isMultiCity(parsedRoute) ? parsedRoute.cities : []);
+  const routeOn = routeCities.length >= 2 && (routeBase ? routeBase.asRoute : true);
+  const routeDays = routeBase?.days ?? parsedRoute.days;
+  const datesNights = fechaSalida && fechaRegreso && fechaRegreso > fechaSalida ? diffLocalDays(fechaSalida, fechaRegreso) : null;
+  const routeTotalNights = datesNights ?? routeBase?.textNights ?? parsedRoute.nights;
+  const routeNights = routeOn ? fitNights(routeBase?.nights ?? null, routeCities.length, routeTotalNights) : null;
+  const routeTooShort = routeOn && datesNights != null && datesNights < routeCities.length;
+  const editRoute = (patch: Partial<NonNullable<typeof routeEdit>>) => setRouteEdit({
+    text: destino, cities: routeCities, nights: routeNights, asRoute: routeOn, days: routeDays,
+    textNights: routeBase?.textNights ?? parsedRoute.nights, ...patch,
+  });
+  const moveRouteCity = (i: number, dir: -1 | 1) => editRoute({ cities: moveCity(routeCities, i, dir), nights: routeNights ? moveCity(routeNights, i, dir) : null });
+  const removeRouteCity = (i: number) => editRoute({ cities: routeCities.filter((_, j) => j !== i), nights: null });
+
+  const inviteCompanion = async (tripId: string) => {
+    const amigo = companionRef.current;
+    if (!amigo) return;
+    try {
+      const { data: inv } = await supabase.rpc("invitar_amigo_viaje", { p_trip_id: tripId, p_friend_id: amigo.id });
+      if ((inv as { ok?: boolean } | null)?.ok) {
+        toast.success(`Invitamos a ${amigo.name} a este viaje`);
+        supabase.functions.invoke("send-email", { body: { trip_id: tripId, friend_id: amigo.id } }).catch(() => {});
+      }
+    } catch { /* la invitación se puede mandar después desde "Compartir" */ }
+  };
+
+  // Ruta de varias ciudades: el mismo plan que "Ruta multi-destino" (logistics-plan y las mismas filas
+  // del viaje), con el orden y las noches que eligió la persona aquí.
+  const runRoute = async () => {
+    if (inFlightRef.current || routeCities.length < 2) return;
+    inFlightRef.current = true;
+    const label = routeCities.join(" → ");
+    setDestino(label);
+    setRouteEdit({ text: label, cities: routeCities, nights: routeNights, asRoute: true, days: routeDays, textNights: routeBase?.textNights ?? parsedRoute.nights });
+    setAnalysisSummary(analysisSummaryOf({ ciudad_origen: ciudadOrigen, fecha_salida: fechaSalida, fecha_regreso: fechaRegreso, num_viajeros: numViajeros }));
+    setAnalizando(true);
+    try {
+      const { tripId } = await generateMultiDestTrip(supabase, {
+        userId: user?.id ?? null, origin: ciudadOrigen, stops: routeCities, fechaSalida, fechaRegreso, viajeros: numViajeros,
+        presupuesto, prefs: { connection: "smart", roadtripStops: true, luggageLogistics: true }, nightsPerCity: routeNights,
+        telemetry: { autonomous: true },
+      });
+      if (!tripId) throw new Error("Sin viaje guardado");
+      track("trip_quoted", { destino: label, viajeros: numViajeros, total_estimado: null, multi: true });
+      await inviteCompanion(tripId);
+      navigate(`/dashboard/viajes/${tripId}`, { replace: true });
+    } catch (e: any) {
+      console.error(e);
+      await toastFunctionError(e, "No pudimos generar la ruta. Intenta de nuevo.");
+      setAnalizando(false);
+    } finally {
+      inFlightRef.current = false;
+    }
   };
 
   const analizar = () => {
@@ -334,7 +414,9 @@ const PlanTrip = () => {
       return;
     }
 
-    // Detección single vs multi al confirmar.
+    if (routeOn) return runRoute();
+
+    // Detección single vs multi al confirmar (travesías con ciudades que no están en el catálogo).
     const intent = detectRouteIntent(destino);
     if (intent.mode === "multi" && intent.destinations.length >= 2) {
       const qs = new URLSearchParams({
@@ -820,8 +902,9 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         canNext: () => destino.trim().length > 1,
         render: () => {
           const intent = detectRouteIntent(destino);
-          const isMulti = intent.mode === "multi" && intent.destinations.length >= 2;
-          const sentence = !isMulti && looksLikeSentence(destino);
+          const knownRoute = routeCities.length >= 2;
+          const isMulti = !knownRoute && intent.mode === "multi" && intent.destinations.length >= 2;
+          const sentence = !isMulti && !knownRoute && looksLikeSentence(destino);
           const understood = sentence ? understandPlanText(destino) : null;
           const roadTrip = detectRoadTrip(destino);
           return (
@@ -841,7 +924,43 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   />
                 </div>
               </div>
-              {destino.trim().length > 1 && (
+              {knownRoute && (
+                <div className="space-y-3 rounded-2xl border border-primary/30 bg-primary/[0.06] p-3.5 sm:p-4" data-testid="plan-multicity">
+                  <p className="flex items-start gap-2 text-sm" role="status" data-testid="plan-multicity-entendimos">
+                    <RouteIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                    <span>Entendimos: <span className="font-medium">{describeMultiCity({ cities: routeCities, days: routeDays, nights: null })}</span>
+                      <span className="text-muted-foreground"> · ¿lo armamos como ruta de {routeCities.length} ciudades?</span></span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="¿Ruta de varias ciudades?">
+                    <button type="button" role="radio" aria-checked={routeOn} data-testid="plan-multicity-si"
+                      onClick={() => editRoute({ asRoute: true })}
+                      className={`min-h-[44px] rounded-xl border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${routeOn ? "border-primary bg-primary/15 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}>
+                      Sí, ruta de {routeCities.length} ciudades
+                    </button>
+                    <button type="button" role="radio" aria-checked={!routeOn} data-testid="plan-multicity-no"
+                      onClick={() => editRoute({ asRoute: false })}
+                      className={`min-h-[44px] rounded-xl border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${!routeOn ? "border-primary bg-primary/15 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}>
+                      No, solo {routeCities[0]}
+                    </button>
+                  </div>
+                  {routeOn && (
+                    <CityNightsEditor cities={routeCities} nights={routeNights} onChange={(n) => editRoute({ nights: n })}
+                      onMove={moveRouteCity} onRemove={removeRouteCity}
+                      pendingNote="Las noches por ciudad se reparten cuando elijas las fechas (siguiente paso)." />
+                  )}
+                  {parsedRoute.unknown.length > 0 && (
+                    <p className="text-xs text-amber-400/90" data-testid="plan-multicity-desconocidas">
+                      No reconocimos {parsedRoute.unknown.map((u) => `«${u}»`).join(", ")} como ciudad y no la agregamos. Escríbela de otra forma si va en tu ruta.
+                    </p>
+                  )}
+                </div>
+              )}
+              {!knownRoute && parsedRoute.countries.length > 0 && (parsedRoute.countries.length > 1 || parsedRoute.cities.length > 0) && (
+                <p className="text-xs text-amber-400/90" role="status" data-testid="plan-multicity-paises">
+                  {parsedRoute.countries.map((c) => `«${c}»`).join(", ")} {parsedRoute.countries.length === 1 ? "es un país" : "son países"}: escribe las ciudades (p. ej. «París, Roma y Atenas») para armar la ruta.
+                </p>
+              )}
+              {destino.trim().length > 1 && !knownRoute && (
                 <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${
                   isMulti
                     ? "bg-primary/10 border-primary/40 text-primary"
@@ -861,7 +980,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   <Car className="w-3.5 h-3.5" aria-hidden="true" /> Road trip en coche: {roadTrip.route.name} →
                 </Link>
               )}
-              {sentence && !understood && !roadTrip.route && (
+              {sentence && !understood && !roadTrip.route && !parsedRoute.countries.length && (
                 <p className="text-xs text-amber-400/90" role="status">
                   No reconocimos el destino en tu frase. Escribe solo la ciudad o el país (p. ej. «Oaxaca»); las fechas y los viajeros van en el siguiente paso.
                 </p>
@@ -902,7 +1021,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       icon: Calendar,
       title: "¿Cuándo y con quién?",
       sub: "Las fechas exactas y cuántos viajan.",
-      canNext: () => !!fechaSalida && !!fechaRegreso && fechaRegreso > fechaSalida && !!ciudadOrigen,
+      canNext: () => !!fechaSalida && !!fechaRegreso && fechaRegreso > fechaSalida && !!ciudadOrigen && !routeTooShort,
       render: () => (
         <div className="space-y-5">
           {stepNotice && (
@@ -938,6 +1057,17 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               <Input id="plantrip-regreso-2" type="date" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} className="bg-input border-border h-12" />
             </div>
           </div>
+          {routeOn && (
+            <div className="rounded-2xl border border-border/60 bg-surface/30 p-3.5" data-testid="plan-multicity-noches">
+              <CityNightsEditor cities={routeCities} nights={routeNights} onChange={(n) => editRoute({ nights: n })}
+                onMove={moveRouteCity} pendingNote="Elige salida y regreso para repartir las noches." />
+              {routeTooShort && (
+                <p className="mt-2 text-xs text-amber-400/90" role="alert" data-testid="plan-multicity-corto">
+                  Tus fechas dan {datesNights} {datesNights === 1 ? "noche" : "noches"}: no alcanzan para {routeCities.length} ciudades (mínimo 1 noche en cada una). Cambia el regreso o quita una ciudad.
+                </p>
+              )}
+            </div>
+          )}
           <div>
             <label id="plantrip-viajeros" className="text-sm text-muted-foreground mb-3 block">Número de viajeros: <span className="text-foreground font-medium">{numViajeros}</span></label>
             <Slider aria-labelledby="plantrip-viajeros" value={[numViajeros]} onValueChange={(v) => setNumViajeros(v[0])} min={1} max={10} step={1} />
@@ -985,8 +1115,33 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   // interpreta aquí, sin IA ni costo, y se prellenan fechas y viajeros (antes la frase entera
   // viajaba como destino al análisis).
   const goNext = () => {
+    if (step === 0 && !isEmocionMode && routeOn) {
+      // Ruta de varias ciudades: el campo queda como "París → Roma → Atenas"; fechas y viajeros de la frase.
+      const label = routeCities.join(" → ");
+      const fb = parseTripFallback(destino);
+      setRouteEdit({ text: label, cities: routeCities, nights: routeBase?.nights ?? null, asRoute: true, days: routeDays,
+        textNights: routeBase?.textNights ?? parsedRoute.nights });
+      setTextNights(fb.fechaSalida && fb.fechaRegreso ? null : routeBase?.textNights ?? parsedRoute.nights);
+      if (parsedRoute.origin) setCiudadOrigen(parsedRoute.origin);
+      if (fb.fechaSalida && fb.fechaRegreso) { setFechaSalida(fb.fechaSalida); setFechaRegreso(fb.fechaRegreso); }
+      if (fb.viajeros && fb.viajeros >= 1 && fb.viajeros <= 20) setNumViajeros(fb.viajeros);
+      setDestino(label);
+      setStepNotice(`Entendimos: ${describeMultiCity({ cities: routeCities, days: routeDays, nights: null })}. Elige las fechas y repartimos las noches entre las ${routeCities.length} ciudades.`);
+      setStep(step + 1);
+      return;
+    }
+    if (step === 0 && !isEmocionMode && routeCities.length >= 2 && !routeOn) {
+      // "No, solo París": un destino, con lo demás de la frase (duración, viajeros).
+      setDestino(routeCities[0]);
+      setRouteEdit(null);
+      setTextNights(parsedRoute.nights);
+      setStepNotice(`Entendimos: ${routeCities[0]}${routeDays ? ` · ${routeDays} días` : ""}. Revisa y ajusta lo que necesites.`);
+      setStep(step + 1);
+      return;
+    }
     if (step === 0 && !isEmocionMode) {
       const u = understandPlanText(destino);
+      setTextNights(u?.nights ?? null);
       if (u?.destino) {
         setDestino(u.destino);
         if (u.fechaSalida && u.fechaRegreso) { setFechaSalida(u.fechaSalida); setFechaRegreso(u.fechaRegreso); }
@@ -1063,7 +1218,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   <>
                     <span className="inline-flex items-center font-display text-lg">
                       <Sparkles className="w-4 h-4 mr-2" />
-                      {isEmocionMode ? "Empezar análisis" : "Generar análisis"}
+                      {isEmocionMode ? "Empezar análisis" : routeOn ? `Generar ruta de ${routeCities.length} ciudades` : "Generar análisis"}
                     </span>
                     {isEmocionMode && (
                       <span className="text-xs font-normal opacity-80">IATOS AI creará tu próximo viaje ideal</span>
@@ -1104,6 +1259,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               <TripBuildPreview
                 origin={ciudadOrigen}
                 destinoRaw={destino}
+                destinations={routeOn ? routeCities : undefined}
                 fechaSalida={fechaSalida}
                 fechaRegreso={fechaRegreso}
                 viajeros={numViajeros}

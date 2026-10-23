@@ -9,6 +9,7 @@
  */
 import { formatLocalDate, localISODate } from "@/lib/localDate";
 import { parseTripFallback } from "@/lib/parseTripFallback";
+import { parseMultiCityText } from "@/lib/multiCityText";
 
 export type DatePreset = { key: "finde" | "dos_semanas" | "un_mes"; label: string; hint: string; salida: string; regreso: string };
 
@@ -41,15 +42,21 @@ export type Understood = {
   fechaSalida: string | null;
   fechaRegreso: string | null;
   viajeros: number | null;
+  /** Noches que dice la frase ("Roma 5 días" → 4), para proponer el regreso. */
+  nights?: number | null;
 };
 
 /** Interpretación local de la frase del paso 1; null si no es una frase o no se entendió el destino. */
 export function understandPlanText(text: string, today: Date = new Date()): Understood | null {
   if (!looksLikeSentence(text)) return null;
   const r = parseTripFallback(text, today);
-  if (!r.destino) return null;
+  // Una sola ciudad conocida y nada más que duración/fechas ("Roma 5 días"): el destino es la ciudad,
+  // no "Roma 5 Días".
+  const mc = parseMultiCityText(text);
+  const destino = mc.cities.length === 1 && !mc.unknown.length && !mc.countries.length ? mc.cities[0] : r.destino;
+  if (!destino) return null;
   const viajeros = r.viajeros && r.viajeros >= 1 && r.viajeros <= 20 ? r.viajeros : null;
-  return { destino: r.destino, fechaSalida: r.fechaSalida, fechaRegreso: r.fechaRegreso, viajeros };
+  return { destino, fechaSalida: r.fechaSalida, fechaRegreso: r.fechaRegreso, viajeros, ...(mc.nights ? { nights: mc.nights } : {}) };
 }
 
 /** Ejemplos que se pueden tocar para empezar (no son ofertas ni precios). */

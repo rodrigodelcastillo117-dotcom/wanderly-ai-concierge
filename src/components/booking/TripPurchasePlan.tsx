@@ -7,7 +7,7 @@
 // compartido todos ven quién lo marcó (r2 grupo, useTripPurchaseMarks).
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Car, Check, ChevronDown, ExternalLink, Hotel, Plane, ShieldCheck, Undo2, Utensils } from "lucide-react";
+import { Bus, Car, Check, ChevronDown, ExternalLink, Hotel, Plane, Ship, ShieldCheck, Train, Undo2, Utensils } from "lucide-react";
 import { toast } from "sonner";
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { SmartImage } from "@/components/media/SmartImage";
@@ -19,6 +19,9 @@ import { offerFromTripTour } from "@/lib/booking";
 import { hotelQuery } from "@/lib/categoryImagery";
 import { canUnmark, markLabel } from "@/lib/purchaseMarks";
 import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
+import { useTasteProfile } from "@/hooks/useTasteProfile";
+import { TripPicksCarousel, type PickAction } from "@/components/booking/TripPicksCarousel";
+import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 
 const money = (n: number, cur: string | null = "MXN") => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? "MXN"}`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -60,13 +63,16 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
   const { rows, marks, mark: saveMark, unmark: removeMark } = useTripPurchaseMarks({ trip, userId, bookings });
   const owner = ownerId ?? trip?.user_id ?? null;
   const [busy, setBusy] = useState<string | null>(null);
+  const taste = useTasteProfile(userId);
+  const [restPicks, setRestPicks] = useRestaurantPicks(trip?.id ?? null);
 
   const items = flow.items;
   if (!items.length && !flow.steps.length) return null;
-  const core = items.filter((i) => !i.optional);
+  // Lo que hay que comprar: lo de la lista y, en multi-destino, cada traslado entre ciudades.
+  const core = [...items.filter((i) => !i.optional), ...flow.steps.flatMap((s) => (s.kind === "traslado" ? [s.item] : []))];
   const state = (it: PurchaseItem | null) => (it ? itemPurchaseState(it, rows, marks) : "pendiente");
   const doneCore = core.filter((i) => state(i) !== "pendiente").length;
-  const stepDone = (s: BuyStep) => (s.kind !== "auto" && s.skipped) || (!!s.item && state(s.item) !== "pendiente");
+  const stepDone = (s: BuyStep) => ((s.kind === "vuelo" || s.kind === "hospedaje") && s.skipped) || (!!s.item && state(s.item) !== "pendiente");
   const falta = flow.steps.filter((s) => s.kind !== "auto" && !stepDone(s)).map((s) => s.title.replace(/^Hotel/, "hotel").replace(/^Vuelo/, "vuelo"));
   const travelers = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
 
@@ -296,6 +302,47 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
               </li>
             );
           }
+          if (s.kind === "traslado") {
+            const it = s.item;
+            const flightOpt = s.options.find((o) => o.mode === "vuelo") ?? null;
+            const trainOpt = s.options.find((o) => o.mode === "tren") ?? null;
+            const LegIcon = s.options[0]?.mode === "tren" ? Train : s.options[0]?.mode === "ferry" ? Ship : s.options[0]?.mode === "bus" ? Bus : s.options[0]?.mode === "coche" ? Car : Plane;
+            return (
+              <li key={`leg-${s.n}`} id={`paso-${s.n}`} className={box(done)} data-testid="comprar-traslado" data-from={s.from} data-to={s.to} data-state={state(it)}>
+                <StepHeader n={s.n} title={s.title} icon={LegIcon} done={done} />
+                {it.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
+                {s.options.length > 0 ? (
+                  <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label={`Cómo ir de ${s.from} a ${s.to}`}>
+                    {s.options.slice(0, 4).map((o, k) => {
+                      const OIcon = o.mode === "tren" ? Train : o.mode === "ferry" ? Ship : o.mode === "bus" ? Bus : o.mode === "coche" ? Car : Plane;
+                      return (
+                        <li key={k} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2" data-testid="traslado-opcion" data-mode={o.mode}>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <OIcon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm">{LEG_MODE[o.mode] ?? o.mode}{o.provider ? ` · ${o.provider}` : o.mode === "vuelo" ? " · aerolínea por confirmar" : ""}</span>
+                              {o.duration && <span className="block truncate text-xs text-muted-foreground">{o.duration}</span>}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-right text-xs tabular-nums">
+                            {o.pricePp ? <>{money(o.pricePp)}<span className="block text-[10px] text-muted-foreground">por persona · estimado</span></> : <span className="text-muted-foreground">Precio en el sitio</span>}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm" data-testid="traslado-sin-opciones">IATOS aún no cotizó este traslado: búscalo con tu fecha.</p>
+                )}
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {/* Vuelo solo ida con la fecha y los pasajeros (los mismos enlaces que "Cómo llegar"). */}
+                  {(flightOpt || !trainOpt) && <FlightBuyButtons option={flightOpt?.row ?? { from: s.from, to: s.to, fuente_precio: "estimado" }} trip={trip} />}
+                  {trainOpt && <FlightBuyButtons option={{ ...trainOpt.row, mode: "tren" }} trip={trip} />}
+                </div>
+                <div className="mt-2">{markControl(it, "comprar-traslado")}</div>
+              </li>
+            );
+          }
           const it = s.item!;
           return (
             <li key="auto" id={`paso-${s.n}`} className={box(done)} data-testid="comprar-auto" data-state={state(it)}>
@@ -311,67 +358,42 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
         })}
       </ul>
 
-      {/* Reservas opcionales por ciudad: pocas a la vista y el resto plegado. */}
+      {/* Restaurantes y experiencias por ciudad: carrusel de 4 (Económico, Medio, Caro y Recomendado por
+          IATOS) con foto, precio y calificación. Elegir una experiencia la suma al total (selTours). */}
       {flow.extras.length > 0 && (
-        <details className="group mt-4 rounded-xl border border-border/60 bg-surface/20" data-testid="comprar-extras">
-          <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm">
-            <span className="inline-flex items-center gap-2"><Utensils className="w-4 h-4 text-primary" aria-hidden="true" />{extrasSummary(flow.extras)}</span>
-            <ChevronDown className="w-4 h-4 text-primary transition-transform group-open:rotate-180" aria-hidden="true" />
-          </summary>
-          <div className="space-y-4 border-t border-border/40 p-3">
-            {flow.extras.map((e) => {
-              const entries = [
-                ...e.tours.map((i) => ({ kind: "actividad" as const, i })),
-                ...e.restaurants.map((i) => ({ kind: "restaurante" as const, i })),
-              ];
-              const row = (x: { kind: "actividad" | "restaurante"; i: number }) => {
-                if (x.kind === "restaurante") {
-                  const it = items.find((p) => p.kind === "restaurante" && p.index === x.i);
-                  const r = trip.restaurantes_json[x.i];
-                  return (
-                    <li key={`r-${x.i}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/50 px-3 py-2" data-testid="comprar-restaurante">
-                      <span className="min-w-0"><span className="block truncate text-sm">{it?.title ?? r?.nombre}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{[r?.cocina, r?.rango_precio].filter(Boolean).join(" · ") || "Restaurante"}</span></span>
-                      {it?.url && <a href={it.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-primary/40 px-3 text-xs text-primary">Reservar <ExternalLink className="w-3 h-3" aria-hidden="true" /></a>}
-                    </li>
-                  );
-                }
-                const t = trip.tours_json[x.i];
-                const chosen = selTours.has(x.i);
-                const it = items.find((p) => p.kind === "actividad" && p.index === x.i) ?? null;
-                const action = it?.action ?? primaryAction(offerFromTripTour(t, { trip, city: t?.ciudad ?? trip.destino, index: x.i }).actions);
-                const pp = Number(t?.precio_por_persona) || 0;
-                return (
-                  <li key={`t-${x.i}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/50 px-3 py-2" data-testid="comprar-actividad">
-                    <span className="min-w-0"><span className="block truncate text-sm">{t?.nombre}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{pp ? `${money(pp)} por persona (estimado)` : "Precio en el sitio"}</span></span>
-                    <span className="flex flex-wrap items-center gap-2">
-                      {onToggleTour && (
-                        <label className="inline-flex min-h-[40px] items-center gap-1 text-xs">
-                          <input type="checkbox" checked={chosen} onChange={() => onToggleTour(x.i)} className="accent-primary" /> Sumar al total
-                        </label>
-                      )}
-                      {action?.url && <a href={action.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-primary/40 px-3 text-xs text-primary">Reservar <ExternalLink className="w-3 h-3" aria-hidden="true" /></a>}
-                      {it && markControl(it, "comprar-actividad")}
-                    </span>
-                  </li>
-                );
-              };
-              return (
-                <div key={e.city}>
-                  {flow.extras.length > 1 && <p className="mb-2 text-xs uppercase tracking-[0.18em] text-primary">{e.city}</p>}
-                  <ul className="space-y-2">{entries.slice(0, 3).map(row)}</ul>
-                  {entries.length > 3 && (
-                    <details className="mt-2">
-                      <summary className="cursor-pointer list-none text-xs text-muted-foreground hover:text-foreground">Ver más ({entries.length - 3})</summary>
-                      <ul className="mt-2 space-y-2">{entries.slice(3).map(row)}</ul>
-                    </details>
-                  )}
-                </div>
-              );
-            })}
+        <section className="mt-5 space-y-5 border-t border-border/40 pt-4" data-testid="comprar-extras" aria-labelledby="comprar-extras-title">
+          <div>
+            <h3 id="comprar-extras-title" className="inline-flex items-center gap-2 text-base font-medium"><Utensils className="h-4 w-4 text-primary" aria-hidden="true" /> {extrasSummary(flow.extras)}</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">Por precio y uno elegido para tu perfil. Fotos y calificaciones de Google Maps cuando las hay; «Foto ilustrativa» no es el lugar.</p>
           </div>
-        </details>
+          {flow.extras.map((e) => {
+            const restaurantAction = (i: number): PickAction => {
+              const it = items.find((p) => p.kind === "restaurante" && p.index === i);
+              return it?.url ? { url: it.url, site: it.site } : null;
+            };
+            const tourAction = (i: number): PickAction => {
+              const t = trip.tours_json[i];
+              const it = items.find((p) => p.kind === "actividad" && p.index === i) ?? null;
+              const a = it?.action ?? primaryAction(offerFromTripTour(t, { trip, city: t?.ciudad ?? trip.destino, index: i }).actions);
+              return a?.url ? { url: a.url, site: a.processor ?? null } : null;
+            };
+            return (
+              <div key={e.city} className="space-y-4" data-testid="comprar-extras-ciudad" data-city={e.city}>
+                {flow.extras.length > 1 && <p className="text-xs uppercase tracking-[0.18em] text-primary">{e.city}</p>}
+                {e.restaurants.length > 0 && (
+                  <TripPicksCarousel kind="restaurante" city={e.city} list={trip.restaurantes_json} indices={e.restaurants} taste={taste} trip={trip}
+                    actionFor={restaurantAction} isChosen={(i) => restPicks.includes(restKey(trip.restaurantes_json[i], i))}
+                    onChoose={(i) => setRestPicks(restKey(trip.restaurantes_json[i], i))} />
+                )}
+                {e.tours.length > 0 && (
+                  <TripPicksCarousel kind="experiencia" city={e.city} list={trip.tours_json} indices={e.tours} taste={taste} trip={trip}
+                    actionFor={tourAction} isChosen={(i) => selTours.has(i)} onChoose={onToggleTour}
+                    extra={(i) => { const it = items.find((p) => p.kind === "actividad" && p.index === i); return it ? <div className="pt-1">{markControl(it, "comprar-actividad")}</div> : null; }} />
+                )}
+              </div>
+            );
+          })}
+        </section>
       )}
     </section>
   );
@@ -383,10 +405,32 @@ function oneSource(list: any[]): boolean {
   return list.length > 0 && list.every((x) => k(x) === k(list[0]));
 }
 
+const LEG_MODE: Record<string, string> = { vuelo: "Vuelo", tren: "Tren", coche: "En coche", bus: "Autobús", ferry: "Ferry" };
+
+const restKey = (r: any, i: number) => `${i}:${String(r?.nombre ?? "").toLowerCase()}`;
+
+/**
+ * Restaurantes elegidos (no tienen precio que sumar: "depende de lo que pidas"). Es una comodidad de
+ * quien ve el viaje en este navegador; si el almacenamiento no está disponible, vive en la sesión.
+ */
+function useRestaurantPicks(tripId: string | null): [string[], (key: string) => void] {
+  const k = tripId ? `iatos:restaurantes-elegidos:${tripId}` : null;
+  const [picks, setPicks] = useState<string[]>(() => {
+    if (!k) return [];
+    try { const v = JSON.parse(localStorage.getItem(k) ?? "[]"); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; } catch { return []; }
+  });
+  const toggle = (key: string) => setPicks((prev) => {
+    const next = prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key];
+    if (k) { try { localStorage.setItem(k, JSON.stringify(next)); } catch { /* sin almacenamiento */ } }
+    return next;
+  });
+  return [picks, toggle];
+}
+
 function extrasSummary(extras: Array<{ restaurants: number[]; tours: number[] }>) {
   const r = extras.reduce((s, e) => s + e.restaurants.length, 0);
   const t = extras.reduce((s, e) => s + e.tours.length, 0);
-  return `${[t ? plural(t, "experiencia", "experiencias") : null, r ? plural(r, "restaurante", "restaurantes") : null].filter(Boolean).join(" y ")} para reservar (opcional)`;
+  return `${[r ? "Restaurantes" : null, t ? "experiencias" : null].filter(Boolean).join(" y ").replace(/^e/, "E")} para reservar (opcional)`;
 }
 
 function StepHeader({ n, title, icon: Icon, done }: { n: number; title: string; icon: typeof Plane; done: boolean }) {

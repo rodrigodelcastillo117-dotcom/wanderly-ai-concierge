@@ -135,3 +135,60 @@ export function groundOptionsForCity(trip: any, city: string): any[] {
     return true;
   });
 }
+
+export type LegOption = {
+  /** "vuelo" | "tren" | "coche" | "bus" | "ferry" */
+  mode: string;
+  provider: string | null;
+  duration: string | null;
+  /** Precio por persona en MXN (siempre estimado: no hay inventario en vivo entre ciudades). */
+  pricePp: number | null;
+  fuente: string;
+  from: string;
+  to: string;
+  row: any;
+};
+
+const legMode = (m: unknown) => {
+  const s = String(m ?? "").toLowerCase();
+  if (!s || s === "vuelo" || s === "vuelo_interno" || s === "avion") return "vuelo";
+  if (s === "train") return "tren";
+  if (s === "roadtrip" || s === "auto" || s === "car") return "coche";
+  if (s === "autobus") return "bus";
+  return s;
+};
+
+/**
+ * Cómo ir de una ciudad del viaje a la siguiente (París → Roma): vuelos internos guardados en
+ * vuelos_json, transporte por tierra del plan (tren, coche, bus, ferry) y los tramos de
+ * logistics.internal_transport. Todo es estimado; sin opciones devuelve [] (no se inventa una).
+ */
+export function legOptionsFor(trip: any, from: string, to: string): LegOption[] {
+  const fx = Number(trip?.itinerario_json?.logistics?.fx_usd_mxn) || 0;
+  const out: LegOption[] = [];
+  const fromOk = (f: unknown) => !f || sameCity(String(f).replace(/\(.*?\)/g, " "), from);
+  for (const v of Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : []) {
+    if (!isFlightMode(v?.mode) || !sameCity(v?.to ?? v?.ciudad, to) || !v?.from || !sameCity(v.from, from)) continue;
+    out.push({ mode: "vuelo", provider: isEstimated(v?.fuente_precio) ? null : v?.aerolinea ?? null, duration: v?.duracion || null,
+      pricePp: Number(v?.precio_por_persona) > 0 ? Math.round(Number(v.precio_por_persona)) : null, fuente: String(v?.fuente_precio ?? "estimado"), from, to, row: v });
+  }
+  for (const g of groundOptionsForCity(trip, to)) {
+    if (!fromOk(g?.from)) continue;
+    out.push({ mode: legMode(g?.mode ?? g?.modo), provider: g?.aerolinea ?? null, duration: g?.duracion || null,
+      pricePp: Number(g?.precio_por_persona) > 0 ? Math.round(Number(g.precio_por_persona)) : null, fuente: "estimado", from, to, row: { ...g, from, to } });
+  }
+  for (const t of Array.isArray(trip?.itinerario_json?.logistics?.internal_transport) ? trip.itinerario_json.logistics.internal_transport : []) {
+    if (!sameCity(t?.to, to) || !sameCity(t?.from, from)) continue;
+    const mode = legMode(t?.mode);
+    out.push({ mode, provider: mode === "vuelo" ? null : t?.provider ?? null, duration: t?.duration || null,
+      pricePp: fx > 0 && Number(t?.price_per_person_usd) > 0 ? Math.round(Number(t.price_per_person_usd) * fx) : null, fuente: "estimado", from, to,
+      row: { mode, aerolinea: t?.provider ?? null, duracion: t?.duration ?? null, from, to, fuente_precio: "estimado" } });
+  }
+  const seen = new Set<string>();
+  return out.filter((o) => {
+    const k = `${o.mode}|${String(o.provider ?? "").toLowerCase()}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}

@@ -18,7 +18,7 @@ import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { codeServesCity } from "../../supabase/functions/_shared/airports.ts";
 
 export type PurchaseKind = "vuelo" | "hospedaje" | "auto" | "actividad" | "restaurante";
-export type PurchaseCategory = "flight" | "hotel" | "car" | "activity" | "restaurant";
+export type PurchaseCategory = "flight" | "hotel" | "car" | "activity" | "restaurant" | "train";
 
 export type PurchaseItem = {
   /** Estable entre recargas mientras la cotización no cambie: tipo, índice y nombre. */

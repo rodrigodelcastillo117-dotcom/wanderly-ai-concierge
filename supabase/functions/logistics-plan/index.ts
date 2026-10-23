@@ -35,6 +35,7 @@ import { computeRoute } from "../_shared/google-routes.ts";
 import { legModesFor, planRoadTrip, roadTripPromptBlock } from "./roadtrip.ts";
 import { filterFares, layoverCodesFromAviasalesLink } from "../_shared/fareGuard.ts";
 import { airportCityName } from "../_shared/airports.ts";
+import { chosenNights } from "../_shared/booking/tripRoute.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +61,8 @@ interface Body {
     transport_mode?: string;
     leg_modes?: string[];
   };
+  /** Noches por ciudad elegidas por el viajero (planeador): deben sumar las noches del viaje. */
+  nights_per_city?: number[];
   /** Llave de idempotencia por intento (sessionStorage del cliente). */
   request_key?: string;
   /** "snapshot": guardar en trip_quotes la cotización del plan ya generado (ver saveSnapshot). */
@@ -450,6 +453,7 @@ Deno.serve(async (req) => {
     // así que el plan se guarda en la reserva y un reintento con la misma llave lo recibe sin pagar.
     const requestKey = resolveRequestKey(body.request_key, [
       body.origin, body.destinations.join(">"), body.fecha_salida, body.fecha_regreso, body.num_viajeros,
+      ...(Array.isArray(body.nights_per_city) ? [body.nights_per_city.join("|")] : []),
     ]);
     // El cuerpo del plan se dejó sin re-indentar para no mover todo el diff.
     const generarPlan = async (ctx: WorkCtx): Promise<WorkResult> => {
@@ -525,7 +529,8 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
     const roadtripBlock = roadtripMode ? `\n\n${ROADTRIP_RULES}` : "";
 
     // Ventanas de fechas por ciudad para consultar hoteles reales.
-    const nightsPerCity = splitNights(nights, body.destinations.length);
+    // Las noches por ciudad que eligió el viajero (planeador) mandan si cuadran con el viaje; si no, el reparto parejo.
+    const nightsPerCity = chosenNights(body.nights_per_city, body.destinations.length, nights) ?? splitNights(nights, body.destinations.length);
     const today = new Date();
     const fallbackStart = addDays(today.toISOString().slice(0, 10), 45);
     let cursor = body.fecha_salida ?? fallbackStart;
@@ -621,6 +626,7 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
 Origen: ${body.origin}
 Destinos en orden: ${cityList}
 Viajeros: ${viajeros} | Fechas: ${fechas} (~${nights} noches)
+Noches por ciudad: ${cityWindows.map((w) => `${w.city} ${w.nights} (${w.checkin} → ${w.checkout})`).join(" · ")}
 Preferencia conexión: ${body.prefs?.connection ?? "smart"}
 NIVEL DE PRESUPUESTO DEL USUARIO: ${selectedTier} (${presupuestoRango ?? "sin perfil, default equilibrio"}). Todas tus recomendaciones deben girar alrededor de este nivel.
 ${roadtripMode ? "MODO: ROADTRIP (transporte interno = coche/campervan obligatorio, NO vuelos internos)." : ""}
@@ -634,7 +640,7 @@ Entrega JSON con:
 2. internal_transport: ${roadtripMode
   ? `tramos en COCHE/CAMPERVAN entre ciudades consecutivas (mode="coche", provider real, duración en horas, scenic=true, luggage_note con km y paradas). Añade pickup aeropuerto → primera ciudad y dropoff última → aeropuerto.`
   : `UN tramo por cada par consecutivo (${body.destinations.length - 1} tramos), sin duplicados. Europa <800km usa TREN. Inter-islas griegas usa FERRY.`} Marca fuente_precio="estimado" (no tenemos inventario en vivo de tierra).
-3. days: ${nights} días distribuidos lógicamente entre las ciudades, cada uno con ciudad/título/mañana/tarde/noche específicos${roadtripMode ? " (mencionando carretera, km y paradas escénicas)" : ""}.
+3. days: ${nights} días repartidos según las noches por ciudad de arriba, cada uno con ciudad/título/mañana/tarde/noche específicos${roadtripMode ? " (mencionando carretera, km y paradas escénicas)" : ""}.
 4. mandatory_costs con currency_buffer_pct=3.
 5. resumen breve (2-3 frases). NO calcules totales: el total lo calcula el sistema.`;
 

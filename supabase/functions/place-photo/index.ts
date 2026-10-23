@@ -12,6 +12,14 @@ import { isPhotoRef } from "../_shared/placePhotoRef.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { dbCacheStore } from "../_shared/serpRuntime.ts";
 import { resolvePlacePhoto } from "../_shared/place-photo-resolve.ts";
+import { logUsage } from "../_shared/serpRuntime.ts";
+import { googleListPriceUsd } from "../_shared/google-maps.ts";
+
+// Cada foto servida por nombre de recurso (ref) es un evento "Place Details Photos" facturable: queda en
+// ai_usage_log como las demás llamadas de Google (antes solo el modo "resolve" se registraba).
+const PHOTO_SKU = "Place Details Photos";
+const logPhoto = (userId: string) =>
+  void logUsage({ user_id: userId, function: "place-photo", provider: "google_maps", model: PHOTO_SKU, cost_estimate_usd: googleListPriceUsd(PHOTO_SKU) });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -88,6 +96,7 @@ Deno.serve(async (req) => {
           status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      if (typeof data?.photoUri === "string") logPhoto(__user.id);
       return new Response(JSON.stringify({ url: typeof data?.photoUri === "string" ? data.photoUri : null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "private, max-age=3600" },
       });
@@ -102,6 +111,7 @@ Deno.serve(async (req) => {
       });
     }
     const buf = await res.arrayBuffer();
+    logPhoto(__user.id);
     return new Response(buf, {
       headers: {
         ...corsHeaders,

@@ -44,6 +44,7 @@ import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts
 import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
+import { ConvertToRouteBanner, convertToRouteHref } from "@/components/route/ConvertToRouteBanner";
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
@@ -517,6 +518,10 @@ const TripDetail = () => {
 
       {/* Secciones del viaje (pestañas fijas arriba): la página muestra una sección a la vez, así se
           entiende sin bajar tanto. Antes eran ~3 pantallas completas con todo seguido (caso 22-oct-2026). */}
+      {/* Destino con varias ciudades guardado como uno solo ("paris roma y atenas 10 dias"): armarlo como ruta. */}
+      {isOwner && convertToRouteHref(trip) && (
+        <div className="max-w-5xl px-4 pt-4 sm:px-6 md:px-12"><ConvertToRouteBanner trip={trip} /></div>
+      )}
       <TripSectionNav sections={sections} active={section} onChange={showSection} />
 
       <div className="max-w-5xl p-4 pb-24 sm:p-6 md:px-12 md:pt-8">
