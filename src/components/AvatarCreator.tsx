@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyAvatarUpdated } from "@/hooks/useMyAvatar";
 import { useCameraCapture } from "@/components/camera/CameraCapture";
+import { LayeredPreview } from "@/components/avatar/AvatarLayersPanel";
 
 export const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
@@ -68,7 +69,8 @@ export async function invokeErrorMessage(error: unknown, fallback: string): Prom
   }
 }
 
-type Variant = { id: string; url: string; score: number | null };
+/** recortada = persona de cuerpo completo sin fondo (se ve sobre el fondo de su país). */
+type Variant = { id: string; url: string; score: number | null; recortada?: boolean };
 
 type Mode = "choose" | "photo" | "builder" | "preview";
 
@@ -168,6 +170,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
   const [picked, setPicked] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [lastSource, setLastSource] = useState<"selfie" | "builder">("selfie");
+  const [fondoUrl, setFondoUrl] = useState<string | null>(null);
   // Dos entradas separadas: la galería no lleva `capture` (en iPhone y Android forzaba la cámara
   // y no dejaba elegir una selfie existente); la cámara es una opción explícita aparte.
   const fileRef = useRef<HTMLInputElement>(null);
@@ -190,7 +193,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
     { key: "outfit_style", title: "Tu outfit de viajero", options: OUTFITS, type: "grid" },
     { key: "accessory", title: "Tu accesorio favorito", options: ACCESSORIES, type: "grid" },
     { key: "vibe", title: "¿Cuál es tu vibe?", options: VIBES, type: "grid" },
-    { key: "dream_destination", title: "Tu destino soñado de fondo", options: [], type: "text" },
+    { key: "dream_destination", title: "Tu destino soñado", options: [], type: "text" },
   ];
 
   const handleFile = async (f: File) => {
@@ -228,6 +231,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
       const list: Variant[] = Array.isArray(data?.variants) ? data.variants : [];
       if (!list.length) throw new Error(data?.error ?? "No se pudo crear tu avatar. Intenta de nuevo.");
       setVariants(list);
+      setFondoUrl(typeof data?.fondo_url === "string" && /^https:\/\//.test(data.fondo_url) ? data.fondo_url : null);
       setPicked(list[0].id);
     } catch (e) {
       toast.error((e as Error).message);
@@ -451,7 +455,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
                   className="bg-input border-border h-12 text-base"
                   maxLength={120}
                 />
-                <p className="text-xs text-muted-foreground">El fondo del avatar será este lugar.</p>
+                <p className="text-xs text-muted-foreground">Tu fondo siempre será de tu país: lo eliges después en tu perfil.</p>
               </div>
             )}
           </motion.div>
@@ -499,6 +503,13 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
                   onClick={() => setPicked(v.id)}
                   className="flex flex-col items-center gap-2 focus:outline-none group"
                 >
+                  {v.recortada ? (
+                    // Cuerpo completo sobre el fondo de su país (así se verá; los recuerdos se agregan después, gratis).
+                    <span className={`relative block w-full rounded-2xl p-[3px] transition ${sel ? "avatar-ring shadow-[0_0_24px_-4px_rgba(212,175,55,0.7)]" : "bg-white/10 group-hover:bg-primary/40"}`}>
+                      <LayeredPreview fondoUrl={fondoUrl} personaUrl={v.url} objetos={[]} alt={`Versión ${i + 1} de tu avatar`} className="rounded-[0.9rem]" />
+                      {sel && <Check className="absolute top-1 right-1 w-6 h-6 p-1 rounded-full bg-primary text-primary-foreground" aria-hidden="true" />}
+                    </span>
+                  ) : (
                   <span className={`relative block w-full aspect-square rounded-full p-[3px] transition ${sel ? "avatar-ring shadow-[0_0_24px_-4px_rgba(212,175,55,0.7)]" : "bg-white/10 group-hover:bg-primary/40"}`}>
                     <motion.img
                       src={v.url}
@@ -511,6 +522,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
                     />
                     {sel && <Check className="absolute top-1 right-1 w-6 h-6 p-1 rounded-full bg-primary text-primary-foreground" aria-hidden="true" />}
                   </span>
+                  )}
                   <span className="text-[11px] text-muted-foreground">
                     {lastSource === "selfie" ? likenessLabel(v.score) : `Versión ${i + 1}`}
                   </span>

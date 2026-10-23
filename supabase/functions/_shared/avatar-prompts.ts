@@ -25,6 +25,21 @@ const WARDROBE = `Outfit: elegant smart-casual travel outfit in neutral tones (c
 
 const BACKDROP = `Background: smooth dark warm gradient (deep espresso to charcoal) with a faint golden glow behind the head. No scenery, no props, no extra people. No text, letters, logos or watermarks.`;
 
+// Avatar por capas (avatar-inventario): la persona se genera sobre verde croma plano y se recorta en
+// código (avatar-cutout.ts) para ponerla sobre el fondo de su país sin volver a pagar IA.
+export const CHROMA_BACKDROP = `Background: perfectly flat, solid, uniform pure chroma-key green (#00FF00) from edge to edge behind the person — no gradient, no texture, no vignette, no shadow on the background, no glow, no scenery, no props, no extra people. Light the person with neutral warm studio light (no green light or green reflections on the skin, hair or clothes) and do not use any green in the outfit or accessories. No text, letters, logos or watermarks.`;
+
+export type PromptOpts = { capas?: boolean };
+
+// Avatar por capas = CUERPO COMPLETO, de pie (pedido del dueño: así se ven el objeto en la mano y el
+// fondo de su país). Para que la cara no se pierda: cabeza ~1/6 del alto (proporciones de película
+// animada, sin caricatura) y, en los círculos chicos, un recorte de la cara (avatar-layers.ts). El juez
+// de parecido compara la selfie contra ESE recorte, no contra la figura entera.
+export const FRAMING_FULL = `Framing: FULL BODY portrait, head to toe, the person standing and centered, the whole figure visible with a small margin above the head and below the shoes, the figure filling about 88% of the image height. Prefer a vertical 4:5 image (square is acceptable). Proportions: premium animated-film proportions with the head about one sixth of the body height (natural, NOT chibi, NOT a caricature) so the face stays detailed and recognizable; looking at the camera.
+Pose: relaxed and elegant. The person's RIGHT hand (on the viewer's left) is raised in front of the body at chest height, slightly away from the torso, fingers loosely curled as if about to hold a small object — but the hand is EMPTY and fully visible. The other arm hangs relaxed. Hands never cover the face, neck or hair. Nothing on the head.`;
+
+const WARDROBE_FULL = `Outfit: elegant smart-casual travel outfit in neutral tones (camel trench coat or tailored blazer, cream, navy or black) with subtle gold details and elegant shoes. No bags or objects in the hands.`;
+
 // Una usuaria recibió su avatar con barba (22-oct-2026): el modelo la inventaba. Regla estricta.
 export const FACIAL_HAIR_RULE = `FACIAL HAIR (strict rule): if the person is a woman, the avatar must NEVER have any facial hair — absolutely NO beard, NO mustache, NO stubble, NO shadow on chin, jaw or upper lip; smooth clean feminine face. If the person is a man, draw a beard, mustache or stubble ONLY if it is visible in the photo (even slightly visible stubble counts — keep it as subtle as in the photo, same shape and length); if the photo shows a clean-shaven man, the face must be clean-shaven. Never add facial hair that is not in the photo.`;
 
@@ -40,7 +55,7 @@ const IDENTITY_RULES = `IDENTITY — the top priority, never trade it for style:
 - Same apparent age, gender presentation and body build. Do NOT beautify, slim, de-age or change ethnicity.`;
 
 /** Prompt para crear el avatar a partir de 1-3 fotos reales de la persona. */
-export function identityPrompt(opts: { photos: number; variant?: number; fixes?: string[] }): string {
+export function identityPrompt(opts: { photos: number; variant?: number; fixes?: string[]; capas?: boolean }): string {
   const n = Math.max(1, Math.min(3, Math.floor(opts.photos || 1)));
   const lines = [
     n > 1
@@ -49,9 +64,9 @@ export function identityPrompt(opts: { photos: number; variant?: number; fixes?:
     `Create a premium illustrated travel avatar portrait of THIS EXACT person — friends must recognize them instantly.`,
     IDENTITY_RULES,
     STYLE,
-    FRAMING,
-    WARDROBE,
-    BACKDROP,
+    opts.capas ? FRAMING_FULL : FRAMING,
+    opts.capas ? WARDROBE_FULL : WARDROBE,
+    opts.capas ? CHROMA_BACKDROP : BACKDROP,
   ];
   if (opts.variant && opts.variant > 1) {
     lines.push(`Variation ${opts.variant}: a slightly different head angle and outfit color than other versions; the face must stay identical to the photos.`);
@@ -63,15 +78,15 @@ export function identityPrompt(opts: { photos: number; variant?: number; fixes?:
 }
 
 /** Prompt para el modo "diséñalo tú" (sin foto): no hay identidad que verificar. */
-export function builderPrompt(b: BuilderTraits, variant = 1): string {
+export function builderPrompt(b: BuilderTraits, variant = 1, opts: PromptOpts = {}): string {
   return [
     `Premium illustrated travel avatar portrait of one ${b.gender || "person"}, warm confident expression.`,
     `Traits (must match exactly): skin tone ${b.skin || "natural medium"}; hair ${b.hair_style || "modern"} in ${b.hair_color || "natural"} color.${b.vibe ? ` Mood: ${b.vibe}.` : ""}${b.accessory ? ` Small accessory: ${b.accessory}.` : ""}`,
     `Facial hair: ${isWoman(b.gender) ? "none — woman, smooth clean face, absolutely no facial hair" : "none — smooth clean face, no beard, no stubble"}.`,
     STYLE,
-    FRAMING,
-    b.outfit_style ? `Outfit: ${b.outfit_style}, refined, with subtle gold details.` : WARDROBE,
-    BACKDROP,
+    opts.capas ? FRAMING_FULL : FRAMING,
+    b.outfit_style ? `Outfit: ${b.outfit_style}, refined, with subtle gold details.${opts.capas ? " No bags or objects in the hands." : ""}` : opts.capas ? WARDROBE_FULL : WARDROBE,
+    opts.capas ? CHROMA_BACKDROP : BACKDROP,
     variant > 1 ? `Variation ${variant}: slightly different head angle and outfit color.` : "",
   ].filter(Boolean).join("\n\n");
 }
@@ -100,20 +115,23 @@ export function souvenirPrompt(items: Array<{ prompt: string; slot: string }>, o
 }
 
 /** Prompt del juez de parecido (modelo de visión). */
-export function likenessPrompt(mode: "selfie" | "identidad"): string {
+export function likenessPrompt(mode: "selfie" | "identidad", opts: { mano?: boolean } = {}): string {
   const intro = mode === "selfie"
-    ? `Image 1 is a real photo of a person. Image 2 is an illustrated avatar. Judge ONLY whether image 2 depicts the same person as image 1, the way a friend would recognize them, ignoring art style, outfit, accessories and background.`
+    ? `Image 1 is a real photo of a person. Image 2 is an illustrated avatar${opts.mano ? " (a close crop of the face of a full-body avatar)" : ""}. Judge ONLY whether image 2 depicts the same person as image 1, the way a friend would recognize them, ignoring art style, outfit, accessories and background.`
     : `Image 1 is a person's illustrated avatar. Image 2 is an edited version of it. Judge ONLY whether the person is identical (face, hair, skin tone, facial hair, glasses, age), ignoring new small accessories.`;
+  const mano = opts.mano
+    ? `\nImage 3 is the same avatar in full body. Also locate the center of the person's raised EMPTY hand in image 3 and give it as "mano": [x, y] with integers 0-1000 (x from the left edge, y from the top edge); use null if no hand is raised and visible.`
+    : "";
   return `${intro}
-Check: face shape, skin tone, hair (style, length, color, hairline), eyes and eyebrows, nose and mouth, facial hair, glasses, apparent age, gender presentation.
-Answer ONLY with JSON: {"score": <integer 0-100>, "diferencias": [<up to 4 short phrases in Spanish naming the most important mismatches>]}
+Check: face shape, skin tone, hair (style, length, color, hairline), eyes and eyebrows, nose and mouth, facial hair, glasses, apparent age, gender presentation.${mano}
+Answer ONLY with JSON: {"score": <integer 0-100>, "diferencias": [<up to 4 short phrases in Spanish naming the most important mismatches>]${opts.mano ? `, "mano": [<x>, <y>] or null` : ""}}
 Scale: 90-100 unmistakably the same person; 70-89 clearly recognizable; 50-69 some resemblance; below 50 a different person.`;
 }
 
 /** Umbral: por debajo se reintenta una vez con correcciones. */
 export const LIKENESS_THRESHOLD = 72;
 
-export type Likeness = { score: number; diferencias: string[] };
+export type Likeness = { score: number; diferencias: string[]; mano?: [number, number] | null };
 
 /** Lee y valida la respuesta del juez. null si no es JSON válido con un score 0-100. */
 export function parseLikeness(raw: unknown): Likeness | null {
@@ -133,7 +151,11 @@ export function parseLikeness(raw: unknown): Likeness | null {
   const diferencias = Array.isArray(o.diferencias)
     ? o.diferencias.filter((d): d is string => typeof d === "string" && d.trim().length > 0).map((d) => d.trim().slice(0, 120)).slice(0, 4)
     : [];
-  return { score: Math.round(s), diferencias };
+  const m = o.mano;
+  const mano = Array.isArray(m) && m.length === 2 && m.every((v) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1000)
+    ? [Math.round(m[0] as number) / 1000, Math.round(m[1] as number) / 1000] as [number, number]
+    : null;
+  return "mano" in o ? { score: Math.round(s), diferencias, mano } : { score: Math.round(s), diferencias };
 }
 
 /** URL de la imagen en una respuesta de chat completions con modalities ["image"]. */

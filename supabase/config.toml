@@ -64,6 +64,10 @@ verify_jwt = true
 [functions.generate-avatar]
 verify_jwt = true
 
+# Avatar por capas: cambiar fondo y recuerdos sin IA (0 USD). Valida al usuario en el código.
+[functions.avatar-capas]
+verify_jwt = true
+
 [functions.geocode]
 verify_jwt = true
 

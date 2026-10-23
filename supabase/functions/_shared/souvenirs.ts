@@ -353,6 +353,11 @@ export function catalogCities(): ReadonlyArray<Pick<CityDef, "id" | "lugar" | "p
   return CITIES;
 }
 
+/** Países del respaldo por país: [código ISO2, nombre en español] (solo lectura; avatar-inventory). */
+export function catalogCountries(): ReadonlyArray<readonly [string, string]> {
+  return COUNTRIES.map((r) => [r[0], r[1]] as const);
+}
+
 /** Qué recuerdos se dibujan: los últimos AVATAR_MAX_VISIBLE aplicados (el más nuevo al final). */
 export function visibleSouvenirs<T extends { key: string }>(appliedOldestFirst: T[], max = AVATAR_MAX_VISIBLE): T[] {
   const seen = new Set<string>();

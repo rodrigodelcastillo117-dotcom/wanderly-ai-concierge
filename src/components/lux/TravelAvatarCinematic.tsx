@@ -35,6 +35,10 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
   const { card, loading: cardLoading } = useMemberCard(user?.id ?? null);
   const [lastTrip, setLastTrip] = useState<LastTrip | null>(null);
   const [version, setVersion] = useState<number | null>(null);
+  // Avatar por capas: aquí va el cuerpo completo (avatar_profiles.cuerpo_url); los círculos usan el
+  // recorte de la cara (profiles.avatar_url).
+  const [cuerpoUrl, setCuerpoUrl] = useState<string | null>(null);
+  const [capas, setCapas] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -46,19 +50,23 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
         supabase.from("trips").select("destino, pais_destino, fecha_salida, fecha_regreso")
           .eq("user_id", user.id).lt("fecha_salida", today)
           .order("fecha_salida", { ascending: false }).limit(1),
-        (supabase as any).from("avatar_profiles").select("version").eq("user_id", user.id).maybeSingle(),
+        (supabase as any).from("avatar_profiles").select("version, cuerpo_url, capas").eq("user_id", user.id).maybeSingle(),
       ]);
       if (cancelled) return;
       const t = trips?.[0] ?? null;
       setLastTrip(t ? { destino: t.destino, pais_destino: (t as any).pais_destino ?? null } : null);
       setVersion(ap?.error ? null : (ap?.data?.version ?? null));
+      const cu = ap?.error ? null : ap?.data?.cuerpo_url;
+      setCuerpoUrl(typeof cu === "string" && /^https:\/\//.test(cu) ? cu : null);
+      setCapas(!ap?.error && ap?.data?.capas === true);
     })();
     return () => { cancelled = true; };
   }, [user, dna?.tripCount, avatarUrl]);
 
   const culture = useMemo(() => detectCulture(lastTrip?.destino, lastTrip?.pais_destino), [lastTrip]);
   const archetype = dna?.dominant ? DNA_ARCHETYPES[dna.dominant] : null;
-  const badges = rows.filter((r) => r.visible && r.status === "aplicado").map((r) => ({ key: r.id, emoji: r.emoji, nombre: r.nombre }));
+  // Con capas los recuerdos ya están dibujados en la imagen (en la mano y a los pies): sin insignias.
+  const badges = capas ? [] : rows.filter((r) => r.visible && r.status === "aplicado").map((r) => ({ key: r.id, emoji: r.emoji, nombre: r.nombre }));
 
   const bg = `radial-gradient(ellipse at 30% 20%, ${culture.palette.accent}33 0%, transparent 50%),
               radial-gradient(ellipse at 70% 80%, ${culture.palette.via} 0%, transparent 60%),
@@ -94,7 +102,13 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
             className="absolute rounded-full w-[calc(100%+90px)] h-[calc(100%+90px)] opacity-30 motion-safe:animate-[spin_60s_linear_infinite]"
             style={{ background: `conic-gradient(from 0deg, transparent, ${culture.palette.accent}40, transparent, ${culture.palette.accent}20, transparent)` }}
           />
-          <AvatarCircle url={avatarUrl} name={user?.user_metadata?.full_name ?? null} size="lg" prive={prive} badges={badges} />
+          {cuerpoUrl ? (
+            <figure className="relative w-56 md:w-64 aspect-[4/5] rounded-3xl overflow-hidden avatar-ring p-[3px] shadow-[0_0_28px_-6px_rgba(212,175,55,0.55)]" data-testid="avatar-cuerpo">
+              <img src={cuerpoUrl} alt="Tu Travel Avatar de cuerpo completo" className="w-full h-full object-cover rounded-[1.35rem]" loading="lazy" decoding="async" />
+            </figure>
+          ) : (
+            <AvatarCircle url={avatarUrl} name={user?.user_metadata?.full_name ?? null} size="lg" prive={prive} badges={badges} />
+          )}
         </div>
         {card || cardLoading ? (
           <figure className="w-[188px] sm:w-[204px] shrink-0" data-testid="avatar-member-card">
@@ -151,7 +165,7 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
           <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/60 mb-3 flex items-center gap-1.5">
             <Sparkles className="w-3 h-3" aria-hidden="true" /> Evolución
           </p>
-          <AvatarEvolutionTimeline rows={rows} hasAvatar={!!avatarUrl} />
+          <AvatarEvolutionTimeline rows={rows} hasAvatar={!!avatarUrl} capas={capas} />
         </div>
       </div>
     </div>

@@ -26,6 +26,7 @@ import { InviteFriendsCard } from "@/components/InviteFriendsCard";
 import { FriendsPrivacySection } from "@/components/social/FriendsPrivacySection";
 import { dnaForDisplay } from "../../supabase/functions/_shared/dnaVoice";
 import { AvatarCircle } from "@/components/avatar/AvatarCircle";
+import { AvatarLayersPanel } from "@/components/avatar/AvatarLayersPanel";
 import { PriveSeal } from "@/components/PriveSeal";
 import { notifyAvatarUpdated, useMyAvatar } from "@/hooks/useMyAvatar";
 import { usePriveSeal } from "@/hooks/usePriveSeal";
@@ -196,6 +197,9 @@ const Profile = () => {
             </div>
           ) : null}
         </section>
+
+        {/* Avatar por capas: fondo de tu país y recuerdos de tus viajes (cambiar es gratis). */}
+        {avatarUrl && <AvatarLayersPanel onRecreate={() => setOpenAvatar(true)} />}
 
         {/* IATOS Wrapped: tu año en viajes */}
         <ProfileWrappedLink today={localISODate()} />

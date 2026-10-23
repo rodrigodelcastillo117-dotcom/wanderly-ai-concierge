@@ -7,10 +7,16 @@
 //                          que la persona siga idéntica y reintenta una vez si cambió.
 // processTripEvolution  → un viaje terminado/importado → su recuerdo. Idempotente por viaje: la
 //                          base de datos (avatar_claim_trip) decide quién lo procesa.
+// Avatar por capas (avatar-inventario): createVariants con capas genera de CUERPO COMPLETO sobre verde
+// croma, recorta (deps.prepare) y el juez compara la selfie contra el RECORTE DE LA CARA (y ubica la
+// mano levantada). Si el avatar es por capas, processTripEvolution NO usa IA: suma el objeto del lugar
+// y recompone gratis (deps.publishLayers). Los avatares de antes siguen editándose con IA como hasta hoy.
 import { builderPrompt, identityPrompt, LIKENESS_THRESHOLD, souvenirPrompt, type BuilderTraits, type Likeness } from "./avatar-prompts.ts";
 import type { ImageResult } from "./avatar-image.ts";
+import type { FaceRect } from "./avatar-layers.ts";
 import { resolveSouvenir, visibleSouvenirs, type Souvenir, type TripLike } from "./souvenirs.ts";
 import type { UsageEntry } from "./usage.ts";
+import { objetosConNuevo, objetosDeRecuerdo, recuerdosDeObjetos } from "./avatar-inventory.ts";
 
 /** Uso registrado de un resultado (éxito: una entrada; fallo: lista). Sin depender del narrowing estricto. */
 type ImageFailure = Extract<ImageResult, { ok: false }>;
@@ -18,8 +24,15 @@ const failCode = (r: ImageResult) => (r as ImageFailure).code;
 const usageList = (r: ImageResult): UsageEntry[] => (Array.isArray(r.usage) ? r.usage : [r.usage]);
 
 export type GenFn = (prompt: string, images: string[]) => Promise<ImageResult>;
-export type CheckFn = (reference: string, candidate: string, mode: "selfie" | "identidad") =>
+export type CheckFn = (reference: string, candidate: string, mode: "selfie" | "identidad", full?: string | null) =>
   Promise<{ likeness: Likeness | null; usage: UsageEntry | null }>;
+
+/**
+ * Avatar por capas: recorta la persona (verde croma → alfa) y calcula el rectángulo de su cara.
+ * `persona` = PNG transparente (data URL); `faceView` = recorte de la cara para el juez. null = no se
+ * pudo recortar (el modelo no respetó el fondo plano): la variante se guarda tal cual.
+ */
+export type PrepareFn = (url: string) => Promise<{ persona: string; faceView: string; cara: FaceRect } | null>;
 
 export type CoreDeps = {
   generate: GenFn;
@@ -28,9 +41,15 @@ export type CoreDeps = {
   take: (n: number) => Promise<number>;
   logUsage: (u: UsageEntry) => void;
   threshold?: number;
+  /** Solo para avatares por capas (createVariants con capas: true). */
+  prepare?: PrepareFn;
 };
 
-export type Variant = { url: string; model: string; score: number | null; diferencias: string[]; intentos: number };
+export type Variant = {
+  url: string; model: string; score: number | null; diferencias: string[]; intentos: number;
+  /** Capas: la persona quedó recortada (url = PNG transparente), su cara y la mano levantada. */
+  recortada?: boolean; cara?: FaceRect | null; mano?: [number, number] | null;
+};
 
 export type VariantsResult =
   | { ok: true; variants: Variant[]; imagenes: number }
@@ -40,7 +59,7 @@ const better = (a: Variant, b: Variant) => (b.score ?? -1) > (a.score ?? -1) ? b
 
 export async function createVariants(
   deps: CoreDeps,
-  input: { selfies: string[] | null; builder: BuilderTraits | null; variants?: number },
+  input: { selfies: string[] | null; builder: BuilderTraits | null; variants?: number; capas?: boolean },
 ): Promise<VariantsResult> {
   const want = Math.max(1, Math.min(2, input.variants ?? 2));
   const allowed = await deps.take(want);
@@ -50,8 +69,26 @@ export async function createVariants(
   let imagenes = 0;
   let firstError: Exclude<VariantsResult, { ok: true }>["code"] | null = null;
 
+  const capas = !!input.capas;
+  /** Variante a partir de una imagen generada: recorte (capas) + juez contra la selfie (la cara). */
+  const judge = async (gen: Extract<ImageResult, { ok: true }>, intentos: number): Promise<Variant> => {
+    const prep = capas && deps.prepare ? await deps.prepare(gen.url).catch(() => null) : null;
+    const v: Variant = {
+      url: prep?.persona ?? gen.url, model: gen.model, score: null, diferencias: [], intentos,
+      ...(capas ? { recortada: !!prep, cara: prep?.cara ?? null, mano: null } : {}),
+    };
+    if (!selfies) return v;
+    // Cuerpo completo: el juez ve el recorte de la cara (y la figura entera para ubicar la mano).
+    const c = prep
+      ? await deps.check(selfies[0], prep.faceView, "selfie", gen.url)
+      : await deps.check(selfies[0], gen.url, "selfie");
+    if (c.usage) deps.logUsage(c.usage);
+    if (!c.likeness) return v;
+    return { ...v, score: c.likeness.score, diferencias: c.likeness.diferencias, ...(capas ? { mano: c.likeness.mano ?? null } : {}) };
+  };
+
   const one = async (i: number): Promise<Variant | null> => {
-    const prompt = selfies ? identityPrompt({ photos: selfies.length, variant: i }) : builderPrompt(input.builder ?? {}, i);
+    const prompt = selfies ? identityPrompt({ photos: selfies.length, variant: i, capas }) : builderPrompt(input.builder ?? {}, i, { capas });
     const gen = await deps.generate(prompt, selfies ?? []);
     if (!gen.ok) {
       usageList(gen).forEach(deps.logUsage);
@@ -60,28 +97,17 @@ export async function createVariants(
     }
     imagenes++;
     deps.logUsage(gen.usage);
-    let best: Variant = { url: gen.url, model: gen.model, score: null, diferencias: [], intentos: 1 };
-    if (!selfies) return best;
-
-    const first = await deps.check(selfies[0], gen.url, "selfie");
-    if (first.usage) deps.logUsage(first.usage);
-    if (!first.likeness) return best;
-    best = { ...best, score: first.likeness.score, diferencias: first.likeness.diferencias };
-    if (first.likeness.score >= threshold) return best;
+    const best = await judge(gen, 1);
+    if (!selfies || best.score === null || best.score >= threshold) return best;
 
     // No se parece lo suficiente: un solo reintento, con las diferencias como correcciones.
     if ((await deps.take(1)) <= 0) return best;
-    const fixes = first.likeness.diferencias.length ? first.likeness.diferencias : ["the face does not resemble the photo"];
-    const retry = await deps.generate(identityPrompt({ photos: selfies.length, variant: i, fixes }), selfies);
+    const fixes = best.diferencias.length ? best.diferencias : ["the face does not resemble the photo"];
+    const retry = await deps.generate(identityPrompt({ photos: selfies.length, variant: i, fixes, capas }), selfies);
     if (!retry.ok) { usageList(retry).forEach(deps.logUsage); return best; }
     imagenes++;
     deps.logUsage(retry.usage);
-    const second = await deps.check(selfies[0], retry.url, "selfie");
-    if (second.usage) deps.logUsage(second.usage);
-    const cand: Variant = {
-      url: retry.url, model: retry.model, score: second.likeness?.score ?? null,
-      diferencias: second.likeness?.diferencias ?? [], intentos: 2,
-    };
+    const cand = await judge(retry, 2);
     return { ...better(best, cand), intentos: 2 };
   };
 
@@ -146,6 +172,13 @@ export type EvolutionDeps = CoreDeps & {
   /** Deja visibles solo estas llaves (las demás quedan en la colección). */
   setVisible: (keys: string[]) => Promise<void>;
   notify: (title: string, body: string) => Promise<void>;
+  /**
+   * Avatar por capas: objetos visibles hoy, o null si su avatar es de antes (sin recorte: se sigue
+   * editando con IA como antes). Con capas, ganar un recuerdo NO usa IA.
+   */
+  loadLayers?: () => Promise<{ objetos: string[] } | null>;
+  /** Compone por capas (sin IA) con estos objetos, publica y guarda la selección; regresa la URL pública. */
+  publishLayers?: (objetos: string[]) => Promise<string>;
 };
 
 export type EvolutionOutcome = { status: SouvenirStatus | "ya_procesado"; souvenir: Souvenir; url?: string; dibujado?: boolean };
@@ -165,6 +198,26 @@ export async function processTripEvolution(
   if (ownedKeys.includes(souvenir.key)) {
     await deps.finish(claimed.id, { status: "repetido", visible: false });
     return { status: "repetido", souvenir };
+  }
+
+  const layers = deps.loadLayers && deps.publishLayers ? await deps.loadLayers() : null;
+  if (layers && deps.publishLayers) {
+    const objetos = objetosConNuevo(layers.objetos, souvenir.key);
+    const ganados = objetosDeRecuerdo(souvenir.key);
+    const detalle = ganados.length ? ganados.map((o) => `${o.nombre} ${o.emoji}`).join(" y ") : `${souvenir.nombre} ${souvenir.emoji}`;
+    let url: string;
+    try {
+      url = await deps.publishLayers(objetos);
+    } catch (e) {
+      // Componer no cuesta: si falla (p. ej. storage), el recuerdo queda en su colección y se reintenta al elegir.
+      await deps.finish(claimed.id, { status: "aplicado", visible: false, model: "capas", error: `capas: ${(e as Error)?.message ?? "error"}`.slice(0, 200) });
+      await deps.notify(`Ganaste un detalle de ${souvenir.lugar}`, `${detalle} ya están en tus recuerdos.`);
+      return { status: "aplicado", souvenir };
+    }
+    await deps.finish(claimed.id, { status: "aplicado", visible: true, score: null, model: "capas", error: null });
+    await deps.setVisible(recuerdosDeObjetos(objetos));
+    await deps.notify(`Tu avatar ganó un detalle de ${souvenir.lugar}`, `${detalle} — elige en tu perfil cuáles se ven.`);
+    return { status: "aplicado", souvenir, url, dibujado: true };
   }
 
   const base = await deps.loadBase();

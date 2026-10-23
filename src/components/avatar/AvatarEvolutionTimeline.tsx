@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { FileUp, Sparkles } from "lucide-react";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { timelineItems, type AvatarSouvenir } from "./useAvatarSouvenirs";
+import { objetosDeRecuerdo } from "../../../supabase/functions/_shared/avatar-inventory.ts";
 
 const ORIGEN: Record<AvatarSouvenir["fuente"], string> = {
   fin_de_viaje: "al terminar tu viaje",
@@ -10,7 +11,13 @@ const ORIGEN: Record<AvatarSouvenir["fuente"], string> = {
 };
 
 /** "Evolución" del avatar: qué viaje desbloqueó qué detalle. */
-export function AvatarEvolutionTimeline({ rows, hasAvatar }: { rows: AvatarSouvenir[]; hasAvatar: boolean }) {
+export function AvatarEvolutionTimeline({ rows, hasAvatar, capas = false }: { rows: AvatarSouvenir[]; hasAvatar: boolean; capas?: boolean }) {
+  // Avatar por capas: cada recuerdo son 2 objetos del lugar (los que la persona puede lucir).
+  const nombre = (r: AvatarSouvenir) => {
+    const objs = capas ? objetosDeRecuerdo(r.souvenir_key) : [];
+    return objs.length ? objs.map((o) => o.nombre).join(" y ") : r.nombre;
+  };
+  const emoji = (r: AvatarSouvenir) => (capas ? objetosDeRecuerdo(r.souvenir_key)[0]?.emoji : null) ?? r.emoji;
   const items = timelineItems(rows);
   if (!items.length) {
     return (
@@ -29,10 +36,10 @@ export function AvatarEvolutionTimeline({ rows, hasAvatar }: { rows: AvatarSouve
         <li key={r.id} className="relative">
           <span className="absolute -left-5 top-1 w-[15px] h-[15px] rounded-full border border-primary/70 bg-[#120d08]" aria-hidden="true" />
           <div className="flex items-start gap-3">
-            <span className="text-xl leading-none mt-0.5" aria-hidden="true">{r.emoji}</span>
+            <span className="text-xl leading-none mt-0.5" aria-hidden="true">{emoji(r)}</span>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-foreground leading-snug">
-                {r.status === "repetido" ? <>Volviste a <strong className="font-medium">{r.lugar}</strong></> : r.nombre}
+                {r.status === "repetido" ? <>Volviste a <strong className="font-medium">{r.lugar}</strong></> : nombre(r)}
               </p>
               <p className="text-[11px] text-muted-foreground">
                 {r.trip_label || r.lugar} · {ORIGEN[r.fuente]}{r.trip_end ? ` · ${formatDateOnly(r.trip_end)}` : ""}
@@ -45,7 +52,7 @@ export function AvatarEvolutionTimeline({ rows, hasAvatar }: { rows: AvatarSouve
         </li>
       ))}
       <li className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1">
-        <Sparkles className="w-3 h-3 text-primary" aria-hidden="true" /> Tu avatar luce los últimos 3; los demás quedan en tu colección.
+        <Sparkles className="w-3 h-3 text-primary" aria-hidden="true" /> {capas ? "Elige en “Fondo y recuerdos” cuáles luce tu avatar (hasta 3)." : "Tu avatar luce los últimos 3; los demás quedan en tu colección."}
       </li>
     </ol>
   );

@@ -7,6 +7,12 @@ import { decodeDataUrl, toDataUrl } from "./avatar-prompts.ts";
 import { rebuildAvatar, type CoreDeps, type EvolutionDeps, type OwnedSouvenir, type SouvenirStatus } from "./avatar-flow.ts";
 import { resolveSouvenir, type Souvenir, type SouvenirSlot } from "./souvenirs.ts";
 import { type UsageEntry, usageRow } from "./usage.ts";
+import { decodePng, encodePng, isPng, makeRaster, resize, drawOver, type Raster } from "./avatar-png.ts";
+import { chromaCutout } from "./avatar-cutout.ts";
+import { composeAvatar, crop, faceRectFromAlpha, type FaceRect, type HandPoint } from "./avatar-layers.ts";
+import {
+  ASSETS_BUCKET, objetosIniciales, paisDesdePerfil, recuerdosDeObjetos, resolverFondo,
+} from "./avatar-inventory.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SECRET_KEYS") ?? "";
@@ -46,7 +52,8 @@ export function coreDeps(db: SupabaseClient, userId: string, kind: "crear" | "ev
   const img = imageDeps();
   return {
     generate: (prompt, images) => generateImage(img, { prompt, images, fn, userId }),
-    check: (reference, candidate, mode) => checkLikeness(img, { reference, candidate, mode, fn, userId }),
+    check: (reference, candidate, mode, full) => checkLikeness(img, { reference, candidate, mode, fn, userId, full }),
+    prepare: prepareVariant,
     take: async (n) => {
       const { data, error } = await db.rpc("avatar_take_images", { p_user: userId, p_kind: kind, p_n: n, p_max: DAILY[kind] });
       if (error) { console.warn("avatar_take_images:", error.message); return 0; }
@@ -75,6 +82,8 @@ export async function loadPrivate(db: SupabaseClient, path: string): Promise<str
   return toDataUrl(new Uint8Array(await data.arrayBuffer()), mime);
 }
 
+type Img = { bytes: Uint8Array; mime: string; ext: string };
+
 /**
  * Publica una imagen como avatar actual: copia pública en travel-moments/avatars/{uid}/{uuid}
  * (Social y el menú la muestran), avatar_profiles, y profiles.avatar_url = ÚNICA fuente que lee la
@@ -88,15 +97,36 @@ export async function publishAvatar(
 ): Promise<string> {
   const img = await imageBytes(imageUrl);
   if (!img) throw new Error("imagen_invalida");
-  const path = `avatars/${userId}/${crypto.randomUUID()}.${img.ext}`;
-  const up = await db.storage.from(PUBLIC_BUCKET).upload(path, img.bytes, { contentType: img.mime, upsert: false });
-  if (up.error) throw new Error(`upload: ${up.error.message}`);
-  const url = db.storage.from(PUBLIC_BUCKET).getPublicUrl(path).data.publicUrl;
+  return publishImages(db, userId, { face: img }, meta);
+}
 
-  const { data: prev } = await db.from("avatar_profiles").select("current_path, version").eq("user_id", userId).maybeSingle();
+/**
+ * Publica `face` como avatar (profiles.avatar_url, current_url: lo que muestran los círculos) y, en el
+ * avatar por capas, `full` como cuerpo completo ({uuid}-cuerpo.png → avatar_profiles.cuerpo_url).
+ */
+export async function publishImages(
+  db: SupabaseClient,
+  userId: string,
+  imgs: { face: Img; full?: Img },
+  meta: { visibleKeys: string[]; model: string | null; score: number | null; basePath?: string },
+): Promise<string> {
+  const id = crypto.randomUUID();
+  const upload = async (img: Img, suffix: string) => {
+    const path = `avatars/${userId}/${id}${suffix}.${img.ext}`;
+    const up = await db.storage.from(PUBLIC_BUCKET).upload(path, img.bytes, { contentType: img.mime, upsert: false });
+    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    return { path, url: db.storage.from(PUBLIC_BUCKET).getPublicUrl(path).data.publicUrl };
+  };
+  const face = await upload(imgs.face, "");
+  const full = imgs.full ? await upload(imgs.full, "-cuerpo") : null;
+  // profiles.avatar_url = la imagen de los círculos (en el avatar por capas, el recorte de la cara).
+  const url = face.url;
+
+  const { data: prev } = await db.from("avatar_profiles").select("current_path, cuerpo_path, version").eq("user_id", userId).maybeSingle();
   const version = Number(prev?.version ?? 0) + 1;
   const row: Record<string, unknown> = {
-    user_id: userId, current_url: url, current_path: path, version, visible_keys: meta.visibleKeys,
+    user_id: userId, current_url: url, current_path: face.path, version, visible_keys: meta.visibleKeys,
+    cuerpo_url: full?.url ?? null, cuerpo_path: full?.path ?? null,
     updated_at: new Date().toISOString(),
   };
   if (meta.basePath) Object.assign(row, { base_path: meta.basePath, likeness_score: meta.score, model: meta.model });
@@ -110,9 +140,103 @@ export async function publishAvatar(
     const perfil = { ...((prefs.perfil_ia as Record<string, unknown>) ?? {}), avatar_url: url, avatar_meta: { version, generated_at: new Date().toISOString(), souvenirs: meta.visibleKeys } };
     await db.from("ai_user_preferences").update({ perfil_ia: perfil }).eq("user_id", userId);
   }
-  if (prev?.current_path && prev.current_path !== path) {
-    await db.storage.from(PUBLIC_BUCKET).remove([prev.current_path]).catch(() => null);
-  }
+  const old = [prev?.current_path, prev?.cuerpo_path].filter((p): p is string => !!p && p !== face.path && p !== full?.path);
+  if (old.length) await db.storage.from(PUBLIC_BUCKET).remove(old).catch(() => null);
+  return url;
+}
+
+// ───────────── avatar por capas (sin IA) ─────────────
+
+const pngImg = (bytes: Uint8Array): Img => ({ bytes, mime: "image/png", ext: "png" });
+
+async function rasterFrom(bytes: Uint8Array | null): Promise<Raster | null> {
+  if (!bytes || !isPng(bytes)) return null;
+  try { return await decodePng(bytes); } catch { return null; }
+}
+
+async function downloadRaster(db: SupabaseClient, bucket: string, path: string): Promise<Raster | null> {
+  const { data, error } = await db.storage.from(bucket).download(path);
+  if (error || !data) return null;
+  return rasterFrom(new Uint8Array(await data.arrayBuffer()));
+}
+
+/** Recorte de la cara de la persona sobre gris cálido (lo que ve el juez de parecido). */
+function faceView(persona: Raster, cara: FaceRect): Raster {
+  const side = Math.max(32, Math.min(persona.height, cara.side * persona.height));
+  const x = Math.max(0, Math.min(persona.width - side, cara.cx * persona.width - side / 2));
+  const y = Math.max(0, Math.min(persona.height - side, cara.cy * persona.height - side / 2));
+  const c = crop(persona, x, y, side, side);
+  const bg = makeRaster(c.width, c.height);
+  for (let i = 0; i < bg.data.length; i += 4) { bg.data[i] = 214; bg.data[i + 1] = 206; bg.data[i + 2] = 196; bg.data[i + 3] = 255; }
+  drawOver(bg, c, c.width / 2, c.height / 2);
+  return resize(bg, 512, 512);
+}
+
+/**
+ * Variante generada sobre verde croma → persona recortada (PNG transparente), rectángulo de la cara y
+ * recorte de la cara para el juez. null si no es PNG o el modelo no respetó el fondo plano.
+ */
+export async function prepareVariant(url: string): Promise<{ persona: string; faceView: string; cara: FaceRect } | null> {
+  const img = await imageBytes(url);
+  const raster = await rasterFrom(img?.bytes ?? null);
+  if (!raster) return null;
+  const { image, report } = chromaCutout(raster);
+  if (!report.ok) { console.warn("avatar recorte:", report.motivo, report.bordeVerde.toFixed(2)); return null; }
+  const cara = faceRectFromAlpha(image);
+  return {
+    persona: toDataUrl(await encodePng(image), "image/png"),
+    faceView: toDataUrl(await encodePng(faceView(image, cara)), "image/png"),
+    cara,
+  };
+}
+
+/** País del fondo: el que confirmó la persona; si no, el que dice su perfil. */
+export async function paisDeFondo(db: SupabaseClient, userId: string, confirmado: string | null | undefined): Promise<string | null> {
+  if (confirmado) return confirmado;
+  const { data } = await db.from("profiles").select("pais_origen, nationality, ciudad_origen").eq("id", userId).maybeSingle();
+  return data ? paisDesdePerfil(data) : null;
+}
+
+const asFace = (v: unknown): FaceRect | null =>
+  Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === "number") ? { cx: v[0], cy: v[1], side: v[2] } : null;
+const asHand = (v: unknown): HandPoint =>
+  Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === "number") ? [v[0], v[1]] : null;
+
+/**
+ * Compone fondo + persona + objetos (sin IA, 0 USD), publica cuerpo completo y recorte de cara, y
+ * guarda la selección. Si no se pasa algo, usa lo guardado. Lanza error si su avatar no es por capas.
+ */
+export async function composeAndPublish(
+  db: SupabaseClient,
+  userId: string,
+  opts: { objetos?: string[]; fondoId?: string | null; pais?: string | null } = {},
+): Promise<string> {
+  const { data: ap } = await db.from("avatar_profiles")
+    .select("base_path, capas, pais_fondo, fondo_id, objetos, cara, mano").eq("user_id", userId).maybeSingle();
+  if (!ap?.base_path || !ap.capas) throw new Error("sin_capas");
+  const pais = opts.pais ?? (await paisDeFondo(db, userId, ap.pais_fondo));
+  const fondo = resolverFondo(pais, opts.fondoId !== undefined ? opts.fondoId : ap.fondo_id);
+  const objetos = opts.objetos ?? ((ap.objetos as string[] | null) ?? []);
+  const persona = await downloadRaster(db, PRIVATE_BUCKET, ap.base_path);
+  if (!persona) throw new Error("persona");
+  const [fondoR, ...stickers] = await Promise.all([
+    fondo ? downloadRaster(db, ASSETS_BUCKET, `fondos/${fondo.id}.png`) : Promise.resolve(null),
+    ...objetos.map((id) => downloadRaster(db, ASSETS_BUCKET, `objetos/${id}.png`)),
+  ]);
+  const out = composeAvatar({
+    fondo: fondoR, persona, objetos: stickers.filter((r): r is Raster => !!r),
+    cara: asFace(ap.cara), mano: asHand(ap.mano),
+  });
+  const url = await publishImages(db, userId, { face: pngImg(await encodePng(out.face)), full: pngImg(await encodePng(out.full)) }, {
+    visibleKeys: recuerdosDeObjetos(objetos), model: "capas", score: null,
+  });
+  const patch: Record<string, unknown> = { objetos, fondo_id: fondo?.id ?? null, updated_at: new Date().toISOString() };
+  if (opts.pais !== undefined) patch.pais_fondo = opts.pais;
+  // Sin país confirmado el fondo sale del perfil y no se guarda (fondo_id exige pais_fondo).
+  if (!(opts.pais ?? ap.pais_fondo)) patch.fondo_id = null;
+  if (!ap.cara) patch.cara = [out.cara.cx, out.cara.cy, out.cara.side];
+  const { error } = await db.from("avatar_profiles").update(patch).eq("user_id", userId);
+  if (error) console.warn("avatar_profiles capas:", error.message);
   return url;
 }
 
@@ -161,6 +285,11 @@ export function evolutionDeps(db: SupabaseClient, userId: string, tripId: string
       }).eq("id", id);
     },
     setVisible: (keys) => setVisibleKeys(db, userId, keys),
+    loadLayers: async () => {
+      const { data } = await db.from("avatar_profiles").select("capas, base_path, objetos").eq("user_id", userId).maybeSingle();
+      return data?.capas && data.base_path ? { objetos: (data.objetos as string[] | null) ?? [] } : null;
+    },
+    publishLayers: (objetos) => composeAndPublish(db, userId, { objetos }),
     notify: async (title, body) => {
       if (opts.silent) return;
       const { error } = await db.rpc("notify_once", {
@@ -218,10 +347,18 @@ export async function rebuildWithHistory(db: SupabaseClient, userId: string): Pr
     }).eq("id", id);
   }
 
-  const { data: ap } = await db.from("avatar_profiles").select("base_path").eq("user_id", userId).maybeSingle();
+  const { data: ap } = await db.from("avatar_profiles").select("base_path, capas").eq("user_id", userId).maybeSingle();
+  const applied = (await ownedSouvenirs(db, userId)).filter((o) => o.status === "aplicado");
+  if (ap?.capas && ap.base_path) {
+    // Por capas: sin IA. El primer objeto de cada uno de los últimos 3 recuerdos.
+    const objetos = objetosIniciales(applied.map((a) => a.key));
+    if (!objetos.length) return { ok: true };
+    const url = await composeAndPublish(db, userId, { objetos });
+    await setVisibleKeys(db, userId, recuerdosDeObjetos(objetos));
+    return { ok: true, url };
+  }
   const base = ap?.base_path ? await loadPrivate(db, ap.base_path) : null;
   if (!base) return { ok: false };
-  const applied = (await ownedSouvenirs(db, userId)).filter((o) => o.status === "aplicado");
   const core = coreDeps(db, userId, "evolucion", "avatar-evolve");
   return rebuildAvatar({
     ...core,

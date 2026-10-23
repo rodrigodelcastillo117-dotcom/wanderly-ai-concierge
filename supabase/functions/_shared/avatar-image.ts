@@ -116,7 +116,7 @@ export async function generateImage(
  */
 export async function checkLikeness(
   deps: Pick<ImageDeps, "chat" | "lovableKey" | "likenessTimeoutMs">,
-  req: { reference: string; candidate: string; mode: "selfie" | "identidad"; fn: string; userId: string | null },
+  req: { reference: string; candidate: string; mode: "selfie" | "identidad"; fn: string; userId: string | null; full?: string | null },
 ): Promise<{ likeness: Likeness | null; usage: UsageEntry | null }> {
   try {
     // Si el juez tarda, se entrega la versión sin calificar (sin reintento) en vez de dejar esperando.
@@ -131,7 +131,9 @@ export async function checkLikeness(
           content: [
             { type: "image_url", image_url: { url: req.reference } },
             { type: "image_url", image_url: { url: req.candidate } },
-            { type: "text", text: likenessPrompt(req.mode) },
+            // Avatar de cuerpo completo: candidate es el recorte de la cara y full la figura (para la mano).
+            ...(req.full ? [{ type: "image_url", image_url: { url: req.full } }] : []),
+            { type: "text", text: likenessPrompt(req.mode, { mano: !!req.full }) },
           ],
         }],
         response_format: { type: "json_object" },
