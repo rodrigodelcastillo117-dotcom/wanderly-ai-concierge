@@ -7,6 +7,10 @@
  * de hasta 48 h) y para precios guardados hace semanas, y no decía nada si faltaba la fuente.
  */
 
+import { formatAge, frescuraPrecio, type FrescuraPrecio } from "../../supabase/functions/_shared/priceFreshness.ts";
+
+export type { FrescuraPrecio };
+
 export type EstadoDato =
   | "CONFIRMADO"
   | "CONSULTADO_EN_VIVO"
@@ -66,6 +70,11 @@ export type Provenance = {
   provider: string | null;
   /** Solo true para CONSULTADO_EN_VIVO o CONFIRMADO. */
   trusted: boolean;
+  /**
+   * en_vivo (≤ 15 min) · cache (vigente, con su antigüedad) · obsoleto · estimado. null si no aplica
+   * (reserva confirmada o sin precio). "en vivo" solo se dice con frescura en_vivo.
+   */
+  frescura?: FrescuraPrecio | null;
 };
 
 const toDate = (v: string | Date | null | undefined): Date | null => {
@@ -74,18 +83,8 @@ const toDate = (v: string | Date | null | undefined): Date | null => {
   return Number.isFinite(d.getTime()) ? d : null;
 };
 
-/** "hace 3 h", "hace 2 días"… (para mostrar la antigüedad de un precio). */
-export function formatAge(from: Date, now: Date = new Date()): string {
-  const ms = Math.max(0, now.getTime() - from.getTime());
-  const min = Math.floor(ms / 60000);
-  if (min < 60) return min <= 1 ? "hace un momento" : `hace ${min} min`;
-  const h = Math.floor(min / 60);
-  if (h < 48) return `hace ${h} h`;
-  const d = Math.floor(h / 24);
-  if (d < 60) return `hace ${d} días`;
-  const m = Math.floor(d / 30);
-  return `hace ${m} meses`;
-}
+/** "hace 3 h", "hace 2 días"… (para mostrar la antigüedad de un precio). Misma regla que el servidor. */
+export { formatAge };
 
 function obsolete(provider: string | null, at: Date | null, now: Date): Provenance {
   const age = at ? formatAge(at, now) : null;
@@ -97,6 +96,7 @@ function obsolete(provider: string | null, at: Date | null, now: Date): Provenan
       : `No sabemos cuándo se consultó este precio${provider ? ` en ${provider}` : ""}. Confírmalo con el proveedor antes de reservar.`,
     provider,
     trusted: false,
+    frescura: "obsoleto",
   };
 }
 
@@ -148,12 +148,16 @@ export function provenanceOf(input: ProvenanceInput, now: Date = new Date()): Pr
   if (LIVE_PROVIDERS[source]) {
     const provider = LIVE_PROVIDERS[source];
     if (!fresh || estado === "OBSOLETO") return obsolete(provider, at, now);
+    // Vigente, pero "en vivo" solo si la consulta es de hace ≤ 15 min; si salió de la caché de hace
+    // horas se dice su antigüedad ("Consultado hace 3 h · Google Flights").
+    const f = frescuraPrecio({ consultadoAt: at, vigenciaHoras: LIVE_TTL_HOURS }, now);
     return {
       state: "CONSULTADO_EN_VIVO",
-      label: `Consultado en vivo · ${provider}`,
+      label: f.frescura === "en_vivo" ? `Consultado en vivo · ${provider}` : `Consultado ${formatAge(at!, now)} · ${provider}`,
       detail: `Tarifa consultada con ${provider} ${formatAge(at!, now)}. Puede cambiar al reservar.`,
       provider,
       trusted: true,
+      frescura: f.frescura === "en_vivo" ? "en_vivo" : "cache",
     };
   }
   if (CACHED_PROVIDERS.has(source)) {

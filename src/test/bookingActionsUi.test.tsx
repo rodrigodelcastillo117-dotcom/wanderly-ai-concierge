@@ -86,7 +86,7 @@ describe("BookingActions", () => {
   it("el aviso dice si es la oferta exacta o una búsqueda general, y a qué dominio se va", () => {
     render(<BookingActions offer={flight} source={src} tripId={TRIP.id} />);
     fireEvent.click(screen.getByRole("button", { name: /Buscar este vuelo · Aviasales/ }));
-    expect(screen.getByTestId("link-kind").textContent).toMatch(/Búsqueda general en Aviasales: no es un enlace a esta oferta/);
+    expect(screen.getByTestId("link-kind").textContent).toMatch(/Búsqueda general en Aviasales: la tarifa puede variar y no es un enlace a esta oferta/);
     expect(screen.getByText("Destino: aviasales.com")).toBeInTheDocument();
   });
 });

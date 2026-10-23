@@ -10,6 +10,7 @@
 
 import { freeLimitBody, type FreeLimitBody } from "./quota.ts";
 import { cacheProvenance, type GateDecision, type LiveGate, type SerpTrace } from "./serpCache.ts";
+import { frescuraPrecio } from "./priceFreshness.ts";
 
 type RpcResult = { data: unknown; error: { message: string } | null };
 export type Rpc = (fn: string, args: Record<string, unknown>) => PromiseLike<RpcResult>;
@@ -106,6 +107,13 @@ export function finalizeSearchResponse(
     body.from_cache = p.from_cache;
     body.cache_max_age_h = Math.round((p.cache_age_seconds / 3600) * 10) / 10;
   }
+  // Frescura determinista (en_vivo ≤ 15 min · cache con antigüedad · obsoleto): la pantalla y Iato
+  // nunca llaman "en vivo" a una respuesta de la caché de hace horas.
+  if (body.source === "serpapi") {
+    const f = frescuraPrecio({ estado: body.estado_dato as string | undefined, consultadoAt: (body.consulted_at as string | undefined) ?? null }, now);
+    body.frescura = f.frescura;
+    body.etiqueta_frescura = f.etiqueta;
+  }
   if (outcome.kind === "notice") body.aviso_limite = outcome.message;
   if (outcome.kind === "fair_use_empty") {
     body.motivo = outcome.message;
@@ -121,7 +129,8 @@ export function finalizeSearchResponse(
     body.results = (body.results as Record<string, unknown>[]).map((r) => {
       if (!r || typeof r !== "object" || r.estado_dato) return r;
       if (body.source === "serpapi") {
-        return { ...r, estado_dato: body.estado_dato ?? "CONSULTADO_EN_VIVO", consultado_at: body.consulted_at ?? null, precio_guardado: body.precio_guardado === true };
+        return { ...r, estado_dato: body.estado_dato ?? "CONSULTADO_EN_VIVO", consultado_at: body.consulted_at ?? null, precio_guardado: body.precio_guardado === true,
+          frescura: body.frescura ?? null };
       }
       return r;
     });

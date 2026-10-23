@@ -174,7 +174,12 @@ describe("Fase 11 · los 20 recorridos E2E (simulados, sin compras reales)", () 
     const s = await t.call("start_booking", { source: { type: "flight_result", ...SERP_FLIGHT }, action_kind: "equivalent_search", idempotency_key: key(), consent: true });
     const r = await t.call("recheck_price", { source: { type: "flight_result", ...SERP_FLIGHT }, intent_id: (s.body.intent as any).id });
     expect(r.body.recheck).toMatchObject({ price_change: { direction: "up", delta: 140 } });
-    expect(t.store.intents[0]).toMatchObject({ price: 1990, price_checked_at: "2026-10-22T12:00:00Z", state: "READY_TO_BOOK" });
+    // Subió: no se sale al proveedor hasta que el usuario acepte la diferencia.
+    expect(r.body).toMatchObject({ needs_price_ack: true, go_url: null });
+    expect(t.store.intents[0]).toMatchObject({ price: 1990, price_checked_at: "2026-10-22T12:00:00Z", state: "PRICE_RECHECK_REQUIRED" });
+    const a = await t.call("confirm_price_ack", { intent_id: (s.body.intent as any).id, accepted_price: 1990, currency: "USD" });
+    expect(a.status).toBe(200);
+    expect(t.store.intents[0].state).toBe("READY_TO_BOOK");
   });
 
   const HOTEL = { result: { name: "Hotel Urban", total_usd: 1400, property_token: "ChoQ5YiT", link: "https://www.hotelurban.com" },
@@ -187,7 +192,7 @@ describe("Fase 11 · los 20 recorridos E2E (simulados, sin compras reales)", () 
     const r = await t.call("recheck_price", { source: { type: "hotel_result", ...HOTEL } });
     expect(r.body.recheck).toMatchObject({ availability: "available_at_check" });
     const o = (await t.call("resolve", { source: { type: "hotel_result", ...HOTEL } })).body.offer as any;
-    expect(o.actions.find((a: any) => a.kind === "equivalent_search").label).toBe("Ver tarifas del hotel");
+    expect(o.actions.find((a: any) => a.kind === "equivalent_search").label).toBe("Buscar en Booking.com · la tarifa puede variar");
   });
 
   it("7 · hotel agotado: la intención queda FAILED (no se manda a reservar)", async () => {

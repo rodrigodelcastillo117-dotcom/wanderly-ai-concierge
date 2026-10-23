@@ -31,7 +31,8 @@ it("la insignia de procedencia del vuelo se ve sin abrir el detalle", () => {
       <p>Notas del vuelo</p>
     </ExpandableItemCard>,
   );
-  expect(screen.getByText("Consultado en vivo · Google")).toBeInTheDocument();
+  // Consulta de hace 20 min (caché vigente): se dice su antigüedad, no "en vivo".
+  expect(screen.getByText("Consultado hace 20 min · Google")).toBeInTheDocument();
   // El detalle sigue cerrado.
   expect(screen.queryByText("Notas del vuelo")).toBeNull();
 });

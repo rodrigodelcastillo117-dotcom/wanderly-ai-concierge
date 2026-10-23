@@ -57,6 +57,11 @@ export function hotelResult(p: any, nightly: number, totalRaw: number, nights: n
     // Google Hotels da la tarifa con impuestos y cargos; si no trae total, se calcula noche × noches.
     total_incluye_impuestos: totalRaw > 0,
     total_calculado: !(totalRaw > 0),
+    // A qué corresponde el precio: total = estancia completa de ESTAS fechas y ocupantes (no por noche).
+    // SerpApi Google Hotels no recibe habitaciones: no se afirma un número.
+    precio_para: { checkin, checkout, noches: nights, adultos: adults, habitaciones: null },
+    nota_precio: `Total de la estancia completa: ${nights} ${nights === 1 ? "noche" : "noches"} (entrada ${checkin}, salida ${checkout}) para ${adults} ${adults === 1 ? "adulto" : "adultos"}`
+      + `${totalRaw > 0 ? ", con impuestos y cargos según Google Hotels" : "; calculado noche × noches (Google no dio el total)"}. Google Hotels no indica cuántas habitaciones: confírmalo al reservar.`,
     lat: p?.gps_coordinates?.latitude ?? null,
     lng: p?.gps_coordinates?.longitude ?? null,
     check_in_time: p.check_in_time ?? null,

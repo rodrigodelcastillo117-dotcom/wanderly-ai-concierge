@@ -24,6 +24,9 @@ interface HotelResult {
   hotel_class: number | null;
   nightly_usd: number;
   total_usd?: number;
+  nights?: number;
+  nota_precio?: string;
+  precio_para?: { adultos?: number } | null;
   thumbnail: string | null;
   amenities: string[];
   booking_url: string;
@@ -192,6 +195,9 @@ const TripHotels = () => {
                   <div>
                     <div className="font-display text-xl gold-text">${h.nightly_usd}</div>
                     <div className="text-[10px] text-muted-foreground">USD / noche</div>
+                    {h.total_usd && h.nights ? (
+                      <div className="text-[10px] text-muted-foreground" title={h.nota_precio}>Total {h.nights} {h.nights === 1 ? "noche" : "noches"} · {h.precio_para?.adultos ?? adults} {(h.precio_para?.adultos ?? adults) === 1 ? "adulto" : "adultos"}: ${h.total_usd}</div>
+                    ) : null}
                   </div>
                   <BookingActions tripId={tripTool.tripId} max={1}
                     offer={offerFromHotelResult(h, { city, checkin, checkout, adults, consulted_at: consultedAt, source })}
@@ -209,7 +215,7 @@ const TripHotels = () => {
                 category: "hotel", provider: "Booking.com", title: `Hoteles en ${city}`,
                 city, bookingUrl: bookingLink(city, checkin, checkout, adults), startAt: checkin || undefined,
               })}>
-                Ver todo en Booking.com
+                Buscar en Booking.com · la tarifa puede variar
               </Button>
               <PrefillNote provider="booking" className="mt-1" />
             </div>

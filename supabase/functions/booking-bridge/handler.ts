@@ -366,8 +366,10 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
     case "confirm_price_ack": {
       // El usuario acepta continuar sin reconfirmar (el proveedor mostrará el precio final).
       if (!UUID.test(String(body?.intent_id))) return fail(400, "BAD_INPUT", "Falta la intención.");
+      // Con accepted_price: aceptó el precio que acaba de comprobar "Actualizar precio" (queda en el historial).
+      const accepted = Number(body?.accepted_price);
       const { data, error } = await deps.rpc("booking_intent_transition", { _id: body.intent_id, _user: deps.userId, _to: "READY_TO_BOOK", _actor: "usuario",
-        _note: "Continuar sin reconfirmar el precio", _patch: {} });
+        _note: accepted > 0 ? `Aceptó el precio actualizado: ${Math.round(accepted * 100) / 100} ${str(body?.currency, 3) || "USD"}` : "Continuar sin reconfirmar el precio", _patch: {} });
       if (error || !data?.ok) return fail(409, data?.code ?? "TRANSITION_FAILED", "No se pudo continuar.");
       // Se firma el destino que quedó guardado, con el nivel de la fuente de su acción (AUD-04).
       const stored = await deps.intentTarget(body.intent_id);
@@ -393,17 +395,32 @@ export async function handleBridge(action: string, body: any, deps: BridgeDeps):
           adults: det.search.adults, old_price: o.price, room: str(body?.room, 120) || null });
       }
       if (!res.ok) return ok({ recheck: res });
-      // Si hay una intención viva, se actualiza su foto (precio y vigencia de la fuente).
+      // Compra exacta por formulario (booking_request de Google Flights): solo con la bandera encendida.
+      // Apagada, el formulario ni siquiera llega al cliente (BB-08).
+      if (!deps.flags?.exact_flight_form) res = { ...res, options: res.options.map((x) => (x.form ? { ...x, form: null } : x)) };
+      // Si hay una intención viva, se actualiza su foto (precio y vigencia de la fuente). Si el precio
+      // CAMBIÓ, queda en PRICE_RECHECK_REQUIRED: el usuario ve la diferencia y la acepta
+      // (confirm_price_ack con accepted_price) antes de salir al proveedor.
       if (UUID.test(String(body?.intent_id))) {
         const sold = res.availability === "sold_out";
-        await deps.rpc("booking_intent_transition", {
-          _id: body.intent_id, _user: deps.userId, _to: sold ? "FAILED" : "READY_TO_BOOK", _actor: "usuario",
+        const changed = !sold && res.price_change.changed;
+        const to: IntentState = sold ? "FAILED" : changed ? "PRICE_RECHECK_REQUIRED" : "READY_TO_BOOK";
+        const t = await deps.rpc("booking_intent_transition", {
+          _id: body.intent_id, _user: deps.userId, _to: to, _actor: "usuario",
           _note: sold ? "La fuente ya no tiene precio para esas fechas" : `Precio comprobado (${res.price_change.direction})`,
           _patch: { price: res.price, currency: res.currency, price_checked_at: res.checked_at,
             offer_expires_at: new Date(Date.parse(res.checked_at) + (o.product_type === "flight" ? 6 : 12) * 3600_000).toISOString() },
         });
+        const intent = !t.error && t.data?.ok ? t.data.intent : null;
+        let go: string | null = null;
+        if (intent && intent.state === "READY_TO_BOOK") {
+          const stored = await deps.intentTarget(body.intent_id);
+          const tier = signTier(stored?.target_url ?? null, stored?.action_trust);
+          go = tier ? await deps.goUrl(body.intent_id, { url: stored!.target_url!, tier, uses: Number(intent.redirect_count ?? 0) || 0 }) : null;
+        }
+        return ok({ recheck: res, intent: intent ? withStatus(intent) : null, needs_price_ack: changed, go_url: go });
       }
-      return ok({ recheck: res });
+      return ok({ recheck: res, needs_price_ack: res.availability !== "sold_out" && res.price_change.changed });
     }
 
     case "mark_returned": {

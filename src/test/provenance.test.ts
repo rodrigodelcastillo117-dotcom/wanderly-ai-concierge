@@ -5,12 +5,23 @@ const now = new Date("2026-10-22T12:00:00Z");
 const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600_000).toISOString();
 
 describe("provenanceOf: proveedores en vivo", () => {
-  it("Google Flights/Hotels consultados hace < 24 h → CONSULTADO_EN_VIVO", () => {
+  it("Google Flights/Hotels consultados hace ≤ 15 min → CONSULTADO_EN_VIVO, 'en vivo'", () => {
     for (const [source, provider] of [["serpapi", "Google"], ["google_flights", "Google Flights"], ["google_hotels", "Google Hotels"], ["serpapi-hotels", "Google Hotels"]]) {
-      const p = provenanceOf({ source, consultadoAt: hoursAgo(2) }, now);
+      const p = provenanceOf({ source, consultadoAt: hoursAgo(10 / 60) }, now);
       expect(p.state).toBe("CONSULTADO_EN_VIVO");
       expect(p.label).toBe(`Consultado en vivo · ${provider}`);
+      expect(p.frescura).toBe("en_vivo");
       expect(p.trusted).toBe(true);
+    }
+  });
+
+  it("caché vigente de hace horas: nunca 'en vivo', se dice su antigüedad (E2E 23-oct)", () => {
+    for (const [source, provider] of [["serpapi", "Google"], ["google_flights", "Google Flights"], ["google_hotels", "Google Hotels"]]) {
+      const p = provenanceOf({ source, consultadoAt: hoursAgo(3) }, now);
+      expect(p.state).toBe("CONSULTADO_EN_VIVO");
+      expect(p.frescura).toBe("cache");
+      expect(p.label).toBe(`Consultado hace 3 h · ${provider}`);
+      expect(p.label).not.toMatch(/en vivo/);
     }
   });
 

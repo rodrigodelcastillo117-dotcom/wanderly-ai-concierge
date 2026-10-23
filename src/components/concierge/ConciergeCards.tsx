@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { track } from "@/lib/analytics";
 import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
+import { frescuraPrecio } from "../../../supabase/functions/_shared/priceFreshness.ts";
 import {
   CARD_TYPES, safeCardLink, safeHttpsUrl, type CardLink, type ConciergeCard,
 } from "../../../supabase/functions/concierge-chat/cards.ts";
@@ -57,22 +58,30 @@ const formatMoney = (amount: number, currency: string) => {
   }
 };
 
-const SOURCE_LABEL: Record<string, string> = {
-  serpapi: "Google · consultado en vivo",
-  google_flights: "Google Flights · consultado en vivo",
-  google_hotels: "Google Hotels · consultado en vivo",
-  travelpayouts: "Aviasales · tarifa de referencia (últimas 48 h)",
-  aviasales: "Aviasales · tarifa de referencia (últimas 48 h)",
+const SOURCE_NAME: Record<string, string> = {
+  serpapi: "Google",
+  google_flights: "Google Flights",
+  google_hotels: "Google Hotels",
   tripadvisor: "TripAdvisor",
   google_maps: "Google Maps",
+  travelpayouts: "Aviasales · tarifa de referencia (últimas 48 h)",
+  aviasales: "Aviasales · tarifa de referencia (últimas 48 h)",
 };
 
-const sourceLabel = (card: ConciergeCard) => {
+/**
+ * "Google Flights · consultado en vivo" solo si la consulta es de hace ≤ 15 min; si salió de la caché
+ * se dice su antigüedad ("consultado hace 3 h"). Antes decía "consultado en vivo · 09:12" con una
+ * consulta de hace horas (E2E 23-oct).
+ */
+export function sourceLabel(card: ConciergeCard, now: Date | number = Date.now()): string {
   const f = String(card.fuente ?? "").toLowerCase();
-  if (card.type === "flight" && f === "serpapi") return "Google Flights · consultado en vivo";
-  if (card.type === "hotel" && f === "serpapi") return "Google Hotels · consultado en vivo";
-  return SOURCE_LABEL[f] ?? `Consultado en vivo · ${card.fuente}`;
-};
+  if (f === "travelpayouts" || f === "aviasales") return SOURCE_NAME[f];
+  const name = card.type === "flight" && f === "serpapi" ? "Google Flights" : card.type === "hotel" && f === "serpapi" ? "Google Hotels" : SOURCE_NAME[f] ?? card.fuente ?? "Fuente";
+  const fr = frescuraPrecio({ estado: card.estado_dato, consultadoAt: card.consultado_at ?? null }, now);
+  if (fr.frescura === "en_vivo") return `${name} · consultado en vivo`;
+  if (!fr.edad) return `${name} · sin fecha de consulta`;
+  return fr.frescura === "obsoleto" ? `${name} · consultado ${fr.edad} · actualízalo` : `${name} · consultado ${fr.edad}`;
+}
 
 /** Insignia de origen: nunca se muestra un precio sin ella. */
 export function ProvenanceBadge({ card }: { card: ConciergeCard }) {
@@ -104,12 +113,11 @@ export function ProvenanceBadge({ card }: { card: ConciergeCard }) {
     );
   }
   if (verifiedPrice(card)) {
-    const at = card.consultado_at ? new Date(card.consultado_at) : null;
-    const hora = at && Number.isFinite(at.getTime()) ? ` · ${at.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}` : "";
+    const enVivo = frescuraPrecio({ estado: card.estado_dato, consultadoAt: card.consultado_at ?? null }).frescura === "en_vivo";
     return (
-      <span title="Precio tomado de la búsqueda real de este momento; puede cambiar al reservar."
+      <span title={enVivo ? "Precio tomado de la búsqueda real de este momento; puede cambiar al reservar." : "Precio de una búsqueda real reciente (guardada); actualízalo antes de reservar."}
         className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] tracking-wide text-primary">
-        <BadgeCheck className="w-3 h-3" /> {sourceLabel(card)}{hora}
+        <BadgeCheck className="w-3 h-3" /> {sourceLabel(card)}
       </span>
     );
   }
@@ -431,7 +439,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             {card.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>}
             {card.meta && <p className="text-xs text-primary mt-1">{card.meta}</p>}
             {card.body && <p className="text-xs text-muted-foreground mt-1">{card.body}</p>}
-            {card.fuente && <p className="text-[10px] text-muted-foreground mt-1">Fuente: {SOURCE_LABEL[String(card.fuente).toLowerCase()] ?? card.fuente}</p>}
+            {card.fuente && <p className="text-[10px] text-muted-foreground mt-1">Fuente: {SOURCE_NAME[String(card.fuente).toLowerCase()] ?? card.fuente}</p>}
           </div>
         </div>
         <CardLinks card={card} onOpen={onOpen} />

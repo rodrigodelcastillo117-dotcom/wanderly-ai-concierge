@@ -83,7 +83,8 @@ function labelFor(kind: ActionKind, p: ProductType, provider: string): string {
       return p === "hotel" ? "Reservar esta tarifa" : "Comprar esta oferta";
     case "equivalent_search":
       if (p === "flight") return "Buscar este vuelo";
-      if (p === "hotel") return "Ver tarifas del hotel";
+      // Es una búsqueda (Booking searchresults): nunca se presenta como tarifa garantizada.
+      if (p === "hotel") return `Buscar en ${provider} · la tarifa puede variar`;
       if (p === "restaurant") return "Buscar mesa";
       if (p === "transport") return "Buscar boletos";
       if (p === "event") return "Buscar entradas";
@@ -196,6 +197,7 @@ export function resolveBookingActions(input: ResolverInput): ResolvedActions {
     const disclosures: string[] = [];
     if (kind === "exact_offer" || kind === "equivalent_search") {
       disclosures.push(`La compra la procesa ${processor}. IATOS no cobra ni emite boletos.`, PRICE_MAY_CHANGE);
+      if (kind === "equivalent_search" && p === "hotel") disclosures.unshift("Búsqueda: la tarifa puede variar. No es una tarifa garantizada para este hotel.");
     } else if (kind === "official_booking_page") {
       disclosures.push(`La reserva la gestiona ${processor}.`);
       if (p === "restaurant") disclosures.push("Esta página no garantiza disponibilidad: elige fecha y hora ahí.");

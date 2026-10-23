@@ -184,7 +184,9 @@ describe("BookingActionResolver: orden y textos del dueño", () => {
       searches: [{ url: bookingSearchUrl({ query: "H Madrid", checkin: "2026-12-05", checkout: "2026-12-07", adults: 2 }), trust: "builder", evidence: "x",
         preserves: { product: false, dates: true, travelers: true, room_or_fare: false } }] });
     expect(r.primary?.mode).toBe("PROVIDER_SEARCH");
-    expect(r.primary?.label).toBe("Ver tarifas del hotel");
+    // Booking searchresults es una búsqueda: nunca "tarifa garantizada".
+    expect(r.primary?.label).toBe("Buscar en Booking.com · la tarifa puede variar");
+    expect(r.primary?.disclosures[0]).toBe("Búsqueda: la tarifa puede variar. No es una tarifa garantizada para este hotel.");
     expect(r.primary?.disclosures.join(" ")).toMatch(/habitación ni la tarifa exactas/);
   });
   it("oferta exacta vencida: no se ofrece y se pide comprobar precio", () => {

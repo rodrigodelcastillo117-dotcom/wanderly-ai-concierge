@@ -32,7 +32,8 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: v
 import { RichCard, CARD_TYPES, type ConciergeCard } from "@/components/concierge/ConciergeCards";
 import { FixerButton } from "@/components/FixerButton";
 
-const live = { estado_dato: "CONSULTADO_EN_VIVO" as const, fuente: "serpapi", consultado_at: "2026-10-22T18:00:00Z" };
+// Consulta de hace 5 min (relativa al reloj: "en vivo" solo vale ≤ 15 min).
+const live = { estado_dato: "CONSULTADO_EN_VIVO" as const, fuente: "serpapi", consultado_at: new Date(Date.now() - 5 * 60_000).toISOString() };
 
 const SAMPLE: Record<string, ConciergeCard> = {
   flight: { type: "flight", title: "Aeroméxico", subtitle: "MEX→MAD", price: 937, price_usd: 937, currency: "USD", cta_label: "Comprar", cta_action: "https://www.aviasales.com/search/x", ...live },

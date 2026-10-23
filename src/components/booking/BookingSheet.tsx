@@ -29,6 +29,23 @@ function ago(iso: string | null): string | null {
 
 const fmtPrice = (n: number, cur: string | null) => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? ""}`.trim();
 
+export type PriceChangeView = { changed: boolean; direction: "same" | "up" | "down" | "unknown"; old: number | null; new: number | null; delta: number | null; pct: number | null };
+
+/** Texto de la diferencia tras "Actualizar precio" (determinista; lo usan la hoja y sus pruebas). */
+export function priceChangeText(c: PriceChangeView, currency: string, price: number | null): string {
+  if (c.direction === "same") return `Precio confirmado ahora con la fuente: ${fmtPrice(c.new ?? price ?? 0, currency)}.`;
+  if (c.direction === "up" || c.direction === "down") {
+    const sign = c.direction === "up" ? "+" : "−";
+    return `El precio ${c.direction === "up" ? "subió" : "bajó"}: antes ${fmtPrice(c.old ?? 0, currency)}, ahora ${fmtPrice(c.new ?? 0, currency)} `
+      + `(${sign}${fmtPrice(Math.abs(c.delta ?? 0), currency)}${c.pct != null ? `, ${sign}${Math.abs(c.pct)} %` : ""}).`;
+  }
+  return price ? `Precio actual en la fuente: ${fmtPrice(price, currency)} (no teníamos uno anterior para comparar).` : "La fuente no devolvió un precio.";
+}
+
+function priceChangeLine(c: PriceChangeView, currency: string, price: number | null) {
+  return <p className={c.changed ? "text-amber-500 font-medium" : "text-foreground"} data-testid="precio-diferencia">{priceChangeText(c, currency, price)}</p>;
+}
+
 
 export function BookingSheet({ open, onOpenChange, offer, action, source, tripId }: {
   open: boolean; onOpenChange: (v: boolean) => void; offer: BookingOffer; action: BookingAction; source: BridgeSource; tripId?: string | null;
@@ -41,6 +58,9 @@ export function BookingSheet({ open, onOpenChange, offer, action, source, tripId
   const [left, setLeft] = useState(false);
   const [askBack, setAskBack] = useState(false);
   const [proof, setProof] = useState(false);
+  // "Actualizar precio": nueva consulta a la fuente (sin caché). Si cambió, se pide aceptar la diferencia.
+  const [checking, setChecking] = useState(false);
+  const [fresh, setFresh] = useState<null | { price: number | null; currency: string; change: PriceChangeView; soldOut: boolean; accepted: boolean }>(null);
   const keyRef = useRef(newIdempotencyKey());
 
   useEffect(() => {
@@ -80,6 +100,29 @@ export function BookingSheet({ open, onOpenChange, offer, action, source, tripId
     else toast.error(r.message ?? "No se pudo continuar.");
   }
 
+  async function refreshPrice() {
+    setChecking(true);
+    const r = await bridge("recheck_price", { source, ...(intent ? { intent_id: intent.id } : {}) });
+    setChecking(false);
+    const rc = r?.recheck;
+    if (!r?.ok || !rc) return toast.error(r?.message ?? "No se pudo actualizar el precio ahora.");
+    if (!rc.ok) return toast(rc.message);
+    const soldOut = rc.availability === "sold_out";
+    setFresh({ price: rc.price ?? null, currency: rc.currency ?? "USD", change: rc.price_change, soldOut, accepted: !soldOut && !r.needs_price_ack });
+    if (r.intent) setIntent(r.intent);
+    if (r.intent && !soldOut) { setNeedsAck(!!r.needs_price_ack); setGoUrl(r.go_url ?? null); }
+  }
+
+  async function acceptNewPrice() {
+    if (!fresh) return;
+    if (!intent) { setFresh({ ...fresh, accepted: true }); return; }
+    setPending(true);
+    const r = await bridge("confirm_price_ack", { intent_id: intent.id, accepted_price: fresh.price, currency: fresh.currency });
+    setPending(false);
+    if (r.ok) { setIntent(r.intent); setGoUrl(r.go_url ?? null); setNeedsAck(false); setFresh({ ...fresh, accepted: true }); }
+    else toast.error(r.message ?? "No se pudo continuar.");
+  }
+
   async function notCompleted() {
     if (intent) await bridge("mark_returned", { intent_id: intent.id, outcome: "not_completed" });
     toast("Listo: la opción sigue guardada para cuando quieras continuar.");
@@ -88,7 +131,10 @@ export function BookingSheet({ open, onOpenChange, offer, action, source, tripId
 
   // Sin consentimiento (o si booking-bridge no está disponible) se abre el enlace ya validado.
   const href = consent && goUrl ? goUrl : action.url ?? undefined;
-  const blocked = consent && (pending || needsAck) && !goUrl && !!intent;
+  // Precio comprobado que cambió (o agotado): no se sale al proveedor hasta aceptarlo.
+  const priceGate = !!fresh && (fresh.soldOut || !fresh.accepted);
+  const blocked = priceGate || (consent && (pending || needsAck) && !goUrl && !!intent);
+  const canRefresh = offer.recheckable && (offer.product_type === "flight" || offer.product_type === "hotel");
   const priceLine = offer.price ? `${fmtPrice(offer.price, offer.currency)}${offer.price_checked_at ? ` · consultado ${ago(offer.price_checked_at)}` : ""}` : null;
   const keep: Array<[boolean, string]> = [
     [action.preserves.product, offer.product_type === "flight" ? "El mismo vuelo" : "El mismo lugar"],
@@ -140,7 +186,24 @@ export function BookingSheet({ open, onOpenChange, offer, action, source, tripId
               <Checkbox checked={consent} onCheckedChange={(v) => void save(v === true)} disabled={pending || !!intent} aria-label="Guardar en mi viaje" />
               <span>Guardar esta selección en {tripId ? "mi viaje" : "IATOS"} y seguir su estado <span className="text-xs text-muted-foreground block">Solo guardamos qué elegiste y cuándo; nunca datos de pago.</span></span>
             </label>
-            {needsAck && (
+            {canRefresh && (
+              <div className="rounded-md border border-border/60 p-3 text-xs space-y-2" data-testid="actualizar-precio">
+                {!fresh ? (
+                  <p className="text-muted-foreground">Antes de continuar puedes volver a consultar el precio con la fuente (usa una búsqueda en vivo de tu plan).</p>
+                ) : fresh.soldOut ? (
+                  <p className="text-destructive">La fuente ya no muestra precio para esas fechas (posiblemente agotado). Elige otra opción.</p>
+                ) : priceChangeLine(fresh.change, fresh.currency, fresh.price)}
+                {fresh && !fresh.soldOut && !fresh.accepted && (
+                  <Button size="sm" onClick={acceptNewPrice} disabled={pending}>Acepto el nuevo precio, continuar</Button>
+                )}
+                {!fresh?.soldOut && (
+                  <Button size="sm" variant="outline" onClick={refreshPrice} disabled={checking || pending}>
+                    {checking ? "Actualizando…" : "Actualizar precio"}
+                  </Button>
+                )}
+              </div>
+            )}
+            {needsAck && !fresh && (
               <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs space-y-2">
                 <p>Este precio se consultó {ago(offer.price_checked_at) ?? "hace tiempo"} y pudo cambiar. {action.processor} te mostrará el precio final.</p>
                 <Button size="sm" variant="outline" onClick={ack} disabled={pending}>Entiendo, continuar</Button>

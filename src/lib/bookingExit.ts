@@ -12,7 +12,7 @@ import type { BookingAction } from "@/lib/booking";
 
 export function linkKindLine(action: Pick<BookingAction, "mode" | "kind" | "processor" | "label">): string | null {
   if (action.mode === "EXACT_DEEP_LINK") return `Enlace a esta oferta exacta en ${action.processor}.`;
-  if (action.kind === "equivalent_search") return `Búsqueda general en ${action.processor}: no es un enlace a esta oferta. Elige la opción ahí.`;
+  if (action.kind === "equivalent_search") return `Búsqueda general en ${action.processor}: la tarifa puede variar y no es un enlace a esta oferta. Elige la opción ahí.`;
   if (action.kind === "official_booking_page") return `Página de reservas de ${action.processor}: no aparta lugar por sí sola.`;
   if (action.kind === "official_website") return /sin verificar/.test(action.label) ? "Sitio web sin verificar por IATOS." : "Página general del lugar, no una reserva.";
   if (action.kind === "maps_listing") return "Ficha de Google Maps, no una reserva.";

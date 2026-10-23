@@ -121,7 +121,7 @@ const hm = (m: number | null) => (m === null ? "—" : `${Math.floor(m / 60)}h $
  * todos los viajeros (ida y vuelta si es redondo, como lo muestra Google Flights).
  */
 export function googleFlightResult(f: any, travelers: number, roundTrip: boolean, searchLink: string,
-  q?: { origin: string; destination: string; depart: string; ret?: string | null }) {
+  q?: { origin: string; destination: string; depart: string; ret?: string | null; leg?: "outbound" | "return" }) {
   const segs: any[] = Array.isArray(f?.flights) ? f.flights : [];
   const dur = minutes(f?.total_duration) ?? 0;
   const airline = segs[0]?.airline ?? "—";
@@ -169,8 +169,12 @@ export function googleFlightResult(f: any, travelers: number, roundTrip: boolean
     departure_token: f?.departure_token ?? null,
     buy_url: gf ?? searchLink,
     ...(gf ? { alt_buy_url: searchLink, alt_buy_note: "Búsqueda alternativa en Aviasales: el precio puede variar." } : {}),
-    // Google Flights da el precio ida y vuelta, pero los tramos son solo de la ida.
-    tramos: roundTrip ? "solo la ida (el regreso se elige al comprar; el precio ya es ida y vuelta)" : "solo ida",
+    // Google Flights da el precio ida y vuelta, pero los tramos son solo de la ida (o, en el paso del
+    // regreso, solo del regreso). Con departure_token se elige el regreso en IATOS (searchFlights).
+    tramos: q?.leg === "return" ? "regreso (el precio es el total ida y vuelta)"
+      : roundTrip ? (f?.departure_token ? "solo la ida (elige el regreso; el precio ya es ida y vuelta)" : "solo la ida (el regreso se elige al comprar; el precio ya es ida y vuelta)")
+      : "solo ida",
+    ...(q?.leg === "return" ? { tramo: "regreso" } : roundTrip ? { tramo: "ida" } : {}),
     airline_buy_url: airlineSite(airline),
     fuente: "google_flights",
   };
@@ -180,6 +184,14 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
   const { origin, destination, depart, return_date, travelers = 1, type = "round" } = body ?? {};
   const marker = resolveTpMarker(env.marker);
   const roundTrip = type === "round" && !!return_date;
+  // Paso 2 de un viaje redondo (SerpApi): con el departure_token de la ida elegida, Google Flights
+  // devuelve los regresos de ESA ida, cada uno con su booking_token (→ booking_options en
+  // booking-bridge "Comprobar precio"). Sin esto un redondo nunca tenía booking_token.
+  const departureToken = typeof body?.departure_token === "string" && body.departure_token.length > 0 && body.departure_token.length <= 4000
+    ? body.departure_token : null;
+  if (departureToken && !roundTrip) {
+    return { status: 400, body: { ok: false, error: "departure_token_requiere_redondo" } };
+  }
 
   let dep = quickIata(origin);
   let arr = quickIata(destination);
@@ -212,6 +224,7 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
     u.searchParams.set("currency", "USD");
     u.searchParams.set("hl", "es");
     u.searchParams.set("sort_by", "2"); // más barato primero
+    if (departureToken) u.searchParams.set("departure_token", departureToken);
     u.searchParams.set("api_key", env.serpKey);
     try {
       const ctrl = new AbortController();
@@ -224,7 +237,8 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
           .filter((f: any) => Number(f?.price ?? 0) > 0)
           .sort((a: any, b: any) => Number(a.price) - Number(b.price))
           .slice(0, 12);
-        results = all.map((f: any) => googleFlightResult(f, travelers, roundTrip, searchLink, { origin: dep!, destination: arr!, depart, ret: return_date ?? null }));
+        results = all.map((f: any) => googleFlightResult(f, travelers, roundTrip, searchLink,
+          { origin: dep!, destination: arr!, depart, ret: return_date ?? null, leg: departureToken ? "return" : "outbound" }));
         if (results.length > 0) source = "serpapi";
         else fallas.push("google_flights_sin_resultados");
       } else if (r.headers.get("x-iatos-cache") === "limit") {
@@ -247,7 +261,8 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
   }
 
   // Respaldo con datos REALES: precios en caché de Travelpayouts (búsquedas de las últimas ~48 h).
-  if (results.length === 0 && env.tpToken) {
+  // No aplica al paso del regreso: Aviasales no sabe qué ida se eligió.
+  if (results.length === 0 && env.tpToken && !departureToken) {
     try {
       const u = new URL("https://api.travelpayouts.com/v1/prices/cheap");
       u.searchParams.set("origin", dep);
@@ -314,7 +329,7 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
       // Link de búsqueda (sin precio) para que el usuario busque por su cuenta si no hay datos.
       search_url: searchLink,
       google_flights_url: google_flights_url ?? searchLink,
-      meta: { origin, destination, depart, return_date, travelers, dep_iata: dep, arr_iata: arr },
+      meta: { origin, destination, depart, return_date, travelers, dep_iata: dep, arr_iata: arr, ...(departureToken ? { leg: "return" } : {}) },
     },
   };
 }

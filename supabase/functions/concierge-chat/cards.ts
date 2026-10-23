@@ -162,6 +162,9 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
   } else if (r.precio_guardado === true || r.estado_dato === "OBSOLETO") {
     const at = typeof r.consulted_at === "string" ? r.consulted_at : "fecha desconocida";
     out.nota_fuente = `Precios GUARDADOS (consultados ${at}), no en vivo, por el uso justo de búsquedas del plan: dilo así y sugiere verificarlos antes de reservar.`;
+  } else if (r.frescura === "cache" && typeof r.etiqueta_frescura === "string") {
+    // Vigente, pero de la caché: nunca "en vivo" (E2E 23-oct).
+    out.nota_fuente = `Precios de una búsqueda reciente guardada (${r.etiqueta_frescura.toLowerCase()}), no de este momento: no digas "en vivo"; di cuándo se consultaron.`;
   }
   if (name === "check_flight_status" && (r.provider === "perplexity" || r?.data?.fuente === "perplexity")) {
     out.nota_fuente = "Dato obtenido de una búsqueda web, no del sistema de la aerolínea: dilo así y sugiere confirmar con la aerolínea.";

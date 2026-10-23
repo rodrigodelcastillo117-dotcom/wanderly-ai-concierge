@@ -29,6 +29,8 @@ interface FlightResult {
   buy_url: string;
   airline_buy_url: string;
   booking_token?: string | null;
+  /** Redondo de Google Flights: con él se piden los regresos de esta ida (paso 2). */
+  departure_token?: string | null;
 }
 
 const TripFlights = () => {
@@ -56,6 +58,8 @@ const TripFlights = () => {
   const [estadoDato, setEstadoDato] = useState<string | null>(null);
   // Link de búsqueda (sin precio) cuando el proveedor en vivo no respondió.
   const [unavailableUrl, setUnavailableUrl] = useState<string | null>(null);
+  // Ida elegida en un redondo: la lista muestra sus regresos (cada uno con su booking_token).
+  const [outbound, setOutbound] = useState<FlightResult | null>(null);
 
   // Viaje multi-destino en contexto: regreso desde la última ciudad (open-jaw) en Google Flights y Kayak.
   const tripCities = tripTool.trip ? tripDestinations(tripTool.trip) : [];
@@ -63,7 +67,7 @@ const TripFlights = () => {
     ? tripFlightSearches({ ...tripTool.trip, fecha_salida: depart || tripTool.trip.fecha_salida, fecha_regreso: returnDate || tripTool.trip.fecha_regreso, num_viajeros: travelers })
     : null;
 
-  const search = async () => {
+  const search = async (ida: FlightResult | null = null) => {
     if (!destination || !depart) {
       toast.error("Indica destino y fecha de salida");
       return;
@@ -71,9 +75,11 @@ const TripFlights = () => {
     setLoading(true);
     setResults([]);
     setUnavailableUrl(null);
+    setOutbound(ida);
     try {
       const { data, error } = await supabase.functions.invoke("flights-search", {
-        body: { origin, destination, depart, return_date: returnDate, travelers, type: returnDate ? "round" : "oneway" },
+        body: { origin, destination, depart, return_date: returnDate, travelers, type: returnDate ? "round" : "oneway",
+          ...(ida?.departure_token ? { departure_token: ida.departure_token } : {}) },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Error");
@@ -121,7 +127,7 @@ const TripFlights = () => {
   }, [tripTool.trip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (params.get("auto") === "1" && destination && depart) search();
+    if (params.get("auto") === "1" && destination && depart) void search();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -157,7 +163,7 @@ const TripFlights = () => {
               <Input id="tripflights-viajeros" type="number" min={1} max={9} value={travelers} onChange={(e) => setTravelers(Number(e.target.value))} />
             </div>
           </div>
-          <Button onClick={search} disabled={loading} className="w-full">
+          <Button onClick={() => search()} disabled={loading} className="w-full">
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
             Buscar vuelos
           </Button>
@@ -180,6 +186,13 @@ const TripFlights = () => {
               city: destination, bookingUrl: ensureAviasalesMarker(unavailableUrl), startAt: depart || undefined,
             }) : undefined}
           />
+        )}
+
+        {outbound && (
+          <div className="glass-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs" data-testid="ida-elegida">
+            <span>Ida elegida: <strong>{outbound.airline}</strong> {outbound.departure.id} → {outbound.arrival.id}. Ahora elige el regreso (el precio es el total ida y vuelta).</span>
+            <button type="button" className="text-primary hover:underline" onClick={() => search()}>Cambiar ida</button>
+          </div>
         )}
 
         <div className="space-y-3">
@@ -211,7 +224,11 @@ const TripFlights = () => {
               </div>
               <div className="md:w-48 text-right space-y-1">
                 <div className="font-display text-2xl gold-text">${f.price_per_person_usd}</div>
-                <div className="text-[11px] text-muted-foreground">USD / persona</div>
+                <div className="text-[11px] text-muted-foreground">USD / persona{returnDate ? " · ida y vuelta" : ""}</div>
+                {/* Redondo: primero se elige la ida y luego su regreso; así hay oferta exacta para comprobar. */}
+                {!outbound && returnDate && source === "serpapi" && f.departure_token && (
+                  <Button size="sm" variant="outline" className="w-full mt-1" disabled={loading} onClick={() => search(f)}>Elegir regreso</Button>
+                )}
                 {/* Booking Bridge: "Buscar este vuelo" (búsqueda) ≠ "Comprar esta oferta" (solo si es exacta). */}
                 <BookingActions className="mt-2" tripId={tripTool.tripId} max={2}
                   offer={offerFromFlightResult(f, { dep_iata: meta?.dep_iata, arr_iata: meta?.arr_iata, depart, return_date: returnDate || null, travelers, consulted_at: consultedAt,
