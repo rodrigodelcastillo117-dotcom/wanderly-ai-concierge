@@ -23,6 +23,7 @@ import { Tooltip as InlineTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { InviteFriendsCard } from "@/components/InviteFriendsCard";
+import { FriendsPrivacySection } from "@/components/social/FriendsPrivacySection";
 import { dnaForDisplay } from "../../supabase/functions/_shared/dnaVoice";
 import { AvatarCircle } from "@/components/avatar/AvatarCircle";
 import { PriveSeal } from "@/components/PriveSeal";
@@ -305,6 +306,9 @@ const Profile = () => {
             Editar mis preferencias
           </Button>
         </section>
+
+        {/* QUÉ VEN MIS AMIGOS (Social): avatar, viajes y actividad que comparto */}
+        <FriendsPrivacySection />
 
         {/* BÓVEDA */}
         <section>

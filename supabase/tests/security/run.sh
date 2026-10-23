@@ -42,7 +42,8 @@ r2_privacidad() { # $1 base
 # = 186; ronda r2 (grupo privacidad): +2 de rls_attacks (L1c, L1d: el código crea una solicitud que se
 # acepta), +1 de hardening (P1b) y +65 de r2_privacidad_*.sql (avatar 11, d1_politicas 9, documentos 18,
 # fotos 17, photo_url 7, tier_audit 3).
-ESPERADOS=254
+# Social amigos (20261027090000): +4 de rls_attacks (L1p, L1q con solicitud pendiente; L1e, L1f ya amigos).
+ESPERADOS=258
 
 main() {
   t_build_db "$DB"

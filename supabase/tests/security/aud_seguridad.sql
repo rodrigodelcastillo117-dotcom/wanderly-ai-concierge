@@ -75,7 +75,16 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   ('import_past_trip'),
   -- IATOS Wrapped (20261026310000): sin parámetro de usuario; solo nombres y número de viajes de quienes
   -- comparten viaje con auth.uid() (dueño o colaborador aceptado). Pruebas en supabase/tests/wrapped.
-  ('wrapped_companions')),
+  ('wrapped_companions'),
+  -- Social · perfil del amigo (20261027090000_social_amigos): lectura de otro solo con auth.uid() +
+  -- _social_son_amigos + lo que el dueño prendió (_social_pref); escritura solo de filas propias (ajustes,
+  -- ocultos, recomendaciones, momentos de auth.uid()) o de reacciones/preguntas a nombre de auth.uid() sobre
+  -- algo que hoy le es visible; social_puede_ver_objeto solo responde sí/no por auth.uid() (la usan las
+  -- políticas de storage). Pruebas de abuso en supabase/tests/social/amigos.sql (AM6-AM9, AM13, AM17).
+  ('amigo_viajes'),('amigo_actividad'),('amigos_actividad'),('amigos_avatares'),('social_puede_ver_objeto'),
+  ('mi_privacidad_social'),('guardar_privacidad_social'),('mi_actividad_social'),('ocultar_social'),
+  ('compartir_momento_social'),('recomendar_lugar'),('borrar_recomendacion'),('reaccionar_actividad'),
+  ('preguntar_actividad'),('responder_pregunta_social')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)

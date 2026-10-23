@@ -27,10 +27,20 @@ SELECT invite_code AS code FROM public.profiles WHERE id='aaaaaaaa-0000-0000-000
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','cccccccc-0000-0000-0000-00000000000c',false);
 SELECT 'L1 agregar amigo por código [{"ok": true, "estado": "pendiente"}]: '||agregar_amigo_por_codigo(:'code')::text;
 RESET ROLE; SELECT 'L1b amistades [1 pending]: '||count(*)||' '||string_agg(status,',') FROM friendships;
+-- Social (20261027090000): con la solicitud PENDIENTE no se ve nada de a (ni sus viajes ni su avatar).
+UPDATE public.profiles SET avatar_url='https://uhkdewinscffhdonhhmt.supabase.co/storage/v1/object/public/travel-moments/avatars/aaaaaaaa-0000-0000-0000-00000000000a/v2.png' WHERE id='aaaaaaaa-0000-0000-0000-00000000000a';
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','cccccccc-0000-0000-0000-00000000000c',false);
+SELECT 'L1p solicitud pendiente no ve viajes ni actividad de a [privado privado]: '||(amigo_viajes('aaaaaaaa-0000-0000-0000-00000000000a')->>'error')||' '||(amigo_actividad('aaaaaaaa-0000-0000-0000-00000000000a')->>'error');
+SELECT 'L1q solicitud pendiente no ve el avatar de a en storage [0]: '||count(*) FROM storage.objects WHERE name LIKE 'avatars/aaaaaaaa-0000-0000-0000-00000000000a/%';
+RESET ROLE;
 -- T-P2-1: el código solo crea una solicitud; la amistad existe cuando la dueña del código acepta.
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','aaaaaaaa-0000-0000-0000-00000000000a',false);
 SELECT 'L1c a acepta la solicitud [{"ok": true, "estado": "amigos"}]: '||responder_solicitud_amistad('cccccccc-0000-0000-0000-00000000000c', true)::text;
 RESET ROLE; SELECT 'L1d amistades [1 accepted]: '||count(*)||' '||string_agg(status,',') FROM friendships;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','cccccccc-0000-0000-0000-00000000000c',false);
+SELECT 'L1e amigo aceptado ve (y puede firmar) solo el avatar actual de a [avatars/aaaaaaaa-0000-0000-0000-00000000000a/v2.png]: '||string_agg(name,',') FROM storage.objects WHERE name LIKE 'avatars/%';
+SELECT 'L1f amigo aceptado: la actividad de a está apagada por defecto [0]: '||jsonb_array_length(amigo_actividad('aaaaaaaa-0000-0000-0000-00000000000a')->'items');
+RESET ROLE;
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','aaaaaaaa-0000-0000-0000-00000000000a',false);
 SELECT 'L2 invitar [{"ok": true}]: '||invitar_amigo_viaje('11111111-0000-0000-0000-000000000001','cccccccc-0000-0000-0000-00000000000c')::text;
 SELECT 'L2b dueño ve sus fotos [3]: '||count(*) FROM storage.objects;
