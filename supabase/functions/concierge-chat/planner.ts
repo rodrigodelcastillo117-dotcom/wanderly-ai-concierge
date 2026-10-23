@@ -15,6 +15,7 @@
 import { normText } from "./context.ts";
 import { detectRoadTrip } from "../_shared/roadtrip/plan.ts";
 import { roadTripTurn } from "./roadtrip.ts";
+import type { TripPosition } from "./location.ts";
 
 export type Intent =
   | "human" | "emergency" | "flight_disruption" | "missed_connection" | "flight_status" | "flight_compare"
@@ -154,6 +155,11 @@ export interface TurnPlan {
   cards: Record<string, unknown>[];
   /** Respuesta inmediata sin modelo (p. ej. "quiero un humano"). */
   direct?: { text: string };
+  /**
+   * Temas que el usuario no pidió y que no deben colarse en la respuesta (finalize.ts los quita):
+   * "vuelo" = consejos de check-in o de a qué hora salir cuando pidió una cena (caso 22-oct-2026).
+   */
+  avoidTopics?: Array<"vuelo">;
 }
 
 export interface PlanInput {
@@ -164,7 +170,21 @@ export interface PlanInput {
   coords: { lat: number; lng: number } | null;
   hasPriveSession: boolean;
   exigente: boolean;
+  /** Dónde está el usuario frente a los destinos del viaje (location.ts). Sin dato: "unknown". */
+  position?: TripPosition;
+  /** Nombre del lugar donde está ("Huixquilucan"), si el navegador lo dio. */
+  place?: string | null;
 }
+
+/**
+ * Peticiones concretas que no tienen que ver con el vuelo: en ellas no se agregan consejos del vuelo
+ * de hoy (check-in, a qué hora salir) que nadie pidió. Transporte y emergencia no están: ahí el vuelo
+ * sí puede importar (ir al aeropuerto, perderlo).
+ */
+const FOCUSED_NOT_FLIGHT: readonly Intent[] = [
+  "dining_near_hotel", "dining", "expense", "packing", "luggage", "members_followup", "prive_night",
+  "create_trip", "road_trip", "price_alert", "itinerary_add",
+];
 
 const cleanFactQuery = (msg: string) => String(msg ?? "")
   .replace(/[¿?¡!]/g, " ")
@@ -200,15 +220,25 @@ export function planTurn(i: PlanInput): TurnPlan {
   const hotel = trip ? pickHotel(tripHotels(trip), i.todayISO) : null;
   const flight = pickFlight(flights, i.message, i.todayISO);
   const city = (hotel?.city ?? String(trip?.destino ?? "").split(/→|,|;/)[0]).trim() || null;
+  // Fuera de los destinos del viaje (p. ej. en su ciudad el día de salida): "cerca" es local.
+  const away = i.position === "away";
+  const place = typeof i.place === "string" && i.place.trim() ? i.place.trim().slice(0, 80) : null;
 
   if (has("human")) {
     plan.direct = { text: "Por supuesto. Te conecto con tu Fixer: toca **Contactar Fixer** arriba y cuéntale qué necesitas. Es atención humana sujeta a disponibilidad." };
     return plan;
   }
 
-  // Vuelo hoy/mañana del viaje: siempre se ofrece, aunque la pregunta sea otra.
+  // Vuelo hoy/mañana del viaje: se ofrece aunque la pregunta sea otra, salvo que pida algo concreto que
+  // no tiene que ver con el vuelo (una cena): ahí no se cuelan consejos que no pidió.
+  const flightIntent = has("flight_status") || has("flight_disruption") || has("missed_connection");
+  const focusedElsewhere = !flightIntent && i.intents.some((x) => FOCUSED_NOT_FLIGHT.includes(x));
   const flightSoon = flight && flight.date && (flight.date === i.todayISO || flight.date === addDays(i.todayISO, 1)) ? flight : null;
-  if (flightSoon) {
+  if (focusedElsewhere) {
+    // Aunque el viaje no traiga número de vuelo, el modelo puede inferir "sales hoy" de las fechas.
+    plan.avoidTopics = ["vuelo"];
+    if (flightSoon || trip) plan.notes.push("No agregues consejos del vuelo (check-in, a qué hora salir al aeropuerto, estado) en esta respuesta: no los pidió.");
+  } else if (flightSoon) {
     const when = flightSoon.date === i.todayISO ? "hoy" : "mañana";
     const margin = isInternational(flightSoon) ? 3 : 2;
     const arrive = hoursBefore(flightSoon.departs, margin);
@@ -221,8 +251,7 @@ export function planTurn(i: PlanInput): TurnPlan {
 
   // Proactivo: si el vuelo del viaje sale HOY, su estado real se consulta aunque la pregunta sea otra
   // (caché de 10 min compartida), y Iato lo menciona en una línea.
-  const flightIntent = has("flight_status") || has("flight_disruption") || has("missed_connection");
-  if (flightSoon && flightSoon.date === i.todayISO && !flightIntent && !has("emergency")) {
+  if (flightSoon && flightSoon.date === i.todayISO && !flightIntent && !has("emergency") && !focusedElsewhere) {
     plan.prefetch.push({ name: "check_flight_status", args: { flight: flightSoon.code, date: flightSoon.date }, reason: "vuelo de hoy (proactivo)" });
     plan.notes.push(`Menciona en una línea el estado real del vuelo ${flightSoon.code} de hoy (viene en <datos_consultados>).`);
   }
@@ -276,8 +305,15 @@ export function planTurn(i: PlanInput): TurnPlan {
     }
   }
 
-  if (has("dining_near_hotel") || (has("dining") && (hotel || i.coords))) {
-    if (hotel) {
+  if (has("dining_near_hotel") || (has("dining") && (hotel || i.coords || (away && place)))) {
+    // Pidió "cerca" y está fuera de los destinos del viaje: cerca de donde está, no del hotel del viaje
+    // (salvo que nombre el hotel).
+    const wantsHotel = /\bhotel\b/.test(normText(i.message));
+    const local = away && !wantsHotel;
+    if (local) {
+      plan.notes.push(`El usuario está en ${place ?? "su ubicación actual"}, fuera de los destinos de su viaje: recomienda lugares cerca de donde está, en corto, y no los ligues al viaje ni propongas agregarlos al itinerario (puede guardarlos en favoritos con save_place).`);
+    }
+    if (hotel && !local) {
       plan.notes.push(`Hotel del usuario: ${hotel.name}${hotel.address ? `, ${hotel.address}` : ""}${hotel.city ? `, ${hotel.city}` : ""}${hotel.fromPdf ? " (según su archivo)" : ""}.`);
       plan.prefetch.push({
         name: "search_places",
@@ -286,13 +322,17 @@ export function planTurn(i: PlanInput): TurnPlan {
       });
     } else if (i.coords) {
       plan.prefetch.push({ name: "search_nearby", args: { lat: i.coords.lat, lng: i.coords.lng, kind: "restaurant" }, reason: "restaurantes cerca" });
+    } else if (local && place) {
+      plan.prefetch.push({ name: "search_places", args: { query: `restaurantes en ${place}` }, reason: "restaurantes cerca" });
     } else {
       plan.notes.push("No hay hotel reservado ni ubicación del usuario: pregunta en qué hotel o zona está, en una línea.");
     }
-    if (i.exigente && city) {
-      plan.prefetch.push({ name: "search_attractions", args: { query: `mejores restaurantes en ${city}`, category: "restaurants" }, reason: "ranking de la ciudad" });
+    const rankCity = local ? place : city;
+    if (i.exigente && rankCity) {
+      plan.prefetch.push({ name: "search_attractions", args: { query: `mejores restaurantes en ${rankCity}`, category: "restaurants" }, reason: "ranking de la ciudad" });
     }
-    if (tripId) plan.suggestedActions.push({ type: "add_itinerary_item", params: { trip_id: tripId, fecha: i.todayISO, hora: "20:30", titulo: "Cena" } });
+    // "Agregar a tu viaje" solo si la cena es en el viaje (finalize.ts vuelve a revisar con el lugar).
+    if (tripId && !local && !away) plan.suggestedActions.push({ type: "add_itinerary_item", params: { trip_id: tripId, fecha: i.todayISO, hora: "20:30", titulo: "Cena" } });
   }
 
   if (has("place_fact")) {
@@ -313,7 +353,8 @@ export function planTurn(i: PlanInput): TurnPlan {
   }
 
   if (has("transport")) {
-    const dest = hotel;
+    // Fuera de los destinos del viaje, "transporte ahora" no es al hotel del viaje (salvo que lo nombre).
+    const dest = away && !/\bhotel\b/.test(normText(i.message)) ? null : hotel;
     if (dest) {
       plan.notes.push(`Destino natural: su hotel ${dest.name}${dest.address ? `, ${dest.address}` : ""}.`);
       plan.cards.push(transportCard(dest));
@@ -370,8 +411,8 @@ export function planTurn(i: PlanInput): TurnPlan {
   if (i.exigente) {
     // Modo exigente: siempre queda lista la mano humana para cerrar lo elegido (Iato no reserva).
     if (has("flight_compare")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "other", titulo: "Que el Fixer gestione el vuelo elegido", detalle: i.message.slice(0, 300), ...(tripId ? { trip_id: tripId } : {}) } });
-    if (has("dining_near_hotel") || has("dining")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "reservation", titulo: "Reservar mesa en la opción elegida", fecha: i.todayISO, hora: "20:30", ...(tripId ? { trip_id: tripId } : {}) } });
-    plan.notes.push("MODO EXIGENTE: compara a fondo y presenta 'La mejor / La alternativa / El plan B' con el porqué, la fuente y la contra de cada una; anticipa las 2 siguientes necesidades.");
+    if (has("dining_near_hotel") || has("dining")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "reservation", titulo: "Reservar mesa en la opción elegida", fecha: i.todayISO, hora: "20:30", ...(tripId && !away ? { trip_id: tripId } : {}) } });
+    plan.notes.push("MODO EXIGENTE: compara a fondo y presenta 'La mejor / La alternativa / El plan B' con el porqué, la fuente y la contra de cada una (una línea por opción); anticipa la siguiente necesidad relacionada en una línea.");
   }
 
   plan.prefetch = dedupeSpecs(plan.prefetch).slice(0, i.exigente ? 5 : 3);
@@ -516,7 +557,9 @@ export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">): stri
     return `Comparo los vuelos ${LEAD_CLIP(flights.args.origin, 24)} → ${LEAD_CLIP(flights.args.destination, 24)} para tus fechas.`;
   }
   if (has("place_fact")) return "Busco ese dato en Google y en Google Maps para darte la ubicación exacta.";
-  if (places && (has("dining_near_hotel") || has("dining"))) return "Busco restaurantes cerca de tu hotel en Google Maps.";
+  if (places && (has("dining_near_hotel") || has("dining"))) {
+    return places.reason === "restaurantes cerca del hotel" ? "Busco restaurantes cerca de tu hotel en Google Maps." : "Busco restaurantes cerca de ti en Google Maps.";
+  }
   if (nearby) return `Busco ${KIND_LABEL[String(nearby.args.kind)] ?? "lugares"} cerca de ti.`;
   if (spec("search_prive")) return "Reviso el catálogo Privé verificado.";
   if (status) return has("flight_status") ? `Reviso en tiempo real tu vuelo ${code}.` : `De paso reviso en tiempo real tu vuelo ${code} de hoy.`;

@@ -36,6 +36,7 @@ import { runSearchPrive } from "./prive.ts";
 import { memoryCache, runPriveKey } from "./priveKeyMode.ts";
 import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { detectIntents, planTurn } from "./planner.ts";
+import { tripSituation } from "./location.ts";
 import { providerChain, resolveModelConfig, routeTurn, sharedBreaker } from "./router.ts";
 import { AllProvidersFailed, makeModelCaller } from "./agent.ts";
 import { completeAnthropic, ProviderError } from "./anthropic.ts";
@@ -380,6 +381,11 @@ Deno.serve(async (req) => {
 
     const resolution = resolveActiveTrip(trips, { explicitId, pinnedId, todayLocal: todayISO, mentionedText: lastUserMsg });
     const trip = resolution.trip;
+    // Dónde está el usuario frente al viaje: el día de salida, en su ciudad, el viaje está "por salir"
+    // y lo "cerca" es local (caso Huixquilucan → Roma, 22-oct-2026).
+    const userPlace = typeof body.context?.place === "string" ? body.context.place.slice(0, 80) : null;
+    const userLoc = { coords, place: userPlace };
+    const situation = tripSituation(trip, todayISO, userLoc);
     const viajesVigentes = trips
       .filter((t: any) => !(t.fecha_regreso || t.fecha_salida) || String(t.fecha_regreso || t.fecha_salida) >= todayISO)
       .sort((a: any, b: any) => String(a.fecha_salida ?? "").localeCompare(String(b.fecha_salida ?? "")));
@@ -389,6 +395,7 @@ Deno.serve(async (req) => {
     console.log("concierge_turn", JSON.stringify({
       user_id: userId, candidates: trips.length, vigentes: viajesVigentes.length, selected_trip_id: trip?.id ?? null,
       reason: resolution.reason, today: todayISO, today_source: today.source, intents, tier: route.tier, route_reason: route.reason,
+      trip_phase: situation?.phase ?? null, user_position: situation?.position ?? "unknown",
       exigente, exigente_capped: exigenteCapped, stream: wantsStream,
     }));
 
@@ -397,6 +404,8 @@ Deno.serve(async (req) => {
       _trip_reason: resolution.reason,
       _trip_candidates: resolution.reason === "ambiguous" ? resolution.candidates.map(tripSummary) : [],
       _today: todayISO,
+      _trip_phase: situation?.phase ?? null,
+      _user_position: situation?.position ?? "unknown",
     };
     const meta = { ...tripMeta, _tier: route.tier, _exigente: exigente, _exigente_capped: exigenteCapped, _intents: intents };
 
@@ -488,6 +497,7 @@ Deno.serve(async (req) => {
     // Plan determinista del turno (con vuelos/hoteles etiquetados por estado de reserva).
     const plan = planTurn({
       message: lastUserMsg, intents, todayISO, coords, hasPriveSession: !!priveSession, exigente,
+      position: situation?.position ?? "unknown", place: userPlace,
       trip: trip ? { ...trip, vuelos: tripBookings?.vuelos ?? trip.vuelos_json, hospedaje: tripBookings?.hospedaje ?? trip.hospedaje_json } : null,
     });
 
@@ -507,7 +517,7 @@ Deno.serve(async (req) => {
     const stableSystem = buildStableSystem((Deno.env.get("MASTER_PROMPT_IATOS") ?? "").trim());
     const dynamicSystem = buildDynamicSystem({
       todayLine: todayLine(todayISO, today.tz), tripReason: resolution.reason, hasTrip: !!trip, godMode: exigente,
-      toolHints: plan.toolHints,
+      toolHints: plan.toolHints, situation,
       exigenteNote: exigenteCapped ? "El usuario pidió Modo exigente pero ya usó su tope de hoy: responde en modo normal y díselo en una línea al final." : undefined,
     });
     const taste = await tastePromise;
@@ -531,7 +541,10 @@ Deno.serve(async (req) => {
           activeTripId: trip?.id ?? null, hasPriveSession: !!priveSession,
         },
         requestIntel, hasConfirmedBookings: confirmedBookings.length > 0,
-        city: String(trip?.destino ?? "").split(/→|,|;/)[0].trim() || undefined, party: Number(trip?.num_viajeros) || 2,
+        tripScope: { trip, position: situation?.position ?? "unknown", user: userLoc },
+        // Enlaces de reserva (OpenTable/Maps): con la ciudad donde está el usuario si está fuera del viaje.
+        city: (situation?.position === "away" ? userPlace : String(trip?.destino ?? "").split(/→|,|;/)[0].trim()) || undefined,
+        party: Number(trip?.num_viajeros) || 2,
       });
       if (final.dropped.cards.length || final.dropped.actions.length) console.warn("concierge_dropped", JSON.stringify(final.dropped));
       console.log("concierge_latency", JSON.stringify({

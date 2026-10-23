@@ -32,11 +32,15 @@ export interface ChipTrip {
 
 const addDays = (d: string, k: number) => new Date(Date.parse(`${d}T00:00:00Z`) + k * 86400000).toISOString().slice(0, 10);
 
-export function buildChips(trip: ChipTrip | null, todayISO: string): Chip[] {
+/**
+ * `away`: el usuario está fuera de los destinos del viaje (location.ts), p. ej. en su ciudad el día que
+ * sale. Entonces "Cena cerca" y "Pedir transporte" son cerca de donde está, no del hotel del viaje.
+ */
+export function buildChips(trip: ChipTrip | null, todayISO: string, opts: { away?: boolean } = {}): Chip[] {
   const flights = trip ? tripFlights(trip) : [];
   const flight = pickFlight(flights, "", todayISO);
   const soon = flight?.date && (flight.date === todayISO || flight.date === addDays(todayISO, 1)) ? flight : null;
-  const hotel = trip ? pickHotel(tripHotels(trip), todayISO) : null;
+  const hotel = trip && !opts.away ? pickHotel(tripHotels(trip), todayISO) : null;
   const chips: Chip[] = [];
 
   chips.push(soon

@@ -6,15 +6,20 @@
 //      más las cards del planeador (transporte con Uber/Maps, alerta de emergencia) y los botones de
 //      cómo llegar / Uber / llamar / reservar armados con la evidencia.
 //   3. Acciones validadas con los viajes del usuario (y las sugeridas del planeador, máximo 3).
-//   4. Honestidad: motivo correcto de cada falla, "sin verificar en vivo" en datos sin fuente,
+//   4. "Agregar a tu viaje" solo si el lugar está en una ciudad del viaje o el usuario lo pidió
+//      (location.ts); un lugar local se ofrece para guardar en favoritos.
+//   5. Brevedad (brevity.ts): sin consejos del vuelo que no pidió y recortado al tope del modo.
+//   6. Honestidad: motivo correcto de cada falla, "sin verificar en vivo" en datos sin fuente,
 //      nunca "reservé", aviso si una búsqueda no trajo datos, transfers con datos del viaje.
 
 import { splitAnswer } from "./stream.ts";
 import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enrichCardLinks, type ToolRun, validateCards } from "./cards.ts";
 import { correctFailureClaims, enforceNoFakeBooking, labelUnverifiedFacts } from "./guard.ts";
-import { type ActionContext, type ProposedAction, restaurantBookingLinks, validateActions } from "./actions.ts";
+import { type ActionContext, type ProposedAction, restaurantBookingLinks, validateAction, validateActions } from "./actions.ts";
 import { directionsLink, uberLink, type TurnPlan } from "./planner.ts";
 import { ensureTransferUsesKnownData } from "./context.ts";
+import { itineraryActionScope, type TripPosition, type UserLocation, userTripPosition } from "./location.ts";
+import { compactReply, dropUnaskedFlightAdvice } from "./brevity.ts";
 
 export interface FinalTurn {
   text: string;
@@ -28,7 +33,7 @@ export interface FinalTurn {
 export interface FinalizeInput {
   raw: string;
   toolRuns: ToolRun[];
-  plan: Pick<TurnPlan, "cards" | "suggestedActions">;
+  plan: Pick<TurnPlan, "cards" | "suggestedActions"> & Partial<Pick<TurnPlan, "avoidTopics">>;
   actionCtx: ActionContext;
   requestIntel?: unknown;
   hasConfirmedBookings?: boolean;
@@ -36,6 +41,12 @@ export interface FinalizeInput {
   party?: number;
   now?: Date;
   makeId?: () => string;
+  /** Modo exigente: tope de largo mayor (brevity.ts). */
+  exigente?: boolean;
+  /** Último mensaje del usuario (¿pidió agregarlo al viaje?, ¿habló del vuelo?). */
+  userMessage?: string;
+  /** Viaje en contexto y dónde está el usuario frente a él (regla de "Agregar a tu viaje"). */
+  tripScope?: { trip: any | null; position: TripPosition; user?: UserLocation | null } | null;
 }
 
 export function finalizeTurn(i: FinalizeInput): FinalTurn {
@@ -63,7 +74,42 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
   const ctx: ActionContext = { ...i.actionCtx, priveExperienceIds: ev.priveIds };
   const acts = validateActions(data.actions, i.plan.suggestedActions, ctx, i.makeId);
 
+  // "Agregar a tu viaje X" para un restaurante de otra ciudad no tiene sentido: se quita y, si el lugar
+  // salió de los resultados, se ofrece guardarlo en favoritos.
+  if (i.tripScope) {
+    const sc = i.tripScope;
+    const kept: ProposedAction[] = [];
+    let local: { name: string; address?: string; lat?: number; lng?: number; mapsUrl?: string; website?: string } | null = null;
+    for (const a of acts.actions) {
+      if (a.type !== "add_itinerary_item") { kept.push(a); continue; }
+      // El viaje de la acción: el de contexto (con hoteles) u otro de sus viajes (con su destino).
+      const isCtx = !!sc.trip && a.params.trip_id === sc.trip.id;
+      const trip = isCtx ? sc.trip : ctx.trips.find((t) => t.id === a.params.trip_id) ?? null;
+      if (!trip) { kept.push(a); continue; }
+      const position = isCtx ? sc.position : userTripPosition(trip, sc.user ?? null);
+      const scope = itineraryActionScope({ trip, params: a.params, places: ev.places, position, userMessage: i.userMessage ?? "" });
+      if (scope.keep) { kept.push(a); continue; }
+      acts.dropped.push({ type: a.type, reason: scope.why });
+      guards.push("agregar_al_viaje_fuera_de_destino");
+      if (scope.keep === false && scope.place) local = local ?? scope.place;
+    }
+    if (local && !kept.some((a) => a.type === "save_place") && kept.length < 3) {
+      const v = validateAction("save_place", {
+        nombre: local.name, direccion: local.address, maps_url: local.mapsUrl, sitio: local.website, lat: local.lat, lng: local.lng, tipo: "restaurante",
+      }, ctx);
+      if (v.ok) kept.push({ id: (i.makeId ?? (() => crypto.randomUUID()))(), ...v.action });
+    }
+    acts.actions = kept;
+  }
+
   let text = split.text.slice(0, 4000);
+  // Brevedad: primero lo que no pidió, luego el tope del modo; los guardarraíles van después.
+  if (i.plan.avoidTopics?.includes("vuelo") && i.userMessage !== undefined) {
+    const t = dropUnaskedFlightAdvice(text, i.userMessage);
+    if (t !== text && t.trim()) { text = t; guards.push("sin_consejo_no_pedido"); }
+  }
+  const short = compactReply(text, { exigente: i.exigente });
+  if (short.trimmed && short.text.trim()) { text = short.text; guards.push("respuesta_recortada"); }
   const before = text;
   text = correctFailureClaims(text, ev.unavailableState);
   if (text !== before) guards.push("motivo_corregido");

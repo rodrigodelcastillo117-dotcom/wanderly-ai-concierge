@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, BadgeCheck, BedDouble, Car, ExternalLink, Globe, Landmark, Luggage, MapPin, Navigation, Phone, Plane, Sparkles, Star,
@@ -29,6 +29,8 @@ export type { ConciergeCard };
 export { CARD_TYPES };
 
 const GOLD_CTA = "bg-gradient-gold text-primary-foreground hover:opacity-90";
+/** Burbuja compacta del hilo (lado de Iato): ancho completo de la columna, esquina como globo de chat. */
+const CARD_SHELL = "w-full rounded-2xl rounded-tl-md border border-border bg-card px-3 py-2.5";
 
 /** Precio con moneda, solo si el servidor lo marcó como consultado y trae su fuente. */
 export function verifiedPrice(card: ConciergeCard): { amount: number; currency: string } | null {
@@ -118,7 +120,7 @@ function PriceBlock({ card, suffix }: { card: ConciergeCard; suffix?: string }) 
   if (p) {
     return (
       <div className="text-right">
-        <p className="font-display text-xl text-primary leading-none">{formatMoney(p.amount, p.currency)} <span className="text-xs text-muted-foreground">{p.currency}</span></p>
+        <p className="font-display text-base text-primary leading-none whitespace-nowrap">{formatMoney(p.amount, p.currency)} <span className="text-xs text-muted-foreground">{p.currency}</span></p>
         {suffix && <p className="text-[10px] text-muted-foreground mt-1">{suffix}</p>}
       </div>
     );
@@ -127,7 +129,7 @@ function PriceBlock({ card, suffix }: { card: ConciergeCard; suffix?: string }) 
   if (saved) {
     return (
       <div className="text-right">
-        <p className="font-display text-xl text-amber-500 leading-none">{formatMoney(saved.amount, saved.currency)} <span className="text-xs text-muted-foreground">{saved.currency}</span></p>
+        <p className="font-display text-base text-amber-500 leading-none whitespace-nowrap">{formatMoney(saved.amount, saved.currency)} <span className="text-xs text-muted-foreground">{saved.currency}</span></p>
         <p className="text-[10px] text-muted-foreground mt-1">precio guardado{suffix ? ` · ${suffix}` : ""}</p>
       </div>
     );
@@ -188,7 +190,7 @@ export function ExternalCta({ card, label, onOpen, className = "" }: {
       target="_blank"
       rel="noopener noreferrer"
       onClick={() => onOpen?.(url)}
-      className={`inline-flex items-center justify-center gap-2 rounded-md h-10 px-4 text-sm font-medium ${GOLD_CTA} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full min-h-[36px] px-3.5 text-xs font-medium ${GOLD_CTA} ${className}`}
     >
       {label} <ExternalLink className="w-3.5 h-3.5" />
     </a>
@@ -265,7 +267,7 @@ function RequestNote({ state, folio, humanNotified }: { state: RequestState; fol
 
 const Rating = ({ value }: { value?: number }) =>
   typeof value === "number" && Number.isFinite(value) ? (
-    <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 backdrop-blur text-xs">
+    <span className="flex shrink-0 items-center gap-1 px-1.5 py-0.5 rounded-full bg-background/80 text-[11px]">
       <Star className="w-3 h-3 fill-primary text-primary" /> {value.toFixed(1)}
     </span>
   ) : null;
@@ -281,11 +283,12 @@ function stockFor(card: ConciergeCard): string {
 }
 
 /**
- * Portada de una card de lugar: la foto que trajo la herramienta (Google Hotels / TripAdvisor), la
- * foto de Google Places del lugar (photo_ref o place_id de la evidencia) o, si Google no encuentra
- * ESE lugar, una foto ilustrativa de su tipo marcada como tal.
+ * Miniatura de una card de lugar (chat estilo WhatsApp: la card es una burbuja compacta, no un bloque
+ * con foto de 160 px). Usa la foto que trajo la herramienta (Google Hotels / TripAdvisor), la de
+ * Google Places del lugar (photo_ref o place_id de la evidencia) o, si Google no encuentra ESE lugar,
+ * una foto ilustrativa de su tipo marcada como tal.
  */
-function MediaHeader({ card, Icon }: { card: ConciergeCard; Icon: typeof Utensils }) {
+function MediaThumb({ card, Icon }: { card: ConciergeCard; Icon: typeof Utensils }) {
   const img = safeHttpsUrl(card.image_url);
   const photoRef = typeof card.photo_ref === "string" ? card.photo_ref : null;
   const placeId = typeof card.place_id === "string" ? card.place_id : null;
@@ -296,13 +299,11 @@ function MediaHeader({ card, Icon }: { card: ConciergeCard; Icon: typeof Utensil
       photoRef={photoRef}
       lookup={placeId ? { placeId } : { name: card.title, city: cardCity(card) }}
       stockQuery={stockFor(card)}
+      size="thumb"
       icon={Icon}
-      className="h-40 w-full"
+      className="w-16 h-16 rounded-xl shrink-0 ring-1 ring-white/[0.06]"
       captionPosition="bottom-left"
-    >
-      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-      <span className="absolute top-3 right-3 z-[2]"><Rating value={card.rating} /></span>
-    </SmartImage>
+    />
   );
 }
 
@@ -321,18 +322,25 @@ const LINK_ICON: Record<CardLink["kind"], typeof Navigation> = {
  * resultados reales; aquí se vuelven a validar (https o tel:). "Reservar" abre una búsqueda prellenada:
  * no es una reserva hecha.
  */
-export function CardLinks({ card, onOpen }: { card: ConciergeCard; onOpen?: (url: string) => void }) {
+/** Etiqueta corta para las burbujas compactas (la completa queda como nombre accesible y título). */
+const SHORT_LABEL: Record<CardLink["kind"], string> = {
+  directions: "Cómo llegar", ride: "Uber", call: "Llamar", website: "Sitio", maps: "Maps", booking: "Reservar",
+};
+
+export function CardLinks({ card, onOpen, compact = false, children }: { card: ConciergeCard; onOpen?: (url: string) => void; compact?: boolean; children?: ReactNode }) {
   const links = (card.links ?? []).map(safeCardLink).filter(Boolean) as CardLink[];
-  if (!links.length) return null;
+  if (!links.length && !children) return null;
   return (
-    <div className="mt-3 flex flex-wrap gap-2" data-testid="card-links">
+    <div className="mt-2 flex flex-wrap gap-1.5" data-testid="card-links">
+      {children}
       {links.map((l) => {
         const Icon = LINK_ICON[l.kind] ?? Link2;
         return (
           <a key={`${l.kind}-${l.url}`} href={l.url} target={l.kind === "call" ? undefined : "_blank"} rel="noopener noreferrer"
+            {...(compact ? { "aria-label": l.label, title: l.label } : {})}
             onClick={() => l.kind !== "call" && onOpen?.(l.url)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 px-3 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition min-h-[36px]">
-            <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" /> {l.label}
+            className="inline-flex items-center gap-1 rounded-full border border-primary/30 px-2.5 py-1 text-[11px] text-foreground hover:bg-primary/10 hover:border-primary transition min-h-[32px]">
+            <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" /> {compact ? SHORT_LABEL[l.kind] ?? l.label : l.label}
           </a>
         );
       })}
@@ -349,8 +357,8 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
 
   if (card.type === "flight") {
     return (
-      <div className="rounded-2xl border border-border bg-card p-4" data-card-type="flight">
-        <div className="flex items-start justify-between gap-3 mb-3">
+      <div className={CARD_SHELL} data-card-type="flight">
+        <div className="flex items-start justify-between gap-3 mb-2">
           <div className="flex items-center gap-3 min-w-0">
             {airlineOf(card) ? (
               <AirlineLogo airline={airlineOf(card)} size={36} />
@@ -360,14 +368,14 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
               </div>
             )}
             <div className="min-w-0">
-              <h4 className="font-display text-base leading-tight truncate">{card.title}</h4>
+              <h4 className="text-sm font-medium leading-tight truncate">{card.title}</h4>
               {card.subtitle && <p className="text-xs text-muted-foreground">{card.subtitle}</p>}
             </div>
           </div>
           <PriceBlock card={card} suffix={card.price_basis ?? "total"} />
         </div>
-        {card.meta && <p className="text-xs text-muted-foreground mb-2">{card.meta}</p>}
-        <div className="mb-3"><ProvenanceBadge card={card} /></div>
+        {card.meta && <p className="text-xs text-muted-foreground mb-1.5">{card.meta}</p>}
+        <div className="mb-2"><ProvenanceBadge card={card} /></div>
         <ExternalCta card={card} label={card.cta_label ?? "Ver y comprar"} onOpen={onOpen} className="w-full" />
       </div>
     );
@@ -376,28 +384,32 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
   if (card.type === "hotel" || card.type === "attraction") {
     const Icon = card.type === "hotel" ? BedDouble : Landmark;
     return (
-      <div className="rounded-2xl border border-border bg-card overflow-hidden" data-card-type={card.type}>
-        <MediaHeader card={card} Icon={Icon} />
-        <div className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h4 className="font-display text-lg leading-tight">{card.title}</h4>
-              {card.subtitle && <p className="text-sm text-muted-foreground mb-1">{card.subtitle}</p>}
+      <div className={CARD_SHELL} data-card-type={card.type}>
+        <div className="flex items-start gap-3">
+          <MediaThumb card={card} Icon={Icon} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h4 className="text-sm font-medium leading-tight break-words">{card.title}</h4>
+              {verifiedPrice(card) || savedPrice(card) ? null : <Rating value={card.rating} />}
             </div>
-            <PriceBlock card={card} suffix={card.type === "hotel" ? card.price_basis ?? card.meta ?? undefined : undefined} />
+            {card.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>}
+            {card.meta && card.type !== "hotel" && <p className="text-xs text-primary mt-0.5">{card.meta}</p>}
+            <div className="mt-1.5 flex flex-wrap items-end justify-between gap-2">
+              <ProvenanceBadge card={card} />
+              <PriceBlock card={card} suffix={card.type === "hotel" ? card.price_basis ?? card.meta ?? undefined : undefined} />
+            </div>
           </div>
-          {card.meta && card.type !== "hotel" && <p className="text-xs text-primary mb-2">{card.meta}</p>}
-          <div className="my-3"><ProvenanceBadge card={card} /></div>
-          <ExternalCta card={card} label={card.cta_label ?? (card.type === "hotel" ? "Ver y reservar" : "Ver detalles")} onOpen={onOpen} className="w-full gold-glow" />
-          <CardLinks card={card} onOpen={onOpen} />
         </div>
+        <CardLinks card={card} onOpen={onOpen} compact>
+          <ExternalCta card={card} label={card.cta_label ?? (card.type === "hotel" ? "Ver y reservar" : "Ver detalles")} onOpen={onOpen} className="min-h-[32px] px-3" />
+        </CardLinks>
       </div>
     );
   }
 
   if (card.type === "place") {
     return (
-      <div className="rounded-2xl border border-border bg-card p-4" data-card-type="place">
+      <div className={CARD_SHELL} data-card-type="place">
         <div className="flex items-start gap-3">
           <SmartImage
             alt={card.title}
@@ -407,22 +419,22 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             stockQuery={activityQuery(card.title, cardCity(card))}
             size="thumb"
             icon={MapPin}
-            className="w-20 h-20 rounded-xl shrink-0 ring-1 ring-white/[0.06]"
+            className="w-16 h-16 rounded-xl shrink-0 ring-1 ring-white/[0.06]"
             captionPosition="bottom-left"
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <h4 className="font-display text-base leading-tight">{card.title}</h4>
+              <h4 className="text-sm font-medium leading-tight break-words">{card.title}</h4>
               <Rating value={card.rating} />
             </div>
             {card.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>}
             {card.meta && <p className="text-xs text-primary mt-1">{card.meta}</p>}
-            {card.body && <p className="text-sm text-muted-foreground mt-2">{card.body}</p>}
-            {card.fuente && <p className="text-[10px] text-muted-foreground mt-2">Fuente: {SOURCE_LABEL[String(card.fuente).toLowerCase()] ?? card.fuente}</p>}
+            {card.body && <p className="text-xs text-muted-foreground mt-1">{card.body}</p>}
+            {card.fuente && <p className="text-[10px] text-muted-foreground mt-1">Fuente: {SOURCE_LABEL[String(card.fuente).toLowerCase()] ?? card.fuente}</p>}
           </div>
         </div>
         <CardLinks card={card} onOpen={onOpen} />
-        {!card.links?.length && <div className="mt-3"><ExternalCta card={card} label={card.cta_label ?? "Ver en Google Maps"} onOpen={onOpen} className="h-9 px-3" /></div>}
+        {!card.links?.length && <div className="mt-2"><ExternalCta card={card} label={card.cta_label ?? "Ver en Google Maps"} onOpen={onOpen} /></div>}
       </div>
     );
   }
@@ -430,7 +442,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
   if (card.type === "source") {
     const url = safeHttpsUrl(card.cta_action);
     return (
-      <div className="rounded-2xl border border-border bg-surface/40 p-4" data-card-type="source">
+      <div className={`${CARD_SHELL} bg-surface/40`} data-card-type="source">
         <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Fuente{card.subtitle ? ` · ${card.subtitle}` : ""}</p>
         <h4 className="text-sm font-medium leading-snug">{card.title}</h4>
         {card.body && <p className="text-xs text-muted-foreground mt-1">{card.body}</p>}
@@ -448,18 +460,18 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
       <motion.div
         animate={{ boxShadow: ["0 0 0 hsl(var(--primary)/0)", "0 0 24px hsl(var(--primary)/0.35)", "0 0 0 hsl(var(--primary)/0)"] }}
         transition={{ duration: 3, repeat: Infinity }}
-        className="rounded-2xl border border-primary/60 bg-primary/5 p-4"
+        className="w-full rounded-2xl rounded-tl-md border border-primary/60 bg-primary/5 px-3 py-2.5"
         data-card-type="alert"
       >
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-4 h-4 text-primary" />
+          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-3.5 h-3.5 text-primary" />
           </div>
-          <div className="flex-1">
-            <p className="font-display text-base mb-1">{card.title}</p>
-            <p className="text-sm text-muted-foreground mb-3">{card.body}</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium mb-0.5">{card.title}</p>
+            <p className="text-xs text-muted-foreground mb-2">{card.body}</p>
             {safeHttpsUrl(card.cta_action) ? (
-              <ExternalCta card={card} label={card.cta_label ?? "Abrir"} onOpen={onOpen} className="h-9 px-3" />
+              <ExternalCta card={card} label={card.cta_label ?? "Abrir"} onOpen={onOpen} />
             ) : card.cta_label ? (
               <RequestButton state={req.state} label={card.cta_label}
                 onClick={() => req.run({ type: "alert", title: card.title, payload: { body: card.body } })} className="h-9 px-3 text-sm" />
@@ -473,24 +485,29 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
   if (card.type === "restaurant") {
     const url = safeHttpsUrl(card.cta_action);
     return (
-      <div className="rounded-2xl border border-border bg-card overflow-hidden" data-card-type="restaurant">
-        <MediaHeader card={card} Icon={Utensils} />
-        <div className="p-4">
-          <h4 className="font-display text-lg leading-tight">{card.title}</h4>
-          {card.subtitle && <p className="text-sm text-muted-foreground mb-1">{card.subtitle}</p>}
-          {card.meta && <p className="text-xs text-primary mb-3">{card.meta}</p>}
-          {url ? (
-            <ExternalCta card={card} label={card.cta_label ?? "Reservar"} className="w-full gold-glow" onOpen={onOpen} />
-          ) : (
-            <>
-              <RequestButton state={req.state} label="Pídeselo al Fixer" className="w-full gold-glow"
-                onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
-              <RequestNote {...req} />
-            </>
-          )}
-          <CardLinks card={card} onOpen={onOpen} />
-          <p className="text-[10px] text-muted-foreground mt-2">Aún no está reservado: los enlaces abren la reserva o una búsqueda prellenada.</p>
+      <div className={CARD_SHELL} data-card-type="restaurant">
+        <div className="flex items-start gap-3">
+          <MediaThumb card={card} Icon={Utensils} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h4 className="text-sm font-medium leading-tight break-words">{card.title}</h4>
+              <Rating value={card.rating} />
+            </div>
+            {card.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>}
+            {card.meta && <p className="text-xs text-primary mt-0.5">{card.meta}</p>}
+          </div>
         </div>
+        {/* Un solo renglón de botones (reservar o Fixer + cómo llegar, Uber, reservar, Maps). */}
+        <CardLinks card={card} onOpen={onOpen} compact>
+          {url ? (
+            <ExternalCta card={card} label={card.cta_label ?? "Reservar"} onOpen={onOpen} className="min-h-[32px] px-3" />
+          ) : (
+            <RequestButton state={req.state} label="Pídeselo al Fixer" className="h-8 px-3 text-[11px] rounded-full"
+              onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
+          )}
+        </CardLinks>
+        {!url && req.state !== "idle" && <RequestNote {...req} />}
+        <p className="text-[10px] text-muted-foreground mt-1" title="Los enlaces abren la reserva o una búsqueda prellenada; el Fixer es una solicitud a un humano.">Aún no está reservado.</p>
       </div>
     );
   }
@@ -498,27 +515,27 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
   if (card.type === "transport") {
     const url = safeHttpsUrl(card.cta_action);
     return (
-      <div className="rounded-2xl border border-border bg-card p-4" data-card-type="transport">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-            <Car className="w-5 h-5 text-primary" />
+      <div className={CARD_SHELL} data-card-type="transport">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+            <Car className="w-4 h-4 text-primary" />
           </div>
-          <div>
-            <h4 className="font-display text-base leading-tight">{card.title}</h4>
+          <div className="min-w-0">
+            <h4 className="text-sm font-medium leading-tight">{card.title}</h4>
             {card.subtitle && <p className="text-xs text-muted-foreground">{card.subtitle}</p>}
           </div>
         </div>
-        {card.meta && <p className="text-xs text-muted-foreground mb-3">{card.meta}</p>}
+        {card.meta && <p className="text-xs text-muted-foreground mb-2">{card.meta}</p>}
         {/* B-17: cada card abre SU enlace (Welcome Pickups, Blacklane, Maps…). Solo sin enlace se
             arma uno de Welcome Pickups con origen y destino de la card. */}
         {card.links?.length ? (
           <CardLinks card={card} onOpen={onOpen} />
         ) : url ? (
           <AffiliateActionButton type="custom_link" userId={user?.id} tripId={tripId ?? null} label={card.cta_label ?? "Abrir"}
-            payload={{ url, provider: card.provider ?? new URL(url).hostname, accion: "concierge_transport" }} className="h-10 text-sm" />
+            payload={{ url, provider: card.provider ?? new URL(url).hostname, accion: "concierge_transport" }} className="h-9 text-xs" />
         ) : (
           <AffiliateActionButton type="welcome_pickups_transfer" userId={user?.id} tripId={tripId ?? null} label={card.cta_label ?? "Reservar transfer"}
-            payload={{ origen: card.subtitle?.split("→")[0]?.trim(), destino: card.subtitle?.split("→")[1]?.trim() ?? card.title }} className="h-10 text-sm" />
+            payload={{ origen: card.subtitle?.split("→")[0]?.trim(), destino: card.subtitle?.split("→")[1]?.trim() ?? card.title }} className="h-9 text-xs" />
         )}
       </div>
     );
@@ -526,8 +543,8 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
 
   if (card.type === "luggage") {
     return (
-      <div className="rounded-2xl border border-primary/30 bg-card overflow-hidden" data-card-type="luggage">
-        <div className="relative h-28 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 flex items-center px-5">
+      <div className="w-full rounded-2xl rounded-tl-md border border-primary/30 bg-card overflow-hidden" data-card-type="luggage">
+        <div className="relative h-16 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 flex items-center px-5">
           <div className="absolute inset-0 opacity-30" style={{
             backgroundImage: "radial-gradient(circle at 10% 50%, hsl(var(--primary)/0.4), transparent 30%), radial-gradient(circle at 90% 50%, hsl(var(--primary)/0.4), transparent 30%)",
           }} />
@@ -543,13 +560,13 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             </div>
           </div>
         </div>
-        <div className="p-4">
+        <div className="px-3 py-2.5">
           <div className="flex items-center gap-2 mb-1">
             <Luggage className="w-4 h-4 text-primary" />
-            <h4 className="font-display text-base">{card.title}</h4>
+            <h4 className="text-sm font-medium">{card.title}</h4>
           </div>
-          <div className="mb-3"><ProvenanceBadge card={{ ...card, estado_dato: "SOLICITUD_HUMANA" }} /></div>
-          <RequestButton state={req.state} label="Solicitar cotización" className="w-full"
+          <div className="mb-2"><ProvenanceBadge card={{ ...card, estado_dato: "SOLICITUD_HUMANA" }} /></div>
+          <RequestButton state={req.state} label="Solicitar cotización" className="h-9 px-3.5 text-xs rounded-full"
             onClick={() => req.run({ type: "pickup", title: card.title, payload: { from: card.from, to: card.to } })} />
           <RequestNote {...req} />
         </div>
@@ -559,8 +576,8 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
 
   if (card.type === "jet") {
     return (
-      <div className="rounded-2xl border border-primary/50 bg-gradient-to-br from-stone-950 via-stone-900 to-black overflow-hidden gold-glow" data-card-type="jet">
-        <div className="relative h-36 flex items-center justify-center overflow-hidden">
+      <div className="w-full rounded-2xl rounded-tl-md border border-primary/50 bg-gradient-to-br from-stone-950 via-stone-900 to-black overflow-hidden" data-card-type="jet">
+        <div className="relative h-20 flex items-center justify-center overflow-hidden">
           {/* Foto ilustrativa (marcada): no hay proveedor de jets conectado ni avión asignado. */}
           <SmartImage alt="" stockQuery="private jet luxury" icon={Plane} className="!absolute inset-0" captionPosition="bottom-right">
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20" />
@@ -569,14 +586,14 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             Aviación privada
           </span>
         </div>
-        <div className="p-4">
-          <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1">Solicitud de cotización</p>
-          <h4 className="font-display text-lg mb-1">{card.title}</h4>
+        <div className="px-3 py-2.5">
+          <p className="text-[10px] tracking-[0.2em] text-primary uppercase mb-0.5">Solicitud de cotización</p>
+          <h4 className="text-sm font-medium mb-0.5">{card.title}</h4>
           {card.route && <p className="text-sm text-muted-foreground">{card.route}</p>}
           {card.fbo && <p className="text-xs text-muted-foreground">FBO sugerido: {card.fbo}</p>}
           {/* Sin proveedor de jets conectado no hay precio ni disponibilidad que mostrar. */}
-          <div className="my-3"><ProvenanceBadge card={{ ...card, estado_dato: "SOLICITUD_HUMANA" }} /></div>
-          <RequestButton state={req.state} label="Solicitar cotización" className="w-full gold-glow"
+          <div className="my-2"><ProvenanceBadge card={{ ...card, estado_dato: "SOLICITUD_HUMANA" }} /></div>
+          <RequestButton state={req.state} label="Solicitar cotización" className="h-9 px-3.5 text-xs rounded-full"
             onClick={() => req.run({ type: "jet", title: card.title, payload: { route: card.route, fbo: card.fbo } })} />
           <RequestNote {...req} />
         </div>
@@ -586,8 +603,8 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
 
   // Tipo desconocido (versión vieja del servidor): título y enlace, en vez de desaparecer.
   return (
-    <div className="rounded-2xl border border-border bg-card p-4" data-card-type="generic">
-      <h4 className="font-display text-base leading-tight">{card.title}</h4>
+    <div className={CARD_SHELL} data-card-type="generic">
+      <h4 className="text-sm font-medium leading-tight">{card.title}</h4>
       {card.subtitle && <p className="text-xs text-muted-foreground mb-2">{card.subtitle}</p>}
       <ExternalCta card={card} label={card.cta_label ?? "Abrir"} onOpen={onOpen} />
     </div>

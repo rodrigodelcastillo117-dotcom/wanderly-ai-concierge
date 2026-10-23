@@ -9,6 +9,7 @@ import { prepareToolResultForModel, type ToolRun } from "./cards.ts";
 import type { ChatMessage } from "./guard.ts";
 import { type FinalTurn, finalizeTurn } from "./finalize.ts";
 import type { ActionContext } from "./actions.ts";
+import type { TripPosition, UserLocation } from "./location.ts";
 import { joinLead, leadSentence, leadSeparator, toolOutcome, toolStatusText, type TurnPlan } from "./planner.ts";
 import { type CircuitBreaker, type ConciergeModelConfig, providerChain, type Route } from "./router.ts";
 import { compactHistory, prefetchBlock } from "./prompt.ts";
@@ -37,6 +38,8 @@ export interface TurnDeps {
   city?: string;
   party?: number;
   exigente: boolean;
+  /** Viaje en contexto y ubicación del usuario: regla de "Agregar a tu viaje" (location.ts). */
+  tripScope?: { trip: any | null; position: TripPosition; user?: UserLocation | null } | null;
   hasAnthropicKey: boolean;
   hasLovableKey: boolean;
   now?: () => number;
@@ -147,6 +150,7 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
   const final = finalizeTurn({
     raw: agent.finalText, toolRuns: agent.toolRuns, plan: d.plan, actionCtx: d.actionCtx,
     requestIntel: d.requestIntel, hasConfirmedBookings: d.hasConfirmedBookings, city: d.city, party: d.party,
+    exigente: d.exigente, userMessage: d.userMessage, tripScope: d.tripScope ?? null,
   });
   if (shownLead) final.text = joinLead(shownLead, final.text);
   return { final, agent, prefetched, prefetchMs, totalMs: now() - t0, lead: shownLead, leadMs };

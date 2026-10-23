@@ -137,14 +137,24 @@ describe("UX10-11 · Concierge: la ubicación no se queda 'Detectando…' para s
 });
 
 describe("UX10-03 · Concierge en pantallas bajas", () => {
-  it("los atajos van en una fila desplazable en móvil para que el compositor no quede bajo la barra", () => {
+  // Antes (UX10-03): una fila horizontal desplazable para que el compositor no quedara bajo la barra.
+  // El dueño (23-oct-2026) pidió los atajos "de arriba a abajo": ahora son una lista vertical en el
+  // hilo vacío o en un panel que abre "Atajos"; el compositor sigue con UN renglón de herramientas
+  // (Atajos + Modo exigente) sobre la caja, así no crece en pantallas bajas. Las capturas a 390×667
+  // (scripts/concierge/ui_evidence.mjs) verifican que el compositor queda sobre la barra inferior.
+  it("los atajos van en lista vertical (sin fila cortada) y el compositor no crece bajo la barra", () => {
     const src = read("src/pages/Concierge.tsx");
-    expect(src).toMatch(/className="flex flex-nowrap overflow-x-auto sm:flex-wrap/);
-    expect(src).toMatch(/className="flex shrink-0 whitespace-nowrap items-center gap-1.5 px-3 min-h-\[36px\] rounded-full/);
-    // Modo exigente: renglón propio solo en sm+; en móvil es el primer atajo de la fila.
-    expect(src).toMatch(/<div className="hidden sm:flex items-center justify-between gap-2 mb-2">/);
-    expect(src).toMatch(/<div className="sm:hidden flex shrink-0 items-center gap-1">\n\s+\{exigenteControls\}/);
-    expect(src).toMatch(/pb-3 sm:pb-6 pt-3/);
+    expect(src).not.toMatch(/overflow-x-auto/);
+    expect(src).toMatch(/<ul className="flex flex-col gap-1" aria-label=\{title\}>/);
+    expect(src).toMatch(/className="flex w-full items-center gap-2\.5 px-3 min-h-\[40px\] rounded-xl/);
+    // Sin conversación: en el hilo; con conversación: panel que abre "Atajos" (sobre el compositor).
+    expect(src).toMatch(/\{chatEmpty && \(/);
+    expect(src).toMatch(/aria-controls="concierge-shortcuts-panel"/);
+    expect(src).toMatch(/max-h-\[min\(60vh,420px\)\] overflow-y-auto/);
+    // Un solo renglón de herramientas sobre la caja (Atajos + Modo exigente), en móvil y escritorio.
+    expect(src).toMatch(/<div className="flex items-center justify-between gap-2 mb-1\.5" data-testid="composer-tools">/);
+    expect(src).toMatch(/<div className="flex items-center gap-1 ml-auto">\n\s+\{exigenteControls\}/);
+    expect(src).toMatch(/pb-2 sm:pb-4 pt-2/);
     expect(src).toMatch(/aria-pressed=\{godMode\}/);
   });
 });

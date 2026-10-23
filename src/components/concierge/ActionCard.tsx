@@ -80,14 +80,15 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
   if (state === "cancelled") return null;
   const Icon = action.type === "open_emergency" ? Siren : action.type === "export_calendar" ? CalendarPlus : Sparkles;
   return (
-    <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4" data-card-type="action" data-action-type={action.type}>
-      <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-          <Icon className="w-4 h-4 text-primary" aria-hidden="true" />
+    // Burbuja compacta dentro del hilo (chat estilo WhatsApp): resumen y dos botones en una fila.
+    <div className="w-full rounded-2xl rounded-tl-md border border-primary/40 bg-primary/5 px-3 py-2.5" data-card-type="action" data-action-type={action.type}>
+      <div className="flex items-start gap-2.5">
+        <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+          <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] tracking-[0.25em] uppercase text-primary mb-1">Iato propone</p>
-          <p className="text-sm leading-snug">{action.summary}</p>
+          <p className="text-[10px] tracking-[0.2em] uppercase text-primary">Iato propone</p>
+          <p className="text-sm leading-snug break-words">{action.summary}</p>
           {action.note && <p className="text-[11px] text-muted-foreground mt-1">{action.note}</p>}
           {message && (
             <p role="status" className={`text-xs mt-2 ${state === "error" ? "text-destructive" : "text-foreground"}`}>
@@ -98,14 +99,14 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
             </p>
           )}
           {state !== "done" && (
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-wrap gap-2 mt-2">
               <button type="button" onClick={confirm} disabled={state === "running"}
-                className="inline-flex items-center gap-1.5 rounded-full bg-gradient-gold text-primary-foreground px-4 min-h-[40px] text-sm font-medium disabled:opacity-60">
+                className="inline-flex items-center gap-1.5 rounded-full bg-gradient-gold text-primary-foreground px-3.5 min-h-[36px] text-xs font-medium disabled:opacity-60">
                 {state === "running" ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Check className="w-4 h-4" aria-hidden="true" />}
                 {state === "error" ? "Reintentar" : action.confirm_label || "Confirmar"}
               </button>
               <button type="button" onClick={() => setState("cancelled")} disabled={state === "running"}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 min-h-[40px] text-sm text-muted-foreground hover:text-foreground">
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 min-h-[36px] text-xs text-muted-foreground hover:text-foreground">
                 <X className="w-4 h-4" aria-hidden="true" /> Cancelar
               </button>
             </div>

@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, Send, Sparkles, MapPin, Utensils, Car, Siren,
-  Plane, Luggage, Crown, RefreshCw, Check, AlertCircle, Loader2, Info, Compass,
+  Plane, Luggage, Crown, RefreshCw, Check, AlertCircle, Loader2, Info, Compass, Zap, X,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ConciergeActions } from "@/components/ConciergeActions";
@@ -31,6 +31,7 @@ import { buildChips, welcomeText, type Chip, type ChipIcon } from "@/lib/concier
 import { ActionCard } from "@/components/concierge/ActionCard";
 import type { ProposedAction } from "../../supabase/functions/concierge-chat/actions.ts";
 import { conciergeLocationLabel, GEO_GIVE_UP_MS, type LocationState } from "@/lib/conciergeLocation";
+import { tripPhaseLabel, tripSituation } from "../../supabase/functions/concierge-chat/location.ts";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -54,6 +55,8 @@ type Msg = {
   steps?: Step[];
   streaming?: boolean;
   exigente?: boolean;
+  /** El usuario estaba fuera de los destinos del viaje: la respuesta es local, no "sobre tu viaje". */
+  local?: boolean;
 };
 
 const PIN_KEY = "iatos_concierge_trip";
@@ -113,6 +116,8 @@ const Concierge = () => {
     try { return localStorage.getItem("iatos_god_mode") === "1"; } catch { return false; }
   });
   const [showExigenteInfo, setShowExigenteInfo] = useState(false);
+  // Atajos con conversación: lista vertical que se abre con "Atajos" (sin conversación van en el hilo).
+  const [showShortcuts, setShowShortcuts] = useState(false);
   useEffect(() => {
     try { localStorage.setItem("iatos_god_mode", godMode ? "1" : "0"); } catch { /* modo privado */ }
   }, [godMode]);
@@ -167,7 +172,17 @@ const Concierge = () => {
     [trips, pinnedId, todayLocal],
   );
   const trip = tripContext.trip;
-  const chips = useMemo(() => buildChips(trip as any, todayLocal), [trip, todayLocal]);
+  // Dónde está el usuario frente al viaje: el día de salida, aún en su ciudad, el viaje "sale hoy"
+  // (no "en curso") y "Cena cerca" es cerca de donde está, no del hotel del viaje (22-oct-2026).
+  const situation = useMemo(
+    () => tripSituation(trip, todayLocal, { coords: currentCoords, place: weather?.place && weather.place !== "Tu ubicación" ? weather.place : null }),
+    [trip, todayLocal, currentCoords, weather?.place],
+  );
+  const away = situation?.position === "away";
+  const phaseHint = trip && situation && (situation.phase === "por_salir" || tripContext.reason === "in_progress")
+    ? tripPhaseLabel(situation.phase, trip, todayLocal) || null
+    : null;
+  const chips = useMemo(() => buildChips(trip as any, todayLocal, { away }), [trip, todayLocal, away]);
 
   // E-13: al abrir (o recargar) el chat se muestra la última conversación del viaje activo, que
   // concierge-chat ya guarda en concierge_conversations. Solo si el usuario aún no escribió nada.
@@ -254,13 +269,8 @@ const Concierge = () => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
-  const localTimeContext = useMemo(() => {
-    const h = new Date().getHours();
-    if (h < 12) return "Mañana libre";
-    if (h < 18) return "Tarde libre en tu itinerario";
-    return "Noche disponible";
-  }, []);
-
+  // "Tu ubicación" es el respaldo del texto, no un lugar: no se manda como si lo fuera.
+  const realPlace = weather?.place && weather.place !== "Tu ubicación" ? weather.place : undefined;
   const patchMsg = (id: string, fn: (m: Msg) => Msg) => setMessages((prev) => prev.map((m) => (m.id === id ? fn(m) : m)));
 
   const sendText = async (text: string, opts: { tripId?: string | null; intent?: string } = {}) => {
@@ -295,7 +305,7 @@ const Concierge = () => {
           intent: opts.intent,
           client_date: localISODate(),
           tz: browserTimeZone(),
-          context: { coords: currentCoords, place: weather?.place },
+          context: { coords: currentCoords, place: realPlace },
         },
       }, {
         onMeta: (d) => patchMsg(replyId, (m) => ({ ...m, tripId: (d._trip_id as string) ?? null, exigente: d._exigente === true })),
@@ -316,6 +326,7 @@ const Concierge = () => {
           tripId: data._trip_id ?? null,
           tripReason: data._trip_reason,
           tripCandidates: Array.isArray(data._trip_candidates) ? data._trip_candidates : [],
+          local: data._user_position === "away",
         })),
       });
     } catch (e: any) {
@@ -346,6 +357,7 @@ const Concierge = () => {
   };
 
   const onChip = (c: Chip) => {
+    setShowShortcuts(false);
     if (c.opens === "emergency") { setLiveAction("emergency"); return; }
     if (c.text) void sendText(c.text, { intent: c.intent });
   };
@@ -397,15 +409,20 @@ const Concierge = () => {
   }
   if (!allowed) return null;
 
-  // Modo exigente: mismo control en dos lugares. En sm+ va en su renglón; en móvil es el primer
-  // atajo de la fila (un renglón propio restaba 40 px y el compositor quedaba bajo la barra inferior).
+  // Sin conversación (solo el saludo): los atajos van en el hilo, en lista vertical. Con conversación
+  // se abren con el botón "Atajos", también en vertical (antes: una fila horizontal que se cortaba).
+  const chatEmpty = !messages.some((m) => m.role === "user");
+
+  // Modo exigente (god_mode en el servidor): modelo más capaz, compara más opciones y deja el plan
+  // A/B/C con fuentes. No reserva por sí solo y no promete disponibilidad.
   const exigenteControls = (
     <>
       <button
         type="button"
         onClick={() => setShowExigenteInfo((v) => !v)}
         aria-label="¿Qué hace el Modo exigente?"
-        className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground"
+        aria-expanded={showExigenteInfo}
+        className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground"
       >
         <Info className="w-4 h-4" aria-hidden="true" />
       </button>
@@ -413,15 +430,15 @@ const Concierge = () => {
         type="button"
         onClick={() => setGodMode(g => !g)}
         aria-pressed={godMode}
-        className={`relative flex items-center gap-2 px-3 min-h-[36px] rounded-full border transition text-xs ${
+        className={`relative flex shrink-0 items-center gap-1.5 px-3 min-h-[32px] rounded-full border transition text-xs ${
           godMode
             ? "border-primary bg-gradient-gold text-primary-foreground shadow-[0_0_24px_-4px_hsl(var(--primary)/0.7)]"
             : "border-border text-muted-foreground hover:border-primary/40"
         }`}
       >
         <Crown className="w-3.5 h-3.5" aria-hidden="true" />
-        Modo exigente <span className="hidden sm:inline">· lo mejor de lo mejor</span>
-        {godMode && <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">ON</span>}
+        Modo exigente
+        {godMode && <span className="ml-0.5 rounded-full bg-black/20 px-1.5 text-[10px]">ON</span>}
       </button>
     </>
   );
@@ -429,59 +446,55 @@ const Concierge = () => {
   return (
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
-        {/* CONTEXT HEADER (del chat; en Members Only se oculta para que la curaduría quepa sin bajar) */}
-        <div className={`px-4 md:px-8 pt-6 pb-3 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur ${tab === "members" ? "hidden" : ""}`}>
-          <div className="flex items-start justify-between gap-3 flex-wrap">
+        {/* ENCABEZADO compacto del chat (en Members Only se oculta para que la curaduría quepa sin bajar):
+            título en una línea y, debajo, ubicación · viaje en contexto · actualizar · memoria, todo en
+            un renglón que se recorta en vez de desbordarse. */}
+        <div className={`px-3 md:px-6 lg:pr-28 pt-2 pb-2 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur ${tab === "members" ? "hidden" : ""}`}>
+          <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               {/* Encabezado según el plan real: a cuentas gratis ya no les dice "Concierge PRO". */}
-              <ConciergeHeading />
-              <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
-                <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
-                  {conciergeLocationLabel(geoState, weather)}
-                </span>
-                <TripContextSelector
-                  trips={trips}
-                  todayLocal={todayLocal}
-                  pinnedId={pinnedId}
-                  resolved={tripContext}
-                  onChange={(id) => void pinTrip(id)}
-                />
-                <span className="hidden sm:inline">|</span>
-                <span>{localTimeContext}</span>
-                <span className="hidden sm:inline">|</span>
-                <button
-                  onClick={() => setRefreshTick(t => t + 1)}
-                  className="flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary transition"
-                  title={`Actualizado ${lastRefresh.toLocaleTimeString()}`}
-                >
-                  <RefreshCw className="w-3 h-3" /> Auto-refresh 60s
-                </button>
-                {user && (
-                  <>
-                    <span className="hidden sm:inline">|</span>
-                    <IatoMemoryPanel userId={user.id} trips={trips} />
-                  </>
-                )}
-              </div>
-
+              <ConciergeHeading compact />
             </div>
-
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <TravelerAvatar compact />
               <FixerButton
                 trip={trip}
                 ultimosTurnos={messages.slice(-6).map((m) => ({ role: m.role, content: m.text }))}
               />
             </div>
-
+          </div>
+          <div className="mt-1.5 flex items-center gap-2 min-w-0 text-[11px] text-muted-foreground" data-testid="concierge-context">
+            <span className="flex min-w-0 max-w-[40%] items-center gap-1" title={conciergeLocationLabel(geoState, weather)}>
+              <MapPin className="w-3.5 h-3.5 shrink-0 text-primary" aria-hidden="true" />
+              <span className="truncate">{conciergeLocationLabel(geoState, weather)}</span>
+            </span>
+            <TripContextSelector
+              trips={trips}
+              todayLocal={todayLocal}
+              pinnedId={pinnedId}
+              resolved={tripContext}
+              onChange={(id) => void pinTrip(id)}
+              phaseHint={phaseHint}
+              className="flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => setRefreshTick(t => t + 1)}
+              aria-label="Actualizar ubicación y viajes (se actualiza solo cada minuto)"
+              title={`Se actualiza solo cada minuto · última vez ${lastRefresh.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`}
+              className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-primary/80 hover:text-primary hover:bg-primary/10 transition"
+            >
+              <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+            {user && <IatoMemoryPanel compact userId={user.id} trips={trips} />}
           </div>
         </div>
 
         {/* TABS: Chat / Members Only */}
-        <div className="px-4 md:px-8 pt-3 border-b border-border bg-background/60 backdrop-blur flex gap-1">
+        <div className="px-3 md:px-6 border-b border-border bg-background/60 backdrop-blur flex gap-1">
           <button
             onClick={() => switchTab("chat")}
-            className={`relative px-4 py-2.5 text-sm tracking-wide transition ${
+            className={`relative px-3 py-2 text-sm tracking-wide transition ${
               tab === "chat" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -490,7 +503,7 @@ const Concierge = () => {
           </button>
           <button
             onClick={() => switchTab("members")}
-            className={`relative px-4 py-2.5 text-sm tracking-wide transition ${
+            className={`relative px-3 py-2 text-sm tracking-wide transition ${
               tab === "members" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -518,80 +531,85 @@ const Concierge = () => {
           </div>
         ) : (
           <>
-        {/* CHAT STREAM */}
-        <div ref={scrollRef} tabIndex={0} role="region" aria-label="Conversación con Iato" className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40">
+        {/* HILO estilo WhatsApp: Iato a la izquierda, tú a la derecha, con hora. Se desplaza solo al
+            último mensaje. */}
+        <div ref={scrollRef} tabIndex={0} role="region" aria-label="Conversación con Iato" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 md:px-6 py-3 space-y-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40">
 
           {messages.map(m => (
             <MessageBubble key={m.id} msg={m.id === "welcome" ? { ...m, text: welcomeText(trip as any) } : m} trips={trips}
               onChooseTrip={chooseTripAndRetry} disabled={sending} onOpenEmergency={() => setLiveAction("emergency")} />
           ))}
+          {chatEmpty && (
+            <div className="flex justify-start">
+              <div className="w-full max-w-[85%] sm:max-w-sm">
+                <ShortcutList chips={chips} onChip={onChip} sending={sending} title="Atajos" />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* SMART CHIPS + INPUT */}
-        <div className="px-4 md:px-8 pb-3 sm:pb-6 pt-3 border-t border-border bg-background/80 backdrop-blur">
-          {/* Modo exigente (god_mode en el servidor): modelo más capaz, compara más opciones y deja el
-              plan A/B/C con fuentes. No reserva por sí solo y no promete disponibilidad. */}
-          <div className="hidden sm:flex items-center justify-between gap-2 mb-2">
-            <p className="text-[11px] text-muted-foreground">Iato propone; tú confirmas. Nada se reserva sin ti.</p>
-            <div className="flex items-center gap-1 ml-auto">
-              {exigenteControls}
+        {/* COMPOSITOR fijo abajo: atajos (con conversación) y Modo exigente en un renglón; caja de texto
+            con micrófono y enviar. */}
+        <div className="relative px-3 md:px-6 pb-2 sm:pb-4 pt-2 border-t border-border bg-background/80 backdrop-blur">
+          {showShortcuts && !chatEmpty && (
+            <div
+              id="concierge-shortcuts-panel"
+              className="absolute bottom-full left-3 right-3 md:left-6 md:right-auto md:w-80 mb-2 z-20 max-h-[min(60vh,420px)] overflow-y-auto rounded-2xl shadow-2xl"
+            >
+              <ShortcutList chips={chips} onChip={onChip} sending={sending} title="Atajos" onClose={() => setShowShortcuts(false)} />
             </div>
-          </div>
-          {(showExigenteInfo || godMode) && (
-            // En móvil la nota solo aparece si la piden (ⓘ): siempre visible empujaba el compositor bajo la barra.
-            <div className={`mb-3 rounded-xl border px-3 py-2 text-[11px] leading-relaxed ${godMode ? "border-primary/50 bg-primary/10 text-foreground" : "border-border text-muted-foreground"} ${showExigenteInfo ? "" : "hidden sm:block"}`} role="note">
+          )}
+          {showExigenteInfo && (
+            <div className={`mb-2 rounded-xl border px-3 py-2 text-[11px] leading-relaxed ${godMode ? "border-primary/50 bg-primary/10 text-foreground" : "border-border text-muted-foreground"}`} role="note">
               <strong className="text-primary">Modo exigente{godMode ? " activado" : ""}:</strong> Iato usa su modelo más capaz, compara más opciones en paralelo
               y te da <em>la mejor, la alternativa y el plan B</em> con fuentes y contras, más acciones listas para confirmar.
               Tarda unos segundos más y cada mensaje cuenta igual que uno normal.
             </div>
           )}
-
-          {/* Botones rápidos con el viaje activo (vuelo de hoy, hotel, destino). En móvil una sola fila
-              con desplazamiento horizontal: en varias filas empujaban el compositor debajo de la barra
-              inferior en pantallas de 667 px de alto (iPhone SE/8). */}
-          <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap sm:overflow-visible items-center gap-2 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0">
-            <div className="sm:hidden flex shrink-0 items-center gap-1">
+          <div className="flex items-center justify-between gap-2 mb-1.5" data-testid="composer-tools">
+            {chatEmpty ? (
+              <p className="hidden sm:block min-w-0 truncate text-[11px] text-muted-foreground">Iato propone; tú confirmas. Nada se reserva sin ti.</p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowShortcuts((v) => !v)}
+                aria-expanded={showShortcuts}
+                aria-controls="concierge-shortcuts-panel"
+                className={`flex shrink-0 items-center gap-1.5 px-3 min-h-[32px] rounded-full border text-xs transition ${showShortcuts ? "border-primary bg-primary/10 text-foreground" : "border-primary/30 text-foreground hover:bg-primary/10"}`}
+              >
+                <Zap className="w-3.5 h-3.5 text-primary" aria-hidden="true" /> Atajos
+              </button>
+            )}
+            <div className="flex items-center gap-1 ml-auto">
               {exigenteControls}
             </div>
-            {chips.map((c) => {
-              const Icon = CHIP_ICONS[c.icon];
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => onChip(c)}
-                  disabled={sending && !c.opens}
-                  className="flex shrink-0 whitespace-nowrap items-center gap-1.5 px-3 min-h-[36px] rounded-full border border-primary/30 text-xs text-foreground hover:bg-primary/10 hover:border-primary transition disabled:opacity-50"
-                >
-                  <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-                  {c.label}
-                </button>
-              );
-            })}
           </div>
 
-          <div className="flex items-end gap-2 rounded-2xl border border-primary/30 bg-card p-2 focus-within:border-primary transition">
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendText(input);
-                }
-              }}
-              placeholder={listening ? "Escuchando…" : "Háblame o escribe lo que necesitas…"}
-              aria-label="Mensaje para Iato"
-              className="flex-1 min-h-[44px] max-h-32 border-0 bg-transparent resize-none focus-visible:ring-0"
-            />
+          <div className="flex items-end gap-2">
+            <div className="flex-1 min-w-0 rounded-3xl border border-primary/30 bg-card px-2 focus-within:border-primary transition">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendText(input);
+                  }
+                }}
+                rows={1}
+                placeholder={listening ? "Escuchando…" : "Escribe o dicta lo que necesitas…"}
+                aria-label="Mensaje para Iato"
+                className="min-h-[44px] max-h-32 border-0 bg-transparent resize-none py-3 focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </div>
             <button
               onClick={toggleMic}
-              className={`shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition ${
+              className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition ${
                 listening
                   ? "bg-destructive text-destructive-foreground animate-pulse"
                   : "bg-gradient-gold text-primary-foreground gold-glow hover:opacity-90"
               }`}
-              title="Mantén pulsado para dictar"
+              title="Toca para dictar"
               aria-label={listening ? "Detener dictado" : "Dictar por voz"}
             >
               <Mic className="w-5 h-5" />
@@ -600,7 +618,7 @@ const Concierge = () => {
               onClick={() => sendText(input)}
               disabled={!input.trim() || sending}
               aria-label="Enviar mensaje"
-              className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40"
+              className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40"
             >
               <Send className="w-5 h-5" />
             </button>
@@ -609,10 +627,6 @@ const Concierge = () => {
           </>
         )}
 
-
-
-        {/* FIXER MODAL — ahora dentro de <FixerButton /> */}
-
         <ConciergeActions open={!!liveAction} kind={liveAction} onClose={() => setLiveAction(null)} />
         <FlightStatusDialog open={showFlight} onClose={() => setShowFlight(false)} />
       </div>
@@ -620,74 +634,132 @@ const Concierge = () => {
   );
 };
 
+/** Atajos en lista vertical, de arriba hacia abajo: nada queda cortado en el celular. */
+function ShortcutList({ chips, onChip, sending, title, onClose }: {
+  chips: Chip[]; onChip: (c: Chip) => void; sending: boolean; title: string; onClose?: () => void;
+}) {
+  return (
+    <div className={`rounded-2xl border border-border bg-card p-2 ${onClose ? "" : "rounded-tl-md"}`} data-testid="concierge-shortcuts">
+      <div className="flex items-center justify-between px-1 pb-1">
+        <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{title}</p>
+        {onClose && (
+          <button type="button" onClick={onClose} aria-label="Cerrar atajos" className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground">
+            <X className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      <ul className="flex flex-col gap-1" aria-label={title}>
+        {chips.map((c) => {
+          const Icon = CHIP_ICONS[c.icon];
+          return (
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => onChip(c)}
+                disabled={sending && !c.opens}
+                className="flex w-full items-center gap-2.5 px-3 min-h-[40px] rounded-xl border border-primary/20 text-left text-xs text-foreground hover:bg-primary/10 hover:border-primary transition disabled:opacity-50"
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0 text-primary" aria-hidden="true" />
+                <span className="min-w-0 break-words">{c.label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function StepList({ steps, streaming, hasText }: { steps: Step[]; streaming?: boolean; hasText: boolean }) {
   if (!steps.length && !(streaming && !hasText)) return null;
   return (
     <ul className="space-y-1 text-xs" aria-live="polite" data-testid="iato-steps">
       {steps.map((st) => (
         <li key={st.id} className={`flex items-center gap-1.5 ${st.state === "running" ? "text-foreground" : "text-muted-foreground"}`}>
-          {st.state === "running" ? <Loader2 className="w-3 h-3 animate-spin text-primary" aria-hidden="true" />
-            : st.state === "done" ? <Check className="w-3 h-3 text-primary" aria-hidden="true" />
-              : <AlertCircle className="w-3 h-3 text-amber-500" aria-hidden="true" />}
+          {st.state === "running" ? <Loader2 className="w-3 h-3 shrink-0 animate-spin text-primary" aria-hidden="true" />
+            : st.state === "done" ? <Check className="w-3 h-3 shrink-0 text-primary" aria-hidden="true" />
+              : <AlertCircle className="w-3 h-3 shrink-0 text-amber-500" aria-hidden="true" />}
           <span>{st.text}</span>
         </li>
       ))}
       {streaming && !hasText && !steps.some((x) => x.state === "running") && (
         <li className="flex items-center gap-1.5 text-muted-foreground">
-          <Loader2 className="w-3 h-3 animate-spin text-primary" aria-hidden="true" /> Iato está revisando tu viaje…
+          <Loader2 className="w-3 h-3 animate-spin text-primary" aria-hidden="true" /> Iato está escribiendo…
         </li>
       )}
     </ul>
   );
 }
 
+/** Hora del mensaje ("20:31"); si no es de hoy, con fecha ("22 oct, 20:31"). Sin hora conocida, nada. */
+function bubbleTime(ts: number, now: Date = new Date()): string {
+  if (!ts || !Number.isFinite(ts)) return "";
+  const d = new Date(ts);
+  const hm = d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
+  if (d.toDateString() === now.toDateString()) return hm;
+  return `${d.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "")}, ${hm}`;
+}
+
 const MessageBubble = ({ msg, trips, onChooseTrip, disabled, onOpenEmergency }: {
   msg: Msg; trips: ContextTrip[]; onChooseTrip: (id: string) => void; disabled?: boolean; onOpenEmergency?: () => void;
 }) => {
   const isUser = msg.role === "user";
-  const aboutTrip = !isUser && msg.tripId ? trips.find((t) => t.id === msg.tripId) : null;
+  const aboutTrip = !isUser && msg.tripId && !msg.local ? trips.find((t) => t.id === msg.tripId) : null;
+  const time = bubbleTime(msg.ts);
+  const showSteps = !isUser && ((msg.steps?.length ?? 0) > 0 || (msg.streaming && !msg.text.trim()));
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+      data-testid={isUser ? "bubble-user" : "bubble-iato"}
     >
-      <div className={`max-w-[92%] md:max-w-[75%] space-y-3 ${isUser ? "items-end" : "items-start"}`}>
-        {!isUser && <StepList steps={msg.steps ?? []} streaming={msg.streaming} hasText={!!msg.text.trim()} />}
-        {msg.text && (
+      <div className={`flex min-w-0 flex-col gap-1.5 max-w-[85%] md:max-w-[70%] ${isUser ? "items-end" : "items-start"}`}>
+        {(msg.text || showSteps) && (
           <div className={
             isUser
-              ? "rounded-2xl rounded-br-sm px-4 py-2.5 bg-primary text-primary-foreground text-sm"
-              : "text-foreground text-sm md:text-base leading-relaxed"
+              ? "rounded-2xl rounded-br-md px-3 py-2 bg-primary text-primary-foreground text-sm leading-snug break-words"
+              : "rounded-2xl rounded-tl-md px-3 py-2 border border-border bg-card text-foreground text-sm leading-snug break-words min-w-0"
           }>
-            {!isUser && (
-              <div className="flex items-center gap-1.5 text-[10px] tracking-[0.3em] text-primary uppercase mb-1">
-                <Sparkles className="w-3 h-3" /> Iato
-                {msg.exigente && <span className="ml-1 rounded-full border border-primary/50 px-1.5 normal-case tracking-normal">Modo exigente</span>}
-                {aboutTrip?.destino && (
-                  <span className="ml-2 normal-case tracking-normal text-muted-foreground">· sobre tu viaje a {aboutTrip.destino}</span>
-                )}
-              </div>
+            {!isUser && msg.exigente && (
+              <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-primary/50 px-1.5 text-[10px] text-primary">
+                <Crown className="w-2.5 h-2.5" aria-hidden="true" /> Modo exigente
+              </span>
             )}
+            {showSteps && <StepList steps={msg.steps ?? []} streaming={msg.streaming} hasText={!!msg.text.trim()} />}
             {/* Iato responde en Markdown: se interpreta un subconjunto seguro (N-05). */}
-            {isUser ? msg.text : <SafeMarkdown text={msg.text} />}
+            {msg.text && (isUser ? <span className="whitespace-pre-wrap">{msg.text}</span> : <SafeMarkdown text={msg.text} />)}
+            {(time || aboutTrip?.destino) && (
+              <p className={`mt-0.5 flex justify-end gap-1 text-[10px] leading-none ${isUser ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                {aboutTrip?.destino && <span className="truncate max-w-[12rem]">sobre {aboutTrip.destino} ·</span>}
+                {time && <time dateTime={new Date(msg.ts).toISOString()}>{time}</time>}
+              </p>
+            )}
           </div>
         )}
         {!isUser && msg.tripReason === "ambiguous" && (msg.tripCandidates?.length ?? 0) > 0 && (
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Elige el viaje">
+          <div className="flex flex-col items-start gap-1.5" role="group" aria-label="Elige el viaje">
             {msg.tripCandidates!.map((t) => (
               <button
                 key={t.id}
                 disabled={disabled}
                 onClick={() => onChooseTrip(t.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/40 text-xs hover:bg-primary/10 hover:border-primary transition disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3 min-h-[36px] rounded-full border border-primary/40 text-xs hover:bg-primary/10 hover:border-primary transition disabled:opacity-40"
               >
                 <Plane className="w-3.5 h-3.5 text-primary" /> {tripLabel(t)}
               </button>
             ))}
           </div>
         )}
-        {msg.cards?.map((c, i) => <RichCard key={i} card={c} tripId={msg.tripId ?? null} />)}
-        {msg.actions?.map((a) => <ActionCard key={a.id} action={a} tripId={msg.tripId ?? null} onOpenEmergency={onOpenEmergency} />)}
+        {!!msg.cards?.length && (
+          <div className="flex w-full flex-col gap-1.5 sm:max-w-sm" data-testid="bubble-cards">
+            {msg.cards.map((c, i) => <RichCard key={i} card={c} tripId={msg.tripId ?? null} />)}
+          </div>
+        )}
+        {!!msg.actions?.length && (
+          <div className="flex w-full flex-col gap-1.5 sm:max-w-sm" data-testid="bubble-actions">
+            {msg.actions.map((a) => <ActionCard key={a.id} action={a} tripId={msg.tripId ?? null} onOpenEmergency={onOpenEmergency} />)}
+          </div>
+        )}
       </div>
     </motion.div>
   );
