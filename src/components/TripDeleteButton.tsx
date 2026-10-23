@@ -52,7 +52,7 @@ export function TripDeleteButton({ tripId, destino, isOwner, userId }: {
           <AlertDialogTitle>{isOwner ? "¿Eliminar este viaje?" : "¿Salir de este viaje?"}</AlertDialogTitle>
           <AlertDialogDescription>
             {isOwner
-              ? `Esta acción no se puede deshacer. Se borrará "${destino}" con su diario, packing y gastos divididos.`
+              ? `Esta acción no se puede deshacer. Se borrará "${destino}" con su diario, packing y gastos divididos. También se borran tus fotos y videos de Recuerdos de este viaje.`
               : `Dejarás de ver "${destino}". El viaje no se borra: el dueño y los demás colaboradores lo conservan.`}
           </AlertDialogDescription>
         </AlertDialogHeader>

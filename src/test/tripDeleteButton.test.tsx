@@ -49,6 +49,8 @@ describe("TripDeleteButton", () => {
     renderButton(true);
     fireEvent.click(screen.getByRole("button", { name: "Eliminar viaje" }));
     expect(screen.getByText("¿Eliminar este viaje?")).toBeInTheDocument();
+    // El borrado del viaje también purga los Recuerdos del dueño ligados a él (trips_purge_recuerdos).
+    expect(screen.getByText(/También se borran tus fotos y videos de Recuerdos de este viaje\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));
     await waitFor(() => expect(screen.getByText("Lista de viajes")).toBeInTheDocument());
     expect(calls.deleted).toEqual([TRIP]);
@@ -75,6 +77,8 @@ describe("TripDeleteButton", () => {
   it("colaborador: sale del viaje sin borrarlo", async () => {
     renderButton(false);
     fireEvent.click(screen.getByRole("button", { name: "Salir del viaje" }));
+    // Al salir no se borra nada suyo: no menciona Recuerdos.
+    expect(screen.queryByText(/Recuerdos/)).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Salir del viaje" }).at(-1)!);
     await waitFor(() => expect(screen.getByText("Lista de viajes")).toBeInTheDocument());
     expect(calls.deleted).toEqual([]);
