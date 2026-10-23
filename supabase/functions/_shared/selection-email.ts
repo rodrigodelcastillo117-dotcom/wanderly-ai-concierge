@@ -223,6 +223,9 @@ export function validateSelectionRequest(
   let car: SelectionLine | null = null;
   const hotels: SelectionLine[] = [], activities: SelectionLine[] = [], restaurants: SelectionLine[] = [];
   const seen = new Set<string>();
+  // Multi-destino: estancias ya cubiertas. La misma ciudad puede ir dos veces (Delhi al llegar y al final,
+  // claude/multiciudad-carrusel): cada estancia lleva su hotel (puede ser el mismo) con sus noches.
+  const usedStays = new Set<number>();
 
   for (const it of items) {
     if (!it || typeof it !== "object" || !(it.kind in COL)) return err(400, "elemento_invalido", "Hay un elemento de la selección que no reconocemos.");
@@ -233,9 +236,12 @@ export function validateSelectionRequest(
     const row = col ? (Number.isInteger(index) && index >= 0 ? list[index] : undefined) : null;
     if (col && (!row || typeof row !== "object")) return err(400, "elemento_invalido", "Una opción elegida ya no está en el viaje. Recarga la página.");
     if (!col && index !== -1) return err(400, "elemento_invalido", "Elemento no válido.");
-    const dedupe = `${kind}:${index}`;
-    if (seen.has(dedupe)) return err(400, "elemento_repetido", "Hay un elemento repetido en la selección.");
-    seen.add(dedupe);
+    // En multi-destino el hotel se cuenta por estancia (abajo), no por índice.
+    if (!(kind === "hospedaje" && multi)) {
+      const dedupe = `${kind}:${index}`;
+      if (seen.has(dedupe)) return err(400, "elemento_repetido", "Hay un elemento repetido en la selección.");
+      seen.add(dedupe);
+    }
 
     const key = oneLine(it.key, 200);
     const verdict = it.url ? checkAllowlisted(it.url) : null;
@@ -272,9 +278,13 @@ export function validateSelectionRequest(
       let city: string | null = clean(row.ciudad, 60);
       let nights = Number(it.nights);
       if (multi) {
-        const stay = stays.find((s) => sameCity(row.ciudad, s.city));
-        if (!stay) return err(400, "elemento_invalido", "Ese hotel no es de ninguna ciudad del viaje.");
-        if (hotels.some((h) => h.city && sameCity(h.city, stay.city))) return err(400, "elemento_repetido", `Solo puede ir un hotel en ${stay.city}.`);
+        const mine = stays.map((_, k) => k).filter((k) => sameCity(row.ciudad, stays[k].city));
+        if (!mine.length) return err(400, "elemento_invalido", "Ese hotel no es de ninguna ciudad del viaje.");
+        // La siguiente estancia libre de esa ciudad, en el orden del viaje (como "Comprar").
+        const k = mine.find((x) => !usedStays.has(x));
+        if (k === undefined) return err(400, "elemento_repetido", `Solo puede ir un hotel por estancia en ${stays[mine[0]].city}.`);
+        usedStays.add(k);
+        const stay = stays[k];
         city = stay.city;
         nights = stay.nights;
       } else {

@@ -143,7 +143,9 @@ describe("TripDetail: un solo total", () => {
     expect(within(card).getByTestId("trip-total-hint")).toHaveTextContent("Elige vuelo y hoteles para ver el total real.");
     expect(within(card).getByTestId("trip-total-label")).toHaveTextContent("Total para 2 personas");
     expect(within(card).getByTestId("trip-total-label")).toHaveTextContent(/aproximado/i);
-    expect(screen.getAllByText("$561,468 MXN")).toHaveLength(1);
+    // Una sola cifra en lo que se ve; el resumen final de Comprar (pestaña oculta) repite la misma cifra.
+    expect(screen.getAllByText("$561,468 MXN").filter((el) => !el.closest("[hidden]"))).toHaveLength(1);
+    expect(screen.getByTestId("comprar-listo-total")).toHaveTextContent("$561,468 MXN");
     // El desglose va dentro de la tarjeta del total y no tiene su propio "Total estimado" ni la cifra.
     const desglose = within(card).getByTestId("trip-desglose");
     expect(within(desglose).queryByText(/Total estimado/i)).toBeNull();

@@ -82,11 +82,15 @@ export function buildSelectionRequest(trip: any, sel: SelectionSel, ctx: Selecti
 
   // 2 · Hotel: uno por ciudad en multi-destino, con las noches de esa ciudad.
   if (hasCityHotels(trip)) {
+    // Un hotel por estancia y en orden (como buildBuyFlow): la misma ciudad dos veces (Delhi al llegar y
+    // al final) son dos estancias, cada una con su elemento de "Comprar" (su clave y su "Ya lo compré").
+    const hotelItems = flow.items.filter((x) => x.kind === "hospedaje");
     for (const c of cityHotelChoices({ ...trip, num_viajeros: travelers }, sel)) {
+      const own = c.index >= 0 && c.hotel ? hotelItems.shift() : undefined;
       if (c.index === -2) { skipped.push({ kind: "hospedaje", city: c.stay.city }); continue; }
       if (!c.chosen) { if (c.options.length) missing.push(`hotel en ${c.stay.city}`); continue; }
       if (c.index < 0 || !c.hotel) continue;
-      const it = flow.items.find((x) => x.kind === "hospedaje" && x.index === c.index);
+      const it = own && own.index === c.index ? own : flow.items.find((x) => x.kind === "hospedaje" && x.index === c.index);
       items.push(requestItem(it, "hospedaje", c.index, { price: c.total, nights: c.stay.nights }, state(it) !== "pendiente"));
     }
   } else if (hoteles.length) {

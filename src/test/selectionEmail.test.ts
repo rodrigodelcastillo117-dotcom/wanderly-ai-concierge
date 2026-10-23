@@ -66,13 +66,18 @@ const MULTI_CHOSEN: Sel = { selVuelo: 1, selHospedaje: -1, selTours: new Set([1]
 describe("causa: el correo al crear el viaje leía el desglose del modelo, no los precios en vivo", () => {
   it("con el desglose del modelo en 0, el correo viejo decía NO DISPONIBLE aunque el viaje tenía Air France $21,238 y Pullman $41,031 en vivo", () => {
     const t: any = CASO_PRA_CREADO;
-    // reconcileBudget respeta un renglón en 0 del modelo (puede ser una exclusión que no detectó):
-    // los precios en vivo de vuelos_json / hospedaje_json no llegan al desglose.
+    // Antes reconcileBudget respetaba un renglón en 0 del modelo y los precios en vivo de vuelos_json /
+    // hospedaje_json no llegaban al desglose. Desde claude/total-clima (integración ola 3) un 0 sin
+    // exclusión usa el precio en vivo: el desglose ya trae el vuelo de Air France.
     const b = reconcileBudget({ desglose_presupuesto: t.desglose_presupuesto, vuelos: t.vuelos_json, hospedaje: t.hospedaje_json }, { dias: 9, viajeros: 1 });
-    expect(b.desglose).toMatchObject({ vuelos: 0, hospedaje: 0, tours: 0, comida: 0, transporte_local: 0 });
+    expect(b.desglose.vuelos).toBe(21238);
+    expect(b.desglose.hospedaje).toBeGreaterThan(0);
     expect(b.valido).toBe(true);
+    // La causa del correo viejo: el snapshot con el desglose del modelo tal cual (todo en 0).
+    const modelo = Object.fromEntries(Object.entries(t.desglose_presupuesto).map(([k, v]) => [k, Number(v) || 0]));
+    expect(modelo).toMatchObject({ vuelos: 0, hospedaje: 0, tours: 0, comida: 0, transporte_local: 0 });
     const snapshot = buildQuoteSnapshot({
-      tripId: t.id, userId: t.user_id, origin: "analizar-viaje", breakdown: b.desglose, travelers: 1, nights: 9, rooms: 1,
+      tripId: t.id, userId: t.user_id, origin: "analizar-viaje", breakdown: modelo, travelers: 1, nights: 9, rooms: 1,
       dateFrom: t.fecha_salida, dateTo: t.fecha_regreso, fx: { rate: 18.4, source: "banxico", fetched_at: PRA_NOW.toISOString(), is_fallback: false },
       reference: { vuelos: b.vueloReferencia, hospedaje: b.hotelReferencia }, now: PRA_NOW,
     });

@@ -89,7 +89,9 @@ describe("TripDetail: selecciones guardadas (E-12)", () => {
     expect(await screen.findByText(/Cambiaste tu selección de vuelo, hotel o experiencias/)).toBeInTheDocument();
     // Un solo total (el desglose ya no repite la cifra) y la barra móvil dice lo mismo.
     expect(screen.getByTestId("trip-total-amount")).toHaveTextContent(/^\$32,000 MXN$/);
-    expect(screen.getAllByText("$32,000 MXN")).toHaveLength(1);
+    // Una sola cifra en lo que se ve; el resumen final de Comprar (pestaña oculta) repite la misma cifra.
+    expect(screen.getAllByText("$32,000 MXN").filter((el) => !el.closest("[hidden]"))).toHaveLength(1);
+    expect(screen.getByTestId("comprar-listo-total")).toHaveTextContent("$32,000 MXN");
     expect(screen.getByTestId("trip-next-bar")).toHaveTextContent("Total $32,000 MXN");
     expect(screen.queryByText("$50,000 MXN")).toBeNull();
     // Ya tiene vuelo pero no eligió hotel: el total se dice estimado y qué falta elegir.

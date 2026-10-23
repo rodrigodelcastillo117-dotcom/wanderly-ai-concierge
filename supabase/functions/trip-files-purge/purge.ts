@@ -3,7 +3,9 @@
 // borró (o ya no existía). Si storage falla, la fila se queda para el siguiente intento.
 
 // trip-receipts: fotos de tickets de los gastos del viaje (20261027020000_gastos_split.sql).
-export const PURGE_BUCKETS = new Set(["trip-documents", "journal-photos", "trip-receipts"]);
+// recuerdos: fotos y videos del dueño ligados al viaje, que encola trips_purge_recuerdos
+// (20261027100000_recuerdos.sql). Sin él, sus filas se quitaban de la cola sin borrar el archivo.
+export const PURGE_BUCKETS = new Set(["trip-documents", "journal-photos", "trip-receipts", "recuerdos"]);
 
 export type QueueRow = { id: number; bucket_id: string; name: string };
 export type PurgeDeps = {
