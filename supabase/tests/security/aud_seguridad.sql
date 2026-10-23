@@ -75,7 +75,11 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   ('import_past_trip'),
   -- IATOS Wrapped (20261026310000): sin parámetro de usuario; solo nombres y número de viajes de quienes
   -- comparten viaje con auth.uid() (dueño o colaborador aceptado). Pruebas en supabase/tests/wrapped.
-  ('wrapped_companions')),
+  ('wrapped_companions'),
+  -- Promoción de referidos (20261027080000): referral_progress no recibe parámetros y solo responde por
+  -- auth.uid() (nombre de pila e inicial, nunca correos); admin_referral_rewards exige auth.uid() en admins y
+  -- solo da agregados. Pruebas en supabase/tests/referidos (RF1, RF2, RF9, RF16, RF33).
+  ('referral_progress'),('admin_referral_rewards')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)
