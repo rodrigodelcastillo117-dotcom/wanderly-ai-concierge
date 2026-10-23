@@ -34,7 +34,7 @@ import { chatError, type ChatErrorCode, modelHttpErrorCode, toolErrorCode } from
 import { redactPii } from "../_shared/redact.ts";
 import { runSearchPrive } from "./prive.ts";
 import { memoryCache, runPriveKey } from "./priveKeyMode.ts";
-import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
+import { getRateToMxnInfo } from "../_shared/fx.ts";
 import { detectIntents, planTurn } from "./planner.ts";
 import { tripSituation } from "./location.ts";
 import { providerChain, resolveModelConfig, routeTurn, sharedBreaker } from "./router.ts";
@@ -279,9 +279,14 @@ async function handlePriveKey(req: Request, body: Body & Record<string, unknown>
       } catch { return null; }
     },
     cache: keyCache,
+    // Solo tasas con fuente (BCE vía frankfurter). Una moneda sin tasa verificable no entra al mapa y
+    // convert() regresa null: el presupuesto queda "no verificable" en vez de usar un número inventado.
     fx: async () => {
-      const [usd, eur] = await Promise.all([getUsdMxnRateInfo(), getEurMxnRateInfo()]);
-      return { MXN: 1, USD: usd.rate, EUR: eur.rate, GBP: 26, JPY: 0.135, AED: 5.6 };
+      const codes = ["USD", "EUR", "GBP", "JPY", "CAD", "CHF", "AUD", "BRL", "AED"];
+      const infos = await Promise.all(codes.map((c) => getRateToMxnInfo(c).catch(() => null)));
+      const map: Record<string, number> = { MXN: 1 };
+      codes.forEach((c, i) => { const r = infos[i]; if (r && !r.is_fallback) map[c] = r.rate; });
+      return map;
     },
     log: (event, data) => console.log(event, JSON.stringify(data)),
   });

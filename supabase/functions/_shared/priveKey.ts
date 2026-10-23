@@ -443,7 +443,9 @@ export function notePriceHint(note: string | null | undefined): { amount: number
 }
 
 export type FxToMxn = Partial<Record<string, number>>;
-export const DEFAULT_FX: FxToMxn = { MXN: 1, USD: 20.5, EUR: 22, GBP: 26, JPY: 0.135, AED: 5.6 };
+// Sin tasas inventadas: por defecto solo MXN. Las tasas reales llegan por `fx` (BCE vía frankfurter,
+// con fecha); una moneda sin tasa verificable no se convierte (convert() → null, "no verificable").
+export const DEFAULT_FX: FxToMxn = { MXN: 1 };
 export function convert(amount: number, from: string, to: string, fx: FxToMxn = DEFAULT_FX): number | null {
   if (from === to) return amount;
   const a = fx[from], b = fx[to];

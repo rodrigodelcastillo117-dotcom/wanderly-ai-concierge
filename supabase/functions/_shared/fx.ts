@@ -60,8 +60,39 @@ export async function getEurMxnRate(): Promise<number> {
   return (await getEurMxnRateInfo()).rate;
 }
 
+// Cualquier otra moneda (GBP, JPY, CAD…): solo tasa en vivo del BCE vía frankfurter, con fecha. Sin
+// respaldo inventado: si no hay tasa verificable (la API falla o el BCE no publica esa moneda, p. ej.
+// AED), regresa null y quien la use NO convierte (antes había GBP 26, JPY 0.135, AED 5.6 fijos).
+const anyCache: Record<string, { info: FxInfo | null; at: number }> = {};
+export async function getRateToMxnInfo(code: string, fetchImpl: typeof fetch = fetch): Promise<FxInfo | null> {
+  const cur = String(code || "").toUpperCase();
+  if (cur === "MXN") return { rate: 1, source: "frankfurter", fetched_at: new Date().toISOString(), is_fallback: false };
+  if (cur === "USD" || cur === "EUR") return rateInfo(cur);
+  if (!/^[A-Z]{3}$/.test(cur)) return null;
+  const now = Date.now();
+  const hit = anyCache[cur];
+  if (hit && now - hit.at < FX_TTL_MS) return hit.info;
+  let info: FxInfo | null = null;
+  try {
+    const r = await fetchImpl(`https://api.frankfurter.app/latest?from=${cur}&to=MXN`, { signal: AbortSignal.timeout(8000) });
+    if (r.ok) {
+      const j = await r.json();
+      const rate = Number(j?.rates?.MXN);
+      if (Number.isFinite(rate) && rate > 0) {
+        const date = typeof j?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(j.date) ? `${j.date}T00:00:00Z` : new Date(now).toISOString();
+        info = { rate, source: "frankfurter", fetched_at: date, is_fallback: false };
+      }
+    }
+  } catch (e) {
+    console.warn(`fx ${cur}→MXN sin tasa verificable:`, (e as Error).message);
+  }
+  anyCache[cur] = { info, at: info ? now : now - FX_TTL_MS + 10 * 60_000 }; // un fallo se reintenta en 10 min
+  return info;
+}
+
 /** Solo para pruebas: vacía la caché en memoria. */
 export function __resetFxCache() {
   delete caches.USD;
   delete caches.EUR;
+  for (const k of Object.keys(anyCache)) delete anyCache[k];
 }
