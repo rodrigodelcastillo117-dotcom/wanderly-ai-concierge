@@ -1,0 +1,32 @@
+{
+  "search_metadata": { "id": "fixture-property", "status": "Success" },
+  "search_parameters": { "engine": "google_hotels", "property_token": "TOKEN_HOTEL_ROMA", "check_in_date": "2026-10-22", "check_out_date": "2026-10-25", "adults": "2", "currency": "USD" },
+  "type": "hotel",
+  "name": "Hotel Artemide",
+  "property_token": "TOKEN_HOTEL_ROMA",
+  "rate_per_night": { "lowest": "$210", "extracted_lowest": 210 },
+  "total_rate": { "lowest": "$630", "extracted_lowest": 630 },
+  "featured_prices": [
+    { "source": "Hotel Artemide", "link": "https://www.google.com/travel/lodging/clk?pc=FIXTURE_OFICIAL&pcurl=https://www.hotelartemide.it/", "logo": "https://www.gstatic.com/travel-hotels/branding/artemide.png", "official": true,
+      "num_guests": 2, "rate_per_night": { "lowest": "$205", "extracted_lowest": 205 }, "total_rate": { "lowest": "$615", "extracted_lowest": 615, "extracted_before_taxes_fees": 560 },
+      "rooms": [ { "name": "Doble clásica", "link": "https://www.google.com/travel/lodging/clk?pc=FIXTURE_ROOM", "total_rate": { "extracted_lowest": 615 } } ] }
+  ],
+  "prices": [
+    { "source": "Booking.com", "link": "https://www.google.com/travel/lodging/clk?pc=FIXTURE_BOOKING", "logo": "https://www.gstatic.com/travel-hotels/branding/booking.png", "num_guests": 2,
+      "rate_per_night": { "lowest": "$210", "extracted_lowest": 210 }, "total_rate": { "lowest": "$630", "extracted_lowest": 630 }, "free_cancellation": true },
+    { "source": "Expedia.com", "link": "https://www.expedia.com/Rome-Hotels-Artemide.h12345.Hotel-Information", "num_guests": 2,
+      "rate_per_night": { "lowest": "$214", "extracted_lowest": 214 }, "total_rate": { "lowest": "$642", "extracted_lowest": 642 } },
+    { "source": "Hotels.com", "link": "https://www.google.com/travel/lodging/clk?pc=FIXTURE_HOTELSCOM", "num_guests": 2,
+      "rate_per_night": { "lowest": "$214", "extracted_lowest": 214 }, "total_rate": { "lowest": "$644", "extracted_lowest": 644 } },
+    { "source": "Booking.com", "link": "https://www.google.com/travel/lodging/clk?pc=FIXTURE_BOOKING_2", "num_guests": 2,
+      "rate_per_night": { "lowest": "$230", "extracted_lowest": 230 }, "total_rate": { "lowest": "$690", "extracted_lowest": 690 } },
+    { "source": "Trip.com", "link": "https://www.google.com/travel/lodging/clk?pc=FIXTURE_TRIP", "num_guests": 2,
+      "rate_per_night": { "lowest": "$199", "extracted_lowest": 199 }, "total_rate": { "lowest": "$597", "extracted_lowest": 597 } },
+    { "source": "Agoda", "link": "https://www.google.com/travel/lodging/clk?pc=FIXTURE_AGODA", "num_guests": 2,
+      "rate_per_night": { "lowest": "$220", "extracted_lowest": 220 }, "total_rate": { "lowest": "$660", "extracted_lowest": 660 } },
+    { "source": "Ofertas Falsas", "link": "https://booking-com.reservas-seguras.io/pago", "num_guests": 2,
+      "rate_per_night": { "lowest": "$150", "extracted_lowest": 150 }, "total_rate": { "lowest": "$450", "extracted_lowest": 450 } },
+    { "source": "Sin precio", "link": "https://www.google.com/travel/lodging/clk?pc=FIXTURE_X", "num_guests": 2 }
+  ],
+  "nearby_places": [ { "name": "Termini" } ]
+}

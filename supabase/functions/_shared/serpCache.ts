@@ -26,6 +26,9 @@ export const CACHE_TTL_SECONDS: Record<string, number> = {
   google_travel_explore: 12 * HOUR, // "Vuelos baratos desde…" / Explorar destinos (por origen y mes)
 };
 
+/** Ofertas por proveedor de un hotel (google_hotels con property_token). */
+export const HOTEL_OFFERS_TTL_SECONDS = 3 * HOUR;
+
 export type CacheRow = { response: unknown; fetched_at: string; ttl_seconds: number };
 
 /**
@@ -38,6 +41,9 @@ export type CacheRow = { response: unknown; fetched_at: string; ttl_seconds: num
 export function travelDateTtlSeconds(engine: string, params: URLSearchParams | Record<string, unknown>, now = Date.now()): number {
   const base = CACHE_TTL_SECONDS[engine] ?? 0;
   const get = (k: string) => (params instanceof URLSearchParams ? params.get(k) : (params as Record<string, unknown>)[k]);
+  // Ofertas por proveedor de UN hotel (Property Details, hotels-search action "offers"): 3 h por
+  // propiedad + fechas + huéspedes, sin importar qué tan lejos está el viaje.
+  if (engine === "google_hotels" && get("property_token")) return HOTEL_OFFERS_TTL_SECONDS;
   const date = engine === "google_flights" ? get("outbound_date") : engine === "google_hotels" ? get("check_in_date") : null;
   if (!base || typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return base;
   const days = (Date.parse(`${date}T12:00:00Z`) - now) / 86400000;
@@ -102,7 +108,8 @@ export const estadoDato = (fresh: boolean): CacheEstado => (fresh ? "CONSULTADO_
 /** Lo que de verdad se usa de cada motor: las respuestas completas pesan cientos de KB. */
 const KEEP: Record<string, string[]> = {
   google_flights: ["best_flights", "other_flights", "price_insights"],
-  google_hotels: ["properties"],
+  // properties: búsqueda por ciudad · name/featured_prices/prices: detalle de un hotel (ofertas por proveedor).
+  google_hotels: ["properties", "name", "featured_prices", "prices"],
   google_maps: ["local_results", "place_results"],
   google: ["flight_result"],
   google_travel_explore: ["destinations", "search_parameters"],
