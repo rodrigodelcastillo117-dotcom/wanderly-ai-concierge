@@ -11,18 +11,21 @@
 //   viaje      2  viaje pasado con evidencia de que sí se hizo (importado de un documento, gastos,
 //                 momentos o visitas); 1.2 si solo fue cotizado y sus fechas ya pasaron
 //   declarado  1  lo que dijo en el onboarding (estilo, intereses, comida)
+//   diario     6  gusto o disgusto que la persona ESCRIBIÓ en su diario de viaje (aprender-diario lo
+//                 extrae con la frase literal que lo respalda; ella puede corregirlo o borrarlo)
 // Cada peso se multiplica por la antigüedad (1.0 este año → 0.6 a los 4+ años).
 //
 // Privacidad: solo entra lo de la persona (user_id === userId). Las filas de otro usuario se
 // descartan aunque la consulta las devuelva (viajes compartidos, colaboradores, amigos).
 // Lógica pura, sin Deno: corre igual en Vitest.
 
-export const TASTE_VERSION = 1;
+// v2: entra lo aprendido del diario (journal_learnings); la caché v1 se recalcula sola.
+export const TASTE_VERSION = 2;
 /** Tope del bloque de texto (tokens estimados con 3.6 caracteres por token, como el resto de IATOS). */
 export const TASTE_MAX_TOKENS = 600;
 export const CHARS_PER_TOKEN = 3.6;
 
-export const WEIGHTS = { momento: 10, favorito: 5, visitado: 3, viaje: 2, declarado: 1 } as const;
+export const WEIGHTS = { momento: 10, diario: 6, favorito: 5, visitado: 3, viaje: 2, declarado: 1 } as const;
 /** Viaje pasado sin evidencia de que se hizo (solo cotizado): sigue pesando más que lo declarado. */
 export const UNCONFIRMED_TRIP_WEIGHT = 1.2;
 export type SignalKind = keyof typeof WEIGHTS;
@@ -39,7 +42,15 @@ export type TasteInputs = {
   travelProfile?: any | null;
   aiPrefs?: any | null;
   expenses?: any[] | null;
+  /** journal_learnings: lo que la IA aprendió de las entradas del diario que la persona escribió. */
+  journalLearnings?: any[] | null;
 };
+
+/** Un punto aprendido del diario, listo para el prompt ("Te encantó la pasta cacio e pepe de Roscioli"). */
+export type DiaryItem = { texto: string; lugar: string | null; ciudad: string | null; categoria: string };
+/** Topes del perfil: lo más reciente primero. */
+export const DIARY_MAX_LIKES = 8;
+export const DIARY_MAX_DISLIKES = 6;
 
 /** explicito = viene de una foto en Mejores momentos o de un favorito (lo que de verdad te encantó). */
 export type TasteItem = { label: string; score: number; por_que: string; explicito?: boolean };
@@ -53,7 +64,7 @@ export type TasteProfile = {
   v: number;
   hash: string;
   computed_for: string;
-  conteos: { momentos: number; viajes_pasados: number; viajes_importados: number; visitados: number; favoritos: number };
+  conteos: { momentos: number; viajes_pasados: number; viajes_importados: number; visitados: number; favoritos: number; diario?: number };
   encanta: TasteItem[];
   lugares: TasteItem[];
   cocinas: TasteItem[];
@@ -71,6 +82,8 @@ export type TasteProfile = {
     comida: string[]; acompanantes: string | null; dna: string | null;
   };
   evitar: string[];
+  /** Lo que escribiste en tu diario (v2). */
+  diario?: { gustos: DiaryItem[]; disgustos: DiaryItem[] };
   ya_visitados: string[];
   proximos: string[];
   deseos: string[];
@@ -232,7 +245,7 @@ function companionsLabel(n: number | null): string | null {
 
 type Bucket = {
   dim: Dim; label: string; labelWeight: number; score: number;
-  fotos: number; captions: string[]; deFoto: boolean; favoritos: number; visitas: number;
+  fotos: number; captions: string[]; deFoto: boolean; favoritos: number; visitas: number; diario: number;
   viajes: string[]; cotizados: string[]; declarado: boolean;
 };
 
@@ -244,7 +257,7 @@ class Ledger {
     if (!key || key.length < 2) return;
     const id = `${dim}:${key}`;
     const b = this.map.get(id) ?? {
-      dim, label, labelWeight: 0, score: 0, fotos: 0, captions: [], deFoto: false, favoritos: 0, visitas: 0, viajes: [], cotizados: [], declarado: false,
+      dim, label, labelWeight: 0, score: 0, fotos: 0, captions: [], deFoto: false, favoritos: 0, visitas: 0, diario: 0, viajes: [], cotizados: [], declarado: false,
     };
     b.score += weight;
     if (weight > b.labelWeight) { b.label = label; b.labelWeight = weight; }
@@ -255,6 +268,7 @@ class Ledger {
     }
     if (kind === "favorito") b.favoritos++;
     if (kind === "visitado") b.visitas++;
+    if (kind === "diario") b.diario++;
     if (kind === "viaje" && extra.when) {
       const list = extra.quoted ? b.cotizados : b.viajes;
       if (!list.includes(extra.when)) list.push(extra.when);
@@ -298,6 +312,7 @@ function phrase(b: Bucket): string {
     parts.push(b.deFoto && b.fotos === 1 && !b.viajes.length ? `${fotos} (lugar reconocido en la foto)` : fotos);
     if (b.captions[0]) parts.push(`«${clean(b.captions[0], 60)}»`);
   }
+  if (b.diario) parts.push(b.diario === 1 ? "lo contaste en tu diario" : `${b.diario} veces en tu diario`);
   if (b.favoritos) parts.push(b.favoritos === 1 ? "lo guardaste en favoritos" : `${b.favoritos} favoritos`);
   if (b.viajes.length) parts.push(b.viajes.length === 1 ? `viajaste ${b.viajes[0]}` : `${b.viajes.length} viajes (${b.viajes.slice(0, 2).join(", ")})`);
   if (b.cotizados.length && !b.viajes.length) parts.push(`lo cotizaste para ${b.cotizados[0]}`);
@@ -307,7 +322,7 @@ function phrase(b: Bucket): string {
 }
 
 const item = (b: Bucket): TasteItem => ({
-  label: b.label, score: Math.round(b.score * 10) / 10, por_que: phrase(b), ...(b.fotos || b.favoritos ? { explicito: true } : {}),
+  label: b.label, score: Math.round(b.score * 10) / 10, por_que: phrase(b), ...(b.fotos || b.favoritos || b.diario ? { explicito: true } : {}),
 });
 
 // ═══ construcción ═══
@@ -321,6 +336,7 @@ export function buildTasteProfile(input: TasteInputs): TasteProfile {
   const visits = own(input.userVisits);
   const saved = own(input.savedRecos);
   const expenses = own(input.expenses);
+  const learnings = own(input.journalLearnings);
   const tp = input.travelProfile && input.travelProfile.user_id === userId ? input.travelProfile : null;
   const ai = input.aiPrefs && input.aiPrefs.user_id === userId ? input.aiPrefs : null;
   const dna = ai?.perfil_ia ?? tp?.perfil_ia ?? null;
@@ -438,6 +454,22 @@ export function buildTasteProfile(input: TasteInputs): TasteProfile {
     ledger.add(isDest ? "destino" : "lugar", r.titulo, "favorito", w);
   }
 
+  // ── Diario: lo que la persona escribió que le gustó o no (más reciente primero) ──
+  const diario = { gustos: [] as DiaryItem[], disgustos: [] as DiaryItem[] };
+  const byDate = [...learnings].sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
+  for (const l of byDate) {
+    const texto = clean(l.texto, 100);
+    if (texto.length < 3) continue;
+    const neg = l.sentimiento === "negativo";
+    const list = neg ? diario.disgustos : diario.gustos;
+    if (list.some((x) => normKey(x.texto) === normKey(texto))) continue;
+    if (list.length >= (neg ? DIARY_MAX_DISLIKES : DIARY_MAX_LIKES)) continue;
+    const lugar = clean(l.lugar, 48) || null;
+    list.push({ texto, lugar, ciudad: clean(l.ciudad, 40) || null, categoria: clean(l.categoria, 20) || "otro" });
+    // Un lugar que te gustó (lo dijiste tú) cuenta en "Lugares que te gustaron".
+    if (!neg && lugar) ledger.add("lugar", lugar, "diario", WEIGHTS.diario * recency(l.created_at, todayISO));
+  }
+
   // ── Declarado (onboarding) ──
   const declared = {
     ritmo: clean(tp?.ritmo_viaje ?? ai?.ritmo_viaje, 30) || null,
@@ -477,7 +509,7 @@ export function buildTasteProfile(input: TasteInputs): TasteProfile {
   const body = {
     conteos: {
       momentos: moments.length, viajes_pasados: past.length, viajes_importados: past.filter((p) => p.fuente === "documento").length,
-      visitados: visitCount, favoritos: favCount,
+      visitados: visitCount, favoritos: favCount, diario: diario.gustos.length + diario.disgustos.length,
     },
     encanta, lugares, cocinas, temas, viajes_pasados: viajesPasados,
     patrones: {
@@ -489,6 +521,7 @@ export function buildTasteProfile(input: TasteInputs): TasteProfile {
     },
     declarado: declared,
     evitar,
+    diario,
     ya_visitados: yaVisitados,
     proximos: strs(upcoming, 5),
     deseos: strs(tp?.destinos_pendientes, 5),
@@ -511,6 +544,7 @@ export function profileHash(p: Omit<TasteProfile, "v" | "hash" | "computed_for">
     p.encanta.map((x) => x.label), p.lugares.map((x) => x.label), p.cocinas.map((x) => x.label), p.temas.map((x) => x.label),
     p.viajes_pasados.map((x) => [x.destino, x.fecha, x.fuente, x.momentos]), p.patrones, p.declarado, p.evitar, p.ya_visitados,
     p.proximos, p.conteos.momentos, TASTE_VERSION,
+    p.diario ? [p.diario.gustos.map((x) => [x.texto, x.lugar, x.ciudad]), p.diario.disgustos.map((x) => [x.texto, x.lugar, x.ciudad])] : null,
   ]));
 }
 
@@ -522,13 +556,15 @@ export const TASTE_CITATION_RULE =
   "Personalización: usa los gustos demostrados (Mejores momentos > favoritos > visitados > viajes pasados > lo declarado) para elegir y ordenar. " +
   "Cuando una sugerencia se apoye en ellos, dilo en media frase y en segunda persona (\"Porque te encantó Mykonos…\", \"Como en tu viaje a Kioto…\"). " +
   "\"Te encantó\" solo para lo que esté en la línea \"Te encantó\" (fotos destacadas y favoritos); para un viaje pasado di \"Como en tu viaje a…\". " +
+  "Lo de \"De tu diario\" lo escribió la persona: cítalo como \"Como escribiste en tu diario…\" y respeta lo que no le gustó. " +
   "Cita solo gustos que aparezcan en esos datos; si no hay uno que aplique, no inventes un porqué personal.";
 
 export type RenderOptions = { maxTokens?: number; omitDeclared?: boolean; includeRule?: boolean; includeVisited?: boolean };
 
 export function hasTasteSignals(p: TasteProfile | null | undefined): boolean {
   if (!p) return false;
-  return p.encanta.length + p.lugares.length + p.cocinas.length + p.temas.length + p.viajes_pasados.length + p.evitar.length > 0;
+  return p.encanta.length + p.lugares.length + p.cocinas.length + p.temas.length + p.viajes_pasados.length + p.evitar.length
+    + (p.diario?.gustos.length ?? 0) + (p.diario?.disgustos.length ?? 0) > 0;
 }
 
 /**
@@ -542,12 +578,14 @@ export function renderTasteProfile(p: TasteProfile | null | undefined, opts: Ren
     encanta: [...p.encanta], viajes: [...p.viajes_pasados], cocinas: [...p.cocinas], lugares: [...p.lugares],
     temas: [...p.temas], deseos: [...p.deseos], visitados: opts.includeVisited === false ? [] : [...p.ya_visitados],
     proximos: opts.includeVisited === false ? [] : [...p.proximos], evitar: [...p.evitar],
+    diarioSi: [...(p.diario?.gustos ?? [])], diarioNo: [...(p.diario?.disgustos ?? [])],
   };
   const render = () => renderLines(p, work, opts).join("\n");
   let text = render();
   const trimOrder: Array<[keyof typeof work, number]> = [
-    ["visitados", 4], ["deseos", 0], ["proximos", 2], ["temas", 3], ["lugares", 2], ["cocinas", 2], ["viajes", 2],
-    ["visitados", 0], ["proximos", 0], ["temas", 0], ["lugares", 0], ["cocinas", 1], ["viajes", 1], ["evitar", 3], ["encanta", 2], ["viajes", 0], ["encanta", 1],
+    ["visitados", 4], ["deseos", 0], ["proximos", 2], ["temas", 3], ["lugares", 2], ["cocinas", 2], ["viajes", 2], ["diarioSi", 4], ["diarioNo", 3],
+    ["visitados", 0], ["proximos", 0], ["temas", 0], ["lugares", 0], ["cocinas", 1], ["viajes", 1], ["diarioSi", 2], ["diarioNo", 2], ["evitar", 3], ["encanta", 2], ["viajes", 0],
+    ["diarioSi", 1], ["diarioNo", 1], ["encanta", 1],
   ];
   for (const [key, keep] of trimOrder) {
     while (estimateTokens(text) > max && work[key].length > keep) {
@@ -561,7 +599,7 @@ export function renderTasteProfile(p: TasteProfile | null | undefined, opts: Ren
 
 function renderLines(p: TasteProfile, w: {
   encanta: TasteItem[]; viajes: PastTrip[]; cocinas: TasteItem[]; lugares: TasteItem[]; temas: TasteItem[];
-  deseos: string[]; visitados: string[]; proximos: string[]; evitar: string[];
+  deseos: string[]; visitados: string[]; proximos: string[]; evitar: string[]; diarioSi: DiaryItem[]; diarioNo: DiaryItem[];
 }, opts: RenderOptions): string[] {
   const lines: string[] = [];
   const c = p.conteos;
@@ -572,6 +610,9 @@ function renderLines(p: TasteProfile, w: {
   // "Te encantó" solo con evidencia explícita (foto destacada o favorito); lo demás es "también".
   if (loved.length) lines.push(`Te encantó: ${loved.map(fmt).join(" · ")}`);
   if (more.length) lines.push(`${loved.length ? "También" : "Destinos con más peso"}: ${more.map(fmt).join(" · ")}`);
+  const diaryFmt = (x: DiaryItem) => `${x.texto}${x.ciudad && !normKey(x.texto).includes(normKey(x.ciudad)) ? ` (${x.ciudad})` : ""}`;
+  if (w.diarioSi.length) lines.push(`De tu diario (lo escribiste tú): ${w.diarioSi.map(diaryFmt).join(" · ")}`);
+  if (w.diarioNo.length) lines.push(`No te gustó (de tu diario): ${w.diarioNo.map(diaryFmt).join(" · ")}`);
   if (w.viajes.length) {
     lines.push(`Viajes pasados: ${w.viajes.map((t) => {
       const bits = [monthYear(t.fecha ? `${t.fecha}-01` : null), t.noches ? `${t.noches} noches` : "", companionsLabel(t.viajeros) ?? "",

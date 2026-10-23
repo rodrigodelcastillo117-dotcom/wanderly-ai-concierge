@@ -226,7 +226,7 @@ describe("privacidad: solo los datos de la persona", () => {
       },
     };
     await fetchTasteInputs(db, ME, TODAY);
-    expect(new Set(calls.map((c) => c.table))).toEqual(new Set(["trips", "travel_moments", "visited_places", "user_visits", "recomendaciones", "travel_profiles", "ai_user_preferences", "expenses"]));
+    expect(new Set(calls.map((c) => c.table))).toEqual(new Set(["trips", "travel_moments", "visited_places", "user_visits", "recomendaciones", "travel_profiles", "ai_user_preferences", "expenses", "journal_learnings"]));
     for (const c of calls) expect(c.filters).toContainEqual(["user_id", ME]);
   });
 });
