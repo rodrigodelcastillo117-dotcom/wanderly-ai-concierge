@@ -55,8 +55,11 @@ beforeEach(() => {
     configurable: true,
     value: { getCurrentPosition: (ok: (p: any) => void) => ok({ coords: { latitude: HUIXQUILUCAN.lat, longitude: HUIXQUILUCAN.lng } }) },
   });
+  // Clima de MET Norway (claude/total-clima quitó Open-Meteo del Concierge) y ciudad de BigDataCloud.
   vi.stubGlobal("fetch", vi.fn(async (url: string) => new Response(JSON.stringify(
-    String(url).includes("open-meteo") ? { current: { temperature_2m: 17 } } : { city: "Huixquilucan" },
+    String(url).includes("api.met.no")
+      ? { properties: { meta: { updated_at: new Date().toISOString() }, timeseries: [{ time: new Date().toISOString(), data: { instant: { details: { air_temperature: 17 } } } }] } }
+      : { city: "Huixquilucan" },
   ))));
 });
 afterEach(() => { vi.unstubAllGlobals(); });

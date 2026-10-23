@@ -5,7 +5,7 @@
 //   llamadas a ese host con datos ficticios. La respuesta de Iato es la que arma el turno real con
 //   herramientas y modelo SIMULADOS (scripts/concierge/make_ui_fixture.ts). El navegador está en
 //   Huixquilucan (geolocalización simulada) el 22-oct-2026 a las 20:05 (reloj fijo). Clima y lugar
-//   (open-meteo / bigdatacloud) también son simulados. Toda otra petición externa se bloquea.
+//   (MET Norway / open-meteo / bigdatacloud) también son simulados. Toda otra petición externa se bloquea.
 // · Cada captura lleva la franja "DATOS SIMULADOS".
 // · Además de las capturas, mide: desborde horizontal, que ningún atajo quede cortado, que el renglón
 //   del encabezado no se desborde y que el compositor quede arriba de la barra inferior (móvil).
@@ -119,6 +119,9 @@ async function newPage(browser, vp) {
     if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return route.continue();
     // Clima y nombre del lugar SIMULADOS (Huixquilucan, 17 °C).
     if (u.host === "api.open-meteo.com") return json(route, { current: { temperature_2m: 17.2 } });
+    // El Concierge pide el clima a MET Norway desde claude/total-clima (integración ola 3).
+    if (u.host === "api.met.no") return json(route, { properties: { meta: { updated_at: new Date().toISOString() },
+      timeseries: [{ time: new Date().toISOString(), data: { instant: { details: { air_temperature: 17.2 } } } }] } });
     if (u.host === "api.bigdatacloud.net") return json(route, { city: "Huixquilucan", locality: "Huixquilucan", principalSubdivision: "Estado de México" });
     if (u.host === "fonts.googleapis.com" || u.host === "fonts.gstatic.com") {
       const f = fetchFont(u.toString());
