@@ -1,12 +1,13 @@
 // Tu tarjeta en versión mini (menú principal, Travel Avatar). Al tocarla se abre grande con el detalle
 // del rango y "Cómo subir de nivel" (PRO → Dorada, Privé → Platinum I, 1 año en Privé → Platinum II).
-// La negra NO aparece en la escalera: es solo de los fundadores.
+// La negra NO aparece en la escalera: es solo de los fundadores. Las ediciones especiales (Rose Gold,
+// Special Edition) tampoco: las otorga IATOS a mano y no se alcanzan subiendo de nivel.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
-  CARD_TEXT, daysToPlatinum2, longSince, tenureLabel, tierRank, tierText,
+  CARD_TEXT, cardReason, daysToPlatinum2, longSince, tenureLabel, tierRank, tierText,
   type CardLang, type MemberCardData,
 } from "@/lib/memberCard";
 import { TierCard } from "./TierCard";
@@ -14,7 +15,7 @@ import { TierCard } from "./TierCard";
 /** Detalle del rango: la tarjeta grande, por qué la tienes y cómo subir. */
 export function MemberCardDetail({ card, lang = "es", links = true }: { card: MemberCardData; lang?: CardLang; links?: boolean }) {
   const T = CARD_TEXT[lang];
-  const tt = tierText(card.tier, lang);
+  const tt = tierText(card.tier, lang, card.edition);
   const founder = card.tier === "founder_black";
   const left = daysToPlatinum2(card);
   const since = longSince(card.since, lang);
@@ -22,12 +23,12 @@ export function MemberCardDetail({ card, lang = "es", links = true }: { card: Me
   return (
     <div className="space-y-5" data-testid="member-card-detail">
       <div className="mx-auto w-full max-w-[420px]">
-        <TierCard tier={card.tier} name={card.name} number={card.number} since={card.since} lang={lang} interactive testId="member-tier-card-full" />
+        <TierCard tier={card.tier} edition={card.edition} name={card.name} number={card.number} since={card.since} lang={lang} interactive testId="member-tier-card-full" />
       </div>
       <div>
         <p className="text-[10px] tracking-[0.28em] uppercase text-muted-foreground">{T.rank}</p>
         <p className="font-display text-2xl leading-tight" data-testid="member-card-rank">{tt.name}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{card.granted ? T.granted : tt.reason}</p>
+        <p className="mt-1 text-sm text-muted-foreground" data-testid="member-card-reason">{cardReason(card, lang)}</p>
       </div>
       <dl className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
         <div className="col-span-2 sm:col-span-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 min-w-0">
@@ -89,7 +90,7 @@ export function MemberCardButton({ card, loading = false, lang = "es", className
   if (!card) {
     return loading ? <div className={`aspect-[85.6/54] w-full rounded-[7px] bg-white/[0.04] animate-pulse motion-reduce:animate-none ${className}`} data-testid={`${testId}-loading`} aria-hidden="true" /> : null;
   }
-  const tt = tierText(card.tier, lang);
+  const tt = tierText(card.tier, lang, card.edition);
   return (
     <>
       <button
@@ -100,13 +101,14 @@ export function MemberCardButton({ card, loading = false, lang = "es", className
         className={`block w-full rounded-[8px] text-left transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${className}`}
         data-testid={testId}
         data-tier={card.tier}
+        data-edition={card.edition ?? undefined}
       >
-        <TierCard tier={card.tier} name={card.name} number={card.number} since={card.since} lang={lang} size="mini" testId={`${testId}-card`} />
+        <TierCard tier={card.tier} edition={card.edition} name={card.name} number={card.number} since={card.since} lang={lang} size="mini" testId={`${testId}-card`} />
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[92dvh] overflow-y-auto rounded-3xl border-white/[0.08] bg-background/95 backdrop-blur-xl sm:max-w-[480px]">
           <DialogTitle className="sr-only">{`${T.card} ${tt.name}`}</DialogTitle>
-          <DialogDescription className="sr-only">{card.granted ? T.granted : tt.reason}</DialogDescription>
+          <DialogDescription className="sr-only">{cardReason(card, lang)}</DialogDescription>
           <MemberCardDetail card={card} lang={lang} />
         </DialogContent>
       </Dialog>

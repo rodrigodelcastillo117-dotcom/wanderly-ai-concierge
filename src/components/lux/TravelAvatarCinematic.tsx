@@ -103,7 +103,7 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
             </div>
             {card ? (
               <figcaption className="mt-3 text-center text-[10px] tracking-[0.24em] uppercase text-foreground/70">
-                Credencial · <span style={{ color: culture.palette.accent }}>{tierText(card.tier).name}</span>
+                Credencial · <span style={{ color: culture.palette.accent }}>{tierText(card.tier, "es", card.edition).name}</span>
               </figcaption>
             ) : null}
           </figure>

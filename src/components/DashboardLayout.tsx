@@ -153,7 +153,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             {card ? (
               <div className="min-w-0 leading-tight">
                 <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground">Tu tarjeta</p>
-                <p className="text-[12px] text-foreground truncate">{tierText(card.tier).name}</p>
+                <p className="text-[12px] text-foreground truncate">{tierText(card.tier, "es", card.edition).name}</p>
               </div>
             ) : null}
           </div>
@@ -325,7 +325,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
               {card ? (
                 <div className="min-w-0">
                   <p className="text-[10px] tracking-[0.24em] uppercase text-muted-foreground">Tu tarjeta</p>
-                  <p className="font-display text-xl leading-tight">{tierText(card.tier).name}</p>
+                  <p className="font-display text-xl leading-tight">{tierText(card.tier, "es", card.edition).name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Tócala para ver el detalle</p>
                 </div>
               ) : null}

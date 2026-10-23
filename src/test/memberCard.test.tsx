@@ -28,7 +28,7 @@ import { MemberCardDetail } from "@/components/membercard/MemberCardButton";
 import { TravelAvatarCinematic } from "@/components/lux/TravelAvatarCinematic";
 import { PassportCard } from "@/components/prive/value";
 import { PriveLangProvider } from "@/components/prive/PriveLang";
-import { clearMemberCardCache, MEMBER_TIERS, parseMemberCard, type MemberCardData, type MemberTier } from "@/lib/memberCard";
+import { cardReason, clearMemberCardCache, MEMBER_TIERS, parseMemberCard, tierText, type MemberCardData, type MemberTier } from "@/lib/memberCard";
 import { VALUE_TEXT } from "@/lib/priveValueI18n";
 
 const card = (tier: MemberTier, over: Partial<MemberCardData> = {}): MemberCardData => ({
@@ -259,5 +259,112 @@ describe("prefers-reduced-motion", () => {
     const css = readFileSync("src/components/membercard/memberCard.css", "utf8");
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*animation: none !important/);
     expect(css).toMatch(/\.mc-card\[data-motion="reduce"\] \.mc-sheen \{ animation: none !important; \}/);
+  });
+});
+
+describe("ediciones especiales (Platinum Rose Gold / Platinum II Special Edition)", () => {
+  const raw = (tier: string, edition: unknown) => ({ tier, since: "2025-06-01T18:00:00Z", number: "IP-7KQM-X4TD", granted: true, name: "Sophia R", edition });
+  it("parse: solo rose_gold | special y solo en Platinum; cualquier otra cosa = null", () => {
+    expect(parseMemberCard(raw("platinum_2", "rose_gold"))?.edition).toBe("rose_gold");
+    expect(parseMemberCard(raw("platinum_2", "special"))?.edition).toBe("special");
+    expect(parseMemberCard(raw("platinum_1", "special"))?.edition).toBe("special");
+    for (const bad of ["ROSE_GOLD", "gold", "black", "special ", "", 1, true, {}, ["special"], null, undefined]) {
+      expect(parseMemberCard(raw("platinum_2", bad))?.edition).toBeNull();
+    }
+    const { edition: _drop, ...sin } = raw("platinum_2", "x");
+    expect(parseMemberCard(sin)?.edition).toBeNull();
+    for (const t of ["founder_black", "gold", "blue"]) expect(parseMemberCard(raw(t, "special"))?.edition).toBeNull();
+    // La edición nunca cambia el rango.
+    expect(parseMemberCard(raw("platinum_2", "special"))?.tier).toBe("platinum_2");
+  });
+  it("textos ES/EN: nombre, cara, sello y razón", () => {
+    expect(tierText("platinum_2", "es", "rose_gold")).toMatchObject({ name: "Platinum Rose Gold", face: "ROSE GOLD", seal: null, reason: "Edición especial otorgada por IATOS." });
+    expect(tierText("platinum_2", "es", "special")).toMatchObject({ name: "Platinum II Special Edition", face: "PLATINUM", seal: "SPECIAL EDITION", reason: "Edición especial otorgada por IATOS." });
+    expect(tierText("platinum_2", "en", "rose_gold")).toMatchObject({ name: "Platinum Rose Gold", face: "ROSE GOLD", reason: "Special edition granted by IATOS." });
+    expect(tierText("platinum_2", "en", "special")).toMatchObject({ name: "Platinum II Special Edition", face: "PLATINUM", seal: "SPECIAL EDITION" });
+    expect(tierText("platinum_1", "es", "special").name).toBe("Platinum I Special Edition");
+    // Sin edición, o fuera de Platinum, los textos de siempre.
+    expect(tierText("platinum_2", "es").name).toBe("Platinum II");
+    expect(tierText("founder_black", "es", "special").name).toBe("Fundador");
+    expect(tierText("gold", "es", "rose_gold").name).toBe("Dorada");
+    expect(cardReason(card("platinum_2", { granted: true, edition: "special" }))).toBe("Edición especial otorgada por IATOS.");
+    expect(cardReason(card("platinum_2", { granted: true }))).toBe("Rango otorgado por IATOS.");
+  });
+  for (const size of ["full", "mini"] as const) {
+    it(`Rose Gold en ${size}: data-edition, cara ROSE GOLD sin numeral, roseta y sin marca II`, () => {
+      const { container } = render(<TierCard {...card("platinum_2", { edition: "rose_gold" })} size={size} />);
+      const el = screen.getByTestId("member-tier-card");
+      expect(el).toHaveAttribute("data-tier", "platinum_2");
+      expect(el).toHaveAttribute("data-edition", "rose_gold");
+      expect(el).toHaveAttribute("data-size", size);
+      expect(screen.getByTestId("member-tier-face").textContent).toBe("ROSE GOLD");
+      expect(container.querySelector(".mc-mark-rose")).not.toBeNull();
+      expect(container.querySelector(".mc-mark-ii")).toBeNull();
+      expect(screen.queryByTestId("member-edition-seal")).toBeNull();
+      expect(el.getAttribute("aria-label")).toMatch(/^Tarjeta IATOS Platinum Rose Gold · Valentina Ríos/);
+      expect(screen.getByTestId("member-tier-number")).toHaveTextContent("IP-7KQM-X4TD");
+    });
+    it(`Special Edition en ${size}: cara PLATINUM II, sello SPECIAL EDITION y marca II`, () => {
+      const { container } = render(<TierCard {...card("platinum_2", { edition: "special" })} size={size} />);
+      const el = screen.getByTestId("member-tier-card");
+      expect(el).toHaveAttribute("data-edition", "special");
+      expect(el).toHaveAttribute("data-size", size);
+      expect(screen.getByTestId("member-tier-face").textContent).toBe("PLATINUM II");
+      expect(screen.getByTestId("member-edition-seal")).toHaveTextContent("SPECIAL EDITION");
+      expect(container.querySelector(".mc-mark-ii")).toHaveTextContent("II");
+      expect(container.querySelector(".mc-mark-rose")).toBeNull();
+      expect(el.getAttribute("aria-label")).toMatch(/^Tarjeta IATOS Platinum II Special Edition/);
+    });
+  }
+  it("TierCard ignora la edición fuera de Platinum (la negra nunca lleva edición)", () => {
+    const { rerender } = render(<TierCard {...card("founder_black", { edition: "special" })} />);
+    expect(screen.getByTestId("member-tier-card")).not.toHaveAttribute("data-edition");
+    expect(screen.getByTestId("member-tier-face")).toHaveTextContent("FUNDADOR");
+    expect(screen.queryByTestId("member-edition-seal")).toBeNull();
+    rerender(<TierCard {...card("gold", { edition: "rose_gold" })} />);
+    expect(screen.getByTestId("member-tier-card")).not.toHaveAttribute("data-edition");
+    expect(screen.getByTestId("member-tier-face").textContent).toBe("DORADA");
+  });
+  it("CSS propio para cada edición, borde holográfico y quieto con reduced motion", () => {
+    const css = readFileSync("src/components/membercard/memberCard.css", "utf8");
+    expect(css).toContain('.mc-card[data-tier][data-edition="rose_gold"] {');
+    expect(css).toContain('.mc-card[data-tier][data-edition="special"] {');
+    expect(css).toMatch(/data-edition="special"\]::after \{[\s\S]*animation: mc-holo/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.mc-card::after, \.mc-card::before \{ animation: none !important; \}/);
+    expect(css).toMatch(/\.mc-card\[data-motion="reduce"\]::after, \.mc-card\[data-motion="reduce"\]::before \{ animation: none !important; \}/);
+  });
+  it("detalle: nombre y razón de la edición; \"Cómo subir de nivel\" no la ofrece", () => {
+    for (const edition of ["rose_gold", "special"] as const) {
+      const { unmount } = render(<MemoryRouter><MemberCardDetail card={card("platinum_2", { granted: true, edition })} /></MemoryRouter>);
+      expect(screen.getByTestId("member-tier-card-full")).toHaveAttribute("data-edition", edition);
+      expect(screen.getByTestId("member-card-rank")).toHaveTextContent(edition === "rose_gold" ? "Platinum Rose Gold" : "Platinum II Special Edition");
+      expect(screen.getByTestId("member-card-reason")).toHaveTextContent("Edición especial otorgada por IATOS.");
+      const howto = screen.getByTestId("member-card-howto").textContent ?? "";
+      expect(howto).toMatch(/1 año en Privé\s*→\s*:?\s*Platinum II/);
+      expect(howto).not.toMatch(/rose|special|edici[oó]n|oro rosa/i);
+      unmount();
+    }
+  });
+  it("menú: la mini y el nombre muestran la edición; al abrirla, la grande también", async () => {
+    serve({ ...card("platinum_2", { granted: true }), edition: "rose_gold" });
+    renderLayout();
+    const mini = await screen.findByTestId("sidebar-card");
+    expect(mini).toHaveAttribute("data-edition", "rose_gold");
+    expect(within(mini).getByTestId("sidebar-card-card")).toHaveAttribute("data-size", "mini");
+    expect(screen.getByTestId("sidebar-member-card")).toHaveTextContent("Platinum Rose Gold");
+    expect(mini).toHaveAccessibleName("Ver mi tarjeta Platinum Rose Gold");
+    fireEvent.click(mini);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByTestId("member-tier-card-full")).toHaveAttribute("data-edition", "rose_gold");
+  });
+  it("THE PRIVÉ PASSPORT usa la misma edición", async () => {
+    const passport = { member: { first_name: "Patricio", member_code: "IP-7KQM-X4TD", member_since: "2026-07-01T18:00:00Z", tenure_days: 113, status: "active", founding_member: false },
+      stats: { visitado: 0, experiencia: 0, favorito: 0, deseo: 0, recuerdo: 0, countries: 0 }, entries: [] };
+    access.content = vi.fn(async (fn: string) => (fn === "prive_passport" ? { ok: true, data: passport } : { ok: true, data: true }));
+    serve({ ...card("platinum_2", { granted: true }), edition: "special" });
+    render(<MemoryRouter><PassportCard /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId("prive-passport-card")).toHaveAttribute("data-edition", "special"));
+    expect(screen.getByTestId("prive-passport-tier-card")).toHaveAttribute("data-edition", "special");
+    expect(screen.getByTestId("prive-passport-rank")).toHaveTextContent("Platinum II Special Edition");
   });
 });

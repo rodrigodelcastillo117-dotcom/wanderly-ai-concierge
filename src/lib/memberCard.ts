@@ -1,12 +1,16 @@
 // Tarjeta de rango de IATOS. El rango lo calcula SOLO el servidor (my_member_card, por auth.uid());
 // aquí solo se valida la respuesta y se traduce. Orden: founder_black > platinum_2 > platinum_1 > gold > blue.
 // La negra (founder_black) es de los fundadores: nunca se ofrece como algo alcanzable.
+// Ediciones especiales (rose_gold, special): solo el acabado de una tarjeta Platinum, las otorga el dueño a
+// mano (member_card_grants.edition) y nunca cambian el rango ni se ofrecen como algo alcanzable.
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const MEMBER_TIERS = ["blue", "gold", "platinum_1", "platinum_2", "founder_black"] as const;
 export type MemberTier = (typeof MEMBER_TIERS)[number];
 export type CardLang = "es" | "en";
+export const MEMBER_EDITIONS = ["rose_gold", "special"] as const;
+export type MemberEdition = (typeof MEMBER_EDITIONS)[number];
 
 export type MemberCardData = {
   tier: MemberTier;
@@ -16,11 +20,18 @@ export type MemberCardData = {
   prive_days: number | null;
   granted: boolean;
   name: string | null;
+  /** Edición especial otorgada por IATOS; solo en platinum_1 / platinum_2. Sin edición = null. */
+  edition?: MemberEdition | null;
 };
 
 export const tierRank = (t: MemberTier) => MEMBER_TIERS.indexOf(t);
 
 const NUMBER_RE = /^(IP|IA)-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+/** La edición solo existe en Platinum; cualquier otro valor o rango = sin edición. */
+export function editionFor(tier: MemberTier, edition: unknown): MemberEdition | null {
+  if (tier !== "platinum_1" && tier !== "platinum_2") return null;
+  return typeof edition === "string" && (MEMBER_EDITIONS as readonly string[]).includes(edition) ? (edition as MemberEdition) : null;
+}
 const intOrNull = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : null);
 
 /** Acepta solo una respuesta bien formada del servidor; cualquier otra cosa = sin tarjeta (no se inventa un rango). */
@@ -34,6 +45,7 @@ export function parseMemberCard(raw: unknown): MemberCardData | null {
   return {
     tier: r.tier as MemberTier, since, number, name,
     tenure_days: intOrNull(r.tenure_days), prive_days: intOrNull(r.prive_days), granted: r.granted === true,
+    edition: editionFor(r.tier as MemberTier, r.edition),
   };
 }
 
@@ -127,7 +139,34 @@ export const CARD_TEXT = {
   },
 };
 
-export const tierText = (t: MemberTier, lang: CardLang = "es") => TIERS[lang][t];
+// Ediciones: el nombre, la cara y la razón cambian; el rango (y la escalera) no.
+type EditionText = { name: (t: MemberTier) => string; face: string; seal: string | null; reason: string };
+const EDITIONS: Record<CardLang, Record<MemberEdition, EditionText>> = {
+  es: {
+    rose_gold: { name: () => "Platinum Rose Gold", face: "ROSE GOLD", seal: null, reason: "Edición especial otorgada por IATOS." },
+    special: { name: (t) => `${TIERS.es[t].name} Special Edition`, face: "PLATINUM", seal: "SPECIAL EDITION", reason: "Edición especial otorgada por IATOS." },
+  },
+  en: {
+    rose_gold: { name: () => "Platinum Rose Gold", face: "ROSE GOLD", seal: null, reason: "Special edition granted by IATOS." },
+    special: { name: (t) => `${TIERS.en[t].name} Special Edition`, face: "PLATINUM", seal: "SPECIAL EDITION", reason: "Special edition granted by IATOS." },
+  },
+};
+
+/** Textos del rango; con `edition` (solo Platinum) devuelve el nombre, la cara y la razón de la edición. */
+export function tierText(t: MemberTier, lang: CardLang = "es", edition?: MemberEdition | null): TierText & { seal: string | null } {
+  const base = TIERS[lang][t];
+  const ed = editionFor(t, edition);
+  if (!ed) return { ...base, seal: null };
+  const e = EDITIONS[lang][ed];
+  return { name: e.name(t), face: e.face, reason: e.reason, seal: e.seal };
+}
+
+/** Por qué tienes esta tarjeta: la edición manda; si no, "otorgado" o la razón del rango. */
+export function cardReason(card: Pick<MemberCardData, "tier" | "granted" | "edition">, lang: CardLang = "es"): string {
+  const tt = tierText(card.tier, lang, card.edition);
+  if (editionFor(card.tier, card.edition)) return tt.reason;
+  return card.granted ? CARD_TEXT[lang].granted : tt.reason;
+}
 
 /** "10/26" (mes/año, como en una tarjeta bancaria), en hora de Ciudad de México. */
 export function cardSince(iso: string | null): string | null {

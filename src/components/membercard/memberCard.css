@@ -60,6 +60,7 @@
 .mc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 3cqw; }
 .mc-brand { font-size: 4.6cqw; letter-spacing: 0.34em; font-weight: 600; line-height: 1; color: var(--mc-brand, var(--mc-ink)); }
 .mc-sub { margin-top: 1.4cqw; font-size: 2.3cqw; letter-spacing: 0.28em; text-transform: uppercase; color: var(--mc-muted); }
+.mc-face-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1.5cqw; min-width: 0; }
 .mc-tier { font-size: 3.4cqw; letter-spacing: 0.3em; font-weight: 600; line-height: 1; text-align: right; color: var(--mc-accent); white-space: nowrap; }
 .mc-mid { margin-top: auto; display: flex; align-items: center; gap: 3cqw; }
 .mc-chip { width: 12.5cqw; height: auto; flex: none; filter: drop-shadow(0 0.3cqw 0.3cqw rgba(0, 0, 0, 0.35)); }
@@ -187,10 +188,121 @@
   --mc-grain: 0.3;
 }
 
+/* ───────────── Ediciones especiales (otorgadas por IATOS; solo Platinum, nunca cambian el rango) ─────────────
+   Van con [data-tier][data-edition] para pesar más que la variante de rango que tengan debajo. */
+
+/* Sello "SPECIAL EDITION": letra fina espaciada entre dos filetes, como un grabado. */
+.mc-seal {
+  display: flex; align-items: center; gap: 1.2cqw;
+  font-size: 1.85cqw; line-height: 1; font-weight: 300; letter-spacing: 0.42em; text-transform: uppercase;
+  white-space: nowrap; color: var(--mc-seal, var(--mc-muted));
+  margin-right: -0.42em; /* compensa el espaciado de la última letra para alinear a la derecha */
+}
+.mc-seal::before, .mc-seal::after { content: ""; display: block; width: 3.6cqw; height: 1px; background: currentColor; opacity: 0.55; }
+.mc-seal::after { margin-right: 0.42em; }
+.mc-mark-rose { right: 4cqw; top: 50%; width: 38cqw; transform: translateY(-50%); }
+
+/* Platinum Rose Gold: oro rosa cepillado (cobre rosado → champaña), grabado chocolate y roseta guilloché. */
+.mc-card[data-tier][data-edition="rose_gold"] {
+  --mc-base:
+    radial-gradient(120% 90% at 18% 8%, rgba(255, 238, 230, 0.55), transparent 46%),
+    linear-gradient(132deg, #8e5246 0%, #c4877a 15%, #f2cfc1 33%, #e2ab9a 47%, #b97668 63%, #edc2b1 82%, #9a5c50 100%);
+  --mc-texture:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0 1px, rgba(60, 20, 15, 0.05) 1px 2px, transparent 2px 4px),
+    repeating-radial-gradient(circle at 80% 50%, rgba(92, 40, 32, 0.07) 0 0.5px, transparent 0.5px 4px);
+  --mc-texture-blend: normal;
+  --mc-texture-opacity: 1;
+  --mc-ink: #3b1b16;
+  --mc-muted: rgba(72, 32, 26, 0.68);
+  --mc-accent: #4a221c;
+  --mc-brand: #3d1c17;
+  --mc-mark: rgba(92, 40, 32, 0.2);
+  --mc-edge: rgba(255, 226, 214, 0.5);
+  --mc-edge-hi: rgba(255, 240, 232, 0.45);
+  --mc-glow: rgba(255, 238, 230, 0.6);
+  --mc-band: rgba(255, 244, 238, 0.45);
+  --mc-engrave: 0 1px 0 rgba(255, 232, 222, 0.6), 0 -1px 0 rgba(80, 30, 22, 0.22);
+  --mc-grain: 0.16;
+}
+/* Sin la franja grafito de la Platinum II: el oro rosa va entero. */
+.mc-card[data-tier][data-edition="rose_gold"] .mc-bottom { margin-top: 2.8cqw; }
+.mc-card[data-tier][data-edition="rose_gold"] .mc-bottom .mc-name,
+.mc-card[data-tier][data-edition="rose_gold"] .mc-bottom .mc-since-value { color: var(--mc-ink); text-shadow: var(--mc-engrave); }
+.mc-card[data-tier][data-edition="rose_gold"] .mc-bottom .mc-since-label { color: var(--mc-muted); }
+.mc-card[data-tier][data-edition="rose_gold"]::after {
+  /* Bisel fino de oro rosa pulido (en lugar del borde iridiscente). */
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: 0.55cqw;
+  background: linear-gradient(135deg, rgba(255, 236, 226, 0.95), rgba(176, 104, 90, 0.75) 35%, rgba(255, 226, 212, 0.9) 60%, rgba(140, 72, 60, 0.8));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: 0.8; animation: none;
+}
+
+/* Platinum Special Edition: platino pulido más claro y frío, guilloché grabado de doble roseta con
+   rayado fino, franja de grafito profundo, borde holográfico más ancho que se desplaza despacio. */
+.mc-card[data-tier][data-edition="special"] {
+  --mc-base:
+    linear-gradient(180deg, transparent 0 71%, rgba(14, 16, 20, 0.95) 71% 100%),
+    radial-gradient(110% 80% at 30% 0%, rgba(255, 255, 255, 0.7), transparent 50%),
+    linear-gradient(128deg, #4c525a 0%, #aab0b7 13%, #f7f8f9 29%, #c2c6cc 43%, #f0f1f3 57%, #7d838b 77%, #d6d9dd 100%);
+  --mc-texture:
+    repeating-radial-gradient(circle at 82% 44%, rgba(18, 22, 28, 0.15) 0 0.5px, transparent 0.5px 3.4px),
+    repeating-radial-gradient(circle at 64% 44%, rgba(18, 22, 28, 0.07) 0 0.5px, transparent 0.5px 3.4px),
+    repeating-linear-gradient(62deg, rgba(255, 255, 255, 0.16) 0 0.5px, transparent 0.5px 2.6px);
+  --mc-texture-blend: normal;
+  --mc-texture-opacity: 0.95;
+  --mc-ink: #121519;
+  --mc-muted: rgba(26, 30, 36, 0.66);
+  --mc-accent: #121519;
+  --mc-seal: #20252c;
+  --mc-mark: rgba(255, 255, 255, 0.5);
+  --mc-edge: rgba(255, 255, 255, 0.7);
+  --mc-glow: rgba(255, 255, 255, 0.75);
+  --mc-band: rgba(255, 255, 255, 0.6);
+  --mc-engrave: 0 1px 0 rgba(255, 255, 255, 0.8), 0 -1px 0 rgba(0, 0, 0, 0.16);
+  --mc-grain: 0.1;
+  --mc-holo-w: 0.85cqw;
+}
+.mc-card[data-tier][data-edition="special"] .mc-bottom { margin-top: 5.2cqw; }
+.mc-card[data-tier][data-edition="special"] .mc-bottom .mc-name,
+.mc-card[data-tier][data-edition="special"] .mc-bottom .mc-since-value { color: #f1f3f6; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65); }
+.mc-card[data-tier][data-edition="special"] .mc-bottom .mc-since-label { color: rgba(225, 229, 235, 0.72); }
+.mc-card[data-tier][data-edition="special"]::after {
+  /* Borde holográfico: espectro suave en conic, ancho y vivo, que se desplaza despacio. */
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: var(--mc-holo-w);
+  background: linear-gradient(115deg, #f7b6d8, #b9d8ff, #c6f5df, #fff0b8, #e9c2ff, #b2ecff, #f7b6d8);
+  background-size: 300% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: 0.92;
+  animation: mc-holo 9s linear infinite;
+}
+/* Filete holográfico donde empieza la franja de grafito: distingue la Special también en mini. */
+.mc-card[data-tier][data-edition="special"]::before {
+  content: ""; position: absolute; left: 0; right: 0; top: calc(71% - var(--mc-holo-line, 0.45cqw)); height: var(--mc-holo-line, 0.45cqw);
+  pointer-events: none; z-index: 1;
+  background: linear-gradient(90deg, #f7b6d8, #b9d8ff, #c6f5df, #fff0b8, #e9c2ff, #b2ecff, #f7b6d8);
+  background-size: 300% 100%;
+  opacity: 0.95;
+  animation: mc-holo 9s linear infinite;
+}
+/* Filete grabado interior, a un paso del borde holográfico. */
+.mc-card[data-tier][data-edition="special"] .mc-texture { box-shadow: inset 0 0 0 calc(var(--mc-holo-w) + 0.7cqw) transparent, inset 0 0 0 calc(var(--mc-holo-w) + 0.85cqw) rgba(20, 24, 30, 0.22); }
+@keyframes mc-holo { from { background-position: 0% 0; } to { background-position: 300% 0; } }
+
+/* Mini: la edición se reconoce por el metal y el borde; el sello solo si hay espacio para leerlo. */
+.mc-card[data-size="mini"][data-edition="special"] { --mc-holo-w: 1.5cqw; --mc-holo-line: 1.1cqw; }
+.mc-card[data-size="mini"] .mc-seal { display: none; }
+@container (min-width: 140px) {
+  .mc-card[data-size="mini"] .mc-seal { display: flex; font-size: 2.9cqw; font-weight: 400; letter-spacing: 0.3em; }
+}
+
 /* Sin movimiento: ni inclinación ni brillo animado (sistema o atributo data-motion). */
 @media (prefers-reduced-motion: reduce) {
   .mc-card { transition: none; transform: none !important; }
   .mc-card .mc-sheen, .mc-card:hover .mc-sheen { animation: none !important; }
+  .mc-card::after, .mc-card::before { animation: none !important; }
 }
 .mc-card[data-motion="reduce"] { transition: none; transform: none !important; }
 .mc-card[data-motion="reduce"] .mc-sheen { animation: none !important; }
+.mc-card[data-motion="reduce"]::after, .mc-card[data-motion="reduce"]::before { animation: none !important; }

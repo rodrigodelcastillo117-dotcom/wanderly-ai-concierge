@@ -43,11 +43,11 @@ export function PassportCard({ lang }: { lang?: ValueLang } = {}) {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-start">
           <div className="space-y-3">
             {ranked ? (
-              <div className="space-y-3" data-testid="prive-passport-card" data-tier={ranked.tier}>
-                <TierCard tier={ranked.tier} name={ranked.name ?? m.first_name} number={ranked.number ?? m.member_code} since={ranked.since ?? m.member_since}
+              <div className="space-y-3" data-testid="prive-passport-card" data-tier={ranked.tier} data-edition={ranked.edition ?? undefined}>
+                <TierCard tier={ranked.tier} edition={ranked.edition} name={ranked.name ?? m.first_name} number={ranked.number ?? m.member_code} since={ranked.since ?? m.member_since}
                   lang={t.lang} interactive testId="prive-passport-tier-card" />
                 <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
-                  <p className="prive-serif text-xl" data-testid="prive-passport-rank">{tierText(ranked.tier, t.lang).name}</p>
+                  <p className="prive-serif text-xl" data-testid="prive-passport-rank">{tierText(ranked.tier, t.lang, ranked.edition).name}</p>
                   <p className="text-xs prive-champagne">{t.passport.status}: {m.status === "active" ? t.passport.active : t.passport.inactive}</p>
                 </div>
                 <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
