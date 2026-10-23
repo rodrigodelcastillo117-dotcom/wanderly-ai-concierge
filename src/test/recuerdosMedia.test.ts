@@ -5,7 +5,7 @@ import { exifHasGps, exifInstant, mp4HasMetadata, readExifDate, readMp4Info, san
 import { effectiveType, prepareRecuerdo, recuerdoProblem, RECUERDO_PHOTO_EDGE } from "@/lib/recuerdos/prepare";
 
 // ───── JPEG sintético con EXIF (DateTimeOriginal, OffsetTimeOriginal) y puntero GPS ─────
-function tiff(opts: { dto?: string; offset?: string; ifd0Date?: string; gps?: boolean; be?: boolean }): Uint8Array {
+function tiff(opts: { dto?: string; offset?: string; ifd0Date?: string; gps?: boolean; be?: boolean }): Uint8Array<ArrayBuffer> {
   const le = !opts.be;
   const buf = new Uint8Array(512);
   const dv = new DataView(buf.buffer);
@@ -32,7 +32,7 @@ function tiff(opts: { dto?: string; offset?: string; ifd0Date?: string; gps?: bo
   if (opts.gps) writeIfd(gpsAt, []);
   return buf.slice(0, data);
 }
-function jpegWithExif(t: Uint8Array): Uint8Array {
+function jpegWithExif(t: Uint8Array): Uint8Array<ArrayBuffer> {
   const app1 = new Uint8Array([0xff, 0xe1, 0, 0, ...[..."Exif"].map((c) => c.charCodeAt(0)), 0, 0, ...t]);
   const len = app1.length - 2; app1[2] = len >> 8; app1[3] = len & 0xff;
   const app0 = [0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00];

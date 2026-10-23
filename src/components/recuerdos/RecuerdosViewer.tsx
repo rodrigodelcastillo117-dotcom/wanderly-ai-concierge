@@ -3,6 +3,7 @@
 // Wrapped usa primero esas), mover a otro viaje y borrar. Lo que viene de Mejores momentos o del diario
 // solo se ve aquí (se edita donde nació); lo que compartió otro miembro del viaje, también.
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Loader2, Star, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -74,7 +75,9 @@ export function RecuerdosViewer({ items, index, onIndex, onClose, urlOf, trips, 
   };
 
   const ctrl = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold text-[#F5EBDD] hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30";
-  return (
+  // En un portal al final del <body>: queda encima de la barra inferior del celular (también z-50) y
+  // debajo del diálogo de confirmación (que se monta después).
+  return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-black text-[#F5EBDD]" role="dialog" aria-modal="true" aria-label={`Recuerdos del ${dayLabel(it.day)}`} data-testid="recuerdos-viewer">
       <div className="flex items-center justify-between gap-2 px-3 pt-[max(10px,env(safe-area-inset-top))]">
         <div className="min-w-0">
@@ -164,6 +167,7 @@ export function RecuerdosViewer({ items, index, onIndex, onClose, urlOf, trips, 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </div>,
+    document.body,
   );
 }

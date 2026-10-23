@@ -28,7 +28,7 @@ export function RecuerdosCalendar({ year, month, items, today, onMonth, onOpenDa
           <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-1 md:gap-2" role="grid">
+      <div className="mx-auto grid max-w-2xl grid-cols-7 gap-1 md:gap-2" role="grid">
         {WEEKDAYS_ES.map((d, i) => (
           <div key={i} role="columnheader" className="pb-1 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{d}</div>
         ))}
