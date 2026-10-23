@@ -75,11 +75,17 @@ interface Body {
 
 type Tier = "ahorro" | "equilibrio" | "premium";
 
-const MODEL = "google/gemini-2.5-pro";
+// Flash, no Pro: con Pro (razonamiento largo) el global + una llamada por ciudad pasaban el límite de
+// 150 s de la función y el usuario recibía 504 sin viaje (E2E España/Japón, 23-oct-2026).
+const MODEL = "google/gemini-flash-latest";
+/** Tope total de la función (la plataforma corta a 150 s): lo que no termine antes se entrega parcial. */
+const REQUEST_BUDGET_MS = 130_000;
 
-async function callAI(apiKey: string, system: string, user: string, toolName: string, schema: any) {
+async function callAI(apiKey: string, system: string, user: string, toolName: string, schema: any, timeoutMs = 90_000) {
   const res = await aiFetch({
     method: "POST",
+    // Sin tope, una respuesta lenta del modelo se comía todo el tiempo de la función (504).
+    signal: AbortSignal.timeout(Math.max(10_000, timeoutMs)),
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
@@ -382,6 +388,8 @@ function invokeFn(name: string, authHeader: string, payload: unknown, extraHeade
       ...extraHeaders,
     },
     body: JSON.stringify(payload),
+    // Un proveedor lento no debe tumbar todo el plan: sin respuesta en 40 s, la ciudad sigue sin datos en vivo.
+    signal: AbortSignal.timeout(40_000),
   })
     .then((r) => r.json())
     .catch((e) => ({ error: String(e?.message ?? e) }));
@@ -429,6 +437,8 @@ async function saveSnapshot(userId: string, body: Body): Promise<Response> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const __deadline = Date.now() + REQUEST_BUDGET_MS;
+  const aiBudget = () => __deadline - Date.now() - 5_000; // margen para post-proceso y guardado
   const __user = await getAuthUser(req);
   if (!__user) return unauthorizedResponse(corsHeaders);
 
@@ -704,7 +714,7 @@ Entrega JSON con:
 - restaurantes: 4-5 reales en ${city} acordes al estilo del usuario.
 - experiencias: 4-5 en ${city}; prioriza las de la lista de arriba con fuente="${attrSource}" y su rating real.`;
 
-      return callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema)
+      return callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema, aiBudget())
         .then((r) => ({ ...r, city, nights: cityNights, checkin: w.checkin, checkout: w.checkout }))
         .catch((e) => {
           console.error(`city ${city} failed:`, e.message);
@@ -715,7 +725,7 @@ Entrega JSON con:
         });
     });
 
-    const globalPromise = callAI(apiKey, GLOBAL_SYSTEM, globalPrompt, "emit_global", globalSchema)
+    const globalPromise = callAI(apiKey, GLOBAL_SYSTEM, globalPrompt, "emit_global", globalSchema, aiBudget())
       .catch((e) => {
         console.error("global failed:", e.message);
         return { flights: [], internal_transport: [], days: [], mandatory_costs: {}, resumen: "" };
