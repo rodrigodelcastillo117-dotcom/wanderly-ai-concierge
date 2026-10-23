@@ -21,7 +21,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { formatDateOnly } from "@/lib/dateUtils";
 import { useNavigate } from "react-router-dom";
 import santorini from "@/assets/hero-santorini.jpg";
 import { deleteOwnedTrip, leaveSharedTrip, MEMBERSHIP_MESSAGES } from "@/lib/tripMembership";
@@ -30,7 +29,7 @@ import { BookingStateBadge } from "@/components/BookingStateBadge";
 import { TripCardsSkeleton } from "@/components/PageSkeletons";
 import { groupTripsForList } from "@/lib/tripList";
 import { tripTiming } from "@/lib/tripCommand";
-import { localISODate } from "@/lib/localDate";
+import { formatTripDateRange, localISODate } from "@/lib/localDate";
 import { formatPaid, PAID_LABEL } from "@/lib/tripImport";
 
 const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: string; onDeleted: (id: string) => void; bookings?: BookingLike[] }) => {
@@ -124,7 +123,8 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
           </div>
           <div className="flex items-end justify-between gap-3 text-sm text-muted-foreground">
             <span className="min-w-0">
-              <span className="block">{t.fecha_salida ? formatDateOnly(t.fecha_salida) : "Sin fechas"}</span>
+              {/* Cuándo empieza y cuándo termina (con las noches); si falta una fecha, solo la que hay. */}
+              <span className="block" data-testid="trip-card-dates">{formatTripDateRange(t.fecha_salida, t.fecha_regreso) ?? "Sin fechas"}</span>
               {/* Cuánto falta (o si está en curso): lo primero que se busca en la lista. */}
               {t.fecha_salida && (() => {
                 const tm = tripTiming(t, localISODate());
