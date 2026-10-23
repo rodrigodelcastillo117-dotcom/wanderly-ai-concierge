@@ -75,6 +75,12 @@ describe("enforceSources: vuelos y hoteles contra las listas en vivo (B-05)", ()
     expect(a.hospedaje[0].fuente_precio).toBe("estimado");
   });
 
+  it("hotel estimado pierde la liga que escribió el modelo (slug de Booking o dominio inventado)", () => {
+    const a: any = { hospedaje: [{ nombre: "Hotel Escondido Oaxaca", precio_por_noche: 3000, fuente_precio: "estimado", booking_link: "https://www.hotelelcondido.com/oaxaca/" }] };
+    enforceSources(a, [], [], "tripadvisor");
+    expect(a.hospedaje[0].booking_link).toBeUndefined();
+  });
+
   it("tarifa de Travelpayouts con fechas aproximadas queda como ESTIMADO", () => {
     const a = { vuelos: [{ precio_por_persona: 10000, fuente_precio: "travelpayouts" }] };
     enforceSources(a, [], [], "tripadvisor", { ...live, tpApproximateDates: true });

@@ -111,6 +111,8 @@ export function enforceSources(
       if (label !== "perplexity") h.fuente_precio = "estimado";
       h.estado_dato = "ESTIMADO";
       delete h.consultado_at;
+      // Liga escrita por el modelo (p. ej. booking.com/hotel/<slug inventado>, dominios que no existen): se quita; la app arma la búsqueda.
+      delete h.booking_link;
     }
   }
 

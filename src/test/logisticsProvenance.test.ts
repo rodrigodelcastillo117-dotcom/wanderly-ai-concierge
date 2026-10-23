@@ -31,6 +31,8 @@ describe("logistics-plan: el modelo no decide qué es 'en vivo' (B-05)", () => {
     expect(conLista[1].rating).toBeNull();
     // TripAdvisor no respondió: ninguna conserva la etiqueta.
     expect(labelExperiences(exps, null).map((e) => e.fuente)).toEqual(["estimado", "estimado"]);
+    // El modelo la marcó "estimado" pero puso calificación: tampoco se muestra (auditoría 23-oct).
+    expect(labelExperiences([{ nombre: "Paseo X", fuente: "estimado", rating: 4.7 }], [{ name: "Coliseo Romano" }])[0].rating).toBeNull();
   });
 
   it("pricing_sources se calcula después de etiquetar", () => {

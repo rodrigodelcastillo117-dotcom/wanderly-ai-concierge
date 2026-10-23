@@ -52,7 +52,8 @@ export function labelExperiences(items: unknown, attractions: Array<{ name?: str
   return (Array.isArray(items) ? items : []).map((e: any) => {
     const real = !!attractions?.length && PLACE_SOURCES.has(e?.fuente) && attractions.some((a) => samePlace(a?.name, e?.nombre ?? e?.name));
     const out = { ...e, fuente: real ? source : "estimado", estado_dato: "ESTIMADO" };
-    if (!real) { out.rating = PLACE_SOURCES.has(e?.fuente) ? null : e?.rating ?? null; }
+    // Sin la lista del proveedor la calificación es del modelo: nunca se muestra (auditoría 23-oct-2026).
+    if (!real) out.rating = null;
     return out;
   });
 }
