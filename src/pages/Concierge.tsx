@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { fetchMetForecast, MET_ATTRIBUTION, nowFromMet } from "@/lib/metNorway";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -201,7 +202,8 @@ const Concierge = () => {
     return () => clearInterval(id);
   }, [allowed]);
 
-  // Real-time geolocation + weather (Open-Meteo, no key). Refresh on tick.
+  // Ubicación + clima en tiempo real (MET Norway, CC BY 4.0, sin llave; ver src/lib/metNorway.ts). Se
+  // actualiza con el tick; la caché de metNorway respeta el Expires de MET (no se pide cada minuto).
   useEffect(() => {
     if (!allowed) return;
     if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoState("unavailable"); return; }
@@ -214,14 +216,17 @@ const Concierge = () => {
         const { latitude, longitude } = pos.coords;
         setCurrentCoords({ lat: latitude, lng: longitude });
         try {
-          const [wRes, gRes] = await Promise.all([
-            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`),
+          // Dos decimales (≈1 km): basta para el clima y no manda la ubicación exacta.
+          const r2 = (v: number) => Math.round(v * 100) / 100;
+          const [met, gRes] = await Promise.all([
+            fetchMetForecast(r2(latitude), r2(longitude)),
             fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=es`),
           ]);
-          const w = await wRes.json();
+          const w = nowFromMet(met);
+          if (!w) throw new Error("sin clima");
           const g = await gRes.json();
           setWeather({
-            temp: Math.round(w?.current?.temperature_2m ?? 0),
+            temp: w.tempC,
             place: g?.city || g?.locality || g?.principalSubdivision || "Tu ubicación",
           });
           setGeoState("ok");
@@ -438,6 +443,7 @@ const Concierge = () => {
               <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />
                   {conciergeLocationLabel(geoState, weather)}
+                  {weather && <a href={MET_ATTRIBUTION.href} target="_blank" rel="noopener noreferrer" className="text-[10px] underline underline-offset-2">Datos: MET Norway</a>}
                 </span>
                 <TripContextSelector
                   trips={trips}

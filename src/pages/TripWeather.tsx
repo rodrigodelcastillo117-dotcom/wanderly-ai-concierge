@@ -8,7 +8,8 @@ import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { formatDateOnly } from "@/lib/dateUtils";
 import { motion } from "framer-motion";
 import { buildCityWeather, cityWeatherRanges, rangeDays, type CityBlock } from "@/lib/tripWeather";
-import { cityAirports } from "../../supabase/functions/_shared/airports.ts";
+import { MET_ATTRIBUTION } from "@/lib/metNorway";
+import { POWER_ATTRIBUTION } from "@/lib/nasaPower";
 
 // El radar (mapa, cuadros animados y viento) se descarga solo al abrirlo.
 const WeatherRadar = lazy(() => import("@/components/weather/WeatherRadar"));
@@ -30,10 +31,9 @@ function AnimatedTodayIcon({ code }: { code: number }) {
 }
 
 /** Radar plegado: se abre al tocar (y entonces se descarga). */
-function RadarToggle({ city }: { city: string }) {
+function RadarToggle({ city, lat, lng }: { city: string; lat: number; lng: number }) {
   const [open, setOpen] = useState(false);
-  const loc = cityAirports(city);
-  if (!loc) return <p className="mt-2 text-[11px] text-muted-foreground">Radar no disponible para {city}: no tenemos su ubicación.</p>;
+  const loc = { lat, lng };
   return (
     <div className="mt-3">
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="radar-toggle"
@@ -59,7 +59,8 @@ const codeIcon = (c: number) => {
 };
 const codeLabel = (c: number) => {
   if (c === 0) return "Despejado";
-  if (c <= 3) return "P. nublado";
+  if (c <= 2) return "P. nublado";
+  if (c === 3) return "Nublado";
   if (c <= 48) return "Niebla";
   if (c <= 67) return "Lluvia";
   if (c <= 77) return "Nieve";
@@ -97,7 +98,7 @@ const TripWeather = () => {
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">Clima</p>
           <h1 className="font-display text-3xl md:text-4xl">{trip?.destino || "Cargando..."}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Clima de hoy + el esperado durante tus días en cada destino.
+            Clima de hoy + el pronóstico de tus días en cada destino (o el clima típico del mes si aún faltan más de ~9 días).
           </p>
         </div>
 
@@ -143,20 +144,16 @@ const TripWeather = () => {
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col gap-1 text-[11px] text-muted-foreground sm:flex-row sm:gap-3">
-                      <span className="flex items-center gap-1"><Droplets className="w-3 h-3" />{b.today.precip}%</span>
+                      <span className="flex items-center gap-1"><Droplets className="w-3 h-3" />{b.today.precip} mm</span>
                       <span className="flex items-center gap-1"><Wind className="w-3 h-3" />{b.today.wind} km/h</span>
                     </div>
                   </div>
                 )}
 
-                {/* Días del viaje */}
-                {b.days.length === 0 ? (
-                  <p className="text-xs text-muted-foreground pl-10">Sin datos para esas fechas.</p>
-                ) : (
+                {/* Días del viaje: pronóstico real (MET Norway, ~9 días) */}
+                {b.days.length > 0 && (
                   <>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5 pl-1">
-                      {b.days[0]?.source === "forecast" ? "Pronóstico" : "Clima esperado (histórico)"}
-                    </div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5 pl-1">Pronóstico</div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
                       {b.days.map((d) => {
                         const Icon = codeIcon(d.code);
@@ -178,10 +175,10 @@ const TripWeather = () => {
                               {codeLabel(d.code)}
                             </div>
                             <div className="flex gap-1.5 mt-0.5 text-[9px] text-muted-foreground">
-                              <span className="flex items-center gap-0.5">
-                                <Droplets className="w-2.5 h-2.5" />{d.precip}{d.source === "forecast" ? "%" : "mm"}
+                              <span className="flex items-center gap-0.5" title="Lluvia del día">
+                                <Droplets className="w-2.5 h-2.5" />{d.precip} mm
                               </span>
-                              <span className="flex items-center gap-0.5">
+                              <span className="flex items-center gap-0.5" title="Viento máximo (km/h)">
                                 <Wind className="w-2.5 h-2.5" />{d.wind}
                               </span>
                             </div>
@@ -198,11 +195,47 @@ const TripWeather = () => {
                   </>
                 )}
 
-                <RadarToggle city={b.city} />
+                {/* Días que aún no tienen pronóstico: clima típico del mes (NASA POWER), sin inventar días. */}
+                {b.typical.map((m) => (
+                  <div key={m.month} className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3" data-testid="weather-typical">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {m.days.length === 1
+                        ? formatDateOnly(m.days[0], { day: "numeric", month: "short" })
+                        : `${formatDateOnly(m.days[0], { day: "numeric", month: "short" })} – ${formatDateOnly(m.days[m.days.length - 1], { day: "numeric", month: "short" })}`}
+                      {" · "}Pronóstico disponible ~9 días antes
+                    </p>
+                    {m.tmax != null && m.tmin != null ? (
+                      <p className="mt-1 text-sm">
+                        Clima típico de {m.label}: <span className="font-semibold">{m.tmax}° / {m.tmin}°</span>
+                        {m.precipMmDay != null && <span className="text-muted-foreground"> · ~{m.precipMmDay} mm de lluvia al día</span>}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">Aún no hay pronóstico para estas fechas.</p>
+                    )}
+                  </div>
+                ))}
+                {b.pastDays.length > 0 && b.days.length === 0 && b.typical.length === 0 && (
+                  <p className="text-xs text-muted-foreground pl-1">Estos días ya pasaron.</p>
+                )}
+                {b.days.length === 0 && b.typical.length === 0 && b.pastDays.length === 0 && (
+                  <p className="text-xs text-muted-foreground pl-10">Sin datos para esas fechas.</p>
+                )}
+
+                <RadarToggle city={b.city} lat={b.lat} lng={b.lng} />
               </motion.section>
             );
           })}
         </div>
+
+        {blocks.length > 0 && (
+          <p className="mt-8 text-[11px] text-muted-foreground" data-testid="weather-attribution">
+            <a href={MET_ATTRIBUTION.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{MET_ATTRIBUTION.label}</a>
+            {blocks.some((b) => b.sources.includes("power")) && (
+              <> · <a href={POWER_ATTRIBUTION.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{POWER_ATTRIBUTION.label}</a> (NASA Langley Research Center, POWER)</>
+            )}
+            . Pronóstico de unos 9 días; más adelante, el clima típico del mes.
+          </p>
+        )}
       </div>
     </DashboardLayout>
   );

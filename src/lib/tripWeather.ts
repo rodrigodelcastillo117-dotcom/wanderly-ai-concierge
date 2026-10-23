@@ -5,8 +5,15 @@
 // usaba el rango de todo el viaje para cada ciudad. Ahora cada ciudad usa sus noches (cityStays, el mismo
 // reparto que "Comprar" y los hoteles por ciudad): Roma 22–25 oct, Florencia 26–28 oct, Venecia 29 oct –
 // 1 nov (la última ciudad incluye el día de regreso).
+//
+// Datos (23-oct-2026, ya sin Open-Meteo, cuya API gratis es solo para uso no comercial): pronóstico y "Hoy"
+// de MET Norway (CC BY 4.0, src/lib/metNorway.ts), clima típico del mes de NASA POWER (dominio público,
+// src/lib/nasaPower.ts) y coordenadas de la tabla de ciudades o de la función "geocode" (cityLocation.ts).
 import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
-import { daysFromToday, diffLocalDays } from "@/lib/localDate";
+import { diffLocalDays } from "@/lib/localDate";
+import { resolveCityLocation, type Geocoder } from "@/lib/cityLocation";
+import { approxOffsetHours, dailyFromMet, fetchMetForecast, nowFromMet } from "@/lib/metNorway";
+import { fetchMonthlyClimate, MES_LARGO } from "@/lib/nasaPower";
 
 export type CityRange = { city: string; start: string; end: string };
 
@@ -15,15 +22,26 @@ export type DayData = {
   tmax: number;
   tmin: number;
   code: number;
-  /** % de probabilidad (pronóstico) o mm (histórico). */
+  /** Lluvia del día en mm (MET Norway). */
   precip: number;
+  /** Viento máximo, km/h. */
   wind: number;
-  source: "forecast" | "historical";
+  source: "forecast";
 };
 
+/** Días sin pronóstico todavía (más de ~9 días): el clima típico de ese mes (NASA POWER). */
+export type TypicalMonth = { month: number; label: string; days: string[]; tmax: number | null; tmin: number | null; precipMmDay: number | null };
+
 export type CityBlock = CityRange & {
+  lat: number;
+  lng: number;
   today: { tmax: number; tmin: number; code: number; wind: number; precip: number } | null;
   days: DayData[];
+  /** Días del rango que aún no tienen pronóstico, agrupados por mes con su clima típico. */
+  typical: TypicalMonth[];
+  /** Días del rango que ya pasaron (MET no da datos de días pasados). */
+  pastDays: string[];
+  sources: Array<"met" | "power">;
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -78,75 +96,57 @@ export function cityWeatherRanges(trip: any): CityRange[] {
   return Array.from(map.entries()).map(([city, r]) => ({ city, ...r }));
 }
 
-type Fetch = (url: string) => Promise<{ json(): Promise<any> }>;
-
-async function getJson(fetchImpl: Fetch, url: string): Promise<any> {
-  try { return await (await fetchImpl(url)).json(); } catch { return null; }
-}
-
-/** Solo los días de la ciudad: aunque la API devuelva más, se filtran al rango. */
-export function keepCityDays(days: DayData[], range: CityRange): DayData[] {
+/** Solo los días de la ciudad: aunque la fuente devuelva más, se filtran al rango. */
+export function keepCityDays<T extends { date: string }>(days: T[], range: CityRange): T[] {
   return days.filter((d) => d.date >= range.start && d.date <= range.end);
 }
 
-/**
- * Pronóstico (si las fechas caen en los próximos 16 días) o clima esperado (mismas fechas del año
- * anterior) para los días de UNA ciudad. Usa los servicios que ya usaba la pantalla (Open-Meteo).
- */
-export async function buildCityWeather(range: CityRange, fetchImpl: Fetch = fetch as any, now: Date = new Date()): Promise<CityBlock | null> {
-  const g = await getJson(fetchImpl, `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(range.city)}&count=1`);
-  const loc = g?.results?.[0];
-  if (!loc) return null;
+export type WeatherDeps = { fetchImpl?: typeof fetch; geocoder?: Geocoder; now?: Date };
 
-  const todayRes = await getJson(fetchImpl,
-    `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=1&timezone=auto`);
-  const today = todayRes?.current
-    ? {
-        tmax: Math.round(todayRes.daily?.temperature_2m_max?.[0] ?? todayRes.current.temperature_2m),
-        tmin: Math.round(todayRes.daily?.temperature_2m_min?.[0] ?? todayRes.current.temperature_2m),
-        code: todayRes.current.weather_code ?? 0,
-        wind: Math.round(todayRes.current.wind_speed_10m ?? 0),
-        precip: todayRes.daily?.precipitation_probability_max?.[0] ?? 0,
-      }
+/**
+ * Clima de los días de UNA ciudad: pronóstico de MET Norway (≈9 días) y, para los días que aún no tienen
+ * pronóstico, el clima típico de ese mes (NASA POWER). Nada se inventa: sin datos, se dice.
+ * Fuentes, términos y fechas de consulta: src/lib/metNorway.ts y src/lib/nasaPower.ts.
+ */
+export async function buildCityWeather(range: CityRange, deps: WeatherDeps = {}): Promise<CityBlock | null> {
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const now = deps.now ?? new Date();
+  const loc = await resolveCityLocation(range.city, deps.geocoder);
+  if (!loc) return null;
+  const met = await fetchMetForecast(loc.lat, loc.lng, fetchImpl, now.getTime());
+  const all = dailyFromMet(met, loc.lng);
+  const off = approxOffsetHours(loc.lng);
+  const todayLocal = new Date(now.getTime() + off * 3600_000).toISOString().slice(0, 10);
+  const cur = nowFromMet(met, now.getTime());
+  const td = all.find((d) => d.date === todayLocal);
+  const today = cur
+    ? { tmax: td?.tmax ?? cur.tempC, tmin: td?.tmin ?? cur.tempC, code: cur.code, wind: cur.windKmh, precip: td?.precipMm ?? 0 }
     : null;
 
-  const untilStart = daysFromToday(range.start, now) ?? 0;
-  const untilEnd = daysFromToday(range.end, now) ?? 0;
-  const days: DayData[] = [];
-  if (untilStart <= 16 && untilEnd <= 16) {
-    const f = await getJson(fetchImpl,
-      `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&start_date=${range.start}&end_date=${range.end}&timezone=auto`);
-    (f?.daily?.time ?? []).forEach((d: string, i: number) => days.push({
-      date: d,
-      tmax: Math.round(f.daily.temperature_2m_max[i]),
-      tmin: Math.round(f.daily.temperature_2m_min[i]),
-      code: f.daily.weather_code[i] ?? 0,
-      precip: f.daily.precipitation_probability_max?.[i] ?? 0,
-      wind: Math.round(f.daily.wind_speed_10m_max?.[i] ?? 0),
-      source: "forecast",
-    }));
-  } else {
-    const back = (iso: string) => `${Number(iso.slice(0, 4)) - 1}${iso.slice(4)}`;
-    const h = await getJson(fetchImpl,
-      `https://archive-api.open-meteo.com/v1/archive?latitude=${loc.latitude}&longitude=${loc.longitude}&start_date=${back(range.start)}&end_date=${back(range.end)}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&timezone=auto`);
-    const year = range.start.slice(0, 4);
-    const nextYear = String(Number(year) + 1);
-    (h?.daily?.time ?? []).forEach((d: string, i: number) => {
-      // Mismas fechas del año anterior, re-mapeadas al año del viaje (un viaje que cruza el año nuevo
-      // conserva enero en el año siguiente).
-      const mapped = `${d.slice(0, 4) === String(Number(year) - 1) ? year : nextYear}${d.slice(4)}`;
-      days.push({
-        date: mapped,
-        tmax: Math.round(h.daily.temperature_2m_max[i]),
-        tmin: Math.round(h.daily.temperature_2m_min[i]),
-        code: h.daily.weather_code[i] ?? 0,
-        precip: Math.round(h.daily.precipitation_sum?.[i] ?? 0),
-        wind: Math.round(h.daily.wind_speed_10m_max?.[i] ?? 0),
-        source: "historical",
-      });
-    });
+  const days: DayData[] = keepCityDays(all, range).map((d) => ({
+    date: d.date, tmax: d.tmax, tmin: d.tmin, code: d.code, precip: d.precipMm, wind: d.windKmh, source: "forecast" as const,
+  }));
+  const have = new Set(days.map((d) => d.date));
+  const rangeDaysList = daysInRange(range.start, range.end);
+  const pastDays = rangeDaysList.filter((d) => d < todayLocal && !have.has(d));
+  const pending = rangeDaysList.filter((d) => d >= todayLocal && !have.has(d));
+
+  const typical: TypicalMonth[] = [];
+  const sources: CityBlock["sources"] = met ? ["met"] : [];
+  if (pending.length) {
+    const clim = await fetchMonthlyClimate(loc.lat, loc.lng, fetchImpl);
+    if (clim) sources.push("power");
+    const byMonth = new Map<number, string[]>();
+    for (const d of pending) {
+      const m = Number(d.slice(5, 7));
+      byMonth.set(m, [...(byMonth.get(m) ?? []), d]);
+    }
+    for (const [m, ds] of byMonth) {
+      const c = clim?.find((x) => x.month === m) ?? null;
+      typical.push({ month: m, label: MES_LARGO[m - 1], days: ds, tmax: c?.tmax ?? null, tmin: c?.tmin ?? null, precipMmDay: c?.precipMmDay ?? null });
+    }
   }
-  return { ...range, today, days: keepCityDays(days, range) };
+  return { ...range, lat: loc.lat, lng: loc.lng, today, days, typical, pastDays, sources };
 }
 
 /** "4 días" del rango de una ciudad. */

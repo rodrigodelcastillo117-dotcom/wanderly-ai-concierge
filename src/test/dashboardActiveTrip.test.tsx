@@ -41,7 +41,7 @@ vi.mock("@/lib/fx", async () => {
   const actual: any = await vi.importActual("@/lib/fx");
   return { ...actual, fetchFxTable: async () => actual.FX_FALLBACK_TABLE };
 });
-// Prueba hermética: el clima del viaje en curso se pedía a geocoding-api.open-meteo.com de verdad.
+// Prueba hermética: el clima del viaje en curso se pedía a la red de verdad (hoy, MET Norway).
 vi.mock("@/lib/weatherNow", async () => {
   const actual: any = await vi.importActual("@/lib/weatherNow");
   return { ...actual, fetchWeatherNow: async () => null };

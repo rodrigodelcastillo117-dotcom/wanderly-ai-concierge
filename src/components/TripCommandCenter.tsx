@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatLocalDate } from "@/lib/localDate";
 import { flightStatusLine, nextTripAction, quoteFreshness, tripTiming, type TrackedFlightLike } from "@/lib/tripCommand";
 import { fetchWeatherNow, type WeatherNow } from "@/lib/weatherNow";
+import { currentTripCity } from "@/lib/cityLocation";
 import { SmartImage } from "@/components/media/SmartImage";
 import { AirlineLogo } from "@/components/media/AirlineLogo";
 import { airlineCode } from "@/lib/airlines";
@@ -68,13 +69,16 @@ export function TripCommandCenter({ trip, today }: Props) {
   }, [trip.id]);
 
   // Clima real solo cerca del viaje (el pronóstico no sirve a meses de distancia).
+  // En un viaje multi-destino, la ciudad donde está hoy (no "Roma → Florencia → Venecia").
+  const weatherCity = currentTripCity(trip, today) ?? trip.destino;
   const nearTrip = timing.phase === "en_curso" || (timing.phase === "proximo" && (timing.daysToStart ?? 99) <= 7);
   useEffect(() => {
     if (!nearTrip) { setWeather(null); return; }
     let alive = true;
-    fetchWeatherNow(trip.destino).then((w) => alive && setWeather(w)).catch(() => {});
+    if (!weatherCity) return;
+    fetchWeatherNow(weatherCity).then((w) => alive && setWeather(w)).catch(() => {});
     return () => { alive = false; };
-  }, [nearTrip, trip.destino]);
+  }, [nearTrip, weatherCity]);
 
   const merged = { ...trip, ...(full ?? {}) } as any;
   const fresh = quoteFreshness(full ? merged : { total_estimado: null }, quote);
@@ -168,7 +172,7 @@ export function TripCommandCenter({ trip, today }: Props) {
             {weather && (
               <li className="flex items-center gap-1.5 text-muted-foreground">
                 <CloudSun className="w-3.5 h-3.5 text-primary/80 shrink-0" aria-hidden />
-                Ahora en {trip.destino}: {weather.tempC}° · {weather.label} <span className="text-muted-foreground/70">(pronóstico {weather.source})</span>
+                Ahora en {weatherCity}: {weather.tempC}° · {weather.label} <span className="text-muted-foreground">(Datos: {weather.source})</span>
               </li>
             )}
           </ul>

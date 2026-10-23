@@ -17,6 +17,8 @@
 //  https://open-meteo.com/en/terms), Windy Map Forecast API (versión Testing "solo desarrollo, no en
 //  producción"), OpenWeatherMap (requiere llave de API).
 
+import { fetchMetForecast, __resetMetCache } from "@/lib/metNorway";
+
 export const GIBS_BASE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
 export const PRECIP_LAYER = "IMERG_Precipitation_Rate_30min";
 /** Nivel máximo de la capa de precipitación (GoogleMapsCompatible_Level6). */
@@ -27,7 +29,7 @@ export const FRAME_STEP_MIN = 30;
 export const ATTRIBUTION = {
   precip: { label: "Lluvia: NASA GIBS · GPM IMERG (satélite)", href: "https://www.earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance" },
   base: { label: "Mapa: NASA Blue Marble", href: "https://nasa-gibs.github.io/gibs-api-docs/" },
-  metno: { label: "Viento y próximas horas: MET Norway (CC BY 4.0)", href: "https://api.met.no/doc/License" },
+  metno: { label: "Viento y próximas horas: Datos de MET Norway (CC BY 4.0)", href: "https://api.met.no/doc/License" },
 } as const;
 
 /** Coordenadas de píxel (mundo) en el nivel z de Web Mercator. */
@@ -100,26 +102,15 @@ export async function findLatestFrame(probe: (time: string) => Promise<boolean>,
 export type NowcastHour = { time: string; precipMm: number | null };
 export type Nowcast = { windMs: number | null; windFromDeg: number | null; hours: NowcastHour[] };
 
-const metCache = new Map<string, Promise<Nowcast | null>>();
-/** MET Norway pide como máximo 4 decimales (si no, responde 403). */
-export const round4 = (v: number) => Math.round(v * 10000) / 10000;
+export { round4 } from "@/lib/metNorway";
 
-/** Viento actual y lluvia de las próximas `hours` horas (MET Norway Locationforecast 2.0 compact). */
-export function fetchNowcast(lat: number, lng: number, fetchImpl: typeof fetch = fetch, now: Date = new Date(), hours = 6): Promise<Nowcast | null> {
-  const key = `${round4(lat)},${round4(lng)}`;
-  if (!metCache.has(key)) {
-    metCache.set(key, (async () => {
-      try {
-        const r = await fetchImpl(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${round4(lat)}&lon=${round4(lng)}`);
-        if (!r.ok) throw new Error(String(r.status));
-        return parseNowcast(await r.json(), now, hours);
-      } catch {
-        metCache.delete(key);
-        return null;
-      }
-    })());
-  }
-  return metCache.get(key)!;
+/**
+ * Viento actual y lluvia de las próximas `hours` horas (MET Norway Locationforecast 2.0). Usa la misma
+ * petición (y caché) que el pronóstico de la pantalla: no se pide dos veces el mismo punto.
+ */
+export async function fetchNowcast(lat: number, lng: number, fetchImpl: typeof fetch = fetch, now: Date = new Date(), hours = 6): Promise<Nowcast | null> {
+  const f = await fetchMetForecast(lat, lng, fetchImpl, now.getTime());
+  return f ? parseNowcast({ properties: { timeseries: f.timeseries } }, now, hours) : null;
 }
 
 export function parseNowcast(json: any, now: Date = new Date(), hours = 6): Nowcast | null {
@@ -152,4 +143,4 @@ export function windVector(fromDeg: number): { dx: number; dy: number } {
 }
 
 /** Solo para pruebas. */
-export const __resetNowcastCache = () => metCache.clear();
+export const __resetNowcastCache = () => __resetMetCache();

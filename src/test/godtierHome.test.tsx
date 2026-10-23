@@ -47,7 +47,7 @@ vi.mock("@/components/DestinationVideo", () => ({ DestinationVideo: () => null }
 vi.mock("@/components/VoiceInput", () => ({ VoiceInput: () => null }));
 vi.mock("@/components/TripFileUpload", () => ({ TripFileUpload: () => null }));
 vi.mock("@/hooks/useAIRecommendations", () => ({ useAIRecommendations: () => ({ recos: [], loading: false }) }));
-vi.mock("@/lib/weatherNow", () => ({ fetchWeatherNow: async () => ({ tempC: 21, label: "Despejado", source: "Open-Meteo" }) }));
+vi.mock("@/lib/weatherNow", () => ({ fetchWeatherNow: async () => ({ tempC: 21, label: "Despejado", source: "MET Norway" }) }));
 vi.mock("@/lib/fx", async () => {
   const actual: any = await vi.importActual("@/lib/fx");
   return { ...actual, fetchFxTable: async () => actual.FX_FALLBACK_TABLE };
