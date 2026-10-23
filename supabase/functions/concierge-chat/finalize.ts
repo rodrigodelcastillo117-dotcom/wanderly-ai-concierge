@@ -13,7 +13,7 @@
 //      nunca "reservé", aviso si una búsqueda no trajo datos, transfers con datos del viaje.
 
 import { splitAnswer } from "./stream.ts";
-import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enforceFlightSellerHonesty, enrichCardLinks, type ToolRun, validateCards } from "./cards.ts";
+import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enforceFlightSellerHonesty, enrichCardLinks, eventCards, MAX_CARDS, type ToolRun, validateCards } from "./cards.ts";
 import { correctFailureClaims, enforceNoFakeBooking, labelUnverifiedFacts } from "./guard.ts";
 import { type ActionContext, type ProposedAction, restaurantBookingLinks, validateAction, validateActions } from "./actions.ts";
 import { directionsLink, uberLink, type TurnPlan } from "./planner.ts";
@@ -67,11 +67,13 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
       const src = (i.plan.cards as Record<string, unknown>[]).find((p) => p.type === c.type && p.title === c.title);
       return src?.links && !c.links ? { ...c, links: src.links as ConciergeCard["links"] } : c;
     });
-  const cards = enrichCardLinks(merged, ev, {
+  // Event Radar: las cards de eventos salen SOLO de search_events de este turno (el modelo no las escribe).
+  const events = eventCards(i.toolRuns, (i.now ?? new Date()).toISOString());
+  const cards = [...events, ...enrichCardLinks(merged, ev, {
     directions: (t) => directionsLink(t),
     ride: (t) => uberLink(t),
     booking: (v) => restaurantBookingLinks(v),
-  }, { date: i.actionCtx.todayISO, party: i.party, city: i.city });
+  }, { date: i.actionCtx.todayISO, party: i.party, city: i.city })].slice(0, MAX_CARDS);
 
   const ctx: ActionContext = { ...i.actionCtx, priveExperienceIds: ev.priveIds };
   const acts = validateActions(data.actions, i.plan.suggestedActions, ctx, i.makeId);
@@ -102,6 +104,19 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
       if (v.ok) kept.push({ id: (i.makeId ?? (() => crypto.randomUUID()))(), ...v.action });
     }
     acts.actions = kept;
+  }
+
+  // "Agregar al itinerario" (acción existente, la confirma el usuario) para el primer evento con fecha
+  // dentro del viaje en contexto.
+  const tripCtx = i.tripScope?.trip ?? null;
+  const ev0 = events.find((e) => e.event_date && tripCtx?.fecha_salida && String(tripCtx.fecha_salida).slice(0, 10) <= e.event_date
+    && (!tripCtx.fecha_regreso || e.event_date <= String(tripCtx.fecha_regreso).slice(0, 10)));
+  if (ev0 && tripCtx?.id && acts.actions.length < 3 && !acts.actions.some((a) => a.type === "add_itinerary_item")) {
+    const v = validateAction("add_itinerary_item", {
+      trip_id: tripCtx.id, fecha: ev0.event_date, hora: ev0.event_time, titulo: ev0.title,
+      lugar: [ev0.meta, ev0.address].filter(Boolean).join(", ") || undefined, nota: "Evento de Google Events; los boletos se compran en el sitio de boletos.",
+    }, ctx);
+    if (v.ok) acts.actions.push({ id: (i.makeId ?? (() => crypto.randomUUID()))(), ...v.action });
   }
 
   let text = split.text.slice(0, 4000);

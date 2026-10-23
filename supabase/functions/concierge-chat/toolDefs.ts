@@ -130,6 +130,23 @@ export const TOOL_DEFS: ToolDef[] = [
     },
   },
   {
+    name: "search_events",
+    description:
+      "Eventos reales (Google Events): conciertos, teatro, deportes, festivales y espectáculos en una ciudad y un rango de fechas, " +
+      "con fecha y hora, recinto, dirección y enlaces a sitios de boletos. Úsala SOLO cuando el usuario pida eventos, conciertos, teatro, " +
+      "deportes o qué hacer en fechas concretas. No trae precios de boletos. Si no hay resultados, dilo; nunca inventes eventos.",
+    input_schema: {
+      type: "object",
+      properties: {
+        city: { type: "string", description: "Ciudad, ej. 'Madrid' o 'Ciudad de México'" },
+        date_from: { type: "string", description: "YYYY-MM-DD, inicio del rango (opcional; usa las fechas del viaje si las pide para su viaje)" },
+        date_to: { type: "string", description: "YYYY-MM-DD, fin del rango (opcional)" },
+        query: { type: "string", description: "Tipo de evento en palabras clave, ej. 'conciertos', 'teatro', 'partido Real Madrid' (opcional)" },
+      },
+      required: ["city"],
+    },
+  },
+  {
     name: "search_attractions",
     description:
       "Rankings y reseñas (TripAdvisor) de restaurantes, atracciones u hoteles en una ciudad, ej. 'mejores restaurantes de sushi en Tokio'. " +

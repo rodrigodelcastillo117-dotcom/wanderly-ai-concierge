@@ -201,6 +201,10 @@ export async function runAgentTurn(a: AgentInput): Promise<AgentResult> {
         return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: JSON.stringify({ error: `entrada inválida: ${(v as { error: string }).error}` }) };
       }
       const policy = applyToolPolicy(tu.name, v.input, a.userMessage);
+      if (policy.blocked) {
+        // No se ejecuta (ni se cobra): el usuario no pidió eso.
+        return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: JSON.stringify({ error: policy.blocked, motivo: "El usuario no pidió eventos: no busques eventos en este turno." }) };
+      }
       if (policy.rerouted) res.rerouted.push(policy.rerouted);
       const k = keyOf(policy.name, policy.args);
       let prepared = cache.get(k);

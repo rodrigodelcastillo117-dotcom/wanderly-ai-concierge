@@ -16,13 +16,16 @@ import { normText } from "./context.ts";
 import { detectRoadTrip } from "../_shared/roadtrip/plan.ts";
 import { roadTripTurn } from "./roadtrip.ts";
 import type { TripPosition } from "./location.ts";
+import { eventsRequested } from "./events.ts";
 
 export type Intent =
   | "human" | "emergency" | "flight_disruption" | "missed_connection" | "flight_status" | "flight_compare"
   | "hotel_change" | "dining_near_hotel" | "dining" | "transport" | "prive_night" | "trip_overview"
   | "place_fact" | "expense" | "packing" | "price_alert" | "create_trip" | "itinerary_add" | "luggage" | "members_followup" | "plan"
   // roadtrip: "quiero hacer un road trip por la Toscana en 7 días".
-  | "road_trip";
+  | "road_trip"
+  // Event Radar: conciertos, teatro, deportes o qué hacer en fechas concretas (events.ts).
+  | "events";
 
 export const CHIP_INTENTS: readonly Intent[] = [
   "dining_near_hotel", "transport", "emergency", "flight_status", "luggage", "members_followup", "trip_overview",
@@ -59,6 +62,7 @@ export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   // roadtrip: road trip / "en coche" / región curada con palabra de ruta.
   const rt = detectRoadTrip(message);
   if (rt.isRoadTrip || (rt.route && /\b(ruta|recorrido|recorrer|vuelta)\b/.test(m))) out.add("road_trip");
+  if (eventsRequested(message)) out.add("events");
   // "cenar cerca de mi hotel" ya es dining_near_hotel.
   if (out.has("dining_near_hotel")) out.delete("dining");
   // Privé con plan / noche → planeación.
@@ -357,6 +361,11 @@ export function planTurn(i: PlanInput): TurnPlan {
     plan.toolHints.push("web_search", "search_places");
   }
 
+  if (has("events")) {
+    plan.toolHints.push("search_events");
+    plan.notes.push("Pidió eventos: usa search_events con la ciudad y el rango de fechas (las del viaje si habla de su viaje). Solo eventos que devuelva la herramienta; si no hay, dilo. Los boletos se compran en el sitio de boletos: nunca digas que están comprados.");
+  }
+
   if (has("emergency")) {
     plan.cards.push({
       type: "alert", title: "Ayuda inmediata",
@@ -492,7 +501,9 @@ const DINING_OR_RANKING = /\b(restaurante|restaurant|comer|cenar|cena|bar|cafe|a
  * práctico (ubicación, horario, sala de aeropuerto…) y no pide recomendaciones, la llamada se manda a
  * web_search con la misma consulta.
  */
-export function applyToolPolicy(name: string, args: Record<string, unknown>, userMessage: string): { name: string; args: Record<string, unknown>; rerouted?: string } {
+export function applyToolPolicy(name: string, args: Record<string, unknown>, userMessage: string): { name: string; args: Record<string, unknown>; rerouted?: string; blocked?: string } {
+  // Event Radar: cada búsqueda de eventos cuesta; solo si el usuario pidió eventos o qué hacer en fechas concretas.
+  if (name === "search_events") return eventsRequested(userMessage) ? { name, args } : { name, args, blocked: "eventos_no_pedidos" };
   if (name !== "search_attractions") return { name, args };
   const m = normText(userMessage);
   const q = normText(args.query);
@@ -524,6 +535,7 @@ export function toolStatusText(name: string, args: Record<string, unknown>): str
     case "search_nearby": return `Buscando ${KIND_LABEL[String(args.kind)] ?? "lugares"} cerca…`;
     case "web_search": return `Buscando en Google: ${clip(args.query)}…`;
     case "search_attractions": return `Buscando reseñas y rankings: ${clip(args.query)}…`;
+    case "search_events": return `Buscando eventos en ${clip(args.city, 30)}…`;
     case "search_members_venues": return `Revisando Members Only en ${clip(args.city, 30)}…`;
     case "search_prive": return "Revisando el catálogo Privé…";
     default: return "Consultando…";

@@ -24,6 +24,7 @@ export const CACHE_TTL_SECONDS: Record<string, number> = {
   pexels_video: 7 * DAY,
   trip_quote: DAY, // cotización en vivo de un viaje manual (serpapi-quote)
   google_travel_explore: 12 * HOUR, // "Vuelos baratos desde…" / Explorar destinos (por origen y mes)
+  google_events: 6 * HOUR, // Event Radar de Iato (por ciudad, fechas y consulta)
 };
 
 export type CacheRow = { response: unknown; fetched_at: string; ttl_seconds: number };

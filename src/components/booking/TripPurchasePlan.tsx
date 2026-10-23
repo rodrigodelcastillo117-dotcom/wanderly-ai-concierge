@@ -416,6 +416,15 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                   {chosenChoice?.mode === "vuelo" && chosenChoice.url
                     ? <FlightBuyButtons option={chosenChoice.row ?? { from: s.from, to: s.to, fuente_precio: "estimado" }} trip={trip} />
                     : buyButton(it, `comprar-traslado-${s.n}-abrir`)}
+                  {/* Tren/autobús: otros operadores oficiales, Trainline y horarios reales en Google Maps (gratis). */}
+                  {(chosenChoice?.links ?? []).map((l) => (
+                    <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" data-testid="traslado-enlace" data-kind={l.kind}
+                      onClick={() => void logBookingClick({ category: chosenChoice?.mode === "bus" ? "other" : "train", provider: l.site, title: it.title, bookingUrl: l.url,
+                        city: it.city ?? trip.destino ?? undefined, tripId: trip.id, startAt: trip.fecha_salida ?? undefined })}
+                      className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-border/70 px-3 py-2 text-sm transition hover:border-primary/50">
+                      {l.label} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                    </a>
+                  ))}
                   {chosenChoice?.mode === "coche" && chosenChoice.fallbackHref && (
                     <Link to={chosenChoice.fallbackHref} className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-primary/40 px-3 text-sm text-primary">
                       <Car className="h-4 w-4" aria-hidden="true" /> Rentar auto

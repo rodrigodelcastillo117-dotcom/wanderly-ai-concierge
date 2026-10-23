@@ -9,7 +9,7 @@ import { slimToolResult } from "./tools.ts";
 import { neutralizeDeep } from "./guard.ts";
 import { isPhotoRef } from "../_shared/placePhotoRef.ts";
 
-export const CARD_TYPES = ["flight", "hotel", "attraction", "restaurant", "place", "source", "transport", "alert", "luggage", "jet"] as const;
+export const CARD_TYPES = ["flight", "hotel", "attraction", "restaurant", "place", "source", "transport", "alert", "luggage", "jet", "event"] as const;
 export type CardType = typeof CARD_TYPES[number];
 
 /**
@@ -24,7 +24,8 @@ export type CardType = typeof CARD_TYPES[number];
 export type EstadoDato = "CONSULTADO_EN_VIVO" | "NO_VERIFICADO" | "SOLICITUD_HUMANA" | "OBSOLETO";
 
 /** Botón de una card: cómo llegar, pedir un Uber, llamar, sitio o reservar. Solo https: o tel:. */
-export interface CardLink { kind: "directions" | "ride" | "call" | "website" | "maps" | "booking"; label: string; url: string }
+/** "tickets" = sitio de venta de boletos de un evento (Google Events): abrirlo no es una compra. */
+export interface CardLink { kind: "directions" | "ride" | "call" | "website" | "maps" | "booking" | "tickets"; label: string; url: string }
 
 export interface ConciergeCard {
   type: CardType;
@@ -63,6 +64,11 @@ export interface ConciergeCard {
   /** Coordenadas del lugar (de la herramienta, nunca del modelo): botón "Llévame". */
   lat?: number;
   lng?: number;
+  /** Evento: dirección del recinto (de Google Events) para "Llévame" con la URL oficial de Maps. */
+  address?: string;
+  /** Evento: fecha (YYYY-MM-DD) y hora (HH:MM) leídas de Google Events, si venían. */
+  event_date?: string;
+  event_time?: string;
 }
 
 /** Solo https: (nada de javascript:, data:, http:, ni URLs con usuario/contraseña). */
@@ -101,7 +107,7 @@ function dropAiItems(value: unknown): unknown {
   return value;
 }
 
-const SEARCH_TOOLS = new Set(["search_flights", "search_hotels", "search_attractions", "search_nearby", "search_places", "web_search", "search_members_venues"]);
+const SEARCH_TOOLS = new Set(["search_flights", "search_hotels", "search_attractions", "search_nearby", "search_places", "web_search", "search_members_venues", "search_events"]);
 
 export interface ToolUnavailable { disponible: false; motivo: string; fuente?: string; error?: string }
 
@@ -437,6 +443,9 @@ export function validateCards(raw: unknown, ev: Evidence, consultadoAt: string =
     if (!CARD_TYPES.includes(type)) { out.dropped.push({ type: String(r.type ?? "?"), reason: "tipo_desconocido" }); continue; }
     const title = str(r.title, 140);
     if (!title) { out.dropped.push({ type, reason: "sin_titulo" }); continue; }
+    // Eventos: solo los arma IATOS con los resultados de search_events (eventCards); uno escrito por el
+    // modelo podría ser inventado.
+    if (type === "event") { out.dropped.push({ type, reason: "evento_solo_de_la_busqueda" }); continue; }
     const needTool = REQUIRES_TOOL[type];
     if (needTool && !ev.available[needTool]) { out.dropped.push({ type, reason: "sin_respaldo_de_busqueda" }); continue; }
     // Restaurante: el nombre tiene que salir de una búsqueda de lugares de ESTE turno (Google Maps,
@@ -607,7 +616,7 @@ const telUrl = (phone: string | undefined) => {
 /** Enlace seguro de una card: https (sin usuario/contraseña) o tel:. */
 export function safeCardLink(l: unknown): CardLink | null {
   const o = l as Partial<CardLink> | null;
-  const kinds: CardLink["kind"][] = ["directions", "ride", "call", "website", "maps", "booking"];
+  const kinds: CardLink["kind"][] = ["directions", "ride", "call", "website", "maps", "booking", "tickets"];
   if (!o || !kinds.includes(o.kind as CardLink["kind"]) || typeof o.label !== "string") return null;
   const url = o.kind === "call" ? (typeof o.url === "string" && /^tel:\+?\d{7,15}$/.test(o.url) ? o.url : undefined) : safeHttpsUrl(o.url);
   if (!url) return null;
@@ -660,4 +669,50 @@ export function enrichCardLinks(
     }
     return out;
   });
+}
+
+// ═══ Event Radar: cards de eventos armadas con los resultados de search_events ═══
+
+export const MAX_EVENT_CARDS = 4;
+
+/**
+ * Cards "event" deterministas: título, fecha y hora, recinto y dirección tal cual los trajo Google
+ * Events en ESTE turno, con fuente y hora de consulta. Botones: "Boletos en {sitio}" (enlace de
+ * ticket_info; es el sitio de boletos, no una compra). Nunca precio: Google Events no lo trae.
+ */
+export function eventCards(runs: ToolRun[], consultadoAt: string = new Date().toISOString()): ConciergeCard[] {
+  const out: ConciergeCard[] = [];
+  const seen = new Set<string>();
+  for (const run of runs) {
+    if (run.name !== "search_events" || run.result?.disponible === false) continue;
+    const at = typeof run.result.consulted_at === "string" && Number.isFinite(Date.parse(run.result.consulted_at)) ? run.result.consulted_at : consultadoAt;
+    for (const e of Array.isArray(run.result.results) ? run.result.results as Record<string, unknown>[] : []) {
+      if (out.length >= MAX_EVENT_CARDS) return out;
+      const title = str(e?.title, 140);
+      if (!title) continue;
+      const k = `${normName(title)}|${e?.fecha ?? ""}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const links: CardLink[] = [];
+      for (const t of Array.isArray(e?.boletos) ? e.boletos as Record<string, unknown>[] : []) {
+        const url = safeHttpsUrl(t?.link);
+        const fuente = str(t?.fuente, 28);
+        if (url && fuente) links.push({ kind: "tickets", label: `Boletos en ${fuente}`, url });
+      }
+      const card: ConciergeCard = { type: "event", title, fuente: "google_events", consultado_at: at };
+      const cuando = str(e?.cuando, 120);
+      if (cuando) card.subtitle = cuando;
+      const recinto = str(e?.recinto, 120);
+      if (recinto) card.meta = recinto;
+      const dir = str(e?.direccion, 200);
+      if (dir) card.address = dir;
+      if (typeof e?.fecha === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.fecha)) card.event_date = e.fecha;
+      if (typeof e?.hora === "string" && /^\d{2}:\d{2}$/.test(e.hora)) card.event_time = e.hora;
+      const img = safeHttpsUrl(e?.miniatura);
+      if (img) card.image_url = img;
+      if (links.length) card.links = links;
+      out.push(card);
+    }
+  }
+  return out;
 }
