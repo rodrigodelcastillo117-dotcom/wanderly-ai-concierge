@@ -46,7 +46,7 @@ export function formatFromPrice(monto: unknown, moneda: unknown): string | null 
 /** Solo fichas de producto de viator.com que dio el servidor (lista blanca: viator.com/tours/… es de servidor). */
 function viatorProductUrl(u: unknown): string | null {
   const v = checkAllowlisted(u);
-  return v.ok && v.provider?.provider === "viator" && /^\/tours\//.test(new URL(v.url).pathname) ? v.url : null;
+  return v.ok && v.provider?.provider === "viator" && /^\/(?:[a-z]{2}(?:-[A-Za-z]{2})?\/)?tours\//.test(new URL(v.url).pathname) ? v.url : null;
 }
 
 export function summarizeViator(data: any): ViatorSummary {

@@ -107,7 +107,7 @@ export const PROVIDERS: ProviderInfo[] = [
   P("getyourguide.com", "getyourguide", "GetYourGuide", "tours", "Búsqueda /s/?q= que arma IATOS (EV-TOURS-SEARCH)."),
   P("viator.com", "viator", "Viator", "tours", "Búsqueda /searchResults/all?text= que arma IATOS (EV-TOURS-SEARCH).", { paths: /^\/searchResults\// }),
   P("viator.com", "viator", "Viator", "tours", "Ficha de producto /tours/… = productUrl de la Partner API v2 de Viator (viator-search, con el afiliado pid P00327354 · mcid 42383); solo del servidor.",
-    { paths: /^\/tours\//, serverOnly: true }),
+    { paths: /^\/(?:[a-z]{2}(?:-[A-Za-z]{2})?\/)?tours\//, serverOnly: true }),
   // Autobuses y transporte terrestre (docs/iatos/IATOS_PROVEEDORES_AUTOBUSES.md)
   P("omio.com", "omio", "Omio", "bus", "Buscador de autobuses y trenes (groundTransport.ts, omioLink); IATOS_PROVEEDORES_AUTOBUSES.md."),
   P("international.ado.com.mx", "ado", "ADO", "bus", "Búsqueda pública de ADO (IATOS_PROVEEDORES_AUTOBUSES.md §2.2); solo ese subdominio."),

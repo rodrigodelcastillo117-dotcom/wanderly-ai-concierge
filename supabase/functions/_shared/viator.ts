@@ -62,7 +62,9 @@ export interface ViatorTour {
 
 export type ViatorResult =
   | { ok: true; fuente: "Viator"; source: "viator"; results: ViatorTour[]; consultado_at: string; from_cache: boolean; moneda: string;
-      destino?: { id: string; nombre: string } | null; code?: undefined }
+      destino?: { id: string; nombre: string } | null; code?: undefined;
+      /** Solo si no quedó ningún tour: cuántos mandó Viator y la ruta del primer enlace (sin llave ni query). */
+      diagnostico?: { recibidos: number; ruta_ejemplo: string | null; claves: string[] } }
   | { ok: false; code: "viator_no_disponible" | "viator_ocupado" | "viator_error" | "falta_ciudad" | "FREE_LIMIT_REACHED"; motivo: string;
       error?: string; soft?: boolean; info?: Record<string, unknown>; limite_uso_justo?: boolean };
 
@@ -103,7 +105,8 @@ export function affiliateProductUrl(raw: unknown): string | null {
   const host = u.hostname.toLowerCase();
   if (u.protocol !== "https:" || u.username || u.password || (u.port && u.port !== "443")) return null;
   if (host !== "viator.com" && !host.endsWith(".viator.com")) return null;
-  if (!/^\/tours\//.test(u.pathname)) return null;
+  // Viator puede devolver la ficha con prefijo de idioma (/es-MX/tours/…) por el Accept-Language.
+  if (!/^\/(?:[a-z]{2}(?:-[A-Za-z]{2})?\/)?tours\//.test(u.pathname)) return null;
   if (!u.searchParams.get("pid")) u.searchParams.set("pid", VIATOR_PID);
   if (!u.searchParams.get("mcid")) u.searchParams.set("mcid", VIATOR_MCID);
   return u.toString();
@@ -238,9 +241,11 @@ export async function runViatorSearch(args: Record<string, unknown>, d: ViatorDe
     ({ ok: true, fuente: "Viator", source: "viator", results: await withMxn(results, d), consultado_at: at, from_cache: fromCache, moneda: currency, destino });
 
   const cached = await cacheGet(d.store, key);
-  if (cached && freshnessOf(cached, now()).fresh) {
+  const cachedResults = (cached?.response as { results?: ViatorTour[] } | undefined)?.results;
+  // Una entrada vacía (versiones anteriores sí las guardaban) no cuenta: se vuelve a consultar.
+  if (cached && freshnessOf(cached, now()).fresh && Array.isArray(cachedResults) && cachedResults.length > 0) {
     const r = cached.response as { results?: ViatorTour[]; destino?: { id: string; nombre: string } | null };
-    return ok(Array.isArray(r?.results) ? r.results : [], cached.fetched_at, true, r?.destino ?? null);
+    return ok(cachedResults, cached.fetched_at, true, r?.destino ?? null);
   }
   const noDisponible = (error?: string): ViatorResult => ({ ok: false, code: "viator_no_disponible", motivo: NO_DISPONIBLE_MOTIVO, ...(error ? { error } : {}) });
   if (!d.apiKey) return noDisponible("sin_llave");
@@ -308,6 +313,14 @@ export async function runViatorSearch(args: Record<string, unknown>, d: ViatorDe
       list = pr.json?.products;
     }
     const results = mapViatorProducts(list);
+    if (!results.length) {
+      // Vacío: no se guarda en caché (para no esconder 6 h un problema de parseo) y se dice por qué.
+      const raw = Array.isArray(list) ? list as any[] : [];
+      let ruta: string | null = null;
+      try { ruta = raw[0]?.productUrl ? new URL(String(raw[0].productUrl)).pathname.slice(0, 60) : null; } catch { ruta = "invalida"; }
+      const base = await ok(results, new Date(now()).toISOString(), false, destino);
+      return { ...base, diagnostico: { recibidos: raw.length, ruta_ejemplo: ruta, claves: raw[0] ? Object.keys(raw[0]).slice(0, 15) : [] } } as ViatorResult;
+    }
     const put = Promise.resolve(cachePut(d.store, key, VIATOR_ENGINE, { results, destino })).catch(() => { /* la caché es opcional */ });
     if (d.background) d.background(put); else await put;
     return ok(results, new Date(now()).toISOString(), false, destino);

@@ -137,6 +137,15 @@ describe("2. afiliado de IATOS en productUrl", () => {
       "https://user:p@www.viator.com/tours/x", "javascript:alert(1)", "https://viator-tours.example/tours/x"]) expect(affiliateProductUrl(bad), bad).toBeNull();
     expect(affiliateProductUrl("https://shop.live.rc.viator.com/tours/Edinburgh/x/d739-62330P2?mcid=42383&pid=P00045135")).toContain("pid=P00045135");
   });
+  it("acepta la ficha con prefijo de idioma (/es-MX/tours/…) que da Viator con Accept-Language", () => {
+    const u = affiliateProductUrl("https://www.viator.com/es-MX/tours/Rome/Colosseum/d511-3731COLOSSEUM");
+    expect(u).toContain("/es-MX/tours/");
+    expect(u).toContain("pid=P00327354");
+    expect(affiliateProductUrl("https://www.viator.com/es-MX/searchResults/all?text=x")).toBeNull();
+    expect(checkAllowlisted(u!)).toMatchObject({ ok: true, provider: { provider: "viator" } });
+    expect(checkUntrusted(u!)).toEqual({ ok: false, reason: "enlace_solo_del_servidor" });
+    expect(summarizeViator({ ok: true, results: [{ codigo: "x", title: "Coliseo", url: u! }] })).toMatchObject({ ok: true });
+  });
   it("toda URL que devuelve la búsqueda lleva pid y mcid", async () => {
     const { d } = deps();
     const r = await runViatorSearch({ city: "Roma" }, d);
@@ -197,6 +206,17 @@ describe("4. caché privada de 6 h y cuota", () => {
     // Otra moneda u otra consulta = otra llave.
     await runViatorSearch({ city: "Roma", query: "Coliseo", currency: "EUR" }, d);
     expect(gate).toHaveBeenCalledTimes(2);
+  });
+  it("sin tours: no se guarda en caché y trae el diagnóstico (sin llave)", async () => {
+    const f = vi.fn(async (url: string) => new Response(JSON.stringify(url.endsWith("/products/search")
+      ? { products: [{ productCode: "X1", title: "T", productUrl: "https://www.viator.com/raro/x" }] }
+      : { destinations: { results: [{ id: 511, name: "Roma" }] } }), { status: 200 }));
+    const store = memoryCacheStore();
+    const r = await runViatorSearch({ city: "Roma" }, { fetchImpl: f as never, apiKey: "SECRETA", store, now: () => NOW });
+    expect(r).toMatchObject({ ok: true, results: [], diagnostico: { recibidos: 1, ruta_ejemplo: "/raro/x" } });
+    expect(JSON.stringify(r)).not.toContain("SECRETA");
+    await runViatorSearch({ city: "Roma" }, { fetchImpl: f as never, apiKey: "SECRETA", store, now: () => NOW });
+    expect(f).toHaveBeenCalledTimes(4);
   });
   it("vencida (más de 6 h) ya no se sirve", async () => {
     const { d, f, store } = deps();
