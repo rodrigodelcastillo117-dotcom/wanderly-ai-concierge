@@ -220,9 +220,17 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         {/* Mobile top bar — notifications + profile avatar. El body ya deja la franja de la hora
             (index.css); el margen negativo evita sumarla dos veces en reposo y la barra la cubre al fijarse. */}
         <div className="lg:hidden sticky top-0 z-40 -mt-[env(safe-area-inset-top)] flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-2 bg-background/80 backdrop-blur-xl border-b border-white/[0.04]">
-          <Link to="/dashboard" className="flex items-center min-h-10" aria-label="IATOS, inicio">
-            <img src={iatosLogo} alt="" className="h-7 w-auto object-contain" />
-          </Link>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Link to="/dashboard" className="flex items-center min-h-10" aria-label="IATOS, inicio">
+              <img src={iatosLogo} alt="" className="h-7 w-auto object-contain" />
+            </Link>
+            {/* Tu tarjeta, chica junto al logo (en escritorio va en el menú lateral). */}
+            {card ? (
+              <div className="w-[52px] shrink-0" data-testid="topbar-member-card">
+                <MemberCardButton card={card} testId="topbar-card" />
+              </div>
+            ) : null}
+          </div>
           <div className="flex items-center gap-1">
             <NotificationBell />
             <button

@@ -43,6 +43,8 @@ export type ImageDeps = {
   /** Llamada de texto/visión (aiFetchDetailed en producción). */
   chat: (init: RequestInit) => Promise<{ res: Response; provider: string; model: string }>;
   timeoutMs?: number;
+  /** Tope del juez de parecido. Antes no tenía: un día lento de Gemini dejó al usuario 2.5 min esperando. */
+  likenessTimeoutMs?: number;
 };
 
 export type ImageResult =
@@ -113,12 +115,14 @@ export async function generateImage(
  * null si el juez no respondió algo válido (en ese caso no se reintenta a ciegas).
  */
 export async function checkLikeness(
-  deps: Pick<ImageDeps, "chat" | "lovableKey">,
+  deps: Pick<ImageDeps, "chat" | "lovableKey" | "likenessTimeoutMs">,
   req: { reference: string; candidate: string; mode: "selfie" | "identidad"; fn: string; userId: string | null },
 ): Promise<{ likeness: Likeness | null; usage: UsageEntry | null }> {
   try {
+    // Si el juez tarda, se entrega la versión sin calificar (sin reintento) en vez de dejar esperando.
     const { res, provider, model } = await deps.chat({
       method: "POST",
+      signal: AbortSignal.timeout(deps.likenessTimeoutMs ?? 20_000),
       headers: { Authorization: `Bearer ${deps.lovableKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: LIKENESS_MODEL,

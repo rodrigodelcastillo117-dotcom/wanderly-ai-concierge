@@ -477,7 +477,7 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
           <div className="absolute inset-0 bg-gradient-gold opacity-10 animate-pulse" />
           <Sparkles className="w-10 h-10 text-primary animate-pulse" />
           <p className="text-sm text-muted-foreground px-6">Creando y verificando tu parecido…</p>
-          <p className="text-xs text-muted-foreground">Toma de 20 a 60 segundos</p>
+          <p className="text-xs text-muted-foreground">Toma alrededor de 1 minuto</p>
         </div>
       ) : (
         <>

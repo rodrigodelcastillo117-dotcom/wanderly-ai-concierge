@@ -47,6 +47,15 @@ describe("juez de parecido", () => {
     const body = JSON.parse((chat.mock.calls[0] as any)[0].body);
     expect(body.messages[0].content.filter((c: any) => c.type === "image_url")).toHaveLength(2);
   });
+  it("checkLikeness no espera para siempre: si el juez se cuelga, sale sin calificación", async () => {
+    const chat = vi.fn((init: RequestInit) => new Promise<never>((_, reject) => {
+      init.signal?.addEventListener("abort", () => reject(new DOMException("timeout", "TimeoutError")));
+    }));
+    const t0 = Date.now();
+    const out = await checkLikeness({ chat, lovableKey: "k", likenessTimeoutMs: 50 }, { reference: PNG, candidate: PNG, mode: "selfie", fn: "generate-avatar", userId: "u" });
+    expect(out).toEqual({ likeness: null, usage: null });
+    expect(Date.now() - t0).toBeLessThan(2000);
+  });
 });
 
 describe("generación con respaldo de modelos", () => {

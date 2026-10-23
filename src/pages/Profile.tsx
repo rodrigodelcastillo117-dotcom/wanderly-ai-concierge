@@ -146,7 +146,15 @@ const Profile = () => {
       <div className="px-4 py-6 md:p-10 max-w-5xl space-y-12">
         {/* HEADER */}
         <section className="flex flex-col md:flex-row md:items-center gap-6">
-          <AvatarCircle url={avatarUrl} name={fullName || "Viajero"} size="md" prive={prive} />
+          <div className="flex items-center gap-5">
+            <AvatarCircle url={avatarUrl} name={fullName || "Viajero"} size="md" prive={prive} />
+            {/* En el celular la tarjeta va junto a tu foto, más chica; en pantallas grandes, a la derecha del nombre. */}
+            {card ? (
+              <div className="md:hidden w-[150px] shrink-0 -rotate-[2deg] motion-reduce:rotate-0 drop-shadow-[0_14px_20px_rgba(0,0,0,0.5)]" data-testid="profile-member-card-mobile">
+                <MemberCardButton card={card} testId="profile-card-mobile" />
+              </div>
+            ) : null}
+          </div>
           <div className="flex-1">
             <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Tu Travel Avatar</p>
             <h1 className="font-display text-3xl md:text-4xl mb-1 flex items-center gap-2 flex-wrap">
@@ -183,7 +191,7 @@ const Profile = () => {
           </div>
           {/* Tu tarjeta de rango a un lado del avatar (al tocarla se abre grande). */}
           {card || cardLoading ? (
-            <div className="w-[280px] max-w-full shrink-0 self-center md:-rotate-[2deg] motion-reduce:rotate-0 drop-shadow-[0_18px_24px_rgba(0,0,0,0.5)]" data-testid="profile-member-card">
+            <div className="hidden md:block w-[280px] max-w-full shrink-0 self-center md:-rotate-[2deg] motion-reduce:rotate-0 drop-shadow-[0_18px_24px_rgba(0,0,0,0.5)]" data-testid="profile-member-card">
               <MemberCardButton card={card} loading={cardLoading} testId="profile-card" />
             </div>
           ) : null}
