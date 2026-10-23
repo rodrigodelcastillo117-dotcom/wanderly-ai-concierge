@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { TripDeleteButton } from "@/components/TripDeleteButton";
 import santorini from "@/assets/hero-santorini.jpg";
 import { computeTripDesglose, quoteStaleness, quoteValidity, staleQuoteMessage, tripNights, hotelPriceRooms, type QuoteSnapshot } from "@/lib/quote";
 import {
@@ -455,6 +456,7 @@ const TripDetail = () => {
           </button>
           <InviteFriendDialog tripId={trip.id} isOwner={user?.id === trip.user_id} />
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
+          <TripDeleteButton tripId={trip.id} destino={trip.destino} isOwner={isOwner} userId={user?.id ?? null} />
         </div>
         <div className="absolute inset-x-0 bottom-0 max-w-5xl p-4 sm:p-6 md:p-12">
           {trip.match_score && (
