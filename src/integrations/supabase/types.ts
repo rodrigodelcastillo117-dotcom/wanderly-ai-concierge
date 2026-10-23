@@ -8110,6 +8110,13 @@ export type Database = {
       vault_sync_legacy: { Args: { p_user_id: string }; Returns: undefined }
       vault_try_date: { Args: { p: string }; Returns: string }
       verify_cron_secret: { Args: { p_secret: string }; Returns: boolean }
+      wrapped_companions: {
+        Args: { p_year: number }
+        Returns: {
+          name: string
+          shared_trips: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
