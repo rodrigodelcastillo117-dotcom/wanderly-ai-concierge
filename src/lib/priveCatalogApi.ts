@@ -126,6 +126,11 @@ export function createPriveCatalogApi(content: ContentFn, getToken: () => string
     saved: () => c<PriveExperience[]>("prive_saved"),
     addToTrip: (tripId: string, items: { experience_id: string; start_at?: string | null; end_at?: string | null; template?: string | null; transfer_estimate_min?: number | null }[]) =>
       c<{ ok: boolean; added: number; skipped: string[]; plan_group?: string; code?: string }>("prive_add_to_trip", { _trip_id: tripId, _items: items }),
+    /** Ideas de la ruleta (Explorar): destinos que le latieron a la persona. Solo referencias del catálogo. */
+    ideas: () => c<PriveIdea[]>("prive_ideas"),
+    saveIdea: (destination: string, saved = true, opts: { universe?: PriveUniverse | null; month?: number | null; budget?: string | null; source?: "ruleta" | "mapa" } = {}) =>
+      c<{ ok: boolean; saved?: boolean; code?: string }>("prive_idea_save", { _destination: destination, _saved: saved, _universe: opts.universe ?? null,
+        _month: opts.month ?? null, _budget: opts.budget ?? null, _source: opts.source ?? "ruleta" }),
     track: (event: string, opts: { experience?: string; destination?: string; surface?: string; trip?: string } = {}) =>
       c<boolean>("prive_track", { _event: event, _experience: opts.experience ?? null, _destination: opts.destination ?? null, _surface: opts.surface ?? null, _trip: opts.trip ?? null })
         .catch(() => false),
@@ -160,6 +165,12 @@ export function usePriveCatalog(): PriveCatalogApi {
   const { content, session } = usePriveAccess();
   const token = session?.token ?? null;
   return useMemo(() => createPriveCatalogApi(content, () => token), [content, token]);
+}
+
+/** Una idea guardada (prive_ideas): mes 1–12 como lo guarda el servidor. */
+export interface PriveIdea {
+  slug: string; name: string; name_en?: string; region_group?: string | null; universe?: PriveUniverse | null; month?: number | null;
+  budget?: string | null; source?: "ruleta" | "mapa"; saved_at: string;
 }
 
 export interface PriveRequest {

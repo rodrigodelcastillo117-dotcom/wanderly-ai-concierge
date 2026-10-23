@@ -673,7 +673,10 @@ SELECT pt.ok('P54 authenticated solo ejecuta prive_require, prive_status y las R
         -- THE PRIVATE EDITION (equipo edition): lectura del miembro; cada una empieza con prive_require(_ps)
         -- (lo comprueba E43 en supabase/tests/edition/edition.sql).
         'prive_edition_library','prive_edition_issue','prive_edition_article','prive_edition_world_brief','prive_edition_prefs',
-        'prive_edition_prefs_save','prive_edition_save','prive_edition_saved','prive_edition_log_download','prive_edition_status')) = 'prive_require,prive_status',
+        'prive_edition_prefs_save','prive_edition_save','prive_edition_saved','prive_edition_log_download','prive_edition_status',
+        -- Ideas de la ruleta de Explorar (20261027060000): empiezan con prive_require(_ps); solo referencias del
+        -- catálogo y siempre el user_id de la sesión (supabase/tests/prive_ideas).
+        'prive_ideas','prive_idea_save')) = 'prive_require,prive_status',
   (SELECT string_agg(p.proname, ',' ORDER BY p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname LIKE 'prive\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')));
 SELECT pt.ok('P55 todas las funciones Privé SECURITY DEFINER tienen search_path fijo',

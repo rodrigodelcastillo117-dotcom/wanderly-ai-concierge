@@ -18,6 +18,7 @@ import { MemberCard } from "@/components/prive/MemberCard";
 import { PriveHero, PriveHeroClub, PriveHeroEditorial } from "@/components/prive/PriveHero";
 import { PriveTripProvider } from "@/components/prive/home/context";
 import { HomeVariantProvider, parseVariant } from "@/components/prive/home/ForYouHome";
+import { ExploreAccess } from "@/components/prive/home/PersonalIdeas";
 import { SUPPORT_EMAIL, WELCOME_VERSION, formatDate, messageFor } from "@/lib/priveCopy";
 import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import { onboardingResumeStep, shouldAutoPlayWelcome } from "@/lib/priveOnboarding";
@@ -204,12 +205,8 @@ function UnlockedHub({ s }: { s: PriveStatus }) {
             </div>
             {/* Con el catálogo aún en curaduría, la revista sigue presente (ForYouHome la trae cuando hay catálogo). */}
             {hasCatalog === false && <div className="mb-16"><PrivateEditionBand /></div>}
-            {hasCatalog === false && (
-              <section aria-labelledby="prive-collections">
-                <h2 id="prive-collections" className="text-2xl sm:text-3xl mb-6">{t.hub.collections}</h2>
-                <UniverseTiles />
-              </section>
-            )}
+            {/* Para ti es personal: las colecciones y el catálogo viven en Explorar (acceso claro). */}
+            {hasCatalog === false && <ExploreAccess />}
             <div className="flex flex-wrap justify-center gap-3 mt-14">
               <Link to="/prive/mi" className="prive-btn prive-btn-ghost">{t.hub.myMembership}</Link>
               <button type="button" className="prive-btn prive-btn-ghost" onClick={async () => { await lock(); navigate("/prive", { replace: true }); }}>

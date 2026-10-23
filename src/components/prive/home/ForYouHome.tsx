@@ -4,18 +4,19 @@
 //   B · CONTEMPORARY PRIVATE CLUB  club: saludo y accesos directos arriba, listas compactas
 //   C · CINEMATIC JOURNEY          cine: foto o video a sangre completa, carriles de imagen (elegida)
 // La elegida es C (criterios en docs/iatos/prive_reimagined/prive-ux.md); A y B se ven con ?portada=a|b.
-import { createContext, useContext, useMemo } from "react";
+//
+// Dueño, 23-oct-2026: "EXPLORE y FOR YOU hacen la misma función". Para ti queda 100 % PERSONAL: tu próximo
+// viaje, lo elegido para tus fechas, destino y gustos, la experiencia de la semana, lo nuevo de esta semana
+// (Drops y tu revista) y tus ideas. El catálogo genérico (buscador, destinos destacados por región,
+// colecciones y universos) vive en Explorar, con un acceso claro "Explorar el mundo Privé →".
+import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
 import { CuratedForYou, PriveKeyLauncher, YourNextJourney, YourWorldIsReady } from "@/components/prive/key";
 import { DropsTeaser } from "@/components/prive/value";
 import { PrivateEditionBand } from "@/components/prive/edition";
-import { featuredDestinations } from "@/lib/priveBrowse";
 import { usePriveT } from "@/components/prive/PriveLang";
 import { PriveSpotlight } from "@/components/prive/catalog/PriveHomeLive";
-import { usePriveHome, usePriveTrip } from "./context";
-import { UniversalSearch } from "./UniversalSearch";
-import { ExtraordinaryEdit, FeaturedDestinations } from "./sections";
+import { ExploreAccess, PersonalIdeas } from "./PersonalIdeas";
 
 export type HomeVariant = "a" | "b" | "c";
 export const DEFAULT_HOME_VARIANT: HomeVariant = "c";
@@ -28,62 +29,45 @@ export const useHomeVariant = () => useContext(VariantCtx);
 export function ForYouHome() {
   const t = usePriveT();
   const variant = useHomeVariant();
-  const home = usePriveHome();
-  const { dest } = usePriveTrip();
-  const destinations = useMemo(() => home?.destinations ?? [], [home]);
-  const fallbackCities = useMemo(() => (dest ? [dest.slug] : featuredDestinations(destinations.filter((d) => d.count > 0), 5).map((d) => d.slug)), [dest, destinations]);
-  const universes = home?.universes ?? [];
-
-  const search = <UniversalSearch destinations={destinations} fallbackCities={fallbackCities} variant="hero" />;
-  const toUniverses = (
-    <p className="text-center">
-      <Link to="/prive/explorar" className="inline-flex items-center gap-2 text-[11px] tracking-[0.24em] uppercase prive-gold hover:text-[color:var(--pv-champagne)] min-h-[44px]">
-        {t.explore.universesBrand}{t.explore.universesSub ? ` · ${t.explore.universesSub}` : ""}<ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
-      </Link>
-    </p>
-  );
   const requests = <p className="text-sm text-center"><Link to="/prive/solicitudes" className="prive-gold underline-offset-2 hover:underline">{t.browse.myRequests}</Link></p>;
-
-  // THE PRIVATE EDITION: sección editorial protagonista (portada, Mi edición, Leer, Intereses, Vuelo, Biblioteca).
-  const edition = <PrivateEditionBand key="pe" />;
+  // Lo nuevo de esta semana: oportunidades vigentes (Drops) y THE PRIVATE EDITION (la revista, de otro equipo).
+  const fresh = (
+    <div key="new" className="space-y-12 sm:space-y-16" data-testid="prive-new-this-week">
+      <DropsTeaser />
+      <PrivateEditionBand />
+    </div>
+  );
+  const explore = <div key="x" className="space-y-6"><ExploreAccess />{requests}</div>;
 
   const blocks: Record<HomeVariant, JSX.Element[]> = {
     c: [
-      // Sube sobre la portada con desplazamiento (no margen negativo): el margen colapsaba hacia el contenedor
-      // y movía la página al terminar de cargar (CLS medido 0.157).
-      <div key="s" className="relative z-20 -top-8 -mb-8">{search}</div>,
+      <YourNextJourney key="nj" />,
       <YourWorldIsReady key="w" />,
       <CuratedForYou key="cf" />,
-      edition,
-      <YourNextJourney key="nj" />,
-      <ExtraordinaryEdit key="ed" universes={universes} />,
-      <PriveKeyLauncher key="k" />,
       <PriveSpotlight key="sp" />,
-      <FeaturedDestinations key="fd" destinations={destinations} />,
-      <DropsTeaser key="dr" />,
-      <div key="u">{toUniverses}{requests}</div>,
+      fresh,
+      <PersonalIdeas key="ideas" />,
+      <PriveKeyLauncher key="k" />,
+      explore,
     ],
     a: [
-      <div key="s" className="pt-2">{search}</div>,
-      edition,
+      <PrivateEditionBand key="pe" />,
       <PriveSpotlight key="sp" />,
       <CuratedForYou key="cf" />,
-      <ExtraordinaryEdit key="ed" universes={universes} />,
       <YourNextJourney key="nj" />,
+      <DropsTeaser key="dr" />,
+      <PersonalIdeas key="ideas" />,
       <PriveKeyLauncher key="k" />,
-      <FeaturedDestinations key="fd" destinations={destinations} />,
-      <div key="u">{toUniverses}{requests}</div>,
+      explore,
     ],
     b: [
-      <div key="s" className="pt-2">{search}</div>,
       <PriveKeyLauncher key="k" />,
       <YourNextJourney key="nj" />,
-      edition,
       <CuratedForYou key="cf" />,
-      <DropsTeaser key="dr" />,
-      <FeaturedDestinations key="fd" destinations={destinations} />,
-      <ExtraordinaryEdit key="ed" universes={universes} />,
-      <div key="u">{toUniverses}{requests}</div>,
+      fresh,
+      <PersonalIdeas key="ideas" />,
+      <PriveSpotlight key="sp" />,
+      explore,
     ],
   };
   return (
