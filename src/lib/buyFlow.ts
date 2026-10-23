@@ -6,7 +6,7 @@ import { buildPurchasePlan, realFlightOptions, type PurchaseItem, type TripOffer
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { hotelPriceRooms } from "@/lib/quote";
 import { sameCity, tripDestinations, type CityStay } from "../../supabase/functions/_shared/booking/tripRoute.ts";
-import { legOptionsFor, type LegOption } from "@/lib/multiDestTrip";
+import { legCarRentalDates, legOptionsFor, type LegOption } from "@/lib/multiDestTrip";
 import { checkAllowlisted } from "@/lib/booking";
 import { describePrefill } from "@/lib/purchasePlan";
 import { trainlineLink } from "@/lib/affiliateLinks";
@@ -19,7 +19,9 @@ export type BuySel = { selVuelo: number; selHospedaje: number; selTours: Set<num
 
 export type FlightStep = { kind: "vuelo"; n: number; title: string; item: PurchaseItem | null; options: number[]; chosen: number; skipped: boolean };
 export type HotelStep = { kind: "hospedaje"; n: number; title: string; city: string | null; stay: CityStay | null; item: PurchaseItem | null;
-  options: number[]; chosen: number; skipped: boolean; nights: number };
+  options: number[]; chosen: number; skipped: boolean; nights: number;
+  /** true si la persona lo eligió; false si `chosen` es solo el hotel de la cotización (por defecto). */
+  userChosen: boolean };
 export type CarStep = { kind: "auto"; n: number; title: string; item: PurchaseItem | null };
 /** Multi-destino: cómo ir de una ciudad a la siguiente (París → Roma), con su fecha y opciones estimadas. */
 export type LegStep = { kind: "traslado"; n: number; title: string; from: string; to: string; date: string | null; options: LegOption[];
@@ -115,7 +117,7 @@ export function legStep(trip: any, from: string, to: string, date: string | null
     const url = maps.ok ? maps.url : null;
     choices.push(base("coche", { url, site: url ? "Google Maps" : null, buttonLabel: url ? "Ver ruta en Google Maps" : null,
       completa: driver ? "Coche con chofer: reserva con tu hotel o una agencia local; Google Maps solo da la ruta y el tiempo." : "Google Maps no recibe la fecha: la renta de auto se reserva aparte.",
-      fallbackHref: `/dashboard/autos?city=${encodeURIComponent(from)}&dropoff=${encodeURIComponent(to)}${date8 ? `&pickup=${date8}` : ""}${trip?.id ? `&trip=${trip.id}` : ""}` }));
+      fallbackHref: carHref(trip, from, to) }));
   }
   // Autobús, taxi, traslado, ferry: no hay buscador fiable por enlace; se dice en vez de inventar uno.
   for (const p of plan) if (!choices.some((c) => c.mode === p.mode)) choices.push(base(p.mode, { completa: `Precio y compra con el operador${p.provider ? ` (${p.provider})` : ""}.` }));
@@ -148,6 +150,13 @@ export function legStep(trip: any, from: string, to: string, date: string | null
   return { kind: "traslado", n, title: `${from} → ${to}`, from, to, date, options: plan, choices, chosen: chosen?.mode ?? null, item };
 }
 
+/** Renta de auto de un tramo: recoge en `from` y devuelve en `to` el día del tramo (no al final del viaje). */
+function carHref(trip: any, from: string, to: string): string {
+  const d = legCarRentalDates(trip, from, to);
+  const qs = new URLSearchParams({ city: from, dropoff: to, ...(d.pickup ? { pickup: d.pickup } : {}), ...(d.dropoff ? { return: d.dropoff } : {}), ...(trip?.id ? { trip: String(trip.id) } : {}) });
+  return `/dashboard/autos?${qs.toString()}`;
+}
+
 const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const fmtDayShort = (iso: string) => `${Number(iso.slice(8, 10))} ${MES[Number(iso.slice(5, 7)) - 1]}`;
 
@@ -168,7 +177,7 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
       const item = (c.index >= 0 && c.hotel ? hotelItems.shift() : null) ?? null;
       steps.push({ kind: "hospedaje", n: n++, title: `Hotel en ${c.stay.city}`, city: c.stay.city, stay: c.stay, item,
         options: c.options.slice(0, 3).concat(c.index >= 0 && !c.options.slice(0, 3).includes(c.index) ? [c.index] : []),
-        chosen: c.index, skipped: c.index === -2, nights: c.stay.nights });
+        chosen: c.index, skipped: c.index === -2, nights: c.stay.nights, userChosen: c.chosen && c.index >= 0 });
       // Entre ciudades (París → Roma), el día que se sale de esta ciudad.
       const next = choices[k + 1];
       if (next) {
@@ -184,7 +193,8 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
       const chosen = item?.index ?? -1;
       const options = sorted.slice(0, 3).concat(chosen >= 0 && !sorted.slice(0, 3).includes(chosen) ? [chosen] : []);
       const nights = Number((item?.offer?.details as any)?.nights) || 0;
-      steps.push({ kind: "hospedaje", n: n++, title: "Hotel", city: trip?.destino ?? null, stay: null, item, options, chosen, skipped: sel.selHospedaje === -2, nights });
+      steps.push({ kind: "hospedaje", n: n++, title: "Hotel", city: trip?.destino ?? null, stay: null, item, options, chosen, skipped: sel.selHospedaje === -2, nights,
+        userChosen: sel.selHospedaje >= 0 && chosen === sel.selHospedaje });
     }
   }
   const car = items.find((i) => i.kind === "auto") ?? null;

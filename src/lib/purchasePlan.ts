@@ -5,6 +5,7 @@
 // Los enlaces salen del Booking Bridge (offers.ts + resolver): son los mismos que ya validan la lista
 // blanca y booking-go; aquí no se arma ninguna URL nueva salvo la renta de auto opcional (Kayak), que
 // también pasa por checkAllowlisted.
+import { restaurantPriceLabel, tripUsdMxnRate } from "@/lib/tripPicks";
 import { kayakCarsLink, PREFILL } from "@/lib/affiliateLinks";
 import {
   checkAllowlisted, isEstimatedTripFlight, isGroundTripOption, isTripInternationalRow, tripFlightProblems, tripFlightRoute, tripFlightSearches,
@@ -292,7 +293,7 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     items.push(base({
       key: `restaurante:${i}:${norm(name)}`, kind: "restaurante", category: "restaurant", title: name,
       subtitle: [r?.cocina, rCity].filter(Boolean).join(" · ") || null,
-      price: null, currency: null, priceNote: r?.rango_precio ? `Rango: ${r.rango_precio}` : "Sin precio: depende de lo que pidas.",
+      price: null, currency: null, priceNote: r?.rango_precio ? `Rango: ${restaurantPriceLabel(r.rango_precio, tripUsdMxnRate(trip))?.text ?? r.rango_precio}` : "Sin precio: depende de lo que pidas.",
       source: { fuente: r?.fuente ?? null, estado: null, consultadoAt: r?.consultado_at ?? null }, estimate: false,
       action: pick(offer, "restaurantes_json", i), optional: true, fallbackHref: null, col: "restaurantes_json", index: i, offer,
     }));

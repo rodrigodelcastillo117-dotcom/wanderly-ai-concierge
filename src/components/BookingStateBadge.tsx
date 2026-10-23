@@ -17,12 +17,22 @@ const tone = (estado: TripBookingSummary["estado"] | ItemState) =>
  * Reservado vs. cotizado, derivado de las reservas confirmadas (no de trips.status, que vale "listo"
  * para ambos). `compact` = solo la insignia, para la lista de viajes.
  */
-export function BookingStateBadge({ summary, compact = false }: { summary: TripBookingSummary; compact?: boolean }) {
+/** Rubros del total que son estimados (tripTotalSummary.estimatedKeys) → tipo de reserva. */
+const ESTIMATED_KIND: Record<string, ItemKind> = { vuelos: "vuelo", hospedaje: "hospedaje", tours: "tour" };
+export const estimatedKindsOf = (keys: string[] | null | undefined): ItemKind[] =>
+  (keys ?? []).map((k) => ESTIMATED_KIND[k]).filter((k): k is ItemKind => !!k);
+
+/**
+ * `estimated`: tipos cuyo precio en el total es estimado (vuelo sin tarifa real…). No se llaman
+ * "Cotizado" a secas: "Estimado · no reservado" y, en el resumen, "incluye estimados".
+ */
+export function BookingStateBadge({ summary, compact = false, estimated = [] }: { summary: TripBookingSummary; compact?: boolean; estimated?: ItemKind[] }) {
   const Icon = summary.estado === "reservado" ? BadgeCheck : Receipt;
+  const label = summary.estado === "cotizado" && estimated.length ? "Cotizado · incluye estimados · sin reservar" : summary.label;
   const badge = (
     <span data-testid="trip-booking-state" data-state={summary.estado}
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] tracking-wide ${tone(summary.estado)}`}>
-      <Icon className="w-3 h-3" aria-hidden="true" /> {summary.label}
+      <Icon className="w-3 h-3" aria-hidden="true" /> {label}
     </span>
   );
   if (compact) return badge;
@@ -33,7 +43,7 @@ export function BookingStateBadge({ summary, compact = false }: { summary: TripB
       {tipos.map(([kind, st]) => (
         <span key={kind} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${tone(st)}`}>
           {st === "segun_tu_archivo" && <FileText className="w-3 h-3" aria-hidden="true" />}
-          {KIND_LABEL[kind]}: {ITEM_STATE_LABEL[st]}
+          {KIND_LABEL[kind]}: {st === "cotizado" && estimated.includes(kind) ? "Estimado · no reservado" : ITEM_STATE_LABEL[st]}
         </span>
       ))}
     </div>

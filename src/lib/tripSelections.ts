@@ -8,6 +8,8 @@
  * de la cotización considera "sin cambios" (trips_quote_basis_guard).
  */
 import type { Selection } from "@/lib/quote";
+import { quotedHotelForCity } from "@/lib/cityHotels";
+import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 
 export type PickedItem = { i: number; key: string | null };
 
@@ -116,4 +118,38 @@ export function writeLocalSelections(tripId: string, value: PersistedSelections 
     if (value) localStorage.setItem(LOCAL_PREFIX + tripId, JSON.stringify(value));
     else localStorage.removeItem(LOCAL_PREFIX + tripId);
   } catch { /* modo privado */ }
+}
+
+/**
+ * Hotel por ciudad al tocar una opción en Comprar: -1 QUITA la elección de esa ciudad (el total vuelve
+ * al hotel de la cotización y "Falta elegir" lo vuelve a pedir); antes no había forma de quitarla.
+ */
+export function withCityHotel(prev: Record<string, number> | null | undefined, city: string, i: number): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const [c, v] of Object.entries(prev ?? {})) if (!sameCity(c, city)) next[c] = v;
+  if (i >= 0 || i === -2) next[city] = i;
+  return next;
+}
+
+/**
+ * La selección guardada tal como cuenta para la cotización: elegir a mano el MISMO hotel que ya trae la
+ * cotización en esa ciudad no cambia nada (E2E España: volver al "Equilibrado" dejaba el aviso
+ * "Cambiaste tu selección… actualiza la cotización").
+ */
+export function quotedEquivalent(trip: any, raw: unknown): PersistedSelections | null {
+  const s = raw as Partial<PersistedSelections> | null | undefined;
+  if (!s || typeof s !== "object") return null;
+  const hoteles = (Array.isArray(s.hoteles) ? s.hoteles : []).filter((h) => {
+    const i = resolvePick(trip?.hospedaje_json, { i: h?.i, key: h?.key ?? null });
+    return !(i >= 0 && typeof h?.ciudad === "string" && i === quotedHotelForCity(trip, h.ciudad));
+  });
+  const isDefault = (s.vuelo?.i ?? -1) === -1 && (s.hospedaje?.i ?? -1) === -1 && s.noches_hospedaje == null && !(s.tours ?? []).length && !hoteles.length;
+  if (isDefault) return null;
+  const { hoteles: _h, ...rest } = s as PersistedSelections;
+  return { ...rest, ...(hoteles.length ? { hoteles } : {}) } as PersistedSelections;
+}
+
+/** ¿Dos selecciones guardadas valen lo mismo para la cotización? (ver quotedEquivalent). */
+export function sameQuotedSelections(trip: any, a: unknown, b: unknown): boolean {
+  return sameSelections(a, b) || sameSelections(quotedEquivalent(trip, a), quotedEquivalent(trip, b));
 }

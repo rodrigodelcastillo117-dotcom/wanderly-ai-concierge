@@ -149,7 +149,9 @@ describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
     for (const s of steps) expect(within(s).getAllByTestId("hotel-opcion")).toHaveLength(3);
     const flor = steps[1];
     expect(parseBookingSearch(within(flor).getByTestId("comprar-hotel-Florencia-abrir").getAttribute("href")!)).toMatchObject({ checkin: "2026-10-26", checkout: "2026-10-29", adults: 2 });
-    expect(within(flor).getByRole("radio", { checked: true })).toHaveTextContent("Four Seasons Firenze");
+    // El hotel de la cotización se marca "En la cotización", sin palomita: aún no lo eligió la persona.
+    expect(within(flor).queryByRole("radio", { checked: true })).toBeNull();
+    expect(within(flor).getAllByTestId("hotel-opcion").find((b) => b.getAttribute("data-default") === "true")).toHaveTextContent("Four Seasons Firenze");
     fireEvent.click(within(flor).getByRole("radio", { name: /Milu/ }));
     await waitFor(() => expect(within(screen.getAllByTestId("comprar-hospedaje")[1]).getByRole("radio", { checked: true })).toHaveTextContent("Milu"));
     // Total: hospedaje por ciudad con Milu (7,017 × 3) en lugar de Four Seasons (37,035 × 3).

@@ -34,17 +34,63 @@ const TOUR_MXN: [number, number] = [700, 2000];
 
 const byThreshold = (v: number, [a, b]: [number, number]): PickTier => (v < a ? "economico" : v <= b ? "medio" : "caro");
 
-/** "EUR 20–30" / "Desde USD 15" / "MXN 400–800" → { currency, mid } (punto medio por persona). */
-export function parsePriceRange(text: unknown): { currency: string; mid: number } | null {
+/**
+ * Rango por persona con su moneda: "EUR 20–30", "Desde USD 15", y también con la moneda al final como
+ * lo escribe el análisis ("€€€ (40-60 USD)", "$15 - $30 USD por persona") → { currency, min, max }.
+ */
+export function parseAmountRange(text: unknown): { currency: string; min: number; max: number | null } | null {
   const t = String(text ?? "").replace(/–|—/g, "-");
-  const m = t.match(/(?:desde|hasta)?\s*(EUR|USD|MXN|GBP|CHF|€|US\$|£)\s*([\d.,]+)(?:\s*-\s*([\d.,]+))?/i);
+  const n = (s?: string) => (s ? Number(s.replace(/[.,](?=\d{3}\b)/g, "").replace(",", ".")) : NaN);
+  const out = (cur: string, a: number, b: number) => (Number.isFinite(a) && a > 0
+    ? { currency: cur, min: a, max: Number.isFinite(b) && b > 0 ? b : null } : null);
+  // Moneda al final: "40-60 USD", "$15 - $30 USD", "25-40 USD/persona".
+  const after = t.match(/\$?\s*(\d[\d.,]*)(?:\s*-\s*\$?\s*(\d[\d.,]*))?\s*(EUR|USD|MXN|GBP|CHF|JPY)\b/i);
+  if (after) return out(after[3].toUpperCase(), n(after[1]), n(after[2]));
+  const m = t.match(/(?:desde|hasta)?\s*(EUR|USD|MXN|GBP|CHF|JPY|€|US\$|£)\s*([\d.,]+)(?:\s*-\s*([\d.,]+))?/i);
   if (!m) return null;
   const cur = ({ "€": "EUR", "£": "GBP", "US$": "USD" } as Record<string, string>)[m[1]] ?? m[1].toUpperCase();
-  const n = (s?: string) => (s ? Number(s.replace(/[.,](?=\d{3}\b)/g, "").replace(",", ".")) : NaN);
-  const a = n(m[2]);
-  const b = n(m[3]);
-  if (!Number.isFinite(a) || a <= 0) return null;
-  return { currency: cur, mid: Number.isFinite(b) && b > 0 ? (a + b) / 2 : a };
+  return out(cur, n(m[2]), n(m[3]));
+}
+
+/** "EUR 20–30" / "Desde USD 15" / "MXN 400–800" → { currency, mid } (punto medio por persona). */
+export function parsePriceRange(text: unknown): { currency: string; mid: number } | null {
+  const r = parseAmountRange(text);
+  if (!r) return null;
+  return { currency: r.currency, mid: r.max != null ? (r.min + r.max) / 2 : r.min };
+}
+
+/** Tasa USD → MXN con fuente (la del plan del viaje, la misma del total); null si es de respaldo o no tiene fuente. */
+export type SourcedRate = { rate: number; source: string };
+export function tripUsdMxnRate(trip: any): SourcedRate | null {
+  const l = trip?.itinerario_json?.logistics;
+  const rate = Number(l?.fx_usd_mxn);
+  if (!(rate > 0) || !l?.fx_source || l?.fx_is_fallback === true) return null;
+  return { rate, source: String(l.fx_source) };
+}
+
+const fmtNum = (v: number) => Math.round(v).toLocaleString("es-MX");
+
+/**
+ * Precio de un restaurante para una página en pesos, sin mezclar monedas (E2E España: "€€€ (40-60 USD)"):
+ *  - rango en USD y tasa con fuente → "MXN 750–1,126 por persona" (y de dónde sale la conversión);
+ *  - otra moneda o sin tasa con fuente → el rango en SU moneda ("USD 40–60 por persona");
+ *  - solo símbolos → "$$" se queda; "€€€" (otra moneda) se dice con palabras ("Caro").
+ */
+export function restaurantPriceLabel(raw: unknown, fx: SourcedRate | null): { text: string; note: string | null } | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const r = parseAmountRange(s);
+  const range = (a: number, b: number | null) => (b != null && b !== a ? `${fmtNum(a)}–${fmtNum(b)}` : fmtNum(a));
+  if (r) {
+    if (r.currency === "USD" && fx) {
+      return { text: `MXN ${range(r.min * fx.rate, r.max != null ? r.max * fx.rate : null)} por persona`,
+        note: `De USD ${range(r.min, r.max)} · 1 USD = ${fx.rate.toFixed(2)} MXN (${fx.source})` };
+    }
+    return { text: `${r.currency} ${range(r.min, r.max)} por persona`, note: null };
+  }
+  const sym = s.replace(/\s+/g, "");
+  if (/^€{1,4}$/.test(sym)) return { text: TIER_LABEL[sym.length === 1 ? "economico" : sym.length === 2 ? "medio" : "caro"], note: null };
+  return null;
 }
 
 /** Nivel de precio de un restaurante del viaje, o null si no hay dato real. */

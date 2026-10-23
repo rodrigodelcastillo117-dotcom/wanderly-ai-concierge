@@ -113,7 +113,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
   /** Qué falta en un paso (no bloquea: "Siguiente" lo dice). */
   const missingOf = (s: BuyStep): string | null => {
     if (s.kind === "vuelo") return !s.skipped && s.options.length > 0 && s.chosen < 0 ? "Te falta elegir el vuelo" : null;
-    if (s.kind === "hospedaje") return !s.skipped && s.chosen < 0 ? `Te falta elegir hotel${s.city ? ` en ${s.city}` : ""}` : null;
+    // El hotel de la cotización (por defecto) no cuenta como elegido: lo mismo que "Falta elegir" del correo y del total.
+    if (s.kind === "hospedaje") return !s.skipped && !s.userChosen ? `Te falta elegir hotel${s.city ? ` en ${s.city}` : ""}` : null;
     if (s.kind === "traslado") return s.chosen ? null : `Te falta elegir cómo ir de ${s.from} a ${s.to}`;
     return null;
   };
@@ -334,12 +335,16 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                     <div role="radiogroup" aria-label={`Opciones de ${s.title.toLowerCase()}`} className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-3">
                       {s.options.map((i) => {
                         const h = trip.hospedaje_json[i];
-                        const chosen = s.chosen === i;
+                        // Palomita solo en lo que eligió la persona; el de la cotización se marca aparte ("En la cotización").
+                        const chosen = s.userChosen && s.chosen === i;
+                        const quotedDefault = !s.userChosen && s.chosen === i;
                         const total = hotelTotal(h, s.nights, travelers);
                         return (
-                          <button key={i} type="button" role="radio" aria-checked={chosen} data-testid="hotel-opcion" disabled={!onSelectHotel}
-                            onClick={() => onSelectHotel && chooseAndAdvance(`paso-${s.n}`, () => onSelectHotel(cityId, i))}
-                            className={`flex w-full min-w-0 items-center gap-3 rounded-lg border p-2 text-left transition disabled:cursor-default ${chosen ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40"}`}>
+                          <button key={i} type="button" role="radio" aria-checked={chosen} data-testid="hotel-opcion" data-default={quotedDefault ? "true" : undefined} disabled={!onSelectHotel}
+                            aria-label={chosen ? `${h?.nombre ?? "Hotel"}: elegido. Toca para quitar tu elección` : undefined}
+                            // Tocar el elegido lo quita: el total vuelve al hotel de la cotización.
+                            onClick={() => onSelectHotel && (chosen ? onSelectHotel(cityId, -1) : chooseAndAdvance(`paso-${s.n}`, () => onSelectHotel(cityId, i)))}
+                            className={`flex w-full min-w-0 items-center gap-3 rounded-lg border p-2 text-left transition disabled:cursor-default ${chosen ? "border-primary bg-primary/10" : quotedDefault ? "border-dashed border-primary/50" : "border-border/60 hover:border-primary/40"}`}>
                             <SmartImage alt={h?.nombre ?? "Hotel"} size="thumb" className="h-14 w-14 shrink-0 overflow-hidden rounded-md" imageUrl={h?.thumbnail ?? h?.foto ?? null}
                               lookup={h?.place_id ? { placeId: h.place_id } : { name: h?.nombre, city: h?.ciudad ?? cityId ?? trip.destino }} stockQuery={hotelQuery(h?.tier || h?.tipo, i)} icon={Hotel} />
                             <span className="min-w-0 flex-1">
@@ -350,6 +355,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                               <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                                 {[h?.tier && TIER_WORD[h.tier] ? TIER_WORD[h.tier] : null, s.nights ? plural(s.nights, "noche", "noches") : null, Number(h?.precio_por_noche) > 0 ? `${money(Number(h.precio_por_noche))} por noche` : null].filter(Boolean).join(" · ")}
                               </span>
+                              {quotedDefault && <span className="mt-0.5 block text-[11px] text-primary" data-testid="hotel-en-cotizacion">En la cotización · aún sin elegir</span>}
                               {!oneSource(s.options.map((x) => trip.hospedaje_json[x])) && <PriceSourceBadge className="mt-1" source={h?.fuente_precio} estado={h?.estado_dato} consultadoAt={h?.consultado_at ?? trip.created_at} />}
                             </span>
                           </button>
@@ -361,6 +367,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                         {buyButton(it, cityId ? `comprar-hotel-${cityId}-abrir` : "comprar-hospedaje-abrir")}
                         {markControl(it, "comprar-hospedaje")}
                         {onSelectHotel && <button type="button" onClick={() => onSelectHotel(cityId, -2)} className="min-h-[32px] text-xs text-muted-foreground underline-offset-2 hover:underline">Ya tengo dónde quedarme</button>}
+                        {onSelectHotel && s.userChosen && <button type="button" onClick={() => onSelectHotel(cityId, -1)} data-testid="hotel-quitar" className="min-h-[32px] text-xs text-muted-foreground underline-offset-2 hover:underline">Quitar mi elección</button>}
                       </div>
                     )}
                     {it && details(it, "comprar-hospedaje")}

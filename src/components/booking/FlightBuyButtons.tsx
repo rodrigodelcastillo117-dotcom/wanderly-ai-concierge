@@ -12,6 +12,7 @@ import { trainlineLink } from "@/lib/affiliateLinks";
 import { mainAirport } from "../../../supabase/functions/_shared/airports.ts";
 import { googleFlightsSearchUrl, kayakFlightsSearchUrl } from "../../../supabase/functions/_shared/booking/links.ts";
 import { stayForCity } from "../../../supabase/functions/_shared/booking/tripRoute.ts";
+import { legCarRentalDates } from "@/lib/multiDestTrip";
 import { ROADTRIP_ANCHOR } from "@/components/roadtrip/RoadTripPanel";
 import { scrollToSection } from "@/components/TripNextStep";
 
@@ -92,7 +93,9 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
       </div>
     );
   }
-  const qs = new URLSearchParams({ city: from || to, ...(to && from ? { dropoff: to } : {}), ...(pickup ? { pickup } : {}), ...(trip?.fecha_regreso ? { return: trip.fecha_regreso } : {}), ...(trip?.id ? { trip: trip.id } : {}) });
+  // Fechas del TRAMO (Madrid → Córdoba se devuelve el 7 may en Córdoba), no las del viaje completo.
+  const car = legCarRentalDates(trip, from, to);
+  const qs = new URLSearchParams({ city: from || to, ...(to && from ? { dropoff: to } : {}), ...(car.pickup ? { pickup: car.pickup } : {}), ...(car.dropoff ? { return: car.dropoff } : {}), ...(trip?.id ? { trip: trip.id } : {}) });
   return (
     <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()} data-testid="ground-buy-buttons">
       <button type="button" onClick={() => scrollToSection(ROADTRIP_ANCHOR)} className={`${btn} border border-border/70 hover:border-primary/50`}>
