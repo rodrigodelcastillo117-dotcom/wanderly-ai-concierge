@@ -11,12 +11,20 @@
 
 import { asciiHost, registrableDomain as pslRegistrableDomain } from "./psl.ts";
 
+/** Dominios oficiales de Ticketmaster por país (Discovery API v2 devuelve el del mercado del evento). */
+export const TM_DOMAINS = [
+  "ticketmaster.com", "ticketmaster.com.mx", "ticketmaster.ca", "ticketmaster.co.uk", "ticketmaster.ie", "ticketmaster.es", "ticketmaster.de",
+  "ticketmaster.fr", "ticketmaster.it", "ticketmaster.nl", "ticketmaster.be", "ticketmaster.at", "ticketmaster.ch", "ticketmaster.dk",
+  "ticketmaster.se", "ticketmaster.no", "ticketmaster.fi", "ticketmaster.pl", "ticketmaster.cz", "ticketmaster.com.au", "ticketmaster.co.nz",
+  "ticketmaster.com.br", "ticketmaster.cl", "ticketmaster.com.pe", "ticketmaster.ae",
+] as const;
+
 export type ProviderInfo = {
   /** Dominio registrable (sin www) o un subdominio concreto (international.ado.com.mx). */
   domain: string;
   provider: string; // id estable
   label: string; // nombre que ve el usuario
-  kind: "ota" | "metasearch" | "airline" | "restaurant_booking" | "tours" | "maps" | "messaging" | "bus" | "affiliate_redirect" | "hotel_chain";
+  kind: "ota" | "metasearch" | "airline" | "restaurant_booking" | "tours" | "maps" | "messaging" | "bus" | "affiliate_redirect" | "hotel_chain" | "tickets";
   /** Rutas permitidas (si el dominio aloja otras cosas, p. ej. google.com). */
   paths?: RegExp;
   /**
@@ -105,6 +113,9 @@ export const PROVIDERS: ProviderInfo[] = [
   P("omio.com", "omio", "Omio", "bus", "Buscador de autobuses y trenes (groundTransport.ts, omioLink); IATOS_PROVEEDORES_AUTOBUSES.md."),
   P("international.ado.com.mx", "ado", "ADO", "bus", "Búsqueda pública de ADO (IATOS_PROVEEDORES_AUTOBUSES.md §2.2); solo ese subdominio."),
   P("reservamos.mx", "reservamos", "Reservamos", "bus", "Buscador de autobuses en México (IATOS_PROVEEDORES_AUTOBUSES.md §2.1)."),
+  // Boletos de eventos: SOLO el campo `url` que devuelve la Discovery API v2 de Ticketmaster (servidor,
+  // _shared/ticketmaster.ts); la página oficial de compra del evento, nunca una compra hecha.
+  ...TM_DOMAINS.map((d) => P(d, "ticketmaster", "Ticketmaster", "tickets", "Página oficial del evento: campo `url` de la Discovery API v2 de Ticketmaster (EV-TICKETMASTER-URL).")),
   // Mensajería oficial (click to chat de WhatsApp)
   P("wa.me", "whatsapp", "WhatsApp", "messaging", "Click to chat oficial de WhatsApp (EV-WA-CLICK)."),
   P("api.whatsapp.com", "whatsapp", "WhatsApp", "messaging", "Forma larga oficial del click to chat (api.whatsapp.com/send), EV-WA-CLICK.", { paths: /^\/send\/?$/ }),

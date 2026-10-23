@@ -10,8 +10,9 @@
 //  * cupo diario por usuario (planes y sorpresas por separado) además del límite por minuto/hora;
 //  * nada en segundo plano.
 import { buildTripQuestion, resolveActiveTrip, tripLabel, type TripLike } from "../_shared/activeTrip.ts";
+import type { TmQuery, TmResult } from "../_shared/ticketmaster.ts";
 import {
-  buildKey, DEFAULT_FX, detectPlace, type FxToMxn, keyCost, type KeyAnswers, type KeyCandidate, type KeyMode, type KeyResult, type Lang, levelCeiling,
+  addLiveEvent, buildKey, DEFAULT_FX, detectPlace, type FxToMxn, keyCost, type KeyAnswers, type KeyCandidate, type KeyMode, type KeyResult, type Lang, levelCeiling,
   resolveWish, type TripCtx,
 } from "../_shared/priveKey.ts";
 import { priveCodeOf, type RpcFn, toCandidate, unavailable } from "./prive.ts";
@@ -42,6 +43,8 @@ export interface PriveKeyDeps {
   hitDaily: (bucket: string, limit: number) => Promise<boolean | null>;
   cache: KeyCache;
   fx?: () => Promise<FxToMxn>;
+  /** Ticketmaster: con ciudad y fecha, The Key puede sumar UN evento real en venta que encaje (addLiveEvent). */
+  liveEvents?: (q: TmQuery) => Promise<TmResult>;
   now?: () => number;
   log?: (event: string, data: Record<string, unknown>) => void;
 }
@@ -157,8 +160,20 @@ export async function runPriveKey(body: KeyBody, deps: PriveKeyDeps): Promise<Ke
   const cityCur = String(city.city?.currency ?? "");
   const fx = wish.budget && cityCur && wish.budget.currency !== cityCur && deps.fx ? await deps.fx().catch(() => DEFAULT_FX) : DEFAULT_FX;
   const hotel = wish.trip ? hotelForPlan(tr, cands, String(city.city?.name ?? "")) : null;
-  const result: KeyResult = buildKey(cands, wish, { lang, todayISO: deps.todayISO, fx, exclude, seed: `${deps.userId}|${deps.todayISO}`,
+  let result: KeyResult = buildKey(cands, wish, { lang, todayISO: deps.todayISO, fx, exclude, seed: `${deps.userId}|${deps.todayISO}`,
     hotel: hotel?.lat != null ? { name: hotel.name, lat: hotel.lat, lng: hotel.lng } : null });
+  // Un evento real de Ticketmaster (en venta, en las fechas y sin encimarse) como paso, con su enlace oficial.
+  let liveEvent = false;
+  const cityName = String(city.city?.name ?? "");
+  if (deps.liveEvents && result.status === "proposals" && wish.mode !== "surprise" && wish.date && cityName) {
+    const tm = await deps.liveEvents({ city: cityName, from: wish.date, to: addDays(wish.date, Math.max(0, wish.nights - 1)),
+      category: wish.intents.includes("concierto") ? "music" : null, size: 20 }).catch(() => null);
+    if (tm && tm.ok === true && tm.results.length) {
+      const withEvent = addLiveEvent(result, tm.results, wish, { lang, fx, consultedAt: tm.consulted_at });
+      liveEvent = withEvent !== result;
+      result = withEvent;
+    }
+  }
   const ms = (deps.now?.() ?? Date.now()) - t0;
   const out = {
     ok: true, ...result, ...meta,
@@ -172,7 +187,7 @@ export async function runPriveKey(body: KeyBody, deps: PriveKeyDeps): Promise<Ke
   };
   deps.cache.set(ck, { at: deps.now?.() ?? Date.now(), value: out });
   deps.log?.("prive_key_plan", { user_id: deps.userId, mode: wish.mode, status: result.status, tiers: result.proposals.map((p) => p.tier),
-    candidates: result.candidates_considered, trip_reason: resolution.reason, ms, ai_calls: 0 });
+    candidates: result.candidates_considered, trip_reason: resolution.reason, ms, ai_calls: 0, live_event: liveEvent });
   return { status: 200, body: { ...out, cost: keyCost(1, "miss", ms) } };
 }
 

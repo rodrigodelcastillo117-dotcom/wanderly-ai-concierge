@@ -47,6 +47,7 @@ import { runConciergeTurn } from "./turn.ts";
 import { encodeEvent, type ConciergeStreamEvent } from "./stream.ts";
 import { runWebSearch } from "./webSearch.ts";
 import { runEventSearch } from "./events.ts";
+import { ticketmasterFor } from "../_shared/ticketmasterRuntime.ts";
 import { executeAction } from "./actionExec.ts";
 import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempotency.ts";
 import type { ActionContext } from "./actions.ts";
@@ -274,6 +275,7 @@ async function handlePriveKey(req: Request, body: Body & Record<string, unknown>
     userId, priveSession: req.headers.get("x-prive-session"),
     rpc: (fn, params) => supabase.rpc(fn, params) as any,
     trips: (trips ?? []) as any[], pinnedId: (pinnedRes as any)?.data?.active_trip_id ?? null, todayISO: today.todayISO,
+    liveEvents: ticketmasterFor("concierge-chat", userId, { timeoutMs: 6000, background: bg }),
     hitDaily: async (bucket, limit) => {
       try {
         const { data, error } = await adminClient().rpc("check_rate_limit", { _subject: userId, _bucket: bucket, _limit: limit, _window_seconds: 86400 });
@@ -554,7 +556,8 @@ Deno.serve(async (req) => {
       reservas: reservationStatesForPrompt(resStates),
     });
 
-    const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords });
+    // Eventos "aquí" (turnPlace): la ubicación física con permiso; si pidió otra ciudad, esa ciudad.
+    const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords, nearCoords: turnPlace.scope === "here" ? coords : null });
 
     const runTurn = async () => {
       const { final, agent, prefetchMs, totalMs, lead, leadMs } = await runConciergeTurn({
@@ -672,7 +675,7 @@ function sseOnce(events: ConciergeStreamEvent[]): Response {
 
 // ═══ Herramientas reales ═══
 
-function makeExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null }) {
+function makeExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null }) {
   return async (name: string, rawArgs: Record<string, unknown>): Promise<unknown> => {
     const args = toolArgs(name, rawArgs ?? {}, { todayISO: c.todayISO, coords: c.coords });
     if (name === "search_prive") {
@@ -689,7 +692,7 @@ function makeExecTool(c: { supabase: any; authHeader: string; userId: string; pr
       const store = dbCacheStore();
       return runEventSearch(args, {
         fetchImpl: fetch, serpKey: SERPAPI_KEY, store, gate: liveSearchGateFor(c.userId), brake: accountBrake(store), timeoutMs: TOOL_TIMEOUTS.search_events - 500, background: bg,
-        now: Date.now,
+        now: Date.now, ticketmaster: ticketmasterFor("concierge-chat", c.userId, { background: bg }), nearCoords: c.nearCoords ?? null,
         onLive: (ok) => (ok ? logUsage({ user_id: c.userId, function: "concierge-chat", provider: "serpapi", model: "google_events", searches: 1 }) : undefined),
       });
     }

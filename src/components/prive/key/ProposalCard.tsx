@@ -7,13 +7,15 @@ import { Bookmark, BookmarkCheck, CalendarPlus, ChevronDown, ExternalLink, Messa
 import { BookingActions } from "@/components/booking/BookingActions";
 import { PriveImage } from "@/components/prive/catalog/PriveImage";
 import { RequestDialog } from "@/components/prive/catalog/RequestDialog";
-import { offerFromVenue } from "@/lib/booking";
+import { checkAllowlisted, offerFromVenue } from "@/lib/booking";
 import { imageQueries, universeMeta } from "@/lib/priveCatalogView";
 import type { PriveExperience, PriveLockedError } from "@/lib/priveCatalogApi";
 import type { KeyProposal, KeyStep } from "@/lib/priveKey";
 import type { KeyLang, KeyText } from "@/lib/priveKeyI18n";
 
 const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+/** Enlace de boletos de un paso de Ticketmaster: solo un dominio oficial de la lista blanca. */
+const officialTickets = (u: unknown) => { const v = checkAllowlisted(u); return v.ok && v.provider?.provider === "ticketmaster" ? v.url! : null; };
 
 const STATE_BADGE: Record<string, { es: string; en: string; tone: "ok" | "warn" }> = {
   VERIFICADO: { es: "Verificado", en: "Verified", tone: "ok" },
@@ -87,6 +89,17 @@ export function ProposalCard({ p, lang, t, tripId, saved, inTrip, busy, onSave, 
                     )}
                   </p>
                   {s.requirements.length > 0 && <ul className="pk-list mt-1 prive-muted">{s.requirements.map((r) => <li key={r}>{r}</li>)}</ul>}
+                  {s.experience.state === "TICKETMASTER" ? (
+                    // Evento real de Ticketmaster: su página oficial de boletos (no se pide al equipo ni se guarda como experiencia Privé).
+                    officialTickets(s.experience.booking_url) && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <a href={officialTickets(s.experience.booking_url)!} target="_blank" rel="noopener noreferrer" className="pk-chip text-xs" data-testid="pk-tm-tickets"
+                          onClick={() => once(`b${i}`, () => onTrack("booking_opened"))}>
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />{lang === "en" ? "Tickets on Ticketmaster" : "Boletos en Ticketmaster"}
+                        </a>
+                      </div>
+                    )
+                  ) : (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button type="button" className="pk-chip text-xs" aria-expanded={openBooking === i} onClick={() => setOpenBooking(openBooking === i ? null : i)}>
                       <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />{t.howToBook}<ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
@@ -95,6 +108,7 @@ export function ProposalCard({ p, lang, t, tripId, saved, inTrip, busy, onSave, 
                       <Send className="h-3.5 w-3.5" aria-hidden="true" />{t.request}
                     </button>
                   </div>
+                  )}
                   {openBooking === i && (
                     <div className="mt-2 rounded-xl border border-[color:var(--pv-line)] p-3" data-testid="pk-booking">
                       <StepBooking s={s} tripId={tripId} city={city} onOpened={() => once(`b${i}`, () => onTrack("booking_opened"))} />

@@ -17,7 +17,7 @@ import { track } from "@/lib/analytics";
 import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
 import { TakeMeThereButton } from "./TakeMeThereButton";
 import { ReservationStateBadge } from "./ReservationStateBadge";
-import { canTakeMeThere, isMobileDevice, mapsDirectionsUrl } from "@/lib/takeMeThere";
+import { canTakeMeThere, isMobileDevice, mapsDirectionsUrl, takeMeThereUrl } from "@/lib/takeMeThere";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 import { frescuraPrecio } from "../../../supabase/functions/_shared/priceFreshness.ts";
 import {
@@ -68,6 +68,7 @@ const SOURCE_NAME: Record<string, string> = {
   tripadvisor: "TripAdvisor",
   google_maps: "Google Maps",
   google_events: "Google Events",
+  ticketmaster: "Ticketmaster",
   travelpayouts: "Aviasales · tarifa de referencia (últimas 48 h)",
   aviasales: "Aviasales · tarifa de referencia (últimas 48 h)",
 };
@@ -473,11 +474,16 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
   }
 
   if (card.type === "event") {
-    // Event Radar: todo sale de Google Events de este turno (eventCards en el servidor). Sin precio.
+    // Event Radar: todo sale de Ticketmaster o Google Events de este turno (eventCards en el servidor).
+    // Precio solo si Ticketmaster lo publica (priceRanges), con su aviso; Google Events nunca trae precio.
+    const tm = card.fuente === "ticketmaster";
     const at = card.consultado_at ? new Date(card.consultado_at) : null;
     const hhmm = at && Number.isFinite(at.getTime()) ? at.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }) : null;
     const place = [card.meta, card.address].filter(Boolean).join(", ");
-    const go = place ? mapsDirectionsUrl({ destination: place, mobile: isMobileDevice() }) : null;
+    const target = { name: card.meta ?? card.title, lat: typeof card.lat === "number" ? card.lat : null, lng: typeof card.lng === "number" ? card.lng : null };
+    const go = (canTakeMeThere(target) ? takeMeThereUrl(target, { mobile: isMobileDevice() }) : null)
+      ?? (place ? mapsDirectionsUrl({ destination: place, mobile: isMobileDevice() }) : null);
+    const price = tm && typeof card.price === "number" && card.price > 0 && card.currency ? `Desde ${formatMoney(card.price, card.currency)} ${card.currency}` : null;
     return (
       <div className={CARD_SHELL} data-card-type="event">
         <div className="flex items-start gap-3">
@@ -488,7 +494,13 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             {card.subtitle && <p className="text-xs text-primary mt-0.5" data-testid="event-when">{card.subtitle}</p>}
             {card.meta && <p className="text-xs text-muted-foreground mt-0.5">{card.meta}</p>}
             {card.address && <p className="text-xs text-muted-foreground">{card.address}</p>}
-            <p className="text-[10px] text-muted-foreground mt-1" data-testid="event-source">Fuente: Google Events{hhmm ? ` · consultado ${hhmm}` : ""}</p>
+            {(card.body || card.status) && (
+              <p className="text-[11px] text-muted-foreground mt-0.5" data-testid="event-status">
+                {[card.body, card.status].filter(Boolean).join(" · ")}
+              </p>
+            )}
+            {price && <p className="text-xs text-primary mt-0.5" data-testid="event-price">{price} <span className="text-[10px] text-muted-foreground">· {card.price_note ?? "precio publicado por Ticketmaster · puede cambiar"}</span></p>}
+            <p className="text-[10px] text-muted-foreground mt-1" data-testid="event-source">Fuente: {tm ? "Ticketmaster" : "Google Events"}{hhmm ? ` · consultado ${hhmm}` : ""}</p>
           </div>
         </div>
         <CardLinks card={card} onOpen={onOpen}>
@@ -501,7 +513,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           )}
         </CardLinks>
         {card.links?.some((l) => l.kind === "tickets") && (
-          <p className="text-[10px] text-muted-foreground mt-1">Los boletos se compran en el sitio de boletos; el precio lo ves ahí.</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{tm ? "Los boletos se compran en Ticketmaster; abrir el enlace no es una compra." : "Los boletos se compran en el sitio de boletos; el precio lo ves ahí."}</p>
         )}
       </div>
     );

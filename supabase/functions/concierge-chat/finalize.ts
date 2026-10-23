@@ -17,7 +17,7 @@ import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enforc
 import { correctFailureClaims, enforceNoFakeBooking, labelUnverifiedFacts } from "./guard.ts";
 import { type ActionContext, type ProposedAction, restaurantBookingLinks, validateAction, validateActions } from "./actions.ts";
 import { directionsLink, uberLink, type TurnPlan } from "./planner.ts";
-import { ensureTransferUsesKnownData } from "./context.ts";
+import { ensureTransferUsesKnownData, normText } from "./context.ts";
 import { itineraryActionScope, type TripPosition, type UserLocation, userTripPosition } from "./location.ts";
 import { compactReply, dropUnaskedFlightAdvice } from "./brevity.ts";
 
@@ -108,15 +108,28 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
 
   // "Agregar al itinerario" (acción existente, la confirma el usuario) para el primer evento con fecha
   // dentro del viaje en contexto.
+  // Sin viaje en contexto, otro de sus viajes cuyas fechas incluyan el evento y cuyo destino nombre la ciudad.
+  const inTrip = (t: { fecha_salida?: string | null; fecha_regreso?: string | null } | null | undefined, d?: string) =>
+    !!(t && d && t.fecha_salida && String(t.fecha_salida).slice(0, 10) <= d && (!t.fecha_regreso || d <= String(t.fecha_regreso).slice(0, 10)));
   const tripCtx = i.tripScope?.trip ?? null;
-  const ev0 = events.find((e) => e.event_date && tripCtx?.fecha_salida && String(tripCtx.fecha_salida).slice(0, 10) <= e.event_date
-    && (!tripCtx.fecha_regreso || e.event_date <= String(tripCtx.fecha_regreso).slice(0, 10)));
-  if (ev0 && tripCtx?.id && acts.actions.length < 3 && !acts.actions.some((a) => a.type === "add_itinerary_item")) {
+  let evTrip: { id: string } | null = null;
+  let ev0 = events.find((e) => inTrip(tripCtx, e.event_date));
+  if (ev0 && tripCtx?.id) evTrip = tripCtx;
+  else if (!tripCtx) {
+    for (const e of events) {
+      const place = normText(`${e.meta ?? ""} ${e.address ?? ""}`);
+      const t = ctx.trips.find((x) => inTrip(x, e.event_date) && normText(x.destino).split(/[\s,·→-]+/).some((w) => w.length > 3 && place.includes(w)));
+      if (t) { ev0 = e; evTrip = t; break; }
+    }
+  }
+  if (ev0 && evTrip && acts.actions.length < 3 && !acts.actions.some((a) => a.type === "add_itinerary_item")) {
+    const tm = ev0.fuente === "ticketmaster";
     const v = validateAction("add_itinerary_item", {
-      trip_id: tripCtx.id, fecha: ev0.event_date, hora: ev0.event_time, titulo: ev0.title,
-      lugar: [ev0.meta, ev0.address].filter(Boolean).join(", ") || undefined, nota: "Evento de Google Events; los boletos se compran en el sitio de boletos.",
+      trip_id: evTrip.id, fecha: ev0.event_date, hora: ev0.event_time, titulo: ev0.title,
+      lugar: [ev0.meta, ev0.address].filter(Boolean).join(", ") || undefined,
+      nota: tm ? "Evento de Ticketmaster; los boletos se compran en Ticketmaster." : "Evento de Google Events; los boletos se compran en el sitio de boletos.",
     }, ctx);
-    if (v.ok) acts.actions.push({ id: (i.makeId ?? (() => crypto.randomUUID()))(), ...v.action });
+    if (v.ok) acts.actions.push({ id: (i.makeId ?? (() => crypto.randomUUID()))(), ...v.action, confirm_label: "Guardar en mi viaje" });
   }
 
   let text = split.text.slice(0, 4000);

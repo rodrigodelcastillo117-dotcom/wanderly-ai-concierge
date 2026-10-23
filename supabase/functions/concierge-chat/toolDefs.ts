@@ -132,9 +132,9 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "search_events",
     description:
-      "Eventos reales (Google Events): conciertos, teatro, deportes, festivales y espectáculos en una ciudad y un rango de fechas, " +
+      "Eventos reales (Ticketmaster y Google Events): conciertos, teatro, deportes, festivales y espectáculos en una ciudad y un rango de fechas, " +
       "con fecha y hora, recinto, dirección y enlaces a sitios de boletos. Úsala SOLO cuando el usuario pida eventos, conciertos, teatro, " +
-      "deportes o qué hacer en fechas concretas. No trae precios de boletos. Si no hay resultados, dilo; nunca inventes eventos.",
+      "deportes o qué hacer en fechas concretas. Precio solo si Ticketmaster lo publica (precio_desde, puede cambiar). Si no hay resultados, dilo; nunca inventes eventos.",
     input_schema: {
       type: "object",
       properties: {

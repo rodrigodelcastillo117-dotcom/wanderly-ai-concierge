@@ -17,9 +17,10 @@
 //    "cabe en tu presupuesto" solo se dice si TODO tiene precio con fuente y la suma cabe;
 //  * nunca dice reservado, confirmado, garantizado ni VIP;
 //  * los tres niveles no comparten ninguna experiencia.
-import { INTENTS, matchesIntent, parseIntents, planExperiences, type Candidate, type IntentKey, type PlannedItem, type PlanResult, usableState }
+import { estimateTransfer, INTENTS, matchesIntent, parseIntents, planExperiences, type Candidate, type IntentKey, type PlannedItem, type PlanResult, usableState, zonedIso }
   from "./privePlanner.ts";
 import { KEY_PLACES, KEY_TERMS } from "./priveKeyPlaces.ts";
+import type { TmEvent } from "./ticketmaster.ts";
 
 export type Lang = "es" | "en";
 export type KeyMode = "key" | "h48" | "surprise";
@@ -924,6 +925,104 @@ export function buildSurprise(pool: KeyCandidate[], wish: Wish, opts: BuildOpts)
     return { ...base, narrative: t(lang, `Sorpresa: ${c.name}. ${step.reason} ${budget.text} No está reservado.`, `Surprise: ${c.name}. ${step.reason} ${budget.text} It isn't booked.`) };
   }
   return null;
+}
+
+// ─────────────────────────────── Evento real de Ticketmaster (opcional) ───────────────────────────────
+/** Duración que se reserva para un evento (entrada + función). */
+export const LIVE_EVENT_MIN = 150;
+const toMinK = (hhmm: string) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
+const fmtMinK = (n: number) => `${String(Math.floor(n / 60) % 24).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+/** Minutos del paso en su noche: lo que empieza de madrugada (00:00–05:59) va después de las 24:00. */
+const spanK = (s: { start: string; end: string }): [number, number] => {
+  let st = toMinK(s.start);
+  if (st < 6 * 60) st += 24 * 60;
+  let en = toMinK(s.end);
+  while (en < st) en += 24 * 60;
+  return [st, en];
+};
+
+/**
+ * The Key incorpora UN evento real de Ticketmaster como paso ("concierto a las 21:00 en {recinto}"),
+ * antes o después de la cena, solo si: está EN VENTA, cae en las fechas del plan, trae hora y encaja en
+ * el horario sin encimarse con los demás pasos (con el traslado estimado) y no rompe el presupuesto.
+ * Fuente y enlace oficial de boletos de Ticketmaster; sin inventar disponibilidad ni accesos VIP.
+ * Devuelve el resultado sin cambios si nada encaja. Nunca en SURPRISE ME.
+ */
+export function addLiveEvent(result: KeyResult, events: TmEvent[], wish: Wish, opts: { lang?: Lang; fx?: FxToMxn; consultedAt?: string } = {}): KeyResult {
+  const lang = opts.lang ?? "es";
+  if (result.status !== "proposals" || wish.mode === "surprise" || !wish.date || !events.length) return result;
+  const last = addDaysIso(wish.date, Math.max(0, wish.nights - 1));
+  const party = wish.party ?? 2;
+  const music = wish.intents.includes("concierto");
+  const pool = events
+    .filter((e) => e.estado === "onsale" && e.fecha && e.fecha >= wish.date! && e.fecha <= last && e.hora && /^\d{2}:\d{2}$/.test(e.hora) && /^https:\/\//.test(e.url))
+    .filter((e) => { const m = toMinK(e.hora!); return wish.timeOfDay === "noche" ? m >= 18 * 60 && m <= 22 * 60 + 30 : wish.timeOfDay === "dia" ? m >= 9 * 60 && m <= 18 * 60 : m >= 12 * 60 && m <= 22 * 60 + 30; })
+    .sort((a, b) => (music ? Number(/music|musica/i.test(b.categoria ?? "")) - Number(/music|musica/i.test(a.categoria ?? "")) : 0));
+  for (const e of pool) {
+    for (let pi = 0; pi < result.proposals.length; pi++) {
+      const p = result.proposals[pi];
+      if (p.steps.some((s) => norm(s.experience.name) === norm(e.title))) continue;
+      const start = toMinK(e.hora!);
+      const end = Math.min(start + LIVE_EVENT_MIN, 24 * 60 - 1);
+      const point = { lat: e.lat ?? null, lng: e.lng ?? null };
+      const sameDay = p.steps.filter((s) => s.date === e.fecha);
+      const fits = sameDay.every((s) => {
+        const gap = estimateTransfer({ lat: s.experience.lat ?? null, lng: s.experience.lng ?? null }, point).assumed_min;
+        const [st, en] = spanK(s);
+        return en + gap <= start || end + gap <= st;
+      });
+      if (!fits) continue;
+      const tz = p.steps.find((s) => s.experience.destination?.timezone)?.experience.destination?.timezone ?? null;
+      const intent: IntentKey = /music|musica/i.test(e.categoria ?? "") ? "concierto" : /arts|theat|teatro/i.test(e.categoria ?? "") ? "espectaculo" : "evento";
+      const amount = e.precio ? e.precio.min * party : null;
+      const cost: Cost = e.precio
+        ? { amount, currency: e.precio.currency, basis: "fuente", source_url: e.url, checked_at: opts.consultedAt ?? null,
+          text: t(lang, `Desde ${e.precio.min.toLocaleString("es-MX")} ${e.precio.currency} por boleto (precio publicado por Ticketmaster · puede cambiar) · desde ${amount!.toLocaleString("es-MX")} ${e.precio.currency} para ${party}`,
+            `From ${e.precio.min.toLocaleString("en-US")} ${e.precio.currency} per ticket (price published by Ticketmaster · may change) · from ${amount!.toLocaleString("en-US")} ${e.precio.currency} for ${party}`) }
+        : { amount: null, currency: null, basis: "por_confirmar", source_url: e.url, checked_at: opts.consultedAt ?? null,
+          text: t(lang, "Precio en Ticketmaster (no lo publica aquí)", "Price on Ticketmaster (not published here)") };
+      const recinto = e.recinto ?? t(lang, "el recinto", "the venue");
+      const dest = p.steps[0]?.experience.destination ?? null;
+      const step: KeyStep = {
+        order: 0, day: (sameDay[0]?.day ?? p.steps.find((s) => s.date > e.fecha!)?.day ?? p.steps[p.steps.length - 1]?.day ?? 1), date: e.fecha!,
+        start: e.hora!, end: fmtMinK(end), start_iso: zonedIso(e.fecha!, e.hora!, tz), time_status: "segun_horario_publicado",
+        time_text: t(lang, `${e.hora} · horario publicado por Ticketmaster`, `${e.hora} · time published by Ticketmaster`),
+        intent, intent_label: intentLabel(intent, lang),
+        experience: { id: `tm:${e.id}`, name: e.title, universe: "iconic_events", subcategory: "evento_ticketmaster", state: "TICKETMASTER", label: "Ticketmaster",
+          neighborhood: recinto, why: null, website: e.url, booking_url: e.url, booking_method: "online", verified_at: opts.consultedAt ?? null,
+          destination: dest, image: null, lat: e.lat ?? null, lng: e.lng ?? null },
+        transfer: null, cost,
+        reason: t(lang, `${intentLabel(intent, lang)} a las ${e.hora} en ${recinto}, según Ticketmaster (en venta al consultar). Los boletos se compran en Ticketmaster; nada está comprado ni apartado.`,
+          `${intentLabel(intent, lang)} at ${e.hora} at ${recinto}, per Ticketmaster (on sale when checked). Tickets are bought on Ticketmaster; nothing is bought or held.`),
+        confirmable: [t(lang, "Boletos en la página oficial de Ticketmaster", "Tickets on the official Ticketmaster page")],
+        pending: [t(lang, "Boletos no comprados: disponibilidad y precio final en Ticketmaster", "Tickets not bought: availability and final price on Ticketmaster")],
+        requirements: [], warnings: [], alternatives: [],
+      };
+      const steps = [...p.steps, step].sort((a, b) => (a.date === b.date ? spanK(a)[0] - spanK(b)[0] : a.date < b.date ? -1 : 1));
+      // Traslados ESTIMADOS alrededor del evento (mismo cálculo del planeador).
+      const out = steps.map((s, i) => {
+        const prev = steps[i - 1];
+        const touches = s === step || prev === step;
+        if (!touches || !prev || prev.date !== s.date) return { ...s, order: i + 1, ...(s === step ? { transfer: null } : {}) };
+        const tr = estimateTransfer({ lat: prev.experience.lat ?? null, lng: prev.experience.lng ?? null }, { lat: s.experience.lat ?? null, lng: s.experience.lng ?? null });
+        return { ...s, order: i + 1, transfer: { minutes: tr.minutes, label: "ESTIMADO" as const,
+          text: tr.minutes != null ? t(lang, `≈ ${tr.minutes} min (aprox., depende del tráfico)`, `≈ ${tr.minutes} min (approx., traffic-dependent)`)
+            : t(lang, "Traslado no calculado: falta la ubicación exacta", "Transfer not calculated: exact location missing") } };
+      });
+      const budget = summarizeBudget(out.map((s) => s.cost), wish.budget, wish.budgetOpen, lang, opts.fx ?? DEFAULT_FX);
+      if (budget.status === "excede") continue;
+      const base: Omit<KeyProposal, "narrative"> = { ...p, steps: out, budget, universes: uniq(out.map((s) => s.experience.universe)),
+        confirmable: uniq(out.flatMap((s) => s.confirmable)), pending: uniq(out.flatMap((s) => s.pending)), days: uniq(out.map((s) => s.day)).length };
+      const proposals = result.proposals.slice();
+      const label = step.intent_label.toLowerCase();
+      const narrative = narrativeFor(base, wish, lang)
+        .replace(`${label} en ${e.title}`, `${label} a las ${e.hora} en ${recinto} (${e.title}, Ticketmaster)`)
+        .replace(`${label} at ${e.title}`, `${label} at ${e.hora} at ${recinto} (${e.title}, Ticketmaster)`);
+      proposals[pi] = { ...base, narrative };
+      return { ...result, proposals };
+    }
+  }
+  return result;
 }
 
 // ─────────────────────────────── Costo por plan (Doc B §17) ───────────────────────────────

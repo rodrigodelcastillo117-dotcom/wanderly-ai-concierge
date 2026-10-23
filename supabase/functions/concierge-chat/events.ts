@@ -14,6 +14,7 @@ import {
   type AccountBrake, cacheGet, cacheKey, cachePut, type CacheStore, freshnessOf, isSerpQuotaError, type LiveGate,
 } from "../_shared/serpCache.ts";
 import { normText } from "./context.ts";
+import type { TmEvent, TmQuery, TmResult } from "../_shared/ticketmaster.ts";
 
 export const EVENTS_ENGINE = "google_events";
 export const MAX_EVENTS = 6;
@@ -32,6 +33,17 @@ export interface EventResult {
   /** Solo enlaces de venta de boletos (link_type "tickets"): sitio de boletos, no una compra hecha. */
   boletos: EventTicket[];
   miniatura?: string;
+  /** De dónde salió: "ticketmaster" (Discovery API) o "google_events" (por omisión). */
+  fuente?: "ticketmaster" | "google_events";
+  /** Ticketmaster: "onsale" (en venta) u "offsale" (agotado / fuera de venta). Nunca cancelados. */
+  estado?: "onsale" | "offsale";
+  /** Ticketmaster: página oficial de compra (campo `url`). */
+  url?: string;
+  categoria?: string;
+  lat?: number;
+  lng?: number;
+  /** Ticketmaster: solo si publica priceRanges ("desde"; puede cambiar). */
+  precio_desde?: { amount: number; currency: string };
 }
 
 export interface EventSearchDeps {
@@ -44,6 +56,10 @@ export interface EventSearchDeps {
   timeoutMs?: number;
   now?: () => number;
   background?: (p: Promise<unknown>) => void;
+  /** Ticketmaster (fuente primaria si hay llave). Sin esto, solo Google Events, como antes. */
+  ticketmaster?: (q: TmQuery) => Promise<TmResult>;
+  /** Ubicación física (con permiso) cuando el turno es "aquí" (turnPlace.scope === "here"). */
+  nearCoords?: { lat: number; lng: number } | null;
 }
 
 const clean = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -168,7 +184,7 @@ async function fetchJson(fetchImpl: typeof fetch, url: string, timeoutMs: number
   }
 }
 
-export async function runEventSearch(args: Record<string, unknown>, deps: EventSearchDeps): Promise<Record<string, unknown>> {
+async function runGoogleEventSearch(args: Record<string, unknown>, deps: EventSearchDeps): Promise<Record<string, unknown>> {
   const city = clean(args.city, 80);
   if (!city) return { error: "falta_ciudad" };
   const now = deps.now ?? Date.now;
@@ -228,4 +244,91 @@ export async function runEventSearch(args: Record<string, unknown>, deps: EventS
   const put = Promise.resolve(cachePut(deps.store, key, EVENTS_ENGINE, { results })).catch(() => { /* la caché es opcional */ });
   if (deps.background) deps.background(put); else await put;
   return ok(results, new Date(now()).toISOString());
+}
+
+// ═══ Ticketmaster (fuente primaria) + Google Events (respaldo o complemento) ═══
+
+/** Con tantos eventos de Ticketmaster ya no se gasta una búsqueda de SerpApi (la bolsa es chica). */
+export const TM_ENOUGH = 3;
+
+const DIA_TM = (fecha: string | null, hora: string | null, fallback: string) => formatEventWhen(fecha, hora, fallback);
+
+/** Evento de Ticketmaster → el mismo formato que ve el modelo y que arma las cards. */
+export function fromTicketmaster(e: TmEvent): EventResult {
+  return {
+    title: e.title, fecha: e.fecha, hora: e.hora, cuando: DIA_TM(e.fecha, e.hora, e.fecha ?? ""),
+    ...(e.recinto ? { recinto: e.recinto } : {}), ...(e.direccion ? { direccion: e.direccion } : {}),
+    boletos: [{ fuente: "Ticketmaster", link: e.url }], ...(e.miniatura ? { miniatura: e.miniatura } : {}),
+    fuente: "ticketmaster", estado: e.estado, url: e.url, ...(e.categoria ? { categoria: e.categoria } : {}),
+    ...(typeof e.lat === "number" && typeof e.lng === "number" ? { lat: e.lat, lng: e.lng } : {}),
+    ...(e.precio ? { precio_desde: { amount: e.precio.min, currency: e.precio.currency } } : {}),
+  };
+}
+
+const words = (s: unknown) => normText(s).replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length > 2);
+const overlap = (a: unknown, b: unknown) => {
+  const x = words(a), y = new Set(words(b));
+  if (!x.length || !y.size) return 0;
+  return x.filter((w) => y.has(w)).length / Math.min(x.length, y.size);
+};
+
+/** ¿Es el mismo evento? Mismo día + nombre parecido + mismo recinto (si ambos lo traen). */
+export function sameEvent(a: EventResult, b: EventResult): boolean {
+  if (!a.fecha || !b.fecha || a.fecha !== b.fecha) return false;
+  const na = normText(a.title), nb = normText(b.title);
+  const nameMatch = na === nb || na.includes(nb) || nb.includes(na) || overlap(a.title, b.title) >= 0.6;
+  if (!nameMatch) return false;
+  if (!a.recinto || !b.recinto) return true;
+  const ra = normText(a.recinto), rb = normText(b.recinto);
+  return ra === rb || ra.includes(rb) || rb.includes(ra) || overlap(a.recinto, b.recinto) >= 0.5;
+}
+
+/** Ticketmaster primero; de Google Events solo lo que no esté ya (desduplicado por nombre + fecha + recinto). */
+export function mergeEvents(primary: EventResult[], extra: EventResult[], max = MAX_EVENTS): EventResult[] {
+  const out = [...primary];
+  for (const g of extra) {
+    if (out.length >= max) break;
+    if (!out.some((e) => sameEvent(e, g))) out.push(g);
+  }
+  return out.slice(0, max);
+}
+
+/**
+ * search_events: Ticketmaster como fuente primaria cuando hay llave (gratis, con su propio límite) y
+ * Google Events (SerpApi, con la bolsa del plan y el freno de gasto) como respaldo o complemento.
+ * Usa la ubicación física solo si el turno es "aquí"; si no, la ciudad pedida.
+ */
+export async function runEventSearch(args: Record<string, unknown>, deps: EventSearchDeps): Promise<Record<string, unknown>> {
+  if (!deps.ticketmaster) return runGoogleEventSearch(args, deps);
+  const city = clean(args.city, 80);
+  if (!city && !deps.nearCoords) return { error: "falta_ciudad" };
+  const from = typeof args.date_from === "string" && ISO.test(args.date_from) ? args.date_from : null;
+  const toRaw = typeof args.date_to === "string" && ISO.test(args.date_to) ? args.date_to : null;
+  const to = toRaw && from && toRaw < from ? from : toRaw ?? from;
+  const query = clean(args.query, 80);
+  const t0 = (deps.now ?? Date.now)();
+  let tm: TmResult;
+  try {
+    tm = await deps.ticketmaster({ city, coords: deps.nearCoords ?? null, from, to, category: query || null, keyword: query || null });
+  } catch {
+    tm = { ok: false, code: "ticketmaster_error", motivo: "Ticketmaster no respondió." };
+  }
+  const tmOk = tm.ok === true ? tm : null;
+  const primary = tmOk ? tmOk.results.map(fromTicketmaster) : [];
+  if (tmOk && primary.length >= TM_ENOUGH) {
+    return { ok: true, source: "ticketmaster", results: primary.slice(0, MAX_EVENTS), consulted_at: tmOk.consulted_at, ...(tmOk.from_cache ? { from_cache: true } : {}) };
+  }
+  const aviso = tmOk ? undefined : (tm as { motivo?: string }).motivo;
+  // El respaldo usa lo que queda del tiempo de la herramienta (Ticketmaster puede tardar hasta 8 s).
+  const left = Math.max(3000, (deps.timeoutMs ?? 7000) - ((deps.now ?? Date.now)() - t0));
+  const g = city ? await runGoogleEventSearch(args, { ...deps, timeoutMs: Math.min(deps.timeoutMs ?? 7000, left) }) : { error: "falta_ciudad" };
+  const gResults = g.ok === true && Array.isArray(g.results) ? g.results as EventResult[] : [];
+  if (tmOk) {
+    const merged = mergeEvents(primary, gResults);
+    const both = gResults.length > 0 && merged.length > primary.length;
+    return { ok: true, source: both ? "ticketmaster+google_events" : "ticketmaster", results: merged, consulted_at: tmOk.consulted_at,
+      ...(tmOk.from_cache && !both ? { from_cache: true } : {}) };
+  }
+  // Sin Ticketmaster: Google Events tal cual, con el aviso honesto de por qué no hay Ticketmaster.
+  return { ...g, ...(aviso ? { aviso_ticketmaster: aviso } : {}) };
 }

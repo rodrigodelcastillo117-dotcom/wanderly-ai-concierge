@@ -1,0 +1,345 @@
+// Ticketmaster Discovery API v2: eventos reales (conciertos, deportes, teatro, familia) con su página
+// oficial de boletos. Sin dependencias de Deno: se prueba con Vitest (src/test/ticketmaster.test.ts);
+// ticketmasterRuntime.ts conecta la llave (TICKETMASTER_API_KEY), la caché compartida y los límites.
+//
+// Documentación (developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/, consultada el
+// 23-oct-2026):
+//   GET https://app.ticketmaster.com/discovery/v2/events.json?apikey=…
+//   Parámetros: geoPoint (geohash; latlong está deprecado), radius, unit (miles|km), city, countryCode,
+//   startDateTime / endDateTime (ISO UTC con Z, sin milisegundos: "2016-03-18T14:00:00Z"),
+//   classificationName (segmento/género: music, sports, arts & theatre, family), keyword, size, sort
+//   ("date,asc"…), locale ("es-mx,es,*").
+//   Respuesta: _embedded.events[] { id, name, url, images[], classifications[{segment.name, genre.name}],
+//   dates.start{localDate, localTime, dateTime}, dates.status.code (onsale|offsale|canceled|postponed|
+//   rescheduled), priceRanges[{type, currency, min, max}] (no siempre viene), _embedded.venues[{name,
+//   address.line1, city.name, location{latitude, longitude}}] }, page{totalElements}.
+//   Límites: 5000 llamadas al día y 5 por segundo.
+//
+// Reglas de IATOS:
+//   * Solo eventos "onsale" u "offsale". Cancelados, pospuestos o reprogramados nunca se muestran.
+//   * Precio SOLO si Ticketmaster publica priceRanges ("desde $X"; puede cambiar). Nunca se inventa.
+//   * El enlace de boletos es SOLO el campo `url` del evento y debe ser un dominio oficial de Ticketmaster.
+//   * La llave nunca sale en respuestas, errores ni logs (la URL con apikey no se registra jamás).
+
+import { cacheGet, cacheKey, cachePut, type CacheStore, freshnessOf } from "./serpCache.ts";
+import { checkAllowlisted, TM_DOMAINS } from "./booking/allowlist.ts";
+import { cityAirports } from "./airports.ts";
+
+export const TM_ENGINE = "ticketmaster";
+export const TM_URL = "https://app.ticketmaster.com/discovery/v2/events.json";
+export const TM_TIMEOUT_MS = 8000;
+export const TM_MAX_RESULTS = 6;
+/** Límites documentados de la cuenta. */
+export const TM_PER_SECOND = 5;
+export const TM_PER_DAY = 5000;
+export const TM_NO_DISPONIBLE = "ticketmaster_no_disponible";
+
+export type TmEstado = "onsale" | "offsale";
+export interface TmEvent {
+  id: string;
+  title: string;
+  /** YYYY-MM-DD (dates.start.localDate). */
+  fecha: string | null;
+  /** HH:MM local (dates.start.localTime). */
+  hora: string | null;
+  /** dates.start.dateTime (UTC), si viene. */
+  date_time?: string;
+  estado: TmEstado;
+  recinto?: string;
+  direccion?: string;
+  ciudad?: string;
+  lat?: number;
+  lng?: number;
+  categoria?: string;
+  /** Solo si Ticketmaster publica priceRanges. */
+  precio?: { min: number; max: number | null; currency: string };
+  /** Página oficial de compra (campo `url`). */
+  url: string;
+  miniatura?: string;
+}
+
+export interface TmQuery {
+  city?: string | null;
+  coords?: { lat: number; lng: number } | null;
+  radiusKm?: number;
+  countryCode?: string | null;
+  from?: string | null;
+  to?: string | null;
+  category?: string | null;
+  keyword?: string | null;
+  size?: number;
+  locale?: string;
+}
+
+export type TmOk = { ok: true; source: "ticketmaster"; results: TmEvent[]; consulted_at: string; from_cache?: boolean };
+export type TmFail = { ok: false; code: string; motivo: string; http?: number };
+export type TmResult = TmOk | TmFail;
+
+export interface TmDeps {
+  fetchImpl: typeof fetch;
+  apiKey?: string | null;
+  store?: CacheStore | null;
+  /** Ranura global (≤ 5 por segundo y tope diario). false = no se llama ahora. */
+  limiter?: () => Promise<boolean>;
+  /** Límite por usuario (anti-abuso). false = negado; null = no se pudo verificar (se sigue). */
+  userGate?: () => Promise<boolean | null>;
+  onLive?: (ok: boolean) => void | Promise<void>;
+  timeoutMs?: number;
+  now?: () => number;
+  background?: (p: Promise<unknown>) => void;
+}
+
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const clean = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+const finite = (v: unknown) => (typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN);
+const validPoint = (p: { lat: number; lng: number } | null | undefined): p is { lat: number; lng: number } =>
+  !!p && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180 && !(p.lat === 0 && p.lng === 0);
+
+const fail = (code: string, motivo: string, http?: number): TmFail => ({ ok: false, code, motivo, ...(http ? { http } : {}) });
+export const NO_DISPONIBLE_MOTIVO = "Ticketmaster no está disponible por ahora; no hay eventos de Ticketmaster en esta respuesta.";
+
+/** Dominios oficiales: la lista vive en la lista blanca del Booking Bridge. */
+export { TM_DOMAINS };
+
+/** Enlace oficial de Ticketmaster (https, sin credenciales, en la lista blanca) o null. */
+export function officialTicketUrl(v: unknown): string | null {
+  const r = checkAllowlisted(v);
+  return r.ok && r.provider?.provider === "ticketmaster" ? r.url! : null;
+}
+
+// ─── Geohash (geoPoint): latlong está deprecado en la documentación ───
+const B32 = "0123456789bcdefghjkmnpqrstuvwxyz";
+export function geohash(lat: number, lng: number, precision = 7): string {
+  let latR = [-90, 90], lngR = [-180, 180], hash = "", bit = 0, ch = 0, even = true;
+  while (hash.length < precision) {
+    const r = even ? lngR : latR;
+    const v = even ? lng : lat;
+    const mid = (r[0] + r[1]) / 2;
+    if (v >= mid) { ch = (ch << 1) | 1; r[0] = mid; } else { ch = ch << 1; r[1] = mid; }
+    if (even) lngR = r; else latR = r;
+    even = !even;
+    if (++bit === 5) { hash += B32[ch]; bit = 0; ch = 0; }
+  }
+  return hash;
+}
+
+/** "conciertos" → music, "teatro" → arts & theatre, "partido" → sports, "niños" → family. */
+export function tmClassification(query: unknown): string | null {
+  const q = String(query ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  if (/\b(concierto|conciert|concert|musica|music|festival|banda|dj|rock|pop|jazz|reggaeton|sinfonic)/.test(q)) return "music";
+  if (/\b(partido|futbol|soccer|beisbol|baseball|basquet|basket|nba|nfl|mlb|nhl|deporte|sport|box|lucha|f1|formula|tenis|tennis|golf)/.test(q)) return "sports";
+  if (/\b(teatro|theat|musical|opera|ballet|danza|dance|stand ?up|comedia|comedy|espectaculo|show|arte|arts)/.test(q)) return "arts & theatre";
+  if (/\b(familia|family|ninos|kids|infantil|circo|circus|disney)/.test(q)) return "family";
+  return null;
+}
+
+const GENERIC_KEYWORD = /^(eventos?|que hay|que hacer|planes?|cosas que hacer|conciertos?|teatro|deportes?|partidos?|espectaculos?|shows?|musica|familia|para ninos)$/;
+
+/** Dónde buscar: coordenadas físicas (con permiso) → ciudad conocida (coordenadas + país) → nombre de ciudad. */
+export function tmLocation(q: TmQuery): { geoPoint?: string; radius?: number; countryCode?: string; city?: string; keyLoc: string } | null {
+  if (validPoint(q.coords)) {
+    const radius = Math.min(Math.max(Math.round(q.radiusKm ?? 25), 1), 100);
+    return { geoPoint: geohash(q.coords.lat, q.coords.lng, 7), radius, keyLoc: `${q.coords.lat.toFixed(2)},${q.coords.lng.toFixed(2)}|${radius}` };
+  }
+  const city = clean(q.city, 80);
+  if (!city) return null;
+  const known = cityAirports(city);
+  const cc = clean(q.countryCode, 2).toUpperCase() || known?.iso2 || "";
+  if (known) {
+    const radius = Math.min(Math.max(Math.round(q.radiusKm ?? 40), 1), 100);
+    return { geoPoint: geohash(known.lat, known.lng, 6), radius, ...(cc ? { countryCode: cc } : {}), keyLoc: `${known.name.toLowerCase()}|${radius}` };
+  }
+  return { city, ...(/^[A-Z]{2}$/.test(cc) ? { countryCode: cc } : {}), keyLoc: city.toLowerCase() };
+}
+
+const isoStart = (d: string) => `${d}T00:00:00Z`;
+const isoEnd = (d: string) => `${d}T23:59:59Z`;
+
+/** Parámetros de la búsqueda SIN la llave (también son la llave de la caché). */
+export function tmParams(q: TmQuery, nowMs = Date.now()): Record<string, string> | null {
+  const loc = tmLocation(q);
+  if (!loc) return null;
+  const from = q.from && ISO.test(q.from) ? q.from : null;
+  const to = q.to && ISO.test(q.to) ? (from && q.to < from ? from : q.to) : from;
+  const today = new Date(nowMs).toISOString().slice(0, 10);
+  const p: Record<string, string> = {};
+  if (loc.geoPoint) { p.geoPoint = loc.geoPoint; p.radius = String(loc.radius); p.unit = "km"; }
+  if (loc.city) p.city = loc.city;
+  if (loc.countryCode) p.countryCode = loc.countryCode;
+  // Un día de margen por zona horaria: la fecha local manda y se filtra abajo con localDate.
+  const startDay = from && from > today ? from : today;
+  p.startDateTime = isoStart(startDay);
+  if (to) {
+    const end = new Date(`${to}T12:00:00Z`);
+    end.setUTCDate(end.getUTCDate() + 1);
+    p.endDateTime = isoEnd(end.toISOString().slice(0, 10));
+  }
+  const cat = q.category ? tmClassification(q.category) ?? (["music", "sports", "arts & theatre", "family"].includes(q.category) ? q.category : null) : null;
+  if (cat) p.classificationName = cat;
+  const kw = clean(q.keyword, 80);
+  const kwNorm = kw.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  if (kw && !GENERIC_KEYWORD.test(kwNorm) && !(cat && tmClassification(kw) === cat && kwNorm.split(" ").length <= 2)) p.keyword = kw;
+  p.size = String(Math.min(Math.max(q.size ?? 20, 1), 50));
+  p.sort = "date,asc";
+  p.locale = q.locale ?? "es-mx,es,en,*";
+  return p;
+}
+
+const TIME = /^([01]\d|2[0-3]):([0-5]\d)/;
+
+/** Respuesta de la Discovery API → eventos en venta (o fuera de venta), dentro del rango local pedido. */
+export function mapTicketmasterEvents(json: any, range: { from?: string | null; to?: string | null } = {}): TmEvent[] {
+  const list = Array.isArray(json?._embedded?.events) ? json._embedded.events : [];
+  const from = range.from && ISO.test(range.from) ? range.from : null;
+  const to = range.to && ISO.test(range.to) ? range.to : from;
+  const out: TmEvent[] = [];
+  const seen = new Set<string>();
+  for (const e of list) {
+    const code = String(e?.dates?.status?.code ?? "").toLowerCase();
+    if (code !== "onsale" && code !== "offsale") continue; // canceled, postponed, rescheduled: nunca
+    const title = clean(e?.name, 160);
+    const url = officialTicketUrl(e?.url);
+    if (!title || !url) continue;
+    const fecha = typeof e?.dates?.start?.localDate === "string" && ISO.test(e.dates.start.localDate) ? e.dates.start.localDate : null;
+    if (from && (!fecha || fecha < from || (to && fecha > to))) continue;
+    const tm = typeof e?.dates?.start?.localTime === "string" ? e.dates.start.localTime.match(TIME) : null;
+    const hora = tm ? `${tm[1]}:${tm[2]}` : null;
+    const v = Array.isArray(e?._embedded?.venues) ? e._embedded.venues[0] : null;
+    const recinto = clean(v?.name, 120) || undefined;
+    const ciudad = clean(v?.city?.name, 80) || undefined;
+    const direccion = [clean(v?.address?.line1, 120), ciudad].filter(Boolean).join(", ").slice(0, 200) || undefined;
+    const lat = finite(v?.location?.latitude), lng = finite(v?.location?.longitude);
+    const coords = validPoint({ lat, lng }) ? { lat, lng } : null;
+    const cls = Array.isArray(e?.classifications) ? e.classifications.find((c: any) => c?.primary) ?? e.classifications[0] : null;
+    const seg = clean(cls?.segment?.name, 40), genre = clean(cls?.genre?.name, 40);
+    const categoria = [seg, genre && !/^undefined$/i.test(genre) && genre !== seg ? genre : ""].filter((x) => x && !/^undefined$/i.test(x)).join(" · ") || undefined;
+    const pr = Array.isArray(e?.priceRanges) ? e.priceRanges.find((p: any) => Number.isFinite(finite(p?.min)) && finite(p?.min) > 0 && /^[A-Z]{3}$/.test(String(p?.currency ?? ""))) : null;
+    const precio = pr ? { min: finite(pr.min), max: Number.isFinite(finite(pr.max)) && finite(pr.max) >= finite(pr.min) ? finite(pr.max) : null, currency: String(pr.currency) } : undefined;
+    const img = (Array.isArray(e?.images) ? e.images : [])
+      .filter((i: any) => typeof i?.url === "string" && /^https:\/\//.test(i.url) && i?.fallback !== true)
+      .sort((a: any, b: any) => (b?.ratio === "16_9" ? 1 : 0) - (a?.ratio === "16_9" ? 1 : 0) || Math.abs((a?.width ?? 0) - 640) - Math.abs((b?.width ?? 0) - 640))[0];
+    const id = clean(e?.id, 60) || `${title}|${fecha}`;
+    const k = `${title.toLowerCase()}|${fecha}|${(recinto ?? "").toLowerCase()}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push({
+      id, title, fecha, hora, ...(typeof e?.dates?.start?.dateTime === "string" ? { date_time: clean(e.dates.start.dateTime, 30) } : {}),
+      estado: code as TmEstado, ...(recinto ? { recinto } : {}), ...(direccion ? { direccion } : {}), ...(ciudad ? { ciudad } : {}),
+      ...(coords ? coords : {}), ...(categoria ? { categoria } : {}), ...(precio ? { precio } : {}), url,
+      ...(img ? { miniatura: img.url as string } : {}),
+    });
+    if (out.length >= TM_MAX_RESULTS) break;
+  }
+  return out;
+}
+
+/** Ventana deslizante en memoria: como máximo `perSecond` llamadas por segundo en esta instancia. */
+export function makeRateLimiter(opts: { perSecond?: number; now?: () => number; sleep?: (ms: number) => Promise<void>; maxWaitMs?: number } = {}) {
+  const per = opts.perSecond ?? TM_PER_SECOND;
+  const now = opts.now ?? Date.now;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const maxWait = opts.maxWaitMs ?? 1500;
+  const stamps: number[] = [];
+  return async function acquire(): Promise<boolean> {
+    let waited = 0;
+    for (;;) {
+      const t = now();
+      while (stamps.length && t - stamps[0] >= 1000) stamps.shift();
+      if (stamps.length < per) { stamps.push(t); return true; }
+      const wait = 1000 - (t - stamps[0]) + 5;
+      if (waited + wait > maxWait) return false;
+      waited += wait;
+      await sleep(wait);
+    }
+  };
+}
+
+const redactKey = (s: string, key?: string | null) => (key ? s.split(key).join("[llave]") : s).replace(/apikey=[^&\s"]+/gi, "apikey=[llave]");
+
+async function getJson(fetchImpl: typeof fetch, url: string, timeoutMs: number) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(url, { signal: ctrl.signal, headers: { accept: "application/json" } });
+    const text = await res.text();
+    let json: unknown = null;
+    try { json = text ? JSON.parse(text) : null; } catch { /* no JSON */ }
+    return { status: res.status, ok: res.ok, json };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+export const tmCacheKey = (params: Record<string, string>, q: TmQuery) =>
+  cacheKey(TM_ENGINE, { loc: tmLocation(q)?.keyLoc ?? "", from: params.startDateTime?.slice(0, 10) ?? "", to: params.endDateTime?.slice(0, 10) ?? "",
+    cat: params.classificationName ?? "", kw: (params.keyword ?? "").toLowerCase(), size: params.size ?? "" });
+
+/**
+ * Búsqueda con caché de 6 h (public.serp_cache, misma tabla y RPC que SerpApi), límite global de la
+ * cuenta y límite por usuario. Sin llave, o si Ticketmaster rechaza la llave (401/403), responde
+ * { ok:false, code:"ticketmaster_no_disponible" } con un motivo honesto.
+ */
+export async function searchTicketmaster(q: TmQuery, deps: TmDeps): Promise<TmResult> {
+  const now = deps.now ?? Date.now;
+  const params = tmParams(q, now());
+  if (!params) return fail("falta_ciudad", "Falta la ciudad o la ubicación para buscar eventos.");
+  const range = { from: q.from ?? null, to: q.to ?? q.from ?? null };
+  const key = await tmCacheKey(params, q);
+  const cached = await cacheGet(deps.store, key);
+  if (cached && freshnessOf(cached, now()).fresh) {
+    const rows = (cached.response as { results?: TmEvent[] } | null)?.results ?? [];
+    return { ok: true, source: "ticketmaster", results: rows, consulted_at: cached.fetched_at, from_cache: true };
+  }
+  if (!deps.apiKey) return fail(TM_NO_DISPONIBLE, NO_DISPONIBLE_MOTIVO);
+  if (deps.userGate) {
+    let allowed: boolean | null = null;
+    try { allowed = await deps.userGate(); } catch { allowed = null; }
+    if (allowed === false) return fail("ticketmaster_limite_usuario", "Hiciste muchas búsquedas de eventos seguidas; espera un minuto.");
+  }
+  if (deps.limiter && !(await deps.limiter().catch(() => false))) return fail("ticketmaster_ocupado", "Ticketmaster está ocupado en este momento; intenta en unos segundos.");
+
+  const url = new URL(TM_URL);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  url.searchParams.set("apikey", deps.apiKey);
+  let r: { status: number; ok: boolean; json: unknown };
+  try {
+    r = await getJson(deps.fetchImpl, url.toString(), deps.timeoutMs ?? TM_TIMEOUT_MS);
+  } catch (e) {
+    return fail("ticketmaster_error", (e as Error)?.name === "AbortError" ? "Ticketmaster tardó demasiado en responder." : "Ticketmaster no respondió.");
+  }
+  const live = Promise.resolve().then(() => deps.onLive?.(r.ok)).catch(() => { /* registrar nunca rompe la búsqueda */ });
+  if (deps.background) deps.background(live); else await live;
+  if (r.status === 401 || r.status === 403) return fail(TM_NO_DISPONIBLE, NO_DISPONIBLE_MOTIVO, r.status);
+  if (r.status === 429) return fail("ticketmaster_ocupado", "Ticketmaster alcanzó su límite de consultas por ahora.", 429);
+  if (!r.ok || !r.json || typeof r.json !== "object") return fail("ticketmaster_error", "Ticketmaster no respondió bien.", r.status);
+  const results = mapTicketmasterEvents(r.json, range);
+  const put = Promise.resolve(cachePut(deps.store, key, TM_ENGINE, { results })).catch(() => { /* la caché es opcional */ });
+  if (deps.background) deps.background(put); else await put;
+  return { ok: true, source: "ticketmaster", results, consulted_at: new Date(now()).toISOString() };
+}
+
+/**
+ * Sonda de diagnóstico (health-check ?action=ticketmaster): UNA llamada mínima (Ciudad de México,
+ * size=1, sin caché). Dice si la llave existe, el estado HTTP y cuántos eventos hay. Nunca devuelve la
+ * llave, la URL ni encabezados.
+ */
+export async function probeTicketmaster(deps: { fetchImpl: typeof fetch; apiKey?: string | null; now?: () => number; timeoutMs?: number }) {
+  const t0 = Date.now();
+  const base = { api: "Ticketmaster Discovery API v2", llave_configurada: !!deps.apiKey };
+  if (!deps.apiKey) return { ...base, ok: false, http: null, eventos: null, detail: "Falta TICKETMASTER_API_KEY", ms: 0 };
+  const params = tmParams({ city: "Ciudad de México", size: 1 }, deps.now?.() ?? Date.now())!;
+  delete params.endDateTime;
+  const url = new URL(TM_URL);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  url.searchParams.set("apikey", deps.apiKey);
+  try {
+    const r = await getJson(deps.fetchImpl, url.toString(), deps.timeoutMs ?? TM_TIMEOUT_MS);
+    const j = r.json as { page?: { totalElements?: unknown }; _embedded?: { events?: unknown[] }; fault?: { faultstring?: unknown }; errors?: { detail?: unknown }[] } | null;
+    const total = Number(j?.page?.totalElements);
+    const eventos = Number.isFinite(total) ? total : Array.isArray(j?._embedded?.events) ? j!._embedded!.events!.length : r.ok ? 0 : null;
+    const msg = r.ok ? null : clean(j?.fault?.faultstring ?? j?.errors?.[0]?.detail ?? "", 160) || null;
+    return { ...base, ok: r.ok, http: r.status, eventos, detail: msg ? redactKey(msg, deps.apiKey) : null, ms: Date.now() - t0 };
+  } catch (e) {
+    return { ...base, ok: false, http: null, eventos: null, detail: (e as Error)?.name === "AbortError" ? "timeout" : "sin respuesta", ms: Date.now() - t0 };
+  }
+}

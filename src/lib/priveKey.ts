@@ -51,7 +51,8 @@ export function planPayload(p: KeyProposal, wish: { text: string; mode: KeyMode;
   return {
     mode: wish.mode, tier: p.tier, wish: wish.text.slice(0, 600), destination: wish.destination ?? null, party_size: wish.party ?? null,
     budget: wish.budget ? { amount: wish.budget.amount, currency: wish.budget.currency } : null,
-    steps: p.steps.map((s) => ({ experience_id: s.experience.id, date: s.date, start: s.start, end: s.end, start_iso: s.start_iso, intent: s.intent,
+    // Un evento de Ticketmaster no es una experiencia del catálogo Privé: no se guarda como paso (prive_key_save lo rechazaría).
+    steps: p.steps.filter((s) => /^[0-9a-f-]{36}$/i.test(s.experience.id)).map((s) => ({ experience_id: s.experience.id, date: s.date, start: s.start, end: s.end, start_iso: s.start_iso, intent: s.intent,
       time_status: s.time_status, transfer_min: s.transfer?.minutes ?? undefined })),
   };
 }

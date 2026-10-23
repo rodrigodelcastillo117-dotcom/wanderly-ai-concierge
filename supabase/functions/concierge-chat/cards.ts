@@ -8,6 +8,7 @@
 import { slimToolResult } from "./tools.ts";
 import { neutralizeDeep } from "./guard.ts";
 import { isPhotoRef } from "../_shared/placePhotoRef.ts";
+import { checkAllowlisted } from "../_shared/booking/allowlist.ts";
 
 export const CARD_TYPES = ["flight", "hotel", "attraction", "restaurant", "place", "source", "transport", "alert", "luggage", "jet", "event"] as const;
 export type CardType = typeof CARD_TYPES[number];
@@ -24,7 +25,7 @@ export type CardType = typeof CARD_TYPES[number];
 export type EstadoDato = "CONSULTADO_EN_VIVO" | "NO_VERIFICADO" | "SOLICITUD_HUMANA" | "OBSOLETO";
 
 /** Botón de una card: cómo llegar, pedir un Uber, llamar, sitio o reservar. Solo https: o tel:. */
-/** "tickets" = sitio de venta de boletos de un evento (Google Events): abrirlo no es una compra. */
+/** "tickets" = sitio de venta de boletos de un evento (Google Events o Ticketmaster): abrirlo no es una compra. */
 export interface CardLink { kind: "directions" | "ride" | "call" | "website" | "maps" | "booking" | "tickets"; label: string; url: string }
 
 export interface ConciergeCard {
@@ -679,6 +680,8 @@ export const MAX_EVENT_CARDS = 4;
  * Cards "event" deterministas: título, fecha y hora, recinto y dirección tal cual los trajo Google
  * Events en ESTE turno, con fuente y hora de consulta. Botones: "Boletos en {sitio}" (enlace de
  * ticket_info; es el sitio de boletos, no una compra). Nunca precio: Google Events no lo trae.
+ * Ticketmaster (fuente primaria): "Boletos en Ticketmaster" con el `url` oficial, estado (En venta /
+ * Agotado / fuera de venta), categoría, coordenadas del recinto y precio "desde" SOLO si vino priceRanges.
  */
 export function eventCards(runs: ToolRun[], consultadoAt: string = new Date().toISOString()): ConciergeCard[] {
   const out: ConciergeCard[] = [];
@@ -690,16 +693,36 @@ export function eventCards(runs: ToolRun[], consultadoAt: string = new Date().to
       if (out.length >= MAX_EVENT_CARDS) return out;
       const title = str(e?.title, 140);
       if (!title) continue;
-      const k = `${normName(title)}|${e?.fecha ?? ""}`;
+      const k = `${normName(title)}|${e?.fecha ?? ""}|${normName(str(e?.recinto, 120))}`;
       if (seen.has(k)) continue;
       seen.add(k);
+      const tm = e?.fuente === "ticketmaster";
       const links: CardLink[] = [];
-      for (const t of Array.isArray(e?.boletos) ? e.boletos as Record<string, unknown>[] : []) {
-        const url = safeHttpsUrl(t?.link);
-        const fuente = str(t?.fuente, 28);
-        if (url && fuente) links.push({ kind: "tickets", label: `Boletos en ${fuente}`, url });
+      if (tm) {
+        // Ticketmaster: el botón sale SOLO del campo `url` del evento y debe ser un dominio oficial.
+        const v = checkAllowlisted(e?.url);
+        if (v.ok && v.provider?.provider === "ticketmaster") links.push({ kind: "tickets", label: "Boletos en Ticketmaster", url: v.url! });
+        else continue;
+      } else {
+        for (const t of Array.isArray(e?.boletos) ? e.boletos as Record<string, unknown>[] : []) {
+          const url = safeHttpsUrl(t?.link);
+          const fuente = str(t?.fuente, 28);
+          if (url && fuente) links.push({ kind: "tickets", label: `Boletos en ${fuente}`, url });
+        }
       }
-      const card: ConciergeCard = { type: "event", title, fuente: "google_events", consultado_at: at };
+      const card: ConciergeCard = { type: "event", title, fuente: tm ? "ticketmaster" : "google_events", consultado_at: at };
+      if (tm) {
+        card.status = e?.estado === "offsale" ? "Agotado / fuera de venta" : "En venta";
+        const cat = str(e?.categoria, 60);
+        if (cat) card.body = cat;
+        const lat = Number(e?.lat), lng = Number(e?.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0)) { card.lat = lat; card.lng = lng; }
+        const p = e?.precio_desde as { amount?: unknown; currency?: unknown } | undefined;
+        const amount = Number(p?.amount);
+        if (p && Number.isFinite(amount) && amount > 0 && typeof p.currency === "string" && /^[A-Z]{3}$/.test(p.currency)) {
+          card.price = amount; card.currency = p.currency; card.price_note = "precio publicado por Ticketmaster · puede cambiar";
+        }
+      }
       const cuando = str(e?.cuando, 120);
       if (cuando) card.subtitle = cuando;
       const recinto = str(e?.recinto, 120);

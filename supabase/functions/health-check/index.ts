@@ -9,6 +9,7 @@ import { redactSecrets } from "../_shared/redact.ts";
 import { allOk, runChecks } from "./checks.ts";
 import { probeGoogleApis } from "./googleProbe.ts";
 import { probeStripeConfig } from "./stripeProbe.ts";
+import { probeTicketmaster } from "../_shared/ticketmaster.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { alertEmail, alertRecipients, emailOutcome, jobHealth, shouldEmail, type CronHealth, type PreviousRun } from "./alerts.ts";
 
@@ -30,6 +31,13 @@ Deno.serve(async (req) => {
   //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=stripe_config" -H "x-cron-secret: $CRON_SECRET"
   if (new URL(req.url).searchParams.get("action") === "stripe_config") {
     return json(await probeStripeConfig({ stripeKey: Deno.env.get("STRIPE_SECRET_KEY"), priceId: Deno.env.get("STRIPE_PRICE_ID") }));
+  }
+
+  // Diagnóstico bajo demanda de Ticketmaster Discovery API v2: UNA llamada mínima (Ciudad de México,
+  // size=1). Responde si la llave existe, el estado HTTP y cuántos eventos hubo; nunca la llave ni la URL.
+  //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=ticketmaster" -H "x-cron-secret: $CRON_SECRET"
+  if (new URL(req.url).searchParams.get("action") === "ticketmaster") {
+    return json(await probeTicketmaster({ fetchImpl: fetch, apiKey: Deno.env.get("TICKETMASTER_API_KEY") }));
   }
 
   const env = (k: string) => Deno.env.get(k) ?? undefined;
