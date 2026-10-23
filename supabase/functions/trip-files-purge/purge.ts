@@ -2,7 +2,8 @@
 // Solo se borran rutas de los buckets del viaje; cada fila se quita de la cola cuando su archivo se
 // borró (o ya no existía). Si storage falla, la fila se queda para el siguiente intento.
 
-export const PURGE_BUCKETS = new Set(["trip-documents", "journal-photos"]);
+// trip-receipts: fotos de tickets de los gastos del viaje (20261027020000_gastos_split.sql).
+export const PURGE_BUCKETS = new Set(["trip-documents", "journal-photos", "trip-receipts"]);
 
 export type QueueRow = { id: number; bucket_id: string; name: string };
 export type PurgeDeps = {

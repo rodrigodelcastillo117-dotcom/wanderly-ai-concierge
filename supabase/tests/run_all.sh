@@ -8,7 +8,7 @@
 # Qué hace:
 #   1. Construye una base de REFERENCIA aplicando todas las migraciones en orden, solo una vez cada una,
 #      como en producción (t_build_db de lib.sh).
-#   2. Corre las 19 suites (supabase/tests/<suite>/run.sh, incluida wrapped) y las dos del expediente del viaje que antes no
+#   2. Corre las 20 suites (supabase/tests/<suite>/run.sh, incluidas wrapped y gastos) y las dos del expediente del viaje que antes no
 #      corría nadie (security/run_trip.sh quotes|expediente), cada una en su propia base <prefijo>_<suite>.
 #   3. Por cada suite compara el md5 de prosrc de cada función de la base de referencia con el de la base
 #      de la suite al terminar. Una función distinta o ausente es FALLA: significa que la suite probó una
@@ -21,7 +21,7 @@ DIR=$(cd "$(dirname "$0")" && pwd)
 PREFIX=${1:-iatos_all}
 OUT=${OUT_DIR:-$(mktemp -d -t iatos_sql_XXXXXX)}
 mkdir -p "$OUT"
-SUITES=(ai_reservations ai_reservations_a2 avatar boveda bridge concierge2 cost edition grupo members_more ops payments prive
+SUITES=(ai_reservations ai_reservations_a2 avatar boveda bridge concierge2 cost edition gastos grupo members_more ops payments prive
         prive_catalog prive_key privevalor security social wrapped trip_quotes trip_expediente)
 
 fn_md5() { # $1 base → "esquema.función(args) md5" por línea, ordenado

@@ -167,7 +167,7 @@ const LiveTrip = () => {
           <QuickAction icon={Cloud} label="Clima" sublabel="Pronóstico" onClick={() => navigate(`/dashboard/viajes/${trip.id}/clima`)} />
           <QuickAction icon={Languages} label="Traductor" sublabel="Frases clave" onClick={() => navigate(`/dashboard/viajes/${trip.id}/traductor`)} />
           <QuickAction icon={BookHeart} label="Diario" sublabel="Memorias" onClick={() => navigate(`/dashboard/viajes/${trip.id}/diario`)} />
-          <QuickAction icon={Users} label="Split" sublabel="Gastos" onClick={() => navigate(`/dashboard/viajes/${trip.id}/split`)} />
+          <QuickAction icon={Users} label="Gastos" sublabel="Y compartidos" onClick={() => navigate(`/dashboard/viajes/${trip.id}/split`)} />
           <QuickAction icon={Phone} label="SOS" sublabel="Emergencias" danger onClick={() => setSosOpen(true)} />
           <QuickAction icon={Crown} label="Concierge" sublabel="IA" gold onClick={() => { void openConcierge(); }} />
         </div>

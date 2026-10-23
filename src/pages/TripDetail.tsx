@@ -647,7 +647,7 @@ const TripDetail = () => {
             { icon: Cloud, label: "Clima", to: `/dashboard/viajes/${id}/clima` },
             { icon: Languages, label: "Traductor", to: `/dashboard/viajes/${id}/traductor` },
             { icon: BookHeart, label: "Diario", to: `/dashboard/viajes/${id}/diario` },
-            { icon: Wallet, label: "Split", to: `/dashboard/viajes/${id}/split` },
+            { icon: Wallet, label: "Gastos", to: `/dashboard/viajes/${id}/split` },
           ].map(({ icon: Icon, label, to }) => (
             <button
               key={label}
