@@ -10,7 +10,7 @@ import { neutralizeDeep } from "./guard.ts";
 import { isPhotoRef } from "../_shared/placePhotoRef.ts";
 import { checkAllowlisted } from "../_shared/booking/allowlist.ts";
 
-export const CARD_TYPES = ["flight", "hotel", "attraction", "restaurant", "place", "source", "transport", "alert", "luggage", "jet", "event"] as const;
+export const CARD_TYPES = ["flight", "hotel", "attraction", "restaurant", "place", "source", "transport", "alert", "luggage", "jet", "event", "tour"] as const;
 export type CardType = typeof CARD_TYPES[number];
 
 /**
@@ -108,7 +108,7 @@ function dropAiItems(value: unknown): unknown {
   return value;
 }
 
-const SEARCH_TOOLS = new Set(["search_flights", "search_hotels", "search_attractions", "search_nearby", "search_places", "web_search", "search_members_venues", "search_events"]);
+const SEARCH_TOOLS = new Set(["search_flights", "search_hotels", "search_attractions", "search_nearby", "search_places", "web_search", "search_members_venues", "search_events", "search_tours"]);
 
 export interface ToolUnavailable { disponible: false; motivo: string; fuente?: string; error?: string }
 
@@ -132,6 +132,10 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
   }
   if (r.code === "MEMBERS_PRO_REQUIRED") {
     return { disponible: false, estado: "sin_acceso", motivo: "Members Only es de IATOS PRO: dilo así y no menciones lugares de esa selección." };
+  }
+  // Viator sin llave o con la llave aún no habilitada (401/403): se dice tal cual, sin inventar tours.
+  if (r.code === "viator_no_disponible") {
+    return { disponible: false, estado: "no_disponible", error: "viator_no_disponible", motivo: "Los tours de Viator aún no están disponibles en IATOS: dilo así y sugiere buscar directo en Viator. No inventes tours ni precios." };
   }
   if (r.error === "timeout") {
     return { disponible: false, estado: "no_respondio", error: "timeout", motivo: "El servicio tardó demasiado en responder; no hay datos en vivo ahora." };
@@ -447,6 +451,8 @@ export function validateCards(raw: unknown, ev: Evidence, consultadoAt: string =
     // Eventos: solo los arma IATOS con los resultados de search_events (eventCards); uno escrito por el
     // modelo podría ser inventado.
     if (type === "event") { out.dropped.push({ type, reason: "evento_solo_de_la_busqueda" }); continue; }
+    // Tours de Viator: igual, solo los arma IATOS con search_tours (tourCards).
+    if (type === "tour") { out.dropped.push({ type, reason: "tour_solo_de_la_busqueda" }); continue; }
     const needTool = REQUIRES_TOOL[type];
     if (needTool && !ev.available[needTool]) { out.dropped.push({ type, reason: "sin_respaldo_de_busqueda" }); continue; }
     // Restaurante: el nombre tiene que salir de una búsqueda de lugares de ESTE turno (Google Maps,
@@ -734,6 +740,57 @@ export function eventCards(runs: ToolRun[], consultadoAt: string = new Date().to
       const img = safeHttpsUrl(e?.miniatura);
       if (img) card.image_url = img;
       if (links.length) card.links = links;
+      out.push(card);
+    }
+  }
+  return out;
+}
+
+// ═══ Tours de Viator: cards armadas con los resultados de search_tours ═══
+
+export const MAX_TOUR_CARDS = 4;
+
+/**
+ * Cards "tour" deterministas: título, foto, calificación, duración y precio "desde" con su moneda tal
+ * cual los devolvió Viator en ESTE turno, con fuente y hora de consulta. Botón "Ver en Viator" =
+ * productUrl con el afiliado de IATOS (solo viator.com/tours/…). No es una reserva.
+ */
+export function tourCards(runs: ToolRun[], consultadoAt: string = new Date().toISOString()): ConciergeCard[] {
+  const out: ConciergeCard[] = [];
+  const seen = new Set<string>();
+  for (const run of runs) {
+    if (run.name !== "search_tours" || run.result?.disponible === false) continue;
+    const at = typeof run.result.consultado_at === "string" && Number.isFinite(Date.parse(run.result.consultado_at)) ? run.result.consultado_at : consultadoAt;
+    for (const t of Array.isArray(run.result.results) ? run.result.results as Record<string, unknown>[] : []) {
+      if (out.length >= MAX_TOUR_CARDS) return out;
+      const title = str(t?.title, 140);
+      const url = safeHttpsUrl(t?.url);
+      let host = "";
+      try { host = url ? new URL(url).hostname.toLowerCase() : ""; } catch { host = ""; }
+      if (!title || !url || !(host === "viator.com" || host.endsWith(".viator.com")) || !/^https:\/\/[^/]+\/tours\//.test(url)) continue;
+      const k = String(t?.codigo ?? normName(title));
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const card: ConciergeCard = { type: "tour", title, fuente: "viator", provider: "Viator", consultado_at: at, cta_label: "Ver en Viator", cta_action: url };
+      const dur = str(t?.duracion, 40);
+      if (dur) card.subtitle = dur;
+      const rating = Number(t?.rating);
+      if (Number.isFinite(rating) && rating > 0 && rating <= 5) card.rating = rating;
+      const n = Number(t?.resenas);
+      if (Number.isFinite(n) && n > 0) card.meta = `${Math.round(n).toLocaleString("es-MX")} reseñas`;
+      const d = t?.desde as { monto?: unknown; moneda?: unknown } | undefined;
+      const monto = Number(d?.monto);
+      const moneda = typeof d?.moneda === "string" && /^[A-Z]{3}$/.test(d.moneda) ? d.moneda : "";
+      if (Number.isFinite(monto) && monto > 0 && moneda) {
+        card.price = monto;
+        card.currency = moneda;
+        card.price_basis = "desde";
+        const mx = t?.desde_mxn as { monto?: unknown; fx_fuente?: unknown; fx_fecha?: unknown } | undefined;
+        const m = Number(mx?.monto);
+        if (moneda !== "MXN" && Number.isFinite(m) && m > 0) card.price_note = `≈ $${Math.round(m).toLocaleString("es-MX")} MXN · tipo de cambio ${str(mx?.fx_fuente, 60)} ${str(mx?.fx_fecha, 10)}`.trim();
+      }
+      const img = safeHttpsUrl(t?.foto);
+      if (img) card.image_url = img;
       out.push(card);
     }
   }

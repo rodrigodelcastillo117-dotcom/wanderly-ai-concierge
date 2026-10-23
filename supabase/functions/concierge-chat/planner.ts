@@ -17,6 +17,7 @@ import { detectRoadTrip } from "../_shared/roadtrip/plan.ts";
 import { roadTripTurn } from "./roadtrip.ts";
 import type { TripPosition } from "./location.ts";
 import { eventsRequested } from "./events.ts";
+import { toursRequested } from "../_shared/viator.ts";
 
 export type Intent =
   | "human" | "emergency" | "flight_disruption" | "missed_connection" | "flight_status" | "flight_compare"
@@ -25,7 +26,9 @@ export type Intent =
   // roadtrip: "quiero hacer un road trip por la Toscana en 7 días".
   | "road_trip"
   // Event Radar: conciertos, teatro, deportes o qué hacer en fechas concretas (events.ts).
-  | "events";
+  | "events"
+  // Tours y actividades reales de Viator (search_tours), solo si los pide.
+  | "tours";
 
 export const CHIP_INTENTS: readonly Intent[] = [
   "dining_near_hotel", "transport", "emergency", "flight_status", "luggage", "members_followup", "trip_overview",
@@ -63,6 +66,7 @@ export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   const rt = detectRoadTrip(message);
   if (rt.isRoadTrip || (rt.route && /\b(ruta|recorrido|recorrer|vuelta)\b/.test(m))) out.add("road_trip");
   if (eventsRequested(message)) out.add("events");
+  if (toursRequested(message)) out.add("tours");
   // "cenar cerca de mi hotel" ya es dining_near_hotel.
   if (out.has("dining_near_hotel")) out.delete("dining");
   // Privé con plan / noche → planeación.
@@ -366,6 +370,11 @@ export function planTurn(i: PlanInput): TurnPlan {
     plan.notes.push("Pidió eventos: usa search_events con la ciudad y el rango de fechas (las del viaje si habla de su viaje). Solo eventos que devuelva la herramienta; si no hay, dilo. Los boletos se compran en el sitio de boletos: nunca digas que están comprados.");
   }
 
+  if (has("tours")) {
+    plan.toolHints.push("search_tours");
+    plan.notes.push("Pidió tours o actividades: usa search_tours con la ciudad (y las fechas del viaje si habla de su viaje). Solo tours que devuelva Viator; el precio es \"desde\" en su moneda. \"Ver en Viator\" abre la ficha en viator.com: nunca digas que está reservado.");
+  }
+
   if (has("emergency")) {
     plan.cards.push({
       type: "alert", title: "Ayuda inmediata",
@@ -504,6 +513,8 @@ const DINING_OR_RANKING = /\b(restaurante|restaurant|comer|cenar|cena|bar|cafe|a
 export function applyToolPolicy(name: string, args: Record<string, unknown>, userMessage: string): { name: string; args: Record<string, unknown>; rerouted?: string; blocked?: string } {
   // Event Radar: cada búsqueda de eventos cuesta; solo si el usuario pidió eventos o qué hacer en fechas concretas.
   if (name === "search_events") return eventsRequested(userMessage) ? { name, args } : { name, args, blocked: "eventos_no_pedidos" };
+  // Tours de Viator: solo si el usuario pidió tours o actividades (gasta de la bolsa de búsquedas en vivo).
+  if (name === "search_tours") return toursRequested(userMessage) ? { name, args } : { name, args, blocked: "tours_no_pedidos" };
   if (name !== "search_attractions") return { name, args };
   const m = normText(userMessage);
   const q = normText(args.query);
@@ -536,6 +547,7 @@ export function toolStatusText(name: string, args: Record<string, unknown>): str
     case "web_search": return `Buscando en Google: ${clip(args.query)}…`;
     case "search_attractions": return `Buscando reseñas y rankings: ${clip(args.query)}…`;
     case "search_events": return `Buscando eventos en ${clip(args.city, 30)}…`;
+    case "search_tours": return `Buscando tours en Viator: ${clip(args.city, 30)}…`;
     case "search_members_venues": return `Revisando Members Only en ${clip(args.city, 30)}…`;
     case "search_prive": return "Revisando el catálogo Privé…";
     default: return "Consultando…";

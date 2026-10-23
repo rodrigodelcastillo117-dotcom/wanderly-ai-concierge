@@ -203,7 +203,7 @@ export async function runAgentTurn(a: AgentInput): Promise<AgentResult> {
       const policy = applyToolPolicy(tu.name, v.input, a.userMessage);
       if (policy.blocked) {
         // No se ejecuta (ni se cobra): el usuario no pidió eso.
-        return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: JSON.stringify({ error: policy.blocked, motivo: "El usuario no pidió eventos: no busques eventos en este turno." }) };
+        return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: JSON.stringify({ error: policy.blocked, motivo: policy.blocked === "tours_no_pedidos" ? "El usuario no pidió tours ni actividades: no busques tours en este turno." : "El usuario no pidió eventos: no busques eventos en este turno." }) };
       }
       if (policy.rerouted) res.rerouted.push(policy.rerouted);
       const k = keyOf(policy.name, policy.args);

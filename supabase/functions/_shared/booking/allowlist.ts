@@ -34,6 +34,11 @@ export type ProviderInfo = {
    */
   redirector?: "wrapper" | "opaque";
   /**
+   * Solo si lo dio una API del servidor (p. ej. productUrl de la Partner API de Viator): la IA o el
+   * cliente no pueden escribir un enlace así (checkUntrusted lo rechaza).
+   */
+  serverOnly?: boolean;
+  /**
    * Hosts exactos permitidos cuando el dominio aloja servicios de terceros (google.com: sites.google.com
    * y docs.google.com publican páginas de cualquiera). Sin esto vale cualquier subdominio.
    */
@@ -42,7 +47,7 @@ export type ProviderInfo = {
   why: string;
 };
 
-const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"]; hosts?: string[] } = {}): ProviderInfo =>
+const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"]; hosts?: string[]; serverOnly?: boolean } = {}): ProviderInfo =>
   ({ domain, provider, label, kind, why, ...extra });
 
 // Endurecimiento O1 (segunda auditoría): Google solo en sus hosts propios; sites.google.com/maps/… no es Maps.
@@ -108,7 +113,9 @@ export const PROVIDERS: ProviderInfo[] = [
   P("covermanager.com", "covermanager", "CoverManager", "restaurant_booking", "Sistema público de reservas (España/LatAm) detectado por siteScan en sitios oficiales (EV-SITE-SCAN)."),
   // Tours y experiencias
   P("getyourguide.com", "getyourguide", "GetYourGuide", "tours", "Búsqueda /s/?q= que arma IATOS (EV-TOURS-SEARCH)."),
-  P("viator.com", "viator", "Viator", "tours", "Búsqueda /searchResults/all?text= que arma IATOS (EV-TOURS-SEARCH)."),
+  P("viator.com", "viator", "Viator", "tours", "Búsqueda /searchResults/all?text= que arma IATOS (EV-TOURS-SEARCH).", { paths: /^\/searchResults\// }),
+  P("viator.com", "viator", "Viator", "tours", "Ficha de producto /tours/… = productUrl de la Partner API v2 de Viator (viator-search, con el afiliado pid P00327354 · mcid 42383); solo del servidor.",
+    { paths: /^\/(?:[a-z]{2}(?:-[A-Za-z]{2})?\/)?tours\//, serverOnly: true }),
   // Autobuses y transporte terrestre (docs/iatos/IATOS_PROVEEDORES_AUTOBUSES.md)
   P("omio.com", "omio", "Omio", "bus", "Buscador de autobuses y trenes (groundTransport.ts, omioLink); IATOS_PROVEEDORES_AUTOBUSES.md."),
   P("international.ado.com.mx", "ado", "ADO", "bus", "Búsqueda pública de ADO (IATOS_PROVEEDORES_AUTOBUSES.md §2.2); solo ese subdominio."),
@@ -311,6 +318,7 @@ export function checkAllowlisted(raw: unknown, depth = 0): UrlVerdict {
 export function checkUntrusted(raw: unknown): UrlVerdict {
   const v = checkAllowlisted(raw);
   if (v.ok && v.provider?.redirector === "opaque") return { ok: false, reason: "redirect_sin_destino_visible" };
+  if (v.ok && v.provider?.serverOnly) return { ok: false, reason: "enlace_solo_del_servidor" };
   return v;
 }
 

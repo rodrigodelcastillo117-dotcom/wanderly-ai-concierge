@@ -147,6 +147,23 @@ export const TOOL_DEFS: ToolDef[] = [
     },
   },
   {
+    name: "search_tours",
+    description:
+      "Tours y actividades reales de Viator en una ciudad: título, foto, calificación y reseñas, duración, precio \"desde\" con su moneda " +
+      "y el enlace a la ficha en viator.com. Úsala SOLO cuando el usuario pida tours, excursiones o actividades. \"Ver en Viator\" no es una " +
+      "reserva. Si no hay resultados o no está disponible, dilo; nunca inventes tours ni precios.",
+    input_schema: {
+      type: "object",
+      properties: {
+        city: { type: "string", description: "Ciudad, ej. 'Roma' o 'Cancún'" },
+        query: { type: "string", description: "Qué tipo de tour, en palabras clave, ej. 'Coliseo', 'snorkel', 'tour gastronómico' (opcional)" },
+        date_from: { type: "string", description: "YYYY-MM-DD, inicio (opcional; las fechas del viaje si habla de su viaje)" },
+        date_to: { type: "string", description: "YYYY-MM-DD, fin (opcional)" },
+      },
+      required: ["city"],
+    },
+  },
+  {
     name: "search_attractions",
     description:
       "Rankings y reseñas (TripAdvisor) de restaurantes, atracciones u hoteles en una ciudad, ej. 'mejores restaurantes de sushi en Tokio'. " +

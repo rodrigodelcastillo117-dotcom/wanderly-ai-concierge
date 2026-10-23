@@ -26,6 +26,7 @@ export const CACHE_TTL_SECONDS: Record<string, number> = {
   google_travel_explore: 12 * HOUR, // "Vuelos baratos desde…" / Explorar destinos (por origen y mes)
   google_events: 6 * HOUR, // Event Radar de Iato (por ciudad, fechas y consulta)
   ticketmaster: 6 * HOUR, // Ticketmaster Discovery API (ciudad/coordenadas + fechas + categoría + palabra clave)
+  viator_products: 6 * HOUR, // Viator Partner API: caché corta y privada, solo para la misma consulta (términos de Viator)
 };
 
 /** Ofertas por proveedor de un hotel (google_hotels con property_token). */

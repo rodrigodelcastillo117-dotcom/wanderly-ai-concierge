@@ -12,6 +12,7 @@ import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { SmartImage } from "@/components/media/SmartImage";
 import { activityQuery, cuisineQuery, hotelQuery } from "@/lib/categoryImagery";
+import { ViatorToursButton } from "@/components/booking/ViatorTours";
 
 type TAResult = {
   id: string; name: string; address: string; rating: number | null;
@@ -143,6 +144,12 @@ const TripActivities = () => {
               </div>
             ))}
           </div>
+        )}
+
+        {/* Tours reales de Viator (Partner API de afiliado): solo tras el botón; "Ver en Viator" no es una reserva. */}
+        {city.trim() && (
+          <ViatorToursButton key={city.trim().toLowerCase()} city={city.trim()} tripId={tripTool.trip?.id}
+            dateFrom={tripTool.trip?.fecha_salida ?? null} dateTo={tripTool.trip?.fecha_regreso ?? null} />
         )}
 
         <div>

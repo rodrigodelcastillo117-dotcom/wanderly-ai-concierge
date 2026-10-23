@@ -18,6 +18,8 @@ import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
 import { TakeMeThereButton } from "./TakeMeThereButton";
 import { ReservationStateBadge } from "./ReservationStateBadge";
 import { canTakeMeThere, isMobileDevice, mapsDirectionsUrl, takeMeThereUrl } from "@/lib/takeMeThere";
+import { ViatorTourCard } from "@/components/booking/ViatorTours";
+import { tourViewFromCard } from "@/lib/viatorTours";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 import { frescuraPrecio } from "../../../supabase/functions/_shared/priceFreshness.ts";
 import {
@@ -516,6 +518,19 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           <p className="text-[10px] text-muted-foreground mt-1">{tm ? "Los boletos se compran en Ticketmaster; abrir el enlace no es una compra." : "Los boletos se compran en el sitio de boletos; el precio lo ves ahí."}</p>
         )}
       </div>
+    );
+  }
+
+  if (card.type === "tour") {
+    // Tours de Viator: todo sale de search_tours de este turno (tourCards en el servidor). Precio "desde".
+    const view = tourViewFromCard(card);
+    if (!view) return null;
+    const at = card.consultado_at ? new Date(card.consultado_at) : null;
+    const hhmm = at && Number.isFinite(at.getTime()) ? at.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }) : null;
+    return (
+      <ul className="w-full list-none" data-card-type="tour">
+        <ViatorTourCard tour={view} time={hhmm} tripId={tripId ?? undefined} showSource />
+      </ul>
     );
   }
 

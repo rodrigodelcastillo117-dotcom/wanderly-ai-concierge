@@ -173,6 +173,9 @@ verify_jwt = true
 [functions.update-food-dna]
 verify_jwt = true
 
+[functions.viator-search]
+verify_jwt = true
+
 [functions.edition-link-check]
 verify_jwt = true
 

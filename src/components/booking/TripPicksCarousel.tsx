@@ -12,6 +12,7 @@ import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { activityQuery, cuisineQuery } from "@/lib/categoryImagery";
 import { buildPickCards, parsePriceRange, restaurantPriceLabel, SLOT_LABEL, TIER_LABEL, tierOf, tripUsdMxnRate, type PickCard, type PickKind, type TasteProfile } from "@/lib/tripPicks";
 import { logBookingClick } from "@/lib/trackBooking";
+import { ViatorToursDialogButton } from "@/components/booking/ViatorTours";
 
 /** label: lo que el botón es ("Sitio oficial", "Ver en Google Maps", "Buscar en OpenTable"…), del motor de reservas. */
 export type PickAction = { url: string; site: string | null; label?: string | null } | null;
@@ -173,7 +174,10 @@ function Card({ card, kind, city, list, trip, actionFor, isChosen, onChoose, ext
         <p className="text-sm tabular-nums" data-testid="pick-price">{price.text}{price.note && <span className="ml-1 text-[11px] text-muted-foreground">· {price.note}</span>}</p>
         {reason && <p className="line-clamp-2 text-xs italic text-primary/90" data-testid="pick-reason">{reason}</p>}
         <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
-          {action?.url ? (
+          {kind === "experiencia" && unverifiedPlace(kind, x) && (!action?.url || /^Buscar\b/i.test(action.label ?? "")) ? (
+            // Tour "Sin verificar" (analizar-viaje / logistics-plan): tours reales de Viator en vez de la búsqueda genérica.
+            <ViatorToursDialogButton city={x?.ciudad ?? city} query={name} tripId={trip?.id} dateFrom={trip?.fecha_salida ?? null} dateTo={trip?.fecha_regreso ?? null} />
+          ) : action?.url ? (
             <a href={action.url} target="_blank" rel="noopener noreferrer" data-testid="pick-reservar"
               onClick={() => void logBookingClick({ category: kind === "restaurante" ? "restaurant" : "activity", provider: action.site ?? "Proveedor", title: name,
                 bookingUrl: action.url, city: x?.ciudad ?? city, tripId: trip?.id, startAt: trip?.fecha_salida ?? undefined })}

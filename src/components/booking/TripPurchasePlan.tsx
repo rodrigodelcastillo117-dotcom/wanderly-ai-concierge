@@ -24,6 +24,7 @@ import { useTasteProfile } from "@/hooks/useTasteProfile";
 import { TripPicksCarousel, type PickAction } from "@/components/booking/TripPicksCarousel";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { HotelOffersButton, MultiCityFareButton } from "@/components/booking/RealPriceButtons";
+import { ViatorToursButton } from "@/components/booking/ViatorTours";
 import { transportRubroLabel } from "@/lib/multiDestTrip";
 
 const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras" };
@@ -499,11 +500,16 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                     actionFor={tourAction} isChosen={(i) => selTours.has(i)} onChoose={onToggleTour}
                     extra={(i) => { const it = items.find((p) => p.kind === "actividad" && p.index === i); return it ? <div className="pt-1">{markControl(it, "comprar-actividad")}</div> : null; }} />
                 )}
+                {/* Tours reales de Viator (Partner API de afiliado), solo tras el botón. */}
+                <ViatorToursButton city={e.city} tripId={trip.id} dateFrom={trip.fecha_salida ?? null} dateTo={trip.fecha_regreso ?? null} />
               </div>
             );
           })}
           {nextBar("paso-extras")}
         </section>
+      )}
+      {flow.extras.length === 0 && trip?.destino && (
+        <ViatorToursButton className="mt-5" city={trip.destino} tripId={trip.id} dateFrom={trip.fecha_salida ?? null} dateTo={trip.fecha_regreso ?? null} />
       )}
 
       {/* Último paso: todo lo elegido, el total y desde aquí se compra cada cosa. */}
