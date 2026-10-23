@@ -1,3 +1,4 @@
+import { signupErrorMessage } from "@/lib/signupErrors";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -66,11 +67,7 @@ const Auth = () => {
         }
         const { error } = await signUp(email, password, fullName);
         if (error) {
-          toast.error(
-            error.includes("already")
-              ? "Ya existe una cuenta con este correo"
-              : "No pudimos crear tu cuenta. Revisa tus datos e intenta de nuevo."
-          );
+          toast.error(signupErrorMessage(error));
         } else {
           // Auto-confirm está activo: iniciamos sesión de inmediato para evitar quedar sin sesión
           const { error: signInErr } = await signIn(email, password);
