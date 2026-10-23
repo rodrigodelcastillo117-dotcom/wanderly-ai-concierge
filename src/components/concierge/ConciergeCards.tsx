@@ -15,6 +15,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { track } from "@/lib/analytics";
 import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
+import { TakeMeThereButton } from "./TakeMeThereButton";
+import { canTakeMeThere } from "@/lib/takeMeThere";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 import { frescuraPrecio } from "../../../supabase/functions/_shared/priceFreshness.ts";
 import {
@@ -281,6 +283,13 @@ const Rating = ({ value }: { value?: number }) =>
     </span>
   ) : null;
 
+/** Destino de "Llévame": place_id y coordenadas vienen de la herramienta (enrichCardLinks), no del modelo. */
+const takeMeTarget = (card: ConciergeCard) => ({
+  name: card.title, address: card.type === "place" || card.type === "restaurant" ? card.subtitle ?? null : null,
+  placeId: typeof card.place_id === "string" ? card.place_id : null,
+  lat: typeof card.lat === "number" ? card.lat : null, lng: typeof card.lng === "number" ? card.lng : null,
+});
+
 /** Ciudad de la card si el subtítulo la trae ("París · 5★" → "París"). */
 const cardCity = (card: ConciergeCard) => String(card.subtitle ?? "").split(/[·•|,]/)[0]?.trim().slice(0, 60) || null;
 
@@ -411,6 +420,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
         </div>
         <CardLinks card={card} onOpen={onOpen} compact>
           <ExternalCta card={card} label={card.cta_label ?? (card.type === "hotel" ? "Ver y reservar" : "Ver detalles")} onOpen={onOpen} className="min-h-[32px] px-3" />
+          <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
         </CardLinks>
       </div>
     );
@@ -442,7 +452,9 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             {card.fuente && <p className="text-[10px] text-muted-foreground mt-1">Fuente: {SOURCE_NAME[String(card.fuente).toLowerCase()] ?? card.fuente}</p>}
           </div>
         </div>
-        <CardLinks card={card} onOpen={onOpen} />
+        <CardLinks card={card} onOpen={onOpen}>
+          {canTakeMeThere(takeMeTarget(card)) && <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />}
+        </CardLinks>
         {!card.links?.length && <div className="mt-2"><ExternalCta card={card} label={card.cta_label ?? "Ver en Google Maps"} onOpen={onOpen} /></div>}
       </div>
     );
@@ -514,6 +526,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             <RequestButton state={req.state} label="Pídeselo al Fixer" className="h-8 px-3 text-[11px] rounded-full"
               onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
           )}
+          <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
         </CardLinks>
         {!url && req.state !== "idle" && <RequestNote {...req} />}
         <p className="text-[10px] text-muted-foreground mt-1" title="Los enlaces abren la reserva o una búsqueda prellenada; el Fixer es una solicitud a un humano.">Aún no está reservado.</p>

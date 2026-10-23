@@ -14,6 +14,7 @@ import { RoutesPanel } from "@/components/RoutesPanel";
 import { Button } from "@/components/ui/button";
 import { useActiveTrip } from "@/hooks/useActiveTrip";
 import { ActiveTripPicker } from "@/components/ActiveTripPicker";
+import { TakeMeThereButton } from "@/components/concierge/TakeMeThereButton";
 
 declare global { interface Window { google: any; initMap?: () => void; } }
 
@@ -462,6 +463,9 @@ const Cercanos = () => {
                     </div>
                   )}
 
+                  <div className="mb-2 flex justify-center">
+                    <TakeMeThereButton target={{ name: selected.name, address: selected.address, placeId: selected.placeId, lat: selected.lat, lng: selected.lng }} />
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Button variant="outline" onClick={() => setShowRoute((v) => !v)} className="rounded-full">
                       <Navigation className="w-4 h-4 mr-1" /> {showRoute ? "Ocultar ruta" : "Cómo llegar"}

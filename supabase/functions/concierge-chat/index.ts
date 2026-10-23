@@ -21,7 +21,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { accountBrake, dbCacheStore, liveSearchGateFor, logUsage } from "../_shared/serpRuntime.ts";
 import type { UsageEntry } from "../_shared/usage.ts";
-import { buildTripQuestion, mentionsUntrackedPlace, needsSpecificTrip, resolveActiveTrip } from "../_shared/activeTrip.ts";
+import { buildTripQuestion, mentionsUntrackedPlace, needsSpecificTrip } from "../_shared/activeTrip.ts";
 import { getTasteProfile, readTasteCache } from "../_shared/tasteProfileStore.ts";
 import { renderTasteProfile, tasteToday } from "../_shared/tasteProfile.ts";
 import { todayLine, toolArgs } from "./tools.ts";
@@ -37,6 +37,7 @@ import { memoryCache, runPriveKey } from "./priveKeyMode.ts";
 import { getRateToMxnInfo } from "../_shared/fx.ts";
 import { detectIntents, planTurn } from "./planner.ts";
 import { tripSituation } from "./location.ts";
+import { resolveTurnPlace, turnPlaceNote } from "./turnPlace.ts";
 import { providerChain, resolveModelConfig, routeTurn, sharedBreaker } from "./router.ts";
 import { AllProvidersFailed, makeModelCaller } from "./agent.ts";
 import { completeAnthropic, ProviderError } from "./anthropic.ts";
@@ -384,13 +385,18 @@ Deno.serve(async (req) => {
     const shared = await Promise.all(missing.map((id) => supabase.from("trips").select("*").eq("id", id).maybeSingle()));
     for (const { data } of shared) if (data) trips.push(data);
 
-    const resolution = resolveActiveTrip(trips, { explicitId, pinnedId, todayLocal: todayISO, mentionedText: lastUserMsg });
+    // Ubicación física (solo si llegó del navegador), viaje seleccionado, destino pedido y viaje
+    // futuro, por separado (turnPlace.ts; caso Interlomas → India, 23-oct-2026). Un lugar pedido para
+    // buscar no cambia el viaje seleccionado.
+    const userPlace = typeof body.context?.place === "string" ? body.context.place.slice(0, 80) : null;
+    const userLoc = { coords, place: userPlace };
+    const firstPass = resolveTurnPlace({ message: lastUserMsg, trips, explicitId, pinnedId, todayISO, user: userLoc });
+    const resolution = firstPass.resolution;
     const trip = resolution.trip;
     // Dónde está el usuario frente al viaje: el día de salida, en su ciudad, el viaje está "por salir"
     // y lo "cerca" es local (caso Huixquilucan → Roma, 22-oct-2026).
-    const userPlace = typeof body.context?.place === "string" ? body.context.place.slice(0, 80) : null;
-    const userLoc = { coords, place: userPlace };
     const situation = tripSituation(trip, todayISO, userLoc);
+    const turnPlace = situation?.position === "away" ? resolveTurnPlace({ message: lastUserMsg, trips, explicitId, pinnedId, todayISO, user: userLoc, position: "away" }) : firstPass;
     const viajesVigentes = trips
       .filter((t: any) => !(t.fecha_regreso || t.fecha_salida) || String(t.fecha_regreso || t.fecha_salida) >= todayISO)
       .sort((a: any, b: any) => String(a.fecha_salida ?? "").localeCompare(String(b.fecha_salida ?? "")));
@@ -411,6 +417,9 @@ Deno.serve(async (req) => {
       _today: todayISO,
       _trip_phase: situation?.phase ?? null,
       _user_position: situation?.position ?? "unknown",
+      // De qué lugar es la respuesta y cómo se etiqueta (no siempre el viaje: "cerca de ti", "en Delhi").
+      _place_scope: turnPlace.scope,
+      _place_label: turnPlace.label,
     };
     const meta = { ...tripMeta, _tier: route.tier, _exigente: exigente, _exigente_capped: exigenteCapped, _intents: intents };
 
@@ -503,8 +512,11 @@ Deno.serve(async (req) => {
     const plan = planTurn({
       message: lastUserMsg, intents, todayISO, coords, hasPriveSession: !!priveSession, exigente,
       position: situation?.position ?? "unknown", place: userPlace,
+      requested: turnPlace.requested, nearMe: turnPlace.nearMe,
       trip: trip ? { ...trip, vuelos: tripBookings?.vuelos ?? trip.vuelos_json, hospedaje: tripBookings?.hospedaje ?? trip.hospedaje_json } : null,
     });
+
+    plan.notes.push(turnPlaceNote(turnPlace));
 
     // "Quiero hablar con un humano": respuesta inmediata, sin modelo y sin gastar mensaje.
     if (plan.direct) {
@@ -548,7 +560,7 @@ Deno.serve(async (req) => {
         requestIntel, hasConfirmedBookings: confirmedBookings.length > 0,
         tripScope: { trip, position: situation?.position ?? "unknown", user: userLoc },
         // Enlaces de reserva (OpenTable/Maps): con la ciudad donde está el usuario si está fuera del viaje.
-        city: (situation?.position === "away" ? userPlace : String(trip?.destino ?? "").split(/→|,|;/)[0].trim()) || undefined,
+        city: turnPlace.searchCity || undefined,
         party: Number(trip?.num_viajeros) || 2,
       });
       if (final.dropped.cards.length || final.dropped.actions.length) console.warn("concierge_dropped", JSON.stringify(final.dropped));

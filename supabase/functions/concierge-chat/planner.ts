@@ -174,6 +174,10 @@ export interface PlanInput {
   position?: TripPosition;
   /** Nombre del lugar donde está ("Huixquilucan"), si el navegador lo dio. */
   place?: string | null;
+  /** Destino que el mensaje nombra ("restaurantes en Delhi"); no cambia el viaje (turnPlace.ts). */
+  requested?: string | null;
+  /** Pidió algo "cerca de mí / aquí / cercanos" (turnPlace.ts). */
+  nearMe?: boolean;
 }
 
 /**
@@ -223,6 +227,9 @@ export function planTurn(i: PlanInput): TurnPlan {
   // Fuera de los destinos del viaje (p. ej. en su ciudad el día de salida): "cerca" es local.
   const away = i.position === "away";
   const place = typeof i.place === "string" && i.place.trim() ? i.place.trim().slice(0, 80) : null;
+  // Un viaje que no ha empezado nunca es "aquí": su hotel no es punto de partida de "cerca".
+  const futureTrip = !!trip?.fecha_salida && String(trip.fecha_salida).slice(0, 10) > i.todayISO;
+  const requested = typeof i.requested === "string" && i.requested.trim() ? i.requested.trim().slice(0, 60) : null;
 
   if (has("human")) {
     plan.direct = { text: "Por supuesto. Te conecto con tu Fixer: toca **Contactar Fixer** arriba y cuéntale qué necesitas. Es atención humana sujeta a disponibilidad." };
@@ -305,11 +312,17 @@ export function planTurn(i: PlanInput): TurnPlan {
     }
   }
 
-  if (has("dining_near_hotel") || (has("dining") && (hotel || i.coords || (away && place)))) {
-    // Pidió "cerca" y está fuera de los destinos del viaje: cerca de donde está, no del hotel del viaje
-    // (salvo que nombre el hotel).
-    const wantsHotel = /\bhotel\b/.test(normText(i.message));
-    const local = away && !wantsHotel;
+  const wantsHotel = /\bhotel\b/.test(normText(i.message));
+  if ((has("dining_near_hotel") || has("dining")) && requested && !wantsHotel) {
+    // "Restaurantes en Delhi": se busca en el lugar pedido, sin cambiar el viaje seleccionado.
+    const sameTrip = !!trip && normText(String(trip.destino ?? "")).includes(normText(requested));
+    plan.notes.push(`El usuario pidió lugares en ${requested}: responde sobre ${requested}${trip && !sameTrip ? "; no es el viaje en contexto: no lo cambies ni propongas agregarlo a ese viaje" : ""}.`);
+    plan.prefetch.push({ name: "search_places", args: { query: `restaurantes en ${requested}` }, reason: "restaurantes en el destino pedido" });
+    if (i.exigente) plan.prefetch.push({ name: "search_attractions", args: { query: `mejores restaurantes en ${requested}`, category: "restaurants" }, reason: "ranking de la ciudad" });
+  } else if (has("dining_near_hotel") || (has("dining") && (hotel || i.coords || (away && place) || i.nearMe))) {
+    // Pidió "cerca" y está fuera de los destinos del viaje (o el viaje es futuro): cerca de donde
+    // está, no del hotel del viaje (salvo que nombre el hotel).
+    const local = (away || futureTrip) && !wantsHotel;
     if (local) {
       plan.notes.push(`El usuario está en ${place ?? "su ubicación actual"}, fuera de los destinos de su viaje: recomienda lugares cerca de donde está, en corto, y no los ligues al viaje ni propongas agregarlos al itinerario (puede guardarlos en favoritos con save_place).`);
     }
@@ -324,6 +337,8 @@ export function planTurn(i: PlanInput): TurnPlan {
       plan.prefetch.push({ name: "search_nearby", args: { lat: i.coords.lat, lng: i.coords.lng, kind: "restaurant" }, reason: "restaurantes cerca" });
     } else if (local && place) {
       plan.prefetch.push({ name: "search_places", args: { query: `restaurantes en ${place}` }, reason: "restaurantes cerca" });
+    } else if (local) {
+      plan.notes.push("No hay ubicación actual del usuario: pregunta en una línea en qué zona está o que active la ubicación. No uses el destino ni el hotel de su viaje: no está ahí.");
     } else {
       plan.notes.push("No hay hotel reservado ni ubicación del usuario: pregunta en qué hotel o zona está, en una línea.");
     }
@@ -558,6 +573,7 @@ export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">): stri
   }
   if (has("place_fact")) return "Busco ese dato en Google y en Google Maps para darte la ubicación exacta.";
   if (places && (has("dining_near_hotel") || has("dining"))) {
+    if (places.reason === "restaurantes en el destino pedido") return `Busco ${LEAD_CLIP(places.args.query, 60)} en Google Maps.`;
     return places.reason === "restaurantes cerca del hotel" ? "Busco restaurantes cerca de tu hotel en Google Maps." : "Busco restaurantes cerca de ti en Google Maps.";
   }
   if (nearby) return `Busco ${KIND_LABEL[String(nearby.args.kind)] ?? "lugares"} cerca de ti.`;

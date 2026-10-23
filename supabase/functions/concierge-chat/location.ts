@@ -153,7 +153,11 @@ export interface TripSituation {
 
 export function tripSituation(trip: any, todayISO: string, loc: UserLocation | null | undefined): TripSituation | null {
   if (!trip) return null;
-  const position = userTripPosition(trip, loc);
+  // Un viaje que todavía no empieza nunca es la ubicación física: sin coordenadas que digan lo
+  // contrario (llegó antes), el usuario está fuera de sus destinos (caso Interlomas → India).
+  const raw = userTripPosition(trip, loc);
+  const start = trip?.fecha_salida ? String(trip.fecha_salida).slice(0, 10) : null;
+  const position: TripPosition = raw === "unknown" && !!start && start > todayISO ? "away" : raw;
   return {
     phase: tripPhase(trip, todayISO, position), position, place: loc?.place ? String(loc.place).slice(0, 80) : null,
     firstDestination: destinationNames(trip)[0] ?? null,

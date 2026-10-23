@@ -60,6 +60,9 @@ export interface ConciergeCard {
   photo_ref?: string;
   /** place_id de Google del lugar (de la herramienta): la app pide su foto real con él. */
   place_id?: string;
+  /** Coordenadas del lugar (de la herramienta, nunca del modelo): botón "Llévame". */
+  lat?: number;
+  lng?: number;
 }
 
 /** Solo https: (nada de javascript:, data:, http:, ni URLs con usuario/contraseña). */
@@ -637,6 +640,7 @@ export function enrichCardLinks(
     // Foto real del lugar: solo de la evidencia (la herramienta), nunca una que escriba el modelo.
     if (p?.photoRef && !out.image_url) out.photo_ref = p.photoRef;
     if (p?.placeId && isGooglePlaceId(p.placeId)) out.place_id = p.placeId;
+    if (p && typeof p.lat === "number" && typeof p.lng === "number" && Number.isFinite(p.lat) && Number.isFinite(p.lng)) { out.lat = p.lat; out.lng = p.lng; }
     if (p && c.type === "place") {
       if (!out.subtitle && p.address) out.subtitle = p.address.slice(0, 160);
       if (!out.meta && p.hours?.length) out.meta = p.hours.slice(0, 2).join(" · ").slice(0, 200);

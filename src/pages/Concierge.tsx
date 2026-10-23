@@ -34,6 +34,7 @@ import { ActionCard } from "@/components/concierge/ActionCard";
 import type { ProposedAction } from "../../supabase/functions/concierge-chat/actions.ts";
 import { conciergeLocationLabel, GEO_GIVE_UP_MS, type LocationState } from "@/lib/conciergeLocation";
 import { tripPhaseLabel, tripSituation } from "../../supabase/functions/concierge-chat/location.ts";
+import { answerPlaceLabel, type PlaceScope } from "../../supabase/functions/concierge-chat/turnPlace.ts";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -59,6 +60,9 @@ type Msg = {
   exigente?: boolean;
   /** El usuario estaba fuera de los destinos del viaje: la respuesta es local, no "sobre tu viaje". */
   local?: boolean;
+  /** De qué lugar es la respuesta (servidor, turnPlace.ts): "cerca de ti", "en Delhi" o el viaje. */
+  placeScope?: PlaceScope | null;
+  placeLabel?: string | null;
 };
 
 const PIN_KEY = "iatos_concierge_trip";
@@ -334,6 +338,8 @@ const Concierge = () => {
           tripReason: data._trip_reason,
           tripCandidates: Array.isArray(data._trip_candidates) ? data._trip_candidates : [],
           local: data._user_position === "away",
+          placeScope: typeof data._place_scope === "string" ? data._place_scope as PlaceScope : null,
+          placeLabel: typeof data._place_label === "string" ? data._place_label : null,
         })),
       });
     } catch (e: any) {
@@ -713,7 +719,7 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled, onOpenEmergency }: 
   msg: Msg; trips: ContextTrip[]; onChooseTrip: (id: string) => void; disabled?: boolean; onOpenEmergency?: () => void;
 }) => {
   const isUser = msg.role === "user";
-  const aboutTrip = !isUser && msg.tripId && !msg.local ? trips.find((t) => t.id === msg.tripId) : null;
+  const aboutPlace = !isUser ? answerPlaceLabel(msg, trips) : null;
   const time = bubbleTime(msg.ts);
   const showSteps = !isUser && ((msg.steps?.length ?? 0) > 0 || (msg.streaming && !msg.text.trim()));
   return (
@@ -737,9 +743,9 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled, onOpenEmergency }: 
             {showSteps && <StepList steps={msg.steps ?? []} streaming={msg.streaming} hasText={!!msg.text.trim()} />}
             {/* Iato responde en Markdown: se interpreta un subconjunto seguro (N-05). */}
             {msg.text && (isUser ? <span className="whitespace-pre-wrap">{msg.text}</span> : <SafeMarkdown text={msg.text} />)}
-            {(time || aboutTrip?.destino) && (
+            {(time || aboutPlace) && (
               <p className={`mt-0.5 flex justify-end gap-1 text-[10px] leading-none ${isUser ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                {aboutTrip?.destino && <span className="truncate max-w-[12rem]">sobre {aboutTrip.destino} ·</span>}
+                {aboutPlace && <span className="truncate max-w-[12rem]" data-testid="answer-place">{aboutPlace} ·</span>}
                 {time && <time dateTime={new Date(msg.ts).toISOString()}>{time}</time>}
               </p>
             )}
