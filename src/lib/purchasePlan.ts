@@ -120,8 +120,11 @@ export function describePrefill(url: string | null, processor: string | null, tr
       completa: "Elige el horario y compra con la aerolínea o agencia que muestre Kayak." };
   }
   if (host.endsWith("kayak.com") && u.pathname.startsWith("/cars/")) {
-    const [, , city, a, b] = u.pathname.split("/");
-    return { lleva: [decodeURIComponent(city ?? ""), fmtRange(a ?? null, b ?? null) ?? ""].filter(Boolean), completa: PREFILL.kayak_cars.completa };
+    // /cars/Rome/2026-10-22/2026-11-01 o, si se devuelve en otra ciudad, /cars/Rome/Venice/2026-10-26/2026-10-29.
+    const parts = u.pathname.split("/").filter(Boolean).slice(1).map((x) => decodeURIComponent(x));
+    const dates = parts.filter((x) => isIso(x));
+    const places = parts.filter((x) => !isIso(x));
+    return { lleva: [places.join(" → "), fmtRange(dates[0] ?? null, dates[1] ?? null) ?? ""].filter(Boolean), completa: PREFILL.kayak_cars.completa };
   }
   if (host.endsWith("resy.com")) {
     const d = u.searchParams.get("date"); const s = Number(u.searchParams.get("seats")) || 0;

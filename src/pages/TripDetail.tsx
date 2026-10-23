@@ -76,6 +76,7 @@ const TripDetail = () => {
   };
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfMenu, setPdfMenu] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favRecoId, setFavRecoId] = useState<string | null>(null);
   const [editingDates, setEditingDates] = useState(false);
@@ -277,13 +278,21 @@ const TripDetail = () => {
     return () => window.removeEventListener(TRIP_SECTION_EVENT, on);
   }, []);
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = async (theme: "dark" | "light" = "dark") => {
     if (!trip) return;
+    setPdfMenu(false);
     setGeneratingPdf(true);
     try {
-      // jsPDF (+ autotable, html2canvas) solo se descarga al pedir el PDF, no al abrir el viaje.
+      // jsPDF, el armado del PDF y sus fuentes solo se descargan al pedir el PDF, no al abrir el viaje.
       const { generateTripPDF } = await import("@/lib/tripPdf");
-      await generateTripPDF(trip, { selVuelo, selHospedaje, nochesEfectivas, selTours }, { desglose: computedDesglose, total: computedTotal });
+      // El total es EXACTAMENTE el de la página (RealTripTotal / barra inferior), con la misma selección.
+      const shown = tripTotals(trip, quoteTravelers, currentSel ? computedDesglose : null);
+      await generateTripPDF(trip, {
+        theme,
+        sel: { selVuelo, selHospedaje, selTours, selHoteles, nochesHospedaje: nochesEfectivas },
+        totals: { total: shown.total, porPersona: shown.porPersona, travelers: quoteTravelers, nights: quoteNights, desglose: computedDesglose, fromSelection: shown.fromSelection, quotedTotal: shown.quotedTotal },
+        bookings: bookings as any, userId: user?.id ?? null, serverOffers, quoteCreatedAt: quote?.created_at ?? null, trust: quoteTrust(quote),
+      });
       toast.success("PDF descargado");
     } catch (e: any) {
       console.error(e);
@@ -445,15 +454,28 @@ const TripDetail = () => {
           >
             <Heart className={`w-4 h-4 ${isFavorite ? "fill-primary text-primary" : "text-foreground"}`} />
           </button>
-          <button
-            onClick={handleDownloadPdf}
-            disabled={generatingPdf}
-            className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition disabled:opacity-50 shrink-0"
-            aria-label={generatingPdf ? "Generando PDF" : "Compartir PDF"}
-          >
-            <Download className="w-3.5 h-3.5 text-primary" />
-            <span className="hidden sm:inline">{generatingPdf ? "Generando…" : "Compartir PDF"}</span>
-          </button>
+          <Popover open={pdfMenu} onOpenChange={setPdfMenu}>
+            <PopoverTrigger asChild>
+              <button
+                disabled={generatingPdf}
+                className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-full glass-card text-xs hover:gold-border transition disabled:opacity-50 shrink-0"
+                aria-label={generatingPdf ? "Generando PDF" : "Compartir PDF"}
+              >
+                <Download className="w-3.5 h-3.5 text-primary" />
+                <span className="hidden sm:inline">{generatingPdf ? "Generando…" : "Compartir PDF"}</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 max-w-[calc(100vw-2rem)] p-1.5" data-testid="pdf-menu">
+              <button type="button" onClick={() => void handleDownloadPdf("dark")} className="w-full rounded-lg px-3 py-2.5 text-left hover:bg-muted transition">
+                <span className="block text-sm font-medium">PDF para compartir</span>
+                <span className="block text-xs text-muted-foreground">Negro y dorado, con fotos y enlaces para comprar</span>
+              </button>
+              <button type="button" onClick={() => void handleDownloadPdf("light")} className="w-full rounded-lg px-3 py-2.5 text-left hover:bg-muted transition">
+                <span className="block text-sm font-medium">Imprimir en blanco</span>
+                <span className="block text-xs text-muted-foreground">Fondo claro, gasta menos tinta</span>
+              </button>
+            </PopoverContent>
+          </Popover>
           <InviteFriendDialog tripId={trip.id} isOwner={user?.id === trip.user_id} />
           <EditWithAIDialog tripId={trip.id} onUpdated={loadTrip} />
           <TripDeleteButton tripId={trip.id} destino={trip.destino} isOwner={isOwner} userId={user?.id ?? null} />
