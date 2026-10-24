@@ -1,0 +1,9 @@
+{
+  "_nota": "Formato documentado (calculate_toll_fees): ejemplo con USD, units \"4\" y nanos 400000000 (= 4.40 USD). No es una grabación en vivo.",
+  "routes": [{
+    "distanceMeters": 52000,
+    "duration": "2700s",
+    "travelAdvisory": { "tollInfo": { "estimatedPrice": [{ "currencyCode": "USD", "units": "4", "nanos": 400000000 }] } },
+    "legs": [{ "travelAdvisory": { "tollInfo": { "estimatedPrice": [{ "currencyCode": "USD", "units": "4", "nanos": 400000000 }] } } }]
+  }]
+}

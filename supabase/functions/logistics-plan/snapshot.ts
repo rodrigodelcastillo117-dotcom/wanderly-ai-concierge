@@ -39,6 +39,14 @@ export function logisticsReferences(logistics: any) {
       fuente_precio: arr(logistics?.flights).some((f) => f?.fuente_precio === "travelpayouts") ? "travelpayouts" : "estimado",
       estado_dato: "ESTIMADO",
     },
+    // Casetas reales de Google Routes (solo existe el renglón si hubo monto en MXN): la consulta más vieja manda.
+    ...(Number(logistics?.road_trip?.casetas?.mxn_en_vivo) > 0 ? {
+      casetas: {
+        fuente_precio: "google_routes", estado_dato: "CONSULTADO_EN_VIVO",
+        consultado_at: arr(logistics?.road_trip?.legs).map((l) => l?.tolls?.estado === "CON_MONTO" && l.tolls.monto_mxn != null ? l.tolls.consultado_at : null)
+          .filter((x): x is string => typeof x === "string").sort()[0] ?? quotedAt,
+      },
+    } : {}),
   };
 }
 

@@ -1,0 +1,9 @@
+{
+  "_nota": "Respuesta de Routes API directions/v2:computeRoutes con extraComputations [\"TOLLS\"] y máscara routes.duration,routes.distanceMeters,routes.travelAdvisory.tollInfo,routes.legs.travelAdvisory.tollInfo. Formato documentado (https://developers.google.com/maps/documentation/routes/calculate_toll_fees): Money con currencyCode/units/nanos; nanos se omite cuando es cero. No es una grabación en vivo.",
+  "routes": [{
+    "distanceMeters": 134500,
+    "duration": "7980s",
+    "travelAdvisory": { "tollInfo": { "estimatedPrice": [{ "currencyCode": "MXN", "units": "412" }] } },
+    "legs": [{ "travelAdvisory": { "tollInfo": { "estimatedPrice": [{ "currencyCode": "MXN", "units": "412" }] } } }]
+  }]
+}

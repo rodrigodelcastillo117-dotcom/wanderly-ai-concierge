@@ -58,6 +58,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   tours: "Experiencias",
   transporte_local: "Transporte local",
   extras: "Extras",
+  casetas: "Casetas (Google Maps, en vivo)",
 };
 
 const isFresh = (at: string | null | undefined, now: Date) => {
