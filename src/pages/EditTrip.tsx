@@ -24,6 +24,9 @@ import { staleQuoteMessage } from "@/lib/quote";
 import { useAuth } from "@/contexts/AuthContext";
 import { reanalyzeTripInPlace } from "@/lib/tripReanalysis";
 import { deleteOwnedTrip, leaveSharedTrip, MEMBERSHIP_MESSAGES } from "@/lib/tripMembership";
+import { GlobeLoader } from "@/components/brand/GlobeLoader";
+import { SlowLoading } from "@/components/brand/SlowLoading";
+import { useSlowLoading } from "@/hooks/useSlowLoading";
 
 const EditTrip = () => {
   const { id } = useParams();
@@ -34,6 +37,8 @@ const EditTrip = () => {
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
+  // Pasados 5 s, el globo IATOS reemplaza el pulso y la estimación de tiempo.
+  const reanalyzeSlow = useSlowLoading(reanalyzing);
 
   const [destino, setDestino] = useState("");
   const [paisDestino, setPaisDestino] = useState("");
@@ -152,7 +157,9 @@ const EditTrip = () => {
     return (
       <DashboardLayout>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          <SlowLoading active label="Cargando tu viaje…">
+            <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          </SlowLoading>
         </div>
       </DashboardLayout>
     );
@@ -162,6 +169,7 @@ const EditTrip = () => {
     return (
       <DashboardLayout>
         <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+          {reanalyzeSlow ? <GlobeLoader size="lg" className="mb-6" /> : (
           <motion.div
             animate={{ scale: [1, 1.1, 1], opacity: [0.6, 1, 0.6] }}
             transition={{ duration: 2.4, repeat: Infinity }}
@@ -169,13 +177,14 @@ const EditTrip = () => {
           >
             <Sparkles className="w-7 h-7 text-primary-foreground" />
           </motion.div>
+          )}
           <h2 className="font-display text-3xl md:text-5xl mb-6">
             Re-analizando tu viaje a <span className="gold-text italic">{destino}</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-md">
-            Esto puede tardar hasta un minuto. Actualizamos vuelos, hospedaje, restaurantes e itinerario de este mismo viaje.
+            {reanalyzeSlow ? "" : "Esto puede tardar hasta un minuto. "}Actualizamos vuelos, hospedaje, restaurantes e itinerario de este mismo viaje.
           </p>
-          <div className="mt-12 flex gap-1">
+          {!reanalyzeSlow && <div className="mt-12 flex gap-1">
             {[0, 1, 2].map((i) => (
               <motion.div
                 key={i}
@@ -184,7 +193,7 @@ const EditTrip = () => {
                 className="w-2 h-2 rounded-full bg-primary"
               />
             ))}
-          </div>
+          </div>}
         </div>
       </DashboardLayout>
     );

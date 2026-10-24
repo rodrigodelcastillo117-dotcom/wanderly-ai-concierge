@@ -17,6 +17,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { detectRouteIntent } from "@/lib/detectRouteIntent";
 import { parseTripFallback } from "@/lib/parseTripFallback";
 import { AnalysisProgress } from "@/components/AnalysisProgress";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
@@ -663,13 +664,15 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     return (
       <DashboardLayout>
         <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
-          <motion.div
-            role="status"
-            aria-label="Interpretando tu viaje"
-            animate={reduceMotion ? undefined : { rotate: 360 }}
-            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-            className="w-14 h-14 rounded-full border-2 border-primary/30 border-t-primary mb-8"
-          />
+          <SlowLoading active size="lg" className="mb-4" srLabel="Interpretando tu viaje">
+            <motion.div
+              role="status"
+              aria-label="Interpretando tu viaje"
+              animate={reduceMotion ? undefined : { rotate: 360 }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              className="w-14 h-14 rounded-full border-2 border-primary/30 border-t-primary mb-8"
+            />
+          </SlowLoading>
           <h2 className="font-display text-3xl md:text-4xl mb-3">Interpretando tu viaje</h2>
           <p className="text-muted-foreground max-w-md">
             Leyendo tu descripción, identificando destino, fechas y viajeros…
@@ -683,13 +686,15 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     return (
       <DashboardLayout>
         <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
-          <motion.div
-            animate={reduceMotion ? undefined : { scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-            transition={{ duration: 2.2, repeat: Infinity }}
-            className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center mb-8 gold-glow"
-          >
-            <Heart className="w-7 h-7 text-primary-foreground" />
-          </motion.div>
+          <SlowLoading active size="lg" className="mb-4" srLabel="Eligiendo tu próximo destino">
+            <motion.div
+              animate={reduceMotion ? undefined : { scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 2.2, repeat: Infinity }}
+              className="w-16 h-16 rounded-full bg-gradient-gold flex items-center justify-center mb-8 gold-glow"
+            >
+              <Heart className="w-7 h-7 text-primary-foreground" />
+            </motion.div>
+          </SlowLoading>
           <h2 className="font-display text-3xl md:text-5xl mb-3">
             IATOS AI está eligiendo tu <span className="gold-text italic">próximo destino</span>
           </h2>

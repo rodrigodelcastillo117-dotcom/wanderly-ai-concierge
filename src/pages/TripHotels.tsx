@@ -17,6 +17,7 @@ import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 import { BookingActions } from "@/components/booking/BookingActions";
 import { offerFromHotelResult } from "@/lib/booking";
 import { HotelOffersButton } from "@/components/booking/RealPriceButtons";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 interface HotelResult {
   name: string;
@@ -151,6 +152,7 @@ const TripHotels = () => {
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
             Buscar hoteles
           </Button>
+          <SlowLoading active={loading} size="md" label="Consultando Google Hotels…" />
         </div>
 
         {source && <PriceSourceBadge source={source === "serpapi" ? "google_hotels" : source} estado={estadoDato} consultadoAt={consultedAt} />}

@@ -9,6 +9,7 @@ import { Monogram } from "@/components/prive/Monogram";
 import { PriveBackProvider, usePriveBackTarget } from "@/components/prive/shell/PriveBack";
 import { PriveLangProvider, usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import "@/components/prive/prive.css";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 const FONT_ID = "prive-font-cormorant";
 // Una sola familia (Cormorant Garamond) con display=swap: el texto se ve al instante con la serifa
@@ -30,9 +31,11 @@ function usePriveFont() {
 const Spinner = () => {
   const t = usePriveT();
   return (
-    <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-label={t.common.loadingPrive}>
-      <Monogram size={56} className="opacity-60" />
-    </div>
+    <SlowLoading active size="lg" className="min-h-[60vh] items-center" srLabel={t.common.loadingPrive}>
+      <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-label={t.common.loadingPrive}>
+        <Monogram size={56} className="opacity-60" />
+      </div>
+    </SlowLoading>
   );
 };
 

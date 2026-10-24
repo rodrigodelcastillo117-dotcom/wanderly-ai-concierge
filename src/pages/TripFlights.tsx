@@ -16,6 +16,7 @@ import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { LiveSearchUnavailable } from "@/components/LiveSearchUnavailable";
 import { BookingActions } from "@/components/booking/BookingActions";
 import { offerFromFlightResult, tripDestinations, tripFlightSearches } from "@/lib/booking";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 interface FlightResult {
   price_usd: number;
@@ -167,6 +168,7 @@ const TripFlights = () => {
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
             Buscar vuelos
           </Button>
+          <SlowLoading active={loading} size="md" label="Consultando Google Flights (y Aviasales si no responde)…" />
         </div>
         {source && (
           <div className="flex items-center gap-2 flex-wrap">

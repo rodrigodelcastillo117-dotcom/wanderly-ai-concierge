@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { viatorLink } from "@/lib/affiliateLinks";
 import { logBookingClick } from "@/lib/trackBooking";
 import { requestViatorTours, type Invoke, type ViatorQuery, type ViatorSummary, type ViatorTourView } from "@/lib/viatorTours";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 const defaultInvoke: Invoke = (fn, opts) => supabase.functions.invoke(fn, opts) as unknown as Promise<{ data: any; error: any }>;
 const btn = "inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-primary/50 px-3 text-sm text-foreground transition hover:bg-primary/10 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
@@ -99,6 +100,7 @@ export function ViatorToursButton({ city, query, dateFrom, dateTo, tripId, invok
           Ver tours reales en Viator
         </button>
       ) : <ViatorResults res={res} q={q} busy={busy} onRetry={run} tripId={tripId} />}
+      <SlowLoading active={busy} size="sm" className="justify-start" label="Consultando Viator…" />
     </div>
   );
 }
@@ -126,7 +128,7 @@ export function ViatorToursDialogButton({ city, query, dateFrom, dateTo, tripId,
             <DialogTitle>Tours reales en Viator</DialogTitle>
             <DialogDescription>{query ? `${query} · ${city}` : city}</DialogDescription>
           </DialogHeader>
-          {busy && !res ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />Consultando Viator…</p>
+          {busy && !res ? <SlowLoading active size="md" label="Consultando Viator…"><p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />Consultando Viator…</p></SlowLoading>
             : res ? <ViatorResults res={res} q={q} busy={busy} onRetry={run} tripId={tripId} /> : null}
         </DialogContent>
       </Dialog>

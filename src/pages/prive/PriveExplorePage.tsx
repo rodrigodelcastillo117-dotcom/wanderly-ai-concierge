@@ -20,6 +20,7 @@ import { TwelveUniverses } from "@/components/prive/home/sections";
 import { BrandTitle } from "@/components/prive/home/BrandTitle";
 import { PriveTripProvider } from "@/components/prive/home/context";
 import { usePriveT } from "@/components/prive/PriveLang";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 const WhenToGo = lazy(() => import("@/components/prive/explore/WhenToGo"));
 const InspirationRoulette = lazy(() => import("@/components/prive/explore/InspirationRoulette"));
@@ -64,7 +65,11 @@ export default function PriveExplorePage() {
   const label: Record<ExploreView, [string, string]> = {
     mapa: [t.explore.tabMap, t.explore.tabMapSub], ruleta: [t.explore.tabRoulette, t.explore.tabRouletteSub], catalogo: [t.explore.tabCatalog, t.explore.tabCatalogSub],
   };
-  const loadingPanel = <div className="min-h-[50vh]" role="status" aria-label={t.common.loading} />;
+  const loadingPanel = (
+    <SlowLoading active size="lg" className="min-h-[50vh] items-center" srLabel={t.common.loading}>
+      <div className="min-h-[50vh]" role="status" aria-label={t.common.loading} />
+    </SlowLoading>
+  );
 
   return (
     <PriveTripProvider>

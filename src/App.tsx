@@ -10,6 +10,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import { CookieBanner } from "@/components/CookieBanner";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { lazyWithRetry } from "@/lib/lazyRetry";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 import Landing from "./pages/Landing";
 import { FreeLimitDialogLazyHost } from "@/components/FreeLimitDialogLazy";
 import { Navigate } from "react-router-dom";
@@ -101,10 +102,13 @@ const PriveInvitation = lazyWithRetry(() => import("./pages/prive/PriveInvitatio
 const PriveMembership = lazyWithRetry(() => import("./pages/prive/PriveMembership"));
 const PriveReset = lazyWithRetry(() => import("./pages/prive/PriveReset"));
 
+// Carga de una página (chunk lazy): el spinner de siempre y, si pasa de 5 s (red lenta), el globo IATOS.
 const RouteFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-  </div>
+  <SlowLoading active fullScreen label="Cargando…">
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+    </div>
+  </SlowLoading>
 );
 
 const App = () => (

@@ -8,6 +8,7 @@ import type { BookingAction, BookingOffer } from "@/lib/booking";
 import { bridge, type BridgeSource, newIdempotencyKey } from "@/lib/bookingBridgeApi";
 import { BookingSheet } from "./BookingSheet";
 import { RequestComposer } from "./RequestComposer";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 const CHANNEL_KINDS = ["whatsapp", "email", "sms", "phone", "assisted_request", "prive_request"];
 
@@ -103,6 +104,7 @@ export function BookingActions({ offer, source, tripId, serverActions, className
           </button>
         )}
       </div>
+      <SlowLoading active={checking} size="sm" className="justify-start py-2" label="Comprobando el precio con la fuente…" />
       {web.length === 0 && !channel && (fallbackInternal ? (
         <a href={fallbackInternal.href} onClick={(e) => e.stopPropagation()}
           className="inline-flex items-center justify-center gap-1 rounded-md bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 px-3 py-1.5 text-xs transition">
