@@ -1,6 +1,6 @@
 // Regiones turísticas → ciudades base reales (tabla curada, sin IA). Sin Deno: lo usan logistics-plan
 // y el cliente (MultiDestRoute) para que "Roma, Venecia, Florencia, Toscana" no busque hotel en
-// "Toscana" ni arme el tramo "Florencia → Toscana": la Toscana se recorre por Siena y Montepulciano.
+// "Toscana" ni arme el tramo "Florencia → Toscana": la Toscana se recorre por sus ciudades (Siena, Lucca…).
 // Una región que no está aquí se queda como está (no se inventan pueblos).
 
 export type Region = {
@@ -14,7 +14,9 @@ export type Region = {
 
 export const REGIONS: Region[] = [
   { name: "Toscana", aliases: ["tuscany", "toscane"],
-    bases: [["Siena"], ["Montepulciano"], ["San Gimignano"], ["Lucca"], ["Pisa"]] },
+    // Capitales de provincia de la Toscana (Florencia primero: capital regional) + pueblos clásicos.
+    bases: [["Florencia", "florence", "firenze"], ["Siena"], ["Lucca"], ["Pisa"], ["Arezzo"], ["San Gimignano"],
+      ["Montepulciano"], ["Pistoia"], ["Prato"], ["Livorno"], ["Grosseto"], ["Massa-Carrara", "massa", "carrara", "massa carrara"]] },
   { name: "Costa Amalfitana", aliases: ["costa de amalfi", "amalfi coast", "costiera amalfitana"],
     bases: [["Positano"], ["Amalfi"], ["Ravello"], ["Sorrento"]] },
   { name: "Cinque Terre", aliases: ["cinco tierras"],

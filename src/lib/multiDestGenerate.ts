@@ -49,7 +49,7 @@ export function logisticsPlanArgs(a: MultiDestArgs) {
 
 /** Fila de trips para el plan (destino "París → Roma → Atenas", país de la primera ciudad). */
 export function multiDestTripInsert(a0: MultiDestArgs, logistics: any) {
-  // Si el servidor convirtió una región en ciudades base ("Toscana" → Siena, Montepulciano), el viaje
+  // Si el servidor convirtió una región en ciudades base ("Toscana" → Siena, Lucca), el viaje
   // se guarda con esas ciudades: son las de per_destination.
   const served = Array.isArray(logistics?.destinations) && logistics.destinations.length ? logistics.destinations.map(String) : null;
   const a = served ? { ...a0, stops: served } : a0;

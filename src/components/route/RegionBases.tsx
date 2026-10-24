@@ -1,4 +1,4 @@
-// "Toscana → Siena · Montepulciano": cómo se recorrerá cada región escrita en la ruta, antes de generar.
+// "Toscana → Siena · Lucca": cómo se recorrerá cada región escrita en la ruta, antes de generar.
 // Las bases salen de la tabla curada (_shared/regions.ts), igual que en logistics-plan; se puede quitar
 // una base (×) o sumar otra de la misma tabla (+).
 import { X, Plus } from "lucide-react";
