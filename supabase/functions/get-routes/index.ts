@@ -5,7 +5,6 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
-import { dbCacheStore } from "../_shared/serpRuntime.ts";
 import { getRateToMxnInfo } from "../_shared/fx.ts";
 import { type Body, computeRoutes, waypoint } from "./routes.ts";
 
@@ -39,7 +38,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const results = await computeRoutes(google, body, { store: dbCacheStore(), rate: (c) => getRateToMxnInfo(c) });
+    // Sin caché persistente: los términos de Google Maps Platform no permiten guardar contenido de Routes
+    // (cada consulta es en vivo y con su hora). La caché de google-tolls queda para pruebas/uso futuro.
+    const results = await computeRoutes(google, body, { store: null, rate: (c) => getRateToMxnInfo(c) });
 
     return new Response(JSON.stringify({ routes: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

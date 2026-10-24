@@ -617,7 +617,7 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
       destinations: body.destinations,
       legModes,
       legDates: body.destinations.slice(1).map((_, i) => cityWindows[i + 1]?.checkin ?? null),
-      route: google && legModes.includes("coche") ? tollRouteFn(google, dbCacheStore()) : null,
+      route: google && legModes.includes("coche") ? tollRouteFn(google, null /* Routes: sin caché persistente (términos de Google) */) : null,
       apiSku: TOLLS_API_SKU,
     }).catch((e) => { console.warn("roadtrip:", e instanceof Error ? e.message : e); return null; });
 
