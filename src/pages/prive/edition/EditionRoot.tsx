@@ -29,7 +29,7 @@ function Frame() {
   usePriveBack(inside ? "/prive/edicion" : null, inside ? T.brand : null);
   if (locked) return <PriveLocked code={locked} />;
   return (
-    <div className="ped" lang={lang} data-reading={reading}>
+    <div className="ped min-h-screen" lang={lang} data-reading={reading}>
       {!online && (
         <div className="ped-banner" role="status">
           <WifiOff className="inline h-4 w-4 mr-2" aria-hidden="true" />{T.offline.banner} ·{" "}

@@ -156,7 +156,7 @@ export default function Recuerdos({ client: injected }: { client?: RecuerdosClie
             <RecuerdosUploader client={client} userId={user.id} trips={data.trips} onUploaded={onUploaded} onDone={onDone} />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div role="tablist" aria-label="Vistas de Recuerdos" className="grid w-full grid-cols-2 rounded-full border border-border bg-surface p-1 sm:inline-grid sm:w-auto">
+              <div role="tablist" aria-label="Vistas de Recuerdos" className="grid w-full shrink-0 grid-cols-2 rounded-full border border-border bg-surface p-1 sm:inline-grid sm:w-auto">
                 {RECUERDOS_TABS.map((t) => {
                   const Icon = t.icon;
                   const sel = tab === t.id;
@@ -169,10 +169,12 @@ export default function Recuerdos({ client: injected }: { client?: RecuerdosClie
                 })}
               </div>
               {tab === "calendario" && (
-                <div className="flex items-center gap-2 text-sm">
+                // min-w-0 + ancho máximo: con nombres de viaje largos el <select> crecía hasta salirse de la
+                // columna y aplastaba las pestañas Calendario / Por viaje (quedaban encimadas e intocables).
+                <div className="flex min-w-0 items-center gap-2 text-sm">
                   <label htmlFor="recuerdos-filter" className="text-muted-foreground">Viaje:</label>
                   <select id="recuerdos-filter" value={filter} onChange={(e) => setFilter(e.target.value)}
-                    className="h-10 min-w-0 flex-1 rounded-full border border-border bg-background px-3 text-sm sm:flex-none">
+                    className="h-10 min-w-0 flex-1 rounded-full border border-border bg-background px-3 text-sm sm:w-64 sm:flex-none">
                     <option value="todos">Todos</option>
                     <option value="sin-viaje">Sin viaje</option>
                     {data.trips.map((t) => <option key={t.id} value={t.id}>{t.destino || "Viaje"}</option>)}

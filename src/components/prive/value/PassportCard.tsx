@@ -25,13 +25,14 @@ export function PassportCard({ lang }: { lang?: ValueLang } = {}) {
   }, [api]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { if (state === "ready") void api.track("passport_view", { surface: "my_prive" }); }, [api, state]);
+  // El rango de la tarjeta lo da el servidor (my_member_card): Platinum I/II o Fundador. Sin respuesta, la
+  // tarjeta clásica del Passport (nunca un rango supuesto). Va ANTES del return temprano: si iba después,
+  // al pasar de "loading" a "locked" React veía menos hooks (error #300) y /prive/mi caía en "Algo no cargó bien".
+  const { card: tierCard } = useMemberCard();
   if (state === "locked") return null;
   const m = data?.member;
   const tp = tenureParts(m?.tenure_days);
   const founding = isFoundingMember(m);
-  // El rango de la tarjeta lo da el servidor (my_member_card): Platinum I/II o Fundador. Sin respuesta, la
-  // tarjeta clásica del Passport (nunca un rango supuesto).
-  const { card: tierCard } = useMemberCard();
   const ranked = tierCard && tierRank(tierCard.tier) >= tierRank("platinum_1") ? tierCard : null;
   const left = ranked ? daysToPlatinum2(ranked) : null;
   return (

@@ -86,7 +86,7 @@ export default function EditionOfflinePage() {
 
   return (
     <div className="prive-root">
-      <div className="ped" lang={lang} data-testid="edition-offline" data-reading={reading}>
+      <div className="ped min-h-screen" lang={lang} data-testid="edition-offline" data-reading={reading}>
         <div className={`ped-banner ${online ? "!bg-[#0f1a12] !text-[#cde8cf] !border-[#2d5a35]" : ""}`} role="status">
           {online ? <Wifi className="inline h-4 w-4 mr-2" aria-hidden="true" /> : <WifiOff className="inline h-4 w-4 mr-2" aria-hidden="true" />}
           {online ? T.offline.online : T.offline.banner}

@@ -36,13 +36,16 @@ const Auth = () => {
   useEffect(() => {
     if (user) {
       claimPendingReferral().catch(() => {});
-      // Verificar completado en ambas tablas (compatibilidad)
+      // Verificar completado en ambas tablas (compatibilidad) y en user_onboarding_state, que es lo que
+      // revisa ProtectedRoute: quien terminó el onboarding pero no el perfil profundo iba a /onboarding,
+      // rebotaba a /dashboard (dos saltos y otra pantalla cargando) y perdía la ruta que había pedido.
       (async () => {
-        const [{ data: prefs }, { data: tp }] = await Promise.all([
+        const [{ data: prefs }, { data: tp }, { data: onb }] = await Promise.all([
           supabase.from("ai_user_preferences").select("completado").eq("user_id", user.id).maybeSingle(),
           supabase.from("travel_profiles").select("completado").eq("user_id", user.id).maybeSingle(),
+          supabase.from("user_onboarding_state").select("completed_onboarding").eq("user_id", user.id).maybeSingle(),
         ]);
-        const done = (prefs as any)?.completado || (tp as any)?.completado;
+        const done = (prefs as any)?.completado || (tp as any)?.completado || (onb as any)?.completed_onboarding;
         // Quien llegó desde el correo de invitación Privé (el token quedó guardado al abrir el
         // enlace) vuelve a su invitación, no al inicio.
         const fallback = readPendingToken("invite") ? "/prive/invitacion" : "/dashboard";

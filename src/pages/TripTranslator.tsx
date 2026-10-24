@@ -170,7 +170,8 @@ const TripTranslator = () => {
             onChange={e => setCustomInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && customInput.trim()) { generate([customInput]); setCustomInput(""); } }}
           />
-          <Button variant="outline" onClick={() => { if (customInput.trim()) { generate([customInput]); setCustomInput(""); } }}>Traducir</Button>
+          {/* Sin frase no hace nada: desactivado para que no parezca un botón muerto. */}
+          <Button variant="outline" disabled={loading || !customInput.trim()} onClick={() => { if (customInput.trim()) { generate([customInput]); setCustomInput(""); } }}>Traducir</Button>
         </div>
 
         <div className="space-y-4">

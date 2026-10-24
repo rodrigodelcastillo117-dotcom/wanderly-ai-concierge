@@ -21,6 +21,9 @@ type Row = {
   highlights: string;
 };
 
+// Un ejemplo distinto por campo (antes los dos decían "Tokio, Japón").
+const DEST_EXAMPLES = ["Tokio, Japón", "Lisboa, Portugal", "Cusco, Perú", "Marrakech, Marruecos"];
+
 const Compare = () => {
   const navigate = useNavigate();
   const [dests, setDests] = useState<string[]>(["", ""]);
@@ -88,7 +91,7 @@ const Compare = () => {
         <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6 space-y-2">
           {dests.map((d, i) => (
             <div key={i} className="flex gap-2">
-              <Input aria-label={`Destino ${i + 1}`} placeholder={`Destino ${i + 1} (ej: Tokio, Japón)`} value={d} onChange={e => set(i, e.target.value)} />
+              <Input aria-label={`Destino ${i + 1}`} placeholder={`Destino ${i + 1} (ej: ${DEST_EXAMPLES[i % DEST_EXAMPLES.length]})`} value={d} onChange={e => set(i, e.target.value)} />
               {dests.length > 2 && (
                 <Button variant="ghost" size="icon" onClick={() => remove(i)} aria-label={`Quitar destino ${i + 1}`}><X className="w-4 h-4" /></Button>
               )}

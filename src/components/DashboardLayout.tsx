@@ -20,6 +20,25 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 // (clic con Ctrl/⌘ o "abrir en otra pestaña" lleva al asistente de siempre).
 const PlanTripDialog = lazy(() => import("@/components/plan/PlanTripDialog"));
 
+/**
+ * ¿Pantalla de escritorio (lg, ≥1024 px)? La campana de notificaciones existía dos veces (barra móvil y
+ * esquina de escritorio, una oculta por CSS) y cada copia pedía sus notificaciones y abría su propio
+ * canal en tiempo real: el doble de consultas en cada pantalla. Ahora se monta solo la visible.
+ */
+export function useIsLgUp(): boolean {
+  const query = "(min-width: 1024px)";
+  const [up, setUp] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(query).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia(query);
+    const on = () => setUp(mql.matches);
+    on();
+    mql.addEventListener?.("change", on);
+    return () => mql.removeEventListener?.("change", on);
+  }, []);
+  return up;
+}
+
 /** Clic normal → abre la ventana; con modificadores o botón central se deja el enlace. */
 export function shouldOpenPlanDialog(e: React.MouseEvent): boolean {
   return !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
@@ -89,6 +108,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   // En el chat del Concierge el área de escritura va pegada abajo: reservamos el alto
   // de la barra inferior y del área segura para que no quede oculta debajo.
   const isChatRoute = location.pathname.startsWith("/dashboard/concierge");
+  const lgUp = useIsLgUp();
 
   useEffect(() => {
     if (!user) return;
@@ -252,7 +272,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             ) : null}
           </div>
           <div className="flex items-center gap-1">
-            <NotificationBell />
+            {!lgUp && <NotificationBell />}
             <button
               onClick={() => navigate("/dashboard/perfil")}
               aria-label="Ajustes"
@@ -270,7 +290,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           </div>
         </div>
         <div className="hidden lg:flex absolute top-4 right-4 z-40 items-center gap-1">
-          <NotificationBell />
+          {lgUp && <NotificationBell />}
           <button
             onClick={() => navigate("/dashboard/perfil")}
             aria-label="Ajustes"

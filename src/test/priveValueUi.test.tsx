@@ -244,6 +244,17 @@ describe("THE PRIVÉ PASSPORT", () => {
     expect(screen.getByText("Primera vez en París")).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/Platinum|Black|VIP|nivel de gasto/i);
   });
+  it("sin sesión Privé (cerrado) se oculta sin romper la pantalla (antes: React #300 y /prive/mi en 'Algo no cargó bien')", async () => {
+    handlers.prive_passport = () => ({ __code: "PRIVE_NO_SESSION" });
+    const errors: unknown[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...a) => { errors.push(a[0]); });
+    renderAt("/prive/mi", <div data-testid="mi"><PassportCard /></div>);
+    await waitFor(() => expect(content).toHaveBeenCalledWith("prive_passport", expect.anything()));
+    await waitFor(() => expect(screen.queryByTestId("prive-passport")).toBeNull());
+    expect(screen.getByTestId("mi")).toBeTruthy();
+    expect(errors.map(String).join("\n")).not.toMatch(/fewer hooks|Rendered fewer|#300/);
+    spy.mockRestore();
+  });
   it("Founding Member solo con la fecha de corte del servidor, y explica el criterio", async () => {
     handlers.prive_passport = passport({ founding_member: true, founding_cutoff: "2026-12-31" });
     renderAt("/prive/mi", <PassportCard />);
