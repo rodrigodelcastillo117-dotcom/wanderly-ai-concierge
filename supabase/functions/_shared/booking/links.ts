@@ -61,7 +61,12 @@ export type FlightSearchQuery = {
    * (MEX→FCO a la salida, VCE→MEX al regreso). Sin él, o igual al destino, es ida y vuelta normal.
    */
   returnFrom?: string | null;
+  /** Clase (CABIN_CODE: 1 turista, 2 premium, 3 business, 4 primera). Sin ella, turista. */
+  cabin?: number | null;
 };
+
+/** Clase de cabina de Google Flights: el mismo número va en tfs (campo 9) y en SerpApi travel_class. */
+export const CABIN_CODE: Record<string, number> = { turista: 1, premium: 2, business: 3, primera: 4 };
 
 const clampPax = (n: unknown, min: number) => Math.min(9, Math.max(min, Math.round(Number(n) || 0)));
 
@@ -137,7 +142,7 @@ export function googleFlightsSearchUrl(q: FlightSearchQuery, lang = "es-419"): s
     // 8 pasajeros (1 adulto, 2 niño) · 9 clase (1 turista) · 19 viaje (1 ida y vuelta, 2 solo ida, 3 varios destinos).
     ...Array.from({ length: adults }, () => pbInt(8, 1)).flat(),
     ...Array.from({ length: children }, () => pbInt(8, 2)).flat(),
-    ...pbInt(9, 1),
+    ...pbInt(9, q.cabin && [1, 2, 3, 4].includes(q.cabin) ? q.cabin : 1),
     ...pbInt(19, openJaw ? 3 : q.ret ? 1 : 2),
   ];
   const p = new URLSearchParams({ tfs: b64(bytes), hl: lang });

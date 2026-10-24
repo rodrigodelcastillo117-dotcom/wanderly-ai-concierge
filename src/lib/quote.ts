@@ -191,5 +191,7 @@ export function computeTripDesglose(trip: any, sel: Selection, viajeros: number)
     tours: sel.selTours.size > 0 ? toursSum : Number(base.tours) || 0,
     transporte_local: Number(base.transporte_local) || 0,
     extras: Number(base.extras) || 0,
+    // Casetas reales de Google (en vivo) de los tramos en coche: solo si el servidor las sumó.
+    ...(Number(base.casetas) > 0 ? { casetas: Number(base.casetas) } : {}),
   };
 }

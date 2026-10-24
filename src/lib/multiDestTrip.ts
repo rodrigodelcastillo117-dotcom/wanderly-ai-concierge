@@ -18,7 +18,8 @@ const defaultLayovers: LayoverFn = (link) => {
   return codes ? codes.map(airportCityName) : null;
 };
 
-const isEstimated = (fuente: unknown) => String(fuente ?? "estimado").toLowerCase() !== "travelpayouts" && String(fuente ?? "estimado").toLowerCase() !== "serpapi";
+// "en_vivo": vuelo internacional consultado en Google Flights por logistics-plan (openJaw.ts).
+const isEstimated = (fuente: unknown) => !["travelpayouts", "serpapi", "en_vivo"].includes(String(fuente ?? "estimado").toLowerCase());
 // El modo viene en texto libre ("Tren de alta velocidad", "Vuelo directo"): se lee su palabra clave.
 const isFlightMode = (m: unknown) => { const t = transportModeOf(m); return t == null || t === "vuelo"; };
 
@@ -54,7 +55,8 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
       duracion: f?.duration || "",
       escalas: est ? "Escalas por confirmar" : escalasCiudades ? (escalasCiudades.length ? `Escalas: ${escalasCiudades.join(" · ")}` : "Directo") : "Escalas por confirmar",
       ...(escalasCiudades ? { escalas_ciudades: escalasCiudades } : {}),
-      precio_por_persona: mxn(f?.price_per_person_usd),
+      // En vivo: el precio en MXN de Google Flights tal cual (el mismo que sumó el servidor al total).
+      precio_por_persona: !est && Number(f?.price_per_person_mxn) > 0 ? Math.round(Number(f.price_per_person_mxn)) : mxn(f?.price_per_person_usd),
       fuente_precio: est ? "estimado" : f.fuente_precio,
       estado_dato: f?.estado_dato ?? (est ? "ESTIMADO" : null),
       ...(f?.consultado_at ? { consultado_at: f.consultado_at } : {}),
@@ -66,6 +68,10 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
       to,
       dep_iata: dep ?? null,
       arr_iata: arr ?? null,
+      // Google Flights en vivo: horarios de la ida, aeropuerto del regreso, total del itinerario,
+      // la búsqueda exacta y "Vuelas a Florencia (FLR), a 55 km de Siena".
+      ...(!est ? pick(f, ["salida", "llegada", "return_from_iata", "return_from", "price_total_mxn", "google_flights_url", "booking_token",
+        "departure_token", "frescura", "precio_guardado", "travel_class", "aeropuerto_nota", "proveedor"]) : {}),
     });
   });
 
@@ -174,16 +180,39 @@ export function groundOptionsForCity(trip: any, city: string): any[] {
  * antes la devolución era el regreso del viaje (2027-05-19 en vez de 2027-05-07). En la misma ciudad
  * se devuelve al salir de ella (o al final del viaje si no se sabe).
  */
-export function legCarRentalDates(trip: any, from: string, to: string): { pickup: string | null; dropoff: string | null } {
+export function legCarRentalDates(trip: any, from: string, to: string, legDate?: string | null): { pickup: string | null; dropoff: string | null } {
   const iso = (d: unknown) => (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null);
   const cleanFrom = String(from ?? "").replace(/\(.*?\)/g, " ").trim();
   const oneWay = !!cleanFrom && !!to && !sameCity(cleanFrom, to);
   if (oneWay) {
-    const day = iso(stayForCity(trip, to)?.checkin) ?? iso(stayForCity(trip, cleanFrom)?.checkout) ?? iso(trip?.fecha_salida);
+    // La fecha del tramo (la que muestra Comprar) manda; si no viene, la llegada a `to` o la salida de `from`.
+    const day = iso(legDate) ?? iso(stayForCity(trip, to)?.checkin) ?? iso(stayForCity(trip, cleanFrom)?.checkout) ?? iso(trip?.fecha_salida);
     return { pickup: day, dropoff: day };
   }
   const stay = stayForCity(trip, to || cleanFrom);
   return { pickup: iso(stay?.checkin) ?? iso(trip?.fecha_salida), dropoff: iso(stay?.checkout) ?? iso(trip?.fecha_regreso) };
+}
+
+/**
+ * Fechas iniciales de la pantalla Renta de auto. Si la URL trae un tramo de ida (recoger en una ciudad
+ * y devolver en otra), la devolución NUNCA se rellena con el regreso del viaje: es el mismo día de la
+ * recogida (o queda vacía para que la persona la elija). Antes, sin `return` en la URL, la pantalla
+ * ponía la fecha_regreso del viaje (fin del viaje) a un tramo de ida.
+ */
+export function carSearchDefaults(
+  q: { city?: string | null; dropoff?: string | null; pickup?: string | null; ret?: string | null },
+  trip: { destino?: string | null; fecha_salida?: string | null; fecha_regreso?: string | null } | null | undefined,
+): { city: string; pickup: string; ret: string; oneWayLeg: boolean } {
+  const iso = (d: unknown) => (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "");
+  const city = String(q.city ?? "").trim();
+  const dropoff = String(q.dropoff ?? "").trim();
+  const oneWayLeg = !!city && !!dropoff && !sameCity(city, dropoff);
+  const pickup = iso(q.pickup) || (oneWayLeg ? "" : iso(trip?.fecha_salida));
+  let ret = iso(q.ret);
+  if (!ret) ret = oneWayLeg ? pickup : iso(trip?.fecha_regreso);
+  // Una devolución anterior a la recogida no es válida: se iguala a la recogida.
+  if (ret && pickup && ret < pickup) ret = pickup;
+  return { city: city || String(trip?.destino ?? "").trim(), pickup, ret, oneWayLeg };
 }
 
 export type LegOption = {

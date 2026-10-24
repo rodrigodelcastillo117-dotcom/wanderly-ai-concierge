@@ -15,7 +15,7 @@ import { SmartImage } from "@/components/media/SmartImage";
 import { logBookingClick } from "@/lib/trackBooking";
 import { itemPurchaseState, primaryAction, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
 import { buildBuyFlow, hotelTotal, TIER_WORD, type BuyStep } from "@/lib/buyFlow";
-import { flightAirlineLabel, flightDurationLabel, flightStopsLabel } from "@/lib/flightDisplay";
+import { flightAirlineLabel, flightDurationLabel, flightLiveLine, flightScheduleLabel, flightStopsLabel } from "@/lib/flightDisplay";
 import { offerFromTripTour, tripDestinations, venueFromTripPlace } from "@/lib/booking";
 import { hotelQuery } from "@/lib/categoryImagery";
 import { canUnmark, markLabel } from "@/lib/purchaseMarks";
@@ -26,8 +26,9 @@ import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { HotelOffersButton, MultiCityFareButton } from "@/components/booking/RealPriceButtons";
 import { ViatorToursButton } from "@/components/booking/ViatorTours";
 import { transportRubroLabel } from "@/lib/multiDestTrip";
+import { roadLegTolls, TollInfo } from "@/components/roadtrip/TollInfo";
 
-const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras" };
+const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras", casetas: "Casetas" };
 const money = (n: number, cur: string | null = "MXN") => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? "MXN"}`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -172,7 +173,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
       {buyLabel(it)} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
     </a>
   ) : it.fallbackHref ? (
-    <Link to={it.fallbackHref} className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-primary/40 px-3 py-2 text-sm text-primary">Buscar en IATOS</Link>
+    <Link to={it.fallbackHref} data-testid={`${testid}-interno`} className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-primary/40 px-3 py-2 text-sm text-primary">{it.buttonLabel ?? "Buscar en IATOS"}</Link>
   ) : <span className="text-xs text-muted-foreground">No encontramos un enlace fiable para comprarlo en línea.</span>;
 
   /** "Ya lo compré" / quién lo marcó / deshacer. */
@@ -280,6 +281,12 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       {oneSource(s.options.map((i) => trip.vuelos_json[i])) && (() => { const v0 = trip.vuelos_json[s.options[0]]; return (
                         <PriceSourceBadge className="mt-2" source={v0?.fuente_precio} estado={v0?.estado_dato} consultadoAt={v0?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v0?.approximate_dates} />
                       ); })()}
+                      {/* Vuelo cotizado en Google Flights por el plan: hora de consulta y aeropuerto real (Siena → FLR). */}
+                      {(() => { const lv = s.options.map((i) => trip.vuelos_json[i]).find((x) => flightLiveLine(x)); return lv ? (
+                        <p className="mt-1 text-xs text-muted-foreground" data-testid="vuelo-en-vivo">
+                          {flightLiveLine(lv)}{lv.aeropuerto_nota ? <span className="block" data-testid="vuelo-aeropuerto-nota">{lv.aeropuerto_nota}.</span> : null}
+                        </p>
+                      ) : null; })()}
                       <div role="radiogroup" aria-label="Opciones de vuelo" className="mt-3 grid grid-cols-1 gap-2">
                         {s.options.map((i) => {
                           const v = trip.vuelos_json[i];
@@ -297,6 +304,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                                 <span className="min-w-0 truncate">{[flightStopsLabel(v), flightDurationLabel(v)].filter(Boolean).join(" · ")}</span>
                                 {pp > 0 && travelers > 1 && <span className="shrink-0 tabular-nums">{money(pp)} por persona</span>}
                               </span>
+                              {flightScheduleLabel(v) && <span className="mt-0.5 block truncate text-xs text-muted-foreground" data-testid="vuelo-horario">{flightScheduleLabel(v)}</span>}
                               {!oneSource(s.options.map((x) => trip.vuelos_json[x])) && <PriceSourceBadge className="mt-1" source={v?.fuente_precio} estado={v?.estado_dato} consultadoAt={v?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v?.approximate_dates} />}
                             </button>
                           );
@@ -447,6 +455,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                   {markControl(it, "comprar-traslado")}
                 </div>
                 {it.completa && <p className="mt-1 text-[11px] text-muted-foreground">{it.completa}</p>}
+                {/* Coche: casetas reales del plan (Google Maps) o, solo al pulsar, la consulta del tramo. */}
+                {chosenChoice?.mode === "coche" && <TollInfo className="mt-2" quote={roadLegTolls(trip, s.from, s.to)} from={s.from} to={s.to} consultable />}
                 {nextBar(id, missingOf(s))}
               </li>
             );
@@ -520,7 +530,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
         </h3>
         {(() => {
           const missing = flow.steps.map(missingOf).filter(Boolean) as string[];
-          const rowsList: Array<{ key: string; label: string; sub: string | null; price: number | null; est: boolean; it: PurchaseItem | null }> = [];
+          const rowsList: Array<{ key: string; label: string; sub: string | null; price: number | null; est: boolean; it: PurchaseItem | null; live?: boolean }> = [];
           // Las partidas son las MISMAS que suma el total (selectionDesglose): el vuelo y el hotel de un
           // destino llevan el monto del desglose; si no es de una tarifa real, dice "estimado".
           const d = selectionDesglose ?? null;
@@ -544,6 +554,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
             };
             for (const [k, v] of Object.entries(d)) {
               if (covered[k] || !(Math.round(Number(v) || 0) > 0)) continue;
+              // Casetas: monto real de Google Maps al generar el viaje ("en vivo"), no un estimado.
+              if (k === "casetas") { rowsList.push({ key: "desglose:casetas", label: "Casetas", sub: "Google Maps · tramos en coche", price: Math.round(Number(v)), est: false, live: true, it: null }); continue; }
               rowsList.push({ key: `desglose:${k}`, label: k === "transporte_local" ? transportRubroLabel(trip) : DESGLOSE_LABEL[k] ?? k, sub: "De la cotización", price: Math.round(Number(v)), est: true, it: null });
             }
           }
@@ -559,7 +571,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       {r.sub && <span className="block truncate text-xs text-muted-foreground">{r.sub}</span>}
                     </span>
                     <span className="shrink-0 text-right text-sm tabular-nums">{r.price ? money(r.price) : <span className="text-xs text-muted-foreground">Precio en el sitio</span>}
-                      {r.price && r.est ? <span className="block text-[10px] text-muted-foreground">estimado</span> : null}</span>
+                      {r.price && r.est ? <span className="block text-[10px] text-muted-foreground">estimado</span> : null}
+                      {r.price && r.live ? <span className="block text-[10px] text-primary" data-testid="comprar-listo-en-vivo">en vivo</span> : null}</span>
                     {r.it && <span className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{state(r.it) !== "pendiente"
                       ? <span className="inline-flex items-center gap-1 text-xs text-emerald-400"><Check className="h-3.5 w-3.5" aria-hidden="true" /> {state(r.it) === "confirmado" ? "Confirmado" : "Ya lo compraste"}</span>
                       : buyButton(r.it, `listo-${r.key}`)}</span>}

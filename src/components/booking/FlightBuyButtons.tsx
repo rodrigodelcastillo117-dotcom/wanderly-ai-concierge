@@ -4,13 +4,13 @@
 // precargar el destino, el botón lo dice. Un coche o un tren no son vuelos: van al road trip, a la
 // renta de auto o al buscador de trenes.
 import { Link } from "react-router-dom";
-import { Car, ExternalLink, Route as RouteIcon, Train } from "lucide-react";
+import { Car, ExternalLink, Route as RouteIcon, Ship, Train } from "lucide-react";
 import { offerFromTripFlight, isGroundTripOption, transportModeOf } from "@/lib/booking";
 import { prefillMatchesTrip } from "@/lib/purchasePlan";
 import { logBookingClick } from "@/lib/trackBooking";
 import { trainlineLink } from "@/lib/affiliateLinks";
 import { transitScheduleUrl } from "@/lib/takeMeThere";
-import { operatorHint, PRICE_AT_OPERATOR, routeOperators } from "../../../supabase/functions/_shared/booking/railOperators.ts";
+import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPERATOR, routeOperators } from "../../../supabase/functions/_shared/booking/railOperators.ts";
 import { mainAirport } from "../../../supabase/functions/_shared/airports.ts";
 import { googleFlightsSearchUrl, kayakFlightsSearchUrl } from "../../../supabase/functions/_shared/booking/links.ts";
 import { stayForCity } from "../../../supabase/functions/_shared/booking/tripRoute.ts";
@@ -65,9 +65,10 @@ export function FlightBuyButtons({ option, trip, index = 0 }: { option: any; tri
 
 /**
  * Coche: al panel del road trip y a la renta de auto (recoger aquí, devolver allá). Tren entre ciudades:
- * buscador de trenes. Autobús, taxi, traslado, ferry o un tren desde el aeropuerto: no hay enlace de
- * compra fiable, así que se dice ("Precio y compra con el operador") en vez de inventar uno. Nunca un
- * enlace de vuelos.
+ * el operador oficial con la búsqueda PRECARGADA cuando su formato se comprobó (Renfe, DB; groundLinks.ts)
+ * o su portada, Trainline y horarios. Autobús: ADO/FlixBus/12Go precargados o la portada del operador
+ * que nombra el plan. Ferry: salidas y precio en vivo de Ferryhopper (pantalla Ferris). Taxi o traslado:
+ * se dice que IATOS no lo cotiza. Nunca un precio inventado ni un enlace de vuelos.
  */
 export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
   const mode = transportModeOf(option?.modo) ?? transportModeOf(option?.mode);
@@ -77,6 +78,8 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
   const pickup = stayForCity(trip, to)?.checkin ?? trip?.fecha_salida ?? "";
   const fromAirport = /aeropuerto|airport|\([A-Z]{3}\)/i.test(rawFrom);
   const op = String(option?.aerolinea ?? option?.provider ?? "").trim();
+  const adults = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
+  const q = { from, to, date: /^\d{4}-\d{2}-\d{2}$/.test(pickup) ? pickup : null, adults };
   // Horarios reales y gratis: Google Maps en transporte público (Maps URLs, travelmode=transit).
   const sched = mode === "tren" || mode === "bus" ? transitScheduleUrl(from, to) : null;
   const schedLink = sched ? (
@@ -84,21 +87,33 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
       Ver horarios en Google Maps <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
     </a>
   ) : null;
+  if (mode === "ferry" && from && to) {
+    const qs = new URLSearchParams({ origin: from, dest: to, ...(q.date ? { date: q.date } : {}), pax: String(adults), ...(trip?.id ? { trip: String(trip.id) } : {}) });
+    return (
+      <div className="mt-3 space-y-1" onClick={(e) => e.stopPropagation()} data-testid="ground-buy-buttons">
+        <Link to={`/dashboard/ferries?${qs.toString()}`} data-testid="ground-ferry-live" className={`${btn} border border-primary/40 text-primary`}>
+          <Ship className="w-4 h-4" aria-hidden="true" /> Ver salidas y precio en vivo
+        </Link>
+        <p className="text-[11px] text-muted-foreground">Consulta Ferryhopper con tu ruta y fecha; el precio se confirma al comprar.</p>
+      </div>
+    );
+  }
   if (mode !== "coche" && (mode !== "tren" || fromAirport)) {
-    // Autobús: el operador oficial si el plan lo nombra (ALSA, FlixBus, ADO).
-    const busOp = mode === "bus" ? routeOperators({ from, to, provider: op, kind: "bus" })[0] ?? null : null;
+    const acts = mode === "bus" ? busActions({ ...q, provider: op }) : [];
+    const main = acts[0] ?? null;
     return (
       <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
         <p className="text-xs text-muted-foreground" data-testid="ground-buy-operator">
-          Precio y compra con el operador{op ? ` (${op})` : ""}.
+          {main ? main.hint : noLinkText(mode, op || null)}
         </p>
-        {(busOp || schedLink) && (
+        {(acts.length > 0 || schedLink) && (
           <div className="flex flex-wrap gap-2">
-            {busOp && (
-              <a href={busOp.url} target="_blank" rel="noopener noreferrer" data-testid="ground-operator" className={`${btn} border border-primary/40 text-primary`}>
-                Comprar en {busOp.name} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+            {acts.map((a, i) => (
+              <a key={a.url} href={a.url} target="_blank" rel="noopener noreferrer" data-testid="ground-operator" data-prefilled={a.prefilled ? "1" : "0"}
+                className={`${btn} ${i === 0 ? "border border-primary/40 text-primary" : "border border-border/70 hover:border-primary/50"}`}>
+                {a.label} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
               </a>
-            )}
+            ))}
             {schedLink}
           </div>
         )}
@@ -108,14 +123,16 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
   if (mode === "tren") {
     const url = trainlineLink(from, to, pickup);
     const ops = routeOperators({ from, to, provider: op, country: trip?.pais_destino });
-    const main = ops.find((x) => !x.informativo) ?? null;
+    const acts = ops.map((o) => operatorAction(o, q));
+    const main = acts.find((a, i) => !ops[i].informativo) ?? multimodalAction(q);
+    const all = main && !acts.includes(main) ? [main, ...acts] : acts;
     return (
       <div className="mt-3 space-y-1" onClick={(e) => e.stopPropagation()} data-testid="ground-buy-buttons">
         <div className="flex flex-wrap gap-2">
-          {ops.map((o) => (
-            <a key={o.id} href={o.url} target="_blank" rel="noopener noreferrer" data-testid="ground-operator" data-operator={o.id}
-              className={`${btn} ${o === main ? "border border-primary/40 text-primary" : "border border-border/70 hover:border-primary/50"}`}>
-              <Train className="w-4 h-4" aria-hidden="true" /> {o.informativo ? `${o.name} (informativo)` : `Comprar en ${o.name}`} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+          {all.map((a) => (
+            <a key={a.url} href={a.url} target="_blank" rel="noopener noreferrer" data-testid="ground-operator" data-prefilled={a.prefilled ? "1" : "0"}
+              className={`${btn} ${a === main ? "border border-primary/40 text-primary" : "border border-border/70 hover:border-primary/50"}`}>
+              <Train className="w-4 h-4" aria-hidden="true" /> {a.label} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
             </a>
           ))}
           <a href={url} target="_blank" rel="noopener noreferrer" className={`${btn} border border-border/70 hover:border-primary/50`}>
@@ -124,7 +141,7 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
           {schedLink}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          {main ? operatorHint(main, from, to) : `Trainline no recibe la ruta por enlace: escribe ${from} → ${to} y la fecha. ${PRICE_AT_OPERATOR}.`}
+          {main ? main.hint : `Trainline no recibe la ruta por enlace: escribe ${from} → ${to} y la fecha. ${PRICE_AT_OPERATOR}.`}
         </p>
       </div>
     );

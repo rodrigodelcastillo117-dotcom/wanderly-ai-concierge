@@ -820,7 +820,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                       <ul className="mt-3 text-xs text-muted-foreground space-y-1 max-w-xs">
                         {Object.entries(generated.logistics.desglose_presupuesto).map(([k, v]) => (
                           <li key={k} className="flex justify-between gap-6">
-                            <span className="capitalize">{k.replace("_", " ")}</span>
+                            <span className="capitalize">{k === "casetas" ? "Casetas · en vivo (Google Maps)" : k.replace("_", " ")}</span>
                             <span className="text-foreground">
                               ${Math.round(Number(v) || 0).toLocaleString("es-MX")}
                             </span>

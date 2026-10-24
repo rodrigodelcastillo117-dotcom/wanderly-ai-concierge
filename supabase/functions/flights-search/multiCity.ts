@@ -7,11 +7,14 @@
 // vuelo ni como una reserva. Pasa por el mismo fetch con caché compartida, bolsa del plan y freno de
 // la cuenta que el resto de flights-search; solo se llama tras una acción explícita del usuario.
 import { googleFlightResult, MOTIVO_NO_DISPONIBLE, quickIata, type FlightsSearchEnv, type SearchResult } from "./search.ts";
+import { CABIN_CODE, googleFlightsSearchUrl } from "../_shared/booking/links.ts";
 
 const SERPAPI = "https://serpapi.com/search.json";
 export const MULTI_MAX_LEGS = 6;
 /** Clase de Google Flights (SerpApi travel_class). */
-export const TRAVEL_CLASS: Record<string, string> = { turista: "1", premium: "2", business: "3", primera: "4" };
+export const TRAVEL_CLASS: Record<string, string> = Object.fromEntries(Object.entries(CABIN_CODE).map(([k, v]) => [k, String(v)]));
+/** Monedas que se piden a Google Flights. USD por omisión; logistics-plan pide MXN para sumar al total sin tipo de cambio. */
+const CURRENCIES = new Set(["USD", "MXN"]);
 
 export type MultiLeg = { from: string; to: string; date: string };
 
@@ -42,7 +45,9 @@ export async function searchMultiCity(body: any, env: FlightsSearchEnv): Promise
   u.searchParams.set("adults", String(travelers));
   const cls = TRAVEL_CLASS[String(body?.travel_class ?? "").toLowerCase()];
   if (cls && cls !== "1") u.searchParams.set("travel_class", cls);
-  u.searchParams.set("currency", "USD");
+  const wanted = String(body?.currency ?? "USD").toUpperCase();
+  const currency = CURRENCIES.has(wanted) ? wanted : "USD";
+  u.searchParams.set("currency", currency);
   u.searchParams.set("hl", "es");
   u.searchParams.set("api_key", env.serpKey);
 
@@ -57,6 +62,12 @@ export async function searchMultiCity(body: any, env: FlightsSearchEnv): Promise
       const j = await r.json();
       google_flights_url = j?.search_metadata?.google_flights_url ?? null;
       const first = coded[0];
+      // Ida a una ciudad y regreso desde otra (open-jaw): sin la URL de SerpApi, la búsqueda tfs con
+      // los mismos tramos, pasajeros y clase.
+      const back = coded.length === 2 && coded[1].arrival_id === first.departure_id ? coded[1] : null;
+      const builtUrl = back ? googleFlightsSearchUrl({ origin: first.departure_id!, destination: first.arrival_id!, returnFrom: back.departure_id,
+        depart: first.date, ret: back.date, adults: travelers, cabin: cls ? Number(cls) : null }) : null;
+      const buyUrl = google_flights_url ?? builtUrl;
       results = [...(j?.best_flights ?? []), ...(j?.other_flights ?? [])]
         .filter((f: any) => Number(f?.price ?? 0) > 0)
         .sort((a: any, b: any) => Number(a.price) - Number(b.price))
@@ -64,7 +75,11 @@ export async function searchMultiCity(body: any, env: FlightsSearchEnv): Promise
         .map((f: any) => ({
           ...googleFlightResult(f, travelers, false, google_flights_url ?? "", { origin: first.departure_id!, destination: first.arrival_id!, depart: first.date }),
           // El enlace tfs de un solo tramo no sirve para varias ciudades: se usa el de Google Flights.
-          buy_url: google_flights_url,
+          buy_url: buyUrl,
+          // Total del itinerario en la moneda pedida (price_usd solo si es USD).
+          currency,
+          price_total: Number(f.price),
+          ...(currency === "USD" ? {} : { price_usd: null, price_per_person_usd: null, price_per_person: Math.round(Number(f.price) / travelers) }),
           price_note: `Precio total del itinerario de ${coded.length} tramos para ${travelers} ${travelers === 1 ? "viajero" : "viajeros"}, según Google Flights.`,
           tramos: `tramo 1 de ${coded.length} (el precio es el total del itinerario; los demás tramos se eligen después)`,
           tramo: "multi_1",
@@ -89,6 +104,7 @@ export async function searchMultiCity(body: any, env: FlightsSearchEnv): Promise
       etiqueta_fuente: disponible ? "Google Flights" : null,
       ...(disponible ? {} : { motivo: MOTIVO_NO_DISPONIBLE, fallas }),
       google_flights_url,
+      currency,
       meta,
     },
   };

@@ -1,0 +1,9 @@
+{
+  "_nota": "Formato documentado: hay casetas pero Google no tiene el precio (\"indicates the existence of a toll with an unknown fee\"): tollInfo sin estimatedPrice. No es una grabación en vivo.",
+  "routes": [{
+    "distanceMeters": 98000,
+    "duration": "4500s",
+    "travelAdvisory": { "tollInfo": {} },
+    "legs": [{ "travelAdvisory": { "tollInfo": {} } }]
+  }]
+}

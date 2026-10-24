@@ -24,7 +24,7 @@ export type ProviderInfo = {
   domain: string;
   provider: string; // id estable
   label: string; // nombre que ve el usuario
-  kind: "ota" | "metasearch" | "airline" | "restaurant_booking" | "tours" | "maps" | "messaging" | "bus" | "affiliate_redirect" | "hotel_chain" | "tickets";
+  kind: "ota" | "metasearch" | "airline" | "restaurant_booking" | "tours" | "maps" | "messaging" | "bus" | "rail" | "ferry" | "boat_rental" | "affiliate_redirect" | "hotel_chain" | "tickets";
   /** Rutas permitidas (si el dominio aloja otras cosas, p. ej. google.com). */
   paths?: RegExp;
   /**
@@ -120,6 +120,14 @@ export const PROVIDERS: ProviderInfo[] = [
   P("omio.com", "omio", "Omio", "bus", "Buscador de autobuses y trenes (groundTransport.ts, omioLink); IATOS_PROVEEDORES_AUTOBUSES.md."),
   P("international.ado.com.mx", "ado", "ADO", "bus", "Búsqueda pública de ADO (IATOS_PROVEEDORES_AUTOBUSES.md §2.2); solo ese subdominio."),
   P("reservamos.mx", "reservamos", "Reservamos", "bus", "Buscador de autobuses en México (IATOS_PROVEEDORES_AUTOBUSES.md §2.1)."),
+  // Trenes, autobuses, ferris y barcos con búsqueda PRECARGADA (groundLinks.ts; evidencia en
+  // docs/iatos/PROVEEDORES_TERRESTRES.md y docs/iatos/evidencia/terrestre/, 2026-10-24).
+  P("venta.renfe.com", "renfe", "Renfe", "rail", "Venta oficial de Renfe: búsqueda buscarTren.do con estaciones, fecha y adultos (EV-RENFE-BUSCAR).", { paths: /^\/vol\// }),
+  P("int.bahn.de", "db", "Deutsche Bahn", "rail", "Venta oficial de Deutsche Bahn: buscador /en/buchung/fahrplan/suche con estaciones (EVA), fecha y viajeros (EV-DB-SUCHE).", { paths: /^\/en\/buchung\// }),
+  P("shop.flixbus.com", "flixbus", "FlixBus", "bus", "Tienda oficial de FlixBus: /search con ciudades, fecha y adultos (EV-FLIXBUS-SEARCH).", { paths: /^\/search\/?$/ }),
+  P("12go.asia", "12go", "12Go", "bus", "Buscador multimodal de Asia (programa de Travelpayouts): /en/travel/<origen>/<destino>?date&people (EV-12GO-TRAVEL).", { paths: /^\/[a-z]{2}\/travel\// }),
+  P("ferryhopper.com", "ferryhopper", "Ferryhopper", "ferry", "Resultados de Ferryhopper con puertos, fecha y pasajeros; enlace del widget de su servidor MCP (EV-FERRYHOPPER-RESULTS).", { paths: /^\/[a-z]{2}\/booking\/results\/?$/ }),
+  P("clickandboat.com", "clickandboat", "Click&Boat", "boat_rental", "Búsqueda de renta de barcos /es/alquiler con lugar, fechas y personas (EV-CLICKANDBOAT-ALQUILER).", { paths: /^\/[a-z]{2}\/alquiler\/?$/ }),
   // Boletos de eventos: SOLO el campo `url` que devuelve la Discovery API v2 de Ticketmaster (servidor,
   // _shared/ticketmaster.ts); la página oficial de compra del evento, nunca una compra hecha.
   ...TM_DOMAINS.map((d) => P(d, "ticketmaster", "Ticketmaster", "tickets", "Página oficial del evento: campo `url` de la Discovery API v2 de Ticketmaster (EV-TICKETMASTER-URL).")),
@@ -147,7 +155,7 @@ const EXTRA_BRANDS: Array<[string, "long" | "token"]> = [
   ["expedia", "long"], ["tripadvisor", "long"], ["paypal", "long"], ["google", "long"], ["whatsapp", "long"], ["mercadopago", "long"],
   ["stripe", "token"], ["tock", "token"],
 ];
-const TOKEN_ONLY = new Set(["resy", "kayak", "omio", "delta", "united", "latam", "klm", "ado", "iberia", "avianca", "volaris", "stripe", "tock"]);
+const TOKEN_ONLY = new Set(["resy", "kayak", "omio", "delta", "united", "latam", "klm", "ado", "iberia", "avianca", "volaris", "stripe", "tock", "bahn", "renfe"]);
 const PHISHING_WORDS = new Set(["login", "secure", "seguro", "account", "cuenta", "verify", "verifica", "pago", "pagos", "pay", "payment",
   "checkout", "reserva", "reservas", "reservation", "reservations", "booking", "vuelo", "vuelos", "flight", "flights", "airline", "airlines",
   "deal", "deals", "oferta", "ofertas", "promo", "promos", "soporte", "support", "ayuda", "help", "oficial", "official", "app", "online",

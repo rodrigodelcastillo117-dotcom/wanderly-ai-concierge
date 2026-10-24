@@ -109,7 +109,9 @@ describe("1. Traslados por tierra no son vuelos", () => {
       expect(container.querySelector("[data-testid='flight-buy-buttons']")).toBeNull();
       const m = transportModeOf(g.mode);
       if (m === "taxi" || m === "bus" || /aeropuerto/i.test(String(g.from))) {
-        expect(container).toHaveTextContent("Precio y compra con el operador");
+        // Sin precio: el enlace precargado del operador ("IATOS no lo cotiza") o lo que hay que escribir.
+        expect(container.textContent).toMatch(/IATOS no lo cotiza|Precio en el sitio del operador/);
+        expect(container.textContent).not.toMatch(/\$\s?\d/);
       }
       unmount();
     }
@@ -170,7 +172,12 @@ describe("Página del viaje con el fixture", () => {
       ["bus", "coche", "coche", "taxi", "tren", "tren", "tren", "tren", "tren", "tren", "tren", "tren"]);
     expect(destinos.innerHTML).not.toMatch(/Aerolínea por confirmar|Escalas por confirmar|google\.com\/travel\/flights|kayak/i);
     expect(within(destinos).queryAllByTestId("flight-buy-buttons")).toHaveLength(0);
-    expect(within(panel).getByText(/Precio y compra con el operador \(ALSA\)/)).toBeInTheDocument();
+    // Autobús Sevilla → Granada (ALSA): FlixBus con ruta, fecha del tramo y pasajeros, y la portada de ALSA.
+    const busLinks = within(panel).getAllByTestId("ground-operator").map((a) => a.getAttribute("href") ?? "");
+    const flix = busLinks.find((h) => h.startsWith("https://shop.flixbus.com/search?"));
+    expect(flix).toBeDefined();
+    expect(new URL(flix!).searchParams.get("rideDate")).toBe("13.05.2027");
+    expect(busLinks).toContain("https://www.alsa.es/");
     expect(within(destinos).getAllByTestId("leg-connector").map((c) => c.getAttribute("data-mode"))).toEqual(["tren", "tren", "tren", "tren"]);
   });
 
