@@ -3,6 +3,7 @@ import { Car, Bus, Footprints, Bike, ExternalLink, ChevronDown, ChevronUp, Loade
 import { getRoutes, type RouteMode, type RoutePoint, type RouteResult } from "@/lib/googleMaps";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TollInfo } from "@/components/roadtrip/TollInfo";
 
 const MODE_META: Record<RouteMode, { label: string; icon: typeof Car }> = {
   DRIVE: { label: "Auto", icon: Car },
@@ -120,6 +121,8 @@ export function RoutesPanel({ origin, destination, destinationLabel, autoFetch =
                   </a>
                 </Button>
               </div>
+
+              {current.mode === "DRIVE" && "tolls" in current && <TollInfo quote={current.tolls ?? null} />}
 
               {current.transit_summary && current.transit_summary.lines.length > 0 && (
                 <div className="flex flex-wrap gap-1 text-xs">

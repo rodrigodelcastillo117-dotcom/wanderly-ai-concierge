@@ -36,12 +36,12 @@ import { saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { hotelPriceRooms } from "../_shared/rooms.ts";
 // roadtrip: coche como modo de primera clase entre paradas (distancias reales de Google Routes).
 import { googleTransportFor } from "../_shared/google-runtime.ts";
-import { computeRoute } from "../_shared/google-routes.ts";
-import { legModesFor, planRoadTrip, roadTripPromptBlock } from "./roadtrip.ts";
+import { legModesFor, planRoadTrip, roadTripPromptBlock, tollRouteFn, TOLLS_API_SKU } from "./roadtrip.ts";
 import { filterFares, layoverCodesFromAviasalesLink } from "../_shared/fareGuard.ts";
 import { airportCityName } from "../_shared/airports.ts";
 import { chosenNights } from "../_shared/booking/tripRoute.ts";
 import { applyRegionsToBody } from "./regionsBody.ts";
+import { flightsTotalMxn, openJawSearchBody, openJawTiers, planOpenJaw } from "./openJaw.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,6 +71,8 @@ interface Body {
   nights_per_city?: number[];
   /** Bases elegidas por región en la UI ({ "Toscana": ["Siena","Lucca"] }); solo cuentan las de la tabla. */
   region_bases?: Record<string, unknown>;
+  /** Clase del vuelo internacional ("turista" | "premium" | "business" | "primera"); turista si falta. */
+  travel_class?: string;
   /** Llave de idempotencia por intento (sessionStorage del cliente). */
   request_key?: string;
   /** "snapshot": guardar en trip_quotes la cotización del plan ya generado (ver saveSnapshot). */
@@ -577,6 +579,14 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
     // Las búsquedas del plan multiciudad ya están cubiertas por su cuota de análisis: van firmadas
     // para no gastar la bolsa de búsquedas en vivo del usuario (_shared/internalCall.ts).
     const analysisHeaders = await internalHeaders(__user.id, "analysis");
+    // Vuelo internacional con precio REAL (openJaw.ts): open-jaw origen → primera ciudad y última → origen
+    // en Google Flights (flights-search type "multi", MXN, hl=es). Firmado como análisis (lo cubre la
+    // cuota del plan) y por la caché compartida y el freno de la cuenta de flights-search: 1 búsqueda
+    // de SerpApi por plan, 0 si la misma ruta, fechas, viajeros y clase ya están en caché.
+    const openJaw = planOpenJaw({ ...body, num_viajeros: viajeros });
+    const multiFlightsPromise = openJaw.ok
+      ? invokeFn("flights-search", authHeader, openJawSearchBody(openJaw), analysisHeaders)
+      : Promise.resolve(null);
     const tpFlightsPromise = invokeFn("travelpayouts-flights", authHeader, {
       origin_city: body.origin,
       destination_city: body.destinations[0],
@@ -613,18 +623,17 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
       ]).then(([hotels, attractions, restaurants]) => ({ hotels, attractions, restaurants })),
     );
 
-    // roadtrip: distancia y tiempo reales por tramo en coche (una llamada Essentials por tramo).
+    // roadtrip: distancia, tiempo y casetas reales por tramo en coche (una llamada por tramo, caché 24 h).
     const roadTripPromise = planRoadTrip({
       destinations: body.destinations,
       legModes,
       legDates: body.destinations.slice(1).map((_, i) => cityWindows[i + 1]?.checkin ?? null),
-      route: google && legModes.includes("coche") ? async (origin, destination) => {
-        const r = await computeRoute(google, { origin: { address: origin }, destination: { address: destination }, mode: "DRIVE" });
-        return r.ok ? { ok: true, distance_meters: r.distance_meters, duration_seconds: r.duration_seconds, consultado_at: r.consultado_at } : null;
-      } : null,
+      route: google && legModes.includes("coche") ? tollRouteFn(google, null /* Routes: sin caché persistente (términos de Google) */) : null,
+      apiSku: TOLLS_API_SKU,
     }).catch((e) => { console.warn("roadtrip:", e instanceof Error ? e.message : e); return null; });
 
-    const [roadTrip, tpFlights, ...cityLive] = await Promise.all([roadTripPromise, tpFlightsPromise, ...cityLivePromises]);
+    const [roadTrip, tpFlights, multiFlights, ...cityLive] = await Promise.all([roadTripPromise, tpFlightsPromise, multiFlightsPromise, ...cityLivePromises]);
+    const openJawQuote = openJawTiers(multiFlights, openJaw, { fx: fxUsd });
 
     // Solo tarifas de la ruta pedida (origen → primera ciudad), con duración creíble: la API puede
     // devolver otra ciudad (MEX→BUH presentada como Roma, caso 22-oct-2026). Sin tarifa válida no hay
@@ -647,6 +656,7 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
 
     console.log("logistics-plan live:", {
       tpFlights: tpFlights?.flights?.length ?? 0,
+      googleFlights: openJawQuote.live ? openJawQuote.results : (openJawQuote as { reason: string }).reason,
       cities: cityLive.map((c: any, i: number) => ({
         city: cityWindows[i].city,
         hotels: c.hotels?.results?.length ?? 0,
@@ -717,7 +727,7 @@ Entrega JSON con:
 
 Ciudad: ${city}
 Punto anterior: ${prevPoint}
-Viajeros: ${viajeros} | Noches: ${cityNights} (${w.checkin} → ${w.checkout})
+Viajeros: ${viajeros} | Noches: ${cityNights} (${w.checkin} → ${w.checkout})${i === 0 && openJaw.ok && !openJaw.arrival.exact ? `\nAeropuerto de llegada: ${openJaw.arrival.city} (${openJaw.arrival.airport}), a ${openJaw.arrival.km} km en línea recta.` : ""}
 Ruta completa del viaje (contexto): ${body.origin} → ${cityList}
 NIVEL DE PRESUPUESTO DEL USUARIO: ${selectedTier}. El hospedaje del tier "${selectedTier}" es el que se usará para el total.
 ${roadtripMode ? "MODO: ROADTRIP — arrival_options principal SIEMPRE en coche con km, horas y paradas." : ""}${i > 0 && legModes[i - 1] ? `\nEl viajero eligió llegar desde ${prevPoint} en ${legModes[i - 1] === "avion" ? "avión" : legModes[i - 1]}: esa es la opción PRINCIPAL de arrival_options.${legModes[i - 1] === "coche" && roadTrip?.legs.find((l) => l.index === i - 1)?.distance_km ? ` Distancia ${roadTrip.legs.find((l) => l.index === i - 1)!.distance_km} km (no inventes otra).` : ""}` : ""}
@@ -763,7 +773,10 @@ Entrega JSON con:
     // ───── Post-proceso: vuelos reales + dedupe ─────
     let flights: any[] = Array.isArray(globalData.flights) ? globalData.flights : [];
 
-    if (tpLive) {
+    if (openJawQuote.live) {
+      // Google Flights (open-jaw, MXN): los 3 tiers son resultados reales de esa búsqueda.
+      flights = openJawQuote.flights;
+    } else if (tpLive) {
       // Construimos los 3 tiers directamente del inventario real; nada de precios inventados.
       const sorted = [...tpFlights.flights]
         .filter((f: any) => Number(f.price) > 0)
@@ -909,7 +922,8 @@ Entrega JSON con:
     const usdToMxn = (usd: number) => Math.round((Number(usd) || 0) * fxUsd);
 
     const vueloTier = flights.find((f: any) => f.tier === selectedTier) ?? flights[0];
-    const vuelosMxn = usdToMxn((Number(vueloTier?.price_per_person_usd) || 0) * viajeros);
+    // Vuelo en vivo: su precio en MXN de Google Flights (por persona × viajeros); estimado: USD × tipo de cambio.
+    const vuelosMxn = flightsTotalMxn(vueloTier, viajeros, fxUsd);
 
     let hospedajeMxn = 0;
     let experienciasMxn = 0;
@@ -949,6 +963,8 @@ Entrega JSON con:
       tours: experienciasMxn,
       transporte_local: transporteMxn,
       extras: extrasMxn,
+      // Casetas reales de Google (en vivo, MXN) de los tramos en coche; sin monto no se suma nada.
+      ...((roadTrip?.casetas?.mxn_en_vivo ?? 0) > 0 ? { casetas: roadTrip!.casetas.mxn_en_vivo } : {}),
     };
     const totalMxn = Object.values(desglose).reduce((s, v) => s + (Number(v) || 0), 0);
 
@@ -978,6 +994,11 @@ Entrega JSON con:
       total_estimado_mxn: totalMxn,
       total_estimado_usd: Math.round(totalMxn / fxUsd),
       pricing_sources: pricingSources(flights, perDestination),
+      // De dónde salió el vuelo internacional: Google Flights en vivo (tramos, hora) o el motivo del estimado.
+      flight_quote: openJawQuote.live
+        ? { source: "google_flights", consultado_at: openJawQuote.consultado_at, frescura: openJawQuote.frescura, results: openJawQuote.results,
+          legs: openJaw.ok ? openJaw.legs : [], travel_class: openJaw.ok ? openJaw.travel_class : null, notes: openJaw.ok ? openJaw.notes : [] }
+        : { source: "estimado", motivo: (openJawQuote as { reason: string }).reason },
       fx_source: fxInfo.source,
       fx_at: fxInfo.fetched_at,
       fx_is_fallback: fxInfo.is_fallback,

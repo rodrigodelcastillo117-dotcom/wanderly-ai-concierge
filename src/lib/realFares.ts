@@ -76,17 +76,23 @@ function emptyMessage(data: any, what: string): string {
 // (message?: undefined en la rama ok: el tsconfig de la app no estrecha uniones sin strictNullChecks)
 export type MultiFareSummary =
   | { ok: true; totalUsd: number; perPersonUsd: number; travelers: number; airlines: string[]; source: string; consultedAt: string | null; time: string | null;
-      savedPrice: boolean; url: string | null; legs: number; note: string; message?: undefined }
+      savedPrice: boolean; url: string | null; legs: number; note: string; message?: undefined;
+      /** Moneda en que Google Flights dio el precio ("MXN" si se pidió así; entonces totalUsd/perPersonUsd van en 0). */
+      currency: string; total: number; perPerson: number }
   | { ok: false; message: string; url: string | null };
 
 export function summarizeMultiFare(data: any, travelers: number): MultiFareSummary {
   const url = typeof data?.google_flights_url === "string" && checkAllowlisted(data.google_flights_url).ok ? data.google_flights_url : null;
-  const best = Array.isArray(data?.results) ? data.results.find((x: any) => Number(x?.price_usd) > 0) : null;
+  const best = Array.isArray(data?.results) ? data.results.find((x: any) => Number(x?.price_usd) > 0 || Number(x?.price_total) > 0) : null;
   if (!data?.ok || !best) return { ok: false, message: emptyMessage(data, "un precio para este recorrido"), url };
   const legs = Array.isArray(data?.meta?.legs) ? data.meta.legs.length : 0;
   const consultedAt = best.consultado_at ?? data.consulted_at ?? null;
+  const currency = String(best.currency ?? data.currency ?? "USD").toUpperCase();
+  const total = Math.round(Number(currency === "USD" ? best.price_usd ?? best.price_total : best.price_total) || 0);
+  const usdTotal = currency === "USD" ? total : 0;
   return {
-    ok: true, totalUsd: Math.round(Number(best.price_usd)), perPersonUsd: Math.round(Number(best.price_usd) / Math.max(1, travelers)), travelers,
+    ok: true, totalUsd: usdTotal, perPersonUsd: Math.round(usdTotal / Math.max(1, travelers)), travelers,
+    currency, total, perPerson: Math.round(total / Math.max(1, travelers)),
     airlines: Array.isArray(best.airlines) && best.airlines.length ? best.airlines.map(String) : best.airline ? [String(best.airline)] : [],
     source: data.etiqueta_fuente ?? "Google Flights", consultedAt, time: hhmm(consultedAt), savedPrice: data.precio_guardado === true || best.precio_guardado === true,
     url: (typeof best.buy_url === "string" && checkAllowlisted(best.buy_url).ok ? best.buy_url : null) ?? url, legs,
@@ -95,9 +101,12 @@ export function summarizeMultiFare(data: any, travelers: number): MultiFareSumma
 }
 
 /** Pide el precio del recorrido (una búsqueda de SerpApi si no está en caché). */
-export async function requestMultiFare(invoke: Invoke, legs: FlightLeg[], travelers: number): Promise<MultiFareSummary> {
+export async function requestMultiFare(invoke: Invoke, legs: FlightLeg[], travelers: number,
+  opts: { travel_class?: string | null; currency?: "MXN" | "USD" } = {}): Promise<MultiFareSummary> {
   try {
-    const { data, error } = await invoke("flights-search", { body: { type: "multi", legs, travelers } });
+    // Clase y moneda solo si se piden (el vuelo en vivo del plan: los mismos parámetros que su cotización).
+    const extra = { ...(opts.travel_class && opts.travel_class !== "turista" ? { travel_class: opts.travel_class } : {}), ...(opts.currency ? { currency: opts.currency } : {}) };
+    const { data, error } = await invoke("flights-search", { body: { type: "multi", legs, travelers, ...extra } });
     if (error) {
       const info = await readFunctionError(error, "No pudimos consultar el precio. Intenta de nuevo.");
       return { ok: false, message: info.message, url: null };

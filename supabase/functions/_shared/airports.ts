@@ -169,15 +169,85 @@ export function codeServesCity(code: unknown, city: unknown): boolean | null {
 }
 
 const rad = (d: number) => (d * Math.PI) / 180;
+const kmBetween = (x: { lat: number; lng: number }, y: { lat: number; lng: number }) => {
+  const dLat = rad(y.lat - x.lat);
+  const dLng = rad(y.lng - x.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(x.lat)) * Math.cos(rad(y.lat)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * 6371 * Math.asin(Math.sqrt(h)));
+};
 /** Distancia de gran círculo en km entre dos ciudades/códigos conocidos (null si falta alguno). */
 export function distanceKm(a: unknown, b: unknown): number | null {
   const x = cityAirports(a);
   const y = cityAirports(b);
   if (!x || !y) return null;
-  const dLat = rad(y.lat - x.lat);
-  const dLng = rad(y.lng - x.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(x.lat)) * Math.cos(rad(y.lat)) * Math.sin(dLng / 2) ** 2;
-  return Math.round(2 * 6371 * Math.asin(Math.sqrt(h)));
+  return kmBetween(x, y);
+}
+
+// ───── Lugares sin aeropuerto propio ─────
+// Bases de viaje frecuentes (regiones de _shared/regions.ts y escapadas clásicas) que no tienen
+// aeropuerto comercial. Solo coordenadas (centro del lugar): el vuelo va al aeropuerto de la tabla
+// de arriba más cercano en línea recta. No entran en cityAirports/mainAirport (no se inventa un código).
+type Town = { name: string; iso2: string; lat: number; lng: number; aliases?: string[] };
+const T = (name: string, iso2: string, lat: number, lng: number, aliases: string[] = []): Town => ({ name, iso2, lat, lng, aliases });
+export const TOWNS: Town[] = [
+  // Toscana
+  T("Siena", "IT", 43.318, 11.331), T("San Gimignano", "IT", 43.468, 11.043), T("Lucca", "IT", 43.843, 10.505),
+  T("Arezzo", "IT", 43.463, 11.88), T("Montepulciano", "IT", 43.098, 11.787), T("Pistoia", "IT", 43.933, 10.917),
+  T("Prato", "IT", 43.88, 11.097), T("Livorno", "IT", 43.548, 10.311), T("Grosseto", "IT", 42.763, 11.112),
+  T("Massa-Carrara", "IT", 44.035, 10.139, ["massa", "carrara", "massa carrara"]), T("La Spezia", "IT", 44.102, 9.824),
+  // Costa Amalfitana, Capri y Lago de Como
+  T("Positano", "IT", 40.628, 14.485), T("Amalfi", "IT", 40.634, 14.603), T("Ravello", "IT", 40.649, 14.612),
+  T("Sorrento", "IT", 40.626, 14.376), T("Capri", "IT", 40.551, 14.243),
+  T("Como", "IT", 45.808, 9.085), T("Bellagio", "IT", 45.987, 9.262), T("Varenna", "IT", 46.01, 9.284),
+  // Riviera Francesa, España, Portugal, Francia, Reino Unido
+  T("Cannes", "FR", 43.552, 7.017), T("Mónaco", "MC", 43.738, 7.424, ["monaco", "monte carlo", "montecarlo"]),
+  T("Toledo", "ES", 39.857, -4.024), T("Segovia", "ES", 40.943, -4.118),
+  T("Sintra", "PT", 38.8, -9.381), T("Cascais", "PT", 38.697, -9.421),
+  T("Versalles", "FR", 48.805, 2.12, ["versailles"]), T("Oxford", "GB", 51.752, -1.258),
+  // Japón y México
+  T("Kioto", "JP", 35.011, 135.768, ["kyoto"]), T("Nara", "JP", 34.685, 135.805), T("Hakone", "JP", 35.232, 139.107),
+  T("Playa del Carmen", "MX", 20.629, -87.073), T("San Miguel de Allende", "MX", 20.914, -100.744),
+];
+const TOWN_BY_NAME = new Map<string, Town>();
+for (const t of TOWNS) for (const n of [t.name, ...(t.aliases ?? [])]) TOWN_BY_NAME.set(normCity(n), t);
+
+/** Aeropuerto con que se vuela a un lugar: el suyo, o el de la tabla más cercano si no tiene. */
+export type AirportPick = {
+  /** IATA del aeropuerto (principal de su ciudad). */
+  airport: string;
+  /** Ciudad del aeropuerto ("Florencia"). */
+  city: string;
+  /** Lugar pedido, con su nombre de la tabla ("Siena"). */
+  place: string;
+  /** Distancia en línea recta del lugar al aeropuerto (0 si el lugar tiene aeropuerto). */
+  km: number;
+  /** true si el lugar tiene aeropuerto propio. */
+  exact: boolean;
+};
+
+/** Hasta aquí se acepta "el aeropuerto más cercano"; más lejos no se adivina (queda sin aeropuerto). */
+export const NEAREST_AIRPORT_MAX_KM = 250;
+
+/**
+ * Aeropuerto para volar a una ciudad o lugar. Con aeropuerto propio, ese (exact). Sin él (Siena), el
+ * aeropuerto de la tabla más cercano en línea recta (Florencia FLR, 55 km), dentro de
+ * NEAREST_AIRPORT_MAX_KM. null si el lugar no se conoce: quien llama no debe inventar un código.
+ */
+export function nearestAirport(input: unknown, maxKm = NEAREST_AIRPORT_MAX_KM): AirportPick | null {
+  const own = mainAirport(input);
+  if (own) {
+    const c = cityAirports(input) ?? BY_CODE.get(own) ?? null;
+    return { airport: own, city: c?.name ?? own, place: c?.name ?? String(input ?? "").trim(), km: 0, exact: true };
+  }
+  const town = TOWN_BY_NAME.get(normCity(input));
+  if (!town) return null;
+  let best: { c: CityAirports; km: number } | null = null;
+  for (const c of CITIES) {
+    const km = kmBetween(town, c);
+    if (!best || km < best.km) best = { c, km };
+  }
+  if (!best || best.km > maxKm) return null;
+  return { airport: best.c.airports[0], city: best.c.name, place: town.name, km: best.km, exact: false };
 }
 
 /**

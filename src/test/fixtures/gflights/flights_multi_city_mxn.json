@@ -1,0 +1,583 @@
+{
+ "search_metadata": {
+  "id": "fixture-multi-mxn",
+  "status": "Success",
+  "google_flights_url": "https://www.google.com/travel/flights?hl=es&gl=mx&curr=MXN&tfs=GhoSCjIwMjctMDMtMDJqBRIDTUVYcgUSA0ZDTxoaEgoyMDI3LTAzLTEyagUSA0ZMUnIFEgNNRVhAAUABSAGYAQM%3D",
+  "total_time_taken": 3.1
+ },
+ "search_parameters": {
+  "engine": "google_flights",
+  "hl": "es",
+  "currency": "MXN",
+  "type": "3",
+  "adults": 2,
+  "multi_city_json": "[{\"departure_id\":\"MEX\",\"arrival_id\":\"FCO\",\"date\":\"2027-03-02\"},{\"departure_id\":\"FLR\",\"arrival_id\":\"MEX\",\"date\":\"2027-03-12\"}]"
+ },
+ "best_flights": [
+  {
+   "flights": [
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Benito Juárez",
+      "id": "MEX",
+      "time": "2027-03-02 18:05"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto Adolfo Suárez Madrid-Barajas",
+      "id": "MAD",
+      "time": "2027-03-03 12:45"
+     },
+     "duration": 640,
+     "airplane": "Airbus A350",
+     "airline": "Iberia",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/IB.png",
+     "travel_class": "Turista",
+     "flight_number": "IB 6400",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Adolfo Suárez Madrid-Barajas",
+      "id": "MAD",
+      "time": "2027-03-03 14:20"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Roma-Fiumicino",
+      "id": "FCO",
+      "time": "2027-03-03 16:45"
+     },
+     "duration": 145,
+     "airplane": "Airbus A321",
+     "airline": "Iberia",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/IB.png",
+     "travel_class": "Turista",
+     "flight_number": "IB 3236",
+     "legroom": "79 cm"
+    }
+   ],
+   "layovers": [
+    {
+     "duration": 95,
+     "name": "Aeropuerto Adolfo Suárez Madrid-Barajas",
+     "id": "MAD"
+    }
+   ],
+   "total_duration": 860,
+   "carbon_emissions": {
+    "this_flight": 1020000,
+    "typical_for_this_route": 1100000,
+    "difference_percent": -7
+   },
+   "price": 38940,
+   "type": "Multi-city",
+   "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+   "departure_token": "TOKEN_IB"
+  },
+  {
+   "flights": [
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Benito Juárez",
+      "id": "MEX",
+      "time": "2027-03-02 19:30"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de París-Charles de Gaulle",
+      "id": "CDG",
+      "time": "2027-03-03 13:15"
+     },
+     "duration": 585,
+     "airplane": "Boeing 787",
+     "airline": "Air France",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/AF.png",
+     "travel_class": "Turista",
+     "flight_number": "AF 179",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto de París-Charles de Gaulle",
+      "id": "CDG",
+      "time": "2027-03-03 15:05"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Roma-Fiumicino",
+      "id": "FCO",
+      "time": "2027-03-03 17:10"
+     },
+     "duration": 125,
+     "airplane": "Airbus A320",
+     "airline": "Air France",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/AF.png",
+     "travel_class": "Turista",
+     "flight_number": "AF 1404",
+     "legroom": "79 cm"
+    }
+   ],
+   "layovers": [
+    {
+     "duration": 110,
+     "name": "Aeropuerto de París-Charles de Gaulle",
+     "id": "CDG"
+    }
+   ],
+   "total_duration": 820,
+   "carbon_emissions": {
+    "this_flight": 1020000,
+    "typical_for_this_route": 1100000,
+    "difference_percent": -7
+   },
+   "price": 41210,
+   "type": "Multi-city",
+   "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+   "departure_token": "TOKEN_AF1"
+  },
+  {
+   "flights": [
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Benito Juárez",
+      "id": "MEX",
+      "time": "2027-03-02 16:40"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Ámsterdam-Schiphol",
+      "id": "AMS",
+      "time": "2027-03-03 10:15"
+     },
+     "duration": 635,
+     "airplane": "Boeing 787",
+     "airline": "KLM",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/KL.png",
+     "travel_class": "Turista",
+     "flight_number": "KL 686",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto de Ámsterdam-Schiphol",
+      "id": "AMS",
+      "time": "2027-03-03 12:30"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Roma-Fiumicino",
+      "id": "FCO",
+      "time": "2027-03-03 14:40"
+     },
+     "duration": 130,
+     "airplane": "Embraer 190",
+     "airline": "KLM",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/KL.png",
+     "travel_class": "Turista",
+     "flight_number": "KL 1597",
+     "legroom": "79 cm"
+    }
+   ],
+   "layovers": [
+    {
+     "duration": 135,
+     "name": "Aeropuerto de Ámsterdam-Schiphol",
+     "id": "AMS"
+    }
+   ],
+   "total_duration": 900,
+   "carbon_emissions": {
+    "this_flight": 1020000,
+    "typical_for_this_route": 1100000,
+    "difference_percent": -7
+   },
+   "price": 42850,
+   "type": "Multi-city",
+   "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+   "departure_token": "TOKEN_KL"
+  }
+ ],
+ "other_flights": [
+  {
+   "flights": [
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Benito Juárez",
+      "id": "MEX",
+      "time": "2027-03-02 20:10"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Fráncfort",
+      "id": "FRA",
+      "time": "2027-03-03 14:20"
+     },
+     "duration": 610,
+     "airplane": "Boeing 747-8",
+     "airline": "Lufthansa",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/LH.png",
+     "travel_class": "Turista",
+     "flight_number": "LH 499",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto de Fráncfort",
+      "id": "FRA",
+      "time": "2027-03-03 16:00"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Roma-Fiumicino",
+      "id": "FCO",
+      "time": "2027-03-03 17:55"
+     },
+     "duration": 115,
+     "airplane": "Airbus A320neo",
+     "airline": "Lufthansa",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/LH.png",
+     "travel_class": "Turista",
+     "flight_number": "LH 232",
+     "legroom": "79 cm"
+    }
+   ],
+   "layovers": [
+    {
+     "duration": 100,
+     "name": "Aeropuerto de Fráncfort",
+     "id": "FRA"
+    }
+   ],
+   "total_duration": 845,
+   "carbon_emissions": {
+    "this_flight": 1020000,
+    "typical_for_this_route": 1100000,
+    "difference_percent": -7
+   },
+   "price": 44120,
+   "type": "Multi-city",
+   "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+   "departure_token": "TOKEN_LH"
+  },
+  {
+   "flights": [
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Benito Juárez",
+      "id": "MEX",
+      "time": "2027-03-02 21:25"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Londres-Heathrow",
+      "id": "LHR",
+      "time": "2027-03-03 14:20"
+     },
+     "duration": 595,
+     "airplane": "Boeing 787",
+     "airline": "British Airways",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/BA.png",
+     "travel_class": "Turista",
+     "flight_number": "BA 242",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto de Londres-Heathrow",
+      "id": "LHR",
+      "time": "2027-03-03 16:10"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Roma-Fiumicino",
+      "id": "FCO",
+      "time": "2027-03-03 19:55"
+     },
+     "duration": 165,
+     "airplane": "Airbus A320",
+     "airline": "British Airways",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/BA.png",
+     "travel_class": "Turista",
+     "flight_number": "BA 548",
+     "legroom": "79 cm"
+    }
+   ],
+   "layovers": [
+    {
+     "duration": 110,
+     "name": "Aeropuerto de Londres-Heathrow",
+     "id": "LHR"
+    }
+   ],
+   "total_duration": 870,
+   "carbon_emissions": {
+    "this_flight": 1020000,
+    "typical_for_this_route": 1100000,
+    "difference_percent": -7
+   },
+   "price": 45990,
+   "type": "Multi-city",
+   "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+   "departure_token": "TOKEN_BA"
+  },
+  {
+   "flights": [
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Benito Juárez",
+      "id": "MEX",
+      "time": "2027-03-02 21:50"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto Adolfo Suárez Madrid-Barajas",
+      "id": "MAD",
+      "time": "2027-03-03 15:30"
+     },
+     "duration": 640,
+     "airplane": "Boeing 787-9",
+     "airline": "Aeroméxico",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/AM.png",
+     "travel_class": "Turista",
+     "flight_number": "AM 21",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Adolfo Suárez Madrid-Barajas",
+      "id": "MAD",
+      "time": "2027-03-03 17:00"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Roma-Fiumicino",
+      "id": "FCO",
+      "time": "2027-03-03 19:20"
+     },
+     "duration": 140,
+     "airplane": "Airbus A220",
+     "airline": "ITA Airways",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/AZ.png",
+     "travel_class": "Turista",
+     "flight_number": "AZ 59",
+     "legroom": "79 cm"
+    }
+   ],
+   "layovers": [
+    {
+     "duration": 90,
+     "name": "Aeropuerto Adolfo Suárez Madrid-Barajas",
+     "id": "MAD"
+    }
+   ],
+   "total_duration": 830,
+   "carbon_emissions": {
+    "this_flight": 1020000,
+    "typical_for_this_route": 1100000,
+    "difference_percent": -7
+   },
+   "price": 47300,
+   "type": "Multi-city",
+   "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+   "departure_token": "TOKEN_AM"
+  },
+  {
+   "flights": [
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Benito Juárez",
+      "id": "MEX",
+      "time": "2027-03-02 06:00"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto Intercontinental George Bush",
+      "id": "IAH",
+      "time": "2027-03-02 08:45"
+     },
+     "duration": 165,
+     "airplane": "Boeing 737",
+     "airline": "United",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/UA.png",
+     "travel_class": "Turista",
+     "flight_number": "UA 1135",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Intercontinental George Bush",
+      "id": "IAH",
+      "time": "2027-03-02 10:30"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto Internacional Newark Liberty",
+      "id": "EWR",
+      "time": "2027-03-02 15:05"
+     },
+     "duration": 215,
+     "airplane": "Boeing 737",
+     "airline": "United",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/UA.png",
+     "travel_class": "Turista",
+     "flight_number": "UA 2190",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Newark Liberty",
+      "id": "EWR",
+      "time": "2027-03-02 18:00"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Roma-Fiumicino",
+      "id": "FCO",
+      "time": "2027-03-03 08:20"
+     },
+     "duration": 500,
+     "airplane": "Boeing 767",
+     "airline": "United",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/UA.png",
+     "travel_class": "Turista",
+     "flight_number": "UA 40",
+     "legroom": "79 cm"
+    }
+   ],
+   "layovers": [
+    {
+     "duration": 105,
+     "name": "Aeropuerto Intercontinental George Bush",
+     "id": "IAH"
+    },
+    {
+     "duration": 175,
+     "name": "Aeropuerto Internacional Newark Liberty",
+     "id": "EWR"
+    }
+   ],
+   "total_duration": 1180,
+   "carbon_emissions": {
+    "this_flight": 1020000,
+    "typical_for_this_route": 1100000,
+    "difference_percent": -7
+   },
+   "price": 49800,
+   "type": "Multi-city",
+   "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+   "departure_token": "TOKEN_UA"
+  },
+  {
+   "flights": [
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Benito Juárez",
+      "id": "MEX",
+      "time": "2027-03-02 12:15"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto Adolfo Suárez Madrid-Barajas",
+      "id": "MAD",
+      "time": "2027-03-03 06:10"
+     },
+     "duration": 655,
+     "airplane": "Boeing 787",
+     "airline": "Air Europa",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/UX.png",
+     "travel_class": "Turista",
+     "flight_number": "UX 42",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Adolfo Suárez Madrid-Barajas",
+      "id": "MAD",
+      "time": "2027-03-03 08:20"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Roma-Fiumicino",
+      "id": "FCO",
+      "time": "2027-03-03 10:40"
+     },
+     "duration": 140,
+     "airplane": "Boeing 737",
+     "airline": "Air Europa",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/UX.png",
+     "travel_class": "Turista",
+     "flight_number": "UX 1041",
+     "legroom": "79 cm"
+    }
+   ],
+   "layovers": [
+    {
+     "duration": 130,
+     "name": "Aeropuerto Adolfo Suárez Madrid-Barajas",
+     "id": "MAD"
+    }
+   ],
+   "total_duration": 905,
+   "carbon_emissions": {
+    "this_flight": 1020000,
+    "typical_for_this_route": 1100000,
+    "difference_percent": -7
+   },
+   "price": 51200,
+   "type": "Multi-city",
+   "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+   "departure_token": "TOKEN_UX"
+  },
+  {
+   "flights": [
+    {
+     "departure_airport": {
+      "name": "Aeropuerto Internacional Benito Juárez",
+      "id": "MEX",
+      "time": "2027-03-02 22:00"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de París-Charles de Gaulle",
+      "id": "CDG",
+      "time": "2027-03-03 15:25"
+     },
+     "duration": 565,
+     "airplane": "Boeing 787",
+     "airline": "Air France",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/AF.png",
+     "travel_class": "Turista",
+     "flight_number": "AF 439",
+     "legroom": "79 cm"
+    },
+    {
+     "departure_airport": {
+      "name": "Aeropuerto de París-Charles de Gaulle",
+      "id": "CDG",
+      "time": "2027-03-03 16:35"
+     },
+     "arrival_airport": {
+      "name": "Aeropuerto de Roma-Fiumicino",
+      "id": "FCO",
+      "time": "2027-03-03 18:50"
+     },
+     "duration": 135,
+     "airplane": "Airbus A321",
+     "airline": "Air France",
+     "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/AF.png",
+     "travel_class": "Turista",
+     "flight_number": "AF 1504",
+     "legroom": "79 cm"
+    }
+   ],
+   "layovers": [
+    {
+     "duration": 70,
+     "name": "Aeropuerto de París-Charles de Gaulle",
+     "id": "CDG"
+    }
+   ],
+   "total_duration": 790,
+   "carbon_emissions": {
+    "this_flight": 1020000,
+    "typical_for_this_route": 1100000,
+    "difference_percent": -7
+   },
+   "price": 58700,
+   "type": "Multi-city",
+   "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+   "departure_token": "TOKEN_AF2"
+  }
+ ],
+ "price_insights": {
+  "lowest_price": 38940,
+  "price_level": "typical",
+  "typical_price_range": [
+   37000,
+   52000
+  ]
+ }
+}

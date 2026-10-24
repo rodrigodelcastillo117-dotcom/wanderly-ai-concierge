@@ -443,7 +443,7 @@ const PlanTrip = () => {
       const { tripId } = await generateMultiDestTrip(supabase, {
         userId: user?.id ?? null, origin: ciudadOrigen, stops: routeCities, fechaSalida, fechaRegreso, viajeros: numViajeros,
         presupuesto, prefs: { connection: "smart", roadtripStops: true, luggageLogistics: true }, nightsPerCity: routeNights,
-        telemetry: { autonomous: true },
+        travelClass: claseParam, telemetry: { autonomous: true },
       });
       if (!tripId) throw new Error("Sin viaje guardado");
       track("trip_quoted", { destino: label, viajeros: numViajeros, total_estimado: null, multi: true });

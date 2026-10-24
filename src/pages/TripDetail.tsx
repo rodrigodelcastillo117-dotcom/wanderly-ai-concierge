@@ -38,7 +38,7 @@ import { TripDocuments } from "@/components/TripDocuments";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
 import { isGroundTripOption, transportModeOf, tripCountryLabel, tripFlightProblems } from "@/lib/booking";
-import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightStopsLabel } from "@/lib/flightDisplay";
+import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightLiveLine, flightStopsLabel } from "@/lib/flightDisplay";
 import { groundOptionsForCity, legOptionsFor, transportRubroLabel } from "@/lib/multiDestTrip";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
@@ -1143,6 +1143,8 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 
         </p>
       )}
       <PriceSourceBadge source={option.fuente_precio} estado={option.estado_dato} consultadoAt={option.consultado_at ?? quotedAt} approximateDates={option.approximate_dates} className="mt-2" />
+      {flightLiveLine(option) && <p className="mt-1 text-[11px] text-muted-foreground" data-testid="arrival-en-vivo">{flightLiveLine(option)}</p>}
+      {option.aeropuerto_nota && <p className="mt-1 text-[11px] text-muted-foreground" data-testid="arrival-aeropuerto-nota">{option.aeropuerto_nota}.</p>}
       {/* El tramo que suma el total (el mismo de Comprar) y las alternativas del plan, que no suman. */}
       {option.quoted && <p className="mt-2 text-[11px] text-primary" data-testid="arrival-quoted">Opción principal · suma al total (la misma de Comprar)</p>}
       {option.alternativa && <p className="mt-2 text-[11px] text-muted-foreground" data-testid="arrival-alternativa">Alternativa del plan · no suma al total</p>}

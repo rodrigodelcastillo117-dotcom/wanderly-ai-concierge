@@ -12,6 +12,7 @@ import {
 
 const defaultInvoke: Invoke = (fn, opts) => supabase.functions.invoke(fn, opts) as unknown as Promise<{ data: any; error: any }>;
 const usd = (n: number) => `$${Math.round(n).toLocaleString("es-MX")} USD`;
+const money = (n: number, cur: string) => `$${Math.round(n).toLocaleString("es-MX")} ${cur}`;
 const btn = "inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-primary/50 px-3 text-sm text-foreground transition hover:bg-primary/10 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const link = "inline-flex min-h-[36px] items-center gap-1 text-xs text-primary underline-offset-2 hover:underline";
 
@@ -21,19 +22,25 @@ export function MultiCityFareButton({ trip, interLegs, invoke = defaultInvoke }:
   const plan = tripMultiCityLegs(trip, interLegs);
   const travelers = Math.max(1, Math.min(9, Math.round(Number(trip?.num_viajeros) || 1)));
   const fx = Number(trip?.itinerario_json?.logistics?.fx_usd_mxn) || 0;
+  // Vuelo del plan ya cotizado en Google Flights (logistics-plan, open-jaw en MXN): "Actualizar precio"
+  // repite esa búsqueda con la misma clase y moneda, y compara con el precio del plan.
+  const liveRow = (Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : []).find((v: any) => String(v?.fuente_precio ?? "") === "en_vivo") ?? null;
+  const planTotal = liveRow ? Number(liveRow.price_total_mxn) || (Number(liveRow.precio_por_persona) || 0) * travelers : 0;
   if (plan.missing && !plan.legs.length) return null;
   const run = async () => {
     if (busy || plan.missing) return;
     setBusy(true);
-    try { setRes(await requestMultiFare(invoke, plan.legs, travelers)); } finally { setBusy(false); }
+    try { setRes(await requestMultiFare(invoke, plan.legs, travelers, liveRow ? { travel_class: liveRow.travel_class ?? null, currency: "MXN" } : {})); } finally { setBusy(false); }
   };
+  const shown = (r: Extract<MultiFareSummary, { ok: true }>, pp = false) =>
+    r.currency && r.currency !== "USD" ? money(pp ? r.perPerson : r.total, r.currency) : usd(pp ? r.perPersonUsd : r.totalUsd);
   return (
     <div className="mt-3 rounded-lg border border-border/60 p-3" data-testid="multi-precio-real">
       {!res && (
         <>
           <button type="button" className={btn} onClick={run} disabled={busy || !!plan.missing} data-testid="multi-precio-consultar">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Search className="h-4 w-4" aria-hidden="true" />}
-            Consultar precio real del recorrido
+            {liveRow ? "Actualizar precio" : "Consultar precio real del recorrido"}
           </button>
           <p className="mt-1.5 text-xs text-muted-foreground" data-testid="multi-precio-tramos">
             {plan.legs.map((l) => `${l.from}→${l.to}`).join(" · ")}
@@ -55,12 +62,17 @@ export function MultiCityFareButton({ trip, interLegs, invoke = defaultInvoke }:
         <div data-testid="multi-precio-resultado">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-sm font-medium">Precio real del recorrido</span>
-            <span className="text-sm font-medium tabular-nums" data-testid="multi-precio-total">{usd(res.totalUsd)}</span>
+            <span className="text-sm font-medium tabular-nums" data-testid="multi-precio-total">{shown(res)}</span>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {res.travelers > 1 ? `${usd(res.perPersonUsd)} por persona · ` : ""}{fx > 0 ? `≈ $${Math.round(res.totalUsd * fx).toLocaleString("es-MX")} MXN · ` : ""}
+            {res.travelers > 1 ? `${shown(res, true)} por persona · ` : ""}{fx > 0 && res.currency === "USD" ? `≈ $${Math.round(res.totalUsd * fx).toLocaleString("es-MX")} MXN · ` : ""}
             {res.airlines.length ? `Aerolíneas: ${res.airlines.join(", ")}` : ""}
           </p>
+          {planTotal > 0 && res.currency === "MXN" && (
+            <p className="mt-0.5 text-xs text-muted-foreground" data-testid="multi-precio-antes">
+              Precio del plan: {money(planTotal, "MXN")}{res.total !== planTotal ? ` · ${res.total > planTotal ? "subió" : "bajó"} ${money(Math.abs(res.total - planTotal), "MXN")}` : " · sin cambio"}. El total del viaje sigue con el precio del plan.
+            </p>
+          )}
           <p className="mt-0.5 text-xs text-muted-foreground" data-testid="multi-precio-fuente">
             Fuente: {res.source}{res.time ? ` · consultado ${res.time}` : ""}{res.savedPrice ? " · precio guardado, no en vivo" : ""}
           </p>

@@ -18,7 +18,8 @@ const defaultLayovers: LayoverFn = (link) => {
   return codes ? codes.map(airportCityName) : null;
 };
 
-const isEstimated = (fuente: unknown) => String(fuente ?? "estimado").toLowerCase() !== "travelpayouts" && String(fuente ?? "estimado").toLowerCase() !== "serpapi";
+// "en_vivo": vuelo internacional consultado en Google Flights por logistics-plan (openJaw.ts).
+const isEstimated = (fuente: unknown) => !["travelpayouts", "serpapi", "en_vivo"].includes(String(fuente ?? "estimado").toLowerCase());
 // El modo viene en texto libre ("Tren de alta velocidad", "Vuelo directo"): se lee su palabra clave.
 const isFlightMode = (m: unknown) => { const t = transportModeOf(m); return t == null || t === "vuelo"; };
 
@@ -54,7 +55,8 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
       duracion: f?.duration || "",
       escalas: est ? "Escalas por confirmar" : escalasCiudades ? (escalasCiudades.length ? `Escalas: ${escalasCiudades.join(" · ")}` : "Directo") : "Escalas por confirmar",
       ...(escalasCiudades ? { escalas_ciudades: escalasCiudades } : {}),
-      precio_por_persona: mxn(f?.price_per_person_usd),
+      // En vivo: el precio en MXN de Google Flights tal cual (el mismo que sumó el servidor al total).
+      precio_por_persona: !est && Number(f?.price_per_person_mxn) > 0 ? Math.round(Number(f.price_per_person_mxn)) : mxn(f?.price_per_person_usd),
       fuente_precio: est ? "estimado" : f.fuente_precio,
       estado_dato: f?.estado_dato ?? (est ? "ESTIMADO" : null),
       ...(f?.consultado_at ? { consultado_at: f.consultado_at } : {}),
@@ -66,6 +68,10 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
       to,
       dep_iata: dep ?? null,
       arr_iata: arr ?? null,
+      // Google Flights en vivo: horarios de la ida, aeropuerto del regreso, total del itinerario,
+      // la búsqueda exacta y "Vuelas a Florencia (FLR), a 55 km de Siena".
+      ...(!est ? pick(f, ["salida", "llegada", "return_from_iata", "return_from", "price_total_mxn", "google_flights_url", "booking_token",
+        "departure_token", "frescura", "precio_guardado", "travel_class", "aeropuerto_nota", "proveedor"]) : {}),
     });
   });
 

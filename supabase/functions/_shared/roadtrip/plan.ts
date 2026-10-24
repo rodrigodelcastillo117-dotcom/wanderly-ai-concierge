@@ -8,11 +8,14 @@
 //    SIN_DATOS (no se inventa).
 //  * Combustible: ESTIMADO = km × consumo supuesto × precio oficial del país (fuente y fecha).
 //  * Viñetas: precio oficial publicado (CONSULTADO, con fuente y fecha).
-//  * Renta, cargo por devolver en otro lugar, peajes y estacionamiento: sin tarifa verificable →
+//  * Casetas: monto REAL de Google Routes (extraComputations TOLLS) cuando Google lo publica
+//    (CONSULTADO, con hora de consulta); si no, POR_CONFIRMAR sin monto y se dice por qué.
+//  * Renta, cargo por devolver en otro lugar y estacionamiento: sin tarifa verificable →
 //    POR_COTIZAR / POR_CONFIRMAR, sin monto.
 import { haversineKm } from "../geo-distance.ts";
 import { type City, CITIES, COUNTRIES, type CuratedRoute, CURATED_ROUTES, type Iso, type Notice, NOTICES } from "./data.ts";
 import { type Source, SOURCES } from "./sources.ts";
+import { tollLine, type TollQuote } from "../tollQuote.ts";
 
 export const ROAD_FACTOR = 1.3;
 export const AVG_KMH = 70;
@@ -20,6 +23,8 @@ export const DEFAULT_L_PER_100 = 7;
 /** Compute Routes Essentials, USD por llamada (5 USD por 1,000; 10,000 gratis al mes). */
 export const ROUTES_USD_PER_CALL = 0.005;
 export const ROUTES_SKU = "Compute Routes Essentials";
+/** Documentación oficial de las casetas de Routes API (fuente que se muestra junto al monto). */
+export const TOLLS_DOC_URL = "https://developers.google.com/maps/documentation/routes/calculate_toll_fees";
 
 export type LegMode = "avion" | "tren" | "coche";
 export type TransportMode = LegMode | "mixto";
@@ -86,7 +91,11 @@ export function resolveLegModes(stopsCount: number, mode?: unknown, legModes?: u
   });
 }
 
-export type LiveLeg = { ok: boolean; distance_meters?: number | null; duration_seconds?: number | null; consultado_at?: string | null } | null | undefined;
+export type LiveLeg = {
+  ok: boolean; distance_meters?: number | null; duration_seconds?: number | null; consultado_at?: string | null;
+  /** Casetas de Google Routes en la misma consulta (null/ausente = no se consultaron). */
+  tolls?: TollQuote | null;
+} | null | undefined;
 
 export type CostItem = {
   id: string;
@@ -116,6 +125,8 @@ export type RoadLeg = {
   date: string | null;
   suggested_stops: SuggestedStop[];
   fuel: CostItem;
+  /** Casetas consultadas a Google al generar el viaje; null = no se consultaron (vista previa, sin Google). */
+  tolls: TollQuote | null;
 };
 
 export type Rental = {
@@ -137,8 +148,13 @@ export type RoadTripPlan = {
   legs: RoadLeg[];
   rentals: Rental[];
   costs: CostItem[];
-  /** Suma de lo que sí tiene monto (estimado o consultado), por moneda. Es PARCIAL: faltan renta, peajes, estacionamiento. */
+  /** Suma de lo que sí tiene monto (estimado o consultado), por moneda. Es PARCIAL: faltan renta, estacionamiento y las casetas sin monto. */
   totals_by_currency: Record<string, number>;
+  /**
+   * Casetas reales en MXN (Google, en vivo) que SÍ se suman al total del viaje; los tramos sin monto
+   * (o en otra moneda sin tasa verificable) van en `faltan` y no suman nada.
+   */
+  casetas: { mxn_en_vivo: number; tramos_con_monto: number; faltan: Array<{ index: number; from: string; to: string; motivo: string }> };
   notices: Notice[];
   assumptions: string[];
   api: { provider: "google_routes"; sku: string; calls: number; list_price_usd: number; free_per_month: number; source: Source };
@@ -232,6 +248,8 @@ export type BuildInput = {
   live?: LiveLeg[];
   /** Cuántas llamadas a Routes se hicieron (para el costo de API). */
   apiCalls?: number;
+  /** SKU y precio de lista de esas llamadas (por defecto Essentials; con casetas, el de google-tolls.ts). */
+  apiSku?: { sku: string; usdPerCall: number; freePerMonth: number };
   fuelType?: "petrol" | "diesel";
   litersPer100?: number;
   now?: string;
@@ -284,6 +302,7 @@ export function buildRoadTripPlan(input: BuildInput): RoadTripPlan | null {
       date: input.legDates?.[i] ?? null,
       suggested_stops: suggestedStopsFor(from, to),
       fuel: fuelCost(base, fuelType, lPer100, `combustible-${i}`),
+      tolls: live?.ok && live.tolls ? live.tolls : null,
     });
   }
   if (!legs.length) return null;
@@ -364,10 +383,33 @@ export function buildRoadTripPlan(input: BuildInput): RoadTripPlan | null {
       });
     }
   }
-  costs.push({
-    id: "peajes", concepto: "Casetas / peajes", monto: null, moneda: null, estado: "POR_CONFIRMAR", fuente: null,
-    detalle: "IATOS no tiene la tarifa por tramo; confírmala en el sitio de la autopista de cada país o en la ruta de Google Maps.",
-  });
+  // Casetas: el monto real de Google por tramo (en MXN si hay tasa verificable; si no, en su moneda).
+  const casetas: RoadTripPlan["casetas"] = { mxn_en_vivo: 0, tramos_con_monto: 0, faltan: [] };
+  for (const l of legs) {
+    const q = l.tolls;
+    if (q?.estado === "CON_MONTO") {
+      const day = q.consultado_at.slice(0, 10);
+      const fuente: Source = { label: "Google Maps · Routes API (casetas)", url: TOLLS_DOC_URL, consulted_at: day };
+      if (q.monto_mxn !== null) {
+        costs.push({ id: `casetas-${l.index}`, concepto: `Casetas ${l.from} → ${l.to}`, monto: q.monto_mxn, moneda: "MXN", estado: "CONSULTADO", fuente, detalle: `${tollLine(q)}. En vivo: se suma al total del viaje.` });
+        casetas.mxn_en_vivo += q.monto_mxn;
+        casetas.tramos_con_monto++;
+        continue;
+      }
+      for (const m of q.montos) {
+        costs.push({ id: `casetas-${l.index}-${m.moneda}`, concepto: `Casetas ${l.from} → ${l.to}`, monto: m.monto, moneda: m.moneda, estado: "CONSULTADO", fuente, detalle: `${tollLine(q)}. Sin tipo de cambio verificable a MXN: no se suma al total del viaje.` });
+      }
+      casetas.faltan.push({ index: l.index, from: l.from, to: l.to, motivo: "Monto en otra moneda sin tipo de cambio verificable" });
+      continue;
+    }
+    casetas.faltan.push({ index: l.index, from: l.from, to: l.to, motivo: q ? tollLine(q) : "Casetas no consultadas a Google para este tramo" });
+  }
+  if (casetas.faltan.length) {
+    costs.push({
+      id: "peajes", concepto: casetas.tramos_con_monto ? "Casetas de otros tramos" : "Casetas / peajes", monto: null, moneda: null, estado: "POR_CONFIRMAR", fuente: null,
+      detalle: `Sin monto de Google (no se suma nada al total): ${casetas.faltan.map((f) => `${f.from} → ${f.to}: ${f.motivo}`).join("; ")}. Confírmalas en el sitio de la autopista o en la ruta de Google Maps.`,
+    });
+  }
   costs.push({
     id: "estacionamiento", concepto: "Estacionamiento", monto: null, moneda: null, estado: "POR_CONFIRMAR", fuente: null,
     detalle: "Depende del hotel y de cada ciudad; pregunta al hotel si tiene estacionamiento (y si está dentro de una zona restringida).",
@@ -389,15 +431,19 @@ export function buildRoadTripPlan(input: BuildInput): RoadTripPlan | null {
     rentals,
     costs,
     totals_by_currency,
+    casetas,
     notices,
     assumptions: [
       `Consumo supuesto: ${lPer100} L/100 km (${fuelType === "diesel" ? "diésel" : "gasolina"}).`,
       `Tramos sin datos de Google: distancia en línea recta × ${ROAD_FACTOR} a ${AVG_KMH} km/h (ESTIMADO).`,
-      "Los costos del auto se muestran aparte y no se suman al total del viaje.",
+      casetas.tramos_con_monto
+        ? "Las casetas con monto en vivo de Google Maps se suman al total del viaje; combustible, viñetas, renta y estacionamiento se muestran aparte y no se suman."
+        : "Los costos del auto se muestran aparte y no se suman al total del viaje.",
     ],
     api: {
-      provider: "google_routes", sku: ROUTES_SKU, calls, list_price_usd: Math.round(calls * ROUTES_USD_PER_CALL * 1000) / 1000,
-      free_per_month: 10000, source: SOURCES.GOOGLE_PRICING,
+      provider: "google_routes", sku: input.apiSku?.sku ?? ROUTES_SKU, calls,
+      list_price_usd: Math.round(calls * (input.apiSku?.usdPerCall ?? ROUTES_USD_PER_CALL) * 1000) / 1000,
+      free_per_month: input.apiSku?.freePerMonth ?? 10000, source: SOURCES.GOOGLE_PRICING,
     },
     generated_at: input.now ?? new Date().toISOString(),
   };
