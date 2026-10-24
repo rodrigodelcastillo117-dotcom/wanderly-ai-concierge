@@ -80,11 +80,20 @@ export function runChecks(k: Keys, f: Fetch = fetch): Promise<CheckResult[]> {
     // Claude responde, a los usuarios no les pasa nada: es AVISO, no FALLA.
     timed("IA de respaldo (Gemini)", async () => {
       if (!k.geminiKey) return { ok: false, detail: "Falta GEMINI_API_KEY" };
-      const r = await withTimeout(f, "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${k.geminiKey}` },
-        body: JSON.stringify({ model: "gemini-flash-latest", messages: [{ role: "user", content: "Responde solo: OK" }] }),
-      });
+      let r: Response;
+      try {
+        r = await withTimeout(f, "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${k.geminiKey}` },
+          body: JSON.stringify({ model: "gemini-flash-latest", messages: [{ role: "user", content: "Responde solo: OK" }] }),
+        });
+      } catch (e) {
+        // Lentitud pasajera de Gemini (más de 20 s): es el respaldo, Iato sigue con Claude → AVISO.
+        if ((e as Error)?.name === "TimeoutError" || (e as Error)?.name === "AbortError") {
+          return { ok: true, warn: "Gemini (respaldo) tardó más de 20 s en responder; suele pasar solo. Iato sigue funcionando con Claude." };
+        }
+        throw e;
+      }
       if (r.ok) return { ok: true };
       await r.body?.cancel().catch(() => {});
       const s = aiStatusText(r.status);

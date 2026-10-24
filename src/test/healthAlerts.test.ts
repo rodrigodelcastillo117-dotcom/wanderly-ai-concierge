@@ -170,4 +170,17 @@ describe("chequeo de IA en palabras (sin JSON crudo)", () => {
     expect(gem.warn).toMatch(/Claude/);
     expect(JSON.stringify(res)).not.toMatch(/high demand|"code"/);
   });
+
+  it("Gemini lento (timeout de 20 s) es AVISO, no FALLA", async () => {
+    const { runChecks } = await import("../../supabase/functions/health-check/checks");
+    const f = (async (url: string) => {
+      if (url.includes("generativelanguage")) throw new DOMException("Signal timed out.", "TimeoutError");
+      return new Response(JSON.stringify({ total_searches_left: 5000 }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const res = await runChecks({ geminiKey: "g", lovableKey: "l", anthropicKey: "a" } as any, f);
+    const gem = res.find((r) => r.name === "IA de respaldo (Gemini)")!;
+    expect(gem.ok).toBe(true);
+    expect(gem.warn).toMatch(/tardó más de 20 s/);
+    expect(gem.warn).toMatch(/Claude/);
+  });
 });
