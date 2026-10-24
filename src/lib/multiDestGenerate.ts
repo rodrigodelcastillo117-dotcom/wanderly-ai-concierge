@@ -23,6 +23,8 @@ export type MultiDestArgs = {
   prefs: Record<string, unknown>;
   /** Noches por ciudad elegidas por la persona (deben sumar las noches del viaje). */
   nightsPerCity?: number[] | null;
+  /** Bases elegidas por región ({ "Toscana": ["Siena","Lucca"] }); el servidor solo acepta las de su tabla. */
+  regionBases?: Record<string, string[]> | null;
   /** Telemetría de behavioral_insights (como antes en MultiDestRoute). */
   telemetry?: { autonomous: boolean } | null;
 };
@@ -41,11 +43,16 @@ export function logisticsPlanArgs(a: MultiDestArgs) {
     num_viajeros: a.viajeros,
     prefs: a.prefs,
     ...(nights ? { nights_per_city: nights } : {}),
+    ...(a.regionBases && Object.keys(a.regionBases).length ? { region_bases: a.regionBases } : {}),
   };
 }
 
 /** Fila de trips para el plan (destino "París → Roma → Atenas", país de la primera ciudad). */
-export function multiDestTripInsert(a: MultiDestArgs, logistics: any) {
+export function multiDestTripInsert(a0: MultiDestArgs, logistics: any) {
+  // Si el servidor convirtió una región en ciudades base ("Toscana" → Siena, Montepulciano), el viaje
+  // se guarda con esas ciudades: son las de per_destination.
+  const served = Array.isArray(logistics?.destinations) && logistics.destinations.length ? logistics.destinations.map(String) : null;
+  const a = served ? { ...a0, stops: served } : a0;
   const { vuelos_json, hospedaje_json, restaurantes_json, tours_json } = multiDestTripRows(logistics, a.stops, a.origin);
   // itinerario_json: TripDetail espera un array de días.
   const days = (logistics?.days ?? []).map((d: any) => ({
@@ -76,7 +83,10 @@ export function multiDestTripInsert(a: MultiDestArgs, logistics: any) {
     hospedaje_json,
     restaurantes_json,
     tours_json,
-    itinerario_json: { multi: true, destinations: a.stops, logistics, days },
+    itinerario_json: {
+      multi: true, destinations: a.stops, logistics, days,
+      ...(Array.isArray(logistics?.region_expansions) && logistics.region_expansions.length ? { region_expansions: logistics.region_expansions } : {}),
+    },
     tips_personalizados: logistics?.resumen ? [logistics.resumen] : null,
   };
 }

@@ -41,6 +41,7 @@ import { legModesFor, planRoadTrip, roadTripPromptBlock } from "./roadtrip.ts";
 import { filterFares, layoverCodesFromAviasalesLink } from "../_shared/fareGuard.ts";
 import { airportCityName } from "../_shared/airports.ts";
 import { chosenNights } from "../_shared/booking/tripRoute.ts";
+import { applyRegionsToBody } from "./regionsBody.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,6 +69,8 @@ interface Body {
   };
   /** Noches por ciudad elegidas por el viajero (planeador): deben sumar las noches del viaje. */
   nights_per_city?: number[];
+  /** Bases elegidas por región en la UI ({ "Toscana": ["Siena","Lucca"] }); solo cuentan las de la tabla. */
+  region_bases?: Record<string, unknown>;
   /** Llave de idempotencia por intento (sessionStorage del cliente). */
   request_key?: string;
   /** "snapshot": guardar en trip_quotes la cotización del plan ya generado (ver saveSnapshot). */
@@ -461,6 +464,9 @@ Deno.serve(async (req) => {
     if (!body?.origin || !Array.isArray(body?.destinations) || body.destinations.length < 1) {
       return invalidRequestResponse(corsHeaders, "Faltan datos: indica tu ciudad de origen y al menos un destino.");
     }
+    // Regiones ("Toscana") → ciudades base reales de la tabla (_shared/regions.ts) ANTES de todo lo
+    // que usa body.destinations: llave, vuelos, hoteles por ciudad, tramos, cityWindows y respuesta.
+    const regionExpansions = applyRegionsToBody(body);
 
     // Cuota: el plan multi-ciudad es un análisis de viaje completo (IA + vuelos y hoteles en vivo),
     // así que usa el mismo cupo que analizar-viaje. Se APARTA después de validar y solo se cobra si
@@ -981,6 +987,9 @@ Entrega JSON con:
       travelers: viajeros,
       date_from: body.fecha_salida ?? null,
       date_to: body.fecha_regreso ?? null,
+      // Ciudades con que se armó el plan (regiones ya convertidas en bases) y qué región se expandió.
+      destinations: body.destinations,
+      region_expansions: regionExpansions,
     };
 
     // Contrato mínimo para cobrar: itinerario, total y logística en todas las ciudades.

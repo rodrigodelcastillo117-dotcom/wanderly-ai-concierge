@@ -8,6 +8,8 @@ import {
 import { generateMultiDestTrip } from "@/lib/multiDestGenerate";
 import { fitNights, nightsFromQuery } from "@/lib/multiCityText";
 import { CityNightsEditor } from "@/components/route/CityNightsEditor";
+import { RegionBases } from "@/components/route/RegionBases";
+import { findRegion } from "../../supabase/functions/_shared/regions.ts";
 import { diffLocalDays, formatLocalDate } from "@/lib/localDate";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -266,6 +268,13 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
     [nightsSel, validStops.length, totalNights],
   );
   const fromTripId = params.get("desde_viaje");
+  // Regiones (Toscana) → bases de la tabla; lo que la persona quite o sume aquí viaja al servidor.
+  const [regionBases, setRegionBases] = useState<Record<string, string[]>>({});
+  const regionBasesSent = useMemo(() => {
+    const present = new Set(validStops.map((s) => findRegion(s)?.name).filter(Boolean));
+    return Object.fromEntries(Object.entries(regionBases).filter(([k]) => present.has(k)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regionBases, validStops.join("|")]);
 
   // roadtrip: modo por tramo efectivo y vista previa ESTIMADA (sin llamadas de API).
   const legModes = useMemo(
@@ -314,6 +323,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         presupuesto,
         prefs: transportMode ? { ...p, transport_mode: transportMode, leg_modes: legModes } : p,
         nightsPerCity: nightsPerCity,
+        regionBases: regionBasesSent,
         telemetry: { autonomous },
       });
 
@@ -393,6 +403,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                 ) : null,
               )}
             </div>
+
+            <RegionBases stops={validStops} nights={nightsPerCity} choices={regionBases} onChange={setRegionBases} />
 
             <form
               onSubmit={(e) => { e.preventDefault(); addStop(); }}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { expansionLine, type RegionExpansion } from "../../supabase/functions/_shared/regions.ts";
 import { useBookingExitNotice } from "@/lib/bookingExit";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -519,6 +520,13 @@ const TripDetail = () => {
           )}
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{tripCountryLabel(trip)}</p>
           <h1 className="font-display text-3xl min-[380px]:text-4xl sm:text-5xl md:text-7xl leading-tight mb-3 md:mb-4 break-words">{trip.destino}</h1>
+          {isMulti && Array.isArray(itinObj.region_expansions) && itinObj.region_expansions.length > 0 && (
+            <div className="mb-3 space-y-0.5" data-testid="region-expansions">
+              {itinObj.region_expansions.map((e: RegionExpansion) => (
+                <p key={e.region} className="text-xs text-primary">{expansionLine(e)}</p>
+              ))}
+            </div>
+          )}
           <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
             <Popover open={editingDates} onOpenChange={setEditingDates}>
               <PopoverTrigger asChild>
