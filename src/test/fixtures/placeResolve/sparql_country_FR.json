@@ -1,0 +1,255 @@
+{
+ "results": {
+  "bindings": [
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q1289"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "156140"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Grenoble"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q38380"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "159022"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Angers"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q7003"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "161830"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Dijon"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q582"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "163684"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Villeurbanne"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q42810"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "166687"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "El Havre"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q42716"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "173136"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Saint-Étienne"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q41876"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "177674"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Reims"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q648"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "238246"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Lille"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q1479"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "267991"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Burdeos"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q6602"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "293771"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Estrasburgo"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q6441"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "310240"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Montpellier"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q33959"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "357737"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Niza"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q7880"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "514819"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Toulouse"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q456"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "519127"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Lyon"
+    }
+   },
+   {
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q90"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "2103778"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "París"
+    },
+    "country": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q142"
+    },
+    "cap": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#boolean",
+     "type": "literal",
+     "value": "true"
+    }
+   }
+  ]
+ }
+}

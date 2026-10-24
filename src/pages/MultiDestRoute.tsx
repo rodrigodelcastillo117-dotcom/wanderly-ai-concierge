@@ -9,7 +9,8 @@ import { generateMultiDestTrip } from "@/lib/multiDestGenerate";
 import { fitNights, nightsFromQuery } from "@/lib/multiCityText";
 import { CityNightsEditor } from "@/components/route/CityNightsEditor";
 import { RegionBases } from "@/components/route/RegionBases";
-import { findRegion } from "../../supabase/functions/_shared/regions.ts";
+import { expandRegions, findRegion, placeKey } from "../../supabase/functions/_shared/regions.ts";
+import { usePlaceResolve } from "@/lib/placeResolveClient";
 import { diffLocalDays, formatLocalDate } from "@/lib/localDate";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -194,10 +195,21 @@ const MultiDestRoute = () => {
   // El usuario debe revisar/editar la travesía y pulsar "Generar travesía"
   // para avanzar a la siguiente página.
 
+  // Destinos que la persona escribió en esta pantalla: solo esos se revisan con place-resolve (país,
+  // región fuera de la tabla, carretera, pueblo). Lo que llega por la URL al abrir no consulta nada.
+  const [typedKeys, setTypedKeys] = useState<Set<string>>(() => new Set());
+  const markTyped = (...vals: string[]) =>
+    setTypedKeys((prev) => {
+      const next = new Set(prev);
+      for (const v of vals) if (v.trim()) next.add(placeKey(v));
+      return next;
+    });
+
   const addStop = () => {
     const v = draft.trim();
     if (!v) return;
     setStops((s) => [...s.filter(Boolean), v]);
+    markTyped(v);
     setDraft("");
   };
 
@@ -224,6 +236,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         return;
       }
       setStops(cities);
+      markTyped(...cities);
       setDraft("");
       toast.success(`IATOS AI actualizó tu ruta · ${cities.length} ciudades`);
     } catch (e: any) {
@@ -238,8 +251,12 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
 
 
   const validStops = stops.map((s) => s.trim()).filter(Boolean);
-
-  const canStart = origin.trim().length > 1 && validStops.length >= 2;
+  // País / región / carretera que la tabla no conoce → "Francia → París · Lyon" (Google + Wikidata).
+  const { places, lookup: placeRegion } = usePlaceResolve(validStops.filter((s) => typedKeys.has(placeKey(s))));
+  const pickPlace = (input: string, label: string) => {
+    setStops((arr) => arr.map((x) => (placeKey(x) === placeKey(input) ? label : x)));
+    markTyped(label);
+  };
 
   // Noches por ciudad (?noches=3|3|3 desde el planeador o "Convertir en ruta"): siempre suman las noches
   // del viaje; si cambian las fechas o las ciudades, se vuelven a repartir como el servidor.
@@ -271,10 +288,17 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
   // Regiones (Toscana) → bases de la tabla; lo que la persona quite o sume aquí viaja al servidor.
   const [regionBases, setRegionBases] = useState<Record<string, string[]>>({});
   const regionBasesSent = useMemo(() => {
-    const present = new Set(validStops.map((s) => findRegion(s)?.name).filter(Boolean));
+    const present = new Set(validStops.map((s) => (findRegion(s) ?? placeRegion(s))?.name).filter(Boolean));
     return Object.fromEntries(Object.entries(regionBases).filter(([k]) => present.has(k)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regionBases, validStops.join("|")]);
+  }, [regionBases, validStops.join("|"), placeRegion]);
+  // Un país o una región que se recorre por 2+ ciudades ya es una ruta de varias paradas.
+  const expandedCount = useMemo(
+    () => expandRegions(validStops, nightsPerCity, regionBasesSent, placeRegion).destinations.length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [validStops.join("|"), nightsPerCity, regionBasesSent, placeRegion],
+  );
+  const canStart = origin.trim().length > 1 && (validStops.length >= 2 || expandedCount >= 2);
 
   // roadtrip: modo por tramo efectivo y vista previa ESTIMADA (sin llamadas de API).
   const legModes = useMemo(
@@ -387,9 +411,10 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                     <Input
                       aria-label={`Parada ${i + 1}`}
                       value={s}
-                      onChange={(e) =>
-                        setStops((arr) => arr.map((x, idx) => (idx === i ? e.target.value : x)))
-                      }
+                      onChange={(e) => {
+                        setStops((arr) => arr.map((x, idx) => (idx === i ? e.target.value : x)));
+                        markTyped(e.target.value);
+                      }}
                       className="flex-1 bg-transparent border-0 h-auto p-0 focus-visible:ring-0"
                     />
                     <button
@@ -404,7 +429,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               )}
             </div>
 
-            <RegionBases stops={validStops} nights={nightsPerCity} choices={regionBases} onChange={setRegionBases} />
+            <RegionBases stops={validStops} nights={nightsPerCity} choices={regionBases} onChange={setRegionBases} places={places} onPick={pickPlace} />
 
             <form
               onSubmit={(e) => { e.preventDefault(); addStop(); }}

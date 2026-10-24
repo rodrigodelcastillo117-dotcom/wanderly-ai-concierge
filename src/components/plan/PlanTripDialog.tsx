@@ -12,7 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { localISODatePlus } from "@/lib/localDate";
+import { diffLocalDays, localISODatePlus } from "@/lib/localDate";
+import { countryRouteFor } from "@/lib/countryRoutes";
+import { usePlaceResolve } from "@/lib/placeResolveClient";
+import { expandRegions } from "../../../supabase/functions/_shared/regions";
+import { RegionBases } from "@/components/route/RegionBases";
 import {
   CABIN_LABEL, cachedExplore, DEFAULT_ORIGIN, exploreTarget, fetchExplore, flightSearchPath, originChips,
   type CabinClass, type ExploreState, type Leg, type PlanForm, type TripKind,
@@ -79,6 +83,13 @@ export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const [cheap, setCheap] = useState<ExploreState | null>(null);
   const [cheapLoading, setCheapLoading] = useState(false);
   const today = localISODatePlus(0);
+  // Destino que el catálogo no conoce (Baviera, Ruta 66, un pueblo…): vista previa con place-resolve solo
+  // cuando la persona lo escribe; la tabla curada de países y regiones va primero y no consulta nada.
+  const [destTyped, setDestTyped] = useState(false);
+  const [destChoices, setDestChoices] = useState<Record<string, string[]>>({});
+  const destNeeds = open && kind !== "multi" && destTyped && !countryRouteFor(destination);
+  const { places: destPlaces, lookup: destLookup } = usePlaceResolve(destNeeds ? [destination] : []);
+  const destNights = kind === "redondo" && depart && ret ? diffLocalDays(depart, ret) : 0;
 
   // Origen del perfil (ciudad_origen), si existe; si no, Ciudad de México.
   useEffect(() => {
@@ -121,6 +132,7 @@ export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     setOrigin(destination || "");
     setDestination(origin);
     setOriginTouched(true);
+    setDestTyped(true);
   };
 
   const go = (path: string) => {
@@ -137,6 +149,25 @@ export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     const t = exploreTarget(form);
     if (!t) { setFormError("Agrega al menos un tramo con destino."); return; }
     setFormError(null);
+    // País o región fuera de la tabla, o carretera con paradas: la ruta por sus ciudades reales (Wikidata).
+    const region = t.flow === "planear" && kind !== "multi" ? destLookup(destination) : null;
+    if (region) {
+      const r = expandRegions([destination], destNights > 0 ? [destNights] : null, destChoices, destLookup);
+      const viajeros = String(Math.max(1, adults + minors));
+      if (r.destinations.length >= 2) {
+        const qs = new URLSearchParams({ origin: origin.trim() || DEFAULT_ORIGIN, destinos: r.destinations.join("|"), viajeros });
+        if (depart) qs.set("fecha_salida", depart);
+        if (kind === "redondo" && ret) qs.set("fecha_regreso", ret);
+        if (Array.isArray(r.nightsPerCity) && r.nightsPerCity.length === r.destinations.length) qs.set("noches", r.nightsPerCity.join("|"));
+        if (region.kind === "route") qs.set("modo", "coche");
+        go(`/dashboard/ruta?${qs.toString()}`);
+        return;
+      }
+      if (r.destinations.length === 1) {
+        go(t.path.replace(/([?&]destino=)[^&]*/, `$1${encodeURIComponent(r.destinations[0])}`));
+        return;
+      }
+    }
     go(t.path);
   };
 
@@ -200,7 +231,13 @@ export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-primary/30 text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:mt-1">
                 <ArrowLeftRight aria-hidden className="h-4 w-4 rotate-90 sm:rotate-0" />
               </button>
-              <PlaceCombobox label="¿A dónde?" value={destination} onChange={setDestination} placeholder="¿A dónde? Ciudad o país" icon={<Search className="h-4 w-4" />} />
+              <PlaceCombobox label="¿A dónde?" value={destination} onChange={(v) => { setDestination(v); setDestTyped(true); }} placeholder="¿A dónde? Ciudad o país" icon={<Search className="h-4 w-4" />} />
+              {destNeeds && destPlaces.some((p) => p.status === "needs_clarification" || p.kind === "route" || !!destLookup(p.input)) && (
+                <div className="-mt-2 sm:col-span-3">
+                  <RegionBases stops={[destination.trim()]} nights={destNights > 0 ? [destNights] : null} choices={destChoices} onChange={setDestChoices}
+                    places={destPlaces} onPick={(_input, label) => setDestination(label)} />
+                </div>
+              )}
               <div className={`grid gap-3 sm:col-span-3 ${kind === "redondo" ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
                 <DateField id="plan-salida" label="Salida" value={depart} min={today} onChange={setDepart} />
                 {kind === "redondo" && <DateField id="plan-regreso" label="Regreso" value={ret} min={depart || today} onChange={setRet} />}

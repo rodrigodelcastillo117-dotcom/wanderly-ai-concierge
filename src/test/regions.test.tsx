@@ -63,14 +63,14 @@ describe("regiones → ciudades base (tabla curada)", () => {
 });
 
 describe("logistics-plan usa la lista expandida", () => {
-  it("cuerpo: destinos, noches por ciudad y modos por tramo; las noches siguen valiendo (chosenNights)", () => {
+  it("cuerpo: destinos, noches por ciudad y modos por tramo; las noches siguen valiendo (chosenNights)", async () => {
     const body: any = {
       origin: "Ciudad de México",
       destinations: ["Roma", "Venecia", "Florencia", "Toscana"],
       nights_per_city: [3, 2, 2, 4],
       prefs: { transport_mode: "mixto", leg_modes: ["tren", "tren", "coche"] },
     };
-    const exp = applyRegionsToBody(body);
+    const exp = (await applyRegionsToBody(body)).expansions;
     expect(exp).toEqual([{ region: "Toscana", ciudades: ["Siena", "Lucca"] }]);
     expect(body.destinations).toEqual(["Roma", "Venecia", "Florencia", "Siena", "Lucca"]);
     expect(body.nights_per_city).toEqual([3, 2, 2, 2, 2]);
@@ -78,7 +78,7 @@ describe("logistics-plan usa la lista expandida", () => {
     expect(chosenNights(body.nights_per_city, body.destinations.length, 11)).toEqual([3, 2, 2, 2, 2]);
     // Sin regiones no toca nada.
     const plain: any = { destinations: ["Roma", "Florencia"], nights_per_city: [2, 2] };
-    expect(applyRegionsToBody(plain)).toEqual([]);
+    expect((await applyRegionsToBody(plain)).expansions).toEqual([]);
     expect(plain.destinations).toEqual(["Roma", "Florencia"]);
   });
 

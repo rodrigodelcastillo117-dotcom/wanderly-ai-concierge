@@ -1,0 +1,6 @@
+{
+  "_nota": "Resultados reales de búsqueda de Wikidata (EntitySearch = wbsearchentities, idioma es) consultados el 24-oct-2026.",
+  "Baviera": { "search": [{ "id": "Q980", "label": "Baviera" }, { "id": "Q28136629", "label": "Baviera" }, { "id": "Q47261", "label": "Ducado de Baviera" }] },
+  "Ruta 66": { "search": [{ "id": "Q79934", "label": "Ruta 66" }, { "id": "Q1248499", "label": "Ruta 66" }, { "id": "Q790730", "label": "Carretera 66" }] },
+  "Carretera Austral": { "search": [{ "id": "Q595165", "label": "Carretera Austral" }] }
+}

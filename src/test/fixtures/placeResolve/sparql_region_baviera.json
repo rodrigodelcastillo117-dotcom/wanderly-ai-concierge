@@ -1,0 +1,166 @@
+{
+ "results": {
+  "bindings": [
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q980"
+    },
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q1726"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "1505036"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Múnich"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q980"
+    },
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q2090"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "531159"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Núremberg"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q980"
+    },
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q2749"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "301786"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Augsburgo"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q980"
+    },
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q2978"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "151517"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Ratisbona"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q980"
+    },
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q3004"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "140799"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Ingolstadt"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q980"
+    },
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q2999"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "133753"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Wurzburgo"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q980"
+    },
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q3075"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "131344"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Fürth"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q980"
+    },
+    "city": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q3126"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "116450"
+    },
+    "cityLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Erlangen"
+    }
+   }
+  ]
+ }
+}

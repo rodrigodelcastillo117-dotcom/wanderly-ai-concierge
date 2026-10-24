@@ -1,0 +1,26 @@
+{
+  "_nota": "Forma documentada de la respuesta de Google Geocoding (developers.google.com/maps/documentation/geocoding/requests-geocoding); place_id y coordenadas son de prueba, no de Google.",
+  "francia": { "status": "OK", "results": [{ "place_id": "prueba-francia", "types": ["country", "political"], "formatted_address": "Francia",
+    "address_components": [{ "long_name": "Francia", "short_name": "FR", "types": ["country", "political"] }],
+    "geometry": { "location": { "lat": 46.2, "lng": 2.2 }, "viewport": { "northeast": { "lat": 51.1, "lng": 9.6 }, "southwest": { "lat": 41.3, "lng": -5.1 } } } }] },
+  "baviera": { "status": "OK", "results": [{ "place_id": "prueba-baviera", "types": ["administrative_area_level_1", "political"], "formatted_address": "Baviera, Alemania",
+    "address_components": [{ "long_name": "Baviera", "short_name": "BY", "types": ["administrative_area_level_1", "political"] }, { "long_name": "Alemania", "short_name": "DE", "types": ["country", "political"] }],
+    "geometry": { "location": { "lat": 48.8, "lng": 11.5 }, "viewport": { "northeast": { "lat": 50.6, "lng": 13.8 }, "southwest": { "lat": 47.3, "lng": 8.9 } } } }] },
+  "hallstatt": { "status": "OK", "results": [{ "place_id": "prueba-hallstatt", "types": ["locality", "political"], "formatted_address": "Hallstatt, Austria",
+    "address_components": [{ "long_name": "Hallstatt", "short_name": "Hallstatt", "types": ["locality", "political"] }, { "long_name": "Austria", "short_name": "AT", "types": ["country", "political"] }],
+    "geometry": { "location": { "lat": 47.56, "lng": 13.65 } } }] },
+  "ruta 66": { "status": "OK", "results": [{ "place_id": "prueba-ruta66", "types": ["route"], "formatted_address": "Ruta 66, Estados Unidos",
+    "address_components": [{ "long_name": "Ruta 66", "short_name": "US-66", "types": ["route"] }, { "long_name": "Estados Unidos", "short_name": "US", "types": ["country", "political"] }],
+    "geometry": { "location": { "lat": 35.2, "lng": -101.8 } } }] },
+  "carretera austral": { "status": "OK", "results": [{ "place_id": "prueba-austral", "types": ["route"], "formatted_address": "Carretera Austral, Chile",
+    "address_components": [{ "long_name": "Carretera Austral", "short_name": "Ruta 7", "types": ["route"] }, { "long_name": "Chile", "short_name": "CL", "types": ["country", "political"] }],
+    "geometry": { "location": { "lat": -45.5, "lng": -72.0 } } }] },
+  "cordoba": { "status": "OK", "results": [
+    { "place_id": "prueba-cordoba-es", "types": ["locality", "political"], "formatted_address": "Córdoba, España",
+      "address_components": [{ "long_name": "Córdoba", "short_name": "Córdoba", "types": ["locality", "political"] }, { "long_name": "Andalucía", "short_name": "AN", "types": ["administrative_area_level_1", "political"] }, { "long_name": "España", "short_name": "ES", "types": ["country", "political"] }],
+      "geometry": { "location": { "lat": 37.88, "lng": -4.77 } } },
+    { "place_id": "prueba-cordoba-ar", "types": ["locality", "political"], "formatted_address": "Córdoba, Argentina",
+      "address_components": [{ "long_name": "Córdoba", "short_name": "Córdoba", "types": ["locality", "political"] }, { "long_name": "Córdoba", "short_name": "X", "types": ["administrative_area_level_1", "political"] }, { "long_name": "Argentina", "short_name": "AR", "types": ["country", "political"] }],
+      "geometry": { "location": { "lat": -31.42, "lng": -64.18 } } }] },
+  "xyzzy": { "status": "ZERO_RESULTS", "results": [] }
+}

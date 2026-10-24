@@ -1,0 +1,142 @@
+{
+ "results": {
+  "bindings": [
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q79934"
+    },
+    "rank": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#integer",
+     "type": "literal",
+     "value": "1"
+    },
+    "stop": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q1297"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "terminus"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(-87.627777777 41.881944444)"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "2746388"
+    },
+    "stopLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Chicago"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q79934"
+    },
+    "rank": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#integer",
+     "type": "literal",
+     "value": "1"
+    },
+    "stop": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q47164"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "terminus"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(-118.481388888 34.021944444)"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "93076"
+    },
+    "stopLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Santa Mónica"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q790730"
+    },
+    "rank": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#integer",
+     "type": "literal",
+     "value": "3"
+    },
+    "stop": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q979996"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "terminus"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(-65.831388888 18.380277777)"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "47060"
+    },
+    "stopLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Río Grande"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q790730"
+    },
+    "rank": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#integer",
+     "type": "literal",
+     "value": "3"
+    },
+    "stop": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q990293"
+    },
+    "kind": {
+     "type": "literal",
+     "value": "terminus"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(-65.966666666 18.388888888)"
+    },
+    "pop": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+     "type": "literal",
+     "value": "154815"
+    },
+    "stopLabel": {
+     "xml:lang": "es",
+     "type": "literal",
+     "value": "Carolina"
+    }
+   }
+  ]
+ }
+}

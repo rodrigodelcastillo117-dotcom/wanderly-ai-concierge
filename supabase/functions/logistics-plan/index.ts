@@ -42,6 +42,7 @@ import { filterFares, layoverCodesFromAviasalesLink } from "../_shared/fareGuard
 import { airportCityName } from "../_shared/airports.ts";
 import { chosenNights } from "../_shared/booking/tripRoute.ts";
 import { applyRegionsToBody } from "./regionsBody.ts";
+import { resolveDestinations } from "../_shared/placeResolve.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -466,7 +467,12 @@ Deno.serve(async (req) => {
     }
     // Regiones ("Toscana") → ciudades base reales de la tabla (_shared/regions.ts) ANTES de todo lo
     // que usa body.destinations: llave, vuelos, hoteles por ciudad, tramos, cityWindows y respuesta.
-    const regionExpansions = applyRegionsToBody(body);
+    // Lo que la tabla no conoce (país, otra región, carretera): Google Geocoding + Wikidata
+    // (_shared/placeResolve.ts, caché de 30 días); si no se puede, el destino queda como está.
+    const placeGoogle = googleTransportFor("logistics-plan", __user.id);
+    const placeStore = dbCacheStore();
+    const placeInfo = await applyRegionsToBody(body, (list) => resolveDestinations(list, { google: placeGoogle, store: placeStore }));
+    const regionExpansions = placeInfo.expansions;
 
     // Cuota: el plan multi-ciudad es un análisis de viaje completo (IA + vuelos y hoteles en vivo),
     // así que usa el mismo cupo que analizar-viaje. Se APARTA después de validar y solo se cobra si
@@ -553,7 +559,8 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
     const viajeros = Math.max(1, Number(body.num_viajeros) || 2);
     const fechas = `${body.fecha_salida ?? "flexible"} a ${body.fecha_regreso ?? "flexible"}`;
     const cityList = body.destinations.join(" → ");
-    const roadtripDetected = isRoadtrip(body.destinations, body.origin);
+    // Una carretera escrita en la ruta (Ruta 66, Carretera Austral…) también es road trip.
+    const roadtripDetected = isRoadtrip(body.destinations, body.origin) || placeInfo.roadtrip;
     // roadtrip: el modo que eligió el viajero manda; sin elección, el destino de roadtrip implica coche.
     const legModes = legModesFor(body.destinations, body.prefs, roadtripDetected);
     const roadtripMode = legModes.length ? legModes.every((m) => m === "coche") : roadtripDetected;
@@ -990,6 +997,8 @@ Entrega JSON con:
       // Ciudades con que se armó el plan (regiones ya convertidas en bases) y qué región se expandió.
       destinations: body.destinations,
       region_expansions: regionExpansions,
+      // Destinos ambiguos o que Google no encontró: quedan como se escribieron, con candidatos reales.
+      ...(placeInfo.clarifications.length ? { place_clarifications: placeInfo.clarifications } : {}),
     };
 
     // Contrato mínimo para cobrar: itinerario, total y logística en todas las ciudades.

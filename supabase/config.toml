@@ -103,6 +103,9 @@ verify_jwt = true
 [functions.place-photo]
 verify_jwt = true
 
+[functions.place-resolve]
+verify_jwt = true
+
 [functions.places-nearby]
 verify_jwt = true
 
