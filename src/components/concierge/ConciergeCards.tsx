@@ -20,6 +20,7 @@ import { ReservationStateBadge } from "./ReservationStateBadge";
 import { canTakeMeThere, isMobileDevice, mapsDirectionsUrl, takeMeThereUrl } from "@/lib/takeMeThere";
 import { ViatorTourCard } from "@/components/booking/ViatorTours";
 import { tourViewFromCard } from "@/lib/viatorTours";
+import { groundCardLink } from "@/lib/groundCardLinks";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 import { frescuraPrecio } from "../../../supabase/functions/_shared/priceFreshness.ts";
 import {
@@ -622,6 +623,11 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           </div>
         </div>
         {card.meta && <p className="text-xs text-muted-foreground mb-2">{card.meta}</p>}
+        {/* Grupo terrestre: tren, ferry o yate → la pantalla de IATOS con la ruta escrita (ahí, con la fecha,
+            salen los enlaces precargados del operador o las salidas en vivo). Sin precio. */}
+        {(() => { const g = groundCardLink(card); return g ? (
+          <a href={g.href} data-testid="card-ground-link" className="mb-2 inline-flex min-h-[32px] items-center rounded-full border border-primary/40 px-3 text-[11px] text-primary">{g.label}</a>
+        ) : null; })()}
         {/* B-17: cada card abre SU enlace (Welcome Pickups, Blacklane, Maps…). Solo sin enlace se
             arma uno de Welcome Pickups con origen y destino de la card. */}
         {card.links?.length ? (

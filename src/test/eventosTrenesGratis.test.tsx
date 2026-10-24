@@ -306,12 +306,18 @@ describe("6. catálogo de operadores oficiales por país", () => {
 
 describe("7. nunca un precio inventado en trenes y autobuses", () => {
   const trip = { id: "t1", num_viajeros: 2, destino: "Madrid → Sevilla", pais_destino: "España" };
-  it("Comprar: tren Madrid → Sevilla con 'Comprar en Renfe', Trainline de alternativa y horarios en Maps; sin precio", () => {
+  it("Comprar: tren Madrid → Sevilla con la búsqueda de Renfe PRECARGADA (ruta, fecha y pasajeros), Trainline de alternativa y horarios en Maps; sin precio", () => {
     const leg = legStep(trip, "Madrid", "Sevilla", "2026-12-07", 2, "tren");
     const tren = leg.choices.find((c) => c.mode === "tren")!;
-    expect(tren).toMatchObject({ site: "Renfe", buttonLabel: "Comprar en Renfe", url: "https://www.renfe.com/es/es", pricePp: null });
-    expect(tren.completa).toBe("Renfe no recibe la ruta por enlace: escribe Madrid → Sevilla y el 7 dic. Precio en el sitio del operador.");
-    expect(tren.links?.map((l) => l.label)).toEqual(["Comprar en iryo", "Comprar en OUIGO España", "Buscar tren en Trainline", "Ver horarios en Google Maps"]);
+    expect(tren).toMatchObject({ site: "Renfe", buttonLabel: "Ver horarios y precio en Renfe", pricePp: null });
+    const u = new URL(tren.url!);
+    expect(u.hostname).toBe("venta.renfe.com");
+    expect(u.searchParams.get("cdgoOrigen")).toBe("MADRI");
+    expect(u.searchParams.get("cdgoDestino")).toBe("51003");
+    expect(u.searchParams.get("FechaIdaSel")).toBe("07/12/2026");
+    expect(u.searchParams.get("adultos_")).toBe("2");
+    expect(tren.completa).toBe("Llega con: origen, destino, fecha y pasajeros. El precio y la compra son en Renfe; IATOS no lo cotiza.");
+    expect(tren.links?.map((l) => l.label)).toEqual(["Ver horarios y precio en iryo", "Ver horarios y precio en OUIGO España", "Buscar tren en Trainline", "Ver horarios en Google Maps"]);
     expect(tren.links?.find((l) => l.kind === "horarios")?.url).toBe(transitScheduleUrl("Madrid", "Sevilla"));
     expect(leg.item.price).toBeNull();
     expect(leg.item.priceNote).toBe("Por cotizar: precio en el sitio del operador.");
@@ -319,14 +325,16 @@ describe("7. nunca un precio inventado en trenes y autobuses", () => {
   it("Destinos: tramo en tren con operador, Trainline y horarios; autobús ALSA con su sitio y horarios; ningún $", () => {
     const { container, unmount } = render(<MemoryRouter><GroundBuyButtons option={{ mode: "Tren de Alta Velocidad (AVE)", from: "Madrid", to: "Sevilla", provider: "Renfe AVE" }} trip={trip} /></MemoryRouter>);
     const ops = screen.getAllByTestId("ground-operator").map((a) => a.textContent?.trim());
-    expect(ops[0]).toMatch(/^Comprar en Renfe/);
+    // Sin fecha del tramo no se arma la búsqueda: la portada de Renfe y la instrucción de qué escribir.
+    expect(ops[0]).toMatch(/^Ver horarios y precio en Renfe/);
+    expect(screen.getAllByTestId("ground-operator")[0]).toHaveAttribute("href", "https://www.renfe.com/es/es");
     expect(screen.getByText(/Buscar tren en Trainline/)).toBeInTheDocument();
     expect(screen.getByTestId("ground-schedule")).toHaveAttribute("href", transitScheduleUrl("Madrid", "Sevilla"));
     expect(container.textContent).toMatch(/Precio en el sitio del operador/);
     expect(container.textContent).not.toMatch(/\$\s?\d|MXN|USD|EUR|comprad/i);
     unmount();
     const bus = render(<MemoryRouter><GroundBuyButtons option={{ mode: "autobús", from: "Granada", to: "Málaga", provider: "ALSA" }} trip={trip} /></MemoryRouter>);
-    expect(screen.getByText(/Precio y compra con el operador \(ALSA\)/)).toBeInTheDocument();
+    expect(screen.getByText(/ALSA no recibe la ruta por enlace: escribe Granada → Málaga/)).toBeInTheDocument();
     expect(screen.getByTestId("ground-operator")).toHaveAttribute("href", "https://www.alsa.es/");
     expect(screen.getByTestId("ground-schedule").getAttribute("href")).toMatch(/travelmode=transit/);
     expect(bus.container.textContent).not.toMatch(/\$\s?\d|MXN|USD|EUR/);

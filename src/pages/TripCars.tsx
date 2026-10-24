@@ -9,23 +9,28 @@ import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 // roadtrip: devolución en otra ciudad (one-way) con búsqueda de Kayak que lleva ambas ciudades.
 import { isOneWay, kayakCarsUrl } from "@/lib/roadtrip";
+import { carSearchDefaults } from "@/lib/multiDestTrip";
 
 const TripCars = () => {
   // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
   const tripTool = useTripTool();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [city, setCity] = useState(params.get("city") ?? "");
-  const [pickup, setPickup] = useState(params.get("pickup") ?? "");
-  const [ret, setRet] = useState(params.get("return") ?? "");
+  const urlQ = { city: params.get("city"), dropoff: params.get("dropoff"), pickup: params.get("pickup"), ret: params.get("return") };
+  const initial = carSearchDefaults(urlQ, null);
+  const [city, setCity] = useState(initial.city);
+  const [pickup, setPickup] = useState(initial.pickup);
+  const [ret, setRet] = useState(initial.ret);
   const [dropoff, setDropoff] = useState(params.get("dropoff") ?? "");
-  // Sin datos en la URL, la ciudad y las fechas del viaje en contexto (?trip=).
+  // Sin datos en la URL, la ciudad y las fechas del viaje en contexto (?trip=). Un tramo de ida
+  // (recoger aquí, devolver allá) nunca toma el regreso del viaje como devolución (carSearchDefaults).
   useEffect(() => {
     const t = tripTool.trip;
     if (!t) return;
-    if (!city && t.destino) setCity(t.destino);
-    if (!pickup && t.fecha_salida) setPickup(t.fecha_salida);
-    if (!ret && t.fecha_regreso) setRet(t.fecha_regreso);
+    const d = carSearchDefaults(urlQ, t);
+    if (!city && d.city) setCity(d.city);
+    if (!pickup && d.pickup) setPickup(d.pickup);
+    if (!ret && d.ret) setRet(d.ret);
   }, [tripTool.trip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const oneWay = !!city && !!dropoff && isOneWay({ pickup_city: city, dropoff_city: dropoff, pickup_date: pickup, dropoff_date: ret });

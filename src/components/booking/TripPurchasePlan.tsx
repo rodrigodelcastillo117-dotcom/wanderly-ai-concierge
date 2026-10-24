@@ -172,7 +172,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
       {buyLabel(it)} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
     </a>
   ) : it.fallbackHref ? (
-    <Link to={it.fallbackHref} className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-primary/40 px-3 py-2 text-sm text-primary">Buscar en IATOS</Link>
+    <Link to={it.fallbackHref} data-testid={`${testid}-interno`} className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-primary/40 px-3 py-2 text-sm text-primary">{it.buttonLabel ?? "Buscar en IATOS"}</Link>
   ) : <span className="text-xs text-muted-foreground">No encontramos un enlace fiable para comprarlo en línea.</span>;
 
   /** "Ya lo compré" / quién lo marcó / deshacer. */

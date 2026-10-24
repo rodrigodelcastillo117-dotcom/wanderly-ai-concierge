@@ -9,6 +9,7 @@ import { trainlineLink, omioLink, raileuropeLink } from "@/lib/affiliateLinks";
 import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { localISODate } from "@/lib/localDate";
+import { multimodalAction, operatorAction, routeOperators } from "../../supabase/functions/_shared/booking/railOperators.ts";
 
 const Trenes = () => {
   // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
@@ -18,6 +19,12 @@ const Trenes = () => {
   const [origin, setOrigin] = useState(params.get("origin") ?? "");
   const [destination, setDestination] = useState(params.get("dest") ?? "");
   const [date, setDate] = useState(params.get("date") ?? localISODate());
+  const [pax, setPax] = useState(Math.max(1, Number(params.get("pax") ?? tripTool.trip?.num_viajeros ?? 1) || 1));
+  // Operador oficial del país con la búsqueda precargada cuando su formato se comprobó (Renfe, DB) o su
+  // portada; 12Go con ruta y fecha en el Sudeste Asiático. Nunca un precio.
+  const q = { from: origin, to: destination, date, adults: pax };
+  const ops = origin && destination ? routeOperators({ from: origin, to: destination, country: tripTool.trip?.pais_destino }) : [];
+  const actions = [...ops.map((o) => operatorAction(o, q)), ...(origin && destination ? [multimodalAction(q)].filter((a): a is NonNullable<typeof a> => !!a) : [])];
 
   const sources = [
     { name: "Trainline", desc: "El #1 en Europa y Reino Unido. 270+ operadores.", link: trainlineLink, prefill: "trainline" },
@@ -50,7 +57,7 @@ const Trenes = () => {
         </div>
 
         <div className="glass-card rounded-xl p-4 md:p-5 space-y-3">
-          <div className="grid md:grid-cols-3 gap-3">
+          <div className="grid md:grid-cols-4 gap-3">
             <div className="space-y-1">
               <label htmlFor="trenes-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
               <Input id="trenes-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="París" />
@@ -63,8 +70,27 @@ const Trenes = () => {
               <label htmlFor="trenes-fecha" className="text-xs uppercase tracking-wide text-muted-foreground">Fecha</label>
               <Input id="trenes-fecha" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
+            <div className="space-y-1">
+              <label htmlFor="trenes-pasajeros" className="text-xs uppercase tracking-wide text-muted-foreground">Pasajeros</label>
+              <Input id="trenes-pasajeros" type="number" min={1} max={9} value={pax} onChange={(e) => setPax(Math.min(9, Math.max(1, Number(e.target.value) || 1)))} />
+            </div>
           </div>
         </div>
+
+        {actions.length > 0 && (
+          <div className="glass-card rounded-xl p-4 md:p-5 space-y-2" data-testid="trenes-operadores">
+            <h2 className="font-display text-lg">Operador oficial</h2>
+            <div className="flex flex-wrap gap-2">
+              {actions.map((a) => (
+                <Button key={a.url} variant={a.prefilled ? "default" : "outline"} data-testid="trenes-operador" data-prefilled={a.prefilled ? "1" : "0"}
+                  onClick={() => reservar(a.site, a.url)}>
+                  {a.label} <ExternalLink className="w-3 h-3 ml-1" />
+                </Button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">{actions[0].hint}</p>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-3">
           {sources.map((s) => (

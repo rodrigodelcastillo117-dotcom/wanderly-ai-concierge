@@ -12,7 +12,7 @@ import { describePrefill } from "@/lib/purchasePlan";
 import { trainlineLink } from "@/lib/affiliateLinks";
 import { cityAirports, distanceKm, mainAirport } from "../../supabase/functions/_shared/airports.ts";
 import { googleFlightsSearchUrl } from "../../supabase/functions/_shared/booking/links.ts";
-import { operatorHint, PRICE_AT_OPERATOR, routeOperators } from "../../supabase/functions/_shared/booking/railOperators.ts";
+import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPERATOR, routeOperators } from "../../supabase/functions/_shared/booking/railOperators.ts";
 import { transitScheduleUrl } from "@/lib/takeMeThere";
 
 export type BuySel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[]; selHoteles?: Record<string, number> | null;
@@ -111,21 +111,25 @@ export function legStep(trip: any, from: string, to: string, date: string | null
     choices.push(base("vuelo", { url, site: url ? "Google Flights" : null, buttonLabel: url ? "Buscar vuelo en Google Flights" : null, lleva: pre.lleva, completa: pre.completa,
       fallbackHref: url ? null : `/dashboard/vuelos?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}${date8 ? `&depart=${date8}` : ""}&travelers=${travelers}` }));
   }
-  // Tren: Trainline en Europa; fuera, nuestro buscador de trenes ("por cotizar").
+  // Tren: el operador oficial del país con la búsqueda PRECARGADA si su formato se comprobó (Renfe, DB;
+  // groundLinks.ts) o su portada; fuera de Europa, 12Go en Asia; si no, Trainline o nuestro buscador.
   if (planOf("tren") || km == null || km < 1200) {
     const tl = europe ? trainlineLink(from, to, date8 ?? "") : null;
-    // Compra en el operador oficial del país (catálogo railOperators.ts); Trainline queda como alternativa.
+    const q = { from, to, date: date8, adults: travelers };
+    const day = date8 ? fmtDayShort(date8) : null;
     const ops = routeOperators({ from, to, provider: planOf("tren")?.provider, country: trip?.pais_destino });
-    const main = ops.find((x) => !x.informativo) ?? null;
+    const acts = ops.map((o) => operatorAction(o, q, day));
+    const mainIdx = ops.findIndex((x) => !x.informativo);
+    const main = mainIdx >= 0 ? acts[mainIdx] : multimodalAction(q);
     const sched = transitScheduleUrl(from, to);
     const links: LegLink[] = [
-      ...ops.filter((x) => x !== main).map((x): LegLink => ({ kind: x.informativo ? "info" : "operador", label: x.informativo ? `${x.name} (informativo)` : `Comprar en ${x.name}`, url: x.url, site: x.name })),
+      ...acts.filter((a) => a !== main).map((a): LegLink => ({ kind: ops[acts.indexOf(a)]?.informativo ? "info" : "operador", label: a.label, url: a.url, site: a.site })),
       ...(main && tl ? [{ kind: "alternativa" as const, label: "Buscar tren en Trainline", url: tl, site: "Trainline" }] : []),
       ...(sched ? [{ kind: "horarios" as const, label: "Ver horarios en Google Maps", url: sched, site: "Google Maps" }] : []),
     ];
-    const day = date8 ? fmtDayShort(date8) : null;
     if (main) {
-      choices.push(base("tren", { url: main.url, site: main.name, buttonLabel: `Comprar en ${main.name}`, completa: operatorHint(main, from, to, day), links }));
+      choices.push(base("tren", { url: main.url, site: main.site, buttonLabel: main.label, completa: main.hint, links,
+        lleva: main.link ? [main.link.lleva] : [] }));
     } else {
       const url = tl;
       choices.push(base("tren", { url, site: url ? "Trainline" : null, buttonLabel: url ? "Buscar tren en Trainline" : "Buscar tren",
@@ -139,17 +143,28 @@ export function legStep(trip: any, from: string, to: string, date: string | null
     const url = maps.ok ? maps.url : null;
     choices.push(base("coche", { url, site: url ? "Google Maps" : null, buttonLabel: url ? "Ver ruta en Google Maps" : null,
       completa: driver ? "Coche con chofer: reserva con tu hotel o una agencia local; Google Maps solo da la ruta y el tiempo." : "Google Maps no recibe la fecha: la renta de auto se reserva aparte.",
-      fallbackHref: carHref(trip, from, to) }));
+      fallbackHref: carHref(trip, from, to, date8) }));
   }
-  // Autobús, taxi, traslado, ferry: no hay buscador fiable por enlace; se dice en vez de inventar uno.
+  // Autobús: ADO/FlixBus/12Go precargados (o la portada del operador que nombra el plan). Ferry: salidas y
+  // precio en vivo de Ferryhopper en la pantalla Ferris. Taxi o traslado: se dice que IATOS no lo cotiza.
   for (const p of plan) {
     if (choices.some((c) => c.mode === p.mode)) continue;
-    // Autobús: el operador oficial si el plan lo nombra (ALSA, FlixBus, ADO) y los horarios en Google Maps.
-    const busOp = p.mode === "bus" ? routeOperators({ from, to, provider: p.provider, kind: "bus" })[0] ?? null : null;
+    if (p.mode === "ferry") {
+      const qs = new URLSearchParams({ origin: from, dest: to, ...(date8 ? { date: date8 } : {}), pax: String(travelers), ...(trip?.id ? { trip: String(trip.id) } : {}) });
+      choices.push(base("ferry", { buttonLabel: "Ver salidas y precio en vivo", fallbackHref: `/dashboard/ferries?${qs.toString()}`,
+        completa: "Salidas y precio en vivo de Ferryhopper con tu ruta y fecha; el precio se confirma al comprar." }));
+      continue;
+    }
+    const acts = p.mode === "bus" ? busActions({ from, to, date: date8, adults: travelers, provider: p.provider }) : [];
+    const main = acts[0] ?? null;
     const sched = p.mode === "bus" ? transitScheduleUrl(from, to) : null;
-    choices.push(base(p.mode, { completa: `Precio y compra con el operador${p.provider ? ` (${p.provider})` : ""}.`,
-      ...(busOp ? { url: busOp.url, site: busOp.name, buttonLabel: `Comprar en ${busOp.name}` } : {}),
-      ...(sched ? { links: [{ kind: "horarios" as const, label: "Ver horarios en Google Maps", url: sched, site: "Google Maps" }] } : {}) }));
+    const links: LegLink[] = [
+      ...acts.slice(1).map((a): LegLink => ({ kind: "operador", label: a.label, url: a.url, site: a.site })),
+      ...(sched ? [{ kind: "horarios" as const, label: "Ver horarios en Google Maps", url: sched, site: "Google Maps" }] : []),
+    ];
+    choices.push(base(p.mode, { completa: main ? main.hint : noLinkText(p.mode, p.provider),
+      ...(main ? { url: main.url, site: main.site, buttonLabel: main.label, lleva: main.link ? [main.link.lleva] : [] } : {}),
+      ...(links.length ? { links } : {}) }));
   }
   // Primero lo que trae el plan (en su orden), luego las búsquedas.
   choices.sort((x, y) => Number(y.fromPlan) - Number(x.fromPlan) || (x.fromPlan ? plan.findIndex((p) => p.mode === x.mode) - plan.findIndex((p) => p.mode === y.mode) : 0));
@@ -182,8 +197,8 @@ export function legStep(trip: any, from: string, to: string, date: string | null
 }
 
 /** Renta de auto de un tramo: recoge en `from` y devuelve en `to` el día del tramo (no al final del viaje). */
-function carHref(trip: any, from: string, to: string): string {
-  const d = legCarRentalDates(trip, from, to);
+function carHref(trip: any, from: string, to: string, legDate?: string | null): string {
+  const d = legCarRentalDates(trip, from, to, legDate);
   const qs = new URLSearchParams({ city: from, dropoff: to, ...(d.pickup ? { pickup: d.pickup } : {}), ...(d.dropoff ? { return: d.dropoff } : {}), ...(trip?.id ? { trip: String(trip.id) } : {}) });
   return `/dashboard/autos?${qs.toString()}`;
 }

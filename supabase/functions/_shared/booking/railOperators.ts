@@ -9,8 +9,13 @@
 //   * Horarios reales: el botón "Ver horarios en Google Maps" (Maps URLs, travelmode=transit) va aparte.
 //   * Fuente: el dominio oficial del operador (portada pública). Revisado en código el 2026-10-23 sin
 //     abrir los sitios (sin red en esta sesión): confirmar con un clic que cada portada sigue viva.
+//   * 2026-10-24 (grupo terrestre): Renfe y Deutsche Bahn SÍ reciben ruta y fecha con un formato que se
+//     comprobó abriéndolo (groundLinks.ts): `operatorAction` usa ese enlace precargado cuando la ciudad
+//     está en sus tablas; si no, la portada de siempre con "escribe {origen} → {destino}". Las portadas
+//     de OPERATORS no cambian.
 
 import { cityAirports } from "../airports.ts";
+import { busSearches, groundButtonLabel, groundLinkNote, multimodalSearch, railOperatorSearch, type GroundLink, type GroundQuery } from "./groundLinks.ts";
 
 export type OperatorKind = "tren" | "bus";
 export interface Operator {
@@ -135,3 +140,38 @@ export const operatorHint = (o: Pick<Operator, "name">, from: string, to: string
   `${o.name} no recibe la ruta por enlace: escribe ${from} → ${to}${date ? ` y el ${date}` : " y la fecha"}. Precio en el sitio del operador.`;
 
 export const PRICE_AT_OPERATOR = "Precio en el sitio del operador";
+
+/** Botón de un operador para un tramo: enlace precargado si existe (Renfe, DB), si no la portada. */
+export type OperatorAction = { url: string; label: string; site: string; prefilled: boolean; hint: string; link: GroundLink | null };
+
+export function operatorAction(o: Operator, q: GroundQuery, day?: string | null): OperatorAction {
+  const link = o.informativo ? null : railOperatorSearch(o.id, q);
+  if (link) return { url: link.url, label: groundButtonLabel(link.site), site: link.site, prefilled: true, hint: groundLinkNote(link), link };
+  return { url: o.url, label: o.informativo ? `${o.name} (informativo)` : groundButtonLabel(o.name), site: o.name, prefilled: false, hint: operatorHint(o, q.from, q.to, day ?? null), link: null };
+}
+
+/** Tren sin operador del catálogo: buscador multimodal con ruta y fecha (12Go en Asia), si hay. */
+export const multimodalAction = (q: GroundQuery): OperatorAction | null => {
+  const link = multimodalSearch(q);
+  return link ? { url: link.url, label: groundButtonLabel(link.site), site: link.site, prefilled: true, hint: groundLinkNote(link), link } : null;
+};
+
+/**
+ * Autobús: primero los enlaces precargados (ADO por ruta, FlixBus con fecha, 12Go en Asia); si el plan
+ * nombra otro operador (ALSA…), su portada. Lista vacía si no hay nada fiable.
+ */
+export function busActions(q: GroundQuery & { provider?: string | null }): OperatorAction[] {
+  const out: OperatorAction[] = busSearches(q).map((l) => ({ url: l.url, label: groundButtonLabel(l.site), site: l.site, prefilled: true, hint: groundLinkNote(l), link: l }));
+  for (const o of routeOperators({ from: q.from, to: q.to, provider: q.provider, kind: "bus" })) {
+    if (out.some((x) => x.site.toLowerCase() === o.name.toLowerCase())) continue;
+    out.push(operatorAction(o, q));
+  }
+  return out;
+}
+
+/** Sin enlace: lo que se dice en vez de inventar un precio o un enlace. */
+export function noLinkText(mode: string | null | undefined, provider?: string | null): string {
+  const op = provider ? ` (${provider})` : "";
+  if (mode === "taxi" || mode === "traslado") return `Se paga directo al operador${op}; IATOS no lo cotiza.`;
+  return `Horarios y precio con el operador${op}: IATOS no lo cotiza y aún no tiene un enlace precargado para este tramo.`;
+}
