@@ -4,7 +4,7 @@
 // Caso Roma → Florencia → Venecia (22-oct-2026): vuelos_json no traía IATA y la búsqueda de Google
 // Flights se armaba con la ruta de la tarifa guardada (MEX→BUH, Bucarest). Ahora la ruta sale del
 // viaje: ida MEX→FCO (primera ciudad) y regreso VCE→MEX (última), con las fechas y viajeros del viaje.
-import { cityAirports, codeServesCity, mainAirport } from "../airports.ts";
+import { cityAirports, codeServesCity, mainAirport, nearestAirport } from "../airports.ts";
 import { googleFlightsSearchUrl, isIsoDate, kayakFlightsSearchUrl } from "./links.ts";
 
 export type TripRouteLike = {
@@ -43,10 +43,12 @@ export type TripFlightRoute = {
 export function tripFlightRoute(trip: TripRouteLike | null | undefined): TripFlightRoute {
   const cities = tripDestinations(trip);
   const originCity = String(trip?.ciudad_origen ?? "").trim();
-  const origin = mainAirport(originCity);
-  const destination = cities.length ? mainAirport(cities[0]) : null;
+  // Un lugar sin aeropuerto (Siena) vuela al de la tabla más cercano (Florencia FLR), como logistics-plan.
+  const airport = (c: string) => mainAirport(c) ?? nearestAirport(c)?.airport ?? null;
+  const origin = airport(originCity);
+  const destination = cities.length ? airport(cities[0]) : null;
   const last = cities.length > 1 ? cities[cities.length - 1] : cities[0];
-  const returnFrom = last ? mainAirport(last) : null;
+  const returnFrom = last ? airport(last) : null;
   const missing: TripFlightRoute["missing"] = [];
   if (!origin) missing.push("origen");
   if (!destination) missing.push("destino");

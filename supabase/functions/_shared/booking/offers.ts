@@ -350,6 +350,12 @@ export function offerFromTripFlight(v: any, ctx: OfferContext & { city?: string 
     const parsed = ok.ok ? parseAviasalesSearch(unwrapAffiliate(ok.url)) : null;
     if (!ok.ok) {
       rejected.push({ url: raw, reason: ok.reason });
+    } else if (!ground && ok.provider?.provider === "google_flights" && !ok.provider.redirector) {
+      // Vuelo de Google Flights en vivo (logistics-plan, open-jaw): la misma búsqueda que dio el
+      // precio (tramos, fechas, pasajeros y clase), primero; sin duplicar la tfs del viaje.
+      searches.push({ url: ok.url, trust: estimated ? "builder" : "provider_api",
+        evidence: /[?&]tfs=/.test(ok.url) && !/[?&]curr=/.test(ok.url) ? EVIDENCE.GOOGLE_FLIGHTS_TFS : EVIDENCE.GOOGLE_FLIGHTS_SERP_URL,
+        preserves: { product: false, dates: true, travelers: travelers <= 9, room_or_fare: false }, verified_at: str(v?.consultado_at) ?? null, provider_label: "Google Flights" });
     } else if (parsed && problems.includes("destino_distinto_al_viaje")) {
       // La tarifa era de otra ruta: nunca se abre ni se precarga ese destino.
       rejected.push({ url: raw, reason: "destino_distinto_al_viaje" });

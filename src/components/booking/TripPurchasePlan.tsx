@@ -15,7 +15,7 @@ import { SmartImage } from "@/components/media/SmartImage";
 import { logBookingClick } from "@/lib/trackBooking";
 import { itemPurchaseState, primaryAction, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
 import { buildBuyFlow, hotelTotal, TIER_WORD, type BuyStep } from "@/lib/buyFlow";
-import { flightAirlineLabel, flightDurationLabel, flightStopsLabel } from "@/lib/flightDisplay";
+import { flightAirlineLabel, flightDurationLabel, flightLiveLine, flightScheduleLabel, flightStopsLabel } from "@/lib/flightDisplay";
 import { offerFromTripTour, tripDestinations, venueFromTripPlace } from "@/lib/booking";
 import { hotelQuery } from "@/lib/categoryImagery";
 import { canUnmark, markLabel } from "@/lib/purchaseMarks";
@@ -280,6 +280,12 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       {oneSource(s.options.map((i) => trip.vuelos_json[i])) && (() => { const v0 = trip.vuelos_json[s.options[0]]; return (
                         <PriceSourceBadge className="mt-2" source={v0?.fuente_precio} estado={v0?.estado_dato} consultadoAt={v0?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v0?.approximate_dates} />
                       ); })()}
+                      {/* Vuelo cotizado en Google Flights por el plan: hora de consulta y aeropuerto real (Siena → FLR). */}
+                      {(() => { const lv = s.options.map((i) => trip.vuelos_json[i]).find((x) => flightLiveLine(x)); return lv ? (
+                        <p className="mt-1 text-xs text-muted-foreground" data-testid="vuelo-en-vivo">
+                          {flightLiveLine(lv)}{lv.aeropuerto_nota ? <span className="block" data-testid="vuelo-aeropuerto-nota">{lv.aeropuerto_nota}.</span> : null}
+                        </p>
+                      ) : null; })()}
                       <div role="radiogroup" aria-label="Opciones de vuelo" className="mt-3 grid grid-cols-1 gap-2">
                         {s.options.map((i) => {
                           const v = trip.vuelos_json[i];
@@ -297,6 +303,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                                 <span className="min-w-0 truncate">{[flightStopsLabel(v), flightDurationLabel(v)].filter(Boolean).join(" · ")}</span>
                                 {pp > 0 && travelers > 1 && <span className="shrink-0 tabular-nums">{money(pp)} por persona</span>}
                               </span>
+                              {flightScheduleLabel(v) && <span className="mt-0.5 block truncate text-xs text-muted-foreground" data-testid="vuelo-horario">{flightScheduleLabel(v)}</span>}
                               {!oneSource(s.options.map((x) => trip.vuelos_json[x])) && <PriceSourceBadge className="mt-1" source={v?.fuente_precio} estado={v?.estado_dato} consultadoAt={v?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v?.approximate_dates} />}
                             </button>
                           );

@@ -25,6 +25,8 @@ export type MultiDestArgs = {
   nightsPerCity?: number[] | null;
   /** Bases elegidas por región ({ "Toscana": ["Siena","Lucca"] }); el servidor solo acepta las de su tabla. */
   regionBases?: Record<string, string[]> | null;
+  /** Clase del vuelo internacional ("premium" | "business" | "primera"); sin ella, turista. */
+  travelClass?: string | null;
   /** Telemetría de behavioral_insights (como antes en MultiDestRoute). */
   telemetry?: { autonomous: boolean } | null;
 };
@@ -44,6 +46,7 @@ export function logisticsPlanArgs(a: MultiDestArgs) {
     prefs: a.prefs,
     ...(nights ? { nights_per_city: nights } : {}),
     ...(a.regionBases && Object.keys(a.regionBases).length ? { region_bases: a.regionBases } : {}),
+    ...(a.travelClass && ["premium", "business", "primera"].includes(a.travelClass) ? { travel_class: a.travelClass } : {}),
   };
 }
 

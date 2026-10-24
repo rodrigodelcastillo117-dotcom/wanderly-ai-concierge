@@ -69,7 +69,7 @@ export function labelExperiences(items: unknown, attractions: Array<{ name?: str
 /** Resumen de fuentes por categoría, calculado DESPUÉS de etiquetar. */
 export function pricingSources(flights: any[], perDestination: any[]) {
   return {
-    vuelos: flights.some((f) => f?.fuente_precio === "travelpayouts") ? "travelpayouts" : "estimado",
+    vuelos: flights.some((f) => f?.fuente_precio === "en_vivo") ? "google_flights" : flights.some((f) => f?.fuente_precio === "travelpayouts") ? "travelpayouts" : "estimado",
     hospedaje: perDestination.some((pd) => (pd?.hospedaje ?? []).some((h: any) => h?.fuente_precio === "serpapi")) ? "serpapi" : "estimado",
     experiencias: (() => {
       for (const pd of perDestination) for (const e of pd?.experiencias ?? []) if (PLACE_SOURCES.has(e?.fuente)) return e.fuente;

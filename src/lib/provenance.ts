@@ -37,6 +37,8 @@ const LIVE_PROVIDERS: Record<string, string> = {
   "serpapi-hotels": "Google Hotels",
   google_hotels: "Google Hotels",
   google_flights: "Google Flights",
+  // Vuelo internacional del multidestino consultado por logistics-plan en Google Flights (openJaw.ts).
+  en_vivo: "Google Flights",
 };
 
 /** Caché de búsquedas de Aviasales (Travelpayouts): precios reales, pero de hasta 48 h. */

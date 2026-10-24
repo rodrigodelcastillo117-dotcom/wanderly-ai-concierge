@@ -23,7 +23,8 @@ const arr = (v: unknown): any[] => (Array.isArray(v) ? v : []);
 /**
  * Referencia de cada renglón para su estado. Hospedaje cuenta como consultado en vivo solo si el
  * hotel del tier elegido en TODAS las ciudades vino de Google Hotels (SerpApi) en ese request.
- * Vuelos de Travelpayouts son caché de búsquedas (≤48 h): nunca "en vivo", quedan ESTIMADO.
+ * Vuelos de Travelpayouts son caché de búsquedas (≤48 h): nunca "en vivo", quedan ESTIMADO. El vuelo
+ * del tier que vino de Google Flights (fuente_precio "en_vivo") lleva su fecha de consulta.
  */
 export function logisticsReferences(logistics: any) {
   const tier = String(logistics?.selected_tier ?? "equilibrio");
@@ -31,11 +32,17 @@ export function logisticsReferences(logistics: any) {
   const hotels = arr(logistics?.per_destination).map((pd) =>
     arr(pd?.hospedaje).find((h) => h?.tier === tier) ?? arr(pd?.hospedaje)[0] ?? null);
   const allLive = hotels.length > 0 && hotels.every((h) => h?.fuente_precio === "serpapi");
+  // Vuelo del tier consultado en Google Flights en este plan (open-jaw, openJaw.ts): su fecha real.
+  const flight = arr(logistics?.flights).find((f) => f?.tier === tier) ?? arr(logistics?.flights)[0] ?? null;
+  const flightRef = flight?.fuente_precio === "en_vivo" && typeof flight?.consultado_at === "string"
+    ? { fuente_precio: "en_vivo", estado_dato: flight.estado_dato === "OBSOLETO" ? "OBSOLETO" : "CONSULTADO_EN_VIVO", consultado_at: flight.consultado_at,
+      ...(typeof flight.booking_link === "string" ? { booking_link: flight.booking_link } : {}) }
+    : null;
   return {
     hospedaje: allLive
       ? { fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO", consultado_at: quotedAt }
       : { fuente_precio: "estimado", estado_dato: "ESTIMADO" },
-    vuelos: {
+    vuelos: flightRef ?? {
       fuente_precio: arr(logistics?.flights).some((f) => f?.fuente_precio === "travelpayouts") ? "travelpayouts" : "estimado",
       estado_dato: "ESTIMADO",
     },
