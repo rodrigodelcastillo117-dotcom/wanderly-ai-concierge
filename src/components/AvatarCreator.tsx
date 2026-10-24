@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyAvatarUpdated } from "@/hooks/useMyAvatar";
 import { useCameraCapture } from "@/components/camera/CameraCapture";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 export const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
@@ -475,9 +476,12 @@ export default function AvatarCreator({ onComplete, onSkip }: Props) {
       {loading || !variants.length ? (
         <div className="relative mx-auto w-56 h-56 sm:w-64 sm:h-64 rounded-full overflow-hidden border border-primary/40 bg-surface flex flex-col items-center justify-center gap-3" aria-busy="true">
           <div className="absolute inset-0 bg-gradient-gold opacity-10 animate-pulse" />
-          <Sparkles className="w-10 h-10 text-primary animate-pulse" />
-          <p className="text-sm text-muted-foreground px-6">Creando y verificando tu parecido…</p>
-          <p className="text-xs text-muted-foreground">Toma alrededor de 1 minuto</p>
+          {/* A los 5 s el globo IATOS reemplaza el ícono y la estimación de tiempo. */}
+          <SlowLoading active size="md" className="relative px-6" label="Creando y verificando tu parecido…">
+            <Sparkles className="w-10 h-10 text-primary animate-pulse" />
+            <p className="text-sm text-muted-foreground px-6">Creando y verificando tu parecido…</p>
+            <p className="text-xs text-muted-foreground">Toma alrededor de 1 minuto</p>
+          </SlowLoading>
         </div>
       ) : (
         <>

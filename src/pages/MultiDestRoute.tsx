@@ -5,6 +5,7 @@ import {
   ArrowRight, MapPin, Plus, X, Sparkles, Train, Mountain, Wallet,
   Car, Luggage, Settings2, Route as RouteIcon, Loader2, Plane, Receipt, Wand2,
 } from "lucide-react";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 import { generateMultiDestTrip } from "@/lib/multiDestGenerate";
 import { fitNights, nightsFromQuery } from "@/lib/multiCityText";
 import { CityNightsEditor } from "@/components/route/CityNightsEditor";
@@ -468,6 +469,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                 </Button>
               </div>
             </form>
+            <SlowLoading active={editingWithAI} size="sm" className="justify-start" label="IATOS AI está editando tu ruta…" />
             <p className="text-[11px] text-muted-foreground mt-2 italic">
               Tip: con "Editar con IA" puedes decir cosas como <span className="text-foreground">"quita Berlín"</span>,
               <span className="text-foreground"> "agrega 2 días en la Toscana"</span> o
@@ -525,6 +527,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               )}
             </Button>
           </div>
+          {/* Generar la travesía consulta vuelos y trayectos reales: pasados 5 s, el globo IATOS. */}
+          <SlowLoading active={generating} size="md" label="Optimizando tu ruta: vuelos, trayectos y hospedaje…" />
         </section>
 
         {/* roadtrip: vista previa estimada de los tramos en coche, costos y avisos por país */}
@@ -860,7 +864,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               onChangeFechas={(fs, fr) => { setFechaSalida(fs); setFechaRegreso(fr); }}
               onChangeViajeros={(n) => setViajeros(n)}
             />
-            <Suspense fallback={<div className="h-64 rounded-xl bg-surface animate-pulse" />}>
+            <Suspense fallback={<SlowLoading active size="md" className="h-64 items-center rounded-xl bg-surface" label="Cargando el mapa de tu ruta…"><div className="h-64 rounded-xl bg-surface animate-pulse" /></SlowLoading>}>
               <RouteGlobe3D origin={origin} destinations={validStops} />
             </Suspense>
           </div>

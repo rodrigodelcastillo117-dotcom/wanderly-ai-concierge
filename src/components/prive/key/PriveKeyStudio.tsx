@@ -10,6 +10,7 @@ import type { KeyLang, KeyText } from "@/lib/priveKeyI18n";
 import { ProposalCard } from "./ProposalCard";
 import { KeyQuestions } from "./KeyQuestions";
 import { TripPickerDialog } from "./TripPickerDialog";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 import "./key.css";
 
 /** Foto de cada nivel: el primer paso cuyo universo no ilustró ya otro nivel (evita tres fotos iguales). */
@@ -157,11 +158,12 @@ export function PriveKeyStudio({ lang, t, initialWish, initialMode, autoSubmit, 
         </div>
       </section>
 
-      {loading && !proposals.length && (
+      {/* Pasados 5 s, el globo IATOS en lugar de los esqueletos, con el estado honesto como texto. */}
+      <SlowLoading active={loading && !proposals.length} size="lg" className="py-10" label={t.thinking} srLabel={lang === "en" ? "Loading…" : "Cargando…"}>
         <div className="grid gap-5 md:grid-cols-3" role="status" aria-label={t.thinking}>
           {[0, 1, 2].map((i) => <div key={i} className="pk-skeleton" />)}
         </div>
-      )}
+      </SlowLoading>
       {error && <p className="rounded-xl border border-amber-500/30 p-3 text-sm text-amber-200" role="alert">{error}</p>}
 
       {res?.ok && res.status === "questions" && res.questions && (

@@ -6,6 +6,7 @@ import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { Plane, Hotel, Sparkles, RefreshCw } from "lucide-react";
 import { useLiveQuote, type LiveQuote } from "@/hooks/useLiveQuote";
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 type Props = {
   tripId?: string;
@@ -41,10 +42,12 @@ export function LiveTripQuote({ tripId, origin, destination, depart, return_date
       <div className="glass-card rounded-2xl p-5 sm:p-8 md:p-10 mb-8 relative overflow-hidden max-w-full">
         <p className="text-xs tracking-[0.2em] uppercase text-primary mb-3">Inversión total estimada</p>
         <div className="h-16 md:h-20 w-2/3 rounded-lg bg-gradient-to-r from-primary/10 via-primary/30 to-primary/10 animate-pulse mb-4" />
-        <p className="text-sm text-muted-foreground flex items-center gap-2">
-          <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
-          Cotizando tarifas y disponibilidad en tiempo real…
-        </p>
+        <SlowLoading active size="md" className="justify-start" label="Cotizando tarifas y disponibilidad en tiempo real…">
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+            Cotizando tarifas y disponibilidad en tiempo real…
+          </p>
+        </SlowLoading>
       </div>
     );
   }

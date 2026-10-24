@@ -6,6 +6,8 @@ import {
   Mic, Send, Sparkles, MapPin, Utensils, Car, Siren,
   Plane, Luggage, Crown, RefreshCw, Check, AlertCircle, Loader2, Info, Compass, Zap, X,
 } from "lucide-react";
+import { GlobeLoader } from "@/components/brand/GlobeLoader";
+import { useSlowLoading } from "@/hooks/useSlowLoading";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ConciergeActions } from "@/components/ConciergeActions";
 import { FlightStatusDialog } from "@/components/FlightStatusDialog";
@@ -686,10 +688,16 @@ function ShortcutList({ chips, onChip, sending, title, onClose }: {
 }
 
 function StepList({ steps, streaming, hasText }: { steps: Step[]; streaming?: boolean; hasText: boolean }) {
+  // Iato tarda más de 5 s en empezar a responder → globo IATOS con el paso en curso como texto.
+  const slow = useSlowLoading(!!streaming && !hasText);
   if (!steps.length && !(streaming && !hasText)) return null;
+  const running = steps.find((x) => x.state === "running");
   return (
+    <>
+    {slow && <GlobeLoader size="sm" className="mb-1.5" label={running?.text ?? "Iato está escribiendo…"} />}
     <ul className="space-y-1 text-xs" aria-live="polite" data-testid="iato-steps">
-      {steps.map((st) => (
+      {/* Con el globo, el paso en curso ya es su texto: no se repite en la lista. */}
+      {steps.filter((st) => !(slow && st === running)).map((st) => (
         <li key={st.id} className={`flex items-center gap-1.5 ${st.state === "running" ? "text-foreground" : "text-muted-foreground"}`}>
           {st.state === "running" ? <Loader2 className="w-3 h-3 shrink-0 animate-spin text-primary" aria-hidden="true" />
             : st.state === "done" ? <Check className="w-3 h-3 shrink-0 text-primary" aria-hidden="true" />
@@ -697,12 +705,13 @@ function StepList({ steps, streaming, hasText }: { steps: Step[]; streaming?: bo
           <span>{st.text}</span>
         </li>
       ))}
-      {streaming && !hasText && !steps.some((x) => x.state === "running") && (
+      {streaming && !hasText && !slow && !steps.some((x) => x.state === "running") && (
         <li className="flex items-center gap-1.5 text-muted-foreground">
           <Loader2 className="w-3 h-3 animate-spin text-primary" aria-hidden="true" /> Iato está escribiendo…
         </li>
       )}
     </ul>
+    </>
   );
 }
 

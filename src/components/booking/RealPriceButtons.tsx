@@ -9,6 +9,7 @@ import {
   requestHotelOffers, requestMultiFare, tripMultiCityLegs,
   type HotelOffersQuery, type HotelOffersSummary, type InterCityLeg, type Invoke, type MultiFareSummary,
 } from "@/lib/realFares";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 const defaultInvoke: Invoke = (fn, opts) => supabase.functions.invoke(fn, opts) as unknown as Promise<{ data: any; error: any }>;
 const usd = (n: number) => `$${Math.round(n).toLocaleString("es-MX")} USD`;
@@ -42,6 +43,7 @@ export function MultiCityFareButton({ trip, interLegs, invoke = defaultInvoke }:
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Search className="h-4 w-4" aria-hidden="true" />}
             {liveRow ? "Actualizar precio" : "Consultar precio real del recorrido"}
           </button>
+          <SlowLoading active={busy} size="sm" className="justify-start" label="Consultando Google Flights…" />
           <p className="mt-1.5 text-xs text-muted-foreground" data-testid="multi-precio-tramos">
             {plan.legs.map((l) => `${l.from}→${l.to}`).join(" · ")}
             {plan.omitted.length > 0 && <> · por tierra (no incluidos): {plan.omitted.map((o) => `${o.from}→${o.to}`).join(", ")}</>}
@@ -49,6 +51,7 @@ export function MultiCityFareButton({ trip, interLegs, invoke = defaultInvoke }:
           {plan.missing && <p className="mt-1 text-xs text-amber-400/90">{plan.missing}</p>}
         </>
       )}
+      {res && <SlowLoading active={busy} size="sm" className="justify-start" label="Actualizando precio en Google Flights…" />}
       {res && !res.ok && (
         <div role="status" data-testid="multi-precio-sin">
           <p className="text-sm">{res.message}</p>
@@ -135,6 +138,7 @@ export function HotelOffersButton({ query, invoke = defaultInvoke, className = "
           </button>
         </div>
       )}
+      <SlowLoading active={busy} size="sm" className="justify-start" label={res ? "Actualizando precio en Google Hotels…" : "Consultando Google Hotels…"} />
     </div>
   );
 }

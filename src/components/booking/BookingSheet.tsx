@@ -13,6 +13,7 @@ import { logBookingClick } from "@/lib/trackBooking";
 import type { BookingAction, BookingOffer } from "@/lib/booking";
 import { linkKindLine } from "@/lib/bookingExit";
 import { ProofForm } from "./ProofForm";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 const CATEGORY: Record<string, "flight" | "hotel" | "restaurant" | "activity" | "other"> = {
   flight: "flight", hotel: "hotel", restaurant: "restaurant", tour: "activity", experience: "activity", event: "activity", transport: "other",
@@ -201,6 +202,7 @@ export function BookingSheet({ open, onOpenChange, offer, action, source, tripId
                     {checking ? "Actualizando…" : "Actualizar precio"}
                   </Button>
                 )}
+                <SlowLoading active={checking} size="sm" className="justify-start" label="Consultando el precio con la fuente…" />
               </div>
             )}
             {needsAck && !fresh && (

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { readFunctionError } from "@/lib/functionErrors";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { SlowLoading } from "@/components/brand/SlowLoading";
 
 interface Props {
   tripId: string;
@@ -138,11 +139,12 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
               </button>
             </div>
 
-            {loading && (
+            {/* Primeros 5 s: el aviso de siempre; después, el globo IATOS (sin estimación de segundos). */}
+            <SlowLoading active={loading} size="md" className="mt-2" label="IATOS AI está reorganizando rutas y recotizando precios…">
               <p className="text-xs text-muted-foreground mt-4 text-center">
                 IATOS AI está reorganizando rutas y recotizando precios. Puede tardar 20-40 segundos.
               </p>
-            )}
+            </SlowLoading>
           </div>
         </div>,
         document.body,

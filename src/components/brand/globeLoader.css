@@ -1,0 +1,64 @@
+/* GlobeLoader: globo de líneas finas que gira despacio y el avión del logo IATOS orbitando con su
+   estela. Solo CSS/SVG (transform y opacity: corre en el compositor). Colores: tokens --primary y
+   --primary-glow de index.css. */
+.iatos-globe-loader .gl-meridian,
+.iatos-globe-loader .gl-orbit {
+  transform-box: view-box;
+  transform-origin: 60px 60px;
+}
+
+/* Meridianos (solo la mitad frontal): en la primera mitad del ciclo cruzan del borde izquierdo al
+   derecho con curva seno (= proyección de un giro real) y se desvanecen en los bordes; en la segunda
+   mitad van "por detrás" (ocultos). 6 desfasados 1/6 → uno cada 60°, 3 a la vista. */
+.iatos-globe-loader .gl-meridian {
+  opacity: 0;
+  animation: iatos-gl-meridian-x 8.4s infinite, iatos-gl-meridian-o 8.4s linear infinite;
+  animation-delay: var(--gl-delay, 0s), var(--gl-delay, 0s);
+}
+
+.iatos-globe-loader .gl-orbit {
+  animation: iatos-gl-orbit 2.4s linear infinite;
+}
+
+.iatos-globe-loader .gl-plane {
+  filter: drop-shadow(0 0 2.5px hsl(var(--primary-glow) / 0.75));
+}
+
+@keyframes iatos-gl-meridian-x {
+  0% { transform: scaleX(-1); animation-timing-function: cubic-bezier(0.37, 0, 0.63, 1); }
+  50%, 100% { transform: scaleX(1); }
+}
+
+@keyframes iatos-gl-meridian-o {
+  0% { opacity: 0; }
+  9%, 41% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes iatos-gl-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes iatos-gl-pulse {
+  0%, 100% { opacity: 0.62; }
+  50% { opacity: 1; }
+}
+
+/* Reducir movimiento: nada gira; el avión queda arriba a la derecha (como en el logo) y todo late
+   suave. Se aplica por la media query (sin JS) y por data-reduced-motion (hook, para pruebas). */
+.iatos-globe-loader[data-reduced-motion="true"] .gl-meridian,
+.iatos-globe-loader[data-reduced-motion="true"] .gl-orbit {
+  animation: none;
+}
+.iatos-globe-loader[data-reduced-motion="true"] .gl-meridian { transform: scaleX(var(--gl-static, 0)); opacity: var(--gl-static-o, 0); }
+.iatos-globe-loader[data-reduced-motion="true"] .gl-orbit { transform: rotate(48deg); }
+.iatos-globe-loader[data-reduced-motion="true"] .gl-art { animation: iatos-gl-pulse 2.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .iatos-globe-loader .gl-meridian,
+  .iatos-globe-loader .gl-orbit { animation: none; }
+  .iatos-globe-loader .gl-meridian { transform: scaleX(var(--gl-static, 0)); opacity: var(--gl-static-o, 0); }
+  .iatos-globe-loader .gl-orbit { transform: rotate(48deg); }
+  .iatos-globe-loader .gl-art { animation: iatos-gl-pulse 2.4s ease-in-out infinite; }
+}
