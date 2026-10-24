@@ -1,15 +1,36 @@
 // Road trip dentro del plan de varios destinos (grupo roadtrip). Sin Deno.serve: se prueba con Vitest
 // inyectando la consulta a Google Routes.
 //
-// Por tramo en coche: Google Routes (computeRoutes, SKU Essentials, sin tráfico) da distancia y
-// tiempo reales (CONSULTADO); si no responde, la estimación por línea recta (ESTIMADO). Con eso se
+// Por tramo en coche: Google Routes (computeRoutes sin tráfico, con extraComputations TOLLS) da
+// distancia, tiempo y casetas reales (CONSULTADO); si no responde, la estimación por línea recta
+// (ESTIMADO, sin casetas). Con eso se
 // arman combustible, viñetas, avisos por país y la renta (recogida/devolución) en
 // _shared/roadtrip/plan.ts. El modelo recibe las cifras para que el itinerario no invente km.
 import { buildRoadTripPlan, type LegMode, type LiveLeg, placeQuery, resolveLegModes, type RoadTripPlan } from "../_shared/roadtrip/plan.ts";
+import { driveWithTolls, type RateFn, TOLLS_SKU } from "../_shared/google-tolls.ts";
+import { GOOGLE_SKU_PRICING, type GoogleTransport, googleListPriceUsd } from "../_shared/google-maps.ts";
+import type { CacheStore } from "../_shared/serpCache.ts";
+import { getRateToMxnInfo } from "../_shared/fx.ts";
 
 export const MAX_ROUTE_CALLS = 12;
 
 export type RouteFn = (origin: string, destination: string) => Promise<LiveLeg>;
+
+/** Costo de lista de cada tramo con casetas (SKU prudente de google-tolls.ts). */
+export const TOLLS_API_SKU = { sku: TOLLS_SKU, usdPerCall: googleListPriceUsd(TOLLS_SKU), freePerMonth: GOOGLE_SKU_PRICING[TOLLS_SKU]?.free ?? 0 };
+
+/**
+ * Tramo en coche con distancia, tiempo y casetas reales de Google en una sola llamada, con la caché
+ * de 24 h (serp_cache) por origen, destino y pase. Solo corre al generar el viaje.
+ */
+export function tollRouteFn(google: GoogleTransport, store: CacheStore | null, o: { pase?: string | null; rate?: RateFn } = {}): RouteFn {
+  return async (origin, destination) => {
+    const r = await driveWithTolls(google, { origin: { address: origin }, destination: { address: destination }, pase: o.pase ?? null }, { store, rate: o.rate ?? getRateToMxnInfo });
+    if (!r.ok) return null;
+    const ok = r as Extract<typeof r, { ok: true }>;
+    return { ok: true, distance_meters: ok.distance_meters, duration_seconds: ok.duration_seconds, consultado_at: ok.consultado_at, tolls: ok.tolls };
+  };
+}
 
 /**
  * Modos por tramo: lo que pidió el usuario (transport_mode / leg_modes) o, si no dijo nada y el
@@ -30,6 +51,8 @@ export async function planRoadTrip(a: {
   legDates: Array<string | null>;
   route: RouteFn | null;
   now?: string;
+  /** SKU de las llamadas (con casetas: TOLLS_SKU de _shared/google-tolls.ts). */
+  apiSku?: { sku: string; usdPerCall: number; freePerMonth: number };
 }): Promise<RoadTripPlan | null> {
   if (!a.legModes.includes("coche")) return null;
   let calls = 0;
@@ -42,7 +65,9 @@ export async function planRoadTrip(a: {
       return null;
     }
   }));
-  return buildRoadTripPlan({ stops: a.destinations, legModes: a.legModes, legDates: a.legDates, live, apiCalls: calls, now: a.now });
+  // Un tramo servido de la caché de 24 h (casetas) no se cobró.
+  const billed = calls - live.filter((l) => l?.tolls?.from_cache).length;
+  return buildRoadTripPlan({ stops: a.destinations, legModes: a.legModes, legDates: a.legDates, live, apiCalls: billed, apiSku: a.apiSku, now: a.now });
 }
 
 const MODE_LABEL: Record<LegMode, string> = { avion: "avión", tren: "tren", coche: "coche" };

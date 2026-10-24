@@ -1,0 +1,4 @@
+{
+  "_nota": "Respuesta con extraComputations TOLLS en la que Google no regresa tollInfo (sin dato de casetas). No es una grabación en vivo.",
+  "routes": [{ "distanceMeters": 76000, "duration": "4320s", "legs": [{}] }]
+}

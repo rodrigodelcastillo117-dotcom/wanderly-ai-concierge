@@ -26,8 +26,9 @@ import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { HotelOffersButton, MultiCityFareButton } from "@/components/booking/RealPriceButtons";
 import { ViatorToursButton } from "@/components/booking/ViatorTours";
 import { transportRubroLabel } from "@/lib/multiDestTrip";
+import { roadLegTolls, TollInfo } from "@/components/roadtrip/TollInfo";
 
-const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras" };
+const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras", casetas: "Casetas" };
 const money = (n: number, cur: string | null = "MXN") => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? "MXN"}`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -454,6 +455,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                   {markControl(it, "comprar-traslado")}
                 </div>
                 {it.completa && <p className="mt-1 text-[11px] text-muted-foreground">{it.completa}</p>}
+                {/* Coche: casetas reales del plan (Google Maps) o, solo al pulsar, la consulta del tramo. */}
+                {chosenChoice?.mode === "coche" && <TollInfo className="mt-2" quote={roadLegTolls(trip, s.from, s.to)} from={s.from} to={s.to} consultable />}
                 {nextBar(id, missingOf(s))}
               </li>
             );
@@ -527,7 +530,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
         </h3>
         {(() => {
           const missing = flow.steps.map(missingOf).filter(Boolean) as string[];
-          const rowsList: Array<{ key: string; label: string; sub: string | null; price: number | null; est: boolean; it: PurchaseItem | null }> = [];
+          const rowsList: Array<{ key: string; label: string; sub: string | null; price: number | null; est: boolean; it: PurchaseItem | null; live?: boolean }> = [];
           // Las partidas son las MISMAS que suma el total (selectionDesglose): el vuelo y el hotel de un
           // destino llevan el monto del desglose; si no es de una tarifa real, dice "estimado".
           const d = selectionDesglose ?? null;
@@ -551,6 +554,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
             };
             for (const [k, v] of Object.entries(d)) {
               if (covered[k] || !(Math.round(Number(v) || 0) > 0)) continue;
+              // Casetas: monto real de Google Maps al generar el viaje ("en vivo"), no un estimado.
+              if (k === "casetas") { rowsList.push({ key: "desglose:casetas", label: "Casetas", sub: "Google Maps · tramos en coche", price: Math.round(Number(v)), est: false, live: true, it: null }); continue; }
               rowsList.push({ key: `desglose:${k}`, label: k === "transporte_local" ? transportRubroLabel(trip) : DESGLOSE_LABEL[k] ?? k, sub: "De la cotización", price: Math.round(Number(v)), est: true, it: null });
             }
           }
@@ -566,7 +571,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       {r.sub && <span className="block truncate text-xs text-muted-foreground">{r.sub}</span>}
                     </span>
                     <span className="shrink-0 text-right text-sm tabular-nums">{r.price ? money(r.price) : <span className="text-xs text-muted-foreground">Precio en el sitio</span>}
-                      {r.price && r.est ? <span className="block text-[10px] text-muted-foreground">estimado</span> : null}</span>
+                      {r.price && r.est ? <span className="block text-[10px] text-muted-foreground">estimado</span> : null}
+                      {r.price && r.live ? <span className="block text-[10px] text-primary" data-testid="comprar-listo-en-vivo">en vivo</span> : null}</span>
                     {r.it && <span className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{state(r.it) !== "pendiente"
                       ? <span className="inline-flex items-center gap-1 text-xs text-emerald-400"><Check className="h-3.5 w-3.5" aria-hidden="true" /> {state(r.it) === "confirmado" ? "Confirmado" : "Ya lo compraste"}</span>
                       : buyButton(r.it, `listo-${r.key}`)}</span>}

@@ -2,6 +2,7 @@
 // IMPORTANTE: GOOGLE_MAPS_API_KEY vive SOLO en backend.
 // El frontend usa GOOGLE_MAPS_BROWSER_KEY únicamente para el mapa interactivo.
 import { supabase } from "@/integrations/supabase/client";
+import type { TollQuote } from "../../supabase/functions/_shared/tollQuote.ts";
 
 export type PlaceResult = {
   id: string;
@@ -113,10 +114,15 @@ export type RouteResult =
       };
       steps: RouteStep[];
       maps_url: string;
+      /** Solo modo coche: casetas reales de Google (o por qué no hay monto). */
+      tolls?: TollQuote | null;
+      tolls_text?: string | null;
     }
   | { mode: RouteMode; available: false; reason: string };
 
 export async function getRoutes(params: {
+  /** Pase de casetas de la lista oficial de Google (p. ej. "MX_TAG_IAVE"). */
+  tollPass?: string;
   origin: RoutePoint;
   destination: RoutePoint;
   modes?: RouteMode[];

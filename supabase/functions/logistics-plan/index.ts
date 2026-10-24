@@ -36,8 +36,7 @@ import { saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { hotelPriceRooms } from "../_shared/rooms.ts";
 // roadtrip: coche como modo de primera clase entre paradas (distancias reales de Google Routes).
 import { googleTransportFor } from "../_shared/google-runtime.ts";
-import { computeRoute } from "../_shared/google-routes.ts";
-import { legModesFor, planRoadTrip, roadTripPromptBlock } from "./roadtrip.ts";
+import { legModesFor, planRoadTrip, roadTripPromptBlock, tollRouteFn, TOLLS_API_SKU } from "./roadtrip.ts";
 import { filterFares, layoverCodesFromAviasalesLink } from "../_shared/fareGuard.ts";
 import { airportCityName } from "../_shared/airports.ts";
 import { chosenNights } from "../_shared/booking/tripRoute.ts";
@@ -624,15 +623,13 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
       ]).then(([hotels, attractions, restaurants]) => ({ hotels, attractions, restaurants })),
     );
 
-    // roadtrip: distancia y tiempo reales por tramo en coche (una llamada Essentials por tramo).
+    // roadtrip: distancia, tiempo y casetas reales por tramo en coche (una llamada por tramo, caché 24 h).
     const roadTripPromise = planRoadTrip({
       destinations: body.destinations,
       legModes,
       legDates: body.destinations.slice(1).map((_, i) => cityWindows[i + 1]?.checkin ?? null),
-      route: google && legModes.includes("coche") ? async (origin, destination) => {
-        const r = await computeRoute(google, { origin: { address: origin }, destination: { address: destination }, mode: "DRIVE" });
-        return r.ok ? { ok: true, distance_meters: r.distance_meters, duration_seconds: r.duration_seconds, consultado_at: r.consultado_at } : null;
-      } : null,
+      route: google && legModes.includes("coche") ? tollRouteFn(google, null /* Routes: sin caché persistente (términos de Google) */) : null,
+      apiSku: TOLLS_API_SKU,
     }).catch((e) => { console.warn("roadtrip:", e instanceof Error ? e.message : e); return null; });
 
     const [roadTrip, tpFlights, multiFlights, ...cityLive] = await Promise.all([roadTripPromise, tpFlightsPromise, multiFlightsPromise, ...cityLivePromises]);
@@ -966,6 +963,8 @@ Entrega JSON con:
       tours: experienciasMxn,
       transporte_local: transporteMxn,
       extras: extrasMxn,
+      // Casetas reales de Google (en vivo, MXN) de los tramos en coche; sin monto no se suma nada.
+      ...((roadTrip?.casetas?.mxn_en_vivo ?? 0) > 0 ? { casetas: roadTrip!.casetas.mxn_en_vivo } : {}),
     };
     const totalMxn = Object.values(desglose).reduce((s, v) => s + (Number(v) || 0), 0);
 

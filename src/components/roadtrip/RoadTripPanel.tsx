@@ -8,6 +8,7 @@ import { formatInstant } from "@/lib/localDate";
 import { offerFromCarRental, type RoadTripPlan } from "@/lib/roadtrip";
 import { CountryNotices } from "./CountryNotices";
 import { DataStateBadge } from "./DataStateBadge";
+import { TollInfo } from "./TollInfo";
 
 const km = (n: number | null) => (n === null ? "—" : `${n.toLocaleString("es-MX")} km`);
 const hours = (min: number | null) => {
@@ -57,6 +58,7 @@ export function RoadTripPanel({ plan, tripId, preview = false, returnCity }: {
   const totalMin = plan.legs.reduce((s, l) => s + (l.duration_min ?? 0), 0);
   const allLive = plan.legs.every((l) => l.estado === "CONSULTADO");
   const totals = Object.entries(plan.totals_by_currency ?? {});
+  const casetasLive = Number(plan.casetas?.mxn_en_vivo) || 0;
   return (
     <section id={preview ? undefined : ROADTRIP_ANCHOR} className="rounded-3xl border border-border bg-card overflow-hidden scroll-mt-20" data-testid="roadtrip-panel" aria-label="Road trip en coche">
       <div className="px-5 md:px-6 py-3 border-b border-border flex flex-wrap items-center gap-2 text-sm">
@@ -101,10 +103,15 @@ export function RoadTripPanel({ plan, tripId, preview = false, returnCity }: {
                 </ul>
               </div>
             )}
-            <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
+            <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2" data-testid="combustible-tramo">
               <span>{l.fuel.concepto}: {l.fuel.monto !== null && l.fuel.moneda ? money(l.fuel.monto, l.fuel.moneda) : "—"}</span>
               <DataStateBadge state={l.fuel.estado} title={l.fuel.detalle} />
+              {/* Estimado, no real: la fórmula queda a la vista. */}
+              <span className="text-[11px] min-w-0 break-words">{l.fuel.estado === "ESTIMADO" ? `Fórmula: ${l.fuel.detalle}` : l.fuel.detalle}</span>
             </p>
+            {preview
+              ? <p className="text-xs text-muted-foreground" data-testid="casetas" data-estado="SIN_CONSULTAR">Casetas: se consultan a Google Maps al generar el viaje.</p>
+              : <TollInfo quote={l.tolls ?? null} from={l.from} to={l.to} consultable={!l.tolls} />}
           </li>
         ))}
       </ol>
@@ -134,7 +141,14 @@ export function RoadTripPanel({ plan, tripId, preview = false, returnCity }: {
         </ul>
         {totals.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            Suma parcial de lo que tiene monto: {totals.map(([cur, n]) => money(n, cur)).join(" + ")}. Faltan renta, casetas y estacionamiento (por cotizar o confirmar). No se suma al total del viaje.
+            Suma parcial de lo que tiene monto: {totals.map(([cur, n]) => money(n, cur)).join(" + ")}. Faltan renta{plan.casetas?.faltan?.length ? ", casetas sin monto" : ""} y estacionamiento (por cotizar o confirmar). {casetasLive > 0 ? "Solo las casetas en vivo se suman al total del viaje; lo demás no." : "No se suma al total del viaje."}
+          </p>
+        )}
+        {casetasLive > 0 && (
+          <p className="text-xs text-foreground flex flex-wrap items-center gap-2" data-testid="casetas-total">
+            Casetas en vivo (Google Maps): ${casetasLive.toLocaleString("es-MX")} MXN, sumadas al total del viaje.
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] tracking-wide text-primary">en vivo</span>
+            {plan.casetas!.faltan.length > 0 && <span className="text-amber-500">Faltan las casetas de {plan.casetas!.faltan.length} {plan.casetas!.faltan.length === 1 ? "tramo" : "tramos"} (sin monto de Google).</span>}
           </p>
         )}
         <ul className="text-[11px] text-muted-foreground list-disc pl-4">
