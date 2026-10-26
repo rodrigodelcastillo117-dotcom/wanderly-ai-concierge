@@ -1,6 +1,7 @@
 // 🎮 Motor de gamificación: revisa los datos reales del usuario y desbloquea
 // medallas + avanza misiones. Determinista (puro conteo SQL), idempotente.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { adminClient } from "../_shared/entitlements.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,6 +33,10 @@ Deno.serve(async (req) => {
       });
     }
     const uid = u.user.id;
+    // Lecturas con la sesión del usuario (RLS). Escrituras de medallas/misiones con la llave de servicio:
+    // las tablas solo permiten SELECT al usuario (nadie puede darse medallas desde el navegador); el
+    // uid sale del token verificado y las métricas se calculan aquí, en el servidor.
+    const admin = adminClient();
 
     const [
       { count: numViajes },
@@ -74,7 +79,7 @@ Deno.serve(async (req) => {
       else valorActual = metricas[b.meta_tipo] ?? 0;
 
       if (valorActual >= (b.meta_valor ?? 999999)) {
-        const { error } = await supabase.from("user_badges").insert({ user_id: uid, badge_id: b.id });
+        const { error } = await admin.from("user_badges").insert({ user_id: uid, badge_id: b.id });
         if (!error) nuevasMedallas.push({ id: b.id, nombre: b.nombre, icono: b.icono, descripcion: b.descripcion });
       }
     }
@@ -89,12 +94,13 @@ Deno.serve(async (req) => {
       const completada = actual >= m.meta_valor;
       const prev = progresoMap.get(m.id);
 
-      const { error } = await supabase.from("user_missions").upsert({
+      const { error } = await admin.from("user_missions").upsert({
         user_id: uid,
         mission_id: m.id,
         progreso: Math.min(actual, m.meta_valor),
         completada,
-        completed_at: completada ? new Date().toISOString() : null,
+        // Conserva la fecha original en que se completó (no se reescribe en cada evaluación).
+        completed_at: completada ? (prev?.completed_at ?? new Date().toISOString()) : null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,mission_id" });
 
@@ -106,7 +112,7 @@ Deno.serve(async (req) => {
           completada, recien_completada: recienCompletada,
         });
         if (recienCompletada && m.recompensa_badge_id && !tengoSet.has(m.recompensa_badge_id)) {
-          const { error: be } = await supabase.from("user_badges")
+          const { error: be } = await admin.from("user_badges")
             .insert({ user_id: uid, badge_id: m.recompensa_badge_id });
           if (!be) {
             const bdef = (badges ?? []).find((x: any) => x.id === m.recompensa_badge_id);
