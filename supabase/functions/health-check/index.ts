@@ -10,6 +10,7 @@ import { allOk, runChecks } from "./checks.ts";
 import { probeGoogleApis } from "./googleProbe.ts";
 import { probeStripeConfig } from "./stripeProbe.ts";
 import { probeTicketmaster } from "../_shared/ticketmaster.ts";
+import { probeTripadvisor } from "../_shared/tripadvisor-terra.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { alertEmail, alertRecipients, emailOutcome, jobHealth, shouldEmail, type CronHealth, type PreviousRun } from "./alerts.ts";
 
@@ -38,6 +39,16 @@ Deno.serve(async (req) => {
   //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=ticketmaster" -H "x-cron-secret: $CRON_SECRET"
   if (new URL(req.url).searchParams.get("action") === "ticketmaster") {
     return json(await probeTicketmaster({ fetchImpl: fetch, apiKey: Deno.env.get("TICKETMASTER_API_KEY") }));
+  }
+
+  // Diagnóstico bajo demanda de Tripadvisor Terra: UNA búsqueda mínima (size=1) con una consulta que
+  // no coincide con nada, así que no devuelve location IDs y no cobra entidades; prueba la llave
+  // (401) y el permiso del endpoint (403). Con &muestra=1 busca un lugar real (máximo 1 entidad; si la
+  // allowlist lo esconde, 1 más en el catálogo). Nunca responde la llave ni la URL.
+  //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=tripadvisor" -H "x-cron-secret: $CRON_SECRET"
+  if (new URL(req.url).searchParams.get("action") === "tripadvisor") {
+    const muestra = new URL(req.url).searchParams.get("muestra") === "1";
+    return json(await probeTripadvisor({ fetchImpl: fetch, apiKey: Deno.env.get("TRIPADVISOR_API_KEY"), muestra }));
   }
 
   const env = (k: string) => Deno.env.get(k) ?? undefined;
