@@ -146,7 +146,9 @@ export async function runExperiencias(input: ExperienciasInput, d: ExperienciasD
   const museoP = blocks.has("museos") && google && tickets.length
     ? searchText(google, { query: `museos y monumentos en ${city}`, preset: "rich", maxResults: 20, language: "es", dropClosed: false })
     : null;
-  const toursP = blocks.has("tours") ? d.viator({ city, date_from: from, date_to: to, currency: "MXN", max: 12 }) : null;
+  // Búsqueda por relevancia ("tour"): ordenar por TRAVELER_RATING trae 5★ con pocas reseñas que el
+  // criterio TOP (≥300 reseñas) descarta; la relevancia de Viator trae los tours populares (prueba real 27-oct).
+  const toursP = blocks.has("tours") ? d.viator({ city, query: "tour", date_from: from, date_to: to, currency: "MXN", max: 12 }) : null;
   const wq = blocks.has("wow") ? wowQueries(city) : [];
   const wowP = Promise.all(wq.map((q) => d.viator({ city, query: q, date_from: from, date_to: to, currency: "MXN", max: 12 })));
   const evP = blocks.has("eventos") && d.ticketmaster && from

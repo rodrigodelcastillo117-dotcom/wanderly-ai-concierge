@@ -194,7 +194,7 @@ describe("experiencias-top (runExperiencias)", () => {
     expect(out.tours.results.map((t: any) => t.codigo)).toEqual(["FLR-COCINA", "FLR-VINO"]);
     expect(out.tours.aviso).toMatch(/4\.6★ o más con 300 reseñas o más en Viator\. Solo 2 cumplen/);
     expect(out.wow.consultas).toEqual(wowQueries("Florencia"));
-    expect(vq.map((a) => a.query ?? null)).toEqual([null, "cata de vino Toscana", "clase de cocina"]);
+    expect(vq.map((a) => a.query ?? null)).toEqual(["tour", "cata de vino Toscana", "clase de cocina"]);
     expect(out.eventos.ok).toBe(false);
   });
   it("con hotel por nombre: lo ubica en Google y mide desde ahí; la consulta «cena romántica» va tal cual", async () => {
