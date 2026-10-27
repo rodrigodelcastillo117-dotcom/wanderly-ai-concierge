@@ -81,7 +81,7 @@ describe("Pestañas de la página del viaje (punto 11)", () => {
     renderTrip();
     const nav = await screen.findByTestId("trip-secciones");
     const tabs = within(nav).getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Resumen", "Comprar", "Destinos", "Documentos"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Resumen", "Comprar", "Destinos", "Experiencias", "Documentos"]);
     expect(screen.getByTestId("tab-resumen")).toHaveAttribute("aria-selected", "true");
     expect(document.getElementById("panel-comprar")).toHaveAttribute("hidden");
     fireEvent.click(screen.getByTestId("tab-comprar"));

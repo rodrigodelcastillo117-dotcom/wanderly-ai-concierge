@@ -18,6 +18,8 @@ import { roadTripTurn } from "./roadtrip.ts";
 import type { TripPosition } from "./location.ts";
 import { eventsRequested } from "./events.ts";
 import { toursRequested } from "../_shared/viator.ts";
+import { mealFromText } from "../_shared/restaurantBooking.ts";
+import { officialTicketsForCity } from "../_shared/officialTickets.ts";
 
 export type Intent =
   | "human" | "emergency" | "flight_disruption" | "missed_connection" | "flight_status" | "flight_compare"
@@ -28,7 +30,9 @@ export type Intent =
   // Event Radar: conciertos, teatro, deportes o qué hacer en fechas concretas (events.ts).
   | "events"
   // Tours y actividades reales de Viator (search_tours), solo si los pide.
-  | "tours";
+  | "tours"
+  // Luna de miel / "lo TOP" de una ciudad: desayunos, cenas, museos con taquilla oficial y experiencias.
+  | "honeymoon_plan";
 
 export const CHIP_INTENTS: readonly Intent[] = [
   "dining_near_hotel", "transport", "emergency", "flight_status", "luggage", "members_followup", "trip_overview",
@@ -56,6 +60,28 @@ const RULES: Array<[Intent, RegExp]> = [
   ["luggage", /\b(equipaje invisible|enviar (mi )?(equipaje|maleta)|luggage forward|airportr|lugless)\b/],
 ];
 
+/** "Plan de luna de miel en Florencia", "lo TOP de Roma: desayunos, cenas, museos y experiencias". */
+export function honeymoonRequested(message: unknown): boolean {
+  const m = normText(message);
+  return /\b(luna de miel|honeymoon)\b/.test(m)
+    || /\b(plan|lo top|top|lo mejor|imperdibles?)\b.{0,60}\b(desayunos?|cenas?|comidas?|restaurantes?)\b.{0,60}\b(museos?|experiencias?|tours?)\b/.test(m);
+}
+
+/**
+ * "cena romántica", "cena especial", "aniversario": la palabra del usuario va a Text Search tal cual
+ * (Google decide qué mostrar; IATOS no etiqueta lugares como románticos).
+ */
+export function specialDiningPhrase(message: unknown): string | null {
+  const m = normText(message);
+  const meal = mealFromText(message);
+  const noun = meal === "desayuno" ? "desayuno" : meal === "brunch" ? "brunch" : meal === "comida" ? "comida" : "cena";
+  if (/\bromantic\w*\b/.test(m)) return `${noun} romántica`.replace("desayuno romántica", "desayuno romántico").replace("brunch romántica", "brunch romántico");
+  if (/\bluna de miel\b/.test(m)) return `${noun} para luna de miel`;
+  if (/\baniversario\b/.test(m)) return `${noun} de aniversario`;
+  if (/\b(cena|comida) especial\b/.test(m)) return `${noun} especial`;
+  return null;
+}
+
 /** Intenciones del mensaje. Un botón rápido manda la suya y manda sobre el texto. */
 export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   const m = normText(message);
@@ -67,6 +93,7 @@ export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   if (rt.isRoadTrip || (rt.route && /\b(ruta|recorrido|recorrer|vuelta)\b/.test(m))) out.add("road_trip");
   if (eventsRequested(message)) out.add("events");
   if (toursRequested(message)) out.add("tours");
+  if (honeymoonRequested(message)) out.add("honeymoon_plan");
   // "cenar cerca de mi hotel" ya es dining_near_hotel.
   if (out.has("dining_near_hotel")) out.delete("dining");
   // Privé con plan / noche → planeación.
@@ -195,7 +222,7 @@ export interface PlanInput {
  */
 const FOCUSED_NOT_FLIGHT: readonly Intent[] = [
   "dining_near_hotel", "dining", "expense", "packing", "luggage", "members_followup", "prive_night",
-  "create_trip", "road_trip", "price_alert", "itinerary_add",
+  "create_trip", "road_trip", "price_alert", "itinerary_add", "honeymoon_plan",
 ];
 
 const cleanFactQuery = (msg: string) => String(msg ?? "")
@@ -325,7 +352,16 @@ export function planTurn(i: PlanInput): TurnPlan {
     // "Restaurantes en Delhi": se busca en el lugar pedido, sin cambiar el viaje seleccionado.
     const sameTrip = !!trip && normText(String(trip.destino ?? "")).includes(normText(requested));
     plan.notes.push(`El usuario pidió lugares en ${requested}: responde sobre ${requested}${trip && !sameTrip ? "; no es el viaje en contexto: no lo cambies ni propongas agregarlo a ese viaje" : ""}.`);
-    plan.prefetch.push({ name: "search_places", args: { query: `restaurantes en ${requested}` }, reason: "restaurantes en el destino pedido" });
+    // "Cena romántica en Florencia el 14": la consulta del usuario (romántica, especial) y la comida
+    // (servesDinner real) van a Text Search; la ciudad arma TheFork y la taquilla oficial.
+    const special = specialDiningPhrase(i.message);
+    const meal = mealFromText(i.message);
+    plan.prefetch.push({
+      name: "search_places",
+      args: { query: `${special ?? "restaurantes"} en ${requested}`, city: requested, ...(meal ? { meal } : {}) },
+      reason: "restaurantes en el destino pedido",
+    });
+    if (special) plan.notes.push(`La búsqueda fue «${special} en ${requested}» en Google Maps: di que son los que Google muestra para esa búsqueda, sin llamar romántico a un lugar por tu cuenta. Los botones de reserva los pone IATOS; nada está reservado.`);
     if (i.exigente) plan.prefetch.push({ name: "search_attractions", args: { query: `mejores restaurantes en ${requested}`, category: "restaurants" }, reason: "ranking de la ciudad" });
   } else if (has("dining_near_hotel") || (has("dining") && (hotel || i.coords || (away && place) || i.nearMe))) {
     // Pidió "cerca" y está fuera de los destinos del viaje (o el viaje es futuro): cerca de donde
@@ -363,6 +399,29 @@ export function planTurn(i: PlanInput): TurnPlan {
     plan.prefetch.push({ name: "web_search", args: { query: q }, reason: "dato práctico" });
     plan.prefetch.push({ name: "search_places", args: { query: q, details: true }, reason: "ficha del lugar" });
     plan.toolHints.push("web_search", "search_places");
+  }
+
+  if (has("honeymoon_plan")) {
+    const hcity = requested ?? city;
+    if (hcity) {
+      const from = iso(trip?.fecha_salida), to = iso(trip?.fecha_regreso);
+      const special = specialDiningPhrase(i.message) ?? "cena romántica";
+      const already = (q: string) => plan.prefetch.some((p) => p.name === "search_places" && String(p.args.query ?? "").startsWith(q));
+      if (!already("desayuno")) plan.prefetch.push({ name: "search_places", args: { query: `desayuno en ${hcity}`, meal: "desayuno", city: hcity }, reason: "desayunos" });
+      if (!plan.prefetch.some((p) => p.name === "search_places" && p.args.meal === "cena")) {
+        plan.prefetch.push({ name: "search_places", args: { query: `${special} en ${hcity}`, meal: "cena", city: hcity }, reason: "cenas" });
+      }
+      plan.prefetch.push({ name: "search_tours", args: { city: hcity, ...(from ? { date_from: from } : {}), ...(to ? { date_to: to } : {}) }, reason: "experiencias" });
+      if (from) plan.toolHints.push("search_events");
+      plan.toolHints.push("search_tours", "search_places");
+      const museos = officialTicketsForCity(hcity);
+      if (museos.length) {
+        plan.notes.push(`Museos con taquilla OFICIAL en ${hcity} (tabla de IATOS, verificada 27-oct-2026): ${museos.map((m) => `${m.nombre}${m.nota ? ` — ${m.nota}` : ""}`).join("; ")}. Escribe una card "attraction" por museo con ese nombre exacto: IATOS agrega "Boletos oficiales" y "Con guía o sin fila en Viator". No agregues plazos ni "se agota" que la nota no diga.`);
+      }
+      plan.notes.push(`Plan de ${hcity}: por día, desayuno, mañana (museo), comida, tarde (experiencia) y cena, solo con lugares de los resultados. Ninguno está reservado: los botones abren el sitio del proveedor. En el viaje, pestaña Experiencias, puede buscar lo TOP, armar su itinerario y marcar "Ya reservé".`);
+    } else {
+      plan.notes.push("Para el plan falta la ciudad: pregunta en una línea qué ciudad.");
+    }
   }
 
   if (has("events")) {
@@ -512,9 +571,10 @@ const DINING_OR_RANKING = /\b(restaurante|restaurant|comer|cenar|cena|bar|cafe|a
  */
 export function applyToolPolicy(name: string, args: Record<string, unknown>, userMessage: string): { name: string; args: Record<string, unknown>; rerouted?: string; blocked?: string } {
   // Event Radar: cada búsqueda de eventos cuesta; solo si el usuario pidió eventos o qué hacer en fechas concretas.
-  if (name === "search_events") return eventsRequested(userMessage) ? { name, args } : { name, args, blocked: "eventos_no_pedidos" };
+  // Plan de luna de miel / "lo TOP" con fechas: también pide eventos de esas fechas.
+  if (name === "search_events") return eventsRequested(userMessage) || (honeymoonRequested(userMessage) && !!args.date_from) ? { name, args } : { name, args, blocked: "eventos_no_pedidos" };
   // Tours de Viator: solo si el usuario pidió tours o actividades (gasta de la bolsa de búsquedas en vivo).
-  if (name === "search_tours") return toursRequested(userMessage) ? { name, args } : { name, args, blocked: "tours_no_pedidos" };
+  if (name === "search_tours") return toursRequested(userMessage) || honeymoonRequested(userMessage) ? { name, args } : { name, args, blocked: "tours_no_pedidos" };
   if (name !== "search_attractions") return { name, args };
   const m = normText(userMessage);
   const q = normText(args.query);

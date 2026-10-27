@@ -157,6 +157,8 @@ Edge function **`booking-links-cron`** (`verify_jwt=false`, `CRON_SECRET`): venc
 | EV-PRIVE-CATALOG | `booking_url` curado | fila del catálogo con `sources` y `verified_at` | R1–R10, E1–E7 |
 | EV-SITE-SCAN | enlaces públicos del sitio oficial | `siteScan.ts` + `booking-links-cron` | pruebas con HTML real de ejemplo |
 | EV-TOURS-SEARCH | `getyourguide.com/s/?q=`, `viator.com/searchResults/all?text=` | ya en uso | E8–E9: **403** a navegador automático (no se evade) |
+| EV-THEFORK-SEARCH | `https://www.thefork.it/search?cityName=Firenze&searchText=<nombre>` (thefork.es/.fr/.pt por país; thefork.com en los demás mercados) | mismo formato que `theforkLink` de la app; `/search` aparece en el robots.txt de thefork.it y thefork.com (consultado 2026-10-27) | **403 anti-robot** a curl y WebFetch (2026-10-27): no se pudo abrir la búsqueda; la app dice que es una búsqueda por nombre (`_shared/restaurantBooking.ts`) |
+| EV-OFFICIAL-TICKETS | taquillas oficiales de museos (`_shared/officialTickets.ts`) | sitio oficial de cada museo (WebFetch y curl, 2026-10-27); la tabla guarda la URL, la fuente de cada nota y el resultado de la comprobación | 200 en la mayoría; Louvre, Alhambra, Prado, Borghese y Accademia rechazan la comprobación automática (lo dice cada fila) |
 | ~~EV-GFLIGHTS-Q~~ | `google.com/travel/flights?q=…` | **descartado**: abre el formulario vacío | F8 |
 | ~~tp.media/click~~ | redirect de afiliado | **responde 400** "source_type is empty" (también con `curl`) | H0 |
 

@@ -13,15 +13,8 @@ import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { SmartImage } from "@/components/media/SmartImage";
 import { activityQuery, cuisineQuery, hotelQuery } from "@/lib/categoryImagery";
 import { ViatorToursButton } from "@/components/booking/ViatorTours";
-
-type TAResult = {
-  id: string; name: string; address: string; rating: number | null;
-  num_reviews: number | null; ranking: string | null; web_url: string | null;
-  phone: string | null; website: string | null; description: string | null;
-  photos: string[]; category: string | null;
-  /** Google Places: nombre de recurso de la foto (se pide por place-photo). */
-  photo_ref?: string | null;
-};
+import { TripadvisorSourceNote } from "@/components/tripadvisor/TripadvisorRating";
+import { TripadvisorPlaceCard, type TAResult } from "@/components/tripadvisor/TripadvisorPlaceCard";
 
 const TripActivities = () => {
   // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
@@ -43,8 +36,8 @@ const TripActivities = () => {
   const tripDates = tripTool.trip?.fecha_salida && tripTool.trip?.fecha_regreso ? { from: tripTool.trip.fecha_salida, to: tripTool.trip.fecha_regreso } : undefined;
   const sources: { name: string; desc: string; link: () => string; category: "activity" | "restaurant"; prefill: string }[] = [
     { name: "GetYourGuide", desc: "Tours, skip-the-line, experiencias guiadas. Cancelación 24h.", link: () => getYourGuideLink(city, undefined, tripDates), category: "activity", prefill: "getyourguide" },
-    { name: "Viator", desc: "Marketplace de TripAdvisor: actividades y tours.", link: () => viatorLink(city), category: "activity", prefill: "viator" },
-    { name: "TripAdvisor Web", desc: "Catálogo completo con todos los reviews.", link: () => tripadvisorLink(city), category: "activity", prefill: "tripadvisor" },
+    { name: "Viator", desc: "Marketplace de Tripadvisor: actividades y tours.", link: () => viatorLink(city), category: "activity", prefill: "viator" },
+    { name: "Tripadvisor (sitio web)", desc: "Catálogo completo con todas las opiniones.", link: () => tripadvisorLink(city), category: "activity", prefill: "tripadvisor" },
     { name: "OpenTable", desc: "Reservas en restaurantes con disponibilidad real.", link: () => openTableLink(city), category: "restaurant", prefill: "opentable" },
   ];
 
@@ -54,7 +47,8 @@ const TripActivities = () => {
     setResults([]);
     try {
       const { data, error } = await supabase.functions.invoke("tripadvisor-search", {
-        body: { query: city, category: cat, language: "es_MX" },
+        // uso "pantalla": solo una búsqueda que la persona pide consulta Tripadvisor (cobra por lugar).
+        body: { query: city, category: cat, language: "es_MX", uso: "pantalla" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -101,7 +95,10 @@ const TripActivities = () => {
         {results.length > 0 && (
           <div className="space-y-3">
             <h2 className="font-display text-xl">Top resultados</h2>
-            {results.map((r, idx) => (
+            {source === "tripadvisor" && <TripadvisorSourceNote />}
+            {results.map((r, idx) => source === "tripadvisor" ? (
+              <TripadvisorPlaceCard key={r.id} r={r} cat={searched.cat} />
+            ) : (
               <div key={r.id} className="glass-card rounded-2xl overflow-hidden border border-white/10">
                 {/* Foto real (la del resultado o la de Google Places por su photo_ref, pedida solo al
                     verse); si el lugar no tiene, una ilustrativa de la categoría, marcada como tal. */}
@@ -131,7 +128,7 @@ const TripActivities = () => {
                   <div className="flex gap-2 pt-2">
                     {r.web_url && (
                       <Button size="sm" onClick={() => window.open(r.web_url!, "_blank")} className="flex-1">
-                        {source === "google_maps" ? "Ver en Google Maps" : "Ver en TripAdvisor"} <ExternalLink className="w-3 h-3 ml-1" />
+                        Ver en Google Maps <ExternalLink className="w-3 h-3 ml-1" />
                       </Button>
                     )}
                     {r.website && (

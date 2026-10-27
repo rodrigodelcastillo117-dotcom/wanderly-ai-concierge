@@ -9,6 +9,8 @@ import { slimToolResult } from "./tools.ts";
 import { neutralizeDeep } from "./guard.ts";
 import { isPhotoRef } from "../_shared/placePhotoRef.ts";
 import { checkAllowlisted } from "../_shared/booking/allowlist.ts";
+import { NO_RESERVATIONS_NOTE } from "../_shared/restaurantBooking.ts";
+import { matchOfficialTicket, viatorAlternativeUrl } from "../_shared/officialTickets.ts";
 
 export const CARD_TYPES = ["flight", "hotel", "attraction", "restaurant", "place", "source", "transport", "alert", "luggage", "jet", "event", "tour"] as const;
 export type CardType = typeof CARD_TYPES[number];
@@ -26,7 +28,8 @@ export type EstadoDato = "CONSULTADO_EN_VIVO" | "NO_VERIFICADO" | "SOLICITUD_HUM
 
 /** Botón de una card: cómo llegar, pedir un Uber, llamar, sitio o reservar. Solo https: o tel:. */
 /** "tickets" = sitio de venta de boletos de un evento (Google Events o Ticketmaster): abrirlo no es una compra. */
-export interface CardLink { kind: "directions" | "ride" | "call" | "website" | "maps" | "booking" | "tickets"; label: string; url: string }
+/** "whatsapp" = click to chat oficial (wa.me) con el número internacional que dio Google. */
+export interface CardLink { kind: "directions" | "ride" | "call" | "website" | "maps" | "booking" | "tickets" | "whatsapp"; label: string; url: string }
 
 export interface ConciergeCard {
   type: CardType;
@@ -70,6 +73,11 @@ export interface ConciergeCard {
   /** Evento: fecha (YYYY-MM-DD) y hora (HH:MM) leídas de Google Events, si venían. */
   event_date?: string;
   event_time?: string;
+  /**
+   * Restaurante: "No toma reservaciones (llega directo)" si Google dice reservable=false.
+   * Museo de la tabla oficial: su nota oficial ("Reserva obligatoria…"). Lo pone SOLO el servidor.
+   */
+  booking_note?: string;
 }
 
 /** Solo https: (nada de javascript:, data:, http:, ni URLs con usuario/contraseña). */
@@ -242,11 +250,17 @@ export interface EvidencePlace {
   website?: string; mapsUrl?: string; rating?: number; openNow?: boolean | null; hours?: string[];
   /** Nombre de la primera foto de Google Places ("places/…/photos/…"). */
   photoRef?: string;
+  /** internationalPhoneNumber de Google (WhatsApp solo con él). */
+  phoneIntl?: string;
+  /** reservable de Google (true / false / sin dato). */
+  reservable?: boolean | null;
+  /** Ciudad con la que se buscó (argumento city de search_places): TheFork y taquilla oficial. */
+  city?: string;
 }
 
 const normName = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-function collectPlaces(tool: string, res: Record<string, unknown>, out: EvidencePlace[]) {
+function collectPlaces(tool: string, res: Record<string, unknown>, out: EvidencePlace[], city?: string) {
   if (!["search_places", "search_nearby", "search_attractions", "search_members_venues"].includes(tool)) return;
   const lists: unknown[] = [];
   for (const v of Object.values(res)) if (Array.isArray(v)) lists.push(...v);
@@ -266,6 +280,9 @@ function collectPlaces(tool: string, res: Record<string, unknown>, out: Evidence
       rating: num(o.rating), openNow: typeof o.open_now === "boolean" ? o.open_now : null,
       hours: Array.isArray(o.opening_hours) ? o.opening_hours.map(String).slice(0, 7) : undefined,
       photoRef: isPhotoRef(o.photo_ref) ? o.photo_ref : undefined,
+      phoneIntl: typeof o.phone_international === "string" ? o.phone_international : undefined,
+      reservable: typeof o.reservable === "boolean" ? o.reservable : undefined,
+      city,
     };
     // El mismo lugar en la búsqueda y en el detalle: se combinan (el detalle trae teléfono y horario).
     const same = out.find((x) => normName(x.name) === normName(name));
@@ -342,7 +359,7 @@ export function collectEvidence(runs: ToolRun[]): Evidence {
     ev.available[run.name] = true;
     delete ev.unavailable[run.name];
     delete ev.unavailableState[run.name];
-    collectPlaces(run.name, res, ev.places);
+    collectPlaces(run.name, res, ev.places, typeof run.args?.city === "string" && run.args.city.trim() ? run.args.city.trim().slice(0, 80) : undefined);
     if (run.name === "web_search") {
       for (const r of Array.isArray(res.results) ? res.results : []) { const u = safeHttpsUrl((r as any)?.link); if (u) ev.webLinks.add(u); }
       const al = safeHttpsUrl((res.answer as any)?.link);
@@ -623,9 +640,11 @@ const telUrl = (phone: string | undefined) => {
 /** Enlace seguro de una card: https (sin usuario/contraseña) o tel:. */
 export function safeCardLink(l: unknown): CardLink | null {
   const o = l as Partial<CardLink> | null;
-  const kinds: CardLink["kind"][] = ["directions", "ride", "call", "website", "maps", "booking", "tickets"];
+  const kinds: CardLink["kind"][] = ["directions", "ride", "call", "website", "maps", "booking", "tickets", "whatsapp"];
   if (!o || !kinds.includes(o.kind as CardLink["kind"]) || typeof o.label !== "string") return null;
-  const url = o.kind === "call" ? (typeof o.url === "string" && /^tel:\+?\d{7,15}$/.test(o.url) ? o.url : undefined) : safeHttpsUrl(o.url);
+  const url = o.kind === "call" ? (typeof o.url === "string" && /^tel:\+?\d{7,15}$/.test(o.url) ? o.url : undefined)
+    : o.kind === "whatsapp" ? (typeof o.url === "string" && /^https:\/\/wa\.me\/\d{7,15}$/.test(o.url) ? o.url : undefined)
+    : safeHttpsUrl(o.url);
   if (!url) return null;
   return { kind: o.kind as CardLink["kind"], label: o.label.slice(0, 40), url };
 }
@@ -640,7 +659,7 @@ export function enrichCardLinks(
   builders: {
     directions: (p: { lat?: number; lng?: number; name?: string; address?: string; placeId?: string }) => string;
     ride: (p: { lat?: number; lng?: number; name?: string; address?: string }) => string;
-    booking: (v: { name: string; city?: string; website?: string; mapsUrl?: string; date?: string; party?: number }) => CardLink[];
+    booking: (v: { name: string; city?: string; website?: string; mapsUrl?: string; date?: string; party?: number; address?: string; phone?: string; phoneIntl?: string; reservable?: boolean | null }) => CardLink[];
   },
   ctx: { date?: string; party?: number; city?: string } = {},
 ): ConciergeCard[] {
@@ -655,14 +674,34 @@ export function enrichCardLinks(
       add({ kind: "directions", label: "Cómo llegar", url: builders.directions(target) });
       add({ kind: "ride", label: "Pedir Uber", url: builders.ride(target) });
     }
-    if (p?.phone) { const t = telUrl(p.phone); if (t) add({ kind: "call", label: "Llamar", url: t }); }
+    const out: ConciergeCard = { ...c };
     if (c.type === "restaurant") {
-      for (const l of builders.booking({ name: c.title, city: ctx.city, website: p?.website, mapsUrl: p?.mapsUrl, date: ctx.date, party: ctx.party })) add(safeCardLink(l));
+      // Orden de confianza (restaurantBooking.ts): su sitio → TheFork/OpenTable → Llamar → WhatsApp.
+      // "Llévame" lo pone la pantalla con place_id o coordenadas.
+      const booked = builders.booking({
+        name: c.title, city: p?.city ?? ctx.city, website: p?.website, mapsUrl: p?.mapsUrl, date: ctx.date, party: ctx.party,
+        address: p?.address, phone: p?.phone, phoneIntl: p?.phoneIntl, reservable: p?.reservable,
+      });
+      const ordered = booked.map(safeCardLink).filter(Boolean) as CardLink[];
+      // "Llamar" con el número de Google aunque el armador de reservas no lo traiga.
+      if (p?.phone && !ordered.some((l) => l.kind === "call")) {
+        const t = telUrl(p.phone);
+        if (t) ordered.splice(ordered.findIndex((l) => l.kind === "maps") >= 0 ? ordered.findIndex((l) => l.kind === "maps") : ordered.length, 0, { kind: "call", label: "Llamar", url: t });
+      }
+      // Los de reserva van primero (sitio, TheFork, llamar, WhatsApp); luego cómo llegar y Uber.
+      links.splice(0, links.length, ...ordered, ...links.filter((l) => !ordered.some((x) => x.kind === l.kind)));
+      if (p?.reservable === false) out.booking_note = NO_RESERVATIONS_NOTE;
     } else {
+      if (p?.phone) { const t = telUrl(p.phone); if (t) add({ kind: "call", label: "Llamar", url: t }); }
+      // Museo o monumento de la tabla oficial: "Boletos oficiales" + "Con guía o sin fila en Viator".
+      const ticket = c.type === "attraction" || c.type === "place" ? matchOfficialTicket(c.title, p?.city ?? ctx.city) ?? matchOfficialTicket(c.title) ?? matchOfficialTicket(p?.name ?? "") : null;
+      if (ticket) {
+        links.unshift({ kind: "tickets", label: "Boletos oficiales", url: ticket.taquilla_url }, { kind: "booking", label: "Con guía o sin fila en Viator", url: viatorAlternativeUrl(ticket) });
+        if (ticket.nota) out.booking_note = ticket.nota;
+      }
       if (p?.website) add({ kind: "website", label: "Sitio oficial", url: p.website });
       if (p?.mapsUrl) add({ kind: "maps", label: "Ver en Google Maps", url: p.mapsUrl });
     }
-    const out: ConciergeCard = { ...c };
     if (links.length) out.links = links.slice(0, 5);
     // Foto real del lugar: solo de la evidencia (la herramienta), nunca una que escriba el modelo.
     if (p?.photoRef && !out.image_url) out.photo_ref = p.photoRef;

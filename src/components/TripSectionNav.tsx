@@ -1,11 +1,11 @@
-// Pestañas fijas de la página del viaje: "Resumen · Comprar · Ruta · Destinos · Documentos". Se quedan
+// Pestañas fijas de la página del viaje: "Resumen · Comprar · Ruta · Destinos · Experiencias · Documentos". Se quedan
 // arriba al bajar y en móvil se deslizan. Con teclado: flechas izquierda/derecha, Inicio y Fin.
 // No se usa `position: sticky`: el <main> de DashboardLayout tiene overflow-x oculto (es el contenedor
 // de desplazamiento para sticky y no se desplaza), así que la barra se fija con `fixed` al pasarla.
 import { useEffect, useRef, useState } from "react";
 
-export type TripSection = "resumen" | "comprar" | "ruta" | "destinos" | "documentos";
-const ALL: TripSection[] = ["resumen", "comprar", "ruta", "destinos", "documentos"];
+export type TripSection = "resumen" | "comprar" | "ruta" | "destinos" | "experiencias" | "documentos";
+const ALL: TripSection[] = ["resumen", "comprar", "ruta", "destinos", "experiencias", "documentos"];
 export const isTripSection = (v: unknown): v is TripSection => typeof v === "string" && (ALL as string[]).includes(v);
 /** Evento con que otra parte de la página pide mostrar una sección (detail = id de la sección). */
 export const TRIP_SECTION_EVENT = "iatos:trip-section";

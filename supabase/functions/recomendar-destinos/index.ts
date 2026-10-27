@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
     ]);
     const { profile: taste } = await getTasteProfile({
       db: supabase, cache: supabase, userId: user.id, todayISO: tasteToday(), cached: tasteCache,
-      prefetched: { travelProfile: tp ?? null, aiPrefs: ai ?? null },
+      prefetched: { travelProfile: tp ?? null, aiPrefs: ai ?? null }, timeoutMs: 8_000,
     });
     const tasteHash = taste?.hash ?? null;
     // Recomendaciones de antes de esta versión (sin huella) siguen sirviendo si aún no hay gustos que usar.
@@ -190,21 +190,32 @@ ${gustos}
 ` : ""}
 Recomienda 8 destinos del mundo que CLARAMENTE encajen con este perfil específico. Cada "reason" debe citar de forma explícita 1-2 elementos concretos: primero los de "gustos" si hay${taste?.encanta?.[0]?.label ? ` (por ejemplo: "Porque te encantó ${taste.encanta[0].label}…")` : ""}, si no, del perfil ("tu interés en ${perfil.intereses?.[0] ?? "X"}" o "tu ritmo ${perfil.ritmo ?? "relajado"}"). Si el perfil está casi vacío, basa las recomendaciones en el origen (${perfil.origen ?? "desconocido"}) y prioriza variedad geográfica/temática. NO repitas destinos ya visitados.`;
 
-    const aiRes = await aiFetch({
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": LOVABLE_API_KEY,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-flash-latest",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
+    // Tope de 45 s para la IA: la plataforma corta a los 150 s (IDLE_TIMEOUT) y deja la pantalla en blanco.
+    let aiRes: Response;
+    try {
+      aiRes = await aiFetch({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Lovable-API-Key": LOVABLE_API_KEY,
+        },
+        signal: AbortSignal.timeout(45_000),
+        body: JSON.stringify({
+          model: "google/gemini-flash-latest",
+          messages: [
+            { role: "system", content: SYSTEM },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+    } catch (e) {
+      console.error("AI gateway timeout/error", (e as Error)?.message);
+      if (hasCache) return cachedResponse(true);
+      return new Response(JSON.stringify({ error: "Las recomendaciones tardaron demasiado. Intenta de nuevo en un momento." }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!aiRes.ok) {
       const txt = await aiRes.text();

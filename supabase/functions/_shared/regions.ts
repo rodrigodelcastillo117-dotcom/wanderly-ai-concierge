@@ -224,8 +224,8 @@ export function expandLegModes(legModes: unknown, sourceIndex: number[]): unknow
 }
 
 /** "Toscana: te armamos la ruta por Siena y Montepulciano". */
-export function expansionLine(e: RegionExpansion): string {
+export function expansionLine(e: RegionExpansion, opts: { brought?: boolean } = {}): string {
   const c = e.ciudades;
   const lista = c.length > 1 ? `${c.slice(0, -1).join(", ")} y ${c[c.length - 1]}` : c[0] ?? "";
-  return `${e.region}: te armamos la ruta por ${lista}${e.fuente === "wikidata" ? " (ciudades según Wikidata)" : ""}`;
+  return `${e.region}: ${opts.brought ? "tu ruta por" : "te armamos la ruta por"} ${lista}${e.fuente === "wikidata" ? " (ciudades según Wikidata)" : ""}`;
 }

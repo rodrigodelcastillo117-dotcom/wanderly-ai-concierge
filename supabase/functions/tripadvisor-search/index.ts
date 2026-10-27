@@ -1,19 +1,34 @@
-// Lugares reales con calificación y reseñas: TripAdvisor Content API y, si no está disponible
-// (sin llave o llave rechazada), Google Places API (New) con la llave del servidor; SerpApi
-// (Google Maps) queda como último recurso porque su bolsa de búsquedas es escasa y la comparten
-// vuelos y hoteles. Mismo formato de respuesta; `source` dice de dónde vino
+// Lugares reales con calificación y reseñas: Tripadvisor Terra (plan Discover, la Content API vieja
+// se retiró el 31-ago-2026) y, si no está disponible (sin llave, rechazo 401/402/403/429, tope de
+// gasto, sin resultados en la allowlist o llamada que no viene de una pantalla), Google Places API
+// (New) con la llave del servidor; SerpApi (Google Maps) queda como último recurso porque su bolsa
+// es escasa y la comparten vuelos y hoteles. Mismo formato de respuesta; `source` dice de dónde vino
 // ("tripadvisor" | "google_places" | "google_maps").
+//
+// Gasto (cada entidad de Terra cuesta después de las 1,000 gratis de por vida):
+//   - Solo con { uso: "pantalla" } (una persona tocó un botón): análisis, logística y concierge van
+//     directo a Google (los términos de Tripadvisor además prohíben usar su contenido con IA).
+//   - Una búsqueda = hasta TRIPADVISOR_SEARCH_SIZE entidades (5); ya trae calificación, reseñas,
+//     enlace y coordenadas: no se enriquece nada. Fotos solo con { action: "fotos", location_id }
+//     del lugar que la persona abre (1 entidad).
+//   - Tope global TRIPADVISOR_DAILY_ENTITIES (200) en 24 h y TRIPADVISOR_USER_DAILY_CALLS (20) por
+//     persona, con check_rate_limit (falla cerrada). Cada llamada cobrable va a ai_usage_log.
+//   - Sin caché del contenido: la política de Terra solo permite guardar el Location ID.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { serpFetchFor } from "../_shared/serpRuntime.ts";
+import { adminClient } from "../_shared/entitlements.ts";
+import { dbCacheStore, logUsage, serpFetchFor } from "../_shared/serpRuntime.ts";
+import { cacheKey, freshnessOf } from "../_shared/serpCache.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { callError } from "../_shared/google-maps.ts";
 import { CATEGORY_SEARCH, placeCard, rankByQuality, searchText } from "../_shared/google-places.ts";
+import { type HitFn, terraConfig } from "../_shared/tripadvisor-terra.ts";
+import { handleSearch, type Out, type SearchBody } from "./core.ts";
 
 const KEY = Deno.env.get("TRIPADVISOR_API_KEY");
 const SERP_KEY = Deno.env.get("SERPAPI_PRIVATE_KEY");
-const BASE = "https://api.content.tripadvisor.com/api/v1";
+const CONFIG = terraConfig((k) => Deno.env.get(k));
 
 const GOOGLE_QUERY: Record<string, string> = {
   attractions: "qué hacer en",
@@ -21,7 +36,7 @@ const GOOGLE_QUERY: Record<string, string> = {
   hotels: "hoteles en",
 };
 
-async function googleMapsSearch(body: Body, doFetch: typeof fetch = fetch) {
+async function googleMapsSearch(body: SearchBody, doFetch: typeof fetch = fetch) {
   const prefix = body.category ? GOOGLE_QUERY[body.category] ?? "" : "";
   const params = new URLSearchParams({
     engine: "google_maps",
@@ -58,19 +73,46 @@ async function googleMapsSearch(body: Body, doFetch: typeof fetch = fetch) {
     }));
 }
 
-type Body = {
-  query: string;
-  category?: "hotels" | "attractions" | "restaurants" | "geos";
-  language?: string;
-  withDetails?: boolean;
-};
-
 async function getJSON(url: string, doFetch: typeof fetch = fetch) {
   const r = await doFetch(url, { headers: { accept: "application/json", referer: "https://traveliatos.life" } });
   const t = await r.text();
   try { return { ok: r.ok, status: r.status, data: JSON.parse(t) }; }
   catch { return { ok: false, status: r.status, data: { raw: t } }; }
 }
+
+/** check_rate_limit (atómica, solo service_role). null = no se pudo verificar. */
+const hit: HitFn = async (subject, bucket, rule) => {
+  try {
+    const { data, error } = await adminClient().rpc("check_rate_limit", {
+      _subject: subject, _bucket: bucket, _limit: rule.limit, _window_seconds: rule.windowSeconds,
+    });
+    if (error) { console.error("check_rate_limit error:", error.message); return null; }
+    const allowed = (data as { allowed?: unknown } | null)?.allowed;
+    return typeof allowed === "boolean" ? allowed : null;
+  } catch (e) {
+    console.error("check_rate_limit exception:", (e as Error).message);
+    return null;
+  }
+};
+
+// Bandera de pausa propia en serp_cache (no es contenido de Tripadvisor): tras un 401/402/403/429
+// nadie vuelve a llamar a Terra durante unos minutos.
+const PAUSE_ENGINE = "tripadvisor_terra_pausa";
+const pauseKey = () => cacheKey(PAUSE_ENGINE, { flag: "pausa" });
+const store = dbCacheStore();
+const paused = async () => {
+  try {
+    const row = await store.get(await pauseKey());
+    return !!row && freshnessOf(row).fresh;
+  } catch { return false; }
+};
+const pause = async (seconds: number, status: number | null) => {
+  try { await store.put(await pauseKey(), PAUSE_ENGINE, { http: status, desde: new Date().toISOString() }, seconds); }
+  catch (e) { console.warn("tripadvisor-search: no se pudo guardar la pausa", (e as Error)?.message); }
+};
+
+const respond = (o: Out) =>
+  new Response(JSON.stringify(o.body), { status: o.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -81,13 +123,9 @@ Deno.serve(async (req) => {
   if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
   try {
-    const body = (await req.json()) as Body;
-    if (!body?.query) {
-      return new Response(JSON.stringify({ error: "query requerido" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    const body = ((await req.json().catch(() => null)) ?? {}) as SearchBody;
 
-    const googleFallback = async (reason: string, status: number, detail: unknown) => {
+    const googleFallback = async (reason: string, status: number, detail: unknown): Promise<Out> => {
       // 1) Google Places (New): datos de Google con la llave del servidor (Text Search Enterprise,
       //    1,000 gratis al mes); no gasta la bolsa de SerpApi.
       const transport = body.category === "geos" ? null : googleTransportFor("tripadvisor-search", __user.id);
@@ -102,69 +140,31 @@ Deno.serve(async (req) => {
         });
         if (r.ok && r.places.length > 0) {
           const results = rankByQuality(r.places).slice(0, 10).map((p) => placeCard(p, body.category ?? null));
-          return new Response(JSON.stringify({ ok: true, source: "google_places", consulted_at: r.consultado_at, atribucion: "Google Maps", results }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return { status: 200, body: { ok: true, source: "google_places", consulted_at: r.consultado_at, atribucion: "Google Maps", tripadvisor_motivo: reason, results } };
         }
         if (!r.ok) console.warn("tripadvisor-search: Google Places", callError(r).kind, callError(r).message);
       }
-      // 2) Último recurso: Google Maps vía SerpApi (gasta de la bolsa compartida).
+      // 2) Último recurso: Google Maps vía SerpApi con la caché compartida (7 días; datos de Google).
       if (SERP_KEY) {
-        // Google Maps vía SerpApi con la caché compartida (7 días): los lugares casi no cambian.
         const places = await googleMapsSearch(body, serpFetchFor("tripadvisor-search", __user.id).fetch);
         if (places && places.length > 0) {
-          return new Response(JSON.stringify({ ok: true, source: "google_maps", results: places }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return { status: 200, body: { ok: true, source: "google_maps", tripadvisor_motivo: reason, results: places } };
         }
       }
-      return new Response(JSON.stringify({ error: reason, detail }),
-        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return { status, body: { error: reason, detail } };
     };
 
-    if (!KEY) return googleFallback("TRIPADVISOR_API_KEY no configurada", 500, null);
-
-    const lang = body.language ?? "es_MX";
-    const params = new URLSearchParams({
-      key: KEY,
-      searchQuery: body.query,
-      language: lang,
-    });
-    if (body.category) params.set("category", body.category);
-
-    const search = await getJSON(`${BASE}/location/search?${params.toString()}`);
-    if (!search.ok) {
-      console.warn("tripadvisor-search: TripAdvisor", search.status, JSON.stringify(search.data).slice(0, 200));
-      return googleFallback("TripAdvisor error", search.status, search.data);
-    }
-
-    const results = (search.data?.data ?? []).slice(0, 10);
-
-    // Enrich top results with details + photos (limit to 5 to keep latency low)
-    const enriched = await Promise.all(results.slice(0, 5).map(async (loc: any) => {
-      const [details, photos] = await Promise.all([
-        getJSON(`${BASE}/location/${loc.location_id}/details?key=${KEY}&language=${lang}`),
-        getJSON(`${BASE}/location/${loc.location_id}/photos?key=${KEY}&language=${lang}&limit=3`),
-      ]);
-      return {
-        id: loc.location_id,
-        name: loc.name,
-        address: loc.address_obj?.address_string ?? "",
-        rating: details.data?.rating ?? null,
-        num_reviews: details.data?.num_reviews ?? null,
-        price_level: details.data?.price_level ?? null,
-        ranking: details.data?.ranking_data?.ranking_string ?? null,
-        web_url: details.data?.web_url ?? null,
-        phone: details.data?.phone ?? null,
-        website: details.data?.website ?? null,
-        latitude: details.data?.latitude ?? null,
-        longitude: details.data?.longitude ?? null,
-        description: details.data?.description ?? null,
-        photos: (photos.data?.data ?? []).map((p: any) => p.images?.large?.url).filter(Boolean),
-        category: details.data?.category?.name ?? body.category ?? null,
-      };
+    return respond(await handleSearch(body, {
+      fetchImpl: fetch,
+      apiKey: KEY,
+      userId: __user.id,
+      config: CONFIG,
+      hit,
+      logUsage: (row) => logUsage(row),
+      paused,
+      pause,
+      fallback: googleFallback,
     }));
-
-    return new Response(JSON.stringify({ ok: true, source: "tripadvisor", results: enriched }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -43,6 +43,8 @@ import { groundOptionsForCity, legOptionsFor, transportRubroLabel } from "@/lib/
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
+import { TripExperiencias } from "@/components/trip/TripExperiencias";
+import { tripCities } from "@/lib/experiencias";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
 import { SendSelectionEmail } from "@/components/booking/SendSelectionEmail";
@@ -57,6 +59,8 @@ import { splitTripTotal } from "@/lib/totalSplit";
 import { arrivalByLand, isBusOption, isCarOption, isHiredCarOption } from "@/lib/groundTrip";
 import { GroundOptionInfo } from "@/components/booking/GroundOptionInfo";
 import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
+import { isBroughtTrip } from "@/lib/broughtTrip";
+import { BroughtTripSummary } from "@/components/BroughtTripSummary";
 
 
 const fmtMXN = (n: number) =>
@@ -419,7 +423,9 @@ const TripDetail = () => {
 
   const trust = quoteTrust(quote, new Date(), { transporte_local: transportRubroLabel(trip) });
   const discardedFares = (trip.vuelos_json ?? []).filter((v: any) => tripFlightProblems(v, trip).length > 0).length;
-  const hasQuotedTotal = !!(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0);
+  // "Ya tengo mi viaje": vuelos y hotel los trajo la persona; no hay cotización que mostrar ni buscar.
+  const brought = isBroughtTrip(trip);
+  const hasQuotedTotal = !brought && !!(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0);
   const isOwner = user?.id === trip.user_id;
   // Un solo total con su estado (estimado · de tu selección · ya comprado); la barra móvil dice lo mismo.
   const totalSummary = tripTotalSummary({
@@ -454,6 +460,8 @@ const TripDetail = () => {
     { id: "comprar", label: "Comprar" },
     ...(hasRoadTrip ? [{ id: "ruta" as TripSection, label: "Ruta" }] : []),
     { id: "destinos", label: "Destinos" },
+    // Lo TOP de cada ciudad (restaurantes, museos, tours y experiencias) con reserva real e itinerario.
+    { id: "experiencias", label: "Experiencias" },
     { id: "documentos", label: "Documentos" },
   ];
   const showSection = (id: TripSection) => {
@@ -532,7 +540,7 @@ const TripDetail = () => {
           {isMulti && Array.isArray(itinObj.region_expansions) && itinObj.region_expansions.length > 0 && (
             <div className="mb-3 space-y-0.5" data-testid="region-expansions">
               {itinObj.region_expansions.map((e: RegionExpansion) => (
-                <p key={e.region} className="text-xs text-primary">{expansionLine(e)}</p>
+                <p key={e.region} className="text-xs text-primary">{expansionLine(e, { brought })}</p>
               ))}
             </div>
           )}
@@ -580,7 +588,7 @@ const TripDetail = () => {
                 }}>Guardar</Button>
               </PopoverContent>
             </Popover>
-            <span className="flex max-w-full min-w-0 items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="break-words">Desde {trip.ciudad_origen}</span></span>
+            {trip.ciudad_origen && <span className="flex max-w-full min-w-0 items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="break-words">Desde {trip.ciudad_origen}</span></span>}
           </div>
         </div>
       </div>
@@ -599,7 +607,7 @@ const TripDetail = () => {
             Un viaje importado de documentos dice lo que se PAGÓ, no un estado de cotización. */}
         {(trip as any).fuente === "documento"
           ? <ImportedTripBanner trip={trip} />
-          : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} estimated={estimatedKindsOf(totalSummary.estimatedKeys)} />}
+          : brought ? null : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} estimated={estimatedKindsOf(totalSummary.estimatedKeys)} />}
         {/* Smart Date Resolution: fechas optimizadas por IATOS */}
         {trip.dates_optimized && (
           <motion.div
@@ -653,7 +661,18 @@ const TripDetail = () => {
 
         {/* Total + Análisis narrativo */}
         <motion.section id="trip-total" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="scroll-mt-20 focus:outline-none">
-          {hasQuotedTotal ? (
+          {brought ? (
+            <BroughtTripSummary trip={trip}>
+              {/* Solo lo que la persona elija aquí (experiencias) suma; vuelos y hotel nunca. */}
+              {computedTotal > 0 && (
+                <div className="mt-4 border-t border-border/40 pt-3" data-testid="brought-elegido">
+                  <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">Lo que elegiste en IATOS</p>
+                  <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
+                    embedded estimatedKeys={totalSummary.estimatedKeys} labels={{ transporte_local: transportRubroLabel(trip) }} />
+                </div>
+              )}
+            </BroughtTripSummary>
+          ) : hasQuotedTotal ? (
             <RealTripTotal
               trip={trip}
               noches={quoteNights}
@@ -688,7 +707,7 @@ const TripDetail = () => {
             />
           )}
           {/* Sin cotización (LiveTripQuote): el desglose de la estimación, sin repetir el total. */}
-          {!hasQuotedTotal && computedTotal > 0 && (
+          {!hasQuotedTotal && !brought && computedTotal > 0 && (
             <details className="group glass-card rounded-2xl -mt-4" data-testid="trip-desglose">
               <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 p-4 sm:px-5">
                 <span className="inline-flex items-center gap-2 text-sm"><Compass className="w-4 h-4 text-primary shrink-0" /> Ver desglose del total</span>
@@ -704,7 +723,7 @@ const TripDetail = () => {
         {/* Qué sigue: guardado, cuánto falta y UNA acción principal. */}
         <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} />
 
-        {isOwner && (
+        {isOwner && !brought && (
           <PriceWatchCard tripId={trip.id} departureDate={trip.fecha_salida} />
         )}
 
@@ -743,7 +762,7 @@ const TripDetail = () => {
         </div>
 
         <div role="tabpanel" id="panel-comprar" aria-labelledby="tab-comprar" data-trip-panel="comprar" hidden={section !== "comprar"} className="space-y-6">
-          {(trip as any).fuente !== "documento" && hasQuotedTotal ? (
+          {(trip as any).fuente !== "documento" && (hasQuotedTotal || brought) ? (
             <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
               marksState={purchaseMarks}
@@ -755,7 +774,8 @@ const TripDetail = () => {
               selectionDesglose={pageTotal > 0 ? computedDesglose : null} estimadosNote={totalSummary.estimadosNote}
               onViewTrip={() => showSection("resumen")}
               // "Enviarme mi selección por correo" (enviar-seleccion): SOLO lo elegido y el total de esta página.
-              sendSelectionSlot={
+              // Viaje traído: no hay vuelo ni hotel que elegir; el correo de selección pediría elegirlos.
+              sendSelectionSlot={brought ? null :
                 <div className="w-full">
                   <SendSelectionEmail trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
                     travelers={quoteTravelers} nights={nochesEfectivas} desglose={computedDesglose} total={pageTotal}
@@ -996,6 +1016,11 @@ const TripDetail = () => {
           </details>
         )}
 
+        </div>
+
+        <div role="tabpanel" id="panel-experiencias" aria-labelledby="tab-experiencias" data-trip-panel="experiencias" hidden={section !== "experiencias"} className="space-y-6">
+          {/* Sin llamadas al abrir: cada ciudad busca solo al pulsar "Buscar lo TOP de {ciudad}". */}
+          <TripExperiencias trip={trip} cities={tripCities(trip, cityKeyFor)} multi={isMulti} marks={purchaseMarks as any} userId={user?.id ?? null} onSaved={loadTrip} />
         </div>
 
         <div role="tabpanel" id="panel-documentos" aria-labelledby="tab-documentos" data-trip-panel="documentos" hidden={section !== "documentos"} className="space-y-6">

@@ -470,10 +470,17 @@ export function itemPurchaseState(item: PurchaseItem, rows: PurchaseMarkRow[], m
 }
 
 /** Fila para bookings al tocar "Ya lo reservé". */
-export function markRow(item: PurchaseItem, trip: { id: string; destino?: string | null; fecha_salida?: string | null }, userId: string, now = new Date()) {
+export function markRow(item: PurchaseItem, trip: { id: string; destino?: string | null; fecha_salida?: string | null }, userId: string, now = new Date(),
+  extra: { confirmacion?: string | null; ciudad?: string | null } = {}) {
+  // Número de confirmación que escribió la persona (Experiencias): va en raw_payload, NO en
+  // confirmation_code (ese campo es la evidencia de una reserva real y la app lo mostraría "Reservado").
+  const conf = String(extra.confirmacion ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
   return {
     user_id: userId, trip_id: trip.id, category: item.category, provider: item.site ?? "Por su cuenta", status: "pending",
-    title: item.title, subtitle: item.subtitle, city: trip.destino ?? null, start_at: trip.fecha_salida ?? null, booking_url: item.url,
-    raw_payload: { compra_item: item.key, marcado_por_usuario: true, marcado_at: now.toISOString(), nota: "Marcado a mano por el usuario: sin verificar con el proveedor." },
+    title: item.title, subtitle: item.subtitle, city: extra.ciudad ?? trip.destino ?? null, start_at: trip.fecha_salida ?? null, booking_url: item.url,
+    raw_payload: {
+      compra_item: item.key, marcado_por_usuario: true, marcado_at: now.toISOString(), nota: "Marcado a mano por el usuario: sin verificar con el proveedor.",
+      ...(conf ? { confirmacion_usuario: conf } : {}),
+    },
   };
 }

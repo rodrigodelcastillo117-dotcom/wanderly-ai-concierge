@@ -13,6 +13,7 @@ import { activityQuery, cuisineQuery } from "@/lib/categoryImagery";
 import { buildPickCards, missingTiersLine, parsePriceRange, restaurantPriceLabel, SLOT_LABEL, TIER_LABEL, tierOf, tourHasRealPrice, tripUsdMxnRate, type PickCard, type PickKind, type TasteProfile } from "@/lib/tripPicks";
 import { logBookingClick } from "@/lib/trackBooking";
 import { ViatorToursDialogButton } from "@/components/booking/ViatorTours";
+import { restaurantBooking } from "../../../supabase/functions/_shared/restaurantBooking.ts";
 
 /** label: lo que el botón es ("Sitio oficial", "Ver en Google Maps", "Buscar en OpenTable"…), del motor de reservas. */
 export type PickAction = { url: string; site: string | null; label?: string | null } | null;
@@ -198,8 +199,33 @@ function Card({ card, kind, city, list, trip, actionFor, isChosen, onChoose, ext
             </button>
           )}
         </div>
+        {kind === "restaurante" && <MoreBooking x={x} city={city} mainUrl={action?.url ?? null} />}
         {chosen && extra?.(i)}
       </div>
     </article>
+  );
+}
+
+/**
+ * Debajo del botón principal: TheFork (búsqueda), Llamar y WhatsApp con los datos reales de Google del
+ * restaurante, y "No toma reservaciones (llega directo)" si Google lo dice (_shared/restaurantBooking.ts).
+ */
+function MoreBooking({ x, city, mainUrl }: { x: any; city: string; mainUrl: string | null }) {
+  const b = restaurantBooking({
+    name: x?.nombre, city: x?.ciudad ?? city, address: x?.direccion ?? null, website: x?.website ?? null,
+    phone: x?.telefono ?? null, phoneInternational: x?.telefono_internacional ?? null, reservable: typeof x?.reservable === "boolean" ? x.reservable : null,
+  });
+  const extra = b.actions.filter((a) => a.kind !== "website" && a.url !== mainUrl);
+  if (!extra.length && !b.note) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]" data-testid="pick-mas-reserva">
+      {extra.map((a) => (
+        <a key={a.kind} href={a.url} target={a.kind === "call" ? undefined : "_blank"} rel="noopener noreferrer" className="text-primary underline-offset-2 hover:underline">
+          {/* En Comprar cada botón dice lo que es: TheFork/OpenTable aquí son búsquedas. */}
+          {a.kind === "thefork" ? "Buscar en TheFork" : a.label}
+        </a>
+      ))}
+      {b.note && b.reservable === false && <span className="text-muted-foreground">{b.note}</span>}
+    </div>
   );
 }

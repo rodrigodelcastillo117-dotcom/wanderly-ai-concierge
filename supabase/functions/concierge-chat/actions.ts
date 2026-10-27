@@ -10,6 +10,8 @@
 //   * Ninguna acción reserva ni compra: las solicitudes al Fixer quedan "solicitado" y la pantalla
 //     dice "Aún no está reservado".
 
+import { restaurantBooking } from "../_shared/restaurantBooking.ts";
+
 export const ACTION_TYPES = [
   "create_trip", "add_itinerary_item", "add_expense", "add_packing_items", "create_price_alert", "track_flight",
   "save_place", "update_trip_hotel", "fixer_request", "prive_request", "export_calendar", "open_emergency",
@@ -381,19 +383,32 @@ function hash(s: string): number {
 // ═══ Enlaces de reserva (sin socios conectados: el mejor camino honesto) ═══
 
 /**
- * Enlaces para reservar un restaurante. El del propio lugar (si vino en los datos) va primero; después
- * búsquedas prellenadas en OpenTable (fecha y personas) y la ficha de Google Maps (que muestra
- * "Reservar" cuando el lugar lo ofrece). Son búsquedas: el lugar puede no estar ahí.
+ * Enlaces para reservar un restaurante, en orden de confianza (_shared/restaurantBooking.ts): su sitio
+ * ("Reservar en su sitio"), TheFork en sus mercados (Italia, España, Francia…) u OpenTable fuera de
+ * ellos (con fecha y personas), "Llamar" y "WhatsApp" solo con número de Google, y la ficha de Google
+ * Maps (que muestra "Reservar" cuando el lugar lo ofrece). Son búsquedas: el lugar puede no estar ahí.
+ * Si Google dice reservable=false no se ofrece TheFork ni OpenTable.
  */
-export function restaurantBookingLinks(v: { name: string; city?: string; website?: string; mapsUrl?: string; date?: string; time?: string; party?: number }) {
-  const links: Array<{ kind: "booking" | "website" | "maps"; label: string; url: string }> = [];
-  const site = httpsUrl(v.website);
-  if (site) links.push({ kind: "website", label: "Sitio oficial", url: site });
-  const ot = new URL("https://www.opentable.com/s");
-  ot.searchParams.set("term", [v.name, v.city].filter(Boolean).join(" "));
-  ot.searchParams.set("covers", String(Math.min(20, Math.max(1, Math.round(v.party ?? 2)))));
-  if (v.date && ISO.test(v.date)) ot.searchParams.set("dateTime", `${v.date}T${v.time && TIME.test(v.time) ? v.time.padStart(5, "0") : "20:00"}`);
-  links.push({ kind: "booking", label: "Buscar en OpenTable", url: ot.toString() });
+export function restaurantBookingLinks(v: { name: string; city?: string; website?: string; mapsUrl?: string; date?: string; time?: string; party?: number; address?: string; phone?: string; phoneIntl?: string; reservable?: boolean | null }) {
+  const links: Array<{ kind: "booking" | "website" | "maps" | "call" | "whatsapp"; label: string; url: string }> = [];
+  const rb = restaurantBooking({ name: v.name, city: v.city ?? null, address: v.address ?? null, website: httpsUrl(v.website) ?? null, phone: v.phone ?? null, phoneInternational: v.phoneIntl ?? null, reservable: v.reservable ?? null });
+  for (const a of rb.actions) {
+    if (a.kind === "opentable") {
+      const ot = new URL(a.url);
+      ot.searchParams.set("covers", String(Math.min(20, Math.max(1, Math.round(v.party ?? 2)))));
+      if (v.date && ISO.test(v.date)) ot.searchParams.set("dateTime", `${v.date}T${v.time && TIME.test(v.time) ? v.time.padStart(5, "0") : "20:00"}`);
+      links.push({ kind: "booking", label: a.label, url: ot.toString() });
+    } else if (a.kind === "thefork") links.push({ kind: "booking", label: a.label, url: a.url });
+    else links.push({ kind: a.kind, label: a.label, url: a.url });
+  }
+  // Sin ciudad (no se puede armar TheFork ni OpenTable) se conserva la búsqueda de OpenTable por nombre.
+  if (!links.some((l) => l.kind === "booking") && v.reservable !== false && !v.city) {
+    const ot = new URL("https://www.opentable.com/s");
+    ot.searchParams.set("term", v.name);
+    ot.searchParams.set("covers", String(Math.min(20, Math.max(1, Math.round(v.party ?? 2)))));
+    if (v.date && ISO.test(v.date)) ot.searchParams.set("dateTime", `${v.date}T${v.time && TIME.test(v.time) ? v.time.padStart(5, "0") : "20:00"}`);
+    links.splice(links.some((l) => l.kind === "website") ? 1 : 0, 0, { kind: "booking", label: "Buscar en OpenTable", url: ot.toString() });
+  }
   const ficha = httpsUrl(v.mapsUrl);
   const maps = ficha ?? (() => {
     const u = new URL("https://www.google.com/maps/search/");

@@ -31,6 +31,7 @@ import { roadLegTolls, TollInfo } from "@/components/roadtrip/TollInfo";
 import { GroundOptionInfo, groundOptionSummary } from "@/components/booking/GroundOptionInfo";
 import { isGroundTripOption } from "@/lib/booking";
 import { partsList, splitTripTotal } from "@/lib/totalSplit";
+import { broughtFlights, broughtHotelFor, isBroughtTrip } from "@/lib/broughtTrip";
 
 const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras", casetas: "Casetas" };
 const money = (n: number, cur: string | null = "MXN") => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? "MXN"}`;
@@ -149,6 +150,9 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
   const box = (done: boolean, id?: string) => `scroll-mt-28 rounded-xl border p-3 sm:p-4 transition-shadow duration-500 ${done ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-border/60 bg-surface/30"} ${id && current === id ? "ring-2 ring-primary/50" : ""}`;
   const falta = flow.steps.filter((s) => s.kind !== "auto" && !stepDone(s)).map((s) => (s.kind === "vuelo" || s.kind === "hospedaje" ? s.title.charAt(0).toLowerCase() + s.title.slice(1) : s.title));
   const travelers = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
+  // "Ya tengo mi viaje": vuelo y hoteles los trajo la persona (sin precio, sin "Volver a elegir").
+  const brought = isBroughtTrip(trip);
+  const ownFlights = brought ? broughtFlights(trip).map((f) => f.numero_vuelo).join(" · ") : "";
 
   async function mark(item: PurchaseItem) {
     if (!userId) return toast.error("Inicia sesión para guardar tu avance.");
@@ -276,7 +280,9 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                 <StepHeader n={s.n} title={s.title} icon={s.ground ? RouteIcon : Plane} done={done} />
                 {it?.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
                 {s.skipped ? (
-                  <SkipNote text="Ya tienes vuelo: no suma al total." onUndo={onSelectVuelo ? () => onSelectVuelo(-1) : undefined} />
+                  brought
+                    ? <SkipNote text={`Ya lo tienes${ownFlights ? ` (vuelo ${ownFlights})` : ""}: no suma al total.`} />
+                    : <SkipNote text="Ya tienes vuelo: no suma al total." onUndo={onSelectVuelo ? () => onSelectVuelo(-1) : undefined} />
                 ) : (
                   <>
                     {s.options.length > 0 ? (
@@ -348,7 +354,9 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                 <StepHeader n={s.n} title={s.title} icon={Hotel} done={done} />
                 {it?.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
                 {s.skipped ? (
-                  <SkipNote text="Ya tienes dónde quedarte: no suma al total." onUndo={onSelectHotel ? () => onSelectHotel(cityId, -1) : undefined} />
+                  brought
+                    ? <SkipNote text={(() => { const own = broughtHotelFor(trip, cityId); return own?.nombre ? `Ya lo tienes: ${own.nombre}. No suma al total.` : "Ya tienes dónde quedarte: no suma al total."; })()} />
+                    : <SkipNote text="Ya tienes dónde quedarte: no suma al total." onUndo={onSelectHotel ? () => onSelectHotel(cityId, -1) : undefined} />
                 ) : (
                   <>
                     {oneSource(s.options.map((i) => trip.hospedaje_json[i])) && s.options.length > 0 && (() => { const h0 = trip.hospedaje_json[s.options[0]]; return (

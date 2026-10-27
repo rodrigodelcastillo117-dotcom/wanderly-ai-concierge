@@ -115,7 +115,7 @@ describe("caso 2: destino explícito ('restaurantes en Nueva Delhi')", () => {
     expect(tp.scope).toBe("requested");
     expect(trip?.id).toBe(VIAJE_ROMA.id);
     expect(tp.resolution.reason).toBe("pinned");
-    expect(plan.prefetch).toEqual([{ name: "search_places", args: { query: "restaurantes en Delhi" }, reason: "restaurantes en el destino pedido" }]);
+    expect(plan.prefetch).toEqual([{ name: "search_places", args: { query: "restaurantes en Delhi", city: "Delhi" }, reason: "restaurantes en el destino pedido" }]);
     expect(plan.notes.join(" ")).toMatch(/DESTINO PEDIDO: Delhi \(no cambia su viaje seleccionado\)/);
     expect(label).toBe("en Delhi");
   });

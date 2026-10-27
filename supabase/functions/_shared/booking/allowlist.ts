@@ -45,16 +45,23 @@ export type ProviderInfo = {
   hosts?: string[];
   /** Por qué este dominio es legítimo (AUD-04: ninguna entrada sin justificación). */
   why: string;
+  /**
+   * No cuenta como marca para el detector de dominios falsos: taquillas de museos cuyo nombre es una
+   * palabra común en sitios reales de restaurantes y hoteles ("trattoriadelduomo.it", "hotelcolosseo.it").
+   */
+  noBrand?: true;
 };
 
-const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"]; hosts?: string[]; serverOnly?: boolean } = {}): ProviderInfo =>
+const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"]; hosts?: string[]; serverOnly?: boolean; noBrand?: true } = {}): ProviderInfo =>
   ({ domain, provider, label, kind, why, ...extra });
 
 // Endurecimiento O1 (segunda auditoría): Google solo en sus hosts propios; sites.google.com/maps/… no es Maps.
 const GOOGLE_HOSTS = ["www.google.com", "google.com"];
 const AIRLINE = (name: string) => `Sitio oficial de ${name}: destino del botón "Sitio de la aerolínea" (EV-AIRLINE-HOME) y de airline_buy_url de flights-search.`;
 const OT = "Sitio público de OpenTable para el país (opentable.com/r/<lugar>): enlaces curados del catálogo Privé y de la IA validados por nombre (EV-OPENTABLE-SEARCH).";
-const FORK = "Sitio público de TheFork (grupo Tripadvisor) por país, usado por restaurantes del catálogo Privé (EV-PRIVE-CATALOG).";
+const FORK = "Sitio público de TheFork (grupo Tripadvisor) por país, usado por restaurantes del catálogo Privé (EV-PRIVE-CATALOG) y por \"Reservar en TheFork\": búsqueda /search?cityName=…&searchText=… que arma _shared/restaurantBooking.ts (EV-THEFORK-SEARCH; TheFork bloquea la verificación automática).";
+/** Taquillas oficiales de museos (_shared/officialTickets.ts, comprobadas el 2026-10-27). */
+const MUSEO = (name: string) => `Taquilla o sitio oficial de ${name}: botón "Boletos oficiales" (_shared/officialTickets.ts, EV-OFFICIAL-TICKETS 2026-10-27).`;
 
 /**
  * Proveedores permitidos. Cada formato de enlace que IATOS ARMA está documentado en
@@ -128,6 +135,24 @@ export const PROVIDERS: ProviderInfo[] = [
   P("12go.asia", "12go", "12Go", "bus", "Buscador multimodal de Asia (programa de Travelpayouts): /en/travel/<origen>/<destino>?date&people (EV-12GO-TRAVEL).", { paths: /^\/[a-z]{2}\/travel\// }),
   P("ferryhopper.com", "ferryhopper", "Ferryhopper", "ferry", "Resultados de Ferryhopper con puertos, fecha y pasajeros; enlace del widget de su servidor MCP (EV-FERRYHOPPER-RESULTS).", { paths: /^\/[a-z]{2}\/booking\/results\/?$/ }),
   P("clickandboat.com", "clickandboat", "Click&Boat", "boat_rental", "Búsqueda de renta de barcos /es/alquiler con lugar, fechas y personas (EV-CLICKANDBOAT-ALQUILER).", { paths: /^\/[a-z]{2}\/alquiler\/?$/ }),
+  // Museos y monumentos: taquillas OFICIALES de la tabla curada (_shared/officialTickets.ts). Hosts exactos
+  // cuando el dominio es de un vendedor que aloja a otros (vivaticket.it) o un sufijo geográfico.
+  P("museivaticani.va", "museo_oficial", "Museos Vaticanos", "tickets", MUSEO("los Museos Vaticanos"), { noBrand: true }),
+  P("colosseo.it", "museo_oficial", "Parco archeologico del Colosseo", "tickets", MUSEO("el Parco archeologico del Colosseo"), { noBrand: true }),
+  P("galleriaborghese.cultura.gov.it", "museo_oficial", "Galleria Borghese", "tickets", MUSEO("la Galleria Borghese (Ministero della Cultura)"), { noBrand: true }),
+  P("basilicasanpietro.va", "museo_oficial", "Basílica de San Pedro", "tickets", MUSEO("la Basílica de San Pedro (cúpula)"), { noBrand: true }),
+  P("uffizi.it", "museo_oficial", "Gallerie degli Uffizi", "tickets", MUSEO("las Gallerie degli Uffizi y el Palacio Pitti"), { noBrand: true }),
+  P("galleriaaccademiafirenze.it", "museo_oficial", "Galleria dell'Accademia", "tickets", MUSEO("la Galleria dell'Accademia di Firenze"), { noBrand: true }),
+  P("duomo.firenze.it", "museo_oficial", "Opera di Santa Maria del Fiore", "tickets", MUSEO("el Duomo de Florencia (Opera di Santa Maria del Fiore)"), { noBrand: true }),
+  P("visitmuve.it", "museo_oficial", "Musei Civici di Venezia", "tickets", MUSEO("el Palacio Ducal (Fondazione Musei Civici di Venezia)"), { noBrand: true }),
+  P("vivaticket.it", "museo_oficial", "Musei Civici di Venezia (Vivaticket)", "tickets", MUSEO("el Palacio Ducal: venta en Vivaticket enlazada desde palazzoducale.visitmuve.it"),
+    { hosts: ["muve.vivaticket.it"], paths: /^\/[a-z]{2}\/tour\//, noBrand: true }),
+  P("basilicasanmarco.it", "museo_oficial", "Basílica de San Marcos", "tickets", MUSEO("la Basílica de San Marcos"), { noBrand: true }),
+  P("opapisa.it", "museo_oficial", "Opera della Primaziale Pisana", "tickets", MUSEO("la Torre de Pisa (Opera della Primaziale Pisana)"), { noBrand: true }),
+  P("louvre.fr", "museo_oficial", "Musée du Louvre", "tickets", MUSEO("el Museo del Louvre"), { noBrand: true }),
+  P("sagradafamilia.org", "museo_oficial", "Sagrada Família", "tickets", MUSEO("la Sagrada Familia"), { noBrand: true }),
+  P("alhambra-patronato.es", "museo_oficial", "Patronato de la Alhambra", "tickets", MUSEO("la Alhambra"), { noBrand: true }),
+  P("museodelprado.es", "museo_oficial", "Museo del Prado", "tickets", MUSEO("el Museo del Prado"), { noBrand: true }),
   // Boletos de eventos: SOLO el campo `url` que devuelve la Discovery API v2 de Ticketmaster (servidor,
   // _shared/ticketmaster.ts); la página oficial de compra del evento, nunca una compra hecha.
   ...TM_DOMAINS.map((d) => P(d, "ticketmaster", "Ticketmaster", "tickets", "Página oficial del evento: campo `url` de la Discovery API v2 de Ticketmaster (EV-TICKETMASTER-URL).")),
@@ -169,6 +194,7 @@ function brands(): Array<[string, "long" | "token"]> {
   if (BRANDS) return BRANDS;
   const m = new Map<string, "long" | "token">();
   for (const p of PROVIDERS) {
+    if (p.noBrand) continue;
     const reg = pslRegistrableDomain(p.domain) ?? p.domain;
     const label = reg.split(".")[0];
     if (label.length >= 3) m.set(label, TOKEN_ONLY.has(label) ? "token" : "long"); // aa, wa, tp: demasiado cortas

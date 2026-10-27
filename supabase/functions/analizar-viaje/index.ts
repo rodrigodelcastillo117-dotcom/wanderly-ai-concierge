@@ -669,7 +669,7 @@ Deno.serve(async (req) => {
     // y casetas REALES del tramo en coche (caso CDMX → Tepoztlán: antes el auto era "$1,800" de la IA).
     const shortCandidate = detectShortTrip(body.ciudad_origen, body.destino, SHORT_TRIP_CANDIDATE_KM);
     const drive = shortCandidate && google
-      ? await driveWithTolls(google, { origin: { address: `${body.ciudad_origen}` }, destination: { address: `${body.destino}` } }, { store: dbCacheStore(), rate: getRateToMxnInfo })
+      ? await driveWithTolls(google, { origin: { address: `${body.ciudad_origen}` }, destination: { address: `${body.destino}` } }, { store: null /* Routes: sin caché persistente (términos de Google) */, rate: getRateToMxnInfo })
         .catch((e) => { console.warn("analizar-viaje: casetas", String((e as Error)?.message ?? e)); return null; })
       : null;
     const driveOk = drive && drive.ok ? drive : null;

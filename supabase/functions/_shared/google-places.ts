@@ -24,7 +24,7 @@ const ENTERPRISE_FIELDS = [
   "internationalPhoneNumber", "regularOpeningHours", "currentOpeningHours",
 ];
 const ATMOSPHERE_FIELDS = [
-  "editorialSummary", "reservable", "servesBreakfast", "servesLunch", "servesDinner", "servesVegetarianFood",
+  "editorialSummary", "reservable", "servesBreakfast", "servesBrunch", "servesLunch", "servesDinner", "servesVegetarianFood",
   "servesCocktails", "servesWine", "outdoorSeating", "goodForGroups",
 ];
 
@@ -97,6 +97,8 @@ export type GooglePlace = {
   maps_url: string | null;
   website: string | null;
   phone: string | null;
+  /** Teléfono en formato internacional ("+39 055 …"): el único con el que se arma WhatsApp. */
+  phone_international: string | null;
   primary_type: string | null;
   /** Tipo legible en español ("Restaurante italiano"). */
   primary_type_label: string | null;
@@ -116,11 +118,13 @@ export type GooglePlace = {
   open_now_source: "google" | "calculado" | null;
   hours_today: string | null;
   weekday_hours: string[] | null;
+  /** Periodos de regularOpeningHours tal cual (día 0 = domingo): el itinerario no pone un lugar en un día que cierra. */
+  opening_periods: Array<{ open: { day: number; hour: number; minute: number }; close: { day: number; hour: number; minute: number } | null }> | null;
   time_zone: string | null;
   utc_offset_minutes: number | null;
   editorial_summary: string | null;
   reservable: boolean | null;
-  serves: { breakfast: boolean | null; lunch: boolean | null; dinner: boolean | null; vegetarian: boolean | null; cocktails: boolean | null; wine: boolean | null };
+  serves: { breakfast: boolean | null; brunch: boolean | null; lunch: boolean | null; dinner: boolean | null; vegetarian: boolean | null; cocktails: boolean | null; wine: boolean | null };
   outdoor_seating: boolean | null;
   good_for_groups: boolean | null;
   photos: PhotoRef[];
@@ -216,6 +220,20 @@ function priceRangeOf(r: any): GooglePlace["price_range"] {
   return { min, max, currency, text };
 }
 
+function pointOf(x: any): { day: number; hour: number; minute: number } | null {
+  if (!x || typeof x !== "object") return null;
+  const day = Number(x.day ?? 0), hour = Number(x.hour ?? 0), minute = Number(x.minute ?? 0);
+  return [day, hour, minute].every(Number.isFinite) && day >= 0 && day <= 6 ? { day, hour, minute } : null;
+}
+
+/** regularOpeningHours.periods → lista limpia (null si Google no la publica). */
+function periodsOf(raw: unknown): GooglePlace["opening_periods"] {
+  if (!Array.isArray(raw) || !raw.length) return null;
+  const out = (raw as any[]).map((r) => ({ open: pointOf(r?.open), close: pointOf(r?.close) }))
+    .filter((r): r is { open: { day: number; hour: number; minute: number }; close: { day: number; hour: number; minute: number } | null } => !!r.open);
+  return out.length ? out : null;
+}
+
 /** Respuesta cruda de Places (New) → GooglePlace. `nowMs` = momento de la consulta. */
 export function normalizePlace(p: any, consultadoAt: string, nowMs = Date.parse(consultadoAt)): GooglePlace {
   const tz = str(p?.timeZone?.id) ?? str(p?.timeZone);
@@ -244,6 +262,7 @@ export function normalizePlace(p: any, consultadoAt: string, nowMs = Date.parse(
     maps_url: str(p?.googleMapsUri),
     website: str(p?.websiteUri),
     phone: str(p?.internationalPhoneNumber) ?? str(p?.nationalPhoneNumber),
+    phone_international: str(p?.internationalPhoneNumber),
     primary_type: str(p?.primaryType),
     primary_type_label: str(p?.primaryTypeDisplayName?.text),
     types: Array.isArray(p?.types) ? p.types.filter((t: unknown) => typeof t === "string") : [],
@@ -259,12 +278,13 @@ export function normalizePlace(p: any, consultadoAt: string, nowMs = Date.parse(
     open_now_source: googleOpen !== null ? "google" : computed !== null ? "calculado" : null,
     hours_today: hoursToday(p?.currentOpeningHours?.weekdayDescriptions ?? p?.regularOpeningHours?.weekdayDescriptions, clock),
     weekday_hours: Array.isArray(p?.regularOpeningHours?.weekdayDescriptions) ? p.regularOpeningHours.weekdayDescriptions : null,
+    opening_periods: periodsOf(p?.regularOpeningHours?.periods),
     time_zone: tz,
     utc_offset_minutes: offset,
     editorial_summary: str(p?.editorialSummary?.text),
     reservable: bool(p?.reservable),
     serves: {
-      breakfast: bool(p?.servesBreakfast), lunch: bool(p?.servesLunch), dinner: bool(p?.servesDinner),
+      breakfast: bool(p?.servesBreakfast), brunch: bool(p?.servesBrunch), lunch: bool(p?.servesLunch), dinner: bool(p?.servesDinner),
       vegetarian: bool(p?.servesVegetarianFood), cocktails: bool(p?.servesCocktails), wine: bool(p?.servesWine),
     },
     outdoor_seating: bool(p?.outdoorSeating),
@@ -485,7 +505,9 @@ export function restaurantFromPlace(p: GooglePlace, city: string): Record<string
     maps_url: p.maps_url,
     website: p.website,
     telefono: p.phone,
+    telefono_internacional: p.phone_international,
     reservable: p.reservable,
+    sirve: { desayuno: p.serves.breakfast, brunch: p.serves.brunch, comida: p.serves.lunch, cena: p.serves.dinner },
     abierto_ahora: p.open_now,
     horario_hoy: p.hours_today,
     photo_ref: p.photo_ref,

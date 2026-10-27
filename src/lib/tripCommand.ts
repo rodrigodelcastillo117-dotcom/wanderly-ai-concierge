@@ -86,7 +86,7 @@ function ageText(from: Date, now: Date): string {
 }
 
 export type NextActionKey =
-  | "cotizar" | "actualizar" | "revisar_precios" | "reservar" | "preparar" | "modo_viaje" | "recuerdos" | "poner_fechas";
+  | "cotizar" | "actualizar" | "revisar_precios" | "reservar" | "preparar" | "modo_viaje" | "recuerdos" | "poner_fechas" | "experiencias";
 
 export type NextAction = {
   key: NextActionKey;
@@ -107,6 +107,8 @@ export type NextActionInput = {
   total_estimado?: number | string | null;
   quote_needs_update?: boolean | null;
   created_at?: string | null;
+  /** Un viaje traído ("Ya tengo mi viaje") lleva itinerario_json.traido = true. */
+  itinerario_json?: unknown;
 };
 
 /**
@@ -126,6 +128,14 @@ export function nextTripAction(trip: NextActionInput, opts: { today: string; now
   }
   if (timing.phase === "sin_fecha") {
     return { key: "poner_fechas", title: "Elige tus fechas", detail: "Sin fechas no podemos consultar vuelos ni hoteles.", cta: "Poner fechas", to: `${base}/editar` };
+  }
+  // Ya tiene vuelos y hotel: no hay nada que cotizar; lo que sigue es armar sus días.
+  const it = trip.itinerario_json as { traido?: unknown } | null | undefined;
+  if (it && typeof it === "object" && !Array.isArray(it) && it.traido === true) {
+    if ((timing.daysToStart ?? 99) <= 3) {
+      return { key: "preparar", title: timing.daysToStart === 0 ? "Hoy sales de viaje" : "Prepara tu maleta", detail: "Revisa tu lista de equipaje y el clima del destino.", cta: "Abrir lista de equipaje", to: `${base}/packing` };
+    }
+    return { key: "experiencias", title: "Arma tus días", detail: "Vuelos y hotel ya los tienes. Elige restaurantes, museos, tours y experiencias.", cta: "Ver restaurantes y experiencias", to: base };
   }
   const fresh = quoteFreshness(trip, opts.quote, opts.now);
   if (fresh.status === "sin_cotizacion") {

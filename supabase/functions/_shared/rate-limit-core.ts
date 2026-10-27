@@ -31,7 +31,7 @@ export const PAID_BUCKETS: ReadonlySet<string> = new Set([
   "tripadvisor-search",
   // Google Maps Platform
   "geocode", "geocode-address", "get-routes", "mark-visited", "nearby-places", "place-details", "place-photo", "place-resolve",
-  "places-nearby", "places-search",
+  "places-nearby", "places-search", "experiencias-top",
   // Correos (Resend) y avisos a otras personas
   "concierge-action", "email-bienvenida", "enviar-email-fixer", "enviar-seleccion", "send-email", "share-trip-notify",
 ]);

@@ -742,6 +742,9 @@ async function searchPlaces(args: Record<string, unknown>, authHeader: string): 
   const body: Record<string, unknown> = { query, language: "es", maxResults: 6 };
   if (typeof args.lat === "number" && typeof args.lng === "number") Object.assign(body, { lat: args.lat, lng: args.lng, radius: 3000 });
   if (typeof args.open_now === "boolean") body.openNow = args.open_now;
+  // Comida (servesBreakfast/Brunch/Lunch/Dinner reales) y ciudad (TheFork y taquilla oficial).
+  if (typeof args.meal === "string" && ["desayuno", "brunch", "comida", "cena"].includes(args.meal)) body.meal = args.meal;
+  if (typeof args.city === "string" && args.city.trim()) body.city = args.city.trim().slice(0, 80);
   try {
     const r = await callFn("places-search", body, authHeader, TOOL_TIMEOUTS.search_places);
     const results = Array.isArray(r.json?.results) ? r.json.results : [];

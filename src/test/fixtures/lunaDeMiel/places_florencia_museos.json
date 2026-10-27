@@ -1,0 +1,17 @@
+{
+  "_nota": "Formato de Places API (New) Text Search para «museos y monumentos en Florencia». Datos simulados para pruebas.",
+  "places": [
+    {
+      "id": "ChIJuffizi000000000000001", "displayName": { "text": "Galleria degli Uffizi" }, "formattedAddress": "Piazzale degli Uffizi, 6, 50122 Firenze FI, Italia",
+      "location": { "latitude": 43.7678, "longitude": 11.2553 }, "rating": 4.7, "userRatingCount": 98000, "businessStatus": "OPERATIONAL",
+      "regularOpeningHours": {
+        "weekdayDescriptions": ["lunes: Cerrado", "martes: 8:15–18:30", "miércoles: 8:15–18:30", "jueves: 8:15–18:30", "viernes: 8:15–18:30", "sábado: 8:15–18:30", "domingo: 8:15–18:30"],
+        "periods": [ { "open": { "day": 2, "hour": 8, "minute": 15 }, "close": { "day": 2, "hour": 18, "minute": 30 } }, { "open": { "day": 3, "hour": 8, "minute": 15 }, "close": { "day": 3, "hour": 18, "minute": 30 } }, { "open": { "day": 4, "hour": 8, "minute": 15 }, "close": { "day": 4, "hour": 18, "minute": 30 } }, { "open": { "day": 5, "hour": 8, "minute": 15 }, "close": { "day": 5, "hour": 18, "minute": 30 } }, { "open": { "day": 6, "hour": 8, "minute": 15 }, "close": { "day": 6, "hour": 18, "minute": 30 } }, { "open": { "day": 0, "hour": 8, "minute": 15 }, "close": { "day": 0, "hour": 18, "minute": 30 } } ]
+      }
+    },
+    {
+      "id": "ChIJduomo0000000000000001", "displayName": { "text": "Cattedrale di Santa Maria del Fiore" }, "formattedAddress": "Piazza del Duomo, 50122 Firenze FI, Italia",
+      "location": { "latitude": 43.7731, "longitude": 11.2560 }, "rating": 4.8, "userRatingCount": 120000, "businessStatus": "OPERATIONAL"
+    }
+  ]
+}

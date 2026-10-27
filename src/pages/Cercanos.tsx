@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { useActiveTrip } from "@/hooks/useActiveTrip";
 import { ActiveTripPicker } from "@/components/ActiveTripPicker";
 import { TakeMeThereButton } from "@/components/concierge/TakeMeThereButton";
+import { LazyRestaurantBooking, OfficialTicketButtons } from "@/components/booking/RestaurantBookingButtons";
+import { matchOfficialTicket, ticketSummary } from "../../supabase/functions/_shared/officialTickets.ts";
 
 declare global { interface Window { google: any; initMap?: () => void; } }
 
@@ -452,6 +454,17 @@ const Cercanos = () => {
                   </div>
 
                   {selected.address && <p className="text-sm text-muted-foreground mb-4">{selected.address}</p>}
+
+                  {/* Museo de la tabla oficial: taquilla oficial + Viator (sin llamadas). Restaurante: la ficha
+                      de Google solo al pulsar "Ver cómo reservar". */}
+                  {(() => {
+                    const t = matchOfficialTicket(selected.name);
+                    if (t) return <div className="mb-4"><OfficialTicketButtons ticket={ticketSummary(t)} /></div>;
+                    if (/restaurant|cafe|bar|bakery|meal_/.test([selected.primary_type, ...(selected.types ?? [])].join(" "))) {
+                      return <div className="mb-4"><LazyRestaurantBooking key={selected.placeId} placeId={selected.placeId} name={selected.name ?? ""} /></div>;
+                    }
+                    return null;
+                  })()}
 
                   {showRoute && userLoc && (
                     <div className="mb-4">
