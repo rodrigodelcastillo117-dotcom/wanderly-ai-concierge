@@ -10,6 +10,7 @@
 // carretera: es una aproximación y siempre se presenta como "aprox.".
 
 import { haversineKm } from "../_shared/geo-distance.ts";
+import { type CarCost, carCostLines } from "../_shared/carCost.ts";
 export { haversineKm };
 
 export const SHORT_TRIP_MAX_ROAD_KM = 350;
@@ -254,7 +255,66 @@ export function shortTripPromptBlock(t: ShortTrip, prefs: TravelerPrefs = NO_PRE
 - Prioriza vuelos DIRECTOS cuando tengan sentido. Las listas de vuelos ya vienen filtradas por el servidor: usa solo los que aparecen; si no queda ninguno, no propongas vuelos.
 - Las opciones terrestres (modo="autobus" o modo="auto") son ESTIMACIONES: fuente_precio="estimado", precio_min y precio_max (rango por persona, viaje redondo, en MXN) y precio_por_persona dentro de ese rango. No inventes horarios ni digas que es precio en vivo; en notas indica que el precio real se confirma en el buscador.
 - En notas de cada opción escribe su tiempo puerta a puerta aproximado.
-- Sugerencia de tiers según lo que pidió el viajero: ${order}.`;
+- Sugerencia de tiers según lo que pidió el viajero: ${order}.
+- El servidor reemplaza las opciones terrestres por datos reales: "en tu coche" con las casetas de Google Maps y la gasolina estimada con su fórmula, y el autobús con el enlace de la línea (precio en su sitio). No inventes precios de autobús, auto ni chofer.
+- DESTINO NACIONAL CERCANO: comida, tours, transporte_local y extras son de una escapada corta (un fin de semana en un pueblo o ciudad cercana), no de un viaje largo. Si van en coche, transporte_local es casi 0 (estacionamiento o un taxi local). Las entradas a lugares naturales o históricos suelen ser baratas o libres: si no tienes el precio real, no lo inventes.`;
+}
+
+/**
+ * Opciones terrestres con datos reales (caso CDMX → Tepoztlán, 27-oct-2026): reemplaza lo que la IA
+ * escribió para autobús, auto o chofer (precios inventados: ADO $1,000, auto $1,800, chofer $3,400) por
+ *  - "En tu coche": casetas reales de Google Maps (ida × 2) + gasolina estimada con su fórmula. El costo es
+ *    del coche; precio_por_persona = costo / viajeros solo para que el total y el correo cuadren.
+ *  - "Autobús": sin precio (horarios y precio en ADO u otra línea, enlace precargado si existe).
+ * Los vuelos que ya pasaron applyShortTripRules se conservan (máximo uno, como "premium").
+ */
+export function realGroundOptions(vuelos: any[], t: ShortTrip, cost: CarCost, links: { bus: string; car: string; ado?: string | null }, viajeros: number): any[] {
+  const T = Math.max(1, Math.round(Number(viajeros) || 1));
+  const flights = (Array.isArray(vuelos) ? vuelos : []).filter((v) => v && typeof v === "object" && !groundMode(v)).slice(0, 1).map((v) => ({ ...v, tier: "premium" }));
+  const lines = carCostLines(cost);
+  const g = groundDoorToDoor(t);
+  const hours = (m: number) => `${Math.round((m / 60) * 10) / 10} h`;
+  const car: any = {
+    tier: "equilibrio", modo: "auto", aerolinea: "En tu coche",
+    duracion: t.source === "google_routes" ? `${t.approxDriveHours} h de manejo según Google Maps (sin tráfico)` : `Unas ${t.approxDriveHours} h por carretera (aprox.)`,
+    escalas: "Terrestre", km: t.approxRoadKm,
+    precio_por_persona: cost.total_mxn ? cost.total_mxn / T : 0, precio_min: null, precio_max: null,
+    fuente_precio: "estimado", estado_dato: "ESTIMADO",
+    booking_link: links.car, costo_auto: cost,
+    notas: `${lines.casetas}. ${lines.gasolina}. Costo del coche, no por persona; no incluye estacionamiento.`,
+  };
+  const bus: any = {
+    tier: "ahorro", modo: "autobus", aerolinea: links.ado ? "Autobús ADO" : "Autobús",
+    duracion: `Unas ${hours(g.bus)} puerta a puerta (aprox., incluye terminal)`, escalas: "Terrestre",
+    precio_por_persona: 0, precio_min: null, precio_max: null, fuente_precio: "estimado", estado_dato: "ESTIMADO",
+    booking_link: links.ado ?? links.bus, horarios_link: links.bus,
+    notas: links.ado ? "Horarios y precio en el sitio de ADO: IATOS no lo cotiza." : "Horarios y precio con la línea de autobús: IATOS no lo cotiza.",
+  };
+  return [bus, car, ...flights];
+}
+
+/** Techos de cordura por persona y día para una escapada nacional corta (MXN). No son precios: solo acotan lo que la IA estimó. */
+export const SHORT_TRIP_CAPS_PP_DIA = { comida: 900, tours: 600, transporte_local: 150, transporte_local_en_coche: 100, extras: 250 } as const;
+
+/**
+ * Acota los renglones ESTIMADOS (comida, experiencias, transporte local y extras) de un trayecto corto
+ * nacional: días = noches + 1 (de viernes a domingo son 3 días). No toca vuelos ni hospedaje.
+ */
+export function capShortTripEstimates(desglose: Record<string, number> | null | undefined, o: { noches: number; viajeros: number; enCoche: boolean }): { desglose: Record<string, number>; acotados: string[] } {
+  const d: Record<string, number> = {};
+  for (const [k, v] of Object.entries(desglose ?? {})) d[k] = Number(v) || 0;
+  const dias = Math.max(1, Math.round(Number(o.noches) || 0) + 1);
+  const T = Math.max(1, Math.round(Number(o.viajeros) || 1));
+  const caps: Record<string, number> = {
+    comida: SHORT_TRIP_CAPS_PP_DIA.comida, tours: SHORT_TRIP_CAPS_PP_DIA.tours, extras: SHORT_TRIP_CAPS_PP_DIA.extras,
+    transporte_local: o.enCoche ? SHORT_TRIP_CAPS_PP_DIA.transporte_local_en_coche : SHORT_TRIP_CAPS_PP_DIA.transporte_local,
+  };
+  const acotados: string[] = [];
+  for (const [k, pp] of Object.entries(caps)) {
+    const techo = pp * dias * T;
+    if ((d[k] ?? 0) > techo) { d[k] = techo; acotados.push(k); }
+  }
+  return { desglose: d, acotados };
 }
 
 const GROUND_WORDS = /\b(autobus|bus|camion|auto propio|auto rentado|renta de auto|coche|carro|manejando|carretera|ado|estrella roja|primera plus|etn)\b/;

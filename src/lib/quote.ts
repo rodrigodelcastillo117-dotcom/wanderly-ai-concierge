@@ -11,6 +11,7 @@ import { diffDateOnlyDays, formatDateOnly } from "@/lib/dateUtils";
 import { formatAge, LIVE_TTL_HOURS } from "@/lib/provenance";
 import { restoreSelections, sameQuotedSelections, sameSelections } from "@/lib/tripSelections";
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
+import { groundGroupPrice } from "../../supabase/functions/_shared/carCost.ts";
 
 export type QuoteSnapshot = {
   id: string;
@@ -178,8 +179,17 @@ export function computeTripDesglose(trip: any, sel: Selection, viajeros: number)
   const multiHospedaje = multiHotels && anyHotelSel
     ? cityHotelChoices({ ...trip, num_viajeros: n }, sel).reduce((s2, c) => s2 + (c.index === -2 ? 0 : c.total ?? 0), 0)
     : null;
+  // Trayecto corto por tierra (caso CDMX → Tepoztlán): el coche suma casetas reales + gasolina estimada y
+  // el autobús no suma (precio en el sitio de la línea); nunca el precio por persona que escribió la IA.
+  // Sin elección, si el renglón de la cotización es una opción terrestre, se recalcula igual.
+  const vuelosList: any[] = Array.isArray(trip.vuelos_json) ? trip.vuelos_json : [];
+  const quotedGround = !vuelo && sel.selVuelo === -1 && Number(base.vuelos) > 0
+    ? vuelosList.find((v) => groundGroupPrice(v, trip) !== undefined && Math.round((Number(v?.precio_por_persona) || 0) * n) === Math.round(Number(base.vuelos)))
+    : null;
+  const ground = vuelo ?? quotedGround ?? null;
+  const groundPrice = ground ? groundGroupPrice(ground, trip) : undefined;
   return {
-    vuelos: sel.selVuelo === -2 ? 0 : vuelo ? (Number(vuelo.precio_por_persona) || 0) * n : Number(base.vuelos) || 0,
+    vuelos: sel.selVuelo === -2 ? 0 : groundPrice !== undefined ? Math.round(groundPrice ?? 0) : vuelo ? (Number(vuelo.precio_por_persona) || 0) * n : Number(base.vuelos) || 0,
     hospedaje: multiHospedaje != null
       ? (sel.selHospedaje === -2 && !Object.keys(sel.selHoteles ?? {}).length ? 0 : multiHospedaje)
       : sel.selHospedaje === -2

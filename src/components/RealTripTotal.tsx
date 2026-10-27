@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { partsList, type TotalSplit } from "@/lib/totalSplit";
 import { motion } from "framer-motion";
 import { Receipt, Lightbulb, ChevronDown, AlertTriangle, Clock, RefreshCw, BadgeCheck, Sparkles, Compass } from "lucide-react";
 import type { QuoteTrust } from "@/lib/quoteTrust";
@@ -30,6 +31,8 @@ type Props = {
    * de selectionDesglose (con selección = "de tu selección", sin ella = "estimado").
    */
   summary?: TripTotalSummary | null;
+  /** Lo que tiene precio real y lo estimado del mismo total (totalSplit.ts; claude/viaje-corto). */
+  split?: TotalSplit | null;
   /** Desglose (plegado debajo de este mismo total, sin repetir título ni cifra). */
   children?: ReactNode;
 };
@@ -84,7 +87,7 @@ export function tripTotals(trip: any, viajeros: number, selectionDesglose?: Reco
   return { total, porPersona, presupuesto, excedente, quotedTotal, fromSelection };
 }
 
-export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, fxNote, onRequote, selectionDesglose, trust, summary, children }: Props) {
+export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, fxNote, onRequote, selectionDesglose, trust, summary, split, children }: Props) {
   const { total, porPersona, presupuesto, excedente, fromSelection } = tripTotals(trip, viajeros, selectionDesglose);
 
   const [showAnalisis, setShowAnalisis] = useState(false);
@@ -131,6 +134,13 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
         {noches} {noches === 1 ? "noche" : "noches"}
       </p>
       {hint && <p className="text-sm text-foreground/90 mb-2" data-testid="trip-total-hint">{hint}</p>}
+      {/* El mismo total, separado: precios reales y gastos estimados (comida, transporte local, extras…). */}
+      {split && split.estimado > 0 && (
+        <p className="mb-2 flex flex-col gap-0.5 text-sm sm:flex-row sm:gap-3" data-testid="trip-total-reparto">
+          <span data-testid="trip-total-real">Total con precios reales: <span className="tabular-nums">{fmtMXN(split.real)}</span></span>
+          <span className="text-muted-foreground" data-testid="trip-total-estimado">Gastos estimados del viaje ({partsList(split.estParts)}): ~<span className="tabular-nums">{fmtMXN(split.estimado)}</span></span>
+        </p>
+      )}
       {/* Ya comprado: lo pagado y lo que falta suman el mismo total de arriba. */}
       {summary && summary.state === "comprado" && (
         <p className="mb-2 flex flex-col gap-0.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm sm:inline-flex sm:flex-row sm:gap-3" data-testid="trip-total-pagado">

@@ -14,12 +14,15 @@ import { cityAirports, distanceKm, mainAirport } from "../../supabase/functions/
 import { googleFlightsSearchUrl } from "../../supabase/functions/_shared/booking/links.ts";
 import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPERATOR, routeOperators } from "../../supabase/functions/_shared/booking/railOperators.ts";
 import { transitScheduleUrl } from "@/lib/takeMeThere";
+import { arrivalByLand, arrivalStepTitle } from "@/lib/groundTrip";
 
 export type BuySel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[]; selHoteles?: Record<string, number> | null;
   /** Modo elegido por traslado ("traslado:roma>florencia" → "tren"). */
   selLegs?: Record<string, string> | null };
 
-export type FlightStep = { kind: "vuelo"; n: number; title: string; item: PurchaseItem | null; options: number[]; chosen: number; skipped: boolean };
+export type FlightStep = { kind: "vuelo"; n: number; title: string; item: PurchaseItem | null; options: number[]; chosen: number; skipped: boolean;
+  /** Sin vuelo lógico (trayecto corto o destino sin aeropuerto): el paso es "Cómo llegar" (groundTrip.ts). */
+  ground?: boolean };
 export type HotelStep = { kind: "hospedaje"; n: number; title: string; city: string | null; stay: CityStay | null; item: PurchaseItem | null;
   options: number[]; chosen: number; skipped: boolean; nights: number;
   /** true si la persona lo eligió; false si `chosen` es solo el hotel de la cotización (por defecto). */
@@ -213,7 +216,9 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
   let n = 1;
   const flightItem = items.find((i) => i.kind === "vuelo") ?? null;
   // Multi-destino: un solo boleto de ida a la primera ciudad y regreso desde la última (open-jaw).
-  steps.push({ kind: "vuelo", n: n++, title: tripDestinations(trip).length > 1 ? "Vuelo de ida y regreso" : "Vuelo", item: flightItem, options: realFlightOptions(trip), chosen: flightItem?.index ?? -1, skipped: sel.selVuelo === -2 });
+  // Viaje corto por tierra (CDMX → Tepoztlán): "Cómo llegar", no "Vuelo".
+  const ground = arrivalByLand(trip);
+  steps.push({ kind: "vuelo", n: n++, title: arrivalStepTitle(trip), item: flightItem, options: realFlightOptions(trip), chosen: flightItem?.index ?? -1, skipped: sel.selVuelo === -2, ground });
 
   if (hasCityHotels(trip)) {
     const choices = cityHotelChoices(trip, sel);

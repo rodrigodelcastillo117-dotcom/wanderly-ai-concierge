@@ -9,6 +9,7 @@
 // elementos de buildBuyFlow/buildPurchasePlan con su estado (itemPurchaseState).
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { provenanceOf } from "@/lib/provenance";
+import { arrivalByLand, arrivalMissingLabel } from "@/lib/groundTrip";
 import type { PurchaseItem, PurchaseState } from "@/lib/purchasePlan";
 
 export type TotalState = "estimado" | "seleccion" | "comprado";
@@ -93,7 +94,8 @@ export function tripTotalSummary({ trip, sel, desglose, items, itemState, porCot
   // ── Qué falta elegir ──────────────────────────────────────────────────────────────────────
   const missing: string[] = [];
   const flightItem = items.find((i) => i.kind === "vuelo") ?? null;
-  if (sel.selVuelo === -1 && flightItem && !isBought("vuelo")) missing.push("vuelo");
+  // Viaje corto por tierra (CDMX → Tepoztlán): "cómo llegar", no "vuelo".
+  if (sel.selVuelo === -1 && flightItem && !isBought("vuelo")) missing.push(arrivalMissingLabel(trip));
   const hotels: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
   const multi = hasCityHotels(trip);
   const choices = multi ? cityHotelChoices(trip, sel) : [];
@@ -160,7 +162,9 @@ export function tripTotalSummary({ trip, sel, desglose, items, itemState, porCot
   const state_: TotalState = bought.length > 0 ? "comprado" : complete ? "seleccion" : "estimado";
 
   const sinPrecioReal = unverifiedInTotal(desglose, items, sel);
-  const estimadosNote = sinPrecioReal.length ? `Incluye estimados: ${listaHumana(sinPrecioReal)}.` : "";
+  // Por tierra el renglón "vuelos" es cómo llegar (gasolina estimada del coche), no un vuelo.
+  const byLand = arrivalByLand(trip);
+  const estimadosNote = sinPrecioReal.length ? `Incluye estimados: ${listaHumana(sinPrecioReal.map((k) => (k === "vuelos" && byLand ? "cómo llegar" : k)))}.` : "";
   const title = complete ? "Total de tu selección" : "Total estimado";
   const faltaCotizar = porCotizar.length ? `Falta cotizar ${listaHumana(porCotizar)}: no está sumado al total.` : "";
   const hint = complete

@@ -10,7 +10,7 @@ import { Check, ChevronLeft, ChevronRight, ExternalLink, Sparkles, Star, Ticket,
 import { SmartImage } from "@/components/media/SmartImage";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { activityQuery, cuisineQuery } from "@/lib/categoryImagery";
-import { buildPickCards, parsePriceRange, restaurantPriceLabel, SLOT_LABEL, TIER_LABEL, tierOf, tripUsdMxnRate, type PickCard, type PickKind, type TasteProfile } from "@/lib/tripPicks";
+import { buildPickCards, missingTiersLine, parsePriceRange, restaurantPriceLabel, SLOT_LABEL, TIER_LABEL, tierOf, tourHasRealPrice, tripUsdMxnRate, type PickCard, type PickKind, type TasteProfile } from "@/lib/tripPicks";
 import { logBookingClick } from "@/lib/trackBooking";
 import { ViatorToursDialogButton } from "@/components/booking/ViatorTours";
 
@@ -39,8 +39,10 @@ const money = (n: number) => `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 
 function priceText(kind: PickKind, x: any, trip?: any): { text: string; note: string | null } {
   if (kind === "experiencia") {
+    // Solo un precio real (en vivo); el que escribió la IA no se muestra (caso Tepoztlán: "$50 MXN" de una cascada).
     const p = Number(x?.precio_por_persona);
-    if (p > 0) return { text: `${money(p)} por persona`, note: ["google_places", "tripadvisor", "getyourguide", "viator"].includes(String(x?.fuente_precio ?? "")) ? null : "estimado" };
+    if (p > 0 && tourHasRealPrice(x)) return { text: `${money(p)} por persona`, note: ["google_places", "tripadvisor", "getyourguide", "viator"].includes(String(x?.fuente_precio ?? "")) || String(x?.estado_dato ?? "").toUpperCase() === "CONSULTADO_EN_VIVO" ? null : "estimado" };
+    if (/\b(gratis|gratuit[ao]|entrada libre|free)\b/i.test(`${x?.precio ?? ""} ${x?.nombre ?? ""}`)) return { text: "Entrada libre / por confirmar", note: null };
     return { text: "Precio en el sitio", note: null };
   }
   const raw = String(x?.rango_precio ?? "").trim();
@@ -76,7 +78,10 @@ function ratingText(x: any): string | null {
 }
 
 export function TripPicksCarousel({ kind, city, list, indices, taste, trip, actionFor, isChosen, onChoose, extra }: Props) {
-  const cards = useMemo(() => buildPickCards(list, indices, kind, taste), [list, indices, kind, taste]);
+  const all = useMemo(() => buildPickCards(list, indices, kind, taste), [list, indices, kind, taste]);
+  // Un nivel sin opción verificada no ocupa una tarjeta vacía: se dice en una línea pequeña (claude/viaje-corto).
+  const cards = useMemo(() => all.filter((c) => c.index != null), [all]);
+  const missingLine = missingTiersLine(all);
   const track = useRef<HTMLDivElement>(null);
   const reduce = usePrefersReducedMotion();
   const [can, setCan] = useState({ prev: false, next: false });
@@ -124,6 +129,7 @@ export function TripPicksCarousel({ kind, city, list, indices, taste, trip, acti
         style={{ scrollPaddingInline: "16px" }}>
         {cards.map((c, k) => <Card key={`${c.slot}-${c.index ?? k}`} card={c} {...{ kind, city, list, trip, actionFor, isChosen, onChoose, extra }} />)}
       </div>
+      {missingLine && <p className="text-[11px] text-muted-foreground" data-testid={`picks-${kind}-sin-nivel`}>{missingLine}</p>}
     </div>
   );
 }

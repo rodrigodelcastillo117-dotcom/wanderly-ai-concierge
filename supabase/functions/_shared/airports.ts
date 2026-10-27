@@ -207,9 +207,27 @@ export const TOWNS: Town[] = [
   // Japón y México
   T("Kioto", "JP", 35.011, 135.768, ["kyoto"]), T("Nara", "JP", 34.685, 135.805), T("Hakone", "JP", 35.232, 139.107),
   T("Playa del Carmen", "MX", 20.629, -87.073), T("San Miguel de Allende", "MX", 20.914, -100.744),
+  // Escapadas por carretera desde CDMX, sin aeropuerto comercial (caso Tepoztlán, 27-oct-2026).
+  T("Tepoztlán", "MX", 18.985, -99.1, ["tepoztlan"]), T("Valle de Bravo", "MX", 19.195, -100.131), T("Taxco", "MX", 18.556, -99.605),
+  T("Malinalco", "MX", 18.948, -99.495), T("Tequisquiapan", "MX", 20.522, -99.892),
 ];
 const TOWN_BY_NAME = new Map<string, Town>();
 for (const t of TOWNS) for (const n of [t.name, ...(t.aliases ?? [])]) TOWN_BY_NAME.set(normCity(n), t);
+
+/** Coordenadas de una ciudad con aeropuerto o de un lugar sin aeropuerto (TOWNS); null si no se conoce. */
+export function placeCoords(input: unknown): { lat: number; lng: number } | null {
+  const c = cityAirports(input);
+  if (c) return { lat: c.lat, lng: c.lng };
+  const t = TOWN_BY_NAME.get(normCity(input));
+  return t ? { lat: t.lat, lng: t.lng } : null;
+}
+
+/** Distancia en línea recta (km) entre dos lugares conocidos, tengan o no aeropuerto (null si falta alguno). */
+export function placeDistanceKm(a: unknown, b: unknown): number | null {
+  const x = placeCoords(a);
+  const y = placeCoords(b);
+  return x && y ? kmBetween(x, y) : null;
+}
 
 /** Aeropuerto con que se vuela a un lugar: el suyo, o el de la tabla más cercano si no tiene. */
 export type AirportPick = {

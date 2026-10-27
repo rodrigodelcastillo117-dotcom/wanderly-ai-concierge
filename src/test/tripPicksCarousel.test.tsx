@@ -56,10 +56,10 @@ describe("TripPicksCarousel", () => {
     // Probó la foto real por nombre y ciudad (resolve) antes de la ilustrativa.
     expect(calls.some((c) => c.fn === "place-photo" && c.body?.mode === "resolve" && c.body?.name === "Bistrot Paul Bert" && c.body?.city === "París")).toBe(true);
 
-    // Sin opción cara: se dice, no se rellena.
-    const vacias = within(list).getAllByTestId("pick-card-vacia");
-    expect(vacias.map((v) => v.getAttribute("data-slot"))).toEqual(["caro"]);
-    expect(vacias[0]).toHaveTextContent("Sin opción cara verificada");
+    // Sin opción cara: no se rellena ni ocupa una tarjeta vacía (pedido del dueño, 27-oct-2026); se dice en una línea.
+    expect(within(list).queryAllByTestId("pick-card-vacia")).toHaveLength(0);
+    expect(cards.some((c) => c.getAttribute("data-slot") === "caro")).toBe(false);
+    expect(screen.getByTestId("picks-restaurante-sin-nivel")).toHaveTextContent("No encontramos opciones verificadas de nivel alto aquí.");
     // 1 foto de Google por ref + 1 resolve + 1 Pexels: ninguna llamada extra por tarjeta.
     expect(calls.filter((c) => c.fn === "place-photo").length).toBeLessThanOrEqual(3);
   });

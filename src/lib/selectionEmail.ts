@@ -7,6 +7,7 @@ import { buildBuyFlow } from "@/lib/buyFlow";
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { itemPurchaseState, realFlightOptions, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
 import { flightDurationLabel, flightStopsLabel } from "@/lib/flightDisplay";
+import { arrivalByLand } from "@/lib/groundTrip";
 import type { SelectionRequest, SelectionRequestItem } from "../../supabase/functions/_shared/selection-email.ts";
 
 export type SelectionSel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[]; selHoteles?: Record<string, number> | null };
@@ -39,6 +40,18 @@ export type SelectionReadiness = {
 
 export const SEND_LABEL = "Enviarme mi selección por correo";
 export const NOT_READY_LABEL = "Elige tu vuelo y hotel para enviarte el resumen";
+
+/**
+ * Texto del botón cuando falta elegir algo, con lo que falta de verdad (caso Tepoztlán: el botón decía
+ * "Elige tu vuelo y hotel" en un viaje por carretera y parecía bloqueado sin razón).
+ * ["tu hotel"] → "Elige tu hotel para enviarte la selección".
+ */
+export function notReadyLabel(missing: string[]): string {
+  if (!missing.length || (missing.length === 2 && missing[0] === "tu vuelo" && missing[1] === "tu hotel")) return NOT_READY_LABEL;
+  const xs = missing.slice(0, 3);
+  const list = xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`;
+  return `Elige ${list} para enviarte la selección`;
+}
 
 const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
 
@@ -78,7 +91,7 @@ export function buildSelectionRequest(trip: any, sel: SelectionSel, ctx: Selecti
     items.push(requestItem(it, "vuelo", sel.selVuelo, {
       price, facts: [flightStopsLabel(v), flightDurationLabel(v)].filter((x): x is string => !!x),
     }, state(it) !== "pendiente"));
-  } else if (realFlightOptions(trip).length) missing.push("tu vuelo");
+  } else if (realFlightOptions(trip).length) missing.push(arrivalByLand(trip) ? "cómo llegar" : "tu vuelo");
 
   // 2 · Hotel: uno por ciudad en multi-destino, con las noches de esa ciudad.
   if (hasCityHotels(trip)) {

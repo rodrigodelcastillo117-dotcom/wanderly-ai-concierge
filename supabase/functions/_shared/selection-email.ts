@@ -15,6 +15,7 @@
 //
 // Reglas: no hay filas "NO DISPONIBLE". Lo que no tiene precio no aparece; comida y transporte local
 // sin precio van en una línea "Por cotizar". Un estimado nunca se presenta como precio en vivo.
+import { groundGroupPrice } from "./carCost.ts";
 import {
   button, callout, chip, type Email, eyebrow, gap, GLYPH, headline, hero, icon, masthead, normalizeSite, para,
   type Provenance, provenanceText, richCard, shell, signature, textFooter, joinText, totalBlock, tripPass, EK, LNUM, SANS, SERIF,
@@ -169,8 +170,11 @@ export type ValidationOk = { ok: true; input: SelectionEmailInput };
 const ESTIMATE_LABEL: Record<string, string> = {
   vuelos: "Vuelo (estimado de la cotización)", hospedaje: "Hospedaje (estimado de la cotización)",
   tours: "Experiencias (estimado de la cotización)", comida: "Comida", transporte_local: "Transporte local", extras: "Extras",
+  // Casetas de los tramos en coche (monto de Google Maps al generar el viaje). Sin esta etiqueta el correo
+  // de un viaje con casetas se rechazaba con "El desglose cambió" (la página sí las suma al total).
+  casetas: "Casetas (Google Maps)",
 };
-const ESTIMATE_GLYPH: Record<string, string> = { vuelos: GLYPH.vuelos, hospedaje: GLYPH.hospedaje, tours: GLYPH.tours, comida: GLYPH.comida, transporte_local: GLYPH.transporte_local, extras: GLYPH.extras };
+const ESTIMATE_GLYPH: Record<string, string> = { vuelos: GLYPH.vuelos, hospedaje: GLYPH.hospedaje, tours: GLYPH.tours, comida: GLYPH.comida, transporte_local: GLYPH.transporte_local, extras: GLYPH.extras, casetas: GLYPH.transporte_local };
 const COL: Record<SelectionKind, string | null> = { vuelo: "vuelos_json", hospedaje: "hospedaje_json", actividad: "tours_json", restaurante: "restaurantes_json", auto: null };
 const MARK_CATEGORY: Record<SelectionKind, string> = { vuelo: "flight", hospedaje: "hotel", actividad: "activity", restaurante: "restaurant", auto: "car" };
 const MAX_ITEMS = 60;
@@ -259,8 +263,11 @@ export function validateSelectionRequest(
 
     if (kind === "vuelo") {
       if (flight) return err(400, "elemento_repetido", "Solo puede ir un vuelo.");
-      const pp = num(row.precio_por_persona);
-      const expected = pp ? pp * T : null;
+      // Por tierra: el coche cuesta casetas reales + gasolina estimada (el mismo cálculo de la página) y el
+      // autobús no tiene precio; nunca el "precio por persona" de la IA (caso CDMX → Tepoztlán).
+      const gp = groundGroupPrice(row, trip);
+      const pp = gp !== undefined ? null : num(row.precio_por_persona);
+      const expected = gp !== undefined ? (gp != null && gp > 0 ? Math.round(gp) : null) : pp ? pp * T : null;
       if (given !== null && (expected === null || !close(given, expected))) return err(409, "precio_no_coincide", "El precio del vuelo cambió. Recarga la página.");
       const ground = isGroundTripOption(row);
       const st = priceStatusOf(row, "vuelos", createdAt, now);
@@ -270,7 +277,8 @@ export function validateSelectionRequest(
         title: ground ? oneLine(row.aerolinea ?? "Por carretera", 60) : isEstimatedTripFlight(row) ? "Aerolínea por confirmar" : oneLine(row.aerolinea, 60) || "Aerolínea por confirmar",
         times: dep || arr ? { from: { code: clean(row.from_iata ?? row.dep_iata ?? row.aeropuerto_origen, 4), time: dep }, to: { code: clean(row.to_iata ?? row.arr_iata ?? row.aeropuerto_destino, 4), time: arr } } : null,
         price: given !== null && expected !== null ? Math.round(expected) : null,
-        priceBasis: pp ? (T > 1 ? `${plural(T, "persona", "personas")} · ${money(pp)} c/u` : "1 persona") : null,
+        priceBasis: gp !== undefined ? (expected ? "Por el coche: casetas de Google Maps + gasolina estimada" : null)
+          : pp ? (T > 1 ? `${plural(T, "persona", "personas")} · ${money(pp)} c/u` : "1 persona") : null,
         status: given !== null ? st.status : null, provenance: given !== null ? st.provenance : null,
       };
     } else if (kind === "hospedaje") {

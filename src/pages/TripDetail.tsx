@@ -53,6 +53,9 @@ import { quoteTrust } from "@/lib/quoteTrust";
 import { buildBuyFlow } from "@/lib/buyFlow";
 import { itemPurchaseState } from "@/lib/purchasePlan";
 import { tripTotalSummary } from "@/lib/tripTotal";
+import { splitTripTotal } from "@/lib/totalSplit";
+import { arrivalByLand, isBusOption, isCarOption, isHiredCarOption } from "@/lib/groundTrip";
+import { GroundOptionInfo } from "@/components/booking/GroundOptionInfo";
 import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
 
 
@@ -379,7 +382,11 @@ const TripDetail = () => {
   const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
 
   // Total que muestra la página (RealTripTotal recibe exactamente estos argumentos).
-  const pageTotalsOf = (t: any) => tripTotals(t, quoteTravelers, currentSel ? computedDesglose : null);
+  // Sin selección, el desglose recalculado puede diferir del guardado (viaje corto: el coche suma casetas +
+  // gasolina, no el precio de la IA): entonces la cifra grande usa el recalculado, igual que la barra y Comprar.
+  const recalculated = !!trip && Object.keys(computedDesglose).some((k) => Math.round(Number(computedDesglose[k]) || 0) !== Math.round(Number(trip.desglose_presupuesto?.[k]) || 0));
+  const pageSelDesglose = currentSel || recalculated ? computedDesglose : null;
+  const pageTotalsOf = (t: any) => tripTotals(t, quoteTravelers, pageSelDesglose);
 
   // Lo mismo que muestra "Comprar" (buildBuyFlow): qué está elegido y qué ya se compró.
   const buyItems = useMemo(
@@ -420,6 +427,8 @@ const TripDetail = () => {
     itemState: (it) => itemPurchaseState(it, purchaseMarks.rows, purchaseMarks.marks),
     porCotizar: Array.isArray(quote?.sources?.por_cotizar) ? quote!.sources!.por_cotizar : null,
   });
+  // El mismo total separado en precios reales y estimados (claude/viaje-corto).
+  const totalSplit = splitTripTotal({ trip, sel: { selVuelo, selTours }, desglose: computedDesglose, items: buyItems });
   const quotedTotalValue = tripTotals(trip, quoteTravelers, null).quotedTotal;
   // La cifra grande de la página (RealTripTotal): la misma en el resumen de Comprar, el correo y el PDF.
   const pageTotal = hasQuotedTotal ? pageTotalsOf(trip).total : 0;
@@ -651,13 +660,14 @@ const TripDetail = () => {
               viajeros={quoteTravelers}
               onUpdated={loadTrip}
               staleMessage={staleness.stale && staleness.basis ? staleQuoteMessage(staleness.basis, staleness.reasons) : null}
-              selectionDesglose={currentSel ? computedDesglose : null}
+              selectionDesglose={pageSelDesglose}
               validityLabel={validity.label}
               validityExpired={validity.expired}
               fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatInstant(quote.fx_at)})` : null}
               onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
               trust={trustForTotal}
               summary={totalSummary}
+              split={totalSplit}
             >
               {/* Un solo desglose, plegado bajo el mismo total (sin repetir título ni cifra). */}
               {computedTotal > 0 ? (
@@ -794,7 +804,7 @@ const TripDetail = () => {
               <h2 className="font-display text-2xl sm:text-3xl break-words">Tu viaje por destino</h2>
             </div>
             <button type="button" onClick={() => showSection("comprar")} className="text-xs text-primary underline-offset-2 hover:underline sm:ml-auto text-left">
-              Vuelo, hoteles y reservas: elígelos en Comprar →
+              {arrivalByLand(trip) ? "Cómo llegar, hotel y reservas: elígelos en Comprar →" : "Vuelo, hoteles y reservas: elígelos en Comprar →"}
             </button>
           </div>
 
@@ -1136,19 +1146,20 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 
         {flightDurationLabel(option) && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{flightDurationLabel(option)}</span>}
         {flightStopsLabel(option) && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{flightStopsLabel(option)}</span>}
       </div>
-      {option.precio_por_persona > 0 && (
+      {/* Coche y autobús de un trayecto corto: casetas reales, gasolina estimada o "precio en ADO"; nunca el precio de la IA. */}
+      {trip && (isCarOption(option) || isBusOption(option) || isHiredCarOption(option)) ? <GroundOptionInfo trip={trip} option={option} /> : option.precio_por_persona > 0 && (
         <p className="font-medium text-base">
           {fmtMXN(option.precio_por_persona)}
           <span className="text-xs text-muted-foreground ml-1">/ persona</span>
         </p>
       )}
-      <PriceSourceBadge source={option.fuente_precio} estado={option.estado_dato} consultadoAt={option.consultado_at ?? quotedAt} approximateDates={option.approximate_dates} className="mt-2" />
+      {!(trip && (isCarOption(option) || isBusOption(option) || isHiredCarOption(option))) && <PriceSourceBadge source={option.fuente_precio} estado={option.estado_dato} consultadoAt={option.consultado_at ?? quotedAt} approximateDates={option.approximate_dates} className="mt-2" />}
       {flightLiveLine(option) && <p className="mt-1 text-[11px] text-muted-foreground" data-testid="arrival-en-vivo">{flightLiveLine(option)}</p>}
       {option.aeropuerto_nota && <p className="mt-1 text-[11px] text-muted-foreground" data-testid="arrival-aeropuerto-nota">{option.aeropuerto_nota}.</p>}
       {/* El tramo que suma el total (el mismo de Comprar) y las alternativas del plan, que no suman. */}
       {option.quoted && <p className="mt-2 text-[11px] text-primary" data-testid="arrival-quoted">Opción principal · suma al total (la misma de Comprar)</p>}
       {option.alternativa && <p className="mt-2 text-[11px] text-muted-foreground" data-testid="arrival-alternativa">Alternativa del plan · no suma al total</p>}
-      {option.notas && <p className="text-xs text-muted-foreground mt-2 italic">{option.notas}</p>}
+      {option.notas && !(trip && (isCarOption(option) || isBusOption(option) || isHiredCarOption(option))) && <p className="text-xs text-muted-foreground mt-2 italic">{option.notas}</p>}
       {/* Comprar aquí mismo (punto 8): vuelo → Google Flights/Kayak precargados; coche → road trip y renta. */}
       {trip && <FlightBuyButtons option={option} trip={trip} index={index} />}
     </div>

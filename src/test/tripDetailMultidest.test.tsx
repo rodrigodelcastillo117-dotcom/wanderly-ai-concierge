@@ -179,8 +179,9 @@ describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
     const roma = within(extras).getAllByTestId("comprar-extras-ciudad")[0];
     const rest = within(roma).getByTestId("picks-restaurante");
     // Roscioli "$$$" (sin verificar) va en Caro; sin opción económica ni media no se inventa una.
-    expect(within(rest).getAllByTestId("pick-card-vacia").map((c) => c.textContent)).toEqual([
-      expect.stringContaining("Sin opción económica verificada"), expect.stringContaining("Sin opción de precio medio verificada")]);
+    // Niveles sin opción verificada: sin tarjetas vacías, una línea pequeña (pedido del dueño, 27-oct-2026).
+    expect(within(rest).queryAllByTestId("pick-card-vacia")).toHaveLength(0);
+    expect(within(rest).getByTestId("picks-restaurante-sin-nivel")).toHaveTextContent("No encontramos opciones verificadas de nivel económico ni medio aquí.");
     expect(within(rest).getAllByTestId("pick-card").find((c) => c.getAttribute("data-slot") === "caro")).toHaveTextContent("Roscioli");
     // Cada botón dice lo que es (búsqueda, ficha o sitio oficial), nunca "Reservar" sin la página del lugar.
     expect(within(extras).getAllByTestId("pick-reservar").map((a) => a.textContent)).toEqual(

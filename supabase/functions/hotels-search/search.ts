@@ -76,6 +76,14 @@ export function hotelResult(p: any, nightly: number, totalRaw: number, nights: n
   };
 }
 
+/**
+ * ¿La "tarifa por noche" de Google es en realidad el total de la estancia? Solo con más de una noche y
+ * cuando ambos montos coinciden (±3 %): un precio por noche nunca es igual al de toda la estancia.
+ */
+export function totalAsNightlyRate(nightlyRaw: number, totalRaw: number, nights: number): boolean {
+  return nights > 1 && nightlyRaw > 0 && totalRaw > 0 && Math.abs(nightlyRaw - totalRaw) / totalRaw <= 0.03;
+}
+
 export type HotelsSearchEnv = {
   serpKey?: string | null;
   marker?: string | null;
@@ -117,7 +125,11 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
       let withNightly = (j?.properties ?? []).map((p: any) => {
         const nightlyRaw = Number(p?.rate_per_night?.extracted_lowest ?? 0);
         const totalRaw = Number(p?.total_rate?.extracted_lowest ?? 0);
-        const nightly = nightlyRaw > 0 ? nightlyRaw : (totalRaw > 0 ? totalRaw / nightsSafe : 0);
+        // rate_per_night es por noche y total_rate es la estancia completa. Si Google pone el mismo monto en
+        // los dos con más de una noche, ese monto es el TOTAL: se divide entre las noches (antes se
+        // tomaba como precio por noche y el análisis lo multiplicaba otra vez por las noches).
+        const totalAsNightly = totalAsNightlyRate(nightlyRaw, totalRaw, nightsSafe);
+        const nightly = totalAsNightly ? totalRaw / nightsSafe : nightlyRaw > 0 ? nightlyRaw : (totalRaw > 0 ? totalRaw / nightsSafe : 0);
         if (nightly > 2000) {
           console.warn("hotels-search sanity: nightly>2000 usd", {
             name: p?.name, nightlyRaw, totalRaw, nights: nightsSafe, derived: nightly,

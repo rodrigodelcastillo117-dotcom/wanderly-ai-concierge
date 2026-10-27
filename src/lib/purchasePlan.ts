@@ -5,7 +5,7 @@
 // Los enlaces salen del Booking Bridge (offers.ts + resolver): son los mismos que ya validan la lista
 // blanca y booking-go; aquí no se arma ninguna URL nueva salvo la renta de auto opcional (Kayak), que
 // también pasa por checkAllowlisted.
-import { restaurantPriceLabel, tripUsdMxnRate } from "@/lib/tripPicks";
+import { restaurantPriceLabel, tourHasRealPrice, tripUsdMxnRate } from "@/lib/tripPicks";
 import { kayakCarsLink, PREFILL } from "@/lib/affiliateLinks";
 import {
   checkAllowlisted, isEstimatedTripFlight, isGroundTripOption, isTripInternationalRow, tripFlightProblems, tripFlightRoute, tripFlightSearches,
@@ -17,6 +17,7 @@ import { parseAviasalesSearch, parseBookingSearch, parseGoogleFlightsSearch } fr
 import { airlineName } from "@/lib/airlines";
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { codeServesCity } from "../../supabase/functions/_shared/airports.ts";
+import { busLinkFor, carCostFor, carCostLines, isBusOption, isCarOption, isHiredCarOption } from "@/lib/groundTrip";
 
 export type PurchaseKind = "vuelo" | "hospedaje" | "auto" | "actividad" | "restaurante";
 export type PurchaseCategory = "flight" | "hotel" | "car" | "activity" | "restaurant" | "train";
@@ -198,7 +199,23 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
       // Y nunca un enlace cuyo destino no sea el del viaje (p. ej. MEX→BUH guardado como Roma).
       const actions = (!bad && server.vuelos_json?.[i]?.length ? server.vuelos_json![i] : offer.actions)
         .filter((a) => isGroundTripOption(v) || prefillMatchesTrip(a.url, trip) !== false);
-      items.push(base({
+      const groundItem = isGroundTripOption(v) ? groundPurchase(trip, v, travelers) : null;
+      if (groundItem) {
+        // Por tierra: el coche con casetas reales + gasolina estimada ("Ver ruta en Google Maps"); el
+        // autobús sin precio inventado ("Ver horarios y precio en ADO"). Ver groundTrip.ts.
+        const act = groundItem.url ? null : primaryAction(actions);
+        const d = describePrefill(groundItem.url ?? act?.url ?? null, groundItem.site ?? act?.processor ?? null, trip);
+        items.push({
+          key: `vuelo:${i}:${norm(v?.aerolinea)}`, kind: "vuelo", category: groundItem.category, title: groundItem.title, subtitle: tripRange,
+          price: groundItem.price, currency: "MXN", priceNote: groundItem.priceNote,
+          // Sin insignia "Estimado por IA": el precio lo explica priceNote (casetas de Google + gasolina con fórmula).
+          source: { fuente: null, estado: null, consultadoAt: null, approximateDates: false },
+          estimate: groundItem.estimate, action: act, optional: false,
+          site: groundItem.site ?? act?.processor ?? null, url: groundItem.url ?? act?.url ?? null, buttonLabel: groundItem.buttonLabel,
+          lleva: groundItem.lleva ?? d.lleva, completa: groundItem.completa ?? d.completa,
+          fallbackHref: null, col: "vuelos_json", index: i, offer,
+        });
+      } else items.push(base({
         key: `vuelo:${i}:${norm(v?.aerolinea)}`, kind: "vuelo", category: "flight",
         title: isGroundTripOption(v) ? `${v?.modo === "auto" || v?.mode === "coche" ? "En auto" : "Autobús"} · ${v?.aerolinea ?? ""}`.trim()
           : `Vuelo · ${est || bad ? "aerolínea por confirmar" : v?.aerolinea ?? "Aerolínea por elegir"}`,
@@ -274,11 +291,12 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     const tCity = t?.ciudad ?? city;
     // Con place_id de Google: la ficha exacta en Maps (no una búsqueda por nombre).
     const offer = offerFromTripTour(t, { trip, city: tCity, index: i, venue: venueFromTripPlace(t, tCity, trip.pais_destino) });
-    const pp = num(t?.precio_por_persona);
+    // Solo un precio real se muestra; el de la IA ("$50 MXN" de una cascada) es "Precio en el sitio".
+    const pp = tourHasRealPrice(t) ? num(t?.precio_por_persona) : null;
     items.push(base({
       key: `actividad:${i}:${norm(t?.nombre)}`, kind: "actividad", category: "activity", title: t?.nombre ?? "Experiencia",
       subtitle: [tCity, t?.duracion].filter(Boolean).join(" · ") || null,
-      price: pp ? pp * travelers : null, currency: "MXN", priceNote: pp ? `${plural(travelers, "persona", "personas")} · $${Math.round(pp).toLocaleString("es-MX")} MXN c/u` : null,
+      price: pp ? pp * travelers : null, currency: "MXN", priceNote: pp ? `${plural(travelers, "persona", "personas")} · $${Math.round(pp).toLocaleString("es-MX")} MXN c/u` : "Precio en el sitio: sin precio verificado.",
       source: { fuente: t?.fuente ?? null, estado: t?.estado_dato ?? null, consultadoAt: t?.consultado_at ?? null },
       estimate: offer.price_is_estimate, action: pick(offer, "tours_json", i), optional: false, fallbackHref: null,
       col: "tours_json", index: i, offer,
@@ -300,6 +318,52 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     }));
   });
   return items;
+}
+
+/**
+ * Elemento de "Comprar" de una opción por tierra de un viaje de un destino: coche (casetas reales de
+ * Google + gasolina estimada; botón "Ver ruta en Google Maps") o autobús (sin precio; "Ver horarios y
+ * precio en ADO" si hay ruta precargada). null para otras filas terrestres (tren, ferry…): siguen como antes.
+ */
+export function groundPurchase(trip: any, v: any, travelers: number): {
+  title: string; category: PurchaseCategory; price: number | null; priceNote: string | null; estimate: boolean;
+  url: string | null; site: string | null; buttonLabel: string | null; lleva: string[] | null; completa: string | null;
+} | null {
+  if (isCarOption(v)) {
+    const cost = carCostFor(trip, v);
+    const lines = cost ? carCostLines(cost) : null;
+    const maps = checkAllowlisted(String(v?.booking_link ?? "")).ok ? String(v.booking_link)
+      : `https://www.google.com/maps/dir/?${new URLSearchParams({ api: "1", origin: String(trip?.ciudad_origen ?? ""), destination: String(trip?.destino ?? ""), travelmode: "driving" })}`;
+    const ok = checkAllowlisted(maps);
+    return {
+      title: "En tu coche", category: "car", price: cost?.total_mxn ? Math.round(cost.total_mxn) : null,
+      priceNote: lines ? `${lines.casetas}. ${lines.gasolina}.` : null,
+      estimate: true, url: ok.ok ? ok.url : null, site: ok.ok ? "Google Maps" : null, buttonLabel: "Ver ruta en Google Maps",
+      lleva: ok.ok ? ["origen y destino de la ruta"] : [], completa: "Google Maps da la ruta y el tiempo; la gasolina es un estimado y las casetas son las de Google al consultar.",
+    };
+  }
+  if (isBusOption(v)) {
+    const bus = busLinkFor(trip);
+    const fallback = checkAllowlisted(String(v?.booking_link ?? ""));
+    return {
+      title: String(v?.aerolinea ?? "").trim() || "Autobús", category: "flight", price: null,
+      priceNote: `Precio en el sitio${bus ? ` de ${bus.site}` : " de la línea"}: IATOS no lo cotiza.`, estimate: false,
+      url: bus?.url ?? (fallback.ok ? fallback.url : null), site: bus?.site ?? (fallback.ok ? "Google Maps" : null),
+      buttonLabel: bus ? bus.label : fallback.ok ? "Ver horarios en Google Maps" : null,
+      lleva: bus ? [bus.lleva] : fallback.ok ? ["origen y destino de la ruta"] : [], completa: bus ? `El precio y la compra son en ${bus.site}.` : "Compra el boleto con la línea de autobús.",
+    };
+  }
+  if (isHiredCarOption(v)) {
+    const ok = checkAllowlisted(String(v?.booking_link ?? ""));
+    return {
+      title: String(v?.aerolinea ?? "").trim() || "Chofer privado", category: "car", price: null,
+      priceNote: "Precio con el operador: IATOS no lo cotiza.", estimate: false,
+      url: ok.ok ? ok.url : null, site: ok.ok ? "Google Maps" : null, buttonLabel: ok.ok ? "Ver ruta en Google Maps" : null,
+      lleva: ok.ok ? ["origen y destino de la ruta"] : [], completa: "Reserva el chofer con tu hotel o una agencia local.",
+    };
+  }
+  void travelers;
+  return null;
 }
 
 /**

@@ -181,7 +181,15 @@ export function SmartImage(props: SmartImageProps) {
         <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-[#2a2418] via-[#16130e] to-[#0a0a0a] flex items-center justify-center">
           {pending || (res && !loaded)
             ? <div className="absolute inset-0 motion-safe:animate-pulse bg-gradient-to-r from-white/[0.02] via-white/[0.06] to-white/[0.02]" data-testid="smart-image-skeleton" />
-            : <Icon className={`${size === "thumb" ? "w-5 h-5" : "w-8 h-8"} text-primary/45`} strokeWidth={1.5} data-testid="smart-image-fallback" />}
+            : size === "thumb"
+              ? <Icon className="w-5 h-5 text-primary/45" strokeWidth={1.5} data-testid="smart-image-fallback" />
+              // Sin foto real: placeholder de la marca (anillo dorado, ícono y "IATOS"), nunca un hueco.
+              : <span className="flex flex-col items-center gap-1.5" data-testid="smart-image-fallback">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/35 bg-primary/[0.06]">
+                    <Icon className="w-6 h-6 text-primary/70" strokeWidth={1.5} />
+                  </span>
+                  <span className="font-display text-[10px] uppercase tracking-[0.3em] text-primary/55">IATOS</span>
+                </span>}
         </div>
       )}
       {res && (

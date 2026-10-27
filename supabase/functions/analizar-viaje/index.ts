@@ -22,22 +22,25 @@ import { aiFetch } from "../_shared/ai.ts";
 import { callClaudeWithFallback } from "../_shared/claude.ts";
 import { dbCacheStore, internalHeaders, logUsage } from "../_shared/serpRuntime.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
-import { computeRoute } from "../_shared/google-routes.ts";
+import { driveWithTolls } from "../_shared/google-tolls.ts";
+import { carCost } from "../_shared/carCost.ts";
+import { adoRouteUrl } from "../_shared/booking/groundLinks.ts";
 import { restaurantsForCity, verifyRestaurants } from "../_shared/google-restaurants.ts";
 import { makeResolver, verifyTours } from "../_shared/place-verify.ts";
 import { ratingText } from "../_shared/google-places.ts";
 import { usageFromClaude } from "../_shared/usage.ts";
 import { getTasteProfile } from "../_shared/tasteProfileStore.ts";
 import { renderTasteProfile, tasteToday, TASTE_CITATION_RULE } from "../_shared/tasteProfile.ts";
-import { getEurMxnRateInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
+import { getEurMxnRateInfo, getRateToMxnInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { buildQuoteSnapshot, saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
 import { enforceSources, hotelPreference, liveConsultedAt as sourceConsultedAt } from "./sources.ts";
-import { normalizarVuelos, reconcileBudget } from "./budget.ts";
+import { detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
+import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
 import { tripDatesProblem } from "./dates.ts";
 import {
-  applyShortTripRules, detectShortTrip, groundSearchLinks, isReasonableShortFlight, parseDurationMinutes,
-  refineShortTrip, SHORT_TRIP_CANDIDATE_KM, shortTripPromptBlock, shortTripTransportTotal, travelerPrefs,
+  applyShortTripRules, capShortTripEstimates, detectShortTrip, groundSearchLinks, isReasonableShortFlight, parseDurationMinutes,
+  realGroundOptions, refineShortTrip, SHORT_TRIP_CANDIDATE_KM, shortTripPromptBlock, shortTripTransportTotal, travelerPrefs,
 } from "./groundTransport.ts";
 
 // Las miniaturas de Google (googleusercontent) aceptan el tamaño en el sufijo "=w..-h..".
@@ -662,10 +665,15 @@ Deno.serve(async (req) => {
     // Trayecto corto por carretera (N-06): no forzar vuelos; terrestre como opción estimada. Con la
     // lista de ciudades se detecta un candidato (línea recta × factor) y Routes API da el tiempo y
     // la distancia reales de manejo; sin respuesta de Google queda la aproximación (etiquetada).
+    // Una sola llamada a Google (Routes con extraComputations TOLLS, caché de 24 h) da distancia, tiempo
+    // y casetas REALES del tramo en coche (caso CDMX → Tepoztlán: antes el auto era "$1,800" de la IA).
     const shortCandidate = detectShortTrip(body.ciudad_origen, body.destino, SHORT_TRIP_CANDIDATE_KM);
-    const driveRoute = shortCandidate && google
-      ? await computeRoute(google, { origin: { address: `${body.ciudad_origen}` }, destination: { address: `${body.destino}` }, mode: "DRIVE" })
+    const drive = shortCandidate && google
+      ? await driveWithTolls(google, { origin: { address: `${body.ciudad_origen}` }, destination: { address: `${body.destino}` } }, { store: dbCacheStore(), rate: getRateToMxnInfo })
+        .catch((e) => { console.warn("analizar-viaje: casetas", String((e as Error)?.message ?? e)); return null; })
       : null;
+    const driveOk = drive && drive.ok ? drive : null;
+    const driveRoute = driveOk ? { ok: true, duration_seconds: driveOk.duration_seconds, distance_meters: driveOk.distance_meters, consultado_at: driveOk.consultado_at } : null;
     const shortTrip = refineShortTrip(shortCandidate, driveRoute);
     const tripPrefs = travelerPrefs(body.notas_usuario);
     if (shortTrip) console.log("analizar-viaje: trayecto corto", shortTrip);
@@ -1010,17 +1018,32 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     a.restaurantes = rest.restaurantes;
     a.tours = toursV.tours;
 
+    // Hotel en 3 niveles (económico, medio, premium) con hoteles REALES de Google Hotels: antes se guardaba
+    // lo que escribiera la IA (caso Tepoztlán: un solo hotel). Si el cliente excluyó el hospedaje, se respeta.
+    a.hospedaje = buildHotelTiers(a.hospedaje, serpHotelsLive ? serpHotels.results : [], {
+      fxUsd, consultedAt: sourceConsultedAt(serpHotels, liveConsultedAt), saved: serpHotels?.precio_guardado === true,
+      exclude: detectExclusions(body.notas_usuario).hospedaje !== false,
+    });
+
     // Trayecto corto: terrestre siempre "estimado" con liga de búsqueda; vuelos solo razonables; el
     // renglón de transporte sale de la opción con precio (0 si ninguna trae precio).
     if (shortTrip) {
-      a.vuelos = applyShortTripRules(a.vuelos, shortTrip, groundSearchLinks(shortTrip.origin, shortTrip.destination, body.fecha_salida), tripPrefs);
+      const links = groundSearchLinks(shortTrip.origin, shortTrip.destination, body.fecha_salida);
+      // Autobús y coche con datos reales (casetas de Google + gasolina estimada; autobús sin precio inventado).
+      const cost = carCost({ kmIda: shortTrip.approxRoadKm, kmFuente: shortTrip.source ?? "aproximado", tolls: driveOk?.tolls ?? null, tollsFailed: !!drive && !driveOk });
+      a.vuelos = realGroundOptions(applyShortTripRules(a.vuelos, shortTrip, links, tripPrefs), shortTrip, cost,
+        { ...links, ado: adoRouteUrl(body.ciudad_origen, body.destino) ?? adoRouteUrl(shortTrip.origin, shortTrip.destination) }, body.num_viajeros);
       a.desglose_presupuesto = { ...(a.desglose_presupuesto ?? {}), vuelos: shortTripTransportTotal(a.vuelos, body.num_viajeros) };
+      // Escapada nacional corta: comida, experiencias, transporte local y extras acotados a lo razonable.
+      const capped = capShortTripEstimates(a.desglose_presupuesto, { noches: dias, viajeros: body.num_viajeros, enCoche: true });
+      if (capped.acotados.length) console.warn("analizar-viaje: estimados acotados (trayecto corto)", capped.acotados, body.destino);
+      a.desglose_presupuesto = capped.desglose;
     }
 
     // COHERENCIA DE PRESUPUESTO (no negociable): renglones recalculados con las opciones que el
     // usuario verá (vuelo equilibrio × viajeros; hotel medio × noches × habitaciones), respetando
     // lo que el usuario excluyó, y total_estimado = suma exacta del desglose.
-    const budget = reconcileBudget(a, { dias, viajeros: body.num_viajeros, notas: body.notas_usuario });
+    const budget = reconcileBudget(a, { dias, viajeros: body.num_viajeros, notas: body.notas_usuario, hotelTier: preferredHotelTier(travelProfile?.presupuesto_rango) });
     if (budget.desglose.comida < (Number(a.desglose_presupuesto?.comida) || 0) && !budget.exclusions.comida) {
       console.warn("analizar-viaje: comida fuera de rango, acotada", { destino: body.destino, declarada: a.desglose_presupuesto?.comida, techo: budget.desglose.comida });
     }
@@ -1128,7 +1151,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         hospedaje: budget.hotelReferencia?.fuente_precio ?? "estimado",
         tours: tripadvisorLive ? placesSource : "estimado",
         restaurantes: googleRestaurants.length ? "google_places" : "estimado",
-        traslado_carretera: shortTrip ? { fuente: shortTrip.source ?? "aproximado", consultado_at: shortTrip.consultedAt ?? null, km: shortTrip.approxRoadKm } : null,
+        traslado_carretera: shortTrip ? { fuente: shortTrip.source ?? "aproximado", consultado_at: shortTrip.consultedAt ?? null, km: shortTrip.approxRoadKm, casetas: driveOk?.tolls?.estado ?? (drive ? "NO_DISPONIBLE" : "SIN_CONSULTAR") } : null,
         travelpayouts: { count: tpFlights?.flights?.length ?? 0, consulted_at: tpFlights?.consulted_at ?? null, approximate_dates: !!tpFlights?.approximate_dates, cache_max_age_h: 48 },
         google_flights: { live: googleFlightsLive, consulted_at: googleFlights?.consulted_at ?? null },
         google_hotels: { live: serpHotelsLive, consulted_at: serpHotels?.consulted_at ?? null },

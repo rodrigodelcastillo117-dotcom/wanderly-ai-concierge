@@ -27,6 +27,10 @@ import { HotelOffersButton, MultiCityFareButton } from "@/components/booking/Rea
 import { ViatorToursButton } from "@/components/booking/ViatorTours";
 import { transportRubroLabel } from "@/lib/multiDestTrip";
 import { roadLegTolls, TollInfo } from "@/components/roadtrip/TollInfo";
+// Viaje corto por tierra (claude/viaje-corto): "Cómo llegar", coche con casetas reales y total real/estimado.
+import { GroundOptionInfo, groundOptionSummary } from "@/components/booking/GroundOptionInfo";
+import { isGroundTripOption } from "@/lib/booking";
+import { partsList, splitTripTotal } from "@/lib/totalSplit";
 
 const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras", casetas: "Casetas" };
 const money = (n: number, cur: string | null = "MXN") => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? "MXN"}`;
@@ -115,7 +119,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
   const nextOf = (id: string) => nav[nav.findIndex((x) => x.id === id) + 1] ?? null;
   /** Qué falta en un paso (no bloquea: "Siguiente" lo dice). */
   const missingOf = (s: BuyStep): string | null => {
-    if (s.kind === "vuelo") return !s.skipped && s.options.length > 0 && s.chosen < 0 ? "Te falta elegir el vuelo" : null;
+    if (s.kind === "vuelo") return !s.skipped && s.options.length > 0 && s.chosen < 0 ? (s.ground ? "Te falta elegir cómo llegar" : "Te falta elegir el vuelo") : null;
     // El hotel de la cotización (por defecto) no cuenta como elegido: lo mismo que "Falta elegir" del correo y del total.
     if (s.kind === "hospedaje") return !s.skipped && !s.userChosen ? `Te falta elegir hotel${s.city ? ` en ${s.city}` : ""}` : null;
     if (s.kind === "traslado") return s.chosen ? null : `Te falta elegir cómo ir de ${s.from} a ${s.to}`;
@@ -143,7 +147,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
     );
   };
   const box = (done: boolean, id?: string) => `scroll-mt-28 rounded-xl border p-3 sm:p-4 transition-shadow duration-500 ${done ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-border/60 bg-surface/30"} ${id && current === id ? "ring-2 ring-primary/50" : ""}`;
-  const falta = flow.steps.filter((s) => s.kind !== "auto" && !stepDone(s)).map((s) => s.title.replace(/^Hotel/, "hotel").replace(/^Vuelo/, "vuelo"));
+  const falta = flow.steps.filter((s) => s.kind !== "auto" && !stepDone(s)).map((s) => (s.kind === "vuelo" || s.kind === "hospedaje" ? s.title.charAt(0).toLowerCase() + s.title.slice(1) : s.title));
   const travelers = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
 
   async function mark(item: PurchaseItem) {
@@ -269,7 +273,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
             const it = s.item;
             return (
               <li key="vuelo" id={`paso-${s.n}`} className={box(done, `paso-${s.n}`)} data-testid="comprar-vuelo" data-state={it ? state(it) : "pendiente"}>
-                <StepHeader n={s.n} title={s.title} icon={Plane} done={done} />
+                <StepHeader n={s.n} title={s.title} icon={s.ground ? RouteIcon : Plane} done={done} />
                 {it?.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
                 {s.skipped ? (
                   <SkipNote text="Ya tienes vuelo: no suma al total." onUndo={onSelectVuelo ? () => onSelectVuelo(-1) : undefined} />
@@ -278,7 +282,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                     {s.options.length > 0 ? (
                       <>
                       {/* Si todas las opciones vienen de la misma fuente, su insignia va una vez (menos texto por tarjeta). */}
-                      {oneSource(s.options.map((i) => trip.vuelos_json[i])) && (() => { const v0 = trip.vuelos_json[s.options[0]]; return (
+                      {!s.ground && oneSource(s.options.map((i) => trip.vuelos_json[i])) && (() => { const v0 = trip.vuelos_json[s.options[0]]; return (
                         <PriceSourceBadge className="mt-2" source={v0?.fuente_precio} estado={v0?.estado_dato} consultadoAt={v0?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v0?.approximate_dates} />
                       ); })()}
                       {/* Vuelo cotizado en Google Flights por el plan: hora de consulta y aeropuerto real (Siena → FLR). */}
@@ -290,7 +294,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       <div role="radiogroup" aria-label="Opciones de vuelo" className="mt-3 grid grid-cols-1 gap-2">
                         {s.options.map((i) => {
                           const v = trip.vuelos_json[i];
-                          const pp = Number(v?.precio_por_persona) || 0;
+                          const ground = isGroundTripOption(v) ? groundOptionSummary(trip, v) : null;
+                          const pp = ground ? 0 : Number(v?.precio_por_persona) || 0;
                           const chosen = s.chosen === i;
                           return (
                             <button key={i} type="button" role="radio" aria-checked={chosen} data-testid="vuelo-opcion" disabled={!onSelectVuelo}
@@ -298,18 +303,21 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                               className={`w-full min-w-0 rounded-lg border px-3 py-2 text-left transition disabled:cursor-default ${chosen ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40"}`}>
                               <span className="flex items-center justify-between gap-2">
                                 <span className="min-w-0 truncate text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{flightAirlineLabel(v)}{v?.tier && TIER_WORD[v.tier] ? <span className="font-normal text-muted-foreground"> · {TIER_WORD[v.tier]}</span> : null}</span>
-                                <span className="shrink-0 text-sm font-medium tabular-nums">{pp ? money(pp * travelers) : "Sin precio"}</span>
+                                <span className="shrink-0 text-sm font-medium tabular-nums" data-testid="vuelo-opcion-precio">{ground ? ground.price : pp ? money(pp * travelers) : "Sin precio"}</span>
                               </span>
                               <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                                 <span className="min-w-0 truncate">{[flightStopsLabel(v), flightDurationLabel(v)].filter(Boolean).join(" · ")}</span>
                                 {pp > 0 && travelers > 1 && <span className="shrink-0 tabular-nums">{money(pp)} por persona</span>}
                               </span>
                               {flightScheduleLabel(v) && <span className="mt-0.5 block truncate text-xs text-muted-foreground" data-testid="vuelo-horario">{flightScheduleLabel(v)}</span>}
-                              {!oneSource(s.options.map((x) => trip.vuelos_json[x])) && <PriceSourceBadge className="mt-1" source={v?.fuente_precio} estado={v?.estado_dato} consultadoAt={v?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v?.approximate_dates} />}
+                              {ground && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground" data-testid="vuelo-opcion-terrestre">{ground.sub}</span>}
+                              {!ground && !oneSource(s.options.map((x) => trip.vuelos_json[x])) && <PriceSourceBadge className="mt-1" source={v?.fuente_precio} estado={v?.estado_dato} consultadoAt={v?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v?.approximate_dates} />}
                             </button>
                           );
                         })}
                       </div>
+                      {/* Por tierra: casetas reales, gasolina estimada con su fórmula, o "precio en ADO". */}
+                      {s.ground && (() => { const v = trip.vuelos_json[s.chosen >= 0 ? s.chosen : s.options[0]]; return v && isGroundTripOption(v) ? <GroundOptionInfo className="mt-2" trip={trip} option={v} /> : null; })()}
                       </>
                     ) : (
                       <p className="mt-2 text-sm" data-testid="vuelo-sin-precio">Aún no tenemos precio real para esta ruta: búscalo en Google Flights.</p>
@@ -322,7 +330,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {buyButton(it, "comprar-vuelo-abrir")}
                         {markControl(it, "comprar-vuelo")}
-                        {onSelectVuelo && <button type="button" onClick={() => onSelectVuelo(-2)} className="min-h-[32px] text-xs text-muted-foreground underline-offset-2 hover:underline">Ya tengo vuelo</button>}
+                        {onSelectVuelo && <button type="button" onClick={() => onSelectVuelo(-2)} className="min-h-[32px] text-xs text-muted-foreground underline-offset-2 hover:underline">{s.ground ? "Ya sé cómo llego" : "Ya tengo vuelo"}</button>}
                       </div>
                     )}
                     {it && details(it, "comprar-vuelo")}
@@ -579,6 +587,24 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                   </li>
                 ))}
               </ul>
+              {/* Lo que tiene precio real y lo estimado, separados (la suma es el total de abajo). */}
+              {selectionTotal != null && selectionTotal > 0 && d && (() => {
+                const sp = splitTripTotal({ trip, sel: { selVuelo, selTours }, desglose: d, items });
+                return (
+                  <div className="mt-3 space-y-1 border-t border-border/50 pt-3 text-sm" data-testid="comprar-listo-reparto">
+                    <p className="flex items-baseline justify-between gap-3" data-testid="comprar-listo-real">
+                      <span>Total con precios reales{sp.realParts.length ? <span className="block text-[11px] text-muted-foreground">{partsList(sp.realParts)}</span> : null}</span>
+                      <span className="tabular-nums">{money(sp.real)}</span>
+                    </p>
+                    {sp.estimado > 0 && (
+                      <p className="flex items-baseline justify-between gap-3 text-muted-foreground" data-testid="comprar-listo-estimado">
+                        <span>Gastos estimados del viaje ({partsList(sp.estParts)})</span>
+                        <span className="tabular-nums">~{money(sp.estimado)}</span>
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               {selectionTotal != null && selectionTotal > 0 && (
                 <p className="mt-3 flex items-baseline justify-between gap-3 border-t border-border/50 pt-3" data-testid="comprar-listo-total">
                   <span className="text-sm text-muted-foreground">Total del viaje con tu selección<span className="block text-[11px]" data-testid="comprar-listo-total-nota">{estimadosNote ? `${estimadosNote} ` : ""}Comida, {transportRubroLabel(trip).toLowerCase()} y extras son estimados del análisis.</span></span>

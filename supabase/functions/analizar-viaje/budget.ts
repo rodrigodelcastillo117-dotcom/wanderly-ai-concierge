@@ -114,6 +114,8 @@ export type BudgetInput = {
   dias: number;
   viajeros: number;
   notas?: string | null;
+  /** Nivel de hotel que suma el total (el del perfil; por defecto el medio). Solo si algún hotel trae ese `tier`. */
+  hotelTier?: "ahorro" | "equilibrio" | "premium" | null;
 };
 
 /** Procedencia del precio de un renglón (la de la opción que se usó para calcularlo). */
@@ -212,7 +214,8 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
 
   const hoteles: any[] = Array.isArray(a?.hospedaje) ? a.hospedaje : [];
   const ordenados = [...hoteles].sort((x, y) => (Number(x?.precio_por_noche) || 0) - (Number(y?.precio_por_noche) || 0));
-  let hotelReferencia = ordenados.length ? ordenados[Math.floor(ordenados.length / 2)] : null;
+  const porTier = input.hotelTier ? hoteles.find((h) => String(h?.tier ?? "") === input.hotelTier && Number(h?.precio_por_noche) > 0) : null;
+  let hotelReferencia = porTier ?? (ordenados.length ? ordenados[Math.floor(ordenados.length / 2)] : null);
   // El precio en vivo ya es del grupo; uno estimado es por habitación (hotelPriceRooms).
   let roomsPrecio = hotelReferencia ? hotelPriceRooms(hotelReferencia, viajeros) : rooms;
   const hospedajeCompleto = Math.round((Number(hotelReferencia?.precio_por_noche) || 0) * dias * roomsPrecio);

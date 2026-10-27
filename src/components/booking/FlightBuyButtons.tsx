@@ -72,9 +72,11 @@ export function FlightBuyButtons({ option, trip, index = 0 }: { option: any; tri
  */
 export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
   const mode = transportModeOf(option?.modo) ?? transportModeOf(option?.mode);
-  const rawFrom = String(option?.from ?? "");
+  // Un viaje de un destino por carretera (CDMX → Tepoztlán) no trae from/to en la fila: son los del viaje.
+  const single = !option?.from && !option?.to && !option?.ciudad;
+  const rawFrom = String(option?.from ?? (single ? trip?.ciudad_origen ?? "" : ""));
   const from = rawFrom.replace(/\(.*?\)/g, "").trim();
-  const to = String(option?.to ?? option?.ciudad ?? "").trim();
+  const to = String(option?.to ?? option?.ciudad ?? (single ? trip?.destino ?? "" : "")).trim();
   const pickup = stayForCity(trip, to)?.checkin ?? trip?.fecha_salida ?? "";
   const fromAirport = /aeropuerto|airport|\([A-Z]{3}\)/i.test(rawFrom);
   const op = String(option?.aerolinea ?? option?.provider ?? "").trim();
@@ -149,11 +151,21 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
   // Fechas del TRAMO (Madrid → Córdoba se devuelve el 7 may en Córdoba), no las del viaje completo.
   const car = legCarRentalDates(trip, from, to);
   const qs = new URLSearchParams({ city: from || to, ...(to && from ? { dropoff: to } : {}), ...(car.pickup ? { pickup: car.pickup } : {}), ...(car.dropoff ? { return: car.dropoff } : {}), ...(trip?.id ? { trip: trip.id } : {}) });
+  // Sin plan de road trip (viaje corto de un destino): la ruta en Google Maps, no un road trip que no existe.
+  const hasRoadTrip = Array.isArray(trip?.itinerario_json?.logistics?.road_trip?.legs);
+  const route = single && !hasRoadTrip && from && to
+    ? `https://www.google.com/maps/dir/?${new URLSearchParams({ api: "1", origin: from, destination: to, travelmode: "driving" }).toString()}` : null;
   return (
     <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()} data-testid="ground-buy-buttons">
+      {route ? (
+        <a href={route} target="_blank" rel="noopener noreferrer" data-testid="ground-route" className={`${btn} border border-border/70 hover:border-primary/50`}>
+          <RouteIcon className="w-4 h-4" aria-hidden="true" /> Ver ruta en Google Maps <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+        </a>
+      ) : (
       <button type="button" onClick={() => scrollToSection(ROADTRIP_ANCHOR)} className={`${btn} border border-border/70 hover:border-primary/50`}>
         <RouteIcon className="w-4 h-4" aria-hidden="true" /> Ver el road trip
       </button>
+      )}
       <Link to={`/dashboard/autos?${qs.toString()}`} className={`${btn} border border-primary/40 text-primary`}>
         <Car className="w-4 h-4" aria-hidden="true" /> Rentar auto
       </Link>

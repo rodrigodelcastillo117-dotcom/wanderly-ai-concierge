@@ -7,7 +7,7 @@ import { Mail, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { readFunctionError } from "@/lib/functionErrors";
-import { buildSelectionRequest, NOT_READY_LABEL, SEND_LABEL, type SelectionSel } from "@/lib/selectionEmail";
+import { buildSelectionRequest, notReadyLabel, SEND_LABEL, type SelectionSel } from "@/lib/selectionEmail";
 import type { PurchaseMarkRow, TripOfferActionsLike } from "@/lib/purchasePlan";
 import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
 
@@ -107,10 +107,12 @@ export function SendSelectionEmail({ trip, selVuelo, selHospedaje, selTours, sel
         data-testid="enviar-seleccion-boton" data-ready={readiness.ready ? "1" : "0"}
         className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground sm:w-auto">
         <Mail className="w-4 h-4" aria-hidden="true" />
-        {sending ? "Enviando…" : readiness.ready ? SEND_LABEL : NOT_READY_LABEL}
+        {sending ? "Enviando…" : readiness.ready ? SEND_LABEL : notReadyLabel(readiness.missing)}
       </button>
       {!readiness.ready && readiness.missing.length > 0 && (
-        <p className="mt-2 text-xs text-muted-foreground" data-testid="enviar-seleccion-falta">Falta elegir: {readiness.missing.join(" · ")}</p>
+        <p className="mt-2 text-xs text-muted-foreground" data-testid="enviar-seleccion-falta">
+          Falta elegir: {readiness.missing.join(" · ")}. Elígelo arriba, en “Comprar mi viaje” (el hotel de la cotización no cuenta como elegido); luego se activa el botón.
+        </p>
       )}
     </section>
   );

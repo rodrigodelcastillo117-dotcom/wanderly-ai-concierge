@@ -1,0 +1,30 @@
+{
+  "_nota": "SIMULADO con el formato de SerpApi Google Hotels (engine=google_hotels, búsqueda de lista) para el caso CDMX → Tepoztlán (30 oct – 1 nov 2026, 2 adultos). No es una respuesta real guardada: la de producción no se pudo leer (proyecto de Lovable fuera del alcance de la herramienta). 'The Red Tree House' reproduce el caso sospechoso: rate_per_night igual a total_rate en una estancia de 2 noches.",
+  "search_metadata": { "status": "Success" },
+  "search_parameters": { "engine": "google_hotels", "q": "Tepoztlán hotels", "check_in_date": "2026-10-30", "check_out_date": "2026-11-01", "adults": "2", "currency": "USD", "hl": "es", "sort_by": "8" },
+  "properties": [
+    { "type": "hotel", "name": "The Red Tree House", "property_token": "TOKEN_RED_TREE", "link": "https://redtreehouse.example/tepoztlan",
+      "gps_coordinates": { "latitude": 18.986, "longitude": -99.097 }, "check_in_time": "3:00 PM", "check_out_time": "12:00 PM",
+      "rate_per_night": { "lowest": "$725", "extracted_lowest": 725 }, "total_rate": { "lowest": "$725", "extracted_lowest": 725 },
+      "hotel_class": "Hotel de 4 estrellas", "extracted_hotel_class": 4, "overall_rating": 4.8, "reviews": 412,
+      "images": [{ "thumbnail": "https://lh3.googleusercontent.com/redtree=s287-w287-h192-n-k-no" }], "amenities": ["Wifi gratis", "Desayuno incluido"],
+      "prices": [{ "source": "Booking.com", "rate_per_night": { "extracted_lowest": 725 } }] },
+    { "type": "hotel", "name": "Posada del Tepozteco", "property_token": "TOKEN_POSADA",
+      "rate_per_night": { "lowest": "$168", "extracted_lowest": 168, "extracted_before_taxes_fees": 145 }, "total_rate": { "lowest": "$336", "extracted_lowest": 336, "extracted_before_taxes_fees": 290 },
+      "extracted_hotel_class": 4, "overall_rating": 4.6, "reviews": 1890, "images": [{ "thumbnail": "https://lh3.googleusercontent.com/posada=s287" }],
+      "prices": [{ "source": "Expedia" }] },
+    { "type": "hotel", "name": "Hotel Boutique Casa Fernanda", "property_token": "TOKEN_FERNANDA",
+      "rate_per_night": { "lowest": "$214", "extracted_lowest": 214 }, "total_rate": { "lowest": "$428", "extracted_lowest": 428 },
+      "extracted_hotel_class": 4, "overall_rating": 4.7, "reviews": 650 },
+    { "type": "hotel", "name": "Hotel Nilayam", "property_token": "TOKEN_NILAYAM",
+      "rate_per_night": { "lowest": "$96", "extracted_lowest": 96 }, "total_rate": { "lowest": "$192", "extracted_lowest": 192 },
+      "extracted_hotel_class": 3, "overall_rating": 4.4, "reviews": 980 },
+    { "type": "hotel", "name": "Amomoxtli", "property_token": "TOKEN_AMOMOXTLI",
+      "rate_per_night": { "lowest": "$402", "extracted_lowest": 402 }, "total_rate": { "lowest": "$804", "extracted_lowest": 804 },
+      "extracted_hotel_class": 5, "overall_rating": 4.7, "reviews": 1210 },
+    { "type": "hotel", "name": "Hotel Tepoztlán Centro", "property_token": "TOKEN_CENTRO",
+      "rate_per_night": { "lowest": "$71", "extracted_lowest": 71 }, "total_rate": { "lowest": "$142", "extracted_lowest": 142 },
+      "extracted_hotel_class": 3, "overall_rating": 4.1, "reviews": 310 },
+    { "type": "hotel", "name": "Sin calificación", "rate_per_night": { "extracted_lowest": 60 }, "total_rate": { "extracted_lowest": 120 }, "overall_rating": 3.2 }
+  ]
+}

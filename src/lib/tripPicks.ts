@@ -13,11 +13,12 @@
 //    qué" que escribió el análisis para su perfil.
 
 export type PickTier = "economico" | "medio" | "caro";
-export type PickSlot = PickTier | "recomendado";
+/** "lugar": experiencia sin precio real (se muestra sin nivel de precio: "Precio en el sitio"). */
+export type PickSlot = PickTier | "recomendado" | "lugar";
 export type PickKind = "restaurante" | "experiencia";
 
 export const TIER_LABEL: Record<PickTier, string> = { economico: "Económico", medio: "Medio", caro: "Caro" };
-export const SLOT_LABEL: Record<PickSlot, string> = { ...TIER_LABEL, recomendado: "Recomendado por IATOS" };
+export const SLOT_LABEL: Record<PickSlot, string> = { ...TIER_LABEL, recomendado: "Recomendado por IATOS", lugar: "Para visitar" };
 export const MISSING_LABEL: Record<PickTier, string> = {
   economico: "Sin opción económica verificada",
   medio: "Sin opción de precio medio verificada",
@@ -106,12 +107,25 @@ export function restaurantTier(r: any): PickTier | null {
   return null;
 }
 
-/** Nivel de una experiencia por su precio por persona (MXN). Gratis cuenta como económica. */
+/**
+ * ¿El precio por persona de la experiencia es real? analizar-viaje marca TODO precio de tour como
+ * "ESTIMADO" (lo escribe la IA: "$50 MXN" de una cascada sin fuente); solo un precio en vivo (Viator,
+ * GetYourGuide…) cuenta. Sin estado (datos de otra fuente), se respeta como antes.
+ */
+export function tourHasRealPrice(t: any): boolean {
+  const p = Number(t?.precio_por_persona);
+  if (!(Number.isFinite(p) && p > 0)) return false;
+  const estado = String(t?.estado_dato ?? "").toUpperCase();
+  return estado !== "ESTIMADO";
+}
+
+/** Nivel de una experiencia por su precio por persona REAL (MXN). Gratis cuenta como económica. */
 export function tourTier(t: any): PickTier | null {
   const free = /\bgratis\b|\bfree\b/i.test(String(t?.precio ?? t?.nombre ?? "")) && !(Number(t?.precio_por_persona) > 0);
   if (free) return "economico";
+  if (!tourHasRealPrice(t)) return null;
   const p = Number(t?.precio_por_persona);
-  return Number.isFinite(p) && p > 0 ? byThreshold(p, TOUR_MXN) : null;
+  return byThreshold(p, TOUR_MXN);
 }
 
 export const tierOf = (kind: PickKind, x: any) => (kind === "restaurante" ? restaurantTier(x) : tourTier(x));
@@ -239,5 +253,25 @@ export function buildPickCards(list: any[], indices: number[], kind: PickKind, t
   });
   const rec = pinned ?? recommend(list, indices.filter((i) => !used.has(i)), kind, taste) ?? forProfile;
   if (rec) cards.push({ slot: "recomendado", index: rec.index, reason: rec.reason });
+  // Experiencias sin precio real (caso Tepoztlán: Tepozteco, Cascada de los Venaditos…): se muestran sin
+  // nivel de precio ("Para visitar · Precio en el sitio") en vez de quedar fuera o con un precio inventado.
+  if (kind === "experiencia") {
+    for (const i of indices) {
+      const x = list[i];
+      // Solo las que tienen un precio de la IA que no se muestra (estado ESTIMADO): sin precio alguno se quedan como antes.
+      if (used.has(i) || i === rec?.index || tierOf(kind, x) || String(x?.estado_dato ?? "").toUpperCase() !== "ESTIMADO") continue;
+      cards.push({ slot: "lugar", index: i });
+    }
+  }
   return cards;
+}
+
+/** Niveles sin opción verificada, en palabras: "No encontramos opciones verificadas de nivel alto aquí." */
+const TIER_WORDS: Record<PickTier, string> = { economico: "económico", medio: "medio", caro: "alto" };
+export function missingTiersLine(cards: PickCard[]): string | null {
+  const missing = cards.filter((c): c is Extract<PickCard, { index: null }> => c.index == null).map((c) => c.slot as PickTier);
+  if (!missing.length) return null;
+  if (missing.length === 3) return "Sin precios verificados para ordenarlos por nivel: el precio se confirma en el sitio.";
+  const words = missing.map((t) => TIER_WORDS[t]);
+  return `No encontramos opciones verificadas de nivel ${words.join(" ni ")} aquí.`;
 }
