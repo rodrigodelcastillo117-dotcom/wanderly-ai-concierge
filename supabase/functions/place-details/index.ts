@@ -23,6 +23,13 @@ const FIELD_MASK = [
   "photos",
   "reviews",
   "editorialSummary",
+  // Restaurantes: reservable y comidas (mismo SKU Enterprise + Atmosphere que ya cobran reviews y
+  // editorialSummary, Places data fields consultado 2026-10-27).
+  "reservable",
+  "servesBreakfast",
+  "servesBrunch",
+  "servesLunch",
+  "servesDinner",
 ].join(",");
 
 Deno.serve(async (req) => {
@@ -86,6 +93,14 @@ Deno.serve(async (req) => {
       primary_type: p.primaryType ?? null,
       types: p.types ?? [],
       phone: p.nationalPhoneNumber ?? p.internationalPhoneNumber ?? null,
+      phone_international: p.internationalPhoneNumber ?? null,
+      reservable: typeof p.reservable === "boolean" ? p.reservable : null,
+      sirve: {
+        desayuno: typeof p.servesBreakfast === "boolean" ? p.servesBreakfast : null,
+        brunch: typeof p.servesBrunch === "boolean" ? p.servesBrunch : null,
+        comida: typeof p.servesLunch === "boolean" ? p.servesLunch : null,
+        cena: typeof p.servesDinner === "boolean" ? p.servesDinner : null,
+      },
       website: p.websiteUri ?? null,
       maps_url: p.googleMapsUri ?? null,
       business_status: p.businessStatus ?? null,

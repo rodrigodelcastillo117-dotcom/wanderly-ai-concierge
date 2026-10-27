@@ -75,10 +75,11 @@ export function useTripPurchaseMarks({ trip, userId, bookings }: { trip: TripLik
     return marksFromBookings(rows, userId);
   }, [mode, groupMap, rows, userId]);
 
-  const mark = useCallback(async (item: PurchaseItem): Promise<MarkResult> => {
+  const mark = useCallback(async (item: PurchaseItem, extra?: { confirmacion?: string | null; ciudad?: string | null }): Promise<MarkResult> => {
     if (!userId || !tripId) return { ok: false, reason: "sin_sesion" };
     // 1) La constancia personal en bookings (pending: lo marcó el usuario, sin verificar), como antes.
-    const res: any = await safe(() => supabase.from("bookings").insert(markRow(item, trip, userId) as any).select(BOOKING_COLUMNS).single());
+    // Experiencias: número de confirmación opcional (raw_payload.confirmacion_usuario).
+    const res: any = await safe(() => supabase.from("bookings").insert(markRow(item, trip, userId, new Date(), extra ?? {}) as any).select(BOOKING_COLUMNS).single());
     if (res?.error || !res?.data) return { ok: false, reason: "error" };
     setLocalRows([...(rows ?? []), res.data as PurchaseMarkRow]);
     if (mode === "propio") return { ok: true };

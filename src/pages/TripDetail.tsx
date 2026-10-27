@@ -43,6 +43,8 @@ import { groundOptionsForCity, legOptionsFor, transportRubroLabel } from "@/lib/
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
+import { TripExperiencias } from "@/components/trip/TripExperiencias";
+import { tripCities } from "@/lib/experiencias";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
 import { SendSelectionEmail } from "@/components/booking/SendSelectionEmail";
@@ -445,6 +447,8 @@ const TripDetail = () => {
     { id: "comprar", label: "Comprar" },
     ...(hasRoadTrip ? [{ id: "ruta" as TripSection, label: "Ruta" }] : []),
     { id: "destinos", label: "Destinos" },
+    // Lo TOP de cada ciudad (restaurantes, museos, tours y experiencias) con reserva real e itinerario.
+    { id: "experiencias", label: "Experiencias" },
     { id: "documentos", label: "Documentos" },
   ];
   const showSection = (id: TripSection) => {
@@ -986,6 +990,11 @@ const TripDetail = () => {
           </details>
         )}
 
+        </div>
+
+        <div role="tabpanel" id="panel-experiencias" aria-labelledby="tab-experiencias" data-trip-panel="experiencias" hidden={section !== "experiencias"} className="space-y-6">
+          {/* Sin llamadas al abrir: cada ciudad busca solo al pulsar "Buscar lo TOP de {ciudad}". */}
+          <TripExperiencias trip={trip} cities={tripCities(trip, cityKeyFor)} multi={isMulti} marks={purchaseMarks as any} userId={user?.id ?? null} onSaved={loadTrip} />
         </div>
 
         <div role="tabpanel" id="panel-documentos" aria-labelledby="tab-documentos" data-trip-panel="documentos" hidden={section !== "documentos"} className="space-y-6">

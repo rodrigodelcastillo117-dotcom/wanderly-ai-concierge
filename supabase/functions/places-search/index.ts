@@ -1,7 +1,19 @@
-// Places API (New) - Text Search
+// Places API (New) - Text Search. La usa Iato (search_places). Usa el transporte y los presets de
+// _shared/google-places.ts (antes armaba su propia máscara):
+//   * consulta de comida (restaurante, cena, desayuno, brunch, trattoria…) o `food`/`meal` → preset
+//     "atmosphere" (Text Search Enterprise + Atmosphere): trae reservable, servesBreakfast/Brunch/
+//     Lunch/Dinner, sitio, teléfonos, nivel de precio y horario. Solo cuando el usuario busca.
+//   * cualquier otra → preset "rich" (Text Search Enterprise, el mismo SKU que la máscara anterior:
+//     rating, nivel de precio, sitio y horario) + teléfonos.
+// `meal` ("desayuno" | "brunch" | "comida" | "cena") filtra con los campos serves* reales de Google
+// (sin dato no entra). La llave de Google vive solo en el servidor.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { googleTransportFor } from "../_shared/google-runtime.ts";
+import { googleErrorMessage } from "../_shared/google-maps.ts";
+import { type PriceLevel, searchText } from "../_shared/google-places.ts";
+import { placesSearchOutput, placesSearchPreset } from "./shape.ts";
 
 type Body = {
   query: string;
@@ -14,24 +26,16 @@ type Body = {
   openNow?: boolean;
   minRating?: number;
   priceLevels?: string[]; // PRICE_LEVEL_FREE, INEXPENSIVE, MODERATE, EXPENSIVE, VERY_EXPENSIVE
+  /** Pide los campos de restaurante (reservable, sirve desayuno/comida/cena). */
+  food?: boolean;
+  /** Filtra por comida con servesBreakfast/Brunch/Lunch/Dinner. */
+  meal?: string;
+  /** Ciudad para armar "Reservar en TheFork". */
+  city?: string;
 };
 
-const FIELD_MASK = [
-  "places.id",
-  "places.displayName",
-  "places.formattedAddress",
-  "places.location",
-  "places.rating",
-  "places.userRatingCount",
-  "places.priceLevel",
-  "places.types",
-  "places.primaryType",
-  "places.googleMapsUri",
-  "places.websiteUri",
-  "places.photos",
-  "places.currentOpeningHours.openNow",
-  "places.businessStatus",
-].join(",");
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -41,83 +45,29 @@ Deno.serve(async (req) => {
   const __rl = await enforceRateLimit(req, "places-search", __user.id, { perMinute: 30, perHour: 300, ipPerMinute: 80 });
   if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
-
   try {
-    const key = Deno.env.get("GOOGLE_MAPS_API_KEY");
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!key || !lovableKey) {
-      return new Response(JSON.stringify({ error: "GOOGLE_MAPS_API_KEY no configurada" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const transport = googleTransportFor("places-search", __user.id);
+    if (!transport) return json({ error: "GOOGLE_MAPS_API_KEY no configurada" }, 500);
 
     const body = (await req.json()) as Body;
-    if (!body?.query || typeof body.query !== "string" || body.query.trim().length === 0) {
-      return new Response(JSON.stringify({ error: "query requerido" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!body?.query || typeof body.query !== "string" || body.query.trim().length === 0) return json({ error: "query requerido" }, 400);
 
-    const payload: Record<string, unknown> = {
-      textQuery: body.query.trim(),
-      languageCode: body.language ?? "es",
-      maxResultCount: Math.min(Math.max(body.maxResults ?? 10, 1), 20),
-    };
-    if (body.region) payload.regionCode = body.region;
-    if (typeof body.openNow === "boolean") payload.openNow = body.openNow;
-    if (typeof body.minRating === "number") payload.minRating = body.minRating;
-    if (body.priceLevels?.length) payload.priceLevels = body.priceLevels;
-    if (typeof body.lat === "number" && typeof body.lng === "number") {
-      payload.locationBias = {
-        circle: {
-          center: { latitude: body.lat, longitude: body.lng },
-          radius: Math.min(Math.max(body.radius ?? 5000, 1), 50000),
-        },
-      };
-    }
-
-    const res = await fetch("https://connector-gateway.lovable.dev/google_maps/places/v1/places:searchText", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${lovableKey}`, "X-Connection-Api-Key": key,
-        "X-Goog-FieldMask": FIELD_MASK,
-      },
-      body: JSON.stringify(payload),
+    const preset = placesSearchPreset(body);
+    const r = await searchText(transport, {
+      query: body.query.trim(),
+      language: body.language ?? "es",
+      region: body.region,
+      maxResults: Math.min(Math.max(body.maxResults ?? 10, 1), 20),
+      openNow: typeof body.openNow === "boolean" ? body.openNow : undefined,
+      minRating: typeof body.minRating === "number" ? body.minRating : undefined,
+      priceLevels: Array.isArray(body.priceLevels) ? body.priceLevels.filter((x): x is PriceLevel => typeof x === "string" && x.startsWith("PRICE_LEVEL_")) : undefined,
+      near: typeof body.lat === "number" && typeof body.lng === "number" ? { lat: body.lat, lng: body.lng, radius: body.radius ?? 5000 } : undefined,
+      preset,
+      dropClosed: true,
     });
-
-    const data = await res.json();
-    if (!res.ok) {
-      return new Response(JSON.stringify({ error: data?.error?.message ?? "Places searchText error", raw: data }), {
-        status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const results = (data.places ?? []).map((p: any) => ({
-      id: p.id,
-      name: p.displayName?.text ?? null,
-      address: p.formattedAddress ?? null,
-      lat: p.location?.latitude ?? null,
-      lng: p.location?.longitude ?? null,
-      rating: p.rating ?? null,
-      ratings_count: p.userRatingCount ?? 0,
-      price_level: p.priceLevel ?? null,
-      primary_type: p.primaryType ?? null,
-      types: p.types ?? [],
-      maps_url: p.googleMapsUri ?? null,
-      website: p.websiteUri ?? null,
-      open_now: p.currentOpeningHours?.openNow ?? null,
-      business_status: p.businessStatus ?? null,
-      photo_ref: p.photos?.[0]?.name ?? null,
-      source: "Google Places (New)",
-    }));
-
-    return new Response(JSON.stringify({ results }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (!r.ok) return json({ error: googleErrorMessage(r.error.kind), kind: r.error.kind }, r.error.status >= 400 ? r.error.status : 502);
+    return json(placesSearchOutput(r.places, body, preset));
   } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message ?? "Error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: (err as Error).message ?? "Error" }, 500);
   }
 });
