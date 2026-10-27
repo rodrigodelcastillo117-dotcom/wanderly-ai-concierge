@@ -1,7 +1,7 @@
 import { tripCountryLabel } from "@/lib/booking";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Pencil, Users, Sparkles, Plus, Trash2, LogOut, RefreshCw, MapPin, FileUp } from "lucide-react";
+import { Pencil, Users, Sparkles, Plus, Trash2, LogOut, RefreshCw, MapPin, FileUp, Hotel } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -31,6 +31,10 @@ import { groupTripsForList } from "@/lib/tripList";
 import { tripTiming } from "@/lib/tripCommand";
 import { formatTripDateRange, localISODate } from "@/lib/localDate";
 import { formatPaid, PAID_LABEL } from "@/lib/tripImport";
+import { isBroughtTrip } from "@/lib/broughtTrip";
+
+// "Ya tengo vuelos y hotel": la misma ventana de Planear, abierta en ese modo (solo se descarga al pulsar).
+const PlanTripDialog = lazy(() => import("@/components/plan/PlanTripDialog"));
 
 const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: string; onDeleted: (id: string) => void; bookings?: BookingLike[] }) => {
   const [deleting, setDeleting] = useState(false);
@@ -119,7 +123,9 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
           <div className="mb-3 flex items-center gap-2 flex-wrap">
             {t.fuente === "documento"
               ? <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] rounded-full border border-primary/40 text-primary px-2 py-0.5"><FileUp className="w-3 h-3" aria-hidden="true" /> De tus documentos</span>
-              : <BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact />}
+              : isBroughtTrip(t)
+                ? <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] rounded-full border border-primary/40 text-primary px-2 py-0.5"><Hotel className="w-3 h-3" aria-hidden="true" /> Lo trajiste tú</span>
+                : <BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact />}
           </div>
           <div className="flex items-end justify-between gap-3 text-sm text-muted-foreground">
             <span className="min-w-0">
@@ -143,6 +149,8 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
               ) : (
                 <span className="text-xs text-muted-foreground shrink-0 text-right">Sin precio en tus documentos</span>
               )
+            ) : isBroughtTrip(t) ? (
+              <span className="text-xs text-muted-foreground shrink-0 text-right">Vuelos y hotel: ya los tienes</span>
             ) : /* Un borrador no cuesta "$0": se dice que aún no tiene cotización. */ Number(t.total_estimado) > 0 ? (
               <span className="text-right shrink-0">
                 <span className="block text-foreground font-medium">${Math.round(Number(t.total_estimado)).toLocaleString("es-MX")} MXN</span>
@@ -167,6 +175,9 @@ const Trips = () => {
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [tripBookings, setTripBookings] = useState<Map<string, BookingLike[]>>(new Map());
+  const [broughtOpen, setBroughtOpen] = useState(false);
+  const [broughtMounted, setBroughtMounted] = useState(false);
+  const openBrought = () => { setBroughtMounted(true); setBroughtOpen(true); };
 
   useEffect(() => {
     if (!user) return;
@@ -235,6 +246,10 @@ const Trips = () => {
             >
               <FileUp className="w-3.5 h-3.5" aria-hidden="true" /> Sube un viaje que ya hiciste
             </Link>
+            <button type="button" onClick={openBrought} data-testid="trips-ya-tengo"
+              className="mt-2 self-start inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-black/40 backdrop-blur px-3.5 min-h-10 text-xs text-primary hover:bg-primary/10">
+              <Hotel className="w-3.5 h-3.5" aria-hidden="true" /> Ya tengo vuelos y hotel
+            </button>
           </div>
         </section>
 
@@ -256,6 +271,9 @@ const Trips = () => {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button onClick={() => navigate("/dashboard/planear")} className="bg-gradient-gold text-primary-foreground gold-glow rounded-2xl min-h-[48px] px-6">
                 <Plus className="w-4 h-4 mr-2" /> Crear mi primer viaje
+              </Button>
+              <Button variant="outline" onClick={openBrought} className="rounded-2xl min-h-[48px] px-6 border-primary/40">
+                <Hotel className="w-4 h-4 mr-2" aria-hidden="true" /> Ya tengo vuelos y hotel
               </Button>
               <Button variant="outline" onClick={() => navigate("/dashboard/viajes/importar")} className="rounded-2xl min-h-[48px] px-6 border-primary/40">
                 <FileUp className="w-4 h-4 mr-2" aria-hidden="true" /> Sube un viaje que ya hiciste
@@ -279,6 +297,11 @@ const Trips = () => {
           ))
         )}
       </div>
+      {broughtMounted && (
+        <Suspense fallback={null}>
+          <PlanTripDialog open={broughtOpen} onOpenChange={setBroughtOpen} startMode="traido" />
+        </Suspense>
+      )}
     </DashboardLayout>
   );
 };

@@ -5,6 +5,9 @@
 //
 // Gasto: abrir la ventana solo LEE la caché compartida (fetchExplore sin live). Una búsqueda de
 // precios nueva solo ocurre al pulsar "Explorar destinos" (en esa pantalla, con cuota y freno).
+//
+// "Ya tengo vuelos y hotel" (BroughtTripForm): crea el viaje con lo que la persona ya compró, sin
+// buscar vuelos ni hoteles. En ese modo ni siquiera se lee la caché de "Vuelos baratos".
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeftRight, CalendarDays, Minus, Plus, Search, Sparkles, Trash2, Users, Map as MapIcon, MapPin } from "lucide-react";
@@ -24,6 +27,9 @@ import {
 import { PlaceCombobox } from "./PlaceCombobox";
 import { FareCard } from "./DestinationCards";
 import { ExploreMap } from "./ExploreMap";
+import { BroughtTripForm } from "./BroughtTripForm";
+
+export type PlanDialogMode = "buscar" | "traido";
 
 const KINDS: Array<{ k: TripKind; label: string }> = [
   { k: "redondo", label: "Ida y vuelta" },
@@ -63,9 +69,11 @@ function DateField({ id, label, value, min, onChange }: { id: string; label: str
   );
 }
 
-export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function PlanTripDialog({ open, onOpenChange, startMode = "buscar" }: { open: boolean; onOpenChange: (o: boolean) => void; startMode?: PlanDialogMode }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [mode, setMode] = useState<PlanDialogMode>(startMode);
+  useEffect(() => { if (open) setMode(startMode); }, [open, startMode]);
   const [kind, setKind] = useState<TripKind>("redondo");
   const [adults, setAdults] = useState(2);
   const [minors, setMinors] = useState(0);
@@ -113,7 +121,7 @@ export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
   // "Vuelos baratos desde…": solo la caché vigente (sin gasto). Se lee al abrir y al cambiar de chip.
   useEffect(() => {
-    if (!open) return;
+    if (!open || mode !== "buscar") return;
     let alive = true;
     const memo = cachedExplore(cheapFrom);
     if (memo) { setCheap(memo); return; }
@@ -123,7 +131,7 @@ export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       .catch(() => alive && setCheap({ estado: "sin_precios", motivo: "No pudimos leer los precios guardados ahora.", limite: false }))
       .finally(() => alive && setCheapLoading(false));
     return () => { alive = false; };
-  }, [open, cheapFrom]);
+  }, [open, cheapFrom, mode]);
 
   const chips = useMemo(() => originChips(userOrigin), [userOrigin]);
   const travelersText = `${adults + minors} ${adults + minors === 1 ? "pasajero" : "pasajeros"}`;
@@ -191,8 +199,24 @@ export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenCh
         <div className="px-4 pb-6 pt-5 sm:px-7 sm:pt-7">
           <DialogTitle className="font-display text-xl text-foreground">Planear viaje</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-muted-foreground">
-            Dinos de dónde sales y a dónde vas. Te llevamos al plan con todo lleno para que lo revises.
+            {mode === "traido"
+              ? "Ya tienes vuelos y hotel: guarda tu viaje y planea lo demás."
+              : "Dinos de dónde sales y a dónde vas. Te llevamos al plan con todo lleno para que lo revises."}
           </DialogDescription>
+
+          {/* ¿Buscar vuelos y hotel o ya los tiene? */}
+          <div role="radiogroup" aria-label="¿Ya tienes vuelos y hotel?" className="mt-4 grid grid-cols-2 gap-1 rounded-2xl border border-primary/20 bg-black/40 p-1 sm:inline-grid sm:w-auto">
+            {([["buscar", "Buscar vuelos y hotel"], ["traido", "Ya tengo vuelos y hotel"]] as const).map(([m, label]) => (
+              <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} data-testid={`plan-modo-${m}`}
+                className={`rounded-xl px-3 py-2 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${mode === m ? "bg-gradient-gold text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {mode === "traido" ? (
+            <BroughtTripForm origin={userOrigin} onDone={(tripId) => go(`/dashboard/viajes/${tripId}`)} />
+          ) : (<>
 
           {/* Tipo de viaje, pasajeros y clase */}
           <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -338,6 +362,7 @@ export function PlanTripDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               <MapPin aria-hidden className="h-3 w-3" /> Precios de referencia por persona, ida y vuelta, en clase turista. Se vuelven a consultar antes de comprar.
             </p>
           </section>
+          </>)}
         </div>
       </DialogContent>
     </Dialog>
