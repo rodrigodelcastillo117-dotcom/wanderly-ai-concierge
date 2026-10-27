@@ -11,6 +11,8 @@ const IN_PAGE_TARGET: Record<string, string[]> = {
   revisar_precios: ["trip-total"],
   // "Elige y reserva" lleva a "Comprar mi viaje" (cierre 2) y, si la página no la muestra, a los destinos.
   reservar: ["trip-comprar", "trip-destinos"],
+  // Viaje traído ("Ya tengo mi viaje"): restaurantes y experiencias están en "Comprar".
+  experiencias: ["paso-extras", "trip-comprar"],
 };
 
 export function scrollToSection(id: string) {

@@ -42,7 +42,8 @@ export function quotedHotelForCity(trip: any, city: string): number {
 /** ¿El viaje es multi-destino con hoteles por ciudad? */
 export function hasCityHotels(trip: any): boolean {
   const list: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
-  return cityStays(trip).length > 1 && list.some((h) => h?.ciudad);
+  // Un viaje traído ("Ya tengo mi viaje") va por ciudad aunque no haya dicho su hotel en todas.
+  return cityStays(trip).length > 1 && (list.some((h) => h?.ciudad) || trip?.itinerario_json?.traido === true);
 }
 
 /**
