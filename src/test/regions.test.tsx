@@ -14,6 +14,7 @@ describe("regiones → ciudades base (tabla curada)", () => {
     expect(r.nightsPerCity).toEqual([3, 2, 2, 2, 2]);
     expect(r.expansions).toEqual([{ region: "Toscana", ciudades: ["Siena", "Lucca"] }]);
     expect(expansionLine(r.expansions[0])).toBe("Toscana: te armamos la ruta por Siena y Lucca");
+    expect(expansionLine(r.expansions[0], { brought: true })).toBe("Toscana: tu ruta por Siena y Lucca");
   });
 
   it("noches: ≤2 → 1 base; 5+ → 3 bases con el reparto", () => {

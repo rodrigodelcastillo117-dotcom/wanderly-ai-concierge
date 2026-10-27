@@ -527,7 +527,7 @@ const TripDetail = () => {
           {isMulti && Array.isArray(itinObj.region_expansions) && itinObj.region_expansions.length > 0 && (
             <div className="mb-3 space-y-0.5" data-testid="region-expansions">
               {itinObj.region_expansions.map((e: RegionExpansion) => (
-                <p key={e.region} className="text-xs text-primary">{expansionLine(e)}</p>
+                <p key={e.region} className="text-xs text-primary">{expansionLine(e, { brought })}</p>
               ))}
             </div>
           )}
