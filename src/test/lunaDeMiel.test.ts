@@ -14,7 +14,7 @@ import {
 import { matchOfficialTicket, OFFICIAL_TICKETS, officialTicketsForCity, viatorAlternativeUrl } from "../../supabase/functions/_shared/officialTickets";
 import { checkAllowlisted, checkTrustedSource, looksLikeBrandImpersonation } from "../../supabase/functions/_shared/booking/allowlist";
 import { placesSearchOutput, placesSearchPreset } from "../../supabase/functions/places-search/shape";
-import { runExperiencias, wowQueries } from "../../supabase/functions/_shared/experiencias";
+import { runExperiencias, TOUR_QUERIES, wowQueries } from "../../supabase/functions/_shared/experiencias";
 import { mapViatorProducts, type ViatorResult } from "../../supabase/functions/_shared/viator";
 import { enforceNoFakeBooking, NOT_BOOKED_LINE } from "../../supabase/functions/concierge-chat/guard";
 import { collectEvidence, enrichCardLinks } from "../../supabase/functions/concierge-chat/cards";
@@ -194,7 +194,7 @@ describe("experiencias-top (runExperiencias)", () => {
     expect(out.tours.results.map((t: any) => t.codigo)).toEqual(["FLR-COCINA", "FLR-VINO"]);
     expect(out.tours.aviso).toMatch(/4\.6★ o más con 300 reseñas o más en Viator\. Solo 2 cumplen/);
     expect(out.wow.consultas).toEqual(wowQueries("Florencia"));
-    expect(vq.map((a) => a.query ?? null)).toEqual(["tour", "cata de vino Toscana", "clase de cocina"]);
+    expect(vq.map((a) => a.query ?? null)).toEqual([...TOUR_QUERIES, "cata de vino Toscana", "clase de cocina"]);
     expect(out.eventos.ok).toBe(false);
   });
   it("con hotel por nombre: lo ubica en Google y mide desde ahí; la consulta «cena romántica» va tal cual", async () => {

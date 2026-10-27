@@ -116,6 +116,9 @@ const viatorFail = (r: ViatorResult): ViatorBlock => ({
   motivo: r.ok ? "Viator no publicó tours para esta búsqueda." : (r as { motivo: string }).motivo,
 });
 
+/** Consultas de Viator para "TOP tours" (por relevancia; se unen sin repetir). */
+export const TOUR_QUERIES = ["walking tour", "excursión de un día", "visita guiada", "tour"];
+
 export async function runExperiencias(input: ExperienciasInput, d: ExperienciasDeps) {
   const city = clean(input.city, 80);
   if (!city) return { ok: false as const, code: "falta_ciudad", motivo: "Falta la ciudad." };
@@ -148,7 +151,18 @@ export async function runExperiencias(input: ExperienciasInput, d: ExperienciasD
     : null;
   // Búsqueda por relevancia ("tour"): ordenar por TRAVELER_RATING trae 5★ con pocas reseñas que el
   // criterio TOP (≥300 reseñas) descarta; la relevancia de Viator trae los tours populares (prueba real 27-oct).
-  const toursP = blocks.has("tours") ? d.viator({ city, query: "tour", date_from: from, date_to: to, currency: "MXN", max: 12 }) : null;
+  // Varias consultas (Viator no cobra por búsqueda; caché de 6 h) y se unen sin repetir: una sola dejaba
+  // 1 tour que cumplía el criterio en Florencia.
+  const toursP: Promise<ViatorResult> | null = blocks.has("tours")
+    ? Promise.all(TOUR_QUERIES.map((q) => d.viator({ city, query: q, date_from: from, date_to: to, currency: "MXN", max: 12 }))).then((rs) => {
+      const oks = rs.filter((r) => r.ok) as Extract<ViatorResult, { ok: true }>[];
+      if (!oks.length) return rs[0];
+      const seenT = new Set<string>();
+      const results: ViatorTour[] = [];
+      for (const r of oks) for (const t of r.results) if (!seenT.has(t.codigo)) { seenT.add(t.codigo); results.push(t); }
+      return { ...oks[0], results } as ViatorResult;
+    })
+    : null;
   const wq = blocks.has("wow") ? wowQueries(city) : [];
   const wowP = Promise.all(wq.map((q) => d.viator({ city, query: q, date_from: from, date_to: to, currency: "MXN", max: 12 })));
   const evP = blocks.has("eventos") && d.ticketmaster && from
