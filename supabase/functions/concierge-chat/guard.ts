@@ -184,10 +184,11 @@ export function correctFailureClaims(text: string, states: Record<string, string
       (_m, de: string | undefined) => `la búsqueda${de ?? ""} no encontró resultados`);
 }
 
-const FIRST_PERSON_BOOKING = /\b(?:ya\s+)?(?:te\s+|les\s+)?(?:reservé|hice\s+(?:la|tu|su)\s+reserva(?:ci[oó]n)?|confirmé\s+(?:tu|la|su)\s+(?:mesa|reserva(?:ci[oó]n)?|habitaci[oó]n|lugar)|(?:te|les)\s+aparté)(?![\wáéíóúñ])/i;
+const FIRST_PERSON_BOOKING = /\b(?:ya\s+)?(?:te\s+|les\s+)?(?:reservé|hice\s+(?:la|tu|su)\s+reserva(?:ci[oó]n)?|confirmé\s+(?:tu|la|su)\s+(?:mesa|reserva(?:ci[oó]n)?|habitaci[oó]n|lugar)|(?:te|les)\s+aparté|(?:te|les)\s+consegu[ií]\s+(?:una\s+|la\s+|tu\s+|los\s+|sus\s+)?(?:mesa|lugar|boletos?|entradas?|reserva(?:ci[oó]n)?))(?![\wáéíóúñ])/i;
 const STATE_BOOKING = /\b(?:tu|la|su)\s+(?:mesa|reserva(?:ci[oó]n)?|habitaci[oó]n|cena)(?:\s+(?:en|de|del|para)\s+[^.,;!?]{1,40}?)?\s+(?:ya\s+)?(?:est[aá]|qued[oó])\s+(?:confirmad[ao]|reservad[ao]|list[ao]|apartad[ao])\b|\breserva(?:ci[oó]n)?\s+confirmada\b/i;
 // God Mode F1: "ya quedó reservado" y "tu boleto ya está comprado" (abrir un enlace no es compra).
-const STATE_BOOKED_OR_BOUGHT = /\b(?:ya\s+)(?:est[aá]|qued[oó])\s+reservad[ao]s?\b|\b(?:tu|tus|el|los|su|sus)\s+(?:vuelos?|boletos?|billetes?|entradas?|hotel(?:es)?|tour(?:s)?)\s+(?:ya\s+)?(?:est[aá]n?|qued[oó]|quedaron)\s+(?:comprad[oa]s?|pagad[oa]s?)\b/i;
+// Luna de miel (27-oct): "ya tienes mesa en…", "tienes tus boletos del Vaticano", "¡Listo, reservado!".
+const STATE_BOOKED_OR_BOUGHT = /\b(?:ya\s+)(?:est[aá]|qued[oó])\s+reservad[ao]s?\b|\b(?:ya\s+)?tienes\s+(?:tu\s+|tus\s+|una\s+|la\s+|los\s+)?(?:mesa|reserva(?:ci[oó]n)?|boletos?|entradas?)\b(?!\s+que)|\blisto[,!.]?\s+(?:est[aá]\s+|qued[oó]\s+)?reservad[ao]s?\b|\b(?:tu|tus|el|los|su|sus)\s+(?:vuelos?|boletos?|billetes?|entradas?|hotel(?:es)?|tour(?:s)?)\s+(?:ya\s+)?(?:est[aá]n?|qued[oó]|quedaron)\s+(?:comprad[oa]s?|pagad[oa]s?)\b/i;
 
 export const NOT_BOOKED_LINE = "Aún no está reservado: Iato no puede reservar directamente. Te dejo el camino más corto para hacerlo o pedírselo al Fixer.";
 
@@ -205,7 +206,8 @@ export function enforceNoFakeBooking(text: string, opts: {
   const sentences = t.split(/(?<=[.!?])\s+/);
   let changed = false;
   const kept = sentences.filter((s) => {
-    const bought = STATE_BOOKED_OR_BOUGHT.test(s) && !/^\W*(?:si|cuando|en\s+cuanto)\b/i.test(s); // "Si tu vuelo ya está pagado…" es condicional
+    // "Si tu vuelo ya está pagado…" es condicional; "¿Ya tienes boletos?" es una pregunta.
+    const bought = STATE_BOOKED_OR_BOUGHT.test(s) && !/^\W*(?:si|cuando|en\s+cuanto)\b/i.test(s) && !/\?\s*$/.test(s.trim());
     const bad = FIRST_PERSON_BOOKING.test(s) || (!opts.hasConfirmedBookings && (STATE_BOOKING.test(s) || bought));
     if (bad) changed = true;
     return !bad;

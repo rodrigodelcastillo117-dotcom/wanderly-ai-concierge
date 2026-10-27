@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, BadgeCheck, BedDouble, Car, ExternalLink, Globe, Landmark, Luggage, MapPin, Navigation, Phone, Plane, Sparkles, Star,
-  Utensils, UserRound, CalendarCheck, Link2, Ticket, Navigation2,
+  Utensils, UserRound, CalendarCheck, Link2, Ticket, Navigation2, MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SmartImage } from "@/components/media/SmartImage";
@@ -348,7 +348,7 @@ function airlineOf(card: ConciergeCard): string | null {
 }
 
 const LINK_ICON: Record<CardLink["kind"], typeof Navigation> = {
-  directions: Navigation, ride: Car, call: Phone, website: Globe, maps: MapPin, booking: CalendarCheck, tickets: Ticket,
+  directions: Navigation, ride: Car, call: Phone, website: Globe, maps: MapPin, booking: CalendarCheck, tickets: Ticket, whatsapp: MessageCircle,
 };
 
 /**
@@ -358,8 +358,17 @@ const LINK_ICON: Record<CardLink["kind"], typeof Navigation> = {
  */
 /** Etiqueta corta para las burbujas compactas (la completa queda como nombre accesible y título). */
 const SHORT_LABEL: Record<CardLink["kind"], string> = {
-  directions: "Cómo llegar", ride: "Uber", call: "Llamar", website: "Sitio", maps: "Maps", booking: "Reservar", tickets: "Boletos",
+  directions: "Cómo llegar", ride: "Uber", call: "Llamar", website: "Sitio", maps: "Maps", booking: "Reservar", tickets: "Boletos", whatsapp: "WhatsApp",
 };
+
+/** Nota del servidor ("No toma reservaciones (llega directo)" o la nota oficial del museo). */
+const BookingNote = ({ card }: { card: ConciergeCard }) =>
+  typeof card.booking_note === "string" && card.booking_note.trim()
+    ? <p className="text-[11px] text-primary/90 mt-1" data-testid="card-booking-note">{card.booking_note.slice(0, 200)}</p>
+    : null;
+
+/** Etiquetas que dicen a dónde lleva el botón: se muestran completas también en las burbujas compactas. */
+const KEEP_FULL_LABEL = /^(Reservar en |Boletos oficiales|Con guía o sin fila)/;
 
 export function CardLinks({ card, onOpen, compact = false, children }: { card: ConciergeCard; onOpen?: (url: string) => void; compact?: boolean; children?: ReactNode }) {
   const links = (card.links ?? []).map(safeCardLink).filter(Boolean) as CardLink[];
@@ -374,7 +383,7 @@ export function CardLinks({ card, onOpen, compact = false, children }: { card: C
             {...(compact ? { "aria-label": l.label, title: l.label } : {})}
             onClick={() => l.kind !== "call" && onOpen?.(l.url)}
             className="inline-flex items-center gap-1 rounded-full border border-primary/30 px-2.5 py-1 text-[11px] text-foreground hover:bg-primary/10 hover:border-primary transition min-h-[32px]">
-            <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" /> {compact ? SHORT_LABEL[l.kind] ?? l.label : l.label}
+            <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" /> {compact && !KEEP_FULL_LABEL.test(l.label) ? SHORT_LABEL[l.kind] ?? l.label : l.label}
           </a>
         );
       })}
@@ -438,6 +447,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           <ExternalCta card={card} label={card.cta_label ?? (card.type === "hotel" ? "Ver y reservar" : "Ver detalles")} onOpen={onOpen} className="min-h-[32px] px-3" />
           <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
         </CardLinks>
+        <BookingNote card={card} />
       </div>
     );
   }
@@ -472,6 +482,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           {canTakeMeThere(takeMeTarget(card)) && <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />}
         </CardLinks>
         {!card.links?.length && <div className="mt-2"><ExternalCta card={card} label={card.cta_label ?? "Ver en Google Maps"} onOpen={onOpen} /></div>}
+        <BookingNote card={card} />
       </div>
     );
   }
@@ -593,7 +604,18 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             {card.meta && <p className="text-xs text-primary mt-0.5">{card.meta}</p>}
           </div>
         </div>
-        {/* Un solo renglón de botones (reservar o Fixer + cómo llegar, Uber, reservar, Maps). */}
+        {/* Con botones de reserva reales (su sitio, TheFork…): van primero, en orden de confianza, y luego
+            Llévame y el Fixer. Sin ellos: un solo renglón (reservar o Fixer + cómo llegar, Uber, Maps). */}
+        {(card.links ?? []).some((l) => l.kind === "website" || l.kind === "booking") && !url ? (
+          <>
+            <CardLinks card={card} onOpen={onOpen} compact />
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
+              <RequestButton state={req.state} label="Pídeselo al Fixer" className="h-8 px-3 text-[11px] rounded-full"
+                onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
+            </div>
+          </>
+        ) : (
         <CardLinks card={card} onOpen={onOpen} compact>
           {url ? (
             <ExternalCta card={card} label={card.cta_label ?? "Reservar"} onOpen={onOpen} className="min-h-[32px] px-3" />
@@ -603,7 +625,9 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           )}
           <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
         </CardLinks>
+        )}
         {!url && req.state !== "idle" && <RequestNote {...req} />}
+        <BookingNote card={card} />
         <p className="text-[10px] text-muted-foreground mt-1" title="Los enlaces abren la reserva o una búsqueda prellenada; el Fixer es una solicitud a un humano.">Aún no está reservado.</p>
       </div>
     );

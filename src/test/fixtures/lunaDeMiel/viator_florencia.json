@@ -1,0 +1,9 @@
+{
+  "_nota": "Productos con el formato de la Partner API v2 de Viator (productCode, title, productUrl, reviews, pricing). Datos simulados para pruebas.",
+  "products": [
+    { "productCode": "FLR-COCINA", "title": "Clase de cocina toscana en Florencia", "productUrl": "https://www.viator.com/tours/Florence/Cooking-Class/d519-FLR-COCINA", "reviews": { "combinedAverageRating": 4.9, "totalReviews": 4200 }, "pricing": { "summary": { "fromPrice": 535 }, "currency": "MXN" }, "duration": { "fixedDurationInMinutes": 240 } },
+    { "productCode": "FLR-VINO", "title": "Cata de vino en Chianti", "productUrl": "https://www.viator.com/tours/Florence/Chianti-Wine/d519-FLR-VINO", "reviews": { "combinedAverageRating": 4.8, "totalReviews": 1500 }, "pricing": { "summary": { "fromPrice": 1800 }, "currency": "MXN" } },
+    { "productCode": "FLR-POCO", "title": "Paseo con pocas reseñas", "productUrl": "https://www.viator.com/tours/Florence/Poco/d519-FLR-POCO", "reviews": { "combinedAverageRating": 5.0, "totalReviews": 12 }, "pricing": { "summary": { "fromPrice": 900 }, "currency": "MXN" } },
+    { "productCode": "FLR-BAJO", "title": "Tour con calificación baja", "productUrl": "https://www.viator.com/tours/Florence/Bajo/d519-FLR-BAJO", "reviews": { "combinedAverageRating": 4.2, "totalReviews": 5000 }, "pricing": { "summary": { "fromPrice": 700 }, "currency": "MXN" } }
+  ]
+}

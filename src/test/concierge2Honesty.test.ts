@@ -112,7 +112,8 @@ describe("cards con botones a partir de la evidencia", () => {
     expect(matchPlace("Contramar", ev.places)?.lat).toBe(19.419);
     const cards = validateCards([{ type: "restaurant", title: "Contramar", subtitle: "Roma", links: [{ kind: "booking", label: "x", url: "javascript:alert(1)" }] }], ev).cards;
     const [card] = enrichCardLinks(cards, ev, builders);
-    expect(card.links!.map((l) => l.kind)).toEqual(["directions", "ride", "call", "booking"]);
+    // Orden de confianza (luna de miel, 27-oct-2026): reservar y llamar primero; luego cómo llegar y Uber.
+    expect(card.links!.map((l) => l.kind)).toEqual(["booking", "call", "directions", "ride"]);
     expect(card.links!.find((l) => l.kind === "call")!.url).toBe("tel:5555149217");
     expect(JSON.stringify(card.links)).not.toMatch(/javascript/);
   });

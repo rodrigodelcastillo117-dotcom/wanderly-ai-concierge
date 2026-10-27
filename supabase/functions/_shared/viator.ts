@@ -236,7 +236,11 @@ export async function runViatorSearch(args: Record<string, unknown>, d: ViatorDe
   if (to && (to < today || (from && to < from))) to = null;
   if (to && !from) from = today;
 
-  const key = await cacheKey(VIATOR_ENGINE, { city: norm(city), q: norm(query), cur: currency, from: from ?? "", to: to ?? "" });
+  // Cuántos tours (default 6; hasta 12 para el criterio TOP de Experiencias). La llave de caché solo
+  // cambia si se pide otro tamaño (las entradas existentes siguen valiendo).
+  const maxN = args.max == null || args.max === "" ? NaN : Number(args.max);
+  const max = Number.isFinite(maxN) ? Math.min(12, Math.max(1, Math.round(maxN))) : MAX_TOURS;
+  const key = await cacheKey(VIATOR_ENGINE, { city: norm(city), q: norm(query), cur: currency, from: from ?? "", to: to ?? "", ...(max !== MAX_TOURS ? { max } : {}) });
   const ok = async (results: ViatorTour[], at: string, fromCache: boolean, destino: { id: string; nombre: string } | null = null): Promise<ViatorResult> =>
     ({ ok: true, fuente: "Viator", source: "viator", results: await withMxn(results, d), consultado_at: at, from_cache: fromCache, moneda: currency, destino });
 
@@ -297,7 +301,7 @@ export async function runViatorSearch(args: Record<string, unknown>, d: ViatorDe
       const pr = await viatorPost(d, "/search/freetext", {
         searchTerm: destino ? (query || city) : `${query} ${city}`.trim(),
         ...(Object.keys(productFiltering).length ? { productFiltering } : {}),
-        searchTypes: [{ searchType: "PRODUCTS", pagination: { start: 1, count: MAX_TOURS } }],
+        searchTypes: [{ searchType: "PRODUCTS", pagination: { start: 1, count: max } }],
         currency,
       });
       if (!pr.ok) return fail(pr, `http_${pr.status}`);
@@ -306,13 +310,13 @@ export async function runViatorSearch(args: Record<string, unknown>, d: ViatorDe
       const pr = await viatorPost(d, "/products/search", {
         filtering: { destination: destino.id, ...(from ? { startDate: from } : {}), ...(to ? { endDate: to } : {}) },
         sorting: { sort: "TRAVELER_RATING", order: "DESCENDING" },
-        pagination: { start: 1, count: MAX_TOURS },
+        pagination: { start: 1, count: max },
         currency,
       });
       if (!pr.ok) return fail(pr, `http_${pr.status}`);
       list = pr.json?.products;
     }
-    const results = mapViatorProducts(list);
+    const results = mapViatorProducts(list, max);
     if (!results.length) {
       // Vacío: no se guarda en caché (para no esconder 6 h un problema de parseo) y se dice por qué.
       const raw = Array.isArray(list) ? list as any[] : [];

@@ -84,7 +84,9 @@ export const TOOL_DEFS: ToolDef[] = [
       "Google Maps: datos de un lugar concreto o lugares por tipo cerca de un punto. Devuelve dirección, coordenadas, rating, " +
       "si está abierto, sitio web y enlace de Maps; con details=true también horario completo y teléfono del primer resultado. " +
       "Úsala para '¿dónde está X?', '¿a qué hora abre X?', 'teléfono de X', 'restaurantes cerca de mi hotel', 'un bar en Polanco'. " +
-      "Incluye la ciudad o el punto de referencia en query.",
+      "Para restaurantes trae además si acepta reservaciones (reservable), si sirve desayuno/brunch/comida/cena, teléfono y los botones de reserva " +
+      "(sitio, TheFork, llamar, WhatsApp). Para 'cena romántica' o 'cena especial' pon esas palabras en query (no etiquetes nada como romántico por tu cuenta). " +
+      "Museos de la tabla oficial traen taquilla_oficial (URL y nota). Incluye la ciudad o el punto de referencia en query.",
     input_schema: {
       type: "object",
       properties: {
@@ -93,6 +95,8 @@ export const TOOL_DEFS: ToolDef[] = [
         lng: { type: "number", description: "Longitud para centrar la búsqueda (opcional)" },
         details: { type: "boolean", description: "true para traer horario y teléfono del primer resultado" },
         open_now: { type: "boolean", description: "Solo lugares abiertos ahora (opcional)" },
+        meal: { type: "string", enum: ["desayuno", "brunch", "comida", "cena"], description: "Solo restaurantes que Google marca que sirven esa comida (opcional)" },
+        city: { type: "string", description: "Ciudad del lugar (para el botón de TheFork y la taquilla oficial), ej. 'Florencia' (opcional)" },
       },
       required: ["query"],
     },
