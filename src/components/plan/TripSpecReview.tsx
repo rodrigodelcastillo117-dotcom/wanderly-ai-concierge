@@ -3,7 +3,7 @@
 // interpretación (paradas en orden, tramos con modo, crucero, regreso, fechas, viajeros) y pendientes.
 // Con pendientes no se arma nada; cada uno se responde, se acepta la sugerencia o se quita (exclusión
 // aprobada). El botón de confirmar dice el costo antes de usar una búsqueda del plan.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowUp, Loader2, Plus, Route as RouteIcon, Ship, Sparkles, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { CRUISE_PRICE_NOTE } from "@/lib/cruiseLinks";
 import { GlobeLoader } from "@/components/brand/GlobeLoader";
 import { useSlowLoading } from "@/hooks/useSlowLoading";
 import { DRAFT_STATUS, DRAFT_WAITING_LABEL } from "@/lib/tripSpecDraft";
+import { answerKindOf, answerQuestion, autoResolveQuestions, modeFromText, numericOptions, returnLegText, returnModeOf, setReturnMode } from "@/lib/tripSpecAnswers";
 
 type Props = {
   spec: TripSpec;
@@ -58,8 +59,65 @@ const chipOff = `${chip} border-border/70 text-muted-foreground hover:border-pri
 const ghost = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface hover:text-foreground disabled:opacity-25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const field = "h-9 bg-input border-border text-sm";
 
+/**
+ * Respuesta de una pregunta "otro" de la IA: viajeros y noches con TODAS sus opciones y un campo numérico
+ * para "Otro número"; cómo regresas con sus modos; una pregunta libre con todas sus opciones.
+ */
+function AnswerChips({ q, spec, onChange }: { q: Question; spec: TripSpec; onChange: (s: TripSpec) => void }) {
+  const kind = answerKindOf(q);
+  const [other, setOther] = useState(false);
+  const [num, setNum] = useState("");
+  const answer = (a: string | number | LegMode) => onChange(answerQuestion(spec, q.id, a));
+  if (kind === "viajeros" || kind === "noches") {
+    const { numbers, other: otherLabel } = numericOptions(q, kind === "viajeros" ? [1, 2, 3, 4] : []);
+    const unit = (n: number) => (kind === "noches" ? `${n} ${n === 1 ? "noche" : "noches"}` : String(n));
+    return (
+      <div className="flex w-full flex-wrap items-center gap-2" data-testid="spec-respuesta" data-kind={kind}>
+        {numbers.map((n) => (
+          <button key={n} type="button" className={chipOn} onClick={() => answer(n)} data-testid="spec-opcion">{unit(n)}</button>
+        ))}
+        {otherLabel && !other && <button type="button" className={chipOff} onClick={() => setOther(true)} data-testid="spec-opcion-otro">{otherLabel}</button>}
+        {(other || (!numbers.length)) && (
+          <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (Number(num) > 0) answer(Number(num)); }}>
+            <Input type="number" inputMode="numeric" min={1} max={kind === "viajeros" ? 20 : 60} autoFocus={other}
+              aria-label={kind === "viajeros" ? "Número de viajeros" : "Número de noches"} placeholder={kind === "viajeros" ? "Viajeros" : "Noches"}
+              className="h-9 w-24 bg-input border-border text-sm" value={num} onChange={(e) => setNum(e.target.value)} data-testid="spec-numero" />
+            <Button type="submit" variant="outline" className="h-9 shrink-0" disabled={!(Number(num) > 0)}>Usar</Button>
+          </form>
+        )}
+      </div>
+    );
+  }
+  if (kind === "regreso_modo") {
+    const opts = (q.opciones ?? []).map((o) => ({ label: o, mode: modeFromText(o) }));
+    const known = opts.filter((o) => o.mode);
+    return (
+      <div className="flex w-full flex-wrap items-center gap-2" data-testid="spec-respuesta" data-kind={kind}>
+        {(known.length ? known : [{ label: "Coche", mode: "coche" as LegMode }, { label: "Vuelo", mode: "vuelo" as LegMode }]).map((o) => (
+          <button key={o.label} type="button" className={chipOn} onClick={() => answer(o.mode!)} data-testid="spec-opcion">{o.label}</button>
+        ))}
+        <label className="flex items-center gap-1 text-xs text-muted-foreground">Otro
+          <select aria-label="Cómo regresas" value="" onChange={(e) => e.target.value && answer(e.target.value as LegMode)}
+            className="rounded-full border border-border/60 bg-black/40 px-2 py-1 text-xs text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <option value="">Elegir…</option>
+            {LEG_MODES.filter((m) => m !== "crucero").map((m) => <option key={m} value={m}>{m === "por_definir" ? "Aún no lo sé" : LEG_MODE_LABEL[m]}</option>)}
+          </select>
+        </label>
+      </div>
+    );
+  }
+  return (
+    <>
+      {(q.opciones ?? []).map((o) => (
+        <button key={o} type="button" className={chipOn} onClick={() => answer(o)} data-testid="spec-opcion">{o}</button>
+      ))}
+    </>
+  );
+}
+
 function QuestionRow({ q, spec, onChange }: { q: Question; spec: TripSpec; onChange: (s: TripSpec) => void }) {
   const [text, setText] = useState("");
+  const kind = answerKindOf(q);
   const stop = q.parada ? spec.paradas.find((s) => s.id === q.parada) ?? null : null;
   const suggested = spec.paradas.filter((s) => s.sugerida && ((q.parada && s.id === q.parada) || (s.de_region && s.de_region === q.texto)));
   const useText = () => {
@@ -70,7 +128,9 @@ function QuestionRow({ q, spec, onChange }: { q: Question; spec: TripSpec; onCha
     <li className="rounded-xl border border-amber-400/30 bg-amber-400/[0.04] p-3" data-testid="spec-pregunta" data-tipo={q.tipo}>
       <p className="flex items-start gap-2 text-sm"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400/90" aria-hidden="true" />{q.pregunta}</p>
       <div className="mt-2 flex flex-wrap gap-2 pl-6">
-        {(q.tipo === "ciudades_de_pais" || q.tipo === "lugar_desconocido" || q.tipo === "otro") && (suggested.length > 0 || stop) && (
+        {/* Preguntas libres de la IA (viajeros, noches, cómo regresas…): todas sus opciones, con campo si es un número. */}
+        {q.tipo === "otro" && (kind !== "otro" || suggested.length === 0) && <AnswerChips q={q} spec={spec} onChange={onChange} />}
+        {(q.tipo === "ciudades_de_pais" || q.tipo === "lugar_desconocido" || (q.tipo === "otro" && kind === "otro" && suggested.length > 0)) && (suggested.length > 0 || stop) && (
           <button type="button" className={chipOn} onClick={() => onChange(acceptSuggestion(spec, q.id))} data-testid="spec-aceptar">
             {q.opciones[0] ?? `Sí, ${suggested.map((s) => s.ciudad).join(", ") || stop?.ciudad}`}
           </button>
@@ -104,12 +164,12 @@ function QuestionRow({ q, spec, onChange }: { q: Question; spec: TripSpec; onCha
             <Button type="submit" variant="outline" className="h-9 shrink-0" disabled={!text.trim()}>Usar</Button>
           </form>
         )}
-        {q.tipo !== "fechas" && q.tipo !== "origen" && (
+        {q.tipo !== "fechas" && q.tipo !== "origen" && kind === "otro" && (
           <button type="button" className={chipOff} onClick={() => onChange(excludeMention(spec, q.id))} data-testid="spec-quitar">
             {q.tipo === "conexion_o_estancia" ? "Quitar la escala" : q.tipo === "crucero" ? "Sin crucero" : `Quitar «${q.texto}»`}
           </button>
         )}
-        {q.tipo === "otro" && <button type="button" className={chipOff} onClick={() => onChange(resolveQuestion(spec, q.id, "preferencia"))}>Entendido</button>}
+        {q.tipo === "otro" && <button type="button" className={chipOff} onClick={() => onChange(resolveQuestion(spec, q.id, "preferencia"))}>{kind === "otro" ? "Entendido" : "Lo decido después"}</button>}
       </div>
     </li>
   );
@@ -136,7 +196,14 @@ function CruiseFields({ stop, spec, onChange }: { stop: Stop; spec: TripSpec; on
   );
 }
 
-export function TripSpecReview({ spec, onChange, onConfirm, busy, aviso, confirmLabel = "Sí, armar mi viaje", costNote = "Armar tu viaje usa una búsqueda de tu plan.", showOriginal = true, onCancel, draft = false, nota = null }: Props) {
+export function TripSpecReview({ spec, onChange: onChangeRaw, onConfirm, busy, aviso, confirmLabel = "Sí, armar mi viaje", costNote = "Armar tu viaje usa una búsqueda de tu plan.", showOriginal = true, onCancel, draft = false, nota = null }: Props) {
+  // Lo que ya contesta el resumen o el texto no queda pendiente (viajeros puestos, "… en coche").
+  const onChange = (s: TripSpec) => onChangeRaw(autoResolveQuestions(s));
+  useEffect(() => {
+    const r = autoResolveQuestions(spec);
+    if (r !== spec) onChangeRaw(r);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spec]);
   const [adding, setAdding] = useState("");
   const pend = openQuestions(spec);
   const route = routeOfSpec(spec);
@@ -234,7 +301,16 @@ export function TripSpecReview({ spec, onChange, onConfirm, busy, aviso, confirm
           <li className="rounded-xl border border-border/40 px-3 py-2 text-xs text-muted-foreground" data-testid="spec-regreso">
             Regresas a <span className="text-foreground">{spec.regreso.a || spec.origen || "¿?"}</span>
             {spec.regreso.via ? <> por <span className="text-foreground">{spec.regreso.via}</span></> : null}
-            {spec.paradas.length > 0 && <> · el vuelo de regreso sale de <span className="text-foreground">{[...spec.paradas].reverse().find((s) => s.rol === "estancia")?.ciudad ?? "—"}</span></>}
+            {/* El modo real del regreso (coche, tren, vuelo…), no siempre "el vuelo de regreso". */}
+            {spec.paradas.length > 0 && <> · <span data-testid="spec-regreso-tramo">{returnLegText(spec)}</span></>}
+            {spec.paradas.length > 0 && (
+              <label className="mt-1.5 flex items-center gap-1">Regresas en
+                <select aria-label="Cómo regresas" value={returnModeOf(spec)} onChange={(e) => onChange(setReturnMode(spec, e.target.value as LegMode))}
+                  className="rounded-full border border-border/60 bg-black/40 px-2 py-1 text-xs text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  {LEG_MODES.filter((m) => m !== "crucero").map((m) => <option key={m} value={m}>{LEG_MODE_LABEL[m]}</option>)}
+                </select>
+              </label>
+            )}
           </li>
         </ol>
       </section>
