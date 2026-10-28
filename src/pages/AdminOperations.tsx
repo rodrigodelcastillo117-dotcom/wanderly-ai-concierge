@@ -9,6 +9,7 @@ import {
   ArrowLeft, Check, ChevronDown, Clock, Hand, Loader2, Mail, MailWarning, MessageSquare, RefreshCw, ShieldAlert, X,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { AdminDenied } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -262,13 +263,15 @@ const AdminOperations = () => {
   if (state === "loading" && !list) {
     return <DashboardLayout><div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></DashboardLayout>;
   }
-  if (state === "forbidden" || state === "error") {
+  // Denegación con explicación y salida (la misma que AdminGate).
+  if (state === "forbidden") return <AdminDenied />;
+  if (state === "error") {
     return (
       <DashboardLayout>
         <div className="max-w-md mx-auto px-4 py-24 text-center space-y-3">
           <ShieldAlert className="w-8 h-8 text-primary mx-auto" />
-          <p className="font-display text-2xl">{state === "forbidden" ? "Acceso solo para administradores" : "No pudimos cargar la mesa"}</p>
-          {state === "error" && <Button variant="outline" onClick={() => load()}>Reintentar</Button>}
+          <p className="font-display text-2xl">No pudimos cargar la mesa</p>
+          <Button variant="outline" onClick={() => load()}>Reintentar</Button>
         </div>
       </DashboardLayout>
     );

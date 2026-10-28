@@ -76,8 +76,13 @@ export type PriveOnboarding = {
 
 export type MembershipStatus = "none" | "invited" | "active" | "revoked";
 
+/** De dónde viene el PRO vigente (prive_status.pro_basis). Solo el PRO pagado suma días para Privé. */
+export type ProBasis = "paid" | "trial" | "comped";
+
 export type PriveStatus = {
   is_pro: boolean;
+  /** null = sin PRO o servidor anterior a 20261029020000_fix_cuenta_prive (no se adivina). */
+  pro_basis: ProBasis | null;
   tenure_days: number;
   required_days: number;
   eligible: boolean;
@@ -107,6 +112,7 @@ export function normalizeStatus(raw: unknown): PriveStatus {
   const ob = d.onboarding && typeof d.onboarding === "object" ? (d.onboarding as PriveOnboarding) : {};
   return {
     is_pro: d.is_pro === true,
+    pro_basis: d.is_pro === true && (d.pro_basis === "paid" || d.pro_basis === "trial" || d.pro_basis === "comped") ? d.pro_basis : null,
     tenure_days: int(d.tenure_days),
     required_days: int(d.required_days, PRIVE_REQUIRED_DAYS) || PRIVE_REQUIRED_DAYS,
     eligible: d.eligible === true,
@@ -235,6 +241,27 @@ export function createPriveApi(client: InvokeClient) {
         return { ok: true, data: data as T };
       } catch {
         return { ok: false, code: "NETWORK" };
+      }
+    },
+
+    /**
+     * Conteo público de experiencias publicables por universo (prive_teaser: sin nombres ni contenido).
+     * Para el adelanto de quien aún no tiene Privé: las colecciones decían "En curaduría" aunque había más
+     * de mil experiencias curadas. Nunca lanza; sin respuesta, null (se queda "En curaduría").
+     */
+    async universeCounts(): Promise<Partial<Record<string, number>> | null> {
+      try {
+        const { data, error } = await client.rpc("prive_teaser");
+        if (error) return null;
+        const list = (data as { universes?: unknown } | null)?.universes;
+        if (!Array.isArray(list)) return null;
+        const out: Partial<Record<string, number>> = {};
+        for (const u of list as Array<{ key?: unknown; count?: unknown }>) {
+          if (typeof u?.key === "string" && typeof u.count === "number" && Number.isFinite(u.count) && u.count >= 0) out[u.key] = Math.floor(u.count);
+        }
+        return out;
+      } catch {
+        return null;
       }
     },
 

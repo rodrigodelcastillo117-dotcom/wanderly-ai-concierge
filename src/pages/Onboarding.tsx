@@ -191,7 +191,7 @@ const Onboarding = () => {
       supabase.functions.invoke("evolucionar-dna", { body: { seed: dnaSeed.trim() } }).catch(() => {});
       goNext();
     } catch (e) {
-      toast.error("No pudimos guardar tu seed. Intenta de nuevo.");
+      toast.error("No pudimos guardar tu relato. Intenta de nuevo.");
     } finally {
       setDnaLoading(false);
     }
@@ -264,7 +264,7 @@ const Onboarding = () => {
                   Bienvenido a IATOS
                 </h1>
                 <p className="text-base text-white/80 leading-relaxed">
-                  Iato es tu concierge IA para viajes. Son 4 preguntas opcionales;
+                  Iato es tu concierge IA para viajes. Son 3 preguntas opcionales y al final eliges cómo empezar;
                   puedes saltarlas y completarlas después en tu Perfil.
                 </p>
                 <Button
@@ -297,7 +297,7 @@ const Onboarding = () => {
                   ¿Qué tarjetas premium tienes?
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Iato usa tus beneficios para upgrades, créditos, lounges, FHR.
+                  Iato usa tus beneficios para mejoras de categoría, créditos, salas VIP y tarifas de hotel con beneficios de tu tarjeta.
                 </p>
               </div>
 
@@ -362,10 +362,10 @@ const Onboarding = () => {
                   Paso 3 de 5 · Lealtad · Opcional
                 </p>
                 <h2 className="font-display text-3xl text-foreground leading-tight">
-                  ¿En qué programas eres miembro o elite?
+                  ¿En qué programas de lealtad eres miembro o tienes nivel alto?
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Iato prioriza acumulación de puntos y status reconocido.
+                  Iato prioriza que acumules puntos y que te reconozcan tu nivel.
                 </p>
               </div>
 
@@ -502,7 +502,7 @@ const Onboarding = () => {
               <div className="relative z-10 flex-1 flex flex-col justify-center gap-5 py-8">
                 <div className="space-y-2 text-center">
                   <p className="text-[11px] uppercase tracking-[0.3em] text-primary">
-                    Tu aha moment
+                    Paso 5 de 5 · Para empezar
                   </p>
                   <h2 className="font-display text-3xl text-white leading-tight">
                     Crea tu primer viaje
@@ -557,7 +557,7 @@ const Onboarding = () => {
                           Explorar primero
                         </div>
                         <div className="text-sm text-muted-foreground mt-0.5">
-                          Llévame al home, lo creo después
+                          Llévame al inicio, lo creo después
                         </div>
                       </div>
                     </div>

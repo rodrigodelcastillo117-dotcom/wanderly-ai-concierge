@@ -3,6 +3,7 @@ import { Download, Inbox, Loader2, RefreshCw, ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { AdminDenied } from "@/components/AdminGate";
 import { ServiceHealthCard } from "@/components/ServiceHealthCard";
 import { AdminCostCard } from "@/components/AdminCostCard";
 import { AdminReferralRewardsCard } from "@/components/AdminReferralRewardsCard";
@@ -149,13 +150,15 @@ const AdminMetrics = () => {
     );
   }
 
+  // Denegación con explicación y salida (la misma que AdminGate).
+  if (state === "forbidden") return <AdminDenied />;
   if (state !== "ok" || !metrics) {
     return (
       <DashboardLayout>
         <div className="max-w-md mx-auto px-4 py-24 text-center space-y-3">
           <ShieldAlert className="w-8 h-8 text-primary mx-auto" />
           <p className="font-display text-2xl">
-            {state === "forbidden" ? "Acceso solo para administradores" : "No pudimos cargar las métricas"}
+            No pudimos cargar las métricas
           </p>
           {state === "error" && <Button variant="outline" onClick={load}>Reintentar</Button>}
         </div>

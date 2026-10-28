@@ -6,7 +6,7 @@
 //              sensible lo vuelve a comprobar (prive_require).
 // · Cualquier respuesta con un código PRIVE_* borra la sesión local y regresa a /prive, que muestra
 //   el candado o el adelanto según el estado real.
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type Context, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -20,6 +20,7 @@ import {
 import { clearPriveSession, readPriveSession, savePriveSession, type StoredPriveSession } from "@/lib/priveSession";
 import { derivePriveView, type PriveView } from "@/lib/priveView";
 import { messageFor } from "@/lib/priveCopy";
+import { PriveAccessContext } from "@/hooks/priveAccessContext";
 
 type CallOpts = { withSession?: boolean };
 
@@ -50,7 +51,9 @@ export type PriveAccess = {
   patchStatus: (patch: Partial<PriveStatus>) => void;
 };
 
-const PriveContext = createContext<PriveAccess | undefined>(undefined);
+// El contexto vive en su propio módulo para que usePriveAccessOptional (candado de las áreas) funcione
+// también en pruebas que simulan este archivo.
+const PriveContext = PriveAccessContext as Context<PriveAccess | undefined>;
 
 export function PriveProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();

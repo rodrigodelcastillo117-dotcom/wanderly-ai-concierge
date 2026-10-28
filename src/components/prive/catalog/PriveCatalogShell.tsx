@@ -14,7 +14,9 @@ export function PriveCatalogShell({ loading, locked, error, back = "/prive", bac
   loading: boolean; locked: PriveErrorCode | null; error: string | null; back?: string; backLabel?: string; children: ReactNode;
 }) {
   const t = usePriveT();
-  usePriveBack(back, backLabel);
+  // Con candado no se sube a otra área también bloqueada (antes "Regresar" llevaba de un candado a otro):
+  // el botón de la barra sale de Privé.
+  usePriveBack(locked ? null : back, locked ? null : backLabel);
   if (locked) return <PriveLocked code={locked} />;
   return (
     <div className="px-4 sm:px-8 pb-24 pt-2">

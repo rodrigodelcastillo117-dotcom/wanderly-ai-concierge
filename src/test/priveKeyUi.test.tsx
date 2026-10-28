@@ -150,10 +150,13 @@ describe("/prive/key", { timeout: 30000 }, () => {
     expect(screen.getByText("THE PRIVÉ KEY")).toBeInTheDocument();
   });
 
-  it("sin Privé desbloqueado, vuelve a /prive", async () => {
+  it("sin Privé desbloqueado, muestra el mismo candado que las demás áreas (salida a /prive) y nada del estudio", async () => {
+    // Antes redirigía a /prive: era la única área sin candado (auditoría Privé 28-oct, P2).
     access.view = "locked";
     renderPage();
-    expect(await screen.findByText("candado")).toBeInTheDocument();
+    expect(await screen.findByTestId("prive-locked")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Entrar a IATOS Privé" })).toHaveAttribute("href", "/prive");
+    expect(screen.queryByTestId("prive-key-page")).toBeNull();
     access.view = "unlocked";
   });
 });

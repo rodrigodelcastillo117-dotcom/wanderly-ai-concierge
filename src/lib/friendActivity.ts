@@ -181,6 +181,40 @@ export function parseTripList(v: unknown): FriendTrip[] {
   return out.slice(0, 60);
 }
 
+/**
+ * Nombre legible de un viaje (auditoría de cuenta #17): un viaje guardado desde Planear podía llamarse
+ * con el texto crudo de la petición ("Quiero conocer España 15 días, no sé qué ciudades. Del 4 al…").
+ * Si el destino parece una frase, se usa el país (o países) del viaje; si no hay, se recorta.
+ */
+export function displayTripName(t: Pick<FriendTrip, "destino" | "paises">): string {
+  const d = (t.destino ?? "").replace(/\s+/g, " ").trim();
+  const sentence = d.length > 40 || /[.,;:¿?¡!]\s|[.,;:]$/.test(d) || /^(quiero|quisiera|me gustar[ií]a|planea|planear|necesito|busco|ay[uú]dame)\b/i.test(d);
+  if (!sentence) return d || "Viaje";
+  const countries = (t.paises ?? []).map((p) => p.trim()).filter(Boolean);
+  if (countries.length) return countries.slice(0, 3).join(", ");
+  const short = d.split(/[.,;:¿?¡!]/)[0].trim();
+  return short.length > 40 ? `${short.slice(0, 39).trimEnd()}…` : short || "Viaje";
+}
+
+/**
+ * Viajes iguales (mismo nombre visible, fechas y fase) que no se pueden esconder uno por uno (sin id)
+ * se muestran una sola vez con cuántos son; antes "Madrid" salía 4 veces seguidas.
+ */
+export function groupOwnTrips(trips: FriendTrip[]): Array<FriendTrip & { nombre: string; repetidos: number }> {
+  const out: Array<FriendTrip & { nombre: string; repetidos: number }> = [];
+  const seen = new Map<string, number>();
+  for (const t of trips) {
+    const nombre = displayTripName(t);
+    if (t.id) { out.push({ ...t, nombre, repetidos: 1 }); continue; }
+    const key = [nombre.toLowerCase(), t.fechaSalida ?? t.mesSalida ?? "", t.fechaRegreso ?? t.mesRegreso ?? "", t.fase, t.oculto ? 1 : 0].join("|");
+    const at = seen.get(key);
+    if (at !== undefined) { out[at].repetidos += 1; continue; }
+    seen.set(key, out.length);
+    out.push({ ...t, nombre, repetidos: 1 });
+  }
+  return out;
+}
+
 export function parseSettings(v: unknown): SocialSettings {
   const o = isObj(v) ? v : {};
   const out = { ...DEFAULT_SETTINGS };

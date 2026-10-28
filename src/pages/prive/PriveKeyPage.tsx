@@ -1,9 +1,11 @@
 // /prive/key — THE KEY (una de las seis áreas de Privé). Pantalla premium del modo Privé de Iato.
-// Sin sesión Privé desbloqueada no se muestra nada: vuelve a /prive (candado o adelanto según el servidor).
+// Sin sesión Privé desbloqueada no se muestra nada: el mismo candado que las demás áreas (antes redirigía
+// a /prive y era la única área que no mostraba el candado, auditoría 28-oct), con la razón y la salida.
 import { useState } from "react";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { usePriveAccess } from "@/hooks/usePriveAccess";
 import { Monogram } from "@/components/prive/Monogram";
+import { PriveLocked } from "@/components/prive/catalog/PriveLocked";
 import { PriveKeyStudio } from "@/components/prive/key/PriveKeyStudio";
 import { MyPlans } from "@/components/prive/key/MyPlans";
 import { useKeyLang, KEY_TEXT } from "@/lib/priveKeyI18n";
@@ -18,7 +20,7 @@ export default function PriveKeyPage() {
   if (loading && !status) {
     return <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-label={t.brand}><Monogram size={56} className="opacity-60" /></div>;
   }
-  if (view !== "unlocked") return <Navigate to="/prive" replace />;
+  if (view !== "unlocked") return <PriveLocked view={view} status={status} code={status ? null : "PRIVE_NO_SESSION"} />;
   const w = sp.get("w");
   const m = sp.get("mode");
   const mode: KeyMode | null = m === "h48" || m === "surprise" || m === "key" ? m : null;

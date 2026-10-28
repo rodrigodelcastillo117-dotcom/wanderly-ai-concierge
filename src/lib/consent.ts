@@ -15,6 +15,21 @@ export const OPEN_SETTINGS_EVENT = "iatos:open-cookie-settings";
 // Script de medición de conversiones de afiliado (Travelpayouts Drive).
 export const TRAVELPAYOUTS_SRC = "https://tp-em.com/NTMzMjk5.js?t=533299";
 
+/**
+ * Travelpayouts Drive se carga SOLO si el dueño lo activa (VITE_TRAVELPAYOUTS_DRIVE_ENABLED=true) después
+ * de verificar traveliatos.life en el proyecto 533299 de Travelpayouts (docs/ops/LEEME.md).
+ *
+ * Por qué (auditoría de cuenta #3, 28-oct): al aceptar cookies, el script pedía su configuración a
+ * tp-em.com/entrypoint_config y la respuesta era 403 sin CORS: errores rojos en la consola ("blocked by
+ * CORS policy", "config is not valid") y ninguna medición. Ese fallo de red lo registra el navegador y no
+ * se puede atrapar desde la página, y cualquier prueba previa desde el navegador también lo registraría;
+ * por eso la carga queda detrás de esta llave hasta confirmar que Travelpayouts responde a nuestro dominio.
+ * Los enlaces de afiliado (con su marker) no dependen de este script y siguen funcionando.
+ */
+export function travelpayoutsDriveEnabled(env: Record<string, unknown> = import.meta.env as unknown as Record<string, unknown>): boolean {
+  return String(env?.VITE_TRAVELPAYOUTS_DRIVE_ENABLED ?? "").trim().toLowerCase() === "true";
+}
+
 export function getConsent(): ConsentChoice | null {
   try {
     const v = localStorage.getItem(KEY);
@@ -44,6 +59,8 @@ export function loadTravelpayouts(doc: Document = document) {
   script.async = true;
   script.src = TRAVELPAYOUTS_SRC;
   script.dataset.iatos = "travelpayouts";
+  // Si el script no carga, se quita sin más (no reintenta en esta visita).
+  script.onerror = () => { script.remove(); };
   doc.head.appendChild(script);
 }
 
@@ -51,7 +68,7 @@ export function loadTravelpayouts(doc: Document = document) {
 export function applyConsent(choice: ConsentChoice | null = getConsent()) {
   if (choice === "accepted") {
     initAnalytics();
-    loadTravelpayouts();
+    if (travelpayoutsDriveEnabled()) loadTravelpayouts();
   } else if (choice === "essential") {
     // Si antes aceptó y ahora se retracta, dejamos de capturar en esta sesión.
     optOutAnalytics();

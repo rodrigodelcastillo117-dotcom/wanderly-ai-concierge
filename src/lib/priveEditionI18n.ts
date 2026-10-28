@@ -134,6 +134,8 @@ const es = {
     online: "Con conexión", updated: (n: number, r: number) => `Al volver la red: ${n} corregido${n === 1 ? "" : "s"}, ${r} retirado${r === 1 ? "" : "s"}.`,
     pick: "Elige una edición guardada",
     openSaved: "Leer THE PRIVATE EDITION guardada en este dispositivo (sin conexión)",
+    howTo: "Para leer sin internet, abre The Private Edition con conexión y, en el número que quieras, toca «Guardar para leer sin internet». La copia queda en este dispositivo.",
+    goEdition: "Ir a The Private Edition",
   },
   teaser: { cta: "Abrir la revista", insider: "Del número de este mes" },
   // Sección protagonista en FOR YOU / INSIDER
@@ -288,6 +290,8 @@ const en: Dict = {
     title: "Offline reading", banner: "Offline · reading the saved copy", generated: "Copy generated on", online: "Online",
     updated: (n: number, r: number) => `Back online: ${n} corrected, ${r} withdrawn.`, pick: "Choose a saved edition",
     openSaved: "Read THE PRIVATE EDITION saved on this device (offline)",
+    howTo: "To read without internet, open The Private Edition while online and, on the issue you want, tap “Save to read without internet”. The copy stays on this device.",
+    goEdition: "Go to The Private Edition",
   },
   teaser: { cta: "Open the magazine", insider: "From this month's issue" },
   section: {

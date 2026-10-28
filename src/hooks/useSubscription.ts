@@ -61,6 +61,34 @@ export function notifyAccessChanged() {
   try { window.dispatchEvent(new Event(ACCESS_CHANGED_EVENT)); } catch { /* sin window (SSR/pruebas) */ }
 }
 
+// Una sola consulta en vuelo por cuenta (auditoría de cuenta #4): el menú (DashboardLayout) y la página
+// (/dashboard/pro) montan useSubscription a la vez y antes hacían DOS veces get_access_state + subscriptions;
+// cuando el servidor tardaba 5 s, la página esperaba su propia consulta duplicada. Ahora comparten la misma.
+// Solo se comparte la carga inicial de componentes que montan casi juntos (ventana corta); "Reintentar",
+// el regreso del checkout y la relectura tras un mensaje siempre piden datos nuevos.
+type AccessFetch = [{ data: unknown; error: unknown }, { data: unknown; error: unknown }];
+const SHARE_WINDOW_MS = 1500;
+const inflight = new Map<string, { p: Promise<AccessFetch>; at: number }>();
+function fetchAccess(uid: string, share: boolean): Promise<AccessFetch> {
+  const cur = inflight.get(uid);
+  if (share && cur && Date.now() - cur.at < SHARE_WINDOW_MS) return cur.p;
+  const p = Promise.all([
+    supabase.rpc("get_access_state", { _user_id: uid }),
+    supabase
+      .from("subscriptions")
+      .select("status, plan, trial_end, current_period_end, cancel_at_period_end, stripe_customer_id, comped_until")
+      .eq("user_id", uid)
+      .maybeSingle(),
+  ]) as unknown as Promise<AccessFetch>;
+  inflight.set(uid, { p, at: Date.now() });
+  const clear = () => { if (inflight.get(uid)?.p === p) inflight.delete(uid); };
+  p.then(clear, clear);
+  return p;
+}
+
+/** Pasado este tiempo cargando, la página puede decir "está tardando más de lo normal". */
+export const SUBSCRIPTION_SLOW_MS = 4000;
+
 export function useSubscription() {
   const { user } = useAuth();
   const uid = user?.id ?? null;
@@ -74,7 +102,7 @@ export function useSubscription() {
   useEffect(() => () => { reqRef.current += 1; }, []);
 
   // silent: relectura en segundo plano (tras un mensaje) sin pasar por "cargando" ni parpadear.
-  const refresh = useCallback(async (opts: { silent?: boolean } = {}) => {
+  const refresh = useCallback(async (opts: { silent?: boolean; share?: boolean } = {}) => {
     const req = ++reqRef.current;
     if (!uid) {
       setAccess(null);
@@ -86,23 +114,15 @@ export function useSubscription() {
     if (!opts.silent) setLoading(true);
     setError(null);
     try {
-      const [{ data: state, error: stateErr }, { data: sub, error: subErr }] = await withTimeout(
-        Promise.all([
-          supabase.rpc("get_access_state", { _user_id: uid }),
-          supabase
-            .from("subscriptions")
-            .select("status, plan, trial_end, current_period_end, cancel_at_period_end, stripe_customer_id, comped_until")
-            .eq("user_id", uid)
-            .maybeSingle(),
-        ]),
-        SUBSCRIPTION_TIMEOUT_MS,
-      );
+      const [{ data: state, error: stateErr }, { data: sub, error: subErr }] = await withTimeout(fetchAccess(uid, opts.share === true), SUBSCRIPTION_TIMEOUT_MS);
       if (req !== reqRef.current) return;
       // Sin respuesta válida no adivinamos "versión gratuita": mostramos el error con "Reintentar".
       if (stateErr || subErr || !state || typeof state !== "object") throw stateErr ?? subErr ?? new Error("sin datos");
       setAccess(state as unknown as AccessState);
       setSubscription((sub as SubscriptionRow) ?? null);
     } catch (e) {
+      // Una consulta que venció o falló no se comparte con nadie más (se vuelve a pedir).
+      inflight.delete(uid);
       if (req !== reqRef.current) return;
       console.error("useSubscription", e);
       setError("No pudimos cargar el estado de tu membresía.");
@@ -113,7 +133,7 @@ export function useSubscription() {
     // Depende del id (no del objeto user, que cambia en cada refresh de token).
   }, [uid]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { refresh({ share: true }); }, [refresh]);
   useEffect(() => {
     const onChange = () => { refresh({ silent: true }); };
     window.addEventListener(ACCESS_CHANGED_EVENT, onChange);

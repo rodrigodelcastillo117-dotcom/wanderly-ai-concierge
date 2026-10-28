@@ -419,7 +419,7 @@ export function signature(): string {
     gap(16),
     `<tr><td class="ek-pad" align="center" style="padding:0 56px;font-family:${SERIF};font-size:21px;line-height:28px;font-style:italic;color:${EK.gold};">Tu concierge, Iato</td></tr>`,
     gap(4),
-    `<tr><td class="ek-pad" align="center" style="padding:0 56px;font-family:${SANS};font-size:10px;line-height:14px;letter-spacing:0.34em;text-transform:uppercase;color:${EK.muted};">IATOS · The World, Beyond Ordinary</td></tr>`,
+    `<tr><td class="ek-pad" align="center" style="padding:0 56px;font-family:${SANS};font-size:10px;line-height:14px;letter-spacing:0.34em;text-transform:uppercase;color:${EK.muted};">IATOS · El mundo, más allá de lo ordinario</td></tr>`,
   ].join("\n");
 }
 

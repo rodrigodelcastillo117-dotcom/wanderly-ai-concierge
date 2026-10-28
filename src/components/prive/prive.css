@@ -48,6 +48,9 @@
 .prive-serif { font-family: var(--pv-serif); font-weight: 400; letter-spacing: 0.01em; }
 .prive-root h1, .prive-root h2, .prive-root h3 { font-family: var(--pv-serif); font-weight: 400; letter-spacing: 0.01em; }
 .prive-display { font-family: var(--pv-serif); font-weight: 300; letter-spacing: 0.08em; line-height: 1.15; }
+/* Cifras de la serifa en numerales alineados: con los numerales antiguos de Cormorant el "0" se leía
+   como la letra "o" ("Llevas o de 90 días", auditoría 28-oct). Solo en cifras de datos, no en la ceremonia. */
+.prive-nums { font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; }
 .prive-eyebrow { font-size: 0.6875rem; letter-spacing: 0.32em; text-transform: uppercase; color: var(--pv-gold); }
 .prive-muted { color: var(--pv-muted); }
 .prive-champagne { color: var(--pv-champagne); }

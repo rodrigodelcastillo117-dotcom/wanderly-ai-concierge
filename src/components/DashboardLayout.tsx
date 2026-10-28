@@ -10,6 +10,7 @@ import { AvatarCircle } from "@/components/avatar/AvatarCircle";
 import { useMyAvatar } from "@/hooks/useMyAvatar";
 import { usePriveSeal } from "@/hooks/usePriveSeal";
 import { useMemberCard, tierText } from "@/lib/memberCard";
+import { PROFILE_SETTINGS_PATH } from "@/lib/profileSettings";
 import { MemberCardButton } from "@/components/membercard/MemberCardButton";
 // Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
 import iatosLogo from "@/assets/iatos-logo-320.png";
@@ -274,7 +275,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           <div className="flex items-center gap-1">
             {!lgUp && <NotificationBell />}
             <button
-              onClick={() => navigate("/dashboard/perfil")}
+              onClick={() => navigate(PROFILE_SETTINGS_PATH)}
               aria-label="Ajustes"
               className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition"
             >
@@ -292,7 +293,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         <div className="hidden lg:flex absolute top-4 right-4 z-40 items-center gap-1">
           {lgUp && <NotificationBell />}
           <button
-            onClick={() => navigate("/dashboard/perfil")}
+            onClick={() => navigate(PROFILE_SETTINGS_PATH)}
             aria-label="Ajustes"
             className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition"
           >

@@ -386,6 +386,15 @@ export function tripQuoteEmail(i: QuoteEmailInput): Email {
 
 // ───────────────────────────── bienvenida ────────────────────────────────────────────────────────
 
+/**
+ * Nombre para el saludo de bienvenida, decidido en el servidor (auditoría de cuenta #25: la app llamaba
+ * con body {} y el correo nunca saludaba por nombre). Orden: el nombre del perfil, el del registro
+ * (user_metadata.full_name / name) y, al final, el que mande la app. Solo el primer nombre.
+ */
+export function welcomeFirstName(o: { profileName?: unknown; metaName?: unknown; bodyName?: unknown }): string | null {
+  return firstNameOf(o.profileName) ?? firstNameOf(o.metaName) ?? firstNameOf(o.bodyName);
+}
+
 export function welcomeEmail(o: { firstName?: string | null; hero?: HeroImage | null; siteUrl?: string | null; supportEmail?: string | null } = {}): Email {
   const site = normalizeSite(o.siteUrl);
   const name = firstNameOf(o.firstName);
@@ -394,7 +403,8 @@ export function welcomeEmail(o: { firstName?: string | null; hero?: HeroImage | 
   const stepList = [
     { title: "Cotiza tu primer viaje", text: "Dime a dónde y cuándo. Consulto vuelos y hoteles en vivo, estimo el resto y te digo de dónde sale cada cifra.", href: `${site}/dashboard/planear`, cta: "Planear un viaje" },
     { title: "Cuéntame cómo viajas", text: "Tu ritmo, presupuesto, comida y tipo de hotel. Con eso afino cada recomendación para ti.", href: `${site}/onboarding/deep`, cta: "Completar mi perfil" },
-    { title: "Guarda tus tarjetas y programas", text: "En Documentos y tarjetas registro tus tarjetas y programas de lealtad para aprovechar salas, puntos y beneficios.", href: `${site}/dashboard/perfil`, cta: "Abrir Documentos y tarjetas" },
+    // La sección real es /dashboard/beneficios (antes el botón abría el Perfil, auditoría de cuenta #25).
+    { title: "Guarda tus tarjetas y programas", text: "En Documentos y tarjetas registro tus tarjetas y programas de lealtad para aprovechar salas, puntos y beneficios.", href: `${site}/dashboard/beneficios`, cta: "Abrir Documentos y tarjetas" },
   ];
   const body = [
     masthead("Bienvenida"),

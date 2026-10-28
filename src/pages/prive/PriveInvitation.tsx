@@ -378,8 +378,18 @@ function InvitationMessage({ kind, emailSent, linkOnly, status, busy, error, onR
     case "NOT_ELIGIBLE":
       return box(M.notEligibleTitle, (
         <>
-          <p>{msg("NOT_ELIGIBLE")}</p>
-          {status && <p className="prive-champagne">{t.tenure.line(status.tenure_days, status.required_days)}.</p>}
+          {/* P1-1: con PRO de cortesía no se repite la promesa de los 90 días: se dice que no suma. */}
+          {status?.pro_basis === "comped" ? (
+            <>
+              <p className="prive-champagne" data-testid="prive-invitation-comped">{t.tenure.comped.line}.</p>
+              <p>{t.tenure.comped.body[0]}</p>
+            </>
+          ) : (
+            <>
+              <p>{msg("NOT_ELIGIBLE")}</p>
+              {status && <p className="prive-champagne prive-nums">{t.tenure.line(status.tenure_days, status.required_days)}.</p>}
+            </>
+          )}
         </>
       ), <Link to="/prive" className="prive-btn prive-btn-ghost">{M.seeProgress}</Link>);
     case "REVOKED":

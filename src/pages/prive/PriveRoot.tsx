@@ -10,23 +10,7 @@ import { PriveBackProvider, usePriveBackTarget } from "@/components/prive/shell/
 import { PriveLangProvider, usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import "@/components/prive/prive.css";
 import { SlowLoading } from "@/components/brand/SlowLoading";
-
-const FONT_ID = "prive-font-cormorant";
-// Una sola familia (Cormorant Garamond) con display=swap: el texto se ve al instante con la serifa
-// del sistema y cambia cuando llega la fuente. Solo se pide al entrar a Privé.
-const FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,400&display=swap";
-
-function usePriveFont() {
-  useEffect(() => {
-    if (typeof document === "undefined" || document.getElementById(FONT_ID)) return;
-    const link = document.createElement("link");
-    link.id = FONT_ID;
-    link.rel = "stylesheet";
-    link.href = FONT_HREF;
-    document.head.appendChild(link);
-  }, []);
-}
+import { usePriveFont } from "@/components/prive/usePriveFont";
 
 const Spinner = () => {
   const t = usePriveT();

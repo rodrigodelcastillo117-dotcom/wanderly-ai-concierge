@@ -17,13 +17,13 @@ import { capturePriveTokenFromUrl, clearPendingToken, clearPriveSession, readPen
 
 export default function PriveReset() {
   const { user } = useAuth();
-  const { call, refresh, adoptSession } = usePriveAccess();
+  const { call, refresh, adoptSession, status } = usePriveAccess();
   const { rise, reduce } = usePriveMotion();
   const t = usePriveT();
   const lang = usePriveLang();
   const T = t.reset;
   const [token, setToken] = useState<string | null>(null);
-  const [phase, setPhase] = useState<"request" | "sent" | "form" | "done" | "invalid">("request");
+  const [phase, setPhase] = useState<"request" | "sent" | "form" | "done" | "invalid" | "no_password">("request");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const once = useRef(false);
@@ -43,6 +43,8 @@ export default function PriveReset() {
     const r = await call("request_reset");
     setBusy(false);
     if (r.ok) setPhase("sent");
+    // El servidor confirma que no hay contraseña (p. ej. el estado aún no cargaba): misma salida útil.
+    else if (r.code === "NO_PASSWORD") setPhase("no_password");
     else setError(messageFor(r.code, lang));
   };
 
@@ -70,16 +72,36 @@ export default function PriveReset() {
   };
 
   const masked = maskEmail(user?.email);
+  // P1-2 (auditoría 28-oct): sin contraseña Privé no hay nada que restablecer. Antes se ofrecía el
+  // formulario y "Reportar contraseña comprometida" y todo terminaba en "créala desde tu invitación"
+  // aunque la cuenta no tuviera invitación. Con el estado del servidor se muestra la salida útil.
+  const view = phase === "request" && status && !status.has_password ? "no_password" : phase;
+  const invited = !!status && (status.membership_status === "invited" || status.invitation_pending
+    || (status.membership_status === "active" && !status.has_password));
 
   return (
     <motion.section {...rise()} className="max-w-md mx-auto px-4 py-12 sm:py-20" aria-labelledby="prive-reset-title" data-motion={reduce ? "reduced" : "full"}>
       <Monogram size={56} className="mb-6" />
       <p className="prive-eyebrow mb-3">IATOS Privé</p>
       <h1 id="prive-reset-title" className="text-3xl sm:text-4xl mb-4">
-        {phase === "done" ? T.done : T.title}
+        {view === "done" ? T.done : T.title}
       </h1>
 
-      {phase === "request" && (
+      {view === "no_password" && (
+        <div className="space-y-5" role="status" data-testid="prive-reset-no-password">
+          <p className="prive-serif text-2xl prive-champagne">{T.noPasswordTitle}</p>
+          <p className="text-sm prive-muted">{T.noPasswordBody}</p>
+          {invited && <p className="text-sm prive-champagne">{T.noPasswordInvited}</p>}
+          <div className="flex flex-wrap gap-3">
+            {invited
+              ? <Link to="/prive/invitacion" className="prive-btn prive-btn-gold">{T.openInvitation}</Link>
+              : null}
+            <Link to="/prive" className={`prive-btn ${invited ? "prive-btn-ghost" : "prive-btn-gold"}`}>{T.seeStatus}</Link>
+          </div>
+        </div>
+      )}
+
+      {view === "request" && (
         <div className="space-y-5">
           <p className="text-sm prive-muted">{T.requestBody(masked)}</p>
           {error && <p role="alert" className="text-sm text-[#f0b4a8]">{error}</p>}
@@ -89,14 +111,14 @@ export default function PriveReset() {
         </div>
       )}
 
-      {phase === "sent" && (
+      {view === "sent" && (
         <div className="space-y-4" role="status">
           <p className="text-sm prive-champagne">{T.sentBody(masked)}</p>
           <p className="text-sm prive-muted">{T.notArriving}</p>
         </div>
       )}
 
-      {phase === "form" && (
+      {view === "form" && (
         <PasswordCreator
           onChosen={complete}
           onComplete={done}
@@ -105,21 +127,21 @@ export default function PriveReset() {
         />
       )}
 
-      {phase === "invalid" && (
+      {view === "invalid" && (
         <div className="space-y-5">
           <p role="alert" className="text-sm prive-champagne">{messageFor("RESET_INVALID", lang)}</p>
           <button type="button" onClick={() => setPhase("request")} className="prive-btn prive-btn-gold">{T.requestNew}</button>
         </div>
       )}
 
-      {phase === "done" && (
+      {view === "done" && (
         <div className="space-y-5" role="status">
           <p className="text-sm prive-champagne">{T.changed}</p>
           <Link to="/prive" className="prive-btn prive-btn-gold">{T.enter}</Link>
         </div>
       )}
 
-      {(phase === "request" || phase === "sent") && (
+      {(view === "request" || view === "sent") && (
         <div className="mt-12 pt-8 border-t border-[color:var(--pv-line)]">
           <ReportCompromised />
         </div>

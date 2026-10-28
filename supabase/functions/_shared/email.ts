@@ -7,10 +7,20 @@ import { opsNoticeEmail } from "./email-ops.ts";
 declare const Deno: { env: { get(name: string): string | undefined } };
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
-const FROM_DEFAULT = "IATOS AI <hola@traveliatos.life>";
-// Remitente compartido de Resend: se usa solo si el dominio propio
-// todavía no está verificado, para no perder el envío.
-const FROM_FALLBACK = "IATOS AI <onboarding@resend.dev>";
+// Convención de marca en correos: "IATOS AI" es el nombre de la empresa (remitente y pie, igual que el
+// pie de la web "© IATOS AI"); "IATOS" es el producto en el cuerpo del correo.
+export const FROM_DEFAULT = "IATOS AI <hola@traveliatos.life>";
+// Remitente compartido de Resend. OJO: Resend solo entrega desde onboarding@resend.dev al dueño de la
+// cuenta de Resend, nunca a usuarios reales (auditoría de cuenta #26). Por eso ya NO se usa en silencio:
+// con el dominio sin verificar, el envío falla con "domain_not_verified" (queda en el registro) y solo se
+// reintenta con este remitente si el dueño lo permite (RESEND_ALLOW_SHARED_SENDER=true), útil para los
+// avisos internos que le llegan a él mientras verifica el dominio.
+export const FROM_FALLBACK = "IATOS AI <onboarding@resend.dev>";
+
+/** ¿Se puede reintentar con el remitente compartido? Solo con permiso explícito del dueño. */
+export function sharedSenderAllowed(get: (k: string) => string | undefined): boolean {
+  return String(get("RESEND_ALLOW_SHARED_SENDER") ?? "").trim().toLowerCase() === "true";
+}
 
 export async function sendEmail(opts: {
   to: string | string[];
@@ -61,7 +71,11 @@ export async function sendEmail(opts: {
     let res = await post(from);
 
     if (!res.ok && /not verified/i.test(String(res.data?.message ?? ""))) {
-      console.warn("sendEmail: dominio no verificado, usando remitente compartido");
+      if (!sharedSenderAllowed((k) => Deno.env.get(k))) {
+        console.error("sendEmail: el dominio de traveliatos.life no está verificado en Resend; el correo NO se envió (ver docs/ops/LEEME.md)");
+        return { ok: false, error: "domain_not_verified" };
+      }
+      console.warn("sendEmail: dominio no verificado, usando remitente compartido (solo llega al dueño de la cuenta de Resend)");
       res = await post(FROM_FALLBACK);
     }
 

@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { Crown, Check, Loader2, Sparkles } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useSubscription } from "@/hooks/useSubscription";
+import { SUBSCRIPTION_SLOW_MS, useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
 import { track } from "@/lib/analytics";
 import { PRICE_LINE, PRO_FEATURES, freeUsageLines } from "@/lib/planCopy";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
 import { fmtProDate, proStatusLabel } from "@/lib/proStatus";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMemberCard } from "@/lib/memberCard";
+import { withIatoMark } from "@/lib/iatoMark";
 
 // Mismo texto que Landing, Términos y correos (src/lib/planCopy.ts).
 const BENEFITS = PRO_FEATURES;
@@ -18,8 +21,20 @@ export default function Pro() {
     trialDaysLeft, cancelAtPeriodEnd, refresh, startCheckout, openPortal,
   } = useSubscription();
   const [busy, setBusy] = useState<"checkout" | "portal" | null>(null);
+  // Si el servidor tarda (se midieron 5 s en producción), se dice en vez de girar en silencio.
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!loading) { setSlow(false); return; }
+    const t = window.setTimeout(() => setSlow(true), SUBSCRIPTION_SLOW_MS);
+    return () => window.clearTimeout(t);
+  }, [loading]);
   const { copy: trial } = useTrialCopy();
   const [params, setParams] = useSearchParams();
+  const { user } = useAuth();
+  // "Miembro fundador" solo si el servidor lo dice (tabla founders → tarjeta founder_black). Antes
+  // cualquier cortesía sin fecha se presentaba como fundador (auditoría Privé 28-oct, P1-8).
+  const { card } = useMemberCard(user?.id ?? null);
+  const founder = card?.tier === "founder_black";
 
   useEffect(() => {
     const c = params.get("checkout");
@@ -50,12 +65,16 @@ export default function Pro() {
           IATOS <span className="gold-text">PRO</span>
         </h1>
         <p className="text-muted-foreground mb-8 max-w-xl">
-          Más mensajes con Iato, más análisis de viaje y alertas de precio. {PRICE_LINE}. Cancela cuando quieras.
+          {/* Con PRO de cortesía no hay nada que contratar ni cancelar: no se le muestra el precio (cuenta #5). */}
+          {isComped
+            ? <>Más mensajes con {withIatoMark("Iato")}, más análisis de viaje y alertas de precio, sin costo para ti.</>
+            : <>Más mensajes con {withIatoMark("Iato")}, más análisis de viaje y alertas de precio. {PRICE_LINE}. Cancela cuando quieras.</>}
         </p>
 
         {loading ? (
-          <div className="glass-card rounded-2xl p-10 flex justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="glass-card rounded-2xl p-10 flex flex-col items-center gap-3" role="status" aria-label="Cargando tu plan">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden="true" />
+            {slow && <p className="text-sm text-muted-foreground text-center" data-testid="pro-slow">Está tardando más de lo normal. Seguimos consultando tu plan…</p>}
           </div>
         ) : error ? (
           <div role="alert" className="glass-card rounded-2xl p-6 md:p-8 mb-6 text-center">
@@ -78,10 +97,12 @@ export default function Pro() {
                     {statusLabel}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="font-display text-3xl gold-text leading-none">$99</p>
-                  <p className="text-[11px] text-muted-foreground">MXN / mes · IVA incluido</p>
-                </div>
+                {!isComped && (
+                  <div className="text-right" data-testid="pro-price">
+                    <p className="font-display text-3xl gold-text leading-none">$99</p>
+                    <p className="text-[11px] text-muted-foreground">MXN / mes · IVA incluido</p>
+                  </div>
+                )}
               </div>
 
               {!isPro && access && (
@@ -101,7 +122,7 @@ export default function Pro() {
                 {BENEFITS.map((b) => (
                   <li key={b} className="flex items-start gap-2.5 text-sm">
                     <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                    <span className="text-muted-foreground">{b}</span>
+                    <span className="text-muted-foreground">{withIatoMark(b)}</span>
                   </li>
                 ))}
               </ul>
@@ -112,7 +133,9 @@ export default function Pro() {
                   <span>
                     {subscription?.comped_until
                       ? `Tienes IATOS PRO de cortesía hasta el ${fmtProDate(subscription.comped_until)} por invitar a tus amigos. Al terminar vuelves al plan gratuito; no se te cobra nada.`
-                      : "Tienes acceso PRO de cortesía indefinido como miembro fundador. No necesitas hacer nada."}
+                      : founder
+                        ? "Tienes acceso PRO de cortesía indefinido como miembro fundador. No necesitas hacer nada."
+                        : "Tienes IATOS PRO de cortesía, sin fecha de término. No necesitas hacer nada y no se te cobra."}
                   </span>
                 </div>
               ) : subscription?.stripe_customer_id && (isPro || subscription?.status) ? (
@@ -150,11 +173,13 @@ export default function Pro() {
               )}
             </div>
 
-            <p className="text-[11px] text-muted-foreground">
-              {trial.checkoutNote}
-            </p>
+            {!isComped && (
+              <p className="text-[11px] text-muted-foreground" data-testid="pro-checkout-note">
+                {trial.checkoutNote}
+              </p>
+            )}
             <p className="text-[11px] text-muted-foreground mt-2 flex flex-wrap gap-x-3 gap-y-1">
-              Al continuar aceptas los
+              {isComped ? "Tu plan se rige por los" : "Al continuar aceptas los"}
               <Link to="/terminos" className="text-primary hover:underline">Términos y Condiciones</Link>
               <span>·</span>
               <Link to="/privacidad" className="text-primary hover:underline">Aviso de Privacidad</Link>

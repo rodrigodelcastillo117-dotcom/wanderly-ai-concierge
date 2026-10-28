@@ -110,6 +110,34 @@ export function seasonText(e: Pick<PriveExperience, "season">, lang: PriveLang =
   return s.note ?? null;
 }
 
+/**
+ * Fecha de un evento de Iconic Events (P1-9, auditoría 28-oct): el catálogo tenía eventos sin
+ * event_start y el universo prometía "con fecha". Con fecha se muestra; sin ella se dice que está por
+ * confirmar. En otros universos no se dice nada.
+ */
+export function eventDateText(e: Pick<PriveExperience, "universe" | "event_start" | "event_end">, lang: PriveLang = "es"): string | null {
+  const C = PRIVE_TEXT[lang].catalog;
+  if (e.event_start) {
+    const from = shortDate(e.event_start, lang);
+    if (from) return C.eventDate(from, e.event_end ? shortDate(e.event_end, lang) : null);
+  }
+  return e.universe === "iconic_events" ? C.eventTbc : null;
+}
+
+/** Eventos con fecha primero (los más próximos antes); los que no la tienen, al final, en su orden. */
+export function datedEventsFirst<T extends Pick<PriveExperience, "event_start">>(items: T[]): T[] {
+  return items
+    .map((e, i) => ({ e, i }))
+    .sort((a, b) => {
+      const da = a.e.event_start ?? null, db = b.e.event_start ?? null;
+      if (da && db) return da < db ? -1 : da > db ? 1 : a.i - b.i;
+      if (da) return -1;
+      if (db) return 1;
+      return a.i - b.i;
+    })
+    .map((x) => x.e);
+}
+
 /** Puede pedirse solo lo publicable; nunca lo pendiente, desactualizado o no disponible. */
 export const canRequest = (e: Pick<PriveExperience, "state">) => e.state === "VERIFICADO" || e.state === "CURADO" || e.state === "ESTIMADO";
 

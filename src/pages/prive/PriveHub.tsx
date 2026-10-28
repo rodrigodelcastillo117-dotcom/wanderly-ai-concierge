@@ -23,7 +23,7 @@ import { SUPPORT_EMAIL, WELCOME_VERSION, formatDate, messageFor } from "@/lib/pr
 import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import { onboardingResumeStep, shouldAutoPlayWelcome } from "@/lib/priveOnboarding";
 import { PRO_PATH } from "@/lib/functionErrors";
-import type { PriveOnboarding as OnboardingState, PriveStatus } from "@/lib/priveApi";
+import { priveApi, type PriveOnboarding as OnboardingState, type PriveStatus } from "@/lib/priveApi";
 import { PrivateEditionBand } from "@/components/prive/edition";
 import { editionText } from "@/lib/priveEditionI18n";
 
@@ -47,8 +47,20 @@ function Explainer() {
   );
 }
 
+/** Conteo público por universo para el adelanto (sin contenido reservado). null mientras no hay dato. */
+function useUniverseCounts() {
+  const [counts, setCounts] = useState<Partial<Record<string, number>> | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    void priveApi.universeCounts().then((c) => { if (alive && c) setCounts(c); });
+    return () => { alive = false; };
+  }, []);
+  return counts;
+}
+
 function Teaser() {
   const t = usePriveT();
+  const counts = useUniverseCounts();
   return (
     <Center label="IATOS Privé">
       <Monogram size={88} className="mx-auto mb-8" />
@@ -65,13 +77,48 @@ function Teaser() {
         </div>
       </div>
       <h2 className="text-2xl mb-5 text-left">{t.hub.twelveCollections}</h2>
-      <UniverseTiles locked />
+      <UniverseTiles locked counts={counts} />
+    </Center>
+  );
+}
+
+function MeanwhileMembers() {
+  const t = usePriveT();
+  return (
+    <p className="text-sm prive-muted mt-8 max-w-md mx-auto">
+      {t.hub.meanwhile}{" "}
+      <Link to="/dashboard/concierge?tab=members" className="prive-link">Members Only</Link>.
+    </p>
+  );
+}
+
+/**
+ * PRO de cortesía (P1-1, auditoría 28-oct): nunca suma días para Privé. No se dibuja un contador "0 de 90"
+ * que no va a avanzar ni se promete la invitación al llegar a 90; se dice por qué y qué puede hacer.
+ */
+function CompedProgress() {
+  const t = usePriveT();
+  const C = t.tenure.comped;
+  return (
+    <Center label={t.hub.progressLabel}>
+      <p className="prive-eyebrow mb-4">IATOS Privé</p>
+      <h1 className="text-3xl sm:text-4xl mb-6">{C.title}</h1>
+      <p className="prive-serif prive-nums text-2xl mb-6 prive-champagne" data-testid="prive-comped-line">{C.line}</p>
+      <div className="space-y-3 text-sm prive-muted max-w-md mx-auto text-left">
+        {C.body.map((l) => <p key={l}>{l}</p>)}
+      </div>
+      <div className="flex flex-wrap justify-center gap-3 mt-8">
+        <Link to={PRO_PATH} className="prive-btn prive-btn-ghost">{C.seePlan}</Link>
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="prive-btn prive-btn-ghost">{C.write}</a>
+      </div>
+      <MeanwhileMembers />
     </Center>
   );
 }
 
 function Progress({ s }: { s: PriveStatus }) {
   const t = usePriveT();
+  if (s.pro_basis === "comped") return <CompedProgress />;
   return (
     <Center label={t.hub.progressLabel}>
       <p className="prive-eyebrow mb-4">IATOS Privé</p>
@@ -79,12 +126,10 @@ function Progress({ s }: { s: PriveStatus }) {
       <div className="flex justify-center mb-6">
         <ProgressRing value={s.tenure_days} total={s.required_days} />
       </div>
-      <p className="prive-serif text-2xl mb-6 prive-champagne">{t.tenure.line(s.tenure_days, s.required_days)}</p>
+      <p className="prive-serif prive-nums text-2xl mb-6 prive-champagne">{t.tenure.line(s.tenure_days, s.required_days)}</p>
+      {s.pro_basis === "trial" && <p className="text-sm prive-champagne max-w-md mx-auto mb-6" data-testid="prive-trial-note">{t.tenure.trialNote}</p>}
       <Explainer />
-      <p className="text-sm prive-muted mt-8 max-w-md mx-auto">
-        {t.hub.meanwhile}{" "}
-        <Link to="/dashboard/concierge?tab=members" className="prive-link">Members Only</Link>.
-      </p>
+      <MeanwhileMembers />
     </Center>
   );
 }
@@ -144,7 +189,7 @@ function Paused({ s, reason }: { s: PriveStatus; reason: "pro" | "tenure" }) {
       ) : (
         <>
           <h1 className="text-3xl sm:text-4xl mb-4">{t.hub.pausedTenureTitle}</h1>
-          <p className="prive-muted max-w-md mx-auto mb-6">{t.hub.pausedTenureBody(s.tenure_days, s.required_days)}</p>
+          <p className="prive-muted prive-nums max-w-md mx-auto mb-6">{t.hub.pausedTenureBody(s.tenure_days, s.required_days)}</p>
           <div className="flex justify-center"><ProgressRing value={s.tenure_days} total={s.required_days} size={140} /></div>
         </>
       )}

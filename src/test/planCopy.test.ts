@@ -11,7 +11,6 @@ const FILES = [
   "src/pages/Landing.tsx",
   "src/pages/Auth.tsx",
   "src/pages/Pro.tsx",
-  "src/components/ProGate.tsx",
   "src/pages/Legal.tsx",
   "supabase/functions/_shared/email.ts",
   "supabase/functions/_shared/email-templates.ts",

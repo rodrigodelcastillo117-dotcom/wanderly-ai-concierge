@@ -81,10 +81,16 @@ export default function PriveMyPage() {
         </section>
       )}
       <ValueOfYourPrive />
-      <section aria-labelledby="prive-my-settings" className="space-y-5">
-        <h2 id="prive-my-settings" className="text-3xl">{t.my.settings}</h2>
-        <PriveMembership embedded />
-      </section>
+      {/* Sin membresía no hay preferencias ni seguridad que mostrar: el aviso va solo, sin ese título
+          encima (auditoría 28-oct: "Preferencias y seguridad" salía arriba de "Aún no tienes membresía"). */}
+      {status && !active ? (
+        <section data-testid="prive-my-none"><PriveMembership embedded /></section>
+      ) : (
+        <section aria-labelledby="prive-my-settings" className="space-y-5">
+          <h2 id="prive-my-settings" className="text-3xl">{t.my.settings}</h2>
+          <PriveMembership embedded />
+        </section>
+      )}
     </div>
   );
 }

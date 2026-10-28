@@ -246,7 +246,7 @@ describe("bienvenida, invitación, alertas y cuenta eliminada", () => {
     expect(m.subject).toBe("Valentina, tu concierge de viajes ya está listo");
     expect(m.text).toMatch(/1\. Cotiza tu primer viaje[\s\S]*2\. Cuéntame cómo viajas[\s\S]*3\. Guarda tus tarjetas/);
     expect(hrefs(m.html)).toEqual(expect.arrayContaining([
-      "https://traveliatos.life/dashboard/planear", "https://traveliatos.life/onboarding/deep", "https://traveliatos.life/dashboard/perfil", "https://traveliatos.life/dashboard",
+      "https://traveliatos.life/dashboard/planear", "https://traveliatos.life/onboarding/deep", "https://traveliatos.life/dashboard/beneficios", "https://traveliatos.life/dashboard",
     ]));
     for (const h of hrefs(m.html)) expect(h).not.toMatch(/valentina/i);
     expect(m.text).toMatchSnapshot();

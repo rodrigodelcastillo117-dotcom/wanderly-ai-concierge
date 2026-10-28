@@ -36,7 +36,7 @@ export function ProgressRing({ value, total, size = 176 }: { value: number; tota
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="prive-serif text-5xl leading-none">{v}</span>
+        <span className="prive-serif prive-nums text-5xl leading-none" data-testid="prive-ring-value">{v}</span>
         <span className="text-[11px] tracking-[0.24em] uppercase prive-muted mt-2">de {total} días</span>
       </div>
     </div>

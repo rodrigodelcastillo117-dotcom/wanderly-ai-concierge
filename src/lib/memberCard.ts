@@ -127,6 +127,9 @@ export const CARD_TEXT = {
     days: (n: number) => (n === 1 ? "1 día" : `${n} días`),
     years: (y: number, d: number) => `${y} ${y === 1 ? "año" : "años"}${d ? ` y ${d} ${d === 1 ? "día" : "días"}` : ""}`,
     numberNote: "Tu número de miembro no es sensible: no sirve para entrar ni para pagar.",
+    // Auditoría 28-oct: "Antigüedad 7 días" chocaba con "0 de 90" de Privé sin explicar la diferencia.
+    tenureNote: "La antigüedad cuenta desde que creaste tu cuenta. Para IATOS Privé cuentan otros días: los de IATOS PRO pagado.",
+    priveRule: "IATOS Privé se abre al sumar 90 días de IATOS PRO pagado (la prueba gratuita y el PRO de cortesía no suman).",
   },
   en: {
     card: "IATOS card", memberSince: "Member since", number: "Member number", tenure: "Tenure", rank: "Your rank",
@@ -142,6 +145,8 @@ export const CARD_TEXT = {
     days: (n: number) => (n === 1 ? "1 day" : `${n} days`),
     years: (y: number, d: number) => `${y} ${y === 1 ? "year" : "years"}${d ? ` and ${d} ${d === 1 ? "day" : "days"}` : ""}`,
     numberNote: "Your member number is not sensitive: it can't be used to sign in or pay.",
+    tenureNote: "Tenure counts from the day you created your account. IATOS Privé counts different days: those of paid IATOS PRO.",
+    priveRule: "IATOS Privé opens after 90 days of paid IATOS PRO (free trial and complimentary PRO do not count).",
   },
 };
 

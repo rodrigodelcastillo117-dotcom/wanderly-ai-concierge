@@ -443,3 +443,85 @@ SELECT cron.schedule(
   $cmd$
 );
 ```
+
+## Cuenta y Privé: arreglos de la auditoría del 28-oct-2026 (rama `claude/fix-cuenta-prive`)
+
+**Orden:** 1) migración `supabase/migrations/20261029020000_fix_cuenta_prive.sql` (idempotente; pruebas en
+`supabase/tests/fix_cuenta_prive/`), 2) funciones, 3) frontend (Publish).
+
+- La migración agrega `pro_basis` a `prive_status()` (`paid` / `trial` / `comped`) para que Privé le diga a una
+  cuenta con PRO de cortesía que la cortesía **no suma días** (antes veía "0 de 90" para siempre). Sin la
+  migración el frontend funciona igual que antes (sin el aviso de cortesía).
+- La misma migración hace que el panel editorial responda **403** (no 400) a quien no es administrador.
+- Funciones a publicar: `email-bienvenida` (saluda por nombre, enlace a Documentos y tarjetas) y las que envían
+  correos con `_shared/email.ts`, `_shared/email-kit.ts`, `_shared/email-templates.ts` o
+  `_shared/ai-reservations/templates.ts` (lista exacta en el reporte de la rama).
+
+### "Continuar con Google" (apagado hasta que lo actives)
+
+El botón ya existe en `/auth`, pero solo aparece con la variable `VITE_GOOGLE_LOGIN_ENABLED=true`. Antes de
+encenderla:
+
+1. En Google Cloud Console → APIs y servicios → Credenciales, crea un "ID de cliente de OAuth" tipo
+   **Aplicación web**. En "URI de redireccionamiento autorizados" pon la URL de callback que te muestra Supabase
+   (`https://uhkdewinscffhdonhhmt.supabase.co/auth/v1/callback`).
+2. En Supabase (Lovable → Cloud → Authentication → Providers → **Google**): actívalo y pega el Client ID y el
+   Client Secret.
+3. En Supabase → Authentication → URL Configuration, agrega a "Redirect URLs":
+   `https://traveliatos.life/auth` (y la URL de vista previa de Lovable si la usas).
+4. En Lovable, agrega la variable `VITE_GOOGLE_LOGIN_ENABLED` con valor `true` y publica.
+5. Prueba con una cuenta de Google nueva: debe volver a `/auth` con sesión y seguir al onboarding.
+
+Si el proveedor no está activo y enciendes la variable, quien toque el botón verá "No pudimos abrir el inicio
+de sesión con Google"; por eso va apagado por omisión.
+
+### Travelpayouts Drive (medición de afiliados): apagado hasta verificar el dominio
+
+Al aceptar cookies, el script `tp-em.com/NTMzMjk5.js` pedía su configuración a `tp-em.com/entrypoint_config` y
+recibía **403** sin CORS: errores rojos en la consola y ninguna medición. Ese error de red no se puede atrapar
+desde la página, así que el script ahora se carga **solo** con `VITE_TRAVELPAYOUTS_DRIVE_ENABLED=true`. Los
+enlaces de afiliado (con su `marker`) no dependen de este script y siguen funcionando.
+
+1. En Travelpayouts → proyecto **533299** → Drive / Tools, confirma que `traveliatos.life` está registrado y
+   verificado como dominio del proyecto.
+2. Desde tu navegador, con el sitio abierto, comprueba en la consola que ya no aparece "blocked by CORS policy"
+   ni "config is not valid" (puedes activarlo primero en la vista previa de Lovable).
+3. Entonces agrega en Lovable `VITE_TRAVELPAYOUTS_DRIVE_ENABLED=true` y publica.
+
+### Correos: dominio sin verificar en Resend
+
+Antes, si Resend decía que `traveliatos.life` no estaba verificado, se reenviaba en silencio desde
+`onboarding@resend.dev`, que **solo** entrega al dueño de la cuenta de Resend (a los usuarios nunca les
+llegaba). Ahora ese envío falla con `domain_not_verified` y queda en el registro de la función. Si quieres que
+mientras verificas el dominio te sigan llegando los avisos internos, agrega el secreto
+`RESEND_ALLOW_SHARED_SENDER=true` (los usuarios seguirán sin recibir correos hasta verificar el dominio).
+
+Convención de marca: remitente y pie de los correos dicen **IATOS AI** (la empresa, como "© 2026 IATOS AI" del
+sitio); el cuerpo habla de **IATOS** (el producto).
+
+### Registro: revela si un correo ya tiene cuenta (decisión pendiente, no se cambió)
+
+Al registrarse con un correo existente, Supabase responde `user_already_exists` y la app dice "Ya existe una
+cuenta con este correo". Eso permite averiguar si alguien está registrado. Cerrarlo implica activar la
+confirmación de correo obligatoria en Supabase (Authentication → Providers → Email → "Confirm email") y
+cambiar el mensaje por uno neutro ("Si el correo es nuevo, te enviamos un enlace…"). Es una decisión de
+producto: hoy se prefirió la claridad para el usuario.
+
+### 404, cabeceras de seguridad y sitemap en el hosting de Lovable
+
+- **404 real:** Lovable sirve la app como SPA y responde **HTTP 200** en cualquier ruta (la pantalla 404 la
+  dibuja la app). No hay forma de devolver un 404 de servidor desde el código; la pantalla ya es negra, explica
+  y no escribe errores en la consola. Si algún día el sitio se sirve desde un hosting con reglas (Cloudflare,
+  Netlify, Vercel), se puede configurar ahí.
+- **CSP y frame-ancestors / X-Frame-Options:** no se agregaron. Lovable no documenta un archivo `_headers` ni
+  otra forma de poner cabeceras de respuesta, y:
+  - `Content-Security-Policy-Report-Only` **no funciona** como `<meta>` (los navegadores la ignoran), así que
+    no se puede probar en "solo reporte" desde `index.html`;
+  - `frame-ancestors` tampoco funciona en `<meta>`;
+  - una CSP que bloquea en `<meta>`, sin periodo de prueba, puede romper Google Maps, Stripe, PostHog, Sentry,
+    Pexels o Travelpayouts en producción.
+  Cuando el dominio pase por un proxy que permita cabeceras (p. ej. Cloudflare delante de traveliatos.life),
+  empieza con esta cabecera en modo reporte y revisa los avisos una semana antes de activarla:
+  `Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://js.stripe.com https://*.posthog.com https://maps.googleapis.com https://tp-em.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.posthog.com https://*.sentry.io https://*.ingest.sentry.io https://maps.googleapis.com https://api.stripe.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://js.stripe.com https://hooks.stripe.com https://www.google.com; frame-ancestors 'none'`
+  y además `X-Frame-Options: DENY`.
+- **sitemap.xml:** ya existe en `public/sitemap.xml` (páginas públicas) y `robots.txt` lo anuncia.

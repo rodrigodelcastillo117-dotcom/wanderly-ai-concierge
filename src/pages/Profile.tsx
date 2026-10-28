@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -35,10 +35,25 @@ import { DNA_ARCHETYPES } from "@/lib/travelDna";
 import { useAutoEvolveAvatar } from "@/components/avatar/useAutoEvolveAvatar";
 import { ProfileWrappedLink } from "@/components/wrapped/WrappedPromo";
 import { localISODate } from "@/lib/localDate";
+import { readFunctionError } from "@/lib/functionErrors";
+import { openCookieSettings } from "@/lib/consent";
+import { dnaUpdatedLabel, PROFILE_SETTINGS_ID } from "@/lib/profileSettings";
+import { withIatoMark } from "@/lib/iatoMark";
 
 const Profile = () => {
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const { signOut, user } = useAuth();
+  // El engrane "Ajustes" del encabezado abre /dashboard/perfil#ajustes: baja a la sección real de ajustes.
+  // Las secciones de arriba cargan después (tarjetas, promociones) y empujan la página: se vuelve a
+  // alinear un par de veces mientras se acomoda.
+  useEffect(() => {
+    if (hash !== `#${PROFILE_SETTINGS_ID}`) return;
+    const go = () => document.getElementById(PROFILE_SETTINGS_ID)?.scrollIntoView?.({ block: "start" });
+    go();
+    const timers = [400, 1200, 2500].map((ms) => window.setTimeout(go, ms));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [hash]);
   // Una sola fuente del avatar para toda la app (antes aquí salía la "R" y en el DNA la imagen).
   const { url: avatarUrl } = useMyAvatar();
   const prive = usePriveSeal();
@@ -118,8 +133,10 @@ const Profile = () => {
           updated_at: (prefs as any)?.dna_updated_at ?? null,
         });
       }
-    } catch (e: any) {
-      toast.error(e?.message ?? "No se pudo evolucionar");
+    } catch (e: unknown) {
+      // Nunca el texto técnico ("Edge Function returned a non-2xx status code"), auditoría de cuenta #16.
+      const info = await readFunctionError(e, "No pudimos recalcular tu perfil de viajero. Intenta de nuevo en unos minutos.");
+      toast.error(info.message);
     } finally {
       setEvolving(false);
     }
@@ -211,7 +228,7 @@ const Profile = () => {
               <p className="text-xs md:text-sm gold-text mt-2">
                 Evoluciona con cada viaje
                 {dnaMeta.version != null && <> · Versión {dnaMeta.version}</>}
-                {dias != null && <> · Actualizado hace {dias} {dias === 1 ? "día" : "días"}</>}
+                {dias != null && <> · {dnaUpdatedLabel(dias)}</>}
               </p>
             </div>
             <Button
@@ -305,7 +322,10 @@ const Profile = () => {
           </div>
 
           <p className="text-[11px] text-muted-foreground text-center">
-            Tu perfil de viajero se recalcula automáticamente cada 3 viajes. Si quieres forzarlo ahora, presiona aquí.
+            Tu perfil de viajero se recalcula automáticamente cada 3 viajes. Si quieres hacerlo ahora,{" "}
+            <button type="button" onClick={evolucionar} disabled={evolving} className="text-primary underline underline-offset-2 disabled:opacity-60">
+              recalcúlalo aquí
+            </button>.
           </p>
         </section>
 
@@ -374,6 +394,21 @@ const Profile = () => {
             </div>
           </button>
         )}
+
+        {/* AJUSTES (auditoría de cuenta #18): el engrane del encabezado abría el mismo Perfil que el avatar.
+            Ahora lleva aquí (#ajustes), con los ajustes que sí existen; no se inventan otros. */}
+        <section id={PROFILE_SETTINGS_ID} className="scroll-mt-20 space-y-4" aria-labelledby="ajustes-title" data-testid="profile-settings">
+          <div>
+            <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Cuenta</p>
+            <h2 id="ajustes-title" className="font-display text-2xl md:text-3xl">Ajustes</h2>
+          </div>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            <li><Link to="/dashboard/pro" className="block glass-card rounded-xl p-4 hover:border-primary/40 transition"><span className="block font-medium">Plan y facturación</span><span className="block text-xs text-muted-foreground mt-0.5">Tu plan IATOS PRO y, si pagas, el portal de Stripe.</span></Link></li>
+            <li><button type="button" onClick={() => navigate("/onboarding/deep")} className="w-full text-left glass-card rounded-xl p-4 hover:border-primary/40 transition"><span className="block font-medium">Preferencias de viaje</span><span className="block text-xs text-muted-foreground mt-0.5">Lo que {withIatoMark("Iato")} usa para recomendarte.</span></button></li>
+            <li><Link to="/dashboard/perfil#que-ven-mis-amigos" className="block glass-card rounded-xl p-4 hover:border-primary/40 transition"><span className="block font-medium">Privacidad con tus amigos</span><span className="block text-xs text-muted-foreground mt-0.5">Qué ven de ti en Social.</span></Link></li>
+            <li><button type="button" onClick={openCookieSettings} className="w-full text-left glass-card rounded-xl p-4 hover:border-primary/40 transition"><span className="block font-medium">Cookies y analítica</span><span className="block text-xs text-muted-foreground mt-0.5">Cambia lo que aceptaste en el aviso de cookies.</span></button></li>
+          </ul>
+        </section>
 
         <DeleteAccountSection />
 

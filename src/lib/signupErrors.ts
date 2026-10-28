@@ -15,3 +15,19 @@ export function signupErrorMessage(raw: string | null | undefined): string {
   if (m.includes("network") || m.includes("fetch")) return "No hay conexión. Revisa tu internet e intenta de nuevo.";
   return "No pudimos crear tu cuenta. Revisa tus datos e intenta de nuevo.";
 }
+
+/**
+ * Mensaje al fallar el inicio de sesión (auditoría de cuenta #10): antes todo decía "Credenciales
+ * inválidas". Supabase no distingue "correo no existe" de "contraseña incorrecta" (y está bien: no revela
+ * qué correos tienen cuenta), así que se dice en palabras normales y se ofrece recuperar la contraseña.
+ */
+export function signinErrorMessage(raw: string | null | undefined): { message: string; offerReset: boolean } {
+  const m = (raw ?? "").toLowerCase();
+  if (m.includes("email not confirmed") || m.includes("not confirmed"))
+    return { message: "Aún no confirmas tu correo. Abre el enlace que te enviamos al registrarte y vuelve a intentar.", offerReset: false };
+  if (m.includes("rate limit") || m.includes("too many") || m.includes("security purposes"))
+    return { message: "Demasiados intentos seguidos. Espera un minuto y vuelve a intentar.", offerReset: false };
+  if (m.includes("network") || m.includes("fetch"))
+    return { message: "No hay conexión. Revisa tu internet e intenta de nuevo.", offerReset: false };
+  return { message: "Correo o contraseña incorrectos. Revísalos o recupera tu contraseña.", offerReset: true };
+}

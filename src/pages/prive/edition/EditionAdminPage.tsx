@@ -73,6 +73,7 @@ export default function EditionAdminPage() {
           <ShieldAlert className="h-8 w-8 mx-auto text-primary" aria-hidden="true" />
           <h1 className="font-display text-2xl">Panel editorial</h1>
           <p className="text-muted-foreground">Solo el equipo editorial (administradores) puede abrir este panel.</p>
+          <Link to="/dashboard" className="inline-flex items-center rounded-xl bg-gradient-gold px-5 py-3 text-sm font-medium text-primary-foreground">Ir al inicio</Link>
         </div>
       </DashboardLayout>
     );

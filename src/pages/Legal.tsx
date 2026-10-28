@@ -43,6 +43,13 @@ const UPDATED = "24 de agosto de 2026";
 // Términos: se agregó la promoción de referidos (sección 5).
 const TERMS_UPDATED = "23 de octubre de 2026";
 const CONTACT = "hola@traveliatos.life";
+// Privacidad: se agregaron Perplexity y la pasarela de IA de Lovable a la lista de proveedores.
+const PRIVACY_UPDATED = "28 de octubre de 2026";
+
+/** Dónde se cancela o se gestiona PRO, con el nombre real del menú (no una ruta técnica ni en inglés). */
+const ManageSubscriptionPath = () => (
+  <>en <Link to="/dashboard/pro" className="text-primary">Plan IATOS PRO</Link> (en el celular, menú <strong>Más → Plan IATOS PRO</strong>), con el botón <strong>Gestionar suscripción</strong>, que abre el portal de Stripe</>
+);
 
 const Shell = ({ title, description, children, updated = UPDATED }: { title: string; description: string; children: React.ReactNode; updated?: string }) => (
   <div className="min-h-screen bg-background">
@@ -63,6 +70,7 @@ const Shell = ({ title, description, children, updated = UPDATED }: { title: str
         <Link to="/privacidad" className="hover:text-foreground transition">Aviso de Privacidad</Link>
         <Link to="/reembolsos" className="hover:text-foreground transition">Reembolsos y Cancelación</Link>
         <Link to="/cookies" className="hover:text-foreground transition">Cookies</Link>
+        <Link to="/ayuda" className="hover:text-foreground transition">Ayuda</Link>
         <span>·</span>
         <a href={`mailto:${CONTACT}`} className="hover:text-foreground transition">{CONTACT}</a>
       </footer>
@@ -90,7 +98,7 @@ export const Terminos = () => (
         <li>Precio: {PRICE_LINE}.</li>
         <TrialTermsItem />
         <li>Al contratar PRO, el cobro mensual se realiza a través de Stripe y se renueva cada mes hasta que canceles. IATOS AI no almacena los datos de tu tarjeta.</li>
-        <li>Puedes cancelar en cualquier momento desde el portal de facturación en /dashboard/pro. Al cancelar conservas el acceso hasta el fin del periodo pagado.</li>
+        <li>Puedes cancelar en cualquier momento <ManageSubscriptionPath />. Al cancelar conservas el acceso hasta el fin del periodo pagado.</li>
         <li>Plan gratuito: {FREE_FEATURES.join("; ")}.</li>
         <li>IATOS PRO incluye: {PRO_FEATURES.join("; ")}. Los límites se aplican por cuenta y pueden ajustarse con aviso previo.</li>
       </ul>
@@ -116,7 +124,7 @@ export const Terminos = () => (
 );
 
 export const Privacidad = () => (
-  <Shell title="Aviso de Privacidad" description="Cómo tratamos tus datos personales">
+  <Shell title="Aviso de Privacidad" description="Cómo tratamos tus datos personales" updated={PRIVACY_UPDATED}>
     <section>
       <h2>1. Responsable</h2>
       <p>IATOS AI, con domicilio en Ciudad de México, es responsable del tratamiento de tus datos personales conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).</p>
@@ -144,7 +152,7 @@ export const Privacidad = () => (
     </section>
     <section>
       <h2>4. Con quién los compartimos</h2>
-      <p>Compartimos únicamente lo necesario con proveedores que operan la plataforma: Supabase (base de datos y autenticación), Stripe (pagos), Anthropic y Google (modelos de IA que procesan tus consultas), SerpApi y Travelpayouts (búsqueda de precios), Resend (correo), Sentry (monitoreo de errores), PostHog (analítica de uso, solo si la aceptas) y Google Maps (mapas y lugares). A Sentry y PostHog solo les enviamos un identificador interno, no tu correo. No vendemos tus datos personales.</p>
+      <p>Compartimos únicamente lo necesario con proveedores que operan la plataforma: Supabase (base de datos y autenticación), Stripe (pagos), Anthropic y Google (modelos de IA que procesan tus consultas), la pasarela de IA de Lovable (Lovable AI Gateway, que hace llegar algunas consultas a esos modelos), Perplexity (búsqueda en internet con IA para algunas consultas, como estado de vuelos, promociones, vida nocturna y análisis de viaje), SerpApi y Travelpayouts (búsqueda de precios), Resend (correo), Sentry (monitoreo de errores), PostHog (analítica de uso, solo si la aceptas) y Google Maps (mapas y lugares). A Sentry y PostHog solo les enviamos un identificador interno, no tu correo. No vendemos tus datos personales.</p>
     </section>
     <section>
       <h2>5. Conservación y eliminación de tu cuenta</h2>
@@ -178,7 +186,7 @@ export const Cookies = () => (
         <li><strong>Preferencias:</strong> recordar ajustes como tu ciudad de origen o los tooltips ya vistos.</li>
         <li><strong>Diagnóstico:</strong> registros anónimos de errores (Sentry) para detectar fallas.</li>
         <li><strong>Afiliados:</strong> al hacer clic en un enlace de reserva, el proveedor final puede colocar su propia cookie de atribución. Esa cookie se rige por la política del proveedor.</li>
-        <li><strong>Analítica y medición (solo si aceptas):</strong> PostHog (uso de la app) y el script de Travelpayouts (medición de conversiones de afiliado). No se cargan hasta que eliges "Aceptar" en el aviso de cookies.</li>
+        <li><strong>Analítica y medición (solo si aceptas):</strong> PostHog (uso de la app) y, cuando está activo, el script de Travelpayouts (medición de conversiones de afiliado). No se cargan hasta que eliges "Aceptar" en el aviso de cookies.</li>
       </ul>
     </section>
     <section>
@@ -209,7 +217,7 @@ export const Reembolsos = () => (
     <section>
       <h2>3. Cancelación</h2>
       <ul>
-        <li>Puedes cancelar en cualquier momento, sin penalización, desde <strong>Dashboard → IATOS PRO → Gestionar suscripción</strong> (portal de Stripe).</li>
+        <li>Puedes cancelar en cualquier momento, sin penalización, <ManageSubscriptionPath />.</li>
         <li>La cancelación surte efecto al final del periodo ya pagado: conservas el acceso PRO hasta esa fecha y no se generan cargos posteriores.</li>
         <li>También puedes solicitar la cancelación escribiendo a <a href={`mailto:${CONTACT}`} className="text-primary">{CONTACT}</a>; la procesamos dentro de los 5 días hábiles siguientes.</li>
       </ul>
@@ -239,3 +247,60 @@ export const Reembolsos = () => (
     </section>
   </Shell>
 );
+
+// ───────────── Ayuda (auditoría de cuenta #9) ─────────────
+// Antes /ayuda, /faq y /precios daban 404 y el pie solo ofrecía un mailto. Respuestas cortas y reales:
+// todo sale de lo que la app hace hoy y de los mismos textos de planes (planCopy) que Términos y la landing.
+export const AYUDA_UPDATED = "28 de octubre de 2026";
+
+const Faq = ({ id, q, children }: { id?: string; q: string; children: React.ReactNode }) => (
+  <section id={id} className="scroll-mt-6">
+    <h2>{q}</h2>
+    {children}
+  </section>
+);
+
+export const Ayuda = () => {
+  const { copy } = useTrialCopy();
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView?.({ block: "start" });
+  }, [hash]);
+  return (
+    <Shell title="Ayuda y preguntas frecuentes" description="Cómo funciona IATOS, qué es real y qué es estimado, planes y contacto" updated={AYUDA_UPDATED}>
+      <Faq id="como-funciona" q="¿Cómo funciona IATOS?">
+        <p>Le dices a Iato, tu concierge con IA, a dónde y cuándo quieres viajar. IATOS consulta vuelos y hoteles con proveedores, arma un itinerario día por día y te da el total estimado en pesos mexicanos. Puedes guardar el viaje, editarlo, compartirlo y seguirlo durante el viaje (clima, vuelos, gastos y diario).</p>
+        <p>IATOS no es una agencia de viajes: no vendemos boletos ni hospedaje. Cuando decides reservar, te llevamos al sitio del proveedor y la compra la haces allí, con sus condiciones.</p>
+      </Faq>
+      <Faq id="real-o-estimado" q="¿Qué es real y qué es estimado?">
+        <ul>
+          <li><strong>Consultado en vivo:</strong> un precio que el proveedor nos dio en ese momento. Lo marcamos así y con la hora de la consulta. Aun así puede cambiar al reservar.</li>
+          <li><strong>Estimado:</strong> un cálculo (por ejemplo, comidas, transporte local o un precio de referencia sin disponibilidad confirmada). Siempre lo marcamos como estimado.</li>
+          <li>Si un proveedor no responde, te lo decimos en lugar de inventar un dato.</li>
+          <li>Una recomendación o una solicitud no es una reserva: solo lo es cuando el proveedor la confirma.</li>
+        </ul>
+      </Faq>
+      <Faq id="planes" q="¿Qué incluye cada plan?">
+        <ul>
+          <li><strong>Plan gratuito:</strong> {FREE_FEATURES.join("; ")}.</li>
+          <li><strong>IATOS PRO ({PRICE_LINE}):</strong> {PRO_FEATURES.join("; ")}.</li>
+          <li><strong>Prueba:</strong> {copy.line}. {copy.after}</li>
+          <li>Puedes cancelar cuando quieras <ManageSubscriptionPath />. Detalles en la <Link to="/reembolsos" className="text-primary">Política de Reembolsos</Link>.</li>
+        </ul>
+      </Faq>
+      <Faq id="prive" q="¿Qué es IATOS Privé?">
+        <p>Es un espacio para miembros con experiencias seleccionadas y revisadas por IATOS, cada una con su fuente y su fecha de revisión. Se abre por invitación al sumar 90 días de IATOS PRO pagado; la prueba gratuita y el PRO de cortesía no suman. En la app, en <strong>IATOS Privé</strong>, ves tu estado.</p>
+      </Faq>
+      <Faq id="cuenta" q="Mi cuenta">
+        <ul>
+          <li><strong>Olvidé mi contraseña:</strong> en la pantalla de inicio de sesión escribe tu correo y toca «¿Olvidaste tu contraseña?». Te enviamos un enlace.</li>
+          <li><strong>Mis datos:</strong> en Mi perfil puedes editar tus preferencias, borrar tu avatar, elegir qué ven tus amigos y eliminar tu cuenta. Lo que se borra y lo que no está en el <Link to="/privacidad" className="text-primary">Aviso de Privacidad</Link>.</li>
+          <li><strong>Cookies:</strong> puedes cambiar tu elección en la <Link to="/cookies" className="text-primary">Política de Cookies</Link>.</li>
+        </ul>
+      </Faq>
+      <Faq id="contacto" q="Contacto">
+        <p>Escríbenos a <a href={`mailto:${CONTACT}`} className="text-primary">{CONTACT}</a> desde el correo de tu cuenta. Respondemos en un máximo de 5 días hábiles. Para un cobro, indica la fecha del cargo.</p>
+      </Faq>
+    </Shell>
+  );
+};

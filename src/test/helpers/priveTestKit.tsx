@@ -41,6 +41,7 @@ export const framerMotionMock = {
 // ── Estados del servidor ───────────────────────────────────────────────────────────────────
 export const baseStatus = (over: Partial<PriveStatus> = {}): PriveStatus => ({
   is_pro: true,
+  pro_basis: null,
   tenure_days: 0,
   required_days: 90,
   eligible: false,
@@ -90,6 +91,8 @@ export function createMockApi() {
     access: vi.fn(async (action: string, body: Record<string, unknown> = {}) => state.handler(action, body)),
     content: vi.fn(async (_fn: string, ps: string | null) => (ps ? { ok: true, data: [] } : { ok: false, code: "PRIVE_NO_SESSION" })),
     illustrativePhoto: vi.fn(async () => null),
+    // Conteo público por universo (prive_teaser); por omisión sin respuesta (las fichas dicen "En curaduría").
+    universeCounts: vi.fn(async (): Promise<Partial<Record<string, number>> | null> => null),
   };
   return { state, api };
 }

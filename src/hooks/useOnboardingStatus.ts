@@ -155,7 +155,10 @@ function useOnboardingState() {
       rememberOnboardingDone(user.id, true);
       track("onboarding_completed");
       // Correo de bienvenida (solo al propio usuario, fire-and-forget).
-      void supabase.functions.invoke("email-bienvenida", { body: {} }).catch(() => {});
+      // El servidor toma el nombre del perfil; el del registro va como respaldo (antes body: {}).
+      const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+      const nombre = typeof meta.full_name === "string" ? meta.full_name : typeof meta.name === "string" ? meta.name : undefined;
+      void supabase.functions.invoke("email-bienvenida", { body: nombre ? { nombre } : {} }).catch(() => {});
       return true;
     },
     [user]

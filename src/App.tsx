@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { RouteTitle } from "@/lib/routeTitles";
+import { AdminGate } from "@/components/AdminGate";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { LazyToaster } from "@/components/ui/toaster-lazy";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -95,6 +97,7 @@ const Terminos = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ defa
 const Privacidad = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Privacidad })));
 const Cookies = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Cookies })));
 const Reembolsos = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Reembolsos })));
+const Ayuda = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Ayuda })));
 // IATOS Privé: cada pantalla en su propio chunk (la ceremonia y la bienvenida no pesan en el hub ni
 // en el resto de la app). PriveRoot trae el estado Privé, la tipografía y el CSS propio.
 const PriveRoot = lazyWithRetry(() => import("./pages/prive/PriveRoot"));
@@ -118,6 +121,7 @@ const App = () => (
       <Sonner theme="dark" />
       <BrowserRouter>
         <ScrollToTop />
+        <RouteTitle />
         <CookieBanner />
         <ReferralCapture />
         <FreeLimitDialogLazyHost />
@@ -132,6 +136,9 @@ const App = () => (
             <Route path="/privacidad" element={<Privacidad />} />
             <Route path="/reembolsos" element={<Reembolsos />} />
             <Route path="/cookies" element={<Cookies />} />
+            <Route path="/ayuda" element={<Ayuda />} />
+            <Route path="/faq" element={<Navigate to="/ayuda" replace />} />
+            <Route path="/precios" element={<Navigate to="/ayuda#planes" replace />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/onboarding/deep" element={<ProtectedRoute><OnboardingDeep /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardHome /></ProtectedRoute>} />
@@ -173,13 +180,13 @@ const App = () => (
             <Route path="/dashboard/recuerdos" element={<ProtectedRoute><Recuerdos /></ProtectedRoute>} />
             <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
             <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
-            <Route path="/dashboard/admin" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />
+            <Route path="/dashboard/admin" element={<ProtectedRoute><AdminGate><AdminMetrics /></AdminGate></ProtectedRoute>} />
             {/* Mesa de operaciones: solicitudes que atiende una persona. El servidor exige public.admins en
                 cada RPC. /admin/operaciones es el enlace de los correos al dueño. */}
-            <Route path="/dashboard/admin/operaciones" element={<ProtectedRoute><AdminOperations /></ProtectedRoute>} />
-            <Route path="/admin/operaciones" element={<ProtectedRoute><AdminOperations /></ProtectedRoute>} />
+            <Route path="/dashboard/admin/operaciones" element={<ProtectedRoute><AdminGate><AdminOperations /></AdminGate></ProtectedRoute>} />
+            <Route path="/admin/operaciones" element={<ProtectedRoute><AdminGate><AdminOperations /></AdminGate></ProtectedRoute>} />
             {/* Panel editorial de THE PRIVATE EDITION: el servidor exige public.admins en cada RPC. */}
-            <Route path="/dashboard/admin/edicion" element={<ProtectedRoute><EditionAdmin /></ProtectedRoute>} />
+            <Route path="/dashboard/admin/edicion" element={<ProtectedRoute><AdminGate><EditionAdmin /></AdminGate></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/wrapped" element={<ProtectedRoute><Wrapped /></ProtectedRoute>} />
             <Route path="/wrapped/:year" element={<ProtectedRoute><Wrapped /></ProtectedRoute>} />

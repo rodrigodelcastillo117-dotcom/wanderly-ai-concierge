@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Páginas públicas de IATOS (auditoría técnica 28-oct: /sitemap.xml daba 404). Las pantallas con sesión no se listan. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://traveliatos.life/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://traveliatos.life/ayuda</loc><lastmod>2026-10-28</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://traveliatos.life/auth</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://traveliatos.life/terminos</loc><lastmod>2026-10-23</lastmod><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://traveliatos.life/privacidad</loc><lastmod>2026-10-28</lastmod><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://traveliatos.life/reembolsos</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://traveliatos.life/cookies</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>

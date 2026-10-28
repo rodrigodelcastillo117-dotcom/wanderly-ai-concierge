@@ -33,6 +33,8 @@ it("index.html ya no carga Travelpayouts antes del consentimiento ni bloquea el 
 });
 
 it("'Solo esenciales' no carga nada; 'Aceptar' carga PostHog y Travelpayouts", () => {
+  // Con Travelpayouts Drive activado por el dueño (VITE_TRAVELPAYOUTS_DRIVE_ENABLED=true, ver consent.ts).
+  vi.stubEnv("VITE_TRAVELPAYOUTS_DRIVE_ENABLED", "true");
   const { unmount } = render(<MemoryRouter><CookieBanner /></MemoryRouter>);
   fireEvent.click(screen.getByRole("button", { name: "Solo esenciales" }));
   expect(analytics.initAnalytics).not.toHaveBeenCalled();
@@ -49,4 +51,5 @@ it("'Solo esenciales' no carga nada; 'Aceptar' carga PostHog y Travelpayouts", (
   applyConsent();
   expect(analytics.initAnalytics).toHaveBeenCalledTimes(2);
   expect(document.head.querySelectorAll('script[data-iatos="travelpayouts"]').length).toBe(1);
+  vi.unstubAllEnvs();
 });

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { usePriveAccessOptional } from "@/hooks/priveAccessContext";
 import { Button } from "@/components/ui/button";
 import { usePriveCatalog } from "@/lib/priveCatalogApi";
 import { shortDate } from "@/lib/priveCatalogView";
@@ -14,11 +16,17 @@ export default function PriveRequestsPage() {
   const R = usePriveT().catalog.requests;
   const { data, loading, locked, error, reload } = usePriveLoad(() => api.myRequests(), []);
   const [busy, setBusy] = useState<string | null>(null);
+  // El vacío dice algo útil según la cuenta: a un miembro, dónde se pide; a quien aún no entra a Privé, por
+  // qué no tiene solicitudes (las fichas no se le abren) y dónde ver su estado (auditoría 28-oct, P2).
+  const member = usePriveAccessOptional()?.view === "unlocked";
   return (
     <PriveCatalogShell loading={loading} locked={locked} error={error}>
       <h1 className={`${PRIVE.serif} text-3xl`}>{R.title}</h1>
       {!data?.length ? (
-        <p className={`text-sm ${PRIVE.muted}`} role="status">{R.empty}</p>
+        <div className="space-y-3" role="status" data-testid="prive-requests-empty">
+          <p className={`text-sm ${PRIVE.muted}`}>{member ? R.empty : R.emptyLocked}</p>
+          <Link to={member ? "/prive/explorar" : "/prive"} className="prive-link text-sm">{member ? R.goExplore : R.seeStatus}</Link>
+        </div>
       ) : (
         <ul className="space-y-3">
           {data.map((r) => (

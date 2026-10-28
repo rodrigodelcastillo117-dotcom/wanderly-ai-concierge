@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSignedMoments } from "@/hooks/useFriendAvatars";
 import { localISODate } from "@/lib/localDate";
 import {
-  ACTIVITY_KEYS, activityError, activityHeadline, answer, DEFAULT_SETTINGS, deleteRecommendation, hideItem, loadOwnActivity,
+  ACTIVITY_KEYS, activityError, activityHeadline, answer, DEFAULT_SETTINGS, deleteRecommendation, groupOwnTrips, hideItem, loadOwnActivity,
   recommendPlace, REACCIONES, relativeDay, saveSettings, shareMoment, stars, TIPO_LABEL, tripDates,
   type FriendTrip, type OwnActivityItem, type OwnMoment, type SocialSettings,
 } from "@/lib/friendActivity";
@@ -255,16 +255,16 @@ export function FriendsPrivacySection() {
         <div className="space-y-2">
           <p className="font-medium text-sm">Tus viajes</p>
           <ul className="grid sm:grid-cols-2 gap-2">
-            {trips.slice(0, 12).map((t) => {
+            {groupOwnTrips(trips).slice(0, 12).map((t) => {
               const shared = t.fase === "pasado" ? settings.viajes_pasados : settings.viajes_proximos;
               return (
                 <li key={t.clave} className="flex items-center gap-2 rounded-xl border border-white/[0.06] px-3 py-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{t.destino}</p>
+                    <p className="text-sm truncate" title={t.destino}>{t.nombre}{t.repetidos > 1 ? <span className="text-muted-foreground"> · {t.repetidos} viajes</span> : null}</p>
                     <p className="text-[11px] text-muted-foreground">{tripDates({ ...t, fechaSalida: settings.fechas_completas ? t.fechaSalida : null })} · {!shared ? "Apagado" : t.oculto ? "Escondido" : "Lo ven tus amigos"}</p>
                   </div>
                   {t.id && (
-                    <button type="button" onClick={() => void toggleHidden(`viaje:${t.id}`, !t.oculto)} aria-label={t.oculto ? `Mostrar ${t.destino}` : `Esconder ${t.destino}`}
+                    <button type="button" onClick={() => void toggleHidden(`viaje:${t.id}`, !t.oculto)} aria-label={t.oculto ? `Mostrar ${t.nombre}` : `Esconder ${t.nombre}`}
                       className="p-2 rounded-full hover:bg-white/[0.05] text-muted-foreground">
                       {t.oculto ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>

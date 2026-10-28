@@ -352,7 +352,7 @@ describe("MY PRIVÉ", () => {
   it("tarjeta, guardados con foto y las secciones de preferencias y seguridad", async () => {
     renderAt("/prive/mi");
     await screen.findByTestId("prive-my");
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/My Privé/);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/Mi Privé/); // Auditoría 28-oct: "My Privé" → "Mi Privé" en español.
     // Antes: la MemberCard de prive-ux. Con wave2 y sesión Privé abierta, la tarjeta la dibuja THE PRIVÉ PASSPORT
     // (privevalor, prive_passport): mismo nombre y número de miembro, una sola tarjeta (no dos).
     const passport = await screen.findByTestId("prive-passport");

@@ -1,4 +1,5 @@
-import { signupErrorMessage } from "@/lib/signupErrors";
+import { signinErrorMessage, signupErrorMessage } from "@/lib/signupErrors";
+import { googleLoginEnabled, startGoogleLogin } from "@/lib/googleLogin";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -27,7 +28,8 @@ const Auth = () => {
   const { copy: trial } = useTrialCopy();
   const location = useLocation();
   // Ruta que se pidió antes de iniciar sesión (ProtectedRoute la manda en state.from). Solo rutas internas.
-  const returnTo = safeRedirectPath((location.state as { from?: unknown } | null)?.from);
+  // También ?next= (regreso del inicio de sesión con Google, que vuelve a /auth).
+  const returnTo = safeRedirectPath((location.state as { from?: unknown } | null)?.from) ?? safeRedirectPath(searchParams.get("next"));
   const { user, signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">(searchParams.get("mode") === "signup" ? "signup" : "login");
   const [email, setEmail] = useState("");
@@ -38,6 +40,15 @@ const Auth = () => {
   // "¿Olvidaste tu contraseña?": desactivado mientras se envía y 60 s después (cada toque
   // mandaba otro correo y Supabase acaba rechazándolos por límite de envíos).
   const [resetState, setResetState] = useState<"idle" | "sending" | "sent">("idle");
+  // Errores visibles junto al formulario (además del aviso): el de inicio de sesión ofrece recuperar la
+  // contraseña y el de registro explica por qué falta aceptar los Términos (antes el botón quedaba
+  // deshabilitado sin decir por qué, auditoría de cuenta #12).
+  const [loginError, setLoginError] = useState<{ message: string; offerReset: boolean } | null>(null);
+  const [termsError, setTermsError] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const showGoogle = googleLoginEnabled();
+  // Título de la pestaña según el modo (la ruta es la misma: /auth y /auth?mode=signup).
+  useEffect(() => { document.title = mode === "signup" ? "Crea tu cuenta · IATOS" : "Inicia sesión · IATOS"; }, [mode]);
 
   // Rendimiento (login → inicio, E2E 28-oct-2026): la pantalla a la que se va después (el inicio o la
   // ruta pedida) se descarga mientras la persona escribe, no hasta después de iniciar sesión.
@@ -107,6 +118,7 @@ const Auth = () => {
           return;
         }
         if (!acceptedTerms) {
+          setTermsError(true);
           toast.error("Acepta los Términos y la Política de Privacidad para continuar");
           return;
         }
@@ -125,11 +137,23 @@ const Auth = () => {
         }
       } else {
         const { error } = await signIn(email, password);
-        if (error) toast.error("Credenciales inválidas");
+        if (error) {
+          const info = signinErrorMessage((error as { message?: string })?.message);
+          setLoginError(info);
+          toast.error(info.message);
+        } else setLoginError(null);
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogle = async () => {
+    if (googleBusy) return;
+    setGoogleBusy(true);
+    const { error } = await startGoogleLogin(returnTo);
+    // Con éxito el navegador sale a Google; solo se regresa aquí si algo falló.
+    if (error) { setGoogleBusy(false); toast.error(error); }
   };
 
   const handleForgotPassword = async () => {
@@ -179,6 +203,24 @@ const Auth = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5 glass-card rounded-2xl p-8">
+            {showGoogle && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGoogle}
+                  disabled={googleBusy}
+                  className="w-full h-12 gap-3 border-border"
+                  data-testid="auth-google"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="w-4 h-4"><path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.2 14.6 2.2 12 2.2 6.9 2.2 2.8 6.4 2.8 11.8S6.9 21.4 12 21.4c6.9 0 9.2-4.9 9.2-7.4 0-.5 0-.9-.1-1.3H12z"/></svg>
+                  {googleBusy ? "Abriendo Google…" : "Continuar con Google"}
+                </Button>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground" aria-hidden="true">
+                  <span className="h-px flex-1 bg-border" />o con tu correo<span className="h-px flex-1 bg-border" />
+                </div>
+              </>
+            )}
             {mode === "signup" && (
               <div>
                 <Label htmlFor="name">Nombre completo</Label>
@@ -223,7 +265,9 @@ const Auth = () => {
                 <Checkbox
                   id="terms"
                   checked={acceptedTerms}
-                  onCheckedChange={(v) => setAcceptedTerms(v === true)}
+                  onCheckedChange={(v) => { setAcceptedTerms(v === true); if (v === true) setTermsError(false); }}
+                  aria-invalid={termsError || undefined}
+                  aria-describedby={termsError ? "terms-error" : undefined}
                   className="mt-0.5"
                 />
                 <Label htmlFor="terms" className="text-xs text-muted-foreground font-normal leading-relaxed cursor-pointer">
@@ -240,9 +284,18 @@ const Auth = () => {
               </div>
             )}
 
+            {mode === "signup" && termsError && (
+              <p id="terms-error" role="alert" className="text-xs text-destructive -mt-2">
+                Para crear tu cuenta, marca la casilla de Términos y Política de Privacidad.
+              </p>
+            )}
+            {mode === "login" && loginError && (
+              <p role="alert" className="text-sm text-destructive" data-testid="auth-login-error">{loginError.message}</p>
+            )}
+
             <Button
               type="submit"
-              disabled={loading || (mode === "signup" && !acceptedTerms)}
+              disabled={loading}
               className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow h-12"
             >
               {loading ? "Procesando..." : mode === "signup" ? "Crear cuenta" : "Iniciar sesión"}
@@ -269,7 +322,7 @@ const Auth = () => {
             {mode === "signup" ? "¿Ya tienes cuenta?" : "¿Aún no tienes cuenta?"}{" "}
             <button
               type="button"
-              onClick={() => setMode(mode === "signup" ? "login" : "signup")}
+              onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setLoginError(null); setTermsError(false); }}
               className="text-primary hover:underline"
             >
               {mode === "signup" ? "Iniciar sesión" : "Crea una"}

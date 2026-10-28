@@ -11,7 +11,7 @@ import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
 // Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
 import iatosLogo from "@/assets/iatos-logo-320.png";
-import { PRICE_LINE, PRO_FEATURES, PRO_PRICE_MXN } from "@/lib/planCopy";
+import { FREE_FEATURES, PRICE_LINE, PRO_FEATURES, PRO_PRICE_MXN } from "@/lib/planCopy";
 
 // Qué gana el usuario, en concreto (antes el hero decía "Cualquier viaje. Experiencia premium." y no
 // quedaba claro qué hace la app). Solo funciones que existen hoy y sin prometer precios.
@@ -142,7 +142,7 @@ const Landing = () => {
               n: "01",
               icon: Sparkles,
               title: "Cuéntanos quién eres",
-              desc: "Una encuesta visual de 2 minutos para descubrir tu estilo, paladar, ritmo y obsesiones de viaje.",
+              desc: "Unas preguntas opcionales al empezar y, cuando quieras, una encuesta visual de tu estilo, paladar y ritmo de viaje.",
             },
             {
               n: "02",
@@ -213,7 +213,33 @@ const Landing = () => {
           </h2>
         </div>
 
-        <Reveal className="max-w-md mx-auto glass-card gold-border rounded-3xl p-10 premium-shadow">
+        <div className="max-w-4xl mx-auto grid gap-6 md:grid-cols-2 items-start">
+        {/* Plan gratuito (auditoría de cuenta #7): antes solo había tarjeta de PRO y lo que incluye el plan
+            gratis solo aparecía en Términos. Mismo texto que Términos y la página PRO (planCopy). */}
+        <Reveal className="glass-card rounded-3xl p-10">
+          <div className="text-center mb-8">
+            <p className="text-sm tracking-[0.2em] uppercase text-muted-foreground mb-3">Plan gratuito</p>
+            <div className="flex items-baseline justify-center gap-2">
+              <span className="font-display text-6xl">$0</span>
+              <span className="text-muted-foreground">MXN</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-3">Para empezar a planear, sin costo.</p>
+          </div>
+          <div className="space-y-3 mb-8">
+            {FREE_FEATURES.map((f) => (
+              <div key={f} className="flex items-center gap-3 text-sm">
+                <div className="w-5 h-5 rounded-full bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-muted-foreground" />
+                </div>
+                <span>{f}</span>
+              </div>
+            ))}
+          </div>
+          <Button size="lg" variant="outline" onClick={() => navigate("/auth?mode=signup")} className="w-full h-14">
+            Empezar gratis
+          </Button>
+        </Reveal>
+        <Reveal className="glass-card gold-border rounded-3xl p-10 premium-shadow">
           <div className="text-center mb-8">
             <p className="text-sm tracking-[0.2em] uppercase text-primary mb-3">IATOS PRO</p>
             <div className="flex items-baseline justify-center gap-2">
@@ -241,6 +267,7 @@ const Landing = () => {
           </Button>
           <p className="text-[11px] text-muted-foreground text-center mt-3">{trial.conditions}</p>
         </Reveal>
+        </div>
       </section>
 
       {/* FOOTER */}
@@ -252,6 +279,7 @@ const Landing = () => {
             <Link to="/privacidad" className="hover:text-foreground transition">Privacidad</Link>
             <Link to="/reembolsos" className="hover:text-foreground transition">Reembolsos</Link>
             <Link to="/cookies" className="hover:text-foreground transition">Cookies</Link>
+            <Link to="/ayuda" className="hover:text-foreground transition">Ayuda</Link>
             <a href="mailto:hola@traveliatos.life" className="hover:text-foreground transition">Contacto</a>
           </nav>
           <p className="text-sm text-muted-foreground">© 2026 IATOS AI. Diseñado en CDMX.</p>

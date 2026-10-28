@@ -50,7 +50,7 @@ export function DeleteAccountSection() {
           <AlertDialogDescription>
             {step === 1
               ? "Perderás tu cuenta y todos tus datos de IATOS, incluidas fotos y aportaciones a viajes compartidos. Los viajes de otras personas se conservarán. No podrás recuperarlos."
-              : "Escribe ELIMINAR para borrar permanentemente tu cuenta. Se cancelará tu suscripción de IATOS, si tienes una, y se quitarán tus métodos de pago guardados; esto no cancela reservas con proveedores externos. Stripe conserva las facturas y cargos ya emitidos por obligaciones legales y fiscales, y los emails ya enviados y respaldos sujetos a retención no se eliminan con esta acción."}
+              : "Escribe ELIMINAR para borrar permanentemente tu cuenta. Se cancelará tu suscripción de IATOS, si tienes una, y se quitarán tus métodos de pago guardados; esto no cancela reservas con proveedores externos. Stripe conserva las facturas y cargos ya emitidos por obligaciones legales y fiscales, y los correos ya enviados y respaldos sujetos a retención no se eliminan con esta acción."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {step === 2 && <div className="space-y-2">

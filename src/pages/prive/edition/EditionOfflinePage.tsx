@@ -14,6 +14,7 @@ import { cachedImageUrl, listOfflinePacks, readOfflinePack, replaceOfflinePayloa
 import { priveApi } from "@/lib/priveApi";
 import { readPriveSession } from "@/lib/priveSession";
 import { editionText } from "@/lib/priveEditionI18n";
+import { usePriveFont } from "@/components/prive/usePriveFont";
 import "@/components/prive/prive.css";
 import "@/components/prive/edition/edition.css";
 
@@ -37,6 +38,7 @@ function useLocalImages(images: Record<string, EditionImage> | undefined) {
 }
 
 export default function EditionOfflinePage() {
+  usePriveFont();
   const [params, setParams] = useSearchParams();
   const online = useOnline();
   const uid = useMemo(() => storedUserId(), []);
@@ -108,7 +110,12 @@ export default function EditionOfflinePage() {
             <ReadingModeToggle mode={reading} onChange={setReading} lang={lang} /></span>
         </div>
         {!uid || (packs && packs.length === 0) ? (
-          <p className="ped-dek px-4 py-24 text-center" data-testid="offline-empty">{T.library.noOffline}</p>
+          <div className="px-4 py-24 text-center space-y-4" data-testid="offline-empty">
+            <p className="ped-dek">{T.library.noOffline}</p>
+            {/* Qué hacer (auditoría 28-oct): sin esto la pantalla quedaba en un vacío sin salida. */}
+            <p className="text-sm text-[color:var(--ped-muted)] max-w-md mx-auto">{T.offline.howTo}</p>
+            {online && <Link to="/prive/edicion" className="ped-btn ghost inline-flex">{T.offline.goEdition}</Link>}
+          </div>
         ) : !pack || !payload || !ed ? (
           <div className="min-h-[50vh]" role="status" aria-label="…" />
         ) : view === "magazine" ? (

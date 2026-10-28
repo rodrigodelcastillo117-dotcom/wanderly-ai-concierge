@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { usePriveCatalog, type PriveUniverse } from "@/lib/priveCatalogApi";
-import { universeMeta } from "@/lib/priveCatalogView";
+import { datedEventsFirst, universeMeta } from "@/lib/priveCatalogView";
 import { displayName } from "@/lib/priveBrowse";
 import { usePriveLang, usePriveT } from "@/components/prive/PriveLang";
 import { PrivePhoto } from "@/components/prive/PrivePhoto";
@@ -26,7 +26,8 @@ export default function PriveUniversePage() {
   const lang = usePriveLang();
   const meta = universeMeta(key, lang);
   const { data, loading, locked, error, reload } = usePriveLoad(() => api.universe(key as PriveUniverse, null), [key]);
-  const all = useMemo(() => data?.experiences ?? [], [data]);
+  // Iconic Events: primero lo que tiene fecha confirmada (P1-9); el resto dice "fecha por confirmar".
+  const all = useMemo(() => (key === "iconic_events" ? datedEventsFirst(data?.experiences ?? []) : data?.experiences ?? []), [data, key]);
   const byDest = useMemo(() => {
     const m = new Map<string, { slug: string; name: string; n: number }>();
     for (const e of all) if (e.destination) {

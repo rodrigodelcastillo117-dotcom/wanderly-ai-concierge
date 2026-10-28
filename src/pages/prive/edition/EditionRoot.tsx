@@ -26,7 +26,8 @@ function Frame() {
   // Portada de la revista: el botón de la barra sale de Privé. Dentro (artículo, secciones): sube a la revista.
   const { pathname } = useLocation();
   const inside = !/^\/prive\/edicion\/?$/.test(pathname);
-  usePriveBack(inside ? "/prive/edicion" : null, inside ? T.brand : null);
+  // Con candado no sube a la portada de la revista (también bloqueada): sale de Privé.
+  usePriveBack(inside && !locked ? "/prive/edicion" : null, inside && !locked ? T.brand : null);
   if (locked) return <PriveLocked code={locked} />;
   return (
     <div className="ped min-h-screen" lang={lang} data-reading={reading}>

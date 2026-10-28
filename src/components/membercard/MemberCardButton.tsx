@@ -44,6 +44,7 @@ export function MemberCardDetail({ card, lang = "es", links = true }: { card: Me
           <dd className="mt-1 font-medium">{tenure ?? "—"}</dd>
         </div>
       </dl>
+      {card.tier === "blue" || card.tier === "gold" ? <p className="text-[11px] text-muted-foreground -mt-2" data-testid="member-card-tenure-note">{T.tenureNote}</p> : null}
       {founder ? null : (
         <section aria-labelledby="member-card-howto" data-testid="member-card-howto">
           <h3 id="member-card-howto" className="text-[11px] tracking-[0.24em] uppercase text-primary">{T.howTo}</h3>
@@ -67,6 +68,7 @@ export function MemberCardDetail({ card, lang = "es", links = true }: { card: Me
               );
             })}
           </ol>
+          {card.tier === "blue" || card.tier === "gold" ? <p className="mt-3 text-xs text-muted-foreground" data-testid="member-card-prive-rule">{T.priveRule}</p> : null}
           {left != null ? <p className="mt-3 text-xs text-muted-foreground" data-testid="member-card-days-left">{T.daysLeft(left)}</p> : null}
           {links && card.tier === "blue" ? <Link to="/dashboard/pro" className="mt-3 inline-flex min-h-[44px] items-center text-sm text-primary underline-offset-4 hover:underline">{T.seePro}</Link> : null}
           {links && card.tier === "gold" ? <Link to="/prive" className="mt-3 inline-flex min-h-[44px] items-center text-sm text-primary underline-offset-4 hover:underline">{T.seePrive}</Link> : null}

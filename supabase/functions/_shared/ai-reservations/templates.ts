@@ -5,6 +5,7 @@
 //  * Al usuario: español (México); la confirmación cita la respuesta del restaurante como prueba.
 // Sin Deno: se prueba con Vitest.
 import { escapeHtml, oneLine } from "../email.ts";
+import { button, callout, EK, gap, headline, joinText, links as linksRow, masthead, para, SERIF, shell, signature, textFooter } from "../email-kit.ts";
 import { type AiReservationRow, directionsUrl, formatLocal, type VenueLanguage } from "./core.ts";
 
 export type Mail = { subject: string; html: string; text: string };
@@ -180,7 +181,7 @@ export function googleCalendarUrl(r: CalendarInput, durationMin = 120): string {
   u.searchParams.set("action", "TEMPLATE");
   u.searchParams.set("text", `Reserva en ${r.venue_name}`);
   u.searchParams.set("dates", `${icsDate(start)}/${icsDate(end)}`);
-  u.searchParams.set("details", `Confirmada por escrito por el restaurante. ${r.party_size} personas.${r.confirmation_code ? ` Código: ${r.confirmation_code}.` : ""} Ref ${r.ref_code}.`);
+  u.searchParams.set("details", `Confirmada por escrito por el restaurante. ${r.party_size} ${r.party_size === 1 ? "persona" : "personas"}.${r.confirmation_code ? ` Código: ${r.confirmation_code}.` : ""} Ref ${r.ref_code}.`);
   u.searchParams.set("location", [r.venue_name, r.venue_address ?? r.venue_city].filter(Boolean).join(", "));
   return u.toString();
 }
@@ -199,23 +200,23 @@ export function outlookCalendarUrl(r: CalendarInput, durationMin = 120): string 
 }
 
 // ───────────────────────────── Correos al usuario ─────────────────────────────
-const btn = (href: string, label: string) =>
-  `<a href="${escapeHtml(href)}" style="display:inline-block;background:#c9a227;color:#141310;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:600;margin:4px 6px 4px 0">${escapeHtml(label)}</a>`;
+// Misma maqueta que el resto de los correos de IATOS (_shared/email-kit.ts: viewport para el celular,
+// serif editorial, botón dorado, pie con contacto), auditoría de cuenta #24. Antes tenían su propio
+// diseño sin <meta viewport> y se veían a 980 px en el teléfono.
+const REASON = "Recibes este correo porque pediste a Iato que escribiera a un restaurante en tu nombre.";
+const people = (n: number) => `${n} ${n === 1 ? "persona" : "personas"}`;
 
-function userLayout(title: string, inner: string): string {
-  return `<!doctype html><html lang="es"><body style="margin:0;background:#0b0b0c;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#eae6df">
-  <div style="max-width:600px;margin:0 auto;padding:32px 20px">
-    <div style="font-size:13px;letter-spacing:.28em;color:#c9a227;text-transform:uppercase;margin-bottom:24px">IATOS AI · Reservas</div>
-    <h1 style="font-size:22px;line-height:1.3;margin:0 0 16px;color:#fff">${escapeHtml(title)}</h1>
-    ${inner}
-    <p style="margin-top:32px;font-size:12px;color:#8a8578">IATOS AI · <a href="https://traveliatos.life" style="color:#c9a227">traveliatos.life</a><br/>
-    Recibes este correo porque pediste a Iato que escribiera a un restaurante en tu nombre.</p>
-  </div></body></html>`;
+function userLayout(o: { title: string; preheader: string; rows: string[] }): string {
+  return shell({
+    title: o.title,
+    preheader: o.preheader,
+    reason: REASON,
+    body: [masthead("Reservas"), gap(36), headline(escapeHtml(o.title), { size: 30 }), gap(18), ...o.rows, gap(44), signature()],
+  });
 }
 
-const p = (s: string) => `<p style="font-size:15px;line-height:1.6;color:#cfc9bd">${s}</p>`;
-const quoteBlock = (q: string, who: string) =>
-  `<blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #c9a227;background:#16150f;color:#fff;font-size:15px;line-height:1.5">“${escapeHtml(q)}”<br/><span style="font-size:12px;color:#8a8578">— ${escapeHtml(who)}</span></blockquote>`;
+const quoteRow = (q: string, who: string) =>
+  callout(`<span style="font-family:${SERIF};font-size:18px;line-height:27px;font-style:italic;color:${EK.ivory};">“${escapeHtml(q)}”</span><br><span style="font-size:12px;color:${EK.muted};">— ${escapeHtml(who)}</span>`, { color: EK.gold });
 
 export type ConfirmedMailInput = CalendarInput & Pick<AiReservationRow, "requested_local" | "customer_name"> & {
   quote: string;
@@ -234,21 +235,34 @@ export function userConfirmedEmail(r: ConfirmedMailInput): Mail {
     [outlookCalendarUrl(r), "Outlook"],
     [directionsUrl(r), "Cómo llegar"],
   ];
-  const inner = [
-    p(`<strong style="color:#fff">${escapeHtml(when)}</strong> · ${r.party_size} ${r.party_size === 1 ? "persona" : "personas"} · a nombre de ${escapeHtml(r.customer_name)}` +
-      (r.confirmation_code ? ` · Código: <strong style="color:#fff">${escapeHtml(r.confirmation_code)}</strong>` : "")),
-    p("Esta es la respuesta del restaurante que lo confirma:"),
-    quoteBlock(r.quote, `${r.venue_name}, ${r.receivedAt}`),
-    `<div style="margin:18px 0">${links.map(([h, l]) => btn(h, l)).join("")}</div>`,
-    p(`La confirmación es del restaurante; IATOS no cobra ni garantiza la reserva. Si cambias de planes, cancélala desde la <a href="${escapeHtml(r.appUrl)}" style="color:#c9a227">app</a> y le avisamos al restaurante. Ref ${escapeHtml(r.ref_code)}.`),
-  ].join("\n");
-  const text = [
-    title, "", `${when} · ${r.party_size} personas · a nombre de ${r.customer_name}${r.confirmation_code ? ` · Código: ${r.confirmation_code}` : ""}`, "",
+  const summary = `${when} · ${people(r.party_size)} · a nombre de ${r.customer_name}${r.confirmation_code ? ` · Código: ${r.confirmation_code}` : ""}`;
+  const rows = [
+    para(`<strong style="color:${EK.ivory};font-weight:500;">${escapeHtml(when)}</strong> · ${people(r.party_size)} · a nombre de ${escapeHtml(r.customer_name)}` +
+      (r.confirmation_code ? ` · Código: <strong style="color:${EK.ivory};font-weight:500;">${escapeHtml(r.confirmation_code)}</strong>` : "")),
+    gap(18),
+    para("Esta es la respuesta del restaurante que lo confirma:"),
+    gap(12),
+    quoteRow(r.quote, `${r.venue_name}, ${r.receivedAt}`),
+    gap(28),
+    button(links[0][0], links[0][1]),
+    gap(16),
+    links.length > 1 ? linksRow(links.slice(1).map(([href, label]) => ({ href, label }))) : "",
+    gap(28),
+    para(`La confirmación es del restaurante; IATOS no cobra ni garantiza la reserva. Si cambias de planes, cancélala desde la <a href="${escapeHtml(r.appUrl)}" style="color:${EK.gold};">app</a> y le avisamos al restaurante. Ref ${escapeHtml(r.ref_code)}.`, { size: 13, color: EK.muted }),
+  ];
+  const text = joinText([
+    title, "", summary, "",
     "Respuesta del restaurante:", `“${r.quote}” — ${r.venue_name}, ${r.receivedAt}`, "",
     ...links.map(([h, l]) => `${l}: ${h}`), "",
     `La confirmación es del restaurante; IATOS no cobra ni garantiza la reserva. Ref ${r.ref_code}.`,
-  ].join("\n");
-  return { subject: oneLine(`Reserva confirmada por ${r.venue_name} · ${when}`, 200), html: userLayout(title, inner), text };
+    "",
+    ...textFooter({ reason: REASON }),
+  ]);
+  return {
+    subject: oneLine(`Reserva confirmada por ${r.venue_name} · ${when}`, 200),
+    html: userLayout({ title, preheader: `${when} · ${people(r.party_size)} · Ref ${r.ref_code}`, rows }),
+    text,
+  };
 }
 
 export type UpdateKind = "alternative_offered" | "declined" | "needs_info" | "payment_required" | "unverified" | "ambiguous" | "expired" | "late";
@@ -259,23 +273,26 @@ export function userUpdateEmail(kind: UpdateKind, r: Pick<AiReservationRow, "ven
 }): Mail {
   const when = formatLocal(r.requested_local, "es");
   const v = r.venue_name;
+  // "nuestro equipo humano" es como se llama en la app (antes decía "el Fixer", auditoría de cuenta #22).
   const map: Record<UpdateKind, [string, string]> = {
     alternative_offered: [`${v} propone otro horario`, `No tienen lugar a la hora que pediste (${when}), pero ofrecen: ${(r.alternatives ?? []).join(" · ")}. Elige en la app si alguno te sirve. Aún no es una reserva.`],
-    declined: [`${v} no tiene lugar`, `Respondieron que no pueden recibirte el ${when}. Puedes pedirle a Iato otra opción o al Fixer.`],
+    declined: [`${v} no tiene lugar`, `Respondieron que no pueden recibirte el ${when}. Puedes pedirle a Iato otra opción o pedir ayuda a nuestro equipo humano.`],
     needs_info: [`${v} pide más información`, `${r.info ?? "Revisa su respuesta en la app."} Aún no es una reserva.`],
     payment_required: [`${v} pide una garantía o pago`, "IATOS nunca comparte datos de tarjeta. Si quieres seguir, hazlo directamente con el restaurante. Aún no es una reserva."],
     unverified: [`${v} respondió · revísalo tú`, "Recibimos una respuesta, pero no pudimos verificar que venga del restaurante, así que no la tomamos como confirmación. Aún no es una reserva confirmada."],
     ambiguous: [`${v} respondió · revísalo tú`, `Recibimos una respuesta que no podemos tomar como confirmación.${r.info ? ` ${r.info}` : ""} Aún no es una reserva confirmada.`],
-    expired: [`${v} no respondió a tiempo`, `Tu solicitud para el ${when} venció sin confirmación. Puedes llamar al restaurante o pedir ayuda al Fixer.`],
+    expired: [`${v} no respondió a tiempo`, `Tu solicitud para el ${when} venció sin confirmación. Puedes llamar al restaurante o pedir ayuda a nuestro equipo humano.`],
     late: [`${v} respondió tarde`, "Llegó una respuesta después de que la solicitud se cerró. Revísala y, si te interesa, confirma directamente con el restaurante."],
   };
   const [title, body] = map[kind];
-  const inner = [
-    p(escapeHtml(body)),
-    r.excerpt ? quoteBlock(r.excerpt, v) : "",
-    `<div style="margin:18px 0">${btn(r.appUrl, "Ver en IATOS")}</div>`,
-    p(`Ref ${escapeHtml(r.ref_code)}.`),
-  ].join("\n");
-  const text = [title, "", body, ...(r.excerpt ? ["", `“${r.excerpt}” — ${v}`] : []), "", `Ver en IATOS: ${r.appUrl}`, `Ref ${r.ref_code}.`].join("\n");
-  return { subject: oneLine(title, 200), html: userLayout(title, inner), text };
+  const rows = [
+    para(escapeHtml(body)),
+    r.excerpt ? gap(14) + quoteRow(r.excerpt, v) : "",
+    gap(28),
+    button(r.appUrl, "Ver en IATOS"),
+    gap(22),
+    para(`Ref ${escapeHtml(r.ref_code)}.`, { size: 13, color: EK.muted }),
+  ];
+  const text = joinText([title, "", body, ...(r.excerpt ? ["", `“${r.excerpt}” — ${v}`] : []), "", `Ver en IATOS: ${r.appUrl}`, `Ref ${r.ref_code}.`, "", ...textFooter({ reason: REASON })]);
+  return { subject: oneLine(title, 200), html: userLayout({ title, preheader: body.slice(0, 120), rows }), text };
 }
