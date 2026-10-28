@@ -24,6 +24,11 @@
 // - Sin tollInfo → "Información de casetas no disponible para esta ruta". Nunca "sin casetas": la
 //   cobertura de Google no es total y la ausencia no prueba que no haya casetas.
 // - Nunca se inventa un monto.
+// - Revisión del caso CDMX → Valle de Bravo (E2E 28-oct-2026, "$612 de ida"): ese monto es el que dio Google
+//   (un solo estimatedPrice en MXN a nivel de ruta, sin pase: tarifa en efectivo) para la IDA; la app lo
+//   muestra como ida y lo multiplica × 2 para el regreso (carCost.ts, dicho en pantalla). La moneda ya es
+//   MXN (sin conversión), los tramos (legs) no se suman cuando viene el total de la ruta y la lista de
+//   precios trae un monto POR MONEDA (documentación de Google), así que no hay doble conteo. Se deja así.
 //
 // SKU: la página de facturación (usage-and-billing, actualizada 2026-10-21) no nombra el SKU de las
 // casetas, solo que se cobra "a un precio más alto". Por prudencia se registra con el SKU más caro

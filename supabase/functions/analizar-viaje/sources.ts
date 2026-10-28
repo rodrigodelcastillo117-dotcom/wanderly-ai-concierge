@@ -1,4 +1,6 @@
 // Reglas de fuentes del análisis de viaje (sin dependencias de Deno, para poder probarlas).
+import { airlineCode } from "../_shared/airlines.ts";
+import { visiblePlaceName } from "../_shared/placeName.ts";
 
 // Extrae de las notas del cliente lo que describe el hospedaje, para buscarlo en Google Hotels.
 const HOTEL_WORDS = /(hotel|hospedaje|alojamiento|boutique|resort|villa|caba[ñn]a|hostal|airbnb|todo incluido|all inclusive|vista al mar|frente al mar|frente a la playa|alberca|piscina|spa|lujo|5 estrellas|adults only|solo adultos)/i;
@@ -30,11 +32,15 @@ export const samePrice = (a: unknown, b: unknown, tolerance = 0.03) => {
 };
 
 export type LiveFlightLists = {
-  /** travelpayouts-flights: `price` USD por persona. */
-  tpFlights?: Array<{ price?: number; booking_link?: string }>;
+  /** travelpayouts-flights: `price` USD por persona; `departure_at`/`return_at` con desfase y `duration_to_minutes`. */
+  tpFlights?: Array<{ price?: number; booking_link?: string; airline?: string; departure_at?: string | null; return_at?: string | null; duration_to_minutes?: number | null }>;
   tpApproximateDates?: boolean;
-  /** flights-search (Google Flights): `price_per_person_usd`. */
-  googleFlights?: Array<{ price_per_person_usd?: number; buy_url?: string }>;
+  /** flights-search (Google Flights): `price_per_person_usd` y horas locales de cada aeropuerto ("2027-03-10 11:00"). */
+  googleFlights?: Array<{ price_per_person_usd?: number; buy_url?: string; airline?: string; departure?: { time?: string | null } | null; arrival?: { time?: string | null } | null }>;
+  /** Zona horaria IANA del destino (de Google Places): para convertir la llegada de una tarifa de Aviasales. */
+  destTimeZone?: string | null;
+  /** Ciudad del viaje (contexto de nombres de una sola palabra). */
+  city?: string | null;
   /** Tipo de cambio con el que se le dieron los precios al modelo. */
   fxUsd: number;
   /** Cuándo se consultaron las listas en vivo (ISO). Respaldo si una lista no trae su fecha. */
@@ -56,6 +62,92 @@ export function liveConsultedAt(resp: unknown, fallback: string): string {
 
 /** Etiqueta de Travelpayouts: un respaldo de referencia, nunca "en vivo". */
 export const TP_REFERENCE_NOTE = "Precio de referencia (Aviasales, búsquedas de las últimas 48 h); puede variar.";
+
+// ─── Horarios del vuelo elegido (caso Madrid, 28-oct-2026) ───
+// En un destino, vuelos_json no traía salida ni llegada y la app no podía decir "Sale 11:00 · llega 05:00
+// +1" ni armar el día de llegada. Las horas se copian SOLO de la fila real de la lista con la que empató
+// el precio (y la aerolínea); si empatan varias filas con horas distintas, no se pone ninguna.
+
+const STAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+/** "2027-03-10 11:00" tal como lo publica Google Flights (hora local del aeropuerto), o null. */
+export const gfStamp = (v: unknown): string | null => (typeof v === "string" && STAMP.test(v.trim()) ? v.trim() : null);
+
+/** Hora local que trae un ISO con desfase ("2027-03-10T11:00:00-06:00" → "2027-03-10 11:00"). */
+export function localStamp(iso: unknown): string | null {
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(String(iso ?? ""));
+  return m ? `${m[1]} ${m[2]}` : null;
+}
+
+/** Un instante en la hora local de una zona IANA ("Europe/Madrid") como "YYYY-MM-DD HH:MM"; null si no se puede. */
+export function stampInZone(ms: number, timeZone: string | null | undefined): string | null {
+  if (!Number.isFinite(ms) || !timeZone) return null;
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(ms));
+    const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+    const out = `${g("year")}-${g("month")}-${g("day")} ${g("hour")}:${g("minute")}`;
+    return STAMP.test(out) ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+/** ¿La aerolínea de la fila es la del vuelo elegido? (nombre o código IATA; sin dato, no descarta). */
+function sameAirline(row: unknown, chosen: unknown): boolean {
+  const r = String(row ?? "").trim(), c = String(chosen ?? "").trim();
+  if (!r || !c) return true;
+  const rc = /^[A-Z0-9]{2}$/.test(r) ? r : airlineCode(r);
+  const cc = airlineCode(c);
+  if (rc && cc) return rc === cc;
+  const a = normName(r), b = normName(c);
+  return a.includes(b) || b.includes(a);
+}
+
+const stripMarker = (u: unknown) => String(u ?? "").replace(/[?&]marker=[^&]*/g, "").replace(/\?$/, "");
+
+type Times = { salida: string; llegada: string | null; regreso_salida: string | null };
+
+/** Una sola combinación de horas entre las filas que empatan; si hay varias distintas, ninguna. */
+function uniqueTimes(list: Times[]): Times | null {
+  const keys = new Set(list.map((t) => `${t.salida}|${t.llegada ?? ""}|${t.regreso_salida ?? ""}`));
+  return keys.size === 1 ? list[0] : null;
+}
+
+function googleTimes(v: any, rows: LiveFlightLists["googleFlights"], fx: number): Times | null {
+  const hits = (rows ?? []).filter((f) => samePrice(v.precio_por_persona, Number(f?.price_per_person_usd) * fx) && sameAirline(f?.airline, v.aerolinea));
+  const times = hits.map((f): Times | null => {
+    const salida = gfStamp(f?.departure?.time), llegada = gfStamp(f?.arrival?.time);
+    return salida && llegada ? { salida, llegada, regreso_salida: null } : null;
+  }).filter((t): t is Times => t !== null);
+  return times.length === hits.length ? uniqueTimes(times) : null;
+}
+
+function aviasalesTimes(v: any, rows: LiveFlightLists["tpFlights"], fx: number, tz: string | null | undefined): Times | null {
+  const all = rows ?? [];
+  // El enlace de la tarifa (con su token) identifica la fila; si no, precio y aerolínea.
+  const byLink = v.booking_link ? all.filter((f) => f?.booking_link && stripMarker(f.booking_link) === stripMarker(v.booking_link)) : [];
+  const hits = byLink.length ? byLink : all.filter((f) => samePrice(v.precio_por_persona, Number(f?.price) * fx) && sameAirline(f?.airline, v.aerolinea));
+  const times = hits.map((f): Times | null => {
+    const salida = localStamp(f?.departure_at);
+    if (!salida) return null;
+    const dep = Date.parse(String(f?.departure_at ?? ""));
+    const dur = Number(f?.duration_to_minutes);
+    // Llegada = salida + duración de la ida (Aviasales), en la hora local del destino (zona de Google).
+    const llegada = Number.isFinite(dep) && dur > 0 ? stampInZone(dep + dur * 60_000, tz) : null;
+    return { salida, llegada, regreso_salida: localStamp(f?.return_at) };
+  }).filter((t): t is Times => t !== null);
+  return times.length && times.length === hits.length ? uniqueTimes(times) : null;
+}
+
+/** Copia las horas reales de la fila que empató (o las borra si no empata ninguna). */
+export function applyFlightTimes(v: any, matched: "travelpayouts" | "serpapi" | null, live: LiveFlightLists): void {
+  delete v.salida; delete v.llegada; delete v.regreso_salida;
+  if (!matched || !(live.fxUsd > 0)) return;
+  const t = matched === "serpapi" ? googleTimes(v, live.googleFlights, live.fxUsd) : aviasalesTimes(v, live.tpFlights, live.fxUsd, live.destTimeZone);
+  if (!t) return;
+  v.salida = t.salida;
+  if (t.llegada) v.llegada = t.llegada;
+  if (t.regreso_salida) v.regreso_salida = t.regreso_salida;
+}
 
 const LIVE_FLIGHT_LABELS = new Set(["travelpayouts", "serpapi", "google_flights", "aviasales"]);
 const PLACE_LABELS = new Set(["google_maps", "tripadvisor", "google_places"]);
@@ -81,6 +173,8 @@ export function enforceSources(
       t.num_reviews = null;
     } else if (t && match) {
       t.fuente = placesSource;
+      // Nombre con los acentos de Google y, si es de una palabra ("David"), con la ciudad.
+      t.nombre = visiblePlaceName(t.nombre, match.name, live.city ?? null);
       // Calificación y reseñas las pone el servidor con la lista, no el modelo.
       t.rating = match.rating ?? null;
       t.num_reviews = match.num_reviews ?? null;
@@ -136,6 +230,8 @@ export function enforceSources(
       if (label === "travelpayouts" || label === "aviasales") matched = tpHit ? "travelpayouts" : gfHit ? "serpapi" : null;
       else matched = gfHit ? "serpapi" : tpHit ? "travelpayouts" : null;
     }
+    // Horas de salida y llegada: solo las de la fila real con la que empató (nunca las del modelo).
+    if (!v.modo) applyFlightTimes(v, matched, live);
     if (matched) {
       v.fuente_precio = matched;
       if (matched === "travelpayouts") {

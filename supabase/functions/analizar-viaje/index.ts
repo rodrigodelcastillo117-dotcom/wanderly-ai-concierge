@@ -35,7 +35,10 @@ import { renderTasteProfile, tasteToday, TASTE_CITATION_RULE } from "../_shared/
 import { getEurMxnRateInfo, getRateToMxnInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { buildQuoteSnapshot, saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
-import { enforceSources, hotelPreference, liveConsultedAt as sourceConsultedAt } from "./sources.ts";
+import { enforceSources, gfStamp, hotelPreference, liveConsultedAt as sourceConsultedAt, localStamp, stampInZone } from "./sources.ts";
+import { applyTripCalendar, arrivalSummary, calendarPromptBlock, nightsDaysText, type FlightTimes } from "../_shared/tripCalendar.ts";
+import { countryOfCity } from "../_shared/airports.ts";
+import { cleanNarrative, NARRATIVE_RULES, tasteLabels } from "./narrative.ts";
 import { detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
 import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
 import { tripDatesProblem } from "./dates.ts";
@@ -380,7 +383,7 @@ ${vaultDesc}
 
 Origen: ${body.ciudad_origen}
 Destino: ${body.destino}
-Fechas: ${body.fecha_salida} al ${body.fecha_regreso} (${dias} días)
+Fechas: ${body.fecha_salida} al ${body.fecha_regreso} (${dias} noches)
 Viajeros: ${body.num_viajeros}
 
 FORMATO OBLIGATORIO: Para cada ítem reporta "Aerolínea/Hotel X: $XX,XXX MXN" con cifra única (si el sitio da rango, usa el punto medio). Incluye link de fuente entre paréntesis.
@@ -879,6 +882,27 @@ Deno.serve(async (req) => {
       return `Fuente: Google Maps (Places API, consultado ${googleRestaurants[0]?.consultado_at ?? "hoy"}). Copia el nombre EXACTO.\n${lines}`;
     })();
 
+    // Calendario real del viaje (caso Madrid, 28-oct-2026): días con fecha, cuántos son y cuándo se llega
+    // según las horas reales de los vuelos de la lista (Google Flights da la hora local de cada aeropuerto;
+    // la de Aviasales se convierte con la zona horaria del destino que da Google Places).
+    const destTimeZone = (googleRestaurants.find((r: any) => typeof r?.time_zone === "string" && r.time_zone)?.time_zone as string | undefined) ?? null;
+    const listTimes: FlightTimes[] = shortTrip ? [] : [
+      ...(googleFlightsLive ? googleFlights.results : []).map((f: any) => ({ salida: gfStamp(f?.departure?.time), llegada: gfStamp(f?.arrival?.time) })),
+      ...(Array.isArray(tpFlights?.flights) && !tpFlights.approximate_dates ? tpFlights.flights : []).map((f: any) => {
+        const dep = Date.parse(String(f?.departure_at ?? ""));
+        const dur = Number(f?.duration_to_minutes);
+        return { salida: localStamp(f?.departure_at), llegada: Number.isFinite(dep) && dur > 0 ? stampInZone(dep + dur * 60_000, destTimeZone) : null };
+      }),
+    ];
+    const driveHours = shortTrip?.approxDriveHours;
+    const calendarBlock = calendarPromptBlock({
+      fechaSalida: body.fecha_salida, fechaRegreso: body.fecha_regreso, destino: body.destino, regresoEnAvion: !shortTrip,
+      llegada: shortTrip
+        ? `LLEGADA: por carretera (~${driveHours} h de manejo${shortTrip.source === "google_routes" ? " según Google Maps, sin tráfico" : ", aprox."}): el Día 1 empieza después del trayecto.`
+        : arrivalSummary(listTimes, body.fecha_salida, body.destino),
+    });
+    const nochesDias = nightsDaysText(body.fecha_salida, body.fecha_regreso) ?? `${dias} noches`;
+
     // PASO 2: Claude estructura el análisis usando los datos reales
     const userPrompt = `Genera un análisis premium de viaje usando EXCLUSIVAMENTE los precios reales investigados abajo.
 
@@ -901,7 +925,7 @@ ${vaultDesc}
 
 VIAJE
 - Destino: ${body.destino}
-- Fechas: ${body.fecha_salida} al ${body.fecha_regreso} (${dias} días)
+- Fechas: ${body.fecha_salida} al ${body.fecha_regreso} (${nochesDias})
 - Viajeros: ${body.num_viajeros}
 - Presupuesto objetivo TOTAL del viaje para todos los viajeros, todo incluido (MXN; no es por día ni por persona): ${body.presupuesto_objetivo ?? "sin presupuesto fijo"}
 
@@ -911,7 +935,7 @@ INSTRUCCIONES LITERALES DEL USUARIO (prioridad MÁXIMA — léelas palabra por p
 ${body.notas_usuario?.trim() ? body.notas_usuario.trim() : "(sin instrucciones adicionales)"}
 ==========================================
 
-==========================================
+${calendarBlock ? `==========================================\n${calendarBlock}\n==========================================\n\n` : ""}==========================================
 PRECIOS PRIMARIOS — TRAVELPAYOUTS (fuente oficial de inventario; USA ESTOS PRECIOS Y LOS BOOKING_LINK COMO PRIMARIOS)
 ==========================================
 VUELOS (Aviasales):
@@ -947,6 +971,7 @@ ${shortTrip ? `==========================================\n${shortTripPromptBloc
 - Si arriba hay datos de ATRACCIONES, prioriza esos nombres para "tours" (son lugares reales con reseñas verificadas): copia el nombre exacto, pon fuente="${placesSource}", y copia rating/num_reviews tal cual. El precio_por_persona sigue siendo una estimación (${placesLabel} no da precio de boleto) — está bien, solo el nombre/rating son reales. Completa hasta 4-6 tours mezclando esa lista con ideas de Perplexity si trae menos de 4; en esos extras pon fuente="perplexity" o "estimado".
 - Restaurantes: si arriba hay lista de GOOGLE MAPS, elige SOLO de esa lista (nombre exacto) los 5 que mejor encajen con el cliente; el servidor pone calificación, precio, horario y link reales. Si no hay lista, usa restaurantes reales de Perplexity.
 - Itinerario, tips y cruceros se sacan de Perplexity.
+${NARRATIVE_RULES}
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
@@ -1025,6 +1050,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       hotelsAt: sourceConsultedAt(serpHotels, liveConsultedAt),
       hotelsSaved: serpHotels?.precio_guardado === true,
       tpAt: sourceConsultedAt(tpFlights, liveConsultedAt),
+      destTimeZone,
+      city: body.destino,
     });
     // Lugares reales (auditoría de lugares reales, fase 1): restaurantes y tours fuera de las listas del
     // proveedor se buscan en Google (Text Search Pro, caché 30 días) con 8 s en total, 4 a la vez. Un
@@ -1068,6 +1095,25 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       if (capped.acotados.length) console.warn("analizar-viaje: estimados acotados (trayecto corto)", capped.acotados, body.destino);
       a.desglose_presupuesto = capped.desglose;
     }
+
+    // Itinerario con fechas reales, todos los días del calendario y el día de llegada / salida según las
+    // horas reales del vuelo elegido (equilibrio). En coche solo fechas y número de días.
+    const vueloElegido = shortTrip ? null : (Array.isArray(a.vuelos) ? a.vuelos : []).find((v: any) => v?.tier === "equilibrio" && !v?.modo) ?? null;
+    const paisO = countryOfCity(body.ciudad_origen), paisD = countryOfCity(body.destino);
+    const cal = applyTripCalendar(a.itinerario, {
+      fechaSalida: body.fecha_salida, fechaRegreso: body.fecha_regreso, destino: body.destino, origen: body.ciudad_origen,
+      flight: vueloElegido, internacional: paisO && paisD ? paisO !== paisD : null,
+    });
+    if (cal.ajustes.length) console.warn("analizar-viaje: itinerario ajustado al calendario", cal.ajustes, body.destino);
+    a.itinerario = cal.days;
+    // Texto del análisis: sin "por persona" en costos del coche, sin reinterpretar la duración y sin
+    // citar destinos favoritos ajenos a este viaje (caso Valle de Bravo, 28-oct-2026).
+    const tasteProfile = await tastePromise;
+    const narr = cleanNarrative(a, {
+      destino: body.destino, pais: a.pais_destino ?? body.pais_destino ?? null, enCoche: !!shortTrip,
+      otherPlaces: tasteLabels(tasteProfile),
+    });
+    if (narr.quitadas.length) console.warn("analizar-viaje: frases quitadas del análisis", narr.quitadas.map((q) => q.slice(0, 120)), body.destino);
 
     // COHERENCIA DE PRESUPUESTO (no negociable): renglones recalculados con las opciones que el
     // usuario verá (vuelo equilibrio × viajeros; hotel medio × noches × habitaciones), respetando
