@@ -294,3 +294,13 @@ describe("sonda de health-check (?action=avisos): sin IA ni caché", () => {
     expect(p.state_dept).toMatchObject({ ok: false, http: 503 });
   });
 });
+
+describe("traducción con espacio suficiente (caso Tailandia 28-oct)", () => {
+  it("pide al modelo al menos 2,000 tokens para que el JSON no llegue cortado", async () => {
+    let pedido = 0;
+    const tr = makeTranslator(async ({ maxTokens }) => { pedido = maxTokens; return { ok: true, text: '{"puntos":[', model: "m" }; });
+    const r = await tr([{ fuente: "govuk", fuente_nombre: "GOV.UK", para_quien: "ciudadanos británicos", nivel: { valor: 1, escala: "fcdo", etiqueta: "x", original: "x" }, resumen: "Some text here", secciones: {}, actualizado_at: null, url: "https://www.gov.uk", consultado_at: "2026-10-28T00:00:00Z" } as never], { nombre: "Tailandia", nombre_en: "Thailand" } as never);
+    expect(pedido).toBeGreaterThanOrEqual(2000);
+    expect(r).toBeNull(); // JSON cortado → null → la tarjeta muestra el original en inglés con aviso
+  });
+});

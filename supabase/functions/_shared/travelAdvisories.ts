@@ -682,7 +682,8 @@ export function makeTranslator(call: ModelCall, model = TRANSLATION_MODEL, now: 
   return async (fuentes, p) => {
     if (!fuentes.length) return null;
     const { system, user } = buildTranslationPrompt(fuentes, p);
-    const r = await call({ model, system, user, maxTokens: 900 });
+    // 900 se quedaba corto (28-oct, Tailandia: 900 de 900 → JSON cortado → inglés). Con 2,500 cabe con holgura.
+    const r = await call({ model, system, user, maxTokens: 2500 });
     if (!r.ok || !r.text) return null;
     return parseTranslation(r.text, fuentes, r.model ?? model, now());
   };
