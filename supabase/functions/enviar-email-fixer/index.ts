@@ -4,6 +4,7 @@
 // Si el envío falla, el cliente hace fallback a mailto:.
 // Seguridad (F-08): la identidad (correo y replyTo) sale de la sesión, no del cuerpo; todo el HTML
 // se escapa (template.ts) y hay límite de frecuencia. Las respuestas solo llevan códigos estables.
+import { teamEmails } from "../_shared/teamEmails.ts";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
@@ -18,7 +19,7 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const FIXER_EMAIL = Deno.env.get("FIXER_EMAIL") || "hola@traveliatos.life";
+const FIXER_EMAIL = teamEmails();
 const FROM_ADDRESS =
   Deno.env.get("FIXER_FROM_ADDRESS") ||
   "IATOS Fixer <hola@traveliatos.life>";

@@ -4,6 +4,7 @@
 // mark_returned, attach_user_proof, status, cancel. Contrato: docs/iatos/IATOS_BOOKING_BRIDGE.md §API.
 // Nunca compra, cobra ni confirma: guarda la intención, firma la salida al proveedor y registra lo
 // que el usuario declara.
+import { teamEmails } from "../_shared/teamEmails.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { redactPii } from "../_shared/redact.ts";
@@ -23,7 +24,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
-const FIXER_EMAIL = Deno.env.get("FIXER_EMAIL") || "hola@traveliatos.life";
+const FIXER_EMAIL = teamEmails();
 const FROM_ADDRESS = Deno.env.get("FIXER_FROM_ADDRESS") || "IATOS Fixer <hola@traveliatos.life>";
 // Banderas (apagadas por defecto): compra exacta de vuelos por booking_request de Google Flights y
 // envío del correo de solicitud por el flujo de Reservas IA (grupo reservas).
