@@ -5,6 +5,8 @@
 // si el modelo escribía "travelpayouts" o "serpapi" la etiqueta se quedaba y se mostraba
 // "Precio verificado en vivo".
 
+import { visiblePlaceName } from "../_shared/placeName.ts";
+
 const norm = (v: unknown) =>
   String(v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -48,7 +50,7 @@ const PLACE_SOURCES = new Set(["tripadvisor", "google_places", "google_maps"]);
  * atracciones que tripadvisor-search devolvió en este request (TripAdvisor o, si no responde,
  * Google Places / Google Maps: `source`). El precio siempre es una estimación.
  */
-export function labelExperiences(items: unknown, attractions: Array<{ name?: string; place_id?: string | null; web_url?: string | null; rating?: number | null; num_reviews?: number | null }> | null, source = "tripadvisor"): any[] {
+export function labelExperiences(items: unknown, attractions: Array<{ name?: string; place_id?: string | null; web_url?: string | null; rating?: number | null; num_reviews?: number | null }> | null, source = "tripadvisor", city: string | null = null): any[] {
   return (Array.isArray(items) ? items : []).map((e: any) => {
     const match = attractions?.length && PLACE_SOURCES.has(e?.fuente) ? attractions.find((a) => samePlace(a?.name, e?.nombre ?? e?.name)) : null;
     const real = !!match;
@@ -56,6 +58,8 @@ export function labelExperiences(items: unknown, attractions: Array<{ name?: str
     // Sin la lista del proveedor la calificación es del modelo: nunca se muestra (auditoría 23-oct-2026).
     if (!real) out.rating = null;
     else {
+      // Nombre con los acentos del proveedor ("Panteón") y la ciudad si es de una palabra ("David (Florencia)").
+      if (typeof match.name === "string" && match.name) out.nombre = visiblePlaceName(e?.nombre ?? e?.name, match.name, city);
       // Calificación, place_id y ficha de Maps del proveedor (antes se perdían en el multidestino).
       out.rating = typeof match.rating === "number" ? match.rating : null;
       if (typeof match.num_reviews === "number") out.num_reviews = match.num_reviews;
