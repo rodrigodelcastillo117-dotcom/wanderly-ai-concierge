@@ -132,7 +132,7 @@ describe("4. caché (6 h por ciudad, fecha y consulta), cuota y freno de gasto",
   it("freno de la cuenta en pausa: no gasta; cuota agotada en SerpApi: activa el freno y devuelve la bolsa", async () => {
     const fetchImpl = serpFetch();
     const paused = { paused: async () => "budget" as const, tripQuota: vi.fn(async () => {}) };
-    expect(await runEventSearch({ city: "Madrid" }, { fetchImpl: fetchImpl as unknown as typeof fetch, serpKey: "k", store: memoryCacheStore(now), brake: paused, now })).toEqual({ error: "busquedas_en_pausa" });
+    expect(await runEventSearch({ city: "Madrid" }, { fetchImpl: fetchImpl as unknown as typeof fetch, serpKey: "k", store: memoryCacheStore(now), brake: paused, now })).toEqual({ error: "busquedas_en_pausa", pausa: "budget" }); // con su motivo (auditoría 10 #5)
     expect(fetchImpl).not.toHaveBeenCalled();
     const quota = serpFetch({ error: "Your account has run out of searches." }, 429);
     const brake = { paused: async () => null, tripQuota: vi.fn(async () => {}) };

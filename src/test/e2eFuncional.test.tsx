@@ -76,7 +76,9 @@ describe("Cerca de mí: restaurantes por popularidad, emergencias por distancia"
     for (const k of ["hospital", "police", "pharmacy", "atm", "embassy", "gas_station"]) expect(nearbyRankPreference(k)).toBe("DISTANCE");
   });
   it("places-nearby usa la regla", () => {
-    expect(readFileSync("supabase/functions/places-nearby/index.ts", "utf8")).toContain("rankPreference: nearbyRankPreference(body.kind)");
+    // El cuerpo de searchNearby se arma en rank.ts (nearbySearchBody, con la regla de orden).
+    expect(readFileSync("supabase/functions/places-nearby/index.ts", "utf8")).toContain("JSON.stringify(nearbySearchBody(body, type))");
+    expect(readFileSync("supabase/functions/places-nearby/rank.ts", "utf8")).toContain("rankPreference: nearbyRankPreference(b.kind)");
   });
 });
 

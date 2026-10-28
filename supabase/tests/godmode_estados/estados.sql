@@ -15,6 +15,10 @@ CREATE FUNCTION gm.as_user(u uuid) RETURNS void LANGUAGE sql AS $$
 CREATE FUNCTION gm.as_anon() RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claim.role', 'anon', false), set_config('request.jwt.claim.sub', '', false) $$;
 -- Una fila de la vista como texto "estado/verificación/fuente" (para comparar en una línea).
+-- Auditoría 10 (#11): cada fixer_escalation tiene su solicitud espejo en concierge_requests; la vista muestra
+-- el espejo (con el estado real de la Mesa) y no repite la escalación.
+CREATE FUNCTION gm.mirror(_fe uuid) RETURNS uuid LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT id FROM public.concierge_requests WHERE fixer_escalation_id = _fe $$;
 CREATE FUNCTION gm.st(_id uuid) RETURNS text LANGUAGE sql SECURITY INVOKER AS $$
   SELECT coalesce((SELECT canonical_state || '/' || verification || '/' || coalesce(evidence_source, '-')
                      FROM public.reservation_state_v WHERE source_id = _id), 'AUSENTE') $$;
@@ -49,6 +53,8 @@ SELECT gm.ok('N4 el estado desconocido no se toca', (SELECT status FROM public.c
 DELETE FROM public.concierge_requests WHERE id='6d300000-0000-0000-0000-0000000000e2';
 INSERT INTO gm.snap SELECT 'cr', md5(string_agg(id::text || status || updated_at::text, ',' ORDER BY id)) FROM public.concierge_requests;
 \i :mig
+-- Estado real de producción: después de esta migración va 20261029010000 (redefine la vista).
+\i :mig_fix
 SELECT gm.ok('N5 sin estados raros el CHECK queda validado',
   (SELECT convalidated FROM pg_constraint WHERE conname='concierge_request_status_ok' AND conrelid='public.concierge_requests'::regclass));
 SELECT gm.ok('N6 aplicar otra vez no cambia ninguna solicitud (idempotente)',
@@ -153,7 +159,8 @@ INSERT INTO public.fixer_escalations (id, user_id, trip_id, motivo, status) VALU
 
 -- ── I: aislamiento (security_invoker + RLS de cada tabla)
 SET ROLE authenticated; SELECT gm.as_user('6d000000-0000-0000-0000-00000000000a');
-SELECT gm.ok('I1 A ve sus filas de las cuatro tablas', (SELECT count(DISTINCT source_table) FROM public.reservation_state_v) = 4,
+SELECT gm.ok('I1 A ve sus filas (la escalación, por su solicitud espejo)', (SELECT count(DISTINCT source_table) FROM public.reservation_state_v) = 3
+  AND (SELECT count(*) FROM public.reservation_state_v WHERE kind = 'human_help') = 2,
   (SELECT string_agg(DISTINCT source_table, ',') FROM public.reservation_state_v));
 SELECT gm.ok('I2 A no ve nada de B en la vista', (SELECT count(*) FROM public.reservation_state_v WHERE user_id <> '6d000000-0000-0000-0000-00000000000a') = 0);
 SELECT gm.ok('I3 A no ve nada de B en my_open_reservations', (SELECT count(*) FROM public.my_open_reservations(NULL) WHERE user_id <> '6d000000-0000-0000-0000-00000000000a') = 0);
@@ -163,7 +170,7 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'OK I4 la vista es de solo lectura';
 END $$;
 SELECT gm.as_user('6d000000-0000-0000-0000-00000000000b');
-SELECT gm.ok('I5 B ve solo lo suyo (3 filas: intención, solicitud y Fixer)', (SELECT count(*) FROM public.reservation_state_v) = 3
+SELECT gm.ok('I5 B ve solo lo suyo (3 filas: intención, solicitud y su escalación por el espejo)', (SELECT count(*) FROM public.reservation_state_v) = 3
   AND (SELECT bool_and(user_id = '6d000000-0000-0000-0000-00000000000b') FROM public.reservation_state_v), (SELECT count(*)::text FROM public.reservation_state_v));
 SELECT gm.ok('I6 B no encuentra las filas de A ni por id', (SELECT count(*) FROM public.reservation_state_v WHERE source_id IN
   ('6d200000-0000-0000-0000-000000000002','6d400000-0000-0000-0000-000000000002','6d300000-0000-0000-0000-000000000003','6d500000-0000-0000-0000-000000000001')) = 0);
@@ -198,9 +205,10 @@ SELECT gm.ok('M9 Privé confirmada con folio → CONFIRMED/verificado_proveedor'
 SELECT gm.ok('M10 "confirmed" sin evidencia en una solicitud no Privé NO es CONFIRMED', gm.st('6d300000-0000-0000-0000-000000000005') = 'PENDING_CONFIRMATION/sin_evidencia/-', gm.st('6d300000-0000-0000-0000-000000000005'));
 SELECT gm.ok('M11 lo que otra fila ya representa no se repite (solicitud ligada, espejo de Reservas IA, reserva IA ligada)',
   (SELECT count(*) FROM public.reservation_state_v WHERE source_id IN ('6d300000-0000-0000-0000-000000000004','6d300000-0000-0000-0000-000000000006','6d400000-0000-0000-0000-000000000004')) = 0);
-SELECT gm.ok('M12 Fixer con correo enviado → REQUESTED (kind fixer)', gm.st('6d500000-0000-0000-0000-000000000001') = 'REQUESTED/sin_evidencia/-'
-  AND (SELECT kind FROM public.reservation_state_v WHERE source_id='6d500000-0000-0000-0000-000000000001') = 'fixer');
-SELECT gm.ok('M13 Fixer "resuelto" sin evidencia nunca es CONFIRMED', gm.st('6d500000-0000-0000-0000-000000000002') = 'PENDING_CONFIRMATION/sin_evidencia/-', gm.st('6d500000-0000-0000-0000-000000000002'));
+SELECT gm.ok('M12 Fixer con correo enviado → REQUESTED (por su espejo human_help, sin repetirse)', gm.st(gm.mirror('6d500000-0000-0000-0000-000000000001')) = 'REQUESTED/sin_evidencia/-'
+  AND (SELECT kind FROM public.reservation_state_v WHERE source_id=gm.mirror('6d500000-0000-0000-0000-000000000001')) = 'human_help'
+  AND (SELECT count(*) FROM public.reservation_state_v WHERE source_id='6d500000-0000-0000-0000-000000000001') = 0);
+SELECT gm.ok('M13 Fixer "resuelto" sin evidencia nunca es CONFIRMED', gm.st(gm.mirror('6d500000-0000-0000-0000-000000000002')) = 'PENDING_CONFIRMATION/sin_evidencia/-', gm.st(gm.mirror('6d500000-0000-0000-0000-000000000002')));
 RESET ROLE;
 SELECT gm.ok('M14 en toda la vista ningún CONFIRMED queda sin evidencia', (SELECT count(*) FROM public.reservation_state_v WHERE canonical_state = 'CONFIRMED' AND verification = 'sin_evidencia') = 0);
 SELECT gm.ok('M15 solo se usa el vocabulario de booking_intents', (SELECT bool_and(canonical_state IN ('SELECTED','PRICE_RECHECK_REQUIRED','READY_TO_BOOK','REDIRECTED_TO_PROVIDER','REQUESTED',
@@ -213,10 +221,10 @@ SET ROLE authenticated; SELECT gm.as_user('6d000000-0000-0000-0000-00000000000a'
 SELECT gm.ok('R1 con el viaje: abiertas y confirmadas recientes del viaje y las que no tienen viaje',
   (SELECT count(*) FROM public.my_open_reservations('6d100000-0000-0000-0000-00000000000a') WHERE source_id IN
     ('6d200000-0000-0000-0000-000000000001','6d200000-0000-0000-0000-000000000002','6d200000-0000-0000-0000-000000000003','6d400000-0000-0000-0000-000000000001',
-     '6d400000-0000-0000-0000-000000000002','6d300000-0000-0000-0000-000000000001','6d300000-0000-0000-0000-000000000003','6d500000-0000-0000-0000-000000000001')) = 8);
+     '6d400000-0000-0000-0000-000000000002','6d300000-0000-0000-0000-000000000001','6d300000-0000-0000-0000-000000000003',gm.mirror('6d500000-0000-0000-0000-000000000001'))) = 8);
 SELECT gm.ok('R2 sin canceladas, sin "resuelto" y sin confirmadas de hace más de 180 días',
   (SELECT count(*) FROM public.my_open_reservations('6d100000-0000-0000-0000-00000000000a') WHERE source_id IN
-    ('6d200000-0000-0000-0000-000000000004','6d500000-0000-0000-0000-000000000002','6d200000-0000-0000-0000-000000000006')) = 0);
+    ('6d200000-0000-0000-0000-000000000004','6d500000-0000-0000-0000-000000000002',gm.mirror('6d500000-0000-0000-0000-000000000002'),'6d200000-0000-0000-0000-000000000006')) = 0);
 SELECT gm.ok('R3 con el viaje no trae las de otro viaje; sin viaje sí', (SELECT count(*) FROM public.my_open_reservations('6d100000-0000-0000-0000-00000000000a') WHERE source_id = '6d300000-0000-0000-0000-000000000007') = 0
   AND (SELECT count(*) FROM public.my_open_reservations(NULL) WHERE source_id = '6d300000-0000-0000-0000-000000000007') = 1);
 SELECT gm.ok('R4 primero las del viaje pedido', (SELECT trip_id FROM public.my_open_reservations('6d100000-0000-0000-0000-00000000000a') LIMIT 1) = '6d100000-0000-0000-0000-00000000000a');

@@ -230,7 +230,8 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
       } else {
         saveOutcome("email_enviado");
         toast.success("Nuestro equipo recibió tu solicitud", {
-          description: "Te responderá por email en cuanto esté disponible. El tiempo de respuesta depende de la disponibilidad del equipo.",
+          // Auditoría 10 #11: la solicitud ahora también queda en Concierge › Mis solicitudes (y en la Mesa).
+          description: "La verás en Concierge › Mis solicitudes; te responderemos ahí y por correo. El tiempo de respuesta depende de la disponibilidad del equipo.",
         });
       }
     } catch (err) {
@@ -369,7 +370,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
                   <div className="rounded-2xl border border-primary/25 bg-primary/10 px-4 py-3">
                     <p className="text-[10px] uppercase tracking-[0.24em] text-primary">Solicitud</p>
                     <p className="mt-1 text-sm font-medium">{selectedUrgencia?.titulo ?? "Urgencia seleccionada"}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Una persona del equipo revisa tu caso y te responde por correo, sujeto a disponibilidad.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Una persona del equipo revisa tu caso; verás su respuesta en Concierge › Mis solicitudes y por correo, sujeto a disponibilidad.</p>
                   </div>
 
                   <div>
@@ -409,14 +410,27 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
                 </div>
               )}
               <div className="mt-3 pt-3 border-t border-border/60 text-center">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground mb-1">O escríbenos directo</p>
-                <a
-                  href={`tel:${FIXER_WHATSAPP_DIGITS}`}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary"
-                >
-                  <Phone className="h-3.5 w-3.5" />
-                  {FIXER_WHATSAPP_DISPLAY}
-                </a>
+                {/* Auditoría 10 #21: decía "escríbenos" con un enlace para llamar. Ahora cada enlace dice lo que hace. */}
+                <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground mb-1">O contáctanos directo</p>
+                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                  <a
+                    href={`tel:+${FIXER_WHATSAPP_DIGITS}`}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary"
+                    aria-label={`Llamar al ${FIXER_WHATSAPP_DISPLAY}`}
+                  >
+                    <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                    Llamar {FIXER_WHATSAPP_DISPLAY}
+                  </a>
+                  <a
+                    href={`https://wa.me/${FIXER_WHATSAPP_DIGITS}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    Escribir por WhatsApp
+                  </a>
+                </div>
               </div>
             </div>
           </motion.div>

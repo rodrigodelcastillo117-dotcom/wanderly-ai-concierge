@@ -12,6 +12,8 @@ export const OPS_TYPE_LABEL: Record<string, string> = {
   alert: "Alerta del concierge",
   fixer: "Solicitud al Fixer",
   fixer_request: "Solicitud al equipo",
+  // Botón "Hablar con una persona" (fixer_escalations → espejo en concierge_requests, auditoría 10 #11).
+  human_help: "Hablar con una persona",
   rebooking: "Cambio de vuelo",
   booking_assist: "Ayuda para reservar",
   ai_reservation: "Reserva IA",

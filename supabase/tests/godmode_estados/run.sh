@@ -18,7 +18,9 @@ ESPERADOS=47
 main() {
   t_build_db "$DB"
   T_IDEM_OK=1 t_idempotency "$DB" "$MIG"
-  $PSQL -At -d "$DB" -v mig="$MIG" -f "$DIR/estados.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
+  # mig_fix: la migración posterior que redefine reservation_state_v (espejo de "Hablar con una persona",
+  # auditoría 10). Tras volver a aplicar esta migración, se aplica también para probar el estado real.
+  $PSQL -At -d "$DB" -v mig="$MIG" -v mig_fix="$T_MIG/20261029010000_fix_iato_mesa.sql" -f "$DIR/estados.sql" 2>&1 | grep -o 'OK .*\|FALLA.*\|ERROR.*' | sed 's/^ERROR/FALLA ERROR/'
 }
 
 main 2>&1 | t_verdict godmode_estados "$ESPERADOS"

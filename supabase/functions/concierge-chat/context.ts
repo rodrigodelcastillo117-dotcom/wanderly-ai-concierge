@@ -83,6 +83,8 @@ export function reservationGuardInput(rows: ReservationStateRow[]) {
       .filter((r) => r.canonical_state === "REQUESTED" || r.canonical_state === "PENDING_CONFIRMATION")
       .slice(0, 3)
       .map((r) => ({ title: String(r.title ?? "").slice(0, 80), label: reservationStateLabel(r).label })),
+    /** Todo lo que existe de verdad (cualquier estado): una frase sobre algo de aquí no es inventada. */
+    knownRequests: rows.filter((r) => r.title).slice(0, 20).map((r) => ({ title: String(r.title ?? "").slice(0, 80) })),
   };
 }
 

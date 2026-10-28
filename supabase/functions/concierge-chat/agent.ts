@@ -98,6 +98,13 @@ export interface AgentResult {
   firstTextMs: number | null;
 }
 
+/** Por qué no se ejecutó una herramienta que el usuario no pidió (planner.applyToolPolicy). */
+const BLOCKED_MOTIVO: Record<string, string> = {
+  tours_no_pedidos: "El usuario no pidió tours ni actividades: no busques tours en este turno.",
+  eventos_no_pedidos: "El usuario no pidió eventos: no busques eventos en este turno.",
+  clima_de_otro_lugar: "El usuario preguntó por otro lugar: no consultes ni menciones el clima de su viaje en contexto.",
+};
+
 export class AllProvidersFailed extends Error {
   /** usage: lo que sí cobraron los proveedores en este turno (AUD-IATO-02: se registra igual). */
   constructor(public last: ProviderError | null, public usage: UsageRecord[] = []) { super("all_providers_failed"); }
@@ -203,7 +210,7 @@ export async function runAgentTurn(a: AgentInput): Promise<AgentResult> {
       const policy = applyToolPolicy(tu.name, v.input, a.userMessage);
       if (policy.blocked) {
         // No se ejecuta (ni se cobra): el usuario no pidió eso.
-        return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: JSON.stringify({ error: policy.blocked, motivo: policy.blocked === "tours_no_pedidos" ? "El usuario no pidió tours ni actividades: no busques tours en este turno." : "El usuario no pidió eventos: no busques eventos en este turno." }) };
+        return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: JSON.stringify({ error: policy.blocked, motivo: BLOCKED_MOTIVO[policy.blocked] ?? "No uses esta herramienta en este turno." }) };
       }
       if (policy.rerouted) res.rerouted.push(policy.rerouted);
       const k = keyOf(policy.name, policy.args);

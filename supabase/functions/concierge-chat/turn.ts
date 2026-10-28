@@ -16,6 +16,7 @@ import { compactHistory, prefetchBlock } from "./prompt.ts";
 import type { ConciergeStreamEvent } from "./stream.ts";
 import { TOOL_DEFS } from "./toolDefs.ts";
 import { withTimeout } from "./tools.ts";
+import { LiveAdviceFilter } from "./brevity.ts";
 
 export interface TurnDeps {
   plan: TurnPlan;
@@ -36,6 +37,7 @@ export interface TurnDeps {
   requestIntel?: unknown;
   hasConfirmedBookings?: boolean;
   openRequests?: { title: string; label: string }[];
+  knownRequests?: { title: string }[];
   city?: string;
   party?: number;
   exigente: boolean;
@@ -49,6 +51,11 @@ export interface TurnDeps {
    * inicio honesta (planner.leadSentence) como primer texto. Sin valor: no hay frase (como antes).
    */
   leadAfterMs?: number;
+  /**
+   * El texto del modelo llega en vivo a la pantalla (SSE). Por omisión sí; false = respuesta JSON
+   * (nadie vio nada antes del final, así que el recorte de brevity.ts todavía puede aplicarse).
+   */
+  streaming?: boolean;
 }
 
 /**
@@ -112,10 +119,15 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
   // que la app borre el texto (reset: preámbulo antes de herramientas o cambio de proveedor), la
   // frase se vuelve a mostrar.
   let sepPending = shownLead !== null;
+  // Lo que se ve en vivo es lo que queda (brevity.ts): los consejos del vuelo que no pidió se filtran
+  // oración por oración ANTES de mostrarse; nada se borra después del streaming.
+  const newLive = () => new LiveAdviceFilter({ avoidFlight: !!d.plan.avoidTopics?.includes("vuelo"), userMessage: d.userMessage });
+  let live = newLive();
   const dynamicSystem = shownLead
     ? `${d.dynamicSystem}\n\nYA EN PANTALLA (lo escribió la app mientras llegaban los datos; no lo repitas): «${shownLead}». Tu respuesta aparece justo después, en el mismo párrafo: empieza directo con el resultado, sin saludo.`
     : d.dynamicSystem;
-  const emitDelta = (text: string) => {
+  const show = (text: string) => {
+    if (!text) return;
     if (sepPending) {
       const trimmed = text.replace(/^\s+/, "");
       if (!trimmed) return;
@@ -125,6 +137,7 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
     }
     d.send({ type: "delta", data: { text } });
   };
+  const sendText = (raw: string) => show(live.push(raw));
 
   // 2) Modelo (streaming) con herramientas.
   const chain = providerChain(d.route, d.config, d.breaker, { hasAnthropicKey: d.hasAnthropicKey, hasLovableKey: d.hasLovableKey });
@@ -136,8 +149,9 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
     deadlineMs: d.exigente ? 50_000 : 30_000, hardBudgetMs: Math.max(0, TURN_BUDGET_MS - prefetchMs), now: d.now,
     emit: {
       status: (id, text, state) => d.send({ type: "status", data: { id, text, state } }),
-      delta: emitDelta,
+      delta: sendText,
       reset: () => {
+        live = newLive();
         d.send({ type: "reset", data: {} });
         if (shownLead) {
           d.send({ type: "delta", data: { text: shownLead } });
@@ -147,11 +161,15 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
     },
   });
 
+  // Lo que quedó retenido al final de la última oración.
+  show(live.flush());
+
   // 3) Respuesta validada.
   const final = finalizeTurn({
     raw: agent.finalText, toolRuns: agent.toolRuns, plan: d.plan, actionCtx: d.actionCtx,
-    requestIntel: d.requestIntel, hasConfirmedBookings: d.hasConfirmedBookings, openRequests: d.openRequests, city: d.city, party: d.party,
+    requestIntel: d.requestIntel, hasConfirmedBookings: d.hasConfirmedBookings, openRequests: d.openRequests, knownRequests: d.knownRequests, city: d.city, party: d.party,
     exigente: d.exigente, userMessage: d.userMessage, tripScope: d.tripScope ?? null,
+    liveText: d.streaming === false ? undefined : live.shown, liveDropped: live.dropped,
   });
   if (shownLead) final.text = joinLead(shownLead, final.text);
   return { final, agent, prefetched, prefetchMs, totalMs: now() - t0, lead: shownLead, leadMs };

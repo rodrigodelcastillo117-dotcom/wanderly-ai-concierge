@@ -24,7 +24,27 @@ export type ActionType = typeof ACTION_TYPES[number];
 /** Dónde corre al confirmar: en el servidor (cambia datos) o en la app (descarga o abre una pantalla). */
 export const CLIENT_ACTIONS = new Set<ActionType>(["export_calendar", "open_emergency"]);
 
-export const EXPENSE_CATEGORIES = ["Alojamiento", "Gastronomía", "Experiencias", "Transporte", "Otros"] as const;
+/**
+ * Las MISMAS categorías que la pantalla Gastos (src/lib/expenseCategories.ts; una prueba revisa que sean
+ * iguales). Antes Iato guardaba "Gastronomía" y Gastos mostraba "Restaurantes" (auditoría 10 #18).
+ */
+export const EXPENSE_CATEGORIES = [
+  "Vuelos", "Hospedaje", "Restaurantes", "Bares y vida nocturna", "Tours y experiencias", "Transporte local", "Compras",
+  "Salud y farmacia", "Seguros", "Visas y trámites", "Conectividad / eSIM", "Propinas", "Comisiones bancarias", "Regalos", "Otros",
+] as const;
+/** Nombres viejos o sinónimos que el modelo todavía puede mandar → categoría de Gastos. */
+const EXPENSE_ALIASES: Record<string, string> = {
+  alojamiento: "Hospedaje", hotel: "Hospedaje", gastronomia: "Restaurantes", comida: "Restaurantes", restaurante: "Restaurantes",
+  cafe: "Restaurantes", experiencias: "Tours y experiencias", tours: "Tours y experiencias", actividades: "Tours y experiencias",
+  transporte: "Transporte local", taxi: "Transporte local", uber: "Transporte local", vuelo: "Vuelos", bares: "Bares y vida nocturna",
+  propina: "Propinas", farmacia: "Salud y farmacia", salud: "Salud y farmacia", esim: "Conectividad / eSIM", regalo: "Regalos",
+};
+const normCat = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+export function expenseCategory(raw: string | undefined): string {
+  const k = normCat(String(raw ?? ""));
+  if (!k) return "Otros";
+  return EXPENSE_CATEGORIES.find((c) => normCat(c) === k) ?? EXPENSE_ALIASES[k] ?? "Otros";
+}
 export const FIXER_KINDS = ["reservation", "transport", "rebooking", "luggage", "other"] as const;
 
 export interface ProposedAction {
@@ -44,7 +64,7 @@ export interface CalendarEvent { title: string; date: string; time?: string; dur
 export interface ActionContext {
   todayISO: string;
   /** Viajes a los que el usuario tiene acceso (propios y compartidos). */
-  trips: Array<{ id: string; destino?: string | null; fecha_salida?: string | null; fecha_regreso?: string | null; itinerario_json?: unknown; ciudad_origen?: string | null }>;
+  trips: Array<{ id: string; destino?: string | null; fecha_salida?: string | null; fecha_regreso?: string | null; itinerario_json?: unknown; ciudad_origen?: string | null; vuelos_json?: unknown }>;
   activeTripId: string | null;
   /** Experiencias Privé que devolvió search_prive en este turno (solo esas se pueden solicitar). */
   priveExperienceIds?: Set<string>;
@@ -114,6 +134,42 @@ function resolveTrip(raw: unknown, ctx: ActionContext, required: boolean) {
   return { trip };
 }
 
+const inTripDates = (t: { fecha_salida?: string | null; fecha_regreso?: string | null }, fecha: string) => {
+  const a = t.fecha_salida ? String(t.fecha_salida).slice(0, 10) : null;
+  const b = t.fecha_regreso ? String(t.fecha_regreso).slice(0, 10) : a;
+  return !!a && !!b && a <= fecha && fecha <= b;
+};
+
+/**
+ * Viaje de una solicitud con fecha (mesa, reserva IA): el que trae o el del contexto SOLO si la fecha cae
+ * en ese viaje; si no, el único viaje cuyas fechas la incluyen; si ninguno, sin viaje. Auditoría 10 #13:
+ * "Contramar el 13 de noviembre" quedó en el viaje fijado a Valle de Bravo (30 oct – 1 nov).
+ */
+function tripForDate(raw: unknown, ctx: ActionContext, fecha: string | undefined): string | undefined {
+  const r = resolveTrip(raw, ctx, false);
+  const t = !("error" in r) ? r.trip : null;
+  if (!fecha) return t?.id;
+  if (t && inTripDates(t, fecha)) return t.id;
+  const hits = ctx.trips.filter((x) => inTripDates(x, fecha));
+  return hits.length === 1 ? hits[0].id : undefined;
+}
+
+const normGround = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const GROUND_MODE = /\b(auto|coche|carro|camioneta|autobus|bus|camion|tren|ferry|barco|taxi|traslado|chofer|uber|terrestre)\b/;
+
+/**
+ * ¿El viaje es por tierra? (todas sus opciones de transporte son coche, autobús, tren…). Un viaje así no
+ * tiene vuelo cuyo precio vigilar (auditoría 10 #9: "Vigilar el precio del vuelo" a Valle de Bravo en coche).
+ */
+export function tripIsByLand(trip: any): boolean {
+  const list = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : Array.isArray(trip?.vuelos) ? trip.vuelos : [];
+  if (!list.length) return false;
+  return list.every((v: any) => {
+    const m = normGround(`${v?.modo ?? ""} ${v?.mode ?? ""} ${v?.tipo ?? ""}`);
+    return GROUND_MODE.test(m) && !/\b(vuelo|avion|flight)\b/.test(m);
+  });
+}
+
 const tripName = (t: { destino?: string | null } | null | undefined) => (t?.destino ? `tu viaje a ${t.destino}` : "tu viaje");
 
 export function validateAction(type: unknown, rawParams: unknown, ctx: ActionContext): ValidateResult {
@@ -159,7 +215,7 @@ export function validateAction(type: unknown, rawParams: unknown, ctx: ActionCon
       if (!monto || monto <= 0 || monto > 10_000_000) return { ok: false, reason: "monto_invalido" };
       const moneda = typeof (p.moneda ?? p.currency) === "string" && /^[A-Za-z]{3}$/.test(String(p.moneda ?? p.currency).trim()) ? String(p.moneda ?? p.currency).trim().toUpperCase() : "MXN";
       const catRaw = txt(p.categoria ?? p.category, 40) ?? "Otros";
-      const categoria = (EXPENSE_CATEGORIES as readonly string[]).find((c) => c.toLowerCase() === catRaw.toLowerCase()) ?? "Otros";
+      const categoria = expenseCategory(catRaw);
       const fecha = isIso(p.fecha) ? p.fecha : ctx.todayISO;
       const params = { monto: Math.round(monto * 100) / 100, moneda, categoria, fecha, ...(r.trip ? { trip_id: r.trip.id } : {}), ...(txt(p.descripcion, 200) ? { descripcion: txt(p.descripcion, 200) } : {}) };
       return ok(params, `Registrar gasto: ${fmtMoney(params.monto, moneda)} · ${categoria}${params.descripcion ? ` · ${params.descripcion}` : ""} · ${fmtDate(fecha)}`, "Registrar gasto");
@@ -170,12 +226,14 @@ export function validateAction(type: unknown, rawParams: unknown, ctx: ActionCon
       const items = (Array.isArray(p.items) ? p.items : []).map((x) => txt(x, 80)).filter(Boolean) as string[];
       const unique = [...new Set(items)].slice(0, 20);
       if (!unique.length) return { ok: false, reason: "sin_items" };
-      return ok({ trip_id: r.trip!.id, items: unique }, `Agregar a la maleta de ${tripName(r.trip)}: ${unique.slice(0, 5).join(", ")}${unique.length > 5 ? ` y ${unique.length - 5} más` : ""}`, "Agregar a la maleta");
+      return ok({ trip_id: r.trip!.id, items: unique }, `Agregar a la maleta de ${tripName(r.trip)} (${unique.length} ${unique.length === 1 ? "cosa" : "cosas"}): ${unique.join(", ")}`, "Agregar a la maleta");
     }
     case "create_price_alert": {
       const r = resolveTrip(p.trip_id, ctx, true);
       if ("error" in r) return { ok: false, reason: r.error! };
       if (!r.trip!.fecha_salida || String(r.trip!.fecha_salida) <= ctx.todayISO) return { ok: false, reason: "viaje_no_futuro" };
+      // Viaje por tierra: no hay vuelo cuyo precio vigilar (auditoría 10 #9).
+      if (tripIsByLand(r.trip)) return { ok: false, reason: "viaje_sin_vuelo" };
       return ok({ trip_id: r.trip!.id }, `Vigilar el precio del vuelo de ${tripName(r.trip)} y avisarte si baja`, "Activar alerta");
     }
     case "track_flight": {
@@ -216,14 +274,14 @@ export function validateAction(type: unknown, rawParams: unknown, ctx: ActionCon
       const tipo = (FIXER_KINDS as readonly string[]).includes(String(p.tipo)) ? String(p.tipo) : "other";
       const titulo = txt(p.titulo, 140);
       if (!titulo) return { ok: false, reason: "falta_titulo" };
-      const r = resolveTrip(p.trip_id, ctx, false);
+      const fixerTrip = tripForDate(p.trip_id, ctx, isIso(p.fecha) ? p.fecha : undefined);
       const personas = num(p.personas);
       const params = {
         tipo, titulo, ...(txt(p.detalle, 600) ? { detalle: txt(p.detalle, 600) } : {}), ...(isIso(p.fecha) ? { fecha: p.fecha } : {}),
         ...(typeof p.hora === "string" && TIME.test(p.hora.trim()) ? { hora: p.hora.trim() } : {}),
         ...(personas && personas >= 1 && personas <= 30 ? { personas: Math.round(personas) } : {}),
         ...(txt(p.lugar, 160) ? { lugar: txt(p.lugar, 160) } : {}),
-        ...(!("error" in r) && r.trip ? { trip_id: r.trip.id } : {}),
+        ...(fixerTrip ? { trip_id: fixerTrip } : {}),
       };
       return ok(params, `Pedírselo a nuestro equipo: ${titulo}`, "Pedírselo a una persona del equipo",
         "La atiende una persona del equipo IATOS; verás su respuesta en la app y por correo. Aún no está reservado.");
@@ -251,8 +309,7 @@ export function validateAction(type: unknown, rawParams: unknown, ctx: ActionCon
       const personasN = num(p.personas);
       const personas = personasN !== undefined ? Math.round(personasN) : undefined;
       const notas = txt(p.notas ?? p.detalle, 500);
-      const r = resolveTrip(p.trip_id, ctx, false);
-      const tripId = !("error" in r) && r.trip ? r.trip.id : undefined;
+      const tripId = tripForDate(p.trip_id, ctx, fecha);
       // Sin Reservas IA (apagado o fuera del piloto) o sin un lugar real: lo de siempre, una persona del equipo.
       const human = () => validateAction("fixer_request", {
         tipo: "reservation", titulo: `Reservar mesa en ${nombre}`, lugar: nombre, fecha, hora, personas, detalle: notas, trip_id: tripId,

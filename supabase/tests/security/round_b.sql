@@ -54,8 +54,11 @@ SET ROLE authenticated; SELECT set_config('request.jwt.claim.role','authenticate
 SELECT set_config('request.jwt.claim.sub','71000000-0000-0000-0000-000000000001',false);
 SELECT CASE WHEN NOT members_access() AND (SELECT count(*) FROM nightlife_premium)=0
             THEN 'OK MB1 gratis: sin acceso y RLS no devuelve lugares' ELSE 'FALLA MB1' END;
-SELECT CASE WHEN count(*)=3 AND sum(venues)=4 AND bool_and(ciudad IN ('zz-ciudad-a','zz-ciudad-b'))
-            THEN 'OK MB2 gratis: el adelanto da ciudades, categorías y conteos (sin inactivos)' ELSE 'FALLA MB2 '||count(*) END
+-- Auditoría 10 (#14 / Privé P1-3, migración 20261029010000): el adelanto cuenta solo lo que PRO vería (con
+-- fuente). Las filas zz de nightlife_premium (sin fuente, como las viejas de la IA) ya no se prometen; las
+-- categorías y conteos del adelanto con lugares curados los prueba members_more (C5–C8).
+SELECT CASE WHEN count(*)=0
+            THEN 'OK MB2 gratis: el adelanto no promete lugares sin fuente (ni inactivos)' ELSE 'FALLA MB2 '||count(*) END
   FROM members_teaser() WHERE ciudad LIKE 'zz-%';
 SELECT CASE WHEN (SELECT string_agg(a, ',') FROM unnest((SELECT proargnames FROM pg_proc WHERE proname='members_teaser')) a WHERE a <> 'p_ciudad')
                  = 'ciudad,ciudad_display,pais,categoria,venues'

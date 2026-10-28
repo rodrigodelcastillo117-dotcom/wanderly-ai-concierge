@@ -32,7 +32,7 @@ describe("sin palabras técnicas en lo que se ve", () => {
   });
 
   it("textos clave con nombres comprensibles", () => {
-    expect(FIXER_LINE).toBe("Acceso preferente a nuestro equipo humano, sujeto a disponibilidad");
+    expect(FIXER_LINE).toBe("Nuestro equipo humano pide tus mesas de Members Only, sujeto a disponibilidad");
     expect([...FREE_FEATURES, ...PRO_FEATURES].join(" ")).toMatch(/perfil de viajero/);
     expect(incompleteReplyText("", "Iato no pudo responder.")).toMatch(/Hablar con una persona/);
   });

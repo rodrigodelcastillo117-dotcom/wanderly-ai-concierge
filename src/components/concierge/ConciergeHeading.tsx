@@ -23,7 +23,10 @@ export function ConciergeHeading({ compact = false }: { compact?: boolean }) {
     return (
       <>
         <h1 className="font-display text-base md:text-xl leading-tight truncate flex items-center gap-1.5">
-          <Crown className="hidden sm:block w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" /> <span className="truncate">{c.title}</span>
+          {/* En el celular el título corto cabe completo junto a los botones (antes "Concierge PRO te escu…", auditoría 10 #20). */}
+          <Crown className="hidden sm:block w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />{" "}
+          <span className="truncate sm:hidden" data-testid="concierge-title-short">Iato te escucha</span>
+          <span className="truncate hidden sm:inline">{c.title}</span>
         </h1>
         {c.note && (
           <p className="text-[11px] text-muted-foreground leading-snug">

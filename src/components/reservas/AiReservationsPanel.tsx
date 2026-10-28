@@ -56,7 +56,7 @@ function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: s
       {r.status === "awaiting_user_ok" && (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <Mail className="w-4 h-4" aria-hidden="true" /> Iato escribirá a {r.venue_email} en tu nombre ({r.customer_name}). Aún no le hemos escrito.
+            <Mail className="w-4 h-4" aria-hidden="true" /> Iato escribirá a {r.venue_email}{r.venue_email_is_test ? " (correo de prueba del piloto: no es del restaurante)" : ""} en tu nombre ({r.customer_name}). Aún no le hemos escrito.
           </p>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={share} onCheckedChange={(v) => setShare(v === true)} /> Compartir mi teléfono y correo con el restaurante

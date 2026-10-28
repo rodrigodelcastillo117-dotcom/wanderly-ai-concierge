@@ -27,7 +27,7 @@ import {
 const MANANA = "2026-10-23";
 
 // ═══ Turno completo (mismo código que producción: turn.ts) con modelo y herramientas simulados ═══
-async function turnoCenaCerca(p: { trip: any; coords: { lat: number; lng: number } | null; place: string | null; reply: (tripId: string) => string; exigente?: boolean; message?: string; tools?: Record<string, unknown> }) {
+async function turnoCenaCerca(p: { trip: any; coords: { lat: number; lng: number } | null; place: string | null; reply: (tripId: string) => string; exigente?: boolean; message?: string; tools?: Record<string, unknown>; streaming?: boolean }) {
   const message = p.message ?? CENA_CERCA;
   const tagged = tripBookingContext(p.trip, []);
   const trip = { ...p.trip, vuelos: tagged.vuelos, hospedaje: tagged.hospedaje };
@@ -39,6 +39,7 @@ async function turnoCenaCerca(p: { trip: any; coords: { lat: number; lng: number
   const tools: Record<string, unknown> = { search_nearby: LUGARES_LOCALES, search_places: LUGARES_LOCALES, search_attractions: { ok: true, source: "tripadvisor", results: [] }, ...p.tools };
   const dynamicSystem = buildDynamicSystem({ todayLine: todayLine(HOY), tripReason: resolution.reason, hasTrip: true, godMode: !!p.exigente, toolHints: plan.toolHints, situation });
   const seenSystem: string[] = [];
+  const shown: string[] = [];
   const caller: ModelCaller = async (step, input, h) => {
     seenSystem.push(input.dynamicSystem);
     const text = p.reply(p.trip.id);
@@ -48,14 +49,15 @@ async function turnoCenaCerca(p: { trip: any; coords: { lat: number; lng: number
   const out = await runConciergeTurn({
     plan, route: routeTurn({ message, intents, exigente: !!p.exigente, config: DEFAULT_MODEL_CONFIG }), config: DEFAULT_MODEL_CONFIG, breaker: new CircuitBreaker(),
     callModel: caller, execTool: async (name, args) => { executed.push({ name, args }); return tools[name] ?? { error: "sin_fixture" }; },
-    toolTimeout: () => 5000, send: () => {}, meta: {}, stableSystem: buildStableSystem(""), dynamicSystem,
+    toolTimeout: () => 5000, send: (ev) => { if (ev.type === "delta") shown.push(ev.data.text); else if (ev.type === "reset") shown.length = 0; }, meta: {}, stableSystem: buildStableSystem(""), dynamicSystem,
+    streaming: p.streaming,
     contextMessage: buildContextMessage({ viajeEnContexto: compactTripForPrompt(trip, { todayISO: HOY, vuelos: trip.vuelos, hospedaje: trip.hospedaje }), notas: plan.notes }),
     history: [{ role: "user", content: message }], userMessage: message, exigente: !!p.exigente, hasAnthropicKey: true, hasLovableKey: false,
     actionCtx: { todayISO: HOY, trips: [{ id: p.trip.id, destino: p.trip.destino, fecha_salida: p.trip.fecha_salida, fecha_regreso: p.trip.fecha_regreso }], activeTripId: p.trip.id, hasPriveSession: false },
     tripScope: { trip: p.trip, position: situation?.position ?? "unknown", user: { coords: p.coords, place: p.place } },
     city: situation?.position === "away" ? p.place ?? undefined : "Roma", party: 2,
   });
-  return { out, plan, situation, executed, seenSystem, resolution };
+  return { out, plan, situation, executed, seenSystem, resolution, shown: shown.join("") };
 }
 
 describe("caso Huixquilucan: 'Cena cerca' el día que sale a Roma → Florencia → Venecia", () => {
@@ -72,7 +74,7 @@ describe("caso Huixquilucan: 'Cena cerca' el día que sale a Roma → Florencia 
   });
 
   it("el turno completo: recomendaciones locales cortas, sin 'Agregar a tu viaje' y con 'Guardar en favoritos'", async () => {
-    const { out, plan, executed, seenSystem } = await turnoCenaCerca({ trip: VIAJE, coords: HUIXQUILUCAN, place: LUGAR, reply: respuestaLargaDelModelo });
+    const { out, plan, executed, seenSystem, shown: shownText } = await turnoCenaCerca({ trip: VIAJE, coords: HUIXQUILUCAN, place: LUGAR, reply: respuestaLargaDelModelo });
     // Busca alrededor de donde está, no del hotel de Roma.
     expect(executed).toEqual([{ name: "search_nearby", args: { lat: HUIXQUILUCAN.lat, lng: HUIXQUILUCAN.lng, kind: "restaurant" } }]);
     expect(plan.suggestedActions.map((a) => a.type)).not.toContain("add_itinerary_item");
@@ -89,12 +91,14 @@ describe("caso Huixquilucan: 'Cena cerca' el día que sale a Roma → Florencia 
     const save = reply.actions.find((a) => a.type === "save_place")!;
     expect(save).toMatchObject({ summary: "Guardar La Mesa de Prueba en tus favoritos", confirm_label: "Guardar", runs: "server" });
     expect(save.params).toMatchObject({ nombre: "La Mesa de Prueba", maps_url: "https://maps.google.com/?cid=101", lat: 19.3986, lng: -99.2746 });
-    // Respuesta corta, sin consejos que no pidió.
-    expect(countLines(reply.text)).toBeLessThanOrEqual(4);
-    expect(reply.text.length).toBeLessThanOrEqual(REPLY_LIMITS.normal.chars);
-    expect(reply.text).not.toMatch(/check-in|aeropuerto|mariscos|Roma → Florencia/i);
+    // Sin consejos que no pidió: se filtran EN VIVO (nunca se mostraron) y lo que se vio es lo que queda
+    // (auditoría 10, P0: nada de lo mostrado se borra al final). La brevedad la pide el prompt.
+    expect(reply.text).not.toMatch(/check-in|aeropuerto/i);
+    expect(shownText.trim()).not.toMatch(/check-in|aeropuerto/i);
+    expect(reply.text).toBe(shownText.trim());
     expect(reply.text).toMatch(/La Mesa de Prueba/);
-    expect(reply.guards).toEqual(expect.arrayContaining(["agregar_al_viaje_fuera_de_destino", "respuesta_recortada"]));
+    expect(reply.guards).toEqual(expect.arrayContaining(["agregar_al_viaje_fuera_de_destino", "sin_consejo_no_pedido"]));
+    expect(reply.guards).not.toContain("respuesta_recortada");
     // Las cards son las locales, con enlaces de reserva por la ciudad donde está (no "Roma").
     const rest = reply.cards.filter((c) => c.type === "restaurant");
     expect(rest.map((c) => c.title)).toEqual(["La Mesa de Prueba", "Cocina Ejemplo", "Bistró Simulado"]);

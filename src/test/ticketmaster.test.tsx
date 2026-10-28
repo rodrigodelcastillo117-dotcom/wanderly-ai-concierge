@@ -222,8 +222,11 @@ describe("4. search_events: Ticketmaster primero, Google Events de respaldo o co
     const tm = tmOk([]);
     await runEventSearch({ city: "Huixquilucan" }, { fetchImpl: serpFetch(), serpKey: "", ticketmaster: tm, nearCoords: { lat: 19.39, lng: -99.27 }, now: () => NOW });
     expect(tm.mock.calls[0][0]).toMatchObject({ coords: { lat: 19.39, lng: -99.27 } });
+    // Sin eventos alrededor: otra vez Ticketmaster (gratis) por la ciudad antes de SerpApi (auditoría 10 #5).
+    expect(tm.mock.calls[1][0]).toMatchObject({ city: "Huixquilucan", coords: null });
     await runEventSearch({ city: "Madrid" }, { fetchImpl: serpFetch(), serpKey: "", ticketmaster: tm, now: () => NOW });
-    expect(tm.mock.calls[1][0]).toMatchObject({ city: "Madrid", coords: null });
+    expect(tm.mock.calls[2][0]).toMatchObject({ city: "Madrid", coords: null });
+    expect(tm).toHaveBeenCalledTimes(3);
   });
 });
 

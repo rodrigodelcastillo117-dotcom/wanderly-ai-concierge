@@ -21,6 +21,10 @@ import { toursRequested } from "../_shared/viator.ts";
 import { mealFromText } from "../_shared/restaurantBooking.ts";
 import { officialTicketsForCity } from "../_shared/officialTickets.ts";
 import { weatherRequested } from "../_shared/weather.ts";
+import { tripIsByLand } from "./actions.ts";
+import { requestedDestination } from "./turnPlace.ts";
+import { cityAirports } from "../_shared/airports.ts";
+export { tripIsByLand };
 
 export type Intent =
   | "human" | "emergency" | "flight_disruption" | "missed_connection" | "flight_status" | "flight_compare"
@@ -66,6 +70,11 @@ const RULES: Array<[Intent, RegExp]> = [
   ["luggage", /\b(equipaje invisible|enviar (mi )?(equipaje|maleta)|luggage forward|airportr|lugless)\b/],
 ];
 
+/** Pregunta de costumbres o reglas (propinas, etiqueta, si es normal…), no de lugares. */
+const CUSTOM_QUESTION = /\b(propinas?|se acostumbra|costumbres?|etiqueta|es (normal|comun|obligatori\w*|seguro|caro|barato)|cuanto se deja|cuanto se paga|como se pide|se puede pagar)\b/;
+/** Sí pide lugares. */
+const RECOMMEND = /\b(recomienda\w*|recomiendame|donde (como|ceno|desayuno|hay)|busca\w*|opciones|mejores|cerca|lugares?|sugiere\w*|sugiereme)\b/;
+
 /** "Plan de luna de miel en Florencia", "lo TOP de Roma: desayunos, cenas, museos y experiencias". */
 export function honeymoonRequested(message: unknown): boolean {
   const m = normText(message);
@@ -103,6 +112,10 @@ export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   if (weatherRequested(message)) out.add("weather");
   // "cenar cerca de mi hotel" ya es dining_near_hotel.
   if (out.has("dining_near_hotel")) out.delete("dining");
+  // Auditoría 10 #16: "registra un gasto de 150 pesos en comida" no es buscar restaurantes, y "¿cuánta
+  // propina se deja en restaurantes en Japón?" es una costumbre, no una búsqueda de lugares.
+  if (out.has("expense") || out.has("packing") || out.has("itinerary_add")) { out.delete("dining"); out.delete("dining_near_hotel"); }
+  if (CUSTOM_QUESTION.test(m) && !RECOMMEND.test(m)) { out.delete("dining"); out.delete("dining_near_hotel"); }
   // Privé con plan / noche → planeación.
   if (out.has("prive_night") && /\b(noche|plan|arma|hazme|espectacular)\b/.test(m)) out.add("plan");
   // Una cancelación también pide el estado real del vuelo.
@@ -355,7 +368,7 @@ export function planTurn(i: PlanInput): TurnPlan {
         args: { origin, destination: String(dest).split(/→|,|;/)[0].trim(), departure_date: dep, ...(iso(trip?.fecha_regreso) ? { return_date: iso(trip?.fecha_regreso) } : {}), adults: Number(trip?.num_viajeros) || 1 },
         reason: "comparar vuelos",
       });
-      if (tripId) plan.suggestedActions.push({ type: "create_price_alert", params: { trip_id: tripId } });
+      if (tripId && !tripIsByLand(trip)) plan.suggestedActions.push({ type: "create_price_alert", params: { trip_id: tripId } });
     } else {
       plan.notes.push("Para comparar vuelos faltan origen, destino o fecha en el viaje: pregunta solo lo que falte.");
     }
@@ -519,7 +532,7 @@ export function planTurn(i: PlanInput): TurnPlan {
 
   if (has("trip_overview") && tripId) {
     plan.notes.push("Panorama del viaje: di en 2–4 viñetas qué está reservado, qué falta (de <faltantes_viaje>) y el siguiente paso concreto; ofrece 1–3 acciones.");
-    if (iso(trip?.fecha_salida) && String(trip.fecha_salida) > i.todayISO) plan.suggestedActions.push({ type: "create_price_alert", params: { trip_id: tripId } });
+    if (iso(trip?.fecha_salida) && String(trip.fecha_salida) > i.todayISO && !tripIsByLand(trip)) plan.suggestedActions.push({ type: "create_price_alert", params: { trip_id: tripId } });
     const next = flights.find((f) => f.date && f.date >= i.todayISO);
     if (next) plan.suggestedActions.push({ type: "track_flight", params: { vuelo: next.code, fecha: next.date, trip_id: tripId } });
   }
@@ -603,6 +616,15 @@ export function applyToolPolicy(name: string, args: Record<string, unknown>, use
   if (name === "search_events") return eventsRequested(userMessage) || (honeymoonRequested(userMessage) && !!args.date_from) ? { name, args } : { name, args, blocked: "eventos_no_pedidos" };
   // Tours de Viator: solo si el usuario pidió tours o actividades (gasta de la bolsa de búsquedas en vivo).
   if (name === "search_tours") return toursRequested(userMessage) || honeymoonRequested(userMessage) ? { name, args } : { name, args, blocked: "tours_no_pedidos" };
+  // Auditoría 10 #16: "¿qué debo saber antes de ir a Tailandia?" consultaba el clima de Valle de Bravo
+  // (el viaje en contexto). Si el mensaje nombra un lugar, el clima es de ese lugar o no se consulta.
+  if (name === "get_weather") {
+    const named = requestedDestination(userMessage);
+    if (named && !weatherCityMatches(String(args.city ?? ""), named)) {
+      return { name, args, blocked: "clima_de_otro_lugar" };
+    }
+    return { name, args };
+  }
   if (name !== "search_attractions") return { name, args };
   const m = normText(userMessage);
   const q = normText(args.query);
@@ -611,6 +633,15 @@ export function applyToolPolicy(name: string, args: Record<string, unknown>, use
     return { name: "web_search", args: { query: String(args.query ?? userMessage).slice(0, 200) }, rerouted: "search_attractions→web_search" };
   }
   return { name, args };
+}
+
+/** ¿La ciudad del clima es (o está en) el lugar que nombró el usuario? */
+export function weatherCityMatches(city: string, named: string): boolean {
+  const c = normText(city), n = normText(named);
+  if (!c || !n) return false;
+  if (c.includes(n) || n.includes(c)) return true;
+  const country = normText(cityAirports(city)?.country ?? "");
+  return !!country && (country === n || country.includes(n) || n.includes(country));
 }
 
 // ═══ Pasos en vivo ═══
@@ -650,6 +681,7 @@ export function toolOutcome(prepared: Record<string, unknown>): { state: "done" 
   const estado = String(prepared.estado ?? "");
   if (estado === "sin_resultados") return { state: "empty", suffix: "sin resultados" };
   if (estado === "limite_del_plan") return { state: "error", suffix: "límite del plan" };
+  if (estado === "limite_diario") return { state: "error", suffix: "límite de búsquedas en vivo de hoy" };
   if (estado === "sin_acceso") return { state: "error", suffix: "requiere PRO" };
   return { state: "error", suffix: "no respondió" };
 }
