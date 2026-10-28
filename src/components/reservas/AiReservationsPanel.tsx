@@ -2,6 +2,7 @@
 // horario alterno, cancela o descarga el .ics. Textos honestos: solo "confirmed" dice confirmada, y
 // dice por quién. Si la función está apagada y no hay nada, no se muestra.
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { CalendarPlus, Mail, MapPin, Phone, Quote, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +40,9 @@ function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: s
 
   return (
     <article className="glass-card rounded-2xl p-4 border border-white/10 space-y-3" aria-label={`Reserva IA en ${r.venue_name}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      {/* En 390 px la etiqueta larga del estado baja a su renglón (antes aplastaba el nombre y la fecha). */}
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+        <div className="min-w-0 flex-1 basis-44">
           <h3 className="font-display text-base truncate">{r.venue_name}</h3>
           <p className="text-xs text-muted-foreground flex flex-wrap gap-3 mt-1">
             <span>{formatLocalSlot(r.requested_local)}</span>
@@ -48,7 +50,7 @@ function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: s
             <span>Ref {r.ref_code}</span>
           </p>
         </div>
-        <Badge variant={r.is_confirmed ? "default" : "outline"} className="text-xs shrink-0">{r.label}</Badge>
+        <Badge variant={r.is_confirmed ? "default" : "outline"} className="text-xs max-w-full whitespace-normal">{r.label}</Badge>
       </div>
 
       {r.status === "awaiting_user_ok" && (
@@ -144,6 +146,13 @@ export function AiReservationsPanel() {
     setItems(res.ok ? res.reservations ?? [] : []);
   }, []);
   useEffect(() => { void load(); }, [load]);
+  // Enlace desde Iato o desde "Pedir mesa con Iato" (/dashboard/reservas#reservas-ia): baja a la sección.
+  const hasItems = !!items && items.length > 0;
+  useEffect(() => {
+    if (hasItems && typeof window !== "undefined" && window.location.hash === "#reservas-ia") {
+      document.getElementById("reservas-ia")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    }
+  }, [hasItems]);
 
   if (!items || items.length === 0) return null;
   const active = items.filter((r) => ACTIVE.includes(r.status));
@@ -159,6 +168,28 @@ export function AiReservationsPanel() {
         <ReservationCard key={r.id} r={r} onChange={(msg) => { setNotice(msg ?? null); void load(); }} />
       ))}
     </section>
+  );
+}
+
+/**
+ * En "Mis solicitudes" (Concierge): las mesas que Iato pidió por correo viven en Mis reservas; este
+ * aviso enlaza allá con su estado real. Si no hay ninguna, no se muestra.
+ */
+export function AiReservationsLinkNote() {
+  const [items, setItems] = useState<AiReservation[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void listAiReservations().then((r) => { if (alive && r.ok) setItems((r.reservations ?? []).filter((x) => ACTIVE.includes(x.status))); });
+    return () => { alive = false; };
+  }, []);
+  if (!items.length) return null;
+  return (
+    <div className="max-w-2xl mx-auto mb-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs" data-testid="ai-res-link-note">
+      <p>
+        {items.length === 1 ? `Tu mesa pedida por correo en ${items[0].venue_name}: ${items[0].label}.` : `Tienes ${items.length} mesas pedidas por correo con Iato.`}{" "}
+        <Link to="/dashboard/reservas#reservas-ia" className="text-primary underline underline-offset-2">Ver en Mis reservas</Link>
+      </p>
+    </div>
   );
 }
 

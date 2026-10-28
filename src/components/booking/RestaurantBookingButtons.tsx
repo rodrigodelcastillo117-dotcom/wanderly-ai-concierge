@@ -7,6 +7,7 @@ import { CalendarCheck, ExternalLink, Globe, MessageCircle, Phone, Ticket } from
 import { supabase } from "@/integrations/supabase/client";
 import { TakeMeThereButton } from "@/components/concierge/TakeMeThereButton";
 import { logBookingClick } from "@/lib/trackBooking";
+import { AskIatoTable } from "@/components/reservas/AskIatoTable";
 import type { TakeMeThereTarget } from "@/lib/takeMeThere";
 import { type RestaurantAction, type RestaurantBooking, restaurantBooking } from "../../../supabase/functions/_shared/restaurantBooking.ts";
 
@@ -17,8 +18,10 @@ const main = "inline-flex min-h-[36px] items-center gap-1 rounded-full bg-primar
 /** Solo enlaces https: o tel: (lo demás no se pinta). */
 const safe = (a: RestaurantAction) => (a.kind === "call" ? /^tel:\+?\d{7,15}$/.test(a.url) : /^https:\/\//.test(a.url));
 
-export function RestaurantBookingButtons({ booking, target, name, city, tripId }: {
+export function RestaurantBookingButtons({ booking, target, name, city, tripId, placeId }: {
   booking: RestaurantBooking | null | undefined; target?: TakeMeThereTarget | null; name: string; city?: string | null; tripId?: string | null;
+  /** place_id de Google: con él (y Reservas IA disponible) aparece "Pedir mesa con Iato". */
+  placeId?: string | null;
 }) {
   const actions = (booking?.actions ?? []).filter(safe);
   return (
@@ -36,6 +39,7 @@ export function RestaurantBookingButtons({ booking, target, name, city, tripId }
             </a>
           );
         })}
+        {booking?.reservable !== false && <AskIatoTable placeId={placeId ?? target?.placeId} name={name} city={city} tripId={tripId} />}
         {target && <TakeMeThereButton target={target} />}
       </div>
       {booking?.note && <p className={`mt-1 text-[11px] ${booking.reservable === false ? "text-primary" : "text-muted-foreground"}`} data-testid="reserva-nota">{booking.note}</p>}
@@ -89,7 +93,7 @@ export function LazyRestaurantBooking({ placeId, name, invoke }: {
   };
   if (state.booking) {
     return state.booking.actions.length || state.booking.note
-      ? <RestaurantBookingButtons booking={state.booking} name={name} />
+      ? <RestaurantBookingButtons booking={state.booking} name={name} placeId={placeId} />
       : <p className="text-[11px] text-muted-foreground">Google no publica sitio ni teléfono de este lugar.</p>;
   }
   return (

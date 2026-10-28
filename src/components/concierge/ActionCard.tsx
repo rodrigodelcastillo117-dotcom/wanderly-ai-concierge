@@ -7,6 +7,8 @@ import { readPriveSession } from "@/lib/priveSession";
 import { buildIcs, type ProposedAction, type CalendarEvent } from "../../../supabase/functions/concierge-chat/actions.ts";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 import { ReservationStateBadge } from "./ReservationStateBadge";
+import { AiReservationSend } from "@/components/reservas/AiReservationSend";
+import type { AiReservationDraft } from "@/lib/aiReservations";
 
 // Tarjeta de acción de Iato (Concierge 2.0): "Iato propone, tú confirmas". El resumen lo arma el
 // servidor con los datos validados; al tocar Confirmar el servidor vuelve a validar permisos, viaje y
@@ -38,6 +40,8 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
   const [link, setLink] = useState<string | null>(null);
   // God Mode F1: estado real de la solicitud creada (Fixer / Privé), con etiqueta honesta.
   const [reqStatus, setReqStatus] = useState<string | null>(null);
+  // Reservas IA: el correo preparado (create_intent) para el paso "Enviar al restaurante".
+  const [aiDraft, setAiDraft] = useState<AiReservationDraft | null>(null);
   // AUD-SEG-05: una clave por tarjeta; "Reintentar" manda la misma y el servidor no repite la acción.
   const [idemKey] = useState(newIdemKey);
 
@@ -74,7 +78,10 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
       setState(data?.ok ? "done" : "error");
       setMessage(String(data?.message ?? (data?.ok ? "Listo." : "No pude completar la acción.")));
       if (typeof data?.link === "string" && data.link.startsWith("/")) setLink(data.link);
-      if (data?.ok && (action.type === "fixer_request" || action.type === "prive_request")) {
+      const ai = data?.data?.ai_reservation as AiReservationDraft | undefined;
+      if (data?.ok && ai?.reservation?.id) setAiDraft(ai);
+      // Sin Reservas IA disponible el servidor la convierte en solicitud a una persona del equipo.
+      else if (data?.ok && (action.type === "fixer_request" || action.type === "prive_request" || action.type === "ai_reservation_request")) {
         setReqStatus(typeof data?.data?.status === "string" ? data.data.status : "solicitado");
       }
     } catch {
@@ -96,7 +103,7 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
           <p className="text-[10px] tracking-[0.2em] uppercase text-primary">Iato propone</p>
           <p className="text-sm leading-snug break-words">{action.summary}</p>
           {action.note && <p className="text-[11px] text-muted-foreground mt-1">{action.note}</p>}
-          {message && (
+          {message && !aiDraft && (
             <p role="status" className={`text-xs mt-2 ${state === "error" ? "text-destructive" : "text-foreground"}`}>
               {message}
               {link && (
@@ -104,6 +111,7 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
               )}
             </p>
           )}
+          {state === "done" && aiDraft && <AiReservationSend draft={aiDraft} />}
           {state === "done" && reqStatus && (
             <div className="mt-1.5"><ReservationStateBadge status={reqStatus} type={action.type === "prive_request" ? "prive_request" : null} /></div>
           )}

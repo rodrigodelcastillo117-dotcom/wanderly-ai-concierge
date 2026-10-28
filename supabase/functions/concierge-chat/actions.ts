@@ -15,6 +15,9 @@ import { restaurantBooking } from "../_shared/restaurantBooking.ts";
 export const ACTION_TYPES = [
   "create_trip", "add_itinerary_item", "add_expense", "add_packing_items", "create_price_alert", "track_flight",
   "save_place", "update_trip_hotel", "fixer_request", "prive_request", "export_calendar", "open_emergency",
+  // Reservas IA (28-oct-2026): pedir mesa por correo a un lugar real de Google. Al confirmar solo se
+  // PREPARA el correo (create_intent); el envío lo confirma el usuario en la tarjeta (confirm_send).
+  "ai_reservation_request",
 ] as const;
 export type ActionType = typeof ACTION_TYPES[number];
 
@@ -46,7 +49,21 @@ export interface ActionContext {
   /** Experiencias Privé que devolvió search_prive en este turno (solo esas se pueden solicitar). */
   priveExperienceIds?: Set<string>;
   hasPriveSession?: boolean;
+  /**
+   * Reservas IA disponible para este usuario (ai-reservations `status` → `enabled`). false: la acción
+   * ai_reservation_request se convierte en la solicitud humana de siempre (fixer_request). undefined
+   * (al ejecutar): no se decide aquí; create_intent lo vuelve a comprobar en el servidor.
+   */
+  aiReservationsEnabled?: boolean;
+  /** Lugares de Google que devolvieron las herramientas en este turno (solo a esos se les escribe). */
+  places?: Array<{ placeId: string; name: string; city?: string }>;
 }
+
+/** place_id de Google ("ChIJ…"): no un UUID (Members Only) ni texto libre. */
+export const isGooglePlaceId = (v: unknown): v is string =>
+  typeof v === "string" && /^[A-Za-z0-9_-]{16,300}$/.test(v) && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(v);
+
+const normName = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -225,6 +242,45 @@ export function validateAction(type: unknown, rawParams: unknown, ctx: ActionCon
       };
       return ok(params, `Solicitar a IATOS Privé${params.nombre ? `: ${params.nombre}` : ""}${params.fecha ? ` · ${fmtDate(params.fecha as string)}` : ""}`, "Solicitar",
         "El equipo Privé lo gestiona con el lugar. Aún no está reservado.");
+    }
+    case "ai_reservation_request": {
+      const nombre = txt(p.nombre ?? p.restaurante ?? p.name, 120);
+      if (!nombre) return { ok: false, reason: "falta_nombre" };
+      const fecha = isIso(p.fecha) ? p.fecha : undefined;
+      const hora = typeof p.hora === "string" && TIME.test(p.hora.trim()) ? p.hora.trim().padStart(5, "0") : undefined;
+      const personasN = num(p.personas);
+      const personas = personasN !== undefined ? Math.round(personasN) : undefined;
+      const notas = txt(p.notas ?? p.detalle, 500);
+      const r = resolveTrip(p.trip_id, ctx, false);
+      const tripId = !("error" in r) && r.trip ? r.trip.id : undefined;
+      // Sin Reservas IA (apagado o fuera del piloto) o sin un lugar real: lo de siempre, una persona del equipo.
+      const human = () => validateAction("fixer_request", {
+        tipo: "reservation", titulo: `Reservar mesa en ${nombre}`, lugar: nombre, fecha, hora, personas, detalle: notas, trip_id: tripId,
+      }, ctx);
+      if (ctx.aiReservationsEnabled === false) return human();
+      const rawId = typeof p.place_id === "string" ? p.place_id.trim() : "";
+      let place: { placeId: string; name: string; city?: string } | null = null;
+      if (ctx.places) {
+        // En el turno: solo un lugar que devolvió Google en este turno (por id, o por su nombre exacto).
+        place = ctx.places.find((x) => x.placeId === rawId)
+          ?? ctx.places.find((x) => normName(x.name) === normName(nombre)) ?? null;
+      } else if (isGooglePlaceId(rawId)) {
+        place = { placeId: rawId, name: nombre, city: txt(p.ciudad, 80) };
+      }
+      if (!place) return ctx.places ? human() : { ok: false, reason: "lugar_no_verificado" };
+      if (!fecha) return { ok: false, reason: "falta_fecha" };
+      if (fecha < ctx.todayISO) return { ok: false, reason: "fecha_pasada" };
+      if (!hora) return { ok: false, reason: "falta_hora" };
+      if (!personas || personas < 1 || personas > 20) return { ok: false, reason: "personas_invalidas" };
+      const name = txt(place.name, 120) ?? nombre;
+      const params = {
+        place_id: place.placeId, nombre: name, fecha, hora, personas,
+        ...(txt(place.city ?? p.ciudad, 80) ? { ciudad: txt(place.city ?? p.ciudad, 80) } : {}),
+        ...(notas ? { notas } : {}), ...(tripId ? { trip_id: tripId } : {}),
+      };
+      return ok(params, `Pedir mesa por correo a ${name} · ${fmtDate(fecha)} ${hora} · ${personas} ${personas === 1 ? "persona" : "personas"}`,
+        "Pedir mesa por correo",
+        "Primero verás a quién y qué le escribiremos; nada se envía sin tu confirmación. Aún no está reservado.");
     }
     case "export_calendar": {
       const r = resolveTrip(p.trip_id, ctx, true);
