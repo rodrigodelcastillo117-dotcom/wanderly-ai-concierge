@@ -17,6 +17,7 @@ import { airlineCode } from "@/lib/airlines";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
 import { RealTripTotal, tripTotals } from "@/components/RealTripTotal";
+import { tripPageTotals } from "@/lib/tripPageTotal";
 import { InviteFriendDialog } from "@/components/InviteFriendDialog";
 import { PriceWatchCard } from "@/components/PriceWatchCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -370,30 +371,20 @@ const TripDetail = () => {
 
   // Si el usuario cambió viajeros, fechas, origen o destino después de cotizar, el total guardado es para la base
   // anterior: se muestra para esa base (sin repartirlo entre el nuevo número de viajeros) y se
-  // pide actualizar la cotización.
+  // pide actualizar la cotización. Todo el cálculo vive en tripPageTotals (el mismo de Inicio y Mis viajes).
   const currentSel = trip ? serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles }) : null;
-  const staleness = quoteStaleness(trip ? { ...trip, selections: currentSel } : trip, quote);
-  const quoteTravelers = staleness.stale && staleness.basis ? staleness.basis.travelers : viajeros;
-  const quoteNights = staleness.stale && staleness.basis?.dateFrom && staleness.basis?.dateTo
-    ? tripNights({ fecha_salida: staleness.basis.dateFrom, fecha_regreso: staleness.basis.dateTo }, itinDays.length)
-    : noches;
+  const page = useMemo(
+    () => tripPageTotals(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles }, quote),
+    [trip, selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles, quote],
+  );
+  const { staleness, quoteTravelers, quoteNights, nochesEfectivas, pageSelDesglose } = page;
   const validity = quoteValidity(trip, quote);
 
-  const nochesEfectivas = nochesHospedaje ?? quoteNights;
-
   // Recalcular desglose en base a selecciones (-2 = "ya lo tengo / no aplica")
-  const computedDesglose = useMemo(
-    () => computeTripDesglose(trip, { selVuelo, selHospedaje, nochesHospedaje: nochesEfectivas, selTours, selHoteles }, quoteTravelers),
-    [trip, selVuelo, selHospedaje, selTours, selHoteles, quoteTravelers, nochesEfectivas],
-  );
-
-  const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
+  const computedDesglose = page.desglose;
+  const computedTotal = page.computedTotal;
 
   // Total que muestra la página (RealTripTotal recibe exactamente estos argumentos).
-  // Sin selección, el desglose recalculado puede diferir del guardado (viaje corto: el coche suma casetas +
-  // gasolina, no el precio de la IA): entonces la cifra grande usa el recalculado, igual que la barra y Comprar.
-  const recalculated = !!trip && Object.keys(computedDesglose).some((k) => Math.round(Number(computedDesglose[k]) || 0) !== Math.round(Number(trip.desglose_presupuesto?.[k]) || 0));
-  const pageSelDesglose = currentSel || recalculated ? computedDesglose : null;
   const pageTotalsOf = (t: any) => tripTotals(t, quoteTravelers, pageSelDesglose);
 
   // Lo mismo que muestra "Comprar" (buildBuyFlow): qué está elegido y qué ya se compró.

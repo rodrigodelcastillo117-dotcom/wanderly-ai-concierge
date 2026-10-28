@@ -40,52 +40,9 @@ type Props = {
 const fmtMXN = (n: number) =>
   `$${Math.round(Number(n) || 0).toLocaleString("es-MX")} MXN`;
 
-/**
- * Total del viaje a partir de la cotización guardada. Nunca se recorta al presupuesto: si la
- * cotización lo rebasa se informa la diferencia (antes se mostraba el presupuesto como si fuera
- * el precio y se decía que la IA "ajustaba la selección", sin ajustar nada).
- */
-export function tripTotals(trip: any, viajeros: number, selectionDesglose?: Record<string, number> | null) {
-  const vuelos: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
-  const hoteles: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
-  const cruceros: any[] = Array.isArray(trip?.cruceros_json) ? trip.cruceros_json : [];
-
-  const sumNumber = (n: any) => Number(n) || 0;
-  const desglose = trip?.desglose_presupuesto ?? {};
-  const explicitBreakdownTotal = Object.values(desglose).reduce((s: number, v) => s + sumNumber(v), 0);
-
-  const totalVuelos = vuelos.reduce((s, v) => {
-    if (v.precio_total) return s + sumNumber(v.precio_total);
-    if (v.precio_por_persona) return s + sumNumber(v.precio_por_persona) * viajeros;
-    return s;
-  }, 0);
-
-  const totalHoteles = hoteles.reduce((s, h) => {
-    if (h.costo_cero) return s;
-    if (h.precio_total) return s + sumNumber(h.precio_total);
-    if (h.precio_por_noche && h.noches) return s + sumNumber(h.precio_por_noche) * sumNumber(h.noches);
-    return s;
-  }, 0);
-
-  const totalCruceros = cruceros.reduce((s, c) => {
-    if (c.precio_total) return s + sumNumber(c.precio_total);
-    if (c.precio_por_persona) return s + sumNumber(c.precio_por_persona) * viajeros;
-    return s;
-  }, 0);
-
-  const itemSubtotal = totalVuelos + totalHoteles + totalCruceros;
-  const quotedTotal = sumNumber(trip?.total_estimado) || explicitBreakdownTotal || itemSubtotal;
-  // Con selección del usuario (E-12) el total es el de su selección; la cotización guardada se
-  // conserva aparte para decir de cuánto era.
-  const fromSelection = !!selectionDesglose && Object.keys(selectionDesglose).length > 0;
-  const total = fromSelection
-    ? Object.values(selectionDesglose!).reduce((s: number, v) => s + sumNumber(v), 0)
-    : quotedTotal;
-  const presupuesto = sumNumber(trip?.presupuesto_objetivo);
-  const excedente = presupuesto > 0 && total > presupuesto ? total - presupuesto : 0;
-  const porPersona = viajeros > 0 ? total / viajeros : total;
-  return { total, porPersona, presupuesto, excedente, quotedTotal, fromSelection };
-}
+// tripTotals vive en lib/tripPageTotal.ts (lo usan también Inicio y Mis viajes); se re-exporta aquí.
+export { tripTotals } from "@/lib/tripPageTotal";
+import { tripTotals } from "@/lib/tripPageTotal";
 
 export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, fxNote, onRequote, selectionDesglose, trust, summary, split, children }: Props) {
   const { total, porPersona, presupuesto, excedente, fromSelection } = tripTotals(trip, viajeros, selectionDesglose);

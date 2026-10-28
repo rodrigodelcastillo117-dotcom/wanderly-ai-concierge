@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, CalendarDays, Users, Receipt, Clock, Plane, CloudSun, Radio, Map as MapIcon, Backpack, Cloud, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatLocalDate } from "@/lib/localDate";
+import { displayedTripTotal } from "@/lib/tripPageTotal";
 import { flightStatusLine, nextTripAction, quoteFreshness, tripTiming, type TrackedFlightLike } from "@/lib/tripCommand";
 import { fetchWeatherNow, type WeatherNow } from "@/lib/weatherNow";
 import { currentTripCity } from "@/lib/cityLocation";
@@ -54,7 +55,7 @@ export function TripCommandCenter({ trip, today }: Props) {
         setFull((data as Record<string, any> | null) ?? null);
         const qid = (data as any)?.current_quote_id;
         if (qid) {
-          const { data: q } = await supabase.from("trip_quotes").select("id, created_at, valid_until").eq("id", qid).maybeSingle();
+          const { data: q } = await supabase.from("trip_quotes").select("id, created_at, valid_until, travelers, date_from, date_to").eq("id", qid).maybeSingle();
           if (alive) setQuote((q as any) ?? null);
         }
       } catch { /* sin detalle: la tarjeta usa lo que ya tiene */ }
@@ -90,7 +91,9 @@ export function TripCommandCenter({ trip, today }: Props) {
     : loaded
       ? { title: "Abre tu viaje", detail: "Revisa tu itinerario y la cotización guardada.", cta: "Ver viaje", to: `/dashboard/viajes/${trip.id}` }
       : null;
-  const total = Number(merged.total_estimado) || 0;
+  // El MISMO total que la página del viaje (con lo que eligió en Comprar), no el total_estimado guardado
+  // de la cotización (caso E2E 28-oct-2026: $81,273 en el viaje y $81,831 aquí). Se espera a la fila completa.
+  const total = full && loaded ? displayedTripTotal(merged, quote as any) : 0;
   const viajeros = Number(merged.num_viajeros) || null;
   const live = timing.phase === "en_curso";
 

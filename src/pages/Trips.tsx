@@ -32,6 +32,7 @@ import { tripTiming } from "@/lib/tripCommand";
 import { formatTripDateRange, localISODate } from "@/lib/localDate";
 import { formatPaid, PAID_LABEL } from "@/lib/tripImport";
 import { isBroughtTrip } from "@/lib/broughtTrip";
+import { displayedTripTotal } from "@/lib/tripPageTotal";
 
 // "Ya tengo vuelos y hotel": la misma ventana de Planear, abierta en ese modo (solo se descarga al pulsar).
 const PlanTripDialog = lazy(() => import("@/components/plan/PlanTripDialog"));
@@ -40,6 +41,7 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
   const [deleting, setDeleting] = useState(false);
   // Un viaje compartido conmigo no es mío: no puedo borrarlo, solo salir de él.
   const isShared = !!t.shared;
+  const shownTotal = displayedTripTotal(t, t._quote ?? null);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -151,9 +153,10 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
               )
             ) : isBroughtTrip(t) ? (
               <span className="text-xs text-muted-foreground shrink-0 text-right">Vuelos y hotel: ya los tienes</span>
-            ) : /* Un borrador no cuesta "$0": se dice que aún no tiene cotización. */ Number(t.total_estimado) > 0 ? (
+            ) : /* Un borrador no cuesta "$0": se dice que aún no tiene cotización. El total es el MISMO de la
+                 página del viaje (con lo que eligió en Comprar), no el total_estimado guardado. */ shownTotal > 0 ? (
               <span className="text-right shrink-0">
-                <span className="block text-foreground font-medium">${Math.round(Number(t.total_estimado)).toLocaleString("es-MX")} MXN</span>
+                <span className="block text-foreground font-medium">${shownTotal.toLocaleString("es-MX")} MXN</span>
                 <span className="block text-[11px] text-muted-foreground/80">total cotizado</span>
               </span>
             ) : (
@@ -200,6 +203,16 @@ const Trips = () => {
         const all = [...(own.data ?? []), ...shared].sort(
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         );
+        // Cotización vigente de cada viaje (viajeros y fechas con que se cotizó): con ella el total de la
+        // tarjeta es el mismo de la página del viaje (displayedTripTotal). Si falla, se usa trips.quote_basis.
+        const quoteIds = all.map((t: any) => t.current_quote_id).filter(Boolean);
+        if (quoteIds.length) {
+          try {
+            const { data: qs } = await supabase.from("trip_quotes").select("id, created_at, valid_until, travelers, date_from, date_to").in("id", quoteIds);
+            const byId = new Map(((qs as any[] | null) ?? []).map((q) => [q.id, q]));
+            for (const t of all) if (t.current_quote_id && byId.has(t.current_quote_id)) t._quote = byId.get(t.current_quote_id);
+          } catch { /* sin cotización: el total usa la base guardada en el viaje */ }
+        }
         if (!cancelled) setTrips(all);
         // Reservas de esos viajes para el estado reservado/cotizado (si falla, todos quedan "cotizado").
         if (all.length) {

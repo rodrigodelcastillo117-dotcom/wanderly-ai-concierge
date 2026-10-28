@@ -12,7 +12,7 @@ import { IllustrativeCaption, SmartImage } from "@/components/media/SmartImage";
 import { destinationQuery } from "@/lib/categoryImagery";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { useSavedDestinations } from "@/hooks/useSavedDestinations";
-import { homeTrips } from "@/lib/homeTrips";
+import { homeCommandTrip, homeTrips } from "@/lib/homeTrips";
 import { conciergeBoxHref } from "@/lib/conciergeBoxRoute";
 import { VoiceInput } from "@/components/VoiceInput";
 import tileTrenes from "@/assets/tools/tile-trenes.jpg";
@@ -35,7 +35,6 @@ import { convert, fetchFxTable, fxLabel } from "@/lib/fx";
 import { ACTIVE_TRIP_COLUMNS, useActiveTrip } from "@/hooks/useActiveTrip";
 import { ActiveTripPicker } from "@/components/ActiveTripPicker";
 import { withTripParam } from "@/lib/tripLink";
-import { isTripEnded } from "@/lib/activeTrip";
 import { TripCommandCenter } from "@/components/TripCommandCenter";
 import { FirstTripGuide } from "@/components/FirstTripGuide";
 import { EXAMPLE_PROMPTS } from "@/lib/planDefaults";
@@ -229,8 +228,9 @@ const DashboardHome = () => {
   // profiles.active_trip_id (un solo selector en toda la app). Con empate, el selector pide escoger.
   const todayLocal = localISODate(now);
   const { list: upcomingList } = homeTrips(active.trips, todayLocal, active.pinnedId);
-  // Centro de mando: el viaje activo único (el mismo de Iato) mientras no haya terminado.
-  const commandTrip = active.trip && !isTripEnded(active.trip, todayLocal) ? active.trip : null;
+  // Centro de mando: el viaje activo (el mismo de Iato) si está en curso; si no, "Próximo viaje" es el de
+  // salida futura más cercana, aunque Iato tenga fijado otro (homeCommandTrip).
+  const commandTrip = homeCommandTrip(active.trips, todayLocal, active.trip);
   const hasTrips = active.trips.length > 0;
   const ambiguous = !commandTrip && active.resolved.reason === "ambiguous";
   const conciergeInputRef = useRef<HTMLInputElement>(null);
