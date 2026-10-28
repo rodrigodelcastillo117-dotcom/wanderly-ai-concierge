@@ -27,6 +27,12 @@ const RETURN_RE = /^(?:y\s+)?(?:el\s+|la\s+)?(?:regreso|regresar|regresamos|regr
 const RETURN_VIA_RE = /^(?:y\s+)?(?:el\s+|la\s+)?(?:regreso|regresar|regresamos|regresando|vuelta|volver|volvemos)\s+(?:por|via|desde|pasando por)\s+(.+)$/;
 const CRUISE_FROM_RE = /\bcrucero\b(?:\s+(?:desde|de|saliendo de|que sale de|en))\s+(.+)$/;
 const DISEMBARK_RE = /^(?:y\s+)?(?:desembarco|desembarcar|desembarque|desembarcamos|desembarcando|terminando|termina|llegando|llegada)(?:\s+(?:en|a|al))\s+(.+)$/;
+// "crucero de 7 noches" / "7 noches de crucero": noches a bordo (lo dijo la persona; no se suman al hotel).
+const CRUISE_NIGHTS_RE = /\bcrucero\s+de\s+(\d{1,3})\s+noches\b|\b(\d{1,3})\s+noches\s+(?:de|en)\s+crucero\b/;
+// "crucero de Barcelona a Atenas" / "crucero desde Miami hasta Cozumel": el destino del crucero es el
+// puerto de llegada (el separador " a " parte la frase; aquí se lee antes de partirla).
+const CRUISE_TO_RE = /\bcrucero\s+(?:de|desde|saliendo de)\s+[^,;.]+?\s+(?:a|al|hasta)\s+([^,;.]+)/g;
+const lightNorm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 /** Primer lugar de un trozo ("Barcelona" de "crucero desde Barcelona"), conservando cómo se escribió. */
 function placesOf(raw: string): PlaceItem[] {
@@ -57,7 +63,9 @@ export function localMentions(text: string): Array<{ texto: string; tipo: Mentio
 export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
   const spec = emptySpec(text, "local");
   const raw = String(text ?? "");
-  const full = parseMultiCityText(raw, { origin: ctx.origen ?? null });
+  // "crucero de 7 noches" se lee aparte (noches a bordo): no debe partir la frase ni volver origen el puerto.
+  const clean = raw.replace(/\bcrucero\s+de\s+\d{1,3}\s+noches\b/gi, "crucero");
+  const full = parseMultiCityText(clean, { origin: ctx.origen ?? null });
   spec.origen = full.origin ?? ctx.origen ?? null;
   const fb = parseTripFallback(raw, ctx.today ?? new Date());
   spec.fecha_salida = fb.fechaSalida ?? ctx.fecha_salida ?? null;
@@ -67,7 +75,14 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
   spec.viajeros = fb.viajeros ?? ctx.viajeros ?? null;
   if (/\blujo|luxury|5 estrellas|cinco estrellas|primera clase|business\b/i.test(raw)) spec.preferencias.push("Lujo");
 
-  const chunks = stripNonPlaces(raw).split(SEPARATOR).map((c) => c.trim()).filter(Boolean);
+  const lraw = lightNorm(raw);
+  const nightsM = CRUISE_NIGHTS_RE.exec(lraw);
+  const cruiseNights = nightsM ? Number(nightsM[1] ?? nightsM[2]) || null : null;
+  const cruiseTo = [...lraw.matchAll(CRUISE_TO_RE)].map((m) => normText(m[1])).filter(Boolean);
+  const isCruiseArrival = (...names: Array<string | null | undefined>) =>
+    names.some((n) => { const k = normText(n); return !!k && cruiseTo.some((t) => t === k || t.startsWith(`${k} `)); });
+  const newCruise = (puerto_salida: string | null): Cruise => ({ ...emptyCruise(), puerto_salida, noches: cruiseNights && cruiseNights <= 120 ? cruiseNights : null });
+  const chunks = stripNonPlaces(clean).split(SEPARATOR).map((c) => c.trim()).filter(Boolean);
   let pendingMode: LegMode | null = null;
   let pendingCruise: Cruise | null = null;
   let pendingReturn = false;
@@ -78,7 +93,8 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
     const s = makeStop(ciudad, extra);
     if (pendingCruise) {
       s.llegada_por = "crucero";
-      s.crucero = { ...pendingCruise, puerto_llegada: pendingCruise.puerto_llegada ?? null };
+      const arrival = pendingCruise.puerto_llegada ?? (isCruiseArrival(extra.texto, ciudad) ? ciudad : null);
+      s.crucero = { ...pendingCruise, puerto_llegada: arrival };
       s.es_puerto = true;
       pendingCruise = null;
     } else if (pendingMode) {
@@ -165,22 +181,22 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
         if (!last || !sameCity(last.ciudad, port)) placeItem(it, place);
         const p = spec.paradas[spec.paradas.length - 1];
         if (p) p.es_puerto = true;
-        pendingCruise = { ...emptyCruise(), puerto_salida: port };
+        pendingCruise = newCruise(port);
       } else {
-        pendingCruise = { ...emptyCruise(), puerto_salida: place };
+        pendingCruise = newCruise(place);
       }
       continue;
     }
     if (/\bcrucero\b/.test(n)) {
       mention(chunk, "crucero", "tramo", null);
       const last = spec.paradas[spec.paradas.length - 1];
-      pendingCruise = { ...emptyCruise(), puerto_salida: last && last.es_puerto ? last.ciudad : null };
+      pendingCruise = newCruise(last && last.es_puerto ? last.ciudad : null);
       continue;
     }
     const dis = DISEMBARK_RE.exec(n);
     if (dis) {
       const place = restore(chunk, dis[1]);
-      if (!pendingCruise) pendingCruise = emptyCruise();
+      if (!pendingCruise) pendingCruise = newCruise(null);
       const it = placesOf(place)[0] ?? { kind: "unknown" as const, text: place, name: place };
       (pendingCruise as Cruise).puerto_llegada = it.name;
       placeItem(it, place);

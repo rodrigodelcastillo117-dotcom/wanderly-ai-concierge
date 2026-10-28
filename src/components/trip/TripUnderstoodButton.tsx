@@ -9,7 +9,7 @@
 // 3. "Volver a armar mi viaje" dice qué se recalcula y que usa una búsqueda del plan; solo al confirmar
 //    se genera, por el flujo correcto (multidestino con 2+ paradas o crucero), como una revisión nueva:
 //    el viaje actual se conserva intacto (diario, gastos, selecciones) y apunta a la revisión.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -20,7 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toastFunctionError } from "@/lib/functionErrors";
 import { TripSpecReview } from "@/components/plan/TripSpecReview";
-import { generateFromSpec, interpretTrip, recalcSummary, specFromTrip } from "@/lib/tripSpecFlow";
+import { generateFromSpec, interpretTripAi, recalcSummary, specFromTrip } from "@/lib/tripSpecFlow";
+import { DRAFT_FAIL_AVISO, draftSpec, mergeDraftWithAi } from "@/lib/tripSpecDraft";
 import { consultaOf, type TripSpec } from "../../../supabase/functions/_shared/tripSpec";
 
 type Props = { trip: any; className?: string };
@@ -37,6 +38,13 @@ export function TripUnderstoodButton({ trip, className = "" }: Props) {
   const [aviso, setAviso] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Borrador rápido: el lector local al instante; Iato lo completa (sin pisar lo que se editó) al responder.
+  const [draftBase, setDraftBase] = useState<TripSpec | null>(null);
+  const [nota, setNota] = useState<string | null>(null);
+  const specRef = useRef<TripSpec | null>(null);
+  specRef.current = spec;
+  const runRef = useRef(0);
+  const changeSpec = (s: TripSpec) => { specRef.current = s; setSpec(s); };
 
   const openDialog = () => {
     const s = specFromTrip(trip);
@@ -44,6 +52,9 @@ export function TripUnderstoodButton({ trip, className = "" }: Props) {
     setText(saved?.consulta_original ?? "");
     setEditingText(!saved?.consulta_original);
     setAviso(null);
+    setNota(null);
+    setDraftBase(null);
+    runRef.current++;
     setConfirming(false);
     setOpen(true);
   };
@@ -51,13 +62,27 @@ export function TripUnderstoodButton({ trip, className = "" }: Props) {
   const reinterpret = async () => {
     const t = text.trim();
     if (!t) return;
-    setInterpreting(true);
-    const r = await interpretTrip(supabase as any, t, {
-      origen: trip?.ciudad_origen ?? null, fecha_salida: trip?.fecha_salida ?? null, fecha_regreso: trip?.fecha_regreso ?? null, viajeros: Number(trip?.num_viajeros) || null,
-    });
-    setSpec(r.spec);
-    setAviso(r.aviso);
+    const ctx = { origen: trip?.ciudad_origen ?? null, fecha_salida: trip?.fecha_salida ?? null, fecha_regreso: trip?.fecha_regreso ?? null, viajeros: Number(trip?.num_viajeros) || null };
+    const base = draftSpec(t, ctx);
+    const run = ++runRef.current;
+    changeSpec(base);
+    setDraftBase(base);
+    setAviso(null);
+    setNota(null);
     setEditingText(false);
+    setInterpreting(true);
+    const r = await interpretTripAi(supabase as any, t, ctx);
+    if (run !== runRef.current) return; // se cerró o se volvió a interpretar
+    const edited = specRef.current ?? base;
+    if (r.ok) {
+      const m = mergeDraftWithAi(base, edited, r.spec, ctx);
+      changeSpec(m.spec);
+      setNota(m.nota);
+      setAviso(r.recortadoParaIa ? "Tu texto es muy largo: Iato leyó los primeros 8,000 caracteres. Se guarda completo; revisa que esté todo." : null);
+    } else {
+      setAviso(DRAFT_FAIL_AVISO);
+    }
+    setDraftBase(null);
     setInterpreting(false);
   };
 
@@ -120,7 +145,7 @@ export function TripUnderstoodButton({ trip, className = "" }: Props) {
             </section>
 
             {spec && !confirming && (
-              <TripSpecReview spec={spec} onChange={setSpec} aviso={aviso} showOriginal={false}
+              <TripSpecReview spec={spec} onChange={changeSpec} aviso={aviso} showOriginal={false} draft={!!draftBase} nota={nota}
                 confirmLabel="Volver a armar mi viaje" costNote="Volver a armar usa una búsqueda de tu plan. Antes te decimos qué se recalcula."
                 onConfirm={() => setConfirming(true)} onCancel={() => setOpen(false)} />
             )}

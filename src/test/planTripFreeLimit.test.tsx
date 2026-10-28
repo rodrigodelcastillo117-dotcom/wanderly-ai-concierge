@@ -97,6 +97,8 @@ it("N-09: sin análisis disponible, muestra el diálogo de límite y conserva la
 it("N-08: con doble efecto (StrictMode) el intérprete (de pago) se llama una sola vez por búsqueda", async () => {
   render(appFor(PHRASE_IA));
   await screen.findByTestId("spec-review");
+  // Borrador rápido: mientras Iato revisa, no se puede armar; se espera su respuesta y luego se confirma.
+  await waitFor(() => expect(screen.queryByTestId("spec-borrador")).toBeNull());
   fireEvent.click(screen.getByTestId("spec-confirmar"));
   await screen.findByText("Usaste tu análisis gratuito");
   expect(calls("interpretar-viaje")).toBe(1);

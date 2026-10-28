@@ -38,10 +38,12 @@ import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
 // Intérprete de viaje completo: "Entendí…" editable antes de generar, y cobertura de lo escrito.
 import { TripSpecReview } from "@/components/plan/TripSpecReview";
 import { buildLocalSpec, finalizeSpec } from "@/lib/tripSpecLocal";
-import { generateFromSpec, interpretTrip } from "@/lib/tripSpecFlow";
+import { generateFromSpec, interpretTripAi, INTERPRET_TIMEOUT_MS } from "@/lib/tripSpecFlow";
+// Borrador rápido: el resumen del lector local se ve al instante y la IA lo completa al responder.
+import { DRAFT_FAIL_AVISO, draftSpec, mergeDraftWithAi } from "@/lib/tripSpecDraft";
 import { routeFromItems, type RefAnswer } from "@/lib/tripCoverage";
 import { usePlaceResolve } from "@/lib/placeResolveClient";
-import { makeStop, savedConsulta, withConsulta, type TripSpec } from "../../supabase/functions/_shared/tripSpec";
+import { makeStop, newId, savedConsulta, setTripBasics, withConsulta, type TripSpec } from "../../supabase/functions/_shared/tripSpec";
 
 const RADIO = "min-h-[44px] rounded-xl border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -73,39 +75,85 @@ type AnalisisArgs = {
 // y regreso por Londres terminaron en un solo destino generado sin preguntar).
 type Interpretacion = { kind: "ruta"; qs: string } | { kind: "revisar"; spec: TripSpec; aviso: string | null };
 
-// Una sola interpretación por frase aunque la página se monte dos veces.
-const pendingInterpretations = new Map<string, Promise<Interpretacion>>();
-const REVIEW_KEY = "iatos.plan.revision";
-
 type HintCtx = { origen: string | null; fecha_salida: string | null; fecha_regreso: string | null; viajeros: number | null };
 
-async function interpretarFrase(q: string, userId: string, hints: HintCtx): Promise<Interpretacion> {
+/** Resultado de Iato sobre un borrador (`ok: false`: falló o tardó más de 45 s; el borrador queda como base). */
+type IaResult = { ok: true; spec: TripSpec; aviso: string | null; ctx: HintCtx } | { ok: false; ctx: HintCtx };
+type DraftRun = { ctx: Promise<HintCtx>; result: Promise<IaResult> };
+/** Borrador en pantalla: lo que se mostró (`base`, para saber qué editó la persona) y su revisión con Iato. */
+type DraftInfo = { token: string; base: TripSpec; hints: HintCtx };
+type ReviewState = { spec: TripSpec; aviso: string | null; fp?: string; draft?: DraftInfo | null; nota?: string | null };
+
+/** Arranque de la interpretación: un borrador inmediato (va con Iato) o el flujo de siempre (ruta / solo ciudades). */
+type Arranque = { kind: "borrador"; draft: DraftInfo; run: DraftRun } | { kind: "completo"; result: Promise<Interpretacion> };
+
+// Una sola interpretación por frase aunque la página se monte dos veces.
+const pendingInterpretations = new Map<string, Arranque>();
+// Revisión con Iato de cada borrador (por token): un remontaje la retoma, nunca la repite.
+const draftRuns = new Map<string, DraftRun>();
+const REVIEW_KEY = "iatos.plan.revision";
+
+async function ctxFor(userId: string, hints: HintCtx): Promise<HintCtx> {
   // Trae ciudad_origen del perfil para fallback
   const { data: prof } = await supabase
     .from("profiles")
     .select("ciudad_origen")
     .eq("id", userId)
     .maybeSingle();
-  const ctx = { ...hints, origen: hints.origen || prof?.ciudad_origen || "Ciudad de México" };
+  return { ...hints, origen: hints.origen || prof?.ciudad_origen || "Ciudad de México" };
+}
+
+/** Solo ciudades conocidas, sin crucero, tramos ni regreso por otra ciudad: el lector local basta (sin IA). */
+const isSimpleSpec = (s: TripSpec) => s.menciones.length > 0 && s.menciones.every((m) => m.tipo === "ciudad" || m.tipo === "origen")
+  && !s.preguntas.some((x) => !x.resuelta && x.tipo !== "fechas" && x.tipo !== "origen");
+
+async function interpretarFrase(q: string, userId: string, hints: HintCtx): Promise<Interpretacion> {
+  const ctx = await ctxFor(userId, hints);
 
   // roadtrip: road trip por una región curada → ruta en coche con sus paradas (sin IA ni costo).
   const rt = detectRoadTrip(q);
   if (rt.isRoadTrip && rt.route) {
     const qs = new URLSearchParams(routePlannerPath(rt.route, rt.days).split("?")[1]);
-    qs.set("origin", ctx.origen);
+    qs.set("origin", ctx.origen as string);
     qs.set("viajeros", String(ctx.viajeros || 2));
     return { kind: "ruta", qs: qs.toString() };
   }
+  // Solo ciudades conocidas: el lector local (sin IA), con el origen del perfil.
+  return { kind: "revisar", spec: finalizeSpec(buildLocalSpec(q, ctx), q, ctx), aviso: null };
+}
 
-  // Solo ciudades conocidas, sin crucero, tramos ni regreso por otra ciudad: el lector local basta (sin IA).
-  const local = finalizeSpec(buildLocalSpec(q, ctx), q, ctx);
-  const simple = local.menciones.length > 0 && local.menciones.every((m) => m.tipo === "ciudad" || m.tipo === "origen")
-    && !local.preguntas.some((x) => !x.resuelta && x.tipo !== "fechas");
-  if (simple) return { kind: "revisar", spec: local, aviso: null };
+/** Iato (interpretar-viaje) sobre un borrador: nunca lanza; más de 45 s en total cuenta como falla. */
+function revisarConIa(q: string, userId: string, hints: HintCtx): DraftRun {
+  const ctx = ctxFor(userId, hints).catch(() => ({ ...hints, origen: hints.origen || null }));
+  const work = (async (): Promise<IaResult> => {
+    const c = await ctx;
+    const r = await interpretTripAi(supabase as any, q, c);
+    if (!r.ok) return { ok: false, ctx: c };
+    return { ok: true, spec: r.spec, ctx: c,
+      aviso: r.recortadoParaIa ? "Tu texto es muy largo: Iato leyó los primeros 8,000 caracteres. Se guarda completo; revisa que esté todo." : null };
+  })();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<IaResult>((res) => { timer = setTimeout(() => res({ ok: false, ctx: hints }), INTERPRET_TIMEOUT_MS); });
+  const result = Promise.race([work.catch((): IaResult => ({ ok: false, ctx: hints })), timeout]).finally(() => clearTimeout(timer));
+  return { ctx, result };
+}
 
-  // Lo demás: el intérprete completo (si falla, el lector local y el texto completo se conservan).
-  const r = await interpretTrip(supabase as any, q, ctx);
-  return { kind: "revisar", spec: r.spec, aviso: r.recortadoParaIa ? "Tu texto es muy largo: Iato leyó los primeros 8,000 caracteres. Se guarda completo; revisa que esté todo." : r.aviso };
+/**
+ * En cuanto la persona envía su texto: road trip y frases de solo ciudades conocidas siguen el flujo de
+ * siempre (rápido, sin IA); lo demás muestra AL INSTANTE el borrador del lector local mientras Iato lo revisa.
+ */
+function arrancarInterpretacion(q: string, userId: string, hints: HintCtx): Arranque {
+  const rt = detectRoadTrip(q);
+  if (!(rt.isRoadTrip && rt.route)) {
+    const base = draftSpec(q, hints);
+    if (!isSimpleSpec(base)) {
+      const draft: DraftInfo = { token: newId("b"), base, hints };
+      const run = revisarConIa(q, userId, hints);
+      draftRuns.set(draft.token, run);
+      return { kind: "borrador", draft, run };
+    }
+  }
+  return { kind: "completo", result: interpretarFrase(q, userId, hints) };
 }
 
 /** "Oaxaca · 12 dic – 16 dic · 2 personas" (solo lo que se entendió). */
@@ -141,7 +189,7 @@ const PlanTrip = () => {
   const [analizando, setAnalizando] = useState(false);
   const [interpretando, setInterpretando] = useState(false);
   // Resumen "Entendí…" de la frase completa (se conserva al recargar: preferencia local del navegador).
-  const [review, setReview] = useState<{ spec: TripSpec; aviso: string | null; fp?: string } | null>(() => {
+  const [review, setReview] = useState<ReviewState | null>(() => {
     try {
       const raw = localStorage.getItem(REVIEW_KEY);
       const v = raw ? JSON.parse(raw) : null;
@@ -149,7 +197,11 @@ const PlanTrip = () => {
       return v?.spec?.consulta_original && (!v.at || Date.now() - v.at < 86400000) ? v : null;
     } catch { return null; }
   });
-  const openReview = (v: { spec: TripSpec; aviso: string | null; fp?: string } | null) => {
+  // El borrador en pantalla, para que la respuesta de Iato se aplique sobre lo último que editó la persona.
+  const reviewRef = useRef<ReviewState | null>(review);
+  reviewRef.current = review;
+  const openReview = (v: ReviewState | null) => {
+    reviewRef.current = v;
     setReview(v);
     try { if (v) localStorage.setItem(REVIEW_KEY, JSON.stringify({ ...v, at: Date.now() })); else localStorage.removeItem(REVIEW_KEY); } catch { /* sin almacenamiento */ }
   };
@@ -380,9 +432,12 @@ const PlanTrip = () => {
   const interpretNow = async () => {
     const q = destino.trim();
     if (!q || !user) return;
+    const start = arrancarInterpretacion(q, user.id, { origen: ciudadOrigen || null, fecha_salida: fechaSalida || null, fecha_regreso: fechaRegreso || null, viajeros: numViajeros });
+    // Borrador al instante; Iato lo completa al responder (efecto de abajo).
+    if (start.kind === "borrador") { openReview({ spec: start.draft.base, aviso: null, draft: start.draft }); return; }
     setInterpretando(true);
     try {
-      const r = await interpretarFrase(q, user.id, { origen: ciudadOrigen || null, fecha_salida: fechaSalida || null, fecha_regreso: fechaRegreso || null, viajeros: numViajeros });
+      const r = await start.result;
       if (r.kind === "ruta") navigate(`/dashboard/ruta?${r.qs}`);
       else openReview({ spec: r.spec, aviso: r.aviso });
     } catch {
@@ -472,7 +527,8 @@ const PlanTrip = () => {
 
   // Confirmó "Entendí…": se genera por el flujo que toca (multidestino o destino único) con la consulta guardada.
   const runSpec = async (spec: TripSpec, fp?: string) => {
-    if (inFlightRef.current) return;
+    // Con un borrador (Iato aún no responde) no se gasta: el botón está deshabilitado y aquí tampoco pasa.
+    if (inFlightRef.current || reviewRef.current?.draft) return;
     inFlightRef.current = true;
     setDestino(spec.paradas.filter((x) => x.rol === "estancia").map((x) => x.ciudad).join(" → "));
     setAnalysisSummary(analysisSummaryOf({ ciudad_origen: spec.origen ?? "", fecha_salida: spec.fecha_salida ?? "", fecha_regreso: spec.fecha_regreso ?? "", num_viajeros: spec.viajeros ?? 2 }));
@@ -638,7 +694,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         return;
       }
       const vNum = Number(params.get("viajeros"));
-      pending = interpretarFrase(q, user.id, {
+      pending = arrancarInterpretacion(q, user.id, {
         origen: params.get("origen"),
         fecha_salida: /^\d{4}-\d{2}-\d{2}$/.test(params.get("fecha_salida") ?? "") ? params.get("fecha_salida") : null,
         fecha_regreso: /^\d{4}-\d{2}-\d{2}$/.test(params.get("fecha_regreso") ?? "") ? params.get("fecha_regreso") : null,
@@ -647,10 +703,22 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       pendingInterpretations.set(fp, pending);
     }
     let cancelled = false;
+    const start = pending;
+    if (start.kind === "borrador") {
+      // Al instante: el borrador (un remontaje conserva lo que la persona ya editó en él).
+      if (reviewRef.current?.draft?.token !== start.draft.token) openReview({ spec: start.draft.base, aviso: null, fp, draft: start.draft });
+      void start.run.result.then(() => {
+        // Iato respondió (o falló): la URL ya no lleva ?q. Lo aplica el efecto del borrador.
+        if (cancelled) return;
+        pendingInterpretations.delete(fp);
+        consumeUrlIntent();
+      });
+      return () => { cancelled = true; };
+    }
     setInterpretando(true);
     (async () => {
       try {
-        const r = await pending;
+        const r = await start.result;
         // Otro montaje (el que sigue vivo) retoma la misma promesa: aquí no se suelta nada.
         if (cancelled) return;
         pendingInterpretations.delete(fp);
@@ -684,6 +752,40 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+
+  // Borrador en pantalla: cuando Iato responde, su interpretación lo reemplaza conservando lo que la
+  // persona editó; si falla o tarda más de 45 s, el borrador se queda como base (con su aviso). Tras una
+  // recarga con el borrador guardado, la revisión se vuelve a pedir una vez (no usa búsquedas del plan).
+  const draftToken = review?.draft?.token ?? null;
+  useEffect(() => {
+    const cur0 = reviewRef.current;
+    if (!draftToken || !user || !cur0?.draft) return;
+    let run = draftRuns.get(draftToken);
+    if (!run) { run = revisarConIa(cur0.spec.consulta_original, user.id, cur0.draft.hints); draftRuns.set(draftToken, run); }
+    let alive = true;
+    const current = () => { const c = reviewRef.current; return alive && c?.draft?.token === draftToken ? c : null; };
+    // El origen del perfil llega en un instante: completa el borrador si la persona no lo escribió.
+    void run.ctx.then((c) => {
+      const cur = current();
+      if (!cur?.draft || cur.spec.origen || !c.origen) return;
+      openReview({ ...cur, spec: setTripBasics(cur.spec, { origen: c.origen }), draft: { ...cur.draft, base: setTripBasics(cur.draft.base, { origen: c.origen }) } });
+    });
+    void run.result.then((r) => {
+      const cur = current();
+      if (!cur?.draft) return;
+      draftRuns.delete(draftToken);
+      if (r.ok) {
+        const m = mergeDraftWithAi(cur.draft.base, cur.spec, r.spec, r.ctx);
+        openReview({ spec: m.spec, aviso: r.aviso, fp: cur.fp, draft: null, nota: m.nota });
+      } else {
+        // Nunca se pierde lo escrito: el borrador (con sus ediciones y el texto original) queda como base.
+        const spec = !cur.spec.origen && r.ctx.origen ? setTripBasics(cur.spec, { origen: r.ctx.origen }) : cur.spec;
+        openReview({ spec, aviso: DRAFT_FAIL_AVISO, fp: cur.fp, draft: null, nota: null });
+      }
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftToken, user?.id]);
 
   if (interpretando) {
     return (
@@ -753,7 +855,8 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
           </button>
           <h1 className="font-display text-2xl sm:text-3xl">Tu viaje, como lo entendimos</h1>
           <p className="mb-5 mt-1 text-sm text-muted-foreground">Revisa paradas, tramos y fechas. Nada se cotiza hasta que confirmes.</p>
-          <TripSpecReview spec={review.spec} aviso={review.aviso} onChange={(sp) => openReview({ ...review, spec: sp })}
+          <TripSpecReview spec={review.spec} aviso={review.aviso} draft={!!review.draft} nota={review.nota ?? null}
+            onChange={(sp) => openReview({ ...(reviewRef.current ?? review), spec: sp })}
             onConfirm={() => runSpec(review.spec, review.fp)} onCancel={() => { if (review.fp) releaseIntent(review.fp); openReview(null); }} />
         </div>
       </DashboardLayout>

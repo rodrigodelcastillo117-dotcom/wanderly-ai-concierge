@@ -29,24 +29,39 @@ export type InterpretResult = {
 
 export const INTERPRET_TIMEOUT_MS = 45_000;
 
-/** Interpretar NO usa búsquedas del plan (solo la IA de interpretación, con su límite por minuto). */
-export async function interpretTrip(client: Client, text: string, ctx: LocalContext = {}, timeoutMs = INTERPRET_TIMEOUT_MS): Promise<InterpretResult> {
-  const local = () => finalizeSpec(buildLocalSpec(text, ctx), text, ctx);
+export type AiInterpretResult = { ok: true; spec: TripSpec; recortadoParaIa: boolean } | { ok: false };
+
+/**
+ * Solo la IA (sin respaldo): para el borrador rápido, que ya muestra el lector local y decide qué hacer
+ * si la IA falla o tarda más de `timeoutMs`. Nunca lanza.
+ */
+export async function interpretTripAi(client: Client, text: string, ctx: LocalContext = {}, timeoutMs = INTERPRET_TIMEOUT_MS): Promise<AiInterpretResult> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     const call = client.functions.invoke("interpretar-viaje", {
       body: { texto: text, contexto: { origen: ctx.origen ?? null, fecha_salida: ctx.fecha_salida ?? null, fecha_regreso: ctx.fecha_regreso ?? null, viajeros: ctx.viajeros ?? null } },
     });
-    const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), timeoutMs));
+    const timeout = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error("timeout")), timeoutMs); });
     const { data, error } = await Promise.race([call, timeout]);
     if (error || !data?.ok || !data?.spec) throw error ?? new Error(data?.code ?? "sin_respuesta");
-    return { spec: finalizeSpec(data.spec as TripSpec, text, ctx), aviso: null, recortadoParaIa: !!data.texto_recortado_para_ia };
+    return { ok: true, spec: finalizeSpec(data.spec as TripSpec, text, ctx), recortadoParaIa: !!data.texto_recortado_para_ia };
   } catch {
-    return {
-      spec: local(),
-      aviso: "No pudimos interpretar todo con Iato ahora. Guardamos tu texto completo: revisa lo que entendimos y corrígelo.",
-      recortadoParaIa: false,
-    };
+    return { ok: false };
+  } finally {
+    if (timer) clearTimeout(timer);
   }
+}
+
+/** Interpretar NO usa búsquedas del plan (solo la IA de interpretación, con su límite por minuto). */
+export async function interpretTrip(client: Client, text: string, ctx: LocalContext = {}, timeoutMs = INTERPRET_TIMEOUT_MS): Promise<InterpretResult> {
+  const local = () => finalizeSpec(buildLocalSpec(text, ctx), text, ctx);
+  const r = await interpretTripAi(client, text, ctx, timeoutMs);
+  if (r.ok) return { spec: r.spec, aviso: null, recortadoParaIa: r.recortadoParaIa };
+  return {
+    spec: local(),
+    aviso: "No pudimos interpretar todo con Iato ahora. Guardamos tu texto completo: revisa lo que entendimos y corrígelo.",
+    recortadoParaIa: false,
+  };
 }
 
 /** Lo que entendimos de un viaje guardado sin consulta (viajes viejos): destino(s), fechas y viajeros. */

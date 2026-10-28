@@ -4,7 +4,7 @@
 // Con pendientes no se arma nada; cada uno se responde, se acepta la sugerencia o se quita (exclusión
 // aprobada). El botón de confirmar dice el costo antes de usar una búsqueda del plan.
 import { useState } from "react";
-import { AlertCircle, ArrowDown, ArrowUp, Plus, Route as RouteIcon, Ship, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, Loader2, Plus, Route as RouteIcon, Ship, Sparkles, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,9 @@ import {
   type LegMode, type Question, type Stop, type TripSpec,
 } from "../../../supabase/functions/_shared/tripSpec";
 import { CRUISE_PRICE_NOTE } from "@/lib/cruiseLinks";
+import { GlobeLoader } from "@/components/brand/GlobeLoader";
+import { useSlowLoading } from "@/hooks/useSlowLoading";
+import { DRAFT_STATUS, DRAFT_WAITING_LABEL } from "@/lib/tripSpecDraft";
 
 type Props = {
   spec: TripSpec;
@@ -27,7 +30,27 @@ type Props = {
   /** Mostrar el texto original arriba (en la ventana de corrección ya va aparte). */
   showOriginal?: boolean;
   onCancel?: () => void;
+  /**
+   * Borrador rápido: el resumen es del lector local mientras Iato (la IA) lo revisa. Se puede editar,
+   * pero no se arma nada hasta que llegue la revisión (o falle: entonces el borrador queda como base).
+   */
+  draft?: boolean;
+  /** Aviso breve de lo que completó Iato sobre el borrador ("Iato completó tu viaje: agregó …"). */
+  nota?: string | null;
 };
+
+/** "Borrador · Iato lo está revisando…": discreto y dorado; si pasa de 5 s, el globo pequeño de la marca. */
+function DraftStatus() {
+  const slow = useSlowLoading(true);
+  return (
+    <div className="mb-2 flex items-center gap-2 text-[11px] tracking-wide text-primary" role="status" aria-live="polite" data-testid="spec-borrador">
+      {slow
+        ? <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center" data-testid="spec-borrador-globo"><GlobeLoader size="sm" srLabel="Iato está revisando tu viaje" className="scale-[0.58]" /></span>
+        : <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />}
+      <span>{DRAFT_STATUS}</span>
+    </div>
+  );
+}
 
 const chip = "min-h-[36px] rounded-full border px-3 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const chipOn = `${chip} border-primary/60 bg-primary/10 text-primary hover:bg-primary/15`;
@@ -113,7 +136,7 @@ function CruiseFields({ stop, spec, onChange }: { stop: Stop; spec: TripSpec; on
   );
 }
 
-export function TripSpecReview({ spec, onChange, onConfirm, busy, aviso, confirmLabel = "Sí, armar mi viaje", costNote = "Armar tu viaje usa una búsqueda de tu plan.", showOriginal = true, onCancel }: Props) {
+export function TripSpecReview({ spec, onChange, onConfirm, busy, aviso, confirmLabel = "Sí, armar mi viaje", costNote = "Armar tu viaje usa una búsqueda de tu plan.", showOriginal = true, onCancel, draft = false, nota = null }: Props) {
   const [adding, setAdding] = useState("");
   const pend = openQuestions(spec);
   const route = routeOfSpec(spec);
@@ -122,6 +145,12 @@ export function TripSpecReview({ spec, onChange, onConfirm, busy, aviso, confirm
   return (
     <div className="space-y-4" data-testid="spec-review">
       <div className="rounded-2xl border border-primary/30 bg-primary/[0.06] p-3.5 sm:p-4">
+        {draft && <DraftStatus />}
+        {!draft && nota && (
+          <p className="mb-2 flex items-start gap-2 text-[11px] tracking-wide text-primary" role="status" data-testid="spec-ia-nota">
+            <Sparkles className="mt-px h-3 w-3 shrink-0" aria-hidden="true" />{nota}
+          </p>
+        )}
         <p className="flex items-start gap-2 text-sm" role="status" data-testid="spec-entendi">
           <RouteIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
           <span>Entendí: <span className="font-medium">{describeSpec(spec)}</span><span className="text-muted-foreground">. ¿Es correcto?</span></span>
@@ -232,9 +261,9 @@ export function TripSpecReview({ spec, onChange, onConfirm, busy, aviso, confirm
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
         {costNote && <p className="text-xs text-muted-foreground sm:mr-auto" data-testid="spec-costo">{costNote}</p>}
         {onCancel && <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>}
-        <Button type="button" onClick={onConfirm} disabled={busy || route.kind === "preguntas" || route.kind === "vacio" || route.kind === "relato_pasado"}
-          className="bg-gradient-gold text-primary-foreground hover:opacity-90" data-testid="spec-confirmar">
-          {route.kind === "preguntas" ? `Resuelve ${pend.length} ${pend.length === 1 ? "pendiente" : "pendientes"}` : confirmLabel}
+        <Button type="button" onClick={onConfirm} disabled={draft || busy || route.kind === "preguntas" || route.kind === "vacio" || route.kind === "relato_pasado"}
+          className="bg-gradient-gold text-primary-foreground hover:opacity-90" data-testid="spec-confirmar" data-borrador={draft ? "true" : undefined}>
+          {draft ? DRAFT_WAITING_LABEL : route.kind === "preguntas" ? `Resuelve ${pend.length} ${pend.length === 1 ? "pendiente" : "pendientes"}` : confirmLabel}
         </Button>
       </div>
     </div>
