@@ -20,6 +20,7 @@ import {
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { callClaudeWithFallback } from "../_shared/claude.ts";
+import { runParallelAnalysis } from "./parallel.ts";
 import { dbCacheStore, internalHeaders, logUsage } from "../_shared/serpRuntime.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { driveWithTolls } from "../_shared/google-tolls.ts";
@@ -949,33 +950,43 @@ ${shortTrip ? `==========================================\n${shortTripPromptBloc
 
 Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% las instrucciones literales del usuario. En vuelos, devuelve EXACTAMENTE 3 opciones comparables (ahorro/equilibrio/premium), y cada precio_por_persona es el TOTAL de la ruta aérea completa por persona. Todo en MXN.`;
 
+    // Dos llamadas simultáneas (vuelos/hotel/presupuesto e itinerario/lugares): cada una escribe la mitad.
+    // Si alguna falla se usa la llamada única de siempre y, después, el respaldo (Gemini).
+    let usagePromise: Promise<unknown> = Promise.resolve();
+    const logClaude = (data: any) => {
+      // Costo real de cada llamada (tokens que reporta Claude) para ai_usage_log; no detiene el análisis.
+      const u = usageFromClaude(data);
+      if (u) usagePromise = Promise.all([usagePromise, logUsage({ user_id: user.id, function: "analizar-viaje", provider: "anthropic", ...u })]);
+    };
+    let a: any = null;
+    const par = await runParallelAnalysis((p) => callClaudeWithFallback(p), TOOL_SCHEMA, systemFinal, userPrompt);
+    for (const r of par.responses) logClaude(r);
+    if (par.analysis) a = par.analysis;
+    else console.warn("analizar-viaje: análisis en paralelo incompleto, se usa una sola llamada:", par.failure);
+
     // Los modelos actuales no aceptan forzar la herramienta ni temperature: se pide en el prompt y,
     // si no llega la llamada a la herramienta, se usa el análisis de respaldo (Gemini) de abajo.
-    const claudePayload = {
-      max_tokens: 16000,
-      system: `${systemFinal}\n\nEntrega SIEMPRE el resultado llamando a la herramienta "entregar_analisis_viaje", sin texto adicional.`,
-      tools: [TOOL_SCHEMA],
-      tool_choice: { type: "auto" },
-      messages: [{ role: "user", content: userPrompt }],
-    };
-    const claudeRes = await callClaudeWithFallback(claudePayload);
-    let usagePromise: Promise<void> = Promise.resolve();
-
-    let a: any = null;
-    if (claudeRes.ok) {
-      const claudeData = await claudeRes.json();
-      // Costo real de la llamada (tokens que reporta Claude) para ai_usage_log.
-      const claudeUsage = usageFromClaude(claudeData);
-      // El registro de costo no detiene el análisis: se espera antes de responder (ver usagePromise).
-      if (claudeUsage) usagePromise = logUsage({ user_id: user.id, function: "analizar-viaje", provider: "anthropic", ...claudeUsage });
-      const toolUse = (claudeData.content ?? []).find(
-        (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
-      );
-      if (toolUse?.input) a = toolUse.input;
-      else console.error("No tool_use, usando fallback Gateway:", JSON.stringify(claudeData).slice(0, 2000));
-    } else {
-      const text = await claudeRes.text();
-      console.error("Claude no disponible; usando fallback Gateway:", claudeRes.status, text.slice(0, 1000));
+    if (!a) {
+      const claudePayload = {
+        max_tokens: 16000,
+        system: `${systemFinal}\n\nEntrega SIEMPRE el resultado llamando a la herramienta "entregar_analisis_viaje", sin texto adicional.`,
+        tools: [TOOL_SCHEMA],
+        tool_choice: { type: "auto" },
+        messages: [{ role: "user", content: userPrompt }],
+      };
+      const claudeRes = await callClaudeWithFallback(claudePayload);
+      if (claudeRes.ok) {
+        const claudeData = await claudeRes.json();
+        logClaude(claudeData);
+        const toolUse = (claudeData.content ?? []).find(
+          (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
+        );
+        if (toolUse?.input) a = toolUse.input;
+        else console.error("No tool_use, usando fallback Gateway:", JSON.stringify(claudeData).slice(0, 2000));
+      } else {
+        const text = await claudeRes.text();
+        console.error("Claude no disponible; usando fallback Gateway:", claudeRes.status, text.slice(0, 1000));
+      }
     }
 
     if (!a) {
