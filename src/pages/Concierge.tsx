@@ -524,7 +524,7 @@ const Concierge = () => {
               tab === "members" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="inline-flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" />Members Only</span>
+            <span className="inline-flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" />Solo para miembros</span>
             {tab === "members" && <span className="absolute left-2 right-2 -bottom-px h-0.5 bg-gradient-gold rounded-full" />}
           </button>
         </div>
@@ -537,7 +537,7 @@ const Concierge = () => {
                 switchTab("chat");
                 setTimeout(() => {
                   sendText(
-                    `Ya pedí mesa en ${v.nombre} (${v.ciudad_display}) — ${v.categoria} desde Members Only. ` +
+                    `Ya pedí mesa en ${v.nombre} (${v.ciudad_display}) — ${v.categoria} desde «Solo para miembros». ` +
                     (v.dress_code ? `Dress code: ${v.dress_code}. ` : "") +
                     `¿Qué necesito saber para ir y qué alternativa tengo si no hay mesa?`,
                     { intent: "members_followup" },

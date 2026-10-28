@@ -10,6 +10,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { ReadonlyBudget } from "@/components/ReadonlyBudget";
 import { CityCollapsible } from "@/components/CityCollapsible";
+import { citySubtitle } from "@/lib/cityHeader";
 import { IllustrativeCaption } from "@/components/media/SmartImage";
 import { AirlineLogo } from "@/components/media/AirlineLogo";
 import { airlineCode } from "@/lib/airlines";
@@ -850,11 +851,10 @@ const TripDetail = () => {
               <div key={`${city}-${cityIdx}`}>
               <CityCollapsible
                 city={city}
-                subtitle={[stay ? `${stay.nights} ${stay.nights === 1 ? "noche" : "noches"}` : null, `${cityDays.length || "·"} días de itinerario`, cityGround.length ? `${cityGround.length} por tierra` : null].filter(Boolean).join(" · ")}
+                subtitle={citySubtitle({ nights: stay?.nights ?? null, days: cityDays.length, ground: cityGround.length }) || undefined}
                 imageQuery={`${city} skyline landmark travel`}
                 open={activeCity === city}
                 onToggle={() => toggleCity(city)}
-                count={cityDays.length + cityGround.length}
               >
                 <div className="space-y-6">
                   {cityGround.length > 0 && (
@@ -1184,7 +1184,8 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 
         {flightStopsLabel(option) && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{flightStopsLabel(option)}</span>}
       </div>
       {/* Coche y autobús de un trayecto corto: casetas reales, gasolina estimada o "precio en ADO"; nunca el precio de la IA. */}
-      {trip && (isCarOption(option) || isBusOption(option) || isHiredCarOption(option)) ? <GroundOptionInfo trip={trip} option={option} /> : option.precio_por_persona > 0 && (
+      {/* El autobús no repite su aviso: los botones de abajo (GroundBuyButtons) ya dicen dónde está el precio. */}
+      {trip && (isCarOption(option) || isBusOption(option) || isHiredCarOption(option)) ? (isBusOption(option) ? null : <GroundOptionInfo trip={trip} option={option} />) : option.precio_por_persona > 0 && (
         <p className="font-medium text-base">
           {fmtMXN(option.precio_por_persona)}
           <span className="text-xs text-muted-foreground ml-1">/ persona</span>

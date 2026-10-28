@@ -132,7 +132,7 @@ export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
           <span className="hidden sm:flex flex-col items-start leading-tight pr-2">
             <span className="text-xs font-medium text-foreground">{nombre}</span>
             <span className="text-[9px] text-primary/80 uppercase tracking-wider">
-              {estilo}{version != null ? ` · v${version}` : ""}
+              {estilo}{perfil?.estilo_dominante && version != null ? ` · versión ${version}` : ""}
             </span>
           </span>
           <ChevronDown className={`w-3 h-3 text-primary/70 transition ${open ? "rotate-180" : ""}`} />
@@ -147,7 +147,7 @@ export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
                     <Sparkles className="w-3 h-3" /> Tu avatar de viajero
-                    {version != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· v{version}</span>}
+                    {perfil?.estilo_dominante && version != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· versión {version}</span>}
                     {conf != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· {conf}%</span>}
                   </p>
                   <h3 className="font-display text-base leading-tight mb-1">
@@ -181,7 +181,7 @@ export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
         <div className="min-w-0 flex-1">
           <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
             <Sparkles className="w-3 h-3" /> CONCIERGE PRO · Tu avatar de viajero
-            {version != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· v{version}</span>}
+            {perfil?.estilo_dominante && version != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· versión {version}</span>}
             {conf != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· {conf}% confianza</span>}
           </p>
           <h2 className="font-display text-lg md:text-xl leading-tight mb-1">

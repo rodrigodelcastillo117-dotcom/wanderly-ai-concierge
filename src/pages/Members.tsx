@@ -128,7 +128,7 @@ export default function Members() {
               </div>
             </div>
             <h1 className="font-fraunces text-3xl text-center text-foreground mb-2">
-              Members Only
+              Solo para miembros
             </h1>
             <p className="text-center text-primary text-sm tracking-wide mb-6">
               Acceso para adultos
@@ -168,10 +168,10 @@ export default function Members() {
         <div className="mb-10">
           <div className="flex items-center gap-2 text-primary text-xs tracking-[0.2em] uppercase mb-3">
             <Sparkles className="w-3.5 h-3.5" />
-            Nightlife Premium
+            Vida nocturna premium
           </div>
           <h1 className="font-fraunces text-4xl md:text-6xl text-foreground mb-3">
-            Members Only
+            Solo para miembros
           </h1>
           <p className="text-primary text-base md:text-lg mb-6 font-fraunces italic">
             Vida nocturna seleccionada para los que viajan distinto

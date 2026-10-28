@@ -68,6 +68,6 @@ export function summarizeTeaser(rows: TeaserRow[]): TeaserSummary {
 export const UNLOCK_ERRORS: Record<string, string> = {
   contrasena_incorrecta: "Contraseña incorrecta",
   demasiados_intentos: "Demasiados intentos. Espera una hora e inténtalo de nuevo.",
-  no_configurado: "El acceso con contraseña no está disponible. Members Only es parte de IATOS PRO.",
+  no_configurado: "El acceso con contraseña no está disponible. «Solo para miembros» es parte de IATOS PRO.",
   no_autenticado: "Tu sesión expiró. Vuelve a iniciar sesión.",
 };
