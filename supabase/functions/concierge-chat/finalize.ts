@@ -15,7 +15,7 @@
 import { splitAnswer } from "./stream.ts";
 import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enforceFlightSellerHonesty, enrichCardLinks, eventCards, MAX_CARDS, tourCards, type ToolRun, validateCards } from "./cards.ts";
 import { correctFailureClaims, enforceNoFakeBooking, labelUnverifiedFacts } from "./guard.ts";
-import { type ActionContext, type ProposedAction, restaurantBookingLinks, validateAction, validateActions } from "./actions.ts";
+import { type ActionContext, isGooglePlaceId, type ProposedAction, restaurantBookingLinks, validateAction, validateActions } from "./actions.ts";
 import { directionsLink, uberLink, type TurnPlan } from "./planner.ts";
 import { ensureTransferUsesKnownData, normText } from "./context.ts";
 import { itineraryActionScope, type TripPosition, type UserLocation, userTripPosition } from "./location.ts";
@@ -77,7 +77,9 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
     booking: (v) => restaurantBookingLinks(v),
   }, { date: i.actionCtx.todayISO, party: i.party, city: i.city })].slice(0, MAX_CARDS);
 
-  const ctx: ActionContext = { ...i.actionCtx, priveExperienceIds: ev.priveIds };
+  // Reservas IA: solo se le escribe a un lugar de Google que devolvieron las herramientas en este turno.
+  const places = ev.places.filter((p) => isGooglePlaceId(p.placeId)).map((p) => ({ placeId: p.placeId!, name: p.name, ...(p.city ? { city: p.city } : {}) }));
+  const ctx: ActionContext = { ...i.actionCtx, priveExperienceIds: ev.priveIds, places };
   const acts = validateActions(data.actions, i.plan.suggestedActions, ctx, i.makeId);
 
   // "Agregar a tu viaje X" para un restaurante de otra ciudad no tiene sentido: se quita y, si el lugar

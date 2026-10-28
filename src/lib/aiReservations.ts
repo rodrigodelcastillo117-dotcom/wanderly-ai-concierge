@@ -27,7 +27,26 @@ export type AiReservation = {
   created_at: string;
 };
 
-export type AiReservationsResult = { ok: boolean; code?: string; message?: string; enabled?: boolean; reservations?: AiReservation[]; reservation?: AiReservation; venue_notified?: boolean };
+export type AiReservationPreview = { to: string; subject: string; text: string };
+export type AiReservationsResult = {
+  ok: boolean; code?: string; message?: string; enabled?: boolean; reservations?: AiReservation[]; reservation?: AiReservation; venue_notified?: boolean;
+  /** create_intent: a quién y qué se le escribirá (null si no hay correo verificado). */
+  preview?: AiReservationPreview | null; confirm_prompt?: string; next?: "confirm_send" | "needs_user"; replay?: boolean;
+};
+
+/** Lo que create_intent devuelve y la tarjeta necesita para el paso "Enviar al restaurante". */
+export type AiReservationDraft = { reservation: AiReservation; preview: AiReservationPreview | null; confirm_prompt: string; next: "confirm_send" | "needs_user" | null };
+
+export type AiReservationIntentInput = {
+  venue: { name: string; place_id: string; city?: string | null };
+  datetime_local: string;
+  party_size: number;
+  notes?: string;
+  customer_name?: string;
+  trip_id?: string | null;
+  source: "iato" | "usuario";
+  idempotency_key?: string;
+};
 
 async function call(body: Record<string, unknown>): Promise<AiReservationsResult> {
   let data: unknown, error: unknown;
@@ -46,6 +65,37 @@ async function call(body: Record<string, unknown>): Promise<AiReservationsResult
 }
 
 export const listAiReservations = () => call({ action: "status" });
+
+export const createAiReservationIntent = (i: AiReservationIntentInput) => call({
+  action: "create_intent", source: i.source,
+  venue: { name: i.venue.name, place_id: i.venue.place_id, ...(i.venue.city ? { city: i.venue.city } : {}) },
+  datetime_local: i.datetime_local, party_size: i.party_size,
+  ...(i.notes?.trim() ? { notes: i.notes.trim().slice(0, 500) } : {}),
+  ...(i.customer_name?.trim() ? { customer: { name: i.customer_name.trim().slice(0, 120) } } : {}),
+  ...(i.trip_id ? { trip_id: i.trip_id } : {}),
+  ...(i.idempotency_key ? { idempotency_key: i.idempotency_key } : {}),
+});
+
+// ¿Reservas IA disponible para este usuario? (bandera + piloto, lo decide el servidor con `status`).
+// Una consulta por sesión y usuario: el botón "Pedir mesa con Iato" no vuelve a preguntar en cada tarjeta.
+const enabledCache = new Map<string, Promise<boolean>>();
+export async function aiReservationsEnabled(): Promise<boolean> {
+  let uid = "";
+  try { uid = (await supabase.auth.getSession()).data.session?.user?.id ?? ""; } catch { uid = ""; }
+  if (!uid) return false;
+  let p = enabledCache.get(uid);
+  if (!p) {
+    p = listAiReservations().then((r) => {
+      // Un error de red no se queda en caché: la próxima tarjeta vuelve a preguntar.
+      if (r.ok !== true) enabledCache.delete(uid);
+      return r.ok === true && r.enabled === true;
+    }, () => { enabledCache.delete(uid); return false; });
+    enabledCache.set(uid, p);
+  }
+  return p;
+}
+/** Solo para pruebas. */
+export const resetAiReservationsEnabledCache = () => enabledCache.clear();
 export const confirmAiReservation = (id: string, prompt: string, consent: { share_contact: boolean; cc_me: boolean }) =>
   call({ action: "confirm_send", id, confirm: true, confirm_text: prompt, consent });
 export const chooseAiAlternative = (id: string, index: number) => call({ action: "choose_alternative", id, index });

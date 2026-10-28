@@ -221,6 +221,22 @@ const bg = (p: Promise<unknown>) => {
   return p;
 };
 
+// Reservas IA disponible para el usuario (ai-reservations status → enabled), en caché 60 s por instancia.
+const aiResCache = new Map<string, { at: number; enabled: boolean }>();
+async function aiReservationsEnabledFor(userId: string, authHeader: string): Promise<boolean> {
+  const hit = aiResCache.get(userId);
+  if (hit && Date.now() - hit.at < 60_000) return hit.enabled;
+  try {
+    const r = await callFn("ai-reservations", { action: "status" }, authHeader, 1500);
+    const enabled = r.status === 200 && r.json?.ok === true && r.json?.enabled === true;
+    aiResCache.set(userId, { at: Date.now(), enabled });
+    if (aiResCache.size > 500) aiResCache.delete(aiResCache.keys().next().value as string);
+    return enabled;
+  } catch {
+    return false;
+  }
+}
+
 // ═══ Acción confirmada por el usuario ═══
 
 async function handleAction(req: Request, body: Body, authHeader: string) {
@@ -249,7 +265,8 @@ async function handleAction(req: Request, body: Body, authHeader: string) {
     idempotencyKey: idemKey,
     callFunction: async (name, payload, headers) => {
       try {
-        const r = await callFn(name, payload, authHeader, 20_000, headers ?? {});
+        // Reservas IA busca el correo en el sitio oficial (hasta ~25 s): más margen que el resto.
+        const r = await callFn(name, payload, authHeader, name === "ai-reservations" ? 45_000 : 20_000, headers ?? {});
         return { status: r.status, json: r.json };
       } catch {
         return { status: 503, json: { code: "SERVICE_UNAVAILABLE" } };
@@ -416,6 +433,11 @@ Deno.serve(async (req) => {
       .sort((a: any, b: any) => String(a.fecha_salida ?? "").localeCompare(String(b.fecha_salida ?? "")));
 
     const intents = detectIntents(lastUserMsg, body.intent);
+    // Reservas IA (en paralelo con lo que sigue): ¿está disponible para este usuario? Solo si pide mesa o
+    // habla de comer; lo decide ai-reservations (bandera + piloto). Sin respuesta en 1.5 s: no (lo de siempre).
+    const aiResP = intents.some((x) => x === "book_table" || x === "dining" || x === "dining_near_hotel")
+      ? aiReservationsEnabledFor(userId, authHeader)
+      : Promise.resolve(false);
     const route = routeTurn({ message: lastUserMsg, intents, exigente, config });
     console.log("concierge_turn", JSON.stringify({
       user_id: userId, candidates: trips.length, vigentes: viajesVigentes.length, selected_trip_id: trip?.id ?? null,
@@ -528,8 +550,11 @@ Deno.serve(async (req) => {
       clics_sin_confirmar: tripBookings?.clics_a_socios_sin_confirmar, datos_relevantes: requestIntel,
     }) : null;
 
+    const aiReservationsEnabled = await aiResP;
+
     // Plan determinista del turno (con vuelos/hoteles etiquetados por estado de reserva).
     const plan = planTurn({
+      aiReservationsEnabled,
       message: lastUserMsg, intents, todayISO, coords, hasPriveSession: !!priveSession, exigente,
       position: situation?.position ?? "unknown", place: userPlace,
       requested: turnPlace.requested, nearMe: turnPlace.nearMe,
@@ -579,7 +604,7 @@ Deno.serve(async (req) => {
         }),
         actionCtx: {
           todayISO, trips: trips.map((t) => ({ id: t.id, destino: t.destino, fecha_salida: t.fecha_salida, fecha_regreso: t.fecha_regreso, itinerario_json: t.itinerario_json, ciudad_origen: t.ciudad_origen })),
-          activeTripId: trip?.id ?? null, hasPriveSession: !!priveSession,
+          activeTripId: trip?.id ?? null, hasPriveSession: !!priveSession, aiReservationsEnabled,
         },
         requestIntel, hasConfirmedBookings: confirmedBookings.length > 0 || reservationGuard.hasVerifiedReservation,
         openRequests: reservationGuard.openRequests,

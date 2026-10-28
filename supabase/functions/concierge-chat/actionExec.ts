@@ -32,7 +32,25 @@ const REASON_TEXT: Record<string, string> = {
   sin_sesion_prive: "Desbloquea IATOS Privé en la app para enviar esta solicitud.",
   experiencia_no_mostrada: "Esa experiencia ya no está en la propuesta; pídele a Iato que la busque de nuevo.",
   dia_sin_plan: "Ese día no tiene actividades en el itinerario.",
+  falta_fecha: "Falta la fecha.",
+  falta_hora: "Falta la hora.",
+  personas_invalidas: "El número de personas debe ser de 1 a 20.",
+  lugar_no_verificado: "No pude identificar el lugar en Google Maps; pídele a Iato que lo busque de nuevo.",
 };
+
+/**
+ * Texto honesto del resultado de Reservas IA para la tarjeta de Iato: "confirmada" SOLO si el
+ * restaurante ya lo confirmó por escrito (status confirmed); en cualquier otro estado, "Aún no está reservado".
+ */
+export function aiReservationMessage(r: { status?: unknown; venue_name?: unknown } | null | undefined, next?: unknown): string {
+  const venue = String(r?.venue_name ?? "el restaurante");
+  if (r?.status === "confirmed") return `${venue} confirmó tu reserva por escrito. Está en Mis reservas.`;
+  if (next === "needs_user" || r?.status === "needs_user") {
+    return `No encontramos un correo de reservas verificado de ${venue}, así que no le escribimos. Estas son las vías reales para pedir mesa. Aún no está reservado.`;
+  }
+  if (r?.status === "sent" || r?.status === "venue_replied") return `Ya le escribimos a ${venue}. Te avisamos cuando responda por escrito. Aún no está reservado.`;
+  return `Preparé el correo para ${venue}. Revisa a quién y qué le escribiremos y pulsa «Enviar al restaurante». Aún no está reservado.`;
+}
 
 function fnError(r: FnResponse, fallback: string): ExecResult {
   const code = typeof r.json?.code === "string" ? r.json.code : undefined;
@@ -150,6 +168,39 @@ export async function executeAction(type: unknown, params: unknown, ctx: ActionC
       }, { "x-prive-session": d.priveSession });
       if (r.status !== 200 || !r.json?.ok) return fnError(r, "No pude enviar la solicitud Privé. Revisa que Privé siga desbloqueado.");
       return { ok: true, message: "Solicitud Privé enviada. La atiende una persona del equipo IATOS: verás su respuesta en la app y por correo. Aún no está reservado: te confirmamos cuando el lugar responda.", link: "/prive/solicitudes" };
+    }
+    case "ai_reservation_request": {
+      // Solo PREPARA el correo (create_intent). Enviar es otro paso que el usuario confirma en la tarjeta
+      // (confirm_send con su consentimiento): Iato nunca lo envía por su cuenta.
+      const r = await d.callFunction("ai-reservations", {
+        action: "create_intent", source: "iato",
+        venue: { name: p.nombre, place_id: p.place_id, ...(p.ciudad ? { city: p.ciudad } : {}) },
+        datetime_local: `${p.fecha}T${p.hora}`, party_size: p.personas,
+        ...(p.notas ? { notes: p.notas } : {}), ...(p.trip_id ? { trip_id: p.trip_id } : {}),
+        ...(d.idempotencyKey ? { idempotency_key: `iato:${d.idempotencyKey}` } : {}),
+      });
+      // Reservas IA no está disponible para este usuario: lo de siempre, una persona del equipo.
+      if (r.json?.code === "FEATURE_DISABLED") {
+        return executeAction("fixer_request", {
+          tipo: "reservation", titulo: `Reservar mesa en ${p.nombre}`, lugar: p.nombre, fecha: p.fecha, hora: p.hora, personas: p.personas,
+          ...(p.notas ? { detalle: p.notas } : {}), ...(p.trip_id ? { trip_id: p.trip_id } : {}),
+        }, ctx, d);
+      }
+      if (r.status !== 200 || r.json?.ok !== true || !r.json?.reservation) {
+        const msg = typeof r.json?.message === "string" && typeof r.json?.code === "string" ? r.json.message : "No pude preparar la solicitud al restaurante. No se envió nada.";
+        return { ok: false, code: typeof r.json?.code === "string" ? r.json.code : `http_${r.status}`, message: msg };
+      }
+      const res = r.json.reservation;
+      return {
+        ok: true,
+        message: aiReservationMessage(res, r.json.next),
+        link: "/dashboard/reservas#reservas-ia",
+        data: {
+          ai_reservation: {
+            reservation: res, preview: r.json.preview ?? null, confirm_prompt: r.json.confirm_prompt ?? res.confirm_prompt, next: r.json.next ?? null,
+          },
+        },
+      };
     }
     default:
       return { ok: false, code: "UNKNOWN", message: "Acción no disponible." };

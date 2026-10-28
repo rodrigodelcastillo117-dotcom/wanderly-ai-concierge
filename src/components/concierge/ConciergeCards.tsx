@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { track } from "@/lib/analytics";
 import { logBookingClick, type TrackBookingInput } from "@/lib/trackBooking";
+import { AskIatoTable } from "@/components/reservas/AskIatoTable";
 import { TakeMeThereButton } from "./TakeMeThereButton";
 import { ReservationStateBadge } from "./ReservationStateBadge";
 import { canTakeMeThere, isMobileDevice, mapsDirectionsUrl, takeMeThereUrl } from "@/lib/takeMeThere";
@@ -611,6 +612,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             <CardLinks card={card} onOpen={onOpen} compact />
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
+              <AskIatoTable placeId={card.place_id} name={card.title} tripId={tripId ?? null} />
               <RequestButton state={req.state} label="Pídeselo al equipo" className="h-8 px-3 text-[11px] rounded-full"
                 onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
             </div>
@@ -623,6 +625,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             <RequestButton state={req.state} label="Pídeselo al equipo" className="h-8 px-3 text-[11px] rounded-full"
               onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
           )}
+          <AskIatoTable placeId={card.place_id} name={card.title} tripId={tripId ?? null} />
           <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
         </CardLinks>
         )}

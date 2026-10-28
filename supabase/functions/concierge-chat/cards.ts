@@ -6,6 +6,7 @@
 // pantalla no sabía dibujar. Ahora cada card pasa por validateCards() después del modelo.
 
 import { slimToolResult } from "./tools.ts";
+import { isGooglePlaceId } from "./actions.ts";
 import { neutralizeDeep } from "./guard.ts";
 import { isPhotoRef } from "../_shared/placePhotoRef.ts";
 import { checkAllowlisted } from "../_shared/booking/allowlist.ts";
@@ -637,8 +638,7 @@ export function enforceAvailabilityHonesty(text: string, ev: Evidence): string {
 }
 
 /** place_id de Google ("ChIJ…"); los id de Members Only son UUID y no sirven para pedir su foto. */
-export const isGooglePlaceId = (v: unknown): v is string =>
-  typeof v === "string" && /^[A-Za-z0-9_-]{16,300}$/.test(v) && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(v);
+export { isGooglePlaceId };
 
 const telUrl = (phone: string | undefined) => {
   const digits = String(phone ?? "").replace(/[^\d+]/g, "");

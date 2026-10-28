@@ -35,7 +35,9 @@ export type Intent =
   // Luna de miel / "lo TOP" de una ciudad: desayunos, cenas, museos con taquilla oficial y experiencias.
   | "honeymoon_plan"
   // Clima real (get_weather): la misma fuente que la pantalla Clima.
-  | "weather";
+  | "weather"
+  // "Resérvame mesa en X": con Reservas IA disponible, Iato propone pedirla por correo (ai_reservation_request).
+  | "book_table";
 
 export const CHIP_INTENTS: readonly Intent[] = [
   "dining_near_hotel", "transport", "emergency", "flight_status", "luggage", "members_followup", "trip_overview",
@@ -60,6 +62,7 @@ const RULES: Array<[Intent, RegExp]> = [
   ["price_alert", /\b(alerta|avisame|vigila)\b.{0,30}\b(precio|baje|tarifa)\b/],
   ["create_trip", /\b(quiero|planear|planeo|nuevo|crear|crea|armar|organizar)\b.{0,25}\bviaje a\b/],
   ["itinerary_add", /\b(agrega|anade|pon|mete|apunta)\b.{0,40}\b(itinerario|agenda|plan del dia|calendario)\b/],
+  ["book_table", /\b(reserva\w*|aparta\w*|consigue\w*|pide\w*|pedir|quiero|necesito)\b.{0,25}\bmesa\b|\bmesa para \d|\breserv\w*\b.{0,50}\b(para \d|\d+ personas|personas|a las \d)/],
   ["luggage", /\b(equipaje invisible|enviar (mi )?(equipaje|maleta)|luggage forward|airportr|lugless)\b/],
 ];
 
@@ -217,7 +220,12 @@ export interface PlanInput {
   requested?: string | null;
   /** Pidió algo "cerca de mí / aquí / cercanos" (turnPlace.ts). */
   nearMe?: boolean;
+  /** Reservas IA disponible para este usuario (ai-reservations status → enabled). */
+  aiReservationsEnabled?: boolean;
 }
+
+/** Nota del turno cuando pide mesa y Reservas IA está disponible para el usuario. */
+export const AI_RESERVATION_NOTE = "Reservas IA está disponible para este usuario: si pide mesa en un restaurante concreto, búscalo con search_places (nombre y ciudad) y propón la acción ai_reservation_request {place_id (el id del resultado), nombre (exacto del resultado), fecha YYYY-MM-DD, hora HH:MM, personas, notas?, trip_id?} en lugar de fixer_request. Si falta la fecha, la hora o cuántas personas, pregúntalo en una línea. Di que primero verá a quién y qué le escribiremos y que nada se envía sin su confirmación. Nunca digas que está reservado ni confirmado: solo lo está cuando el restaurante lo confirma por escrito.";
 
 /**
  * Peticiones concretas que no tienen que ver con el vuelo: en ellas no se agregan consejos del vuelo
@@ -226,7 +234,7 @@ export interface PlanInput {
  */
 const FOCUSED_NOT_FLIGHT: readonly Intent[] = [
   "dining_near_hotel", "dining", "expense", "packing", "luggage", "members_followup", "prive_night",
-  "create_trip", "road_trip", "price_alert", "itinerary_add", "honeymoon_plan",
+  "create_trip", "road_trip", "price_alert", "itinerary_add", "honeymoon_plan", "book_table",
 ];
 
 const cleanFactQuery = (msg: string) => String(msg ?? "")
@@ -269,6 +277,8 @@ export function planTurn(i: PlanInput): TurnPlan {
   // Un viaje que no ha empezado nunca es "aquí": su hotel no es punto de partida de "cerca".
   const futureTrip = !!trip?.fecha_salida && String(trip.fecha_salida).slice(0, 10) > i.todayISO;
   const requested = typeof i.requested === "string" && i.requested.trim() ? i.requested.trim().slice(0, 60) : null;
+
+  if (has("book_table") && i.aiReservationsEnabled === true) plan.notes.push(AI_RESERVATION_NOTE);
 
   if (has("human")) {
     plan.direct = { text: "Por supuesto. Te conecto con una persona del equipo IATOS: toca **Hablar con una persona** arriba y cuéntale qué necesitas. Es atención humana sujeta a disponibilidad." };
@@ -521,7 +531,7 @@ export function planTurn(i: PlanInput): TurnPlan {
   if (i.exigente) {
     // Modo exigente: siempre queda lista la mano humana para cerrar lo elegido (Iato no reserva).
     if (has("flight_compare")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "other", titulo: "Que nuestro equipo gestione el vuelo elegido", detalle: i.message.slice(0, 300), ...(tripId ? { trip_id: tripId } : {}) } });
-    if (has("dining_near_hotel") || has("dining")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "reservation", titulo: "Reservar mesa en la opción elegida", fecha: i.todayISO, hora: "20:30", ...(tripId && !away ? { trip_id: tripId } : {}) } });
+    if ((has("dining_near_hotel") || has("dining")) && !(has("book_table") && i.aiReservationsEnabled === true)) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "reservation", titulo: "Reservar mesa en la opción elegida", fecha: i.todayISO, hora: "20:30", ...(tripId && !away ? { trip_id: tripId } : {}) } });
     plan.notes.push("MODO EXIGENTE: compara a fondo y presenta 'La mejor / La alternativa / El plan B' con el porqué, la fuente y la contra de cada una (una línea por opción); anticipa la siguiente necesidad relacionada en una línea.");
   }
 

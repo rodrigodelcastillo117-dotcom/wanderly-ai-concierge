@@ -35,6 +35,7 @@ import { readPriveSession } from "@/lib/priveSession";
 import { incompleteReplyText, streamConcierge } from "@/lib/conciergeStream";
 import { buildChips, welcomeText, type Chip, type ChipIcon } from "@/lib/conciergeChips";
 import { ActionCard } from "@/components/concierge/ActionCard";
+import { AiReservationsLinkNote } from "@/components/reservas/AiReservationsPanel";
 import type { ProposedAction } from "../../supabase/functions/concierge-chat/actions.ts";
 import { conciergeLocationLabel, GEO_GIVE_UP_MS, type LocationState } from "@/lib/conciergeLocation";
 import { tripPhaseLabel, tripSituation } from "../../supabase/functions/concierge-chat/location.ts";
@@ -568,6 +569,7 @@ const Concierge = () => {
 
         {tab === "solicitudes" ? (
           <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4">
+            <AiReservationsLinkNote />
             <MyTeamRequests />
           </div>
         ) : tab === "members" ? (
