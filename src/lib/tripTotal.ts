@@ -121,6 +121,13 @@ export function tripTotalSummary({ trip, sel, desglose, items, itemState, porCot
   const complete = missing.length === 0 && porCotizar.length === 0;
 
   // ── Qué parte del total es estimada ───────────────────────────────────────────────────────
+  // Vuelo y hotel: "estimado" solo si el precio que SUMA el total no es verificable (o es viejo). Aún no
+  // elegir no vuelve estimado un precio en vivo (caso E2E 28-oct-2026, Nueva York: "Hospedaje · en vivo
+  // $25,060" en la cotización y "estimado" en el desglose del mismo total).
+  const sinPrecioReal = unverifiedInTotal(desglose, items, sel);
+  const itemTrusted = (it: PurchaseItem | undefined) => !!it && !it.estimate && Number(it.price) > 0 && trusted({
+    fuente: it.source?.fuente, estado: it.source?.estado, consultadoAt: it.source?.consultadoAt, approximateDates: it.source?.approximateDates,
+  }, now);
   const estimatedIn: string[] = [];
   const estimatedKeys: string[] = [];
   const est = (key: string, label: string) => {
@@ -131,19 +138,21 @@ export function tripTotalSummary({ trip, sel, desglose, items, itemState, porCot
   if (Number(desglose?.vuelos) > 0) {
     const v = sel.selVuelo >= 0 ? trip?.vuelos_json?.[sel.selVuelo] : null;
     const chosenFlight = v ? items.find((i) => i.kind === "vuelo" && i.index === sel.selVuelo) : null;
-    const ok = !!chosenFlight && !chosenFlight.estimate && trusted({
-      fuente: chosenFlight.source.fuente, estado: chosenFlight.source.estado, consultadoAt: chosenFlight.source.consultadoAt, approximateDates: chosenFlight.source.approximateDates,
-    }, now);
+    // Sin elegir: el vuelo de la cotización (el mismo que revisa unverifiedInTotal).
+    const quotedFlight = items.find((i) => i.kind === "vuelo" && i.col === "vuelos_json") ?? items.find((i) => i.kind === "vuelo");
+    const ok = v ? itemTrusted(chosenFlight ?? undefined) : !sinPrecioReal.includes("vuelos") && itemTrusted(quotedFlight);
     if (!ok) est("vuelos", "vuelo");
   }
   if (Number(desglose?.hospedaje) > 0) {
+    const quotedHotels = items.filter((i) => i.kind === "hospedaje");
+    const quotedOk = !sinPrecioReal.includes("hospedaje") && quotedHotels.length > 0 && quotedHotels.every((h) => itemTrusted(h));
     if (multi) {
       const anySel = sel.selHospedaje !== -1 || Object.keys(sel.selHoteles ?? {}).length > 0;
-      if (!anySel) est("hospedaje", "hoteles");
+      if (!anySel) { if (!quotedOk) est("hospedaje", "hoteles"); }
       else for (const c of choices) if (c.index >= 0 && c.hotel && !hotelTrusted(c.hotel, now)) est("hospedaje", `hotel en ${c.stay.city}`);
     } else {
       const h = sel.selHospedaje >= 0 ? hotels[sel.selHospedaje] : null;
-      if (!h || !hotelTrusted(h, now)) est("hospedaje", "hotel");
+      if (h ? !hotelTrusted(h, now) : !quotedOk) est("hospedaje", "hotel");
     }
   }
   est("comida", "comida");
@@ -161,7 +170,6 @@ export function tripTotalSummary({ trip, sel, desglose, items, itemState, porCot
   const pending = Math.max(0, Math.round(total) - paid);
   const state_: TotalState = bought.length > 0 ? "comprado" : complete ? "seleccion" : "estimado";
 
-  const sinPrecioReal = unverifiedInTotal(desglose, items, sel);
   // Por tierra el renglón "vuelos" es cómo llegar (gasolina estimada del coche), no un vuelo.
   const byLand = arrivalByLand(trip);
   const estimadosNote = sinPrecioReal.length ? `Incluye estimados: ${listaHumana(sinPrecioReal.map((k) => (k === "vuelos" && byLand ? "cómo llegar" : k)))}.` : "";
@@ -192,5 +200,16 @@ export function unverifiedInTotal(desglose: Record<string, number>, items: Purch
   if (Number(desglose?.vuelos) > 0 && sel.selVuelo !== -2 && !real(flight)) out.push("vuelos");
   const hotels = items.filter((i) => i.kind === "hospedaje");
   if (Number(desglose?.hospedaje) > 0 && (!hotels.length || !hotels.every(real))) out.push("hospedaje");
+  return out;
+}
+
+/**
+ * Rubros del total que se llaman "estimado": UNA sola lista para el desglose ("Ver desglose del total") y
+ * para los renglones de la cotización junto al total (alignTrust). Es lo que dice tripTotalSummary más lo
+ * que la propia cotización guardó como estimado; si uno de los dos lo duda, los dos dicen "estimado".
+ */
+export function estimatedRubros(summary: Pick<TripTotalSummary, "estimatedKeys">, trust?: { known: boolean; lines: Array<{ category: string; trust: string }> } | null): string[] {
+  const out = [...summary.estimatedKeys];
+  if (trust?.known) for (const l of trust.lines) if (l.trust === "estimado" && !out.includes(l.category)) out.push(l.category);
   return out;
 }

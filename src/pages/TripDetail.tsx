@@ -53,10 +53,10 @@ import { SendSelectionEmail } from "@/components/booking/SendSelectionEmail";
 import { ConvertToRouteBanner, convertToRouteHref } from "@/components/route/ConvertToRouteBanner";
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
-import { quoteTrust } from "@/lib/quoteTrust";
+import { alignTrust, quoteTrust } from "@/lib/quoteTrust";
 import { buildBuyFlow, FLIGHT_TIER_WORD, TIER_WORD } from "@/lib/buyFlow";
 import { itemPurchaseState } from "@/lib/purchasePlan";
-import { tripTotalSummary } from "@/lib/tripTotal";
+import { estimatedRubros, tripTotalSummary } from "@/lib/tripTotal";
 import { budgetLabels, splitTripTotal, trustMatchesSplit } from "@/lib/totalSplit";
 import { arrivalByLand, isBusOption, isCarOption, isHiredCarOption } from "@/lib/groundTrip";
 import { GroundOptionInfo } from "@/components/booking/GroundOptionInfo";
@@ -437,7 +437,12 @@ const TripDetail = () => {
   const pageTotal = hasQuotedTotal ? pageTotalsOf(trip).total : 0;
   // Los renglones de la cotización solo se muestran si suman lo mismo que el total de arriba (si no,
   // serían una segunda cifra sin explicación).
-  const trustForTotal = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal) && trustMatchesSplit(trust, totalSplit) ? trust : null;
+  // Una sola fuente para "en vivo"/"estimado": el desglose y los renglones de la cotización usan la misma
+  // lista de rubros estimados (estimatedRubros) — antes uno decía "en vivo" y el otro "estimado".
+  const sameAmounts = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal);
+  const estimatedKeys = estimatedRubros(totalSummary, sameAmounts ? trust : null);
+  const alignedTrust = alignTrust(trust, estimatedKeys);
+  const trustForTotal = sameAmounts && trustMatchesSplit(alignedTrust, totalSplit) ? alignedTrust : null;
   const stickyTotal = hasQuotedTotal && totalSummary.total > 0 ? totalSummary.barTotal : null;
   // "Actualizar cotización" (y la barra fija del celular) siguen al cálculo de la página: elegir otra
   // opción no lo pide aunque trips.quote_needs_update (trigger anterior, por la selección) siga en true.
@@ -669,7 +674,7 @@ const TripDetail = () => {
                 <div className="mt-4 border-t border-border/40 pt-3" data-testid="brought-elegido">
                   <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">Lo que elegiste en IATOS</p>
                   <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
-                    embedded estimatedKeys={totalSummary.estimatedKeys} labels={rubroLabels} />
+                    embedded estimatedKeys={estimatedKeys} labels={rubroLabels} />
                 </div>
               )}
             </BroughtTripSummary>
@@ -692,7 +697,7 @@ const TripDetail = () => {
               {/* Un solo desglose, plegado bajo el mismo total (sin repetir título ni cifra). */}
               {computedTotal > 0 ? (
                 <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
-                  embedded estimatedKeys={totalSummary.estimatedKeys} labels={rubroLabels} />
+                  embedded estimatedKeys={estimatedKeys} labels={rubroLabels} />
               ) : null}
             </RealTripTotal>
           ) : (
