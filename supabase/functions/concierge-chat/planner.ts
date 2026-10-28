@@ -629,6 +629,7 @@ export function toolStatusText(name: string, args: Record<string, unknown>): str
     case "search_members_venues": return `Revisando Members Only en ${clip(args.city, 30)}…`;
     case "search_prive": return "Revisando el catálogo Privé…";
     case "get_weather": return `Consultando el clima de ${clip(args.city, 30)} (MET Norway)…`;
+    case "get_travel_advisory": return `Revisando avisos oficiales de ${clip(args.pais ?? args.destino, 30)}…`;
     default: return "Consultando…";
   }
 }

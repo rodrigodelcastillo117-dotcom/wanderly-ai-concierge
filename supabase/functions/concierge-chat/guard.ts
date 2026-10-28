@@ -138,7 +138,7 @@ export function resolveToday(input: { clientDate?: unknown; tz?: unknown }, now:
 // Estas revisiones corren DESPUÉS del modelo y son deterministas.
 
 /** Herramientas que respaldan datos prácticos (ubicación, horario, puerta, teléfono). */
-export const FACT_TOOLS = ["web_search", "search_places", "search_nearby", "check_flight_status", "search_members_venues", "search_prive", "search_events"] as const;
+export const FACT_TOOLS = ["web_search", "search_places", "search_nearby", "check_flight_status", "search_members_venues", "search_prive", "search_events", "get_travel_advisory"] as const;
 
 /** Afirmaciones concretas que necesitan fuente: puertas, salas, pisos, horarios, teléfonos, ubicaciones. */
 const PRECISE_FACT = new RegExp([

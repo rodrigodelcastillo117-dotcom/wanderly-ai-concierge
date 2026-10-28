@@ -19,6 +19,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { adminClient, commitQuota, quotaDeniedResponse, releaseQuota, reserveQuota } from "../_shared/entitlements.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
+import { runAdvisoryTool } from "../_shared/advisoryTool.ts";
 import { accountBrake, dbCacheStore, liveSearchGateFor, logUsage } from "../_shared/serpRuntime.ts";
 import type { UsageEntry } from "../_shared/usage.ts";
 import { buildTripQuestion, mentionsUntrackedPlace, needsSpecificTrip } from "../_shared/activeTrip.ts";
@@ -86,6 +87,8 @@ const TOOL_TIMEOUTS: Record<string, number> = {
   search_nearby: 7000, web_search: 8000, search_events: 15000, search_tours: 9000, search_attractions: 8000, search_members_venues: 5000, search_prive: 8000,
   // Clima: MET Norway y, si hace falta, NASA POWER (4 s cada uno) más la geocodificación de una ciudad fuera de la tabla.
   get_weather: 11000,
+  // La lista del Departamento de Estado tardó 3.9 s en la prueba en vivo (28-oct).
+  get_travel_advisory: 9000,
 };
 /** Frase de inicio (planner.leadSentence) si las herramientas previstas siguen corriendo a los 700 ms. */
 const LEAD_AFTER_MS = 700;
@@ -709,6 +712,9 @@ function makeExecTool(c: { supabase: any; authHeader: string; userId: string; pr
         fetchImpl: fetch, apiKey, baseUrl, store: dbCacheStore(), gate: liveSearchGateFor(c.userId), fx: (cur) => getRateToMxnInfo(cur),
         timeoutMs: 4000, background: bg, now: Date.now,
       });
+    }
+    if (name === "get_travel_advisory") {
+      return runAdvisoryTool(args, { fetchImpl: fetch, store: dbCacheStore(), timeoutMs: 5000 });
     }
     if (name === "get_weather") {
       // Misma fuente que la pantalla Clima (MET Norway + NASA POWER); coordenadas de la tabla o de geocode.

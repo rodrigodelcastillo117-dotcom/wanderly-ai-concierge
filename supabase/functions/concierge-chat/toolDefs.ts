@@ -27,6 +27,7 @@ export interface ToolDef {
 }
 
 import { SEARCH_PRIVE_TOOL } from "./prive.ts";
+import { ADVISORY_TOOL_DEF } from "../_shared/advisoryTool.ts";
 
 export const TOOL_DEFS: ToolDef[] = [
   {
@@ -132,6 +133,12 @@ export const TOOL_DEFS: ToolDef[] = [
       },
       required: ["query"],
     },
+  },
+  // Avisos oficiales (GOV.UK y Departamento de Estado; la SRE va primero como enlace).
+  {
+    name: ADVISORY_TOOL_DEF.name,
+    description: ADVISORY_TOOL_DEF.description,
+    input_schema: ADVISORY_TOOL_DEF.input_schema as unknown as ToolDef["input_schema"],
   },
   {
     name: "get_weather",
