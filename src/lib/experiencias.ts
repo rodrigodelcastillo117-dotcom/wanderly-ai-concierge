@@ -10,6 +10,8 @@ import { cityStays, sameCity, tripDestinations } from "../../supabase/functions/
 import { addItineraryItem } from "../../supabase/functions/concierge-chat/actions.ts";
 import { quotedHotelForCity } from "@/lib/cityHotels";
 import { quotedHotelIndex } from "@/lib/purchasePlan";
+import { durationHours, isGroundTripOption, tripFlightProblems } from "@/lib/booking";
+import { countryOfCity } from "../../supabase/functions/_shared/airports.ts";
 
 export type Invoke = (fn: string, opts: { body: Record<string, unknown> }) => Promise<{ data: any; error: any }>;
 
@@ -175,7 +177,7 @@ export function itemsFromResponse(data: any, city: string): Record<ExpKind, ExpI
 
 // ─── Itinerario día por día ───
 
-export type SlotId = "desayuno" | "manana" | "comida" | "tarde" | "cena" | "noche";
+export type SlotId = "desayuno" | "manana" | "comida" | "tarde" | "cena" | "noche" | "llegada" | "salida" | "en_camino";
 export const SLOTS: Array<{ id: SlotId; label: string; hora: string }> = [
   { id: "desayuno", label: "Desayuno", hora: "09:00" },
   { id: "manana", label: "Mañana", hora: "10:30" },
@@ -184,7 +186,11 @@ export const SLOTS: Array<{ id: SlotId; label: string; hora: string }> = [
   { id: "cena", label: "Cena", hora: "20:30" },
 ];
 
-export type PlanSlot = { slot: SlotId; label: string; hora: string; item: ExpItem | null; nota: string | null };
+/**
+ * Un espacio del día. `texto` se muestra en lugar de "Libre" cuando no hay lugar elegido por IATOS:
+ * "Llegada y descanso", "Salida al aeropuerto" o la comida que el itinerario del viaje ya tiene.
+ */
+export type PlanSlot = { slot: SlotId; label: string; hora: string; item: ExpItem | null; nota: string | null; texto?: string | null };
 export type PlanDay = { fecha: string | null; dia: number; slots: PlanSlot[] };
 export type Plan = { days: PlanDay[]; avisos: string[] };
 
@@ -195,7 +201,9 @@ export const fmtFecha = (d: string) => {
   return `${DIAS[t.getUTCDay()]} ${t.getUTCDate()} ${MESES[t.getUTCMonth()]}`;
 };
 const weekday = (d: string) => new Date(`${d}T12:00:00Z`).getUTCDay();
-const toMin = (h: string) => { const [a, b] = h.split(":").map(Number); return a * 60 + (b || 0); };
+const toMin = (h: string) => { const [a, b] = String(h ?? "").split(":").map(Number); return Number.isFinite(a) ? a * 60 + (b || 0) : 0; };
+const fromMin = (m: number) => { const x = Math.max(0, Math.min(23 * 60 + 59, Math.round(m))); return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`; };
+const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 
 /** Días de la estancia (de la llegada al último día antes de salir; al menos uno). */
 export function stayDays(checkin: string | null, checkout: string | null, fallbackCount = 2): Array<string | null> {
@@ -232,6 +240,172 @@ export function openAt(periods: OpeningPeriod[] | null | undefined, day: number,
   return false;
 }
 
+// ─── Llegada, salida y lo que el itinerario ya tiene (pendiente E2E 28-oct-2026) ───
+// El día de llegada tras un vuelo largo no lleva tours ni museos por la mañana ("Llegada y descanso" y
+// una cena cerca del hotel si cabe); con la hora de llegada del vuelo no se pone nada antes de llegar;
+// el último día se deja tiempo para ir al aeropuerto si se sabe la hora del vuelo; y no se repite una
+// comida que el itinerario del viaje ya tiene ese día.
+
+/** Más de esto (horas de vuelo) es un vuelo largo; sin duración, un vuelo internacional cuenta como largo. */
+export const LONG_FLIGHT_HOURS = 8;
+
+export type ArrivalInfo = {
+  /** Día en que se llega (puede ser el día siguiente a la salida); null = el primer día de la estancia. */
+  fecha: string | null;
+  /** Hora local de llegada "HH:MM" si el vuelo la trae. */
+  hora: string | null;
+  horas: number | null;
+  internacional: boolean | null;
+  largo: boolean;
+};
+export type DepartureInfo = { fecha: string; hora: string; internacional: boolean | null };
+export type ExistingMeal = { slot: "desayuno" | "comida" | "cena"; titulo: string };
+export type ItineraryContext = { arrival?: ArrivalInfo | null; departure?: DepartureInfo | null; meals?: Record<string, ExistingMeal[]> };
+
+/** "HH:MM" de "2026-11-11 12:45", "12:45" o "7:05"; null si no hay hora. */
+export function clockOf(v: unknown): string | null {
+  const all = [...String(v ?? "").matchAll(/(\d{1,2}):(\d{2})/g)];
+  const m = all[all.length - 1];
+  if (!m) return null;
+  const h = Number(m[1]), mi = Number(m[2]);
+  return h <= 23 && mi <= 59 ? `${String(h).padStart(2, "0")}:${m[2]}` : null;
+}
+
+const fmtHoras = (h: number) => { const H = Math.floor(h), M = Math.round((h - H) * 60); return M ? `${H} h ${M} min` : `${H} h`; };
+
+/** Horas de vuelo publicadas (minutos de Google Flights o "12h 45m"); null si no se saben o no son creíbles. */
+function flightHours(v: any, trip: any): number | null {
+  const min = num(v?.duration_min) ?? num(v?.total_duration) ?? num(v?.duration_minutes);
+  const h = min != null && min > 0 ? min / 60 : durationHours(v?.duracion ?? v?.duration);
+  if (h == null || !(h > 0)) return null;
+  // "65 h" de una tarifa de referencia (ida y vuelta con escalas largas) no dice cuánto dura la ida.
+  if (tripFlightProblems(v, trip).includes("duracion_absurda")) return null;
+  return h;
+}
+
+const normCountry = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+/** ¿Vuelo internacional? Por los países de origen y destino; null si no se sabe. */
+function isInternational(trip: any, v: any, city: string): boolean | null {
+  const from = countryOfCity(v?.from) ?? countryOfCity(trip?.ciudad_origen);
+  const to = countryOfCity(v?.to) ?? countryOfCity(city) ?? (trip?.pais_destino ? String(trip.pais_destino) : null);
+  if (!from || !to) return null;
+  return normCountry(from) !== normCountry(to);
+}
+
+const flightRows = (trip: any): any[] => (Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : []).filter((v: any) => v && !isGroundTripOption(v));
+
+/** El vuelo de la persona: el elegido, uno suyo (PDF / "ya lo tengo"), el equilibrado o el primero. */
+function pickFlight(trip: any, rows: any[]): any | null {
+  if (!rows.length) return null;
+  const all: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
+  const si = Number(trip?.selections?.vuelo?.i);
+  const sel = Number.isInteger(si) && si >= 0 ? all[si] : null;
+  if (sel && rows.includes(sel)) return sel;
+  return rows.find((v) => v?.desde_pdf === true || v?.ya_lo_tengo === true || /reservad|confirmad/i.test(String(v?.estado_reserva ?? "")))
+    ?? rows.find((v) => String(v?.tier ?? "").toLowerCase() === "equilibrio")
+    ?? rows[0];
+}
+
+/** Cómo se llega a la ciudad (solo si se llega en avión: por tierra no hay vuelo largo que descansar). */
+export function arrivalFor(trip: any, city: TripCity, isFirst: boolean): ArrivalInfo | null {
+  const rows = flightRows(trip).filter((v) => {
+    const to = v?.to ?? v?.ciudad;
+    if (to) return sameCity(to, city.label) || sameCity(v?.ciudad, city.label);
+    return isFirst;
+  }).filter((v) => !(v?.from && sameCity(v.from, city.label)));
+  // Un vuelo con fecha (traído en PDF) cuenta si es del día de llegada o el anterior (vuelo nocturno).
+  const dated = city.checkin ? rows.filter((v) => !iso(v?.fecha) || iso(v.fecha) === city.checkin || addDays(iso(v.fecha)!, 1) === city.checkin) : rows;
+  const v = pickFlight(trip, dated);
+  if (!v) return null;
+  const rawArr = v?.llegada ?? v?.hora_llegada ?? v?.arrival?.time ?? v?.arrives ?? v?.arrival_time ?? null;
+  const hora = clockOf(rawArr);
+  const fecha = iso(rawArr) ?? (hora && iso(v?.fecha) ? iso(v.fecha) : null);
+  const horas = flightHours(v, trip);
+  const internacional = isInternational(trip, v, city.label);
+  const largo = horas != null ? horas > LONG_FLIGHT_HOURS : internacional === true;
+  return { fecha, hora, horas, internacional, largo };
+}
+
+/** Vuelo de salida de la ciudad con hora (traído en PDF o capturado): para dejar tiempo de ir al aeropuerto. */
+export function departureFor(trip: any, city: TripCity, isLast: boolean): DepartureInfo | null {
+  const rows = flightRows(trip).filter((v) => {
+    const f = iso(v?.fecha), h = clockOf(v?.hora_salida ?? v?.salida);
+    if (!f || !h) return false;
+    if (city.checkin && f < city.checkin) return false;
+    if (v?.from) return sameCity(v.from, city.label);
+    return isLast && !!city.checkout && f === city.checkout;
+  });
+  if (!rows.length) return null;
+  const v = [...rows].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0];
+  const to = v?.to ?? trip?.ciudad_origen ?? null;
+  const from = countryOfCity(city.label), dest = countryOfCity(to);
+  return { fecha: iso(v.fecha)!, hora: clockOf(v.hora_salida ?? v.salida)!, internacional: from && dest ? normCountry(from) !== normCountry(dest) : null };
+}
+
+const MEAL_WORDS: Array<[ExistingMeal["slot"], RegExp]> = [
+  ["desayuno", /\b(desayun\w*|brunch|breakfast)\b/i],
+  ["comida", /\b(comida|comer|almuerzo|almorzar|lunch)\b/i],
+  ["cena", /\b(cena|cenar|dinner)\b/i],
+];
+const mealByHour = (h: string | null): ExistingMeal["slot"] | null => {
+  if (!h) return null;
+  const m = toMin(h);
+  return m < 11 * 60 + 30 ? "desayuno" : m < 17 * 60 ? "comida" : m >= 18 * 60 ? "cena" : null;
+};
+const short = (t: unknown) => { const x = String(t ?? "").replace(/\s+/g, " ").trim(); return x.length > 90 ? `${x.slice(0, 87)}…` : x; };
+
+/**
+ * Comidas que el itinerario del viaje ya tiene por fecha: las agregadas (Iato, reservas, la persona) y
+ * las del texto del día ("Noche: cena en Trattoria da Enzo"). Los agregados de Experiencias de esta
+ * ciudad no cuentan: se reemplazan al guardar.
+ */
+export function existingMeals(trip: any, cityKey: string, multi: boolean): Record<string, ExistingMeal[]> {
+  const it = trip?.itinerario_json;
+  const days: any[] = Array.isArray(it) ? it : it && typeof it === "object" && Array.isArray(it.days) ? it.days : [];
+  const start = iso(trip?.fecha_salida);
+  const out: Record<string, ExistingMeal[]> = {};
+  const add = (fecha: string, m: ExistingMeal) => {
+    const list = (out[fecha] ??= []);
+    if (!list.some((x) => x.slot === m.slot)) list.push(m);
+  };
+  for (const d of days) {
+    if (!d || typeof d !== "object") continue;
+    // Multi-destino: solo por fecha (la numeración de días puede ser por ciudad).
+    const n = Number(d.dia);
+    const fecha = iso(d.fecha) ?? (!multi && start && Number.isInteger(n) && n >= 1 ? addDays(start, n - 1) : null);
+    if (!fecha) continue;
+    for (const a of Array.isArray(d.agregados) ? d.agregados : []) {
+      if (!a || (a.fuente === SOURCE && sameCity(a.ciudad, cityKey))) continue;
+      const titulo = String(a.titulo ?? "");
+      const byWord = MEAL_WORDS.find(([, re]) => re.test(titulo))?.[0] ?? null;
+      const isFood = /restaur|food|comida/i.test(String(a.tipo ?? a.categoria ?? ""));
+      const slot = byWord ?? (isFood ? mealByHour(clockOf(a.hora)) : null);
+      if (slot) add(fecha, { slot, titulo: short(titulo) });
+    }
+    const textFor: Array<[ExistingMeal["slot"], unknown]> = [["desayuno", d["mañana"] ?? d.manana], ["comida", d.tarde], ["comida", d["mañana"] ?? d.manana], ["cena", d.noche]];
+    for (const [slot, txt] of textFor) {
+      if (typeof txt !== "string" || !txt.trim()) continue;
+      const re = MEAL_WORDS.find(([k]) => k === slot)![1];
+      if (re.test(txt)) add(fecha, { slot, titulo: short(txt) });
+    }
+  }
+  return out;
+}
+
+/** Todo lo que el plan necesita saber del viaje para esa ciudad. */
+export function itineraryContext(trip: any, city: TripCity, cities: TripCity[], multi: boolean): ItineraryContext {
+  const i = Math.max(0, cities.findIndex((c) => c.label === city.label));
+  return {
+    arrival: arrivalFor(trip, city, i === 0),
+    departure: departureFor(trip, city, i === cities.length - 1),
+    meals: existingMeals(trip, city.key, multi),
+  };
+}
+
+/** Lo que dura cada espacio (para dejar tiempo de salir al aeropuerto). */
+const SLOT_MIN: Partial<Record<SlotId, number>> = { desayuno: 60, manana: 150, comida: 90, tarde: 150, cena: 120 };
+
 const fits = (item: ExpItem, slot: SlotId): boolean => {
   if (item.kind === "restaurante") {
     const sv = item.serves ?? null;
@@ -255,40 +429,91 @@ const byDistance = (a: ExpItem, b: ExpItem) => (a.distanceKm ?? 999) - (b.distan
  * Ordena por día los elementos elegidos (o los TOP sugeridos): desayuno, mañana (museo o tour), comida,
  * tarde (experiencia) y cena, del más cercano al hotel al más lejano. Un lugar con horario de Google
  * que cierra ese día (o a esa hora) no se pone ahí y se dice. Los eventos van en su fecha y hora.
+ * Con `ctx` (itineraryContext): respeta la llegada (vuelo largo → "Llegada y descanso" y solo una cena
+ * cerca del hotel si cabe; con hora de llegada, nada antes), la salida al aeropuerto y las comidas que
+ * el itinerario del viaje ya tiene ese día (no pone otra).
  */
-export function buildItinerary(items: ExpItem[], days: Array<string | null>, from = "del hotel"): Plan {
+export function buildItinerary(items: ExpItem[], days: Array<string | null>, from = "del hotel", ctx: ItineraryContext = {}): Plan {
   const avisos: string[] = [];
   const used = new Set<string>();
   const pool = [...items].sort(byDistance);
   const closedSaid = new Set<string>();
-  const plan: PlanDay[] = days.map((fecha, i) => ({ fecha, dia: i + 1, slots: [] }));
+  const arrival = ctx.arrival ?? null;
+  const departure = ctx.departure ?? null;
+  const dayList = [...days];
+  // El día del vuelo de regreso (checkout) no es noche de hotel, pero con hora de vuelo se planea la mañana.
+  const lastDay = dayList[dayList.length - 1];
+  if (departure && lastDay && !dayList.includes(departure.fecha) && addDays(lastDay, 1) === departure.fecha) dayList.push(departure.fecha);
+  const plan: PlanDay[] = dayList.map((fecha, i) => ({ fecha, dia: i + 1, slots: [] }));
+  const arrivalDay = arrival ? (arrival.fecha && plan.some((p) => p.fecha === arrival.fecha) ? arrival.fecha : plan[0]?.fecha ?? null) : null;
+
+  const pick = (d: PlanDay, wd: number | null, s: { id: SlotId; hora: string }): { chosen: ExpItem | null; nota: string | null } => {
+    let chosen: ExpItem | null = null;
+    let nota: string | null = null;
+    for (const it of pool) {
+      if (used.has(it.key) || it.kind === "evento" || !fits(it, s.id)) continue;
+      if (wd !== null) {
+        const open = openAt(it.periods, wd, s.hora);
+        if (open === false) {
+          const k = `${it.key}|${d.fecha}`;
+          if (it.kind === "museo" && !closedSaid.has(k) && !openAt(it.periods, wd, "12:00")) {
+            closedSaid.add(k);
+            avisos.push(`${it.title} cierra el ${fmtFecha(d.fecha!)} (horario de Google): no lo pusimos ese día.`);
+          }
+          continue;
+        }
+        if (open === null && it.kind === "museo") nota = "Horario no consultado en Google: revisa su sitio oficial.";
+      }
+      chosen = it;
+      break;
+    }
+    if (chosen) used.add(chosen.key);
+    else nota = null;
+    if (chosen && chosen.kind !== "museo") nota = chosen.distanceKm != null ? kmText(chosen.distanceKm, from) : null;
+    else if (chosen && chosen.kind === "museo" && !nota && chosen.distanceKm != null) nota = kmText(chosen.distanceKm, from);
+    return { chosen, nota };
+  };
+
   for (const d of plan) {
     const wd = d.fecha ? weekday(d.fecha) : null;
+    const meals = (d.fecha && ctx.meals?.[d.fecha]) || [];
+    // Aún en camino (el vuelo llega al día siguiente): nada en la ciudad ese día.
+    if (arrival?.fecha && d.fecha && d.fecha < arrival.fecha) {
+      d.slots.push({ slot: "en_camino", label: "En camino", hora: "—", item: null, nota: `Tu vuelo llega el ${fmtFecha(arrival.fecha)}${arrival.hora ? ` a las ${arrival.hora}` : ""}.`, texto: "Día de vuelo" });
+      continue;
+    }
+    const isArrival = !!arrival && d.fecha === arrivalDay && (d.fecha !== null || d.dia === 1);
+    const arrMin = isArrival && arrival!.hora ? toMin(arrival!.hora) : null;
+    const isDeparture = !!departure && d.fecha === departure.fecha;
+    // Llegar al aeropuerto 3 h antes (internacional o sin saber) o 2 h (nacional), más ~1 h de traslado.
+    const cutoff = isDeparture ? toMin(departure!.hora) - (departure!.internacional === false ? 120 : 180) - 60 : null;
+    if (isArrival && arrival!.largo) {
+      const motivo = arrival!.horas != null ? `Vuelo de ${fmtHoras(arrival!.horas)}` : "Vuelo internacional";
+      d.slots.push({ slot: "llegada", label: "Llegada", hora: arrival!.hora ?? "—", item: null, texto: "Llegada y descanso",
+        nota: `${motivo}${arrival!.hora ? `, llegas a las ${arrival!.hora}` : ""}: sin tours ni museos por la mañana para que descanses.` });
+    } else if (isArrival && arrMin !== null) {
+      d.slots.push({ slot: "llegada", label: "Llegada", hora: arrival!.hora!, item: null, texto: "Llegada al hotel", nota: `Tu vuelo llega a las ${arrival!.hora}.` });
+    }
     for (const s of SLOTS) {
-      let chosen: ExpItem | null = null;
-      let nota: string | null = null;
-      for (const it of pool) {
-        if (used.has(it.key) || it.kind === "evento" || !fits(it, s.id)) continue;
-        if (wd !== null) {
-          const open = openAt(it.periods, wd, s.hora);
-          if (open === false) {
-            const k = `${it.key}|${d.fecha}`;
-            if (it.kind === "museo" && !closedSaid.has(k) && !openAt(it.periods, wd, "12:00")) {
-              closedSaid.add(k);
-              avisos.push(`${it.title} cierra el ${fmtFecha(d.fecha!)} (horario de Google): no lo pusimos ese día.`);
-            }
-            continue;
-          }
-          if (open === null && it.kind === "museo") nota = "Horario no consultado en Google: revisa su sitio oficial.";
-        }
-        chosen = it;
-        break;
+      const sMin = toMin(s.hora);
+      const meal = meals.find((m) => m.slot === s.id);
+      if (isArrival && arrival!.largo) {
+        // Tras un vuelo largo: solo comidas (cena cerca del hotel), y solo si caben después de llegar y descansar.
+        if (s.id !== "comida" && s.id !== "cena") continue;
+        if (s.id === "comida" && (arrMin === null || arrMin + 150 > sMin)) continue;
+        if (s.id === "cena" && arrMin !== null && arrMin + 120 > sMin) continue;
+      } else if (arrMin !== null && sMin < arrMin + 90) continue;
+      if (cutoff !== null && sMin + (SLOT_MIN[s.id] ?? 90) > cutoff) continue;
+      if (meal) {
+        d.slots.push({ slot: s.id, label: s.label, hora: s.hora, item: null, texto: meal.titulo, nota: "Ya está en el itinerario de tu viaje: no agregamos otra." });
+        continue;
       }
-      if (chosen) used.add(chosen.key);
-      else nota = null;
-      if (chosen && chosen.kind !== "museo") nota = chosen.distanceKm != null ? kmText(chosen.distanceKm, from) : null;
-      else if (chosen && chosen.kind === "museo" && !nota && chosen.distanceKm != null) nota = kmText(chosen.distanceKm, from);
+      const { chosen, nota } = pick(d, wd, s);
       d.slots.push({ slot: s.id, label: s.label, hora: s.hora, item: chosen, nota });
+    }
+    if (isDeparture && cutoff !== null) {
+      d.slots.push({ slot: "salida", label: "Aeropuerto", hora: fromMin(cutoff), item: null, texto: "Salida al aeropuerto",
+        nota: `Tu vuelo sale a las ${departure!.hora}: llega al aeropuerto ${departure!.internacional === false ? "2 h" : "3 h"} antes.` });
     }
   }
   // Eventos: su fecha y su hora (Ticketmaster).
