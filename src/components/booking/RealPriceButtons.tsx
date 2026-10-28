@@ -1,4 +1,4 @@
-// Botones de precio real bajo demanda (SerpApi, ya contratado): no llaman a nada hasta que se pulsan.
+// Botones de precio real bajo demanda (Google Flights / Google Hotels): no llaman a nada hasta que se pulsan.
 //  * MultiCityFareButton: "Consultar precio real del recorrido" (Google Flights, varias ciudades).
 //  * HotelOffersButton: "Ver ofertas reales" (Google Hotels, precio total por proveedor con su enlace).
 // Cada resultado dice fuente y hora de consulta; nada se presenta como reserva.
@@ -10,6 +10,7 @@ import {
   type HotelOffersQuery, type HotelOffersSummary, type InterCityLeg, type Invoke, type MultiFareSummary,
 } from "@/lib/realFares";
 import { SlowLoading } from "@/components/brand/SlowLoading";
+import { fetchFxTable, fxLabel } from "@/lib/fx";
 
 const defaultInvoke: Invoke = (fn, opts) => supabase.functions.invoke(fn, opts) as unknown as Promise<{ data: any; error: any }>;
 const usd = (n: number) => `$${Math.round(n).toLocaleString("es-MX")} USD`;
@@ -92,15 +93,43 @@ export function MultiCityFareButton({ trip, interLegs, invoke = defaultInvoke }:
   );
 }
 
-export function HotelOffersButton({ query, invoke = defaultInvoke, className = "" }: { query: HotelOffersQuery; invoke?: Invoke; className?: string }) {
+/** Tipo de cambio con su fuente ("1 USD = 18.63 MXN · frankfurter (27/10/2026)"). */
+export type OffersFx = { rate: number; label: string };
+
+/** Tipo de cambio de la app (open.er-api.com, o el último guardado / el de respaldo), con su fuente. */
+async function appFx(): Promise<OffersFx | null> {
+  try {
+    const t = await fetchFxTable();
+    const rate = Number(t.rates.MXN);
+    return rate > 0 ? { rate, label: `1 USD = ${rate.toFixed(2)} MXN · ${fxLabel(t)}` } : null;
+  } catch { return null; }
+}
+
+/**
+ * "Ver ofertas reales" de un hotel. Google Hotels da los precios en USD; bajo una tarjeta en MXN se
+ * muestran en MXN (`currency="MXN"`) con el tipo de cambio de la cotización del viaje (`fx`) o, sin él, el
+ * de la app, siempre con su fuente, y la cifra original en USD en pequeño (caso E2E 28-oct-2026: "Booking.com
+ * $1,030 USD" bajo un hotel de "$21,651 MXN").
+ */
+export function HotelOffersButton({ query, invoke = defaultInvoke, className = "", currency = "USD", fx = null }: { query: HotelOffersQuery; invoke?: Invoke; className?: string; currency?: "USD" | "MXN"; fx?: OffersFx | null }) {
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<HotelOffersSummary | null>(null);
+  const [usedFx, setUsedFx] = useState<OffersFx | null>(null);
   if (!query.property_token || !query.checkin || !query.checkout) return null;
   const run = async () => {
     if (busy) return;
     setBusy(true);
-    try { setRes(await requestHotelOffers(invoke, query)); } finally { setBusy(false); }
+    try {
+      const [r, rate] = await Promise.all([
+        requestHotelOffers(invoke, query),
+        currency === "MXN" ? (fx && fx.rate > 0 ? Promise.resolve(fx) : appFx()) : Promise.resolve(null),
+      ]);
+      setUsedFx(rate);
+      setRes(r);
+    } finally { setBusy(false); }
   };
+  // Sin tipo de cambio (nunca 1:1 a ciegas) se queda en USD.
+  const inMxn = currency === "MXN" && !!usedFx && usedFx.rate > 0;
   return (
     <div className={className} data-testid="hotel-ofertas">
       {!res ? (
@@ -117,6 +146,7 @@ export function HotelOffersButton({ query, invoke = defaultInvoke, className = "
           <p className="text-[11px] text-muted-foreground" data-testid="hotel-ofertas-fuente">
             Google Hotels{res.time ? ` · consultado ${res.time}` : ""}{res.savedPrice ? " · precio guardado, no en vivo" : ""} · total de la estancia
           </p>
+          {inMxn && <p className="text-[11px] text-muted-foreground" data-testid="hotel-ofertas-tc">En MXN · {usedFx!.label}</p>}
           <ul className="mt-1 divide-y divide-border/40">
             {res.offers.map((o) => (
               <li key={o.source} className="flex items-center justify-between gap-2 py-1.5" data-testid="hotel-oferta" data-source={o.source}>
@@ -125,7 +155,8 @@ export function HotelOffersButton({ query, invoke = defaultInvoke, className = "
                   {o.freeCancellation && <span className="block text-[11px] text-emerald-400">Cancelación gratis</span>}
                 </span>
                 <span className="flex shrink-0 flex-col items-end">
-                  <span className="text-sm font-medium tabular-nums">{usd(o.totalUsd)}</span>
+                  <span className="text-sm font-medium tabular-nums" data-testid="hotel-oferta-precio">{inMxn ? money(o.totalUsd * usedFx!.rate, "MXN") : usd(o.totalUsd)}</span>
+                  {inMxn && <span className="text-[10px] text-muted-foreground tabular-nums">{usd(o.totalUsd)}</span>}
                   {o.url ? <a className={link} href={o.url} target="_blank" rel="noopener noreferrer" data-testid="hotel-oferta-link">{o.label} <ExternalLink className="h-3 w-3" aria-hidden="true" /></a>
                     : <span className="text-[11px] text-muted-foreground">Sin enlace directo</span>}
                 </span>

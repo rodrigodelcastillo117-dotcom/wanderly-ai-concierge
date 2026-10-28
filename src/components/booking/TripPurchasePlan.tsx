@@ -23,7 +23,7 @@ import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
 import { useTasteProfile } from "@/hooks/useTasteProfile";
 import { TripPicksCarousel, type PickAction } from "@/components/booking/TripPicksCarousel";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
-import { HotelOffersButton, MultiCityFareButton } from "@/components/booking/RealPriceButtons";
+import { HotelOffersButton, MultiCityFareButton, type OffersFx } from "@/components/booking/RealPriceButtons";
 import { ViatorToursButton } from "@/components/booking/ViatorTours";
 import { transportRubroLabel } from "@/lib/multiDestTrip";
 import { roadLegTolls, TollInfo } from "@/components/roadtrip/TollInfo";
@@ -67,6 +67,8 @@ type Props = {
   onViewTrip?: () => void;
   /** Hueco para "Enviarme mi selección por correo" (lo hace la rama claude/correo-seleccion). */
   sendSelectionSlot?: ReactNode;
+  /** Tipo de cambio de la cotización (con su fuente) para mostrar en MXN las ofertas de hotel que llegan en USD. */
+  quoteFx?: OffersFx | null;
 };
 
 /** Verbo del botón principal: "Comprar en Google Flights", "Buscar en Kayak"… */
@@ -78,7 +80,7 @@ function buyLabel(it: PurchaseItem): string {
 }
 
 export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHoteles, serverOffers = {}, bookings, userId, ownerId, quoteCreatedAt, onChanged,
-  onSelectVuelo, onSelectHotel, onToggleTour, marksState, selectionTotal, selectionDesglose, estimadosNote, onViewTrip, sendSelectionSlot }: Props) {
+  onSelectVuelo, onSelectHotel, onToggleTour, marksState, selectionTotal, selectionDesglose, estimadosNote, onViewTrip, sendSelectionSlot, quoteFx }: Props) {
   const [selLegs, setSelLeg] = useLegChoices(trip?.id ?? null);
   const flow = useMemo(
     () => buildBuyFlow(trip, { selVuelo, selHospedaje, selTours, selHoteles, selLegs }, serverOffers, { quoteCreatedAt }),
@@ -397,7 +399,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       const h = s.chosen >= 0 ? trip.hospedaje_json?.[s.chosen] : null;
                       const token = typeof h?.property_token === "string" ? h.property_token : null;
                       return token ? (
-                        <HotelOffersButton key={token} className="mt-3" query={{ property_token: token, checkin: s.stay?.checkin ?? trip.fecha_salida, checkout: s.stay?.checkout ?? trip.fecha_regreso, adults: travelers, name: h?.nombre ?? null }} />
+                        <HotelOffersButton key={token} className="mt-3" currency="MXN" fx={quoteFx ?? null} query={{ property_token: token, checkin: s.stay?.checkin ?? trip.fecha_salida, checkout: s.stay?.checkout ?? trip.fecha_regreso, adults: travelers, name: h?.nombre ?? null }} />
                       ) : null;
                     })()}
                     {it && (

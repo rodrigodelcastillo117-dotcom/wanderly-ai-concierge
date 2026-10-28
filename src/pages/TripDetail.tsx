@@ -772,6 +772,7 @@ const TripDetail = () => {
           {(trip as any).fuente !== "documento" && (hasQuotedTotal || brought) ? (
             <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
+              quoteFx={quote && Number(quote.fx_rate) > 0 ? { rate: Number(quote.fx_rate), label: `1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · tipo de cambio de la cotización (${quote.fx_is_fallback ? "de respaldo" : quote.fx_source}, ${formatInstant(quote.fx_at)})` } : null}
               marksState={purchaseMarks}
               onSelectVuelo={(i) => setSelVuelo(i)}
               onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => withCityHotel(prev, c, i)) : setSelHospedaje(i))}
