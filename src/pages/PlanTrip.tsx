@@ -846,10 +846,12 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   }
 
   if (review) {
+    // "Editar lo que escribí" y "Cancelar" vuelven al campo con el texto intacto (antes Cancelar lo borraba).
+    const backToText = () => { const t = review.spec.consulta_original; if (review.fp) releaseIntent(review.fp); openReview(null); setDestino(t); };
     return (
       <DashboardLayout>
         <div className="mx-auto max-w-2xl px-4 py-8 sm:py-12" data-testid="plan-revision">
-          <button type="button" onClick={() => { const t = review.spec.consulta_original; if (review.fp) releaseIntent(review.fp); openReview(null); setDestino(t); }}
+          <button type="button" onClick={backToText}
             className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Editar lo que escribí
           </button>
@@ -857,7 +859,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
           <p className="mb-5 mt-1 text-sm text-muted-foreground">Revisa paradas, tramos y fechas. Nada se cotiza hasta que confirmes.</p>
           <TripSpecReview spec={review.spec} aviso={review.aviso} draft={!!review.draft} nota={review.nota ?? null}
             onChange={(sp) => openReview({ ...(reviewRef.current ?? review), spec: sp })}
-            onConfirm={() => runSpec(review.spec, review.fp)} onCancel={() => { if (review.fp) releaseIntent(review.fp); openReview(null); }} />
+            onConfirm={() => runSpec(review.spec, review.fp)} onCancel={backToText} />
         </div>
       </DashboardLayout>
     );

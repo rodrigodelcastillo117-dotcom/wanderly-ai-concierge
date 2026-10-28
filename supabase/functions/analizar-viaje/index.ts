@@ -35,6 +35,7 @@ import { renderTasteProfile, tasteToday, TASTE_CITATION_RULE } from "../_shared/
 import { getEurMxnRateInfo, getRateToMxnInfo, getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { buildQuoteSnapshot, saveQuoteSnapshot } from "../_shared/quotes.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
+import { sanitizeSavedConsulta } from "../_shared/tripSpec.ts";
 import { enforceSources, hotelPreference, liveConsultedAt as sourceConsultedAt } from "./sources.ts";
 import { detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
 import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
@@ -93,6 +94,8 @@ interface AnalisisRequest {
   request_key?: string;
   /** Re-análisis de un viaje existente: se actualiza esa fila (mismo id) en lugar de crear otra. */
   trip_id?: string | null;
+  /** Texto original + interpretación (itinerario_json.consulta) de un viaje nuevo desde texto libre. */
+  consulta?: unknown;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1141,6 +1144,10 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       const consulta = prev?.itinerario_json && !Array.isArray(prev.itinerario_json) ? (prev.itinerario_json as Record<string, unknown>).consulta : undefined;
       if (consulta) (tripFields as Record<string, unknown>).itinerario_json = { days: Array.isArray(a.itinerario) ? a.itinerario : [], consulta };
     }
+    // Viaje nuevo desde el texto libre: la consulta viene con la petición y se guarda al crear la fila
+    // (antes la guardaba el cliente después; si cerraba la pestaña, se perdía el texto original).
+    const consultaIn = targetTripId ? null : sanitizeSavedConsulta(body.consulta);
+    if (consultaIn) (tripFields as Record<string, unknown>).itinerario_json = { days: Array.isArray(a.itinerario) ? a.itinerario : [], consulta: consultaIn };
     const { data: trip, error: insertErr } = targetTripId
       ? await supabase
         .from("trips")
