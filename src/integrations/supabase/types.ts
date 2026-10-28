@@ -1333,6 +1333,12 @@ export type Database = {
           fixer_escalation_id: string | null
           id: string
           owner_admin_id: string | null
+          owner_alert_attempts: number
+          owner_alert_claimed_at: string | null
+          owner_alert_email_id: string | null
+          owner_alert_error: string | null
+          owner_alert_sent_at: string | null
+          owner_alert_status: string | null
           party_size: number | null
           payload: Json
           plan_group: string | null
@@ -1354,6 +1360,12 @@ export type Database = {
           fixer_escalation_id?: string | null
           id?: string
           owner_admin_id?: string | null
+          owner_alert_attempts?: number
+          owner_alert_claimed_at?: string | null
+          owner_alert_email_id?: string | null
+          owner_alert_error?: string | null
+          owner_alert_sent_at?: string | null
+          owner_alert_status?: string | null
           party_size?: number | null
           payload?: Json
           plan_group?: string | null
@@ -1375,6 +1387,12 @@ export type Database = {
           fixer_escalation_id?: string | null
           id?: string
           owner_admin_id?: string | null
+          owner_alert_attempts?: number
+          owner_alert_claimed_at?: string | null
+          owner_alert_email_id?: string | null
+          owner_alert_error?: string | null
+          owner_alert_sent_at?: string | null
+          owner_alert_status?: string | null
           party_size?: number | null
           payload?: Json
           plan_group?: string | null
@@ -5511,6 +5529,60 @@ export type Database = {
         }
         Relationships: []
       }
+      team_request_replies: {
+        Row: {
+          admin_id: string | null
+          body: string
+          created_at: string
+          email_attempts: number
+          email_claimed_at: string | null
+          email_error: string | null
+          email_id: string | null
+          email_sent_at: string | null
+          email_status: string
+          evidence: string | null
+          id: string
+          kind: string
+          source: string
+          source_id: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          body: string
+          created_at?: string
+          email_attempts?: number
+          email_claimed_at?: string | null
+          email_error?: string | null
+          email_id?: string | null
+          email_sent_at?: string | null
+          email_status?: string
+          evidence?: string | null
+          id?: string
+          kind: string
+          source: string
+          source_id: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          body?: string
+          created_at?: string
+          email_attempts?: number
+          email_claimed_at?: string | null
+          email_error?: string | null
+          email_id?: string | null
+          email_sent_at?: string | null
+          email_status?: string
+          evidence?: string | null
+          id?: string
+          kind?: string
+          source?: string
+          source_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tracked_flights: {
         Row: {
           active: boolean
@@ -7492,6 +7564,29 @@ export type Database = {
       }
       _ai_res_enabled: { Args: never; Returns: boolean }
       _deploy_apply: { Args: { p_from: string; p_to: string }; Returns: string }
+      _ops_ai_json: {
+        Args: { _r: Database["public"]["Tables"]["ai_reservations"]["Row"] }
+        Returns: Json
+      }
+      _ops_ai_needs_team: {
+        Args: { _r: Database["public"]["Tables"]["ai_reservations"]["Row"] }
+        Returns: boolean
+      }
+      _ops_ai_owner: { Args: { _id: string }; Returns: string }
+      _ops_alert_payload: { Args: { _id: string }; Returns: Json }
+      _ops_history: {
+        Args: { _for_team: boolean; _id: string; _source: string }
+        Returns: Json
+      }
+      _ops_person: { Args: { _id: string }; Returns: Json }
+      _ops_replies: {
+        Args: { _for_team: boolean; _id: string; _source: string }
+        Returns: Json
+      }
+      _ops_request_json: { Args: { _id: string }; Returns: Json }
+      _ops_requested_text: { Args: { _col: string; _p: Json }; Returns: string }
+      _ops_require_admin: { Args: never; Returns: string }
+      _ops_small_int: { Args: { _v: string }; Returns: number }
       _social_ajustes: { Args: { p_user: string }; Returns: Json }
       _social_avatar_path: { Args: { p_user: string }; Returns: string }
       _social_clean: { Args: { p: string[] }; Returns: string[] }
@@ -7614,6 +7709,17 @@ export type Database = {
         Returns: Json
       }
       admin_metrics: { Args: never; Returns: Json }
+      admin_ops_act: {
+        Args: {
+          _action: string
+          _evidence?: string
+          _id: string
+          _message?: string
+          _source: string
+        }
+        Returns: Json
+      }
+      admin_ops_list: { Args: { _stage?: string }; Returns: Json }
       admin_prive_key_metrics: { Args: { _days?: number }; Returns: Json }
       admin_prive_metrics: { Args: { _days?: number }; Returns: Json }
       admin_prive_product_metrics: { Args: { _days?: number }; Returns: Json }
@@ -8284,6 +8390,7 @@ export type Database = {
           trip_id: string
         }[]
       }
+      my_team_requests: { Args: never; Returns: Json }
       normalize_email: { Args: { _email: string }; Returns: string }
       notify_admins: {
         Args: { _body: string; _dedup_key: string; _title: string }
@@ -8303,6 +8410,21 @@ export type Database = {
       ocultar_social: {
         Args: { p_clave: string; p_ocultar?: boolean }
         Returns: Json
+      }
+      ops_owner_alert_claim: { Args: { _id: string }; Returns: Json }
+      ops_owner_alert_finish: {
+        Args: { _email_id?: string; _error?: string; _id: string; _ok: boolean }
+        Returns: Json
+      }
+      ops_owner_alerts_due: { Args: { _limit?: number }; Returns: Json }
+      ops_stage: {
+        Args: {
+          _source: string
+          _status: string
+          _taken?: boolean
+          _type: string
+        }
+        Returns: string
       }
       plan_limit: { Args: { _kind: string; _user_id: string }; Returns: Json }
       preguntar_actividad: {
@@ -8987,6 +9109,17 @@ export type Database = {
           profile_id: string
         }[]
       }
+      team_reply_email_claim: { Args: { _reply_id: string }; Returns: Json }
+      team_reply_email_finish: {
+        Args: {
+          _email_id?: string
+          _error?: string
+          _ok: boolean
+          _reply_id: string
+        }
+        Returns: Json
+      }
+      team_reply_emails_due: { Args: { _limit?: number }; Returns: Json }
       tracked_flight_gap: {
         Args: {
           p_departure_at?: string
