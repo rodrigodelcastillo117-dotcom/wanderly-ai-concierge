@@ -565,7 +565,8 @@ export const fmtSpecDate = fmtDate;
 
 /** "Crucero: Yeda → Ciudad del Cabo · 1 dic 2027 – 15 dic 2027 · MSC" */
 export function cruiseLine(c: Cruise | null, from?: string | null, to?: string | null): string {
-  const a = c?.puerto_salida || from || "puerto por confirmar";
+  // Sin puerto escrito no se usa la parada anterior (Riad no tiene puerto): se pregunta.
+  const a = c?.puerto_salida || "puerto por confirmar";
   const b = c?.puerto_llegada || to || "puerto por confirmar";
   const dates = c?.fecha_salida && c?.fecha_llegada ? `${fmtDate(c.fecha_salida)} – ${fmtDate(c.fecha_llegada)}`
     : c?.fecha_salida ? `sale ${fmtDate(c.fecha_salida)}` : c?.noches ? `${c.noches} noches` : "fechas por confirmar";
@@ -578,7 +579,7 @@ export function describeSpec(spec: TripSpec): string {
   let prev: string | null = null;
   for (const s of spec.paradas) {
     if (s.llegada_por === "crucero") {
-      parts.push(`crucero (${s.crucero?.puerto_salida || prev || "puerto por confirmar"} → ${s.crucero?.puerto_llegada || s.ciudad})`);
+      parts.push(`crucero (${s.crucero?.puerto_salida || "puerto por confirmar"} → ${s.crucero?.puerto_llegada || s.ciudad})`);
     } else if (s.llegada_por === "tren" || s.llegada_por === "coche" || s.llegada_por === "ferry") {
       parts.push(`${s.llegada_por}`);
     }
@@ -656,7 +657,7 @@ export function routeOfSpec(spec: TripSpec): SpecRoute {
       const cn = c?.noches ?? isoNights(c?.fecha_salida ?? null, c?.fecha_llegada ?? null) ?? 0;
       seaLegs.push({
         index: j - 1, tipo: s.llegada_por, naviera: c?.naviera ?? null,
-        puerto_salida: c?.puerto_salida ?? stays[j - 1].ciudad, puerto_llegada: c?.puerto_llegada ?? s.ciudad,
+        puerto_salida: c?.puerto_salida ?? (stays[j - 1].es_puerto ? stays[j - 1].ciudad : "puerto por confirmar"), puerto_llegada: c?.puerto_llegada ?? s.ciudad,
         fecha_salida: c?.fecha_salida ?? null, fecha_llegada: c?.fecha_llegada ?? null, noches: s.llegada_por === "crucero" ? cn : 0,
       });
       modes.push("tren"); // marcador: logistics-plan lo reemplaza por el tramo por mar

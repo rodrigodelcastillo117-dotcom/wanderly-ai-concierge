@@ -369,3 +369,13 @@ describe("texto original, límites y fallas", () => {
     expect(routeOfSpec(s).kind).toBe("preguntas");
   });
 });
+
+describe("crucero sin puerto escrito (Riad no tiene puerto)", () => {
+  it("no usa una parada de tierra adentro como puerto de salida", async () => {
+    const { cruiseLine } = await import("../../supabase/functions/_shared/tripSpec");
+    expect(cruiseLine(null, "Riad", "Ciudad del Cabo")).toContain("puerto por confirmar → Ciudad del Cabo");
+    expect(cruiseLine(null, "Riad", "Ciudad del Cabo")).not.toContain("Riad");
+    expect(cruiseLine({ naviera: null, barco: null, puerto_salida: "Yeda", puerto_llegada: null, fecha_salida: null, fecha_llegada: null, noches: null }, "Riad", "Ciudad del Cabo"))
+      .toContain("Yeda → Ciudad del Cabo");
+  });
+});
