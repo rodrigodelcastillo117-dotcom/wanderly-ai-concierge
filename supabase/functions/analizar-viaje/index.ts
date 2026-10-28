@@ -1105,6 +1105,13 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // Con trip_id se actualiza ese viaje (mismo id: diario, packing, split, gastos y colaboradores
     // se conservan; user_id nunca se toca). Sin trip_id se crea como siempre. RLS vuelve a exigir
     // que el usuario tenga acceso al UPDATE.
+    // Re-análisis en sitio: conserva el texto original y sus revisiones (itinerario_json.consulta);
+    // si no, al reescribir el itinerario como lista se perdía lo que la persona escribió.
+    if (targetTripId) {
+      const { data: prev } = await supabase.from("trips").select("itinerario_json").eq("id", targetTripId).maybeSingle();
+      const consulta = prev?.itinerario_json && !Array.isArray(prev.itinerario_json) ? (prev.itinerario_json as Record<string, unknown>).consulta : undefined;
+      if (consulta) (tripFields as Record<string, unknown>).itinerario_json = { days: Array.isArray(a.itinerario) ? a.itinerario : [], consulta };
+    }
     const { data: trip, error: insertErr } = targetTripId
       ? await supabase
         .from("trips")

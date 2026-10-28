@@ -12,8 +12,8 @@ import { toast } from "sonner";
 import welcomeImg from "@/assets/onboarding-welcome.jpg";
 import tripImg from "@/assets/onboarding-trip.jpg";
 
-// Lo que lee evolucionar-dna del relato (seedText.slice(0, 1500)): se avisa, no se recorta lo guardado.
-const DNA_SEED_READ_MAX = 1500;
+// Lo que lee evolucionar-dna del relato (seedText.slice(0, 6000)): se avisa, no se recorta lo guardado.
+const DNA_SEED_READ_MAX = 6000;
 const CARDS = [
   "Amex Platinum",
   "Amex Centurion (Black)",

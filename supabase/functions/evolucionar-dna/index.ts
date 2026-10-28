@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
 
     // Lo que la persona contó de sus viajes en la bienvenida (antes se guardaba pero no se leía) y sus
     // tarjetas y programas de lealtad: señales fuertes para un usuario nuevo sin viajes en la app.
-    const seedText = String((typeof body.seed === "string" && body.seed.trim()) ? body.seed : (onboarding?.travel_dna_seed ?? "")).trim().slice(0, 1500);
+    const seedText = String((typeof body.seed === "string" && body.seed.trim()) ? body.seed : (onboarding?.travel_dna_seed ?? "")).trim().slice(0, 6000); // el onboarding ya avisa si pasa del máximo
     const lealtad = [
       ...(Array.isArray(onboarding?.selected_cards) ? onboarding.selected_cards : []).map((c: string) => `Tarjeta: ${c}`),
       ...(Array.isArray(onboarding?.selected_loyalty_airlines) ? onboarding.selected_loyalty_airlines : []).map((c: string) => `Aerolínea: ${c}`),
