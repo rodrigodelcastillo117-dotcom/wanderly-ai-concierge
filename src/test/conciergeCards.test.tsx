@@ -127,9 +127,9 @@ describe("FixerButton (B-12)", () => {
   it("guarda 'pendiente' y después el resultado real del envío", async () => {
     invoke.mockResolvedValueOnce({ data: { ok: true }, error: null });
     render(<FixerButton trip={{ id: "paris", destino: "París" }} />);
-    fireEvent.click(screen.getByRole("button", { name: /Fixer/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Hablar con una persona/ }));
     fireEvent.click(await screen.findByText("Crítico"));
-    fireEvent.click(screen.getByRole("button", { name: /Enviar al Fixer/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Enviar al equipo/ }));
     await waitFor(() => expect(updates.some((u) => u.table === "fixer_escalations")).toBe(true));
     const ins = inserts.find((i) => i.table === "fixer_escalations")!;
     expect(ins.row).toMatchObject({ status: "pendiente", trip_id: "paris", urgencia: "critica" });
@@ -140,9 +140,9 @@ describe("FixerButton (B-12)", () => {
     invoke.mockResolvedValueOnce({ data: null, error: new Error("resend down") });
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     render(<FixerButton trip={null} />);
-    fireEvent.click(screen.getByRole("button", { name: /Fixer/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Hablar con una persona/ }));
     fireEvent.click(await screen.findByText("Importante"));
-    fireEvent.click(screen.getByRole("button", { name: /Enviar al Fixer/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Enviar al equipo/ }));
     await waitFor(() => expect(updates.length).toBeGreaterThan(0));
     expect(updates[0].row).toEqual({ status: "email_fallido" });
     open.mockRestore();

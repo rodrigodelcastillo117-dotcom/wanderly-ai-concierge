@@ -121,12 +121,12 @@ describe("Gastos: el gasto se liga al viaje activo (y se puede cambiar)", () => 
 describe("Fixer sin viaje explícito recibe el viaje activo", () => {
   it("la escalación lleva el trip_id del viaje fijado", async () => {
     render(<FixerButton />);
-    fireEvent.click(screen.getByRole("button", { name: /Fixer/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Hablar con una persona/ }));
     fireEvent.click(await screen.findByText("Crítico"));
     // Esperar a que el viaje activo cargue antes de enviar.
     await waitFor(() => expect(db.tables.profiles).toBeTruthy());
     await new Promise((r) => setTimeout(r, 0));
-    fireEvent.click(screen.getByRole("button", { name: /Enviar al Fixer/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Enviar al equipo/ }));
     await waitFor(() => expect(db.inserts.find((i) => i.table === "fixer_escalations")).toBeTruthy());
     expect(db.inserts.find((i) => i.table === "fixer_escalations")!.row.trip_id).toBe(LIMA);
   });

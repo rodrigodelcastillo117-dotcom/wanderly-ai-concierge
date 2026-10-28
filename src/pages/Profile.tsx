@@ -104,7 +104,7 @@ const Profile = () => {
     try {
       const { error } = await supabase.functions.invoke("evolucionar-dna", { body: {} });
       if (error) throw error;
-      toast.success("Travel DNA actualizado");
+      toast.success("Perfil de viajero actualizado");
       reload();
       // refresh meta
       if (user) {
@@ -131,7 +131,7 @@ const Profile = () => {
   const evolucionMsg =
     divergencias[0] ??
     (dna && dna.tripCount > 0
-      ? `Tu estilo dominante: ${dna.dominant ? DNA_ARCHETYPES[dna.dominant].label.toLowerCase() : "por descubrir"}. Sigue viajando para refinar tu Travel DNA.`
+      ? `Tu estilo dominante: ${dna.dominant ? DNA_ARCHETYPES[dna.dominant].label.toLowerCase() : "por descubrir"}. Sigue viajando para refinar tu perfil de viajero.`
       : "Crea tu primer viaje para activar la evolución de tu avatar.");
 
   const diasDesde = (iso: string | null) => {
@@ -163,7 +163,7 @@ const Profile = () => {
             </h1>
             <p className="text-sm mb-1 flex items-center gap-1.5" data-testid="profile-dna-archetype">
               <Crown className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-              <span className="text-muted-foreground">Travel DNA:</span>
+              <span className="text-muted-foreground">Perfil de viajero:</span>
               <span className="gold-text font-medium">{dna?.dominant ? DNA_ARCHETYPES[dna.dominant].label : dna ? "por descubrir" : "…"}</span>
             </p>
             {user?.email && (
@@ -207,7 +207,7 @@ const Profile = () => {
               <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-2 flex items-center gap-2">
                 <Crown className="w-3 h-3" /> Tu identidad de viajero
               </p>
-              <h2 className="font-display text-3xl md:text-5xl">Tu Travel DNA</h2>
+              <h2 className="font-display text-3xl md:text-5xl">Tu perfil de viajero</h2>
               <p className="text-xs md:text-sm gold-text mt-2">
                 Evoluciona con cada viaje
                 {dnaMeta.version != null && <> · Versión {dnaMeta.version}</>}
@@ -220,7 +220,7 @@ const Profile = () => {
               className="bg-gradient-gold text-primary-foreground gold-glow"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${evolving ? "animate-spin" : ""}`} />
-              {evolving ? "Recalculando…" : "✨ Recalcular mi Travel DNA"}
+              {evolving ? "Recalculando…" : "✨ Recalcular mi perfil de viajero"}
             </Button>
           </div>
 
@@ -228,7 +228,7 @@ const Profile = () => {
             <InlineTooltip
               id="travel_dna_perfil"
               icon="✨"
-              text="Tu DNA evoluciona cada 3 viajes automáticamente. También lo puedes recalcular manual aquí."
+              text="Tu perfil de viajero evoluciona cada 3 viajes automáticamente. También lo puedes recalcular manual aquí."
               position="inline"
               onDismiss={tipDNA.dismiss}
             />
@@ -240,7 +240,7 @@ const Profile = () => {
               <TravelAvatarCinematic dna={dna} onEditAvatar={() => setOpenAvatar(true)} />
               <p className="text-xs text-muted-foreground mt-2 px-1">
                 {dna
-                  ? `${dna.tripCount} viajes · ${dna.visitCount} lugares · DNA evoluciona con cada experiencia`
+                  ? `${dna.tripCount} viajes · ${dna.visitCount} lugares · tu perfil evoluciona con cada experiencia`
                   : "Cargando tu identidad..."}
               </p>
             </div>
@@ -248,7 +248,7 @@ const Profile = () => {
             {/* DNA STATS */}
             <div className="glass-card rounded-3xl p-5">
               <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-3 flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3" /> Travel DNA
+                <Sparkles className="w-3 h-3" /> Perfil de viajero
               </p>
               {dna ? (
                 <TravelDNAStats dna={dna} />
@@ -305,7 +305,7 @@ const Profile = () => {
           </div>
 
           <p className="text-[11px] text-muted-foreground text-center">
-            Tu DNA se recalcula automáticamente cada 3 viajes. Si quieres forzarlo ahora, presiona aquí.
+            Tu perfil de viajero se recalcula automáticamente cada 3 viajes. Si quieres forzarlo ahora, presiona aquí.
           </p>
         </section>
 
@@ -332,7 +332,7 @@ const Profile = () => {
         <section>
           <div className="mb-6">
             <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Premium</p>
-            <h2 className="font-display text-3xl md:text-4xl mb-2">Bóveda de Beneficios</h2>
+            <h2 className="font-display text-3xl md:text-4xl mb-2">Tus tarjetas y programas</h2>
             <p className="text-muted-foreground">
               Guarda tus tarjetas, alianzas y programas de lealtad. IATOS AI los usará para encontrarte tarifas y
               privilegios que otros no ven.

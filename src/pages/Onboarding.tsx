@@ -291,7 +291,7 @@ const Onboarding = () => {
               </div>
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-primary">
-                  Paso 2 de 5 · Vault · Opcional
+                  Paso 2 de 5 · Tarjetas y programas · Opcional
                 </p>
                 <h2 className="font-display text-3xl text-foreground leading-tight">
                   ¿Qué tarjetas premium tienes?
@@ -340,7 +340,7 @@ const Onboarding = () => {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Solo guardamos el TIPO de tarjeta, nunca números. Tu Vault es privado.
+                Solo guardamos el TIPO de tarjeta, nunca números. Esta información es privada.
               </p>
 
               <Button
@@ -437,13 +437,13 @@ const Onboarding = () => {
 
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-primary text-center">
-                  Paso 4 de 5 · Travel DNA · Opcional
+                  Paso 4 de 5 · Perfil de viajero · Opcional
                 </p>
                 <h2 className="font-display text-3xl text-foreground leading-tight text-center">
                   Cuéntame de tu último gran viaje
                 </h2>
                 <p className="text-sm text-muted-foreground text-center">
-                  Esto entrena tu Travel DNA. Más natural = mejor.
+                  Esto entrena tu perfil de viajero. Más natural = mejor.
                 </p>
               </div>
 
@@ -462,7 +462,7 @@ const Onboarding = () => {
                 </div>
                 {dnaSeed.length > DNA_SEED_READ_MAX && (
                   <p className="text-xs text-amber-400/90" role="status" data-testid="dna-seed-aviso">
-                    Guardamos tu texto completo. Para tu Travel DNA, Iato lee los primeros {DNA_SEED_READ_MAX.toLocaleString("es-MX")} caracteres: pon lo más importante al principio.
+                    Guardamos tu texto completo. Para tu perfil de viajero, Iato lee los primeros {DNA_SEED_READ_MAX.toLocaleString("es-MX")} caracteres: pon lo más importante al principio.
                   </p>
                 )}
               </div>
@@ -479,7 +479,7 @@ const Onboarding = () => {
                   </>
                 ) : (
                   <>
-                    Crear mi Travel DNA
+                    Crear mi perfil de viajero
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </>
                 )}
@@ -540,7 +540,7 @@ const Onboarding = () => {
                       <div>
                         <div className="font-display text-lg text-foreground">Sorpréndeme</div>
                         <div className="text-sm text-muted-foreground mt-0.5">
-                          Iato propone 3 destinos basados en mi Travel DNA
+                          Iato propone 3 destinos basados en mi perfil de viajero
                         </div>
                       </div>
                     </div>

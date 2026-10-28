@@ -129,7 +129,7 @@ export function TripUnderstoodButton({ trip, className = "" }: Props) {
                 </>
               ) : (
                 <>
-                  {!saved?.consulta_original && <p className="mt-2 text-xs text-muted-foreground" data-testid="ne-sin-texto">Este viaje se armó antes de que guardáramos tu texto. Descríbelo como lo pensaste (paradas, crucero, regreso…).</p>}
+                  {!saved?.consulta_original && <p className="mt-2 text-xs text-muted-foreground" data-testid="ne-sin-texto">No tenemos el texto original de este viaje. Descríbelo como lo pensaste (paradas, crucero, regreso…).</p>}
                   {saved?.consulta_original && <p className="mt-2 text-xs text-muted-foreground">Tu texto original se conserva; esta versión corregida se guarda con la nueva revisión.</p>}
                   <Textarea aria-label="Describe tu viaje" rows={4} value={text} onChange={(e) => setText(e.target.value)} className="mt-2 bg-black/40 text-sm" data-testid="ne-textarea"
                     placeholder="Ej.: Arabia Saudita, luego un crucero hasta Cape Town y regreso por Londres, del 15 de noviembre al 19 de diciembre, 2 personas" />

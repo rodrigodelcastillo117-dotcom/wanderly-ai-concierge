@@ -85,6 +85,6 @@ export async function streamConcierge(req: StreamRequest, h: StreamHandlers): Pr
  */
 export function incompleteReplyText(partial: string, errorMessage: string): string {
   const t = String(partial ?? "").trim();
-  if (!t) return `${errorMessage} Puedes intentarlo de nuevo o tocar **Contactar Fixer**.`;
-  return `${t}\n\n_Respuesta incompleta: se cortó antes de terminar y sin verificar sus datos. Pídemela de nuevo o toca **Contactar Fixer**._`;
+  if (!t) return `${errorMessage} Puedes intentarlo de nuevo o tocar **Hablar con una persona**.`;
+  return `${t}\n\n_Respuesta incompleta: se cortó antes de terminar y sin verificar sus datos. Pídemela de nuevo o toca **Hablar con una persona**._`;
 }

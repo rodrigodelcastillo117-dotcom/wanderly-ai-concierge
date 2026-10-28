@@ -226,3 +226,16 @@ export function provenanceOf(input: ProvenanceInput, now: Date = new Date()): Pr
     trusted: false,
   };
 }
+
+/**
+ * Nombres técnicos de proveedores en texto que escribió la IA ("Google Flights y Google Hotels vía SerpApi",
+ * "Perplexity"): al mostrarlo se dicen en palabras de la persona. Solo cambia lo que se ve.
+ */
+export function plainProviderText(text: string | null | undefined): string {
+  return String(text ?? "")
+    .replace(/\s*\b(?:vía|via|a través de|con|de)\s+serp ?api\b/gi, "")
+    .replace(/\bserp ?api\s*\/\s*/gi, "")
+    .replace(/\s*\/\s*serp ?api\b/gi, "")
+    .replace(/\bserp ?api\b/gi, "Google")
+    .replace(/\bperplexity\b/gi, "una búsqueda web");
+}

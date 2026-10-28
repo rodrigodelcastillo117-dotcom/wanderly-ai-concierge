@@ -14,6 +14,7 @@ import {
 } from "@/lib/booking";
 import { isConfirmedBooking, type BookingLike } from "@/lib/bookingState";
 import { parseAviasalesSearch, parseBookingSearch, parseGoogleFlightsSearch } from "../../supabase/functions/_shared/booking/links.ts";
+import { displayAirlineName } from "@/lib/flightDisplay";
 import { airlineName } from "@/lib/airlines";
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { codeServesCity } from "../../supabase/functions/_shared/airports.ts";
@@ -218,7 +219,7 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
       } else items.push(base({
         key: `vuelo:${i}:${norm(v?.aerolinea)}`, kind: "vuelo", category: "flight",
         title: isGroundTripOption(v) ? `${v?.modo === "auto" || v?.mode === "coche" ? "En auto" : "Autobús"} · ${v?.aerolinea ?? ""}`.trim()
-          : `Vuelo · ${est || bad ? "aerolínea por confirmar" : v?.aerolinea ?? "Aerolínea por elegir"}`,
+          : `Vuelo · ${est || bad ? "aerolínea por confirmar" : displayAirlineName(v?.aerolinea) || "Aerolínea por elegir"}`,
         subtitle: tripRange,
         price: range ? null : pp ? pp * travelers : null, currency: "MXN",
         priceNote: range ? `$${Math.round(Number(v.precio_min)).toLocaleString("es-MX")}–$${Math.round(Number(v.precio_max)).toLocaleString("es-MX")} MXN por persona` : pp ? `${plural(travelers, "persona", "personas")} · $${Math.round(pp).toLocaleString("es-MX")} MXN c/u` : null,

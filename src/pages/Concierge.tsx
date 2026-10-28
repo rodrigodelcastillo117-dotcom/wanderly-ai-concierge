@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { RichCard, type ConciergeCard } from "@/components/concierge/ConciergeCards";
+import { TakeMeFromContext } from "@/components/concierge/TakeMeThereButton";
 import { IatoMemoryPanel } from "@/components/concierge/IatoMemoryPanel";
 import { SafeMarkdown } from "@/components/concierge/SafeMarkdown";
 import { TripContextSelector, type ContextTrip } from "@/components/concierge/TripContextSelector";
@@ -140,6 +141,10 @@ const Concierge = () => {
   const [tripsLoaded, setTripsLoaded] = useState(false);
   // E-13: viaje cuyo historial ya se cargó (undefined = ninguno todavía; null = "sin viaje").
   const historyFor = useRef<string | null | undefined>(undefined);
+  // Mensaje escrito en la caja "CONCIERGE IATO" de Inicio (?enviar=…): se envía solo, una vez, cuando ya
+  // se sabe el viaje en contexto y se cargó la conversación (así no la pisa ni se pierde el contexto).
+  const autoSend = useRef<string | null>((searchParams.get("enviar") ?? "").slice(0, 1000).trim() || null);
+  const [historyReady, setHistoryReady] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [weather, setWeather] = useState<{ temp: number; place: string } | null>(null);
   const [geoState, setGeoState] = useState<LocationState>("pending");
@@ -202,6 +207,7 @@ const Concierge = () => {
     loadConversation(supabase, user.id, key).then((restored) => {
       // Si mientras tanto cambió el viaje en contexto, esta respuesta ya no aplica.
       if (historyFor.current !== key) return;
+      setHistoryReady(true);
       // Al cambiar de viaje se reemplaza el historial mostrado; nunca se pisa lo que el usuario ya escribió.
       setMessages((prev) => (prev.some((m) => m.role === "user" && !m.id.startsWith("hist-"))
         ? prev
@@ -283,6 +289,7 @@ const Concierge = () => {
 
   // "Tu ubicación" es el respaldo del texto, no un lugar: no se manda como si lo fuera.
   const realPlace = weather?.place && weather.place !== "Tu ubicación" ? weather.place : undefined;
+  const takeMeFrom = useMemo(() => ({ coords: currentCoords, city: realPlace ?? trip?.destino ?? null }), [currentCoords, realPlace, trip?.destino]);
   const patchMsg = (id: string, fn: (m: Msg) => Msg) => setMessages((prev) => prev.map((m) => (m.id === id ? fn(m) : m)));
 
   const sendText = async (text: string, opts: { tripId?: string | null; intent?: string } = {}) => {
@@ -370,6 +377,23 @@ const Concierge = () => {
       notifyAccessChanged();
     }
   };
+
+  useEffect(() => {
+    const text = autoSend.current;
+    if (!text || !user || !allowed || !tripsLoaded || sending) return;
+    // Si la conversación tarda, no se espera para siempre: el mensaje sale igual.
+    if (!historyReady) {
+      const t = window.setTimeout(() => setHistoryReady(true), 4000);
+      return () => window.clearTimeout(t);
+    }
+    autoSend.current = null;
+    // Se quita de la URL: recargar o volver atrás no lo reenvía.
+    const sp = new URLSearchParams(searchParams);
+    sp.delete("enviar");
+    setSearchParams(sp, { replace: true });
+    void sendText(text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, allowed, tripsLoaded, historyReady, sending]);
 
   const onChip = (c: Chip) => {
     setShowShortcuts(false);
@@ -459,6 +483,8 @@ const Concierge = () => {
   );
 
   return (
+    // "Llévame" elige a pie / transporte / coche con la ubicación que esta pantalla ya tiene (sin permisos nuevos).
+    <TakeMeFromContext.Provider value={takeMeFrom}>
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
         {/* ENCABEZADO compacto del chat (en Members Only se oculta para que la curaduría quepa sin bajar):
@@ -648,6 +674,7 @@ const Concierge = () => {
         <FlightStatusDialog open={showFlight} onClose={() => setShowFlight(false)} />
       </div>
     </DashboardLayout>
+    </TakeMeFromContext.Provider>
   );
 };
 

@@ -154,7 +154,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
       return;
     }
     if (!user) {
-      toast.error("Inicia sesión para contactar a tu Fixer");
+      toast.error("Inicia sesión para hablar con nuestro equipo");
       return;
     }
 
@@ -229,7 +229,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
         abrirMailtoFallback(nombre);
       } else {
         saveOutcome("email_enviado");
-        toast.success("Tu Fixer recibió tu solicitud", {
+        toast.success("Nuestro equipo recibió tu solicitud", {
           description: "Te responderá por email en cuanto esté disponible. El tiempo de respuesta depende de la disponibilidad del equipo.",
         });
       }
@@ -282,7 +282,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
                     <Phone className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.28em] text-primary">The Fixer</p>
+                    <p className="text-[10px] uppercase tracking-[0.28em] text-primary">Equipo IATOS</p>
                     <h3 id={titleId} className="font-display text-xl leading-tight">Asistencia humana</h3>
                   </div>
                 </div>
@@ -404,7 +404,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
                     className="h-11 rounded-full bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow"
                   >
                     {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
-                    Enviar al Fixer
+                    Enviar al equipo
                   </Button>
                 </div>
               )}
@@ -431,10 +431,11 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
         onClick={() => setOpen(true)}
         className={`${triggerClass} ${className}`}
         title="Asistencia humana por correo o teléfono, sujeta a disponibilidad del equipo"
+        aria-label="Hablar con una persona del equipo IATOS"
       >
         <Phone className="w-4 h-4 text-primary" />
-        <span className="hidden sm:inline">Contactar Fixer</span>
-        <span className="sm:hidden">Fixer</span>
+        <span className="hidden sm:inline">Hablar con una persona</span>
+        <span className="sm:hidden">Ayuda</span>
       </button>
       {typeof document !== "undefined" ? createPortal(modal, document.body) : modal}
     </>

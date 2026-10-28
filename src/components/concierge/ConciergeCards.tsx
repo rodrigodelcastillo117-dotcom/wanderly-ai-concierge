@@ -280,7 +280,7 @@ function RequestNote({ state, folio, humanNotified, status, requestType }: {
       <p className="text-[11px] text-muted-foreground mt-1" role="status">
         Folio {folio}. {humanNotified
           ? "Un humano del equipo IATOS te responderá con disponibilidad y precio. Todavía no es una reserva."
-          : "Quedó registrada, pero no pudimos avisar al equipo al instante. Si no te respondemos pronto, usa \"Contactar Fixer\"."}
+          : "Quedó registrada, pero no pudimos avisar al equipo al instante. Si no te respondemos pronto, usa \"Hablar con una persona\"."}
       </p>
       </>
     );
@@ -611,7 +611,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             <CardLinks card={card} onOpen={onOpen} compact />
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
-              <RequestButton state={req.state} label="Pídeselo al Fixer" className="h-8 px-3 text-[11px] rounded-full"
+              <RequestButton state={req.state} label="Pídeselo al equipo" className="h-8 px-3 text-[11px] rounded-full"
                 onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
             </div>
           </>
@@ -620,7 +620,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
           {url ? (
             <ExternalCta card={card} label={card.cta_label ?? "Reservar"} onOpen={onOpen} className="min-h-[32px] px-3" />
           ) : (
-            <RequestButton state={req.state} label="Pídeselo al Fixer" className="h-8 px-3 text-[11px] rounded-full"
+            <RequestButton state={req.state} label="Pídeselo al equipo" className="h-8 px-3 text-[11px] rounded-full"
               onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
           )}
           <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
@@ -628,7 +628,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
         )}
         {!url && req.state !== "idle" && <RequestNote {...req} />}
         <BookingNote card={card} />
-        <p className="text-[10px] text-muted-foreground mt-1" title="Los enlaces abren la reserva o una búsqueda prellenada; el Fixer es una solicitud a un humano.">Aún no está reservado.</p>
+        <p className="text-[10px] text-muted-foreground mt-1" title="Los enlaces abren la reserva o una búsqueda prellenada; pedírselo al equipo es una solicitud a una persona.">Aún no está reservado.</p>
       </div>
     );
   }

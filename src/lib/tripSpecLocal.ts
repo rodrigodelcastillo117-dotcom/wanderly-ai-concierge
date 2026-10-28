@@ -16,6 +16,7 @@ import {
   addRequiredQuestions, emptyCruise, emptySpec, ensureCoverage, isoNights, makeStop, newId, normText,
   type Cruise, type LegMode, type MentionKind, type TripSpec,
 } from "../../supabase/functions/_shared/tripSpec.ts";
+import { autoResolveQuestions } from "@/lib/tripSpecAnswers";
 
 export type LocalContext = { origen?: string | null; fecha_salida?: string | null; fecha_regreso?: string | null; viajeros?: number | null; today?: Date };
 
@@ -254,5 +255,6 @@ export function finalizeSpec(spec: TripSpec, text: string, ctx: LocalContext = {
     out.preguntas = [...out.preguntas, { id: newId("q"), tipo: "fechas", texto: "fechas", pregunta: "¿Qué fechas? Elige salida y regreso.", opciones: [], parada: null, resuelta: false }];
   }
   if (out.fuente !== "local") ensureCoverage(out, localMentions(text).filter((m) => m.tipo !== "tramo" && m.tipo !== "origen"));
-  return out;
+  // Lo que el texto ya contesta no se pregunta ("¿Regresas en coche?" con "… en coche desde CDMX").
+  return autoResolveQuestions(out);
 }

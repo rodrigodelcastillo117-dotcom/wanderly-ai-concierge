@@ -71,7 +71,7 @@ export function buildChips(trip: ChipTrip | null, todayISO: string, opts: { away
 
 /** Saludo honesto con el viaje activo (antes: "listo para anticiparme a cualquier capricho"). */
 export function welcomeText(trip: ChipTrip | null): string {
-  const base = "Puedo revisar tu vuelo, buscar dónde comer o cómo llegar, agregar cosas a tu itinerario, registrar gastos o pedirle algo al Fixer. Nada se reserva ni se guarda sin que lo confirmes.";
+  const base = "Puedo revisar tu vuelo, buscar dónde comer o cómo llegar, agregar cosas a tu itinerario, registrar gastos o pedirle algo a nuestro equipo. Nada se reserva ni se guarda sin que lo confirmes.";
   if (!trip?.destino) return `Hola, soy Iato. ${base}`;
   return `Hola, soy Iato. Tengo a la mano tu viaje a ${tripLabel(trip as any)}. ${base}`;
 }

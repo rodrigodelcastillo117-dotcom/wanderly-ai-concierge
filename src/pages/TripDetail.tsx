@@ -17,6 +17,7 @@ import { airlineCode } from "@/lib/airlines";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
 import { LiveTripQuote } from "@/components/LiveTripQuote";
 import { RealTripTotal, tripTotals } from "@/components/RealTripTotal";
+import { tripPageTotals } from "@/lib/tripPageTotal";
 import { InviteFriendDialog } from "@/components/InviteFriendDialog";
 import { PriceWatchCard } from "@/components/PriceWatchCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,8 +39,8 @@ import { ImportedTripBanner } from "@/components/ImportedTripBanner";
 import { TripDocuments } from "@/components/TripDocuments";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
-import { isGroundTripOption, transportModeOf, tripCountryLabel, tripFlightProblems } from "@/lib/booking";
-import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightLiveLine, flightStopsLabel } from "@/lib/flightDisplay";
+import { isGroundTripOption, transportModeOf, tripCountryLabel } from "@/lib/booking";
+import { discardedFaresNotice, flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightLiveLine, flightStopsLabel } from "@/lib/flightDisplay";
 import { groundOptionsForCity, legOptionsFor } from "@/lib/multiDestTrip";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
@@ -52,10 +53,11 @@ import { SendSelectionEmail } from "@/components/booking/SendSelectionEmail";
 import { ConvertToRouteBanner, convertToRouteHref } from "@/components/route/ConvertToRouteBanner";
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
-import { quoteTrust } from "@/lib/quoteTrust";
-import { buildBuyFlow } from "@/lib/buyFlow";
+import { alignTrust, quoteTrust } from "@/lib/quoteTrust";
+import { plainProviderText } from "@/lib/provenance";
+import { buildBuyFlow, FLIGHT_TIER_WORD, TIER_WORD } from "@/lib/buyFlow";
 import { itemPurchaseState } from "@/lib/purchasePlan";
-import { tripTotalSummary } from "@/lib/tripTotal";
+import { estimatedRubros, tripTotalSummary } from "@/lib/tripTotal";
 import { budgetLabels, splitTripTotal, trustMatchesSplit } from "@/lib/totalSplit";
 import { arrivalByLand, isBusOption, isCarOption, isHiredCarOption } from "@/lib/groundTrip";
 import { GroundOptionInfo } from "@/components/booking/GroundOptionInfo";
@@ -370,30 +372,20 @@ const TripDetail = () => {
 
   // Si el usuario cambió viajeros, fechas, origen o destino después de cotizar, el total guardado es para la base
   // anterior: se muestra para esa base (sin repartirlo entre el nuevo número de viajeros) y se
-  // pide actualizar la cotización.
+  // pide actualizar la cotización. Todo el cálculo vive en tripPageTotals (el mismo de Inicio y Mis viajes).
   const currentSel = trip ? serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles }) : null;
-  const staleness = quoteStaleness(trip ? { ...trip, selections: currentSel } : trip, quote);
-  const quoteTravelers = staleness.stale && staleness.basis ? staleness.basis.travelers : viajeros;
-  const quoteNights = staleness.stale && staleness.basis?.dateFrom && staleness.basis?.dateTo
-    ? tripNights({ fecha_salida: staleness.basis.dateFrom, fecha_regreso: staleness.basis.dateTo }, itinDays.length)
-    : noches;
+  const page = useMemo(
+    () => tripPageTotals(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles }, quote),
+    [trip, selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles, quote],
+  );
+  const { staleness, quoteTravelers, quoteNights, nochesEfectivas, pageSelDesglose } = page;
   const validity = quoteValidity(trip, quote);
 
-  const nochesEfectivas = nochesHospedaje ?? quoteNights;
-
   // Recalcular desglose en base a selecciones (-2 = "ya lo tengo / no aplica")
-  const computedDesglose = useMemo(
-    () => computeTripDesglose(trip, { selVuelo, selHospedaje, nochesHospedaje: nochesEfectivas, selTours, selHoteles }, quoteTravelers),
-    [trip, selVuelo, selHospedaje, selTours, selHoteles, quoteTravelers, nochesEfectivas],
-  );
-
-  const computedTotal = Object.values(computedDesglose).reduce((s: number, v) => s + Number(v ?? 0), 0);
+  const computedDesglose = page.desglose;
+  const computedTotal = page.computedTotal;
 
   // Total que muestra la página (RealTripTotal recibe exactamente estos argumentos).
-  // Sin selección, el desglose recalculado puede diferir del guardado (viaje corto: el coche suma casetas +
-  // gasolina, no el precio de la IA): entonces la cifra grande usa el recalculado, igual que la barra y Comprar.
-  const recalculated = !!trip && Object.keys(computedDesglose).some((k) => Math.round(Number(computedDesglose[k]) || 0) !== Math.round(Number(trip.desglose_presupuesto?.[k]) || 0));
-  const pageSelDesglose = currentSel || recalculated ? computedDesglose : null;
   const pageTotalsOf = (t: any) => tripTotals(t, quoteTravelers, pageSelDesglose);
 
   // Lo mismo que muestra "Comprar" (buildBuyFlow): qué está elegido y qué ya se compró.
@@ -427,7 +419,8 @@ const TripDetail = () => {
 
   const rubroLabels = budgetLabels(trip);
   const trust = quoteTrust(quote, new Date(), rubroLabels);
-  const discardedFares = (trip.vuelos_json ?? []).filter((v: any) => tripFlightProblems(v, trip).length > 0).length;
+  // "Descartamos 1 tarifa…": "queda por cotizar" solo si no queda ningún vuelo de la ruta con precio.
+  const discardedNotice = discardedFaresNotice(trip);
   // "Ya tengo mi viaje": vuelos y hotel los trajo la persona; no hay cotización que mostrar ni buscar.
   const brought = isBroughtTrip(trip);
   const hasQuotedTotal = !brought && !!(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0);
@@ -445,7 +438,12 @@ const TripDetail = () => {
   const pageTotal = hasQuotedTotal ? pageTotalsOf(trip).total : 0;
   // Los renglones de la cotización solo se muestran si suman lo mismo que el total de arriba (si no,
   // serían una segunda cifra sin explicación).
-  const trustForTotal = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal) && trustMatchesSplit(trust, totalSplit) ? trust : null;
+  // Una sola fuente para "en vivo"/"estimado": el desglose y los renglones de la cotización usan la misma
+  // lista de rubros estimados (estimatedRubros) — antes uno decía "en vivo" y el otro "estimado".
+  const sameAmounts = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal);
+  const estimatedKeys = estimatedRubros(totalSummary, sameAmounts ? trust : null);
+  const alignedTrust = alignTrust(trust, estimatedKeys);
+  const trustForTotal = sameAmounts && trustMatchesSplit(alignedTrust, totalSplit) ? alignedTrust : null;
   const stickyTotal = hasQuotedTotal && totalSummary.total > 0 ? totalSummary.barTotal : null;
   // "Actualizar cotización" (y la barra fija del celular) siguen al cálculo de la página: elegir otra
   // opción no lo pide aunque trips.quote_needs_update (trigger anterior, por la selección) siga en true.
@@ -662,9 +660,9 @@ const TripDetail = () => {
 
 
         {/* Tarifas guardadas que eran de otra ruta: se descartan y se dice (nunca se muestran como vuelo del viaje). */}
-        {discardedFares > 0 && (
+        {discardedNotice && (
           <div role="status" data-testid="trip-tarifas-descartadas" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-500">
-            Descartamos {discardedFares === 1 ? "1 tarifa de vuelo" : `${discardedFares} tarifas de vuelo`} de esta cotización porque no eran de tu ruta. El vuelo queda por cotizar: búscalo en “Comprar mi viaje” o actualiza la cotización.
+            {discardedNotice}
           </div>
         )}
 
@@ -677,7 +675,7 @@ const TripDetail = () => {
                 <div className="mt-4 border-t border-border/40 pt-3" data-testid="brought-elegido">
                   <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">Lo que elegiste en IATOS</p>
                   <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
-                    embedded estimatedKeys={totalSummary.estimatedKeys} labels={rubroLabels} />
+                    embedded estimatedKeys={estimatedKeys} labels={rubroLabels} />
                 </div>
               )}
             </BroughtTripSummary>
@@ -700,7 +698,7 @@ const TripDetail = () => {
               {/* Un solo desglose, plegado bajo el mismo total (sin repetir título ni cifra). */}
               {computedTotal > 0 ? (
                 <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
-                  embedded estimatedKeys={totalSummary.estimatedKeys} labels={rubroLabels} />
+                  embedded estimatedKeys={estimatedKeys} labels={rubroLabels} />
               ) : null}
             </RealTripTotal>
           ) : (
@@ -775,6 +773,7 @@ const TripDetail = () => {
           {(trip as any).fuente !== "documento" && (hasQuotedTotal || brought) ? (
             <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
+              quoteFx={quote && Number(quote.fx_rate) > 0 ? { rate: Number(quote.fx_rate), label: `1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · tipo de cambio de la cotización (${quote.fx_is_fallback ? "de respaldo" : quote.fx_source}, ${formatInstant(quote.fx_at)})` } : null}
               marksState={purchaseMarks}
               onSelectVuelo={(i) => setSelVuelo(i)}
               onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => withCityHotel(prev, c, i)) : setSelHospedaje(i))}
@@ -1021,7 +1020,7 @@ const TripDetail = () => {
               {trip.tips_personalizados.map((t: string, i: number) => (
                 <div key={i} className="flex gap-3">
                   <span className="font-display gold-text text-lg flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
-                  <p className="text-sm text-foreground/90 leading-relaxed">{t}</p>
+                  <p className="text-sm text-foreground/90 leading-relaxed">{plainProviderText(t)}</p>
                 </div>
               ))}
             </div>
@@ -1168,7 +1167,7 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 
           </div>
         )}
         <div className="min-w-0">
-          <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{modeLabel}{option.tier ? ` · ${option.tier}` : ""}</p>
+          <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{modeLabel}{option.tier ? ` · ${(mode === "vuelo" ? FLIGHT_TIER_WORD : TIER_WORD)[String(option.tier).toLowerCase()] ?? option.tier}` : ""}</p>
           <p className="font-medium text-sm">{airline}</p>
         </div>
       </div>

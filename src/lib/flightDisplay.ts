@@ -3,7 +3,7 @@
 // Caso Roma → Florencia → Venecia (22-oct-2026): filas "estimado" generadas por IA decían
 // "Iberia · Directo · 15h 20m" (Iberia no vuela directo MEX→Roma) como si fuera un dato. Una fila
 // estimada no nombra aerolínea ni dice "Directo": "Aerolínea por confirmar" y "Escalas por confirmar".
-import { isEstimatedTripFlight, isGroundTripOption } from "@/lib/booking";
+import { isEstimatedTripFlight, isGroundTripOption, tripFlightProblems } from "@/lib/booking";
 import { airportCityName } from "../../supabase/functions/_shared/airports.ts";
 import { layoverCodesFromAviasalesLink } from "../../supabase/functions/_shared/fareGuard.ts";
 import { frescuraPrecio } from "../../supabase/functions/_shared/priceFreshness.ts";
@@ -11,11 +11,44 @@ import { frescuraPrecio } from "../../supabase/functions/_shared/priceFreshness.
 /** ¿Es un estimado de IA (sin tarifa de un proveedor)? */
 export const flightIsEstimate = (v: any) => !isGroundTripOption(v) && isEstimatedTripFlight(v);
 
+/**
+ * Nombre de aerolínea como se escribe en español ("Aeromexico" de Google Flights → "Aeroméxico"), para que
+ * la misma aerolínea no salga escrita de dos formas en la misma pantalla. Solo cambia lo que se muestra.
+ */
+const AIRLINE_DISPLAY: Array<[RegExp, string]> = [
+  [/\baerom[eé]xico\b/gi, "Aeroméxico"],
+  [/\bviva ?aerob[uú]s\b/gi, "Viva Aerobus"],
+  [/\bvolaris\b/gi, "Volaris"],
+];
+export function displayAirlineName(name: string | null | undefined): string {
+  let out = String(name ?? "").trim();
+  for (const [re, fixed] of AIRLINE_DISPLAY) out = out.replace(re, fixed);
+  return out;
+}
+
+/**
+ * Aviso de tarifas descartadas (caso E2E 28-oct-2026, Nueva York): decía "El vuelo queda por cotizar"
+ * junto a "Vuelos · en vivo $18,930 MXN" incluido en el total. Solo se dice "por cotizar" si de verdad no
+ * queda ningún vuelo de la ruta con precio; si queda, solo que se descartó la tarifa. null = sin aviso.
+ */
+export function discardedFaresNotice(trip: any): string | null {
+  const rows: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
+  const discarded = rows.filter((v) => tripFlightProblems(v, trip).length > 0).length;
+  if (!discarded) return null;
+  const priced = (v: any) => Number(v?.precio_por_persona) > 0 || Number(v?.precio_total) > 0 || Number(v?.price_total_mxn) > 0;
+  const remaining = rows.some((v) => tripFlightProblems(v, trip).length === 0 && priced(v));
+  const what = discarded === 1 ? "1 tarifa de vuelo" : `${discarded} tarifas de vuelo`;
+  const why = discarded === 1 ? "no era de tu ruta" : "no eran de tu ruta";
+  return remaining
+    ? `Descartamos ${what} de esta cotización porque ${why}. Los vuelos que ves sí son de tu ruta.`
+    : `Descartamos ${what} de esta cotización porque ${why}. El vuelo queda por cotizar: búscalo en “Comprar mi viaje” o actualiza la cotización.`;
+}
+
 /** Aerolínea que se puede mostrar: la de una tarifa real; en un estimado, "Aerolínea por confirmar". */
 export function flightAirlineLabel(v: any): string {
   if (isGroundTripOption(v)) return String(v?.aerolinea ?? v?.provider ?? "Transporte");
   if (flightIsEstimate(v)) return "Aerolínea por confirmar";
-  return String(v?.aerolinea ?? "").trim() || "Aerolínea por confirmar";
+  return displayAirlineName(v?.aerolinea) || "Aerolínea por confirmar";
 }
 
 /** Ciudades de escala conocidas de una opción: las guardadas o las del enlace de Aviasales. */

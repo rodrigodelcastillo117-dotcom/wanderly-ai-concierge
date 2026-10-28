@@ -125,8 +125,8 @@ export const Privacidad = () => (
       <h2>2. Datos que recabamos</h2>
       <ul>
         <li><strong>Cuenta:</strong> nombre, correo electrónico, ciudad de origen, fecha de nacimiento (opcional) y foto de perfil.</li>
-        <li><strong>Preferencias de viaje (Travel DNA):</strong> gustos gastronómicos, restricciones alimentarias, ritmo de viaje, presupuesto y programas de lealtad que decidas registrar.</li>
-        <li><strong>Bóveda:</strong> los documentos de viaje que decidas guardar (pasaporte, visas, INE, licencia, certificados de vacunación y pólizas de seguro, con su número, vigencia y, si quieres, su foto o PDF), tus membresías y programas de lealtad con sus beneficios, y el nombre y nivel de tus tarjetas (a lo mucho sus últimos 4 dígitos). <strong>Nunca pedimos ni almacenamos números completos de tarjeta, CVV ni fechas de vencimiento de tarjetas.</strong> Las fotos y PDF se guardan en almacenamiento privado al que solo tú accedes, y a las fotos les quitamos la ubicación y otros datos ocultos antes de subirlas. Tus documentos, sus fotos y sus números no se envían a proveedores de IA: para personalizar recomendaciones solo usamos el nombre, el nivel y los beneficios de tus membresías, tarjetas y seguros.</li>
+        <li><strong>Preferencias de viaje (tu perfil de viajero):</strong> gustos gastronómicos, restricciones alimentarias, ritmo de viaje, presupuesto y programas de lealtad que decidas registrar.</li>
+        <li><strong>Documentos y tarjetas:</strong> los documentos de viaje que decidas guardar (pasaporte, visas, INE, licencia, certificados de vacunación y pólizas de seguro, con su número, vigencia y, si quieres, su foto o PDF), tus membresías y programas de lealtad con sus beneficios, y el nombre y nivel de tus tarjetas (a lo mucho sus últimos 4 dígitos). <strong>Nunca pedimos ni almacenamos números completos de tarjeta, CVV ni fechas de vencimiento de tarjetas.</strong> Las fotos y PDF se guardan en almacenamiento privado al que solo tú accedes, y a las fotos les quitamos la ubicación y otros datos ocultos antes de subirlas. Tus documentos, sus fotos y sus números no se envían a proveedores de IA: para personalizar recomendaciones solo usamos el nombre, el nivel y los beneficios de tus membresías, tarjetas y seguros.</li>
         <li><strong>Fotografías para tu avatar:</strong> si subes una selfie para generar tu avatar, la imagen se procesa con nuestro proveedor de IA para crear el avatar y no se usa para entrenar modelos ni se comparte con terceros con fines publicitarios. Puedes eliminar tu avatar y tu foto desde tu perfil.</li>
         <li><strong>Contenido de viajes:</strong> destinos, fechas, itinerarios, gastos, notas y conversaciones con el Concierge.</li>
         <li><strong>Datos técnicos:</strong> dirección IP, tipo de dispositivo y registros de error para seguridad y diagnóstico.</li>
@@ -136,7 +136,7 @@ export const Privacidad = () => (
     <section>
       <h2>3. Para qué los usamos</h2>
       <ul>
-        <li>Personalizar itinerarios y recomendaciones (Travel DNA).</li>
+        <li>Personalizar itinerarios y recomendaciones (tu perfil de viajero).</li>
         <li>Operar tu suscripción y facturación.</li>
         <li>Enviarte notificaciones sobre tus viajes y tu cuenta.</li>
         <li>Detectar abuso, fraude y errores de la plataforma.</li>

@@ -119,7 +119,7 @@ export function ActionButton({
     (type === "welcome_pickups_transfer"
       ? "Reservar con Welcome Pickups"
       : type === "fixer_escalation"
-        ? "Contactar Fixer"
+        ? "Hablar con una persona"
         : "Continuar");
 
   return (

@@ -40,3 +40,18 @@ export function homeTrips<T extends TripLike>(trips: T[], todayLocal: string, pi
     resolved,
   };
 }
+
+/**
+ * Viaje del centro de mando de Inicio ("En vivo" / "Próximo viaje"). Caso E2E 28-oct-2026: "PRÓXIMO VIAJE"
+ * decía Madrid (en 133 días, el viaje fijado en Iato) cuando Valle de Bravo salía en 2 días. El viaje
+ * activo manda solo si está en curso; si no, el próximo es el de fecha de salida futura más cercana. Sin
+ * viajes con fecha futura, el activo (si no terminó).
+ */
+export function homeCommandTrip<T extends TripLike>(trips: T[], todayLocal: string, activeTrip: T | null): T | null {
+  if (activeTrip && isTripInProgress(activeTrip, todayLocal)) return activeTrip;
+  const future = (trips ?? [])
+    .filter((t) => t && t.id && t.fecha_salida && diffLocalDays(todayLocal, String(t.fecha_salida)) >= 0 && !isTripEnded(t, todayLocal))
+    .sort(bySalida);
+  if (future.length) return future[0];
+  return activeTrip && !isTripEnded(activeTrip, todayLocal) ? activeTrip : null;
+}

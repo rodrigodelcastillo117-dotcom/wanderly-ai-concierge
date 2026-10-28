@@ -760,6 +760,22 @@ export function withConsulta(itinerario: unknown, consulta: SavedConsulta): Reco
   return { days: [], consulta };
 }
 
+/**
+ * La consulta que manda el cliente junto a la petición de generación (analizar-viaje la guarda al crear el
+ * viaje: si la pestaña se cierra mientras se genera, el texto original ya no se pierde). null si no es una
+ * consulta válida o es demasiado grande.
+ */
+export function sanitizeSavedConsulta(raw: unknown): SavedConsulta | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const c = raw as Record<string, unknown>;
+  if (typeof c.consulta_original !== "string" || !c.consulta_original.trim() || c.consulta_original.length > 8000) return null;
+  if (!c.interpretacion || typeof c.interpretacion !== "object") return null;
+  let size = 0;
+  try { size = JSON.stringify(raw).length; } catch { return null; }
+  if (size > 200_000) return null;
+  return raw as SavedConsulta;
+}
+
 export function consultaOf(trip: { itinerario_json?: unknown } | null | undefined): SavedConsulta | null {
   const it = trip?.itinerario_json as Record<string, unknown> | null | undefined;
   const c = it && typeof it === "object" && !Array.isArray(it) ? (it.consulta as SavedConsulta | undefined) : undefined;

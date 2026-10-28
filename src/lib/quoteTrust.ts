@@ -58,6 +58,11 @@ export function quoteTrust(snapshot: SnapshotLike, now: Date = new Date(), label
     const category = String(it?.category ?? "");
     lines.push({ category, label: labels[category] || it?.label || LABELS[category] || category, amount, trust });
   }
+  return summarizeTrust(lines);
+}
+
+/** Totales y frase de unos renglones ya etiquetados. */
+function summarizeTrust(lines: TrustLine[]): QuoteTrust {
   const sum = (t: TrustLine["trust"]) => lines.filter((l) => l.trust === t).reduce((s, l) => s + l.amount, 0);
   const verified = sum("verificado");
   const estimated = sum("estimado");
@@ -70,4 +75,16 @@ export function quoteTrust(snapshot: SnapshotLike, now: Date = new Date(), label
   if (toVerify > 0) parts.push(`${fmt(toVerify)} por volver a verificar`);
   if (estimated > 0) parts.push(`${fmt(estimated)} estimado`);
   return { known: true, verified, estimated, toVerify, lines, summary: `${parts.join(" · ")}.` };
+}
+
+/**
+ * Los renglones de la cotización con la MISMA etiqueta que el desglose del total (caso E2E 28-oct-2026,
+ * Nueva York: "Hospedaje · en vivo $25,060" arriba y "Hospedaje $25,060 estimado" en "Ver desglose del
+ * total"). `estimatedKeys` sale de estimatedRubros (tripTotal.ts): un rubro en esa lista es "estimado" en
+ * los dos lugares; los demás conservan lo que dijo la cotización.
+ */
+export function alignTrust(trust: QuoteTrust, estimatedKeys: string[]): QuoteTrust {
+  if (!trust.known) return trust;
+  const set = new Set(estimatedKeys);
+  return summarizeTrust(trust.lines.map((l) => (set.has(l.category) ? { ...l, trust: "estimado" as const } : l)));
 }

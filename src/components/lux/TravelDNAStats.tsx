@@ -69,7 +69,7 @@ export const TravelDNAStats = ({ dna }: { dna: Pick<DNAResult, "stats" | "fuente
       <div className="rounded-2xl border border-dashed border-primary/30 p-4 space-y-2" data-testid="dna-sin-datos">
         <p className="font-display text-lg text-foreground">Aún no hay datos</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Tu Travel DNA se llena con tus viajes: los que haces con IATOS y los que ya hiciste. Sube los boletos o reservas de un viaje pasado y lo calculamos.
+          Tu perfil de viajero se llena con tus viajes: los que haces con IATOS y los que ya hiciste. Sube los boletos o reservas de un viaje pasado y lo calculamos.
         </p>
         <Link to="/dashboard/viajes/importar" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
           <FileUp className="w-3.5 h-3.5" aria-hidden="true" /> Sube un viaje que ya hiciste

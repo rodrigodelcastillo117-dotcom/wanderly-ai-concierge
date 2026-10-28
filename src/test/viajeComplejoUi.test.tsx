@@ -101,6 +101,8 @@ describe("¿No entendimos bien tu viaje?", () => {
     fireEvent.click(await screen.findByTestId("no-entendimos"));
     const dlg = await screen.findByTestId("no-entendimos-dialog");
     expect(within(dlg).getByTestId("ne-sin-texto")).toBeInTheDocument();
+    // Defecto 20 (E2E 28-oct-2026): no se afirma cuándo se armó el viaje; solo que falta el texto.
+    expect(within(dlg).getByTestId("ne-sin-texto")).toHaveTextContent(/^No tenemos el texto original de este viaje\./);
     // Lo entendido hoy: un solo lugar.
     expect(within(dlg).getByTestId("spec-entendi")).toHaveTextContent("Ciudad de México → Arabia Saudita → Ciudad de México");
 

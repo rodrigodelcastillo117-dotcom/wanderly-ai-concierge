@@ -152,7 +152,10 @@ export async function generateFromSpec(client: Client, spec: TripSpec, o: Genera
       notas_usuario: [`Lo que escribió el viajero: ${spec.consulta_original.slice(0, 1500)}`, r.notas].filter((x) => x && x.trim()).join("\n"),
     };
     const request_key = getRequestKey("analizar-viaje", args);
-    const { data, error } = await client.functions.invoke("analizar-viaje", { body: { ...args, request_key } });
+    // El texto original y la interpretación viajan CON la petición: analizar-viaje los guarda al crear el
+    // viaje (si la pestaña se cierra mientras se genera, ya no se pierden). La actualización de abajo queda
+    // como respaldo para una versión del servidor que aún no lo guarde.
+    const { data, error } = await client.functions.invoke("analizar-viaje", { body: { ...args, request_key, consulta } });
     if (error) throw error;
     if (!data?.trip?.id) throw new Error("Sin resultado");
     clearRequestKey("analizar-viaje");
