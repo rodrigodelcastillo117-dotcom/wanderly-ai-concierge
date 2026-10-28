@@ -10,6 +10,7 @@
 import { arrivalByLand } from "@/lib/groundTrip";
 import { diffLocalDays } from "@/lib/localDate";
 import { LIVE_TTL_HOURS } from "@/lib/provenance";
+import { describeQuoteChanges, quoteChanges, quoteNeedsUpdate } from "@/lib/quoteChanges";
 
 export type TripPhase = "sin_fecha" | "proximo" | "en_curso" | "terminado";
 
@@ -60,13 +61,15 @@ type QuoteLike = { created_at?: string | null; valid_until?: string | null } | n
  * se sabe cuándo se guardó el viaje y pasadas 24 h se pide revisar (mismo criterio que quote.ts).
  */
 export function quoteFreshness(
-  trip: { total_estimado?: number | string | null; quote_needs_update?: boolean | null; created_at?: string | null } | null | undefined,
+  trip: { total_estimado?: number | string | null; quote_needs_update?: boolean | null; created_at?: string | null; quote_basis?: unknown } | null | undefined,
   quote: QuoteLike,
   now: Date = new Date(),
 ): QuoteFreshness {
   const total = Number(trip?.total_estimado) || 0;
   if (!(total > 0) && !quote) return { status: "sin_cotizacion", label: "Aún sin cotización" };
-  if (trip?.quote_needs_update) return { status: "por_revisar", label: "Cambiaste el viaje: actualiza la cotización" };
+  if (quoteNeedsUpdate(trip)) {
+    return { status: "por_revisar", label: `${describeQuoteChanges(quoteChanges(trip)) ?? "Cambiaste el viaje"}: actualiza la cotización` };
+  }
   const quotedRaw = quote?.created_at ?? trip?.created_at ?? null;
   const quotedAt = quotedRaw ? new Date(quotedRaw) : null;
   const q = quotedAt && Number.isFinite(quotedAt.getTime()) ? quotedAt : null;
@@ -106,6 +109,11 @@ export type NextActionInput = {
   fecha_regreso?: string | null;
   total_estimado?: number | string | null;
   quote_needs_update?: boolean | null;
+  /** Con qué se cotizó (viajeros, fechas, origen, destino); con ella se calcula si hay que re-cotizar. */
+  quote_basis?: unknown;
+  num_viajeros?: number | null;
+  ciudad_origen?: string | null;
+  destino?: string | null;
   created_at?: string | null;
   /** Un viaje traído ("Ya tengo mi viaje") lleva itinerario_json.traido = true. */
   itinerario_json?: unknown;
@@ -141,8 +149,11 @@ export function nextTripAction(trip: NextActionInput, opts: { today: string; now
   if (fresh.status === "sin_cotizacion") {
     return { key: "cotizar", title: "Cotiza tu viaje", detail: "Aún no hay precios de vuelo ni hospedaje para este viaje.", cta: "Ver opciones y cotizar", to: base };
   }
-  if (trip.quote_needs_update) {
-    return { key: "actualizar", title: "Actualiza tu cotización", detail: "Cambiaste fechas, viajeros o tu selección después de cotizar.", cta: "Actualizar cotización", to: `${base}/editar` };
+  // Solo viajeros, fechas, origen o destino piden re-cotizar (elegir otra opción no): el texto dice
+  // exactamente qué cambió.
+  if (quoteNeedsUpdate(trip)) {
+    const what = describeQuoteChanges(quoteChanges(trip));
+    return { key: "actualizar", title: "Actualiza tu cotización", detail: what ? `${what} después de cotizar.` : "El viaje cambió después de cotizar.", cta: "Actualizar cotización", to: `${base}/editar` };
   }
   if (fresh.status === "por_revisar" && (timing.daysToStart ?? 0) > 3) {
     return { key: "revisar_precios", title: "Revisa los precios", detail: "Las tarifas cambian; confírmalas con el proveedor antes de reservar.", cta: "Revisar cotización", to: base };

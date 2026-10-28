@@ -359,7 +359,7 @@ export const TripBuildPreview = ({
             <Sparkles className="w-3 h-3 text-primary" /> IATOS AI generará desde 0
           </p>
           <ul className="space-y-1.5 text-xs">
-            <li className="flex items-center gap-2"><Plane className="w-3.5 h-3.5 text-primary/70" /> Vuelos por ciudad (3 tiers) + escalas reales</li>
+            <li className="flex items-center gap-2"><Plane className="w-3.5 h-3.5 text-primary/70" /> Vuelos por ciudad en 3 opciones (ahorro · equilibrio · premium) con escalas reales</li>
             {isMulti && (
               <li className="flex items-center gap-2"><Train className="w-3.5 h-3.5 text-primary/70" /> Trenes / roadtrips entre destinos</li>
             )}

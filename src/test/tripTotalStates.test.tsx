@@ -158,10 +158,12 @@ describe("TripDetail: un solo total", () => {
     expect(screen.getByTestId("trip-next-bar-note")).toHaveTextContent("Estimado · falta elegir");
   });
 
+  // Pedido del dueño (E2E 28-oct-2026): la selección sola ya no vuelve vieja la cotización; aquí la vuelve
+  // vieja un cambio de fechas (la base dice otra fecha de regreso) y el aviso dice exactamente eso.
   it("con todo elegido y la cotización vieja: 'Total de tu selección', sin la cifra de la cotización y el aviso en una línea", async () => {
     db.trip.selections = { v: 1, vuelo: { i: -2, key: null }, hospedaje: { i: -1, key: null }, noches_hospedaje: null, tours: [],
       hoteles: Object.entries(ALL_HOTELS).map(([ciudad, i]) => ({ ciudad, i, key: null })) };
-    db.trip.quote_basis = { num_viajeros: 2, fecha_salida: "2026-10-22", fecha_regreso: "2026-11-01", selections: null };
+    db.trip.quote_basis = { num_viajeros: 2, fecha_salida: db.trip.fecha_salida, fecha_regreso: "2099-01-01", selections: null };
     renderTrip();
     const card = await screen.findByTestId("trip-total-card");
     expect(card).toHaveAttribute("data-state", "seleccion");
@@ -173,7 +175,8 @@ describe("TripDetail: un solo total", () => {
     expect(screen.getByTestId("trip-next-bar-note")).toHaveTextContent("Tu selección");
     const stale = within(card).getByTestId("trip-total-stale");
     expect(stale.tagName).toBe("P");
-    expect(stale).toHaveTextContent(/Cambiaste tu selección.*Actualizar cotización/);
+    expect(stale).toHaveTextContent(/Cambiaste las fechas\..*Actualizar cotización/);
+    expect(stale).not.toHaveTextContent(/número de viajeros|selección/i);
   });
 
   it("ya comprado: distingue lo pagado de lo pendiente (reserva confirmada del hotel de Roma)", async () => {

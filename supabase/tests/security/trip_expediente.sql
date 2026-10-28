@@ -33,13 +33,15 @@ SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000
 UPDATE trips SET selections='{"v":1,"vuelo":{"i":1,"key":"iberia||madrid|9000"},"hospedaje":{"i":-1,"key":null},"noches_hospedaje":null,"tours":[]}'
  WHERE id='7d100000-0000-0000-0000-000000000071';
 RESET ROLE;
-SELECT 'S1 cambiar selección marca recotizar [true|vuelo 1]: '||quote_needs_update||'|vuelo '||(selections->'vuelo'->>'i') FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+-- Pedido del dueño (E2E 28-oct-2026, 20261028140000): elegir otra opción de la misma cotización NO la
+-- invalida (antes S1 esperaba true).
+SELECT 'S1 cambiar selección no pide recotizar [false|vuelo 1]: '||quote_needs_update||'|vuelo '||(selections->'vuelo'->>'i') FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
 -- El cliente no puede "aprobar" su selección escribiendo la base.
-UPDATE trips SET quote_basis = quote_basis || jsonb_build_object('selections', selections), quote_needs_update=false
+UPDATE trips SET quote_basis = quote_basis || jsonb_build_object('selections', selections), quote_needs_update=true
  WHERE id='7d100000-0000-0000-0000-000000000071';
 RESET ROLE;
-SELECT 'S2 la base no la escribe el cliente [true|null]: '||quote_needs_update||'|'||coalesce(quote_basis->>'selections','null') FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SELECT 'S2 la base no la escribe el cliente [false|null]: '||quote_needs_update||'|'||coalesce(quote_basis->>'selections','null') FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
 UPDATE trips SET selections=NULL WHERE id='7d100000-0000-0000-0000-000000000071';
 RESET ROLE;
@@ -57,6 +59,27 @@ UPDATE trips SET current_quote_id='7d200000-0000-0000-0000-000000000071' WHERE i
 RESET ROLE;
 SELECT 'S5 cotización nueva limpia selección [null|false|null]: '||coalesce(selections::text,'null')||'|'||quote_needs_update||'|'||coalesce(quote_basis->>'selections','null')
 FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SELECT 'S6 la base guarda origen y destino [Roma|true]: '||(quote_basis->>'destino')||'|'||(quote_basis ? 'ciudad_origen') FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
+UPDATE trips SET selections='{"v":1,"vuelo":{"i":1,"key":"b"},"hospedaje":{"i":2,"key":"h"},"noches_hospedaje":null,"tours":[]}', destino=' roma ' WHERE id='7d100000-0000-0000-0000-000000000071';
+RESET ROLE;
+SELECT 'S7 otra opción y mismo destino (mayúsculas/espacios) no pide recotizar [false]: '||quote_needs_update FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
+UPDATE trips SET destino='Florencia' WHERE id='7d100000-0000-0000-0000-000000000071';
+RESET ROLE;
+SELECT 'S8 cambiar destino sí pide recotizar [true]: '||quote_needs_update FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
+UPDATE trips SET destino='Roma', ciudad_origen='Monterrey' WHERE id='7d100000-0000-0000-0000-000000000071';
+RESET ROLE;
+SELECT 'S9 cambiar origen sí pide recotizar [true]: '||quote_needs_update FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
+UPDATE trips SET ciudad_origen=NULL, fecha_regreso='2026-12-08' WHERE id='7d100000-0000-0000-0000-000000000071';
+RESET ROLE;
+SELECT 'S10 cambiar fechas sí pide recotizar [true]: '||quote_needs_update FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7d000000-0000-0000-0000-0000000000d7',false);
+UPDATE trips SET fecha_regreso='2026-12-06' WHERE id='7d100000-0000-0000-0000-000000000071';
+RESET ROLE;
+SELECT 'S11 volver a lo cotizado [false]: '||quote_needs_update FROM trips WHERE id='7d100000-0000-0000-0000-000000000071';
 
 -- ───── trip_id de bookings y expenses (E-22) ─────
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','7e000000-0000-0000-0000-0000000000e7',false);

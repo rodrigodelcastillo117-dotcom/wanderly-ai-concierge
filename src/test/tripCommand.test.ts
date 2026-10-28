@@ -44,6 +44,28 @@ describe("nextTripAction", () => {
     expect(nextTripAction({ ...base, fecha_salida: "2026-09-01", fecha_regreso: "2026-09-05" }, { today: TODAY, now: NOW }).key).toBe("recuerdos");
     expect(nextTripAction({ id: "t1" }, { today: TODAY, now: NOW }).key).toBe("poner_fechas");
   });
+  // Pendiente E2E 28-oct-2026: elegir otro hotel o vuelo de la misma cotización decía "Cambiaste fechas,
+  // viajeros…" aunque no cambió nada de eso.
+  it("elegir otra opción no pide re-cotizar; fechas, viajeros, origen o destino sí, y dice exactamente qué", () => {
+    const quoted = { ...base, num_viajeros: 2, ciudad_origen: "CDMX", destino: "Madrid",
+      quote_basis: { num_viajeros: 2, fecha_salida: base.fecha_salida, fecha_regreso: base.fecha_regreso, ciudad_origen: "CDMX", destino: "Madrid", selections: null } };
+    // El trigger anterior marcaba quote_needs_update por la selección: con la base conocida no cuenta.
+    expect(nextTripAction({ ...quoted, quote_needs_update: true }, { today: TODAY, now: NOW }).key).toBe("reservar");
+    expect(quoteFreshness({ ...quoted, quote_needs_update: true }, null, NOW).status).toBe("vigente");
+    const fechas = nextTripAction({ ...quoted, fecha_regreso: "2026-12-18" }, { today: TODAY, now: NOW });
+    expect(fechas).toMatchObject({ key: "actualizar", detail: "Cambiaste las fechas después de cotizar." });
+    expect(nextTripAction({ ...quoted, num_viajeros: 3 }, { today: TODAY, now: NOW }).detail).toBe("Cambiaste el número de viajeros después de cotizar.");
+    expect(nextTripAction({ ...quoted, ciudad_origen: "Monterrey" }, { today: TODAY, now: NOW }).detail).toBe("Cambiaste la ciudad de origen después de cotizar.");
+    expect(nextTripAction({ ...quoted, destino: "Lisboa", num_viajeros: 4 }, { today: TODAY, now: NOW }).detail).toBe("Cambiaste el número de viajeros y el destino después de cotizar.");
+    // Mayúsculas o espacios no son un cambio de destino.
+    expect(nextTripAction({ ...quoted, destino: " madrid " }, { today: TODAY, now: NOW }).key).toBe("reservar");
+    // Base anterior sin origen/destino: no los compara (no inventa un cambio).
+    const old = { ...quoted, quote_basis: { num_viajeros: 2, fecha_salida: base.fecha_salida, fecha_regreso: base.fecha_regreso } };
+    expect(nextTripAction({ ...old, destino: "Lisboa" }, { today: TODAY, now: NOW }).key).toBe("reservar");
+    for (const t of [{ ...quoted, fecha_regreso: "2026-12-18" }, { ...quoted, num_viajeros: 3 }]) {
+      expect(nextTripAction(t, { today: TODAY, now: NOW }).detail).not.toMatch(/selección|fechas, viajeros/);
+    }
+  });
   it("nunca promete que IATOS reserva por el usuario", () => {
     const a = nextTripAction(base, { today: TODAY, now: NOW });
     expect(a.detail).toMatch(/directo con el proveedor/);

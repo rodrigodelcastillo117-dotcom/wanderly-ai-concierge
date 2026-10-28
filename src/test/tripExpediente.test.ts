@@ -98,13 +98,16 @@ describe("selecciones de TripDetail (E-12)", () => {
     expect(back.selTours.size).toBe(0);
     expect(itemKey(null)).toBe("");
   });
-  it("cambiar la selección marca la cotización para actualizar (misma lógica que viajeros/fechas)", () => {
+  // Pedido del dueño (E2E 28-oct-2026): antes esta prueba exigía que la selección marcara la cotización.
+  it("cambiar la selección NO marca la cotización para actualizar (viajeros/fechas sí)", () => {
     const base = { num_viajeros: 2, fecha_salida: "2026-11-10", fecha_regreso: "2026-11-15", quote_basis: { num_viajeros: 2, fecha_salida: "2026-11-10", fecha_regreso: "2026-11-15" } };
     expect(quoteStaleness({ ...base, selections: null }, null)).toMatchObject({ stale: false, reasons: [] });
     const sel = serializeSelections(trip, { selVuelo: 1, selHospedaje: -1, nochesHospedaje: null, selTours: new Set() });
     const s = quoteStaleness({ ...base, selections: sel }, null);
-    expect(s).toMatchObject({ stale: true, reasons: ["seleccion"] });
-    expect(staleQuoteMessage(s.basis!, s.reasons)).toMatch(/^Cambiaste tu selección de vuelo, hotel o experiencias/);
+    expect(s).toMatchObject({ stale: false, reasons: [] });
+    const v = quoteStaleness({ ...base, selections: sel, num_viajeros: 3 }, null);
+    expect(v).toMatchObject({ stale: true, reasons: ["viajeros"] });
+    expect(staleQuoteMessage(v.basis!, v.reasons)).toMatch(/^Cambiaste el número de viajeros\. Cotización para 2 viajeros/);
     expect(quoteStaleness({ ...base, selections: sel, quote_basis: { ...base.quote_basis, selections: sel } }, null).stale).toBe(false);
     expect(sameSelections(sel, JSON.parse(JSON.stringify(sel)))).toBe(true);
   });

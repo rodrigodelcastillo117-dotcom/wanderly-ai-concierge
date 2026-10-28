@@ -21,7 +21,7 @@ import type { PurchaseItem } from "@/lib/purchasePlan";
 import type { GroupMark } from "@/lib/purchaseMarks";
 import {
   applyPlanToItinerary, buildItinerary, type CityHotel, type ExpItem, expKey, fmtFecha, hotelForCity, type Invoke, itemsFromResponse,
-  loadExpTop, type Plan, requestExperiencias, saveExpTop, stayDays, suggestedItems, type TripCity,
+  itineraryContext, loadExpTop, type Plan, requestExperiencias, saveExpTop, stayDays, suggestedItems, type TripCity,
 } from "@/lib/experiencias";
 import { filterByMeal, type Meal, MEAL_LABEL, MEALS } from "../../../supabase/functions/_shared/restaurantBooking.ts";
 import { officialTicketsForCity, ticketSummary } from "../../../supabase/functions/_shared/officialTickets.ts";
@@ -191,14 +191,14 @@ export function TripExperiencias({ trip, cities, multi, marks, userId, onSaved, 
           ))}
         </div>
       )}
-      <CityPanel key={city.label} trip={trip} city={city} st={st} hotel={hotel} marks={marks} userId={userId}
+      <CityPanel key={city.label} trip={trip} city={city} cities={cities} st={st} hotel={hotel} marks={marks} userId={userId}
         onSearch={search} onRomantic={searchRomantic} patch={patch} multi={multi} onSaved={onSaved} />
     </section>
   );
 }
 
-function CityPanel({ trip, city, st, hotel, marks, userId, onSearch, onRomantic, patch, multi, onSaved }: {
-  trip: any; city: TripCity; st: CityState; hotel: CityHotel | null; marks: Marks; userId: string | null; multi: boolean;
+function CityPanel({ trip, city, cities, st, hotel, marks, userId, onSearch, onRomantic, patch, multi, onSaved }: {
+  trip: any; city: TripCity; cities: TripCity[]; st: CityState; hotel: CityHotel | null; marks: Marks; userId: string | null; multi: boolean;
   onSearch: () => void; onRomantic: () => void; patch: (p: Partial<CityState>) => void; onSaved?: () => void;
 }) {
   const data = st.data;
@@ -214,7 +214,9 @@ function CityPanel({ trip, city, st, hotel, marks, userId, onSearch, onRomantic,
     const all = [...items.restaurante, ...items.museo, ...items.tour, ...items.wow, ...items.evento];
     const chosen = all.filter((x) => st.chosen.has(x.key));
     const base = chosen.length ? chosen : suggestedItems(items, days.length);
-    patch({ plan: buildItinerary(base, days, data?.ancla?.tipo === "hotel" ? "del hotel" : "del centro aprox.") });
+    // Llegada (vuelo largo → descanso), salida al aeropuerto y comidas que el itinerario ya tiene.
+    const ctx = itineraryContext(trip, city, cities, multi);
+    patch({ plan: buildItinerary(base, days, data?.ancla?.tipo === "hotel" ? "del hotel" : "del centro aprox.", ctx) });
   };
   const savePlan = async () => {
     if (!st.plan || !trip?.id) return;
@@ -384,8 +386,8 @@ function CityPanel({ trip, city, st, hotel, marks, userId, onSearch, onRomantic,
                     <ul className="mt-1.5 space-y-1 text-xs">
                       {d.slots.map((s) => (
                         <li key={`${s.slot}-${s.hora}`} className="flex gap-2">
-                          <span className="w-20 shrink-0 text-primary">{s.hora} · {s.label}</span>
-                          <span className="min-w-0">{s.item ? s.item.title : <span className="text-muted-foreground">Libre</span>}{s.nota ? <span className="block text-[10px] text-muted-foreground">{s.nota}</span> : null}</span>
+                          <span className="w-20 shrink-0 text-primary">{s.hora && s.hora !== "—" ? `${s.hora} · ` : ""}{s.label}</span>
+                          <span className="min-w-0" data-testid="exp-slot" data-slot={s.slot}>{s.item ? s.item.title : s.texto ? <span>{s.texto}</span> : <span className="text-muted-foreground">Libre</span>}{s.nota ? <span className="block text-[10px] text-muted-foreground">{s.nota}</span> : null}</span>
                         </li>
                       ))}
                     </ul>

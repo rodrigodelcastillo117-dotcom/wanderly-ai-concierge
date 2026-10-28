@@ -69,9 +69,9 @@ export function MembersTeaser({ passwordGate, onUnlocked }: Props) {
       <div className="flex items-start justify-between gap-3 mb-1">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-primary text-[10px] tracking-[0.25em] uppercase">
-            <Sparkles className="w-3 h-3" aria-hidden="true" /> Nightlife Premium
+            <Sparkles className="w-3 h-3" aria-hidden="true" /> Vida nocturna premium
           </p>
-          <h2 className="font-fraunces text-2xl md:text-4xl text-foreground leading-tight">Members Only</h2>
+          <h2 className="font-fraunces text-2xl md:text-4xl text-foreground leading-tight">Solo para miembros</h2>
         </div>
         <PriveEntryLink />
       </div>

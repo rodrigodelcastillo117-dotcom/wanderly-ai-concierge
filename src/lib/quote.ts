@@ -2,14 +2,15 @@
  * Lógica de la cotización que ve el usuario en TripDetail (pura, para probarla).
  *
  * - Para cuántos viajeros y qué fechas se calculó el total (snapshot de trip_quotes o
- *   trips.quote_basis) y si el usuario los cambió después: entonces la cotización ya no
- *   corresponde y NO se reparte el total viejo entre el nuevo número de viajeros.
+ *   trips.quote_basis) y si el usuario cambió viajeros, fechas, origen o destino después: entonces
+ *   la cotización ya no corresponde y NO se reparte el total viejo entre el nuevo número de viajeros.
+ *   Elegir otra opción de la misma cotización no la invalida (el total se recalcula).
  * - Cuándo se cotizó y hasta cuándo es válida.
  * - El desglose según lo que el usuario seleccione.
  */
 import { diffDateOnlyDays, formatDateOnly } from "@/lib/dateUtils";
 import { formatAge, LIVE_TTL_HOURS } from "@/lib/provenance";
-import { restoreSelections, sameQuotedSelections, sameSelections } from "@/lib/tripSelections";
+import { describeQuoteChanges, quoteChanges, type QuoteChange } from "@/lib/quoteChanges";
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { groundGroupPrice } from "../../supabase/functions/_shared/carCost.ts";
 
@@ -45,52 +46,32 @@ export function quoteBasis(trip: any, snapshot?: QuoteSnapshot | null): QuoteBas
   return null;
 }
 
-export type Staleness = { stale: boolean; basis: QuoteBasis | null; reasons: Array<"viajeros" | "fechas" | "seleccion"> };
+export type Staleness = { stale: boolean; basis: QuoteBasis | null; reasons: QuoteChange[] };
 
 /**
- * ¿Cambiaron viajeros, fechas o la selección (vuelo, hotel, experiencias) desde que se cotizó?
- * La selección con que se cotizó la guarda el servidor en quote_basis.selections (null = la
- * cotización tal cual); trips.selections es la del usuario ahora (E-12).
+ * ¿Cambiaron viajeros, fechas, ciudad de origen o destino desde que se cotizó? (quoteChanges)
+ * Elegir otra opción (vuelo, hotel, experiencias) de la MISMA cotización NO la invalida: el total se
+ * recalcula al momento con lo elegido (regla del dueño, E2E 28-oct-2026). Por eso un
+ * trips.quote_needs_update que el servidor marcó solo por la selección no se respeta aquí.
  */
 export function quoteStaleness(trip: any, snapshot?: QuoteSnapshot | null): Staleness {
   const basis = quoteBasis(trip, snapshot);
   if (!basis) return { stale: false, basis: null, reasons: [] };
-  const reasons: Staleness["reasons"] = [];
-  if (Number(trip?.num_viajeros || 1) !== basis.travelers) reasons.push("viajeros");
-  if ((trip?.fecha_salida ?? null) !== basis.dateFrom || (trip?.fecha_regreso ?? null) !== basis.dateTo) reasons.push("fechas");
-  const cur = trip?.selections ?? null;
-  const base = trip?.quote_basis?.selections ?? null;
-  const rawSame = sameSelections(cur, base);
-  // Elegir a mano el mismo hotel que trae la cotización no la cambia (sameQuotedSelections), siempre que
-  // el hospedaje que suma la página sea el mismo con una y otra selección (nada se esconde).
-  if (!rawSame && !(sameQuotedSelections(trip, cur, base) && sameHotelLine(trip, cur, base))) reasons.push("seleccion");
-  // trips.quote_needs_update compara el JSON tal cual en la base: con una selección distinta en el JSON
-  // pero equivalente para la cotización, manda lo que se calcula aquí (el aviso se quita al volver a la
-  // selección original). Con el mismo JSON, el aviso del servidor se respeta.
-  return { stale: reasons.length > 0 || (rawSame && trip?.quote_needs_update === true), basis, reasons };
+  const reasons = quoteChanges(trip, snapshot ? basis : null) ?? [];
+  return { stale: reasons.length > 0, basis, reasons };
 }
 
-/** ¿El renglón de hospedaje de la página es el mismo con dos selecciones guardadas? */
-function sameHotelLine(trip: any, a: unknown, b: unknown): boolean {
-  const n = Math.max(1, Number(trip?.num_viajeros) || 1);
-  const line = (raw: unknown) => {
-    const ui = restoreSelections(trip, raw);
-    return Math.round(Number(computeTripDesglose(trip, { ...ui, nochesHospedaje: Number(ui.nochesHospedaje) || 0 }, n).hospedaje) || 0);
-  };
-  return line(a) === line(b);
-}
-
-/** "Cotización para 2 viajeros del 10 nov al 15 nov 2026; actualiza la cotización". */
-export function staleQuoteMessage(basis: QuoteBasis, reasons: Staleness["reasons"] = []): string {
-  if (reasons.length > 0 && reasons.every((r) => r === "seleccion")) {
-    return "Cambiaste tu selección de vuelo, hotel o experiencias después de cotizar; actualiza la cotización";
-  }
+/**
+ * "Cambiaste el número de viajeros. Cotización para 2 viajeros del 10 nov al 15 nov 2026; actualiza la
+ * cotización". Solo nombra lo que de verdad cambió; sin motivos, solo la base.
+ */
+export function staleQuoteMessage(basis: QuoteBasis, reasons: QuoteChange[] = []): string {
   const who = `${basis.travelers} ${basis.travelers === 1 ? "viajero" : "viajeros"}`;
   const fechas = basis.dateFrom && basis.dateTo
     ? ` del ${formatDateOnly(basis.dateFrom, { day: "numeric", month: "short" })} al ${formatDateOnly(basis.dateTo, { day: "numeric", month: "short", year: "numeric" })}`
     : "";
-  const sel = reasons.includes("seleccion") ? " y cambiaste tu selección" : "";
-  return `Cotización para ${who}${fechas}${sel}; actualiza la cotización`;
+  const what = describeQuoteChanges(reasons);
+  return `${what ? `${what}. ` : ""}Cotización para ${who}${fechas}; actualiza la cotización`;
 }
 
 export type Validity = {

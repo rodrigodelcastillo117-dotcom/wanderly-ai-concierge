@@ -225,18 +225,22 @@ describe("4. Quitar la selección de un hotel", () => {
   });
 });
 
-describe("5. El aviso de 'actualiza la cotización' se quita al volver a la selección cotizada", () => {
+// Pedido del dueño (E2E 28-oct-2026): elegir otra opción de la misma cotización NO pide re-cotizar (antes
+// "otro hotel sí" la marcaba vieja); solo viajeros, fechas, origen o destino.
+describe("5. Elegir hotel (el cotizado u otro) no pide actualizar la cotización", () => {
   const basis = { num_viajeros: 2, fecha_salida: "2027-05-04", fecha_regreso: "2027-05-19", selections: null };
-  it("elegir a mano el mismo hotel de la cotización no la cambia; otro hotel sí", () => {
+  it("elegir a mano el mismo hotel de la cotización no la cambia; otro hotel tampoco", () => {
     const trip = makeTrip({ quote_basis: basis, quote_needs_update: true });
     const same = serializeSelections(trip, { ...NO_SEL, nochesHospedaje: null, selHoteles: { Madrid: quotedHotelForCity(trip, "Madrid") } });
     expect(same).not.toBeNull();
     expect(quoteStaleness({ ...trip, selections: same }, null)).toMatchObject({ stale: false, reasons: [] });
     const ibis = trip.hospedaje_json.findIndex((h: any) => /Ibis/.test(h.nombre));
     const other = serializeSelections(trip, { ...NO_SEL, nochesHospedaje: null, selHoteles: { Madrid: ibis } });
-    expect(quoteStaleness({ ...trip, selections: other }, null)).toMatchObject({ stale: true, reasons: ["seleccion"] });
-    // Mismo JSON que la base y el servidor dice "por actualizar": se respeta.
-    expect(quoteStaleness({ ...trip, selections: null }, null).stale).toBe(true);
+    expect(quoteStaleness({ ...trip, selections: other }, null)).toMatchObject({ stale: false, reasons: [] });
+    // Con la base conocida manda el cálculo: una marca vieja del servidor (por la selección) no cuenta.
+    expect(quoteStaleness({ ...trip, selections: null }, null).stale).toBe(false);
+    // Cambiar fechas sí.
+    expect(quoteStaleness({ ...trip, selections: other, fecha_regreso: "2027-05-20" }, null)).toMatchObject({ stale: true, reasons: ["fechas"] });
   });
 
   it("en la página: sin aviso ni 'Actualizar cotización' (tampoco en la barra fija del celular)", async () => {
@@ -251,12 +255,20 @@ describe("5. El aviso de 'actualiza la cotización' se quita al volver a la sele
     expect(screen.queryAllByText(/Actualizar cotización/)).toHaveLength(0);
   });
 
-  it("control: con otro hotel el aviso sí aparece", async () => {
+  it("con otro hotel tampoco hay aviso; con otras fechas sí, y dice exactamente qué cambió", async () => {
     const t0 = makeTrip();
     const ibis = t0.hospedaje_json.findIndex((h: any) => /Ibis/.test(h.nombre));
     db.trip = makeTrip({ quote_basis: basis, quote_needs_update: true, selections: serializeSelections(t0, { ...NO_SEL, nochesHospedaje: null, selHoteles: { Madrid: ibis } }) });
+    const { unmount } = renderTrip();
+    await screen.findAllByTestId("comprar-hospedaje");
+    expect(screen.queryByText(/Cambiaste/)).toBeNull();
+    expect(screen.queryAllByText(/Actualizar cotización/)).toHaveLength(0);
+    unmount();
+    db.trip = makeTrip({ quote_basis: { ...basis, fecha_regreso: "2027-05-17" }, quote_needs_update: true });
     renderTrip();
-    expect(await screen.findByText(/Cambiaste tu selección/)).toBeInTheDocument();
+    const stale = await screen.findByTestId("trip-total-stale");
+    expect(stale).toHaveTextContent(/^Cambiaste las fechas\. Cotización para 2 viajeros/);
+    expect(stale).not.toHaveTextContent(/viajeros o|selección/);
   });
 });
 

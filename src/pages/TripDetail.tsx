@@ -10,6 +10,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { ReadonlyBudget } from "@/components/ReadonlyBudget";
 import { CityCollapsible } from "@/components/CityCollapsible";
+import { citySubtitle } from "@/lib/cityHeader";
 import { IllustrativeCaption } from "@/components/media/SmartImage";
 import { AirlineLogo } from "@/components/media/AirlineLogo";
 import { airlineCode } from "@/lib/airlines";
@@ -262,8 +263,8 @@ const TripDetail = () => {
     }
   }, [trip]);
 
-  // Guarda la selección al cambiarla (E-12). El trigger trips_quote_basis_guard marca la
-  // cotización como "por actualizar" si difiere de la selección con que se cotizó.
+  // Guarda la selección al cambiarla (E-12). Elegir otra opción de la misma cotización no la invalida:
+  // el total se recalcula aquí mismo (quoteStaleness solo mira viajeros, fechas, origen y destino).
   useEffect(() => {
     if (!trip?.id || restoredFor.current !== trip.id) return;
     const next = serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles });
@@ -367,7 +368,7 @@ const TripDetail = () => {
   const noches = trip ? tripNights(trip, itinDays.length) : 1;
   const viajeros = trip?.num_viajeros ?? 1;
 
-  // Si el usuario cambió viajeros o fechas después de cotizar, el total guardado es para la base
+  // Si el usuario cambió viajeros, fechas, origen o destino después de cotizar, el total guardado es para la base
   // anterior: se muestra para esa base (sin repartirlo entre el nuevo número de viajeros) y se
   // pide actualizar la cotización.
   const currentSel = trip ? serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles }) : null;
@@ -446,9 +447,9 @@ const TripDetail = () => {
   // serían una segunda cifra sin explicación).
   const trustForTotal = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal) && trustMatchesSplit(trust, totalSplit) ? trust : null;
   const stickyTotal = hasQuotedTotal && totalSummary.total > 0 ? totalSummary.barTotal : null;
-  // "Actualizar cotización" (y la barra fija del celular) siguen al cálculo de la página: al volver a la
-  // selección cotizada se quitan aunque trips.quote_needs_update (JSON tal cual) siga en true.
-  const tripForNextStep = trip.quote_needs_update && !staleness.stale ? { ...trip, quote_needs_update: false } : trip;
+  // "Actualizar cotización" (y la barra fija del celular) siguen al cálculo de la página: elegir otra
+  // opción no lo pide aunque trips.quote_needs_update (trigger anterior, por la selección) siga en true.
+  const tripForNextStep = !!trip.quote_needs_update !== staleness.stale ? { ...trip, quote_needs_update: staleness.stale } : trip;
 
   const toggleTour = (i: number) => {
     setSelTours((prev) => {
@@ -850,11 +851,10 @@ const TripDetail = () => {
               <div key={`${city}-${cityIdx}`}>
               <CityCollapsible
                 city={city}
-                subtitle={[stay ? `${stay.nights} ${stay.nights === 1 ? "noche" : "noches"}` : null, `${cityDays.length || "·"} días de itinerario`, cityGround.length ? `${cityGround.length} por tierra` : null].filter(Boolean).join(" · ")}
+                subtitle={citySubtitle({ nights: stay?.nights ?? null, days: cityDays.length, ground: cityGround.length }) || undefined}
                 imageQuery={`${city} skyline landmark travel`}
                 open={activeCity === city}
                 onToggle={() => toggleCity(city)}
-                count={cityDays.length + cityGround.length}
               >
                 <div className="space-y-6">
                   {cityGround.length > 0 && (
@@ -1184,7 +1184,8 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 
         {flightStopsLabel(option) && <span className="px-2 py-0.5 rounded-full bg-background border border-border">{flightStopsLabel(option)}</span>}
       </div>
       {/* Coche y autobús de un trayecto corto: casetas reales, gasolina estimada o "precio en ADO"; nunca el precio de la IA. */}
-      {trip && (isCarOption(option) || isBusOption(option) || isHiredCarOption(option)) ? <GroundOptionInfo trip={trip} option={option} /> : option.precio_por_persona > 0 && (
+      {/* El autobús no repite su aviso: los botones de abajo (GroundBuyButtons) ya dicen dónde está el precio. */}
+      {trip && (isCarOption(option) || isBusOption(option) || isHiredCarOption(option)) ? (isBusOption(option) ? null : <GroundOptionInfo trip={trip} option={option} />) : option.precio_por_persona > 0 && (
         <p className="font-medium text-base">
           {fmtMXN(option.precio_por_persona)}
           <span className="text-xs text-muted-foreground ml-1">/ persona</span>
