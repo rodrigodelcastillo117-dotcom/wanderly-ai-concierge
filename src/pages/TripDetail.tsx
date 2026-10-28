@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { tripDayDate } from "@/lib/tripDayDate";
 import { expansionLine, type RegionExpansion } from "../../supabase/functions/_shared/regions.ts";
 import { useBookingExitNotice } from "@/lib/bookingExit";
 import { useParams, useNavigate } from "react-router-dom";
@@ -878,7 +879,10 @@ const TripDetail = () => {
                               >
                                 <div className="flex min-w-0 items-center gap-3">
                                   <span className="font-display text-xl gold-text w-8 shrink-0">{String(d.dia).padStart(2, "0")}</span>
-                                  <span className="font-medium text-sm break-words">{d.titulo}</span>
+                                  <span className="min-w-0">
+                                    {tripDayDate(d.fecha) && <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">{tripDayDate(d.fecha)}</span>}
+                                    <span className="font-medium text-sm break-words">{d.titulo}</span>
+                                  </span>
                                 </div>
                                 <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
                               </summary>
