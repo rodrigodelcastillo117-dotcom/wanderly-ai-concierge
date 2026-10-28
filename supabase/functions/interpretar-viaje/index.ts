@@ -58,31 +58,43 @@ Deno.serve(async (req) => {
 
   try {
     const reqBody = tripSpecRequestBody(texto, ctx);
-    let content = "";
-    // 1) Claude (lo mismo que analizar-viaje): Gemini Flash tardaba más de 40 s con este prompt y se
-    //    cortaba en producción (28-oct). 2) Gemini/Lovable de respaldo con su propio tope.
-    if (hasClaude) {
+    const system = String(reqBody.messages.find((m) => m.role === "system")?.content ?? "");
+    const userMsg = String(reqBody.messages.find((m) => m.role === "user")?.content ?? "");
+    // Claude primero (Gemini Flash tardaba más de 40 s con este prompt y se cortaba en producción,
+    // 28-oct): Haiku (extraer, no razonar: varias veces más rápido) y, si falla o su JSON no pasa la
+    // validación, Sonnet. Al final, Gemini/Lovable de respaldo con su propio tope.
+    const claudeContent = async (model: string): Promise<string> => {
       try {
-        const system = String(reqBody.messages.find((m) => m.role === "system")?.content ?? "");
-        const userMsg = String(reqBody.messages.find((m) => m.role === "user")?.content ?? "");
         const cres = await callClaudeWithFallback({
           max_tokens: 4000,
           system: `${system}\n\nResponde SOLO con el objeto JSON, sin texto alrededor ni markdown.`,
           messages: [{ role: "user", content: userMsg }],
-        }, { signal: AbortSignal.timeout(45_000) });
-        if (cres.ok) {
-          const cdata = await cres.json();
-          const u = usageFromClaude(cdata);
-          if (u) await logUsage({ user_id: user.id, function: "interpretar-viaje", provider: "anthropic", ...u });
-          content = responseText(cdata).replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-        } else {
-          console.warn("interpretar-viaje: Claude", cres.status, (await cres.text().catch(() => "")).slice(0, 200));
+        }, { models: [model], signal: AbortSignal.timeout(40_000) });
+        if (!cres.ok) {
+          console.warn("interpretar-viaje: Claude", model, cres.status, (await cres.text().catch(() => "")).slice(0, 200));
+          return "";
         }
+        const cdata = await cres.json();
+        const u = usageFromClaude(cdata);
+        if (u) await logUsage({ user_id: user.id, function: "interpretar-viaje", provider: "anthropic", ...u });
+        return responseText(cdata).replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
       } catch (e) {
-        console.warn("interpretar-viaje: Claude", (e as Error)?.message);
+        console.warn("interpretar-viaje: Claude", model, (e as Error)?.message);
+        return "";
+      }
+    };
+    const validate = (c: string) => validateTripSpec(c, texto, { origen: ctx.origen, viajeros: ctx.viajeros });
+    let checked: ReturnType<typeof validate> | null = null;
+    if (hasClaude) {
+      for (const model of ["claude-haiku-5-5", "claude-sonnet-5-5"]) {
+        const c = await claudeContent(model);
+        if (!c) continue;
+        const v = validate(c);
+        if (v.ok) { checked = v; break; }
+        console.warn("interpretar-viaje: JSON inválido de", model);
       }
     }
-    if (!content) {
+    if (!checked) {
       const { res, provider, model } = await aiFetchDetailed({
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY") ?? ""}`, "Lovable-API-Key": Deno.env.get("LOVABLE_API_KEY") ?? "" },
@@ -95,9 +107,8 @@ Deno.serve(async (req) => {
       }
       const data = await res.json();
       await logUsage({ user_id: user.id, function: "interpretar-viaje", provider, model, ...(usageFromChat(data) ?? {}) });
-      content = data?.choices?.[0]?.message?.content ?? "";
+      checked = validate(data?.choices?.[0]?.message?.content ?? "");
     }
-    const checked = validateTripSpec(content, texto, { origen: ctx.origen, viajeros: ctx.viajeros });
     if (!checked.ok) return json({ ok: false, code: "respuesta_invalida", message: "No pudimos interpretar tu viaje. Revisa y corrige el resumen a mano." }, 422);
     const spec = checked.spec;
     // Fechas del formulario si el texto no las trae (se dicen como elegidas, no supuestas).
