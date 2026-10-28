@@ -555,6 +555,16 @@ Deno.serve(async (req) => {
     ]);
     // El cuerpo del análisis se dejó sin re-indentar para no mover todo el diff.
     const ejecutarAnalisis = async (ctx: WorkCtx): Promise<WorkResult> => {
+    // Tiempos por etapa (pendiente E2E 28-oct-2026): se registran en los logs para medir en producción.
+    const t0 = Date.now();
+    const marks: Record<string, number> = {};
+    const mark = (k: string) => { marks[k] = Date.now() - t0; };
+
+    // Lo que no depende de nada arranca ya, en paralelo con el contexto del usuario: el tipo de cambio
+    // (en un arranque en frío es una llamada a frankfurter) y, solo si faltan fechas, resolver-fechas.
+    const fxPromise = Promise.all([getUsdMxnRateInfo(), getEurMxnRateInfo()]);
+    const resolvedPromise = resolverFechasSiFaltan(authHeader, body)
+      .then((v) => ({ ok: true as const, v }), (e) => ({ ok: false as const, e }));
 
     // Perfil de gustos (Mejores momentos > favoritos > visitados > viajes pasados > declarado), en
     // paralelo con el resto del contexto; con caché por persona casi siempre es una lectura.
@@ -563,22 +573,13 @@ Deno.serve(async (req) => {
       userId: user.id, todayISO: tasteToday(), timeoutMs: 1500,
     }).then((r) => r.profile).catch(() => null);
 
-    const { data: travelProfile } = await supabase
-      .from("travel_profiles")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, ciudad_origen")
-      .eq("id", user.id)
-      .maybeSingle();
-    const { data: vault } = await supabase.from("user_vault_benefits").select("*").eq("user_id", user.id).maybeSingle();
-    const { data: aiPrefs } = await supabase
-      .from("ai_user_preferences")
-      .select("perfil_ia")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // Cuatro lecturas independientes en paralelo (antes iban una tras otra).
+    const [{ data: travelProfile }, { data: profile }, { data: vault }, { data: aiPrefs }] = await Promise.all([
+      supabase.from("travel_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+      supabase.from("profiles").select("full_name, ciudad_origen").eq("id", user.id).maybeSingle(),
+      supabase.from("user_vault_benefits").select("*").eq("user_id", user.id).maybeSingle(),
+      supabase.from("ai_user_preferences").select("perfil_ia").eq("user_id", user.id).maybeSingle(),
+    ]);
 
 
     const vaultLines: string[] = [];
@@ -632,14 +633,17 @@ Deno.serve(async (req) => {
     const userContext = ctxLines.join("\n");
     // Tipo de cambio en vivo con su fuente y fecha (se guardan con la cotización). El EUR sale de su
     // propia tasa, no de USD × 1.08 fijo.
-    const [fxUsdInfo, fxEurInfo] = await Promise.all([getUsdMxnRateInfo(), getEurMxnRateInfo()]);
+    const [fxUsdInfo, fxEurInfo] = await fxPromise;
     const fxUsd = fxUsdInfo.rate;
     const fxEur = Math.round(fxEurInfo.rate * 100) / 100;
     const systemFinal = [MASTER_PROMPT_IATOS, userContext, buildSystemPrompt(fxUsd, fxEur)].filter(Boolean).join("\n\n---\n\n");
 
 
     // PASO 0: Smart Date Resolution (Gemini). Si faltan fechas, elegimos la ventana óptima.
-    const resolved = await resolverFechasSiFaltan(authHeader, body);
+    const resolvedRes = await resolvedPromise;
+    if (!resolvedRes.ok) throw resolvedRes.e;
+    const resolved = resolvedRes.v;
+    mark("contexto");
     body.fecha_salida = resolved.fecha_salida;
     body.fecha_regreso = resolved.fecha_regreso;
     // Las fechas que eligió resolver-fechas también tienen que servir (AUD-Q-07): si no, se libera el cupo.
@@ -667,15 +671,12 @@ Deno.serve(async (req) => {
     // Una sola llamada a Google (Routes con extraComputations TOLLS, caché de 24 h) da distancia, tiempo
     // y casetas REALES del tramo en coche (caso CDMX → Tepoztlán: antes el auto era "$1,800" de la IA).
     const shortCandidate = detectShortTrip(body.ciudad_origen, body.destino, SHORT_TRIP_CANDIDATE_KM);
-    const drive = shortCandidate && google
-      ? await driveWithTolls(google, { origin: { address: `${body.ciudad_origen}` }, destination: { address: `${body.destino}` } }, { store: null /* Routes: sin caché persistente (términos de Google) */, rate: getRateToMxnInfo })
+    // Se lanza junto con las búsquedas de abajo (ninguna depende de él); se espera con ellas.
+    const drivePromise = shortCandidate && google
+      ? driveWithTolls(google, { origin: { address: `${body.ciudad_origen}` }, destination: { address: `${body.destino}` } }, { store: null /* Routes: sin caché persistente (términos de Google) */, rate: getRateToMxnInfo })
         .catch((e) => { console.warn("analizar-viaje: casetas", String((e as Error)?.message ?? e)); return null; })
-      : null;
-    const driveOk = drive && drive.ok ? drive : null;
-    const driveRoute = driveOk ? { ok: true, duration_seconds: driveOk.duration_seconds, distance_meters: driveOk.distance_meters, consultado_at: driveOk.consultado_at } : null;
-    const shortTrip = refineShortTrip(shortCandidate, driveRoute);
+      : Promise.resolve(null);
     const tripPrefs = travelerPrefs(body.notas_usuario);
-    if (shortTrip) console.log("analizar-viaje: trayecto corto", shortTrip);
 
     // PASO 1: Lanzar EN PARALELO Perplexity + Travelpayouts vuelos + Travelpayouts hoteles
     console.log("Lanzando Perplexity + Travelpayouts (vuelos+hoteles) en paralelo...");
@@ -754,14 +755,21 @@ Deno.serve(async (req) => {
       ? restaurantsForCity(google, body.destino, { preferences: (travelProfile?.preferencias_comida ?? []).slice(0, 2).join(" ") || null })
       : Promise.resolve(null);
 
-    const [perplexityResult, tpFlightsRes, serpHotelsRes, tripadvisorRes, googleFlightsRes, restaurantsRes] = await Promise.allSettled([
+    const [perplexityResult, tpFlightsRes, serpHotelsRes, tripadvisorRes, googleFlightsRes, restaurantsRes, driveRes] = await Promise.allSettled([
       investigarConPerplexity(body, dias, vaultDesc),
       tpFlightsPromise,
       serpHotelsPromise,
       tripadvisorPromise,
       googleFlightsPromise,
       restaurantsPromise,
+      drivePromise,
     ]);
+    mark("fuentes");
+    const drive = driveRes.status === "fulfilled" ? driveRes.value : null;
+    const driveOk = drive && drive.ok ? drive : null;
+    const driveRoute = driveOk ? { ok: true, duration_seconds: driveOk.duration_seconds, distance_meters: driveOk.distance_meters, consultado_at: driveOk.consultado_at } : null;
+    const shortTrip = refineShortTrip(shortCandidate, driveRoute);
+    if (shortTrip) console.log("analizar-viaje: trayecto corto", shortTrip);
 
     const liveConsultedAt = new Date().toISOString();
     const googleRestaurants = restaurantsRes.status === "fulfilled" && restaurantsRes.value?.ok ? restaurantsRes.value.places : [];
@@ -951,13 +959,15 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       messages: [{ role: "user", content: userPrompt }],
     };
     const claudeRes = await callClaudeWithFallback(claudePayload);
+    let usagePromise: Promise<void> = Promise.resolve();
 
     let a: any = null;
     if (claudeRes.ok) {
       const claudeData = await claudeRes.json();
       // Costo real de la llamada (tokens que reporta Claude) para ai_usage_log.
       const claudeUsage = usageFromClaude(claudeData);
-      if (claudeUsage) await logUsage({ user_id: user.id, function: "analizar-viaje", provider: "anthropic", ...claudeUsage });
+      // El registro de costo no detiene el análisis: se espera antes de responder (ver usagePromise).
+      if (claudeUsage) usagePromise = logUsage({ user_id: user.id, function: "analizar-viaje", provider: "anthropic", ...claudeUsage });
       const toolUse = (claudeData.content ?? []).find(
         (b: any) => b.type === "tool_use" && b.name === "entregar_analisis_viaje",
       );
@@ -973,6 +983,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       if (gatewayResult instanceof Response) {
         const text = await gatewayResult.text();
         console.error("Gateway fallback error:", gatewayResult.status, text);
+        await usagePromise;
         return { ok: false, reason: "ai_provider_error" };
       }
       a = gatewayResult;
@@ -980,8 +991,10 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
 
     if (!a || typeof a !== "object") {
       console.error("analizar-viaje: respuesta inválida de IA");
+      await usagePromise;
       return { ok: false, reason: "ai_invalid_response" };
     }
+    mark("ia");
     a.vuelos = normalizarVuelos(a.vuelos);
     // Sub-regla 15.1: re-inyecta ?marker=... si Claude lo truncó al copiar el booking_link.
     a.vuelos = ensureMarkerInFlightLinks(a.vuelos);
@@ -1007,10 +1020,16 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // restaurante que Google no encuentra no se muestra; un tour queda "Sin verificar"; sin tiempo, ambos
     // quedan "Sin verificar". Ningún enlace escrito por la IA se guarda.
     const resolvePlaces = makeResolver(google, dbCacheStore(), { deadline: Date.now() + 8_000, concurrency: 4, timeoutMs: 3_500 });
+    // Re-análisis en sitio: el itinerario anterior se lee mientras se verifican los lugares.
+    const prevPromise = targetTripId
+      ? supabase.from("trips").select("itinerario_json").eq("id", targetTripId).maybeSingle()
+      : Promise.resolve({ data: null });
     const [rest, toursV] = await Promise.all([
       verifyRestaurants(a.restaurantes, googleRestaurants, body.destino, resolvePlaces),
       verifyTours(a.tours, body.destino, resolvePlaces),
+      usagePromise,
     ]);
+    mark("lugares");
     if (rest.quitados || rest.sin_verificar || toursV.sin_verificar) {
       console.warn("analizar-viaje: lugares", { destino: body.destino, restaurantes_quitados: rest.quitados, restaurantes_sin_verificar: rest.sin_verificar, tours_sin_verificar: toursV.sin_verificar, resueltos: rest.resueltos + toursV.resueltos });
     }
@@ -1107,7 +1126,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // Re-análisis en sitio: conserva el texto original y sus revisiones (itinerario_json.consulta);
     // si no, al reescribir el itinerario como lista se perdía lo que la persona escribió.
     if (targetTripId) {
-      const { data: prev } = await supabase.from("trips").select("itinerario_json").eq("id", targetTripId).maybeSingle();
+      const { data: prev } = await prevPromise;
       const consulta = prev?.itinerario_json && !Array.isArray(prev.itinerario_json) ? (prev.itinerario_json as Record<string, unknown>).consulta : undefined;
       if (consulta) (tripFields as Record<string, unknown>).itinerario_json = { days: Array.isArray(a.itinerario) ? a.itinerario : [], consulta };
     }
@@ -1166,6 +1185,9 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       },
     });
     const quote = await saveQuoteSnapshot(admin, snapshot);
+    await usagePromise;
+    mark("guardado");
+    console.log("analizar-viaje tiempos (ms desde el inicio):", marks);
 
     // Sin correo al crear (ni al re-cotizar) el viaje. Antes salía aquí, en segundo plano, "Tu viaje
     // está cotizado" con el desglose del snapshot: se mandaba antes de que la persona eligiera nada y

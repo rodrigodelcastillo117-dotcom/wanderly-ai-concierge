@@ -330,11 +330,15 @@ const PlanTrip = () => {
       const { data, error } = await supabase.functions.invoke("analizar-viaje", { body: { ...args, request_key } });
       if (error) throw error;
       if (!data?.trip?.id) throw new Error("Sin resultado");
-      if (consultaText && consultaText.trim()) {
-        try {
-          await supabase.from("trips").update({ itinerario_json: withConsulta(data.trip.itinerario_json ?? [], consultaFor(consultaText, [args.destino])) as any }).eq("id", data.trip.id);
-        } catch { /* el viaje queda igual; solo no se guardó el texto */ }
-      }
+      // El texto escrito y la invitación al acompañante van en paralelo (antes uno tras otro antes de
+      // abrir el viaje).
+      const saveConsulta = consultaText && consultaText.trim()
+        ? (async () => {
+          try {
+            await supabase.from("trips").update({ itinerario_json: withConsulta(data.trip.itinerario_json ?? [], consultaFor(consultaText, [args.destino])) as any }).eq("id", data.trip.id);
+          } catch { /* el viaje queda igual; solo no se guardó el texto */ }
+        })()
+        : Promise.resolve();
       track("trip_quoted", {
         destino: args.destino,
         viajeros: args.num_viajeros,
@@ -343,7 +347,7 @@ const PlanTrip = () => {
       // El análisis terminó y quedó guardado: el siguiente es otro intento (llave nueva).
       clearRequestKey("analizar-viaje");
       if (intentFp) completeIntent(intentFp, data.trip.id);
-      await inviteCompanion(data.trip.id);
+      await Promise.all([saveConsulta, inviteCompanion(data.trip.id)]);
       // replace: el viaje sustituye a la pantalla del asistente en el historial,
       // así "Atrás" regresa a donde estabas antes de planear (no re-analiza).
       navigate(`/dashboard/viajes/${data.trip.id}`, { replace: true });
