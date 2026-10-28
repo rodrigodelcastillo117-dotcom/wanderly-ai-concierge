@@ -27,6 +27,7 @@ import { renderTasteProfile, tasteToday } from "../_shared/tasteProfile.ts";
 import { todayLine, toolArgs } from "./tools.ts";
 import { resolveToday, sanitizeClientMessages } from "./guard.ts";
 import { buildContextMessage, buildDynamicSystem, buildMemoryData, buildStableSystem, capSummary } from "./prompt.ts";
+import { cardsForStorage } from "./storedCards.ts";
 import {
   asArray, buildRequestIntelligence, compactItem, compactTripForPrompt, computeTripGaps, loadReservationStates, reservationGuardInput,
   tripBookingContext, tripListBookingState,
@@ -603,7 +604,7 @@ Deno.serve(async (req) => {
       const settle = async () => {
         await Promise.all(agent.usage.map((x) => logUsage(usageEntry(userId, x))));
         logInsight(supabase, userId, lastUserMsg, reply._tools_used).catch(() => {});
-        bg(persistConversation({ supabase, userId, tripId: trip_id_activo, convPrevia, prevMessages, lastUserMsg, replyText: final.text }));
+        bg(persistConversation({ supabase, userId, tripId: trip_id_activo, convPrevia, prevMessages, lastUserMsg, replyText: final.text, replyCards: final.cards }));
         if (quotaReservation) await commitQuota(quotaReservation); // Iato respondió: ahora sí cuenta
         quotaReservation = undefined;
       };
@@ -777,12 +778,17 @@ async function searchPlaces(args: Record<string, unknown>, authHeader: string): 
 
 async function persistConversation(p: {
   supabase: any; userId: string; tripId: string | null; convPrevia: any; prevMessages: any[]; lastUserMsg: string; replyText: string;
+  replyCards?: unknown;
 }) {
   try {
+    const now = new Date().toISOString();
+    // Las cards validadas del turno se guardan con el texto: al recargar el chat se vuelven a pintar
+    // (con tope de tamaño; el modelo nunca las lee: buildMemoryData solo toma role y content).
+    const cards = cardsForStorage(p.replyCards, now);
     const nuevosTurnos = [
       ...p.prevMessages,
-      { role: "user", content: p.lastUserMsg, timestamp: new Date().toISOString() },
-      { role: "assistant", content: p.replyText, timestamp: new Date().toISOString() },
+      { role: "user", content: p.lastUserMsg, timestamp: now },
+      { role: "assistant", content: p.replyText, timestamp: now, ...(cards ? { cards } : {}) },
     ];
     let mensajesParaGuardar = nuevosTurnos;
     let resumenHistorico: string | null = p.convPrevia?.resumen_historico ?? null;
