@@ -60,7 +60,7 @@ Estados: **YA FUNCIONA · LISTO PARA INTEGRAR · NECESITA MI API KEY · NECESITA
 | 19 | Booking Bridge (intención de compra) | Reconsultar precio antes de salir | QUOTE + enlace | Banderas apagadas (`BOOKING_EXACT_FLIGHT_FORM`, `BOOKING_RESERVAS_EMAIL`) | — | Media |
 | 20 | Privé Desk (bandeja del equipo) | Atender solicitudes Privé | — | Crear solicitud funciona; **no existe pantalla del equipo** | — | Media |
 | 21 | Google Calendar | "Agrega mi viaje a mi calendario" | Crear eventos | Hoy: archivo `.ics`. API: **NECESITA PERMISO OAUTH** + verificación de Google | Gratis | Etapa 1 (ver §4.1) |
-| 22 | GOV.UK + US State Dept (avisos) | "¿Qué debo saber antes de ir a…?" | DISCOVERY oficial | **PENDIENTE DE PRUEBAS** (código listo en `claude/avisos-oficiales`: función `avisos-viaje`, tarjeta "Antes de viajar" en Destinos, sonda `health-check?action=avisos`, herramienta de Iato `get_travel_advisory` por conectar; falta desplegar y probar en producción) | Gratis (OGL v3); traducción con Haiku solo si no está en caché | Etapa 1 |
+| 22 | GOV.UK + US State Dept (avisos) | "¿Qué debo saber antes de ir a…?" (Iato `get_travel_advisory` + tarjeta "Antes de viajar" en Destinos) | DISCOVERY oficial | **YA FUNCIONA** (28-oct 18:55 UTC: `avisos-viaje` en vivo con Tailandia: GOV.UK act. 12-oct y State Dept nivel 1/4; traducción al español OK; SRE primero) | Gratis (OGL v3); traducción con Haiku ~USD 0.002 por país cada 7 días | Hecho |
 | 23 | SRE "Guía del Viajero" | Avisos para mexicanos | Enlace | Sin API ni dataset oficial encontrado; enlace a la portada (no se verificó un patrón de ficha por país: el sitio no resolvió desde el entorno de prueba) | — | Solo enlace (primero en la tarjeta) |
 | 24 | OpenAgenda | Agenda cultural (Francia) | DISCOVERY | **NECESITA MI API KEY** (clave pública gratis) | Gratis | Etapa 1, baja (solo Francia) |
 | 25 | Renfe GTFS + GTFS-RT | Horarios y retrasos oficiales en España | Horario publicado (sin tarifas) | **LISTO PARA INTEGRAR** (público, CC BY 4.0) | Gratis | Etapa 2, alta |
@@ -132,5 +132,6 @@ Formato: 1 proveedor · 2 función · 3 problema real · 4 ¿cuenta? · 5 ¿API 
 - **Ingresos:** hoy solo hay **clics** registrados (17). No hay comisiones atribuidas registradas; se medirán con 3.2.
 
 ## 6. Historial
+- 28-oct-2026 · Avisos oficiales y clima de Iato en producción y probados en vivo (Tailandia; clima CDMX con MET Norway). Arreglo: la traducción pedía 900 tokens y llegaba cortada.
 - 28-oct-2026 · Creación del documento con auditoría completa (45 integraciones) e investigación de acceso. Próxima solicitud: `trs` de Travelpayouts.
 - 28-oct-2026 · Fila 22 (avisos oficiales) → **PENDIENTE DE PRUEBAS**: módulo `_shared/travelAdvisories.ts` (GOV.UK + State Dept, caché compartida, traducción fiel con Haiku y registro en `ai_usage_log`), función `avisos-viaje`, tarjeta "Antes de viajar" (SRE primero), sonda `health-check?action=avisos` y herramienta `get_travel_advisory` lista para Iato (rama `claude/avisos-oficiales`). Pasa a YA FUNCIONA cuando se despliegue y se pruebe en producción.
