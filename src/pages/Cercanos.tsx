@@ -477,7 +477,7 @@ const Cercanos = () => {
                   )}
 
                   <div className="mb-2 flex justify-center">
-                    <TakeMeThereButton target={{ name: selected.name, address: selected.address, placeId: selected.placeId, lat: selected.lat, lng: selected.lng }} />
+                    <TakeMeThereButton target={{ name: selected.name, address: selected.address, placeId: selected.placeId, lat: selected.lat, lng: selected.lng }} from={userLoc ? { coords: userLoc } : null} />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Button variant="outline" onClick={() => setShowRoute((v) => !v)} className="rounded-full">

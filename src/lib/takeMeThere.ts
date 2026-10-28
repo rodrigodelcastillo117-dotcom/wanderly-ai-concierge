@@ -29,6 +29,50 @@ export function canTakeMeThere(t: TakeMeThereTarget | null | undefined): boolean
   return !!t && (isGooglePlaceId(t.placeId) || validCoords(t.lat, t.lng));
 }
 
+type LatLng = { lat: number; lng: number };
+
+/** Distancia en línea recta (km, fórmula de haversine). */
+export function distanceKm(a: LatLng, b: LatLng): number {
+  const R = 6371;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** Ciudades con metro/transporte público extenso (en Google Maps hay horarios y rutas). */
+const GOOD_TRANSIT = [
+  "ciudad de mexico", "cdmx", "mexico city", "madrid", "barcelona", "paris", "londres", "london", "nueva york", "new york", "manhattan", "brooklyn",
+  "tokio", "tokyo", "kioto", "kyoto", "osaka", "roma", "rome", "berlin", "munich", "amsterdam", "lisboa", "lisbon", "viena", "vienna", "praga", "prague",
+  "budapest", "milan", "bruselas", "brussels", "zurich", "copenhague", "copenhagen", "estocolmo", "stockholm", "oslo", "helsinki", "dublin",
+  "atenas", "athens", "estambul", "istanbul", "varsovia", "warsaw", "seul", "seoul", "hong kong", "singapur", "singapore", "shanghai", "pekin", "beijing",
+  "taipei", "bangkok", "sidney", "sydney", "melbourne", "chicago", "washington", "boston", "san francisco", "toronto", "montreal", "buenos aires",
+  "santiago", "sao paulo", "medellin",
+];
+const normPlace = (s: string) => ` ${String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim()} `;
+export function hasGoodTransit(...places: Array<string | null | undefined>): boolean {
+  return places.some((p) => !!p && GOOD_TRANSIT.some((c) => normPlace(p).includes(` ${c} `)));
+}
+
+/** Hasta aquí se camina; hasta aquí, en una ciudad con buen transporte, se va en transporte público. */
+export const WALK_MAX_KM = 1.5;
+export const TRANSIT_MAX_KM = 15;
+
+/**
+ * Cómo ir con "Llévame" (caso E2E 28-oct-2026: siempre abría en coche, también a 400 m): caminando si está
+ * a 1.5 km o menos; en transporte público si es distancia media en una ciudad con buen transporte; en
+ * coche si es lejos o no se sabe dónde está la persona.
+ */
+export function chooseTravelMode(o: { from?: LatLng | null; to: TakeMeThereTarget; city?: string | null }): TravelMode {
+  const to = o.to;
+  if (!o.from || !validCoords(o.from.lat, o.from.lng) || !validCoords(to.lat, to.lng)) return "driving";
+  const km = distanceKm(o.from, { lat: to.lat as number, lng: to.lng as number });
+  if (km <= WALK_MAX_KM) return "walking";
+  if (km <= TRANSIT_MAX_KM && hasGoodTransit(o.city, to.address)) return "transit";
+  return "driving";
+}
+
 /**
  * URL oficial de Google Maps para ir al lugar. null si no hay place_id ni coordenadas.
  * `origin` solo cuando el usuario escribió una dirección de salida explícita.

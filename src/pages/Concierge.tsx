@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { RichCard, type ConciergeCard } from "@/components/concierge/ConciergeCards";
+import { TakeMeFromContext } from "@/components/concierge/TakeMeThereButton";
 import { IatoMemoryPanel } from "@/components/concierge/IatoMemoryPanel";
 import { SafeMarkdown } from "@/components/concierge/SafeMarkdown";
 import { TripContextSelector, type ContextTrip } from "@/components/concierge/TripContextSelector";
@@ -288,6 +289,7 @@ const Concierge = () => {
 
   // "Tu ubicación" es el respaldo del texto, no un lugar: no se manda como si lo fuera.
   const realPlace = weather?.place && weather.place !== "Tu ubicación" ? weather.place : undefined;
+  const takeMeFrom = useMemo(() => ({ coords: currentCoords, city: realPlace ?? trip?.destino ?? null }), [currentCoords, realPlace, trip?.destino]);
   const patchMsg = (id: string, fn: (m: Msg) => Msg) => setMessages((prev) => prev.map((m) => (m.id === id ? fn(m) : m)));
 
   const sendText = async (text: string, opts: { tripId?: string | null; intent?: string } = {}) => {
@@ -481,6 +483,8 @@ const Concierge = () => {
   );
 
   return (
+    // "Llévame" elige a pie / transporte / coche con la ubicación que esta pantalla ya tiene (sin permisos nuevos).
+    <TakeMeFromContext.Provider value={takeMeFrom}>
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
         {/* ENCABEZADO compacto del chat (en Members Only se oculta para que la curaduría quepa sin bajar):
@@ -670,6 +674,7 @@ const Concierge = () => {
         <FlightStatusDialog open={showFlight} onClose={() => setShowFlight(false)} />
       </div>
     </DashboardLayout>
+    </TakeMeFromContext.Provider>
   );
 };
 
