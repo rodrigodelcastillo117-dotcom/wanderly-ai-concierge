@@ -11,7 +11,16 @@ type RegionBody = {
   nights_per_city?: number[];
   region_bases?: Record<string, unknown>;
   prefs?: { leg_modes?: unknown; [k: string]: unknown };
+  /** Tramos por mar (seaLegs.ts) por índice de tramo: se remapean a la lista expandida. */
+  sea_legs?: unknown;
 };
+
+/** Índice del tramo que sale del destino original i, en la lista expandida (sale de la última base de i). */
+export function remapLegIndex(oldIndex: number, sourceIndex: number[]): number {
+  let at = -1;
+  sourceIndex.forEach((src, k) => { if (src === oldIndex) at = k; });
+  return at;
+}
 
 export type PlaceResolver = (destinations: string[]) => Promise<PlaceResolution[]>;
 
@@ -43,6 +52,9 @@ export async function applyRegionsToBody(body: RegionBody, resolve?: PlaceResolv
   if (Array.isArray(r.nightsPerCity)) body.nights_per_city = r.nightsPerCity;
   if (body.prefs && Array.isArray(body.prefs.leg_modes)) {
     body.prefs = { ...body.prefs, leg_modes: expandLegModes(body.prefs.leg_modes, r.sourceIndex) };
+  }
+  if (Array.isArray(body.sea_legs)) {
+    body.sea_legs = (body.sea_legs as Array<Record<string, unknown>>).map((l) => ({ ...l, index: remapLegIndex(Number(l?.index), r.sourceIndex) }));
   }
   return { expansions: r.expansions, roadtrip, clarifications };
 }

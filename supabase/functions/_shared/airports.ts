@@ -90,6 +90,11 @@ export const CITIES: CityAirports[] = [
   // Medio Oriente, Asia, Oceanía
   C("Dubái", "DXB", ["DXB", "DWC"], "Emiratos Árabes Unidos", "AE", "ME", 25.253, 55.364, ["dubai"]),
   C("Doha", "DOH", ["DOH"], "Catar", "QA", "ME", 25.273, 51.608),
+  // Arabia Saudita y Sudáfrica (caso Diego, 28-oct-2026: Arabia, crucero, Cape Town): coordenadas del aeropuerto.
+  C("Riad", "RUH", ["RUH"], "Arabia Saudita", "SA", "ME", 24.958, 46.699, ["riyadh", "riyad"]),
+  C("Yeda", "JED", ["JED"], "Arabia Saudita", "SA", "ME", 21.68, 39.157, ["jeddah", "jedda", "jidda", "yida"]),
+  C("AlUla", "ULH", ["ULH"], "Arabia Saudita", "SA", "ME", 26.483, 38.117, ["al ula", "alula", "al-ula"]),
+  C("Ciudad del Cabo", "CPT", ["CPT"], "Sudáfrica", "ZA", "AF", -33.965, 18.602, ["cape town", "capetown"]),
   C("Tokio", "TYO", ["HND", "NRT"], "Japón", "JP", "AS", 35.552, 139.78, ["tokyo"]),
   C("Bali", "DPS", ["DPS"], "Indonesia", "ID", "AS", -8.748, 115.167),
   C("Bangkok", "BKK", ["BKK", "DMK"], "Tailandia", "TH", "AS", 13.69, 100.75),

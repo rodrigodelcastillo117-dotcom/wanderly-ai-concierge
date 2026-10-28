@@ -48,7 +48,13 @@ function dateFrom(day: number, month: number, year: number | null, today: Date):
 function explicitRange(text: string, today: Date): [string, string] | null {
   const two = text.match(new RegExp(`(\\d{1,2})\\s+de\\s+(${MONTH_RE})(?:\\s+(?:de|del)\\s+(\\d{4}))?\\s+al?\\s+(\\d{1,2})\\s+de\\s+(${MONTH_RE})(?:\\s+(?:de|del)\\s+(\\d{4}))?`));
   if (two) {
-    const s = dateFrom(Number(two[1]), MONTHS[two[2]], two[3] ? Number(two[3]) : null, today);
+    // "del 15 de noviembre al 19 de diciembre de 2027": sin año en la salida, es el del regreso (o el
+    // anterior si el mes de salida va después). Antes la salida caía en este año (un viaje de 13 meses).
+    const endYear = two[6] ? Number(two[6]) : null;
+    const startYear = two[3] ? Number(two[3]) : endYear != null
+      ? (MONTHS[two[2]] > MONTHS[two[5]] || (MONTHS[two[2]] === MONTHS[two[5]] && Number(two[1]) > Number(two[4])) ? endYear - 1 : endYear)
+      : null;
+    const s = dateFrom(Number(two[1]), MONTHS[two[2]], startYear, today);
     if (!s) return null;
     let e = dateFrom(Number(two[4]), MONTHS[two[5]], two[6] ? Number(two[6]) : s.getFullYear(), today);
     if (e && e <= s) e = dateFrom(Number(two[4]), MONTHS[two[5]], s.getFullYear() + 1, today);

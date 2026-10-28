@@ -163,11 +163,35 @@ describe("Planeador: 'paris roma y atenas 10 dias'", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Entendimos: París · 10 días");
   });
 
-  it("países en vez de ciudades: lo dice y pide ciudades", () => {
+  it("países en vez de ciudades: propone su ciudad principal en orden y pregunta (nada se descarta ni se arma solo)", () => {
     renderPlan();
     fireEvent.change(screen.getByLabelText("¿A dónde quieres ir?"), { target: { value: "Francia, Italia y Grecia" } });
-    expect(screen.getByTestId("plan-multicity-paises")).toHaveTextContent("«Francia», «Italia», «Grecia» son países: escribe las ciudades");
-    expect(screen.queryByTestId("plan-multicity")).toBeNull();
+    expect(screen.getByTestId("plan-multicity-entendimos")).toHaveTextContent("París (Francia) → Roma (Italia) → Atenas (Grecia)");
+    expect(screen.getAllByTestId("plan-multicity-pendiente")).toHaveLength(3);
+    expect(screen.getByRole("button", { name: /Continuar/ })).toBeDisabled();
+  });
+
+  it("caso del dueño 'Hungría, atenas y paris': Hungría no desaparece (Budapest propuesta, se confirma antes de seguir)", () => {
+    renderPlan();
+    fireEvent.change(screen.getByLabelText("¿A dónde quieres ir?"), { target: { value: "Hungría, atenas y paris" } });
+    expect(screen.getByTestId("plan-multicity-entendimos")).toHaveTextContent("Entendimos: Budapest (Hungría) → Atenas → París · ¿lo armamos como ruta de 3 ciudades?");
+    const pend = screen.getByTestId("plan-multicity-pendiente");
+    expect(pend).toHaveTextContent("«Hungría»: te proponemos Budapest");
+    expect(screen.getByRole("button", { name: /Continuar/ })).toBeDisabled();
+    fireEvent.click(within(pend).getByTestId("plan-pendiente-si"));
+    expect(screen.queryByTestId("plan-multicity-pendiente")).toBeNull();
+    expect(screen.getAllByTestId("city-nights-row").map((r) => r.textContent)).toEqual([expect.stringContaining("Budapest"), expect.stringContaining("Atenas"), expect.stringContaining("París")]);
+    expect(screen.getByRole("button", { name: /Continuar/ })).not.toBeDisabled();
+  });
+
+  it("un lugar que no reconocemos se pregunta; quitarlo es explícito y se puede deshacer", () => {
+    renderPlan();
+    fireEvent.change(screen.getByLabelText("¿A dónde quieres ir?"), { target: { value: "Zorbalandia, Roma y Venecia" } });
+    expect(screen.getByTestId("plan-multicity-pendiente")).toHaveTextContent("No reconocimos «Zorbalandia»: ¿qué ciudad es?");
+    expect(screen.getByRole("button", { name: /Continuar/ })).toBeDisabled();
+    fireEvent.click(screen.getByTestId("plan-pendiente-quitar"));
+    expect(screen.getByTestId("plan-multicity-excluidos")).toHaveTextContent("Quitaste «Zorbalandia»");
+    expect(screen.getByRole("button", { name: /Continuar/ })).not.toBeDisabled();
   });
 
   it.each(["Nueva York", "San Miguel de Allende", "Roma 5 días"])("'%s' sigue siendo un solo destino", (text) => {

@@ -184,12 +184,25 @@ describe("ventana Planear viaje", () => {
     });
   });
 
-  it("¿Flexible?: la frase va al parseo de siempre (?q=)", async () => {
+  it("¿Flexible?: la frase va al intérprete (?q=) con el origen y los viajeros elegidos como contexto", async () => {
     renderLayout();
     const d = await openFrom("Planear viaje");
     fireEvent.change(within(d).getByLabelText("Describe tu viaje"), { target: { value: "10 días por Italia en mayo" } });
     fireEvent.click(within(d).getByRole("button", { name: "Explorar con Iato" }));
-    expect(lastPath).toBe(`/dashboard/planear?q=${encodeURIComponent("10 días por Italia en mayo")}`);
+    const u = new URL(lastPath, "http://x");
+    expect(u.pathname).toBe("/dashboard/planear");
+    expect(u.searchParams.get("q")).toBe("10 días por Italia en mayo");
+    expect(u.searchParams.get("viajeros")).toBe("2");
+  });
+
+  it("caso Diego: con descripción escrita, el botón Explorar ya no la ignora (antes armaba solo el destino del campo)", async () => {
+    renderLayout();
+    const d = await openFrom("Planear viaje");
+    fireEvent.change(within(d).getByLabelText("Describe tu viaje"), { target: { value: "un crucero hasta Cape Town y regreso por Londres" } });
+    fireEvent.click(within(d).getByRole("button", { name: /^Explorar$/ }));
+    const u = new URL(lastPath, "http://x");
+    expect(u.pathname).toBe("/dashboard/planear");
+    expect(u.searchParams.get("q")).toContain("un crucero hasta Cape Town y regreso por Londres");
   });
 
   it("con caché: 3 tarjetas con 'desde $X MXN · consultado HH:MM' y la tarjeta abre la búsqueda real; reabrir no vuelve a llamar", async () => {

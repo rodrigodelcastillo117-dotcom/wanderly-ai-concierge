@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import welcomeImg from "@/assets/onboarding-welcome.jpg";
 import tripImg from "@/assets/onboarding-trip.jpg";
 
+// Lo que lee evolucionar-dna del relato (seedText.slice(0, 6000)): se avisa, no se recorta lo guardado.
+const DNA_SEED_READ_MAX = 6000;
 const CARDS = [
   "Amex Platinum",
   "Amex Centurion (Black)",
@@ -449,14 +451,20 @@ const Onboarding = () => {
                 <Textarea
                   aria-label="Cuéntame de tu último gran viaje"
                   value={dnaSeed}
-                  onChange={(e) => setDnaSeed(e.target.value.slice(0, 500))}
+                  // Sin recorte silencioso: el texto se guarda completo (antes se cortaba en 500).
+                  onChange={(e) => setDnaSeed(e.target.value)}
                   placeholder="Ej: Fui a Madrid con mi pareja en octubre 2024. Nos hospedamos en Hotel Único en Salamanca. Lo mejor fue cenar en Coque (2 Michelin) y un día de Toledo. Buscábamos romance y arte, sin prisas."
                   className="min-h-[140px] resize-none bg-card/50 border-border"
                 />
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>150–300 caracteres es ideal.</span>
-                  <span>{dnaSeed.length} / 500</span>
+                  <span>150–300 caracteres es ideal. Esto es tu historia: no arma un viaje nuevo.</span>
+                  <span data-testid="dna-seed-count">{dnaSeed.length.toLocaleString("es-MX")} caracteres</span>
                 </div>
+                {dnaSeed.length > DNA_SEED_READ_MAX && (
+                  <p className="text-xs text-amber-400/90" role="status" data-testid="dna-seed-aviso">
+                    Guardamos tu texto completo. Para tu Travel DNA, Iato lee los primeros {DNA_SEED_READ_MAX.toLocaleString("es-MX")} caracteres: pon lo más importante al principio.
+                  </p>
+                )}
               </div>
 
               <Button

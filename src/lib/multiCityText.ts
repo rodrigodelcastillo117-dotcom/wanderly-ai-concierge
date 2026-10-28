@@ -21,6 +21,7 @@ import { catalogCities, matchCountry } from "../../supabase/functions/_shared/so
 import { sameCity, splitNights } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { COUNTRIES as PICKER_COUNTRIES } from "@/lib/countriesCities";
 import { countryRouteFor, ROUTE_CITIES } from "@/lib/countryRoutes";
+import { findRegion } from "../../supabase/functions/_shared/regions.ts";
 
 const norm = (s: unknown) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
   .replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -51,9 +52,16 @@ const CITY_STATES = new Set(["singapur", "panama", "mexico"]);
 for (const c of catalogCities()) if (!isCountryName(c.lugar) || CITY_STATES.has(norm(c.lugar))) add(c.lugar, { name: c.lugar, country: null });
 for (const country of PICKER_COUNTRIES) for (const city of country.cities) add(city, { name: city, country: country.name });
 for (const r of ROUTE_CITIES) add(r.city, { name: r.city, country: r.country });
+// Nombres en inglés de ciudades del selector que la gente escribe así (caso Diego: "Cape Town" se leía
+// como el país Sudáfrica por un alias del catálogo de recuerdos). Solo ciudades que ya están en el catálogo.
+const EXTRA_CITY_ALIASES: Array<[string, string]> = [["cape town", "Ciudad del Cabo"], ["capetown", "Ciudad del Cabo"]];
+for (const [alias, city] of EXTRA_CITY_ALIASES) { const e = CATALOG.get(norm(city)); if (e) add(alias, e); }
 const MAX_WORDS = 5;
 
 const COUNTRY_NAMES = new Set(PICKER_COUNTRIES.map((c) => norm(c.name)));
+// Países que no están en el selector ni en el catálogo de recuerdos (para no tomarlos como "desconocidos").
+const EXTRA_COUNTRIES: Array<[string, string[]]> = [["Arabia Saudita", ["arabia saudita", "arabia saudi", "arabia", "saudi arabia", "arabia saudí"]],
+  ["Jordania", ["jordania", "jordan"]], ["Omán", ["oman"]], ["Catar", ["catar", "qatar"]]];
 function asCountry(chunk: string): string | null {
   const k = norm(chunk);
   if (!k || CATALOG.has(k)) return null;
@@ -61,6 +69,8 @@ function asCountry(chunk: string): string | null {
   if (region) return region.country;
   const picker = PICKER_COUNTRIES.find((c) => norm(c.name) === k);
   if (picker) return picker.name;
+  const extra = EXTRA_COUNTRIES.find(([, al]) => al.some((a) => norm(a) === k));
+  if (extra) return extra[0];
   const row = matchCountry(chunk);
   if (row && (norm(row[1]) === k || row[3].includes(k))) return row[1];
   return COUNTRY_NAMES.has(k) ? chunk.trim() : null;
@@ -72,13 +82,20 @@ const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta h
   "luego despues primero despues finalmente terminar terminando empezar empezando empezamos acabar pasando pasar pasear " +
   "vacaciones escapada solo sola pareja familia amigos amigas novia novio esposa esposo hijos personas persona viajeros viajero adultos " +
   "plan planea planear arma armar armame crea creame haz hazme dias dia noches noche semana semanas mes meses total aprox aproximadamente " +
-  "ciudades ciudad destinos destino paises pais entre todo toda varios varias otra otro mas").split(/\s+/));
+  "ciudades ciudad destinos destino paises pais entre todo toda varios varias otra otro mas " +
+  // "más o menos", "somos 2", "algo de lujo": no son lugares (caso Diego).
+  "menos o u somos seremos vamos estamos queremos algo lujo lujoso lujosa tipo cerca alrededor aproximado").split(/\s+/));
 
 const NUM_WORDS: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
   once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, veinte: 20, treinta: 30 };
 const MONTHS = "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre";
 
+/** Cada lugar escrito, en el orden de la frase (nada se descarta: lo no reconocido va como "unknown"). */
+export type PlaceItem = { kind: "city" | "country" | "region" | "unknown"; text: string; name: string };
+
 export type MultiCityParse = {
+  /** Todo lo escrito, en orden: ciudades, países, regiones y lo no reconocido. */
+  items: PlaceItem[];
   /** Ciudades del viaje en orden (nombres del catálogo, con acentos). */
   cities: string[];
   /** Ciudad de salida si la frase la dice ("desde CDMX", "CDMX → Madrid → Lisboa"). */
@@ -108,7 +125,7 @@ export function durationOf(text: string): { days: number | null; nights: number 
 }
 
 /** Quita de la frase lo que no es lugar (duración, fechas, viajeros) dejando un separador. */
-function stripNonPlaces(text: string): string {
+export function stripNonPlaces(text: string): string {
   const word = "(?:\\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta)";
   return text
     .replace(new RegExp(`\\b(?:por\\s+|durante\\s+|en\\s+)?${word}\\s*(?:d[ií]as?|d|noches?|semanas?)\\b`, "gi"), " , ")
@@ -122,10 +139,10 @@ function stripNonPlaces(text: string): string {
 }
 
 // Separadores entre paradas (sobre el texto original; "después" con o sin acento).
-const SEPARATOR = /\s*(?:→|->|=>|>|,|;|\+|\/|\||\s[-–]\s|\s+y\s+luego\s+|\s+y\s+despu[eé]s\s+|\s+luego\s+|\s+despu[eé]s\s+|\s+y\s+|\s+e\s+|\s+hasta\s+|\s+a\s+|\s+al\s+)\s*/i;
+export const SEPARATOR = /\s*(?:(?<=[a-záéíóúñ]{3})\.\s+(?=[A-ZÁÉÍÓÚÑ])|→|->|=>|>|,|;|\+|\/|\||\s[-–]\s|\s+y\s+luego\s+|\s+y\s+despu[eé]s\s+|\s+luego\s+|\s+despu[eé]s\s+|\s+y\s+|\s+e\s+|\s+hasta\s+|\s+a\s+|\s+al\s+)\s*/i;
 const ORIGIN_PREFIX = /^(?:desde|saliendo\s+de|salgo\s+de|salimos\s+de|partiendo\s+de)\s+/i;
 
-type Segment = { cities: Entry[]; unknown: string | null; country: string | null; origin: Entry | null };
+type Segment = { cities: Entry[]; unknown: string | null; country: string | null; region: string | null; origin: Entry | null; text: string };
 const ORIGIN_WORDS = new Set(["desde", "saliendo", "salgo", "salimos", "partiendo"]);
 
 /** Un tramo entre separadores → ciudades (solo si todo el tramo se entiende) o lo no reconocido. */
@@ -157,39 +174,44 @@ function segment(chunk: string): Segment {
     clean = false;
     break;
   }
-  if (clean) return { cities: found, unknown: null, country: null, origin };
+  if (clean) return { cities: found, unknown: null, country: null, region: null, origin, text: chunk.trim() };
   // No se parte un nombre que no conocemos ("Valle de Guadalupe"): todo el tramo es uno solo.
   const keep = (j: number) => !!nw[j] && !FILLER.has(nw[j]) && !/^\d+$/.test(nw[j]);
   const a = words.findIndex((_, j) => keep(j));
   let b = words.length - 1;
   while (b >= 0 && !keep(b)) b--;
   const meaningful = a >= 0 ? words.slice(a, b + 1).join(" ").replace(/[.!?¡¿"]+/g, "").trim() : "";
-  if (!meaningful) return { cities: [], unknown: null, country: null, origin: null };
+  if (!meaningful) return { cities: [], unknown: null, country: null, region: null, origin: null, text: "" };
+  // Región turística de la tabla curada ("Toscana"): se recorre por sus ciudades base.
+  const reg = findRegion(meaningful);
+  if (reg) return { cities: [], unknown: null, country: null, region: reg.name, origin: null, text: meaningful };
   const country = asCountry(meaningful);
-  return { cities: [], unknown: country ? null : meaningful, country, origin: null };
+  return { cities: [], unknown: country ? null : meaningful, country, region: null, origin: null, text: meaningful };
 }
 
 /** Lee varias ciudades de una frase. `origin` = ciudad de salida del viajero (para no tomarla como parada). */
 export function parseMultiCityText(text: string, opts: { origin?: string | null } = {}): MultiCityParse {
   const raw = String(text ?? "").trim();
   const { days, nights } = durationOf(raw);
-  const empty: MultiCityParse = { cities: [], origin: null, days, nights, unknown: [], countries: [] };
+  const empty: MultiCityParse = { items: [], cities: [], origin: null, days, nights, unknown: [], countries: [] };
   if (!raw) return empty;
   const chunks = stripNonPlaces(raw).split(SEPARATOR).map((c) => c.trim()).filter(Boolean);
   let origin: string | null = null;
   const stops: string[] = [];
   const unknown: string[] = [];
   const countries: string[] = [];
+  const items: PlaceItem[] = [];
   const seen = (name: string) => stops.some((s) => sameCity(s, name) || norm(s) === norm(name));
   for (const c0 of chunks) {
     const isOrigin = ORIGIN_PREFIX.test(c0);
     const seg = segment(c0.replace(ORIGIN_PREFIX, ""));
-    if (seg.unknown) unknown.push(seg.unknown);
-    if (seg.country && !countries.includes(seg.country)) countries.push(seg.country);
+    if (seg.unknown) { unknown.push(seg.unknown); items.push({ kind: "unknown", text: seg.unknown, name: seg.unknown }); }
+    if (seg.region && !items.some((x) => x.kind === "region" && x.name === seg.region)) items.push({ kind: "region", text: seg.text, name: seg.region });
+    if (seg.country && !countries.includes(seg.country)) { countries.push(seg.country); items.push({ kind: "country", text: seg.text, name: seg.country }); }
     if (seg.origin && !origin) origin = seg.origin.name;
     seg.cities.forEach((e, j) => {
       if (isOrigin && j === 0 && !origin) { origin = e.name; return; }
-      if (!seen(e.name)) stops.push(e.name);
+      if (!seen(e.name)) { stops.push(e.name); items.push({ kind: "city", text: e.name, name: e.name }); }
     });
   }
   // La primera ciudad es el origen: la del viajero, o una de México seguida de ciudades fuera de México.
@@ -203,7 +225,8 @@ export function parseMultiCityText(text: string, opts: { origin?: string | null 
   // Regreso al origen al final ("… → Lisboa → CDMX"): no es una parada.
   const home = origin ?? opts.origin ?? null;
   if (home && stops.length >= 3 && sameCity(stops[stops.length - 1], home)) stops.pop();
-  return { cities: stops, origin, days, nights, unknown, countries };
+  const kept = items.filter((x) => x.kind !== "city" || stops.includes(x.name));
+  return { items: kept, cities: stops, origin, days, nights, unknown, countries };
 }
 
 /** ¿La frase es solo un país o región ("india", "Japón 10 días", "Europa")? Devuelve el país. */

@@ -94,6 +94,9 @@ verify_jwt = true
 [functions.parsear-viaje]
 verify_jwt = true
 
+[functions.interpretar-viaje]
+verify_jwt = true
+
 [functions.pexels-image]
 verify_jwt = true
 

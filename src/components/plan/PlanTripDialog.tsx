@@ -150,7 +150,28 @@ export function PlanTripDialog({ open, onOpenChange, startMode = "buscar" }: { o
     navigate(path, { state: { ventana: Date.now() } });
   };
 
+  // La descripción libre ("¿Flexible?") manda: con texto ahí, "Explorar" ya no la ignora (caso Diego,
+  // 27-oct-2026: el destino "Arabia Saudita" se armó solo y su crucero, Cape Town y el regreso por Londres
+  // se perdieron). Va al intérprete completo con lo elegido en los campos como contexto.
+  const describedQuery = (): string | null => {
+    const t = libre.trim();
+    if (!t) return null;
+    const d = destination.trim();
+    const norm = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return d && !norm(t).includes(norm(d)) ? `${d}. ${t}` : t;
+  };
+  const interpretPath = (q: string) => {
+    const qs = new URLSearchParams({ q, viajeros: String(Math.max(1, adults + minors)) });
+    if (origin.trim()) qs.set("origen", origin.trim());
+    if (kind !== "multi" && depart) qs.set("fecha_salida", depart);
+    if (kind === "redondo" && ret) qs.set("fecha_regreso", ret);
+    if (cabin !== "turista") qs.set("clase", cabin);
+    return `/dashboard/planear?${qs.toString()}`;
+  };
+
   const explore = () => {
+    const described = describedQuery();
+    if (described) { go(interpretPath(described)); return; }
     const form: PlanForm = { kind, adults, minors, cabin, origin, destination, depart, ret, legs };
     if (kind !== "multi" && !destination.trim()) { setFormError("Escribe a dónde quieres ir: una ciudad o un país."); return; }
     if (kind === "redondo" && depart && ret && ret <= depart) { setFormError("El regreso debe ser después de la salida."); return; }
@@ -180,8 +201,8 @@ export function PlanTripDialog({ open, onOpenChange, startMode = "buscar" }: { o
   };
 
   const exploreWithIato = () => {
-    const q = libre.trim();
-    go(q ? `/dashboard/planear?q=${encodeURIComponent(q)}` : "/dashboard/planear");
+    const q = describedQuery();
+    go(q ? interpretPath(q) : "/dashboard/planear");
   };
 
   const setLeg = (i: number, patch: Partial<Leg>) => setLegs((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -306,10 +327,11 @@ export function PlanTripDialog({ open, onOpenChange, startMode = "buscar" }: { o
               <Sparkles aria-hidden className="h-4 w-4 text-primary" /> ¿Flexible? Descríbele tu viaje a Iato
             </h3>
             <label htmlFor="plan-libre" className="sr-only">Describe tu viaje</label>
-            <textarea id="plan-libre" rows={2} value={libre} onChange={(e) => setLibre(e.target.value)}
-              placeholder="Ej.: 10 días por Italia en mayo con mi pareja, comida y museos"
+            <textarea id="plan-libre" rows={3} value={libre} onChange={(e) => setLibre(e.target.value)}
+              placeholder="Ej.: Arabia Saudita, un crucero hasta Cape Town y regreso por Londres, del 15 de noviembre al 19 de diciembre"
               className="mt-3 w-full resize-none rounded-2xl border border-border/60 bg-black/40 p-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/60 focus:outline-none" />
-            <div className="mt-3 flex justify-end">
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-muted-foreground">{libre.trim() ? "Explorar usará tu descripción completa; antes de armar te mostramos lo que entendimos." : "Paradas, cruceros, trenes, regreso por otra ciudad: todo cuenta."}</p>
               <button type="button" onClick={exploreWithIato}
                 className="rounded-full border border-primary/40 px-4 py-2 text-xs text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 Explorar con Iato

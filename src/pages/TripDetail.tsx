@@ -60,6 +60,9 @@ import { arrivalByLand, isBusOption, isCarOption, isHiredCarOption } from "@/lib
 import { GroundOptionInfo } from "@/components/booking/GroundOptionInfo";
 import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
 import { isBroughtTrip } from "@/lib/broughtTrip";
+// Intérprete de viaje completo: recuperación "¿No entendimos bien tu viaje?" y tramo crucero.
+import { TripUnderstoodButton } from "@/components/trip/TripUnderstoodButton";
+import { CruiseLegsCard } from "@/components/trip/CruiseLegsCard";
 import { BroughtTripSummary } from "@/components/BroughtTripSummary";
 
 
@@ -600,6 +603,10 @@ const TripDetail = () => {
       {isOwner && convertToRouteHref(trip) && (
         <div className="max-w-5xl px-4 pt-4 sm:px-6 md:px-12"><ConvertToRouteBanner trip={trip} /></div>
       )}
+      {/* En todo viaje generado (no en uno traído o importado): ver lo escrito vs. lo entendido y corregirlo. */}
+      {isOwner && !brought && (trip as any).fuente !== "documento" && (
+        <div className="max-w-5xl px-4 pt-3 sm:px-6 md:px-12"><TripUnderstoodButton trip={trip} /></div>
+      )}
       <TripSectionNav sections={sections} active={section} onChange={showSection} />
 
       <div className="max-w-5xl p-4 pb-24 sm:p-6 md:px-12 md:pt-8">
@@ -912,6 +919,9 @@ const TripDetail = () => {
             );
           })}
         </div>
+
+        {/* Tramo crucero que pidió la persona (puertos y fechas; precio por cotizar con la naviera). */}
+        <CruiseLegsCard trip={trip} />
 
         {/* Cruceros alternativos */}
         {Array.isArray(trip.cruceros_json) && trip.cruceros_json.length > 0 && (

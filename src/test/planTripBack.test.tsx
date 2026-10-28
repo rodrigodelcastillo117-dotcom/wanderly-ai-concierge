@@ -1,10 +1,20 @@
 import React from "react";
-import { render, screen, act, waitFor } from "@testing-library/react";
+import { render, screen, act, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { vi, beforeEach } from "vitest";
 
+// Intérprete de viaje completo (28-oct-2026): la frase se interpreta (sin IA si son solo ciudades
+// conocidas; con interpretar-viaje si trae crucero, tramos o regreso) y la persona CONFIRMA "Entendí…"
+// antes de gastar. Estas pruebas conservan las garantías de siempre: una sola interpretación por frase,
+// la URL sin ?q al tomarla, y "Atrás" o un remontaje nunca repiten el análisis.
+const specFor = (ciudad: string, texto: string) => ({
+  version: 1, consulta_original: texto, intencion: "viaje_futuro", origen: "Ciudad de México",
+  paradas: [{ id: "p1", ciudad, pais: null, de_region: null, es_puerto: true, rol: "estancia", noches: null, llegada_por: "tren", crucero: null, sugerida: false, texto: ciudad }],
+  regreso: { a: "Ciudad de México", via: null, modo: "por_definir" }, fecha_salida: "2027-03-01", fecha_regreso: "2027-03-06", fechas_expresas: true,
+  noches_total: 5, viajeros: 2, preferencias: [], reservas: [], menciones: [{ texto: ciudad, tipo: "ciudad", estado: "parada", ref: "p1" }],
+  preguntas: [], sugerencias: [], fuente: "ia",
+});
 const invoke = vi.fn(async (fn: string, _opts: any) => {
-  if (fn === "parsear-viaje") return { data: { destino: "Roma", fecha_salida: "2027-03-01", fecha_regreso: "2027-03-06", num_viajeros: 2 }, error: null };
   if (fn === "analizar-viaje") return { data: { trip: { id: `trip-${invoke.mock.calls.filter((c) => c[0] === "analizar-viaje").length}` } }, error: null };
   return { data: null, error: null };
 });
@@ -32,9 +42,20 @@ let loc = "";
 const Spy = () => { nav = useNavigate(); const l = useLocation(); loc = l.pathname + l.search; return null; };
 
 const analyzeCalls = () => invoke.mock.calls.filter((c) => c[0] === "analizar-viaje").length;
+/** "Entendí…": se completan las fechas si faltan y se confirma (ahí se usa la búsqueda del plan). */
+const confirmReview = async () => {
+  await screen.findByTestId("spec-review");
+  const salida = screen.getAllByLabelText("Salida")[0] as HTMLInputElement;
+  if (!salida.value) fireEvent.change(salida, { target: { value: "2027-03-01" } });
+  const regreso = screen.getAllByLabelText("Regreso")[0] as HTMLInputElement;
+  if (!regreso.value) fireEvent.change(regreso, { target: { value: "2027-03-06" } });
+  expect(analyzeCalls()).toBe(0); // nada se cotiza antes de confirmar
+  fireEvent.click(screen.getByTestId("spec-confirmar"));
+};
 
 beforeEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
   invoke.mockClear();
 });
 
@@ -49,6 +70,7 @@ it("Atrás desde el viaje generado no vuelve a analizar ni crea un duplicado (an
       </Routes>
     </MemoryRouter>,
   );
+  await confirmReview();
   await screen.findByText("VIAJE");
   expect(analyzeCalls()).toBe(1);
   expect(loc).toBe("/dashboard/viajes/trip-1");
@@ -72,6 +94,7 @@ it("si la misma intención vuelve a montarse (p. ej. historial viejo con ?q), ll
     </MemoryRouter>
   );
   const first = render(tree);
+  await confirmReview();
   await screen.findByText("VIAJE");
   first.unmount();
   render(tree);
@@ -81,9 +104,9 @@ it("si la misma intención vuelve a montarse (p. ej. historial viejo con ?q), ll
 
 it("la URL deja de tener ?q en cuanto un montaje vivo toma la interpretación", async () => {
   let resolveParse: (v: any) => void = () => {};
-  invoke.mockImplementationOnce(async () => new Promise((r) => { resolveParse = r; })); // parsear-viaje pendiente
+  invoke.mockImplementationOnce(async () => new Promise((r) => { resolveParse = r; })); // interpretar-viaje pendiente
   render(
-    <MemoryRouter initialEntries={["/dashboard/planear?q=Lima&mode=x"]}>
+    <MemoryRouter initialEntries={["/dashboard/planear?q=Lima%20en%20tren&mode=x"]}>
       <Spy />
       <Routes>
         <Route path="/dashboard/planear" element={<PlanTrip />} />
@@ -91,10 +114,13 @@ it("la URL deja de tener ?q en cuanto un montaje vivo toma la interpretación", 
       </Routes>
     </MemoryRouter>,
   );
-  await waitFor(() => expect(invoke).toHaveBeenCalledWith("parsear-viaje", expect.anything()));
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("interpretar-viaje", expect.anything()));
   // Mientras se interpreta, la frase sigue en la URL: un remontaje puede retomarla (N-09).
-  expect(loc).toBe("/dashboard/planear?q=Lima&mode=x");
-  await act(async () => { resolveParse({ data: { destino: "Lima" }, error: null }); });
+  expect(loc).toBe("/dashboard/planear?q=Lima%20en%20tren&mode=x");
+  await act(async () => { resolveParse({ data: { ok: true, spec: specFor("Lima", "Lima en tren") }, error: null }); });
+  await screen.findByTestId("spec-review");
+  expect(loc).toBe("/dashboard/planear?mode=x");
+  await confirmReview();
   await screen.findByText("VIAJE");
   expect(loc).toBe("/dashboard/viajes/trip-1");
 });
@@ -103,7 +129,7 @@ it("N-09: si la página se desmonta y remonta mientras interpreta, retoma la mis
   let resolveParse: (v: any) => void = () => {};
   invoke.mockImplementationOnce(async () => new Promise((r) => { resolveParse = r; }));
   const tree = (
-    <MemoryRouter initialEntries={["/dashboard/planear?q=Lisboa"]}>
+    <MemoryRouter initialEntries={["/dashboard/planear?q=Lisboa%20en%20tren"]}>
       <Spy />
       <Routes>
         <Route path="/dashboard/planear" element={<PlanTrip />} />
@@ -112,11 +138,12 @@ it("N-09: si la página se desmonta y remonta mientras interpreta, retoma la mis
     </MemoryRouter>
   );
   const first = render(tree);
-  await waitFor(() => expect(invoke).toHaveBeenCalledWith("parsear-viaje", expect.anything()));
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("interpretar-viaje", expect.anything()));
   first.unmount(); // p. ej. la guardia de rutas mostró su spinner un instante
   render(tree);
-  await act(async () => { resolveParse({ data: { destino: "Lisboa" }, error: null }); });
+  await act(async () => { resolveParse({ data: { ok: true, spec: specFor("Lisboa", "Lisboa en tren") }, error: null }); });
+  await confirmReview();
   await screen.findByText("VIAJE");
-  expect(invoke.mock.calls.filter((c) => c[0] === "parsear-viaje").length).toBe(1);
+  expect(invoke.mock.calls.filter((c) => c[0] === "interpretar-viaje").length).toBe(1);
   expect(analyzeCalls()).toBe(1);
 });

@@ -5,6 +5,7 @@
 import { multiDestTripRows } from "@/lib/multiDestTrip";
 import { countryForStops } from "@/lib/booking";
 import { clearRequestKey, getRequestKey } from "@/lib/requestKey";
+import type { SavedConsulta, SeaLeg } from "../../supabase/functions/_shared/tripSpec.ts";
 
 type Client = {
   functions: { invoke: (fn: string, opts: { body: unknown }) => Promise<{ data: any; error: any }> };
@@ -29,6 +30,12 @@ export type MultiDestArgs = {
   travelClass?: string | null;
   /** Telemetría de behavioral_insights (como antes en MultiDestRoute). */
   telemetry?: { autonomous: boolean } | null;
+  /** Crucero/ferry entre paradas (intérprete de viaje): noches a bordo, puertos y precio por cotizar. */
+  seaLegs?: SeaLeg[] | null;
+  /** Preferencias, reservas y conexiones que escribió la persona (van al plan como contexto). */
+  travelerNotes?: string | null;
+  /** Texto original + interpretación: se guarda en itinerario_json.consulta para depurar y corregir. */
+  consulta?: SavedConsulta | null;
 };
 
 export type MultiDestResult = { logistics: any; tripId?: string };
@@ -47,6 +54,8 @@ export function logisticsPlanArgs(a: MultiDestArgs) {
     ...(nights ? { nights_per_city: nights } : {}),
     ...(a.regionBases && Object.keys(a.regionBases).length ? { region_bases: a.regionBases } : {}),
     ...(a.travelClass && ["premium", "business", "primera"].includes(a.travelClass) ? { travel_class: a.travelClass } : {}),
+    ...(a.seaLegs && a.seaLegs.length ? { sea_legs: a.seaLegs } : {}),
+    ...(a.travelerNotes && a.travelerNotes.trim() ? { traveler_notes: a.travelerNotes.trim().slice(0, 900) } : {}),
   };
 }
 
@@ -89,6 +98,7 @@ export function multiDestTripInsert(a0: MultiDestArgs, logistics: any) {
     itinerario_json: {
       multi: true, destinations: a.stops, logistics, days,
       ...(Array.isArray(logistics?.region_expansions) && logistics.region_expansions.length ? { region_expansions: logistics.region_expansions } : {}),
+      ...(a.consulta ? { consulta: a.consulta } : {}),
     },
     tips_personalizados: logistics?.resumen ? [logistics.resumen] : null,
   };
