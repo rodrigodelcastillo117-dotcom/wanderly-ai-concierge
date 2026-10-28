@@ -5,6 +5,7 @@
 // mano (member_card_grants.edition) y nunca cambian el rango ni se ofrecen como algo alcanzable.
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { afterCritical } from "@/lib/idleGate";
 
 export const MEMBER_TIERS = ["blue", "gold", "platinum_1", "platinum_2", "founder_black"] as const;
 export type MemberTier = (typeof MEMBER_TIERS)[number];
@@ -72,17 +73,22 @@ export function useMemberCard(uid?: string | null): { card: MemberCardData | nul
   useEffect(() => {
     if (uid === null) { setState({ card: null, loading: false }); return; }
     let alive = true;
-    let p: Promise<MemberCardData | null>;
-    if (uid) {
-      p = cache.get(uid) ?? fetchMemberCard();
-      cache.set(uid, p);
-      p.then((c) => { if (!c) cache.delete(uid); });
-    } else {
-      p = fetchMemberCard();
-    }
     setState((s) => ({ ...s, loading: true }));
-    p.then((card) => { if (alive) setState({ card, loading: false }); });
-    return () => { alive = false; };
+    const read = () => {
+      let p: Promise<MemberCardData | null>;
+      if (uid) {
+        p = cache.get(uid) ?? fetchMemberCard();
+        cache.set(uid, p);
+        p.then((c) => { if (!c) cache.delete(uid); });
+      } else {
+        p = fetchMemberCard();
+      }
+      p.then((card) => { if (alive) setState({ card, loading: false }); });
+    };
+    // En el menú (con uid) la tarjeta es secundaria: espera a lo principal de la pantalla, con su
+    // esqueleto (loading). Ya pedida, o en THE PRIVÉ PASSPORT (sin uid), se lee al instante.
+    const cancel = uid && !cache.has(uid) ? afterCritical(read) : (read(), () => {});
+    return () => { alive = false; cancel(); };
   }, [uid]);
   return state;
 }

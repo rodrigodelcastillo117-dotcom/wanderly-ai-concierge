@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { cachedVideo, getDestinationVideo, type VideoResult } from "@/lib/videoSearch";
 import { useInView } from "@/hooks/useInView";
+import { afterCritical } from "@/lib/idleGate";
 
 interface DestinationVideoProps {
   query: string;
@@ -28,11 +29,16 @@ export const DestinationVideo = ({ query, fallbackImage, fallbackSrcSet, sizes, 
     setData(cached ?? null);
     if (cached || !inView) return;
     let alive = true;
-    void getDestinationVideo(query).then((result) => {
-      if (alive) setData(result);
+    // El video es un extra: primero se pinta la imagen (LCP) y los datos de la pantalla; la búsqueda
+    // del video va después (idleGate).
+    const cancel = afterCritical(() => {
+      void getDestinationVideo(query).then((result) => {
+        if (alive) setData(result);
+      });
     });
     return () => {
       alive = false;
+      cancel();
     };
   }, [query, inView]);
 

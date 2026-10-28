@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { priveApi, type PriveStatus } from "@/lib/priveApi";
+import { afterCritical } from "@/lib/idleGate";
 
 export function isActivePrive(s: Pick<PriveStatus, "membership_status" | "eligible"> | null | undefined): boolean {
   return !!s && s.membership_status === "active" && s.eligible === true;
@@ -17,13 +18,17 @@ export function usePriveSeal(): boolean {
   useEffect(() => {
     if (!uid) { setActive(false); return; }
     let cancelled = false;
-    let p = cache.get(uid);
-    if (!p) {
-      p = priveApi.status().then((r) => (r.ok ? isActivePrive(r.data) : false)).catch(() => false);
-      cache.set(uid, p);
-    }
-    p.then((v) => { if (!cancelled) setActive(v); });
-    return () => { cancelled = true; };
+    const read = () => {
+      let p = cache.get(uid);
+      if (!p) {
+        p = priveApi.status().then((r) => (r.ok ? isActivePrive(r.data) : false)).catch(() => false);
+        cache.set(uid, p);
+      }
+      p.then((v) => { if (!cancelled) setActive(v); });
+    };
+    // El sello es secundario: ya pedido → al instante; si no, después de lo principal de la pantalla.
+    const cancel = cache.has(uid) ? (read(), () => {}) : afterCritical(read);
+    return () => { cancelled = true; cancel(); };
   }, [uid]);
   return active;
 }

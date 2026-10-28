@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { loadProfileBasics } from "@/lib/profileBasics";
 import { BackButton } from "@/components/BackButton";
 import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -112,10 +112,10 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
-      setProfile({ full_name: prof?.full_name ?? null });
-    })();
+    // La misma consulta que el saludo del inicio y el avatar (profileBasics): una sola a profiles.
+    let alive = true;
+    void loadProfileBasics(user.id).then((prof) => { if (alive) setProfile({ full_name: prof?.full_name ?? null }); });
+    return () => { alive = false; };
   }, [user]);
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Viajero";

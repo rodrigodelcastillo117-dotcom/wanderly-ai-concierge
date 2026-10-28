@@ -1,5 +1,5 @@
 import { signupErrorMessage } from "@/lib/signupErrors";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Compass, ArrowLeft } from "lucide-react";
@@ -14,6 +14,12 @@ import { claimPendingReferral } from "@/lib/referral";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
 import { safeRedirectPath } from "@/lib/safeRedirect";
 import { readPendingToken } from "@/lib/priveSession";
+import { useOptionalOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { warmProfileBasics } from "@/lib/profileBasics";
+import { preloadInitialRoute } from "@/lib/routeChunks";
+
+/** En las pruebas no se descargan pantallas de verdad (cada prueba monta solo lo que revisa). */
+const PRELOAD = import.meta.env.MODE !== "test";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -33,26 +39,62 @@ const Auth = () => {
   // mandaba otro correo y Supabase acaba rechazándolos por límite de envíos).
   const [resetState, setResetState] = useState<"idle" | "sending" | "sent">("idle");
 
+  // Rendimiento (login → inicio, E2E 28-oct-2026): la pantalla a la que se va después (el inicio o la
+  // ruta pedida) se descarga mientras la persona escribe, no hasta después de iniciar sesión.
   useEffect(() => {
-    if (user) {
-      claimPendingReferral().catch(() => {});
-      // Verificar completado en ambas tablas (compatibilidad) y en user_onboarding_state, que es lo que
-      // revisa ProtectedRoute: quien terminó el onboarding pero no el perfil profundo iba a /onboarding,
-      // rebotaba a /dashboard (dos saltos y otra pantalla cargando) y perdía la ruta que había pedido.
-      (async () => {
-        const [{ data: prefs }, { data: tp }, { data: onb }] = await Promise.all([
-          supabase.from("ai_user_preferences").select("completado").eq("user_id", user.id).maybeSingle(),
-          supabase.from("travel_profiles").select("completado").eq("user_id", user.id).maybeSingle(),
-          supabase.from("user_onboarding_state").select("completed_onboarding").eq("user_id", user.id).maybeSingle(),
-        ]);
-        const done = (prefs as any)?.completado || (tp as any)?.completado || (onb as any)?.completed_onboarding;
-        // Quien llegó desde el correo de invitación Privé (el token quedó guardado al abrir el
-        // enlace) vuelve a su invitación, no al inicio.
-        const fallback = readPendingToken("invite") ? "/prive/invitacion" : "/dashboard";
-        navigate(done ? (returnTo ?? fallback) : "/onboarding", { replace: true });
-      })();
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (!w.requestIdleCallback || !PRELOAD) return;
+    const id = w.requestIdleCallback(() => { preloadInitialRoute(returnTo?.split(/[?#]/)[0] ?? "/dashboard"); }, { timeout: 2500 });
+    return () => w.cancelIdleCallback?.(id);
+  }, [returnTo]);
+
+  // Ya con sesión, ¿a dónde va? Con la misma señal que ProtectedRoute (user_onboarding_state, que el
+  // OnboardingProvider ya está pidiendo): antes /auth hacía OTRAS 3 consultas y esperaba a que
+  // terminaran. Solo si el proveedor dice "sin terminar" (o no hay proveedor) se revisan las tablas
+  // viejas (ai_user_preferences / travel_profiles) por compatibilidad: quien terminó el onboarding
+  // pero no el perfil profundo iba a /onboarding, rebotaba a /dashboard y perdía la ruta pedida.
+  const onbCtx = useOptionalOnboardingStatus();
+  const hasOnbCtx = !!onbCtx;
+  const onbStatus = onbCtx?.status ?? null;
+  const onbLoading = onbCtx?.isLoading ?? false;
+  const routedFor = useRef<string | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => {
+    if (!user || routedFor.current === user.id) return;
+    const fallback = () => (readPendingToken("invite") ? "/prive/invitacion" : "/dashboard");
+    const go = (done: boolean) => {
+      routedFor.current = user.id;
+      // Quien llegó desde el correo de invitación Privé (el token quedó guardado al abrir el
+      // enlace) vuelve a su invitación, no al inicio.
+      navigate(done ? (returnTo ?? fallback()) : "/onboarding", { replace: true });
+    };
+    if (hasOnbCtx) {
+      if (onbStatus?.user_id === user.id && onbStatus.completed_onboarding) return go(true);
+      if (onbLoading || onbStatus?.user_id !== user.id) return; // la consulta del proveedor sigue en curso
     }
-  }, [user, navigate, returnTo]);
+    routedFor.current = user.id;
+    void (async () => {
+      const [{ data: prefs }, { data: tp }, onb] = await Promise.all([
+        supabase.from("ai_user_preferences").select("completado").eq("user_id", user.id).maybeSingle(),
+        supabase.from("travel_profiles").select("completado").eq("user_id", user.id).maybeSingle(),
+        hasOnbCtx
+          ? Promise.resolve({ data: onbStatus })
+          : supabase.from("user_onboarding_state").select("completed_onboarding").eq("user_id", user.id).maybeSingle(),
+      ]);
+      if (!mounted.current) return;
+      const done = (prefs as any)?.completado || (tp as any)?.completado || (onb as any)?.data?.completed_onboarding;
+      navigate(done ? (returnTo ?? fallback()) : "/onboarding", { replace: true });
+    })();
+  }, [user, navigate, returnTo, hasOnbCtx, onbStatus, onbLoading]);
+
+  // Una vez por sesión nueva: el referido pendiente y el nombre/avatar del inicio (en paralelo con lo de arriba).
+  useEffect(() => {
+    if (!user) return;
+    claimPendingReferral().catch(() => {});
+    warmProfileBasics(user.id);
+    if (PRELOAD) preloadInitialRoute(returnTo?.split(/[?#]/)[0] ?? "/dashboard");
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

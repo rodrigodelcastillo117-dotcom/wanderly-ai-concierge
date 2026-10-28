@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { resolveActiveTrip, type ActiveTripResult, type TripLike } from "@/lib/activeTrip";
 import { fetchPinnedTripId, savePinnedTripId, type PinResult } from "@/lib/activeTripStore";
 import { localISODate } from "@/lib/localDate";
+import { beginCritical } from "@/lib/idleGate";
 
 export const ACTIVE_TRIP_COLUMNS = "id, user_id, destino, pais_destino, fecha_salida, fecha_regreso, created_at";
 
@@ -37,6 +38,8 @@ export function useActiveTrip<T extends TripLike = TripLike>(
     if (!enabled || !user?.id) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
+    // Crítico: lo secundario de la pantalla (notificaciones, gastos, recomendaciones…) espera a esto.
+    const end = beginCritical();
     (async () => {
       const [tripsRes, pinned] = await Promise.all([
         Promise.resolve(
@@ -48,8 +51,8 @@ export function useActiveTrip<T extends TripLike = TripLike>(
       setTrips(((tripsRes as { data: T[] | null })?.data ?? []) as T[]);
       setPinnedId(pinned.id);
       setLoading(false);
-    })();
-    return () => { cancelled = true; };
+    })().finally(end);
+    return () => { cancelled = true; end(); };
   }, [enabled, user?.id, columns]);
 
   const todayLocal = localISODate();

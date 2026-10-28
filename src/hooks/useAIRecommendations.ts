@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { sessionTrulyExpired } from "@/lib/authRestore";
 import { useAuth } from "@/contexts/AuthContext";
+import { afterCritical } from "@/lib/idleGate";
 
 export type AIRecommendation = {
   name: string;
@@ -115,7 +116,12 @@ export function useAIRecommendations() {
   }, [userId]);
 
   useEffect(() => {
-    if (userId) void load(false);
+    if (!userId) return;
+    if (cache.has(userId)) { void load(false); return; }
+    // Secundario (llama a la IA y está abajo del pliegue): se pide después de lo principal de la
+    // pantalla; mientras, su esqueleto.
+    setLoading(true);
+    return afterCritical(() => void load(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 

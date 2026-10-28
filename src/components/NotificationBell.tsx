@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Bell, Check, Plane, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { afterCritical } from "@/lib/idleGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -48,18 +49,24 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
   };
 
   useEffect(() => {
-    load();
     if (!user) return;
-    const channel = supabase
-      .channel(`notif-${user.id}-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => load()
-      )
-      .subscribe();
+    // Secundario: la campana no detiene la pantalla; se pide (y se abre el canal en vivo) cuando ya
+    // llegaron los datos principales de la página (idleGate).
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const cancel = afterCritical(() => {
+      load();
+      channel = supabase
+        .channel(`notif-${user.id}-${Math.random().toString(36).slice(2)}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          () => load()
+        )
+        .subscribe();
+    });
     return () => {
-      supabase.removeChannel(channel);
+      cancel();
+      if (channel) supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);

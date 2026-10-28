@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { invalidateProfileBasics, loadProfileBasics } from "@/lib/profileBasics";
 
 export const AVATAR_UPDATED_EVENT = "iatos:avatar-updated";
 
@@ -22,16 +23,19 @@ export function pickAvatarUrl(profileUrl: unknown, perfilIa: unknown): string | 
 const cache = new Map<string, Promise<string | null>>();
 
 async function load(uid: string): Promise<string | null> {
-  const [{ data: prof }, { data: prefs }] = await Promise.all([
-    supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle(),
-    supabase.from("ai_user_preferences").select("perfil_ia").eq("user_id", uid).maybeSingle(),
-  ]);
-  return pickAvatarUrl((prof as { avatar_url?: unknown } | null)?.avatar_url, prefs?.perfil_ia ?? null);
+  // profiles.avatar_url sale de la misma consulta que el nombre (profileBasics: una sola a profiles al
+  // entrar). perfil_ia solo se pide si profiles no trae avatar (cuentas viejas), no en cada carga.
+  const prof = await loadProfileBasics(uid);
+  const direct = pickAvatarUrl(prof?.avatar_url, null);
+  if (direct) return direct;
+  const { data: prefs } = await supabase.from("ai_user_preferences").select("perfil_ia").eq("user_id", uid).maybeSingle();
+  return pickAvatarUrl(null, prefs?.perfil_ia ?? null);
 }
 
 /** Avisa a todas las pantallas que el avatar cambió (tras elegir una variante o evolucionar). */
 export function notifyAvatarUpdated(url: string | null): void {
   cache.clear();
+  invalidateProfileBasics();
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(AVATAR_UPDATED_EVENT, { detail: { url } }));
 }
 
@@ -60,6 +64,6 @@ export function useMyAvatar(): { url: string | null; loading: boolean; refresh: 
     return () => window.removeEventListener(AVATAR_UPDATED_EVENT, on);
   }, []);
 
-  const refresh = useCallback(() => { if (uid) cache.delete(uid); setTick((t) => t + 1); }, [uid]);
+  const refresh = useCallback(() => { if (uid) cache.delete(uid); invalidateProfileBasics(); setTick((t) => t + 1); }, [uid]);
   return { url, loading, refresh };
 }

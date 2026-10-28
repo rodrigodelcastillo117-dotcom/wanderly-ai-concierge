@@ -39,6 +39,8 @@ import { TripCommandCenter } from "@/components/TripCommandCenter";
 import { FirstTripGuide } from "@/components/FirstTripGuide";
 import { EXAMPLE_PROMPTS } from "@/lib/planDefaults";
 import { DashboardWrappedPromo } from "@/components/wrapped/WrappedPromo";
+import { loadProfileBasics } from "@/lib/profileBasics";
+import { afterCritical, beginCritical } from "@/lib/idleGate";
 
 
 
@@ -131,16 +133,22 @@ const DashboardHome = () => {
   const [spendFxLabel, setSpendFxLabel] = useState<string | null>(null);
   const [spendUnconverted, setSpendUnconverted] = useState<string[]>([]);
 
+  // Nombre: crítico (es el saludo). Una sola consulta a profiles compartida con el menú y el avatar
+  // (antes se pedía en serie ANTES de los gastos y tres veces en total).
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .maybeSingle();
-      setName(profile?.full_name?.split(" ")[0] ?? "viajero");
+    let alive = true;
+    const end = beginCritical();
+    void loadProfileBasics(user.id).then((profile) => {
+      if (alive) setName(profile?.full_name?.split(" ")[0] ?? "viajero");
+    }).finally(end);
+    return () => { alive = false; end(); };
+  }, [user]);
 
+  // Smart Spend: secundario (está abajo del pliegue). Se pide cuando ya llegaron el viaje y el nombre.
+  useEffect(() => {
+    if (!user) return;
+    return afterCritical(() => void (async () => {
       // ───── Smart Spend real (gastos del mes actual vs mes anterior) ─────
       const now = new Date();
       const startThis = localISODate(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -183,7 +191,7 @@ const DashboardHome = () => {
         .slice(0, 5);
       setSpendCats(cats);
       setSpendUnconverted([...missing]);
-    })();
+    })());
   }, [user]);
 
 

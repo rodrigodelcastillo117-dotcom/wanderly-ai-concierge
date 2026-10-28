@@ -181,3 +181,8 @@ export function useOnboardingStatus(): OnboardingApi {
   if (!ctx) throw new Error("useOnboardingStatus debe usarse dentro de <OnboardingProvider>");
   return ctx;
 }
+
+/** Igual, pero null fuera del proveedor (/auth lo usa si está; sus pruebas lo montan sin proveedor). */
+export function useOptionalOnboardingStatus(): OnboardingApi | null {
+  return useContext(OnboardingContext);
+}
