@@ -14,7 +14,7 @@ import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { SmartImage } from "@/components/media/SmartImage";
 import { logBookingClick } from "@/lib/trackBooking";
 import { itemPurchaseState, primaryAction, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
-import { buildBuyFlow, hotelTotal, TIER_WORD, type BuyStep } from "@/lib/buyFlow";
+import { buildBuyFlow, FLIGHT_TIER_WORD, hotelTotal, TIER_WORD, type BuyStep } from "@/lib/buyFlow";
 import { flightAirlineLabel, flightDurationLabel, flightLiveLine, flightScheduleLabel, flightStopsLabel } from "@/lib/flightDisplay";
 import { offerFromTripTour, tripDestinations, venueFromTripPlace } from "@/lib/booking";
 import { hotelQuery } from "@/lib/categoryImagery";
@@ -308,7 +308,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                               onClick={() => onSelectVuelo && chooseAndAdvance(`paso-${s.n}`, () => onSelectVuelo(i))}
                               className={`w-full min-w-0 rounded-lg border px-3 py-2 text-left transition disabled:cursor-default ${chosen ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40"}`}>
                               <span className="flex items-center justify-between gap-2">
-                                <span className="min-w-0 truncate text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{flightAirlineLabel(v)}{v?.tier && TIER_WORD[v.tier] ? <span className="font-normal text-muted-foreground"> · {TIER_WORD[v.tier]}</span> : null}</span>
+                                <span className="min-w-0 truncate text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{flightAirlineLabel(v)}{v?.tier && FLIGHT_TIER_WORD[v.tier] ? <span className="font-normal text-muted-foreground"> · {FLIGHT_TIER_WORD[v.tier]}</span> : null}</span>
                                 <span className="shrink-0 text-sm font-medium tabular-nums" data-testid="vuelo-opcion-precio">{ground ? ground.price : pp ? money(pp * travelers) : "Sin precio"}</span>
                               </span>
                               <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">

@@ -39,8 +39,8 @@ import { ImportedTripBanner } from "@/components/ImportedTripBanner";
 import { TripDocuments } from "@/components/TripDocuments";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
-import { isGroundTripOption, transportModeOf, tripCountryLabel, tripFlightProblems } from "@/lib/booking";
-import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightLiveLine, flightStopsLabel } from "@/lib/flightDisplay";
+import { isGroundTripOption, transportModeOf, tripCountryLabel } from "@/lib/booking";
+import { discardedFaresNotice, flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightLiveLine, flightStopsLabel } from "@/lib/flightDisplay";
 import { groundOptionsForCity, legOptionsFor } from "@/lib/multiDestTrip";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
@@ -54,7 +54,7 @@ import { ConvertToRouteBanner, convertToRouteHref } from "@/components/route/Con
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { quoteTrust } from "@/lib/quoteTrust";
-import { buildBuyFlow } from "@/lib/buyFlow";
+import { buildBuyFlow, FLIGHT_TIER_WORD, TIER_WORD } from "@/lib/buyFlow";
 import { itemPurchaseState } from "@/lib/purchasePlan";
 import { tripTotalSummary } from "@/lib/tripTotal";
 import { budgetLabels, splitTripTotal, trustMatchesSplit } from "@/lib/totalSplit";
@@ -418,7 +418,8 @@ const TripDetail = () => {
 
   const rubroLabels = budgetLabels(trip);
   const trust = quoteTrust(quote, new Date(), rubroLabels);
-  const discardedFares = (trip.vuelos_json ?? []).filter((v: any) => tripFlightProblems(v, trip).length > 0).length;
+  // "Descartamos 1 tarifa…": "queda por cotizar" solo si no queda ningún vuelo de la ruta con precio.
+  const discardedNotice = discardedFaresNotice(trip);
   // "Ya tengo mi viaje": vuelos y hotel los trajo la persona; no hay cotización que mostrar ni buscar.
   const brought = isBroughtTrip(trip);
   const hasQuotedTotal = !brought && !!(itinObj?.from_pdf || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0);
@@ -653,9 +654,9 @@ const TripDetail = () => {
 
 
         {/* Tarifas guardadas que eran de otra ruta: se descartan y se dice (nunca se muestran como vuelo del viaje). */}
-        {discardedFares > 0 && (
+        {discardedNotice && (
           <div role="status" data-testid="trip-tarifas-descartadas" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-500">
-            Descartamos {discardedFares === 1 ? "1 tarifa de vuelo" : `${discardedFares} tarifas de vuelo`} de esta cotización porque no eran de tu ruta. El vuelo queda por cotizar: búscalo en “Comprar mi viaje” o actualiza la cotización.
+            {discardedNotice}
           </div>
         )}
 
@@ -1159,7 +1160,7 @@ const ArrivalOptionCard = ({ option, active, onClick, quotedAt, trip, index = 0 
           </div>
         )}
         <div className="min-w-0">
-          <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{modeLabel}{option.tier ? ` · ${option.tier}` : ""}</p>
+          <p className="text-[10px] tracking-[0.2em] uppercase text-primary">{modeLabel}{option.tier ? ` · ${(mode === "vuelo" ? FLIGHT_TIER_WORD : TIER_WORD)[String(option.tier).toLowerCase()] ?? option.tier}` : ""}</p>
           <p className="font-medium text-sm">{airline}</p>
         </div>
       </div>

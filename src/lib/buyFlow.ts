@@ -44,6 +44,12 @@ export type BuyFlow = {
 
 /** Palabras normales para el nivel de una opción (sin "tier"). */
 export const TIER_WORD: Record<string, string> = { ahorro: "Económico", equilibrio: "Equilibrado", premium: "Premium" };
+/**
+ * Nivel de una opción de VUELO como se muestra (el valor interno sigue siendo ahorro/equilibrio/premium).
+ * "Premium"/"Económico" en un vuelo se leen como clase de cabina (caso E2E 28-oct-2026: "Iberia · Premium"
+ * era una tarifa de turista con mejor horario); aquí se dice qué la distingue.
+ */
+export const FLIGHT_TIER_WORD: Record<string, string> = { ahorro: "Más barato", equilibrio: "Equilibrado", premium: "Más cómodo" };
 
 export function hotelTotal(h: any, nights: number, travelers: number): number | null {
   const n = Number(h?.precio_por_noche) || 0;
