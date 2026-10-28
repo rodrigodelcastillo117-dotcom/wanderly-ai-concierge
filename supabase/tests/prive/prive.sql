@@ -614,7 +614,9 @@ RESET ROLE;
 SELECT pt.ok('P49 prive_status: solo las claves del contrato y ningún secreto (hash, token ni correo)',
   (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(:'st23'::jsonb) k) =
     ARRAY['activated_at','basis','eligible','first_name','has_password','invitation_pending','is_pro','locked_until','member_code',
-          'members_requires_prive','membership_status','onboarding','password_status','required_days','tenure_days','welcome_version_seen']
+          'members_requires_prive','membership_status','onboarding','password_status','pro_basis','required_days','tenure_days','welcome_version_seen']
+  -- pro_basis (20261029020000_fix_cuenta_prive): de dónde viene el PRO (paid/trial/comped), sin datos sensibles.
+  AND (:'st23'::jsonb->>'pro_basis') IS NOT DISTINCT FROM 'paid'
   AND :'st23' !~ '\$2[aby]\$' AND :'st23' !~ '[0-9a-f]{64}' AND :'st23' !~ '[A-Za-z0-9_-]{43}' AND :'st23' !~ '@'
   AND (:'st23'::jsonb->>'membership_status') = 'active' AND (:'st23'::jsonb->>'tenure_days')::int = 100
   AND (:'st23'::jsonb->>'has_password')::boolean AND (:'st23'::jsonb->>'member_code') ~ '^IP-', :'st23');
