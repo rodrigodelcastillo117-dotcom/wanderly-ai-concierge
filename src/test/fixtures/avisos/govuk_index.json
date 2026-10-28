@@ -1,0 +1,162 @@
+{
+ "base_path": "/foreign-travel-advice",
+ "title": "Foreign travel advice",
+ "public_updated_at": "2024-08-05T08:23:09+01:00",
+ "links": {
+  "children": [
+   {
+    "base_path": "/foreign-travel-advice/italy",
+    "api_url": "https://www.gov.uk/api/content/foreign-travel-advice/italy",
+    "web_url": "https://www.gov.uk/foreign-travel-advice/italy",
+    "title": "Italy travel advice",
+    "public_updated_at": "2026-10-28T16:15:33Z",
+    "details": {
+     "change_description": "New information about Italian arrangements recognising valid UK Blue Badges (‘Safety and security’ page).",
+     "country": {
+      "name": "Italy",
+      "slug": "italy",
+      "synonyms": [
+       "Rome",
+       "Venice",
+       "Milan",
+       "Sicily",
+       "Sardinia"
+      ]
+     }
+    }
+   },
+   {
+    "base_path": "/foreign-travel-advice/spain",
+    "api_url": "https://www.gov.uk/api/content/foreign-travel-advice/spain",
+    "web_url": "https://www.gov.uk/foreign-travel-advice/spain",
+    "title": "Spain travel advice",
+    "public_updated_at": "2026-10-28T13:02:06Z",
+    "details": {
+     "change_description": "New information following a high speed rail collision in Toledo ('Warnings and insurance' page). ",
+     "country": {
+      "name": "Spain",
+      "slug": "spain",
+      "synonyms": [
+       "Ibiza",
+       "Majorca",
+       "Mallorca",
+       "Menorca",
+       "Minorca",
+       "Lanzarote",
+       "Barcelona",
+       "Benidorm",
+       "Tenerife",
+       "Canary Islands",
+       "Canaries",
+       "Gran Canaria",
+       "Fuerteventura"
+      ]
+     }
+    }
+   },
+   {
+    "base_path": "/foreign-travel-advice/turkey",
+    "api_url": "https://www.gov.uk/api/content/foreign-travel-advice/turkey",
+    "web_url": "https://www.gov.uk/foreign-travel-advice/turkey",
+    "title": "Turkey travel advice",
+    "public_updated_at": "2026-10-27T16:07:12Z",
+    "details": {
+     "change_description": "Updated information about regional tensions (‘Warnings and insurance’ page).\r\n\r\n",
+     "country": {
+      "name": "Turkey",
+      "slug": "turkey",
+      "synonyms": []
+     }
+    }
+   },
+   {
+    "base_path": "/foreign-travel-advice/mexico",
+    "api_url": "https://www.gov.uk/api/content/foreign-travel-advice/mexico",
+    "web_url": "https://www.gov.uk/foreign-travel-advice/mexico",
+    "title": "Mexico travel advice",
+    "public_updated_at": "2026-10-20T13:20:31Z",
+    "details": {
+     "change_description": "Removal of information about Hurricane Trudy ('Warnings and insurance' page).",
+     "country": {
+      "name": "Mexico",
+      "slug": "mexico",
+      "synonyms": []
+     }
+    }
+   },
+   {
+    "base_path": "/foreign-travel-advice/thailand",
+    "api_url": "https://www.gov.uk/api/content/foreign-travel-advice/thailand",
+    "web_url": "https://www.gov.uk/foreign-travel-advice/thailand",
+    "title": "Thailand travel advice",
+    "public_updated_at": "2026-10-12T09:20:34Z",
+    "details": {
+     "change_description": "Updated information about visa requirements for travellers entering Thailand by land or air (‘Entry requirements’ page).",
+     "country": {
+      "name": "Thailand",
+      "slug": "thailand",
+      "synonyms": []
+     }
+    }
+   },
+   {
+    "base_path": "/foreign-travel-advice/myanmar",
+    "api_url": "https://www.gov.uk/api/content/foreign-travel-advice/myanmar",
+    "web_url": "https://www.gov.uk/foreign-travel-advice/myanmar",
+    "title": "Myanmar travel advice",
+    "public_updated_at": "2026-08-04T10:16:35Z",
+    "details": {
+     "change_description": "New information about mobile device registration and drone use (‘Safety and security’ page).",
+     "country": {
+      "name": "Myanmar (Burma)",
+      "slug": "myanmar",
+      "synonyms": [
+       "Burma"
+      ]
+     }
+    }
+   },
+   {
+    "base_path": "/foreign-travel-advice/usa",
+    "api_url": "https://www.gov.uk/api/content/foreign-travel-advice/usa",
+    "web_url": "https://www.gov.uk/foreign-travel-advice/usa",
+    "title": "USA travel advice",
+    "public_updated_at": "2026-08-18T09:29:04Z",
+    "details": {
+     "change_description": "Updated information about US Hurricane season predictions (‘Safety and security’ page).",
+     "country": {
+      "name": "USA",
+      "slug": "usa",
+      "synonyms": [
+       "United States",
+       "America",
+       "Arctic",
+       "Puerto Rico",
+       "US Virgin Islands",
+       "Florida",
+       "Orlando",
+       "American Samoa",
+       "Guam",
+       "Hawaii"
+      ]
+     }
+    }
+   },
+   {
+    "base_path": "/foreign-travel-advice/japan",
+    "api_url": "https://www.gov.uk/api/content/foreign-travel-advice/japan",
+    "web_url": "https://www.gov.uk/foreign-travel-advice/japan",
+    "title": "Japan travel advice",
+    "public_updated_at": "2026-08-28T15:22:35Z",
+    "details": {
+     "change_description": "Addition of information about flooding and heavy rain ('Safety and security' page).",
+     "country": {
+      "name": "Japan",
+      "slug": "japan",
+      "synonyms": []
+     }
+    }
+   }
+  ]
+ }
+}
