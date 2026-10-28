@@ -155,7 +155,12 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
     return { disponible: false, estado: "no_respondio", error: "no_configurado", motivo: "Esta búsqueda no está disponible en este momento." };
   }
   if (r.error || r.ok === false) {
-    return { disponible: false, estado: "no_respondio", error: String(r.error ?? "error").slice(0, 160), motivo: "El servicio no respondió; no hay datos en vivo ahora." };
+    // Clima y búsqueda web: sin datos no hay cifras (E2E 28-oct-2026: "no respondió" y luego "13–15 °C").
+    const noGuess = name === "get_weather" || name === "web_search";
+    const motivo = noGuess
+      ? `${typeof r.motivo === "string" && r.motivo ? r.motivo.slice(0, 300) : "El servicio no respondió; no hay datos en vivo ahora."} No des cifras ni datos de memoria: dilo así.`
+      : "El servicio no respondió; no hay datos en vivo ahora.";
+    return { disponible: false, estado: "no_respondio", error: String(r.error ?? "error").slice(0, 160), motivo };
   }
   if (isAiSource(r.source) || isAiSource(r.provider)) {
     return {
@@ -603,6 +608,7 @@ const TOOL_LABEL: Record<string, string> = {
   web_search: "Google",
   check_flight_status: "estado del vuelo",
   search_members_venues: "Members Only",
+  get_weather: "clima",
 };
 
 const ALREADY_HONEST = /no (est[aá]|esta) disponible|no disponible|no (pude|pudimos|logr[eé]|tengo|hay)|sin resultados|no (encontr|tra)|no (me )?respondi|fuera de servicio|no se pudo|l[ií]mite de b[uú]squedas/i;

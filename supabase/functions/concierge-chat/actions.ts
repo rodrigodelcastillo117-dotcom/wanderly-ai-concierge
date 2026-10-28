@@ -208,8 +208,8 @@ export function validateAction(type: unknown, rawParams: unknown, ctx: ActionCon
         ...(txt(p.lugar, 160) ? { lugar: txt(p.lugar, 160) } : {}),
         ...(!("error" in r) && r.trip ? { trip_id: r.trip.id } : {}),
       };
-      return ok(params, `Pedirle al Fixer: ${titulo}`, "Pedírselo al Fixer",
-        "Un humano del equipo lo gestiona y te avisa. Aún no está reservado.");
+      return ok(params, `Pedírselo a nuestro equipo: ${titulo}`, "Pedírselo a una persona del equipo",
+        "Una persona del equipo IATOS lo gestiona y te avisa. Aún no está reservado.");
     }
     case "prive_request": {
       const exp = typeof p.experience_id === "string" && UUID.test(p.experience_id) ? p.experience_id : null;

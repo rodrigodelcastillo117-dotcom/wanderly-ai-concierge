@@ -74,7 +74,7 @@ async function fetchJson(fetchImpl: typeof fetch, url: string, timeoutMs: number
 export async function wikipediaSearch(query: string, deps: Pick<WebSearchDeps, "fetchImpl" | "timeoutMs">) {
   const url = `https://es.wikipedia.org/w/rest.php/v1/search/page?q=${encodeURIComponent(query)}&limit=4`;
   try {
-    const r = await fetchJson(deps.fetchImpl, url, Math.min(deps.timeoutMs ?? 5000, 5000), { "User-Agent": "IATOS-Concierge/2.0 (hola@traveliatos.life)" });
+    const r = await fetchJson(deps.fetchImpl, url, Math.max(500, Math.min(deps.timeoutMs ?? 5000, 5000)), { "User-Agent": "IATOS-Concierge/2.0 (hola@traveliatos.life)" });
     const pages = Array.isArray((r.json as any)?.pages) ? (r.json as any).pages : [];
     return pages.map((p: any) => ({
       title: clean(p?.title, 160),
@@ -93,6 +93,12 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
   const gl = typeof args.country === "string" && /^[a-z]{2}$/i.test(args.country) ? args.country.toLowerCase() : "mx";
   const now = deps.now ?? Date.now;
   const timeoutMs = deps.timeoutMs ?? 7000;
+  // Presupuesto único (E2E 28-oct-2026, "la búsqueda no respondió"): antes SerpApi tenía TODO el tiempo de
+  // la herramienta (7.5 s) y Wikipedia 5 s más; con SerpApi lento, el tope de la herramienta (8 s) cortaba
+  // antes de que llegara el respaldo y el modelo solo veía "timeout". Ahora SerpApi deja 2.5 s al respaldo.
+  const startedAt = now();
+  const serpBudget = Math.max(2500, timeoutMs - 2500);
+  const left = () => Math.max(500, timeoutMs - (now() - startedAt));
   const params = { engine: "google", q: query, hl: "es", gl, num: "8" };
   const key = await cacheKey(WEB_ENGINE, params);
 
@@ -102,7 +108,7 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
   }
 
   const fallback = async (motivo: string) => {
-    const wiki = await wikipediaSearch(query, deps);
+    const wiki = await wikipediaSearch(query, { fetchImpl: deps.fetchImpl, timeoutMs: left() });
     if (wiki.length) return { ok: true, source: "wikipedia", results: wiki, nota_fuente: `Respaldo gratuito (Wikipedia) porque ${motivo}: es información general, dilo así.`, consulted_at: new Date(now()).toISOString() };
     return null;
   };
@@ -133,11 +139,13 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
   url.searchParams.set("api_key", deps.serpKey);
   let r: { status: number; ok: boolean; json: unknown };
   try {
-    r = await fetchJson(deps.fetchImpl, url.toString(), timeoutMs);
+    r = await fetchJson(deps.fetchImpl, url.toString(), serpBudget);
   } catch (e) {
     if (refund) await refund().catch(() => {});
-    const fb = await fallback("Google no respondió");
-    return fb ?? { error: (e as Error)?.name === "AbortError" ? "timeout" : "tool_fetch_error" };
+    const timedOut = (e as Error)?.name === "AbortError";
+    console.warn("web_search: SerpApi", timedOut ? `sin respuesta en ${serpBudget} ms` : String((e as Error)?.message ?? e).slice(0, 120));
+    const fb = await fallback(timedOut ? "Google tardó demasiado en responder" : "Google no respondió");
+    return fb ?? { error: timedOut ? "timeout" : "tool_fetch_error", motivo: "La búsqueda en Google no respondió (proveedor). No hay datos que citar." };
   }
   const billable = r.ok && !!r.json && typeof r.json === "object" && !(r.json as { error?: unknown }).error;
   const live = Promise.resolve().then(() => deps.onLive?.(billable)).catch(() => { /* registrar nunca rompe la búsqueda */ });
@@ -150,7 +158,9 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
     // SerpApi responde {error:"Google hasn't returned any results"} cuando no hay resultados.
     const msg = String((r.json as { error?: unknown } | null)?.error ?? "");
     if (r.ok && /no results|hasn't returned any results/i.test(msg)) return { ok: true, source: "google_web", results: [] };
-    return (await fallback("Google no respondió")) ?? { error: `http_${r.status}` };
+    // Falla del proveedor (cuota, llave, 5xx): queda en los logs con su motivo para distinguirla del código.
+    console.warn("web_search: SerpApi respondió", r.status, msg.slice(0, 160));
+    return (await fallback("Google no respondió")) ?? { error: `http_${r.status}`, motivo: `La búsqueda en Google no respondió (proveedor, HTTP ${r.status}). No hay datos que citar.` };
   }
   const mapped = mapSerpOrganic(r.json);
   const put = Promise.resolve(cachePut(deps.store, key, WEB_ENGINE, mapped)).catch(() => { /* la caché es opcional */ });

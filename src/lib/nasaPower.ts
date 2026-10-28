@@ -11,12 +11,9 @@
 //    Cita que pide POWER: https://power.larc.nasa.gov/docs/referencing/
 // Reemplaza al histórico de Open-Meteo (archive-api), que solo permite uso no comercial.
 
-export const POWER_ATTRIBUTION = { label: "Clima típico: NASA POWER", href: "https://power.larc.nasa.gov/docs/referencing/" } as const;
-
-const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-export const MES_LARGO = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-
-export type MonthClimate = { month: number; tmax: number; tmin: number; precipMmDay: number };
+// La lectura de la climatología (parsePowerClimatology) vive en _shared/weatherCore.ts: Iato usa la misma.
+import { parsePowerClimatology, type MonthClimate } from "../../supabase/functions/_shared/weatherCore.ts";
+export { MES_LARGO, parsePowerClimatology, POWER_ATTRIBUTION, type MonthClimate } from "../../supabase/functions/_shared/weatherCore.ts";
 
 const cache = new Map<string, Promise<MonthClimate[] | null>>();
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -38,20 +35,6 @@ export function fetchMonthlyClimate(lat: number, lng: number, fetchImpl: typeof 
     })());
   }
   return cache.get(key)!;
-}
-
-export function parsePowerClimatology(json: any): MonthClimate[] | null {
-  const p = json?.properties?.parameter;
-  const fill = Number(json?.header?.fill_value ?? -999);
-  const ok = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v !== fill;
-  if (!p?.T2M || !p?.T2M_RANGE) return null;
-  const out: MonthClimate[] = [];
-  MONTHS.forEach((m, i) => {
-    const t = p.T2M[m]; const rg = p.T2M_RANGE[m]; const pr = p.PRECTOTCORR?.[m];
-    if (!ok(t) || !ok(rg)) return;
-    out.push({ month: i + 1, tmax: Math.round(t + rg / 2), tmin: Math.round(t - rg / 2), precipMmDay: ok(pr) ? Math.round(pr * 10) / 10 : 0 });
-  });
-  return out.length ? out : null;
 }
 
 /** Solo para pruebas. */

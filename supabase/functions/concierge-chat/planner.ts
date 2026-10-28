@@ -20,6 +20,7 @@ import { eventsRequested } from "./events.ts";
 import { toursRequested } from "../_shared/viator.ts";
 import { mealFromText } from "../_shared/restaurantBooking.ts";
 import { officialTicketsForCity } from "../_shared/officialTickets.ts";
+import { weatherRequested } from "../_shared/weather.ts";
 
 export type Intent =
   | "human" | "emergency" | "flight_disruption" | "missed_connection" | "flight_status" | "flight_compare"
@@ -32,7 +33,9 @@ export type Intent =
   // Tours y actividades reales de Viator (search_tours), solo si los pide.
   | "tours"
   // Luna de miel / "lo TOP" de una ciudad: desayunos, cenas, museos con taquilla oficial y experiencias.
-  | "honeymoon_plan";
+  | "honeymoon_plan"
+  // Clima real (get_weather): la misma fuente que la pantalla Clima.
+  | "weather";
 
 export const CHIP_INTENTS: readonly Intent[] = [
   "dining_near_hotel", "transport", "emergency", "flight_status", "luggage", "members_followup", "trip_overview",
@@ -94,6 +97,7 @@ export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   if (eventsRequested(message)) out.add("events");
   if (toursRequested(message)) out.add("tours");
   if (honeymoonRequested(message)) out.add("honeymoon_plan");
+  if (weatherRequested(message)) out.add("weather");
   // "cenar cerca de mi hotel" ya es dining_near_hotel.
   if (out.has("dining_near_hotel")) out.delete("dining");
   // Privé con plan / noche → planeación.
@@ -267,7 +271,7 @@ export function planTurn(i: PlanInput): TurnPlan {
   const requested = typeof i.requested === "string" && i.requested.trim() ? i.requested.trim().slice(0, 60) : null;
 
   if (has("human")) {
-    plan.direct = { text: "Por supuesto. Te conecto con tu Fixer: toca **Contactar Fixer** arriba y cuéntale qué necesitas. Es atención humana sujeta a disponibilidad." };
+    plan.direct = { text: "Por supuesto. Te conecto con una persona del equipo IATOS: toca **Hablar con una persona** arriba y cuéntale qué necesitas. Es atención humana sujeta a disponibilidad." };
     return plan;
   }
 
@@ -328,7 +332,7 @@ export function planTurn(i: PlanInput): TurnPlan {
         ...(tripId ? { trip_id: tripId } : {}),
       },
     });
-    plan.notes.push("Prioridad: 1) estado real del vuelo, 2) alternativas con horario y precio, 3) derechos del pasajero con fuente, 4) el Fixer para negociar con la aerolínea.");
+    plan.notes.push("Prioridad: 1) estado real del vuelo, 2) alternativas con horario y precio, 3) derechos del pasajero con fuente, 4) una persona del equipo IATOS para negociar con la aerolínea.");
   }
 
   if (has("flight_compare")) {
@@ -392,6 +396,20 @@ export function planTurn(i: PlanInput): TurnPlan {
     }
     // "Agregar a tu viaje" solo si la cena es en el viaje (finalize.ts vuelve a revisar con el lugar).
     if (tripId && !local && !away) plan.suggestedActions.push({ type: "add_itinerary_item", params: { trip_id: tripId, fecha: i.todayISO, hora: "20:30", titulo: "Cena" } });
+  }
+
+  // Clima: la herramienta real con la ciudad pedida o la del viaje y, si es el viaje, sus fechas.
+  if (has("weather")) {
+    const wcity = requested ?? city;
+    if (wcity) {
+      const sameTrip = !!trip && (!requested || normText(String(trip.destino ?? "")).includes(normText(requested)));
+      const from = sameTrip ? iso(trip?.fecha_salida) : null, to = sameTrip ? iso(trip?.fecha_regreso) : null;
+      plan.prefetch.push({ name: "get_weather", args: { city: wcity, ...(from ? { date_from: from } : {}), ...(to ? { date_to: to } : {}) }, reason: "clima" });
+      plan.notes.push("Clima: usa SOLO lo que trae get_weather (MET Norway / NASA POWER) con su fuente y hora de consulta. Si las fechas están fuera del pronóstico, dilo y da el clima típico como típico. Nunca des cifras de memoria.");
+    } else {
+      plan.notes.push("Para el clima falta la ciudad: pregúntala en una línea.");
+    }
+    plan.toolHints.push("get_weather");
   }
 
   if (has("place_fact")) {
@@ -502,7 +520,7 @@ export function planTurn(i: PlanInput): TurnPlan {
 
   if (i.exigente) {
     // Modo exigente: siempre queda lista la mano humana para cerrar lo elegido (Iato no reserva).
-    if (has("flight_compare")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "other", titulo: "Que el Fixer gestione el vuelo elegido", detalle: i.message.slice(0, 300), ...(tripId ? { trip_id: tripId } : {}) } });
+    if (has("flight_compare")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "other", titulo: "Que nuestro equipo gestione el vuelo elegido", detalle: i.message.slice(0, 300), ...(tripId ? { trip_id: tripId } : {}) } });
     if (has("dining_near_hotel") || has("dining")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "reservation", titulo: "Reservar mesa en la opción elegida", fecha: i.todayISO, hora: "20:30", ...(tripId && !away ? { trip_id: tripId } : {}) } });
     plan.notes.push("MODO EXIGENTE: compara a fondo y presenta 'La mejor / La alternativa / El plan B' con el porqué, la fuente y la contra de cada una (una línea por opción); anticipa la siguiente necesidad relacionada en una línea.");
   }
@@ -610,6 +628,7 @@ export function toolStatusText(name: string, args: Record<string, unknown>): str
     case "search_tours": return `Buscando tours en Viator: ${clip(args.city, 30)}…`;
     case "search_members_venues": return `Revisando Members Only en ${clip(args.city, 30)}…`;
     case "search_prive": return "Revisando el catálogo Privé…";
+    case "get_weather": return `Consultando el clima de ${clip(args.city, 30)} (MET Norway)…`;
     default: return "Consultando…";
   }
 }
@@ -656,6 +675,7 @@ export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">): stri
     return `Comparo los vuelos ${LEAD_CLIP(flights.args.origin, 24)} → ${LEAD_CLIP(flights.args.destination, 24)} para tus fechas.`;
   }
   if (has("place_fact")) return "Busco ese dato en Google y en Google Maps para darte la ubicación exacta.";
+  if (spec("get_weather")) return `Consulto el clima de ${LEAD_CLIP(spec("get_weather")!.args.city, 30)} en MET Norway, la misma fuente de tu pantalla Clima.`;
   if (places && (has("dining_near_hotel") || has("dining"))) {
     if (places.reason === "restaurantes en el destino pedido") return `Busco ${LEAD_CLIP(places.args.query, 60)} en Google Maps.`;
     return places.reason === "restaurantes cerca del hotel" ? "Busco restaurantes cerca de tu hotel en Google Maps." : "Busco restaurantes cerca de ti en Google Maps.";

@@ -47,6 +47,7 @@ import { completeAnthropic, ProviderError } from "./anthropic.ts";
 import { runConciergeTurn } from "./turn.ts";
 import { encodeEvent, type ConciergeStreamEvent } from "./stream.ts";
 import { runWebSearch } from "./webSearch.ts";
+import { runWeather } from "../_shared/weather.ts";
 import { runEventSearch } from "./events.ts";
 import { ticketmasterFor } from "../_shared/ticketmasterRuntime.ts";
 import { runViatorSearch, viatorConfig } from "../_shared/viator.ts";
@@ -83,6 +84,8 @@ const TOOL_TIMEOUTS: Record<string, number> = {
   check_flight_status: 9000, search_flights: 14000, search_hotels: 14000, search_places: 8000,
   // search_events: google_events tarda más que una búsqueda web (prueba real 23-oct: se cortaba a 7.5 s).
   search_nearby: 7000, web_search: 8000, search_events: 15000, search_tours: 9000, search_attractions: 8000, search_members_venues: 5000, search_prive: 8000,
+  // Clima: MET Norway y, si hace falta, NASA POWER (4 s cada uno) más la geocodificación de una ciudad fuera de la tabla.
+  get_weather: 11000,
 };
 /** Frase de inicio (planner.leadSentence) si las herramientas previstas siguen corriendo a los 700 ms. */
 const LEAD_AFTER_MS = 700;
@@ -705,6 +708,17 @@ function makeExecTool(c: { supabase: any; authHeader: string; userId: string; pr
       return runViatorSearch({ ...args, currency: "MXN" }, {
         fetchImpl: fetch, apiKey, baseUrl, store: dbCacheStore(), gate: liveSearchGateFor(c.userId), fx: (cur) => getRateToMxnInfo(cur),
         timeoutMs: 4000, background: bg, now: Date.now,
+      });
+    }
+    if (name === "get_weather") {
+      // Misma fuente que la pantalla Clima (MET Norway + NASA POWER); coordenadas de la tabla o de geocode.
+      return runWeather(args, {
+        fetchImpl: fetch, timeoutMs: 4000,
+        geocode: async (city) => {
+          const r = await callFn("geocode", { address: city, language: "es" }, c.authHeader, 3000).catch(() => null);
+          const x = Array.isArray(r?.json?.results) ? r!.json.results[0] : null;
+          return typeof x?.lat === "number" && typeof x?.lng === "number" ? { lat: x.lat, lng: x.lng } : null;
+        },
       });
     }
     if (name === "search_places") return searchPlaces(args, c.authHeader);
