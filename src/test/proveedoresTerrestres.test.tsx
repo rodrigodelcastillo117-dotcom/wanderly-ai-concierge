@@ -90,7 +90,7 @@ describe("1. enlaces precargados con los parámetros correctos", () => {
     const renfe = operatorAction(OPERATORS.renfe, q);
     expect(renfe).toMatchObject({ prefilled: true, label: "Ver horarios y precio en Renfe", site: "Renfe" });
     const sncf = operatorAction(OPERATORS.sncf, { from: "París", to: "Lyon", date: "2026-12-07", adults: 2 }, "7 dic");
-    expect(sncf).toMatchObject({ prefilled: false, url: "https://www.sncf-connect.com/", label: "Ver horarios y precio en SNCF Connect" });
+    expect(sncf).toMatchObject({ prefilled: false, url: "https://www.sncf-connect.com/", label: "SNCF Connect · busca la ruta en su sitio" });
     expect(sncf.hint).toBe("SNCF Connect no recibe la ruta por enlace: escribe París → Lyon y el 7 dic. Precio en el sitio del operador.");
     const bus = busActions({ from: "CDMX", to: "Puebla", date: "2026-11-12", adults: 1, provider: "ADO Platino" });
     expect(bus.map((b) => b.site)).toEqual(["ADO", "FlixBus"]);

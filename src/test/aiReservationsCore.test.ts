@@ -159,10 +159,13 @@ describe("utilidades", () => {
     expect(t).not.toContain("4111");
     expect(t).toContain("2026-11-03");
   });
-  it("opciones sin correo: tel, WhatsApp solo con número internacional, Fixer siempre", () => {
+  it("opciones sin correo: tel, WhatsApp solo con número internacional de celular, Fixer siempre", () => {
+    // México: el número no dice si es celular → sin WhatsApp; España: 6xx es celular, 91x es fijo.
     expect(fallbackOptions({ phone: "+52 55 1234 5678", booking_url: "https://x.mx/reservar" })).toMatchObject({
-      phone_url: "tel:+525512345678", whatsapp_url: "https://wa.me/525512345678", booking_url: "https://x.mx/reservar", fixer: true,
+      phone_url: "tel:+525512345678", whatsapp_url: null, booking_url: "https://x.mx/reservar", fixer: true,
     });
+    expect(fallbackOptions({ phone: "+34 640 17 04 16" })).toMatchObject({ whatsapp_url: "https://wa.me/34640170416" });
+    expect(fallbackOptions({ phone: "+34 915 32 66 81" })).toMatchObject({ phone_url: "tel:+34915326681", whatsapp_url: null });
     expect(fallbackOptions({ phone: "55 1234 5678", booking_url: "javascript:alert(1)" })).toMatchObject({ whatsapp_url: null, booking_url: null });
   });
 });

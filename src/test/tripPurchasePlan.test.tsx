@@ -54,7 +54,7 @@ describe("buildPurchasePlan", () => {
     expect(hotel.lleva).toEqual(["“Hotel Urban Madrid”", "12–19 dic 2026", "2 adultos", "1 habitación"]);
     expect(hotel.price).toBe(4000 * 7);
     // Auto: no cotizado, Kayak con ciudad y fechas, opcional.
-    expect(auto).toMatchObject({ optional: true, site: "Kayak", url: "https://www.kayak.com/cars/Madrid/2026-12-12/2026-12-19", price: null });
+    expect(auto).toMatchObject({ optional: true, site: "Kayak", url: "https://www.kayak.com.mx/cars/Madrid/2026-12-12/2026-12-19", price: null });
     // Actividad: GetYourGuide con las fechas del viaje; precio estimado.
     expect(tour.url).toContain("date_from=2026-12-12&date_to=2026-12-19");
     expect(tour.estimate).toBe(true);

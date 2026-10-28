@@ -12,7 +12,7 @@ import { describePrefill } from "@/lib/purchasePlan";
 import { trainlineLink } from "@/lib/affiliateLinks";
 import { cityAirports, distanceKm, mainAirport } from "../../supabase/functions/_shared/airports.ts";
 import { googleFlightsSearchUrl } from "../../supabase/functions/_shared/booking/links.ts";
-import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPERATOR, routeOperators } from "../../supabase/functions/_shared/booking/railOperators.ts";
+import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPERATOR, routeOperators, TRAINLINE_LABEL } from "../../supabase/functions/_shared/booking/railOperators.ts";
 import { transitScheduleUrl } from "@/lib/takeMeThere";
 import { arrivalByLand, arrivalStepTitle } from "@/lib/groundTrip";
 
@@ -127,7 +127,7 @@ export function legStep(trip: any, from: string, to: string, date: string | null
     const sched = transitScheduleUrl(from, to);
     const links: LegLink[] = [
       ...acts.filter((a) => a !== main).map((a): LegLink => ({ kind: ops[acts.indexOf(a)]?.informativo ? "info" : "operador", label: a.label, url: a.url, site: a.site })),
-      ...(main && tl ? [{ kind: "alternativa" as const, label: "Buscar tren en Trainline", url: tl, site: "Trainline" }] : []),
+      ...(main && tl ? [{ kind: "alternativa" as const, label: TRAINLINE_LABEL, url: tl, site: "Trainline" }] : []),
       ...(sched ? [{ kind: "horarios" as const, label: "Ver horarios en Google Maps", url: sched, site: "Google Maps" }] : []),
     ];
     if (main) {
@@ -135,7 +135,7 @@ export function legStep(trip: any, from: string, to: string, date: string | null
         lleva: main.link ? [main.link.lleva] : [] }));
     } else {
       const url = tl;
-      choices.push(base("tren", { url, site: url ? "Trainline" : null, buttonLabel: url ? "Buscar tren en Trainline" : "Buscar tren",
+      choices.push(base("tren", { url, site: url ? "Trainline" : null, buttonLabel: url ? TRAINLINE_LABEL : "Buscar tren",
         completa: url ? `Trainline no recibe la ruta por enlace: escribe ${from} → ${to}${day ? ` y el ${day}` : ""}.` : `Tren por cotizar: búscalo con ${from} → ${to}${day ? ` y el ${day}` : ""}.`,
         fallbackHref: url ? null : `/dashboard/trenes?origin=${encodeURIComponent(from)}&dest=${encodeURIComponent(to)}${date8 ? `&date=${date8}` : ""}`, links }));
     }

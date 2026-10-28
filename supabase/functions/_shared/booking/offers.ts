@@ -6,9 +6,11 @@ import { checkAllowlisted, unwrapAffiliate } from "./allowlist.ts";
 import { countryIso as countryIsoName, whatsappNumberFromUrl } from "./channels.ts";
 import {
   aviasalesFromTpLink, aviasalesSearchUrl, bookingSearchUrl, EVIDENCE, getYourGuideSearchUrl, googleFlightsSearchUrl, isIsoDate, kayakFlightsSearchUrl,
-  openTableSearchUrl, parseAviasalesSearch, parseBookingSearch, resyWithDate, roomsForAdults, viatorSearchUrl,
+  parseAviasalesSearch, parseBookingSearch, resyWithDate, roomsForAdults, viatorSearchUrl,
 } from "./links.ts";
 import { airlineCode } from "../airlines.ts";
+import { cleanPlaceName } from "../placeName.ts";
+import { restaurantCountry, restaurantSearchFor } from "../restaurantBooking.ts";
 import { airlineFitsRoute, cityAirports, codeServesCity, mainAirport, maxPlausibleHours } from "../airports.ts";
 import { stayForCity, tripFlightRoute, type TripFlightRoute } from "./tripRoute.ts";
 import { TP_PUBLIC_MARKER } from "../tp-params.ts";
@@ -603,7 +605,7 @@ function venueInputs(v: VenueInfo | null): Pick<ResolverInput, "official_booking
   if (v.website) out.website = { url: v.website, trust, evidence: v.source === "google_places" ? EVIDENCE.GOOGLE_PLACES : EVIDENCE.CATALOG_BOOKING_URL, verified_at: v.verified_at ?? null };
   if (v.phone) out.phone = { value: v.phone, verified_by: VERIFIED_BY[cs], trust: VENUE_TRUST[cs] };
   if (v.email) out.email = { value: v.email, verified_by: VERIFIED_BY[cs], trust: VENUE_TRUST[cs] };
-  out.maps = { query: [v.name, v.city].filter(Boolean).join(", "), place_id: v.place_id ?? null };
+  out.maps = { query: [cleanPlaceName(v.name), v.city].filter(Boolean).join(", "), place_id: v.place_id ?? null };
   if (v.prive_experience_id) out.prive_experience_id = v.prive_experience_id;
   return out;
 }
@@ -623,7 +625,8 @@ export function offerFromVenue(
   ctx: OfferContext & { ai_url?: string | null; price_label?: string | null; id_extra?: unknown[] } = {},
 ): BookingOffer {
   const venue = "source" in v ? v : null;
-  const name = str(v.name, 160) ?? "Lugar";
+  // Nombre limpio para el título y para los enlaces de búsqueda (viajes guardados con el nombre del listado).
+  const name = cleanPlaceName(str(v.name, 160)) || "Lugar";
   const city = str(v.city) ?? ctx.trip?.destino ?? null;
   const country = (v.country ?? ctx.country ?? null) || null;
   const rejected: Array<{ url: string; reason: string }> = [];
@@ -650,8 +653,12 @@ export function offerFromVenue(
   // La búsqueda por nombre solo si el lugar no tiene su propia página de reservas: si la tiene, esa es
   // la correcta (una búsqueda en otra plataforma podría llevar a un homónimo).
   if (product === "restaurant" && official.length === 0) {
-    const ot = openTableSearchUrl(city ?? "", name);
-    if (ot) searches.push({ url: ot, trust: "builder", evidence: EVIDENCE.OPENTABLE_SEARCH, preserves: { product: false, dates: false, travelers: false, room_or_fare: false } });
+    // La plataforma que cubre el país (TheFork en España e Italia, OpenTable en EE. UU.…); en México y
+    // donde no hay una, ninguna búsqueda: el sitio, el teléfono y la ficha de Maps del lugar.
+    const iso = (country && /^[A-Z]{2}$/i.test(country) ? country.toUpperCase() : null) ?? countryIsoName(country) ?? countryIsoName(ctx.trip?.pais_destino)
+      ?? restaurantCountry({ city });
+    const s = restaurantSearchFor(name, city, iso);
+    if (s) searches.push({ url: s.url, trust: "builder", evidence: s.kind === "thefork" ? "EV-THEFORK-SEARCH" : EVIDENCE.OPENTABLE_SEARCH, provider_label: s.kind === "thefork" ? "TheFork" : "OpenTable", preserves: { product: false, dates: false, travelers: false, room_or_fare: false } });
   } else if (product !== "restaurant" && official.length === 0) {
     // Con las fechas del viaje: GetYourGuide filtra por ese rango (date_from/date_to).
     const tripFrom = isIsoDate(ctx.trip?.fecha_salida) ? ctx.trip!.fecha_salida! : null;

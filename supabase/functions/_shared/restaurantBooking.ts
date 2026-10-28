@@ -11,13 +11,16 @@
 //      thefork.it y thefork.com (su robots.txt lo lista, consultado 2026-10-27). TheFork bloquea la
 //      verificación automática (403 anti-robot), así que no se pudo abrir la búsqueda con un navegador
 //      automático: la app lo dice ("Búsqueda en TheFork").
-//      Fuera de los mercados de TheFork se usa la búsqueda de OpenTable (como antes en Iato).
+//      En los mercados de OpenTable (EE. UU., Canadá…) su búsqueda; en México y donde ninguno cubre el
+//      país, solo el sitio y el teléfono del lugar (OPENTABLE_MARKETS).
 //   3. "Llamar" (tel:) y "WhatsApp" (wa.me) SOLO si Google trae un número; WhatsApp solo con el
-//      número internacional (wa.me exige el código de país).
+//      número internacional (wa.me exige el código de país) y si es celular (isMobileNumber).
 //   4. "Llévame": lo arma la pantalla con place_id o coordenadas (TakeMeThereButton).
 // Si Google dice reservable === false: "No toma reservaciones (llega directo)" y sin TheFork.
 // Nada aquí reserva: abrir un enlace no es una reserva.
 import { cityAirports } from "./airports.ts";
+import { cleanPlaceName } from "./placeName.ts";
+import { isMobileNumber } from "./booking/channels.ts";
 
 export type RestaurantActionKind = "website" | "thefork" | "opentable" | "call" | "whatsapp";
 export type RestaurantAction = { kind: RestaurantActionKind; label: string; url: string; provider: string };
@@ -48,7 +51,32 @@ export const ACCEPTS_RESERVATIONS_NOTE = "Acepta reservaciones (según Google)";
 
 /** Mercados de TheFork con dominio propio en la lista blanca; los demás de TheFork van a thefork.com. */
 const FORK_DOMAIN: Record<string, string> = { IT: "www.thefork.it", ES: "www.thefork.es", FR: "www.thefork.fr", PT: "www.thefork.pt" };
-const FORK_MARKETS = new Set(["IT", "ES", "FR", "PT", "CH", "NL", "BE", "AT", "DK", "SE", "MC", "GB"]);
+export const FORK_MARKETS = new Set(["IT", "ES", "FR", "PT", "CH", "NL", "BE", "AT", "DK", "SE", "MC", "GB"]);
+/**
+ * Países donde la búsqueda de OpenTable sirve (E2E 28-oct-2026: "Buscar en OpenTable" salía para Madrid y
+ * Valle de Bravo). En España manda TheFork; en México, el sitio y el teléfono del lugar (las páginas
+ * curadas de OpenTable México del catálogo Privé siguen como página de reservas del lugar). País
+ * desconocido: sin búsqueda en una plataforma que quizá no cubre ese lugar.
+ */
+export const OPENTABLE_MARKETS = new Set(["US", "CA", "IE", "DE", "AU", "NZ", "JP", "AE", "SG", "HK"]);
+/**
+ * En México OpenTable solo cubre las ciudades grandes y turísticas (las páginas de OpenTable México del
+ * catálogo Privé son de CDMX); en un pueblo como Valle de Bravo la búsqueda no lleva a nada: ahí, el
+ * sitio y el teléfono del lugar.
+ */
+const MX_OPENTABLE_CITIES = new Set(["ciudad de mexico", "cdmx", "mexico city", "guadalajara", "monterrey", "cancun", "tulum", "playa del carmen",
+  "los cabos", "cabo san lucas", "san jose del cabo", "puerto vallarta"]);
+
+/** Búsqueda de reservas del país: TheFork en sus mercados, OpenTable en los suyos, ninguna en los demás. */
+export function restaurantSearchFor(name: string, city: string | null | undefined, country: string | null): { kind: "thefork" | "opentable"; url: string } | null {
+  if (!country) return null;
+  if (FORK_MARKETS.has(country)) { const url = theforkSearchUrl(name, city, country); return url ? { kind: "thefork", url } : null; }
+  if (OPENTABLE_MARKETS.has(country) || (country === "MX" && MX_OPENTABLE_CITIES.has(norm(city)))) {
+    const url = opentableSearchUrl(name, city);
+    return url ? { kind: "opentable", url } : null;
+  }
+  return null;
+}
 
 const COUNTRY_WORDS: Array<[RegExp, string]> = [
   [/\b(italia|italy)\b/, "IT"], [/\b(espana|spain)\b/, "ES"], [/\b(francia|france)\b/, "FR"], [/\bportugal\b/, "PT"],
@@ -99,10 +127,14 @@ export function telDigits(phone: unknown): string | null {
   return `${plus ? "+" : ""}${digits}`;
 }
 
-/** wa.me solo con número internacional (+código de país). */
+/**
+ * wa.me solo con número internacional (+código de país) Y celular según el plan de numeración del país
+ * (WhatsApp no funciona en un fijo: wa.me/34915326681 era el fijo de Rosi La Loca en Madrid). Donde el
+ * número no dice si es celular (México, EE. UU.), no se ofrece: Google no publica si el lugar usa WhatsApp.
+ */
 export function whatsappUrl(international: unknown): string | null {
   const t = telDigits(international);
-  return t && t.startsWith("+") ? `https://wa.me/${t.slice(1)}` : null;
+  return t && t.startsWith("+") && isMobileNumber(t.slice(1)) === true ? `https://wa.me/${t.slice(1)}` : null;
 }
 
 /**
@@ -143,7 +175,7 @@ export function opentableSearchUrl(name: string, city: string | null | undefined
  * "Reservar en su sitio"; con reservable === false no se ofrece TheFork ni OpenTable.
  */
 export function restaurantBooking(r: RestaurantInput): RestaurantBooking {
-  const name = String(r.name ?? "").trim();
+  const name = cleanPlaceName(r.name);
   const reservable = typeof r.reservable === "boolean" ? r.reservable : null;
   const actions: RestaurantAction[] = [];
   if (!name) return { actions, note: null, reservable };
@@ -155,14 +187,10 @@ export function restaurantBooking(r: RestaurantInput): RestaurantBooking {
   }
   const country = restaurantCountry(r);
   const city = String(r.city ?? "").trim() || cityFromAddress(r.address);
-  if (reservable !== false) {
-    if (country && FORK_MARKETS.has(country)) {
-      const fork = theforkSearchUrl(name, city, country);
-      if (fork) actions.push({ kind: "thefork", label: "Reservar en TheFork", url: fork, provider: "TheFork" });
-    } else if (city) {
-      const ot = opentableSearchUrl(name, city);
-      if (ot) actions.push({ kind: "opentable", label: "Buscar en OpenTable", url: ot, provider: "OpenTable" });
-    }
+  if (reservable !== false && city) {
+    const s = restaurantSearchFor(name, city, country);
+    if (s?.kind === "thefork") actions.push({ kind: "thefork", label: "Reservar en TheFork", url: s.url, provider: "TheFork" });
+    else if (s?.kind === "opentable") actions.push({ kind: "opentable", label: "Buscar en OpenTable", url: s.url, provider: "OpenTable" });
   }
   const tel = telDigits(r.phoneInternational ?? r.phone);
   if (tel) actions.push({ kind: "call", label: "Llamar", url: `tel:${tel}`, provider: "Teléfono" });

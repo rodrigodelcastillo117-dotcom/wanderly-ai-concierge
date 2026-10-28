@@ -137,7 +137,7 @@ describe("PDF del viaje: datos", () => {
     expect(urls.some((u) => u.includes("BUH") || u === AVIASALES_BUH)).toBe(false);
     // Google Flights open-jaw (MEX → FCO, regreso VCE → MEX) y Kayak.
     expect(urls.some((u) => u.startsWith("https://www.google.com/travel/flights"))).toBe(true);
-    expect(urls.some((u) => /kayak\.com\/flights\/MEX-(FCO|ROM)\/2026-10-22\/VCE-MEX\/2026-11-01/.test(decodeURIComponent(u)))).toBe(true);
+    expect(urls.some((u) => /kayak\.com\.mx\/flights\/MEX-(FCO|ROM)\/2026-10-22\/VCE-MEX\/2026-11-01/.test(decodeURIComponent(u)))).toBe(true);
   });
 
   it("las rentas de coche no son vuelos: van como tramo en coche con km y horas del road trip", async () => {

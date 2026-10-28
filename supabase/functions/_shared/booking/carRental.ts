@@ -44,7 +44,8 @@ export function kayakCarsUrl(q: CarRentalQuery): string | null {
   const path = drop && !same(drop, pick)
     ? `${encodeURIComponent(pick)}/${encodeURIComponent(drop)}`
     : encodeURIComponent(pick);
-  return `https://www.kayak.com/cars/${path}/${q.pickup_date}/${q.dropoff_date}`;
+  // Kayak México: la misma búsqueda en español ("Florencia a Roma, 10/5 – 17/5", GET del 28-oct-2026).
+  return `https://www.kayak.com.mx/cars/${path}/${q.pickup_date}/${q.dropoff_date}`;
 }
 
 export function isOneWay(q: CarRentalQuery): boolean {

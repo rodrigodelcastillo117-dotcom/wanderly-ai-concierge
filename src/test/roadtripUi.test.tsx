@@ -73,7 +73,7 @@ describe("RoadTripPanel", () => {
     expect(within(rental).getByText(/Tu vuelo de regreso sale de Florencia/)).toBeInTheDocument();
     fireEvent.click(within(rental).getByRole("button", { name: /Buscar auto de renta/ }));
     const go = screen.getByRole("link", { name: /Continuar en Kayak/ });
-    expect(go).toHaveAttribute("href", "https://www.kayak.com/cars/Florence/Rome/2026-11-10/2026-11-13");
+    expect(go).toHaveAttribute("href", "https://www.kayak.com.mx/cars/Florence/Rome/2026-11-10/2026-11-13");
   });
 
   it("avisos por país con su fuente oficial y fecha de consulta", () => {
@@ -180,6 +180,6 @@ describe("Renta de auto con devolución en otra ciudad", () => {
     expect(screen.getByText(/Recoges en Florencia y devuelves en Roma/)).toBeInTheDocument();
     const open = vi.spyOn(window, "open").mockReturnValue({} as Window);
     fireEvent.click(screen.getByRole("button", { name: /Buscar/ }));
-    expect(open).toHaveBeenCalledWith("https://www.kayak.com/cars/Florence/Rome/2026-11-10/2026-11-13", "_blank");
+    expect(open).toHaveBeenCalledWith("https://www.kayak.com.mx/cars/Florence/Rome/2026-11-10/2026-11-13", "_blank");
   });
 });

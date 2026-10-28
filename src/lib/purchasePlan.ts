@@ -112,7 +112,7 @@ export function describePrefill(url: string | null, processor: string | null, tr
     const qq = u.searchParams.get("q");
     return { lleva: [qq ? `“${qq}”` : "", fmtRange(u.searchParams.get("date_from"), u.searchParams.get("date_to")) ?? ""].filter(Boolean), completa: PREFILL.getyourguide.completa };
   }
-  if (host.endsWith("kayak.com") && u.pathname.startsWith("/flights/")) {
+  if ((host.endsWith("kayak.com") || host.endsWith("kayak.com.mx")) && u.pathname.startsWith("/flights/")) {
     // /flights/MEX-FCO/2026-10-23[/VCE-MEX]/2026-10-30/2adults
     const parts = u.pathname.split("/").filter(Boolean).slice(1);
     const legs = parts.filter((x) => /^[A-Z]{3}-[A-Z]{3}$/.test(x)).map((x) => x.replace("-", " → "));
@@ -121,7 +121,7 @@ export function describePrefill(url: string | null, processor: string | null, tr
     return { lleva: [...legs.map((l, i) => (i ? `regreso ${l}` : l)), fmtRange(dates[0] ?? null, dates[1] ?? null) ?? "", ad ? plural(ad, "adulto", "adultos") : ""].filter(Boolean),
       completa: "Elige el horario y compra con la aerolínea o agencia que muestre Kayak." };
   }
-  if (host.endsWith("kayak.com") && u.pathname.startsWith("/cars/")) {
+  if ((host.endsWith("kayak.com") || host.endsWith("kayak.com.mx")) && u.pathname.startsWith("/cars/")) {
     // /cars/Rome/2026-10-22/2026-11-01 o, si se devuelve en otra ciudad, /cars/Rome/Venice/2026-10-26/2026-10-29.
     const parts = u.pathname.split("/").filter(Boolean).slice(1).map((x) => decodeURIComponent(x));
     const dates = parts.filter((x) => isIso(x));
@@ -179,6 +179,8 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
   // una de otro destino, con duración absurda o con una aerolínea que no opera la ruta no se ofrece.
   const vuelos: any[] = Array.isArray(trip.vuelos_json) ? trip.vuelos_json : [];
   const route = tripFlightRoute(trip);
+  // ¿Va en su propio coche? Entonces no hay paso de renta de auto (E2E Valle de Bravo, 28-oct-2026).
+  let ownCar = false;
   if (sel.selVuelo !== -2 && (vuelos.length || route.multi)) {
     // Sin selección: la primera tarifa REAL (no un estimado de IA) que sirve; si no hay, "por cotizar".
     // Entre las reales, la que suma el total de la página (desglose_presupuesto.vuelos), si alguna cuadra.
@@ -187,6 +189,7 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     const i = sel.selVuelo >= 0 && vuelos[sel.selVuelo] ? sel.selVuelo
       : (real.find((k) => quoted > 0 && Math.round((Number(vuelos[k]?.precio_por_persona) || 0) * travelers) === quoted) ?? real[0] ?? -1);
     const v = i >= 0 ? vuelos[i] : null;
+    ownCar = !!v && isGroundTripOption(v) && v?.modo === "auto" && (!!v?.costo_auto || /\ben tu (coche|auto|carro)\b/i.test(String(v?.aerolinea ?? "")));
     const tripRange = [route.multi && route.cities.length ? `${trip.ciudad_origen?.trim() ?? ""} → ${route.cities[0]} · regreso desde ${route.cities[route.cities.length - 1]}`.trim()
       : trip.ciudad_origen && city ? `${String(trip.ciudad_origen).trim()} → ${city}` : null, fmtRange(trip.fecha_salida, trip.fecha_regreso), plural(travelers, "viajero", "viajeros")].filter(Boolean).join(" · ");
     if (v) {
@@ -268,7 +271,7 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
   // 3 · Renta de auto (opcional, no cotizada): Kayak con ciudad y fechas del viaje.
   // Multi-destino: se recoge en la primera ciudad ("Roma → Florencia → Venecia" no es una ciudad).
   const carCity = route.multi ? route.cities[0] ?? null : city;
-  if (carCity && isIso(trip.fecha_salida) && isIso(trip.fecha_regreso)) {
+  if (carCity && !ownCar && isIso(trip.fecha_salida) && isIso(trip.fecha_regreso)) {
     const city = carCity;
     const url = kayakCarsLink(city, trip.fecha_salida, trip.fecha_regreso);
     const ok = checkAllowlisted(url);

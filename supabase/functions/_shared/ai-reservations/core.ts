@@ -5,6 +5,7 @@
 // Regla de honestidad: una reserva solo está "confirmed" cuando el restaurante lo confirmó por
 // escrito (remitente verificado + cita textual + datos que coinciden). La base de datos lo vuelve a
 // exigir con un CHECK; aquí se decide antes, con datos verificables, sin confiar en el modelo.
+import { isMobileNumber } from "../booking/channels.ts";
 
 export const AI_RESERVATION_STATUSES = [
   "draft", "awaiting_user_ok", "sent", "venue_replied", "needs_user",
@@ -533,8 +534,9 @@ export function fallbackOptions(v: { phone?: string | null; booking_url?: string
   const intl = digits.startsWith("+") ? digits.slice(1) : "";
   return {
     phone_url: digits.length >= 8 ? `tel:${digits}` : null,
-    // WhatsApp solo si el número está en formato internacional; puede que el lugar no lo use.
-    whatsapp_url: intl.length >= 8 ? `https://wa.me/${intl}` : null,
+    // WhatsApp solo con número internacional de celular (un fijo no tiene WhatsApp; en México el número
+    // no dice si es celular, así que no se ofrece). Puede que el lugar no lo use.
+    whatsapp_url: intl.length >= 8 && isMobileNumber(intl) === true ? `https://wa.me/${intl}` : null,
     booking_url: v.booking_url && /^https:\/\//.test(v.booking_url) ? v.booking_url : null,
     website: v.website && /^https:\/\//.test(v.website) ? v.website : null,
     maps_url: v.maps_url && /^https:\/\//.test(v.maps_url) ? v.maps_url : null,

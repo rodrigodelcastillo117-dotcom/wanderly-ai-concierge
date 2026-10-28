@@ -265,7 +265,9 @@ describe("adaptadores sobre lo que IATOS ya tiene", () => {
     // Auditoría de lugares reales: el cta_action del viaje (escrito por la IA) ya ni se considera.
     expect(o.actions.some((a) => a.url?.includes("casa-botin-miami"))).toBe(false);
     expect(o.actions[0].kind).toBe("equivalent_search"); // búsqueda, no "Abrir reservas"
-    expect(o.actions[0].label).toBe("Buscar en OpenTable");
+    // Madrid (España): la búsqueda es en TheFork, no en OpenTable (defecto 16, E2E 28-oct-2026).
+    expect(o.actions[0].label).toBe("Buscar en TheFork");
+    expect(new URL(o.actions[0].url!).hostname).toBe("www.thefork.es");
   });
   it("lugar del catálogo Privé: abre su página pública de reservas (Tock) y ofrece solicitud asistida", () => {
     const venue = venueFromPriveRow({ id: "e1", slug: "cdmx-quintonil", name: "Quintonil", website: "https://quintonil.com",

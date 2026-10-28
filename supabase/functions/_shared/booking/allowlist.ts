@@ -85,6 +85,7 @@ export const PROVIDERS: ProviderInfo[] = [
   P("google.com", "google_flights", "Google Flights", "metasearch", "booking_request de Google Flights vía SerpApi (EV-GFLIGHTS-BOOKING-REQUEST, bandera apagada): redirect opaco.", { paths: /^\/travel\/clk\//, redirector: "opaque", hosts: GOOGLE_HOSTS }),
   P("skyscanner.com.mx", "skyscanner", "Skyscanner", "metasearch", "Buscador que arma src/lib/affiliateLinks.ts (skyscannerLink) para México."),
   P("kayak.com", "kayak", "Kayak", "metasearch", "Buscador que arma src/lib/affiliateLinks.ts (kayakFlightsLink, kayakCarsLink)."),
+  P("kayak.com.mx", "kayak", "Kayak", "metasearch", "Kayak México (español): mismas rutas /flights/… y /cars/… que arman links.ts, carRental.ts y affiliateLinks.ts (GET 28-oct-2026)."),
   P("aeromexico.com", "aeromexico", "Aeroméxico", "airline", AIRLINE("Aeroméxico")),
   P("iberia.com", "iberia", "Iberia", "airline", AIRLINE("Iberia")),
   P("aa.com", "american", "American Airlines", "airline", AIRLINE("American Airlines")),
@@ -205,7 +206,7 @@ const PHISHING_WORDS = new Set(["login", "secure", "seguro", "account", "cuenta"
   "tickets", "boletos", "mx", "es", "us", "com"]);
 /** Dominios reales de esas marcas que no están en PROVIDERS no se tratan como falsos. */
 const BRAND_REAL_DOMAINS = ["expedia.com", "expedia.mx", "hotels.com", "tripadvisor.com", "tripadvisor.com.mx", "paypal.com", "stripe.com",
-  "googleusercontent.com", "kayak.com.mx", "mercadopago.com.mx"];
+  "googleusercontent.com", "mercadopago.com.mx"];
 
 let BRANDS: Array<[string, "long" | "token"]> | null = null;
 function brands(): Array<[string, "long" | "token"]> {

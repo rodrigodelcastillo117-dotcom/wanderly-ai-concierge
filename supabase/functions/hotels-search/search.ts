@@ -3,6 +3,7 @@
 // Fuente: Google Hotels vía SerpApi (en vivo). Si no hay llave, falla o viene vacío, se responde
 // con results: [], disponible: false y un link de búsqueda de Booking (afiliado). NUNCA se
 // sustituyen por hoteles y tarifas "estimados" por IA presentados como reales.
+import { cleanPlaceName } from "../_shared/placeName.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
 
 const SERPAPI = "https://serpapi.com/search.json";
@@ -42,7 +43,8 @@ export function hotelResult(p: any, nightly: number, totalRaw: number, nights: n
   const cls = Number(p?.extracted_hotel_class ?? (typeof p?.hotel_class === "number" ? p.hotel_class : String(p?.hotel_class ?? "").match(/\d/)?.[0]));
   const cheapest = Array.isArray(p?.prices) ? p.prices.find((x: any) => x?.source) : null;
   return {
-    name: p.name,
+    // "master Trevi Rome" → "Master Trevi Rome"; sin colas de SEO ("Hotel X | Official Site").
+    name: cleanPlaceName(p.name) || p.name,
     rating: p.overall_rating ?? null,
     reviews: p.reviews ?? null,
     location_rating: p.location_rating ?? null,
