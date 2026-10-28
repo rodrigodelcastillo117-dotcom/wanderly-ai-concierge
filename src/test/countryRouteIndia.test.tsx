@@ -246,7 +246,12 @@ describe("Comprar del viaje por la India: todos los tramos, 'Siguiente →' y re
     fireEvent.click(within(screen.getByTestId("comprar-pasos")).getByText(/Listo · Revisa y compra/));
     expect(scrolled.at(-1)).toBe("paso-listo");
     const listo = screen.getByTestId("comprar-listo");
-    expect(within(listo).getByTestId("comprar-listo-falta")).toHaveTextContent("Te falta elegir hotel en Agra");
+    // Lo que falta se dice una sola vez (en su paso); en "Listo" queda el atajo para ir a elegirlo (E2E 28-oct-2026).
+    expect(within(listo).getByTestId("comprar-listo-falta")).toHaveTextContent("Elegir hotel en Agra");
+    expect(within(listo).getByTestId("comprar-listo-falta")).not.toHaveTextContent("Te falta");
+    fireEvent.click(within(listo).getByRole("button", { name: /Elegir hotel en Agra/ }));
+    expect(scrolled.at(-1)).toBe("paso-4");
+    fireEvent.click(within(screen.getByTestId("comprar-pasos")).getByText(/Listo · Revisa y compra/));
     const rows = within(listo).getAllByTestId("comprar-listo-item").map((r) => r.textContent ?? "");
     expect(rows.some((r) => r.includes("Delhi → Agra · Avión"))).toBe(true);
     expect(rows.some((r) => r.includes("Taj Mahal"))).toBe(true);

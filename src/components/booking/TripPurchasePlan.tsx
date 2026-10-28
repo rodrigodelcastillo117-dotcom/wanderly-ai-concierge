@@ -141,7 +141,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
     if (!next) return null;
     return (
       <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border/40 pt-3" data-testid="comprar-siguiente-barra">
-        {missing && <p className="mr-auto text-xs text-amber-400/90" role="status" data-testid="comprar-falta-paso">{missing}</p>}
+        {missing && <p className="mr-auto text-xs text-amber-400/90" data-testid="comprar-falta-paso">{missing}</p>}
         <button type="button" onClick={() => goTo(next.id)} data-testid="comprar-siguiente" data-next={next.id}
           className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-primary/50 bg-primary/10 px-4 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
           {missing ? "Seguir de todos modos" : "Siguiente:"}<span className={`max-w-[12rem] truncate font-normal text-muted-foreground ${missing ? "hidden sm:inline" : ""}`}>{next.title}</span> <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -309,8 +309,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                             <button key={i} type="button" role="radio" aria-checked={chosen} data-testid="vuelo-opcion" disabled={!onSelectVuelo}
                               onClick={() => onSelectVuelo && chooseAndAdvance(`paso-${s.n}`, () => onSelectVuelo(i))}
                               className={`w-full min-w-0 rounded-lg border px-3 py-2 text-left transition disabled:cursor-default ${chosen ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40"}`}>
-                              <span className="flex items-center justify-between gap-2">
-                                <span className="min-w-0 truncate text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{flightAirlineLabel(v)}{v?.tier && FLIGHT_TIER_WORD[v.tier] ? <span className="font-normal text-muted-foreground"> · {FLIGHT_TIER_WORD[v.tier]}</span> : null}</span>
+                              <span className="flex items-start justify-between gap-2">
+                                <span className="min-w-0 line-clamp-2 break-words text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{flightAirlineLabel(v)}{v?.tier && FLIGHT_TIER_WORD[v.tier] ? <span className="font-normal text-muted-foreground"> · {FLIGHT_TIER_WORD[v.tier]}</span> : null}</span>
                                 <span className="shrink-0 text-sm font-medium tabular-nums" data-testid="vuelo-opcion-precio">{ground ? ground.price : pp ? money(pp * travelers) : "Sin precio"}</span>
                               </span>
                               <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -380,11 +380,12 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                             <SmartImage alt={h?.nombre ?? "Hotel"} size="thumb" className="h-14 w-14 shrink-0 overflow-hidden rounded-md" imageUrl={h?.thumbnail ?? h?.foto ?? null}
                               lookup={h?.place_id ? { placeId: h.place_id } : { name: h?.nombre, city: h?.ciudad ?? cityId ?? trip.destino }} stockQuery={hotelQuery(h?.tier || h?.tipo, i)} icon={Hotel} />
                             <span className="min-w-0 flex-1">
-                              <span className="flex items-center justify-between gap-2">
-                                <span className="min-w-0 truncate text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{h?.nombre}</span>
+                              {/* A 390 px el nombre del hotel ocupa hasta 2 líneas (antes "Dear Hotel Madr…"). */}
+                              <span className="flex items-start justify-between gap-2">
+                                <span className="min-w-0 line-clamp-2 break-words text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{h?.nombre}</span>
                                 <span className="shrink-0 text-sm font-medium tabular-nums">{total ? money(total) : "Sin precio"}</span>
                               </span>
-                              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                              <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">
                                 {[h?.tier && TIER_WORD[h.tier] ? TIER_WORD[h.tier] : null, s.nights ? plural(s.nights, "noche", "noches") : null, Number(h?.precio_por_noche) > 0 ? `${money(Number(h.precio_por_noche))} por noche` : null].filter(Boolean).join(" · ")}
                               </span>
                               {quotedDefault && <span className="mt-0.5 block text-[11px] text-primary" data-testid="hotel-en-cotizacion">En la cotización · aún sin elegir</span>}
@@ -547,7 +548,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
           <ListChecks className="h-5 w-5 text-primary" aria-hidden="true" /> Listo · Revisa y compra
         </h3>
         {(() => {
-          const missing = flow.steps.map(missingOf).filter(Boolean) as string[];
+          const missingSteps = flow.steps.filter((st) => !!missingOf(st));
           const rowsList: Array<{ key: string; label: string; sub: string | null; price: number | null; est: boolean; it: PurchaseItem | null; live?: boolean }> = [];
           // Las partidas son las MISMAS que suma el total (selectionDesglose): el vuelo y el hotel de un
           // destino llevan el monto del desglose; si no es de una tarifa real, dice "estimado".
@@ -580,13 +581,23 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
           for (const it of items.filter((x) => x.kind === "restaurante" && restPicks.includes(restKey(trip.restaurantes_json?.[x.index], x.index)))) rowsList.push({ key: it.key, label: it.title, sub: it.subtitle, price: null, est: false, it });
           return (
             <>
-              {missing.length > 0 && <p className="mt-2 text-sm text-amber-400/90" data-testid="comprar-listo-falta">{missing.join(" · ")}</p>}
+              {/* Lo que falta ya se dijo en su paso (una sola vez); aquí solo el atajo para ir a elegirlo. */}
+              {missingSteps.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2" data-testid="comprar-listo-falta">
+                  {missingSteps.map((st) => (
+                    <button key={st.n} type="button" onClick={() => goTo(`paso-${st.n}`)} data-testid="comprar-listo-ir"
+                      className="inline-flex min-h-[40px] items-center gap-1 rounded-xl border border-amber-400/40 px-3 text-sm text-amber-400/90 transition hover:bg-amber-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                      {missingOf(st)!.replace(/^Te falta elegir/, "Elegir")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              )}
               <ul className="mt-3 divide-y divide-border/40" data-testid="comprar-listo-lista">
                 {rowsList.map((r) => (
                   <li key={r.key} className="flex flex-wrap items-center justify-between gap-2 py-2.5" data-testid="comprar-listo-item">
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm">{r.label}</span>
-                      {r.sub && <span className="block truncate text-xs text-muted-foreground">{r.sub}</span>}
+                      <span className="block line-clamp-2 break-words text-sm">{r.label}</span>
+                      {r.sub && <span className="block line-clamp-2 break-words text-xs text-muted-foreground">{r.sub}</span>}
                     </span>
                     <span className="shrink-0 text-right text-sm tabular-nums">{r.price ? money(r.price) : <span className="text-xs text-muted-foreground">Precio en el sitio</span>}
                       {r.price && r.est ? <span className="block text-[10px] text-muted-foreground">estimado</span> : null}

@@ -40,7 +40,7 @@ describe("20 · la consulta viaja con la petición de generación", () => {
 });
 
 // ── PlanTrip: Cancelar ──
-const invoke = vi.fn(async (fn: string) => (fn === "interpretar-viaje" ? { data: null, error: new Error("502") } : { data: null, error: null }));
+const invoke = vi.fn(async (fn: string, _o?: unknown) => (fn === "interpretar-viaje" ? { data: null, error: new Error("502") } : { data: null, error: null }));
 const qb: any = { select: () => qb, eq: () => qb, maybeSingle: async () => ({ data: { ciudad_origen: "Ciudad de México" }, error: null }) };
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => qb, functions: { invoke: (f: string, o: any) => invoke(f, o) } } }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" }, loading: false }) }));
