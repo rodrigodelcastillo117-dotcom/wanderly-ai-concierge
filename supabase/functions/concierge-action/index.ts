@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { teamEmails } from "../_shared/teamEmails.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { conciergeRequestOpsEmail, type OpsRequestInput } from "../_shared/email-ops.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
@@ -14,7 +15,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const FIXER_EMAIL = Deno.env.get("FIXER_EMAIL") || "hola@traveliatos.life";
+const FIXER_EMAIL = teamEmails();
 const FROM_ADDRESS = Deno.env.get("FIXER_FROM_ADDRESS") || "IATOS Fixer <hola@traveliatos.life>";
 
 type Body = {
