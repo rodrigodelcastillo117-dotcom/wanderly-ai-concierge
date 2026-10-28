@@ -123,6 +123,8 @@ export function buildServiceDeps(): ServiceDeps {
       functionUrl: supabaseUrl ? `${supabaseUrl}/functions/v1/ai-reservations` : null,
       linkSecret: env("AI_RESERVATIONS_LINK_SECRET") ?? env("SUPABASE_SERVICE_ROLE_KEY") ?? null,
       inboundSecret: env("RESEND_INBOUND_SECRET"),
+      pilotUsers: (env("AI_RESERVATIONS_PILOT_USERS") ?? "").split(",").map((x) => x.trim()).filter((x) => /^[0-9a-f-]{36}$/i.test(x)),
+      testVenueEmail: env("AI_RESERVATIONS_TEST_VENUE_EMAIL") ?? null,
     },
     warn: (...a) => console.warn(...a.map((x) => redactPii(x) ?? "")),
   };

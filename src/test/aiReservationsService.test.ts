@@ -496,3 +496,52 @@ describe("AUD-06 · evidencia y repetición", () => {
     expect((await handleInbound(t.deps, w.headers, w.body)).body).toMatchObject({ outcome: "ambiguous", why: "evidence_incomplete" });
   });
 });
+
+describe("modo piloto (28-oct-2026): solo usuarios del piloto y correo de prueba del dueño", () => {
+  const OTHER = "22222222-2222-2222-2222-222222222222";
+  const pilot = (t: ReturnType<typeof setup>, extra: Record<string, unknown> = {}) =>
+    ({ ...t.deps, config: { ...t.deps.config, pilotUsers: [USER], testVenueEmail: "dueno@prueba.test", ...extra } });
+
+  it("un usuario fuera del piloto no puede crear ni enviar, aunque la bandera esté encendida", async () => {
+    const t = setup(true);
+    const deps = pilot(t);
+    const c = await createIntent(deps, OTHER, intent);
+    expect(c.status).toBe(403);
+    expect(c.body.code).toBe("FEATURE_DISABLED");
+    expect(t.sent).toHaveLength(0);
+    expect((await reservationStatus(deps, OTHER, {})).body.enabled).toBe(false);
+  });
+
+  it("en el piloto, el correo va al dueño (no al restaurante) y la evidencia lo dice", async () => {
+    const t = setup(true);
+    const deps = pilot(t);
+    const c = await createIntent(deps, USER, intent);
+    expect(c.status).toBe(200);
+    const res = c.body.reservation as Record<string, any>;
+    expect(res.venue_email).toBe("dueno@prueba.test");
+    expect((c.body.preview as any).to).toBe("dueno@prueba.test");
+    const sent = await confirmSend(deps, USER, { id: res.id, confirm: true });
+    expect(sent.status).toBe(200);
+    expect(t.sent.map((m) => m.to)).toEqual(["dueno@prueba.test"]);
+    expect(t.sent.some((m) => m.to === "reservas@casaoaxaca.com.mx")).toBe(false);
+  });
+
+  it("sin piloto (lista vacía) el correo de prueba se ignora y se usa el del restaurante", async () => {
+    const t = setup(true);
+    const deps = { ...t.deps, config: { ...t.deps.config, pilotUsers: [], testVenueEmail: "dueno@prueba.test" } };
+    const c = await createIntent(deps, OTHER, intent);
+    expect((c.body.reservation as any).venue_email).toBe("reservas@casaoaxaca.com.mx");
+  });
+});
+
+describe("modo piloto: correo de prueba por persona", () => {
+  const CARLO = "33333333-3333-3333-3333-333333333333";
+  it("cada probador recibe en su propio correo; los demás del piloto, en el general", async () => {
+    const t = setup(true);
+    const deps = { ...t.deps, config: { ...t.deps.config, pilotUsers: [USER, CARLO], testVenueEmail: `rodrigoiatosai@gmail.com, ${CARLO}=carlo@prueba.test` } };
+    const a = await createIntent(deps, USER, intent);
+    expect((a.body.reservation as any).venue_email).toBe("rodrigoiatosai@gmail.com");
+    const b = await createIntent(deps, CARLO, { ...intent, datetime_local: "2026-11-04T21:00" });
+    expect((b.body.reservation as any).venue_email).toBe("carlo@prueba.test");
+  });
+});

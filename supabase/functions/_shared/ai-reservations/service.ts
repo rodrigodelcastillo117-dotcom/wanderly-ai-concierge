@@ -110,6 +110,18 @@ export type ServiceDeps = {
     functionUrl: string | null;
     linkSecret: string | null;
     inboundSecret?: string;
+    /**
+     * Piloto (28-oct-2026): si hay ids aquí, SOLO esos usuarios pueden pedir reservas; el resto ve
+     * FEATURE_DISABLED aunque la bandera esté encendida. Vacío = abierto a todos.
+     */
+    pilotUsers?: string[];
+    /**
+     * Solo en piloto y solo para usuarios del piloto: el correo del "restaurante" se reemplaza por uno de
+     * prueba, para probar de punta a punta sin escribirle a un restaurante real. Formato: lista separada por
+     * comas de `correo` (para todos) o `id_de_usuario=correo` (para ese usuario; gana sobre el general).
+     * La respuesta solo cuenta si llega desde ese mismo correo.
+     */
+    testVenueEmail?: string | null;
   };
   now?: () => Date;
   warn?: (...a: unknown[]) => void;
@@ -176,6 +188,30 @@ async function flagEnabled(db: Db): Promise<boolean> {
   return !error && data === true;
 }
 
+const pilotOn = (deps: ServiceDeps) => (deps.config.pilotUsers ?? []).length > 0;
+
+/** Bandera encendida y, si hay piloto, el usuario está en él. */
+async function enabledFor(deps: ServiceDeps, userId: string): Promise<boolean> {
+  if (pilotOn(deps) && !(deps.config.pilotUsers ?? []).includes(userId)) return false;
+  return flagEnabled(deps.db);
+}
+
+/** Correo de prueba del piloto (nunca fuera del piloto ni para usuarios que no estén en él). */
+export function pilotTestEmail(deps: ServiceDeps, userId: string): string | null {
+  if (!pilotOn(deps) || !(deps.config.pilotUsers ?? []).includes(userId)) return null;
+  const isEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+  let general: string | null = null;
+  for (const raw of (deps.config.testVenueEmail ?? "").split(",")) {
+    const item = raw.trim().toLowerCase();
+    const eq = item.indexOf("=");
+    if (eq > 0) {
+      const email = item.slice(eq + 1).trim();
+      if (item.slice(0, eq).trim() === userId.toLowerCase() && isEmail(email)) return email;
+    } else if (!general && isEmail(item)) general = item;
+  }
+  return general;
+}
+
 function fromHeader(deps: ServiceDeps, customerName: string) {
   const name = customerName.replace(/["<>\r\n]/g, "").slice(0, 60);
   return `${name} vía IATOS <${deps.config.fromAddress ?? DEFAULT_FROM_ADDRESS}>`;
@@ -196,7 +232,7 @@ export type CreateIntentInput = {
 
 export async function createIntent(deps: ServiceDeps, userId: string, input: CreateIntentInput): Promise<ApiResult> {
   // Con la bandera apagada no se gasta nada (ni Google ni Claude ni descargas).
-  if (!(await flagEnabled(deps.db))) return withMessage(fail(403, "FEATURE_DISABLED"));
+  if (!(await enabledFor(deps, userId))) return withMessage(fail(403, "FEATURE_DISABLED"));
   const v = input?.venue ?? {};
   if (!v.name || (!v.place_id && !v.experience_id)) return withMessage(fail(400, v.name ? "VENUE_ID_REQUIRED" : "VENUE_REQUIRED"));
   if (!isLocalDateTime(input.datetime_local)) return withMessage(fail(400, "DATETIME_INVALID"));
@@ -207,6 +243,15 @@ export async function createIntent(deps: ServiceDeps, userId: string, input: Cre
     city: v.city ?? null, country: v.country ?? null, timezone: v.timezone ?? null, language: v.language ?? null,
   }, { ...deps.contact, callModel: deps.callModel }, deps.now?.() ?? new Date());
   if (found.business_status === "CLOSED_PERMANENTLY") return withMessage(fail(400, "VENUE_CLOSED"));
+  // Piloto: el correo va al dueño (no al restaurante) y la evidencia lo dice.
+  const testEmail = pilotTestEmail(deps, userId);
+  if (testEmail) {
+    found.email = testEmail;
+    found.email_source = {
+      kind: "catalog", url: "piloto://correo-de-prueba-del-dueno", quote: "Correo de prueba del piloto: no es del restaurante.",
+      found_at: (deps.now?.() ?? new Date()).toISOString(), method: "deterministic",
+    };
+  }
 
   const { data, error } = await deps.db.rpc<Record<string, unknown>>("ai_reservation_create_intent", {
     _user_id: userId,
@@ -251,7 +296,7 @@ export async function confirmSend(
   deps: ServiceDeps, userId: string,
   input: { id?: string; confirm?: boolean; confirm_text?: string; consent?: { share_contact?: boolean; cc_me?: boolean } },
 ): Promise<ApiResult> {
-  if (!(await flagEnabled(deps.db))) return withMessage(fail(403, "FEATURE_DISABLED"));
+  if (!(await enabledFor(deps, userId))) return withMessage(fail(403, "FEATURE_DISABLED"));
   if (!input?.id || input.confirm !== true) return withMessage(fail(400, "CONSENT_REQUIRED"));
   const claim = await deps.db.rpc<Record<string, unknown>>("ai_reservation_claim_send", {
     _id: input.id, _user_id: userId,
@@ -293,7 +338,7 @@ function sendToVenue(deps: ServiceDeps, row: AiReservationRow, mail: Mail): Prom
 
 // ───────────────────────────── choose_alternative ─────────────────────────────
 export async function chooseAlternative(deps: ServiceDeps, userId: string, input: { id?: string; index?: number }): Promise<ApiResult> {
-  if (!(await flagEnabled(deps.db))) return withMessage(fail(403, "FEATURE_DISABLED"));
+  if (!(await enabledFor(deps, userId))) return withMessage(fail(403, "FEATURE_DISABLED"));
   if (!input?.id || !Number.isInteger(input.index)) return withMessage(fail(400, "BAD_REQUEST"));
   const claim = await deps.db.rpc<Record<string, unknown>>("ai_reservation_claim_alternative", { _id: input.id, _user_id: userId, _index: input.index });
   if (claim.error || !claim.data) return withMessage(fail(500, "SEND_FAILED"));
@@ -341,7 +386,7 @@ export async function reservationStatus(deps: ServiceDeps, userId: string, input
   if (error) return withMessage(fail(500, "STATUS_FAILED"));
   const list = (data ?? []).map(presentReservation);
   if (input?.id && list.length === 0) return withMessage(fail(404, "NOT_FOUND"));
-  return ok({ enabled: await flagEnabled(deps.db), reservations: list });
+  return ok({ enabled: await enabledFor(deps, userId), reservations: list });
 }
 
 // ───────────────────────────── Correos al usuario ─────────────────────────────
