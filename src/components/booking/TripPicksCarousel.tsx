@@ -206,6 +206,12 @@ function Card({ card, kind, city, list, trip, actionFor, isChosen, onChoose, ext
   );
 }
 
+/** Clave para comparar dos enlaces de búsqueda: sin distinguir "+" de "%20" ni mayúsculas. */
+export function sameSearchUrlKey(u: string | null | undefined): string {
+  if (!u) return "";
+  try { return decodeURIComponent(u.replace(/\+/g, " ")).toLowerCase(); } catch { return u.toLowerCase(); }
+}
+
 /**
  * Debajo del botón principal: TheFork (búsqueda), Llamar y WhatsApp con los datos reales de Google del
  * restaurante, y "No toma reservaciones (llega directo)" si Google lo dice (_shared/restaurantBooking.ts).
@@ -215,7 +221,10 @@ function MoreBooking({ x, city, mainUrl }: { x: any; city: string; mainUrl: stri
     name: x?.nombre, city: x?.ciudad ?? city, address: x?.direccion ?? null, website: x?.website ?? null,
     phone: x?.telefono ?? null, phoneInternational: x?.telefono_internacional ?? null, reservable: typeof x?.reservable === "boolean" ? x.reservable : null,
   });
-  const extra = b.actions.filter((a) => a.kind !== "website" && a.url !== mainUrl);
+  // Misma búsqueda con otra codificación ("%20" vs "+") = mismo botón (caso E2E 28-oct-2026: "Buscar en
+  // OpenTable" salía dos veces en restaurantes de México).
+  const main = sameSearchUrlKey(mainUrl);
+  const extra = b.actions.filter((a) => a.kind !== "website" && sameSearchUrlKey(a.url) !== main);
   if (!extra.length && !b.note) return null;
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]" data-testid="pick-mas-reserva">

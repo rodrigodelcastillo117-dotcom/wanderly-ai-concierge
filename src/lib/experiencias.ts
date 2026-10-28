@@ -52,6 +52,34 @@ export function hotelForCity(trip: any, city: string, multi: boolean): CityHotel
   return { nombre, ...hotelCoords(pick), origen: own ? "tuyo" : "cotizado" };
 }
 
+// ─── Lo TOP ya buscado, guardado en este navegador ───
+// Caso E2E 28-oct-2026: al recargar la página se perdía lo TOP y había que volver a buscar (otra búsqueda
+// en vivo). Se guarda la última respuesta por viaje y ciudad, 12 h, solo en este navegador; el bloque dice
+// cuándo se consultó. Sin almacenamiento (modo privado) no pasa nada: se busca con el botón como antes.
+
+export const EXP_CACHE_TTL_MS = 12 * 3600_000;
+const expTopKey = (tripId: string, city: string) => `iatos:exp-top:${tripId}:${city.toLowerCase()}`;
+
+type StorageLike = Pick<Storage, "getItem" | "setItem">;
+const defaultStorage = (): StorageLike | null => { try { return typeof localStorage !== "undefined" ? localStorage : null; } catch { return null; } };
+
+export function saveExpTop(tripId: string | null | undefined, city: string, data: unknown, now = Date.now(), storage: StorageLike | null = defaultStorage()): void {
+  if (!tripId || !storage || !data) return;
+  try { storage.setItem(expTopKey(tripId, city), JSON.stringify({ at: now, data })); } catch { /* lleno o bloqueado */ }
+}
+
+export function loadExpTop(tripId: string | null | undefined, city: string, now = Date.now(), storage: StorageLike | null = defaultStorage()): any | null {
+  if (!tripId || !storage) return null;
+  try {
+    const raw = storage.getItem(expTopKey(tripId, city));
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { at?: unknown; data?: any };
+    const at = Number(v?.at);
+    if (!Number.isFinite(at) || now - at > EXP_CACHE_TTL_MS || now < at || !v?.data?.ok) return null;
+    return v.data;
+  } catch { return null; }
+}
+
 // ─── Llamada (solo con botón) ───
 
 export type ExpRequest = { city: string; dateFrom?: string | null; dateTo?: string | null; hotel?: CityHotel | null; query?: string | null; blocks?: string[] };

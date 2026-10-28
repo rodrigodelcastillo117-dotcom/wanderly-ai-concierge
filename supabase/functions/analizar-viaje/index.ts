@@ -51,13 +51,12 @@ function largeGooglePhoto(url: unknown): string | null {
 }
 
 // Portada real del viaje: foto del lugar más reseñado del destino; si no hay, la del primer hotel.
-function pickCover(places: any[], hotels: any[]): string | null {
+// Portada: solo la foto de un lugar del destino. La foto de un hotel (una habitación, un baño, velas en
+// una cama) no es "Lisboa" ni "Valle de Bravo" (caso E2E 28-oct-2026); sin foto de lugar, la página usa
+// la foto ilustrativa del destino con su leyenda.
+function pickCover(places: any[], _hotels: any[]): string | null {
   for (const p of places ?? []) {
     const u = largeGooglePhoto(p?.photos?.[0]);
-    if (u) return u;
-  }
-  for (const h of hotels ?? []) {
-    const u = largeGooglePhoto(h?.thumbnail);
     if (u) return u;
   }
   return null;

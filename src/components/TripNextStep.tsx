@@ -46,6 +46,8 @@ type Props = {
   totalLabel?: string | null;
   /** Estado del total bajo la cifra en la barra ("Estimado · falta elegir", "Tu selección"…). */
   totalNote?: string | null;
+  /** Lo que falta elegir en Comprar ("cómo llegar", "hotel"): si sale pronto, va antes que la maleta. */
+  missing?: string[] | null;
   now?: Date;
 };
 
@@ -54,10 +56,10 @@ type Props = {
  * principal (la misma regla que el centro de mando de Inicio). Antes, al terminar el análisis el
  * usuario llegaba a una página larguísima sin saber si su cotización estaba guardada ni qué hacer.
  */
-export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabel, totalNote, now }: Props) {
+export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabel, totalNote, missing, now }: Props) {
   const navigate = useNavigate();
   const today = localISODate(now ?? new Date());
-  const action = nextTripAction(trip, { today, quote, now });
+  const action = nextTripAction(trip, { today, quote, now, missing });
   const timing = tripTiming(trip, today);
   const fresh = quoteFreshness(trip, quote, now);
   const base = `/dashboard/viajes/${trip.id}`;

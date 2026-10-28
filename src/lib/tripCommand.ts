@@ -117,7 +117,7 @@ export type NextActionInput = {
  * cotización desactualizada → actualizarla; precios vencidos → revisarlos; faltan ≤3 días →
  * preparar maleta; si no, elegir y reservar con el proveedor (IATOS no reserva por ti).
  */
-export function nextTripAction(trip: NextActionInput, opts: { today: string; now?: Date; quote?: QuoteLike }): NextAction {
+export function nextTripAction(trip: NextActionInput, opts: { today: string; now?: Date; quote?: QuoteLike; missing?: string[] | null }): NextAction {
   const base = `/dashboard/viajes/${trip.id}`;
   const timing = tripTiming(trip, opts.today);
   if (timing.phase === "en_curso") {
@@ -146,6 +146,15 @@ export function nextTripAction(trip: NextActionInput, opts: { today: string; now
   }
   if (fresh.status === "por_revisar" && (timing.daysToStart ?? 0) > 3) {
     return { key: "revisar_precios", title: "Revisa los precios", detail: "Las tarifas cambian; confírmalas con el proveedor antes de reservar.", cta: "Revisar cotización", to: base };
+  }
+  // Sale pronto y aún no elige lo principal (caso E2E 28-oct-2026, Valle de Bravo en 3 días sin hotel):
+  // primero elegir y reservar; la maleta después.
+  const missing = (opts.missing ?? []).filter(Boolean);
+  if ((timing.daysToStart ?? 99) <= 3 && missing.length) {
+    const cuando = timing.daysToStart === 0 ? "Sales hoy" : timing.daysToStart === 1 ? "Sales mañana" : `Sales en ${timing.daysToStart} días`;
+    const falta = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} y ${missing[missing.length - 1]}`;
+    const byLand = arrivalByLand(trip as any);
+    return { key: "reservar", title: "Elige y reserva", detail: `${cuando} y aún te falta elegir ${falta}.`, cta: byLand ? "Elegir cómo llegar y hotel" : "Elegir vuelo y hotel", to: base };
   }
   if ((timing.daysToStart ?? 99) <= 3) {
     return { key: "preparar", title: timing.daysToStart === 0 ? "Hoy sales de viaje" : "Prepara tu maleta", detail: "Revisa tu lista de equipaje y el clima del destino.", cta: "Abrir lista de equipaje", to: `${base}/packing` };

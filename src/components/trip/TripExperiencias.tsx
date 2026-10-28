@@ -21,7 +21,7 @@ import type { PurchaseItem } from "@/lib/purchasePlan";
 import type { GroupMark } from "@/lib/purchaseMarks";
 import {
   applyPlanToItinerary, buildItinerary, type CityHotel, type ExpItem, expKey, fmtFecha, hotelForCity, type Invoke, itemsFromResponse,
-  type Plan, requestExperiencias, stayDays, suggestedItems, type TripCity,
+  loadExpTop, type Plan, requestExperiencias, saveExpTop, stayDays, suggestedItems, type TripCity,
 } from "@/lib/experiencias";
 import { filterByMeal, type Meal, MEAL_LABEL, MEALS } from "../../../supabase/functions/_shared/restaurantBooking.ts";
 import { officialTicketsForCity, ticketSummary } from "../../../supabase/functions/_shared/officialTickets.ts";
@@ -145,7 +145,15 @@ const EMPTY: CityState = { busy: false, data: null, error: null, romBusy: false,
 
 export function TripExperiencias({ trip, cities, multi, marks, userId, onSaved, invoke = defaultInvoke }: Props) {
   const [active, setActive] = useState(0);
-  const [state, setState] = useState<Record<string, CityState>>({});
+  // Lo TOP que ya se buscó en este navegador (12 h) vuelve al recargar; no se llama a nada al abrir.
+  const [state, setState] = useState<Record<string, CityState>>(() => {
+    const init: Record<string, CityState> = {};
+    for (const c of cities) {
+      const data = loadExpTop(trip?.id, c.label);
+      if (data) init[c.label] = { ...EMPTY, chosen: new Set(), data };
+    }
+    return init;
+  });
   const city = cities[Math.min(active, cities.length - 1)];
   if (!city) return <p className="text-sm text-muted-foreground">Este viaje no tiene ciudades todavía.</p>;
   const st = state[city.label] ?? EMPTY;
@@ -155,7 +163,7 @@ export function TripExperiencias({ trip, cities, multi, marks, userId, onSaved, 
   const search = async () => {
     patch({ busy: true, error: null });
     const r = await requestExperiencias(invoke, { city: city.label, dateFrom: city.checkin, dateTo: city.checkout, hotel });
-    if (r.ok) patch({ busy: false, data: r.data, plan: null });
+    if (r.ok) { patch({ busy: false, data: r.data, plan: null }); saveExpTop(trip?.id, city.label, r.data); }
     else patch({ busy: false, error: r.message ?? "No pudimos buscar ahora." });
   };
   const searchRomantic = async () => {

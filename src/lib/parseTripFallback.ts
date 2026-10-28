@@ -76,15 +76,32 @@ function leadingPlace(original: string): string | null {
   return place.split(/\s+/).length <= 4 ? place : null;
 }
 
+/**
+ * Lugar con mayúscula después de "fin de semana en", "viaje a", "3 días en"… ("fin de semana en Valle
+ * de Bravo desde CDMX, 2 personas" → "Valle de Bravo"). Caso E2E 28-oct-2026: la frase entera quedaba
+ * como destino y se perdían fechas y viajeros (la regla general corta el destino en "de").
+ */
+function placeAfterLeadIn(original: string, text: string): string | null {
+  const lead = text.match(/(?:^|\s)(?:fin de semana|finde|puente|escapada|viaje|viajar|ir|irme|vacaciones|vuelo|volar|\d{1,2}\s+(?:dias|noches))\s+(?:a|al|en|para|hacia)\s+/);
+  if (!lead || lead.index == null) return null;
+  const rest = original.slice(lead.index + lead[0].length);
+  const m = rest.match(/^([A-ZÁÉÍÓÚÑ][\p{L}'.-]*(?:\s+(?:(?:de|del|la|las|los|el)\b|[A-ZÁÉÍÓÚÑ][\p{L}'.-]*)){0,3})/u);
+  if (!m) return null;
+  const place = m[1].replace(/(?:\s+(?:de|del|la|las|los|el))+$/i, "").trim();
+  return place || null;
+}
+
 export function parseTripFallback(query: string, today = new Date()): TripFallback {
   const text = strip(query.trim());
   const original = query.trim();
 
-  let destino: string | null = null;
-  const m = text.match(
+  let destino: string | null = placeAfterLeadIn(original, text);
+  const m = destino ? null : text.match(
     new RegExp(`(?:viaje|viajar|ir|irme|escapada|vacaciones|vuelo|volar)\\s+(?:a|al|en|para|hacia)\\s+(.+?)(?=\\s+(?:${STOP})\\b|[,.;!?]|$)`),
   );
-  if (m) {
+  if (destino) {
+    // Ya se encontró ("fin de semana en Valle de Bravo").
+  } else if (m) {
     // Recuperar acentos y mayúsculas del texto original en la misma posición.
     const start = text.indexOf(m[1], m.index);
     destino = titleCase(original.slice(start, start + m[1].length));

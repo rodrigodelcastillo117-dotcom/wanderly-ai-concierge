@@ -163,7 +163,7 @@ const LiveTrip = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <QuickAction icon={Navigation} label="Mapa" sublabel="Día por día" onClick={() => navigate(`/dashboard/viajes/${trip.id}/mapa`)} />
-          <QuickAction icon={Luggage} label="Packing" sublabel="Checklist" onClick={() => navigate(`/dashboard/viajes/${trip.id}/packing`)} />
+          <QuickAction icon={Luggage} label="Equipaje" sublabel="Lista" onClick={() => navigate(`/dashboard/viajes/${trip.id}/packing`)} />
           <QuickAction icon={Cloud} label="Clima" sublabel="Pronóstico" onClick={() => navigate(`/dashboard/viajes/${trip.id}/clima`)} />
           <QuickAction icon={Languages} label="Traductor" sublabel="Frases clave" onClick={() => navigate(`/dashboard/viajes/${trip.id}/traductor`)} />
           <QuickAction icon={BookHeart} label="Diario" sublabel="Memorias" onClick={() => navigate(`/dashboard/viajes/${trip.id}/diario`)} />

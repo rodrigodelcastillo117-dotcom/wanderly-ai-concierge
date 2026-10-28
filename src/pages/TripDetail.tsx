@@ -32,14 +32,14 @@ import {
   readLocalSelections, restoreSelections, sameSelections, serializeSelections, withCityHotel, writeLocalSelections, type PersistedSelections,
 } from "@/lib/tripSelections";
 import { deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
-import { BookingStateBadge, estimatedKindsOf } from "@/components/BookingStateBadge";
+import { BookingStateBadge, badgeEstimatedKinds } from "@/components/BookingStateBadge";
 import { ImportedTripBanner } from "@/components/ImportedTripBanner";
 import { TripDocuments } from "@/components/TripDocuments";
 import { TripBookingIntents } from "@/components/booking/TripBookingIntents";
 import { useTripOffers, type TripOfferActions } from "@/components/booking/useTripOffers";
 import { isGroundTripOption, transportModeOf, tripCountryLabel, tripFlightProblems } from "@/lib/booking";
 import { flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightLiveLine, flightStopsLabel } from "@/lib/flightDisplay";
-import { groundOptionsForCity, legOptionsFor, transportRubroLabel } from "@/lib/multiDestTrip";
+import { groundOptionsForCity, legOptionsFor } from "@/lib/multiDestTrip";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
@@ -55,7 +55,7 @@ import { quoteTrust } from "@/lib/quoteTrust";
 import { buildBuyFlow } from "@/lib/buyFlow";
 import { itemPurchaseState } from "@/lib/purchasePlan";
 import { tripTotalSummary } from "@/lib/tripTotal";
-import { splitTripTotal } from "@/lib/totalSplit";
+import { budgetLabels, splitTripTotal, trustMatchesSplit } from "@/lib/totalSplit";
 import { arrivalByLand, isBusOption, isCarOption, isHiredCarOption } from "@/lib/groundTrip";
 import { GroundOptionInfo } from "@/components/booking/GroundOptionInfo";
 import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
@@ -421,7 +421,8 @@ const TripDetail = () => {
     );
   }
 
-  const trust = quoteTrust(quote, new Date(), { transporte_local: transportRubroLabel(trip) });
+  const rubroLabels = budgetLabels(trip);
+  const trust = quoteTrust(quote, new Date(), rubroLabels);
   const discardedFares = (trip.vuelos_json ?? []).filter((v: any) => tripFlightProblems(v, trip).length > 0).length;
   // "Ya tengo mi viaje": vuelos y hotel los trajo la persona; no hay cotización que mostrar ni buscar.
   const brought = isBroughtTrip(trip);
@@ -440,7 +441,7 @@ const TripDetail = () => {
   const pageTotal = hasQuotedTotal ? pageTotalsOf(trip).total : 0;
   // Los renglones de la cotización solo se muestran si suman lo mismo que el total de arriba (si no,
   // serían una segunda cifra sin explicación).
-  const trustForTotal = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal) ? trust : null;
+  const trustForTotal = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal) && trustMatchesSplit(trust, totalSplit) ? trust : null;
   const stickyTotal = hasQuotedTotal && totalSummary.total > 0 ? totalSummary.barTotal : null;
   // "Actualizar cotización" (y la barra fija del celular) siguen al cálculo de la página: al volver a la
   // selección cotizada se quitan aunque trips.quote_needs_update (JSON tal cual) siga en true.
@@ -607,7 +608,7 @@ const TripDetail = () => {
             Un viaje importado de documentos dice lo que se PAGÓ, no un estado de cotización. */}
         {(trip as any).fuente === "documento"
           ? <ImportedTripBanner trip={trip} />
-          : brought ? null : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} estimated={estimatedKindsOf(totalSummary.estimatedKeys)} />}
+          : brought ? null : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} estimated={badgeEstimatedKinds(totalSummary)} byLand={arrivalByLand(trip)} />}
         {/* Smart Date Resolution: fechas optimizadas por IATOS */}
         {trip.dates_optimized && (
           <motion.div
@@ -668,7 +669,7 @@ const TripDetail = () => {
                 <div className="mt-4 border-t border-border/40 pt-3" data-testid="brought-elegido">
                   <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">Lo que elegiste en IATOS</p>
                   <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
-                    embedded estimatedKeys={totalSummary.estimatedKeys} labels={{ transporte_local: transportRubroLabel(trip) }} />
+                    embedded estimatedKeys={totalSummary.estimatedKeys} labels={rubroLabels} />
                 </div>
               )}
             </BroughtTripSummary>
@@ -691,7 +692,7 @@ const TripDetail = () => {
               {/* Un solo desglose, plegado bajo el mismo total (sin repetir título ni cifra). */}
               {computedTotal > 0 ? (
                 <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
-                  embedded estimatedKeys={totalSummary.estimatedKeys} labels={{ transporte_local: transportRubroLabel(trip) }} />
+                  embedded estimatedKeys={totalSummary.estimatedKeys} labels={rubroLabels} />
               ) : null}
             </RealTripTotal>
           ) : (
@@ -714,16 +715,17 @@ const TripDetail = () => {
                 <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
               </summary>
               <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40">
-                <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={viajeros} embedded labels={{ transporte_local: transportRubroLabel(trip) }} />
+                <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={viajeros} embedded labels={rubroLabels} />
               </div>
             </details>
           )}
         </motion.section>
 
         {/* Qué sigue: guardado, cuánto falta y UNA acción principal. */}
-        <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} />
+        <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} missing={totalSummary.missing} />
 
-        {isOwner && !brought && (
+        {/* Por tierra no hay vuelo que vigilar (caso E2E 28-oct-2026, Valle de Bravo). */}
+        {isOwner && !brought && !arrivalByLand(trip) && (
           <PriceWatchCard tripId={trip.id} departureDate={trip.fecha_salida} />
         )}
 
@@ -737,9 +739,9 @@ const TripDetail = () => {
           aria-label="Herramientas del viaje"
         >
           {[
-            { icon: Radio, label: "Live", to: `/dashboard/viajes/${id}/live` },
+            { icon: Radio, label: "En vivo", to: `/dashboard/viajes/${id}/live` },
             { icon: MapIcon, label: "Mapa", to: `/dashboard/viajes/${id}/mapa` },
-            { icon: Backpack, label: "Packing", to: `/dashboard/viajes/${id}/packing` },
+            { icon: Backpack, label: "Equipaje", to: `/dashboard/viajes/${id}/packing` },
             { icon: Cloud, label: "Clima", to: `/dashboard/viajes/${id}/clima` },
             { icon: Languages, label: "Traductor", to: `/dashboard/viajes/${id}/traductor` },
             { icon: BookHeart, label: "Diario", to: `/dashboard/viajes/${id}/diario` },
@@ -1031,7 +1033,7 @@ const TripDetail = () => {
         </div>
       </div>
       {/* Acción principal al alcance del pulgar en móvil, encima de la barra de navegación. */}
-      <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} totalNote={stickyTotal ? totalSummary.barNote : null} />
+      <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} totalNote={stickyTotal ? totalSummary.barNote : null} missing={totalSummary.missing} />
     </DashboardLayout>
   );
 };

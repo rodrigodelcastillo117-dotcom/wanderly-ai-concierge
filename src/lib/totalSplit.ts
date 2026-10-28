@@ -7,7 +7,7 @@
 //  - estimado: comida, transporte local, extras, gasolina, experiencias sin precio real y todo lo que
 //    venga de la IA.
 import type { PurchaseItem } from "@/lib/purchasePlan";
-import { carCostFor } from "@/lib/groundTrip";
+import { arrivalByLand, carCostFor } from "@/lib/groundTrip";
 import { transportRubroLabel } from "@/lib/multiDestTrip";
 
 export type SplitPart = { key: string; label: string; amount: number };
@@ -70,4 +70,22 @@ export function splitTripTotal(a: { trip: any; sel: { selVuelo: number; selTours
 export function partsList(parts: SplitPart[]): string {
   const xs = [...new Set(parts.map((p) => p.label))];
   return xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`;
+}
+
+/**
+ * Nombres de los rubros del desglose para este viaje: "Cómo llegar" en lugar de "Vuelos" cuando se
+ * llega por tierra (caso E2E 28-oct-2026, Valle de Bravo: "Vuelos · estimado $1,685" era el coche).
+ */
+export function budgetLabels(trip: any): Record<string, string> {
+  return { transporte_local: transportRubroLabel(trip), ...(arrivalByLand(trip) ? { vuelos: "Cómo llegar" } : {}) };
+}
+
+/**
+ * ¿La barra "consultado en vivo · estimado" de la cotización dice lo mismo que el reparto del total
+ * ("Total con precios reales")? Si no (p. ej. las casetas reales del coche cuentan como reales en uno y
+ * como estimado en el otro), la barra se oculta para no mostrar dos cifras "reales" distintas.
+ */
+export function trustMatchesSplit(trust: { verified: number }, split: TotalSplit | null | undefined): boolean {
+  if (!split || !(split.estimado > 0)) return true;
+  return Math.abs(Math.round(trust.verified) - Math.round(split.real)) <= 2;
 }

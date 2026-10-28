@@ -3,6 +3,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { serpFetchFor } from "../_shared/serpRuntime.ts";
+import { nearbyRankPreference } from "./rank.ts";
 
 type Body = {
   lat: number;
@@ -133,7 +134,7 @@ Deno.serve(async (req) => {
             radius: body.radius ?? 1500,
           },
         },
-        rankPreference: "DISTANCE",
+        rankPreference: nearbyRankPreference(body.kind),
         languageCode: "es",
       }),
     });

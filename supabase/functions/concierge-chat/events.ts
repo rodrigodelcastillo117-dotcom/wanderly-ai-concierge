@@ -294,6 +294,20 @@ export function mergeEvents(primary: EventResult[], extra: EventResult[], max = 
 }
 
 /**
+ * Ticketmaster ordena por fecha: con más resultados que los que se muestran, son los PRIMEROS del rango,
+ * no todos. Caso E2E 28-oct-2026: "conciertos en CDMX el próximo mes" → "Ticketmaster devuelve 6
+ * conciertos en noviembre, todos entre el 1 y el 3" (eran los 6 primeros por fecha).
+ */
+export function partialNote(found: number, from: string | null, to: string | null): Record<string, unknown> {
+  if (found <= MAX_EVENTS) return {};
+  const rango = from && to && from !== to ? ` (${from} a ${to})` : "";
+  return {
+    parcial: true, mostrados: MAX_EVENTS,
+    nota: `Son los primeros ${MAX_EVENTS} por fecha de un rango con más eventos${rango}. No digas que solo hay estos ni des un total: di que son los primeros por fecha y que hay más en Ticketmaster.`,
+  };
+}
+
+/**
  * search_events: Ticketmaster como fuente primaria cuando hay llave (gratis, con su propio límite) y
  * Google Events (SerpApi, con la bolsa del plan y el freno de gasto) como respaldo o complemento.
  * Usa la ubicación física solo si el turno es "aquí"; si no, la ciudad pedida.
@@ -316,7 +330,8 @@ export async function runEventSearch(args: Record<string, unknown>, deps: EventS
   const tmOk = tm.ok === true ? tm : null;
   const primary = tmOk ? tmOk.results.map(fromTicketmaster) : [];
   if (tmOk && primary.length >= TM_ENOUGH) {
-    return { ok: true, source: "ticketmaster", results: primary.slice(0, MAX_EVENTS), consulted_at: tmOk.consulted_at, ...(tmOk.from_cache ? { from_cache: true } : {}) };
+    return { ok: true, source: "ticketmaster", results: primary.slice(0, MAX_EVENTS), consulted_at: tmOk.consulted_at, ...(tmOk.from_cache ? { from_cache: true } : {}),
+      ...partialNote(primary.length, from, to) };
   }
   const aviso = tmOk ? undefined : (tm as { motivo?: string }).motivo;
   // El respaldo usa lo que queda del tiempo de la herramienta (Ticketmaster puede tardar hasta 8 s).

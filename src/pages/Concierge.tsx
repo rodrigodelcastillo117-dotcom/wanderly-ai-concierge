@@ -760,7 +760,9 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled, onOpenEmergency }: 
             )}
           </div>
         )}
-        {!isUser && msg.tripReason === "ambiguous" && (msg.tripCandidates?.length ?? 0) > 0 && (
+        {/* Elegir viaje solo si la pregunta era SOBRE un viaje: "tours en Lisboa" o "cerca de mí" ya se
+            contestaron sobre el lugar (caso E2E 28-oct-2026: 11 botones de viajes debajo de la respuesta). */}
+        {!isUser && msg.tripReason === "ambiguous" && msg.placeScope !== "requested" && msg.placeScope !== "here" && (msg.tripCandidates?.length ?? 0) > 0 && (
           <div className="flex flex-col items-start gap-1.5" role="group" aria-label="Elige el viaje">
             {msg.tripCandidates!.map((t) => (
               <button

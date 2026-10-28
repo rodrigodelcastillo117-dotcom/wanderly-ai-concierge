@@ -188,6 +188,8 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
     // Vigente, pero de la caché: nunca "en vivo" (E2E 23-oct).
     out.nota_fuente = `Precios de una búsqueda reciente guardada (${r.etiqueta_frescura.toLowerCase()}), no de este momento: no digas "en vivo"; di cuándo se consultaron.`;
   }
+  // Eventos: solo los primeros por fecha (events.ts → partialNote); la nota es nuestra, no de terceros.
+  if (name === "search_events" && r.parcial === true && typeof r.nota === "string") out.nota_resultados = r.nota.slice(0, 400);
   if (name === "check_flight_status" && (r.provider === "perplexity" || r?.data?.fuente === "perplexity")) {
     out.nota_fuente = "Dato obtenido de una búsqueda web, no del sistema de la aerolínea: dilo así y sugiere confirmar con la aerolínea.";
   }
@@ -792,7 +794,8 @@ export const MAX_TOUR_CARDS = 4;
 /**
  * Cards "tour" deterministas: título, foto, calificación, duración y precio "desde" con su moneda tal
  * cual los devolvió Viator en ESTE turno, con fuente y hora de consulta. Botón "Ver en Viator" =
- * productUrl con el afiliado de IATOS (solo viator.com/tours/…). No es una reserva.
+ * productUrl con el afiliado de IATOS (solo viator.com/tours/… o viator.com/es-MX/tours/…, como en
+ * _shared/viator.ts; caso E2E 28-oct-2026: Viator devuelve /es-MX/tours/ y se descartaban todas). No es una reserva.
  */
 export function tourCards(runs: ToolRun[], consultadoAt: string = new Date().toISOString()): ConciergeCard[] {
   const out: ConciergeCard[] = [];
@@ -806,7 +809,7 @@ export function tourCards(runs: ToolRun[], consultadoAt: string = new Date().toI
       const url = safeHttpsUrl(t?.url);
       let host = "";
       try { host = url ? new URL(url).hostname.toLowerCase() : ""; } catch { host = ""; }
-      if (!title || !url || !(host === "viator.com" || host.endsWith(".viator.com")) || !/^https:\/\/[^/]+\/tours\//.test(url)) continue;
+      if (!title || !url || !(host === "viator.com" || host.endsWith(".viator.com")) || !/^https:\/\/[^/]+\/(?:[a-z]{2}(?:-[A-Za-z]{2})?\/)?tours\//.test(url)) continue;
       const k = String(t?.codigo ?? normName(title));
       if (seen.has(k)) continue;
       seen.add(k);

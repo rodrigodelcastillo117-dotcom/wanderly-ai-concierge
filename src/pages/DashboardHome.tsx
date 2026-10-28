@@ -211,7 +211,9 @@ const DashboardHome = () => {
 
 
   const now = new Date();
-  const today = now.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  // "Martes, 27 de octubre de 2026" (con CSS capitalize salía "27 De Octubre De 2026").
+  const todayRaw = now.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const today = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
   const time = now.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase().replace(/\./g, "");
 
   // Viaje activo / próximo / lista: homeTrips reparte lo que decide resolveActiveTrip con
@@ -236,7 +238,7 @@ const DashboardHome = () => {
       <div className="px-4 md:px-10 pt-2 md:pt-10 pb-7 md:pb-10 space-y-5 md:space-y-12 max-w-[1400px] mx-auto overflow-x-hidden">
         {/* Top header */}
         <header className="hidden md:flex items-center gap-4">
-          <p className="text-[11px] md:text-xs text-muted-foreground capitalize tracking-wide">
+          <p className="text-[11px] md:text-xs text-muted-foreground tracking-wide">
             {today} <span className="mx-2 text-primary/40">|</span> <span className="text-foreground/80 normal-case">{time}</span>
           </p>
         </header>
@@ -352,7 +354,7 @@ const DashboardHome = () => {
           <section aria-labelledby="pick-trip-title" className="rounded-3xl border border-primary/25 bg-white/[0.02] p-5 md:p-7">
             <p className="text-[11px] uppercase tracking-[0.25em] text-primary font-semibold">Tu viaje activo</p>
             <h2 id="pick-trip-title" className="font-display text-2xl md:text-3xl mt-1">¿Cuál es tu próximo viaje?</h2>
-            <p className="text-sm text-muted-foreground mt-1">Tienes varios viajes en fechas parecidas. Elige uno y aquí verás cuánto falta y qué sigue.</p>
+            <p className="text-sm text-muted-foreground mt-1">Tienes varios viajes próximos. Elige uno y aquí verás cuánto falta y qué sigue.</p>
             <ActiveTripPicker trips={active.trips} pinnedId={active.pinnedId} resolved={active.resolved}
               onChange={(id) => { void active.pin(id); }} className="mt-4 flex-wrap" />
           </section>
@@ -417,7 +419,7 @@ const DashboardHome = () => {
                 Planea un <span className="italic gold-text font-light">nuevo</span> viaje
               </h2>
               <p className="text-sm md:text-base text-white/70 mb-6 max-w-xl leading-relaxed">
-                IATOS detecta single o multi-destino, arma vuelos, hospedaje y experiencias según tu ADN de viaje.
+                IATOS entiende si es un destino o varios, y arma vuelos, hospedaje y experiencias según tu ADN de viaje.
               </p>
               <Button
                 onClick={() => navigate("/dashboard/planear?mode=emocion")}
