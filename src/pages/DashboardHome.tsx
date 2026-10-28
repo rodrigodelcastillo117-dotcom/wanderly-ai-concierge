@@ -13,6 +13,7 @@ import { destinationQuery } from "@/lib/categoryImagery";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { useSavedDestinations } from "@/hooks/useSavedDestinations";
 import { homeTrips } from "@/lib/homeTrips";
+import { conciergeBoxHref } from "@/lib/conciergeBoxRoute";
 import { VoiceInput } from "@/components/VoiceInput";
 import tileTrenes from "@/assets/tools/tile-trenes.jpg";
 import tileFerries from "@/assets/tools/tile-ferries.jpg";
@@ -673,7 +674,9 @@ const DashboardHome = () => {
               </div>
             </div>
             <form
-              onSubmit={(e) => { e.preventDefault(); if (conciergeCard.trim()) navigate(`/dashboard/planear?q=${encodeURIComponent(conciergeCard)}`); }}
+              // Preguntas ("¿qué clima hará en mi viaje?") van al chat de Iato ya enviadas; solo lo que pide
+              // armar un viaje nuevo ("quiero ir a…", "arma un viaje…") abre el planificador.
+              onSubmit={(e) => { e.preventDefault(); if (conciergeCard.trim()) navigate(conciergeBoxHref(conciergeCard)); }}
               className="relative w-full"
             >
               <Input
