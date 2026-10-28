@@ -262,8 +262,8 @@ const TripDetail = () => {
     }
   }, [trip]);
 
-  // Guarda la selección al cambiarla (E-12). El trigger trips_quote_basis_guard marca la
-  // cotización como "por actualizar" si difiere de la selección con que se cotizó.
+  // Guarda la selección al cambiarla (E-12). Elegir otra opción de la misma cotización no la invalida:
+  // el total se recalcula aquí mismo (quoteStaleness solo mira viajeros, fechas, origen y destino).
   useEffect(() => {
     if (!trip?.id || restoredFor.current !== trip.id) return;
     const next = serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles });
@@ -367,7 +367,7 @@ const TripDetail = () => {
   const noches = trip ? tripNights(trip, itinDays.length) : 1;
   const viajeros = trip?.num_viajeros ?? 1;
 
-  // Si el usuario cambió viajeros o fechas después de cotizar, el total guardado es para la base
+  // Si el usuario cambió viajeros, fechas, origen o destino después de cotizar, el total guardado es para la base
   // anterior: se muestra para esa base (sin repartirlo entre el nuevo número de viajeros) y se
   // pide actualizar la cotización.
   const currentSel = trip ? serializeSelections(trip, { selVuelo, selHospedaje, nochesHospedaje, selTours, selHoteles }) : null;
@@ -446,9 +446,9 @@ const TripDetail = () => {
   // serían una segunda cifra sin explicación).
   const trustForTotal = trust.known && Math.round(quotedTotalValue) === Math.round(computedTotal) && trustMatchesSplit(trust, totalSplit) ? trust : null;
   const stickyTotal = hasQuotedTotal && totalSummary.total > 0 ? totalSummary.barTotal : null;
-  // "Actualizar cotización" (y la barra fija del celular) siguen al cálculo de la página: al volver a la
-  // selección cotizada se quitan aunque trips.quote_needs_update (JSON tal cual) siga en true.
-  const tripForNextStep = trip.quote_needs_update && !staleness.stale ? { ...trip, quote_needs_update: false } : trip;
+  // "Actualizar cotización" (y la barra fija del celular) siguen al cálculo de la página: elegir otra
+  // opción no lo pide aunque trips.quote_needs_update (trigger anterior, por la selección) siga en true.
+  const tripForNextStep = !!trip.quote_needs_update !== staleness.stale ? { ...trip, quote_needs_update: staleness.stale } : trip;
 
   const toggleTour = (i: number) => {
     setSelTours((prev) => {

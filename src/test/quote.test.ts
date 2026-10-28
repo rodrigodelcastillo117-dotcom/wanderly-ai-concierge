@@ -24,7 +24,9 @@ describe("cotización desactualizada al cambiar viajeros o fechas (D-02)", () =>
     const legacy = { ...trip, num_viajeros: 3, quote_basis: { num_viajeros: 2, fecha_salida: "2026-11-10", fecha_regreso: "2026-11-15" } };
     expect(quoteStaleness(legacy, null)).toMatchObject({ stale: true, basis: { travelers: 2 } });
     expect(quoteStaleness({ ...trip, num_viajeros: 3 }, null)).toMatchObject({ stale: false, basis: null });
-    expect(quoteStaleness({ ...trip, quote_needs_update: true, quote_basis: { num_viajeros: 2, fecha_salida: "2026-11-10", fecha_regreso: "2026-11-15" } }, null).stale).toBe(true);
+    // Con la base conocida manda el cálculo: un quote_needs_update que el servidor anterior puso solo por la
+    // selección no vuelve vieja la cotización (pedido del dueño, E2E 28-oct-2026; antes se respetaba).
+    expect(quoteStaleness({ ...trip, quote_needs_update: true, quote_basis: { num_viajeros: 2, fecha_salida: "2026-11-10", fecha_regreso: "2026-11-15" } }, null).stale).toBe(false);
   });
 });
 

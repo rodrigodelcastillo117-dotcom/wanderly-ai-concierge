@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { toast } from "sonner";
 import { staleQuoteMessage } from "@/lib/quote";
+import { quoteChanges } from "@/lib/quoteChanges";
 import { useAuth } from "@/contexts/AuthContext";
 import { reanalyzeTripInPlace } from "@/lib/tripReanalysis";
 import { deleteOwnedTrip, leaveSharedTrip, MEMBERSHIP_MESSAGES } from "@/lib/tripMembership";
@@ -48,7 +49,7 @@ const EditTrip = () => {
   const [numViajeros, setNumViajeros] = useState(2);
   const [presupuesto, setPresupuesto] = useState<number | null>(null);
   // Viajeros y fechas con que está cotizado el viaje (para avisar si se cambian sin recotizar).
-  const [original, setOriginal] = useState<{ travelers: number; dateFrom: string | null; dateTo: string | null; hasQuote: boolean } | null>(null);
+  const [original, setOriginal] = useState<{ travelers: number; dateFrom: string | null; dateTo: string | null; origen: string | null; destino: string | null; hasQuote: boolean } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -68,6 +69,9 @@ const EditTrip = () => {
           travelers: Number(basis?.num_viajeros ?? data.num_viajeros ?? 2),
           dateFrom: basis?.fecha_salida ?? data.fecha_salida ?? null,
           dateTo: basis?.fecha_regreso ?? data.fecha_regreso ?? null,
+          // Origen y destino con que se cotizó (bases anteriores no los guardan: los de ahora).
+          origen: basis && "ciudad_origen" in basis ? basis.ciudad_origen ?? null : data.ciudad_origen ?? null,
+          destino: basis && "destino" in basis ? basis.destino ?? null : data.destino ?? null,
           hasQuote: data.total_estimado != null,
         });
       }
@@ -97,16 +101,21 @@ const EditTrip = () => {
     }
     if (quoteBasisChanged && original) {
       // El total guardado sigue siendo el de antes: se avisa en vez de repartirlo en silencio.
-      toast.warning("Cambios guardados", { description: `${staleQuoteMessage(original)} con «Re-analizar con IA».` });
+      toast.warning("Cambios guardados", { description: `${staleQuoteMessage(original, basisChanges)} con «Re-analizar con IA».` });
     } else {
       toast.success("Cambios guardados");
     }
     navigate(`/dashboard/viajes/${id}`);
   };
 
-  const quoteBasisChanged = !!original?.hasQuote && (
-    numViajeros !== original.travelers || (fechaSalida || null) !== original.dateFrom || (fechaRegreso || null) !== original.dateTo
-  );
+  // Viajeros, fechas, origen o destino distintos de los cotizados: hay que re-cotizar (y se dice qué cambió).
+  const basisChanges = original?.hasQuote
+    ? quoteChanges({
+      num_viajeros: numViajeros, fecha_salida: fechaSalida || null, fecha_regreso: fechaRegreso || null, ciudad_origen: ciudadOrigen, destino,
+      quote_basis: { num_viajeros: original.travelers, fecha_salida: original.dateFrom, fecha_regreso: original.dateTo, ciudad_origen: original.origen, destino: original.destino },
+    }) ?? []
+    : [];
+  const quoteBasisChanged = basisChanges.length > 0;
 
   // Re-analiza SOBRE el mismo viaje (mismo id): diario, packing, split, gastos,
   // reservas, alertas y colaboradores se conservan. Nunca borra el viaje original.
@@ -251,7 +260,7 @@ const EditTrip = () => {
 
         {quoteBasisChanged && original && (
           <p role="status" className="mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-500">
-            {staleQuoteMessage(original)}. Guardar no cambia los precios: usa «Re-analizar con IA» para cotizar con los nuevos viajeros o fechas.
+            {staleQuoteMessage(original, basisChanges)}. Guardar no cambia los precios: usa «Re-analizar con IA» para cotizar con estos cambios.
           </p>
         )}
 

@@ -82,11 +82,18 @@ beforeEach(() => {
 });
 
 describe("TripDetail: selecciones guardadas (E-12)", () => {
-  it("al recargar restaura la selección, recalcula el total y pide actualizar la cotización", async () => {
+  // Pedido del dueño (E2E 28-oct-2026): elegir otra opción de la misma cotización NO pide re-cotizar
+  // (antes esta prueba exigía el aviso "Cambiaste tu selección…"); el total se recalcula al momento.
+  it("al recargar restaura la selección y recalcula el total sin pedir actualizar la cotización", async () => {
     db.trip.selections = { v: 1, vuelo: { i: -2, key: null }, hospedaje: { i: -1, key: null }, noches_hospedaje: null, tours: [] };
+    // El servidor anterior (trigger de 20261022143000) marcaba la fila por la selección: no se respeta.
+    db.trip.quote_needs_update = true;
     renderTrip();
     // Sin vuelo ("ya lo tengo"): 0 + hospedaje 20,000 + comida 12,000.
-    expect(await screen.findByText(/Cambiaste tu selección de vuelo, hotel o experiencias/)).toBeInTheDocument();
+    expect(await screen.findByTestId("trip-total-amount")).toHaveTextContent(/^\$32,000 MXN$/);
+    expect(screen.queryByTestId("trip-total-stale")).toBeNull();
+    expect(screen.queryByText(/Cambiaste/)).toBeNull();
+    expect(screen.queryAllByText(/Actualizar cotización/)).toHaveLength(0);
     // Un solo total (el desglose ya no repite la cifra) y la barra móvil dice lo mismo.
     expect(screen.getByTestId("trip-total-amount")).toHaveTextContent(/^\$32,000 MXN$/);
     // Una sola cifra en lo que se ve; el resumen final de Comprar (pestaña oculta) repite la misma cifra.
@@ -107,7 +114,10 @@ describe("TripDetail: selecciones guardadas (E-12)", () => {
     fireEvent.click(await screen.findByText("Ya tengo vuelo"));
     await waitFor(() => expect(db.updates.find((u) => u.table === "trips")).toBeTruthy(), { timeout: 2000 });
     expect(db.updates.find((u) => u.table === "trips")!.payload.selections).toMatchObject({ v: 1, vuelo: { i: -2 } });
-    expect(await screen.findByText(/Cambiaste tu selección/)).toBeInTheDocument();
+    // Aunque el servidor (trigger anterior) responda quote_needs_update=true, elegir no pide re-cotizar.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByText(/Cambiaste/)).toBeNull();
+    expect(screen.getByTestId("trip-total-amount")).toHaveTextContent(/^\$32,000 MXN$/);
   });
 
   it("sin la columna (migración pendiente) la guarda en este dispositivo y la restaura", async () => {

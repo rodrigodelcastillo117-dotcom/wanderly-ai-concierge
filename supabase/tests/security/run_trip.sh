@@ -12,7 +12,7 @@ DIR=$(cd "$(dirname "$0")" && pwd); WHICH=${1:?quotes|expediente}; DB=${2:-iatos
 PSQL="psql -U ${PGUSER:-postgres} -q -X"
 case "$WHICH" in
   quotes) FILE=trip_quotes.sql; ESPERADOS=11 ;;       # Q1–Q11
-  expediente) FILE=trip_expediente.sql; ESPERADOS=27 ;; # T1–T3, S1–S5, B1–B3, D0–D11 (con D6b), P1–P3
+  expediente) FILE=trip_expediente.sql; ESPERADOS=33 ;; # T1–T3, S1–S11, B1–B3, D0–D11 (con D6b), P1–P3
   *) echo "uso: $0 quotes|expediente [db]"; exit 2 ;;
 esac
 
