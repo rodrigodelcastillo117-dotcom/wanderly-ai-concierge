@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Receipt, Lightbulb, ChevronDown, AlertTriangle, Clock, RefreshCw, BadgeCheck, Sparkles, Compass } from "lucide-react";
 import type { QuoteTrust } from "@/lib/quoteTrust";
 import type { TripTotalSummary } from "@/lib/tripTotal";
+import { plainProviderText } from "@/lib/provenance";
 
 type Props = {
   trip: any;
@@ -200,7 +201,7 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
           </button>
           {showAnalisis && (
             <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-line mt-3">
-              {trip.analisis_ai}
+              {plainProviderText(trip.analisis_ai)}
             </p>
           )}
         </div>

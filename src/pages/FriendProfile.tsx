@@ -415,7 +415,7 @@ export default function FriendProfile() {
                   <AffinityRing value={ec.afinidad} />
                   <div>
                     <p className="font-display text-xl md:text-2xl">{ec.afinidad >= 75 ? "Almas gemelas de viaje" : ec.afinidad >= 55 ? "Gran equipo de viaje" : "Buena química viajera"}</p>
-                    <p className="text-xs md:text-sm text-muted-foreground mt-1">Afinidad según el Travel DNA de los dos.</p>
+                    <p className="text-xs md:text-sm text-muted-foreground mt-1">Afinidad según el perfil de viajero de los dos.</p>
                   </div>
                 </div>
               )}
@@ -433,11 +433,11 @@ export default function FriendProfile() {
                 </ul>
               ) : !ec.yo_tengo_dna ? (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <p className="text-sm md:text-base flex-1">Completa tu Travel DNA para descubrir en qué se parecen {nombre} y tú.</p>
-                  <Button asChild className="bg-gradient-gold text-primary-foreground rounded-full"><Link to="/onboarding/deep">Completar mi Travel DNA</Link></Button>
+                  <p className="text-sm md:text-base flex-1">Completa tu perfil de viajero para descubrir en qué se parecen {nombre} y tú.</p>
+                  <Button asChild className="bg-gradient-gold text-primary-foreground rounded-full"><Link to="/onboarding/deep">Completar mi perfil de viajero</Link></Button>
                 </div>
               ) : !ec.amigo_tiene_dna ? (
-                <p className="text-sm md:text-base">Cuando {nombre} complete su Travel DNA, aquí verán en qué se parecen. Mándale un saludo para recordárselo ✈️</p>
+                <p className="text-sm md:text-base">Cuando {nombre} complete su perfil de viajero, aquí verán en qué se parecen. Mándale un saludo para recordárselo ✈️</p>
               ) : (
                 <p className="text-sm md:text-base">Polos opuestos: el mejor pretexto para que cada uno le enseñe al otro su forma de viajar.</p>
               )}
@@ -447,7 +447,7 @@ export default function FriendProfile() {
           {(dnaChips.length > 0 || data.lugares.length > 0) && <div className="grid lg:grid-cols-2 gap-10 md:gap-14 lg:gap-8">
             {/* SU TRAVEL DNA */}
             <section aria-labelledby="su-dna">
-              <SectionTitle id="su-dna" eyebrow="Travel DNA" title={`Así viaja ${nombre}`} icon={Compass} />
+              <SectionTitle id="su-dna" eyebrow="Perfil de viajero" title={`Así viaja ${nombre}`} icon={Compass} />
               {dnaChips.length ? (
                 <div className="flex flex-wrap gap-2">
                   {dnaChips.map((c) => (
@@ -457,7 +457,7 @@ export default function FriendProfile() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">{nombre} aún no completa su Travel DNA.</p>
+                <p className="text-sm text-muted-foreground">{nombre} aún no completa su perfil de viajero.</p>
               )}
             </section>
 

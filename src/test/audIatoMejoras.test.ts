@@ -48,6 +48,6 @@ describe("MEJ-02 · texto parcial cuando se corta la conexión", () => {
     expect(t).toMatch(/sin verificar/);
   });
   it("sin texto, el mensaje de error de siempre", () => {
-    expect(incompleteReplyText("  ", "Iato no pudo responder.")).toBe("Iato no pudo responder. Puedes intentarlo de nuevo o tocar **Contactar Fixer**.");
+    expect(incompleteReplyText("  ", "Iato no pudo responder.")).toBe("Iato no pudo responder. Puedes intentarlo de nuevo o tocar **Hablar con una persona**.");
   });
 });

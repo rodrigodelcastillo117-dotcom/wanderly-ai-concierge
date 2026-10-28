@@ -224,7 +224,7 @@ export default function Social() {
 
   return (
     <DashboardLayout>
-      <FeatureTooltip id="social" icon="👥" text="Compara Travel DNA con amigos, gana medallas, completa misiones de viajero." shouldShow={tipSocial.shouldShow} onDismiss={tipSocial.dismiss} />
+      <FeatureTooltip id="social" icon="👥" text="Compara tu perfil de viajero con amigos, gana medallas, completa misiones de viajero." shouldShow={tipSocial.shouldShow} onDismiss={tipSocial.dismiss} />
       <div className="p-4 md:p-10 max-w-5xl mx-auto space-y-6 md:space-y-8 animate-fade-up">
         <header className="flex items-center gap-3">
           <Users className="w-6 h-6 md:w-7 md:h-7 text-primary" />
@@ -253,7 +253,7 @@ export default function Social() {
                 <h2 id="solicitudes-title" className="text-sm font-medium flex items-center gap-2">
                   <UserPlus className="w-4 h-4 text-primary" aria-hidden="true" /> Solicitudes de amistad
                 </h2>
-                <p className="text-[11px] text-muted-foreground">Solo si aceptas podrá ver tu Travel DNA, tus lugares y saludarte.</p>
+                <p className="text-[11px] text-muted-foreground">Solo si aceptas podrá ver tu perfil de viajero, tus lugares y saludarte.</p>
                 {requests.recibidas.map((q) => {
                   const nombre = q.full_name ?? q.username ?? "Viajero";
                   return (

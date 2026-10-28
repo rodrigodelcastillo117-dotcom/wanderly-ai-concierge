@@ -41,7 +41,7 @@ const PromocionesActivas = () => {
       setPromos(data?.promociones ?? []);
       setSearched(true);
       if ((data?.promociones ?? []).length === 0) {
-        toast.info("Agrega más programas a tu Bóveda para desbloquear promos.");
+        toast.info("Agrega más tarjetas y programas para desbloquear promos.");
       } else {
         toast.success(`Encontramos ${data.promociones.length} promociones a tu medida`);
       }
@@ -59,7 +59,7 @@ const PromocionesActivas = () => {
           <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Tiempo real</p>
           <h3 className="font-display text-2xl md:text-3xl mb-2">Promociones cazadas para ti</h3>
           <p className="text-muted-foreground text-sm">
-            IATOS AI investiga ahora mismo qué descuentos, upgrades y perks puedes activar con las tarjetas, aerolíneas y hoteles de tu Bóveda.
+            IATOS AI investiga ahora mismo qué descuentos, upgrades y perks puedes activar con las tarjetas, aerolíneas y hoteles que registraste.
           </p>
         </div>
         <Button
@@ -80,7 +80,7 @@ const PromocionesActivas = () => {
 
       {searched && promos.length === 0 && !loading && (
         <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
-          Aún no encontramos promociones aplicables. Suma más tarjetas o programas en tu Bóveda y vuelve a intentarlo.
+          Aún no encontramos promociones aplicables. Suma más tarjetas o programas y vuelve a intentarlo.
         </div>
       )}
 

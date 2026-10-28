@@ -54,6 +54,7 @@ import { ConvertToRouteBanner, convertToRouteHref } from "@/components/route/Con
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { alignTrust, quoteTrust } from "@/lib/quoteTrust";
+import { plainProviderText } from "@/lib/provenance";
 import { buildBuyFlow, FLIGHT_TIER_WORD, TIER_WORD } from "@/lib/buyFlow";
 import { itemPurchaseState } from "@/lib/purchasePlan";
 import { estimatedRubros, tripTotalSummary } from "@/lib/tripTotal";
@@ -1019,7 +1020,7 @@ const TripDetail = () => {
               {trip.tips_personalizados.map((t: string, i: number) => (
                 <div key={i} className="flex gap-3">
                   <span className="font-display gold-text text-lg flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
-                  <p className="text-sm text-foreground/90 leading-relaxed">{t}</p>
+                  <p className="text-sm text-foreground/90 leading-relaxed">{plainProviderText(t)}</p>
                 </div>
               ))}
             </div>

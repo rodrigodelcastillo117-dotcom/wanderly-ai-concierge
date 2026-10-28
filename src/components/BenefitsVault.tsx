@@ -26,7 +26,7 @@ const BenefitsVault = () => {
       className="group block rounded-2xl gold-border glass-card p-5 hover:border-primary/60 transition">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.28em] text-primary flex items-center gap-1.5"><Lock className="w-3 h-3" aria-hidden="true" /> Bóveda privada</p>
+          <p className="text-[11px] uppercase tracking-[0.28em] text-primary flex items-center gap-1.5"><Lock className="w-3 h-3" aria-hidden="true" /> Documentos y tarjetas · privado</p>
           <p className="font-display text-xl mt-1">Documentos, membresías, tarjetas y seguros</p>
         </div>
         <ChevronRight className="w-5 h-5 text-primary shrink-0 transition group-hover:translate-x-0.5" aria-hidden="true" />

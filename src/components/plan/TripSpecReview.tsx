@@ -235,8 +235,8 @@ export function TripSpecReview({ spec, onChange: onChangeRaw, onConfirm, busy, a
       {spec.intencion !== "viaje_futuro" && (
         <p className="rounded-xl border border-border/60 p-3 text-xs text-muted-foreground" data-testid="spec-relato">
           {spec.intencion === "relato_pasado"
-            ? "Esto suena a viajes que ya hiciste: van a tu Travel DNA, no armamos un viaje nuevo con ellos."
-            : "Separamos lo que ya viviste (va a tu Travel DNA) de lo que quieres planear (va a este viaje)."}
+            ? "Esto suena a viajes que ya hiciste: van a tu perfil de viajero, no armamos un viaje nuevo con ellos."
+            : "Separamos lo que ya viviste (va a tu perfil de viajero) de lo que quieres planear (va a este viaje)."}
         </p>
       )}
 

@@ -24,7 +24,7 @@ const read = (p: string) => readFileSync(join(root, p), "utf8");
 describe("UX10-07 · Fixer: diálogo accesible y copy honesto", () => {
   it("abre como diálogo modal con nombre, mueve el foco adentro y Escape lo cierra devolviendo el foco", async () => {
     render(<FixerButton />);
-    const trigger = screen.getByRole("button", { name: /fixer/i });
+    const trigger = screen.getByRole("button", { name: /Hablar con una persona/ });
     trigger.focus();
     fireEvent.click(trigger);
     const dialog = await screen.findByRole("dialog", { name: "Asistencia humana" });
@@ -39,7 +39,7 @@ describe("UX10-07 · Fixer: diálogo accesible y copy honesto", () => {
 
   it("Tab no sale del diálogo (antes recorría la página tapada)", async () => {
     render(<FixerButton />);
-    fireEvent.click(screen.getByRole("button", { name: /fixer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Hablar con una persona/ }));
     const dialog = await screen.findByRole("dialog");
     await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
     const focusables = dialog.querySelectorAll<HTMLElement>("button:not([disabled]), a[href]");
@@ -52,7 +52,7 @@ describe("UX10-07 · Fixer: diálogo accesible y copy honesto", () => {
 
   it("dice 'sujeto a disponibilidad' desde el primer paso y no promete WhatsApp ni un 'humano premium'", async () => {
     render(<FixerButton />);
-    const trigger = screen.getByRole("button", { name: /fixer/i });
+    const trigger = screen.getByRole("button", { name: /Hablar con una persona/ });
     expect(trigger.getAttribute("title")).toMatch(/sujeta a disponibilidad/);
     expect(trigger.getAttribute("title")).not.toMatch(/toma el control/);
     fireEvent.click(trigger);

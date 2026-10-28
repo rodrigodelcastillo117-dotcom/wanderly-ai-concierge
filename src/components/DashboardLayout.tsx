@@ -54,7 +54,7 @@ const links = [
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
   // Documentos, membresías, tarjetas y seguros (antes "Beneficios").
-  { to: "/dashboard/beneficios", icon: Vault, label: "Bóveda" },
+  { to: "/dashboard/beneficios", icon: Vault, label: "Documentos y tarjetas" },
   // "Concierge", no "Concierge Pro": la pestaña está abierta a todas las cuentas.
   { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
 ];
@@ -76,7 +76,7 @@ export const mobileMoreNav = [
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Gastos y ahorro" },
   { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
-  { to: "/dashboard/beneficios", icon: Vault, label: "Bóveda (documentos y membresías)" },
+  { to: "/dashboard/beneficios", icon: Vault, label: "Documentos y tarjetas" },
   { to: "/dashboard/pro", icon: Sparkles, label: "Plan IATOS PRO" },
   // Entrada discreta a IATOS Privé: /prive muestra a cada cuenta lo que le corresponde (adelanto,
   // progreso, invitación o candado), así que no se oculta a nadie.

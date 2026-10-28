@@ -23,13 +23,13 @@ export const TRIAL_CTA = `Probar PRO ${TRIAL_DAYS} días gratis`;
 /** La prueba se activa al confirmar el correo, una sola vez por persona. */
 export const TRIAL_CONDITIONS = "La prueba empieza al confirmar tu correo y es una por persona.";
 
-export const FIXER_LINE = "Acceso preferente al Fixer humano, sujeto a disponibilidad";
+export const FIXER_LINE = "Acceso preferente a nuestro equipo humano, sujeto a disponibilidad";
 
 export const FREE_CONCIERGE_LINE = "3 mensajes con Iato al mes";
 export const FREE_TRIP_LINE = "1 análisis completo de viaje de cortesía (una sola vez)";
 
 export const FREE_FEATURES = [
-  "Travel DNA básico",
+  "Perfil de viajero básico",
   FREE_CONCIERGE_LINE,
   FREE_TRIP_LINE,
   "Tus viajes guardados y edición manual",
@@ -41,7 +41,7 @@ export const PRO_FEATURES = [
   "10 análisis completos de viaje al mes",
   "Hasta 5 alertas de precio",
   "Seguimiento de hasta 4 vuelos a la vez",
-  "Personalización avanzada con tu Travel DNA completo",
+  "Personalización avanzada con tu perfil de viajero completo",
   FIXER_LINE,
 ] as const;
 

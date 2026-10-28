@@ -195,7 +195,7 @@ const Benefits = () => {
   const exportJson = () => {
     const data = {
       exportado: new Date().toISOString(),
-      nota: "Copia de tu Bóveda de IATOS. Incluye números: guárdala en un lugar seguro. Las fotos y PDF no se incluyen.",
+      nota: "Copia de tus documentos y tarjetas en IATOS. Incluye números: guárdala en un lugar seguro. Las fotos y PDF no se incluyen.",
       elementos: items.map(({ user_id: _omit, ...rest }) => rest),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -211,7 +211,7 @@ const Benefits = () => {
       <div className="max-w-6xl mx-auto px-4 md:px-8 pt-4 md:pt-8 pb-10 space-y-4 md:space-y-5">
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.32em] text-primary flex items-center gap-1.5"><Lock className="w-3 h-3" aria-hidden="true" /> Bóveda privada</p>
+            <p className="text-[11px] uppercase tracking-[0.32em] text-primary flex items-center gap-1.5"><Lock className="w-3 h-3" aria-hidden="true" /> Documentos y tarjetas · privado</p>
             <h1 className="font-display text-[27px] md:text-[40px] leading-[1.05] mt-1">Todo tu viaje, a la mano</h1>
             <p className="hidden sm:block text-[13px] text-muted-foreground mt-1">Documentos, membresías, tarjetas y seguros, con sus beneficios. Solo tú lo ves.</p>
           </div>

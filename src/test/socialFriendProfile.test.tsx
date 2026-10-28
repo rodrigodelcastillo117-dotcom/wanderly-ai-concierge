@@ -184,9 +184,9 @@ describe("perfil de un amigo", () => {
       error: null,
     });
     renderProfile();
-    expect(await screen.findByText(/Completa tu Travel DNA para descubrir en qué se parecen/)).toBeInTheDocument();
+    expect(await screen.findByText(/Completa tu perfil de viajero para descubrir en qué se parecen/)).toBeInTheDocument();
     expect(screen.queryByTestId("affinity")).toBeNull();
-    expect(screen.getByRole("link", { name: "Completar mi Travel DNA" })).toHaveAttribute("href", "/onboarding/deep");
+    expect(screen.getByRole("link", { name: "Completar mi perfil de viajero" })).toHaveAttribute("href", "/onboarding/deep");
   });
 
   it("Saludar manda el saludo por RPC y luego espera 24 h", async () => {

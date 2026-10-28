@@ -167,7 +167,7 @@ const TripPacking = () => {
       <FeatureTooltip
         id="packing"
         icon="🎒"
-        text="Lista de equipaje generada por Iato: cantidades inteligentes, notas culturales y todo lo del Vault."
+        text="Lista de equipaje generada por Iato: cantidades inteligentes, notas culturales y tus documentos de viaje."
         shouldShow={tipPacking.shouldShow}
         onDismiss={tipPacking.dismiss}
       />
@@ -223,7 +223,7 @@ const TripPacking = () => {
             <h2 className="font-serif text-2xl mb-2">Iato puede armar tu equipaje</h2>
             <p className="text-sm text-foreground/60 max-w-md mx-auto mb-6 font-[Manrope,system-ui]">
               Lista premium personalizada por destino, clima, itinerario, vuelos, cenas formales,
-              tu Vault y tu Travel DNA.
+              tus documentos y tu perfil de viajero.
             </p>
             <Button
               onClick={() => generar(false)}
