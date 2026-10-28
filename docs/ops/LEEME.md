@@ -419,7 +419,7 @@ cuentas en `public.admins` (paso 4 de `programar-tareas.sql`); la base lo exige 
   `concierge-chat` (textos de Iato: lo atiende una persona, respuesta en la app y por correo, sin tiempos).
 - Orden: primero la migración, después las funciones. Si `concierge-action` se publica antes, el aviso al
   dueño sale igual (sin marca).
-- Secretos opcionales: `FIXER_EMAIL` (por omisión hola@traveliatos.life), `OPS_REPLY_FROM` (remitente del
+- Secretos opcionales: `FIXER_EMAIL` (uno o varios correos separados por coma, `teamEmails()`; por omisión hola@traveliatos.life), `OPS_REPLY_FROM` (remitente del
   correo al usuario, por omisión `IATOS <hola@traveliatos.life>`), `SITE_URL`.
 
 Reintento: la revisión diaria de `health-check` reenvía los avisos al dueño y las respuestas a usuarios que

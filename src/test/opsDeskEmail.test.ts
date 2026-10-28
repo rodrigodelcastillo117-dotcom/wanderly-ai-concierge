@@ -83,7 +83,7 @@ describe("respuesta del equipo al usuario", () => {
 // Base simulada: guarda las llamadas; cada función responde lo que diga `answers`.
 function deps(answers: Record<string, unknown>, sendOk = true) {
   const calls: { fn: string; args: Record<string, unknown> }[] = [];
-  const sent: { to: string; subject: string; replyTo?: string }[] = [];
+  const sent: { to: string | string[]; subject: string; replyTo?: string }[] = [];
   const d: OpsMailDeps = {
     rpc: (fn, args) => {
       calls.push({ fn, args });
@@ -91,7 +91,7 @@ function deps(answers: Record<string, unknown>, sendOk = true) {
       return Promise.resolve(a instanceof Error ? { data: null, error: { message: a.message } } : { data: a ?? { ok: true }, error: null });
     },
     send: vi.fn(async (m) => { sent.push(m); return sendOk ? { ok: true, id: "re_1" } : { ok: false, error: "resend_500" }; }),
-    siteUrl: SITE, ownerEmail: "hola@traveliatos.life",
+    siteUrl: SITE, ownerEmail: ["hola@traveliatos.life", "carlo@traveliatos.life"],
   };
   return { d, calls, sent };
 }
@@ -102,7 +102,8 @@ describe("envío con marca de enviado", () => {
     const r = await sendOwnerAlert(d, reserva.id, { replyTo: "ana@correo.mx" });
     expect(r.notified).toBe(true);
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ to: "hola@traveliatos.life", replyTo: "ana@correo.mx" });
+    // FIXER_EMAIL con varios correos (teamEmails): el aviso llega a todo el equipo.
+    expect(sent[0]).toMatchObject({ to: ["hola@traveliatos.life", "carlo@traveliatos.life"], replyTo: "ana@correo.mx" });
     expect(sent[0].subject).toMatch(/^Nueva solicitud: /);
     expect(calls.map((c) => c.fn)).toEqual(["ops_owner_alert_claim", "ops_owner_alert_finish"]);
     expect(calls[1].args).toMatchObject({ _id: reserva.id, _ok: true, _email_id: "re_1", _error: null });
@@ -149,7 +150,7 @@ describe("envío con marca de enviado", () => {
     const { d, sent } = deps({ ops_owner_alerts_due: [reserva], team_reply_emails_due: [c] });
     const out = await retryOpsEmails(d);
     expect(out).toEqual({ owner: { sent: 1, failed: 0 }, replies: { sent: 1, failed: 0 }, errors: [] });
-    expect(sent.map((s) => s.to)).toEqual(["hola@traveliatos.life", "ana@correo.mx"]);
+    expect(sent.map((s) => s.to)).toEqual([["hola@traveliatos.life", "carlo@traveliatos.life"], "ana@correo.mx"]);
   });
 });
 

@@ -179,9 +179,10 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
 type RpcResult = { data: unknown; error: { message: string } | null };
 export interface OpsMailDeps {
   rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<RpcResult>;
-  send: (m: { to: string; subject: string; html: string; text: string; replyTo?: string; from?: string }) => Promise<{ ok: boolean; id?: string; error?: string }>;
+  send: (m: { to: string | string[]; subject: string; html: string; text: string; replyTo?: string; from?: string }) => Promise<{ ok: boolean; id?: string; error?: string }>;
   siteUrl?: string | null;
-  ownerEmail: string;
+  /** Equipo que recibe los avisos (teamEmails(): FIXER_EMAIL acepta varios separados por coma). */
+  ownerEmail: string | string[];
   ownerFrom?: string;
   replyFrom?: string;
   replyTo?: string;

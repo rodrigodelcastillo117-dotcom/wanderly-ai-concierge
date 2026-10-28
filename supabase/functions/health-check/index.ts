@@ -15,6 +15,7 @@ import { probeTravelAdvisories } from "../_shared/travelAdvisories.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { alertEmail, alertRecipients, emailOutcome, jobHealth, shouldEmail, type CronHealth, type PreviousRun } from "./alerts.ts";
 import { retryOpsEmails } from "../_shared/ops-desk.ts";
+import { teamEmails } from "../_shared/teamEmails.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -73,10 +74,10 @@ Deno.serve(async (req) => {
     rpc: (fn, args) => db.rpc(fn, args),
     send: (m) => sendEmail(m),
     siteUrl: env("SITE_URL") ?? null,
-    ownerEmail: env("FIXER_EMAIL") || "hola@traveliatos.life",
+    ownerEmail: teamEmails(),
     ownerFrom: env("FIXER_FROM_ADDRESS") || "IATOS Fixer <hola@traveliatos.life>",
     replyFrom: env("OPS_REPLY_FROM") || "IATOS <hola@traveliatos.life>",
-    replyTo: env("FIXER_EMAIL") || "hola@traveliatos.life",
+    replyTo: teamEmails()[0],
     supportEmail: env("SUPPORT_EMAIL") ?? null,
   }).catch((e) => ({ error: redactSecrets((e as Error)?.message ?? String(e)) }));
   if (new URL(req.url).searchParams.get("action") === "ops_correos") return json(await opsRetry());

@@ -8,6 +8,7 @@ import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendTeamReply } from "../_shared/ops-desk.ts";
+import { teamEmails } from "../_shared/teamEmails.ts";
 import { redactPii } from "../_shared/redact.ts";
 
 const corsHeaders = {
@@ -47,10 +48,10 @@ Deno.serve(async (req) => {
       rpc: (fn, args) => db.rpc(fn, args),
       send: (m) => sendEmail(m),
       siteUrl: Deno.env.get("SITE_URL") ?? null,
-      ownerEmail: Deno.env.get("FIXER_EMAIL") || "hola@traveliatos.life",
+      ownerEmail: teamEmails(),
       replyFrom: Deno.env.get("OPS_REPLY_FROM") || "IATOS <hola@traveliatos.life>",
       // Si el usuario contesta el correo, le llega al equipo.
-      replyTo: Deno.env.get("FIXER_EMAIL") || "hola@traveliatos.life",
+      replyTo: teamEmails()[0],
       supportEmail: Deno.env.get("SUPPORT_EMAIL") ?? null,
     }, replyId);
     return json({ ok: r.email_status === "enviado" || r.email_status === "sin_correo", ...r });
