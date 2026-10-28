@@ -24,7 +24,7 @@ export type ProviderInfo = {
   domain: string;
   provider: string; // id estable
   label: string; // nombre que ve el usuario
-  kind: "ota" | "metasearch" | "airline" | "restaurant_booking" | "tours" | "maps" | "messaging" | "bus" | "rail" | "ferry" | "boat_rental" | "affiliate_redirect" | "hotel_chain" | "tickets";
+  kind: "ota" | "metasearch" | "airline" | "restaurant_booking" | "tours" | "maps" | "messaging" | "bus" | "rail" | "ferry" | "cruise" | "boat_rental" | "affiliate_redirect" | "hotel_chain" | "tickets";
   /** Rutas permitidas (si el dominio aloja otras cosas, p. ej. google.com). */
   paths?: RegExp;
   /**
@@ -51,6 +51,16 @@ export type ProviderInfo = {
    */
   noBrand?: true;
 };
+
+/** Navieras con sitio oficial (dominio registrable, nombre). */
+export const CRUISE_DOMAINS: Array<[string, string]> = [
+  ["msccruises.com", "MSC Cruceros"], ["royalcaribbean.com", "Royal Caribbean"], ["celebritycruises.com", "Celebrity Cruises"],
+  ["ncl.com", "Norwegian Cruise Line"], ["silversea.com", "Silversea"], ["seabourn.com", "Seabourn"], ["rssc.com", "Regent Seven Seas"],
+  ["oceaniacruises.com", "Oceania Cruises"], ["vikingcruises.com", "Viking"], ["explorajourneys.com", "Explora Journeys"],
+  ["aroya.com", "AROYA Cruises"], ["costacruises.com", "Costa Cruceros"], ["princess.com", "Princess Cruises"],
+  ["hollandamerica.com", "Holland America Line"], ["cunard.com", "Cunard"], ["ponant.com", "PONANT"], ["crystalcruises.com", "Crystal"],
+  ["celestyal.com", "Celestyal"], ["disneycruise.disney.go.com", "Disney Cruise Line"], ["carnival.com", "Carnival"],
+];
 
 const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"]; hosts?: string[]; serverOnly?: boolean; noBrand?: true } = {}): ProviderInfo =>
   ({ domain, provider, label, kind, why, ...extra });
@@ -163,6 +173,14 @@ export const PROVIDERS: ProviderInfo[] = [
   // Hoy responde 400 (IATOS_BOOKING_BRIDGE_PROVEEDORES.md §3): el resolver abre el destino directo.
   P("tp.media", "travelpayouts", "Travelpayouts", "affiliate_redirect", "Redirect de afiliado de Travelpayouts (marker 533299); se desenvuelve y su destino pasa la misma lista.",
     { paths: /^\/click\/?$/, redirector: "wrapper" }),
+  // Cruceros (intérprete de viaje completo, 28-oct-2026): el tramo crucero enlaza a la naviera que dijo la
+  // persona (portada oficial: ninguna acepta puertos/fechas por URL) o a buscadores conocidos de cruceros.
+  // (Google /search sigue fuera de la lista: AUD-04.) El precio se cotiza ahí: IATOS no lo inventa.
+  // noBrand: nombres comunes (princess, viking, costa) no deben marcar sitios reales como imitaciones.
+  ...CRUISE_DOMAINS.map(([domain, label]) => P(domain, "naviera", label, "cruise", `Sitio oficial de ${label}: botón del tramo crucero (src/lib/cruiseLinks.ts).`, { noBrand: true })),
+  P("vacationstogo.com", "vacationstogo", "Vacations To Go", "cruise", "Buscador de cruceros (portada con «Find a Bargain»), ya usado en Cruceros (affiliateLinks.ts).", { noBrand: true }),
+  P("cruisedirect.com", "cruisedirect", "CruiseDirect", "cruise", "Buscador de cruceros ya usado en Cruceros (affiliateLinks.ts).", { noBrand: true }),
+  P("cruisecritic.com", "cruisecritic", "Cruise Critic", "cruise", "Buscador /find-a-cruise/ ya usado en Cruceros (affiliateLinks.ts).", { noBrand: true }),
 ];
 
 /**

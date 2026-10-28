@@ -35,6 +35,13 @@ import { fetchFriendProfiles } from "@/lib/friendProfiles";
 // roadtrip: "road trip por la Toscana" va a la ruta de varios destinos con el coche elegido.
 import { detectRoadTrip, routePlannerPath } from "@/lib/roadtrip";
 import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
+// Intérprete de viaje completo: "Entendí…" editable antes de generar, y cobertura de lo escrito.
+import { TripSpecReview } from "@/components/plan/TripSpecReview";
+import { buildLocalSpec, finalizeSpec } from "@/lib/tripSpecLocal";
+import { generateFromSpec, interpretTrip } from "@/lib/tripSpecFlow";
+import { routeFromItems, type RefAnswer } from "@/lib/tripCoverage";
+import { usePlaceResolve } from "@/lib/placeResolveClient";
+import { makeStop, savedConsulta, withConsulta, type TripSpec } from "../../supabase/functions/_shared/tripSpec";
 
 const RADIO = "min-h-[44px] rounded-xl border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -61,95 +68,44 @@ type AnalisisArgs = {
   notas_usuario?: string | null;
 };
 
-type Interpretacion = { kind: "ruta"; qs: string } | { kind: "analisis"; args: AnalisisArgs };
+// "revisar": la frase completa (paradas, crucero, regreso por otra ciudad…) ya interpretada; la persona
+// ve "Entendí…", corrige y confirma ANTES de gastar (caso Diego, 27-oct-2026: Arabia, crucero, Cape Town
+// y regreso por Londres terminaron en un solo destino generado sin preguntar).
+type Interpretacion = { kind: "ruta"; qs: string } | { kind: "revisar"; spec: TripSpec; aviso: string | null };
 
-// Una sola interpretación (parsear-viaje, de pago) por frase aunque la página se monte dos veces.
+// Una sola interpretación por frase aunque la página se monte dos veces.
 const pendingInterpretations = new Map<string, Promise<Interpretacion>>();
+const REVIEW_KEY = "iatos.plan.revision";
 
-async function interpretarFrase(q: string, userId: string): Promise<Interpretacion> {
+type HintCtx = { origen: string | null; fecha_salida: string | null; fecha_regreso: string | null; viajeros: number | null };
+
+async function interpretarFrase(q: string, userId: string, hints: HintCtx): Promise<Interpretacion> {
   // Trae ciudad_origen del perfil para fallback
   const { data: prof } = await supabase
     .from("profiles")
     .select("ciudad_origen")
     .eq("id", userId)
     .maybeSingle();
-
-  const hoy = new Date();
-  const defaultSalida = new Date(hoy.getTime() + 30 * 86400000).toISOString().slice(0, 10);
-  const defaultRegreso = new Date(hoy.getTime() + 37 * 86400000).toISOString().slice(0, 10);
+  const ctx = { ...hints, origen: hints.origen || prof?.ciudad_origen || "Ciudad de México" };
 
   // roadtrip: road trip por una región curada → ruta en coche con sus paradas (sin IA ni costo).
   const rt = detectRoadTrip(q);
   if (rt.isRoadTrip && rt.route) {
     const qs = new URLSearchParams(routePlannerPath(rt.route, rt.days).split("?")[1]);
-    qs.set("origin", prof?.ciudad_origen || "Ciudad de México");
-    qs.set("viajeros", "2");
+    qs.set("origin", ctx.origen);
+    qs.set("viajeros", String(ctx.viajeros || 2));
     return { kind: "ruta", qs: qs.toString() };
   }
 
-  // Varias ciudades conocidas ("paris roma y atenas 10 dias"): ruta multi-destino sin IA ni costo, con
-  // las noches que diga la frase. Antes "dias" hacía que la frase se tomara como un solo destino.
-  const mc = parseMultiCityText(q, { origin: prof?.ciudad_origen ?? null });
-  if (isMultiCity(mc)) {
-    const fb = parseTripFallback(q);
-    const salida = fb.fechaSalida || defaultSalida;
-    const regreso = fb.fechaRegreso || (mc.nights ? addIsoDays(salida, mc.nights) : defaultRegreso);
-    const qs = new URLSearchParams(routePlannerQuery({
-      origin: mc.origin || prof?.ciudad_origen || "Ciudad de México", cities: mc.cities, fechaSalida: salida, fechaRegreso: regreso,
-      viajeros: fb.viajeros || 2,
-    }));
-    qs.set("auto", "1");
-    return { kind: "ruta", qs: qs.toString() };
-  }
+  // Solo ciudades conocidas, sin crucero, tramos ni regreso por otra ciudad: el lector local basta (sin IA).
+  const local = finalizeSpec(buildLocalSpec(q, ctx), q, ctx);
+  const simple = local.menciones.length > 0 && local.menciones.every((m) => m.tipo === "ciudad" || m.tipo === "origen")
+    && !local.preguntas.some((x) => !x.resuelta && x.tipo !== "fechas");
+  if (simple) return { kind: "revisar", spec: local, aviso: null };
 
-  // Detección rápida cliente — si parece multi, vamos directo al builder de ruta.
-  const fastIntent = detectRouteIntent(q);
-  if (fastIntent.mode === "multi" && fastIntent.destinations.length >= 2) {
-    const qs = new URLSearchParams({
-      origin: prof?.ciudad_origen || "Ciudad de México",
-      destinos: fastIntent.destinations.join("|"),
-      fecha_salida: defaultSalida,
-      fecha_regreso: defaultRegreso,
-      viajeros: "2",
-      auto: "1",
-    });
-    return { kind: "ruta", qs: qs.toString() };
-  }
-
-  const { data, error } = await supabase.functions.invoke("parsear-viaje", {
-    body: { prompt: q },
-  });
-  if (error) throw error;
-
-  const origen = data?.ciudad_origen || prof?.ciudad_origen || "Ciudad de México";
-
-  // Si la IA detectó multi-destino (>=2 ciudades reales), redirigir al builder de ruta.
-  const aiDestinations: string[] = Array.isArray(data?.destinations) ? data.destinations.filter(Boolean) : [];
-  if (data?.is_multi && aiDestinations.length >= 2) {
-    const qs = new URLSearchParams({
-      origin: origen,
-      destinos: aiDestinations.join("|"),
-      fecha_salida: data?.fecha_salida || defaultSalida,
-      fecha_regreso: data?.fecha_regreso || defaultRegreso,
-      viajeros: String(Number(data?.num_viajeros) || 2),
-      auto: "1",
-    });
-    if (data?.presupuesto_objetivo) qs.set("presupuesto", String(data.presupuesto_objetivo));
-    return { kind: "ruta", qs: qs.toString() };
-  }
-
-  return {
-    kind: "analisis",
-    args: {
-      destino: data?.destino || q.slice(0, 60),
-      ciudad_origen: origen,
-      fecha_salida: data?.fecha_salida || defaultSalida,
-      fecha_regreso: data?.fecha_regreso || defaultRegreso,
-      num_viajeros: Number(data?.num_viajeros) || 2,
-      presupuesto_objetivo: data?.presupuesto_objetivo ?? null,
-      notas_usuario: q,
-    },
-  };
+  // Lo demás: el intérprete completo (si falla, el lector local y el texto completo se conservan).
+  const r = await interpretTrip(supabase as any, q, ctx);
+  return { kind: "revisar", spec: r.spec, aviso: r.recortadoParaIa ? "Tu texto es muy largo: Iato leyó los primeros 8,000 caracteres. Se guarda completo; revisa que esté todo." : r.aviso };
 }
 
 /** "Oaxaca · 12 dic – 16 dic · 2 personas" (solo lo que se entendió). */
@@ -184,6 +140,22 @@ const PlanTrip = () => {
   const [emocionLibre, setEmocionLibre] = useState("");
   const [analizando, setAnalizando] = useState(false);
   const [interpretando, setInterpretando] = useState(false);
+  // Resumen "Entendí…" de la frase completa (se conserva al recargar: preferencia local del navegador).
+  const [review, setReview] = useState<{ spec: TripSpec; aviso: string | null; fp?: string } | null>(() => {
+    try {
+      const raw = localStorage.getItem(REVIEW_KEY);
+      const v = raw ? JSON.parse(raw) : null;
+      // Un resumen de hace más de un día ya no se retoma solo.
+      return v?.spec?.consulta_original && (!v.at || Date.now() - v.at < 86400000) ? v : null;
+    } catch { return null; }
+  });
+  const openReview = (v: { spec: TripSpec; aviso: string | null; fp?: string } | null) => {
+    setReview(v);
+    try { if (v) localStorage.setItem(REVIEW_KEY, JSON.stringify({ ...v, at: Date.now() })); else localStorage.removeItem(REVIEW_KEY); } catch { /* sin almacenamiento */ }
+  };
+  // Lugares escritos en el campo que no son ciudades conocidas: cada uno se resuelve (nunca se descarta).
+  const [refAnswers, setRefAnswers] = useState<Record<string, RefAnswer>>({});
+  const [refText, setRefText] = useState<Record<string, string>>({});
   const [eligiendoDestino, setEligiendoDestino] = useState(false);
   const reduceMotion = usePrefersReducedMotion();
   // Ya se leyó el perfil (con o sin ciudad de origen): sin esto, una tarjeta de destino con
@@ -339,7 +311,13 @@ const PlanTrip = () => {
   // Evita dobles envíos (doble clic, efecto que se repite) mientras hay un análisis en curso.
   const inFlightRef = useRef(false);
 
-  const runAnalisis = async (args: AnalisisArgs, intentFp?: string): Promise<boolean> => {
+  /** Texto escrito y lo entendido, para itinerario_json.consulta (depurar y corregir después). */
+  const consultaFor = (text: string, cities: string[]) => {
+    const sp = finalizeSpec(buildLocalSpec(text, { origen: ciudadOrigen || null, fecha_salida: fechaSalida || null, fecha_regreso: fechaRegreso || null, viajeros: numViajeros }), text);
+    return savedConsulta({ ...sp, paradas: cities.map((c) => sp.paradas.find((x) => x.ciudad === c) ?? makeStop(c, { texto: c })), preguntas: sp.preguntas.map((q) => ({ ...q, resuelta: true })) });
+  };
+
+  const runAnalisis = async (args: AnalisisArgs, intentFp?: string, consultaText?: string): Promise<boolean> => {
     if (inFlightRef.current) return false;
     inFlightRef.current = true;
     let ok = false;
@@ -352,6 +330,11 @@ const PlanTrip = () => {
       const { data, error } = await supabase.functions.invoke("analizar-viaje", { body: { ...args, request_key } });
       if (error) throw error;
       if (!data?.trip?.id) throw new Error("Sin resultado");
+      if (consultaText && consultaText.trim()) {
+        try {
+          await supabase.from("trips").update({ itinerario_json: withConsulta(data.trip.itinerario_json ?? [], consultaFor(consultaText, [args.destino])) as any }).eq("id", data.trip.id);
+        } catch { /* el viaje queda igual; solo no se guardó el texto */ }
+      }
       track("trip_quoted", {
         destino: args.destino,
         viajeros: args.num_viajeros,
@@ -381,6 +364,29 @@ const PlanTrip = () => {
   // ── Ruta de varias ciudades desde la frase ──
   const parsedRoute = parseMultiCityText(destino, { origin: ciudadOrigen || null });
   const routeBase = routeEdit && routeEdit.text === destino ? routeEdit : null;
+  // Cada lugar escrito, en su orden (Hungría → Budapest propuesta, pendiente de confirmar): nada se pierde.
+  const refTexts = parsedRoute.items.length > 1 ? parsedRoute.items.filter((i) => i.kind === "country" || i.kind === "unknown").map((i) => i.name) : [];
+  const { lookup: refLookup, places: refPlaces } = usePlaceResolve(refTexts);
+  const coverage = routeFromItems(parsedRoute.items, refAnswers, { nights: (fechaSalida && fechaRegreso && fechaRegreso > fechaSalida ? diffLocalDays(fechaSalida, fechaRegreso) : null) ?? parsedRoute.nights, lookup: refLookup });
+  const refPending = parsedRoute.items.length > 1 ? coverage.pending : [];
+  const writtenRoute = parsedRoute.items.length > 1 && parsedRoute.items.some((i) => i.kind !== "city") ? coverage.cities : null;
+  const answerRef = (key: string, a: RefAnswer) => { setRefAnswers((prev) => ({ ...prev, [key]: a })); setRouteEdit(null); };
+  // Frase con crucero, tramos o regreso por otra ciudad: el intérprete completo, con "Entendí…" para confirmar.
+  const complexText = /\b(crucero|regres|vuelta|desembarc|ferry|en tren|tren a|escala|v[ií]a )/i.test(destino);
+  const interpretNow = async () => {
+    const q = destino.trim();
+    if (!q || !user) return;
+    setInterpretando(true);
+    try {
+      const r = await interpretarFrase(q, user.id, { origen: ciudadOrigen || null, fecha_salida: fechaSalida || null, fecha_regreso: fechaRegreso || null, viajeros: numViajeros });
+      if (r.kind === "ruta") navigate(`/dashboard/ruta?${r.qs}`);
+      else openReview({ spec: r.spec, aviso: r.aviso });
+    } catch {
+      openReview({ spec: finalizeSpec(buildLocalSpec(q, { origen: ciudadOrigen || null }), q), aviso: "No pudimos interpretar todo tu mensaje. Revisa lo que entendimos y corrígelo." });
+    } finally {
+      setInterpretando(false);
+    }
+  };
   const datesNights = fechaSalida && fechaRegreso && fechaRegreso > fechaSalida ? diffLocalDays(fechaSalida, fechaRegreso) : null;
   const routeTotalNights = datesNights ?? routeBase?.textNights ?? parsedRoute.nights;
   // País o región ("india"): IATOS propone un viaje completo con las ciudades que valen la pena para las
@@ -388,7 +394,7 @@ const PlanTrip = () => {
   const routeCountry = routeBase ? routeBase.country ?? null : countryOnly(parsedRoute);
   const proposal = routeCountry && (!routeBase || !routeBase.edited) ? proposeCountryRoute(routeCountry, routeTotalNights ?? null) : null;
   const routeCities = (proposal && routeBase && !routeBase.edited ? proposal.cities : null) ?? routeBase?.cities
-    ?? (isMultiCity(parsedRoute) ? parsedRoute.cities : proposal?.cities ?? []);
+    ?? (writtenRoute && writtenRoute.length >= 2 ? writtenRoute : isMultiCity(parsedRoute) ? parsedRoute.cities : proposal?.cities ?? []);
   const routeOn = routeCities.length >= 2 && (routeBase ? routeBase.asRoute : true);
   const routeDays = routeBase?.days ?? parsedRoute.days;
   const proposalNights = proposal && proposal.cities.join("|") === routeCities.join("|") && routeTotalNights ? weightedNights(proposal.weights, routeTotalNights) : null;
@@ -436,6 +442,7 @@ const PlanTrip = () => {
     if (inFlightRef.current || routeCities.length < 2) return;
     inFlightRef.current = true;
     const label = routeCities.join(" → ");
+    const written = destino;
     setDestino(label);
     setRouteEdit({ text: label, cities: routeCities, nights: routeNights, asRoute: true, days: routeDays, textNights: routeBase?.textNights ?? parsedRoute.nights, country: routeCountry, edited: true });
     setAnalysisSummary(analysisSummaryOf({ ciudad_origen: ciudadOrigen, fecha_salida: fechaSalida, fecha_regreso: fechaRegreso, num_viajeros: numViajeros }));
@@ -444,7 +451,7 @@ const PlanTrip = () => {
       const { tripId } = await generateMultiDestTrip(supabase, {
         userId: user?.id ?? null, origin: ciudadOrigen, stops: routeCities, fechaSalida, fechaRegreso, viajeros: numViajeros,
         presupuesto, prefs: { connection: "smart", roadtripStops: true, luggageLogistics: true }, nightsPerCity: routeNights,
-        travelClass: claseParam, telemetry: { autonomous: true },
+        travelClass: claseParam, telemetry: { autonomous: true }, consulta: consultaFor(written, routeCities),
       });
       if (!tripId) throw new Error("Sin viaje guardado");
       track("trip_quoted", { destino: label, viajeros: numViajeros, total_estimado: null, multi: true });
@@ -459,8 +466,34 @@ const PlanTrip = () => {
     }
   };
 
+  // Confirmó "Entendí…": se genera por el flujo que toca (multidestino o destino único) con la consulta guardada.
+  const runSpec = async (spec: TripSpec, fp?: string) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setDestino(spec.paradas.filter((x) => x.rol === "estancia").map((x) => x.ciudad).join(" → "));
+    setAnalysisSummary(analysisSummaryOf({ ciudad_origen: spec.origen ?? "", fecha_salida: spec.fecha_salida ?? "", fecha_regreso: spec.fecha_regreso ?? "", num_viajeros: spec.viajeros ?? 2 }));
+    setAnalizando(true);
+    try {
+      const { tripId, flujo } = await generateFromSpec(supabase as any, spec, { userId: user?.id ?? null, travelClass: claseParam, presupuesto });
+      if (!tripId) throw new Error("Sin viaje guardado");
+      if (fp) completeIntent(fp, tripId);
+      track("trip_quoted", { destino: spec.paradas.map((x) => x.ciudad).join(" → "), viajeros: spec.viajeros ?? 2, total_estimado: null, multi: flujo === "multi" });
+      openReview(null);
+      await inviteCompanion(tripId);
+      navigate(`/dashboard/viajes/${tripId}`, { replace: true });
+    } catch (e: any) {
+      console.error(e);
+      await toastFunctionError(e, "No pudimos generar tu viaje. Tu resumen sigue aquí: intenta de nuevo.");
+      setAnalizando(false);
+    } finally {
+      inFlightRef.current = false;
+    }
+  };
+
   const analizar = () => {
     if (!destino || !fechaSalida || !fechaRegreso || !ciudadOrigen) return;
+    // Un país, región o lugar sin resolver no se descarta ni se genera solo.
+    if (refPending.length) return;
 
     // roadtrip: road trip por una región curada → ruta en coche con sus paradas y estas fechas.
     const rt = detectRoadTrip(destino);
@@ -502,7 +535,7 @@ const PlanTrip = () => {
       presupuesto_objetivo: presupuesto,
       // Clase elegida en la ventana "Planear viaje" (Turista no se anota: es lo de siempre).
       ...(claseParam && CLASE_TXT[claseParam] ? { notas_usuario: `Clase de vuelo preferida: ${CLASE_TXT[claseParam]}.` } : {}),
-    });
+    }, undefined, destino);
   };
 
   // Modo emoción: IATOS elige el destino según la emoción + parámetros
@@ -600,7 +633,13 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         handlePriorIntent(claim);
         return;
       }
-      pending = interpretarFrase(q, user.id);
+      const vNum = Number(params.get("viajeros"));
+      pending = interpretarFrase(q, user.id, {
+        origen: params.get("origen"),
+        fecha_salida: /^\d{4}-\d{2}-\d{2}$/.test(params.get("fecha_salida") ?? "") ? params.get("fecha_salida") : null,
+        fecha_regreso: /^\d{4}-\d{2}-\d{2}$/.test(params.get("fecha_regreso") ?? "") ? params.get("fecha_regreso") : null,
+        viajeros: Number.isInteger(vNum) && vNum >= 1 && vNum <= 20 ? vNum : null,
+      });
       pendingInterpretations.set(fp, pending);
     }
     let cancelled = false;
@@ -619,36 +658,18 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
           return;
         }
 
+        // Nada se genera solo: la persona revisa "Entendí…" y confirma (ahí se avisa el costo). La
+        // intención queda reservada hasta que confirme (un remontaje no la vuelve a interpretar).
+        openReview({ spec: r.spec, aviso: r.aviso, fp });
         setInterpretando(false);
-        const args = r.args;
-        const ok = await runAnalisis(args, fp);
-        if (!ok) {
-          // Sin análisis (límite del plan o falla): la frase se queda en el campo y lo ya
-          // interpretado queda prellenado para editarlo o planear a mano.
-          setDestino(q);
-          setCiudadOrigen((prev) => prev || args.ciudad_origen);
-          setFechaSalida(args.fecha_salida);
-          setFechaRegreso(args.fecha_regreso);
-          setNumViajeros(args.num_viajeros);
-          if (args.presupuesto_objetivo != null) setPresupuesto(args.presupuesto_objetivo);
-        }
       } catch (e: any) {
         if (cancelled) return;
         pendingInterpretations.delete(fp);
         releaseIntent(fp);
         consumeUrlIntent();
         console.error(e);
-        // Sin IA: rescatar lo que se pueda de la frase para no perderla.
-        const fb = parseTripFallback(q);
-        setDestino(fb.destino || q);
-        if (fb.fechaSalida) setFechaSalida(fb.fechaSalida);
-        if (fb.fechaRegreso) setFechaRegreso(fb.fechaRegreso);
-        if (fb.viajeros) setNumViajeros(fb.viajeros);
-        toast.error(
-          fb.destino
-            ? "No pudimos interpretar todo tu mensaje. Revisa los datos que llenamos y continúa."
-            : "No pudimos interpretar tu solicitud. Llena el formulario.",
-        );
+        // Sin IA: el lector local y la frase completa se conservan para corregir a mano.
+        openReview({ spec: finalizeSpec(buildLocalSpec(q, { origen: ciudadOrigen || null }), q), aviso: "No pudimos interpretar todo tu mensaje. Guardamos tu texto completo: revisa lo que entendimos y corrígelo.", fp });
         setInterpretando(false);
       }
     })();
@@ -714,6 +735,23 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     return (
       <DashboardLayout>
         <AnalysisProgress destino={destino} summary={analysisSummary} />
+      </DashboardLayout>
+    );
+  }
+
+  if (review) {
+    return (
+      <DashboardLayout>
+        <div className="mx-auto max-w-2xl px-4 py-8 sm:py-12" data-testid="plan-revision">
+          <button type="button" onClick={() => { const t = review.spec.consulta_original; if (review.fp) releaseIntent(review.fp); openReview(null); setDestino(t); }}
+            className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Editar lo que escribí
+          </button>
+          <h1 className="font-display text-2xl sm:text-3xl">Tu viaje, como lo entendimos</h1>
+          <p className="mb-5 mt-1 text-sm text-muted-foreground">Revisa paradas, tramos y fechas. Nada se cotiza hasta que confirmes.</p>
+          <TripSpecReview spec={review.spec} aviso={review.aviso} onChange={(sp) => openReview({ ...review, spec: sp })}
+            onConfirm={() => runSpec(review.spec, review.fp)} onCancel={() => { if (review.fp) releaseIntent(review.fp); openReview(null); }} />
+        </div>
       </DashboardLayout>
     );
   }
@@ -966,7 +1004,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         icon: MapPin,
         title: "¿A dónde quieres ir?",
         sub: "Un destino ('Tokio'), una travesía ('Roma → Florencia') o tu idea completa ('Oaxaca del 12 al 16 de diciembre, 2 personas').",
-        canNext: () => destino.trim().length > 1,
+        canNext: () => destino.trim().length > 1 && refPending.length === 0,
         render: () => {
           const intent = detectRouteIntent(destino);
           const knownRoute = routeCities.length >= 2;
@@ -1000,10 +1038,55 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                         {" "}Te proponemos: <span className="font-medium">{describeProposal(routeCities, routeNights && routeTotalNights ? routeNights : null)}</span>
                         <span className="text-muted-foreground">. ¿La armamos así?</span></span>
                     ) : (
-                      <span>Entendimos: <span className="font-medium">{describeMultiCity({ cities: routeCities, days: routeDays, nights: null })}</span>
+                      <span>Entendimos: <span className="font-medium">{describeMultiCity({ cities: writtenRoute && !routeBase ? coverage.labels : routeCities, days: routeDays, nights: null })}</span>
                         <span className="text-muted-foreground"> · ¿lo armamos como ruta de {routeCities.length} ciudades?</span></span>
                     )}
                   </p>
+                  {refPending.length > 0 && (
+                    <ul className="space-y-2" data-testid="plan-multicity-pendientes">
+                      {refPending.map((it) => {
+                        const cands = (refPlaces.find((p) => p.input.toLowerCase() === it.text.toLowerCase())?.candidates ?? []).slice(0, 3);
+                        const typed = refText[it.key] ?? "";
+                        const useTyped = () => {
+                          const list = typed.split(/\s*(?:,|;| y )\s*/).map((c) => c.trim()).filter(Boolean);
+                          if (list.length) answerRef(it.key, { cities: list });
+                        };
+                        return (
+                          <li key={it.key} className="rounded-xl border border-amber-400/30 bg-amber-400/[0.04] p-3" data-testid="plan-multicity-pendiente">
+                            <p className="text-sm">
+                              {it.suggested.length
+                                ? <>«{it.text}»: te proponemos <span className="font-medium">{it.suggested.join(", ")}</span>. ¿Así, o qué ciudades quieres?</>
+                                : <>No reconocimos «{it.text}»: ¿qué ciudad es?</>}
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {it.suggested.length > 0 && (
+                                <button type="button" data-testid="plan-pendiente-si" onClick={() => answerRef(it.key, { cities: it.suggested })}
+                                  className="min-h-[36px] rounded-full border border-primary/60 bg-primary/10 px-3 text-xs text-primary hover:bg-primary/15">Sí, {it.suggested.join(", ")}</button>
+                              )}
+                              {cands.map((c) => (
+                                <button key={c.label} type="button" onClick={() => answerRef(it.key, { cities: [c.name || c.label] })}
+                                  className="min-h-[36px] rounded-full border border-border/70 px-3 text-xs hover:border-primary/50">{c.label}</button>
+                              ))}
+                              <button type="button" data-testid="plan-pendiente-quitar" onClick={() => answerRef(it.key, { excluir: true })}
+                                className="min-h-[36px] rounded-full border border-border/70 px-3 text-xs text-muted-foreground hover:text-foreground">Quitar «{it.text}»</button>
+                            </div>
+                            <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); useTyped(); }}>
+                              <Input aria-label={`Ciudades para ${it.text}`} placeholder={it.suggested.length ? "Otras ciudades (separadas por coma)" : "Escribe la ciudad"} value={typed}
+                                onChange={(e) => setRefText((prev) => ({ ...prev, [it.key]: e.target.value }))} className="h-10 bg-input border-border" />
+                              <Button type="submit" variant="outline" className="h-10 shrink-0" disabled={!typed.trim()}>Usar</Button>
+                            </form>
+                          </li>
+                        );
+                      })}
+                      <li className="text-xs text-amber-400/90" role="status">Resuelve {refPending.length === 1 ? "este lugar" : "estos lugares"} para seguir: nada de lo que escribiste se quita sin que lo digas.</li>
+                    </ul>
+                  )}
+                  {coverage.items.some((i) => i.excluded) && (
+                    <p className="text-xs text-muted-foreground" data-testid="plan-multicity-excluidos">
+                      Quitaste {coverage.items.filter((i) => i.excluded).map((i) => `«${i.text}»`).join(", ")}.{" "}
+                      <button type="button" className="text-primary hover:underline" onClick={() => { setRefAnswers({}); setRouteEdit(null); }}>Deshacer</button>
+                    </p>
+                  )}
                   {routeCountry ? (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Ruta propuesta">
                       <button type="button" aria-pressed={routeOn && !routeAdjust && !pickOneCity} data-testid="plan-multicity-si"
@@ -1071,7 +1154,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                       {addCityError && <p className="text-xs text-amber-400/90" role="alert">{addCityError}</p>}
                     </>
                   ))}
-                  {parsedRoute.unknown.length > 0 && (
+                  {parsedRoute.unknown.length > 0 && !writtenRoute && (
                     <p className="text-xs text-amber-400/90" data-testid="plan-multicity-desconocidas">
                       No reconocimos {parsedRoute.unknown.map((u) => `«${u}»`).join(", ")} como ciudad y no la agregamos. Escríbela de otra forma si va en tu ruta.
                     </p>
@@ -1096,6 +1179,12 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                       ? `Entendimos: ${describeUnderstood(understood)}`
                       : "Viaje a un solo destino"}
                 </div>
+              )}
+              {complexText && destino.trim().length > 3 && (
+                <button type="button" onClick={interpretNow} data-testid="plan-interpretar-completo"
+                  className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3.5 text-xs text-primary hover:bg-primary/15">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Tu viaje trae crucero, tramos o regreso por otra ciudad: deja que Iato lo lea completo
+                </button>
               )}
               {roadTrip.route && (
                 <Link to={routePlannerPath(roadTrip.route, roadTrip.days)} data-testid="plan-roadtrip-chip"
