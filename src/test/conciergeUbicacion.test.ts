@@ -98,9 +98,11 @@ describe("caso Huixquilucan: 'Cena cerca' el día que sale a Roma → Florencia 
     // Las cards son las locales, con enlaces de reserva por la ciudad donde está (no "Roma").
     const rest = reply.cards.filter((c) => c.type === "restaurant");
     expect(rest.map((c) => c.title)).toEqual(["La Mesa de Prueba", "Cocina Ejemplo", "Bistró Simulado"]);
-    const booking = rest[0].links!.find((l) => l.kind === "booking")!;
-    expect(booking.url).toMatch(/Huixquilucan/);
-    expect(booking.url).not.toMatch(/Roma/);
+    // Huixquilucan (México): OpenTable no cubre el lugar, así que no hay búsqueda de reservas (defecto 16);
+    // ningún enlace apunta a "Roma" (la ciudad del viaje en contexto).
+    expect(rest[0].links!.some((l) => l.kind === "booking")).toBe(false);
+    expect(JSON.stringify(rest[0].links)).not.toMatch(/Roma/);
+    expect(rest[0].links!.find((l) => l.kind === "maps")).toBeTruthy();
     expect(gradeReply(reply, { mustMention: ["La Mesa de Prueba", "Google Maps"], actionTypes: ["save_place"], maxLines: 4 }).fails).toEqual([]);
   });
 

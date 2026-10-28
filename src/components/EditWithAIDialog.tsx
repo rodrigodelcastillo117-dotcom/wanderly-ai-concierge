@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { Sparkles, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,25 +6,31 @@ import { toast } from "sonner";
 import { readFunctionError } from "@/lib/functionErrors";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { SlowLoading } from "@/components/brand/SlowLoading";
+import { editSuggestions } from "@/lib/editSuggestions";
 
 interface Props {
   tripId: string;
   onUpdated: () => void;
+  /** El viaje (si la página ya lo tiene); si no, se leen sus ciudades y fechas al abrir. */
+  trip?: any;
 }
 
-const EJEMPLOS = [
-  "Quita Florencia y agrega Cinque Terre 2 noches",
-  "Reorganiza los días para que termine en Roma",
-  "Baja el presupuesto, busca hoteles de 3★ y vuelos económicos",
-  "Cambia las fechas: ahora salgo el 10 de julio y regreso el 22",
-  "Agrega un tour gastronómico en cada ciudad",
-  "Cambia hospedaje a Airbnbs con cocina",
-];
-
-export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
+// Sugerencias del viaje que se edita (E2E 28-oct-2026: el viaje de Madrid proponía "Quita Florencia y
+// agrega Cinque Terre": eran ejemplos fijos). Ver src/lib/editSuggestions.ts.
+export const EditWithAIDialog = ({ tripId, onUpdated, trip }: Props) => {
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState<any>(null);
+  useEffect(() => {
+    if (!open || trip || loaded?.id === tripId) return;
+    let alive = true;
+    // Sin datos (o sin respuesta): sugerencias generales, nunca de otro viaje.
+    Promise.resolve().then(() => supabase.from("trips").select("id, destino, fecha_salida, fecha_regreso, itinerario_json").eq("id", tripId).maybeSingle())
+      .then((r: any) => { if (alive && r?.data) setLoaded(r.data); }, () => { /* sugerencias generales */ });
+    return () => { alive = false; };
+  }, [open, trip, tripId, loaded?.id]);
+  const { ejemplos: EJEMPLOS, placeholder } = editSuggestions(trip ?? loaded);
   const titleId = useId();
   const dialogRef = useModalA11y(open, () => { if (!loading) setOpen(false); });
 
@@ -95,7 +101,7 @@ export const EditWithAIDialog = ({ tripId, onUpdated }: Props) => {
               aria-label="Cambios que quieres en tu viaje"
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
-              placeholder="Ej: Cambia Florencia por Cinque Terre, sube a 4★ y agrega un tour en barco..."
+              placeholder={placeholder}
               rows={5}
               disabled={loading}
               className="w-full bg-background/40 border border-border/50 rounded-xl p-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"

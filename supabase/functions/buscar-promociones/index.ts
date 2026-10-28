@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
     const vaultDesc = describeVault(vault);
     if (vaultDesc === "Sin datos en bóveda.") {
       return new Response(JSON.stringify({
-        resumen: "Agrega tarjetas, aerolíneas u hoteles a tu Bóveda para que IATOS AI cace promos a tu medida.",
+        resumen: "Agrega tarjetas, aerolíneas u hoteles en Documentos y tarjetas para que IATOS AI cace promos a tu medida.",
         promociones: [],
         fuentes: [],
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });

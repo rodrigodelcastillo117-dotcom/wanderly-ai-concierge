@@ -14,7 +14,7 @@ export const EXPERIENCE_TOOL_NAME = "entregar_itinerario_lugares";
 
 const CORE_NOTE = `ESTA LLAMADA entrega SOLO: análisis narrativo, total, match_score, desglose del presupuesto, vuelos, hospedaje, tips, país y cruceros (si aplica). Otra llamada simultánea arma el itinerario, los restaurantes y los tours: NO los escribas. Estima igual los renglones de comida, tours y transporte local del desglose. Entrega llamando a "${CORE_TOOL_NAME}", sin texto adicional.`;
 
-const EXPERIENCE_NOTE = `ESTA LLAMADA entrega SOLO el itinerario día por día, los restaurantes y los tours. Otra llamada simultánea elige vuelos, hotel y presupuesto: NO los escribas. En el itinerario di "tu hotel" sin nombrar uno concreto; el día 1 es de llegada y el último de salida. Entrega llamando a "${EXPERIENCE_TOOL_NAME}", sin texto adicional.`;
+const EXPERIENCE_NOTE = `ESTA LLAMADA entrega SOLO el itinerario día por día, los restaurantes y los tours. Otra llamada simultánea elige vuelos, hotel y presupuesto: NO los escribas. En el itinerario di "tu hotel" sin nombrar uno concreto; sigue el CALENDARIO DEL VIAJE: un día por fecha, el día de llegada según la hora del vuelo (si se llega al día siguiente, el día 1 es de vuelo) y el último de salida. Entrega llamando a "${EXPERIENCE_TOOL_NAME}", sin texto adicional.`;
 
 function pick(tool: Tool, name: string, description: string, keep: (k: string) => boolean): Tool {
   const properties = Object.fromEntries(Object.entries(tool.input_schema.properties).filter(([k]) => keep(k)));

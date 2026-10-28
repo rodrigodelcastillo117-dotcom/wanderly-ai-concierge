@@ -10,7 +10,7 @@ import { prefillMatchesTrip } from "@/lib/purchasePlan";
 import { logBookingClick } from "@/lib/trackBooking";
 import { trainlineLink } from "@/lib/affiliateLinks";
 import { transitScheduleUrl } from "@/lib/takeMeThere";
-import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPERATOR, routeOperators } from "../../../supabase/functions/_shared/booking/railOperators.ts";
+import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPERATOR, routeOperators, TRAINLINE_LABEL } from "../../../supabase/functions/_shared/booking/railOperators.ts";
 import { mainAirport } from "../../../supabase/functions/_shared/airports.ts";
 import { googleFlightsSearchUrl, kayakFlightsSearchUrl } from "../../../supabase/functions/_shared/booking/links.ts";
 import { stayForCity } from "../../../supabase/functions/_shared/booking/tripRoute.ts";
@@ -138,7 +138,7 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
             </a>
           ))}
           <a href={url} target="_blank" rel="noopener noreferrer" className={`${btn} border border-border/70 hover:border-primary/50`}>
-            <Train className="w-4 h-4" aria-hidden="true" /> Buscar tren en Trainline <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+            <Train className="w-4 h-4" aria-hidden="true" /> {TRAINLINE_LABEL} <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
           </a>
           {schedLink}
         </div>
@@ -155,6 +155,8 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
   const hasRoadTrip = Array.isArray(trip?.itinerario_json?.logistics?.road_trip?.legs);
   const route = single && !hasRoadTrip && from && to
     ? `https://www.google.com/maps/dir/?${new URLSearchParams({ api: "1", origin: from, destination: to, travelmode: "driving" }).toString()}` : null;
+  // "En tu coche" (viaje corto en el coche del viajero): no se ofrece rentar un auto (E2E 28-oct-2026).
+  const ownCar = !!option?.costo_auto || /\ben tu (coche|auto|carro)\b/i.test(op);
   return (
     <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()} data-testid="ground-buy-buttons">
       {route ? (
@@ -166,9 +168,11 @@ export function GroundBuyButtons({ option, trip }: { option: any; trip: any }) {
         <RouteIcon className="w-4 h-4" aria-hidden="true" /> Ver el road trip
       </button>
       )}
-      <Link to={`/dashboard/autos?${qs.toString()}`} className={`${btn} border border-primary/40 text-primary`}>
-        <Car className="w-4 h-4" aria-hidden="true" /> Rentar auto
-      </Link>
+      {!ownCar && (
+        <Link to={`/dashboard/autos?${qs.toString()}`} className={`${btn} border border-primary/40 text-primary`}>
+          <Car className="w-4 h-4" aria-hidden="true" /> Rentar auto
+        </Link>
+      )}
     </div>
   );
 }

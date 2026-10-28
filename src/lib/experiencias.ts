@@ -5,6 +5,7 @@
 //   * itinerario día por día por cercanía al hotel, con horarios reales de Google cuando existen;
 //   * guardado en trips.itinerario_json (los "agregados" del día que ya muestra la página del viaje).
 // La IA no elige lugares: todo sale de búsquedas reales; el orden es por distancia y horario.
+import { clockOf } from "../../supabase/functions/_shared/tripCalendar.ts";
 import { readFunctionError } from "@/lib/functionErrors";
 import { cityStays, sameCity, tripDestinations } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { addItineraryItem } from "../../supabase/functions/concierge-chat/actions.ts";
@@ -262,14 +263,8 @@ export type DepartureInfo = { fecha: string; hora: string; internacional: boolea
 export type ExistingMeal = { slot: "desayuno" | "comida" | "cena"; titulo: string };
 export type ItineraryContext = { arrival?: ArrivalInfo | null; departure?: DepartureInfo | null; meals?: Record<string, ExistingMeal[]> };
 
-/** "HH:MM" de "2026-11-11 12:45", "12:45" o "7:05"; null si no hay hora. */
-export function clockOf(v: unknown): string | null {
-  const all = [...String(v ?? "").matchAll(/(\d{1,2}):(\d{2})/g)];
-  const m = all[all.length - 1];
-  if (!m) return null;
-  const h = Number(m[1]), mi = Number(m[2]);
-  return h <= 23 && mi <= 59 ? `${String(h).padStart(2, "0")}:${m[2]}` : null;
-}
+/** "HH:MM" de "2026-11-11 12:45", "12:45" o "7:05" (la misma función que usa el servidor para el calendario del viaje). */
+export { clockOf };
 
 const fmtHoras = (h: number) => { const H = Math.floor(h), M = Math.round((h - H) * 60); return M ? `${H} h ${M} min` : `${H} h`; };
 

@@ -53,7 +53,8 @@ describe("descubrimiento de contacto", () => {
       () => ({ content: [{ type: "tool_use", name: "choose_reservation_email", input: { email: "reservas@casaoaxaca.com.mx", source_url: null, purpose: "reservations" } }] }));
     const v = await discoverVenueContact(seed, d);
     expect(v.email).toBeNull();
-    expect(v.user_options).toMatchObject({ phone_url: "tel:+529515144173", whatsapp_url: "https://wa.me/529515144173", fixer: true, website: "https://casaoaxaca.com.mx/" });
+    // Un número de México no dice si es celular: sin WhatsApp declarado no se ofrece (defecto 14, E2E 28-oct-2026).
+    expect(v.user_options).toMatchObject({ phone_url: "tel:+529515144173", whatsapp_url: null, fixer: true, website: "https://casaoaxaca.com.mx/" });
   });
 
   it("sin correos en el sitio → needs_user sin llamar a Claude; sin sitio → ni se descarga nada", async () => {

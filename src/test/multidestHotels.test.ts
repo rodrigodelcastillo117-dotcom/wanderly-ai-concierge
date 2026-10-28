@@ -65,6 +65,6 @@ describe("Comprar mi viaje: un hotel por ciudad", () => {
 
   it("la renta de auto se recoge en la primera ciudad (no en 'Roma → Florencia → Venecia')", () => {
     const auto = buildPurchasePlan(CASO_TRIP, NONE).find((i) => i.kind === "auto")!;
-    expect(auto.url).toBe("https://www.kayak.com/cars/Roma/2026-10-22/2026-11-01");
+    expect(auto.url).toBe("https://www.kayak.com.mx/cars/Roma/2026-10-22/2026-11-01");
   });
 });

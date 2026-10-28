@@ -48,14 +48,14 @@ describe("Google Flights y Kayak: viaje multi-destino (open-jaw)", () => {
     // Tipo de viaje 3 (varios destinos): el último byte del tfs antes del padding.
     const bytes = Array.from(atob(new URL(google!).searchParams.get("tfs")!), (c) => c.charCodeAt(0));
     expect(bytes.slice(-3)).toEqual([0x98, 0x01, 3]);
-    expect(kayak).toBe("https://www.kayak.com/flights/MEX-FCO/2026-10-22/VCE-MEX/2026-11-01/2adults");
+    expect(kayak).toBe("https://www.kayak.com.mx/flights/MEX-FCO/2026-10-22/VCE-MEX/2026-11-01/2adults");
   });
 
   it("ida y vuelta normal no cambia (mismo destino de ida y de regreso)", () => {
     const u = googleFlightsSearchUrl({ origin: "MEX", destination: "MAD", depart: "2026-12-12", ret: "2026-12-19", adults: 2, returnFrom: "MAD" })!;
     expect(parseGoogleFlightsSearch(u)).toEqual({ origin: "MEX", destination: "MAD", depart: "2026-12-12", ret: "2026-12-19", adults: 2, children: 0, airlines: [], one_way: false });
-    expect(kayakFlightsSearchUrl({ origin: "MEX", destination: "MAD", depart: "2026-12-12", ret: "2026-12-19", adults: 2 })).toBe("https://www.kayak.com/flights/MEX-MAD/2026-12-12/2026-12-19/2adults");
-    expect(kayakFlightsLink("MEX", "ROM", "2026-12-12", "2026-12-19", 2)).toBe("https://www.kayak.com/flights/MEX-FCO/2026-12-12/2026-12-19/2adults");
+    expect(kayakFlightsSearchUrl({ origin: "MEX", destination: "MAD", depart: "2026-12-12", ret: "2026-12-19", adults: 2 })).toBe("https://www.kayak.com.mx/flights/MEX-MAD/2026-12-12/2026-12-19/2adults");
+    expect(kayakFlightsLink("MEX", "ROM", "2026-12-12", "2026-12-19", 2)).toBe("https://www.kayak.com.mx/flights/MEX-FCO/2026-12-12/2026-12-19/2adults");
   });
 
   it("la oferta del vuelo del viaje ya no usa la ruta de la tarifa (MEX→BUH) sino la del viaje", () => {

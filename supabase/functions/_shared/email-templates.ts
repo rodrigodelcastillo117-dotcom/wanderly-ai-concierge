@@ -394,7 +394,7 @@ export function welcomeEmail(o: { firstName?: string | null; hero?: HeroImage | 
   const stepList = [
     { title: "Cotiza tu primer viaje", text: "Dime a dónde y cuándo. Consulto vuelos y hoteles en vivo, estimo el resto y te digo de dónde sale cada cifra.", href: `${site}/dashboard/planear`, cta: "Planear un viaje" },
     { title: "Cuéntame cómo viajas", text: "Tu ritmo, presupuesto, comida y tipo de hotel. Con eso afino cada recomendación para ti.", href: `${site}/onboarding/deep`, cta: "Completar mi perfil" },
-    { title: "Guarda tus tarjetas y programas", text: "En la Bóveda registro tus tarjetas y programas de lealtad para aprovechar salas, puntos y beneficios.", href: `${site}/dashboard/perfil`, cta: "Abrir mi Bóveda" },
+    { title: "Guarda tus tarjetas y programas", text: "En Documentos y tarjetas registro tus tarjetas y programas de lealtad para aprovechar salas, puntos y beneficios.", href: `${site}/dashboard/perfil`, cta: "Abrir Documentos y tarjetas" },
   ];
   const body = [
     masthead("Bienvenida"),
@@ -726,7 +726,7 @@ export function accountDeletedEmail(o: { firstName?: string | null; at?: Date; p
   const items = [
     "Tu cuenta y tu acceso.",
     "Tus viajes, cotizaciones, diarios, fotos y gastos.",
-    "Tu perfil viajero, tu Bóveda y tus preferencias.",
+    "Tu perfil viajero, tus documentos y tarjetas y tus preferencias.",
     "Tu suscripción: ya no se te cobrará nada.",
   ];
   const body = [

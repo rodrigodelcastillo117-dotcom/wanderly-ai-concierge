@@ -50,7 +50,8 @@ describe("validación de acciones", () => {
   it("Fixer: siempre 'solicitado' con la aclaración 'Aún no está reservado'", () => {
     const v = validateAction("fixer_request", { tipo: "reservation", titulo: "Mesa en Sukiyabashi", personas: 2, fecha: "2027-03-22" }, CTX) as any;
     expect(v.action.note).toMatch(/Aún no está reservado/);
-    expect(v.action.confirm_label).toBe("Pedírselo al Fixer");
+    // Al usuario: "una persona del equipo", no "Fixer" (notas del E2E 28-oct-2026).
+    expect(v.action.confirm_label).toBe("Pedírselo a una persona del equipo");
   });
   it("Privé: requiere sesión y una experiencia que search_prive mostró en este turno", () => {
     expect(validateAction("prive_request", { experience_id: EXP }, CTX)).toMatchObject({ ok: false, reason: "sin_sesion_prive" });

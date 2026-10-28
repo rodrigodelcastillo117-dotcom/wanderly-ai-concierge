@@ -148,7 +148,8 @@ export function kayakFlightsLink(originIata: string, destIata: string, depart: s
   const path = ret ? `${o}-${dd}/${depart}/${ret}` : `${o}-${dd}/${depart}`;
   const a = Math.min(9, Math.max(1, Math.round(adults) || 1));
   const kids = childAges.map((x) => Math.round(Number(x))).filter((x) => Number.isFinite(x) && x >= 0 && x <= 17).slice(0, 8);
-  const url = `https://www.kayak.com/flights/${path}/${a}adults${kids.length ? `/children-${kids.join("-")}` : ""}`;
+  // Kayak México (español y pesos), mismo formato de ruta (comprobado el 28-oct-2026).
+  const url = `https://www.kayak.com.mx/flights/${path}/${a}adults${kids.length ? `/children-${kids.join("-")}` : ""}`;
   return tpDeepLink(url, "flights");
 }
 
@@ -276,7 +277,7 @@ export function rentalcarsLink(_city: string, _pickup: string, _ret: string) {
 }
 
 export function kayakCarsLink(city: string, pickup: string, ret: string) {
-  const url = `https://www.kayak.com/cars/${encodeURIComponent(city)}/${pickup}/${ret}`;
+  const url = `https://www.kayak.com.mx/cars/${encodeURIComponent(city)}/${pickup}/${ret}`;
   return tpDeepLink(url, "cars");
 }
 

@@ -42,7 +42,8 @@ export const OPERATORS: Record<string, Operator> = {
   iryo: op("iryo", "iryo", "tren", "https://iryo.eu/es/home", { nota: "Alta velocidad Madrid–Barcelona, Valencia, Sevilla, Málaga y más" }),
   ouigo_es: op("ouigo_es", "OUIGO España", "tren", "https://www.ouigo.com/es/", { nota: "Alta velocidad de bajo costo en España" }),
   sncf: op("sncf", "SNCF Connect", "tren", "https://www.sncf-connect.com/", { nota: "TGV INOUI, OUIGO, Intercités y TER en Francia" }),
-  trenitalia: op("trenitalia", "Trenitalia", "tren", "https://www.trenitalia.com/", { nota: "Frecciarossa, Intercity y Regionale" }),
+  // Portada en español (200 el 28-oct-2026); Trenitalia no recibe la ruta por enlace.
+  trenitalia: op("trenitalia", "Trenitalia", "tren", "https://www.trenitalia.com/es.html", { nota: "Frecciarossa, Intercity y Regionale" }),
   italo: op("italo", "Italo", "tren", "https://www.italotreno.com/", { nota: "Alta velocidad en Italia" }),
   db: op("db", "Deutsche Bahn", "tren", "https://int.bahn.de/en", { nota: "ICE, IC y regionales en Alemania" }),
   nationalrail: op("nationalrail", "National Rail", "tren", "https://www.nationalrail.co.uk/", { nota: "Horarios y venta de todos los operadores del Reino Unido" }),
@@ -141,13 +142,21 @@ export const operatorHint = (o: Pick<Operator, "name">, from: string, to: string
 
 export const PRICE_AT_OPERATOR = "Precio en el sitio del operador";
 
+/**
+ * Botón de un sitio que NO recibe la ruta por enlace (E2E 28-oct-2026: "Ver horarios y precio en Italo"
+ * abría la portada sin ruta ni fecha). El botón lo dice: hay que buscar la ruta ahí.
+ */
+export const searchOnSiteLabel = (site: string) => `${site} · busca la ruta en su sitio`;
+/** Trainline necesita códigos internos de estación: su enlace es la portada (affiliateLinks.ts). */
+export const TRAINLINE_LABEL = searchOnSiteLabel("Trainline");
+
 /** Botón de un operador para un tramo: enlace precargado si existe (Renfe, DB), si no la portada. */
 export type OperatorAction = { url: string; label: string; site: string; prefilled: boolean; hint: string; link: GroundLink | null };
 
 export function operatorAction(o: Operator, q: GroundQuery, day?: string | null): OperatorAction {
   const link = o.informativo ? null : railOperatorSearch(o.id, q);
   if (link) return { url: link.url, label: groundButtonLabel(link.site), site: link.site, prefilled: true, hint: groundLinkNote(link), link };
-  return { url: o.url, label: o.informativo ? `${o.name} (informativo)` : groundButtonLabel(o.name), site: o.name, prefilled: false, hint: operatorHint(o, q.from, q.to, day ?? null), link: null };
+  return { url: o.url, label: o.informativo ? `${o.name} (informativo)` : searchOnSiteLabel(o.name), site: o.name, prefilled: false, hint: operatorHint(o, q.from, q.to, day ?? null), link: null };
 }
 
 /** Tren sin operador del catálogo: buscador multimodal con ruta y fecha (12Go en Asia), si hay. */

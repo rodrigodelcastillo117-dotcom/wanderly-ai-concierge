@@ -166,7 +166,7 @@ describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
     expect(legs.map((l) => `${l.getAttribute("data-from")}>${l.getAttribute("data-to")}`)).toEqual(["Roma>Florencia", "Florencia>Venecia"]);
     const opts = within(legs[0]).getAllByTestId("traslado-opcion");
     expect(opts.map((o) => o.getAttribute("data-mode"))).toEqual(expect.arrayContaining(["tren", "coche"]));
-    expect(within(legs[0]).getByText(/Buscar tren en Trainline/)).toBeInTheDocument();
+    expect(within(legs[0]).getByText(/Trainline · busca la ruta en su sitio/)).toBeInTheDocument();
     expect(legs[0]).toHaveTextContent("por persona · estimado");
     expect(within(legs[0]).getByTestId("comprar-traslado-marcar")).toBeInTheDocument();
   });
@@ -185,7 +185,7 @@ describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
     expect(within(rest).getAllByTestId("pick-card").find((c) => c.getAttribute("data-slot") === "caro")).toHaveTextContent("Roscioli");
     // Cada botón dice lo que es (búsqueda, ficha o sitio oficial), nunca "Reservar" sin la página del lugar.
     expect(within(extras).getAllByTestId("pick-reservar").map((a) => a.textContent)).toEqual(
-      expect.arrayContaining([expect.stringMatching(/^(Buscar en OpenTable|Ver en Google Maps|Buscar en Google Maps|Sitio oficial|Buscar en GetYourGuide)/)]));
+      expect.arrayContaining([expect.stringMatching(/^(Buscar en OpenTable|Buscar en TheFork|Ver en Google Maps|Buscar en Google Maps|Sitio oficial|Buscar en GetYourGuide)/)]));
     expect(within(extras).queryAllByText(/^Reservar/)).toHaveLength(0);
     // Experiencia: "Agregar al total" la suma (selTours) y se guarda como antes.
     const exp = within(roma).getByTestId("picks-experiencia");

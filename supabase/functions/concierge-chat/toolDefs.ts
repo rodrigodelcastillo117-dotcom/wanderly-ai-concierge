@@ -134,6 +134,24 @@ export const TOOL_DEFS: ToolDef[] = [
     },
   },
   {
+    name: "get_weather",
+    description:
+      "Clima REAL de una ciudad: pronóstico por día de MET Norway (≈9 días: máxima, mínima, cielo, lluvia y viento) y, para fechas más " +
+      "lejanas, el clima típico del mes de NASA POWER (promedio de 25 años). Es la MISMA fuente que la pantalla Clima de IATOS. " +
+      "Úsala SIEMPRE que pregunten por el clima, la temperatura, si va a llover o qué ropa llevar por el clima, con las fechas del viaje si es su viaje. " +
+      "Cita la fuente y la hora de consulta; si las fechas están fuera del pronóstico, dilo y da el clima típico como típico, no como pronóstico. " +
+      "Nunca des temperaturas de memoria.",
+    input_schema: {
+      type: "object",
+      properties: {
+        city: { type: "string", description: "Ciudad, ej. 'Madrid' o 'Valle de Bravo'" },
+        date_from: { type: "string", description: "YYYY-MM-DD, primer día (opcional; las fechas del viaje si habla de su viaje; por defecto hoy)" },
+        date_to: { type: "string", description: "YYYY-MM-DD, último día (opcional)" },
+      },
+      required: ["city"],
+    },
+  },
+  {
     name: "search_events",
     description:
       "Eventos reales (Ticketmaster y Google Events): conciertos, teatro, deportes, festivales y espectáculos en una ciudad y un rango de fechas, " +

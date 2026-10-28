@@ -164,7 +164,8 @@ export function kayakFlightsSearchUrl(q: FlightSearchQuery & { childAges?: numbe
   const a = clampPax(q.adults, 1);
   const kids = (q.childAges ?? []).map((x) => Math.round(Number(x))).filter((x) => Number.isFinite(x) && x >= 0 && x <= 17).slice(0, 8);
   const path = !q.ret ? `${o}-${d}/${q.depart}` : rf !== d ? `${o}-${d}/${q.depart}/${rf}-${o}/${q.ret}` : `${o}-${d}/${q.depart}/${q.ret}`;
-  return `https://www.kayak.com/flights/${path}/${a}adults${kids.length ? `/children-${kids.join("-")}` : ""}`;
+  // Kayak México (español y pesos; mismo formato de ruta, comprobado el 28-oct-2026: "MEX a VCE, 10/5 – 20/5").
+  return `https://www.kayak.com.mx/flights/${path}/${a}adults${kids.length ? `/children-${kids.join("-")}` : ""}`;
 }
 
 /** "link" que devuelve la API de Travelpayouts ("/search/…?t=…"): abre resultados de búsqueda. */

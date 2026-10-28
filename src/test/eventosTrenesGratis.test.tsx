@@ -317,7 +317,8 @@ describe("7. nunca un precio inventado en trenes y autobuses", () => {
     expect(u.searchParams.get("FechaIdaSel")).toBe("07/12/2026");
     expect(u.searchParams.get("adultos_")).toBe("2");
     expect(tren.completa).toBe("Llega con: origen, destino, fecha y pasajeros. El precio y la compra son en Renfe; IATOS no lo cotiza.");
-    expect(tren.links?.map((l) => l.label)).toEqual(["Ver horarios y precio en iryo", "Ver horarios y precio en OUIGO España", "Buscar tren en Trainline", "Ver horarios en Google Maps"]);
+    // iryo, OUIGO y Trainline no reciben la ruta por enlace: el botón lo dice (defecto 16).
+    expect(tren.links?.map((l) => l.label)).toEqual(["iryo · busca la ruta en su sitio", "OUIGO España · busca la ruta en su sitio", "Trainline · busca la ruta en su sitio", "Ver horarios en Google Maps"]);
     expect(tren.links?.find((l) => l.kind === "horarios")?.url).toBe(transitScheduleUrl("Madrid", "Sevilla"));
     expect(leg.item.price).toBeNull();
     expect(leg.item.priceNote).toBe("Por cotizar: precio en el sitio del operador.");
@@ -326,9 +327,9 @@ describe("7. nunca un precio inventado en trenes y autobuses", () => {
     const { container, unmount } = render(<MemoryRouter><GroundBuyButtons option={{ mode: "Tren de Alta Velocidad (AVE)", from: "Madrid", to: "Sevilla", provider: "Renfe AVE" }} trip={trip} /></MemoryRouter>);
     const ops = screen.getAllByTestId("ground-operator").map((a) => a.textContent?.trim());
     // Sin fecha del tramo no se arma la búsqueda: la portada de Renfe y la instrucción de qué escribir.
-    expect(ops[0]).toMatch(/^Ver horarios y precio en Renfe/);
+    expect(ops[0]).toMatch(/^Renfe · busca la ruta en su sitio/);
     expect(screen.getAllByTestId("ground-operator")[0]).toHaveAttribute("href", "https://www.renfe.com/es/es");
-    expect(screen.getByText(/Buscar tren en Trainline/)).toBeInTheDocument();
+    expect(screen.getByText(/Trainline · busca la ruta en su sitio/)).toBeInTheDocument();
     expect(screen.getByTestId("ground-schedule")).toHaveAttribute("href", transitScheduleUrl("Madrid", "Sevilla"));
     expect(container.textContent).toMatch(/Precio en el sitio del operador/);
     expect(container.textContent).not.toMatch(/\$\s?\d|MXN|USD|EUR|comprad/i);

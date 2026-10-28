@@ -87,6 +87,50 @@ export function whatsappNumberFromUrl(url: string): string | null {
   }
 }
 
+// ─── ¿Es un celular? (WhatsApp solo funciona con números móviles, caso wa.me/34915326681 de un fijo de Madrid) ───
+// Prefijos móviles del plan de numeración de cada país (después del código de país). Donde el número no
+// distingue fijo de celular (México marca 10 dígitos para todo desde 2019; EE. UU./Canadá), se devuelve
+// null: sin un WhatsApp declarado por el lugar, no se ofrece.
+const MOBILE_PREFIX: Record<string, RegExp> = {
+  "34": /^(6|7[1-4])/, // España: 6xx y 71–74
+  "33": /^[67]/, // Francia
+  "39": /^3/, // Italia (los fijos empiezan con 0)
+  "351": /^9[1236]/, // Portugal
+  "44": /^7(?!0|6)/, // Reino Unido (07, sin 070 personales ni 076 localizadores)
+  "49": /^1[5-7]/, // Alemania
+  "30": /^69/, // Grecia
+  "31": /^6/, // Países Bajos
+  "32": /^4[5-9]/, // Bélgica
+  "41": /^7[5-9]/, // Suiza
+  "43": /^6[5-9]/, // Austria
+  "353": /^8[3-9]/, // Irlanda
+  "90": /^5/, // Turquía
+  "61": /^4/, // Australia
+  "81": /^[789]0/, // Japón
+  "57": /^3/, // Colombia
+  "56": /^9/, // Chile
+  "51": /^9/, // Perú
+  "54": /^9/, // Argentina (+54 9 …)
+  "55": /^\d{2}9\d{8}$/, // Brasil: área + 9 + 8 dígitos
+  "420": /^[67]/, // Chequia
+  "36": /^(20|30|31|50|70)/, // Hungría
+  "385": /^9/, // Croacia
+  "212": /^[67]/, // Marruecos
+};
+const UNKNOWN_MOBILE = new Set(["52", "1"]);
+
+/**
+ * ¿El número (dígitos E.164 sin "+") es un celular? true / false, o null si en ese país el número no lo
+ * dice (México, EE. UU., Canadá) o el país no está en la tabla.
+ */
+export function isMobileNumber(digits: unknown): boolean | null {
+  const d = String(digits ?? "").replace(/\D/g, "");
+  if (d.length < 8 || d.length > 15) return null;
+  const cc = [d.slice(0, 3), d.slice(0, 2), d.slice(0, 1)].find((c) => MOBILE_PREFIX[c] || UNKNOWN_MOBILE.has(c));
+  if (!cc || UNKNOWN_MOBILE.has(cc)) return null;
+  return MOBILE_PREFIX[cc].test(d.slice(cc.length));
+}
+
 /** https://wa.me/<dígitos>?text=<texto> (formato oficial de WhatsApp). */
 export function whatsappLink(digits: string, text?: string | null): string | null {
   const d = String(digits ?? "").replace(/\D/g, "");

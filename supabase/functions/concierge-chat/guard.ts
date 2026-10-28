@@ -190,7 +190,7 @@ const STATE_BOOKING = /\b(?:tu|la|su)\s+(?:mesa|reserva(?:ci[oó]n)?|habitaci[o�
 // Luna de miel (27-oct): "ya tienes mesa en…", "tienes tus boletos del Vaticano", "¡Listo, reservado!".
 const STATE_BOOKED_OR_BOUGHT = /\b(?:ya\s+)(?:est[aá]|qued[oó])\s+reservad[ao]s?\b|\b(?:ya\s+)?tienes\s+(?:tu\s+|tus\s+|una\s+|la\s+|los\s+)?(?:mesa|reserva(?:ci[oó]n)?|boletos?|entradas?)\b(?!\s+que)|\blisto[,!.]?\s+(?:est[aá]\s+|qued[oó]\s+)?reservad[ao]s?\b|\b(?:tu|tus|el|los|su|sus)\s+(?:vuelos?|boletos?|billetes?|entradas?|hotel(?:es)?|tour(?:s)?)\s+(?:ya\s+)?(?:est[aá]n?|qued[oó]|quedaron)\s+(?:comprad[oa]s?|pagad[oa]s?)\b/i;
 
-export const NOT_BOOKED_LINE = "Aún no está reservado: Iato no puede reservar directamente. Te dejo el camino más corto para hacerlo o pedírselo al Fixer.";
+export const NOT_BOOKED_LINE = "Aún no está reservado: Iato no puede reservar directamente. Te dejo el camino más corto para hacerlo o pedírselo a una persona del equipo IATOS.";
 
 /**
  * Iato no tiene contratos ni APIs de reserva: nunca dice "reservé" ni "tu mesa está confirmada". Las

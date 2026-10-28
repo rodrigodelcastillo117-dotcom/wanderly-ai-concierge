@@ -5,6 +5,7 @@
 // Términos de Viator: estas pantallas son internas y con sesión; el contenido no se indexa.
 import { readFunctionError } from "@/lib/functionErrors";
 import { checkAllowlisted } from "../../supabase/functions/_shared/booking/allowlist.ts";
+import { FREE_TOUR_NOTE } from "../../supabase/functions/_shared/viator.ts";
 
 export type Invoke = (fn: string, opts: { body: Record<string, unknown> }) => Promise<{ data: any; error: any }>;
 
@@ -69,9 +70,10 @@ export function summarizeViator(data: any): ViatorSummary {
       reviews: Number(t.resenas) > 0 ? Number(t.resenas) : null,
       duration: typeof t.duracion === "string" ? t.duracion : null,
       priceText: formatFromPrice(t?.desde?.monto, t?.desde?.moneda),
-      mxnNote: t?.desde?.moneda !== "MXN" && Number(mx?.monto) > 0
-        ? `≈ $${Math.round(Number(mx.monto)).toLocaleString("es-MX")} MXN · tipo de cambio ${String(mx.fx_fuente ?? "")} ${String(mx.fx_fecha ?? "")}`.trim()
-        : null,
+      mxnNote: t?.free_tour === true ? FREE_TOUR_NOTE
+        : t?.desde?.moneda !== "MXN" && Number(mx?.monto) > 0
+          ? `≈ $${Math.round(Number(mx.monto)).toLocaleString("es-MX")} MXN · tipo de cambio ${String(mx.fx_fuente ?? "")} ${String(mx.fx_fecha ?? "")}`.trim()
+          : null,
       url,
     });
   }

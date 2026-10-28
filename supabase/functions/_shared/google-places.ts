@@ -12,6 +12,7 @@ import {
   callError, coalesce, type GoogleError, type GoogleTransport, googleJson,
 } from "./google-maps.ts";
 import { type CacheStore, cacheGet, cacheKey } from "./serpCache.ts";
+import { cleanPlaceName } from "./placeName.ts";
 
 // ─── Máscaras de campos (preset → campos y SKU) ───
 
@@ -255,7 +256,8 @@ export function normalizePlace(p: any, consultadoAt: string, nowMs = Date.parse(
     }));
   return {
     place_id: String(p?.id ?? ""),
-    name: str(p?.displayName?.text),
+    // Sin la cola de SEO que algunos negocios ponen en su nombre ("… | Restaurante La Latina").
+    name: str(p?.displayName?.text) ? cleanPlaceName(p.displayName.text) : null,
     address: str(p?.formattedAddress),
     lat: num(p?.location?.latitude),
     lng: num(p?.location?.longitude),

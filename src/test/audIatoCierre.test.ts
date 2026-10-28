@@ -105,7 +105,7 @@ describe("AUD-IATO-03 · solicitud al Fixer sin aviso al humano", () => {
 
   it("con aviso entregado conserva el mensaje de siempre", async () => {
     const r = await run(true);
-    expect(r.message).toMatch(/Solicitud enviada al Fixer \(folio ABCDEF12\)/);
+    expect(r.message).toMatch(/Solicitud enviada a nuestro equipo \(folio ABCDEF12\)/);
     expect(r.data?.human_notified).toBe(true);
   });
 });

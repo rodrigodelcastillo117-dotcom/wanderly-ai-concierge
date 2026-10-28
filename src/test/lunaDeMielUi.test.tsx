@@ -79,7 +79,8 @@ describe("pestaña Experiencias", () => {
     expect(within(uno).getByTestId("reserva-website")).toHaveTextContent("Reservar en su sitio");
     expect(within(uno).getByTestId("reserva-thefork").getAttribute("href")).toMatch(/^https:\/\/www\.thefork\.it\/search\?cityName=Firenze/);
     expect(within(uno).getByTestId("reserva-call")).toHaveAttribute("href", "tel:+390551234567");
-    expect(within(uno).getByTestId("reserva-whatsapp")).toHaveAttribute("href", "https://wa.me/390551234567");
+    // +39 055… es un fijo: sin WhatsApp (defecto 14).
+    expect(within(uno).queryByTestId("reserva-whatsapp")).toBeNull();
     const due = screen.getAllByTestId("exp-restaurante")[1];
     expect(within(due).getByTestId("reserva-nota")).toHaveTextContent("No toma reservaciones (llega directo)");
     expect(within(due).queryByTestId("reserva-whatsapp")).toBeNull();

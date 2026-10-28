@@ -57,9 +57,10 @@ describe("Google Places (New): campos reales para reservar, con su SKU", () => {
 });
 
 describe("botones de reserva en orden de confianza", () => {
-  it("sitio → TheFork → Llamar → WhatsApp, con enlaces permitidos por la lista blanca", () => {
+  it("sitio → TheFork → Llamar (sin WhatsApp: +39 055… es un fijo de Florencia), con enlaces permitidos por la lista blanca", () => {
     const b = book("Trattoria Uno");
-    expect(b.actions.map((a) => a.kind)).toEqual(["website", "thefork", "call", "whatsapp"]);
+    // WhatsApp solo con celular (defecto 14, E2E 28-oct-2026): en Italia los fijos empiezan con 0.
+    expect(b.actions.map((a) => a.kind)).toEqual(["website", "thefork", "call"]);
     expect(b.actions[0].label).toBe("Reservar en su sitio");
     const fork = new URL(b.actions[1].url);
     expect(fork.hostname).toBe("www.thefork.it");
@@ -68,8 +69,9 @@ describe("botones de reserva en orden de confianza", () => {
     expect(fork.searchParams.get("searchText")).toBe("Trattoria Uno");
     expect(checkAllowlisted(b.actions[1].url).ok).toBe(true);
     expect(b.actions[2].url).toBe("tel:+390551234567");
-    expect(b.actions[3].url).toBe("https://wa.me/390551234567");
-    expect(checkAllowlisted(b.actions[3].url).ok).toBe(true);
+    const cel = restaurantBooking({ name: "Trattoria Uno", city: "Florencia", phoneInternational: "+39 333 123 4567" });
+    expect(cel.actions.find((a) => a.kind === "whatsapp")!.url).toBe("https://wa.me/393331234567");
+    expect(checkAllowlisted(cel.actions.find((a) => a.kind === "whatsapp")!.url).ok).toBe(true);
     expect(b.note).toMatch(/Acepta reservaciones/);
   });
   it("sin número no hay Llamar ni WhatsApp; con número nacional solo Llamar", () => {
@@ -84,9 +86,13 @@ describe("botones de reserva en orden de confianza", () => {
     expect(due.note).toBe(NO_RESERVATIONS_NOTE);
     expect(due.actions.some((a) => a.kind === "thefork")).toBe(false);
   });
-  it("fuera de los mercados de TheFork: OpenTable; sin ciudad: la de la dirección", () => {
+  it("fuera de los mercados de TheFork: OpenTable donde cubre (CDMX sí, Valle de Bravo no); sin ciudad: la de la dirección", () => {
     const mx = restaurantBooking({ name: "Contramar", city: "Ciudad de México", website: "https://contramar.com.mx" });
     expect(mx.actions.map((a) => a.kind)).toEqual(["website", "opentable"]);
+    // Defecto 16 (E2E 28-oct-2026): en Valle de Bravo OpenTable no lleva a nada; en Madrid manda TheFork.
+    const vb = restaurantBooking({ name: "Bistró Isabel", city: "Valle de Bravo", phone: "+52 56 3524 4564" });
+    expect(vb.actions.map((a) => a.kind)).toEqual(["call"]);
+    expect(restaurantBooking({ name: "Gloria Bendita", city: "Madrid" }).actions.map((a) => a.kind)).toEqual(["thefork"]);
     expect(cityFromAddress("Via dei Neri, 2, 50122 Firenze FI, Italia")).toBe("Firenze");
     const noCity = restaurantBooking({ name: "Trattoria Uno", address: "Via dei Neri, 2, 50122 Firenze FI, Italia" });
     expect(new URL(noCity.actions.find((a) => a.kind === "thefork")!.url).searchParams.get("cityName")).toBe("Firenze");
@@ -94,7 +100,7 @@ describe("botones de reserva en orden de confianza", () => {
   });
   it("Iato: restaurantBookingLinks usa el mismo orden (y conserva OpenTable con fecha fuera de Europa)", () => {
     const it = restaurantBookingLinks({ name: "Trattoria Uno", city: "Florencia", website: "https://www.trattoriauno.example.it/", phone: "055 123 4567", phoneIntl: "+39 055 123 4567", reservable: true });
-    expect(it.map((l) => l.label)).toEqual(["Reservar en su sitio", "Reservar en TheFork", "Llamar", "WhatsApp", "Buscar en Google Maps"]);
+    expect(it.map((l) => l.label)).toEqual(["Reservar en su sitio", "Reservar en TheFork", "Llamar", "Buscar en Google Maps"]);
   });
 });
 
@@ -282,13 +288,14 @@ describe("Iato no dice «reservado» y arma las cards con los botones reales", (
     expect(names).toEqual(expect.arrayContaining(["search_places:desayuno", "search_places:cena", "search_tours:Florencia"]));
     expect(plan.notes.join(" ")).toMatch(/Galería Uffizi/);
   });
-  it("cards: restaurante con sitio, TheFork, llamar y WhatsApp; sin reservaciones lo dice; museo con boletos oficiales", () => {
+  it("cards: restaurante con sitio, TheFork y llamar (WhatsApp solo con celular); sin reservaciones lo dice; museo con boletos oficiales", () => {
     const res = placesSearchOutput(places, { query: "cena romántica en Florencia", city: "Florencia" }, "atmosphere");
     const ev = collectEvidence([{ name: "search_places", args: { query: "cena romántica en Florencia", city: "Florencia" }, result: res as any }]);
     const cards = enrichCardLinks([
       { type: "restaurant", title: "Trattoria Uno" }, { type: "restaurant", title: "Caffè Due" }, { type: "attraction", title: "Galería Uffizi", subtitle: "Florencia" },
     ], ev, { directions: () => "https://www.google.com/maps/dir/?api=1&destination=x", ride: () => "https://m.uber.com/ul/?action=setPickup", booking: (v) => restaurantBookingLinks(v) as any }, { city: "Roma" });
-    expect(cards[0].links!.map((l) => l.label).slice(0, 4)).toEqual(["Reservar en su sitio", "Reservar en TheFork", "Llamar", "WhatsApp"]);
+    expect(cards[0].links!.map((l) => l.label).slice(0, 3)).toEqual(["Reservar en su sitio", "Reservar en TheFork", "Llamar"]);
+    expect(cards[0].links!.some((l) => l.label === "WhatsApp")).toBe(false);
     // La ciudad sale de la búsqueda (Florencia), no del viaje en contexto (Roma).
     expect(new URL(cards[0].links![1].url).searchParams.get("cityName")).toBe("Firenze");
     expect(cards[1].booking_note).toBe(NO_RESERVATIONS_NOTE);

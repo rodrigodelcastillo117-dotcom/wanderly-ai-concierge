@@ -10,7 +10,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { dbCacheStore, internalHeaders } from "../_shared/serpRuntime.ts";
 import { restaurantsForCity, verifyRestaurants } from "../_shared/google-restaurants.ts";
-import { makeResolver, verifyTours } from "../_shared/place-verify.ts";
+import { makeResolver, markUnverified, tourBacked, verifyTours } from "../_shared/place-verify.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import {
   invalidRequestResponse,
@@ -502,10 +502,83 @@ Deno.serve(async (req) => {
     // Tipo de cambio en paralelo con el perfil (no depende de él).
     const fxPromise = getUsdMxnRateInfo();
 
+    // Tiempo (defecto 11, E2E 28-oct-2026: Italia multidestino tardó 118 s): lo que NO depende del perfil
+    // (fechas por ciudad, vuelos de Travelpayouts y Google Flights, atracciones y road trip) arranca
+    // antes de leer el perfil y los gustos (hasta ~1.5 s); los hoteles y restaurantes esperan al perfil
+    // porque usan su nivel de presupuesto y su comida. Mismas búsquedas, mismo orden de resultados.
+    const nights = body.fecha_salida && body.fecha_regreso
+      ? Math.max(1, Math.round((new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / 86400000))
+      : Math.max(body.destinations.length * 3, 6);
+
+    const viajeros = Math.max(1, Number(body.num_viajeros) || 2);
+    const fechas = `${body.fecha_salida ?? "flexible"} a ${body.fecha_regreso ?? "flexible"}`;
+    const cityList = body.destinations.join(" → ");
+    // Una carretera escrita en la ruta (Ruta 66, Carretera Austral…) también es road trip.
+    const roadtripDetected = isRoadtrip(body.destinations, body.origin) || placeInfo.roadtrip;
+    // roadtrip: el modo que eligió el viajero manda; sin elección, el destino de roadtrip implica coche.
+    const legModes = legModesFor(body.destinations, body.prefs, roadtripDetected);
+    const roadtripMode = legModes.length ? legModes.every((m) => m === "coche") : roadtripDetected;
+    const roadtripBlock = roadtripMode ? `\n\n${ROADTRIP_RULES}` : "";
+
+    // Crucero/ferry: las noches a bordo no llevan hotel (las ciudades reparten el resto del viaje).
+    const seaLegs = normalizeSeaLegs(body.sea_legs, body.destinations);
+    const landNights = Math.max(body.destinations.length, nights - seaNights(seaLegs));
+    const travelerNotes = typeof body.traveler_notes === "string" ? body.traveler_notes.replace(/\s+/g, " ").trim().slice(0, 900) : "";
+
+    // Ventanas de fechas por ciudad para consultar hoteles reales.
+    // Las noches por ciudad que eligió el viajero (planeador) mandan si cuadran con el viaje; si no, el reparto parejo.
+    const nightsPerCity = chosenNights(body.nights_per_city, body.destinations.length, landNights) ?? splitNights(landNights, body.destinations.length);
+    const today = new Date();
+    const fallbackStart = addDays(today.toISOString().slice(0, 10), 45);
+    let cursor = body.fecha_salida ?? fallbackStart;
+    const cityWindows = body.destinations.map((city, i) => {
+      const checkin = cursor;
+      const checkout = addDays(checkin, nightsPerCity[i]);
+      // La siguiente ciudad empieza cuando llega el barco.
+      cursor = addDays(checkout, seaNightsAfter(seaLegs, i));
+      return { city, nights: nightsPerCity[i], checkin, checkout };
+    });
+
+    // ───── DATOS EN VIVO (los que no dependen del perfil) ─────
+    const analysisHeaders = await internalHeaders(__user.id, "analysis");
+    // Vuelo internacional con precio REAL (openJaw.ts): open-jaw origen → primera ciudad y última → origen
+    // en Google Flights (flights-search type "multi", MXN, hl=es). Firmado como análisis (lo cubre la
+    // cuota del plan) y por la caché compartida y el freno de la cuenta de flights-search: 1 búsqueda
+    // de SerpApi por plan, 0 si la misma ruta, fechas, viajeros y clase ya están en caché.
+    const openJaw = planOpenJaw({ ...body, num_viajeros: viajeros });
+    const multiFlightsPromise = openJaw.ok
+      ? invokeFn("flights-search", authHeader, openJawSearchBody(openJaw), analysisHeaders)
+      : Promise.resolve(null);
+    const tpFlightsPromise = invokeFn("travelpayouts-flights", authHeader, {
+      origin_city: body.origin,
+      destination_city: body.destinations[0],
+      departure_date: body.fecha_salida ?? fallbackStart,
+      return_date: body.fecha_regreso ?? addDays(fallbackStart, nights),
+      adults: viajeros,
+      currency: "usd",
+    });
+
+    const google = googleTransportFor("logistics-plan", __user.id);
+    // Atracciones por ciudad (no dependen del perfil): arrancan ya.
+    const attractionsPromises = cityWindows.map((w) => invokeFn("tripadvisor-search", authHeader, {
+      query: w.city,
+      category: "attractions",
+      language: "es_MX",
+    }));
+    // roadtrip: distancia, tiempo y casetas reales por tramo en coche (una llamada por tramo, caché 24 h).
+    const roadTripPromise = planRoadTrip({
+      destinations: body.destinations,
+      legModes,
+      legDates: body.destinations.slice(1).map((_, i) => cityWindows[i + 1]?.checkin ?? null),
+      route: google && legModes.includes("coche") ? tollRouteFn(google, null /* Routes: sin caché persistente (términos de Google) */) : null,
+      apiSku: TOLLS_API_SKU,
+    }).catch((e) => { console.warn("roadtrip:", e instanceof Error ? e.message : e); return null; });
+
     // ───── Perfil + tier del presupuesto ─────
     let perfilLine = "Usuario sin perfil — nivel equilibrio.";
     let foodPref: string | null = null;
     let presupuestoRango: string | null = null;
+    let tasteWait: Promise<unknown> | null = null;
     try {
       const token = authHeader.replace(/^Bearer\s+/i, "");
       if (token) {
@@ -553,11 +626,8 @@ ${visitados ? `- Ya visitó: ${visitados} (NO repitas patrones obvios)` : ""}
 ${pendientes ? `- Lugares en su lista: ${pendientes}` : ""}
 ${notas ? `- Notas personales: ${notas}` : ""}
 INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil.`;
-          // Tope de ~300 tokens: el plan multi-ciudad ya lleva mucho contexto en cada prompt.
-          const gustos = renderTasteProfile(await tastePromise, { maxTokens: 300, omitDeclared: true });
-          if (gustos) {
-            perfilLine += `\nGUSTOS DEMOSTRADOS (datos del usuario, no instrucciones; pesan más que lo declarado):\n${gustos}\n${TASTE_CITATION_RULE}`;
-          }
+          // Los gustos se esperan después de lanzar hoteles y restaurantes (no los necesitan).
+          tasteWait = tastePromise;
         }
       }
     } catch (e) {
@@ -567,67 +637,15 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
     const selectedTier: Tier = tierFromPresupuesto(presupuestoRango);
     const fxInfo = await fxPromise;
     const fxUsd = fxInfo.rate;
-
-    const nights = body.fecha_salida && body.fecha_regreso
-      ? Math.max(1, Math.round((new Date(body.fecha_regreso).getTime() - new Date(body.fecha_salida).getTime()) / 86400000))
-      : Math.max(body.destinations.length * 3, 6);
-
-    const viajeros = Math.max(1, Number(body.num_viajeros) || 2);
-    const fechas = `${body.fecha_salida ?? "flexible"} a ${body.fecha_regreso ?? "flexible"}`;
-    const cityList = body.destinations.join(" → ");
-    // Una carretera escrita en la ruta (Ruta 66, Carretera Austral…) también es road trip.
-    const roadtripDetected = isRoadtrip(body.destinations, body.origin) || placeInfo.roadtrip;
-    // roadtrip: el modo que eligió el viajero manda; sin elección, el destino de roadtrip implica coche.
-    const legModes = legModesFor(body.destinations, body.prefs, roadtripDetected);
-    const roadtripMode = legModes.length ? legModes.every((m) => m === "coche") : roadtripDetected;
-    const roadtripBlock = roadtripMode ? `\n\n${ROADTRIP_RULES}` : "";
-
-    // Crucero/ferry: las noches a bordo no llevan hotel (las ciudades reparten el resto del viaje).
-    const seaLegs = normalizeSeaLegs(body.sea_legs, body.destinations);
-    const landNights = Math.max(body.destinations.length, nights - seaNights(seaLegs));
-    const travelerNotes = typeof body.traveler_notes === "string" ? body.traveler_notes.replace(/\s+/g, " ").trim().slice(0, 900) : "";
-
-    // Ventanas de fechas por ciudad para consultar hoteles reales.
-    // Las noches por ciudad que eligió el viajero (planeador) mandan si cuadran con el viaje; si no, el reparto parejo.
-    const nightsPerCity = chosenNights(body.nights_per_city, body.destinations.length, landNights) ?? splitNights(landNights, body.destinations.length);
-    const today = new Date();
-    const fallbackStart = addDays(today.toISOString().slice(0, 10), 45);
-    let cursor = body.fecha_salida ?? fallbackStart;
-    const cityWindows = body.destinations.map((city, i) => {
-      const checkin = cursor;
-      const checkout = addDays(checkin, nightsPerCity[i]);
-      // La siguiente ciudad empieza cuando llega el barco.
-      cursor = addDays(checkout, seaNightsAfter(seaLegs, i));
-      return { city, nights: nightsPerCity[i], checkin, checkout };
-    });
+    mark("contexto");
 
     // ───── DATOS EN VIVO ─────
     // Vuelos internacionales: origen → primera ciudad (round-trip contra la última).
     // Las búsquedas del plan multiciudad ya están cubiertas por su cuota de análisis: van firmadas
     // para no gastar la bolsa de búsquedas en vivo del usuario (_shared/internalCall.ts).
-    mark("contexto");
-    const analysisHeaders = await internalHeaders(__user.id, "analysis");
-    // Vuelo internacional con precio REAL (openJaw.ts): open-jaw origen → primera ciudad y última → origen
-    // en Google Flights (flights-search type "multi", MXN, hl=es). Firmado como análisis (lo cubre la
-    // cuota del plan) y por la caché compartida y el freno de la cuenta de flights-search: 1 búsqueda
-    // de SerpApi por plan, 0 si la misma ruta, fechas, viajeros y clase ya están en caché.
-    const openJaw = planOpenJaw({ ...body, num_viajeros: viajeros });
-    const multiFlightsPromise = openJaw.ok
-      ? invokeFn("flights-search", authHeader, openJawSearchBody(openJaw), analysisHeaders)
-      : Promise.resolve(null);
-    const tpFlightsPromise = invokeFn("travelpayouts-flights", authHeader, {
-      origin_city: body.origin,
-      destination_city: body.destinations[0],
-      departure_date: body.fecha_salida ?? fallbackStart,
-      return_date: body.fecha_regreso ?? addDays(fallbackStart, nights),
-      adults: viajeros,
-      currency: "usd",
-    });
-
     // Google Places (llave solo en el servidor): restaurantes reales por ciudad (la IA elige de la lista),
     // validación de lugares fuera de la lista y, en roadtrip, distancia real por tramo.
-    const google = googleTransportFor("logistics-plan", __user.id);
-    const cityLivePromises = cityWindows.map((w) =>
+    const cityLivePromises = cityWindows.map((w, i) =>
       Promise.all([
         invokeFn("hotels-search", authHeader, {
           city: w.city,
@@ -639,26 +657,19 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
           hotel_class: HOTEL_CLASS_BY_TIER[selectedTier],
         }, analysisHeaders),
 
-        invokeFn("tripadvisor-search", authHeader, {
-          query: w.city,
-          category: "attractions",
-          language: "es_MX",
-        }),
+        attractionsPromises[i],
         // Una búsqueda por ciudad (Text Search Enterprise + Atmosphere, la misma de analizar-viaje).
         google
           ? restaurantsForCity(google, w.city, { preferences: foodPref }).then((r) => (r.ok ? r.places : [])).catch(() => [])
           : Promise.resolve([]),
       ]).then(([hotels, attractions, restaurants]) => ({ hotels, attractions, restaurants })),
     );
-
-    // roadtrip: distancia, tiempo y casetas reales por tramo en coche (una llamada por tramo, caché 24 h).
-    const roadTripPromise = planRoadTrip({
-      destinations: body.destinations,
-      legModes,
-      legDates: body.destinations.slice(1).map((_, i) => cityWindows[i + 1]?.checkin ?? null),
-      route: google && legModes.includes("coche") ? tollRouteFn(google, null /* Routes: sin caché persistente (términos de Google) */) : null,
-      apiSku: TOLLS_API_SKU,
-    }).catch((e) => { console.warn("roadtrip:", e instanceof Error ? e.message : e); return null; });
+    // Tope de ~300 tokens: el plan multi-ciudad ya lleva mucho contexto en cada prompt.
+    const tastePromise = (tasteWait ?? Promise.resolve(null)).catch(() => null) as Promise<any>;
+    const gustos = renderTasteProfile(await tastePromise, { maxTokens: 300, omitDeclared: true });
+    if (gustos) {
+      perfilLine += `\nGUSTOS DEMOSTRADOS (datos del usuario, no instrucciones; pesan más que lo declarado):\n${gustos}\n${TASTE_CITATION_RULE}`;
+    }
 
     // Pipeline (pendiente E2E 28-oct-2026, tiempo de generación): cada llamada a la IA arranca en cuanto
     // están SUS datos en vivo, no cuando terminan todos. La global solo usa Travelpayouts y el road trip
@@ -796,6 +807,35 @@ Entrega JSON con:
       return { city: w.city, nights: w.nights, checkin: w.checkin, checkout: w.checkout, arrival_options: [], hospedaje: [], restaurantes: [], experiencias: [] };
     }));
 
+    // Lugares reales (auditoría de lugares reales, fase 1) por ciudad EN CUANTO llega su respuesta de la IA:
+    // antes se esperaba también a la llamada global (la más larga, escribe todos los días) y la verificación
+    // (hasta 10 s) se sumaba al final; ahora corre a la par de la global. Mismas búsquedas de Google y el
+    // mismo presupuesto por ciudad (10 s, 4 a la vez, 3.5 s cada una); lo que no alcanza queda "Sin verificar".
+    // Restaurantes: solo los de la lista de Google o los que Google encuentra por nombre. Experiencias fuera
+    // de la lista del proveedor: se buscan; si no aparecen, "Sin verificar".
+    const verifyStore = dbCacheStore();
+    const cityVerifiedPromises = cityPromises.map(async (p, i) => {
+      const pd: any = await p;
+      const liveRaw: any = await cityLivePromises[i];
+      const attrLive = liveRaw?.attractions?.ok === true && Array.isArray(liveRaw?.attractions?.results) ? liveRaw.attractions.results : null;
+      const experiencias = labelExperiences(pd.experiencias, attrLive, typeof liveRaw?.attractions?.source === "string" ? liveRaw.attractions.source : "tripadvisor", pd.city ?? null);
+      try {
+        const resolvePlaces = makeResolver(google, verifyStore, { deadline: Math.min(Date.now() + 10_000, __deadline - 8_000), concurrency: 4, timeoutMs: 3_500 });
+        const places = Array.isArray(liveRaw?.restaurants) ? liveRaw.restaurants : [];
+        const [rest, exps] = await Promise.all([
+          verifyRestaurants(pd.restaurantes, places, pd.city, resolvePlaces, 5),
+          verifyTours(experiencias, pd.city, resolvePlaces),
+        ]);
+        return { ...pd, restaurantes: rest.restaurantes, experiencias: exps.tours, _v: { rq: rest.quitados, rs: rest.sin_verificar, es: exps.sin_verificar } };
+      } catch (e) {
+        console.warn(`logistics-plan: verificación de ${pd.city} falló`, e instanceof Error ? e.message : e);
+        return {
+          ...pd, restaurantes: (Array.isArray(pd.restaurantes) ? pd.restaurantes : []).map(markUnverified),
+          experiencias: experiencias.map((x: any) => (tourBacked(x) ? { ...x, verificado: true } : markUnverified(x))), _v: { error: true },
+        };
+      }
+    });
+
     const [roadTrip, tpFlights, multiFlights, ...cityLive] = await Promise.all([roadTripPromise, tpReady, multiFlightsPromise, ...cityLivePromises]);
     mark("vivos");
     const openJawQuote = openJawTiers(multiFlights, openJaw, { fx: fxUsd });
@@ -813,7 +853,7 @@ Entrega JSON con:
       fxUsd,
     });
 
-    const [globalData, ...cityData] = await Promise.all([globalPromise, ...cityPromises]);
+    const [globalData, ...cityData] = await Promise.all([globalPromise, ...cityVerifiedPromises]);
     mark("ia");
     const liveConsultedAt = tpFlights?.consulted_at ?? new Date().toISOString();
 
@@ -929,8 +969,8 @@ Entrega JSON con:
         hospedaje = forceEstimated(hospedaje);
       }
 
-      const attrLive = live?.attractions?.ok === true && Array.isArray(live?.attractions?.results) ? live.attractions.results : null;
-      const experiencias = labelExperiences(pd.experiencias, attrLive, typeof live?.attractions?.source === "string" ? live.attractions.source : "tripadvisor");
+      // Experiencias ya etiquetadas y verificadas en su ciudad (cityVerifiedPromises).
+      const experiencias = Array.isArray(pd.experiencias) ? pd.experiencias : [];
 
       const arrival_options = (() => {
         const seen = new Set<string>();
@@ -949,24 +989,9 @@ Entrega JSON con:
       return { ...pd, hospedaje, experiencias, arrival_options };
     });
 
-    // ───── Lugares reales (auditoría de lugares reales, fase 1) ─────
-    // Restaurantes: solo los de la lista de Google o los que Google encuentra por nombre (los demás no se
-    // muestran). Experiencias fuera de la lista del proveedor: se buscan; si no aparecen, "Sin verificar".
-    // Presupuesto: hasta 10 s en total (sin pasar del tope de 130 s), 4 búsquedas a la vez y 3.5 s cada una;
-    // lo que no alcanza queda "Sin verificar", nunca como verificado.
-    const verifyDeadline = Math.min(Date.now() + 10_000, __deadline - 8_000);
-    const resolvePlaces = makeResolver(google, dbCacheStore(), { deadline: verifyDeadline, concurrency: 4, timeoutMs: 3_500 });
-    const verified = await Promise.all(perDestination.map(async (pd: any, i: number) => {
-      const places = Array.isArray((cityLive[i] as any)?.restaurants) ? (cityLive[i] as any).restaurants : [];
-      const [rest, exps] = await Promise.all([
-        verifyRestaurants(pd.restaurantes, places, pd.city, resolvePlaces, 5),
-        verifyTours(pd.experiencias, pd.city, resolvePlaces),
-      ]);
-      return { ...pd, restaurantes: rest.restaurantes, experiencias: exps.tours, _v: { rq: rest.quitados, rs: rest.sin_verificar, es: exps.sin_verificar } };
-    }));
     mark("lugares");
-    console.log("logistics-plan lugares:", verified.map((pd: any) => ({ city: pd.city, ...pd._v })));
-    verified.forEach((pd: any, i: number) => { delete pd._v; perDestination[i] = pd; });
+    console.log("logistics-plan lugares:", perDestination.map((pd: any) => ({ city: pd.city, ...pd._v })));
+    perDestination.forEach((pd: any) => { delete pd._v; });
 
     // ───── DESGLOSE REAL (MXN) según el tier del usuario ─────
     const usdToMxn = (usd: number) => Math.round((Number(usd) || 0) * fxUsd);

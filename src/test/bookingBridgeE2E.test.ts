@@ -225,7 +225,8 @@ describe("Fase 11 · los 20 recorridos E2E (simulados, sin compras reales)", () 
   it("10 · restaurante sin sistema: búsqueda de mesa + solicitud asistida al equipo (REQUESTED, no reserva)", async () => {
     const t = setup();
     const o = (await t.call("resolve", { source: tripItem("restaurantes_json", 0) })).body.offer as any;
-    expect(o.actions.map((a: any) => a.label)).toEqual(["Buscar en OpenTable", "Buscar en Google Maps", "Solicitar asistencia", "Guardar en el viaje"]);
+    // Madrid: la plataforma de reservas de España es TheFork (defecto 16, E2E 28-oct-2026).
+    expect(o.actions.map((a: any) => a.label)).toEqual(["Buscar en TheFork", "Buscar en Google Maps", "Solicitar asistencia", "Guardar en el viaje"]);
     const s = await t.call("start_booking", { source: tripItem("restaurantes_json", 0), action_kind: "assisted_request", idempotency_key: key(), consent: true,
       draft: { date: "2026-12-06", time: "21:00", party_size: 2 } });
     expect(s.body).toMatchObject({ ok: true, intent: { state: "REQUESTED", status_text: "Solicitud enviada · aún no es una reserva" } });

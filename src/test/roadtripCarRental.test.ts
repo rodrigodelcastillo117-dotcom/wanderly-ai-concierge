@@ -14,11 +14,11 @@ const NOW = Date.parse("2026-10-22T12:00:00Z");
 describe("enlace de Kayak Cars", () => {
   it("lleva recogida, devolución y fechas (también en ciudades distintas)", () => {
     expect(kayakCarsUrl({ pickup_city: "Florencia", dropoff_city: "Roma", pickup_date: "2026-11-10", dropoff_date: "2026-11-17" }))
-      .toBe("https://www.kayak.com/cars/Florence/Rome/2026-11-10/2026-11-17");
+      .toBe("https://www.kayak.com.mx/cars/Florence/Rome/2026-11-10/2026-11-17");
     expect(kayakCarsUrl({ pickup_city: "Inverness", dropoff_city: "Inverness", pickup_date: "2026-11-10", dropoff_date: "2026-11-17" }))
-      .toBe("https://www.kayak.com/cars/Inverness/2026-11-10/2026-11-17");
+      .toBe("https://www.kayak.com.mx/cars/Inverness/2026-11-10/2026-11-17");
     expect(kayakCarsUrl({ pickup_city: "Múnich", pickup_date: "2026-11-10", dropoff_date: "2026-11-12" }))
-      .toBe("https://www.kayak.com/cars/Munich/2026-11-10/2026-11-12");
+      .toBe("https://www.kayak.com.mx/cars/Munich/2026-11-10/2026-11-12");
   });
   it("sin fechas válidas o con devolución antes de recoger no hay enlace", () => {
     expect(kayakCarsUrl({ pickup_city: "Roma", pickup_date: "2026-13-01", dropoff_date: "2026-11-12" })).toBeNull();
@@ -26,7 +26,7 @@ describe("enlace de Kayak Cars", () => {
   });
   it("no deja inyectar rutas ni parámetros en la ciudad", () => {
     const u = kayakCarsUrl({ pickup_city: "Roma/../../evil?x=1#", pickup_date: "2026-11-10", dropoff_date: "2026-11-12" })!;
-    expect(new URL(u).hostname).toBe("www.kayak.com");
+    expect(new URL(u).hostname).toBe("www.kayak.com.mx");
     expect(u).not.toMatch(/\.\.\/|\?|#/);
   });
   it("pasa la lista blanca estricta (kayak.com ya permitido)", () => {
@@ -48,7 +48,7 @@ describe("oferta del bridge", () => {
     expect(o.booking_mode).toBe("PROVIDER_SEARCH");
     const a = o.actions.find((x) => x.kind === "equivalent_search")!;
     expect(a.label).toBe("Buscar auto de renta");
-    expect(a.url).toBe("https://www.kayak.com/cars/Florence/Rome/2026-11-10/2026-11-17");
+    expect(a.url).toBe("https://www.kayak.com.mx/cars/Florence/Rome/2026-11-10/2026-11-17");
     expect(a.preserves.dates).toBe(true);
     expect(a.disclosures.join(" ")).toMatch(/cargo extra/);
     expect(o.booking_conditions.join(" ")).toMatch(/monto lo da la arrendadora/);
@@ -92,23 +92,23 @@ describe("booking-bridge con la fuente car_rental", () => {
   it("resolve arma la oferta en el servidor con los mismos datos", async () => {
     const r = await handleBridge("resolve", { source }, deps([]));
     expect(r.status).toBe(200);
-    expect((r.body.offer as any).actions.find((a: any) => a.kind === "equivalent_search").url).toBe("https://www.kayak.com/cars/Florence/Rome/2026-11-10/2026-11-17");
+    expect((r.body.offer as any).actions.find((a: any) => a.kind === "equivalent_search").url).toBe("https://www.kayak.com.mx/cars/Florence/Rome/2026-11-10/2026-11-17");
   });
 
   it("start_booking guarda la intención y firma la salida por booking-go a Kayak", async () => {
     const intents: any[] = [];
     const r = await handleBridge("start_booking", { source, action_kind: "equivalent_search", idempotency_key: "idem-car-0001", consent: true }, deps(intents));
     expect(r.status).toBe(200);
-    expect(intents[0]).toMatchObject({ product_type: "transport", provider: "kayak_cars", target_url: "https://www.kayak.com/cars/Florence/Rome/2026-11-10/2026-11-17", channel: "web" });
+    expect(intents[0]).toMatchObject({ product_type: "transport", provider: "kayak_cars", target_url: "https://www.kayak.com.mx/cars/Florence/Rome/2026-11-10/2026-11-17", channel: "web" });
     const go = String(r.body.go_url);
     const out = await resolveGo(go, { secret: SECRET, now: () => NOW + 1000, markRedirected: async (i, u) => (await deps(intents).rpc("booking_intent_mark_redirected", { _id: i, _user: u })).data });
-    expect(out.location).toBe("https://www.kayak.com/cars/Florence/Rome/2026-11-10/2026-11-17");
+    expect(out.location).toBe("https://www.kayak.com.mx/cars/Florence/Rome/2026-11-10/2026-11-17");
   });
 
   it("una URL que mande el cliente se ignora: el destino lo arma el servidor", async () => {
     const intents: any[] = [];
     await handleBridge("start_booking", { source: { ...source, url: "https://evil.example/cars" }, action_kind: "equivalent_search", idempotency_key: "idem-car-0002", consent: true }, deps(intents));
-    expect(intents[0].target_url).toMatch(/^https:\/\/www\.kayak\.com\/cars\//);
+    expect(intents[0].target_url).toMatch(/^https:\/\/www\.kayak\.com\.mx\/cars\//);
   });
 
   it("fechas inválidas: BAD_INPUT", async () => {

@@ -58,7 +58,26 @@ export interface ViatorTour {
   desde_mxn?: { monto: number; fx_fuente: string; fx_fecha: string };
   /** productUrl de Viator (con el afiliado de IATOS): "Ver en Viator", no es una reserva. */
   url: string;
+  /** Free tour: al guía se le paga con propina; el "desde" de Viator no es el costo del recorrido. */
+  free_tour?: boolean;
+  /** El título vino en inglés (Viator no tiene versión en español de ese producto). */
+  titulo_en_ingles?: boolean;
 }
+
+// ─── Títulos en español y free tours (E2E 28-oct-2026) ───
+// "Madrid Historical Walking Tour" (inglés) a "desde $63.61 MXN": era un free tour (la ficha dice
+// "Free-Tour-Exploring-the-historical-Madrid"), así que el monto no es lo que cuesta el recorrido. Con
+// Accept-Language es-MX Viator traduce casi todo; lo que llega en inglés va al final y, si hay al menos
+// tres en español, no se muestra.
+const EN_WORDS = /\b(walking|historical|history|day trip|from|with|and|the|of|private|guided|skip|line|tickets?|experience|small|group|tasting|highlights|city|old town|evening|night|cooking|class|by|in)\b/g;
+const ES_WORDS = /\b(de|del|la|el|los|las|con|y|en|por|visita|excursi[oó]n|recorrido|guiad[oa]|entradas?|paseo|desde|sin|clase|cocina|ciudad|noche|traslado)\b/;
+export function looksEnglish(title: unknown): boolean {
+  const t = String(title ?? "").toLowerCase();
+  if (!t.trim() || /[áéíóúñ¿¡]/.test(t) || ES_WORDS.test(t)) return false;
+  return (t.match(EN_WORDS) ?? []).length >= 1 && t.split(/\s+/).length >= 3;
+}
+const FREE_TOUR = /\b(free[ -]tour|tour gratis|tour gratuito)\b/i;
+export const FREE_TOUR_NOTE = "Free tour: al guía se le paga con propina; el precio de Viator no es el costo del recorrido.";
 
 export type ViatorResult =
   | { ok: true; fuente: "Viator"; source: "viator"; results: ViatorTour[]; consultado_at: string; from_cache: boolean; moneda: string;
@@ -157,10 +176,16 @@ export function mapViatorProducts(list: unknown, max = MAX_TOURS): ViatorTour[] 
     const price = Number(p?.pricing?.summary?.fromPrice);
     const cur = clean(p?.pricing?.currency, 3).toUpperCase();
     if (Number.isFinite(price) && price > 0 && /^[A-Z]{3}$/.test(cur)) t.desde = { monto: Math.round(price * 100) / 100, moneda: cur };
+    // La ficha (slug) también lo dice: /tours/Madrid/Free-Tour-Exploring-the-historical-Madrid/…
+    let slug = "";
+    try { slug = decodeURIComponent(new URL(url).pathname).replace(/[-_/]+/g, " "); } catch { /* url ya validada */ }
+    if (FREE_TOUR.test(title) || FREE_TOUR.test(slug)) t.free_tour = true;
+    if (looksEnglish(title)) t.titulo_en_ingles = true;
     out.push(t);
-    if (out.length >= max) break;
   }
-  return out;
+  // Primero los títulos en español; los que solo existen en inglés van al final y sobran si hay ≥ 3 en español.
+  const es = out.filter((t) => !t.titulo_en_ingles), en = out.filter((t) => t.titulo_en_ingles);
+  return (es.length >= 3 ? es : [...es, ...en]).slice(0, max);
 }
 
 /** Destino de /search/freetext (DESTINATIONS): el de nombre igual a la ciudad o el primero. */

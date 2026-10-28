@@ -48,9 +48,9 @@ describe("vuelos", () => {
     expect(aviasalesSearchUrl({ origin: "MEX", destination: "MAD", depart: IDA, adults: 8, children: 4 })).toBe("https://www.aviasales.com/search/MEX1212MAD81?marker=533299");
   });
   it("Kayak: los pasajeros van en la ruta (/2adults), no en ?adults= (que Kayak ignoraba)", () => {
-    expect(kayakFlightsLink("MEX", "MAD", IDA, VUELTA, 2)).toBe("https://www.kayak.com/flights/MEX-MAD/2026-12-12/2026-12-19/2adults");
-    expect(kayakFlightsLink("MEX", "MAD", IDA, VUELTA, 2, [8])).toBe("https://www.kayak.com/flights/MEX-MAD/2026-12-12/2026-12-19/2adults/children-8");
-    expect(kayakFlightsLink("MEX", "CUN", IDA, undefined, 1)).toBe("https://www.kayak.com/flights/MEX-CUN/2026-12-12/1adults");
+    expect(kayakFlightsLink("MEX", "MAD", IDA, VUELTA, 2)).toBe("https://www.kayak.com.mx/flights/MEX-MAD/2026-12-12/2026-12-19/2adults");
+    expect(kayakFlightsLink("MEX", "MAD", IDA, VUELTA, 2, [8])).toBe("https://www.kayak.com.mx/flights/MEX-MAD/2026-12-12/2026-12-19/2adults/children-8");
+    expect(kayakFlightsLink("MEX", "CUN", IDA, undefined, 1)).toBe("https://www.kayak.com.mx/flights/MEX-CUN/2026-12-12/1adults");
   });
   it("vuelo del viaje (Aeroméxico): primero Google Flights con la ruta del enlace, fechas y viajeros del viaje y solo AM", () => {
     const trip = { id: "t1", destino: "Cancún", ciudad_origen: "Ciudad de México", fecha_salida: IDA, fecha_regreso: VUELTA, num_viajeros: 2 };
@@ -128,7 +128,7 @@ describe("trenes, autos, eSIM, ferries, cruceros y traslados", () => {
     expect(checkAllowlisted(l.bus).ok).toBe(true);
   });
   it("autos: Kayak con ciudad y fechas; Discover Cars y Rentalcars abren su buscador (no aplicaban los datos)", () => {
-    expect(kayakCarsLink("Madrid", IDA, VUELTA)).toBe("https://www.kayak.com/cars/Madrid/2026-12-12/2026-12-19");
+    expect(kayakCarsLink("Madrid", IDA, VUELTA)).toBe("https://www.kayak.com.mx/cars/Madrid/2026-12-12/2026-12-19");
     expect(discoverCarsLink("Madrid", IDA, VUELTA)).toBe("https://www.discovercars.com/?marker=533299");
     expect(rentalcarsLink("Madrid", IDA, VUELTA)).toBe("https://www.rentalcars.com/?marker=533299");
   });

@@ -137,7 +137,8 @@ describe("ligas y prompt", () => {
     expect(p).toMatch(/PUERTA A PUERTA/);
     expect(p).toMatch(/DIRECTOS/);
     expect(p).toMatch(/fuente_precio="estimado"/);
-    expect(p).toMatch(/precio_min y precio_max/);
+    // El coche es costo del coche, nunca "por persona" (defecto 12, E2E 28-oct-2026).
+    expect(p).toMatch(/Auto: es el costo del COCHE/);
     expect(p).toMatch(/aprox/);
     expect(shortTripPromptBlock(detectShortTrip("CDMX", "Puebla")!, travelerPrefs("barato"))).toMatch(/ahorro = autobús/);
   });
