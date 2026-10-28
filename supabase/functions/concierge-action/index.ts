@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { sendEmail } from "../_shared/email.ts";
-import { conciergeRequestOpsEmail, type OpsRequestInput } from "../_shared/email-ops.ts";
+import { type OpsItem, sendOwnerAlert } from "../_shared/ops-desk.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { redactPii } from "../_shared/redact.ts";
 import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempotency.ts";
@@ -159,26 +159,39 @@ Deno.serve(async (req) => {
       user_id: userId,
       type: body.type,
       title: labelByType[body.type] ?? "Solicitud recibida",
-      body: `Un humano revisará "${title}" y te responderá con disponibilidad y precio. Todavía no es una reserva.`,
+      body: `Una persona del equipo IATOS atiende "${title}". Verás su respuesta aquí, en Concierge › Mis solicitudes, y por correo. Todavía no es una reserva.`,
       related_id: reqRow.id,
     });
 
-    // 3) Notifica a un humano por email — sin esto la solicitud se queda en
-    // "solicitado" para siempre y nadie la atiende de verdad. El correo es una tarjeta de operaciones
-    // legible (tipo en español, lugar, fecha en hora del lugar y de CDMX, cliente, folio corto):
-    // nunca JSON crudo ni el uuid completo (_shared/email-ops.ts).
+    // 3) Aviso al dueño (FIXER_EMAIL) — sin esto la solicitud se queda en "solicitado" para siempre y
+    // nadie la atiende. Mesa de operaciones (28-oct-2026): la base marca el aviso antes de enviarlo
+    // (sin duplicados), registra si falló y health-check lo reintenta; el correo trae el asunto
+    // "Nueva solicitud: …" y el enlace directo a /admin/operaciones (_shared/ops-desk.ts). Nunca JSON
+    // crudo ni el uuid completo (_shared/email-ops.ts).
     let humanNotified = false;
     try {
-      const mail = conciergeRequestOpsEmail(await opsContext(admin, {
-        requestId: reqRow.id, type: body.type, title, tripId, payload,
-        user: { id: userId, email: userData.user.email ?? null },
-      }));
-      const sent = await sendEmail({
-        to: FIXER_EMAIL, from: FROM_ADDRESS, ...(userData.user.email ? { replyTo: userData.user.email } : {}),
-        subject: mail.subject, html: mail.html, text: mail.text,
-      });
-      humanNotified = !!sent.ok;
-      if (!sent.ok) console.error("concierge-action: no se pudo notificar al humano", sent.error);
+      const p = payload as Record<string, any>;
+      const fallback: OpsItem = {
+        source: "concierge_request", id: reqRow.id, type: body.type, title, status: reqRow.status, stage: "nueva",
+        created_at: new Date().toISOString(), payload,
+        requested_for: typeof p.requested_for === "string" ? p.requested_for
+          : typeof p.fecha === "string" ? `${p.fecha}${typeof p.hora === "string" ? `T${p.hora}` : ""}` : null,
+        party_size: Number(p.party_size ?? p.personas) > 0 ? Number(p.party_size ?? p.personas) : null,
+        place: typeof p.lugar === "string" ? p.lugar : typeof p.venue_name === "string" ? p.venue_name : null,
+        preferences: typeof p.preferences === "string" ? p.preferences : null,
+        contact_method: typeof p.contact_method === "string" ? p.contact_method : null,
+        user: { id: userId, email: userData.user.email ?? null, name: null },
+      };
+      const sent = await sendOwnerAlert({
+        rpc: (fn, args) => admin.rpc(fn, args),
+        send: (m) => sendEmail(m),
+        siteUrl: Deno.env.get("SITE_URL") ?? null,
+        ownerEmail: FIXER_EMAIL,
+        ownerFrom: FROM_ADDRESS,
+        warn: (...a) => console.warn(...a),
+      }, reqRow.id, { replyTo: userData.user.email ?? null, fallback });
+      humanNotified = sent.notified;
+      if (!sent.notified) console.error("concierge-action: no se pudo notificar al humano", sent.code ?? "");
     } catch (notifyErr) {
       console.error("concierge-action: error notificando al humano", redactPii((notifyErr as Error)?.message ?? notifyErr));
     }
@@ -201,57 +214,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
-// Datos para el correo de operaciones, leídos con service role. Cada lectura es opcional: si una
-// tabla no existe todavía (migración Privé sin aplicar) el correo sale igual, con lo que haya.
-async function opsContext(
-  // deno-lint-ignore no-explicit-any -- cliente service role sin tipos generados en las funciones
-  admin: { from(table: string): any },
-  r: { requestId: string; type: string; title: string; tripId: string | null; payload: Record<string, unknown>; user: { id: string; email: string | null } },
-): Promise<OpsRequestInput> {
-  const p = r.payload as Record<string, any>;
-  const safe = async <T>(fn: () => PromiseLike<{ data: T | null }>): Promise<T | null> => {
-    try { return (await fn()).data ?? null; } catch { return null; }
-  };
-  const profile = await safe<{ full_name: string | null }>(() => admin.from("profiles").select("full_name").eq("id", r.user.id).maybeSingle());
-  const trip = r.tripId
-    ? await safe<{ destino: string | null; fecha_salida: string | null; fecha_regreso: string | null }>(() =>
-      admin.from("trips").select("destino, fecha_salida, fecha_regreso").eq("id", r.tripId!).maybeSingle())
-    : null;
-
-  let experience: OpsRequestInput["experience"] = null;
-  let payload: Record<string, unknown> = { ...p };
-  if (r.type === "prive_request" && typeof p.experience_id === "string" && UUID.test(p.experience_id)) {
-    const exp = await safe<any>(() => admin.from("prive_experiences")
-      .select("name, website, booking_url, sources, destination_id").eq("id", p.experience_id).maybeSingle());
-    if (exp) {
-      const dest = exp.destination_id
-        ? await safe<any>(() => admin.from("prive_destinations").select("name_es, timezone, iso_country").eq("id", exp.destination_id).maybeSingle())
-        : null;
-      const firstSource = Array.isArray(exp.sources) ? exp.sources.map((x: any) => (typeof x === "string" ? x : x?.url)).find((u: unknown) => typeof u === "string") : null;
-      experience = {
-        name: exp.name, city: dest?.name_es ?? null, country: dest?.iso_country ?? null,
-        sourceUrl: exp.website ?? exp.booking_url ?? firstSource ?? null, timezone: dest?.timezone ?? null,
-      };
-    }
-  } else if (r.type === "members_nightlife_reservation" && typeof p.venue_name === "string") {
-    experience = { name: p.venue_name, city: typeof p.ciudad === "string" ? p.ciudad : null, sourceUrl: typeof p.website === "string" ? p.website : null };
-    const { venue_name: _n, ciudad: _c, website: _w, ...rest } = p;
-    payload = rest;
-  }
-
-  return {
-    requestId: r.requestId,
-    type: r.type,
-    title: r.title,
-    createdAt: new Date().toISOString(),
-    client: { name: profile?.full_name ?? null, email: r.user.email, contactMethod: typeof p.contact_method === "string" ? p.contact_method : null },
-    trip: trip ? { destination: trip.destino, dateFrom: trip.fecha_salida, dateTo: trip.fecha_regreso } : null,
-    experience,
-    requestedFor: typeof p.requested_for === "string" ? p.requested_for : null,
-    partySize: Number.isFinite(Number(p.party_size)) && Number(p.party_size) > 0 ? Number(p.party_size) : null,
-    preferences: typeof p.preferences === "string" ? p.preferences : null,
-    payload,
-    siteUrl: Deno.env.get("SITE_URL") ?? null,
-  };
-}

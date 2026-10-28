@@ -105,7 +105,7 @@ describe("Jet y equipaje (B-04)", () => {
     invoke.mockResolvedValueOnce({ data: { ok: true, request: { id: "abcdef12-0000" }, human_notified: true }, error: null });
     render(<RichCard card={SAMPLE.jet} tripId="paris" />);
     expect(screen.queryByText(/\$|USD/)).toBeNull();
-    expect(screen.getByText(/un humano te responde con disponibilidad y precio/i)).toBeInTheDocument();
+    expect(screen.getByText(/una persona del equipo IATOS te responde con disponibilidad y precio/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Solicitar cotización" }));
     expect(await screen.findByRole("button", { name: "✓ Solicitud recibida" })).toBeDisabled();
     expect(screen.getByText(/Folio ABCDEF12/)).toBeInTheDocument();

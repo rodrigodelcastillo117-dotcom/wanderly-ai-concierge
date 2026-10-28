@@ -248,7 +248,7 @@ export function useConciergeRequest(tripId?: string | null) {
       setStatus(typeof data.request.status === "string" ? data.request.status : "solicitado");
       setRequestType(payload.type);
       setState("confirmed");
-      toast.success("Solicitud recibida", { description: "Un humano te responderá con disponibilidad y precio." });
+      toast.success("Solicitud recibida", { description: "La atiende una persona del equipo IATOS. Verás su respuesta en Mis solicitudes y por correo." });
     } catch (e: any) {
       setState("error");
       toast.error(e?.message ?? "No pudimos registrar la solicitud");
@@ -279,15 +279,15 @@ function RequestNote({ state, folio, humanNotified, status, requestType }: {
       <div className="mt-2"><ReservationStateBadge status={status ?? "solicitado"} type={requestType} /></div>
       <p className="text-[11px] text-muted-foreground mt-1" role="status">
         Folio {folio}. {humanNotified
-          ? "Un humano del equipo IATOS te responderá con disponibilidad y precio. Todavía no es una reserva."
-          : "Quedó registrada, pero no pudimos avisar al equipo al instante. Si no te respondemos pronto, usa \"Hablar con una persona\"."}
+          ? "La atiende una persona del equipo IATOS: verás su respuesta en Concierge › Mis solicitudes y por correo. Todavía no es una reserva."
+          : "Quedó registrada para una persona del equipo IATOS, pero el aviso al equipo no salió al instante; se reintenta solo. Verás la respuesta en Mis solicitudes y por correo."}
       </p>
       </>
     );
   }
   return (
     <p className="text-[11px] text-muted-foreground mt-2">
-      Solicitud de cotización: un humano te responde con disponibilidad y precio reales. No es una reserva.
+      Solicitud de cotización: una persona del equipo IATOS te responde con disponibilidad y precio reales (en la app y por correo). No es una reserva.
     </p>
   );
 }

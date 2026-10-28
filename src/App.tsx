@@ -34,6 +34,7 @@ const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Discover = lazyWithRetry(() => import("./pages/Discover"));
 const Pro = lazyWithRetry(() => import("./pages/Pro"));
 const AdminMetrics = lazyWithRetry(() => import("./pages/AdminMetrics"));
+const AdminOperations = lazyWithRetry(() => import("./pages/AdminOperations"));
 const Concierge = lazyWithRetry(loadConcierge);
 const Cercanos = lazyWithRetry(() => import("./pages/Cercanos"));
 const Favoritos = lazyWithRetry(() => import("./pages/Favoritos"));
@@ -173,6 +174,10 @@ const App = () => (
             <Route path="/dashboard/concierge" element={<ProtectedRoute><Concierge /></ProtectedRoute>} />
             <Route path="/dashboard/pro" element={<ProtectedRoute><Pro /></ProtectedRoute>} />
             <Route path="/dashboard/admin" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />
+            {/* Mesa de operaciones: solicitudes que atiende una persona. El servidor exige public.admins en
+                cada RPC. /admin/operaciones es el enlace de los correos al dueño. */}
+            <Route path="/dashboard/admin/operaciones" element={<ProtectedRoute><AdminOperations /></ProtectedRoute>} />
+            <Route path="/admin/operaciones" element={<ProtectedRoute><AdminOperations /></ProtectedRoute>} />
             {/* Panel editorial de THE PRIVATE EDITION: el servidor exige public.admins en cada RPC. */}
             <Route path="/dashboard/admin/edicion" element={<ProtectedRoute><EditionAdmin /></ProtectedRoute>} />
             <Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, Send, Sparkles, MapPin, Utensils, Car, Siren,
-  Plane, Luggage, Crown, RefreshCw, Check, AlertCircle, Loader2, Info, Compass, Zap, X,
+  Plane, Luggage, Crown, RefreshCw, Check, AlertCircle, Loader2, Info, Compass, Zap, X, Inbox,
 } from "lucide-react";
 import { GlobeLoader } from "@/components/brand/GlobeLoader";
 import { useSlowLoading } from "@/hooks/useSlowLoading";
@@ -13,6 +13,7 @@ import { ConciergeActions } from "@/components/ConciergeActions";
 import { FlightStatusDialog } from "@/components/FlightStatusDialog";
 import { TravelerAvatar } from "@/components/TravelerAvatar";
 import { MembersOnlyPanel } from "@/components/MembersOnlyPanel";
+import { MyTeamRequests } from "@/components/concierge/MyTeamRequests";
 import { FixerButton } from "@/components/FixerButton";
 import { supabase } from "@/integrations/supabase/client";
 import { sessionTrulyExpired } from "@/lib/authRestore";
@@ -88,19 +89,20 @@ const Concierge = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState<"chat" | "members">(
-    searchParams.get("tab") === "members" ? "members" : "chat",
-  );
+  // Pestañas: Concierge (chat), Solo para miembros y Mis solicitudes (lo que atiende una persona del
+  // equipo, con su avance y respuesta: mesa de operaciones). ?tab=members | ?tab=solicitudes.
+  type Tab = "chat" | "members" | "solicitudes";
+  const tabFrom = (t: string | null): Tab => (t === "members" || t === "solicitudes" ? t : "chat");
+  const [tab, setTab] = useState<Tab>(tabFrom(searchParams.get("tab")));
   useEffect(() => {
-    const t = searchParams.get("tab");
-    if (t === "members" && tab !== "members") setTab("members");
-    if (t !== "members" && tab === "members") setTab("chat");
+    const t = tabFrom(searchParams.get("tab"));
+    if (t !== tab) setTab(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
-  const switchTab = (next: "chat" | "members") => {
+  const switchTab = (next: Tab) => {
     setTab(next);
     const sp = new URLSearchParams(searchParams);
-    if (next === "members") sp.set("tab", "members"); else sp.delete("tab");
+    if (next === "chat") sp.delete("tab"); else sp.set("tab", next);
     setSearchParams(sp, { replace: true });
   };
   const [allowed, setAllowed] = useState<boolean | null>(null);
@@ -490,7 +492,7 @@ const Concierge = () => {
         {/* ENCABEZADO compacto del chat (en Members Only se oculta para que la curaduría quepa sin bajar):
             título en una línea y, debajo, ubicación · viaje en contexto · actualizar · memoria, todo en
             un renglón que se recorta en vez de desbordarse. */}
-        <div className={`px-3 md:px-6 lg:pr-28 pt-2 pb-2 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur ${tab === "members" ? "hidden" : ""}`}>
+        <div className={`px-3 md:px-6 lg:pr-28 pt-2 pb-2 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur ${tab !== "chat" ? "hidden" : ""}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               {/* Encabezado según el plan real: a cuentas gratis ya no les dice "Concierge PRO". */}
@@ -534,28 +536,41 @@ const Concierge = () => {
         </div>
 
         {/* TABS: Chat / Members Only */}
-        <div className="px-3 md:px-6 border-b border-border bg-background/60 backdrop-blur flex gap-1">
+        <div className="px-2 sm:px-3 md:px-6 border-b border-border bg-background/60 backdrop-blur flex gap-1">
           <button
             onClick={() => switchTab("chat")}
-            className={`relative px-3 py-2 text-sm tracking-wide transition ${
+            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-sm tracking-wide transition ${
               tab === "chat" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="inline-flex items-center gap-2"><Crown className="w-3.5 h-3.5" />Concierge</span>
+            <span className="inline-flex items-center gap-2"><Crown className="hidden sm:block w-3.5 h-3.5" />Concierge</span>
             {tab === "chat" && <span className="absolute left-2 right-2 -bottom-px h-0.5 bg-gradient-gold rounded-full" />}
           </button>
           <button
             onClick={() => switchTab("members")}
-            className={`relative px-3 py-2 text-sm tracking-wide transition ${
+            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-sm tracking-wide transition ${
               tab === "members" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="inline-flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" />Solo para miembros</span>
+            <span className="inline-flex items-center gap-2"><Sparkles className="hidden sm:block w-3.5 h-3.5" />Solo para miembros</span>
             {tab === "members" && <span className="absolute left-2 right-2 -bottom-px h-0.5 bg-gradient-gold rounded-full" />}
+          </button>
+          <button
+            onClick={() => switchTab("solicitudes")}
+            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-sm tracking-wide transition ${
+              tab === "solicitudes" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <span className="inline-flex items-center gap-2"><Inbox className="hidden sm:block w-3.5 h-3.5" /><span className="sm:hidden">Solicitudes</span><span className="hidden sm:inline">Mis solicitudes</span></span>
+            {tab === "solicitudes" && <span className="absolute left-2 right-2 -bottom-px h-0.5 bg-gradient-gold rounded-full" />}
           </button>
         </div>
 
-        {tab === "members" ? (
+        {tab === "solicitudes" ? (
+          <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4">
+            <MyTeamRequests />
+          </div>
+        ) : tab === "members" ? (
           <div className="flex-1 overflow-y-auto">
             <MembersOnlyPanel
               preferredCities={[weather?.place, trip?.destino]}

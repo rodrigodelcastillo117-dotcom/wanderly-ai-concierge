@@ -14,6 +14,7 @@ import { probeTripadvisor } from "../_shared/tripadvisor-terra.ts";
 import { probeTravelAdvisories } from "../_shared/travelAdvisories.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { alertEmail, alertRecipients, emailOutcome, jobHealth, shouldEmail, type CronHealth, type PreviousRun } from "./alerts.ts";
+import { retryOpsEmails } from "../_shared/ops-desk.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -63,6 +64,23 @@ Deno.serve(async (req) => {
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { persistSession: false },
   });
+
+  // Mesa de operaciones: reintenta los correos que no salieron (aviso al dueño de una solicitud nueva y
+  // respuestas del equipo a usuarios). Corre en la revisión diaria; para reintentar más seguido se puede
+  // programar SOLO esta acción (docs/ops/LEEME.md, "Mesa de operaciones"; no está programada):
+  //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=ops_correos" -H "x-cron-secret: $CRON_SECRET"
+  const opsRetry = () => retryOpsEmails({
+    rpc: (fn, args) => db.rpc(fn, args),
+    send: (m) => sendEmail(m),
+    siteUrl: env("SITE_URL") ?? null,
+    ownerEmail: env("FIXER_EMAIL") || "hola@traveliatos.life",
+    ownerFrom: env("FIXER_FROM_ADDRESS") || "IATOS Fixer <hola@traveliatos.life>",
+    replyFrom: env("OPS_REPLY_FROM") || "IATOS <hola@traveliatos.life>",
+    replyTo: env("FIXER_EMAIL") || "hola@traveliatos.life",
+    supportEmail: env("SUPPORT_EMAIL") ?? null,
+  }).catch((e) => ({ error: redactSecrets((e as Error)?.message ?? String(e)) }));
+  if (new URL(req.url).searchParams.get("action") === "ops_correos") return json(await opsRetry());
+  const ops = await opsRetry();
   // Ritmo real de búsquedas de SerpApi (promedio de 7 días en ai_usage_log). Si la migración no está
   // o no hay historial, el chequeo usa el umbral fijo.
   const { data: burn, error: burnErr } = await db.rpc("serp_burn_rate", { _days: 7 });
@@ -135,5 +153,5 @@ Deno.serve(async (req) => {
     if (updErr) console.error("health-check: no se pudo guardar el resultado del correo", redactSecrets(updErr.message));
   }
 
-  return json({ ok, email_status: emailStatus, email_error: emailError, results });
+  return json({ ok, email_status: emailStatus, email_error: emailError, results, ops });
 });

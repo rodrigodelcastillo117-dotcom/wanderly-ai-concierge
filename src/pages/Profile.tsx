@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import BenefitsVault from "@/components/BenefitsVault";
 import PromocionesActivas from "@/components/PromocionesActivas";
 import AvatarCreator from "@/components/AvatarCreator";
-import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp, BarChart3, FileUp, Trash2 } from "lucide-react";
+import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp, BarChart3, Inbox, FileUp, Trash2 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -358,6 +358,19 @@ const Profile = () => {
             <div className="flex-1">
               <p className="font-medium">Panel de métricas</p>
               <p className="text-xs text-muted-foreground">Usuarios, viajes, reservas y crecimiento en vivo</p>
+            </div>
+          </button>
+        )}
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/admin/operaciones")}
+            className="w-full glass-card rounded-xl p-5 flex items-center gap-3 text-left hover:border-primary/40 transition"
+          >
+            <Inbox className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium">Mesa de operaciones</p>
+              <p className="text-xs text-muted-foreground">Solicitudes que atiende una persona del equipo</p>
             </div>
           </button>
         )}

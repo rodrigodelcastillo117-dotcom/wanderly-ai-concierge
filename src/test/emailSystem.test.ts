@@ -315,7 +315,8 @@ describe("correos internos de operaciones", () => {
 
   it("reserva Privé legible: tipo en español, hora del lugar y de CDMX, folio corto, sin JSON ni uuid", () => {
     const m = conciergeRequestOpsEmail(prive);
-    expect(m.subject).toBe("[IATOS Concierge] Reserva Privé · Le Bernardin · 14 de nov., 20:00 h · 4 pers. · Valentina Ruiz · Folio 4BE1C0DE");
+    // Mesa de operaciones: asunto que se entiende sin abrir el correo ("Nueva solicitud: … en … para … el …").
+    expect(m.subject).toBe("Nueva solicitud: Reserva Privé en Le Bernardin para 4 personas el 14 de nov., 20:00 h · Valentina Ruiz · Folio 4BE1C0DE");
     expect(m.text).toContain("Fecha y hora: 14 de nov. de 2026, 20:00 h (hora del lugar) · 14 de nov. de 2026, 19:00 h (hora CDMX)");
     expect(m.text).toContain("Estado: Pendiente de confirmar — el cliente ve «solicitud recibida», no «reserva».");
     expect(m.text).toContain("Prefiere: WhatsApp");

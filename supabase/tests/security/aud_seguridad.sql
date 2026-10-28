@@ -107,7 +107,12 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- trip_split_can_edit / trip_split_payment_party_ok: las usan las políticas; responden por auth.uid().
   -- Pruebas de abuso en supabase/tests/gastos.
   ('trip_split_members'),('trip_split_sync_members'),('trip_split_claim_guest'),('trip_split_unlink'),
-  ('trip_split_can_edit'),('trip_split_payment_party_ok')),
+  ('trip_split_can_edit'),('trip_split_payment_party_ok'),
+  -- Mesa de operaciones (20261028180000): admin_ops_list y admin_ops_act exigen auth.uid() en public.admins
+  -- (42501 si no; ni la llave de servicio sin persona) y cambian Privé / reservas IA solo con sus funciones de
+  -- transición; my_team_requests responde solo por auth.uid() y no dice quién del equipo actuó.
+  -- Pruebas en supabase/tests/mesa (S1–S10, U1–U8).
+  ('admin_ops_list'),('admin_ops_act'),('my_team_requests')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)

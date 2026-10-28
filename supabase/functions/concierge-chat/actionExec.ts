@@ -124,14 +124,22 @@ export async function executeAction(type: unknown, params: unknown, ctx: ActionC
       const folio = String(r.json?.request?.id ?? "").slice(0, 8).toUpperCase();
       // AUD-IATO-03: si el correo al equipo falló, la solicitud quedó guardada pero ningún humano la
       // vio todavía: no se promete respuesta (mismo criterio que RequestNote en ConciergeCards).
+      // Mesa de operaciones: la atiende una persona del equipo y la respuesta llega a la app (Concierge ›
+      // Mis solicitudes) y por correo. Sin tiempos prometidos: no hay un horario de atención garantizado.
       if (r.json?.human_notified === false) {
         return {
           ok: true,
-          message: `Tu solicitud quedó registrada${folio ? ` (folio ${folio})` : ""}, pero no pudimos avisar al equipo al instante. Aún no está reservado. Si no te respondemos pronto, usa el botón Hablar con una persona.`,
+          message: `Tu solicitud quedó registrada${folio ? ` (folio ${folio})` : ""} para una persona del equipo IATOS, pero no pudimos avisar al equipo al instante; el aviso se reintenta solo. Verás la respuesta en la app (Concierge › Mis solicitudes) y por correo. Aún no está reservado.`,
+          link: "/dashboard/concierge?tab=solicitudes",
           data: { folio, status: "solicitado", human_notified: false },
         };
       }
-      return { ok: true, message: `Solicitud enviada a nuestro equipo${folio ? ` (folio ${folio})` : ""}. Estado: solicitado. Aún no está reservado; te avisamos cuando haya respuesta.`, data: { folio, status: "solicitado", human_notified: true } };
+      return {
+        ok: true,
+        message: `Solicitud enviada a nuestro equipo${folio ? ` (folio ${folio})` : ""}. Estado: solicitado. La atiende una persona del equipo IATOS: verás su respuesta en la app (Concierge › Mis solicitudes) y por correo. Aún no está reservado.`,
+        link: "/dashboard/concierge?tab=solicitudes",
+        data: { folio, status: "solicitado", human_notified: true },
+      };
     }
     case "prive_request": {
       if (!d.priveSession) return { ok: false, code: "PRIVE_NO_SESSION", message: REASON_TEXT.sin_sesion_prive };
@@ -141,7 +149,7 @@ export async function executeAction(type: unknown, params: unknown, ctx: ActionC
         ...(d.idempotencyKey ? { idempotency_key: d.idempotencyKey } : {}),
       }, { "x-prive-session": d.priveSession });
       if (r.status !== 200 || !r.json?.ok) return fnError(r, "No pude enviar la solicitud Privé. Revisa que Privé siga desbloqueado.");
-      return { ok: true, message: "Solicitud Privé enviada. Estado: solicitado. Aún no está reservado: el equipo te confirma cuando el lugar responda.", link: "/prive/solicitudes" };
+      return { ok: true, message: "Solicitud Privé enviada. La atiende una persona del equipo IATOS: verás su respuesta en la app y por correo. Aún no está reservado: te confirmamos cuando el lugar responda.", link: "/prive/solicitudes" };
     }
     default:
       return { ok: false, code: "UNKNOWN", message: "Acción no disponible." };

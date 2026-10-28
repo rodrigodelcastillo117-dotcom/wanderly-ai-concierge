@@ -30,6 +30,10 @@ verify_jwt = true
 [functions.concierge-chat]
 verify_jwt = true
 
+# Mesa de operaciones: correo al usuario con la respuesta del equipo (solo public.admins).
+[functions.ops-desk]
+verify_jwt = true
+
 [functions.editar-viaje-ai]
 verify_jwt = true
 

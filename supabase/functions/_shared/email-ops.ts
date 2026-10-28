@@ -12,23 +12,10 @@ import {
   SANS, SERIF, shell, textFooter,
 } from "./email-kit.ts";
 import { CDMX_TZ, escapeHtml, formatDateMx, formatDateRange, formatDateTime, oneLine, safeUrl } from "./email-format.ts";
+import { folioOf, opsTypeLabel } from "./ops-labels.ts";
 
-export const OPS_TYPE_LABEL: Record<string, string> = {
-  prive_request: "Reserva Privé",
-  members_nightlife_reservation: "Reserva Members Only",
-  reservation: "Reserva de mesa",
-  pickup: "Recolección de equipaje",
-  transport: "Transporte",
-  jet: "Jet privado",
-  alert: "Alerta del concierge",
-  fixer: "Solicitud al Fixer",
-};
-
-export const opsTypeLabel = (type: string) =>
-  OPS_TYPE_LABEL[type] ?? (oneLine(type.replace(/_/g, " "), 40).replace(/^./, (c) => c.toUpperCase()) || "Solicitud");
-
-/** Folio corto: las primeras 8 letras/números del id, en mayúsculas (igual que el folio de la app). */
-export const folioOf = (id: string | null | undefined) => String(id ?? "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase() || "—";
+// Tipos en español y folio corto: los comparte la mesa de operaciones (_shared/ops-labels.ts).
+export { folioOf, OPS_TYPE_LABEL, opsTypeLabel } from "./ops-labels.ts";
 
 const TEST_DOMAINS = /@(mailinator\.com|example\.(com|org|net)|[a-z0-9.-]+\.(test|invalid|example|localhost))$/i;
 
@@ -104,6 +91,7 @@ const DETAIL_LABEL: Record<string, string> = {
   venue_name: "Lugar", ciudad: "Ciudad", categoria: "Categoría", dress_code: "Código de vestimenta",
   precio_estimado: "Precio de referencia (catálogo)", address: "Dirección", website: "Sitio web", por_que: "Por qué lo eligió",
   fecha: "Fecha", hora: "Hora", personas: "Personas", notas: "Notas",
+  detalle: "Lo que pidió", lugar: "Lugar", origen: "Pedido desde",
 };
 // Lo que ya se muestra en su propio renglón o son ids internos.
 const SKIP = new Set(["experience_id", "requested_for", "party_size", "preferences", "contact_method", "plan_group", "venue_id", "trip_id", "user_id", "user_email", "email"]);
@@ -183,15 +171,13 @@ export function conciergeRequestOpsEmail(i: OpsRequestInput): Email {
   const contact = i.client.contactMethod ? CONTACT_LABEL[i.client.contactMethod] ?? oneLine(i.client.contactMethod, 30) : null;
   const created = formatDateTime(i.createdAt ?? new Date().toISOString());
 
-  const subjectBits = [
-    type,
-    place ?? title,
-    times.venue ? times.venue.replace(/ de 20\d\d/, "") : null,
-    party ? `${party} pers.` : null,
-    clientName ?? (email ? email.replace(/@.*/, "@…") : null),
-    `Folio ${folio}`,
-  ].filter(Boolean);
-  const subject = oneLine(`${test ? "[PRUEBA] " : ""}[IATOS Concierge] ${subjectBits.join(" · ")}`, 180);
+  // Asunto que se entiende sin abrir el correo (mesa de operaciones, 28-oct-2026):
+  // "Nueva solicitud: Reserva de mesa en Contramar para 4 personas el 2 de nov., 20:30 h · Ana · Folio 7E30…".
+  const when = times.venue ? times.venue.replace(/ de 20\d\d/, "") : null;
+  const what = `${type}${place ? ` en ${place}` : title && title !== type ? ` · ${title}` : ""}`
+    + (party ? ` para ${party} ${party === 1 ? "persona" : "personas"}` : "") + (when ? ` el ${when}` : "");
+  const who = clientName ?? (email ? email.replace(/@.*/, "@…") : null);
+  const subject = oneLine(`${test ? "[PRUEBA] " : ""}Nueva solicitud: ${[what, who, `Folio ${folio}`].filter(Boolean).join(" · ")}`, 180);
   const preheader = `Pendiente de confirmar · ${[place ?? title, times.venue, party ? `${party} personas` : null].filter(Boolean).join(" · ")}`;
 
   const status = `<span style="display:inline-block;padding:6px 12px;border:1px solid ${EK.warn};font-family:${SANS};font-size:10px;line-height:14px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:${EK.warn};">◌&nbsp;Pendiente de confirmar</span>`;
@@ -232,7 +218,7 @@ export function conciergeRequestOpsEmail(i: OpsRequestInput): Email {
     callout(escapeHtml(email
       ? "Responder a este correo le escribe directo al cliente. Confirma disponibilidad y precio reales con el lugar antes de decir que está reservado."
       : "Confirma disponibilidad y precio reales con el lugar antes de decir que está reservado.")),
-    i.adminUrl && safeUrl(i.adminUrl) ? gap(28) + button(i.adminUrl, "Abrir la solicitud") : (source ? gap(28) + button(source, "Ver el lugar") : ""),
+    i.adminUrl && safeUrl(i.adminUrl) ? gap(28) + button(i.adminUrl, "Atender en la mesa") : (source ? gap(28) + button(source, "Ver el lugar") : ""),
     gap(18),
     para(`Para encontrarla en la base: concierge_requests con id que empieza con ${escapeHtml(folio.toLowerCase())}.`, { align: "center", size: 11, color: EK.faint }),
   ];
@@ -259,6 +245,7 @@ export function conciergeRequestOpsEmail(i: OpsRequestInput): Email {
     source ? `Fuente del lugar: ${source}` : null,
     `Recibida: ${created ?? ""} (hora CDMX)`,
     "",
+    i.adminUrl && safeUrl(i.adminUrl) ? `Atender en la mesa de operaciones: ${safeUrl(i.adminUrl)}` : null,
     email ? "Responder a este correo le escribe directo al cliente." : null,
     "Confirma disponibilidad y precio reales con el lugar antes de decir que está reservado.",
     "",

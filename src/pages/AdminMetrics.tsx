@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, Loader2, RefreshCw, ShieldAlert } from "lucide-react";
+import { Download, Inbox, Loader2, RefreshCw, ShieldAlert } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ServiceHealthCard } from "@/components/ServiceHealthCard";
@@ -176,7 +177,10 @@ const AdminMetrics = () => {
               Datos en vivo de la base de producción · {new Date(m.generated_at).toLocaleString("es-MX")}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" className="bg-gradient-gold text-primary-foreground hover:opacity-90">
+              <Link to="/dashboard/admin/operaciones"><Inbox className="w-3.5 h-3.5 mr-1.5" />Mesa de operaciones</Link>
+            </Button>
             <Button variant="outline" size="sm" onClick={load}><RefreshCw className="w-3.5 h-3.5 mr-1.5" />Actualizar</Button>
             <Button variant="outline" size="sm" onClick={download}><Download className="w-3.5 h-3.5 mr-1.5" />Descargar</Button>
           </div>

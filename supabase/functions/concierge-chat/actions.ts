@@ -209,7 +209,7 @@ export function validateAction(type: unknown, rawParams: unknown, ctx: ActionCon
         ...(!("error" in r) && r.trip ? { trip_id: r.trip.id } : {}),
       };
       return ok(params, `Pedírselo a nuestro equipo: ${titulo}`, "Pedírselo a una persona del equipo",
-        "Una persona del equipo IATOS lo gestiona y te avisa. Aún no está reservado.");
+        "La atiende una persona del equipo IATOS; verás su respuesta en la app y por correo. Aún no está reservado.");
     }
     case "prive_request": {
       const exp = typeof p.experience_id === "string" && UUID.test(p.experience_id) ? p.experience_id : null;

@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { splitBookings } from "@/lib/bookingKinds";
 import { formatInstant } from "@/lib/localDate";
 import { AiReservationsPanel } from "@/components/reservas/AiReservationsPanel";
+import { MyTeamRequests } from "@/components/concierge/MyTeamRequests";
 
 type Booking = {
   id: string;
@@ -152,6 +153,9 @@ const Reservas = () => {
 
         {/* Reservas IA por correo: solo aparece si hay alguna (la función está apagada por defecto). */}
         <AiReservationsPanel />
+
+        {/* Lo que atiende una persona del equipo (mesa de operaciones): estado real y respuesta. */}
+        <MyTeamRequests compact />
 
         {!loading && (
           <section aria-labelledby="reservas-confirmadas" className="space-y-3">

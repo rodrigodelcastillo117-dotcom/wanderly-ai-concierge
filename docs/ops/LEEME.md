@@ -407,3 +407,39 @@ todo en vivo).
 
 Concesiones, revocaciones por fraude, restauraciones y desbloqueos: SQL listo en
 `docs/iatos/IATOS_PRIVE_INVITATIONS.md` §8. Todo queda en `prive_membership_events` con tu nombre.
+
+## Mesa de operaciones (solicitudes que atiende una persona)
+
+Pantalla: `/admin/operaciones` (también `/dashboard/admin/operaciones`, botón en Métricas y en Perfil). Solo
+cuentas en `public.admins` (paso 4 de `programar-tareas.sql`); la base lo exige en cada función.
+
+- Migración: `supabase/migrations/20261028180000_mesa_operaciones.sql` (idempotente). Pruebas: `supabase/tests/mesa/`.
+- Funciones a publicar: `concierge-action` (aviso al dueño con marca de enviado y enlace a la mesa),
+  `ops-desk` (nueva; correo al usuario con la respuesta del equipo), `health-check` (reintento de correos),
+  `concierge-chat` (textos de Iato: lo atiende una persona, respuesta en la app y por correo, sin tiempos).
+- Orden: primero la migración, después las funciones. Si `concierge-action` se publica antes, el aviso al
+  dueño sale igual (sin marca).
+- Secretos opcionales: `FIXER_EMAIL` (por omisión hola@traveliatos.life), `OPS_REPLY_FROM` (remitente del
+  correo al usuario, por omisión `IATOS <hola@traveliatos.life>`), `SITE_URL`.
+
+Reintento: la revisión diaria de `health-check` reenvía los avisos al dueño y las respuestas a usuarios que
+fallaron (máximo 6 y 5 intentos, últimos 3 y 7 días). Para reintentar cada 15 minutos se puede programar SOLO
+esa acción. **No está programada**; si el dueño lo decide:
+
+```sql
+SELECT cron.schedule(
+  'ops-correos-every-15-min',
+  '*/15 * * * *',
+  $cmd$
+  SELECT net.http_post(
+    url := 'https://uhkdewinscffhdonhhmt.supabase.co/functions/v1/health-check?action=ops_correos',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_shared_secret' LIMIT 1)
+    ),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 60000
+  );
+  $cmd$
+);
+```

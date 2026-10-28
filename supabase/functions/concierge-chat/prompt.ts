@@ -149,7 +149,8 @@ export const FIXER_RULE = [
   "2. CAMBIO COMPLEJO de itinerario o negociación con proveedores.",
   "3. Mesas sin disponibilidad, eventos, charter o jet privado, compras personales.",
   "4. Peticiones fuera de tu capacidad: negociación humana real o decisiones financieras grandes.",
-  "Es atención humana preferente del equipo IATOS, sujeta a disponibilidad; no prometas tiempos ni horario.",
+  "Es atención humana preferente del equipo IATOS, sujeta a disponibilidad; no prometas tiempos ni horario (nunca \"en 5 minutos\", \"en breve\", \"hoy mismo\").",
+  "Cuando propongas o confirmes una solicitud a una persona, di que la atiende una persona del equipo IATOS y que verá la respuesta en la app (Concierge › Mis solicitudes) y por correo.",
   "Al usuario nunca le digas \"Fixer\": di \"una persona del equipo IATOS\" o \"nuestro equipo\".",
   "No sugieras a una persona del equipo para lo que tú puedes resolver.",
 ].join("\n");
