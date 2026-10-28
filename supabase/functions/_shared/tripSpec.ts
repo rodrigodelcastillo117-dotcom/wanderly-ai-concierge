@@ -270,11 +270,21 @@ export function validateTripSpec(raw: unknown, text: string, ctx: { origen?: str
     return { texto, tipo, estado, ref: str(m?.ref, 24) } as Mention;
   }).filter(Boolean) as Mention[];
 
+  // Regreso con modo ya dicho ("en coche"): no se pregunta cómo regresas (E2E Valle de Bravo, 28-oct-2026:
+  // regreso.modo "coche" y aun así "¿Regresas a Ciudad de México en coche o de otra forma?").
+  if (spec.regreso.modo !== "por_definir") spec.preguntas = spec.preguntas.filter((q) => !isReturnModeQuestion(q));
   // Preguntas obligatorias que el modelo pudo omitir.
   addRequiredQuestions(spec);
   // Cobertura: una mención apuntando a algo que no existe se vuelve pregunta.
   repairCoverage(spec);
   return { ok: true, spec };
+}
+
+/** ¿Pregunta cómo se regresa (coche, vuelo, otro medio)? */
+export function isReturnModeQuestion(q: Pick<Question, "tipo" | "pregunta" | "texto">): boolean {
+  if (q.tipo !== "otro") return false;
+  const t = normText(`${q.pregunta} ${q.texto}`);
+  return /\b(regres\w*|vuelta|volver\w*|vuelves)\b/.test(t) && /\b(coche|auto|carro|avion|vuelo|tren|autobus|ferry|medio|forma|como)\b/.test(t);
 }
 
 /** Preguntas que siempre deben estar (aunque el modelo no las haya puesto). */
