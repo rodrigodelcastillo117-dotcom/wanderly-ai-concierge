@@ -46,6 +46,7 @@ import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts
 import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
 import { TripExperiencias } from "@/components/trip/TripExperiencias";
 import { tripCities } from "@/lib/experiencias";
+import { BeforeYouTravelCard } from "@/components/trip/BeforeYouTravelCard";
 import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
 import { SendSelectionEmail } from "@/components/booking/SendSelectionEmail";
@@ -919,6 +920,10 @@ const TripDetail = () => {
             );
           })}
         </div>
+
+        {/* Antes de viajar: avisos oficiales (SRE primero; GOV.UK y State Dept con fuente y fecha). Solo
+            consulta cuando esta pestaña está visible. */}
+        <BeforeYouTravelCard trip={trip} destinations={destinationsMulti} active={section === "destinos"} />
 
         {/* Tramo crucero que pidió la persona (puertos y fechas; precio por cotizar con la naviera). */}
         <CruiseLegsCard trip={trip} />

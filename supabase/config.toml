@@ -12,6 +12,9 @@ verify_jwt = true
 [functions.auditar-perfil]
 verify_jwt = true
 
+[functions.avisos-viaje]
+verify_jwt = true
+
 [functions.buscar-promociones]
 verify_jwt = true
 

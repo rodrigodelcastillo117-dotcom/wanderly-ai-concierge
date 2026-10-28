@@ -11,6 +11,7 @@ import { probeGoogleApis } from "./googleProbe.ts";
 import { probeStripeConfig } from "./stripeProbe.ts";
 import { probeTicketmaster } from "../_shared/ticketmaster.ts";
 import { probeTripadvisor } from "../_shared/tripadvisor-terra.ts";
+import { probeTravelAdvisories } from "../_shared/travelAdvisories.ts";
 import { googleTransportFor } from "../_shared/google-runtime.ts";
 import { alertEmail, alertRecipients, emailOutcome, jobHealth, shouldEmail, type CronHealth, type PreviousRun } from "./alerts.ts";
 
@@ -49,6 +50,13 @@ Deno.serve(async (req) => {
   if (new URL(req.url).searchParams.get("action") === "tripadvisor") {
     const muestra = new URL(req.url).searchParams.get("muestra") === "1";
     return json(await probeTripadvisor({ fetchImpl: fetch, apiKey: Deno.env.get("TRIPADVISOR_API_KEY"), muestra }));
+  }
+
+  // Diagnóstico bajo demanda de los avisos de viaje oficiales (tarjeta "Antes de viajar"): descarga el
+  // índice de GOV.UK y la lista del State Dept y cuenta países/avisos. Sin IA, sin caché, sin llaves.
+  //   curl -X POST "$SUPABASE_URL/functions/v1/health-check?action=avisos" -H "x-cron-secret: $CRON_SECRET"
+  if (new URL(req.url).searchParams.get("action") === "avisos") {
+    return json(await probeTravelAdvisories({ fetchImpl: fetch }));
   }
 
   const env = (k: string) => Deno.env.get(k) ?? undefined;
