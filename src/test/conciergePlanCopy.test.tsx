@@ -50,9 +50,11 @@ describe("textos por plan", () => {
       const t = membersOnlySubtitle({ isPro });
       expect(t).not.toMatch(/gestionadas por tu Concierge PRO/);
       expect(t).toMatch(/la confirmación depende de cada lugar/);
-      expect(t.toLowerCase()).toContain(FIXER_LINE.toLowerCase());
+      // Auditoría Privé P1-5: sin "acceso preferente" (no hay prioridad real que lo respalde).
+      expect(t).not.toMatch(/preferente|prioridad/i);
+      expect(FIXER_LINE).not.toMatch(/preferente|prioridad/i);
     }
-    expect(membersOnlySubtitle({ isPro: false })).toMatch(/^.*Con IATOS PRO:/);
+    expect(membersOnlySubtitle({ isPro: false })).toMatch(/Con IATOS PRO\.$/);
   });
   it("ninguna pantalla vuelve a poner el texto fijo", () => {
     const root = join(__dirname, "..", "..");

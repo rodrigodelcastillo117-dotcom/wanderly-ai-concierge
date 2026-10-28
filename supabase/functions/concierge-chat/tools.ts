@@ -58,15 +58,25 @@ const MAX_STRING = 400;
  * JSON quedaba inválido y la IA recibía un error en lugar de los resultados. Ahora se recortan
  * textos largos y, si aún no cabe, se quitan elementos del final de la lista más larga.
  */
+export const PLACE_LIST_MAX_CHARS = 9000;
+
 export function slimToolResult(value: unknown, maxChars = 6000): unknown {
-  const shorten = (v: unknown): unknown => {
-    if (typeof v === "string") return v.length > MAX_STRING ? `${v.slice(0, MAX_STRING)}…` : v;
-    if (Array.isArray(v)) return v.map(shorten);
-    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, shorten(x)]));
+  const shorten = (v: unknown, key = ""): unknown => {
+    // El nombre de la foto de Google (photo_ref) cortado ya no sirve: se queda entero (hasta 1200).
+    if (typeof v === "string") return v.length > (key === "photo_ref" ? 1200 : MAX_STRING) ? `${v.slice(0, MAX_STRING)}…` : v;
+    if (Array.isArray(v)) return v.map((x) => shorten(x));
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, shorten(x, k)]));
     return v;
   };
   const out = shorten(value);
   const size = () => JSON.stringify(out).length;
+
+  // Antes de quitar resultados se adelgaza cada uno (auditoría 10 #3: tripadvisor-search devolvía 10
+  // lugares de ~4 KB, casi todo `photo_refs`, y el tope dejaba 1 solo: "solo me devolvió un resultado").
+  // 1) fuera las listas de fotos y reseñas (la card usa `photo_ref`, que se queda) y lo vacío;
+  // 2) si aún no cabe, descripciones más cortas; 3) solo entonces se quitan resultados del final.
+  if (size() > maxChars) lighten(out, 0);
+  if (size() > maxChars) shortenDescriptions(out, 160);
 
   const longestArray = (v: unknown): unknown[] | null => {
     let best: unknown[] | null = null;
@@ -90,6 +100,34 @@ export function slimToolResult(value: unknown, maxChars = 6000): unknown {
   if (size() > maxChars) return { error: "resultado demasiado grande", truncated: true };
   if (trimmed && out && typeof out === "object" && !Array.isArray(out)) (out as Record<string, unknown>).truncated = true;
   return out;
+}
+
+/** Llaves pesadas de cada resultado que el modelo no necesita para responder. */
+const HEAVY_KEYS = new Set(["photo_refs", "photos", "images", "reviews", "user_reviews", "gallery", "thumbnails", "raw", "html_attributions"]);
+
+function lighten(v: unknown, depth: number): void {
+  if (Array.isArray(v)) { v.forEach((x) => lighten(x, depth + 1)); return; }
+  if (!v || typeof v !== "object") return;
+  const o = v as Record<string, unknown>;
+  for (const k of Object.keys(o)) {
+    const x = o[k];
+    // Solo dentro de listas (los resultados), nunca el sobre de la respuesta.
+    const inItem = depth >= 1;
+    if (inItem && (HEAVY_KEYS.has(k) || x === null || x === "" || (Array.isArray(x) && x.length === 0))) { delete o[k]; continue; }
+    // El mismo id dos veces (id y place_id).
+    if (inItem && k === "id" && typeof o.place_id === "string" && o.place_id === x) { delete o[k]; continue; }
+    lighten(x, depth + (Array.isArray(x) ? 0 : 1));
+  }
+}
+
+function shortenDescriptions(v: unknown, max: number): void {
+  if (Array.isArray(v)) { v.forEach((x) => shortenDescriptions(x, max)); return; }
+  if (!v || typeof v !== "object") return;
+  const o = v as Record<string, unknown>;
+  for (const [k, x] of Object.entries(o)) {
+    if (typeof x === "string" && /^(description|descripcion|editorial_summary|snippet|resumen)$/.test(k) && x.length > max) o[k] = `${x.slice(0, max)}…`;
+    else shortenDescriptions(x, max);
+  }
 }
 
 export const TOOL_TIMEOUT_MS = 15_000;

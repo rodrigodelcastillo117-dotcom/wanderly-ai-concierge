@@ -17,28 +17,9 @@ export const NARRATIVE_RULES = `REGLAS DEL TEXTO (analisis_narrativo, tips_perso
 - Trayecto en coche: casetas y gasolina son el costo del coche, nunca "por persona".
 - Fuentes: nombra solo lo que la persona reconoce ("Google Flights", "Google Hotels", "Google Maps", "Aviasales", "datos en vivo"); nunca proveedores técnicos (SerpApi, Perplexity, Travelpayouts, API). La bóveda de beneficios se llama "tus documentos y tarjetas".`;
 
-/**
- * Nombres técnicos de proveedores → lo que ve la persona (pedido del dueño, 28-oct-2026: el análisis decía
- * "vía SerpApi" y "Perplexity"). Solo cambia el nombre de la fuente, nunca un dato.
- */
-export function scrubProviders(text: string): string {
-  return text
-    .replace(/\bSerpApi\s*\/\s*/gi, "")
-    .replace(/\s*\/\s*SerpApi\b/gi, "")
-    .replace(/\s*\((?:v[ií]a\s+)?SerpApi\)/gi, "")
-    .replace(/\s+(?:v[ií]a|de|desde|en)\s+SerpApi\b/gi, "")
-    .replace(/\bSerpApi\b/gi, "datos en vivo")
-    .replace(/\bTravelpayouts\s*\/\s*Aviasales\b/gi, "Aviasales")
-    .replace(/\bTravelpayouts\b/gi, "Aviasales")
-    .replace(/\b(?:seg[uú]n|de|en|v[ií]a)\s+Perplexity\b/gi, "según búsquedas web")
-    .replace(/\bPerplexity\b/gi, "búsqueda web")
-    .replace(/\btu B[oó]veda (est[aá]|esta) vac[ií]a\b/g, "no tienes tarjetas ni programas guardados")
-    .replace(/\btu B[oó]veda\b/g, "tus documentos y tarjetas")
-    .replace(/\bla B[oó]veda\b/g, "Documentos y tarjetas")
-    .replace(/\bB[oó]veda\b/g, "Documentos y tarjetas")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/\s+([,.;:)])/g, "$1");
-}
+// scrubProviders vive en _shared/providerNames.ts (también lo usa Iato, concierge-chat).
+export { scrubProviders } from "../_shared/providerNames.ts";
+import { scrubProviders } from "../_shared/providerNames.ts";
 
 const norm = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9ñ]+/g, " ").trim();
 

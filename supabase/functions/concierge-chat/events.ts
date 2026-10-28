@@ -208,7 +208,7 @@ async function runGoogleEventSearch(args: Record<string, unknown>, deps: EventSe
   if (!deps.serpKey) return { error: "no_configurado" };
   let paused: "budget" | "quota" | null = null;
   try { paused = deps.brake ? await deps.brake.paused() : null; } catch { paused = null; }
-  if (paused) return saved() ?? { error: "busquedas_en_pausa" };
+  if (paused) return saved() ?? { error: "busquedas_en_pausa", pausa: paused };
 
   let refund: (() => Promise<void>) | undefined;
   if (deps.gate) {
@@ -327,7 +327,15 @@ export async function runEventSearch(args: Record<string, unknown>, deps: EventS
   } catch {
     tm = { ok: false, code: "ticketmaster_error", motivo: "Ticketmaster no respondió." };
   }
-  const tmOk = tm.ok === true ? tm : null;
+  let tmOk = tm.ok === true ? tm : null;
+  // "Aquí" sin eventos alrededor de la ubicación: antes de gastar SerpApi, otra vez Ticketmaster (gratis)
+  // con la ciudad (auditoría 10 #5: CDMX en Día de Muertos quedó sin eventos).
+  if (tmOk && tmOk.results.length === 0 && deps.nearCoords && city) {
+    try {
+      const byCity = await deps.ticketmaster({ city, coords: null, from, to, category: query || null, keyword: query || null });
+      if (byCity.ok === true && byCity.results.length) tmOk = byCity;
+    } catch { /* se queda la primera respuesta */ }
+  }
   const primary = tmOk ? tmOk.results.map(fromTicketmaster) : [];
   if (tmOk && primary.length >= TM_ENOUGH) {
     return { ok: true, source: "ticketmaster", results: primary.slice(0, MAX_EVENTS), consulted_at: tmOk.consulted_at, ...(tmOk.from_cache ? { from_cache: true } : {}),
@@ -341,8 +349,10 @@ export async function runEventSearch(args: Record<string, unknown>, deps: EventS
   if (tmOk) {
     const merged = mergeEvents(primary, gResults);
     const both = gResults.length > 0 && merged.length > primary.length;
+    // El respaldo de Google Events no se pudo consultar por el tope de búsquedas en vivo: se dice así.
+    const pausa = g.error === "busquedas_en_pausa" ? String(g.pausa ?? "budget") : g.code === "FREE_LIMIT_REACHED" ? "plan" : null;
     return { ok: true, source: both ? "ticketmaster+google_events" : "ticketmaster", results: merged, consulted_at: tmOk.consulted_at,
-      ...(tmOk.from_cache && !both ? { from_cache: true } : {}) };
+      ...(tmOk.from_cache && !both ? { from_cache: true } : {}), ...(pausa ? { respaldo_en_pausa: pausa } : {}) };
   }
   // Sin Ticketmaster: Google Events tal cual, con el aviso honesto de por qué no hay Ticketmaster.
   return { ...g, ...(aviso ? { aviso_ticketmaster: aviso } : {}) };

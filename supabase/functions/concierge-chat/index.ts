@@ -247,7 +247,7 @@ async function handleAction(req: Request, body: Body, authHeader: string) {
   if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
   const today = resolveToday({ clientDate: body.client_date, tz: body.tz });
   // Viajes a los que tiene acceso HOY (RLS con su sesión): una tarjeta vieja no da acceso.
-  const { data: trips } = await supabase.from("trips").select("id, destino, fecha_salida, fecha_regreso, itinerario_json, ciudad_origen").limit(100);
+  const { data: trips } = await supabase.from("trips").select("id, destino, fecha_salida, fecha_regreso, itinerario_json, ciudad_origen, vuelos_json").limit(100);
   const ctx: ActionContext = {
     todayISO: today.todayISO, trips: (trips ?? []) as ActionContext["trips"],
     activeTripId: typeof body.trip_id === "string" && UUID.test(body.trip_id) ? body.trip_id : null,
@@ -473,7 +473,9 @@ Deno.serve(async (req) => {
     // listan viajes ajenos: responde el modelo (dice que no hay viaje guardado y ofrece planearlo).
     if (resolution.reason === "ambiguous" && needsSpecificTrip(lastUserMsg) && !mentionsUntrackedPlace(lastUserMsg, trips)) {
       logInsight(supabase, userId, lastUserMsg, []).catch(() => {});
-      await releaseQuota(quotaReservation, "trip_clarification"); // preguntar "¿cuál viaje?" no gasta mensaje
+      // Preguntar "¿cuál viaje?" no gasta mensaje; la liberación va en segundo plano (no retrasa la respuesta).
+      bg(releaseQuota(quotaReservation, "trip_clarification"));
+      quotaReservation = undefined;
       const reply = { text: buildTripQuestion(resolution.candidates), cards: [], actions: [], _tools_used: [], _gaps: [], ...meta };
       return wantsStream ? sseOnce([{ type: "meta", data: meta }, { type: "final", data: reply }]) : json(reply);
     }
@@ -595,7 +597,7 @@ Deno.serve(async (req) => {
 
     const runTurn = async () => {
       const { final, agent, prefetchMs, totalMs, lead, leadMs } = await runConciergeTurn({
-        plan, route, config, breaker: sharedBreaker, execTool, toolTimeout, send, meta, stableSystem, dynamicSystem, leadAfterMs: wantsStream ? LEAD_AFTER_MS : undefined,
+        plan, route, config, breaker: sharedBreaker, execTool, toolTimeout, send, meta, stableSystem, dynamicSystem, leadAfterMs: wantsStream ? LEAD_AFTER_MS : undefined, streaming: wantsStream,
         contextMessage, history: clientMessages, userMessage: lastUserMsg, exigente,
         hasAnthropicKey: !!ANTHROPIC_API_KEY, hasLovableKey: !!LOVABLE_API_KEY,
         callModel: makeModelCaller({
@@ -603,11 +605,11 @@ Deno.serve(async (req) => {
           timeouts: route.tier === "fast" ? { firstByteMs: 8000, idleMs: 12000, totalMs: 35000 } : { firstByteMs: 12000, idleMs: 20000, totalMs: 60000 },
         }),
         actionCtx: {
-          todayISO, trips: trips.map((t) => ({ id: t.id, destino: t.destino, fecha_salida: t.fecha_salida, fecha_regreso: t.fecha_regreso, itinerario_json: t.itinerario_json, ciudad_origen: t.ciudad_origen })),
+          todayISO, trips: trips.map((t) => ({ id: t.id, destino: t.destino, fecha_salida: t.fecha_salida, fecha_regreso: t.fecha_regreso, itinerario_json: t.itinerario_json, ciudad_origen: t.ciudad_origen, vuelos_json: t.vuelos_json })),
           activeTripId: trip?.id ?? null, hasPriveSession: !!priveSession, aiReservationsEnabled,
         },
         requestIntel, hasConfirmedBookings: confirmedBookings.length > 0 || reservationGuard.hasVerifiedReservation,
-        openRequests: reservationGuard.openRequests,
+        openRequests: reservationGuard.openRequests, knownRequests: reservationGuard.knownRequests,
         tripScope: { trip, position: situation?.position ?? "unknown", user: userLoc },
         // Enlaces de reserva (OpenTable/Maps): con la ciudad donde está el usuario si está fuera del viaje.
         city: turnPlace.searchCity || undefined,

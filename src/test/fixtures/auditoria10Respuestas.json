@@ -1,0 +1,117 @@
+{
+ "c1_vuelo_1": {
+  "exigente": false,
+  "streamed": "No tengo un número de vuelo registrado en tu viaje a Valle de Bravo, que sale el 30 de octubre y ya tiene transporte terrestre, no aéreo. ¿Me pasas el número del vuelo (por ejemplo, AM 002) y la fecha? Con eso consulto estado, terminal y puerta.",
+  "final_prod": "No tengo un número de vuelo registrado en tu viaje a Valle de Bravo, que sale el 30 de octubre y ya tiene transporte terrestre, no aéreo. ¿Me pasas el número del vuelo (por ejemplo, AM 002) y la fecha? Con eso consulto estado, terminal y puerta."
+ },
+ "c2_cena_1": {
+  "exigente": false,
+  "streamed": "Busco restaurantes cerca de ti. Para cenar cerca de tu ubicación en el Centro Histórico, estas tres están abiertas ahora según Google Places:\n\n- **El Cardenal Alameda** (4.7, 13,432 reseñas): cocina mexicana, Av. Juárez 70.\n- **Restaurante El Cardenal** (4.6, 20,528 reseñas): cocina mexicana, C. de la Palma 23.\n- **Casa de los Azulejos** (4.4, 53,011 reseñas): cocina mexicana, Av. Francisco I. Madero 4.\n\nLos botones de cómo llegar están en las tarjetas. No tengo confirmación de mesa en ninguno.\n\n",
+  "final_prod": "Busco restaurantes cerca de ti. Para cenar cerca de tu ubicación en el Centro Histórico, estas tres están abiertas ahora según Google Places:\n\n- **El Cardenal Alameda** (4.7, 13,432 reseñas): cocina mexicana, Av. Juárez 70.\n- **Restaurante El Cardenal** (4.6, 20,528 reseñas): cocina mexicana, C. de la Palma 23.\n- **Casa de los Azulejos** (4.4, 53,011 reseñas): cocina mexicana, Av. Francisco I. Madero 4.\n\nLos botones de cómo llegar están en las tarjetas. No tengo confirmación de mesa en ninguno."
+ },
+ "c3_transp_1": {
+  "exigente": false,
+  "streamed": "No tengo una herramienta de rutas en vivo, así que no puedo calcular el tiempo real desde tu ubicación. Según información general, sin verificar en vivo, en el Centro Histórico lo más rápido suele ser un Uber o DiDi si no hay mucho tráfico, y el Metro o Metrobús si la ruta es por avenidas congestionadas.\n\n¿A dónde te diriges? Con el destino te digo qué opción conviene más y dónde está la estación o parada más cercana.",
+  "final_prod": "No tengo una herramienta de rutas en vivo, así que no puedo calcular el tiempo real desde tu ubicación. Según información general, sin verificar en vivo, en el Centro Histórico lo más rápido suele ser un Uber o DiDi si no hay mucho tráfico, y el Metro o Metrobús si la ruta es por avenidas congestionadas.\n\n¿A dónde te diriges? Con el destino te digo qué opción conviene más y dónde está la estación o parada más cercana."
+ },
+ "c5_equipaje_1": {
+  "exigente": false,
+  "streamed": "Preparé la solicitud para **Valle de Bravo**: origen Ciudad de México, destino Valle de Bravo, salida el 30 de octubre. Una persona del equipo IATOS atenderá la cotización sin costo de tu parte y verás la respuesta en Concierge › Mis solicitudes y por correo. No hay precio ni disponibilidad confirmados todavía. Como el hospedaje aún no está reservado, indica la dirección final de entrega cuando te contacten.\n\n",
+  "final_prod": "Preparé la solicitud para **Valle de Bravo**: origen Ciudad de México, destino Valle de Bravo, salida el 30 de octubre. Una persona del equipo IATOS atenderá la cotización sin costo de tu parte y verás la respuesta en Concierge › Mis solicitudes y por correo. No hay precio ni disponibilidad confirmados todavía. Como el hospedaje aún no está reservado, indica la dirección final de entrega cuando te contacten."
+ },
+ "c6_viaje_1": {
+  "exigente": false,
+  "streamed": "**Valle de Bravo, 30 oct – 1 nov (2 viajeros):**\n\n- **Lo que tienes:** nada está reservado. Todo está cotizado. Transporte terrestre (en coche, unos $842 MXN por persona, estimado). Hospedaje: El Ensueño (~$1,100 MXN/noche), Múbú Hotel Boutique (~$2,684) y Casa Rodavento (~$9,169), según Google Hotels vía SerpApi. Itinerario de 2 días con restaurantes sugeridos.\n- **Lo que falta:**\n  - **Hotel:** sin reservar y con Día de Muertos encima. Mi recomendación es Múbú (4.7, boutique), pero confirma la política de cancelación al reservar.\n  - **Seguro de viaje:** no detecto ninguno (prioridad alta). Lo contratas en la sección Seguros de IATOS.\n  - **Cenas:** Tinto by Choklat no tiene reserva. Tu solicitud de Contramar sigue pendiente y aún no es una reserva.\n  - **Equipaje:** la cotización de Equipaje Invisible ya está solicitada, sin precio confirmado.\n- **Siguiente paso:** reservar el hotel hoy. Sales en 2 días y es puente de Día de Muertos. Después reserva la cena del viernes.\n\nTe dejo los botones para confirmar. ¿Quieres que agregue la cena de Tinto al itinerario?\n\n",
+  "final_prod": "**Valle de Bravo, 30 oct – 1 nov (2 viajeros):**\n\n- **Lo que tienes:** nada está reservado. Todo está cotizado. Transporte terrestre (en coche, unos $842 MXN por persona, estimado). Hospedaje: El Ensueño (~$1,100 MXN/noche), Múbú Hotel Boutique (~$2,684) y Casa Rodavento (~$9,169), según Google Hotels vía SerpApi. Itinerario de 2 días con restaurantes sugeridos.\n- **Lo que falta:**"
+ },
+ "d1_desk_1": {
+  "exigente": false,
+  "streamed": "Consulto el clima de Madrid en MET Norway, la misma fuente de tu pantalla Clima. Solo me devolvió un resultado verificado en Google Maps: el **Museo Nacional del Prado** (Retiro, 4.7 con más de 157,000 reseñas). Hoy miércoles abre de 10:00 a 20:00 según Google, y su web oficial es museodelprado.es. No tengo otros museos verificados de esta búsqueda, así que no te propongo más nombres.\n\nPara tu día de lluvia, ojo: MET Norway no pronostica lluvia en Madrid del 29 de octubre al 3 de noviembre (0 mm en todos los días). Lo que sí aplica como clima típico de octubre es unos 2 mm de lluvia por día (NASA POWER, promedio 2001–2025).\n\n",
+  "final_prod": "Consulto el clima de Madrid en MET Norway, la misma fuente de tu pantalla Clima. Solo me devolvió un resultado verificado en Google Maps: el **Museo Nacional del Prado** (Retiro, 4.7 con más de 157,000 reseñas). Hoy miércoles abre de 10:00 a 20:00 según Google, y su web oficial es museodelprado.es. No tengo otros museos verificados de esta búsqueda, así que no te propongo más nombres."
+ },
+ "g1_exigente_1": {
+  "exigente": true,
+  "streamed": "Busco restaurantes en Valle de Bravo en Google Maps.\n\n**Tarde del sábado 31 de octubre en Valle de Bravo.** La búsqueda de eventos no encontró resultados para ese día en Ticketmaster, así que armé el plan con lugares.\n\n- **La mejor, comida en Soleado Cocina del mundo (14:00):** 4.5 en Google con 1,044 reseñas. Abre sábado de 10:00 a 22:00 y acepta reservaciones según Google. Está en Joaquín Arcadio Pagaza 314, a pasos del centro. Contra: el sábado de fin de semana de Día de Muertos puede llenarse, así que conviene llamar antes.\n- **La alternativa, Bocatto Gourmet (4.9, 411 reseñas):** es el de mejor calificación y está en Pagaza 107, cerca de tu itinerario. Contra: Google marca el dato de hoy como cerrado y no trae horario del sábado ni sitio web. Confirma por teléfono: +52 712 239 5134.\n- **El plan B, La Victoria de don Prisciliano (4.7, 499 reseñas):** abre sábado de 8:30 a 21:00 y tiene galería y café. Contra: solo se reserva por teléfono.\n\n**Después de comer (16:30):** caminata por el centro y el Museo Joaquín Arcadio Pagaza. Para el atardecer, Mirador La Peña, como ya tienes en tu itinerario. No tengo horarios verificados del museo ni del mirador.\n\nSiguiente paso: reservar la comida, porque ninguna mesa está reservada todavía.\n\n",
+  "final_prod": "Busco restaurantes en Valle de Bravo en Google Maps.\n\n**Tarde del sábado 31 de octubre en Valle de Bravo.** La búsqueda de eventos no encontró resultados para ese día en Ticketmaster, así que armé el plan con lugares.\n\n- **La mejor, comida en Soleado Cocina del mundo (14:00):** 4.5 en Google con 1,044 reseñas. Abre sábado de 10:00 a 22:00 y acepta reservaciones según Google. Está en Joaquín Arcadio Pagaza 314, a pasos del centro. Contra: el sábado de fin de semana de Día de Muertos puede llenarse, así que conviene llamar antes.\n- **La alternativa, Bocatto Gourmet (4.9, 411 reseñas):** es el de mejor calificación y está en Pagaza 107, cerca de tu itinerario. Contra: Google marca el dato de hoy como cerrado y no trae horario del sábado ni sitio web. Confirma por teléfono: +52 712 239 5134.\n- **El plan B, La Victoria de don Prisciliano (4.7, 499 reseñas):** abre sábado de 8:30 a 21:00 y tiene galería y café. Contra: solo se reserva por teléfono."
+ },
+ "r1_contramar_1": {
+  "exigente": false,
+  "streamed": "Encontré **Contramar** en Durango 200, Roma Norte (Google Maps, 4.5 con 6,888 reseñas). Acepta reservaciones y el viernes 13 de noviembre abre de 12:00 a 20:00, así que 14:30 cabe.\n\nAntes de enviar algo, verás a quién le escribimos y qué diremos. Nada se envía sin tu confirmación, y no está reservado hasta que el restaurante lo confirme por escrito. Te dejo el botón para iniciarlo.\n\n",
+  "final_prod": "Encontré **Contramar** en Durango 200, Roma Norte (Google Maps, 4.5 con 6,888 reseñas). Acepta reservaciones y el viernes 13 de noviembre abre de 12:00 a 20:00, así que 14:30 cabe.\n\nAntes de enviar algo, verás a quién le escribimos y qué diremos. Nada se envía sin tu confirmación, y no está reservado hasta que el restaurante lo confirme por escrito. Te dejo el botón para iniciarlo."
+ },
+ "t01_clima_2": {
+  "exigente": false,
+  "streamed": "Consulto el clima de Valle de Bravo en MET Norway, la misma fuente de tu pantalla Clima. Para tu viaje a **Valle de Bravo (30 oct al 1 nov)**, MET Norway pronostica máximas de 25 °C y mínimas de 12 °C los tres días.\n\n- **Vie 30 oct:** chubascos, unos 0.4 mm de lluvia y viento de hasta 15 km/h.\n- **Sáb 31 oct:** parcialmente nublado, con 0.4 mm de lluvia y viento de hasta 13 km/h.\n- **Dom 1 nov:** despejado, con 0.2 mm de lluvia y viento de hasta 9 km/h.\n\nFuente: MET Norway, consultado hoy 28 oct 2026 a las 16:01 (hora CDMX). Como el viaje es en dos días, el pronóstico puede cambiar; revísalo de nuevo el jueves. Lleva una chamarra ligera para las mañanas y un impermeable plegable para el viernes.",
+  "final_prod": "Consulto el clima de Valle de Bravo en MET Norway, la misma fuente de tu pantalla Clima. Para tu viaje a **Valle de Bravo (30 oct al 1 nov)**, MET Norway pronostica máximas de 25 °C y mínimas de 12 °C los tres días.\n\n- **Vie 30 oct:** chubascos, unos 0.4 mm de lluvia y viento de hasta 15 km/h.\n- **Sáb 31 oct:** parcialmente nublado, con 0.4 mm de lluvia y viento de hasta 13 km/h.\n- **Dom 1 nov:** despejado, con 0.2 mm de lluvia y viento de hasta 9 km/h."
+ },
+ "t02_avisos_1": {
+  "exigente": false,
+  "streamed": "Para Tailandia, la guía oficial para tu pasaporte mexicano es la **Guía del Viajero de la SRE** (guiadelviajero.sre.gob.mx). Los avisos que siguen son del Reino Unido (GOV.UK, actualizado el 12 oct 2026) y de EE. UU. (Departamento de Estado, nivel 1, actualizado el 6 jul 2026), dirigidos a sus ciudadanos:\n\n- **Sur del país (fronteras con Malasia):** no viajar, salvo que sea indispensable, a Pattani, Yala y Narathiwat, ni a cuatro distritos de Songkhla. Hay ataques regulares, y el tren Hat Yai–Padang Besar también cruza esas provincias.\n- **Frontera con Camboya:** evitar la zona a menos de 20 km. Hubo combates en julio de 2025 y nuevos enfrentamientos a inicios de diciembre; hay minas sin explotar.\n- **Salud:** confirma que tu destino tenga la atención que puedas necesitar y contrata seguro con cobertura médica y evacuación.\n\nSi tu ruta es Bangkok, Chiang Mai o las islas del golfo, estos avisos no te afectan directamente. Te recomiendo revisar la guía de la SRE antes de comprar el vuelo para confirmar requisitos de entrada.\n\n",
+  "final_prod": "Para Tailandia, la guía oficial para tu pasaporte mexicano es la **Guía del Viajero de la SRE** (guiadelviajero.sre.gob.mx). Los avisos que siguen son del Reino Unido (GOV.UK, actualizado el 12 oct 2026) y de EE. UU. (Departamento de Estado, nivel 1, actualizado el 6 jul 2026), dirigidos a sus ciudadanos:"
+ },
+ "t03_rest_1": {
+  "exigente": false,
+  "streamed": "Busco restaurantes cerca de ti. No tengo un hotel registrado en CDMX, así que te muestro restaurantes cerca de tu ubicación actual, en el Centro Histórico. Si te refieres al hotel de Valle de Bravo (El Ensueño), dímelo y busco ahí.\n\n- **El Cardenal Alameda**: mexicana, 4.7 en Google (13,432 reseñas), abierto ahora.\n- **Restaurante El Cardenal**: mexicana, 4.6 en Google (20,528 reseñas), abierto ahora.\n- **Café de Tacuba**: tradicional mexicana, 4.4 en Google (27,423 reseñas), abierto ahora.\n\nFuente: Google Places.\n\n",
+  "final_prod": "Busco restaurantes cerca de ti. No tengo un hotel registrado en CDMX, así que te muestro restaurantes cerca de tu ubicación actual, en el Centro Histórico. Si te refieres al hotel de Valle de Bravo (El Ensueño), dímelo y busco ahí.\n\n- **El Cardenal Alameda**: mexicana, 4.7 en Google (13,432 reseñas), abierto ahora.\n- **Restaurante El Cardenal**: mexicana, 4.6 en Google (20,528 reseñas), abierto ahora.\n- **Café de Tacuba**: tradicional mexicana, 4.4 en Google (27,423 reseñas), abierto ahora.\n\nFuente: Google Places."
+ },
+ "t04_eventos_1": {
+  "exigente": false,
+  "streamed": "No encontré eventos en CDMX para este fin de semana (sábado 31 de octubre y domingo 1 de noviembre). La búsqueda en Ticketmaster no trajo resultados para esas fechas.\n\n¿Quieres que busque otro rango, por ejemplo el resto de noviembre, o un tipo de evento en particular como teatro o deportes?",
+  "final_prod": "No encontré eventos en CDMX para este fin de semana (sábado 31 de octubre y domingo 1 de noviembre). La búsqueda en Ticketmaster no trajo resultados para esas fechas.\n\n¿Quieres que busque otro rango, por ejemplo el resto de noviembre, o un tipo de evento en particular como teatro o deportes?"
+ },
+ "t05_tours_1": {
+  "exigente": false,
+  "streamed": "Para Roma, estos tours de Viator tienen las mejores reseñas (5★ en todos):\n\n- **Clase de pasta y tiramisú con vino italiano fino** (3 h, 208 reseñas): desde $2,106 MXN por persona, precio estimado.\n- **Pizza y gelato con vino italiano fino** (3 h, 260 reseñas): desde $2,106 MXN.\n- **Sesión de fotos privada en el Coliseo** (40 min, 241 reseñas): desde $957 MXN.\n\nSi te interesa una salida de día, el **tour privado Civitavecchia → Roma** (8 h, 188 reseñas) parte desde $15,531 MXN. Los precios son \"desde\" según Viator y pueden cambiar.\n\n¿Quieres que lo agregue a un viaje o que busque tours para fechas concretas?\n\n",
+  "final_prod": "Para Roma, estos tours de Viator tienen las mejores reseñas (5★ en todos):\n\n- **Clase de pasta y tiramisú con vino italiano fino** (3 h, 208 reseñas): desde $2,106 MXN por persona, precio estimado.\n- **Pizza y gelato con vino italiano fino** (3 h, 260 reseñas): desde $2,106 MXN.\n- **Sesión de fotos privada en el Coliseo** (40 min, 241 reseñas): desde $957 MXN."
+ },
+ "t06_atracciones_1": {
+  "exigente": false,
+  "streamed": "Solo me devolvió un resultado confiable: **Plaza del Comercio** (4.7 en Google, 135 mil reseñas, abierta 24 horas; fuente: Google Maps). No traje más atracciones de Lisboa en esta búsqueda, así que no quiero inventar una lista.\n\n¿Busco de nuevo por zonas (Alfama, Belém, Chiado) o por tipo de lugar, como miradores, museos o tours?\n\n",
+  "final_prod": "Solo me devolvió un resultado confiable: **Plaza del Comercio** (4.7 en Google, 135 mil reseñas, abierta 24 horas; fuente: Google Maps). No traje más atracciones de Lisboa en esta búsqueda, así que no quiero inventar una lista.\n\n¿Busco de nuevo por zonas (Alfama, Belém, Chiado) o por tipo de lugar, como miradores, museos o tours?"
+ },
+ "t07_cerca_1": {
+  "exigente": false,
+  "streamed": "Estás en Madrid, así que estos son lugares abiertos ahora, según Google Maps:\n\n- **Reloj de la Puerta del Sol** (4.7, 300 reseñas): abierto 24 horas, en el corazón de Centro.\n- **Letrero de Tío Pepe** (4.6, 464 reseñas): abierto 24 horas, a un paso del Reloj.\n- **Puerta de Alcalá** (4.7, más de 64 mil reseñas): abierta 24 horas, a unos 1.5 km en Retiro.\n\n¿Quieres que busque restaurantes o un plan de paseo por el Retiro?",
+  "final_prod": "Estás en Madrid, así que estos son lugares abiertos ahora, según Google Maps:\n\n- **Reloj de la Puerta del Sol** (4.7, 300 reseñas): abierto 24 horas, en el corazón de Centro.\n- **Letrero de Tío Pepe** (4.6, 464 reseñas): abierto 24 horas, a un paso del Reloj.\n- **Puerta de Alcalá** (4.7, más de 64 mil reseñas): abierta 24 horas, a unos 1.5 km en Retiro.\n\n¿Quieres que busque restaurantes o un plan de paseo por el Retiro?"
+ },
+ "t08_vuelo_1": {
+  "exigente": false,
+  "streamed": "El servicio de estado de vuelos no respondió en este momento, así que no tengo datos en vivo del AM 2 de hoy.\n\nPuedes revisarlo en la app de Aeroméxico o en aeromexico.com con el número AM 2 y la fecha de hoy. ¿Quieres que lo intente de nuevo en unos minutos?",
+  "final_prod": "El servicio de estado de vuelos no respondió en este momento, así que no tengo datos en vivo del AM 2 de hoy.\n\nPuedes revisarlo en la app de Aeroméxico o en aeromexico.com con el número AM 2 y la fecha de hoy. ¿Quieres que lo intente de nuevo en unos minutos?"
+ },
+ "t09_general_1": {
+  "exigente": false,
+  "streamed": "Busco restaurantes en Japón en Google Maps. Según información general, sin verificar en vivo: en Japón no se acostumbra dejar propina en restaurantes, taxis ni hoteles. Dar propina puede incomodar al personal, porque el servicio ya está incluido en el precio. Lo que sí es común es pagar en la caja y, en lugares de alta cocina, es posible que ya haya un cargo por servicio en la cuenta.\n\nPara confirmarlo en un lugar concreto, pregunta en el restaurante o revisa su sitio antes de ir.",
+  "final_prod": "Busco restaurantes en Japón en Google Maps. Según información general, sin verificar en vivo: en Japón no se acostumbra dejar propina en restaurantes, taxis ni hoteles. Dar propina puede incomodar al personal, porque el servicio ya está incluido en el precio. Lo que sí es común es pagar en la caja y, en lugares de alta cocina, es posible que ya haya un cargo por servicio en la cuenta.\n\nPara confirmarlo en un lugar concreto, pregunta en el restaurante o revisa su sitio antes de ir."
+ },
+ "x1_itin_1": {
+  "exigente": false,
+  "streamed": "Puedo agregar el paseo en lancha a tu viaje de Valle de Bravo para el sábado 31 de octubre a las 11:00. Te dejo el botón para confirmarlo; todavía no está agregado.\n\n",
+  "final_prod": "Puedo agregar el paseo en lancha a tu viaje de Valle de Bravo para el sábado 31 de octubre a las 11:00. Te dejo el botón para confirmarlo; todavía no está agregado."
+ },
+ "x2_gasto_1": {
+  "exigente": false,
+  "streamed": "Busco restaurantes cerca de ti. Lo preparé para tu viaje a Valle de Bravo: $150 MXN en Gastronomía, con la descripción \"PRUEBA AUDITORÍA café\". Todavía no está registrado; confírmalo con el botón.\n\n",
+  "final_prod": "Busco restaurantes cerca de ti. Lo preparé para tu viaje a Valle de Bravo: $150 MXN en Gastronomía, con la descripción \"PRUEBA AUDITORÍA café\". Todavía no está registrado; confírmalo con el botón."
+ },
+ "x3_empaque_1": {
+  "exigente": false,
+  "streamed": "Para Valle de Bravo, según MET Norway (consultado hoy 28 oct): máxima de 25 °C, mínima de 12 °C, con chubascos el 30 y cielo parcialmente nublado el 31. Te propongo esta lista:\n\n- Chamarra ligera o suéter para la mañana y la noche (mínima de 12 °C)\n- Playera o camisa de manga larga para el día\n- Pantalón cómodo y un pantalón extra\n- Tenis o calzado para caminar (Cascada de Avándaro, Mirador La Peña)\n- Impermeable o paraguas plegable (chubascos el 30)\n- Gorra y lentes de sol\n- Traje de baño para la lancha\n- Cargador, power bank y adaptador\n- Medicamentos personales y protector solar\n\nTe dejo el botón para guardarla en tu viaje de Valle de Bravo; todavía no está guardada.\n\n",
+  "final_prod": "Para Valle de Bravo, según MET Norway (consultado hoy 28 oct): máxima de 25 °C, mínima de 12 °C, con chubascos el 30 y cielo parcialmente nublado el 31. Te propongo esta lista:\n\n- Chamarra ligera o suéter para la mañana y la noche (mínima de 12 °C)\n- Playera o camisa de manga larga para el día\n- Pantalón cómodo y un pantalón extra\n- Tenis o calzado para caminar (Cascada de Avándaro, Mirador La Peña)\n- Impermeable o paraguas plegable (chubascos el 30)"
+ },
+ "x4_guardar_1": {
+  "exigente": false,
+  "streamed": "No encontré **Café Bohemio** en Valle de Bravo. Google Maps solo muestra \"Bohemio Café y Arte\" en Tepic, Nayarit, que está a más de 1,000 km, así que no lo guardé en tus lugares favoritos.\n\n¿Tienes la dirección o el nombre exacto de la cafetería en Valle de Bravo? Con eso la busco de nuevo y la guardo.",
+  "final_prod": "No encontré **Café Bohemio** en Valle de Bravo. Google Maps solo muestra \"Bohemio Café y Arte\" en Tepic, Nayarit, que está a más de 1,000 km, así que no lo guardé en tus lugares favoritos.\n\n¿Tienes la dirección o el nombre exacto de la cafetería en Valle de Bravo? Con eso la busco de nuevo y la guardo."
+ },
+ "x4b_guardar_1": {
+  "exigente": false,
+  "streamed": "Busco restaurantes en Valle de Bravo en Google Maps. Encontré **Soleado Cocina del mundo** en C. de Joaquín Arcadio Pagaza 314, Centro, Valle de Bravo (Google Maps, 4.5 con 1,044 reseñas). Hoy miércoles abre de 12:00 a 21:00 según Google, y Google indica que acepta reservaciones. Te dejo el botón para guardarlo en tus lugares favoritos; todavía no está guardado.\n\n",
+  "final_prod": "Busco restaurantes en Valle de Bravo en Google Maps. Encontré **Soleado Cocina del mundo** en C. de Joaquín Arcadio Pagaza 314, Centro, Valle de Bravo (Google Maps, 4.5 con 1,044 reseñas). Hoy miércoles abre de 12:00 a 21:00 según Google, y Google indica que acepta reservaciones. Te dejo el botón para guardarlo en tus lugares favoritos; todavía no está guardado."
+ },
+ "x5_ics_1": {
+  "exigente": false,
+  "streamed": "Tu itinerario de Valle de Bravo (30 oct – 1 nov) se puede exportar como archivo .ics para tu calendario. Te dejo el botón para confirmarlo; todavía no se ha generado.\n\n",
+  "final_prod": "Tu itinerario de Valle de Bravo (30 oct – 1 nov) se puede exportar como archivo .ics para tu calendario. Te dejo el botón para confirmarlo; todavía no se ha generado."
+ }
+}

@@ -136,6 +136,48 @@ export const isTripInProgress = (t: TripLike, today: string) => {
 const bySalida = <T extends TripLike>(a: T, b: T) =>
   String(a.fecha_salida ?? "9999").localeCompare(String(b.fecha_salida ?? "9999"));
 
+const MONTHS: Record<string, number> = {
+  enero: 1, ene: 1, febrero: 2, feb: 2, marzo: 3, mar: 3, abril: 4, abr: 4, mayo: 5, may: 5, junio: 6, jun: 6,
+  julio: 7, jul: 7, agosto: 8, ago: 8, septiembre: 9, setiembre: 9, sep: 9, sept: 9, octubre: 10, oct: 10,
+  noviembre: 11, nov: 11, diciembre: 12, dic: 12,
+};
+
+/**
+ * Fechas que el mensaje nombra ("del 30 de octubre", "20 nov", "2026-11-20", "30/10") como YYYY-MM-DD.
+ * Sin año: el de hoy, o el siguiente si ya pasó hace más de 30 días.
+ */
+export function datesInText(text: string | null | undefined, todayISO: string): string[] {
+  const msg = normalizeText(text);
+  const out = new Set<string>();
+  const y0 = Number(String(todayISO).slice(0, 4)) || new Date().getUTCFullYear();
+  const add = (y: number | null, m: number, d: number) => {
+    if (!m || !d || m > 12 || d > 31) return;
+    let year = y ?? y0;
+    const iso = (yy: number) => `${yy}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (y == null && Date.parse(`${iso(year)}T00:00:00Z`) < Date.parse(`${todayISO}T00:00:00Z`) - 30 * 86400000) year += 1;
+    const v = iso(year);
+    if (Number.isFinite(Date.parse(`${v}T00:00:00Z`))) out.add(v);
+  };
+  for (const m of msg.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) add(Number(m[1]), Number(m[2]), Number(m[3]));
+  for (const m of msg.matchAll(/\b(\d{1,2})\s+(?:de\s+)?([a-z]{3,10})\b(?:\s+(?:de\s+)?(\d{4}))?/g)) {
+    const mon = MONTHS[m[2]];
+    if (mon) add(m[3] ? Number(m[3]) : null, mon, Number(m[1]));
+  }
+  for (const m of msg.matchAll(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\b/g)) add(m[3] ? Number(m[3]) : null, Number(m[2]), Number(m[1]));
+  return [...out];
+}
+
+/** Viajes cuyas fechas incluyen alguna de las fechas que nombra el mensaje. */
+function tripsOnDates<T extends TripLike>(trips: T[], text: string | null | undefined, today: string): T[] {
+  const dates = datesInText(text, today);
+  if (!dates.length) return [];
+  return trips.filter((t) => {
+    const a = t.fecha_salida ? String(t.fecha_salida).slice(0, 10) : null;
+    const b = (t.fecha_regreso ? String(t.fecha_regreso).slice(0, 10) : null) ?? a;
+    return !!a && !!b && dates.some((d) => a <= d && d <= b);
+  });
+}
+
 export function resolveActiveTrip<T extends TripLike>(trips: T[], opts: ResolveOptions): ActiveTripResult<T> {
   const all = Array.isArray(trips) ? trips.filter((t) => t && t.id) : [];
   const today = opts.todayLocal;
@@ -146,6 +188,12 @@ export function resolveActiveTrip<T extends TripLike>(trips: T[], opts: ResolveO
   let mentioned = tripsMentioned(live, opts.mentionedText);
   if (!mentioned.length) mentioned = tripsMentioned(all, opts.mentionedText);
   if (mentioned.length === 1) return { trip: mentioned[0], reason: "mentioned", candidates: mentioned };
+  // Varios viajes al mismo destino y el mensaje da la fecha ("mi viaje a Valle de Bravo del 30 de
+  // octubre"): la fecha decide, sin preguntar "¿a cuál?" (auditoría 10 #7).
+  if (mentioned.length > 1) {
+    const byDate = tripsOnDates(mentioned, opts.mentionedText, today);
+    if (byDate.length === 1) return { trip: byDate[0], reason: "mentioned", candidates: byDate };
+  }
 
   const pool = mentioned.length > 1 ? mentioned.sort(bySalida) : live;
 
@@ -166,7 +214,9 @@ export function resolveActiveTrip<T extends TripLike>(trips: T[], opts: ResolveO
   // 5) Un único viaje vigente.
   if (pool.length === 1) return { trip: pool[0], reason: "single_upcoming", candidates: pool };
   if (pool.length === 0) return { trip: null, reason: "none", candidates: [] };
-  // 6) Empate: nunca se desempata por fecha de creación.
+  // 6) Empate: nunca se desempata por fecha de creación; sí por la fecha que el mensaje nombra.
+  const byDate = tripsOnDates(pool, opts.mentionedText, today);
+  if (byDate.length === 1) return { trip: byDate[0], reason: "mentioned", candidates: byDate };
   return { trip: null, reason: "ambiguous", candidates: pool };
 }
 

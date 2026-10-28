@@ -123,10 +123,16 @@ describe("Members Only con la curaduría", () => {
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("members_venues", { p_ciudad: "Polanco" }));
   });
 
-  it("la solicitud de reserva sigue igual (concierge-action)", async () => {
+  it("la solicitud de reserva sigue igual (concierge-action), ahora con fecha, hora y personas confirmadas", async () => {
     render(<MemoryRouter><MembersOnlyPanel /></MemoryRouter>);
     const card = (await screen.findByText("Licoreria Limantour")).closest("article")!;
     fireEvent.click(within(card).getByRole("button", { name: "Reservar con Concierge" }));
+    // Auditoría Privé P1-4: un toque ya no envía nada; primero pide los datos y confirma.
+    const dlg = await screen.findByTestId("members-reserve-dialog");
+    expect(invoke).not.toHaveBeenCalled();
+    fireEvent.change(within(dlg).getByLabelText("Fecha"), { target: { value: "2099-11-13" } });
+    fireEvent.click(within(dlg).getByRole("button", { name: "Revisar solicitud" }));
+    fireEvent.click(await within(dlg).findByRole("button", { name: /Confirmar solicitud/ }));
     await waitFor(() => expect(invoke).toHaveBeenCalled());
     const [fn, opts] = invoke.mock.calls[0] as unknown as [string, { body: { type: string; payload: { venue_id: string; venue_name: string } } }];
     expect(fn).toBe("concierge-action");

@@ -123,7 +123,7 @@ export function finalizeSearchResponse(
     body.motivo = outcome.message;
     body.busquedas_en_pausa = true;
   }
-  if (trace.paused) body.busquedas_en_pausa = true;
+  if (trace.paused) { body.busquedas_en_pausa = true; body.pausa = trace.paused; }
   // Cada resultado lleva su propia etiqueta (para que el chat o la pantalla no la pierdan).
   if (Array.isArray(body.results)) {
     body.results = (body.results as Record<string, unknown>[]).map((r) => {

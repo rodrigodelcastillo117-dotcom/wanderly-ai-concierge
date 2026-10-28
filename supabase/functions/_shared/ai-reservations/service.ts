@@ -180,7 +180,16 @@ export function presentReservation(row: Record<string, unknown>) {
     bridge_state: toBridgeState(status, reason),
     is_confirmed: status === "confirmed",
     confirm_prompt: confirmPrompt(String(pub.venue_name ?? "")),
+    // Piloto: el destinatario es el correo de prueba del dueño, no el del restaurante. La pantalla lo
+    // dice junto al correo (auditoría 10 #22: "Iato escribirá a rodrigoiatosai@…" sin aclarar nada).
+    venue_email_is_test: isPilotEmailSource(pub.venue_email_source),
   };
+}
+
+/** ¿La fuente del correo del lugar es el correo de prueba del piloto? */
+export function isPilotEmailSource(src: unknown): boolean {
+  const url = src && typeof src === "object" ? (src as { url?: unknown }).url : null;
+  return typeof url === "string" && url.startsWith("piloto://");
 }
 
 async function flagEnabled(db: Db): Promise<boolean> {

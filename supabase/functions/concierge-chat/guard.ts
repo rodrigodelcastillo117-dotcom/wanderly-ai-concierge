@@ -58,13 +58,16 @@ export function neutralizeUntrusted(text: string, maxLen = 2000): string {
 }
 
 /** Aplica neutralizeUntrusted a cada texto dentro de un objeto/arreglo (también a las llaves). */
+// El nombre de una foto de Google ("places/…/photos/…") pasa de 400 caracteres: cortado ya no sirve.
+const LONG_KEYS = new Set(["photo_ref"]);
+
 export function neutralizeDeep(value: unknown, maxLen = 2000, depth = 0): unknown {
   if (depth > 12) return null;
   if (typeof value === "string") return neutralizeUntrusted(value, maxLen);
   if (Array.isArray(value)) return value.map((v) => neutralizeDeep(v, maxLen, depth + 1));
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => [neutralizeUntrusted(k, 80), neutralizeDeep(v, maxLen, depth + 1)]));
+      .map(([k, v]) => [neutralizeUntrusted(k, 80), neutralizeDeep(v, LONG_KEYS.has(k) && typeof v === "string" ? Math.max(maxLen, 1200) : maxLen, depth + 1)]));
   }
   return value;
 }
@@ -203,9 +206,12 @@ export function enforceNoFakeBooking(text: string, opts: {
   openRequests?: { title: string; label: string }[];
 } = {}): string {
   const t = String(text ?? "");
-  const sentences = t.split(/(?<=[.!?])\s+/);
+  // Se conservan los saltos de línea y las viñetas (antes se unía todo con espacios).
+  const parts = t.split(/((?<=[.!?])[ \t]+|\n)/);
+  const sentences = parts.filter((_, k) => k % 2 === 0);
+  const seps = parts.filter((_, k) => k % 2 === 1);
   let changed = false;
-  const kept = sentences.filter((s) => {
+  const keepFlags = sentences.map((s) => {
     // "Si tu vuelo ya está pagado…" es condicional; "¿Ya tienes boletos?" es una pregunta.
     const bought = STATE_BOOKED_OR_BOUGHT.test(s) && !/^\W*(?:si|cuando|en\s+cuanto)\b/i.test(s) && !/\?\s*$/.test(s.trim());
     const bad = FIRST_PERSON_BOOKING.test(s) || (!opts.hasConfirmedBookings && (STATE_BOOKING.test(s) || bought));
@@ -213,8 +219,43 @@ export function enforceNoFakeBooking(text: string, opts: {
     return !bad;
   });
   if (!changed) return t;
-  const rest = kept.join(" ").trim();
+  let rest = "";
+  sentences.forEach((s, k) => {
+    if (keepFlags[k]) rest += s;
+    else if (/^\s*([-*•]|\d+[.)])\s+/.test(s)) rest += s.match(/^\s*([-*•]|\d+[.)])\s+/)![0];
+    if (k < seps.length) rest += seps[k];
+  });
+  // Viñetas que se quedaron sin texto y renglones vacíos de más.
+  rest = rest.split("\n").filter((l) => !/^\s*([-*•]|\d+[.)])\s*$/.test(l)).join("\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   const real = (opts.openRequests ?? []).filter((r) => r.title).slice(0, 2)
     .map((r) => `${r.title}: ${r.label}.`).join(" ");
   return `${NOT_BOOKED_LINE}${real ? ` ${real}` : ""}${rest ? ` ${rest}` : ""}`;
+}
+
+// ═══ Solicitudes que no existen (auditoría 10 #10) ═══
+// "La cotización de Equipaje Invisible ya está solicitada" sin ninguna fila en concierge_requests ni
+// fixer_escalations: Iato no puede afirmar que algo ya se pidió si no está entre las solicitudes reales
+// del usuario (<estado_reservas_usuario>). La acción que propone no existe hasta que la confirma.
+
+const REQUEST_CLAIM = /\b(?:ya\s+(?:est[aá]n?|qued[oó]|quedaron)\s+(?:solicitad[oa]s?|pedid[oa]s?|en\s+proceso|enviad[oa]s?)|ya\s+(?:la|lo|las|los|te\s+la|te\s+lo)?\s*(?:solicit[eé]|ped[ií]|envi[eé]|tramit[eé])|ya\s+(?:enviamos|pedimos|solicitamos)|(?:tu|la|su)\s+solicitud\s+(?:de|para|a)\s+[^.,;!?\n]{1,60}?\s+(?:ya\s+)?(?:est[aá]|sigue|qued[oó])\s+(?:pendiente|en\s+proceso|enviada|solicitada|abierta))/i;
+
+const normWords = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length > 3);
+
+/** ¿La oración habla de una solicitud que sí existe? (comparte una palabra con su título). */
+const matchesOpen = (sentence: string, open: { title: string }[]) => {
+  const w = new Set(normWords(sentence));
+  return open.some((r) => normWords(r.title).some((x) => w.has(x) && !["solicitud", "reserva", "mesa", "para"].includes(x)));
+};
+
+export const NOT_REQUESTED_LINE = "aún no se ha pedido (te dejo el botón para pedirlo)";
+
+export function enforceNoFakeRequest(text: string, opts: { openRequests?: { title: string; label?: string }[] } = {}): string {
+  const t = String(text ?? "");
+  if (!REQUEST_CLAIM.test(t)) return t;
+  const open = (opts.openRequests ?? []).filter((r) => r && r.title);
+  return t.split(/(?<=[.!?])(?=[ \t]|\n)|(?=\n)/).map((s) => {
+    if (!REQUEST_CLAIM.test(s) || matchesOpen(s, open)) return s;
+    // Se corrige la afirmación en su lugar (lo demás de la oración se queda).
+    return s.replace(REQUEST_CLAIM, NOT_REQUESTED_LINE);
+  }).join("");
 }

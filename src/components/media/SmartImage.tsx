@@ -67,6 +67,9 @@ const safeHttps = (u: unknown): string | null => {
 
 type Step = "url" | "ref" | "lookup" | "stock";
 
+/** Si la foto no termina de bajar en este tiempo, se pasa a la siguiente fuente. */
+export const IMAGE_LOAD_TIMEOUT_MS = 8000;
+
 /** Lo que se puede pintar sin llamar a nada (caché de la sesión). undefined = hay que pedirlo. */
 function peek(p: SmartImageProps, w: number, skip: Set<Step>): Resolved | null | undefined {
   const url = safeHttps(p.imageUrl);
@@ -160,6 +163,7 @@ export function SmartImage(props: SmartImageProps) {
   const [unsized, setUnsized] = useState<string | null>(null);
   const src = res ? (unsized === res.url ? res.url : sizedPhotoUrl(res.url, w)) : null;
 
+  const onErrorRef = useRef<() => void>(() => {});
   const onError = () => {
     if (!res) return;
     if (src !== res.url && unsized !== res.url) {
@@ -171,7 +175,17 @@ export function SmartImage(props: SmartImageProps) {
     setSkip(next);
     setLoaded(false);
     setState({ id, res: peek(props, w, next) });
-  };
+  };  onErrorRef.current = onError;
+
+
+  // Una foto que nunca termina de bajar (ni carga ni error) dejaba la tarjeta oscura para siempre
+  // (auditoría 10 #23: Soho House sin foto). Pasado un tiempo se trata como error: sigue la siguiente
+  // fuente (la ilustrativa marcada) o el respaldo de la marca.
+  useEffect(() => {
+    if (!res || loaded) return;
+    const t = setTimeout(() => onErrorRef.current(), IMAGE_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [res?.url, src, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pending = res === undefined;
   return (

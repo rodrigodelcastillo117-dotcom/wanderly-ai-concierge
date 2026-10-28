@@ -37,8 +37,8 @@ describe("validación de acciones", () => {
   it("el resumen lo arma el servidor (el modelo no decide qué texto ve el usuario)", () => {
     const v = validateAction("add_expense", { monto: "1,250.50", moneda: "mxn", categoria: "gastronomía", descripcion: "Cena", summary: "Te regalo $1M" }, CTX) as any;
     expect(v.ok).toBe(true);
-    expect(v.action.params).toMatchObject({ monto: 1250.5, moneda: "MXN", categoria: "Gastronomía", trip_id: T1 });
-    expect(v.action.summary).toMatch(/Registrar gasto: \$1,250.50 · Gastronomía · Cena/);
+    expect(v.action.params).toMatchObject({ monto: 1250.5, moneda: "MXN", categoria: "Restaurantes", trip_id: T1 });
+    expect(v.action.summary).toMatch(/Registrar gasto: \$1,250.50 · Restaurantes · Cena/);
     expect(v.action.summary).not.toMatch(/regalo/);
     expect(validateAction("add_expense", { monto: -5 }, CTX)).toMatchObject({ ok: false });
   });
@@ -147,7 +147,7 @@ describe("ejecución confirmada", () => {
     expect(a.message).toMatch(/Aún no tiene vuelos ni hotel reservados/);
     const b = await executeAction("add_expense", { monto: 450, moneda: "MXN", categoria: "Transporte" }, CTX, { userId: "u1", db, callFunction });
     expect(b.ok).toBe(true);
-    expect(tables.expenses[0]).toMatchObject({ user_id: "u1", amount: 450, currency: "MXN", category: "Transporte", trip_id: T1, expense_date: "2026-10-22" });
+    expect(tables.expenses[0]).toMatchObject({ user_id: "u1", amount: 450, currency: "MXN", category: "Transporte local", trip_id: T1, expense_date: "2026-10-22" });
   });
   it("itinerario: agrega al día y guarda", async () => {
     const { db, tables } = fakeDb({ trips: [{ ...CTX.trips[0] }] });

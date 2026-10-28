@@ -5,7 +5,9 @@
 // ninguna búsqueda, jets con "$24,000" de ejemplo, enlaces javascript: y cards de tipos que la
 // pantalla no sabía dibujar. Ahora cada card pasa por validateCards() después del modelo.
 
-import { slimToolResult } from "./tools.ts";
+import { PLACE_LIST_MAX_CHARS, slimToolResult } from "./tools.ts";
+
+const PLACE_LIST_TOOLS = new Set(["search_attractions", "search_places", "search_nearby"]);
 import { isGooglePlaceId } from "./actions.ts";
 import { neutralizeDeep } from "./guard.ts";
 import { isPhotoRef } from "../_shared/placePhotoRef.ts";
@@ -126,6 +128,13 @@ export interface ToolUnavailable { disponible: false; motivo: string; fuente?: s
  * (source "ai-fallback") o vacío, el modelo recibe una nota explícita {disponible:false, motivo}
  * y NUNCA las opciones inventadas. Los textos de terceros se neutralizan.
  */
+/** Por qué no hubo búsqueda en vivo, en palabras honestas para el usuario. */
+export function pauseMotivo(pausa: string): string {
+  if (pausa === "plan") return "Se alcanzó el límite de búsquedas en vivo del plan del usuario: dilo así.";
+  if (pausa === "quota") return "Alcanzamos el límite de búsquedas en vivo de IATOS por ahora: dilo así (no digas que el servicio no respondió) y sugiere intentarlo más tarde, el enlace directo de la fuente o una persona del equipo.";
+  return "Hoy alcanzamos el límite de búsquedas en vivo de IATOS: dilo así (no digas que el servicio no respondió) y sugiere intentarlo mañana, el enlace directo de la fuente o una persona del equipo.";
+}
+
 export const LIMIT_MOTIVO_PREFIX = "Límite de búsquedas en vivo del plan del usuario";
 
 export function prepareToolResultForModel(name: string, raw: unknown): Record<string, unknown> {
@@ -149,8 +158,17 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
   if (r.error === "timeout") {
     return { disponible: false, estado: "no_respondio", error: "timeout", motivo: "El servicio tardó demasiado en responder; no hay datos en vivo ahora." };
   }
-  if (r.error === "busquedas_en_pausa") {
-    return { disponible: false, estado: "no_respondio", error: "busquedas_en_pausa", motivo: "Las búsquedas en vivo están en pausa por ahora; no hay datos en vivo." };
+  // Tope de búsquedas en vivo de IATOS (SERPAPI_DAILY_BUDGET) o cuota de la cuenta agotada: no es que
+  // el servicio "no respondió" (auditoría 10 #5 y #6). Se dice tal cual.
+  const pausa = r.error === "busquedas_en_pausa" || r.error === "serpapi_paused" ? String(r.pausa ?? r.reason ?? "budget")
+    : r.busquedas_en_pausa === true && !Object.values(r).some((v) => Array.isArray(v) && v.length > 0) ? String(r.pausa ?? "budget")
+    : null;
+  if (pausa) return { disponible: false, estado: "limite_diario", error: "busquedas_en_pausa", motivo: pauseMotivo(pausa) };
+  if (name === "search_events" && Array.isArray(r.results) && r.results.length === 0 && typeof r.respaldo_en_pausa === "string") {
+    return {
+      disponible: false, estado: "limite_diario", fuente: "ticketmaster",
+      motivo: `Ticketmaster no trajo eventos para esas fechas y la búsqueda de respaldo (Google Events) no se hizo: ${pauseMotivo(r.respaldo_en_pausa).charAt(0).toLowerCase()}${pauseMotivo(r.respaldo_en_pausa).slice(1)}`,
+    };
   }
   if (r.error === "no_configurado") {
     return { disponible: false, estado: "no_respondio", error: "no_configurado", motivo: "Esta búsqueda no está disponible en este momento." };
@@ -181,7 +199,8 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
   const out: Record<string, unknown> = {
     disponible: true,
     estado: "ok",
-    ...(slimToolResult(neutralizeDeep(cleaned, 400)) as Record<string, unknown>),
+    // Listas de lugares: más espacio (≥6 lugares con su foto; auditoría 10 #3).
+    ...(slimToolResult(neutralizeDeep(cleaned, 400), PLACE_LIST_TOOLS.has(name) ? PLACE_LIST_MAX_CHARS : undefined) as Record<string, unknown>),
   };
   if (name === "web_search" && r.source === "wikipedia") {
     out.nota_fuente = typeof r.nota_fuente === "string" ? r.nota_fuente : "Respaldo de Wikipedia: información general, dilo así.";
@@ -843,4 +862,47 @@ export function tourCards(runs: ToolRun[], consultadoAt: string = new Date().toI
     }
   }
   return out;
+}
+
+// ═══ Tours repetidos como "atracción" (auditoría 10 #4) ═══
+// El modelo no puede escribir cards "tour" (las arma tourCards) y las reescribía como "attraction": los
+// mismos tours salían dos veces y, si el título decía "Coliseo", además con "Boletos oficiales".
+
+const TOUR_STOP = new Set(["tour", "tours", "roma", "con", "para", "privada", "privado", "experiencia", "desde", "clase", "visita", "guiada"]);
+const tourWords = (v: unknown) => normName(v).split(" ").filter((w) => w.length > 3 && !TOUR_STOP.has(w));
+
+/** Títulos de todos los tours que devolvió search_tours en este turno (no solo los que se muestran). */
+export function tourTitlesOf(runs: ToolRun[]): string[] {
+  const out: string[] = [];
+  for (const r of runs) {
+    if (r.name !== "search_tours" || r.result?.disponible === false) continue;
+    for (const t of Array.isArray(r.result.results) ? r.result.results as Record<string, unknown>[] : []) {
+      if (typeof t?.title === "string" && t.title.trim()) out.push(t.title);
+    }
+  }
+  return out;
+}
+
+/** ¿Esta card "attraction"/"place" es uno de los tours de este turno? */
+export function isTourDuplicate(card: Pick<ConciergeCard, "type" | "title">, tourTitles: string[], places: EvidencePlace[]): boolean {
+  if (!tourTitles.length || (card.type !== "attraction" && card.type !== "place")) return false;
+  // Un lugar real de Google con ese nombre no es un tour.
+  const p = matchPlace(card.title, places);
+  if (p && normName(p.name) === normName(card.title)) return false;
+  // El museo o monumento de la tabla oficial ("Museos Vaticanos") es el lugar, no el tour que lo visita.
+  const ticket = matchOfficialTicket(card.title);
+  if (ticket) {
+    const alias = new Set(ticket.aliases.flatMap((x) => tourWords(x)));
+    if (tourWords(card.title).every((w) => alias.has(w))) return false;
+  }
+  const a = normName(card.title);
+  const wa = tourWords(card.title);
+  return tourTitles.some((t) => {
+    const b = normName(t);
+    if (a.length >= 8 && (b.includes(a) || a.includes(b))) return true;
+    const wb = new Set(tourWords(t));
+    if (!wa.length || !wb.size) return false;
+    const shared = wa.filter((w) => wb.has(w)).length;
+    return shared >= 2 && shared / Math.min(wa.length, wb.size) >= 0.6;
+  });
 }

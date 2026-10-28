@@ -120,7 +120,7 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
   try { paused = deps.brake ? await deps.brake.paused() : null; } catch { paused = null; }
   if (paused) {
     if (cached) return { ok: true, source: "google_web", ...(cached.response as Record<string, unknown>), consulted_at: cached.fetched_at, from_cache: true, precio_guardado: true };
-    return (await fallback("las búsquedas en vivo de Google están en pausa")) ?? { error: "busquedas_en_pausa" };
+    return (await fallback(paused === "budget" ? "hoy alcanzamos el límite de búsquedas en vivo de Google" : "las búsquedas en vivo de Google están en pausa por ahora")) ?? { error: "busquedas_en_pausa", pausa: paused };
   }
 
   let refund: (() => Promise<void>) | undefined;

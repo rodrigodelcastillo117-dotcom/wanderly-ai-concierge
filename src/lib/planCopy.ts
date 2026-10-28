@@ -23,7 +23,11 @@ export const TRIAL_CTA = `Probar PRO ${TRIAL_DAYS} días gratis`;
 /** La prueba se activa al confirmar el correo, una sola vez por persona. */
 export const TRIAL_CONDITIONS = "La prueba empieza al confirmar tu correo y es una por persona.";
 
-export const FIXER_LINE = "Acceso preferente a nuestro equipo humano, sujeto a disponibilidad";
+/**
+ * Auditoría Privé P1-5 (28-oct-2026): decía "Acceso preferente a nuestro equipo humano" y no existe ninguna
+ * prioridad (la Mesa de operaciones atiende por orden de llegada). Solo se promete lo que sí pasa.
+ */
+export const FIXER_LINE = "Nuestro equipo humano pide tus mesas de Members Only, sujeto a disponibilidad";
 
 export const FREE_CONCIERGE_LINE = "3 mensajes con Iato al mes";
 export const FREE_TRIP_LINE = "1 análisis completo de viaje de cortesía (una sola vez)";
@@ -106,9 +110,10 @@ export function conciergeHeaderCopy(v: PlanView): ConciergeHeader {
 }
 
 export function membersOnlySubtitle(v: PlanView): string {
+  // Sin "acceso preferente" (no hay prioridad real) y corto para que se lea completo en el celular.
   const base = "Vida nocturna seleccionada. Pide tu mesa y nuestro equipo te ayuda a gestionarla; la confirmación depende de cada lugar.";
-  if (v.loading) return base;
-  return v.isPro ? `${base} ${FIXER_LINE}.` : `${base} Con IATOS PRO: ${FIXER_LINE.charAt(0).toLowerCase()}${FIXER_LINE.slice(1)}.`;
+  if (v.loading || v.isPro) return base;
+  return `${base} Con IATOS PRO.`;
 }
 
 /**

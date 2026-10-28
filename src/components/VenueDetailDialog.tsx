@@ -1,4 +1,4 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { MapPin, ExternalLink, CalendarCheck, X, Sparkles } from "lucide-react";
 import { MembersVenueMeta } from "@/components/MembersVenueMeta";
 import type { MembersVenue } from "@/lib/membersVenues";
@@ -57,7 +57,9 @@ export function VenueDetailDialog<V extends Venue>({ venue, open, onClose, onRes
 
           <div className="flex items-start gap-4 mb-4">
             <div className="flex-1 min-w-0">
-              <h3 className="font-fraunces text-3xl text-foreground leading-tight">{venue.nombre}</h3>
+              {/* Título accesible del diálogo (antes: error "DialogContent requires a DialogTitle", Privé P1-6). */}
+              <DialogTitle className="font-fraunces text-3xl text-foreground leading-tight font-normal">{venue.nombre}</DialogTitle>
+              <DialogDescription className="sr-only">{`Ficha de ${venue.nombre} en ${venue.ciudad_display}: fuente, verificación y cómo pedir mesa.`}</DialogDescription>
               {venue.por_que && (
                 <p className="text-primary text-sm mt-2 leading-snug font-fraunces italic">
                   {venue.por_que}

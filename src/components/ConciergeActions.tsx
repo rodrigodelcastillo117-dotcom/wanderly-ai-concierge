@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { reverseGeocode } from "@/lib/reverseGeocode";
 
 type ActionKind = "transport" | "dining" | "emergency" | null;
 
@@ -75,11 +76,8 @@ export const ConciergeActions = ({
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         setCoords({ lat: latitude, lng: longitude });
-        try {
-          const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=es`);
-          const j = await r.json();
-          setCountryCode(j?.countryCode ?? null);
-        } catch {/* */}
+        const g = await reverseGeocode(latitude, longitude);
+        setCountryCode(g?.countryCode ?? null);
       },
       () => toast.error("Necesito permiso de ubicación para acciones en tiempo real"),
       { enableHighAccuracy: true, timeout: 10000 },
@@ -171,13 +169,15 @@ export const ConciergeActions = ({
       {open && kind && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6"
+          // Encima de la barra de navegación de abajo (z-50): antes tapaba "Llamar / Cómo llegar" (auditoría 10 #12).
+          className="fixed inset-0 z-[90] bg-background/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6"
+          data-testid="live-action-overlay"
           onClick={onClose}
         >
           <motion.div
             initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl rounded-t-3xl sm:rounded-3xl border border-primary/30 bg-card p-5 sm:p-7 max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-2xl rounded-t-3xl sm:rounded-3xl border border-primary/30 bg-card p-5 sm:p-7 pb-[max(1.25rem,env(safe-area-inset-bottom))] max-h-[90dvh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">

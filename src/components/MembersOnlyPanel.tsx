@@ -18,6 +18,7 @@ import {
 } from "@/lib/membersVenues";
 import { matchCities, normText, orderCities, resolveCityName } from "@/lib/cityVisuals";
 import { MembersVenueMeta } from "@/components/MembersVenueMeta";
+import { MembersReserveDialog, type MembersReserveRequest } from "@/components/members/MembersReserveDialog";
 import { reservationStateLabel, requestStatusToCanonical } from "../../supabase/functions/_shared/reservationState.ts";
 
 // Lista de siempre + la categoría "Otros" para lo curado que no encaja (coctelería, mezcalería…).
@@ -82,6 +83,10 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
   const [loadingVenues, setLoadingVenues] = useState(false);
   const [reservingId, setReservingId] = useState<string | null>(null);
   const [detailVenue, setDetailVenue] = useState<Venue | null>(null);
+  // Pedir mesa: primero fecha, hora y personas, y confirmar (P1-4); nunca con un solo toque.
+  const [reserveVenue, setReserveVenue] = useState<Venue | null>(null);
+  // Lugares que la lista mostró de verdad por ciudad: el carrusel dice el mismo número (P1-3 / #14).
+  const [shownCounts, setShownCounts] = useState<Record<string, number>>({});
   const [cities, setCities] = useState<MembersCity[] | null>(null);
   const [showAllCities, setShowAllCities] = useState(false);
   const wide = useWide();
@@ -111,6 +116,7 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
         toast({ title: "Error cargando lugares", description: "No pudimos cargar los lugares. Intenta de nuevo.", variant: "destructive" });
       }
       setVenues(list);
+      if (!error) setShownCounts((m) => ({ ...m, [normText(city)]: list.length }));
       setLoadingVenues(false);
     })();
     return () => { alive = false; };
@@ -122,7 +128,7 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
     fetchMembersCities(supabase).then(setCities);
   }, [access?.access]);
   const allCities = useMemo(() => cityNames(cities, FEATURED_CITIES), [cities]);
-  const counts = useMemo(() => new Map((cities ?? []).map((c) => [c.display, c.venues])), [cities]);
+  const counts = useMemo(() => new Map((cities ?? []).map((c) => [c.display, shownCounts[normText(c.display)] ?? c.venues])), [cities, shownCounts]);
   // Tu ciudad y tu viaje primero; después la ciudad con la que abre el panel (París), para que la
   // elegida de inicio se vea al principio del carrusel y no al final.
   const ordered = useMemo(() => orderCities(allCities, [...preferredCities, DEFAULT_CITY]), [allCities, prefKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -163,7 +169,7 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
     if (!venues.some((v) => venueMatches(v, q))) pickCity(q);
   };
 
-  const handleReserve = async (v: Venue) => {
+  const handleReserve = async (v: Venue, r: MembersReserveRequest) => {
     if (!user) return;
     setReservingId(v.id);
     try {
@@ -181,15 +187,23 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
             address: v.address,
             website: v.website,
             por_que: v.por_que,
+            // Lo que el equipo necesita para pedir la mesa (la Mesa de operaciones lo lee así).
+            fecha: r.fecha,
+            hora: r.hora,
+            personas: r.personas,
+            party_size: r.personas,
+            requested_for: `${r.fecha}T${r.hora}`,
+            ...(r.notas ? { detalle: r.notas, preferences: r.notas } : {}),
           },
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast({
-        title: "Solicitud enviada al Concierge",
-        description: `${v.nombre}: ${reservationStateLabel({ canonical_state: requestStatusToCanonical(data?.request?.status ?? "solicitado") }).label}. Te avisamos cuando el lugar responda.`,
+        title: "Solicitud enviada al equipo IATOS",
+        description: `${v.nombre}: ${reservationStateLabel({ canonical_state: requestStatusToCanonical(data?.request?.status ?? "solicitado") }).label}. La ves en Mis solicitudes; te avisamos cuando el lugar responda.`,
       });
+      setReserveVenue(null);
       onReserve?.(v);
     } catch (e: any) {
       toast({ title: "No se pudo crear la solicitud", description: e?.message ?? "", variant: "destructive" });
@@ -207,7 +221,7 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
 
   const card = (v: Venue, rail: boolean) => (
     <VenueCard key={v.id} venue={v} rail={rail} wide={wide} reserving={reservingId === v.id}
-      onOpen={() => setDetailVenue(v)} onReserve={() => handleReserve(v)} />
+      onOpen={() => setDetailVenue(v)} onReserve={() => setReserveVenue(v)} />
   );
   // En escritorio, "Todas" es una sola rejilla ordenada por categoría (cada tarjeta dice la suya).
   const byCategory = presentCats.flatMap((c) => venues.filter((v) => matchesCategory(v, c.id)));
@@ -226,7 +240,8 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
         <PriveEntryLink />
       </div>
       {/* Según el plan real; antes prometía a todas las cuentas que el Concierge PRO gestionaba sus reservas. */}
-      <p className="text-primary/90 text-xs md:text-sm font-fraunces italic mb-3 md:mb-4 line-clamp-2 md:line-clamp-none">
+      {/* Completo también en el celular (antes se cortaba en "…depende de cada lugar.…"). */}
+      <p className="text-primary/90 text-xs md:text-sm font-fraunces italic mb-3 md:mb-4" data-testid="members-subtitle">
         {membersOnlySubtitle({ loading: subLoading, isPro })}
       </p>
 
@@ -410,8 +425,15 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
         venue={detailVenue}
         open={!!detailVenue}
         onClose={() => setDetailVenue(null)}
-        onReserve={(v) => { handleReserve(v); setDetailVenue(null); }}
+        onReserve={(v) => { setDetailVenue(null); setReserveVenue(v); }}
         reserving={!!detailVenue && reservingId === detailVenue.id}
+      />
+      <MembersReserveDialog
+        venue={reserveVenue}
+        open={!!reserveVenue}
+        sending={!!reserveVenue && reservingId === reserveVenue.id}
+        onClose={() => setReserveVenue(null)}
+        onConfirm={(r) => { if (reserveVenue) void handleReserve(reserveVenue, r); }}
       />
     </div>
   );

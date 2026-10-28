@@ -7,6 +7,8 @@ export type AiReservation = {
   ref_code: string;
   venue_name: string;
   venue_email: string | null;
+  /** Piloto: el correo es el de prueba del dueño, no el del restaurante (se dice en pantalla). */
+  venue_email_is_test?: boolean;
   venue_address: string | null;
   venue_city: string | null;
   venue_place_id: string | null;

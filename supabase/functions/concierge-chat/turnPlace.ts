@@ -93,6 +93,22 @@ export function tripDisplayName(t: TripLike | null | undefined): string | null {
   return d || null;
 }
 
+/** Pedir transporte ahora ("Pedir transporte", "un Uber"): es de donde está, no del viaje futuro. */
+const TRANSPORT_NOW = /\b(transporte|taxi|uber|didi|cabify|traslado|llevame|pedir (un )?(auto|carro|coche))\b/;
+
+/** El mensaje nombra un vuelo (AM 2, IB6402) que no está en el viaje seleccionado. */
+export function flightNotInTrip(message: string, trip: TripLike | null | undefined): boolean {
+  const m = String(message ?? "").toUpperCase().match(/\b([A-Z]{2}|[A-Z]\d|\d[A-Z])\s?(\d{1,4})\b/);
+  if (!m || !/\bVUELO\b/.test(normalizeText(message).toUpperCase())) return false;
+  const code = `${m[1]}${Number(m[2])}`;
+  const list = Array.isArray((trip as any)?.vuelos_json) ? (trip as any).vuelos_json : [];
+  return !list.some((v: any) => {
+    const raw = String(v?.numero_vuelo ?? v?.numero ?? "").toUpperCase().replace(/\s+/g, "");
+    const x = raw.match(/^([A-Z]{2}|[A-Z]\d|\d[A-Z])(\d{1,4})$/);
+    return !!x && `${x[1]}${Number(x[2])}` === code;
+  });
+}
+
 export function resolveTurnPlace<T extends TripLike>(i: {
   message: string;
   trips: T[];
@@ -132,9 +148,14 @@ export function resolveTurnPlace<T extends TripLike>(i: {
   let searchCity: string | null;
   const hereLabel = physical?.place ?? (physical?.coords ? "Tu ubicación" : null);
   const mentionsHotel = /\bhotel\b/.test(normalizeText(message));
+  const foreignFlight = flightNotInTrip(message, selectedTrip);
+  const transportNow = TRANSPORT_NOW.test(normalizeText(message)) && !mentionsHotel && !/\baeropuerto\b/.test(normalizeText(message));
   if (requested && !needsSpecificTrip(message)) {
     scope = "requested"; label = requested; searchCity = requested;
-  } else if (nearMe || (placeSearch && !mentionsHotel && (futureTrip || i.position === "away"))) {
+  } else if (foreignFlight) {
+    // "¿Cómo va el vuelo AM 2?" con un vuelo que no es del viaje: no es "sobre Valle de Bravo" (auditoría 10 #17).
+    scope = "none"; label = null; searchCity = null;
+  } else if (nearMe || ((placeSearch || transportNow) && !mentionsHotel && (futureTrip || i.position === "away"))) {
     // "Cerca" = donde está ahora. Un viaje que no ha empezado (o del que está fuera) no es "aquí".
     scope = "here"; label = hereLabel; searchCity = physical?.place ?? null;
   } else if (selectedTrip) {

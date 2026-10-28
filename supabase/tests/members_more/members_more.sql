@@ -95,9 +95,12 @@ SELECT public.t_err('A4 nadie llama la función interna', $q$SELECT * FROM publi
 SELECT public.t_err('A5 la tabla vieja sigue cerrada para gratis', $q$DO $d$ BEGIN IF (SELECT count(*) FROM public.nightlife_premium) > 0 THEN RAISE EXCEPTION 'vio filas'; END IF; RAISE EXCEPTION 'cero filas'; END $d$$q$, 'cero filas');
 
 -- ───────────── 2. Ciudades y adelanto (gratis): conteos sí, nombres no ─────────────
-SELECT public.t_ok('C1 gratis ve ciudades con conteo', (SELECT count(*) FROM public.members_cities()) >= 10);
-SELECT public.t_ok('C2 CDMX en members_cities con 7 lugares',
-  (SELECT venues FROM public.members_cities() WHERE ciudad_display = 'Ciudad de México') = 7,
+-- Auditoría 10 #14 (20261029010000): solo se cuentan los lugares con fuente, los mismos que la app muestra;
+-- las 3 filas viejas de nightlife_premium de CDMX (sin fuente) ya no inflan el conteo.
+SELECT public.t_ok('C1 gratis ve ciudades con conteo', (SELECT count(*) FROM public.members_cities()) >= 3
+  AND NOT EXISTS (SELECT 1 FROM public.members_cities() WHERE venues <= 0));
+SELECT public.t_ok('C2 CDMX en members_cities con 4 lugares (los curados, con fuente)',
+  (SELECT venues FROM public.members_cities() WHERE ciudad_display = 'Ciudad de México') = 4,
   (SELECT string_agg(ciudad_display || ':' || venues, ', ') FROM public.members_cities()));
 SELECT public.t_ok('C3 ordenadas por conteo',
   (SELECT bool_and(v_prev >= venues) FROM (SELECT venues, lag(venues) OVER () AS v_prev FROM public.members_cities()) x WHERE v_prev IS NOT NULL));
@@ -109,7 +112,7 @@ SELECT public.t_ok('C5 members_teaser no trae nombres de lugares',
               WHERE lower(t.ciudad || ' ' || t.ciudad_display || ' ' || coalesce(t.pais, '') || ' ' || t.categoria) LIKE '%' || nm || '%'));
 SELECT public.t_ok('C6 adelanto total = suma de members_cities',
   (SELECT sum(venues) FROM public.members_teaser(NULL)) = (SELECT sum(venues) FROM public.members_cities()));
-SELECT public.t_ok('C7 adelanto de CDMX = 7 (misma unión)', (SELECT sum(venues) FROM public.members_teaser('CDMX')) = 7);
+SELECT public.t_ok('C7 adelanto de CDMX = 4 (lo que PRO ve)', (SELECT sum(venues) FROM public.members_teaser('CDMX')) = 4);
 SELECT public.t_ok('C8 el adelanto ya cuenta la categoría mapeada (speakeasy incluye la curada)',
   (SELECT venues FROM public.members_teaser('Ciudad de México') WHERE categoria = 'speakeasy') = 1
   AND (SELECT venues FROM public.members_teaser('Ciudad de México') WHERE categoria = 'cocktail_bar') = 1);
@@ -152,7 +155,8 @@ SELECT public.t_ok('P14 París sin curaduría: las 4 de siempre',
   (SELECT count(*) FROM public.members_venues('París')) = 4);
 SELECT public.t_ok('P15 conteos del adelanto = lugares de PRO por ciudad',
   NOT EXISTS (SELECT 1 FROM public.members_cities() c
-               WHERE c.venues <> (SELECT count(*) FROM public.members_venues(c.ciudad_display) v WHERE v.ciudad_display = c.ciudad_display)));
+               WHERE c.venues <> (SELECT count(*) FROM public.members_venues(c.ciudad_display) v
+                                   WHERE v.fuente = 'curaduria' OR nullif(btrim(v.source_url), '') IS NOT NULL)));
 SELECT public.t_ok('P16 ningún lugar repetido en ninguna ciudad',
   NOT EXISTS (SELECT 1 FROM public.members_cities() c, LATERAL (
     SELECT public.t_dk(v.nombre) k FROM public.members_venues(c.ciudad_display) v GROUP BY v.ciudad, 1 HAVING count(*) > 1) d));

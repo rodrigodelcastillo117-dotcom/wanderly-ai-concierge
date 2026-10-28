@@ -5,6 +5,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { z } from "npm:zod@3.25.76";
 import { querySerpApi } from "../_shared/flight-serpapi.ts";
 import { serpFetchFor } from "../_shared/serpRuntime.ts";
+import { flightStatusUnavailableBody } from "../_shared/flight-serpapi.ts";
 
 const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
 const SERPAPI_PRIVATE_KEY = Deno.env.get('SERPAPI_PRIVATE_KEY');
@@ -34,10 +35,14 @@ Deno.serve(async (req) => {
     if (!input.success) return jsonResponse({ error: 'Número de vuelo/ruta o fecha inválidos' }, 400);
     const { flight, route } = input.data;
     const date = input.data.date ?? new Date().toISOString().slice(0, 10);
+    // Tope diario de búsquedas en vivo (o cuota agotada): se dice tal cual, no "no respondió" (auditoría 10 #6).
+    let serp: ReturnType<typeof serpFetchFor> | null = null;
+    const unavailable = (status: number, extra: Record<string, unknown> = {}) =>
+      jsonResponse(flightStatusUnavailableBody(serp?.trace.paused ?? null, { flight, date, ...extra }), status);
     if (SERPAPI_PRIVATE_KEY && flight) {
       try {
         // Caché compartida de 10 min: dos personas en el mismo vuelo pagan una sola búsqueda.
-        const serp = serpFetchFor("flight-status", __user.id);
+        serp = serpFetchFor("flight-status", __user.id);
         const result = await querySerpApi(SERPAPI_PRIVATE_KEY, flight, date, route ?? undefined, { fetch: serp.fetch });
         if (result) return jsonResponse({ flight, date, route, ...result });
       } catch {
@@ -45,7 +50,7 @@ Deno.serve(async (req) => {
       }
     }
     if (!PERPLEXITY_API_KEY) {
-      return jsonResponse({ error: 'flight_status_unavailable', message: 'No hay datos verificables para ese vuelo y fecha.', flight, date }, 503);
+      return unavailable(503, { message: 'No hay datos verificables para ese vuelo y fecha.' });
     }
 
     const today = new Date().toISOString().slice(0, 10);
@@ -74,7 +79,7 @@ Deno.serve(async (req) => {
     if (!r.ok) {
       const errMsg = j?.error?.message || j?.error || `Perplexity ${r.status}`;
       console.warn('flight-status: Perplexity unavailable', r.status);
-      return jsonResponse({ error: 'flight_status_unavailable' }, 502);
+      return unavailable(502);
     }
     const content: string = j?.choices?.[0]?.message?.content ?? '';
     const citations: string[] = j?.citations ?? [];
@@ -84,7 +89,7 @@ Deno.serve(async (req) => {
     const m = content.match(/\{[\s\S]*\}/);
     if (m) { try { parsed = JSON.parse(m[0]); } catch { /* */ } }
     if (!parsed || parsed.status === 'desconocido' || !citations.length) {
-      return jsonResponse({ error: 'flight_status_unavailable', flight, date }, 503);
+      return unavailable(503);
     }
 
     return new Response(JSON.stringify({

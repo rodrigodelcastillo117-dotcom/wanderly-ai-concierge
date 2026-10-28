@@ -40,6 +40,8 @@ import type { ProposedAction } from "../../supabase/functions/concierge-chat/act
 import { conciergeLocationLabel, GEO_GIVE_UP_MS, type LocationState } from "@/lib/conciergeLocation";
 import { tripPhaseLabel, tripSituation } from "../../supabase/functions/concierge-chat/location.ts";
 import { answerPlaceLabel, type PlaceScope } from "../../supabase/functions/concierge-chat/turnPlace.ts";
+import { scrubProviders } from "../../supabase/functions/_shared/providerNames.ts";
+import { reverseGeocode } from "@/lib/reverseGeocode";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -249,16 +251,13 @@ const Concierge = () => {
         try {
           // Dos decimales (≈1 km): basta para el clima y no manda la ubicación exacta.
           const r2 = (v: number) => Math.round(v * 100) / 100;
-          const [met, gRes] = await Promise.all([
-            fetchMetForecast(r2(latitude), r2(longitude)),
-            fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=es`),
-          ]);
+          // El nombre del lugar se pide una vez por zona (src/lib/reverseGeocode.ts), no cada minuto.
+          const [met, g] = await Promise.all([fetchMetForecast(r2(latitude), r2(longitude)), reverseGeocode(latitude, longitude)]);
           const w = nowFromMet(met);
           if (!w) throw new Error("sin clima");
-          const g = await gRes.json();
           setWeather({
             temp: w.tempC,
-            place: g?.city || g?.locality || g?.principalSubdivision || "Tu ubicación",
+            place: g?.city || "Tu ubicación",
           });
           setGeoState("ok");
         } catch { setGeoState((s) => (s === "ok" ? s : "unavailable")); }
@@ -507,13 +506,17 @@ const Concierge = () => {
               />
             </div>
           </div>
-          <div className="mt-1.5 flex items-center gap-2 min-w-0 text-[11px] text-muted-foreground" data-testid="concierge-context">
-            <span className="flex min-w-0 max-w-[40%] items-center gap-1" title={conciergeLocationLabel(geoState, weather)}>
+          {/* En el celular, ubicación y viaje se acomodan en dos renglones en vez de cortarse en "Ciud…" y "V…"
+              (auditoría 10 #20); en pantallas anchas siguen en uno. */}
+          <div className="mt-1.5 flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1 min-w-0 text-[11px] text-muted-foreground" data-testid="concierge-context">
+            <span className="flex min-w-0 basis-full sm:basis-auto sm:max-w-[40%] items-center gap-1" title={conciergeLocationLabel(geoState, weather)}>
               <MapPin className="w-3.5 h-3.5 shrink-0 text-primary" aria-hidden="true" />
               <span className="truncate">{conciergeLocationLabel(geoState, weather)}</span>
               {/* MET Norway (CC BY 4.0) pide atribución donde se muestra su clima. */}
               {weather && <a href={MET_ATTRIBUTION.href} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[10px] underline underline-offset-2">Datos: MET Norway</a>}
             </span>
+            {/* Viaje, actualizar y memoria juntos en un renglón (en el celular, debajo de la ubicación). */}
+            <div className="flex min-w-0 flex-1 items-center gap-2">
             <TripContextSelector
               trips={trips}
               todayLocal={todayLocal}
@@ -521,7 +524,7 @@ const Concierge = () => {
               resolved={tripContext}
               onChange={(id) => void pinTrip(id)}
               phaseHint={phaseHint}
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
             <button
               type="button"
@@ -533,6 +536,7 @@ const Concierge = () => {
               <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
             {user && <IatoMemoryPanel compact userId={user.id} trips={trips} />}
+            </div>
           </div>
         </div>
 
@@ -576,17 +580,9 @@ const Concierge = () => {
           <div className="flex-1 overflow-y-auto">
             <MembersOnlyPanel
               preferredCities={[weather?.place, trip?.destino]}
-              onReserve={(v) => {
-                switchTab("chat");
-                setTimeout(() => {
-                  sendText(
-                    `Ya pedí mesa en ${v.nombre} (${v.ciudad_display}) — ${v.categoria} desde «Solo para miembros». ` +
-                    (v.dress_code ? `Dress code: ${v.dress_code}. ` : "") +
-                    `¿Qué necesito saber para ir y qué alternativa tengo si no hay mesa?`,
-                    { intent: "members_followup" },
-                  );
-                }, 250);
-              }}
+              // La solicitud ya quedó con fecha, hora y personas (y la confirmó el usuario): se ve en
+              // Mis solicitudes. Ya no se manda un mensaje automático al chat diciendo "Ya pedí mesa".
+              onReserve={() => switchTab("solicitudes")}
             />
           </div>
         ) : (
@@ -795,7 +791,7 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled, onOpenEmergency }: 
             )}
             {showSteps && <StepList steps={msg.steps ?? []} streaming={msg.streaming} hasText={!!msg.text.trim()} />}
             {/* Iato responde en Markdown: se interpreta un subconjunto seguro (N-05). */}
-            {msg.text && (isUser ? <span className="whitespace-pre-wrap">{msg.text}</span> : <SafeMarkdown text={msg.text} />)}
+            {msg.text && (isUser ? <span className="whitespace-pre-wrap">{msg.text}</span> : <SafeMarkdown text={scrubProviders(msg.text)} />)}
             {(time || aboutPlace) && (
               <p className={`mt-0.5 flex justify-end gap-1 text-[10px] leading-none ${isUser ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                 {aboutPlace && <span className="truncate max-w-[12rem]" data-testid="answer-place">{aboutPlace} ·</span>}

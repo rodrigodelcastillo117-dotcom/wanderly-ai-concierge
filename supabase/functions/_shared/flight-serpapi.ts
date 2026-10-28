@@ -127,3 +127,13 @@ export async function querySerpApi(key: string, flight: string, date: string, ro
   return { data: { ...outcome.data, source, fuente: "serpapi", source_name: "Google flight widget (SerpApi)",
     retrieved_at: outcome.fetchedAt ?? new Date().toISOString() }, citations: [source], raw: "", provider: "serpapi" };
 }
+
+/**
+ * Cuerpo de "sin estado del vuelo". Si la cuenta de SerpApi está en pausa (tope diario
+ * SERPAPI_DAILY_BUDGET o cuota agotada) se dice con su motivo: Iato responde "hoy alcanzamos el límite
+ * de búsquedas en vivo" en lugar de "el servicio no respondió" (auditoría 10 #6).
+ */
+export function flightStatusUnavailableBody(paused: "budget" | "quota" | null | undefined, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  if (paused) return { error: "busquedas_en_pausa", pausa: paused, ...extra, message: paused === "budget" ? "Hoy alcanzamos el límite de búsquedas en vivo." : "Alcanzamos el límite de búsquedas en vivo por ahora." };
+  return { error: "flight_status_unavailable", ...extra };
+}
