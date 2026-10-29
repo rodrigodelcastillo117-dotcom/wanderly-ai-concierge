@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { SmartImage } from "@/components/media/SmartImage";
-import { dailyCostMxn, destinationPhotoQuery } from "@/lib/compareCost";
+import { dailyCostMxn, destinationPhotoFallbackQuery, destinationPhotoQuery } from "@/lib/compareCost";
 import { fetchFxTable, fxLabel, type FxTable } from "@/lib/fx";
 import { useNavigate } from "react-router-dom";
 import { GitCompare, Sparkles, X, Plus, RotateCcw } from "lucide-react";
@@ -185,7 +185,7 @@ const Compare = () => {
             <div className="space-y-4 md:hidden">
               {rows.map((r, i) => (
                 <div key={i} className="glass-card rounded-2xl overflow-hidden">
-                  <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} className="h-32 w-full" captionPosition="top-right">
+                  <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} stockFallbackQuery={destinationPhotoFallbackQuery(r.destino)} eager className="h-32 w-full" captionPosition="top-right">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                     <div className="absolute inset-x-4 bottom-3 z-[2]">
                       <p className="text-primary text-[10px] tracking-[0.2em] uppercase">Destino {i + 1}</p>
@@ -211,7 +211,7 @@ const Compare = () => {
                 {rows.map((r, i) => (
                   <div key={i} className="bg-card">
                     {/* Foto ilustrativa del destino (marcada) sobre el nombre. */}
-                    <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} className="h-28 w-full" captionPosition="top-right">
+                    <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} stockFallbackQuery={destinationPhotoFallbackQuery(r.destino)} eager className="h-28 w-full" captionPosition="top-right">
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                       <p className="absolute inset-x-3 bottom-2 z-[2] font-display text-lg text-white">{r.destino}</p>
                     </SmartImage>

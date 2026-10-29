@@ -3,6 +3,7 @@
 // (con su fuente y fecha) y se conserva la cifra original en USD como referencia. Puro.
 import { convert, type FxTable } from "@/lib/fx";
 import { cityAirports } from "../../supabase/functions/_shared/airports.ts";
+import { cityVideoQueries } from "@/lib/cityVisuals";
 
 /** "$80-120", "80 – 120 USD", "US$150" → { min, max }. null si no hay cifras. */
 export function parseUsdRange(raw: unknown): { min: number; max: number | null } | null {
@@ -35,4 +36,15 @@ export function destinationPhotoQuery(dest: string): string {
   const c = cityAirports(city);
   const en = c?.aliases?.find((x) => /^[a-z][a-z ]+$/.test(x) && x.length > 3) ?? city ?? "";
   return [en, c?.country ?? rest[0] ?? "", "city travel"].filter(Boolean).join(" ").toLowerCase();
+}
+
+/**
+ * Segunda consulta de foto si la primera no trae nada (R2: Lisboa seguía sin foto en Comparar): el lugar
+ * emblemático revisado contra Pexels ("Lisbon yellow tram Alfama") o "<ciudad en inglés> landmark day".
+ */
+export function destinationPhotoFallbackQuery(dest: string): string {
+  const [city] = String(dest ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const c = cityAirports(city);
+  const en = c?.aliases?.find((x) => /^[a-z][a-z ]+$/.test(x) && x.length > 3) ?? city ?? "";
+  return cityVideoQueries(en || city || "")[0];
 }
