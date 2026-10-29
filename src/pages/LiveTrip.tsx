@@ -4,8 +4,10 @@ import { motion } from "framer-motion";
 import {
   MapPin, Calendar, Phone, Languages, Crown,
   Navigation, Clock, Utensils, Hotel, Plane, Activity, AlertCircle, Sparkles, Luggage,
-  Cloud, BookHeart, Users
+  Cloud, BookHeart, Users, Car
 } from "lucide-react";
+import { arrivalByLand } from "@/lib/groundTrip";
+import { isGroundTripOption } from "@/lib/booking";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -226,7 +228,11 @@ const LiveTrip = () => {
         {/* Accesos rápidos a info del viaje */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <InfoCard icon={Hotel} label="Hospedaje" count={(trip.hospedaje_json ?? []).length} onClick={() => navigate(`/dashboard/viajes/${trip.id}`)} />
-          <InfoCard icon={Plane} label="Vuelos" count={(trip.vuelos_json ?? []).length} onClick={() => navigate(`/dashboard/viajes/${trip.id}`)} />
+          {/* Viaje por carretera (Valle de Bravo en coche): no hay «Vuelos»; antes contaba el coche y el autobús
+              como «Vuelos · 2 opciones» (R2). Los vuelos cuentan solo opciones que sí son vuelo. */}
+          {arrivalByLand(trip)
+            ? <InfoCard icon={Car} label="Cómo llegar" count={(trip.vuelos_json ?? []).filter((v: any) => isGroundTripOption(v)).length} onClick={() => navigate(`/dashboard/viajes/${trip.id}`)} />
+            : <InfoCard icon={Plane} label="Vuelos" count={(trip.vuelos_json ?? []).filter((v: any) => !isGroundTripOption(v)).length} onClick={() => navigate(`/dashboard/viajes/${trip.id}`)} />}
           <InfoCard icon={Utensils} label="Restaurantes" count={(trip.restaurantes_json ?? []).length} onClick={() => navigate(`/dashboard/viajes/${trip.id}`)} />
         </div>
       </div>
