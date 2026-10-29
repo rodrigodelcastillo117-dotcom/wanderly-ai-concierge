@@ -1,3 +1,4 @@
+import { formatInstantDateTime } from "@/lib/localDate";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { BookHeart, Plus, Trash2, Image as ImageIcon, Loader2 } from "lucide-react";
@@ -197,7 +198,7 @@ const TripJournal = () => {
             <motion.div key={e.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
               className="glass-card rounded-2xl p-4">
               <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="text-xs text-primary">{new Date(e.created_at).toLocaleString("es-MX")}</div>
+                <div className="text-xs text-primary" data-testid="diario-fecha">{formatInstantDateTime(e.created_at)}</div>
                 {(e.author_id === userId || trip?.user_id === userId) && (
                   <button onClick={() => remove(e.id)} aria-label="Eliminar esta entrada del diario" className="text-muted-foreground hover:text-destructive p-2 -m-2"><Trash2 className="w-4 h-4" aria-hidden="true" /></button>
                 )}

@@ -142,9 +142,18 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
  * Formas de llegar POR TIERRA a una ciudad del viaje (coche, tren, bus, ferry): del plan guardado y,
  * en viajes viejos, las filas de tierra que quedaron mezcladas en vuelos_json.
  */
-const GENERIC_OP = new Set(["tren", "treno", "train", "trenes", "alta", "velocidad", "bus", "autobus", "ferry", "de", "y", "the"]);
+const GENERIC_OP = new Set(["tren", "treno", "trenes", "spa", "sa", "train", "trenes", "alta", "velocidad", "bus", "autobus", "ferry", "de", "y", "the"]);
 const opTokens = (o: any): string[] => String(o?.aerolinea ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
   .split(/[^a-z0-9]+/).filter((t) => t.length > 1 && !GENERIC_OP.has(t));
+/** Modo canónico para comparar tarjetas ("Tren", "train", "rail" → "tren"). */
+const modeKey = (m: unknown): string => {
+  const k = String(m ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  if (/^(tren|train|rail|ferrocarril)/.test(k)) return "tren";
+  if (/^(bus|autobus|camion)/.test(k)) return "bus";
+  if (/^(coche|auto|car|carro|renta)/.test(k)) return "coche";
+  if (/^(ferry|barco|boat)/.test(k)) return "ferry";
+  return k;
+};
 const opKey = (o: any) => String(o?.aerolinea ?? "").toLowerCase().trim();
 const samePrice = (a: any, b: any) => Number(a?.precio_por_persona) > 0 && Math.round(Number(a.precio_por_persona)) === Math.round(Number(b?.precio_por_persona));
 
@@ -175,8 +184,14 @@ export function groundOptionsForCity(trip: any, city: string): any[] {
   return [...quoted, ...legacy, ...fromPlan].filter((o) => {
     // Lo que "sale" del origen (otro continente) no es una forma de llegar por tierra.
     if (origin && sameCity(String(o?.from ?? "").replace(/\(.*?\)/g, " "), origin)) return false;
-    const dup = kept.some((k) => k.mode === o?.mode && (opKey(k) === opKey(o)
-      || (samePrice(k, o) && opTokens(k).some((t) => opTokens(o).includes(t)))));
+    // Por operador (R2: seguían 3 tarjetas casi iguales por tramo, «Trenitalia (Frecciarossa) / Italo»,
+    // «Trenitalia / Frecciarossa» e «Italo Treno»): una alternativa cuyos operadores ya están todos en una
+    // tarjeta del mismo modo (tren = train = Tren) sobra; «Renfe AVE / Iryo» junto a «Renfe AVE» se queda
+    // (iryo es otro operador).
+    const sameFrom = (k: any) => !k?.from || !o?.from || sameCity(String(k.from).replace(/\(.*?\)/g, " "), String(o.from).replace(/\(.*?\)/g, " "));
+    const dup = kept.some((k) => modeKey(k?.mode) === modeKey(o?.mode) && sameFrom(k) && (opKey(k) === opKey(o)
+      || (samePrice(k, o) && opTokens(k).some((t) => opTokens(o).includes(t)))
+      || (opTokens(o).length > 0 && opTokens(o).every((t) => opTokens(k).includes(t)))));
     if (dup) return false;
     kept.push(o);
     return true;

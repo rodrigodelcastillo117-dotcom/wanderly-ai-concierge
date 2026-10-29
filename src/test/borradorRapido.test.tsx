@@ -57,7 +57,7 @@ describe("borrador local: lo que el lector local puede, y lo demás como pendien
     const s = draftSpec(DIEGO_TEXT, { today: TODAY });
     expect(s.consulta_original).toBe(DIEGO_TEXT);
     expect(s.origen).toBe("Ciudad de México");
-    expect(s.paradas.map((p) => [p.ciudad, p.llegada_por, p.sugerida])).toEqual([["Riad", "por_definir", true], ["Ciudad del Cabo", "crucero", false]]);
+    expect(s.paradas.map((p) => [p.ciudad, p.llegada_por, p.sugerida])).toEqual([["Riad", "vuelo", true], ["Ciudad del Cabo", "crucero", false]]); // a otro continente: vuelo por defecto (R2 P1-2)
     expect(s.regreso.via).toBe("Londres");
     expect([s.fecha_salida, s.fecha_regreso, s.viajeros]).toEqual(["2027-11-15", "2027-12-19", 2]);
     // Lo que el lector local no sabe (más ciudades de Arabia, puertos y noches del crucero, ¿escala o estancia?) queda pendiente.
@@ -68,7 +68,7 @@ describe("borrador local: lo que el lector local puede, y lo demás como pendien
   it("'crucero de X a Y', 'regreso vía X', 'tren a X' y fechas con año", () => {
     const t = "Roma, tren a Florencia, crucero de Barcelona a Atenas y regreso vía Madrid, del 15 de noviembre al 19 de diciembre de 2027";
     const s = draftSpec(t, { origen: "Ciudad de México", today: TODAY });
-    expect(s.paradas.map((p) => [p.ciudad, p.llegada_por])).toEqual([["Roma", "por_definir"], ["Florencia", "tren"], ["Barcelona", "por_definir"], ["Atenas", "crucero"]]);
+    expect(s.paradas.map((p) => [p.ciudad, p.llegada_por])).toEqual([["Roma", "vuelo"], ["Florencia", "tren"], ["Barcelona", "por_definir"], ["Atenas", "crucero"]]); // CDMX → Roma: vuelo por defecto (R2 P1-2)
     expect(city(s, "Atenas").crucero).toMatchObject({ puerto_salida: "Barcelona", puerto_llegada: "Atenas", naviera: null });
     expect(s.regreso.via).toBe("Madrid");
     expect([s.fecha_salida, s.fecha_regreso]).toEqual(["2027-11-15", "2027-12-19"]);

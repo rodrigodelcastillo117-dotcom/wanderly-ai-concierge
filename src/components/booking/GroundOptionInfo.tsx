@@ -7,6 +7,7 @@ import { Fuel, Receipt } from "lucide-react";
 import { TollInfo } from "@/components/roadtrip/TollInfo";
 import { busLinkFor, carCostFor, isBusOption, isHiredCarOption } from "@/lib/groundTrip";
 import { tollTime } from "../../../supabase/functions/_shared/tollQuote.ts";
+import { formatInstantDateTime } from "@/lib/localDate";
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 
@@ -32,8 +33,8 @@ export function GroundOptionInfo({ trip, option, className = "" }: { trip: any; 
   const cost = carCostFor(trip, option);
   if (cost) {
     const iso = cost.casetas.consultado_at;
-    const hhmm = tollTime(iso);
-    const at = iso && hhmm ? `${fmtDay(iso.slice(0, 10))}, ${hhmm}` : null;
+    // Día y hora en la misma zona (antes el día salía en UTC y la hora local: un día corrido de noche).
+    const at = iso && tollTime(iso) ? formatInstantDateTime(iso) : null;
     return (
       <div className={`space-y-1 rounded-lg border border-border/50 bg-surface/30 p-3 text-xs ${className}`} data-testid="ground-costo">
         {cost.casetas.total_mxn !== null ? (

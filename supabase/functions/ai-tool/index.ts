@@ -4,6 +4,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
 
+/**
+ * Tope del lado del servidor para la respuesta de la IA (R2: Comparar se quedaba en «Comparando...» más
+ * de 90 s; el cliente corta a los 45 s). Al vencer se responde 504 con code "timeout", no se espera más.
+ */
+export const AI_TOOL_TIMEOUT_MS = 40_000;
+const isTimeout = (e: unknown) => ["TimeoutError", "AbortError"].includes((e as Error)?.name ?? "");
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -56,6 +63,7 @@ Deno.serve(async (req) => {
       : sys;
 
     const r = await aiFetch({
+      signal: AbortSignal.timeout(AI_TOOL_TIMEOUT_MS),
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -109,6 +117,11 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (isTimeout(e)) {
+      return new Response(JSON.stringify({ ok: false, code: "timeout", error: "La IA tardó demasiado en responder. Intenta de nuevo." }), {
+        status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

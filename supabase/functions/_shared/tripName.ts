@@ -22,6 +22,22 @@ export function looksLikeRawPrompt(text: string | null | undefined): boolean {
   return words >= 4 && PROMPT_WORDS.test(t);
 }
 
+import { CITIES, TOWNS } from "./airports.ts";
+
+const norm = (s: unknown) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+/** Ciudades y lugares conocidos (nombre para mostrar + nombres normalizados), los más largos primero. */
+const KNOWN: Array<{ name: string; keys: string[] }> = [
+  ...CITIES.map((c) => ({ name: c.name, keys: [c.name, ...(c.aliases ?? []).filter((a) => a.length >= 5)].map(norm) })),
+  ...TOWNS.map((t) => ({ name: t.name, keys: [t.name, ...(t.aliases ?? []).filter((a) => a.length >= 5)].map(norm) })),
+].sort((a, b) => Math.max(...b.keys.map((k) => k.length)) - Math.max(...a.keys.map((k) => k.length)));
+
+/** Una ciudad conocida que nombra el texto ("E2E PRUEBA Presupuesto Los Cabos" → "Los Cabos"), o "". */
+export function knownPlaceIn(text: string | null | undefined): string {
+  const t = ` ${norm(text)} `;
+  if (t.trim().length < 3) return "";
+  return KNOWN.find((p) => p.keys.some((k) => k.length >= 3 && t.includes(` ${k} `)))?.name ?? "";
+}
+
 const clean = (s: unknown, max = 40): string => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 
 /** Une hasta 3 lugares: "Madrid → Sevilla → Granada…". */
@@ -71,6 +87,12 @@ export function shortTripName(trip: NamedTrip | null | undefined): string {
   if (destino && !looksLikeRawPrompt(destino)) return destino;
   const stops = route(understoodStops(trip?.itinerario_json));
   if (stops) return stops;
+  // Lo que la frase dice que quiere conocer ("…conocer España…") y, si no, la ciudad conocida que nombra,
+  // antes que el país (R2: «E2E PRUEBA Presupuesto Los Cabos» salía «México»).
+  const after = PLACE_AFTER.exec(destino);
+  if (after) return clean(after[1]);
+  const known = knownPlaceIn(destino);
+  if (known) return known;
   const pais = clean(trip?.pais_destino);
   if (pais && !looksLikeRawPrompt(pais)) return pais;
   return placeFromPrompt(destino) || (destino ? "Tu viaje" : "Sin destino");

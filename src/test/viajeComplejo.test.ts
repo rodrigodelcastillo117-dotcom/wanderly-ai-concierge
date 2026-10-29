@@ -105,7 +105,7 @@ describe("caso Diego: Arabia Saudita, crucero, Cape Town y regreso por Londres",
     expect(s.fecha_regreso).toBe("2027-12-19");
     expect(s.viajeros).toBe(2);
     // Arabia Saudita → Riad propuesta (sugerida, por confirmar); Cape Town → Ciudad del Cabo, a la que se llega en crucero.
-    expect(s.paradas.map((p) => [p.ciudad, p.llegada_por, p.sugerida])).toEqual([["Riad", "por_definir", true], ["Ciudad del Cabo", "crucero", false]]);
+    expect(s.paradas.map((p) => [p.ciudad, p.llegada_por, p.sugerida])).toEqual([["Riad", "vuelo", true], ["Ciudad del Cabo", "crucero", false]]); // a otro continente: vuelo por defecto (R2 P1-2)
     expect(s.regreso.via).toBe("Londres");
     const tipos = openQuestions(s).map((q) => `${q.tipo}:${q.texto}`);
     expect(tipos).toEqual(expect.arrayContaining(["ciudades_de_pais:Arabia Saudita", "conexion_o_estancia:Londres"]));
@@ -201,7 +201,7 @@ describe("otros casos", () => {
   it("'Madrid, Sevilla, tren a Barcelona y regreso a CDMX': ciudades, tren y regreso", () => {
     const t = "Madrid, Sevilla, tren a Barcelona y regreso a CDMX";
     let s = finalizeSpec(buildLocalSpec(t, { origen: "Ciudad de México", today: TODAY }), t);
-    expect(s.paradas.map((p) => [p.ciudad, p.llegada_por])).toEqual([["Madrid", "por_definir"], ["Sevilla", "por_definir"], ["Barcelona", "tren"]]);
+    expect(s.paradas.map((p) => [p.ciudad, p.llegada_por])).toEqual([["Madrid", "vuelo"], ["Sevilla", "por_definir"], ["Barcelona", "tren"]]); // CDMX → Madrid: vuelo por defecto (R2 P1-2)
     expect(s.regreso.a).toBe("Ciudad de México");
     s = setTripBasics(s, { fecha_salida: "2027-04-01", fecha_regreso: "2027-04-10" });
     const r = routeOfSpec(s);

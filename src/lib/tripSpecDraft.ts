@@ -35,14 +35,21 @@ const stopsFor = (spec: TripSpec, texto: string, paradaId?: string | null) =>
   spec.paradas.filter((s) => (paradaId && s.id === paradaId) || [s.de_region, s.texto].some((n) => !!n && k(n) === k(texto)));
 const cruiseFields = (c: Cruise | null) => (c ? Object.fromEntries(Object.entries(c).filter(([key, v]) => key !== "puertos_sugeridos" && v != null && v !== "")) as Partial<Cruise> : {});
 
-const QUESTION_LABEL: Record<Question["tipo"], (t: string) => string> = {
-  ciudades_de_pais: (t) => `las ciudades de ${t}`,
-  lugar_desconocido: (t) => `«${t}»`,
-  conexion_o_estancia: (t) => `la escala en ${t}`,
+/** Sin el punto final ni espacios (la IA a veces manda "Toscana." o una frase). */
+const bare = (t: string) => String(t ?? "").replace(/[.\s]+$/, "").trim();
+/**
+ * Cómo se nombra cada pendiente en el aviso. Una pregunta libre de la IA ("otro") no tiene una mención
+ * que nombrar (su `texto` es una frase como «No indicaste cómo llegarán a Lima.»): se cuenta aparte
+ * ("te dejó 1 pregunta abajo"); antes el aviso decía «preguntó por «No indicaste…».».
+ */
+const QUESTION_LABEL: Record<Question["tipo"], ((t: string) => string) | null> = {
+  ciudades_de_pais: (t) => `las ciudades de ${bare(t)}`,
+  lugar_desconocido: (t) => `«${bare(t)}»`,
+  conexion_o_estancia: (t) => `la escala en ${bare(t)}`,
   crucero: () => "el crucero",
   fechas: () => "las fechas",
   origen: () => "tu ciudad de salida",
-  otro: (t) => `«${t}»`,
+  otro: null,
 };
 
 export type DraftMerge = {
@@ -55,11 +62,12 @@ export type DraftMerge = {
   nota: string;
 };
 
-/** Aviso breve de lo que hizo la IA sobre el borrador. */
-export function draftNote(agrego: string[], pregunto: string[]): string {
+/** Aviso breve de lo que hizo la IA sobre el borrador (`libres`: preguntas libres nuevas, se cuentan). */
+export function draftNote(agrego: string[], pregunto: string[], libres = 0): string {
   const parts: string[] = [];
   if (agrego.length) parts.push(`agregó ${listEs(agrego)}`);
-  if (pregunto.length) parts.push(`preguntó por ${listEs(pregunto.map((p) => p.replace(/[.\s]+$/, "")))}`);
+  if (pregunto.length) parts.push(`preguntó por ${listEs(pregunto.map(bare))}`);
+  if (libres > 0) parts.push(`te dejó ${libres === 1 ? "1 pregunta" : `${libres} preguntas`} abajo`);
   return parts.length ? `Iato completó tu viaje: ${parts.join("; ")}.` : "Iato revisó tu viaje: coincide con tu resumen.";
 }
 
@@ -192,6 +200,8 @@ export function mergeDraftWithAi(base: TripSpec, edited: TripSpec, ai: TripSpec,
 
   const agrego = out.paradas.filter((s) => !edited.paradas.some((e) => sameCity(e, s))).map((s) => s.ciudad);
   const before = new Set(openQuestions(edited).map(qKey));
-  const pregunto = [...new Set(openQuestions(out).filter((q) => !before.has(qKey(q))).map((q) => QUESTION_LABEL[q.tipo](q.texto)))];
-  return { spec: out, agrego, pregunto, nota: draftNote(agrego, pregunto) };
+  const nuevas = openQuestions(out).filter((q) => !before.has(qKey(q)));
+  const pregunto = [...new Set(nuevas.flatMap((q) => { const label = QUESTION_LABEL[q.tipo]; return label ? [label(q.texto)] : []; }))];
+  const libres = nuevas.filter((q) => !QUESTION_LABEL[q.tipo]).length;
+  return { spec: out, agrego, pregunto, nota: draftNote(agrego, pregunto, libres) };
 }

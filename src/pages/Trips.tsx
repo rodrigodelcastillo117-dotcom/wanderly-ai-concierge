@@ -1,5 +1,5 @@
 import { tripCountryLabel } from "@/lib/booking";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Pencil, Users, Sparkles, Plus, Trash2, LogOut, RefreshCw, MapPin, FileUp, Hotel } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,9 +27,9 @@ import { deleteOwnedTrip, leaveSharedTrip, MEMBERSHIP_MESSAGES } from "@/lib/tri
 import { bookingsByTrip, deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
 import { BookingStateBadge } from "@/components/BookingStateBadge";
 import { TripCardsSkeleton } from "@/components/PageSkeletons";
-import { groupTripsForList } from "@/lib/tripList";
+import { duplicateTripMarks, filterTripGroups, groupTripsForList, markedTripName, TRIP_LIST_FILTERS, type TripListFilter } from "@/lib/tripList";
 import { tripTiming } from "@/lib/tripCommand";
-import { formatTripDateRange, localISODate } from "@/lib/localDate";
+import { formatInstant, formatTripDateRange, localISODate } from "@/lib/localDate";
 import { formatPaid, PAID_LABEL } from "@/lib/tripImport";
 import { isBroughtTrip } from "@/lib/broughtTrip";
 import { displayedTripTotal } from "@/lib/tripPageTotal";
@@ -39,13 +39,14 @@ import { shortTripName } from "@/lib/tripName";
 // "Ya tengo vuelos y hotel": la misma ventana de Planear, abierta en ese modo (solo se descarga al pulsar).
 const PlanTripDialog = lazy(() => import("@/components/plan/PlanTripDialog"));
 
-const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: string; onDeleted: (id: string) => void; bookings?: BookingLike[] }) => {
+const TripCard = ({ t, userId, onDeleted, bookings = [], dupN, showCreated = false }: { t: any; userId: string; onDeleted: (id: string) => void; bookings?: BookingLike[]; dupN?: number; showCreated?: boolean }) => {
   const [deleting, setDeleting] = useState(false);
   // Un viaje compartido conmigo no es mío: no puedo borrarlo, solo salir de él.
   const isShared = !!t.shared;
   const shownTotal = displayedTripTotal(t, t._quote ?? null);
   // Nombre corto: si el destino guardado es la frase completa, lo que se entendió de ella.
-  const name = shortTripName(t);
+  // Dos viajes con el mismo nombre y fechas se distinguen: "Madrid (2)" y la fecha en que se creó cada uno.
+  const name = markedTripName(shortTripName(t), dupN);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -131,12 +132,13 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
               ? <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] rounded-full border border-primary/40 text-primary px-2 py-0.5"><FileUp className="w-3 h-3" aria-hidden="true" /> De tus documentos</span>
               : isBroughtTrip(t)
                 ? <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] rounded-full border border-primary/40 text-primary px-2 py-0.5"><Hotel className="w-3 h-3" aria-hidden="true" /> Lo trajiste tú</span>
-                : <BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact />}
+                : <BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact requote={!!invalidQuoteReason(t)} />}
           </div>
           <div className="flex items-end justify-between gap-3 text-sm text-muted-foreground">
             <span className="min-w-0">
               {/* Cuándo empieza y cuándo termina (con las noches); si falta una fecha, solo la que hay. */}
               <span className="block" data-testid="trip-card-dates">{formatTripDateRange(t.fecha_salida, t.fecha_regreso) ?? "Sin fechas"}</span>
+              {showCreated && t.created_at && <span className="block text-[11px] text-muted-foreground/80" data-testid="trip-card-creado">Creado el {formatInstant(t.created_at)}</span>}
               {/* Cuánto falta (o si está en curso): lo primero que se busca en la lista. */}
               {t.fecha_salida && (() => {
                 const tm = tripTiming(t, localISODate());
@@ -191,6 +193,13 @@ const Trips = () => {
   const [broughtOpen, setBroughtOpen] = useState(false);
   const [broughtMounted, setBroughtMounted] = useState(false);
   const openBrought = () => { setBroughtMounted(true); setBroughtOpen(true); };
+  // Filtro simple (R2: 24 viajes sin filtros). Se recuerda en este dispositivo.
+  const [filter, setFilterRaw] = useState<TripListFilter>(() => {
+    try { const v = localStorage.getItem("iatos_trips_filter"); return v === "proximos" || v === "pasados" ? v : "todos"; } catch { return "todos"; }
+  });
+  const setFilter = (f: TripListFilter) => { setFilterRaw(f); try { localStorage.setItem("iatos_trips_filter", f); } catch { /* sin almacenamiento */ } };
+  const dups = useMemo(() => duplicateTripMarks(trips), [trips]);
+  const groups = useMemo(() => filterTripGroups(groupTripsForList(trips, localISODate()), filter), [trips, filter]);
 
   useEffect(() => {
     if (!user) return;
@@ -304,20 +313,37 @@ const Trips = () => {
             </div>
           </div>
         ) : (
-          // Próximos primero (por fecha de salida) y los pasados aparte: antes todo iba revuelto
-          // por fecha de creación.
-          groupTripsForList(trips, localISODate()).map((g) => (
+          <>
+          {/* Próximos / Pasados / Todos. */}
+          <div role="group" aria-label="Filtrar viajes" className="flex flex-wrap gap-2" data-testid="trips-filtros">
+            {TRIP_LIST_FILTERS.map((f) => (
+              <button key={f.id} type="button" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}
+                className={`min-h-10 rounded-full border px-4 text-xs tracking-wide transition ${filter === f.id ? "border-primary bg-primary/15 text-primary" : "border-border/70 text-muted-foreground hover:text-foreground"}`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {groups.length === 0 && (
+            <p className="text-sm text-muted-foreground" data-testid="trips-filtro-vacio">
+              {filter === "proximos" ? "No tienes viajes próximos." : "Aún no tienes viajes pasados."}
+            </p>
+          )}
+          {/* Próximos primero (por fecha de salida) y los pasados aparte: antes todo iba revuelto
+              por fecha de creación. */}
+          {groups.map((g) => (
             <section key={g.key} aria-labelledby={`trips-${g.key}`} className="space-y-4">
               <h2 id={`trips-${g.key}`} className="text-[11px] tracking-[0.3em] uppercase text-primary">
                 {g.title} <span className="text-muted-foreground">· {g.trips.length}</span>
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
                 {g.trips.map((t) => (
-                  <TripCard key={t.id} t={t} userId={user!.id} bookings={tripBookings.get(t.id)} onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
+                  <TripCard key={t.id} t={t} userId={user!.id} bookings={tripBookings.get(t.id)} dupN={dups.n.get(t.id)} showCreated={dups.ids.has(t.id)}
+                    onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
                 ))}
               </div>
             </section>
-          ))
+          ))}
+          </>
         )}
       </div>
       {broughtMounted && (

@@ -21,7 +21,8 @@ import { useFxTable } from "@/hooks/useFxTable";
 import { safeFileName, uploadProblem } from "@/lib/uploadRules";
 import { ACTIVE_TRIP_COLUMNS, useActiveTrip } from "@/hooks/useActiveTrip";
 import { isTripEnded, tripLabel } from "@/lib/activeTrip";
-import { expenseReceiptUrl, loadMySharedParts } from "@/lib/tripExpensesApi";
+import { expenseReceiptUrl } from "@/lib/tripExpensesApi";
+import { loadMySpend, mergeMySpend } from "@/lib/mySpend";
 import { shortTripName } from "@/lib/tripName";
 
 // El Resumen usa recharts (~100 kB comprimidos): se carga solo al abrir esa pestaña.
@@ -72,7 +73,7 @@ export const Gastos = () => {
   const [ownItems, setItems] = useState<Expense[]>([]);
   const [sharedParts, setSharedParts] = useState<Expense[]>([]);
   // Mis gastos + mi parte de lo compartido, por fecha (lo mismo que suma Gastos del viaje).
-  const items = useMemo(() => [...ownItems, ...sharedParts].sort((a, b) => String(b.expense_date).localeCompare(String(a.expense_date))), [ownItems, sharedParts]);
+  const items = useMemo(() => mergeMySpend(ownItems, sharedParts), [ownItems, sharedParts]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   // Gasto que se está editando (null = uno nuevo). Antes un gasto no se podía corregir.
@@ -110,20 +111,12 @@ export const Gastos = () => {
 
   const load = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("expenses")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("expense_date", { ascending: false });
-    setItems((data as Expense[]) ?? []);
-    // Mi parte de los gastos compartidos de mis viajes: cuenta en el total y en el Resumen igual que en
-    // la pestaña Gastos del viaje (lo que pagué por otros no es gasto mío: es lo que me deben).
-    const parts = await loadMySharedParts(supabase);
-    setSharedParts(parts.map((r) => ({
-      id: `share-${r.share_id}`, amount: r.amount, currency: r.currency, category: r.category, description: r.description,
-      expense_date: r.expense_date, receipt_url: null, trip_id: r.trip_id,
-      shared: { total: r.total, payerName: r.payer_name, paidByMe: r.paid_by_me },
-    })));
+    // Mis gastos + mi parte de los gastos compartidos de mis viajes: cuenta en el total y en el Resumen igual
+    // que en la pestaña Gastos del viaje (lo que pagué por otros no es gasto mío: es lo que me deben). La
+    // misma carga usa Inicio («Tus gastos»), para que las dos pantallas digan lo mismo.
+    const { own, shared } = await loadMySpend(supabase, user.id);
+    setItems(own as Expense[]);
+    setSharedParts(shared as Expense[]);
   };
 
   useEffect(() => { load(); }, [user]);

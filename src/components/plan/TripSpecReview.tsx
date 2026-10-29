@@ -164,12 +164,18 @@ function QuestionRow({ q, spec, onChange }: { q: Question; spec: TripSpec; onCha
             <Button type="submit" variant="outline" className="h-9 shrink-0" disabled={!text.trim()}>Usar</Button>
           </form>
         )}
-        {q.tipo !== "fechas" && q.tipo !== "origen" && kind === "otro" && (
+        {/* Botones con texto claro (antes «Quitar «No indicaste cómo llegarán a Lima.»» y «Entendido»): una
+            pregunta libre de la IA se descarta; un lugar se quita del viaje (queda como exclusión aprobada). */}
+        {q.tipo !== "fechas" && q.tipo !== "origen" && q.tipo !== "otro" && (
           <button type="button" className={chipOff} onClick={() => onChange(excludeMention(spec, q.id))} data-testid="spec-quitar">
-            {q.tipo === "conexion_o_estancia" ? "Quitar la escala" : q.tipo === "crucero" ? "Sin crucero" : `Quitar «${q.texto}»`}
+            {q.tipo === "conexion_o_estancia" ? "Quitar la escala" : q.tipo === "crucero" ? "Sin crucero" : `Quitar ${q.texto.replace(/[.\s]+$/, "")} del viaje`}
           </button>
         )}
-        {q.tipo === "otro" && <button type="button" className={chipOff} onClick={() => onChange(resolveQuestion(spec, q.id, "preferencia"))}>{kind === "otro" ? "Entendido" : "Lo decido después"}</button>}
+        {q.tipo === "otro" && (
+          <button type="button" className={chipOff} onClick={() => onChange(resolveQuestion(spec, q.id, "preferencia"))} data-testid={kind === "otro" ? "spec-descartar" : "spec-despues"}>
+            {kind === "otro" ? "Descartar esta pregunta" : "Lo decido después"}
+          </button>
+        )}
       </div>
     </li>
   );

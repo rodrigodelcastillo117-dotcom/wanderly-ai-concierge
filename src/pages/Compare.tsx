@@ -1,9 +1,9 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { SmartImage } from "@/components/media/SmartImage";
-import { dailyCostMxn, destinationPhotoQuery } from "@/lib/compareCost";
+import { dailyCostMxn, destinationPhotoFallbackQuery, destinationPhotoQuery } from "@/lib/compareCost";
 import { fetchFxTable, fxLabel, type FxTable } from "@/lib/fx";
 import { useNavigate } from "react-router-dom";
-import { GitCompare, Sparkles, X, Plus } from "lucide-react";
+import { GitCompare, Sparkles, X, Plus, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,12 @@ type Row = {
   highlights: string;
 };
 
+/**
+ * Tope de espera de la comparación (R2: en 2 de 3 intentos ai-tool no respondió en más de 90 s y la
+ * pantalla se quedaba en «Comparando...» para siempre, sin error ni forma de cancelar).
+ */
+export const COMPARE_TIMEOUT_MS = 45_000;
+
 // Un ejemplo distinto por campo (antes los dos decían "Tokio, Japón").
 const DEST_EXAMPLES = ["Tokio, Japón", "Lisboa, Portugal", "Cusco, Perú", "Marrakech, Marruecos"];
 
@@ -37,25 +43,55 @@ const Compare = () => {
   const add = () => dests.length < 4 && setDests([...dests, ""]);
   const remove = (i: number) => dests.length > 2 && setDests(dests.filter((_, idx) => idx !== i));
 
+  // Comparación en curso (para cancelarla) y por qué se detuvo la última, si se detuvo.
+  const ctrlRef = useRef<AbortController | null>(null);
+  const [stopped, setStopped] = useState<"timeout" | "cancelada" | null>(null);
+  useEffect(() => () => ctrlRef.current?.abort(), []);
+
+  const cancel = () => ctrlRef.current?.abort();
+
   const run = async () => {
     const list = dests.map(d => d.trim()).filter(Boolean);
     if (list.length < 2) { toast.error("Agrega al menos 2 destinos"); return; }
+    ctrlRef.current?.abort();
+    const ctrl = new AbortController();
+    ctrlRef.current = ctrl;
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, COMPARE_TIMEOUT_MS);
+    // Aunque la petición no respete la señal, la pantalla deja de esperar al cancelar o al vencer el tope.
+    const stop = new Promise<never>((_, reject) => ctrl.signal.addEventListener("abort", () => reject(new Error("abort")), { once: true }));
+    setStopped(null);
     setLoading(true);
     if (!fx) void fetchFxTable().then(setFx).catch(() => setFx(null));
     try {
-      const { data, error } = await supabase.functions.invoke("ai-tool", {
-        body: {
-          json: true,
-          prompt: `Compara estos destinos para un viajero mexicano: ${list.join(" vs ")}. Devuelve un array JSON exactamente así: [{"destino":"...","costo_diario_usd":"$X-Y","mejor_epoca":"...","visa_mx":"Sí/No, info","seguridad":"Alta/Media/Baja + nota","idioma":"...","highlights":"..."}]. Un objeto por destino, en el orden dado.`
-        }
-      });
-      if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || "Error IA");
+      const { data, error } = await Promise.race([
+        supabase.functions.invoke("ai-tool", {
+          body: {
+            json: true,
+            prompt: `Compara estos destinos para un viajero mexicano: ${list.join(" vs ")}. Devuelve un array JSON exactamente así: [{"destino":"...","costo_diario_usd":"$X-Y","mejor_epoca":"...","visa_mx":"Sí/No, info","seguridad":"Alta/Media/Baja + nota","idioma":"...","highlights":"..."}]. Un objeto por destino, en el orden dado.`
+          },
+          signal: ctrl.signal,
+        }),
+        stop,
+      ]);
+      if (ctrl.signal.aborted) throw new Error("abort");
+      // ai-tool responde 504 con code "timeout" si la IA no contestó a tiempo del lado del servidor.
+      if (error) {
+        const body = await Promise.resolve((error as any)?.context?.json?.()).catch(() => null);
+        throw new Error(body?.code === "timeout" ? "timeout" : "La comparación no está disponible ahora. Intenta de nuevo en un momento.");
+      }
+      if (!data?.ok) throw new Error("La IA no devolvió una comparación válida. Intenta de nuevo.");
       const arr = Array.isArray(data.data) ? data.data : [];
-      if (arr.length === 0) throw new Error("Sin resultados");
+      if (arr.length === 0) throw new Error("La IA no devolvió resultados. Intenta de nuevo.");
       setRows(arr);
-    } catch (e: any) { toast.error(e?.message || "Error al comparar"); }
-    setLoading(false);
+    } catch (e: any) {
+      if (ctrl.signal.aborted || e?.message === "timeout") {
+        if (ctrlRef.current === ctrl || e?.message === "timeout") setStopped(timedOut || e?.message === "timeout" ? "timeout" : "cancelada");
+      } else toast.error(e?.message || "Error al comparar");
+    } finally {
+      clearTimeout(timer);
+      if (ctrlRef.current === ctrl) { ctrlRef.current = null; setLoading(false); }
+    }
   };
 
   // Todo viene del modelo (ai-tool), nada se consultó en una fuente: costos, visa y seguridad
@@ -114,8 +150,25 @@ const Compare = () => {
             <Button onClick={run} disabled={loading} className="sm:flex-1">
               <Sparkles className="w-4 h-4 mr-2" /> {loading ? "Comparando..." : "Comparar"}
             </Button>
+            {loading && (
+              <Button variant="outline" onClick={cancel} className="sm:flex-1" data-testid="comparar-cancelar">Cancelar</Button>
+            )}
           </div>
+          {loading && (
+            <p className="text-[11px] text-muted-foreground">Suele tardar de 10 a 30 segundos. Si pasa de 45, la detenemos y te avisamos.</p>
+          )}
         </div>
+
+        {stopped && !loading && (
+          <div role="alert" className="glass-card rounded-2xl p-4 mb-6 border border-amber-400/30" data-testid="comparar-detenida">
+            <p className="text-sm">
+              {stopped === "timeout"
+                ? "La comparación tardó más de 45 segundos y la detuvimos. Suele ser la IA saturada: inténtalo de nuevo."
+                : "Cancelaste la comparación."}
+            </p>
+            <Button onClick={run} variant="outline" className="mt-3"><RotateCcw className="w-4 h-4 mr-2" aria-hidden="true" /> Reintentar</Button>
+          </div>
+        )}
 
         {rows && (
           <>
@@ -132,7 +185,7 @@ const Compare = () => {
             <div className="space-y-4 md:hidden">
               {rows.map((r, i) => (
                 <div key={i} className="glass-card rounded-2xl overflow-hidden">
-                  <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} className="h-32 w-full" captionPosition="top-right">
+                  <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} stockFallbackQuery={destinationPhotoFallbackQuery(r.destino)} eager className="h-32 w-full" captionPosition="top-right">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                     <div className="absolute inset-x-4 bottom-3 z-[2]">
                       <p className="text-primary text-[10px] tracking-[0.2em] uppercase">Destino {i + 1}</p>
@@ -158,7 +211,7 @@ const Compare = () => {
                 {rows.map((r, i) => (
                   <div key={i} className="bg-card">
                     {/* Foto ilustrativa del destino (marcada) sobre el nombre. */}
-                    <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} className="h-28 w-full" captionPosition="top-right">
+                    <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} stockFallbackQuery={destinationPhotoFallbackQuery(r.destino)} eager className="h-28 w-full" captionPosition="top-right">
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                       <p className="absolute inset-x-3 bottom-2 z-[2] font-display text-lg text-white">{r.destino}</p>
                     </SmartImage>

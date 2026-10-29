@@ -630,7 +630,7 @@ const TripDetail = () => {
             Un viaje importado de documentos dice lo que se PAGÓ, no un estado de cotización. */}
         {(trip as any).fuente === "documento"
           ? <ImportedTripBanner trip={trip} />
-          : brought ? null : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} estimated={badgeEstimatedKinds(totalSummary)} byLand={arrivalByLand(trip)} />}
+          : brought ? null : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} estimated={badgeEstimatedKinds(totalSummary)} byLand={arrivalByLand(trip)} requote={requote} />}
         {/* Smart Date Resolution: fechas optimizadas por IATOS */}
         {trip.dates_optimized && (
           <motion.div

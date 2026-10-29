@@ -21,7 +21,7 @@ import { sizedPhotoUrl } from "@/lib/imageSizing";
 
 export type ImageKind = "real" | "google" | "stock";
 
-type Resolved = { url: string; kind: ImageKind; credit?: string | null };
+type Resolved = { url: string; kind: ImageKind; credit?: string | null; step?: Step };
 
 export type SmartImageProps = {
   alt: string;
@@ -31,6 +31,8 @@ export type SmartImageProps = {
   photoRef?: string | null;
   lookup?: PlaceLookup | null;
   stockQuery?: string | null;
+  /** Segunda consulta ilustrativa si la primera no trae foto (p. ej. el lugar emblemático de la ciudad). */
+  stockFallbackQuery?: string | null;
   /** thumb ≈ 240 px de Google; card y hero ≈ 800. */
   size?: "thumb" | "card" | "hero";
   /** Clases del contenedor: tamaño/aspecto y esquinas. Debe tener alto (h-*, aspect-*). */
@@ -65,7 +67,7 @@ const safeHttps = (u: unknown): string | null => {
   try { return new URL(u).protocol === "https:" ? u : null; } catch { return null; }
 };
 
-type Step = "url" | "ref" | "lookup" | "stock";
+type Step = "url" | "ref" | "lookup" | "stock" | "stock2";
 
 /** Si la foto no termina de bajar en este tiempo, se pasa a la siguiente fuente. */
 export const IMAGE_LOAD_TIMEOUT_MS = 8000;
@@ -87,7 +89,12 @@ function peek(p: SmartImageProps, w: number, skip: Set<Step>): Resolved | null |
   if (p.stockQuery && !skip.has("stock")) {
     const c = cachedStockPhoto(p.stockQuery);
     if (c === undefined) return undefined;
-    if (c) return { url: c.image, kind: "stock", credit: c.photographer };
+    if (c) return { url: c.image, kind: "stock", credit: c.photographer, step: "stock" };
+  }
+  if (p.stockFallbackQuery && !skip.has("stock2")) {
+    const c = cachedStockPhoto(p.stockFallbackQuery);
+    if (c === undefined) return undefined;
+    if (c) return { url: c.image, kind: "stock", credit: c.photographer, step: "stock2" };
   }
   return null;
 }
@@ -119,15 +126,19 @@ async function resolve(p: SmartImageProps, w: number, skip: Set<Step>): Promise<
   }
   if (p.stockQuery && !skip.has("stock")) {
     const s = await capped(getStockPhoto(p.stockQuery), IMAGE_STEP_TIMEOUT_MS);
-    if (s) return { url: s.image, kind: "stock", credit: s.photographer };
+    if (s) return { url: s.image, kind: "stock", credit: s.photographer, step: "stock" };
+  }
+  if (p.stockFallbackQuery && !skip.has("stock2")) {
+    const s = await capped(getStockPhoto(p.stockFallbackQuery), IMAGE_STEP_TIMEOUT_MS);
+    if (s) return { url: s.image, kind: "stock", credit: s.photographer, step: "stock2" };
   }
   return null;
 }
 
-const stepOf = (kind: ImageKind, p: SmartImageProps): Step =>
-  kind === "stock" ? (safeHttps(p.imageUrl) && p.imageKind === "stock" ? "url" : "stock")
+const stepOf = (kind: ImageKind, p: SmartImageProps, step?: Step): Step =>
+  step ?? (kind === "stock" ? (safeHttps(p.imageUrl) && p.imageKind === "stock" ? "url" : "stock")
     : kind === "real" ? "url"
-    : p.photoRef ? "ref" : "lookup";
+    : p.photoRef ? "ref" : "lookup");
 
 export function SmartImage(props: SmartImageProps) {
   const {
@@ -142,8 +153,8 @@ export function SmartImage(props: SmartImageProps) {
   const visible = eager || inView;
   // Identidad de la imagen: si cambia el lugar, se vuelve a resolver desde cero.
   const id = useMemo(
-    () => JSON.stringify([props.imageUrl ?? null, props.imageKind ?? null, props.photoRef ?? null, props.lookup ?? null, props.stockQuery ?? null, w]),
-    [props.imageUrl, props.imageKind, props.photoRef, props.lookup, props.stockQuery, w],
+    () => JSON.stringify([props.imageUrl ?? null, props.imageKind ?? null, props.photoRef ?? null, props.lookup ?? null, props.stockQuery ?? null, props.stockFallbackQuery ?? null, w]),
+    [props.imageUrl, props.imageKind, props.photoRef, props.lookup, props.stockQuery, props.stockFallbackQuery, w],
   );
   const [skip, setSkip] = useState<Set<Step>>(() => new Set());
   const [state, setState] = useState<{ id: string; res: Resolved | null | undefined }>(() => ({ id, res: peek(props, w, new Set()) }));
@@ -185,7 +196,7 @@ export function SmartImage(props: SmartImageProps) {
       return;
     }
     const next = new Set(skip);
-    next.add(stepOf(res.kind, props));
+    next.add(stepOf(res.kind, props, res.step));
     setSkip(next);
     setLoaded(false);
     setState({ id, res: peek(props, w, next) });

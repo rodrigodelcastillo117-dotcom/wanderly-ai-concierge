@@ -168,8 +168,10 @@ describe("Página del viaje con el fixture", () => {
     const cards = within(destinos).getAllByTestId("arrival-option");
     // Cada ciudad lleva primero el tramo que suma el total (internal_transport) y luego las alternativas
     // del plan; el AVE Granada → Barcelona del plan es el mismo tramo cotizado (Renfe AVE) y no se repite.
+    // R2 (dedupe por operador): «Renfe» Córdoba → Sevilla y Sevilla → Granada son el mismo operador que el
+    // tramo cotizado («Renfe Avant») y tampoco se repiten; «Renfe AVE / Iryo» sí (iryo es otro operador).
     expect(cards.map((c) => c.getAttribute("data-mode")).sort()).toEqual(
-      ["bus", "coche", "coche", "taxi", "tren", "tren", "tren", "tren", "tren", "tren", "tren", "tren"]);
+      ["bus", "coche", "coche", "taxi", "tren", "tren", "tren", "tren", "tren", "tren"]);
     expect(destinos.innerHTML).not.toMatch(/Aerolínea por confirmar|Escalas por confirmar|google\.com\/travel\/flights|kayak/i);
     expect(within(destinos).queryAllByTestId("flight-buy-buttons")).toHaveLength(0);
     // Autobús Sevilla → Granada (ALSA): FlixBus con ruta, fecha del tramo y pasajeros, y la portada de ALSA.

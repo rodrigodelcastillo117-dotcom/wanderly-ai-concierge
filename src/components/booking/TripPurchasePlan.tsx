@@ -290,16 +290,22 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                   <>
                     {s.options.length > 0 ? (
                       <>
-                      {/* Si todas las opciones vienen de la misma fuente, su insignia va una vez (menos texto por tarjeta). */}
-                      {!s.ground && oneSource(s.options.map((i) => trip.vuelos_json[i])) && (() => { const v0 = trip.vuelos_json[s.options[0]]; return (
-                        <PriceSourceBadge className="mt-2" source={v0?.fuente_precio} estado={v0?.estado_dato} consultadoAt={v0?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v0?.approximate_dates} />
-                      ); })()}
-                      {/* Vuelo cotizado en Google Flights por el plan: hora de consulta y aeropuerto real (Siena → FLR). */}
-                      {(() => { const lv = s.options.map((i) => trip.vuelos_json[i]).find((x) => flightLiveLine(x)); return lv ? (
-                        <p className="mt-1 text-xs text-muted-foreground" data-testid="vuelo-en-vivo">
-                          {flightLiveLine(lv)}{lv.aeropuerto_nota ? <span className="block" data-testid="vuelo-aeropuerto-nota">{lv.aeropuerto_nota}.</span> : null}
-                        </p>
-                      ) : null; })()}
+                      {/* Procedencia en UNA sola línea (R2: «Consultado hace 9 h · Google Flights» y «Google Flights ·
+                          consultado 10:40 (hace 9 h)» juntas). Vuelo consultado en Google Flights por el plan: su línea con
+                          la hora de consulta y el aeropuerto real (Siena → FLR). Si no, la insignia de la fuente, una vez si
+                          todas las opciones vienen de la misma. */}
+                      {(() => {
+                        const opts = s.options.map((i) => trip.vuelos_json[i]);
+                        const lv = opts.find((x) => flightLiveLine(x));
+                        if (lv) return (
+                          <p className="mt-2 text-xs text-muted-foreground" data-testid="vuelo-en-vivo">
+                            {flightLiveLine(lv)}{lv.aeropuerto_nota ? <span className="block" data-testid="vuelo-aeropuerto-nota">{lv.aeropuerto_nota}.</span> : null}
+                          </p>
+                        );
+                        if (s.ground || !oneSource(opts)) return null;
+                        const v0 = opts[0];
+                        return <PriceSourceBadge className="mt-2" source={v0?.fuente_precio} estado={v0?.estado_dato} consultadoAt={v0?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v0?.approximate_dates} />;
+                      })()}
                       <div role="radiogroup" aria-label="Opciones de vuelo" className="mt-3 grid grid-cols-1 gap-2">
                         {s.options.map((i) => {
                           const v = trip.vuelos_json[i];

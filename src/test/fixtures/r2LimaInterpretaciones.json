@@ -1,0 +1,185 @@
+{
+ "_fuente": "auditoria10/r2-viajes gen_lima.log y gen_lima_review.log (respuestas reales de interpretar-viaje, 29-oct-2026; la segunda venía recortada en el log a partir de 'sugerencias')",
+ "texto": "Lima, Perú del 11 al 16 de febrero de 2027, 2 personas, saliendo de Ciudad de México",
+ "corridas": [
+  {
+   "version": 1,
+   "consulta_original": "Lima, Perú del 11 al 16 de febrero de 2027, 2 personas, saliendo de Ciudad de México",
+   "intencion": "viaje_futuro",
+   "origen": "Ciudad de México",
+   "paradas": [
+    {
+     "id": "p1",
+     "ciudad": "Lima",
+     "pais": "Perú",
+     "de_region": null,
+     "es_puerto": false,
+     "rol": "estancia",
+     "noches": 5,
+     "llegada_por": "por_definir",
+     "crucero": null,
+     "sugerida": false,
+     "texto": "Lima, Perú del 11 al 16 de febrero de 2027"
+    }
+   ],
+   "regreso": {
+    "a": "Ciudad de México",
+    "via": null,
+    "modo": "por_definir"
+   },
+   "fecha_salida": "2027-02-11",
+   "fecha_regreso": "2027-02-16",
+   "fechas_expresas": true,
+   "noches_total": 5,
+   "viajeros": 2,
+   "preferencias": [],
+   "reservas": [],
+   "menciones": [
+    {
+     "texto": "Lima",
+     "tipo": "ciudad",
+     "estado": "parada",
+     "ref": "p1"
+    },
+    {
+     "texto": "Perú",
+     "tipo": "pais",
+     "estado": "parada",
+     "ref": "p1"
+    },
+    {
+     "texto": "del 11 al 16 de febrero de 2027",
+     "tipo": "otro",
+     "estado": "preferencia",
+     "ref": null
+    },
+    {
+     "texto": "2 personas",
+     "tipo": "otro",
+     "estado": "preferencia",
+     "ref": null
+    },
+    {
+     "texto": "saliendo de Ciudad de México",
+     "tipo": "origen",
+     "estado": "origen",
+     "ref": null
+    }
+   ],
+   "preguntas": [
+    {
+     "id": "q1",
+     "tipo": "otro",
+     "texto": "No indicaste dónde termina el viaje de regreso.",
+     "pregunta": "¿Regresan a Ciudad de México después de Lima?",
+     "opciones": [
+      "Sí, regreso a Ciudad de México",
+      "No, regreso a otro lugar"
+     ],
+     "parada": null,
+     "resuelta": false
+    }
+   ],
+   "sugerencias": [],
+   "fuente": "ia"
+  },
+  {
+   "version": 1,
+   "consulta_original": "Lima, Perú del 11 al 16 de febrero de 2027, 2 personas, saliendo de Ciudad de México",
+   "intencion": "viaje_futuro",
+   "origen": "Ciudad de México",
+   "paradas": [
+    {
+     "id": "p1",
+     "ciudad": "Lima",
+     "pais": "Perú",
+     "de_region": null,
+     "es_puerto": false,
+     "rol": "estancia",
+     "noches": 5,
+     "llegada_por": "por_definir",
+     "crucero": null,
+     "sugerida": false,
+     "texto": "Lima, Perú"
+    }
+   ],
+   "regreso": {
+    "a": "Ciudad de México",
+    "via": null,
+    "modo": "por_definir"
+   },
+   "fecha_salida": "2027-02-11",
+   "fecha_regreso": "2027-02-16",
+   "fechas_expresas": true,
+   "noches_total": 5,
+   "viajeros": 2,
+   "preferencias": [],
+   "reservas": [],
+   "menciones": [
+    {
+     "texto": "Lima",
+     "tipo": "ciudad",
+     "estado": "parada",
+     "ref": "p1"
+    },
+    {
+     "texto": "Perú",
+     "tipo": "pais",
+     "estado": "parada",
+     "ref": "p1"
+    },
+    {
+     "texto": "del 11 al 16 de febrero de 2027",
+     "tipo": "otro",
+     "estado": "preferencia",
+     "ref": null
+    },
+    {
+     "texto": "2 personas",
+     "tipo": "otro",
+     "estado": "preferencia",
+     "ref": null
+    },
+    {
+     "texto": "saliendo de Ciudad de México",
+     "tipo": "origen",
+     "estado": "origen",
+     "ref": null
+    }
+   ],
+   "preguntas": [
+    {
+     "id": "q1",
+     "tipo": "otro",
+     "texto": "No indicaste cómo llegarán a Lima.",
+     "pregunta": "¿Cómo viajarán a Lima: vuelo, otro medio u otro?",
+     "opciones": [
+      "vuelo",
+      "tren",
+      "coche",
+      "ferry",
+      "crucero",
+      "por definir"
+     ],
+     "parada": "p1",
+     "resuelta": false
+    },
+    {
+     "id": "q2",
+     "tipo": "otro",
+     "texto": "No indicaste cómo regresarán después de Lima.",
+     "pregunta": "¿Regresan a Ciudad de México después de Lima, o tienen otro destino de regreso?",
+     "opciones": [
+      "Ciudad de México",
+      "otro destino",
+      "por definir"
+     ],
+     "parada": null,
+     "resuelta": false
+    }
+   ],
+   "sugerencias": [],
+   "fuente": "ia"
+  }
+ ]
+}

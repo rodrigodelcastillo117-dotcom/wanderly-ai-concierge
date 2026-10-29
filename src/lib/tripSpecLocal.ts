@@ -12,8 +12,9 @@ import { parseTripFallback } from "@/lib/parseTripFallback";
 import { mainCityOf } from "@/lib/tripCoverage";
 import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { findRegion, basesForNights } from "../../supabase/functions/_shared/regions.ts";
+import { countryOfCity } from "../../supabase/functions/_shared/airports.ts";
 import {
-  canonicalQuestions, addRequiredQuestions, emptyCruise, emptySpec, ensureCoverage, isoNights, makeStop, newId, normText,
+  applyObviousLegModes, applySaidDuration, canonicalQuestions, addRequiredQuestions, emptyCruise, emptySpec, ensureCoverage, isoNights, makeStop, newId, normText,
   type Cruise, type LegMode, type MentionKind, type TripSpec,
 } from "../../supabase/functions/_shared/tripSpec.ts";
 import { autoResolveQuestions } from "@/lib/tripSpecAnswers";
@@ -121,6 +122,16 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
       const s = pushStop(it.name, { texto: writtenAs });
       mention(writtenAs, "ciudad", "parada", s.id);
       return;
+    }
+    // "Lima, Perú": el país de una ciudad ya escrita no es otra parada (antes: Lima dos veces y
+    // "Perú: te proponemos Lima. ¿Así…?" en el borrador; R2 viajes P1-2).
+    if (it.kind === "country") {
+      const own = spec.paradas.find((s) => !s.sugerida && normText(countryOfCity(s.ciudad)) === normText(it.name));
+      if (own) {
+        own.pais = own.pais ?? countryOfCity(own.ciudad);
+        mention(writtenAs, "pais", "parada", own.id);
+        return;
+      }
     }
     if (it.kind === "country" || it.kind === "region") {
       const reg = it.kind === "region" ? findRegion(it.name) : null;
@@ -241,11 +252,16 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
  * del formulario si faltaba y el validador de cobertura con el lector local.
  */
 export function finalizeSpec(spec: TripSpec, text: string, ctx: LocalContext = {}): TripSpec {
-  const out: TripSpec = { ...spec, consulta_original: text };
-  // Preguntas con su mención (no una frase de la IA) y sin repetidas: "Toscana" una sola vez.
-  out.preguntas = canonicalQuestions(out);
+  const out: TripSpec = { ...spec, consulta_original: text, paradas: spec.paradas.map((s) => ({ ...s })), regreso: { ...spec.regreso } };
   if (!out.origen && ctx.origen) out.origen = ctx.origen;
   if (!out.regreso.a) out.regreso = { ...out.regreso, a: out.origen };
+  // A otro continente se llega y se regresa en avión (se ve y se cambia en el resumen; no se pregunta).
+  applyObviousLegModes(out);
+  // «5 días» = 4 noches en todo el resumen, como en Planear (también si la IA dijo otra cosa).
+  applySaidDuration(out, text);
+  // Preguntas con su mención (no una frase de la IA), sin repetidas ("Toscana" una sola vez) y sin las
+  // que el viaje ya contesta (cómo llegar a Lima desde CDMX, dónde va «Perú», un lugar que nadie escribió).
+  out.preguntas = canonicalQuestions(out);
   if (!out.fecha_salida && ctx.fecha_salida) out.fecha_salida = ctx.fecha_salida;
   if (!out.fecha_regreso && ctx.fecha_regreso && (!out.fecha_salida || ctx.fecha_regreso > out.fecha_salida)) out.fecha_regreso = ctx.fecha_regreso;
   out.noches_total = isoNights(out.fecha_salida, out.fecha_regreso) ?? out.noches_total;
