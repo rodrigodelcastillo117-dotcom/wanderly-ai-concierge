@@ -664,7 +664,8 @@ export function toolStatusText(name: string, args: Record<string, unknown>): str
     case "search_places": return `Buscando en Google Maps: ${clip(args.query)}…`;
     case "search_nearby": return `Buscando ${KIND_LABEL[String(args.kind)] ?? "lugares"} cerca…`;
     case "web_search": return `Buscando en Google: ${clip(args.query)}…`;
-    case "search_attractions": return `Buscando reseñas y rankings: ${clip(args.query)}…`;
+    // La búsqueda de Iato va directo a Google Maps (tripadvisor-search sin uso de pantalla), N10.
+    case "search_attractions": return `Buscando atracciones en Google Maps: ${clip(args.query)}…`;
     case "search_events": return `Buscando eventos en ${clip(args.city, 30)}…`;
     case "search_tours": return `Buscando tours en Viator: ${clip(args.city, 30)}…`;
     case "search_members_venues": return `Revisando Members Only en ${clip(args.city, 30)}…`;
@@ -696,7 +697,13 @@ export function toolOutcome(prepared: Record<string, unknown>): { state: "done" 
 
 const LEAD_CLIP = (v: unknown, max = 40) => clip(v, max).replace(/…$/, "");
 
-export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">): string | null {
+/**
+ * La pregunta pide más que lo que dice la frase (un plan, qué hacer, museos…): "Busco restaurantes en
+ * Valle de Bravo en Google Maps." sobra (auditoría 10 #16, ronda 2: Modo exigente con un plan de tarde).
+ */
+const BROADER_ASK = /\b(que hacer|que ver|que visitar|plan|planes|planea\w*|itinerario|actividades|recorrido|paseo|museos?|dia de lluvia|tarde|dia completo|fin de semana)\b/;
+
+export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">, opts: { exigente?: boolean; message?: string } = {}): string | null {
   const specs = plan.prefetch;
   if (!specs.length) return null;
   const has = (i: Intent) => plan.intents.includes(i);
@@ -706,6 +713,7 @@ export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">): stri
   const nearby = spec("search_nearby");
   const places = spec("search_places");
   const code = status ? LEAD_CLIP(status.args.flight, 12) : "";
+  const broader = BROADER_ASK.test(normText(opts.message ?? ""));
   if (has("emergency")) {
     const base = "Si hay riesgo para tu vida, llama ya al número de emergencias local.";
     return nearby?.args.kind === "hospital" ? `${base} Mientras tanto busco el hospital más cercano a tu ubicación.` : `${base} Mientras tanto reviso cómo ayudarte.`;
@@ -714,19 +722,27 @@ export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">): stri
     const what = has("missed_connection") ? "tu conexión" : code ? `tu vuelo ${code}` : "tu vuelo";
     return `Reviso en tiempo real ${what}${flights ? ", busco alternativas" : ""} y tus derechos como pasajero.`;
   }
+  // Modo exigente: la respuesta es un plan comparado con encabezado propio; una frase de una sola
+  // búsqueda ("Busco restaurantes…") no describe lo que viene.
+  if (opts.exigente) return null;
   if (has("flight_compare") && flights) {
     return `Comparo los vuelos ${LEAD_CLIP(flights.args.origin, 24)} → ${LEAD_CLIP(flights.args.destination, 24)} para tus fechas.`;
   }
   if (has("place_fact")) return "Busco ese dato en Google y en Google Maps para darte la ubicación exacta.";
-  if (spec("get_weather")) return `Consulto el clima de ${LEAD_CLIP(spec("get_weather")!.args.city, 30)} en MET Norway, la misma fuente de tu pantalla Clima.`;
+  // Clima solo si la pregunta es del clima (no "museos para un día de lluvia").
+  if (spec("get_weather") && !broader && !(places || nearby)) return `Consulto el clima de ${LEAD_CLIP(spec("get_weather")!.args.city, 30)} en MET Norway, la misma fuente de tu pantalla Clima.`;
   if (places && (has("dining_near_hotel") || has("dining"))) {
+    if (broader) return null;
     if (places.reason === "restaurantes en el destino pedido") return `Busco ${LEAD_CLIP(places.args.query, 60)} en Google Maps.`;
     return places.reason === "restaurantes cerca del hotel" ? "Busco restaurantes cerca de tu hotel en Google Maps." : "Busco restaurantes cerca de ti en Google Maps.";
   }
   if (nearby) return `Busco ${KIND_LABEL[String(nearby.args.kind)] ?? "lugares"} cerca de ti.`;
   if (spec("search_prive")) return "Reviso el catálogo Privé verificado.";
   if (status) return has("flight_status") ? `Reviso en tiempo real tu vuelo ${code}.` : `De paso reviso en tiempo real tu vuelo ${code} de hoy.`;
-  return "Consulto los datos en vivo para responderte.";
+  if (spec("search_events")) return `Busco eventos en ${LEAD_CLIP(spec("search_events")!.args.city, 30)} para esas fechas.`;
+  if (spec("get_travel_advisory")) return "Reviso los avisos oficiales de viaje.";
+  // Sin una frase que diga algo concreto, mejor ninguna ("Consulto los datos en vivo…" no aporta).
+  return null;
 }
 
 /** Une la frase de inicio con la respuesta del modelo: mismo párrafo, o párrafo nuevo si la respuesta

@@ -97,7 +97,7 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
   d.send({ type: "meta", data: d.meta });
 
   // 0) Frase de inicio: solo si las herramientas tardan (nunca afirma un dato; ver leadSentence).
-  const leadText = d.leadAfterMs !== undefined ? leadSentence(d.plan) : null;
+  const leadText = d.leadAfterMs !== undefined ? leadSentence(d.plan, { exigente: d.exigente, message: d.userMessage }) : null;
   let lead: string | null = null;
   let leadMs: number | null = null;
   const leadTimer = leadText ? setTimeout(() => {

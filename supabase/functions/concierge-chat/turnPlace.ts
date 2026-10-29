@@ -93,6 +93,9 @@ export function tripDisplayName(t: TripLike | null | undefined): string | null {
   return d || null;
 }
 
+/** Acciones sobre el viaje (gasto, lista de empaque, itinerario): nunca son "cerca de ti". */
+const TRIP_ACTION = /\b(gaste|gasto|pague|registra|anota|apunta)\b.{0,60}(\$|\d|peso|dolar|euro|usd|mxn|eur)|\b(empacar|que llevo|lista de empaque|maleta)\b|\b(agrega|anade|pon|mete)\b.{0,40}\b(itinerario|agenda)\b/;
+
 /** Pedir transporte ahora ("Pedir transporte", "un Uber"): es de donde está, no del viaje futuro. */
 const TRANSPORT_NOW = /\b(transporte|taxi|uber|didi|cabify|traslado|llevame|pedir (un )?(auto|carro|coche))\b/;
 
@@ -155,6 +158,10 @@ export function resolveTurnPlace<T extends TripLike>(i: {
   } else if (foreignFlight) {
     // "¿Cómo va el vuelo AM 2?" con un vuelo que no es del viaje: no es "sobre Valle de Bravo" (auditoría 10 #17).
     scope = "none"; label = null; searchCity = null;
+  } else if (selectedTrip && !nearMe && (needsSpecificTrip(message) || TRIP_ACTION.test(normalizeText(message)))) {
+    // "Registra un gasto … en mi viaje a Valle de Bravo": es del viaje, no "cerca de ti" (auditoría 10
+    // #17, ronda 2: el gasto quedó etiquetado "cerca de ti, Ciudad de México").
+    scope = "trip"; label = tripDisplayName(selectedTrip); searchCity = label;
   } else if (nearMe || ((placeSearch || transportNow) && !mentionsHotel && (futureTrip || i.position === "away"))) {
     // "Cerca" = donde está ahora. Un viaje que no ha empezado (o del que está fuera) no es "aquí".
     scope = "here"; label = hereLabel; searchCity = physical?.place ?? null;

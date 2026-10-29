@@ -330,7 +330,12 @@ const Concierge = () => {
           context: { coords: currentCoords, place: realPlace },
         },
       }, {
-        onMeta: (d) => patchMsg(replyId, (m) => ({ ...m, tripId: (d._trip_id as string) ?? null, exigente: d._exigente === true })),
+        // La etiqueta de lugar ("en Lisboa", "cerca de ti") desde el primer evento, no solo al final (N5).
+        onMeta: (d) => patchMsg(replyId, (m) => ({
+          ...m, tripId: (d._trip_id as string) ?? null, exigente: d._exigente === true, local: d._user_position === "away",
+          placeScope: typeof d._place_scope === "string" ? d._place_scope as PlaceScope : null,
+          placeLabel: typeof d._place_label === "string" ? d._place_label : null,
+        })),
         onStatus: (st) => patchMsg(replyId, (m) => {
           const steps = [...(m.steps ?? [])];
           const i = steps.findIndex((x) => x.id === st.id);
