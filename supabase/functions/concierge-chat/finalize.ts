@@ -14,7 +14,7 @@
 //      nunca "reservé", aviso si una búsqueda no trajo datos, transfers con datos del viaje.
 
 import { splitAnswer } from "./stream.ts";
-import { collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enforceFlightSellerHonesty, enrichCardLinks, eventCards, isTourDuplicate, MAX_CARDS, tourCards, tourTitlesOf, type ToolRun, validateCards } from "./cards.ts";
+import { alignAttractionCards, attractionPlaces, collectEvidence, type ConciergeCard, enforceAvailabilityHonesty, enforceFlightSellerHonesty, enrichCardLinks, eventCards, isTourDuplicate, MAX_CARDS, tourCardsForText, tourTitlesOf, type ToolRun, validateCards } from "./cards.ts";
 import { correctFailureClaims, enforceNoFakeBooking, enforceNoFakeRequest, labelUnverifiedFacts } from "./guard.ts";
 import { type ActionContext, isGooglePlaceId, type ProposedAction, restaurantBookingLinks, validateAction, validateActions } from "./actions.ts";
 import { directionsLink, uberLink, type TurnPlan } from "./planner.ts";
@@ -86,8 +86,10 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
     });
   // Event Radar: las cards de eventos salen SOLO de search_events de este turno (el modelo no las escribe).
   const events = eventCards(i.toolRuns, (i.now ?? new Date()).toISOString());
-  // Tours de Viator: igual, solo de search_tours de este turno.
-  const tours = tourCards(i.toolRuns, (i.now ?? new Date()).toISOString());
+  // Lo que el usuario lee (en vivo o el texto del modelo): las tarjetas de tours y atracciones lo siguen (N6).
+  const readText = typeof i.liveText === "string" && i.liveText.trim() ? i.liveText : split.text;
+  // Tours de Viator: igual, solo de search_tours de este turno, y los que el texto nombra.
+  const tours = tourCardsForText(i.toolRuns, readText, (i.now ?? new Date()).toISOString());
   // Un tour que el modelo reescribió como "atracción" no se repite (ni se le ponen boletos oficiales).
   const tourTitles = tourTitlesOf(i.toolRuns);
   const notTours = merged.filter((c) => {
@@ -95,7 +97,9 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
     fromModel.dropped.push({ type: c.type, reason: "tour_repetido" });
     return false;
   });
-  const cards = [...events, ...tours, ...enrichCardLinks(notTours, ev, {
+  const aligned = alignAttractionCards(notTours, readText, attractionPlaces(i.toolRuns));
+  if (aligned !== notTours) guards.push("tarjetas_del_texto");
+  const cards = [...events, ...tours, ...enrichCardLinks(aligned, ev, {
     directions: (t) => directionsLink(t),
     ride: (t) => uberLink(t),
     booking: (v) => restaurantBookingLinks(v),

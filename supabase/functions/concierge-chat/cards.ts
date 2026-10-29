@@ -918,3 +918,86 @@ export function isTourDuplicate(card: Pick<ConciergeCard, "type" | "title">, tou
     return shared >= 2 && shared / Math.min(wa.length, wb.size) >= 0.6;
   });
 }
+
+// ═══ Texto y tarjetas dicen lo mismo (auditoría 10, ronda 2, N6) ═══
+// Roma: el texto nombraba el "Tour privado de Civitavecchia" (sin tarjeta) y mostraba tarjetas de pizza
+// y de Ponza que el texto no mencionaba. Lisboa: el texto nombraba 6 atracciones y había 4 tarjetas.
+// Regla: si el texto nombra opciones de la búsqueda, las tarjetas son ESAS (en el orden del texto); las
+// que no menciona no se muestran. Si no nombra ninguna, se queda lo de antes.
+
+const MENTION_STOP = new Set([...TOUR_STOP, "como", "desde", "para", "entre", "sobre", "the", "and", "with", "from", "experiencia", "excursion", "dia", "medio", "boletos", "entrada", "sin", "fila"]);
+const mentionWords = (v: unknown) => normName(v).split(" ").filter((w) => w.length > 3 && !MENTION_STOP.has(w));
+
+/** Línea del texto que nombra esta opción (o -1). Nombre contenido, o ≥2 palabras clave (≥60 %), o una muy distintiva. */
+export function mentionIndex(text: string, title: string): number {
+  const lines = String(text ?? "").split("\n");
+  const t = normName(title);
+  const tw = mentionWords(title);
+  let best = -1;
+  lines.forEach((line, i) => {
+    if (best >= 0) return;
+    const l = normName(line);
+    if (!l) return;
+    if (t.length >= 6 && l.includes(t)) { best = i; return; }
+    const lw = new Set(mentionWords(line));
+    const shared = tw.filter((w) => lw.has(w));
+    if (shared.length >= 2 && shared.length / Math.max(1, Math.min(tw.length, 4)) >= 0.6) { best = i; return; }
+    if (shared.length === 1 && shared[0].length >= 9 && tw.length <= 6) best = i;
+  });
+  return best;
+}
+
+/** Tours que nombra el texto (en su orden); si no nombra ninguno, los primeros como antes. */
+export function tourCardsForText(runs: ToolRun[], text: string, consultadoAt: string = new Date().toISOString()): ConciergeCard[] {
+  const all: ConciergeCard[] = [];
+  // Todas las opciones válidas (no solo las 4 primeras) para poder elegir las que el texto nombra.
+  const every = (() => {
+    const out: ConciergeCard[] = [];
+    for (const run of runs) {
+      if (run.name !== "search_tours" || run.result?.disponible === false) continue;
+      const list = Array.isArray(run.result.results) ? run.result.results as unknown[] : [];
+      for (let k = 0; k < list.length; k += MAX_TOUR_CARDS) {
+        out.push(...tourCards([{ ...run, result: { ...run.result, results: list.slice(k, k + MAX_TOUR_CARDS) } }], consultadoAt));
+      }
+    }
+    return out;
+  })();
+  all.push(...every);
+  const ranked = all.map((c) => ({ c, i: mentionIndex(text, c.title) })).filter((x) => x.i >= 0).sort((a, b) => a.i - b.i);
+  if (!ranked.length) return all.slice(0, MAX_TOUR_CARDS);
+  const seen = new Set<string>();
+  return ranked.map((x) => x.c).filter((c) => (seen.has(c.title) ? false : (seen.add(c.title), true))).slice(0, MAX_TOUR_CARDS);
+}
+
+/** Lugares de search_attractions de este turno (para completar tarjetas que el texto nombra). */
+export function attractionPlaces(runs: ToolRun[]): EvidencePlace[] {
+  const out: EvidencePlace[] = [];
+  for (const r of runs) {
+    if (r.name !== "search_attractions" || r.result?.disponible === false) continue;
+    collectPlaces("search_attractions", r.result, out, typeof r.args?.city === "string" ? r.args.city : undefined);
+  }
+  return out;
+}
+
+/**
+ * Atracciones: las tarjetas siguen al texto. Las que el texto no nombra se quitan (si nombra alguna) y
+ * las que nombra sin tarjeta se agregan con los datos de la búsqueda (nombre, calificación real).
+ */
+export function alignAttractionCards(cards: ConciergeCard[], text: string, places: EvidencePlace[], max = MAX_CARDS): ConciergeCard[] {
+  const attr = cards.filter((c) => c.type === "attraction");
+  const mentionedPlaces = places.map((p) => ({ p, i: mentionIndex(text, p.name) })).filter((x) => x.i >= 0);
+  const mentionedCards = attr.map((c) => ({ c, i: mentionIndex(text, c.title) })).filter((x) => x.i >= 0);
+  if (!mentionedPlaces.length && !mentionedCards.length) return cards;
+  const others = cards.filter((c) => c.type !== "attraction");
+  const chosen = [...mentionedCards];
+  for (const { p, i } of mentionedPlaces) {
+    if (chosen.some((x) => matchPlace(x.c.title, [p]) || normName(x.c.title) === normName(p.name))) continue;
+    const card: ConciergeCard = { type: "attraction", title: p.name.slice(0, 140) };
+    if (typeof p.rating === "number" && p.rating > 0 && p.rating <= 5) card.rating = p.rating;
+    if (p.address) card.subtitle = p.address.slice(0, 160);
+    card.fuente = "google_maps";
+    chosen.push({ c: card, i });
+  }
+  chosen.sort((a, b) => a.i - b.i);
+  return [...chosen.map((x) => x.c), ...others].slice(0, max);
+}
