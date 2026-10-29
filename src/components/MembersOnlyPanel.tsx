@@ -278,7 +278,7 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
       <section aria-label="Ciudades destacadas" className="mt-2 mb-3">
         <div className="flex items-baseline justify-between mb-2">
           <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">
-            {q ? (cityHits.length ? "Ciudades que coinciden" : "Sin ciudades con ese nombre") : "Ciudades destacadas"}
+            {q ? (cityHits.length ? "Ciudades que coinciden" : `Ninguna ciudad se llama «${q}» · buscando lugares en ${city}`) : "Ciudades destacadas"}
           </p>
           <div className="flex items-center gap-2">
             {wide && featured.length > 4 && (
@@ -360,6 +360,8 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
       <div className="flex items-baseline justify-between mb-3 gap-2">
         <h3 className="font-fraunces text-xl md:text-2xl">
           En <span className="text-primary">{city}</span>
+          {/* La búsqueda es dentro de la ciudad elegida: se dice claro (N9: "jazz" parecía buscar en todas). */}
+          {q && !cityHits.length && <span className="block text-xs font-sans text-muted-foreground mt-0.5" data-testid="members-search-scope">Resultados de «{q}» solo en {city}. Para buscar en otra ciudad, escribe su nombre o borra la búsqueda.</span>}
         </h3>
         {!loadingVenues && (
           <span className="text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
@@ -408,9 +410,12 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
                     </button>
                   )}
                 </div>
-                <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 md:mx-0 md:px-0 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {list.map((v) => card(v, true))}
-                </div>
+                {/* Una sola tarjeta ocupa todo el ancho (N9: a 390 px quedaba al 86 % con el nombre cortado). */}
+                {list.length === 1 ? card(list[0], false) : (
+                  <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 md:mx-0 md:px-0 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {list.map((v) => card(v, true))}
+                  </div>
+                )}
               </section>
             );
           })}
@@ -459,9 +464,9 @@ function VenueCard({ venue: v, rail, wide, reserving, onOpen, onReserve }: {
         type="button"
         onClick={(e) => { e.stopPropagation(); onReserve(); }}
         disabled={reserving}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-gradient-gold text-primary-foreground hover:opacity-90 transition disabled:opacity-50"
+        className="inline-flex min-w-0 items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] sm:text-xs whitespace-nowrap bg-gradient-gold text-primary-foreground hover:opacity-90 transition disabled:opacity-50"
       >
-        <CalendarCheck className="w-3.5 h-3.5" aria-hidden="true" />
+        <CalendarCheck className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
         {reserving ? "Enviando…" : "Reservar con Concierge"}
       </button>
       {v.address && (
@@ -470,7 +475,7 @@ function VenueCard({ venue: v, rail, wide, reserving, onOpen, onReserve }: {
           target="_blank" rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           aria-label={`Cómo llegar a ${v.nombre}`}
-          className="inline-grid place-items-center w-8 h-8 rounded-lg border border-primary/25 text-foreground hover:bg-primary/10 transition"
+          className="inline-grid shrink-0 place-items-center w-8 h-8 rounded-lg border border-primary/25 text-foreground hover:bg-primary/10 transition"
         >
           <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
         </a>
@@ -483,10 +488,10 @@ function VenueCard({ venue: v, rail, wide, reserving, onOpen, onReserve }: {
     return (
       <article onClick={onOpen} className={`${base} flex gap-3 p-2.5 ${rail ? "snap-start shrink-0 w-[86%]" : ""}`}>
         {/* Foto real del venue (Google, solo si encuentra ESE lugar); si no, ilustrativa de su categoría, marcada. */}
-        <VenueImage venue={v} size="thumb" className="w-24 shrink-0 self-stretch min-h-[124px] rounded-xl" />
+        <VenueImage venue={v} size="thumb" className={`${rail ? "w-20" : "w-24"} shrink-0 self-stretch min-h-[124px] rounded-xl`} />
         <div className="min-w-0 flex-1 flex flex-col py-0.5">
-          <h4 className="font-fraunces text-base text-foreground leading-tight line-clamp-1">{v.nombre}</h4>
-          {v.por_que && <p className="text-primary text-[11px] mt-0.5 leading-snug line-clamp-1">{v.por_que}</p>}
+          <h4 className="font-fraunces text-base text-foreground leading-tight line-clamp-2 break-words">{v.nombre}</h4>
+          {v.por_que && <p className="text-primary text-[11px] mt-0.5 leading-snug line-clamp-2">{v.por_que}</p>}
           <div className="mt-1.5 text-[11px]"><MembersVenueMeta venue={v} /></div>
           {chips}
           {actions}

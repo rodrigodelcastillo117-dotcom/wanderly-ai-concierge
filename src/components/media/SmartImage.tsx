@@ -92,19 +92,30 @@ function peek(p: SmartImageProps, w: number, skip: Set<Step>): Resolved | null |
   return null;
 }
 
+/**
+ * Tope de cada fuente: una búsqueda de foto que se queda esperando (turno del presupuesto de fotos o
+ * red) dejaba la tarjeta en esqueleto para siempre (auditoría 10, ronda 2, N9: Parker & Lenox sin
+ * foto). Pasado el tope se sigue con la siguiente fuente (la ilustrativa marcada o la de la marca).
+ */
+export const IMAGE_STEP_TIMEOUT_MS = 6000;
+function capped<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([p.catch(() => null), new Promise<null>((r) => { t = setTimeout(() => r(null), ms); })]).finally(() => { if (t) clearTimeout(t); });
+}
+
 async function resolve(p: SmartImageProps, w: number, skip: Set<Step>): Promise<Resolved | null> {
   const url = safeHttps(p.imageUrl);
   if (url && !skip.has("url")) return { url, kind: p.imageKind === "stock" ? "stock" : "real" };
   if (p.photoRef && !skip.has("ref")) {
-    const u = await fetchPlacePhotoUrl(p.photoRef, w);
+    const u = await capped(fetchPlacePhotoUrl(p.photoRef, w), IMAGE_STEP_TIMEOUT_MS);
     if (u) return { url: u, kind: "google" };
   }
   if (p.lookup && !skip.has("lookup")) {
-    const u = await resolvePlacePhotoUrl(p.lookup, w);
+    const u = await capped(resolvePlacePhotoUrl(p.lookup, w), IMAGE_STEP_TIMEOUT_MS);
     if (u) return { url: u, kind: "google" };
   }
   if (p.stockQuery && !skip.has("stock")) {
-    const s = await getStockPhoto(p.stockQuery);
+    const s = await capped(getStockPhoto(p.stockQuery), IMAGE_STEP_TIMEOUT_MS);
     if (s) return { url: s.image, kind: "stock", credit: s.photographer };
   }
   return null;
