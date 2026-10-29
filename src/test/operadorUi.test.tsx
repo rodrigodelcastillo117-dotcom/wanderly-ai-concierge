@@ -76,6 +76,7 @@ describe("Mesa: bitácora del operador", () => {
     const resumen = await screen.findByTestId("operator-summary");
     expect(resumen).toHaveTextContent("Operador IA · 3 acciones · gasto en IA US$0.031");
     expect(resumen).toHaveTextContent("Pasó a una persona: Tope de acciones del caso");
+    expect(operatorSummary(EVENTS.slice(0, 5))!.ultima).toBe("Escribió al viajero · hecho");
     const log = screen.getByTestId("incident-log");
     expect(log).toHaveTextContent("Operador IA · Escribió al proveedor · sale ahora");
     expect(log).toHaveTextContent("Operador IA · app → · Le escribí al hotel.");

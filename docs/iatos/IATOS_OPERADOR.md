@@ -91,7 +91,7 @@ En Telegram, el viajero vincula su cuenta desde la app (**Perfil → Ajustes →
 
 **Funciones nuevas:** `incidente`, `incidentes-vigilante`, `reclamos`, `reclamos-inbound`, `reclamos-cron`, `operador`, `telegram-webhook`, `canales`.
 
-**Funciones con cambios:** `concierge-chat`, `ops-desk`, `reservations-inbound`, `ai-reservations`, `ai-reservations-cron` (comparten `_shared/ai-reservations/service.ts`), `flights-search` y `places-nearby` no cambian (el operador reutiliza su lógica).
+**Funciones con cambios:** `concierge-chat`, `ops-desk`, `reservations-inbound`, `ai-reservations`, `ai-reservations-cron` (comparten `_shared/ai-reservations/service.ts`), y `flights-search` y `places-nearby` (su lógica se movió tal cual a `_shared/flight-search.ts` y `_shared/places-rank.ts` para que el operador la reutilice; mismo comportamiento).
 
 **Tareas programadas (pg_cron):**
 - `incidentes-vigilante-cada-2-min` → `docs/ops/programar-incidentes.sql`

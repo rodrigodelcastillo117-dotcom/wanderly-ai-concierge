@@ -166,7 +166,10 @@ export function operatorSummary(events: IncidentLogEvent[]): OperatorSummary | n
     if (d.herramienta && e.kind !== "mensaje") herramientas.push(d.herramienta);
     if (d.escalado || d.herramienta === "pedir_humano") { escalado = true; motivo = d.motivo ?? motivo ?? "El operador pidió a una persona"; }
   }
-  const ultima = [...op].reverse().find((e) => e.kind === "accion" || e.kind === "decision")?.body ?? null;
+  const u = [...op].reverse().find((e) => e.kind === "accion" || e.kind === "decision");
+  const uTool = (u?.data?.operador as { herramienta?: string } | undefined)?.herramienta;
+  // "prometer_seguimiento: hecho" → "Prometió hora de seguimiento · hecho" (sin nombres internos).
+  const ultima = u?.body ? (uTool && OPERATOR_TOOL_LABEL[uTool] ? u.body.replace(/^[a-z_]+( \(no se pudo\))?: /, (_m, f) => `${OPERATOR_TOOL_LABEL[uTool]}${f ? " (no se pudo)" : ""} · `) : u.body) : null;
   return { acciones: herramientas.length, gastoUsd: Math.round(gasto * 1000) / 1000, escalado, motivo, ultima, herramientas };
 }
 

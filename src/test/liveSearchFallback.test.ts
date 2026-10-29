@@ -62,7 +62,7 @@ describe("búsqueda en vivo sin proveedores: nunca se inventan vuelos ni hoteles
 
   it("el código ya no tiene un respaldo 'ai-fallback' que sustituya proveedores", () => {
     const root = path.resolve(__dirname, "../../supabase/functions");
-    for (const f of ["flights-search/index.ts", "flights-search/search.ts", "hotels-search/index.ts", "hotels-search/search.ts", "serpapi-quote/index.ts"]) {
+    for (const f of ["flights-search/index.ts", "flights-search/search.ts", "_shared/flight-search.ts", "hotels-search/index.ts", "hotels-search/search.ts", "serpapi-quote/index.ts"]) {
       const src = readFileSync(path.join(root, f), "utf8");
       expect(src, f).not.toMatch(/source\s*=\s*"ai-fallback"/);
     }
