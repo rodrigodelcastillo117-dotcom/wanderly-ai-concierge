@@ -33,11 +33,15 @@ export function downloadIcs(events: CalendarEvent[], name = "iatos-itinerario.ic
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function ActionCard({ action, tripId, onOpenEmergency }: { action: ProposedAction; tripId?: string | null; onOpenEmergency?: () => void }) {
+/** Acción restaurada del historial: si ya se confirmó, se pinta hecha (sin botón) con su resultado (N7). */
+type RestoredState = { estado?: "hecho"; resultado?: string; enlace?: string };
+
+export function ActionCard({ action, tripId, onOpenEmergency }: { action: ProposedAction & RestoredState; tripId?: string | null; onOpenEmergency?: () => void }) {
   const navigate = useNavigate();
-  const [state, setState] = useState<State>("idle");
-  const [message, setMessage] = useState<string | null>(null);
-  const [link, setLink] = useState<string | null>(null);
+  const done0 = action.estado === "hecho";
+  const [state, setState] = useState<State>(done0 ? "done" : "idle");
+  const [message, setMessage] = useState<string | null>(done0 ? action.resultado ?? "Listo." : null);
+  const [link, setLink] = useState<string | null>(done0 && typeof action.enlace === "string" && action.enlace.startsWith("/") ? action.enlace : null);
   // God Mode F1: estado real de la solicitud creada (Fixer / Privé), con etiqueta honesta.
   const [reqStatus, setReqStatus] = useState<string | null>(null);
   // Reservas IA: el correo preparado (create_intent) para el paso "Enviar al restaurante".
@@ -63,7 +67,8 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
       const ps = readPriveSession(sess.session?.user?.id)?.token;
       const { data, error } = await supabase.functions.invoke("concierge-chat", {
         headers: ps ? { "x-prive-session": ps } : undefined,
-        body: { mode: "action", action: { type: action.type, params: action.params }, trip_id: tripId ?? null, client_date: localISODate(), tz: browserTimeZone(), idempotency_key: idemKey },
+        // action_id: el servidor marca en el historial que esta acción ya se hizo (al recargar sale hecha).
+        body: { mode: "action", action: { type: action.type, params: action.params }, action_id: action.id, trip_id: tripId ?? null, client_date: localISODate(), tz: browserTimeZone(), idempotency_key: idemKey },
       });
       if (error) {
         const { readFunctionError } = await import("@/lib/functionErrors");

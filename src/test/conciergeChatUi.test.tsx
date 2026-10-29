@@ -39,7 +39,8 @@ vi.mock("@/integrations/supabase/client", () => {
       auth: { getSession: async () => ({ data: { session: { access_token: "t", user: { id: "u1" } } } }), signOut: async () => {} },
       channel: () => ({ on: () => ({ subscribe: () => ({}) }) }),
       removeChannel: () => {},
-      functions: { invoke: vi.fn() },
+      // Ronda 2 (#15): el nombre de la ciudad sale de la función geocode de IATOS, ya no de BigDataCloud.
+      functions: { invoke: vi.fn(async (name: string) => (name === "geocode" ? { data: { city: "Huixquilucan", country_code: "MX" }, error: null } : undefined)) },
     },
   };
 });
@@ -55,7 +56,7 @@ beforeEach(() => {
     configurable: true,
     value: { getCurrentPosition: (ok: (p: any) => void) => ok({ coords: { latitude: HUIXQUILUCAN.lat, longitude: HUIXQUILUCAN.lng } }) },
   });
-  // Clima de MET Norway (claude/total-clima quitó Open-Meteo del Concierge) y ciudad de BigDataCloud.
+  // Clima de MET Norway (claude/total-clima quitó Open-Meteo del Concierge).
   vi.stubGlobal("fetch", vi.fn(async (url: string) => new Response(JSON.stringify(
     String(url).includes("api.met.no")
       ? { properties: { meta: { updated_at: new Date().toISOString() }, timeseries: [{ time: new Date().toISOString(), data: { instant: { details: { air_temperature: 17 } } } }] } }

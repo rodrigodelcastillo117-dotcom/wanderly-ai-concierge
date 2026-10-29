@@ -11,6 +11,7 @@
 
 import { CARD_TYPES, safeCardLink, safeHttpsUrl, type CardLink, type CardType, type ConciergeCard, type EstadoDato } from "./cards.ts";
 import { frescuraPrecio } from "../_shared/priceFreshness.ts";
+import { ACTION_TYPES, type ActionType, type ProposedAction } from "./actions.ts";
 
 /** Máximo de cards por mensaje guardado (8 del modelo/planeador + eventos/tours de la búsqueda). */
 export const MAX_STORED_CARDS = 12;
@@ -102,5 +103,110 @@ export function restoreStoredCards(raw: unknown, now: Date | number = Date.now()
       return { ...c, price_note: c.price_note ? `${note} · ${c.price_note}`.slice(0, 200) : note };
     }
     return c;
+  });
+}
+
+// ═══ Acciones guardadas con su estado (auditoría 10, ronda 2, N7) ═══
+// Al recargar, el texto decía "Te dejo el botón para confirmarlo" y el botón ya no estaba (3 de 6 globos),
+// ni el estado "Gasto registrado". Ahora la acción propuesta se guarda con el turno y, cuando el usuario
+// la confirma, el servidor marca en el historial que ya se hizo (markStoredAction). Al restaurar se pinta
+// con su estado: pendiente (con su botón) o hecha (con el resultado, sin botón).
+
+export interface StoredAction extends ProposedAction {
+  estado?: "hecho"; resultado?: string; enlace?: string; hecho_at?: string;
+}
+
+const MAX_STORED_ACTIONS = 3;
+const MAX_ACTION_BYTES = 6_000;
+const ACTION_ID = /^[A-Za-z0-9-]{8,64}$/;
+
+function cleanAction(raw: unknown): StoredAction | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  const id = typeof r.id === "string" && ACTION_ID.test(r.id) ? r.id : null;
+  const type = typeof r.type === "string" && (ACTION_TYPES as readonly string[]).includes(r.type) ? r.type as ActionType : null;
+  const summary = str(r.summary, 300);
+  if (!id || !type || !summary) return null;
+  const params = r.params && typeof r.params === "object" && !Array.isArray(r.params) ? r.params as Record<string, unknown> : {};
+  if (byteLen(params) > MAX_ACTION_BYTES) return null;
+  const out: StoredAction = {
+    id, type, params, summary, confirm_label: str(r.confirm_label, 40) ?? "Confirmar", runs: r.runs === "client" ? "client" : "server",
+  };
+  const note = str(r.note, 300);
+  if (note) out.note = note;
+  if (r.estado === "hecho") {
+    out.estado = "hecho";
+    const res = str(r.resultado, 300);
+    if (res) out.resultado = res;
+    if (typeof r.enlace === "string" && /^\/[A-Za-z0-9/_-]{1,120}$/.test(r.enlace)) out.enlace = r.enlace;
+    const at = str(r.hecho_at, 40);
+    if (at) out.hecho_at = at;
+  }
+  return out;
+}
+
+/** Acciones validadas del turno → lo que se guarda con el texto del asistente (undefined si no hay). */
+export function actionsForStorage(actions: unknown): StoredAction[] | undefined {
+  const out = (Array.isArray(actions) ? actions : []).map(cleanAction).filter(Boolean).slice(0, MAX_STORED_ACTIONS) as StoredAction[];
+  return out.length ? out : undefined;
+}
+
+/** Acciones guardadas → para pintar al recargar (se limpian otra vez: el historial lo edita su dueño). */
+export function restoreStoredActions(raw: unknown): StoredAction[] {
+  return (Array.isArray(raw) ? raw : []).map(cleanAction).filter(Boolean).slice(0, MAX_STORED_ACTIONS) as StoredAction[];
+}
+
+/**
+ * Marca como hecha la acción `actionId` dentro de los mensajes guardados. Devuelve los mensajes nuevos o
+ * null si no estaba (nada que actualizar).
+ */
+export function markStoredAction(messages: unknown, actionId: string, result: { message: string; link?: string; at?: string }): unknown[] | null {
+  if (!Array.isArray(messages) || !ACTION_ID.test(String(actionId ?? ""))) return null;
+  let changed = false;
+  const out = messages.map((m) => {
+    if (!m || typeof m !== "object" || !Array.isArray((m as any).actions)) return m;
+    const acts = ((m as any).actions as unknown[]).map((a) => {
+      if (!a || typeof a !== "object" || (a as any).id !== actionId) return a;
+      changed = true;
+      return { ...(a as object), estado: "hecho", resultado: String(result.message ?? "Listo.").slice(0, 300),
+        ...(result.link && /^\/[A-Za-z0-9/_-]{1,120}$/.test(result.link) ? { enlace: result.link } : {}), hecho_at: result.at ?? new Date().toISOString() };
+    });
+    return { ...(m as object), actions: acts };
+  });
+  return changed ? out : null;
+}
+
+// ═══ Enlaces de reserva con fecha vencida (auditoría 10, cuenta P2-12) ═══
+// Al restaurar el historial salían botones de OpenTable/TheFork con la fecha de aquel día (ya pasada).
+// Se quita la fecha del enlace (lleva a la ficha sin fecha) o, si no se puede, se quita el botón.
+
+const DATE_PARAMS = ["date", "dateTime", "datetime", "covers_date", "booking_date", "d", "fecha"];
+const isPastDay = (v: string, todayISO: string) => {
+  const m = v.match(/(\d{4}-\d{2}-\d{2})/);
+  return !!m && m[1] < todayISO;
+};
+
+/** Enlace sin la fecha vencida, o null si la fecha está en la ruta y no se puede quitar. */
+export function dropPastDateFromLink(url: string, todayISO: string): string | null {
+  let u: URL;
+  try { u = new URL(url); } catch { return url; }
+  if (!/^https:$/.test(u.protocol)) return url;
+  let touched = false;
+  for (const k of [...u.searchParams.keys()]) {
+    if (DATE_PARAMS.includes(k) && isPastDay(u.searchParams.get(k) ?? "", todayISO)) { u.searchParams.delete(k); touched = true; }
+  }
+  if (isPastDay(decodeURIComponent(u.pathname), todayISO)) return null;
+  return touched ? u.toString() : url;
+}
+
+export function cardsWithoutPastDates(cards: ConciergeCard[], todayISO: string): ConciergeCard[] {
+  return cards.map((c) => {
+    if (!c.links?.length) return c;
+    const links = c.links.map((l) => {
+      if (l.kind !== "booking" && l.kind !== "website" && l.kind !== "tickets") return l;
+      const fixed = dropPastDateFromLink(l.url, todayISO);
+      return fixed ? { ...l, url: fixed } : null;
+    }).filter(Boolean) as CardLink[];
+    return { ...c, links };
   });
 }

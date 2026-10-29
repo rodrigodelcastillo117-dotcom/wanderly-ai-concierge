@@ -28,7 +28,7 @@ import { renderTasteProfile, tasteToday } from "../_shared/tasteProfile.ts";
 import { todayLine, toolArgs } from "./tools.ts";
 import { resolveToday, sanitizeClientMessages } from "./guard.ts";
 import { buildContextMessage, buildDynamicSystem, buildMemoryData, buildStableSystem, capSummary } from "./prompt.ts";
-import { cardsForStorage } from "./storedCards.ts";
+import { actionsForStorage, cardsForStorage, markStoredAction } from "./storedCards.ts";
 import {
   asArray, buildRequestIntelligence, compactItem, compactTripForPrompt, computeTripGaps, loadReservationStates, reservationGuardInput,
   tripBookingContext, tripListBookingState, tripsDigest,
@@ -276,6 +276,9 @@ async function handleAction(req: Request, body: Body, authHeader: string) {
     },
   });
   console.log("concierge_action", JSON.stringify({ user_id: u.user.id, type: body.action?.type, ok: result.ok, code: result.code ?? null }));
+  // El historial recuerda que esta acción ya se hizo (N7): al recargar sale "hecho", no otra vez el botón.
+  const actionId = (body as { action_id?: unknown }).action_id;
+  if (result.ok && typeof actionId === "string") bg(markActionDone(supabase, u.user.id, actionId, result));
   if (result.ok) logInsight(supabase, u.user.id, `accion:${body.action?.type}`, []).catch(() => {});
   return { status: result.ok ? 200 : 422, body: result as unknown as Record<string, unknown> };
   });
@@ -658,7 +661,7 @@ Deno.serve(async (req) => {
       const settle = async () => {
         await Promise.all(agent.usage.map((x) => logUsage(usageEntry(userId, x))));
         logInsight(supabase, userId, lastUserMsg, reply._tools_used).catch(() => {});
-        bg(persistConversation({ supabase, userId, tripId: trip_id_activo, convPrevia, prevMessages, lastUserMsg, replyText: final.text, replyCards: final.cards }));
+        bg(persistConversation({ supabase, userId, tripId: trip_id_activo, convPrevia, prevMessages, lastUserMsg, replyText: final.text, replyCards: final.cards, replyActions: final.actions }));
         if (quotaReservation) await commitQuota(quotaReservation); // Iato respondió: ahora sí cuenta
         quotaReservation = undefined;
       };
@@ -848,21 +851,40 @@ async function searchPlaces(args: Record<string, unknown>, authHeader: string): 
   return fb?.error ? { error: fb.error } : { error: "places_unavailable" };
 }
 
+/** Marca la acción como hecha en la conversación guardada (con la sesión del usuario: RLS). */
+async function markActionDone(supabase: any, userId: string, actionId: string, result: { message: string; link?: string }) {
+  try {
+    const { data } = await supabase.from("concierge_conversations").select("id, messages").eq("user_id", userId).order("updated_at", { ascending: false }).limit(5);
+    for (const row of Array.isArray(data) ? data : []) {
+      const messages = markStoredAction(row.messages, actionId, { message: result.message, link: result.link });
+      if (!messages) continue;
+      const { error } = await supabase.from("concierge_conversations").update({ messages }).eq("id", row.id);
+      if (error) console.warn("concierge_action_mark_err", error.message);
+      return;
+    }
+  } catch (e) {
+    console.warn("concierge_action_mark_failed", (e as Error)?.message);
+  }
+}
+
 // ═══ Memoria de conversaciones (en segundo plano: no detiene la respuesta) ═══
 
 async function persistConversation(p: {
   supabase: any; userId: string; tripId: string | null; convPrevia: any; prevMessages: any[]; lastUserMsg: string; replyText: string;
   replyCards?: unknown;
+  replyActions?: unknown;
 }) {
   try {
     const now = new Date().toISOString();
     // Las cards validadas del turno se guardan con el texto: al recargar el chat se vuelven a pintar
     // (con tope de tamaño; el modelo nunca las lee: buildMemoryData solo toma role y content).
     const cards = cardsForStorage(p.replyCards, now);
+    // Las acciones propuestas también (N7): al recargar vuelve el botón, o su estado si ya se confirmó.
+    const actions = actionsForStorage(p.replyActions);
     const nuevosTurnos = [
       ...p.prevMessages,
       { role: "user", content: p.lastUserMsg, timestamp: now },
-      { role: "assistant", content: p.replyText, timestamp: now, ...(cards ? { cards } : {}) },
+      { role: "assistant", content: p.replyText, timestamp: now, ...(cards ? { cards } : {}), ...(actions ? { actions } : {}) },
     ];
     let mensajesParaGuardar = nuevosTurnos;
     let resumenHistorico: string | null = p.convPrevia?.resumen_historico ?? null;
