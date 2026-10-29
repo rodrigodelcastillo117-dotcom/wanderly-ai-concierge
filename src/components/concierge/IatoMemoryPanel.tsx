@@ -43,7 +43,8 @@ export function IatoMemoryPanel({ userId, trips, compact = false }: { userId: st
   const [busy, setBusy] = useState<string | null>(null);
 
   const tripName = useCallback((id: string | null) => {
-    if (!id) return "Conversaciones generales";
+    // El mismo nombre que la etiqueta del historial en el chat (ThreadLabel): "Sin viaje".
+    if (!id) return "Sin viaje";
     const t = trips.find((x) => x.id === id);
     return t?.destino ? `Viaje a ${t.destino}` : "Viaje";
   }, [trips]);

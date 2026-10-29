@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
+import { Link, useInRouterContext } from "react-router-dom";
 import {
   AlertTriangle, BadgeCheck, BedDouble, Car, ExternalLink, Globe, Landmark, Luggage, MapPin, Navigation, Phone, Plane, Sparkles, Star,
   Utensils, UserRound, CalendarCheck, Link2, Ticket, Navigation2, MessageCircle,
@@ -403,6 +404,27 @@ export function CardLinks({ card, onOpen, compact = false, children }: { card: C
   );
 }
 
+
+/**
+ * Avisos con una sección de IATOS que lo resuelve (auditoría 10, ronda 4, N4-P2-6): "Sin seguro de viaje"
+ * decía "en la sección Seguros de IATOS" sin enlace. Ahora lleva el botón a la sección (rutas que existen
+ * en App.tsx: /dashboard/seguros y /dashboard/esim).
+ */
+export function alertInternalLink(card: { title?: string; body?: string }): { to: string; label: string } | null {
+  const t = `${card.title ?? ""} ${card.body ?? ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/\bseguros?\b/.test(t)) return { to: "/dashboard/seguros", label: "Ver seguros de viaje" };
+  if (/\besim\b|plan de datos/.test(t)) return { to: "/dashboard/esim", label: "Ver eSIM" };
+  return null;
+}
+
+function InternalCta({ to, label }: { to: string; label: string }) {
+  const inRouter = useInRouterContext();
+  const cls = "inline-flex items-center gap-1 h-9 px-3 rounded-full border border-primary/50 text-sm text-primary hover:bg-primary/10";
+  return inRouter
+    ? <Link to={to} className={cls} data-testid="alert-internal-cta">{label}</Link>
+    : <a href={to} className={cls} data-testid="alert-internal-cta">{label}</a>;
+}
+
 export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: string | null }) {
   const { user } = useAuth();
   const req = useConciergeRequest(tripId);
@@ -575,6 +597,7 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
   }
 
   if (card.type === "alert") {
+    const internal = alertInternalLink(card);
     return (
       <motion.div
         animate={{ boxShadow: ["0 0 0 hsl(var(--primary)/0)", "0 0 24px hsl(var(--primary)/0.35)", "0 0 0 hsl(var(--primary)/0)"] }}
@@ -591,6 +614,8 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             <p className="text-xs text-muted-foreground mb-2">{card.body}</p>
             {safeHttpsUrl(card.cta_action) ? (
               <ExternalCta card={card} label={card.cta_label ?? "Abrir"} onOpen={onOpen} />
+            ) : internal ? (
+              <InternalCta to={internal.to} label={internal.label} />
             ) : card.cta_label ? (
               <RequestButton state={req.state} label={card.cta_label}
                 onClick={() => req.run({ type: "alert", title: card.title, payload: { body: card.body } })} className="h-9 px-3 text-sm" />

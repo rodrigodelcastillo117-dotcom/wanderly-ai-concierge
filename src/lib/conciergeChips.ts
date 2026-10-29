@@ -6,6 +6,7 @@
 
 import { pickFlight, pickHotel, tripFlights, tripHotels } from "../../supabase/functions/concierge-chat/planner";
 import { tripLabel } from "@/lib/activeTrip";
+import { isAirLeg } from "../../supabase/functions/concierge-chat/context";
 
 export type ChipIcon = "dining" | "transport" | "emergency" | "flight" | "luggage" | "trip";
 
@@ -43,7 +44,10 @@ export function buildChips(trip: ChipTrip | null, todayISO: string, opts: { away
   const hotel = trip && !opts.away ? pickHotel(tripHotels(trip), todayISO) : null;
   const chips: Chip[] = [];
 
-  chips.push(soon
+  // Ronda 4 (N4-P2-7): "¿Mi vuelo va a tiempo?" solo si el viaje tiene un trayecto en avión (salía también en un
+  // viaje por autobús y sin viaje, y gastaba una búsqueda para nada).
+  const hasAirLeg = !!trip && Array.isArray(trip.vuelos_json) && (trip.vuelos_json as unknown[]).some((v) => v && typeof v === "object" && isAirLeg(v));
+  if (hasAirLeg) chips.push(soon
     ? { id: "flight", icon: "flight", label: `¿${soon.code} va a tiempo?`, intent: "flight_status",
       text: `¿Mi vuelo ${soon.code} de ${soon.date === todayISO ? "hoy" : "mañana"} va a tiempo? Dame estado, terminal, puerta y a qué hora salir al aeropuerto.` }
     : { id: "flight", icon: "flight", label: "¿Mi vuelo va a tiempo?", intent: "flight_status",

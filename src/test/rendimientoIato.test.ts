@@ -39,7 +39,8 @@ describe("frase de inicio (planner.leadSentence)", () => {
     ["perdí mi conexión", PARIS, null, /tu conexión/],
     ["¿qué vuelo me conviene más?", TOKIO, null, /^Comparo los vuelos CDMX → Tokio para tus fechas\.$/],
     ["quiero cenar cerca de mi hotel", PARIS, null, /^Busco restaurantes cerca de tu hotel en Google Maps\.$/],
-    ["necesito ayuda urgente", PARIS, { lat: 48.85, lng: 2.35 }, /^Si hay riesgo para tu vida, llama ya al número de emergencias local\. Mientras tanto busco el hospital más cercano/],
+    // Ronda 4 (N4-P2-5): el aviso de llamar a emergencias va una sola vez, en la tarjeta "Ayuda inmediata".
+    ["necesito ayuda urgente", PARIS, { lat: 48.85, lng: 2.35 }, /^Busco el hospital más cercano a tu ubicación\.$/],
     ["dónde está la centurion dentro de la T1 DE CDMX", null, null, /^Busco ese dato en Google y en Google Maps/],
     ["ya cambié de hotel", PARIS, null, /^De paso reviso en tiempo real tu vuelo AF179 de hoy\.$/],
   ];

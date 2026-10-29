@@ -89,6 +89,13 @@ export interface HonestyCtx {
    * 23:37 (hora CDMX)"). N-P2-1: Iato decía "Google Hotels en vivo, consultado hoy 28 oct".
    */
   hotelQuoteStamp?: string | null;
+  /**
+   * Lo que tienen los viajes cargados completos (context.ts tripContentFacts). N4-P1-4 de ronda 4 (N4-P1-1):
+   * Iato dijo "no tiene itinerario" de un viaje con itinerario de días.
+   */
+  /** Se mostró la tarjeta "Ayuda inmediata": el aviso de llamar a emergencias no se repite en el texto (N4-P2-5). */
+  emergencyCard?: boolean;
+  tripFacts?: Array<{ id?: string; destino?: string | null; itinerario_dias: number; vuelos: number; hoteles: number }>;
 }
 
 // ═══ N1: "no está entre tus viajes" cuando sí está ═══
@@ -237,11 +244,88 @@ export function fixSelfAdjustPromise(sentence: string): string | null {
   return `${before}: ${tail}${end.trim() ? end : "."}`;
 }
 
+// ═══ N4-P1-1 (ronda 4): "no tiene itinerario" de un viaje que sí tiene ═══
+// Se corrige solo la frase falsa y solo si TODOS los viajes con ese destino están cargados completos y la
+// contradicen. El viaje se busca en la oración y, si no lo nombra ("…y no tiene itinerario"), en lo último
+// que se nombró antes.
+
+const MISSING_ITIN = /\b(?:(y|pero|e)\s+)?(?:(?:aun|todavia|tampoco)\s+)?(no tiene|no cuenta con|carece de|le falta|falta|sin)\s+(?:(?:un|el|ningun|su)\s+)?itinerario(?:\s+(?:armado|de dias|definido|todavia|aun))?/i;
+const MISSING_ITEM = /\b(?:(y|pero|e)\s+)?(?:(?:aun|todavia|tampoco)\s+)?(no tiene|no cuenta con|carece de)\s+(?:(?:un|el|ningun|su|ninguna)\s+)?(hotel|hospedaje|alojamiento|vuelos?|opcion(?:es)? de vuelo)(?!\s+(?:reservad|confirmad|pagad|comprad|elegid))/i;
+
+const destNames = (destino: unknown) => String(destino ?? "").split(/→|->|,|;|\//).map((p) => norm(p)).filter((p) => p.length >= 3);
+
+function lastMentionedDest(text: string, facts: NonNullable<HonestyCtx["tripFacts"]>): string | null {
+  const t = ` ${norm(text).replace(/[^a-z0-9 ]+/g, " ")} `;
+  let best: { name: string; at: number } | null = null;
+  for (const f of facts) for (const n of destNames(f.destino)) {
+    const at = t.lastIndexOf(` ${n.replace(/[^a-z0-9 ]+/g, " ").trim()} `);
+    if (at >= 0 && (!best || at > best.at)) best = { name: n, at };
+  }
+  return best?.name ?? null;
+}
+
+export function fixFalseMissing(sentence: string, ctx: Pick<HonestyCtx, "tripFacts" | "trips">, prior = ""): string | null {
+  const facts = ctx.tripFacts ?? [];
+  if (!facts.length) return null;
+  const s = norm(sentence);
+  const itin = MISSING_ITIN.exec(s);
+  const item = itin ? null : MISSING_ITEM.exec(s);
+  if (!itin && !item) return null;
+  const dest = lastMentionedDest(sentence, facts) ?? lastMentionedDest(prior.slice(-600), facts);
+  if (!dest) return null;
+  const matching = facts.filter((f) => destNames(f.destino).includes(dest));
+  // Un viaje con ese destino que no está cargado completo: no se sabe; se deja la frase.
+  const knownIds = new Set(facts.map((f) => f.id).filter(Boolean));
+  const unknown = (ctx.trips ?? []).some((t: any) => t?.id && !knownIds.has(t.id) && destNames(t.destino).includes(dest));
+  if (!matching.length || unknown) return null;
+  // La frase se busca en el texto original (mismas mayúsculas y acentos) con el mismo patrón sin acentos.
+  const find = (re: RegExp) => {
+    const plain = sentence.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const m = re.exec(plain);
+    return m && plain.length === sentence.length ? { index: m.index, len: m[0].length, conj: m[1] } : null;
+  };
+  if (itin) {
+    if (!matching.every((f) => f.itinerario_dias > 0)) return null;
+    const m = find(MISSING_ITIN);
+    if (!m) return null;
+    const days = new Set(matching.map((f) => f.itinerario_dias));
+    const n = days.size === 1 ? [...days][0] : null;
+    const what = n ? `itinerario de ${n} ${n === 1 ? "día" : "días"}` : "itinerario";
+    const verb = itin[2] === "sin" ? `con ${what}` : `ya tiene ${what}`;
+    const rep = `${m.conj ? `${m.conj} ` : ""}${verb}`;
+    return sentence.slice(0, m.index) + rep + sentence.slice(m.index + m.len);
+  }
+  const kind = item![3];
+  const hotel = /hotel|hospedaje|alojamiento/.test(kind);
+  if (!matching.every((f) => (hotel ? f.hoteles : f.vuelos) > 0)) return null;
+  const m = find(MISSING_ITEM);
+  if (!m) return null;
+  const rep = `${m.conj ? `${m.conj} ` : ""}ya tiene ${hotel ? "una opción de hotel guardada" : "una opción de vuelo guardada"}`;
+  return sentence.slice(0, m.index) + rep + sentence.slice(m.index + m.len);
+}
+
+// ═══ N4-P2-5: el aviso de emergencia una sola vez ═══
+const CALL_EMERGENCY = /\b(llama\w*|marca\w*|comunicate)\b[^.!?\n]{0,40}\b(911|112|066|065|numero (local )?de emergencias|emergencias)\b/;
+export function repeatedEmergencyWarning(sentence: string): boolean {
+  return CALL_EMERGENCY.test(norm(sentence).replace(/\*/g, ""));
+}
+
+// ═══ N4-P2-6: "…y es lo más importante pendiente" que choca con el "Siguiente paso" ═══
+const SUPERLATIVE_GAP = /,?\s+y\s+(?:es|seria|sería)\s+lo\s+m[aá]s\s+(?:importante|urgente)(?:\s+(?:pendiente|que falta|por hacer))?(?=\s*[:;,.]|\s*$)/i;
+export function dropSuperlativeGap(sentence: string): string | null {
+  return SUPERLATIVE_GAP.test(sentence) ? sentence.replace(SUPERLATIVE_GAP, "") : null;
+}
+
 // ═══ Una oración ═══
 
 /** null = se queda igual; "" = se quita; otro texto = la reemplaza. */
-export function reviseSentence(sentence: string, ctx: HonestyCtx): string | null {
+export function reviseSentence(sentence: string, ctx: HonestyCtx, prior = ""): string | null {
   if (!sentence.trim()) return null;
+  if (ctx.emergencyCard && repeatedEmergencyWarning(sentence)) return "";
+  const missing = fixFalseMissing(sentence, ctx, prior);
+  if (missing) return missing;
+  const superlative = dropSuperlativeGap(sentence);
+  if (superlative) return superlative;
   if (falseNoTripClaim(sentence, ctx)) return "";
   if (phantomCardPromise(sentence, ctx)) return "";
   const sent = fixFakeSent(sentence, ctx);
@@ -301,7 +385,7 @@ export class LiveHonestyFilter {
     }
     const wasStart = this.atLineStart;
     this.atLineStart = endsLine;
-    const r = core.trim() ? reviseSentence(core, this.ctx!) : null;
+    const r = core.trim() ? reviseSentence(core, this.ctx!, this.shown) : null;
     let out = "";
     if (r === null) {
       out = (this.pendingPrefix || prefix) + core + trail;

@@ -957,7 +957,7 @@ export function addLiveEvent(result: KeyResult, events: TmEvent[], wish: Wish, o
   const pool = events
     .filter((e) => e.estado === "onsale" && e.fecha && e.fecha >= wish.date! && e.fecha <= last && e.hora && /^\d{2}:\d{2}$/.test(e.hora) && /^https:\/\//.test(e.url))
     .filter((e) => { const m = toMinK(e.hora!); return wish.timeOfDay === "noche" ? m >= 18 * 60 && m <= 22 * 60 + 30 : wish.timeOfDay === "dia" ? m >= 9 * 60 && m <= 18 * 60 : m >= 12 * 60 && m <= 22 * 60 + 30; })
-    .sort((a, b) => (music ? Number(/music|musica/i.test(b.categoria ?? "")) - Number(/music|musica/i.test(a.categoria ?? "")) : 0));
+    .sort((a, b) => (music ? Number(/m[uú]sic/i.test(b.categoria ?? "")) - Number(/m[uú]sic/i.test(a.categoria ?? "")) : 0));
   for (const e of pool) {
     for (let pi = 0; pi < result.proposals.length; pi++) {
       const p = result.proposals[pi];
@@ -973,7 +973,7 @@ export function addLiveEvent(result: KeyResult, events: TmEvent[], wish: Wish, o
       });
       if (!fits) continue;
       const tz = p.steps.find((s) => s.experience.destination?.timezone)?.experience.destination?.timezone ?? null;
-      const intent: IntentKey = /music|musica/i.test(e.categoria ?? "") ? "concierto" : /arts|theat|teatro/i.test(e.categoria ?? "") ? "espectaculo" : "evento";
+      const intent: IntentKey = /m[uú]sic/i.test(e.categoria ?? "") ? "concierto" : /arts|theat|teatro/i.test(e.categoria ?? "") ? "espectaculo" : "evento";
       const amount = e.precio ? e.precio.min * party : null;
       const cost: Cost = e.precio
         ? { amount, currency: e.precio.currency, basis: "fuente", source_url: e.url, checked_at: opts.consultedAt ?? null,

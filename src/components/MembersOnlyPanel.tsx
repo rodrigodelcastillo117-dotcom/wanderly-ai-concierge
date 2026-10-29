@@ -63,9 +63,17 @@ interface Props {
   onReserve?: (venue: Venue) => void;
   /** Ciudades que van primero: la ciudad donde estás y la de tu viaje activo (si tienen curaduría). */
   preferredCities?: Array<string | null | undefined>;
+  /**
+   * Todavía se está obteniendo la ubicación: la primera carga espera (hasta 4 s) para pedir primero tu
+   * ciudad y no París (N4-P2-11: la primera carga pedía "París" antes que CDMX).
+   */
+  locating?: boolean;
 }
 
-export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
+/** Espera máxima por la ubicación antes de la primera carga de lugares. */
+export const MEMBERS_LOCATION_WAIT_MS = 4000;
+
+export function MembersOnlyPanel({ onReserve, preferredCities = [], locating = false }: Props) {
   const { user } = useAuth();
   const { loading: subLoading, isPro } = useSubscription();
   // Members Only es exclusivo de IATOS PRO: el servidor decide el acceso (members_access_state) y
@@ -105,13 +113,31 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
     setShowAllCities(false);
   };
 
+  // Mientras se obtiene la ubicación, la primera carga espera (con tope) para no pedir otra ciudad antes.
+  const [locWait, setLocWait] = useState(locating);
   useEffect(() => {
-    if (!city || !access?.access) return;
-    let alive = true;
+    if (!locating) { setLocWait(false); return; }
+    const t = window.setTimeout(() => setLocWait(false), MEMBERS_LOCATION_WAIT_MS);
+    return () => window.clearTimeout(t);
+  }, [locating]);
+  const lastLoaded = useRef<string | null>(null);
+  const allCities = useMemo(() => cityNames(cities, FEATURED_CITIES), [cities]);
+
+  useEffect(() => {
+    if (!city || !access?.access || locWait) return;
+    // La ciudad que de verdad toca: la que elegiste o, si no elegiste, tu ciudad o la de tu viaje (aunque
+    // el estado `city` todavía no se haya actualizado en este render): así nunca se pide París primero.
+    const preferred = userPicked.current ? null : preferredCities.map((p) => resolveCityName(p, allCities)).find(Boolean) ?? null;
+    const target = preferred ?? city;
+    if (target !== city) { setCity(target); return; }
+    if (lastLoaded.current === target) return;
+    lastLoaded.current = target;
+    // Solo pinta la respuesta de la ciudad que se pidió al último (otra ciudad elegida después la descarta).
+    const alive = () => lastLoaded.current === target;
     setLoadingVenues(true);
     (async () => {
-      const { venues: list, error } = await fetchMembersVenues(supabase, city);
-      if (!alive) return;
+      const { venues: list, error } = await fetchMembersVenues(supabase, target);
+      if (!alive()) return;
       if (error) {
         toast({ title: "Error cargando lugares", description: "No pudimos cargar los lugares. Intenta de nuevo.", variant: "destructive" });
       }
@@ -119,15 +145,13 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
       if (!error) setShownCounts((m) => ({ ...m, [normText(city)]: list.length }));
       setLoadingVenues(false);
     })();
-    return () => { alive = false; };
-  }, [city, access?.access]);
+  }, [city, access?.access, locWait, allCities, prefKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ciudades con lugares (solo nombres y conteos). Si falla, se usa la lista fija.
   useEffect(() => {
     if (!access?.access) return;
     fetchMembersCities(supabase).then(setCities);
   }, [access?.access]);
-  const allCities = useMemo(() => cityNames(cities, FEATURED_CITIES), [cities]);
   const counts = useMemo(() => new Map((cities ?? []).map((c) => [c.display, shownCounts[normText(c.display)] ?? c.venues])), [cities, shownCounts]);
   // Tu ciudad y tu viaje primero; después la ciudad con la que abre el panel (París), para que la
   // elegida de inicio se vea al principio del carrusel y no al final.

@@ -472,3 +472,87 @@ export function tripsDigest(trips: any[], opts: { skipIds?: Iterable<string>; to
       salida: t.fecha_salida ? String(t.fecha_salida).slice(0, 10) : undefined, regreso: t.fecha_regreso ? String(t.fecha_regreso).slice(0, 10) : undefined,
     }));
 }
+
+// ═══ Lo que cada viaje SÍ tiene (auditoría 10, ronda 4, N4-P1-1) ═══
+// <viajes_usuario> solo llevaba destino, fechas, vuelos y hoteles; Iato dijo "San Miguel no tiene
+// itinerario" de un viaje con itinerario de días. Ahora cada viaje detallado dice qué tiene: días del
+// itinerario, trayectos (avión o por tierra), hoteles, tours y lo que el usuario eligió en el viaje.
+
+const pickState = (p: any): string | undefined => {
+  const i = Number(p?.i);
+  if (!Number.isFinite(i)) return undefined;
+  if (i === -2) return "ya lo tiene el usuario";
+  if (i >= 0) return "elegido";
+  return undefined;
+};
+
+export function tripContents(trip: any) {
+  if (!trip) return null;
+  const legs = asArray(trip.vuelos_json);
+  const air = legs.filter(isAirLeg).length;
+  const ground = legs.length - air;
+  const sel = trip.selections && typeof trip.selections === "object" ? trip.selections : null;
+  const seleccion = sel ? compactItem({
+    vuelo: pickState(sel.vuelo),
+    hotel: pickState(sel.hospedaje) ?? (asArray(sel.hoteles).some((h: any) => Number(h?.i) >= 0 || Number(h?.i) === -2) ? "elegido" : undefined),
+    tours: asArray(sel.tours).length || undefined,
+  }) : {};
+  return {
+    itinerario_dias: itinDays(trip.itinerario_json).length,
+    opciones_de_vuelo: air,
+    opciones_por_tierra: ground || undefined,
+    hoteles: asArray(trip.hospedaje_json).length,
+    tours: asArray(trip.tours_json).length || undefined,
+    seleccion_del_usuario: Object.keys(seleccion).length ? seleccion : "ninguna (usa las opciones sugeridas)",
+  };
+}
+
+/** Lo que la regla de honestidad puede comprobar de un viaje (solo de los viajes cargados completos). */
+export interface TripContentFacts { id?: string; destino?: string | null; itinerario_dias: number; vuelos: number; hoteles: number }
+export const tripContentFacts = (trip: any): TripContentFacts => ({
+  id: trip?.id, destino: trip?.destino ?? null,
+  itinerario_dias: itinDays(trip?.itinerario_json).length,
+  vuelos: asArray(trip?.vuelos_json).filter(isAirLeg).length,
+  hoteles: asArray(trip?.hospedaje_json).length,
+});
+
+// ═══ "¿Qué viajes tengo en los próximos 2 meses?" (N4-P1-1, P2 de omisión) ═══
+// Iato dijo "hasta el 29 de diciembre" y dejó fuera Budapest y Liubliana, que salen el 29. El rango se
+// calcula aquí y la nota del turno lista todos los viajes que salen dentro (inclusive).
+
+const NUM_WORDS: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12 };
+
+export function requestedRange(message: string, todayISO: string): { end: string; label: string } | null {
+  const m = normText(message).match(/\b(?:proxim[oa]s?|siguientes?|en l[oa]s|dentro de|en)\s+(\d{1,2}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(dias?|semanas?|mes(?:es)?|anos?)\b/);
+  const next = m ? null : normText(message).match(/\b(?:el|la)\s+(?:proximo|proxima|siguiente)\s+(mes|semana|ano)\b/);
+  if (!m && !next) return null;
+  const n = m ? (Number(m[1]) || NUM_WORDS[m[1]] || 0) : 1;
+  const unit = m ? m[2] : next![1];
+  if (!n || n > 36) return null;
+  const d = new Date(`${todayISO}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  if (unit.startsWith("dia")) d.setUTCDate(d.getUTCDate() + n);
+  else if (unit.startsWith("semana")) d.setUTCDate(d.getUTCDate() + 7 * n);
+  else if (unit.startsWith("mes")) d.setUTCMonth(d.getUTCMonth() + n);
+  else if (unit.startsWith("ano")) d.setUTCFullYear(d.getUTCFullYear() + n);
+  else return null;
+  return { end: d.toISOString().slice(0, 10), label: m ? `${m[1]} ${m[2]}` : `${next![1]}` };
+}
+
+/** Nota del turno con TODOS los viajes que salen en el rango pedido (inclusive), o null si no pidió un rango. */
+export function rangeTripsNote(message: string, todayISO: string, trips: any[]): string | null {
+  const r = requestedRange(message, todayISO);
+  if (!r) return null;
+  const seen = new Set<string>();
+  const inRange = asArray(trips)
+    .filter((t) => t && !seen.has(t.id) && (seen.add(t.id), true))
+    .filter((t) => {
+      const sal = String(t.fecha_salida ?? "").slice(0, 10);
+      const reg = String(t.fecha_regreso ?? t.fecha_salida ?? "").slice(0, 10);
+      return sal && sal <= r.end && reg >= todayISO;
+    })
+    .sort((a, b) => String(a.fecha_salida).localeCompare(String(b.fecha_salida)));
+  if (!inRange.length) return `Rango pedido: de ${todayISO} a ${r.end} (inclusive). No hay viajes que salgan en ese rango.`;
+  const list = inRange.map((t) => `${String(t.destino ?? "Sin destino").slice(0, 60)} (sale ${String(t.fecha_salida).slice(0, 10)})`).join("; ");
+  return `Rango pedido: de ${todayISO} a ${r.end} (inclusive). Viajes que salen en ese rango (${inRange.length}): ${list}. Nómbralos todos; si dices "hasta el <fecha>", incluye los que salen ese mismo día.`;
+}

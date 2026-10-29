@@ -767,14 +767,14 @@ export const MAX_EVENT_CARDS = 4;
  * Ticketmaster (fuente primaria): "Boletos en Ticketmaster" con el `url` oficial, estado (En venta /
  * Agotado / fuera de venta), categoría, coordenadas del recinto y precio "desde" SOLO si vino priceRanges.
  */
-export function eventCards(runs: ToolRun[], consultadoAt: string = new Date().toISOString()): ConciergeCard[] {
+export function eventCards(runs: ToolRun[], consultadoAt: string = new Date().toISOString(), max = MAX_EVENT_CARDS): ConciergeCard[] {
   const out: ConciergeCard[] = [];
   const seen = new Set<string>();
   for (const run of runs) {
     if (run.name !== "search_events" || run.result?.disponible === false) continue;
     const at = typeof run.result.consulted_at === "string" && Number.isFinite(Date.parse(run.result.consulted_at)) ? run.result.consulted_at : consultadoAt;
     for (const e of Array.isArray(run.result.results) ? run.result.results as Record<string, unknown>[] : []) {
-      if (out.length >= MAX_EVENT_CARDS) return out;
+      if (out.length >= max) return out;
       const title = str(e?.title, 140);
       if (!title) continue;
       const k = `${normName(title)}|${e?.fecha ?? ""}|${normName(str(e?.recinto, 120))}`;
@@ -822,6 +822,31 @@ export function eventCards(runs: ToolRun[], consultadoAt: string = new Date().to
     }
   }
   return out;
+}
+
+/** Línea del texto que nombra este evento: como mentionIndex, o el título completo como palabra ("Morat"). */
+export function eventMentionIndex(text: string, title: string): number {
+  const t = normName(title);
+  if (t.length >= 4) {
+    const escaped = t.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
+    const re = new RegExp("(^|[^a-z0-9])" + escaped + "($|[^a-z0-9])");
+    const lines = String(text ?? "").split("\n");
+    for (let i = 0; i < lines.length; i++) if (re.test(normName(lines[i]))) return i;
+  }
+  return mentionIndex(text, title);
+}
+
+/**
+ * Auditoría 10, ronda 4 (N6 / N4-P2-3): el texto nombraba "Piano Jazz (dom 1)", que no tenía tarjeta, y había
+ * tarjeta de "Experiencia Galería Inesperada Morat", que el texto no nombraba. Ahora las tarjetas de eventos
+ * son las que el texto nombra, en su orden; si no nombra ninguna, las primeras por fecha, como antes.
+ */
+export function eventCardsForText(runs: ToolRun[], text: string, consultadoAt: string = new Date().toISOString()): ConciergeCard[] {
+  const every = eventCards(runs, consultadoAt, 40);
+  const ranked = every.map((c) => ({ c, i: eventMentionIndex(text, c.title) })).filter((x) => x.i >= 0)
+    .sort((a, b) => a.i - b.i);
+  if (!ranked.length) return every.slice(0, MAX_EVENT_CARDS);
+  return ranked.map((x) => x.c).slice(0, MAX_EVENT_CARDS);
 }
 
 // ═══ Tours de Viator: cards armadas con los resultados de search_tours ═══

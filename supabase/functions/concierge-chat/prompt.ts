@@ -128,6 +128,9 @@ export const TRIP_RULES = [
   "5. Compara lo reservado (reservas_confirmadas_bookings) contra lo que implica el itinerario y sugiere lo faltante con fechas exactas.",
   "6. Las cotizaciones generadas por IATOS (opciones sin confirmación) no son reservas: no digas 'tu vuelo sale a las…' si no hay hora ni confirmación.",
   "7. <notas_del_turno> son hechos derivados del viaje para esta pregunta (por ejemplo, el vuelo de hoy o el hotel donde está). Úsalas.",
+  // Auditoría 10, ronda 4, N4-P1-1: "San Miguel no tiene itinerario" de un viaje con itinerario de días.
+  "8. NO afirmes lo que no está en los datos. Lo que un viaje tiene o le falta sale SOLO de su campo contenido (itinerario_dias, opciones_de_vuelo, opciones_por_tierra, hoteles, seleccion_del_usuario) o de <viaje_en_contexto>. itinerario_dias > 0 = SÍ tiene itinerario. Si un viaje no trae ese dato (los de <otros_viajes_usuario> solo traen destino y fechas), di que no lo ves desde aquí; nunca digas que 'no tiene' algo.",
+  "9. Si el usuario pide un rango ('próximos 2 meses', 'este mes'), incluye TODOS los viajes que salen dentro del rango, de <viajes_usuario> y de <otros_viajes_usuario>, incluido el último día; si una nota del turno trae la lista del rango, nómbralos todos.",
 ].join("\n");
 
 export const GAP_RULES = [
@@ -136,6 +139,9 @@ export const GAP_RULES = [
   "- Menciona un faltante SOLO si tiene que ver con lo que preguntó (o si es de severidad alta y es para hoy): máximo 1, al final y en una sola frase.",
   "- Si un faltante es de severidad alta y el usuario no pregunta nada relacionado, puedes agregarlo como card { \"type\": \"alert\", \"title\": ..., \"body\": ... }.",
   "- NUNCA inventes faltantes que no estén en esa lista.",
+  // Ronda 4 (N4-P2-6): "el seguro es lo más importante pendiente" y enseguida "Siguiente paso: reservar hotel".
+  "- No califiques un faltante como 'lo más importante' ni 'lo más urgente' si tu 'Siguiente paso' es otro: el siguiente paso es UNO y el resto de la respuesta debe ser coherente con él.",
+  "- El seguro y la eSIM tienen su sección en la app: la tarjeta de aviso ya lleva el botón; no escribas rutas.",
 ].join("\n");
 
 export const MEMORY_RULES = [
