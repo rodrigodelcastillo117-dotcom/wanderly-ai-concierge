@@ -110,7 +110,8 @@ export function PriceWatchCard({ tripId, departureDate }: { tripId: string; depa
             Revisamos cada día la tarifa real de tu ruta y te avisamos si baja.
           </p>
         </div>
-        <Button onClick={() => call("start")} disabled={busy} className="bg-gradient-gold text-primary-foreground hover:opacity-90 shrink-0">
+        {/* Acción secundaria: el botón dorado de la página es "Qué sigue" (una acción principal por pantalla). */}
+        <Button onClick={() => call("start")} disabled={busy} variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 shrink-0">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Activar alerta"}
         </Button>
       </div>

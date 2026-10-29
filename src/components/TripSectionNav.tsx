@@ -16,7 +16,8 @@ export function sectionFromHash(): TripSection {
   return isTripSection(h) ? h : "resumen";
 }
 
-export function TripSectionNav({ sections, active, onChange }: { sections: Array<{ id: TripSection; label: string }>; active: TripSection; onChange: (id: TripSection) => void }) {
+/** `highlight`: pestaña que señala el recorrido de primer uso (TripPageTour), sin cambiar de sección. */
+export function TripSectionNav({ sections, active, onChange, highlight = null }: { sections: Array<{ id: TripSection; label: string }>; active: TripSection; onChange: (id: TripSection) => void; highlight?: TripSection | null }) {
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   const move = (delta: number | "first" | "last") => {
     const i = sections.findIndex((s) => s.id === active);
@@ -25,6 +26,11 @@ export function TripSectionNav({ sections, active, onChange }: { sections: Array
     onChange(next);
     refs.current[next]?.focus();
   };
+  // La pestaña que señala el recorrido se trae a la vista en la fila deslizable del celular.
+  useEffect(() => {
+    const el = highlight ? refs.current[highlight] : null;
+    if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [highlight]);
   const anchor = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
   useEffect(() => {
@@ -49,8 +55,8 @@ export function TripSectionNav({ sections, active, onChange }: { sections: Array
           const on = s.id === active;
           return (
             <button key={s.id} ref={(el) => { refs.current[s.id] = el; }} type="button" role="tab" id={`tab-${s.id}`} aria-selected={on} aria-controls={`panel-${s.id}`}
-              tabIndex={on ? 0 : -1} data-testid={`tab-${s.id}`} onClick={() => onChange(s.id)}
-              className={`relative shrink-0 min-h-[48px] px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${on ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+              tabIndex={on ? 0 : -1} data-testid={`tab-${s.id}`} data-highlight={highlight === s.id ? "1" : undefined} onClick={() => onChange(s.id)}
+              className={`relative shrink-0 min-h-[48px] px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${on ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"} ${highlight === s.id ? "rounded-xl ring-1 ring-inset ring-primary/70 bg-primary/10 text-primary" : ""}`}>
               {s.label}
               <span aria-hidden="true" className={`absolute inset-x-2 bottom-0 h-0.5 rounded-full ${on ? "bg-primary" : "bg-transparent"}`} />
             </button>

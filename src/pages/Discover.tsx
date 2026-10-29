@@ -72,7 +72,7 @@ const Discover = () => {
                     <div className="absolute inset-0 bg-gradient-overlay" />
                     <IllustrativeCaption className="top-[3.25rem] left-4" />
                     <div className="absolute top-4 left-4 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium">
-                      {d.score}% match
+                      {d.score}% afín a ti
                     </div>
                     {d.trip_type && (
                       <div className="absolute top-4 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-[10px] tracking-wider uppercase">

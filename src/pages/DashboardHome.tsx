@@ -455,7 +455,7 @@ const DashboardHome = () => {
               <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2 flex items-center gap-1.5">
                 <Sparkles className="w-3 h-3" /> Curado por IATOS AI para ti
               </p>
-              <h2 className="font-display text-2xl md:text-3xl">Destinos que matchean tu perfil</h2>
+              <h2 className="font-display text-2xl md:text-3xl">Destinos afines a ti</h2>
             </div>
             <Link to="/dashboard/descubre" className="text-xs text-primary/80 hover:text-primary transition flex items-center gap-1 whitespace-nowrap tracking-wide">
               Ver todos <ChevronRight className="w-3.5 h-3.5" />
@@ -497,7 +497,7 @@ const DashboardHome = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
                     <IllustrativeCaption className="top-11 left-3" />
                     <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-primary/30 text-primary text-[10px] font-medium tracking-wider">
-                      {d.score}% MATCH
+                      {d.score}% afín a ti
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleFav(d); }}

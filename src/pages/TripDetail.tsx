@@ -73,6 +73,11 @@ import { TripUnderstoodButton } from "@/components/trip/TripUnderstoodButton";
 import { CruiseLegsCard } from "@/components/trip/CruiseLegsCard";
 import { BroughtTripSummary } from "@/components/BroughtTripSummary";
 import { shortTripName } from "@/lib/tripName";
+// Claridad (feedback de Álvaro, 28-oct-2026): resumen en 30 segundos, una línea por día, ayuda por pestaña y recorrido.
+import { daySummaryLine, tripGlance, tripPlaceNames, type GlanceCost } from "@/lib/tripGlance";
+import { TRIP_SECTION_LABEL, tripSectionHelp, tripTourSteps } from "@/lib/tripSectionHelp";
+import { TripGlance } from "@/components/trip/TripGlance";
+import { SectionIntro, TripPageTour } from "@/components/trip/TripPageTour";
 
 
 const fmtMXN = (n: number) =>
@@ -97,6 +102,8 @@ const TripDetail = () => {
   // Sección visible (pestañas): Resumen · Comprar · Ruta · Destinos · Documentos.
   const [section, setSection] = useState<TripSection>(() => sectionFromHash());
   const [activeCity, setActiveCity] = useState<string | null>(null);
+  // Pestaña que señala el recorrido de primer uso (TripPageTour).
+  const [tourHighlight, setTourHighlight] = useState<TripSection | null>(null);
   const toggleCity = (city: string) => {
     setActiveCity((prev) => (prev === city ? null : city));
   };
@@ -473,15 +480,36 @@ const TripDetail = () => {
   };
 
   const hasRoadTrip = !!(isMulti && logistics?.road_trip);
+  // "destinos" se muestra como "Itinerario": es el plan día por día (la gente buscaba el itinerario).
   const sections: Array<{ id: TripSection; label: string }> = [
-    { id: "resumen", label: "Resumen" },
-    { id: "comprar", label: "Comprar" },
-    ...(hasRoadTrip ? [{ id: "ruta" as TripSection, label: "Ruta" }] : []),
-    { id: "destinos", label: "Destinos" },
+    { id: "resumen", label: TRIP_SECTION_LABEL.resumen },
+    { id: "comprar", label: TRIP_SECTION_LABEL.comprar },
+    ...(hasRoadTrip ? [{ id: "ruta" as TripSection, label: TRIP_SECTION_LABEL.ruta }] : []),
+    { id: "destinos", label: TRIP_SECTION_LABEL.destinos },
     // Lo TOP de cada ciudad (restaurantes, museos, tours y experiencias) con reserva real e itinerario.
-    { id: "experiencias", label: "Experiencias" },
-    { id: "documentos", label: "Documentos" },
+    { id: "experiencias", label: TRIP_SECTION_LABEL.experiencias },
+    { id: "documentos", label: TRIP_SECTION_LABEL.documentos },
   ];
+  // Orientación: una línea por pestaña, "Tu viaje en 30 segundos" y el recorrido de primer uso.
+  const isDocumento = (trip as any).fuente === "documento";
+  const helpCtx = { brought, documento: isDocumento, byLand: arrivalByLand(trip), multi: isMulti };
+  const glanceCost: GlanceCost = isDocumento ? { kind: "documento" }
+    : brought ? { kind: "traido" }
+    : hasQuotedTotal && requote ? { kind: "recotizar" }
+    : hasQuotedTotal ? {
+      kind: "cotizado",
+      total: {
+        // La misma cifra, título y marca "aproximado" de la tarjeta del total (RealTripTotal).
+        amount: pageTotal, title: totalSummary.title, travelers: quoteTravelers,
+        estimated: totalSummary.state === "estimado" || totalSummary.sinPrecioReal.length > 0,
+        missing: totalSummary.missing, porCotizar: totalSummary.porCotizar,
+        state: totalSummary.state, paid: totalSummary.paid, pending: totalSummary.pending,
+      },
+    }
+    : { kind: "sin_cotizacion" };
+  const glance = tripGlance(trip, glanceCost);
+  const placeNames = tripPlaceNames(trip);
+  const tourSteps = tripTourSteps({ ...helpCtx, sections: sections.map((x) => x.id) });
   const showSection = (id: TripSection) => {
     setSection(id);
     try { window.history.replaceState(window.history.state, "", `#${id}`); } catch { /* sin historial */ }
@@ -550,7 +578,7 @@ const TripDetail = () => {
         <div className="absolute inset-x-0 bottom-0 max-w-5xl p-4 sm:p-6 md:p-12">
           {trip.match_score && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium mb-4">
-              <Star className="w-3 h-3 fill-current" /> {trip.match_score}% match con tu perfil
+              <Star className="w-3 h-3 fill-current" /> {trip.match_score}% afín a ti
             </div>
           )}
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{tripCountryLabel(trip)}</p>
@@ -622,10 +650,15 @@ const TripDetail = () => {
       {isOwner && !brought && (trip as any).fuente !== "documento" && (
         <div className="max-w-5xl px-4 pt-3 sm:px-6 md:px-12"><TripUnderstoodButton trip={trip} /></div>
       )}
-      <TripSectionNav sections={sections} active={section} onChange={showSection} />
+      <TripSectionNav sections={sections} active={section} onChange={showSection} highlight={tourHighlight} />
 
       <div className="max-w-5xl p-4 pb-24 sm:p-6 md:px-12 md:pt-8">
+        {/* Primera vez en la página del viaje: 3 pasos, descartable y no vuelve a salir. */}
+        <div className="mb-4 empty:hidden"><TripPageTour steps={tourSteps} onHighlight={setTourHighlight} /></div>
         <div role="tabpanel" id="panel-resumen" aria-labelledby="tab-resumen" data-trip-panel="resumen" hidden={section !== "resumen"} className="space-y-6">
+        <SectionIntro text={tripSectionHelp("resumen", helpCtx)} />
+        {/* Tu viaje en 30 segundos: arriba del total y del texto largo (análisis, itinerario). */}
+        <TripGlance bullets={glance} />
         {/* Reservado vs. cotizado ("listo" no lo distingue): derivado de las reservas confirmadas.
             Un viaje importado de documentos dice lo que se PAGÓ, no un estado de cotización. */}
         {(trip as any).fuente === "documento"
@@ -764,6 +797,10 @@ const TripDetail = () => {
 
         {/* Herramientas del viaje: después del total y de "qué sigue" (antes iban primero y empujaban
             el precio fuera de la pantalla); en móvil, una fila deslizable. */}
+        <div className="-mb-3" data-testid="trip-herramientas-titulo">
+          <h2 className="text-[11px] uppercase tracking-[0.2em] text-primary">Herramientas del viaje</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">Para cuando ya estés viajando: mapa, clima, equipaje, gastos y más.</p>
+        </div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -797,6 +834,7 @@ const TripDetail = () => {
         </div>
 
         <div role="tabpanel" id="panel-comprar" aria-labelledby="tab-comprar" data-trip-panel="comprar" hidden={section !== "comprar"} className="space-y-6">
+          <SectionIntro text={tripSectionHelp("comprar", helpCtx)} />
           {(trip as any).fuente !== "documento" && (hasQuotedTotal || brought) ? (
             <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
@@ -842,6 +880,7 @@ const TripDetail = () => {
 
         {hasRoadTrip && (
           <div role="tabpanel" id="panel-ruta" aria-labelledby="tab-ruta" data-trip-panel="ruta" hidden={section !== "ruta"} className="space-y-6">
+          <SectionIntro text={tripSectionHelp("ruta", helpCtx)} />
         {/* roadtrip: tramos en coche, costos etiquetados, avisos por país y renta del auto. */}
         {isMulti && logistics?.road_trip && (
           <RoadTripPanel plan={logistics.road_trip} tripId={trip.id} returnCity={destinationsMulti[0] ?? null} />
@@ -851,13 +890,14 @@ const TripDetail = () => {
         )}
 
         <div role="tabpanel" id="panel-destinos" aria-labelledby="tab-destinos" data-trip-panel="destinos" hidden={section !== "destinos"} className="space-y-6">
+        <SectionIntro text={tripSectionHelp("destinos", helpCtx)} />
         {/* Destinos: el itinerario de cada ciudad y cómo llegar por tierra. El vuelo, los hoteles, las
             experiencias y los restaurantes se eligen y compran en "Comprar" (no se repiten aquí). */}
         <div id="trip-destinos" className="space-y-4 scroll-mt-28 focus:outline-none">
           <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <RouteIcon className="w-5 h-5 text-primary shrink-0" />
-              <h2 className="font-display text-2xl sm:text-3xl break-words">Tu viaje por destino</h2>
+              <h2 className="font-display text-2xl sm:text-3xl break-words">{isMulti ? "Tu itinerario por ciudad" : "Tu itinerario"}</h2>
             </div>
             <button type="button" onClick={() => showSection("comprar")} className="text-xs text-primary underline-offset-2 hover:underline sm:ml-auto text-left">
               {arrivalByLand(trip) ? "Cómo llegar, hotel y reservas: elígelos en Comprar →" : "Vuelo, hoteles y reservas: elígelos en Comprar →"}
@@ -910,8 +950,10 @@ const TripDetail = () => {
                               </div>
                             );
                           }
+                          // Una línea que resume el día arriba del detalle (el texto de mañana, tarde y noche no cambia).
+                          const resumenDia = daySummaryLine(d, placeNames);
                           return (
-                            <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group">
+                            <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group" data-testid="itinerario-dia">
                               <summary
                                 className="flex items-center justify-between gap-3 p-4 cursor-pointer list-none hover:bg-surface/60 transition"
                               >
@@ -920,9 +962,14 @@ const TripDetail = () => {
                                   <span className="min-w-0">
                                     {tripDayDate(d.fecha) && <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">{tripDayDate(d.fecha)}</span>}
                                     <span className="font-medium text-sm break-words">{d.titulo}</span>
+                                    {resumenDia && <span className="mt-0.5 block text-xs text-muted-foreground line-clamp-3 break-words" data-testid="itinerario-dia-resumen">{resumenDia}</span>}
+                                    <span className="mt-1 block text-[11px] text-primary">
+                                      <span className="group-open:hidden">Ver detalle</span>
+                                      <span className="hidden group-open:inline">Ocultar detalle</span>
+                                    </span>
                                   </span>
                                 </div>
-                                <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
+                                <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" aria-hidden="true" />
                               </summary>
                               <div className="px-4 pb-4 pt-1 border-t border-border/40 space-y-2 text-xs">
                                 <div><span className="text-primary tracking-wider uppercase">Mañana</span><p className="mt-0.5 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
@@ -1076,11 +1123,13 @@ const TripDetail = () => {
         </div>
 
         <div role="tabpanel" id="panel-experiencias" aria-labelledby="tab-experiencias" data-trip-panel="experiencias" hidden={section !== "experiencias"} className="space-y-6">
+          <SectionIntro text={tripSectionHelp("experiencias", helpCtx)} />
           {/* Sin llamadas al abrir: cada ciudad busca solo al pulsar "Buscar lo TOP de {ciudad}". */}
           <TripExperiencias trip={trip} cities={tripCities(trip, cityKeyFor)} multi={isMulti} marks={purchaseMarks as any} userId={user?.id ?? null} onSaved={loadTrip} />
         </div>
 
         <div role="tabpanel" id="panel-documentos" aria-labelledby="tab-documentos" data-trip-panel="documentos" hidden={section !== "documentos"} className="space-y-6">
+        <SectionIntro text={tripSectionHelp("documentos", helpCtx)} />
         {/* Documentos del viaje: boletos, pasaporte, pólizas (bucket privado trip-documents). */}
         <TripBookingIntents tripId={trip.id} />
         <TripDocuments tripId={trip.id} ownerId={trip.user_id} />
