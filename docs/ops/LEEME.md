@@ -481,23 +481,21 @@ SELECT cron.schedule(
   correos con `_shared/email.ts`, `_shared/email-kit.ts`, `_shared/email-templates.ts` o
   `_shared/ai-reservations/templates.ts` (lista exacta en el reporte de la rama).
 
-### "Continuar con Google" (apagado hasta que lo actives)
+### "Continuar con Google" (encendido desde el 29-oct-2026)
 
-El botón ya existe en `/auth`, pero solo aparece con la variable `VITE_GOOGLE_LOGIN_ENABLED=true`. Antes de
-encenderla:
+Google está activo en Lovable Cloud con **credenciales administradas por Lovable** (no hay que crear nada en
+Google Cloud). Se activó con la herramienta de Lovable `configure_social_auth ["google"]`, que generó
+`src/integrations/lovable/index.ts` e instaló `@lovable.dev/cloud-auth-js`.
 
-1. En Google Cloud Console → APIs y servicios → Credenciales, crea un "ID de cliente de OAuth" tipo
-   **Aplicación web**. En "URI de redireccionamiento autorizados" pon la URL de callback que te muestra Supabase
-   (`https://uhkdewinscffhdonhhmt.supabase.co/auth/v1/callback`).
-2. En Supabase (Lovable → Cloud → Authentication → Providers → **Google**): actívalo y pega el Client ID y el
-   Client Secret.
-3. En Supabase → Authentication → URL Configuration, agrega a "Redirect URLs":
-   `https://traveliatos.life/auth` (y la URL de vista previa de Lovable si la usas).
-4. En Lovable, agrega la variable `VITE_GOOGLE_LOGIN_ENABLED` con valor `true` y publica.
-5. Prueba con una cuenta de Google nueva: debe volver a `/auth` con sesión y seguir al onboarding.
-
-Si el proveedor no está activo y enciendes la variable, quien toque el botón verá "No pudimos abrir el inicio
-de sesión con Google"; por eso va apagado por omisión.
+- El botón de `/auth` llama `lovable.auth.signInWithOAuth("google", { redirect_uri: <origen>/auth })`
+  (`src/lib/googleLogin.ts`); el regreso pasa por `/~oauth` en el mismo dominio y vuelve a `/auth`.
+- La ruta que la persona había pedido se guarda en `sessionStorage` (`iatos_google_next`) y `/auth` la usa al
+  ver la sesión nueva.
+- Para apagarlo sin tocar código: variable `VITE_GOOGLE_LOGIN_ENABLED=false` y publicar.
+- Las URLs permitidas ya incluyen `https://traveliatos.life/**`, `https://www.traveliatos.life/**` e
+  `https://iatos-ai.lovable.app/**`.
+- Si algún día se quieren credenciales propias (marca propia en la pantalla de Google), se cambian en Lovable →
+  Cloud → Users → Auth settings → Google.
 
 ### Travelpayouts Drive (medición de afiliados): apagado hasta verificar el dominio
 

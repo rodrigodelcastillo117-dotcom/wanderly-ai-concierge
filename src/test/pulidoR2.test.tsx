@@ -310,7 +310,7 @@ describe("P2-5 · el paquete público no lleva la lista blanca del servidor", ()
     expect(travelpayoutsDriveEnabled()).toBe(true);
     vi.stubEnv("VITE_GOOGLE_LOGIN_ENABLED", "no");
     expect(googleLoginEnabled()).toBe(false);
-    expect(googleLoginEnabled({})).toBe(false);
+    expect(googleLoginEnabled({})).toBe(true); // encendido por omisión desde que Google usa credenciales administradas
     expect(travelpayoutsDriveEnabled({ VITE_TRAVELPAYOUTS_DRIVE_ENABLED: "true" })).toBe(true);
   });
 });

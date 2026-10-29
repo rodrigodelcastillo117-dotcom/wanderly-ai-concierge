@@ -31,6 +31,8 @@ vi.mock("@/integrations/supabase/client", () => {
 });
 const auth = vi.hoisted(() => ({ value: { user: null as any, signIn: vi.fn(async () => ({ error: { message: "Invalid login credentials" } })), signUp: vi.fn(async () => ({ error: null })), signOut: vi.fn() } }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth.value }));
+const lov = vi.hoisted(() => ({ signInWithOAuth: vi.fn(async () => ({ redirected: true })) }));
+vi.mock("@/integrations/lovable/index", () => ({ lovable: { auth: { signInWithOAuth: (...a: unknown[]) => (lov.signInWithOAuth as any)(...a) } } }));
 vi.mock("@/lib/referral", () => ({ claimPendingReferral: async () => {} }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
@@ -52,7 +54,7 @@ import { Ayuda } from "@/pages/Legal";
 import { AdminGate } from "@/components/AdminGate";
 import { CookieBanner } from "@/components/CookieBanner";
 import { applyConsent, travelpayoutsDriveEnabled } from "@/lib/consent";
-import { googleLoginEnabled } from "@/lib/googleLogin";
+import { clearGoogleNext, GOOGLE_NEXT_KEY, googleLoginEnabled, peekGoogleNext } from "@/lib/googleLogin";
 import { signinErrorMessage } from "@/lib/signupErrors";
 import { titleForPath } from "@/lib/routeTitles";
 import { dnaUpdatedLabel, PROFILE_SETTINGS_PATH } from "@/lib/profileSettings";
@@ -77,20 +79,39 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
-describe("#2 · Continuar con Google (detrás de VITE_GOOGLE_LOGIN_ENABLED)", () => {
-  it("apagado por omisión: el botón no aparece", () => {
-    expect(googleLoginEnabled({})).toBe(false);
+describe("#2 · Continuar con Google (credenciales administradas de Lovable)", () => {
+  it("encendido por omisión; se apaga solo con VITE_GOOGLE_LOGIN_ENABLED=false", () => {
+    expect(googleLoginEnabled({})).toBe(true);
+    expect(googleLoginEnabled("false")).toBe(false);
+    vi.stubEnv("VITE_GOOGLE_LOGIN_ENABLED", "false");
     render(<MemoryRouter initialEntries={["/auth"]}><Auth /></MemoryRouter>);
     expect(screen.queryByTestId("auth-google")).toBeNull();
   });
-  it("con la llave encendida usa signInWithOAuth de Google y regresa a /auth", async () => {
-    vi.stubEnv("VITE_GOOGLE_LOGIN_ENABLED", "true");
+  it("usa el ayudante de Lovable (no supabase directo), regresa a /auth y guarda la ruta pedida", async () => {
+    lov.signInWithOAuth.mockClear();
+    sessionStorage.clear();
+    render(<MemoryRouter initialEntries={["/auth?next=%2Fdashboard%2Fviajes"]}><Auth /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: "Continuar con Google" }));
+    await waitFor(() => expect(lov.signInWithOAuth).toHaveBeenCalledTimes(1));
+    const [provider, opts] = lov.signInWithOAuth.mock.calls[0] as any[];
+    expect(provider).toBe("google");
+    expect(opts.redirect_uri).toBe(`${window.location.origin}/auth`);
+    expect(sb.signInWithOAuth).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(GOOGLE_NEXT_KEY)).toBe("/dashboard/viajes");
+  });
+  it("si Google falla, muestra un error entendible y no se queda cargando", async () => {
+    lov.signInWithOAuth.mockImplementationOnce(async () => ({ error: new Error("popup closed") }) as any);
     render(<MemoryRouter initialEntries={["/auth"]}><Auth /></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: "Continuar con Google" }));
-    await waitFor(() => expect(sb.signInWithOAuth).toHaveBeenCalledTimes(1));
-    const arg = (sb.signInWithOAuth.mock.calls[0] as any[])[0];
-    expect(arg.provider).toBe("google");
-    expect(arg.options.redirectTo).toBe(`${window.location.origin}/auth`);
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/No pudimos abrir el inicio de sesión con Google/)));
+  });
+  it("de regreso de Google sin ?next, /auth toma la ruta guardada; las rutas externas se ignoran", () => {
+    sessionStorage.setItem(GOOGLE_NEXT_KEY, "/dashboard/gastos");
+    expect(peekGoogleNext()).toBe("/dashboard/gastos");
+    sessionStorage.setItem(GOOGLE_NEXT_KEY, "//evil.example");
+    expect(peekGoogleNext()).toBeNull();
+    clearGoogleNext();
+    expect(sessionStorage.getItem(GOOGLE_NEXT_KEY)).toBeNull();
   });
 });
 

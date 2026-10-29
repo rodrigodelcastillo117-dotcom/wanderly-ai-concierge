@@ -1,5 +1,5 @@
 import { signinErrorMessage, signupErrorMessage } from "@/lib/signupErrors";
-import { googleLoginEnabled, startGoogleLogin } from "@/lib/googleLogin";
+import { clearGoogleNext, googleLoginEnabled, peekGoogleNext, startGoogleLogin } from "@/lib/googleLogin";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -28,8 +28,9 @@ const Auth = () => {
   const { copy: trial } = useTrialCopy();
   const location = useLocation();
   // Ruta que se pidió antes de iniciar sesión (ProtectedRoute la manda en state.from). Solo rutas internas.
-  // También ?next= (regreso del inicio de sesión con Google, que vuelve a /auth).
-  const returnTo = safeRedirectPath((location.state as { from?: unknown } | null)?.from) ?? safeRedirectPath(searchParams.get("next"));
+  // También ?next= y, al volver de Google (el broker regresa a /auth sin parámetros), la ruta guardada antes de salir.
+  const returnTo = safeRedirectPath((location.state as { from?: unknown } | null)?.from) ?? safeRedirectPath(searchParams.get("next"))
+    ?? safeRedirectPath(peekGoogleNext());
   const { user, signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">(searchParams.get("mode") === "signup" ? "signup" : "login");
   const [email, setEmail] = useState("");
@@ -78,6 +79,7 @@ const Auth = () => {
     const fallback = () => (readPendingToken("invite") ? "/prive/invitacion" : "/dashboard");
     const go = (done: boolean) => {
       routedFor.current = user.id;
+      clearGoogleNext();
       // Quien llegó desde el correo de invitación Privé (el token quedó guardado al abrir el
       // enlace) vuelve a su invitación, no al inicio.
       navigate(done ? (returnTo ?? fallback()) : "/onboarding", { replace: true });
@@ -96,7 +98,8 @@ const Auth = () => {
           : supabase.from("user_onboarding_state").select("completed_onboarding").eq("user_id", user.id).maybeSingle(),
       ]);
       if (!mounted.current) return;
-      const done = (prefs as any)?.completado || (tp as any)?.completado || (onb as any)?.data?.completed_onboarding;
+      clearGoogleNext();
+      const done =(prefs as any)?.completado || (tp as any)?.completado || (onb as any)?.data?.completed_onboarding;
       navigate(done ? (returnTo ?? fallback()) : "/onboarding", { replace: true });
     })();
   }, [user, navigate, returnTo, hasOnbCtx, onbStatus, onbLoading]);
