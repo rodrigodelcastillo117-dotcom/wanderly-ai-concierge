@@ -7,6 +7,8 @@ import { sendEmail } from "../email.ts";
 import { redactPii } from "../redact.ts";
 import type { ModelCall } from "../ai-reservations/classifier.ts";
 import type { NucleoIncidentes } from "./nucleo.ts";
+import { nucleoSobreIncidentes } from "./nucleoIncidentes.ts";
+import type { IncidentDb } from "../incidents.ts";
 import { DOMINIO_RESPUESTA } from "./rutas.ts";
 import type { CorreoRecibido, ReclamosDeps } from "./servicio.ts";
 
@@ -27,14 +29,19 @@ async function receivedEmail(emailId: string): Promise<CorreoRecibido | null> {
 
 /**
  * ═══ PUNTO DE CONEXIÓN DEL NÚCLEO DE INCIDENTES ═══
- * Hoy devuelve undefined (→ nucleoNulo: no se crea incidente). El coordinador lo reemplaza por el
- * adaptador real sobre _shared/incidents.ts (ver nucleo.ts). Nada más cambia.
+ * Una queja o un reclamo abre su caso (misma clave por usuario, categoría y día que Iato: nunca dos casos) y el
+ * caso registra cada paso del reclamo. Con `casoActual` (el operador IA trabajando un incidente) solo se anota.
  */
-export function nucleoDesdeEntorno(_db: unknown): NucleoIncidentes | undefined {
-  return undefined;
+export function nucleoDesdeEntorno(db: unknown, o: { casoActual?: string | null; origen?: "iato" | "usuario"; hoy?: string | null } = {}): NucleoIncidentes | undefined {
+  if (!db || typeof (db as { rpc?: unknown }).rpc !== "function") return undefined;
+  return nucleoSobreIncidentes(db as IncidentDb, {
+    casoActual: o.casoActual ?? null, origen: o.origen ?? "iato",
+    ...(o.hoy && /^\d{4}-\d{2}-\d{2}$/.test(o.hoy) ? { hoy: () => o.hoy as string } : {}),
+    warn: (...a) => console.warn(...a.map((x) => redactPii(String(x)) ?? "")),
+  });
 }
 
-export function buildReclamosDeps(): ReclamosDeps {
+export function buildReclamosDeps(o: { casoActual?: string | null; origen?: "iato" | "usuario"; hoy?: string | null } = {}): ReclamosDeps {
   const db = createClient(env("SUPABASE_URL")!, env("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false, autoRefreshToken: false } });
   const callModel: ModelCall | null = env("ANTHROPIC_API_KEY")
     ? async (payload) => {
@@ -64,7 +71,7 @@ export function buildReclamosDeps(): ReclamosDeps {
       ]);
       return { name: (p as { full_name?: string } | null)?.full_name ?? null, email: u?.user?.email ?? null };
     },
-    nucleo: nucleoDesdeEntorno(db),
+    nucleo: nucleoDesdeEntorno(db, o),
     config: {
       replyDomain: env("RECLAMOS_REPLY_DOMAIN") ?? env("AI_RESERVATIONS_REPLY_DOMAIN") ?? DOMINIO_RESPUESTA,
       fromAddress: env("RECLAMOS_FROM_ADDRESS"),

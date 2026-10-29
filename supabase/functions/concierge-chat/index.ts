@@ -892,7 +892,7 @@ function makeRawExecTool(c: { supabase: any; authHeader: string; userId: string;
     // Derechos y reclamaciones: lectura con la sesión del usuario (RLS); el envío exige el folio en SU último mensaje.
     if (RECLAMOS_TOOL_NAMES.includes(name)) {
       let deps = null;
-      try { deps = buildReclamosDeps(); } catch { deps = null; }
+      try { deps = buildReclamosDeps({ origen: "iato", hoy: c.todayISO }); } catch { deps = null; }
       return runReclamosTool(name, rawArgs ?? {}, { userId: c.userId, lector: c.supabase, deps, ultimoMensajeUsuario: c.lastUserMsg ?? null, hoy: c.todayISO });
     }
     if (name === "get_travel_advisory") {

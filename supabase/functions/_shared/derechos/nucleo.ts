@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
-// ADAPTADOR AL NÚCLEO DE INCIDENTES (lo conecta el coordinador)
+// ADAPTADOR AL NÚCLEO DE INCIDENTES (conectado: nucleoIncidentes.ts, vía runtime.ts nucleoDesdeEntorno)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // El núcleo (rama claude/incidentes-nucleo) expondrá en _shared/incidents.ts:
 //   createIncident / addIncidentEvent / setIncidentStatus   (sobre concierge_requests type 'incidente')
@@ -27,6 +27,8 @@ export type NuevoIncidente = {
   tipo: string;
   titulo: string;
   gravedad: GravedadIncidente;
+  /** Categoría del núcleo (vuelo_cancelado, cobro_reembolso…) si quien llama la sabe; si no, se deduce del tipo. */
+  categoria?: string | null;
   datos: Record<string, unknown>;
 };
 

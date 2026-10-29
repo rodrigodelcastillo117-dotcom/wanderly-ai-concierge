@@ -16,6 +16,7 @@ import { cartaAerolinea, cartaOrganismo, correoUsuario, type DatosPasajero, type
 import { ANAC_BR, CAA_UK, contactoAerolinea, correoUtilizable, CTA, DOT, EU_NEB, type Organismo, PROFECO } from "./datos.ts";
 import { type CasoVuelo, type Evaluacion, evaluarVuelo, type RegimenId } from "./motor.ts";
 import { estadoIncidenteDe, type NucleoIncidentes, nucleoNulo } from "./nucleo.ts";
+import { categoriaDeReclamo } from "./nucleoIncidentes.ts";
 import { clasificarQueja, respuestaQueja } from "./quejas.ts";
 import { clasificarRespuesta, decidirRespuesta, ModeloNoDisponible, siguientePaso } from "./respuesta.ts";
 import { direccionCasos, direccionReclamo, DOMINIO_RESPUESTA, REMITENTE_RECLAMOS, rutaEntrante } from "./rutas.ts";
@@ -129,7 +130,8 @@ export async function prepararReclamoVuelo(d: ReclamosDeps, userId: string, i: P
     actor: i.actor ?? "usuario",
   }, {
     evaluacion: { resumen: e.resumen, derechos: e.derechos, pruebas: e.pruebas, ahora: e.ahora, reclamar: e.reclamar, plazos: e.plazos, avisos: e.avisos },
-    incidente: { tipo: "reclamo_vuelo", titulo: `Reclamo a ${carta.destinatario.nombre}: ${e.caso.evento.replace("_", " ")} ${e.ruta.origen}-${e.ruta.destino}`, gravedad: "media" as const },
+    incidente: { tipo: "reclamo_vuelo", titulo: `Reclamo a ${carta.destinatario.nombre}: ${e.caso.evento.replace("_", " ")} ${e.ruta.origen}-${e.ruta.destino}`, gravedad: "media" as const,
+      categoria: categoriaDeReclamo({ tipo: "reclamo_vuelo", datos: { evento: e.caso.evento } }) },
     telefono: contacto?.telefono ?? null, notas_contacto: contacto?.notas ?? null,
   });
 }
@@ -151,7 +153,8 @@ export async function prepararReclamoServicio(d: ReclamosDeps, userId: string, i
     request: carta.pedido, response_days: 10, escalate_days: 12, trip_id: i.trip_id ?? null, actor: i.actor ?? "usuario",
   }, {
     evaluacion: { resumen: ev.resumen, derechos: ev.derechos, pruebas: ev.pruebas, ahora: ev.ahora, ruta: ev.ruta, plazos: ev.plazos, avisos: ev.avisos },
-    incidente: { tipo: "reclamo_servicio", titulo: `Reclamo a ${i.caso.proveedor.nombre}: ${i.caso.problema.replace(/_/g, " ")}`, gravedad: i.caso.problema === "sobreventa_hotel" ? "alta" as const : "media" as const },
+    incidente: { tipo: "reclamo_servicio", titulo: `Reclamo a ${i.caso.proveedor.nombre}: ${i.caso.problema.replace(/_/g, " ")}`, gravedad: i.caso.problema === "sobreventa_hotel" ? "alta" as const : "media" as const,
+      categoria: categoriaDeReclamo({ tipo: "reclamo_servicio", datos: { problema: i.caso.problema, tipo_proveedor: i.caso.proveedor.tipo } }) },
     telefono: null, notas_contacto: null,
   });
 }
@@ -163,7 +166,7 @@ type FilaNueva = {
 };
 
 async function crearYPresentar(d: ReclamosDeps, userId: string, f: FilaNueva, extra: {
-  evaluacion: Record<string, unknown>; incidente: { tipo: string; titulo: string; gravedad: "baja" | "media" | "alta" | "critica" } | null;
+  evaluacion: Record<string, unknown>; incidente: { tipo: string; titulo: string; gravedad: "baja" | "media" | "alta" | "critica"; categoria?: string | null } | null;
   telefono: string | null; notas_contacto: string | null;
 }): Promise<Resultado> {
   const r = await d.db.rpc<Record<string, unknown>>("claim_create", { _user_id: userId, _p: f });

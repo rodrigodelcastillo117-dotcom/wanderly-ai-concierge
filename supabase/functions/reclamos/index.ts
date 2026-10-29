@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       const r = a === "admin_listar" ? await userDb.rpc("admin_claims_list", { _status: body.estado ?? null, _limit: 100 }) : await userDb.rpc("admin_claim_view", { _id: body.id });
       return r.error ? json({ ok: false, code: "FORBIDDEN" }, 403) : json({ ok: true, data: r.data });
     }
-    const deps = buildReclamosDeps();
+    const deps = buildReclamosDeps({ origen: "usuario" });
     const r = a === "preparar" ? await prepararReclamoVuelo(deps, user.id, body as never)
       : a === "preparar_servicio" ? await prepararReclamoServicio(deps, user.id, body as never)
       : a === "confirmar_envio" ? await confirmarEnvio(deps, user.id, body)

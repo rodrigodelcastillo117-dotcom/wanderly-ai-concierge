@@ -19,7 +19,10 @@ describe("registro en concierge-chat (solo registro, sin tocar el prompt)", () =
     const nombres = RECLAMOS_TOOL_DEFS.map((t) => t.name);
     expect(nombres).toEqual(["revisar_derechos_vuelo", "revisar_derechos_servicio", "preparar_reclamo", "enviar_reclamo", "seguimiento_reclamo", "registrar_queja", "ver_mi_viaje"]);
     expect(TOOL_NAMES.slice(-7)).toEqual(nombres);
-    expect(TOOL_NAMES.indexOf("search_prive")).toBe(TOOL_NAMES.length - 8);
+    // Integración con incidentes: report_incident también se agregó al final, entre search_prive y los de reclamos;
+    // las herramientas anteriores siguen en el mismo orden (el prefijo de caché no cambia).
+    expect(TOOL_NAMES.indexOf("report_incident")).toBe(TOOL_NAMES.length - 8);
+    expect(TOOL_NAMES.indexOf("search_prive")).toBe(TOOL_NAMES.length - 9);
     expect(toAnthropicTools().find((t) => t.name === "revisar_derechos_vuelo")).toBeTruthy();
   });
   it("validateToolInput acepta la entrada típica y exige los campos requeridos", () => {

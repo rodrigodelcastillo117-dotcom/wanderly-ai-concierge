@@ -3,7 +3,9 @@
 // el usuario) con un reloj controlable. La lógica real está en SQL y la prueba supabase/tests/incidentes; aquí
 // solo se simula lo necesario para probar de punta a punta el código TypeScript (sin red, sin correos reales).
 
-type Ev = { at: number; kind: string; actor: string; direction?: string | null; body?: string | null; visible?: boolean; channel?: string | null };
+export type FakeEvent = Ev;
+type Ev = { id?: number; at: number; kind: string; actor: string; direction?: string | null; body?: string | null; visible?: boolean; channel?: string | null;
+  data?: Record<string, unknown>; dedupe?: string | null; counterpart?: string | null; delivery?: string | null };
 export type FakeIncident = {
   id: string; userId: string; categoria: string; severidad: string; payload: Record<string, unknown>; status: string; title: string;
   idemKey: string | null; assignee: "iato_ops" | "humano"; level: number; receivedAt: number; firstResponseAt: number | null;
@@ -54,13 +56,19 @@ export function createFakeIncidentDb(opts: { start?: Date; operatorAlive?: boole
     });
     return level >= 2 ? list : list.filter((r) => r.role === "primario");
   };
+  let evSeq = 0;
   const log = (i: FakeIncident, e: Omit<Ev, "at">) => {
-    i.events.push({ at: now, ...e });
+    if (e.dedupe && i.events.some((x) => x.dedupe === e.dedupe)) return null;
+    const ev = { id: ++evSeq, at: now, ...e };
+    i.events.push(ev);
+    onEvent?.(i, ev);
     if (e.direction === "saliente" && e.visible && e.kind === "mensaje") {
       i.firstResponseAt ??= now;
       if (e.actor === "equipo") i.firstHumanAt ??= now;
     }
+    return ev.id;
   };
+  let onEvent: ((i: FakeIncident, e: Ev) => void) | null = null;
 
   const handlers: Record<string, (a: Record<string, unknown>) => unknown> = {
     incident_create(a) {
@@ -98,9 +106,48 @@ export function createFakeIncidentDb(opts: { start?: Date; operatorAlive?: boole
       const i = incidents.get(String(a._id));
       if (!i) return { ok: false, code: "NOT_FOUND" };
       const e = a._ev as Record<string, unknown>;
-      log(i, { kind: String(e.kind), actor: String(e.actor), direction: (e.direction as string) ?? null, body: (e.body as string) ?? null,
-        visible: e.visible_to_user === true, channel: (e.channel as string) ?? null });
-      return { ok: true, event_id: i.events.length, duplicate: false };
+      const id = log(i, { kind: String(e.kind), actor: String(e.actor), direction: (e.direction as string) ?? null, body: (e.body as string) ?? null,
+        visible: e.visible_to_user === true, channel: (e.channel as string) ?? null, data: (e.data as Record<string, unknown>) ?? {},
+        dedupe: (e.dedupe_key as string) ?? null, counterpart: (e.counterpart as string) ?? null, delivery: (e.delivery as string) ?? null });
+      return { ok: true, event_id: id, duplicate: id === null };
+    },
+    incident_set_status(a) {
+      const i = incidents.get(String(a._id));
+      if (!i) return { ok: false, code: "NOT_FOUND" };
+      const st = String(a._status); const actor = String(a._actor ?? "iato_ops");
+      if (st === "resuelto" && actor !== "equipo") {
+        log(i, { kind: "estado", actor, direction: "interno", body: "esperando confirmación del viajero" });
+        return { ok: true, status: "esperando_confirmacion", closed: false };
+      }
+      if (st === "no_se_pudo" && actor !== "equipo") {
+        i.assignee = "humano"; i.level = Math.max(1, i.level + 1); enqueue(i.id, i.level, "necesita_humano");
+        return { ok: true, status: "escalado", closed: false, code: "HUMAN_REQUIRED" };
+      }
+      if (st === "en_proceso") { i.status = "pendiente_confirmacion"; log(i, { kind: "estado", actor, direction: "interno", body: "en proceso" }); }
+      return { ok: true, status: st === "en_proceso" ? "en_proceso" : st, closed: false };
+    },
+    incident_assign(a) {
+      const i = incidents.get(String(a._id));
+      if (!i) return { ok: false, code: "NOT_FOUND" };
+      if (a._assignee === "humano") {
+        i.assignee = "humano"; i.level = Math.max(1, i.level + 1); i.escalatedAt = now;
+        const alertId = enqueue(i.id, i.level, "necesita_humano");
+        log(i, { kind: "escalamiento", actor: String(a._actor ?? "iato_ops"), direction: "interno", body: String(a._reason ?? "") });
+        return { ok: true, assignee: "humano", alert_id: alertId, escalation_level: i.level };
+      }
+      if (i.takenAt !== null) return { ok: false, code: "TAKEN_BY_HUMAN" };
+      i.assignee = "iato_ops";
+      return { ok: true, assignee: "iato_ops", alert_id: null, escalation_level: i.level };
+    },
+    incident_set_next_step(a) {
+      const i = incidents.get(String(a._id));
+      if (!i) return { ok: false, code: "NOT_FOUND" };
+      i.nextStep = String(a._text); i.due = Date.parse(String(a._due));
+      log(i, { kind: "siguiente_paso", actor: String(a._actor ?? "iato_ops"), direction: "interno", body: `${a._text} · ${a._due}` });
+      return { ok: true };
+    },
+    incident_operator_heartbeat() {
+      return { ok: true, at: iso(now), enabled: true };
     },
     incident_alerts_claim(a) {
       const fallback = (a._fallback as string[]) ?? [];
@@ -196,6 +243,10 @@ export function createFakeIncidentDb(opts: { start?: Date; operatorAlive?: boole
     advance(minutes: number) { now += minutes * 60000; },
     now: () => new Date(now),
     setUser(id: string, u: { name: string; email: string }) { USERS[id] = u; },
+    /** Gancho: cada línea nueva de la bitácora (el operador falso lo usa para despertar). */
+    onEvent(fn: ((i: FakeIncident, e: Ev) => void) | null) { onEvent = fn; },
+    /** Para extender el doble con más RPC (operador). */
+    handlers, log, enqueue, iso,
     incidents, alerts, calls,
     ADMIN_DUENO: "00000000-0000-4000-8000-0000000000d1",
     ADMIN_CARLO: "00000000-0000-4000-8000-0000000000c1",
