@@ -37,6 +37,9 @@ import { buildClientAllowlistSource, CLIENT_ALLOWLIST_DATA_PATH } from "../../sc
 import { clientAllowlist, CLIENT_ALLOWLIST, SERVER_ALLOWLIST } from "../../vite.clientAllowlist";
 import { googleLoginEnabled } from "@/lib/googleLogin";
 import { travelpayoutsDriveEnabled } from "@/lib/consent";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchPlacePhotoUrl, resolvePlacePhotoUrl, cachedPlacePhoto, __resetPlacePhotoCache } from "@/lib/placePhoto";
+import { photoCacheControl, PHOTO_CACHE_SECONDS } from "../../supabase/functions/_shared/placePhotoCache";
 import { iatoMarkHtml, shell, para, SERIF } from "../../supabase/functions/_shared/email-kit";
 import { userConfirmedEmail } from "../../supabase/functions/_shared/ai-reservations/templates";
 
@@ -323,6 +326,70 @@ describe("P2-6 · Beneficios sin \"(JSON)\" · P2-7 · /onboarding/deep en espa�
     expect(d).not.toMatch(/Slow Travel/i);
     expect(d).toMatch(/\{ id: "slow", label: "Viaje pausado"/);
     expect(DNA_LABELS.ritmo.slow.label).toBe("Viaje pausado");
+  });
+});
+
+describe("P2-11 · place-photo cuesta menos sin guardar fotos de Google", () => {
+  const invoke = supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>;
+  const REF = "places/ChIJabc123/photos/Foto_9";
+  const URL800 = "https://lh3.googleusercontent.com/place-photos/abc=s800";
+  beforeEach(() => { invoke.mockReset(); __resetPlacePhotoCache(); sessionStorage.clear(); });
+
+  it("la función responde con caché privada de un día (como las fotos de Google) y no cachea errores", () => {
+    expect(PHOTO_CACHE_SECONDS).toBe(86_400);
+    expect(photoCacheControl("url", true)).toBe("private, max-age=86400");
+    expect(photoCacheControl("resolve", true)).toBe("private, max-age=86400");
+    expect(photoCacheControl("url", false)).toBe("private, max-age=3600");
+    expect(photoCacheControl("binary")).toBe("public, max-age=86400");
+    expect(photoCacheControl("error")).toBe("no-store");
+    const fn = src("supabase/functions/place-photo/index.ts");
+    expect(fn).toMatch(/photoCacheControl\("url", !!photoUri\)/);
+    expect(fn).toMatch(/photoCacheControl\("resolve", !!out\.url\)/);
+    expect(fn).not.toMatch(/max-age=3600"/);
+    // Nada de la foto se guarda en el servidor (ni bytes ni URL).
+    expect(fn).not.toMatch(/\.from\(|storage|dbCacheStore\(\)\.put|upload/);
+  });
+
+  it("la misma foto a otro ancho no se vuelve a pedir; dos tarjetas a la vez comparten la petición", async () => {
+    let resolveCall: (v: unknown) => void = () => {};
+    invoke.mockImplementation(() => new Promise((r) => { resolveCall = r; }));
+    const big = fetchPlacePhotoUrl(REF, 800);
+    const thumb = fetchPlacePhotoUrl(REF, 240); // en camino: espera la de 800
+    await new Promise((r) => setTimeout(r, 0));
+    resolveCall({ data: { url: URL800 }, error: null });
+    expect(await big).toBe(URL800);
+    expect(await thumb).toBe(URL800);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    // Ya sabida: a cualquier ancho menor, sin llamar.
+    expect(cachedPlacePhoto(REF, 240)).toBe(URL800);
+    expect(await fetchPlacePhotoUrl(REF, 400)).toBe(URL800);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    // Va por GET (el navegador puede reutilizar la respuesta con su Cache-Control).
+    expect(invoke.mock.calls[0][1]).toEqual({ method: "GET" });
+  });
+
+  it("un ancho mayor que el sabido sí se pide; un nombre de foto inválido no se vuelve a pedir a ningún ancho", async () => {
+    invoke.mockResolvedValue({ data: { url: URL800 }, error: null });
+    await fetchPlacePhotoUrl(REF, 240);
+    await fetchPlacePhotoUrl(REF, 800);
+    expect(invoke).toHaveBeenCalledTimes(2);
+    invoke.mockReset();
+    invoke.mockResolvedValue({ data: null, error: Object.assign(new Error("404"), { context: { status: 404 } }) });
+    const BAD = "places/ChIJabc123/photos/Vieja";
+    expect(await fetchPlacePhotoUrl(BAD, 240)).toBeNull();
+    expect(await fetchPlacePhotoUrl(BAD, 800)).toBeNull();
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("la foto que encontró 'resolve' queda guardada también por su nombre", async () => {
+    invoke.mockResolvedValue({ data: { url: URL800, ref: REF, place_name: "Pujol" }, error: null });
+    expect(await resolvePlacePhotoUrl({ name: "Pujol", city: "Ciudad de México" }, 800)).toBe(URL800);
+    expect(await fetchPlacePhotoUrl(REF, 800)).toBe(URL800);
+    expect(await resolvePlacePhotoUrl({ name: "Pujol", city: "Ciudad de México" }, 240)).toBe(URL800);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    const [fn, opts] = invoke.mock.calls[0];
+    expect(opts).toEqual({ method: "GET" });
+    expect(Object.fromEntries(new URL(`https://x.test/${fn}`).searchParams)).toMatchObject({ mode: "resolve", name: "Pujol" });
   });
 });
 

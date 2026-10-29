@@ -11,8 +11,10 @@ vi.mock("@/integrations/supabase/client", () => ({
     functions: {
       invoke: vi.fn(async (fn: string, opts: any) => {
         const name = fn.split("?")[0];
-        calls.push({ fn: name, body: opts?.body });
-        if (name === "place-photo" && opts?.body?.ref) return { data: { url: "https://lh3.googleusercontent.com/places/foto-real=s800" }, error: null };
+        // place-photo va por GET con los parámetros en la URL (ronda 2, P2-11); el resto, en el cuerpo.
+        const body = opts?.body ?? (fn.includes("?") ? Object.fromEntries(new URLSearchParams(fn.split("?")[1])) : undefined);
+        calls.push({ fn: name, body });
+        if (name === "place-photo" && body?.ref) return { data: { url: "https://lh3.googleusercontent.com/places/foto-real=s800" }, error: null };
         if (name === "place-photo") return { data: { url: null }, error: null }; // resolve: Google no encontró el mismo lugar
         if (name === "pexels-image") return { data: { image: "https://images.pexels.com/photos/1/comida.jpeg", photographer: "Ana" }, error: null };
         return { data: null, error: null };

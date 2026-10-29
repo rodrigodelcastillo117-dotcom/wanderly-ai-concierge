@@ -83,11 +83,12 @@ describe("foto del lugar", () => {
     expect(await fetchPlacePhotoUrl(REF, 800)).toBe(PHOTO);
     expect(invoke).toHaveBeenCalledTimes(1);
     const [fn, opts] = invoke.mock.calls[0];
-    // Query (lo que lee la función ya publicada) + cuerpo (la versión nueva acepta ambos).
+    // GET con los parámetros en la URL (lo que lee la función ya publicada): el navegador reutiliza la
+    // respuesta con su Cache-Control (ronda 2, P2-11).
     const u = new URL(`https://x.test/${fn}`);
     expect(u.pathname).toBe("/place-photo");
     expect(Object.fromEntries(u.searchParams)).toEqual({ ref: REF, maxWidth: "800", mode: "url" });
-    expect(opts).toEqual({ body: { ref: REF, maxWidth: 800, mode: "url" } });
+    expect(opts).toEqual({ method: "GET" });
     // También sobrevive a recargar el módulo dentro de la misma sesión del navegador.
     __resetPlacePhotoCache();
     expect(await fetchPlacePhotoUrl(REF, 800)).toBe(PHOTO);

@@ -5,6 +5,10 @@
 // pone en <img>. Antes la app ponía ESTA función directo en <img src>, pero un <img> no manda el
 // header Authorization: la puerta de Supabase respondía 401 (JSON), Chrome lo bloqueaba (ORB) y la
 // tarjeta quedaba como un bloque oscuro vacío.
+//
+// Costo (ronda 2, P2-11): la app pide con GET y las respuestas con foto llevan Cache-Control privado de
+// un día (_shared/placePhotoCache.ts): el navegador las reutiliza en otras pestañas y recargas sin volver a
+// pagar a Google. No se guarda nada de la foto en el servidor (términos de Google Maps Platform).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
@@ -14,6 +18,7 @@ import { dbCacheStore } from "../_shared/serpRuntime.ts";
 import { resolvePlacePhoto } from "../_shared/place-photo-resolve.ts";
 import { logUsage } from "../_shared/serpRuntime.ts";
 import { googleListPriceUsd } from "../_shared/google-maps.ts";
+import { photoCacheControl } from "../_shared/placePhotoCache.ts";
 
 // Cada foto servida por nombre de recurso (ref) es un evento "Place Details Photos" facturable: queda en
 // ai_usage_log como las demás llamadas de Google (antes solo el modo "resolve" se registraba).
@@ -35,7 +40,7 @@ Deno.serve(async (req) => {
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!key || !lovableKey) {
       return new Response(JSON.stringify({ error: "GOOGLE_MAPS_API_KEY no configurada" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": photoCacheControl("error") },
       });
     }
 
@@ -63,14 +68,14 @@ Deno.serve(async (req) => {
       const t = googleTransportFor("place-photo", __user.id);
       if (!t) {
         return new Response(JSON.stringify({ url: null, reason: "no_disponible" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": photoCacheControl("error") },
         });
       }
       const out = await resolvePlacePhoto(t, {
         name: param("name"), city: param("city"), placeId: param("placeId"), maxWidth,
       }, dbCacheStore());
       return new Response(JSON.stringify(out), {
-        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "private, max-age=3600" },
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": photoCacheControl("resolve", !!out.url) },
       });
     }
 
@@ -78,7 +83,7 @@ Deno.serve(async (req) => {
     // conector con nuestra llave, así que nada de "../", "?" ni otros endpoints.
     if (!isPhotoRef(ref)) {
       return new Response(JSON.stringify({ error: "ref requerido (ej: places/XXX/photos/YYY)" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": photoCacheControl("error") },
       });
     }
 
@@ -93,12 +98,13 @@ Deno.serve(async (req) => {
       const data = await res.json();
       if (!res.ok) {
         return new Response(JSON.stringify({ error: data?.error?.message ?? "Photo error", raw: data }), {
-          status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": photoCacheControl("error") },
         });
       }
-      if (typeof data?.photoUri === "string") logPhoto(__user.id);
-      return new Response(JSON.stringify({ url: typeof data?.photoUri === "string" ? data.photoUri : null }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "private, max-age=3600" },
+      const photoUri = typeof data?.photoUri === "string" ? data.photoUri : null;
+      if (photoUri) logPhoto(__user.id);
+      return new Response(JSON.stringify({ url: photoUri }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": photoCacheControl("url", !!photoUri) },
       });
     }
 
@@ -107,7 +113,7 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const txt = await res.text();
       return new Response(JSON.stringify({ error: "Photo fetch error", raw: txt }), {
-        status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": photoCacheControl("error") },
       });
     }
     const buf = await res.arrayBuffer();
@@ -116,12 +122,12 @@ Deno.serve(async (req) => {
       headers: {
         ...corsHeaders,
         "Content-Type": res.headers.get("Content-Type") ?? "image/jpeg",
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": photoCacheControl("binary"),
       },
     });
   } catch (err) {
     return new Response(JSON.stringify({ error: (err as Error).message ?? "Error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": photoCacheControl("error") },
     });
   }
 });

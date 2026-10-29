@@ -91,6 +91,30 @@ revisarse cuando aterriza, se cancela o pasa su fecha. Máximo por corrida: secr
 `FLIGHT_WATCH_MAX_CHECKS` (por defecto 50). Si se acaban las búsquedas, la corrida se detiene y
 el chequeo diario lo reporta.
 
+### Costo de las fotos de lugares (`place-photo`)
+
+Cada foto real de Google que la app muestra es un evento "Place Details Photos" (US$7 por 1,000 después
+de las 1,000 gratis del mes; queda en `ai_usage_log`). En la auditoría del 29-oct una sola cuenta sumó
+~900 llamadas en 24 h (US$9.30), en parte porque cada navegador o pestaña nueva volvía a pagar la misma
+foto. Lo que se hizo (ronda 2, P2-11), sin guardar fotos de Google en el servidor (los términos de Google
+Maps Platform no permiten guardarlas; solo se usa la caché del navegador, como hace Google con sus
+propias fotos):
+
+- **Caché del navegador de 1 día:** la app pide la URL de la foto con `GET` y `place-photo` responde con
+  `Cache-Control: private, max-age=86400` (sin foto: 1 h; errores: `no-store`). Otra pestaña, una
+  recarga o volver a abrir la app el mismo día en ese navegador reutiliza la respuesta sin llamar a la
+  función ni a Google. `private`: ninguna caché compartida guarda la respuesta (lleva la sesión).
+- **Misma foto, un solo pago por sesión:** la miniatura (240 px) usa la URL de la tarjeta (800 px) si ya
+  se tiene o ya va en camino; un nombre de foto inválido no se vuelve a pedir a ningún ancho; la foto que
+  encontró "resolve" queda guardada también por su nombre.
+- **Ahorro esperado (estimación, no medida en producción):** quien abre la app 3 veces al día en el
+  mismo navegador y ve ~40 fotos pagaba ~120 eventos (~US$0.84 al día, fuera del nivel gratis) y ahora
+  ~40 (~US$0.28): **~⅔ menos**. Una tarjeta y su miniatura de la misma foto pedidas a la vez pasan de 2
+  a 1 evento. Navegadores nuevos (otro dispositivo, modo incógnito, robots de auditoría) siguen pagando
+  la primera vez; eso solo se evitaría guardando las fotos, que Google no permite.
+- Se publica con la función `place-photo` (la app ya funciona con la versión publicada: la de antes lee
+  los parámetros de la URL, solo sin la caché de 1 día).
+
 ### Administradores
 
 Para dar acceso de administrador a otra persona, corre solo la sección 4 con su correo. Ojo: los
