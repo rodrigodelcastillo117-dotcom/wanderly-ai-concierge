@@ -26,8 +26,11 @@ export const TRAVELPAYOUTS_SRC = "https://tp-em.com/NTMzMjk5.js?t=533299";
  * por eso la carga queda detrás de esta llave hasta confirmar que Travelpayouts responde a nuestro dominio.
  * Los enlaces de afiliado (con su marker) no dependen de este script y siguen funcionando.
  */
-export function travelpayoutsDriveEnabled(env: Record<string, unknown> = import.meta.env as unknown as Record<string, unknown>): boolean {
-  return String(env?.VITE_TRAVELPAYOUTS_DRIVE_ENABLED ?? "").trim().toLowerCase() === "true";
+export function travelpayoutsDriveEnabled(flag: unknown = import.meta.env.VITE_TRAVELPAYOUTS_DRIVE_ENABLED): boolean {
+  // Solo esta variable (no import.meta.env completo, que metía todas las VITE_* en el paquete; ronda 2, P2-5).
+  // En pruebas también acepta un objeto con la llave.
+  const v = flag && typeof flag === "object" ? (flag as Record<string, unknown>).VITE_TRAVELPAYOUTS_DRIVE_ENABLED : flag;
+  return String(v ?? "").trim().toLowerCase() === "true";
 }
 
 export function getConsent(): ConsentChoice | null {

@@ -38,7 +38,7 @@ import { localISODate } from "@/lib/localDate";
 import { readFunctionError } from "@/lib/functionErrors";
 import { openCookieSettings } from "@/lib/consent";
 import { dnaUpdatedLabel, PROFILE_SETTINGS_ID } from "@/lib/profileSettings";
-import { withIatoMark } from "@/lib/iatoMark";
+import { IatoName, withIatoMark } from "@/lib/iatoMark";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -314,7 +314,7 @@ const Profile = () => {
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <p className="text-[10px] tracking-[0.3em] text-primary uppercase">Mejores momentos</p>
                 <p className="text-[10px] text-muted-foreground">
-                  Sube fotos de tus mejores viajes — Iato aprende qué te encanta
+                  Sube fotos de tus mejores viajes — <IatoName /> aprende qué te encanta
                 </p>
               </div>
               <BestMomentsPanel />
@@ -354,7 +354,7 @@ const Profile = () => {
             <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Premium</p>
             <h2 className="font-display text-3xl md:text-4xl mb-2">Tus tarjetas y programas</h2>
             <p className="text-muted-foreground">
-              Guarda tus tarjetas, membresías y seguros. Cuando le pides a Iato un resumen o buscar promociones,
+              Guarda tus tarjetas, membresías y seguros. Cuando le pides a <IatoName /> un resumen o buscar promociones,
               solo usa el nombre, el nivel y los beneficios de cada programa; tus documentos y números nunca se envían a la IA.
             </p>
           </div>

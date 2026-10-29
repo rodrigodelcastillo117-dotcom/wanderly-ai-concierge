@@ -12,6 +12,8 @@ export const loadTrips = () => import("@/pages/Trips");
 export const loadTripDetail = () => import("@/pages/TripDetail");
 export const loadConcierge = () => import("@/pages/Concierge");
 export const loadAuth = () => import("@/pages/Auth");
+// Ayuda y páginas legales (ronda 2, P2-4: /ayuda tenía LCP móvil de 4.0 s por la cascada index → Legal).
+export const loadLegal = () => import("@/pages/Legal");
 
 export const INITIAL_ROUTE_CHUNKS: [RegExp, () => Promise<unknown>][] = [
   [/^\/dashboard\/?$/, loadDashboardHome],
@@ -19,6 +21,7 @@ export const INITIAL_ROUTE_CHUNKS: [RegExp, () => Promise<unknown>][] = [
   [/^\/dashboard\/viajes\/[^/]+\/?$/, loadTripDetail],
   [/^\/dashboard\/concierge\/?$/, loadConcierge],
   [/^\/auth\/?$/, loadAuth],
+  [/^\/(ayuda|terminos|privacidad|cookies|reembolsos)\/?$/, loadLegal],
 ];
 
 export function preloadInitialRoute(pathname: string): boolean {

@@ -6,6 +6,8 @@ import { componentTagger } from "lovable-tagger";
 import { chunkCycleGuard, vendorChunk } from "./vite.chunks";
 // La pantalla con la que se abre la app se pide desde el HTML, en paralelo con el paquete inicial.
 import { routePreloadHints } from "./vite.routePreload";
+// En el navegador, la lista blanca de reservas va sin notas internas ni la lista de sufijos completa (ronda 2, P2-5).
+import { clientAllowlist } from "./vite.clientAllowlist";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -25,7 +27,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  plugins: [react(), mode === "development" && componentTagger(), chunkCycleGuard(), routePreloadHints()].filter(Boolean),
+  plugins: [clientAllowlist(), react(), mode === "development" && componentTagger(), chunkCycleGuard(), routePreloadHints()].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

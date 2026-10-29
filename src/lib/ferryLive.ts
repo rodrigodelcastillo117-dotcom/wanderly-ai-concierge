@@ -3,7 +3,7 @@
 // "desde" en euros para 1 pasajero (precio indicativo de Ferryhopper) y su enlace de compra; nunca
 // "Reservado". El equivalente en pesos no se calcula aquí (no se inventa un tipo de cambio).
 import { readFunctionError } from "@/lib/functionErrors";
-import { checkAllowlisted } from "../../supabase/functions/_shared/booking/allowlist.ts";
+import { checkAllowlisted } from "@/lib/bookingAllowlist";
 
 export type Invoke = (fn: string, opts: { body: Record<string, unknown> }) => Promise<{ data: any; error: any }>;
 export type FerryQuery = { from: string; to: string; date: string; passengers?: number };

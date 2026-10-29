@@ -31,7 +31,7 @@ import { tripDayDate } from "@/lib/tripDayDate";
 import type { QuoteTrust } from "@/lib/quoteTrust";
 import { cityStays, sameCity, tripCountryLabel, tripDestinations, tripFlightSearches } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { tripFlightProblems } from "@/lib/booking";
-import { checkAllowlisted } from "../../supabase/functions/_shared/booking/allowlist.ts";
+import { checkAllowlisted } from "@/lib/bookingAllowlist";
 import { DEFAULT_SITE_URL } from "../../supabase/functions/_shared/email-kit.ts";
 
 /** Dominio del sitio para el pie del PDF (la misma constante que los correos). */

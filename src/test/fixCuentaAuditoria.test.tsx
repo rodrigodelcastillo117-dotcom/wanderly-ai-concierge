@@ -163,7 +163,8 @@ describe("#7 · landing con el plan gratuito, #9 · ayuda y 404", () => {
     for (const h of ["¿Cómo funciona IATOS?", "¿Qué es real y qué es estimado?", "¿Qué incluye cada plan?", "Contacto"]) {
       expect(screen.getByRole("heading", { name: h })).toBeInTheDocument();
     }
-    expect(screen.getByText(/3 mensajes con Iato al mes/)).toBeInTheDocument();
+    // "Iato" va en su propio <span> con la serifa de marca (ronda 2, P2-3): se lee el texto del documento.
+    expect(document.body.textContent).toMatch(/3 mensajes con Iato al mes/);
     const app = src("src/App.tsx");
     expect(app).toMatch(/path="\/ayuda"/);
     expect(app).toMatch(/path="\/faq" element={<Navigate to="\/ayuda"/);

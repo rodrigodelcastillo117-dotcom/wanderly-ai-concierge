@@ -10,6 +10,7 @@ import { type AiReservationDraft, aiReservationsEnabled, createAiReservationInte
 import { isGooglePlaceId } from "../../../supabase/functions/concierge-chat/actions.ts";
 import { newIdemKey } from "../../../supabase/functions/_shared/idempotency.ts";
 import { AiReservationSend } from "./AiReservationSend";
+import { IatoName } from "@/lib/iatoMark";
 
 const field = "w-full rounded-xl border border-white/15 bg-black/30 px-3 min-h-[40px] text-sm text-foreground focus:border-primary focus:outline-none";
 
@@ -63,14 +64,14 @@ export function AskIatoTable({ placeId, name, city, tripId, defaultParty }: {
     <>
       <button type="button" onClick={() => setOpen(true)} data-testid="pedir-mesa-iato"
         className="inline-flex min-h-[36px] items-center gap-1 rounded-full border border-primary/60 px-3 text-[11px] text-primary transition hover:bg-primary/10">
-        <Mail className="h-3.5 w-3.5" aria-hidden="true" /> Pedir mesa con Iato
+        <Mail className="h-3.5 w-3.5" aria-hidden="true" /> <span>Pedir mesa con <IatoName /></span>
       </button>
       <Dialog open={open} onOpenChange={close}>
         <DialogContent className="w-[calc(100%-2rem)] max-h-[90vh] overflow-y-auto rounded-2xl border-primary/30 p-4">
           <DialogHeader>
             <DialogTitle className="font-display text-lg">Pedir mesa en {name}</DialogTitle>
             <DialogDescription className="text-xs">
-              Iato le escribe al restaurante por correo en tu nombre. Primero verás el correo; nada se envía sin tu confirmación.
+              <IatoName /> le escribe al restaurante por correo en tu nombre. Primero verás el correo; nada se envía sin tu confirmación.
             </DialogDescription>
           </DialogHeader>
           {draft ? (

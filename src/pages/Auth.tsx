@@ -40,11 +40,13 @@ const Auth = () => {
   // "¿Olvidaste tu contraseña?": desactivado mientras se envía y 60 s después (cada toque
   // mandaba otro correo y Supabase acaba rechazándolos por límite de envíos).
   const [resetState, setResetState] = useState<"idle" | "sending" | "sent">("idle");
-  // Errores visibles junto al formulario (además del aviso): el de inicio de sesión ofrece recuperar la
+  // Errores del formulario: se muestran UNA vez, en rojo junto al formulario (sin aviso emergente
+  // repetido; ronda 2 de la auditoría de cuenta, P2-2). El de inicio de sesión ofrece recuperar la
   // contraseña y el de registro explica por qué falta aceptar los Términos (antes el botón quedaba
   // deshabilitado sin decir por qué, auditoría de cuenta #12).
   const [loginError, setLoginError] = useState<{ message: string; offerReset: boolean } | null>(null);
   const [termsError, setTermsError] = useState(false);
+  const [signupError, setSignupError] = useState<string | null>(null);
   const [googleBusy, setGoogleBusy] = useState(false);
   const showGoogle = googleLoginEnabled();
   // Título de la pestaña según el modo (la ruta es la misma: /auth y /auth?mode=signup).
@@ -114,17 +116,18 @@ const Auth = () => {
     try {
       if (mode === "signup") {
         if (password.length < 8) {
-          toast.error("La contraseña debe tener al menos 8 caracteres");
+          setSignupError("La contraseña debe tener al menos 8 caracteres.");
           return;
         }
         if (!acceptedTerms) {
+          setSignupError(null);
           setTermsError(true);
-          toast.error("Acepta los Términos y la Política de Privacidad para continuar");
           return;
         }
+        setSignupError(null);
         const { error } = await signUp(email, password, fullName);
         if (error) {
-          toast.error(signupErrorMessage(error));
+          setSignupError(signupErrorMessage(error));
         } else {
           // Auto-confirm está activo: iniciamos sesión de inmediato para evitar quedar sin sesión
           const { error: signInErr } = await signIn(email, password);
@@ -138,9 +141,7 @@ const Auth = () => {
       } else {
         const { error } = await signIn(email, password);
         if (error) {
-          const info = signinErrorMessage((error as { message?: string })?.message);
-          setLoginError(info);
-          toast.error(info.message);
+          setLoginError(signinErrorMessage((error as { message?: string })?.message));
         } else setLoginError(null);
       }
     } finally {
@@ -289,6 +290,9 @@ const Auth = () => {
                 Para crear tu cuenta, marca la casilla de Términos y Política de Privacidad.
               </p>
             )}
+            {mode === "signup" && signupError && (
+              <p role="alert" className="text-sm text-destructive" data-testid="auth-signup-error">{signupError}</p>
+            )}
             {mode === "login" && loginError && (
               <p role="alert" className="text-sm text-destructive" data-testid="auth-login-error">{loginError.message}</p>
             )}
@@ -322,7 +326,7 @@ const Auth = () => {
             {mode === "signup" ? "¿Ya tienes cuenta?" : "¿Aún no tienes cuenta?"}{" "}
             <button
               type="button"
-              onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setLoginError(null); setTermsError(false); }}
+              onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setLoginError(null); setTermsError(false); setSignupError(null); }}
               className="text-primary hover:underline"
             >
               {mode === "signup" ? "Iniciar sesión" : "Crea una"}

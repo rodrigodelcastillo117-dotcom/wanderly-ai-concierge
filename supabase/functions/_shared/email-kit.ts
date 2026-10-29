@@ -69,10 +69,20 @@ export const eyebrow = (text: string, opts: { align?: "left" | "center"; color?:
 export const headline = (html: string, opts: { align?: "left" | "center"; size?: number } = {}) =>
   `<tr><td class="ek-pad ek-h1" align="${opts.align ?? "left"}" style="padding:0 56px;font-family:${SERIF};font-size:${opts.size ?? 34}px;line-height:${Math.round((opts.size ?? 34) * 1.22)}px;font-weight:400;color:${EK.ivory};${LNUM}">${html}</td></tr>`;
 
+/**
+ * "Iato" en la sans del correo (Helvetica/Arial) se lee "lato": la I mayúscula es una barra igual a la l
+ * (ronda 2 de la auditoría de cuenta, P2-3). Dentro de un texto sans, el nombre va en la serifa de marca,
+ * cuya I lleva remates, como en la app (src/lib/iatoMark.tsx). `html` ya viene escapado; no toca lo que
+ * esté dentro de etiquetas (atributos, enlaces). El texto plano no cambia.
+ */
+export function iatoMarkHtml(html: string): string {
+  return html.replace(/(<[^>]*>)|\bIato\b/g, (_m, tag?: string) => tag ?? `<span style="font-family:${SERIF};font-size:1.15em;">Iato</span>`);
+}
+
 /** Párrafo de cuerpo (sans ligera). `html` ya debe venir escapado. */
 export const para = (html: string, opts: { align?: "left" | "center"; color?: string; size?: number; serif?: boolean } = {}) => {
   const size = opts.size ?? 15;
-  return `<tr><td class="ek-pad ek-body" align="${opts.align ?? "left"}" style="padding:0 56px;font-family:${opts.serif ? SERIF : SANS};font-size:${opts.serif ? size + 3 : size}px;line-height:${Math.round(size * (opts.serif ? 1.75 : 1.7))}px;font-weight:300;color:${opts.color ?? EK.body};${LNUM}">${html}</td></tr>`;
+  return `<tr><td class="ek-pad ek-body" align="${opts.align ?? "left"}" style="padding:0 56px;font-family:${opts.serif ? SERIF : SANS};font-size:${opts.serif ? size + 3 : size}px;line-height:${Math.round(size * (opts.serif ? 1.75 : 1.7))}px;font-weight:300;color:${opts.color ?? EK.body};${LNUM}">${opts.serif ? html : iatoMarkHtml(html)}</td></tr>`;
 };
 
 export function goldRule(width = 48, align: "left" | "center" = "left"): string {
@@ -377,7 +387,7 @@ export function totalBlock(o: { label: string; amount: string; currency: string;
 export function callout(html: string, opts: { color?: string } = {}): string {
   return `<tr><td class="ek-pad" style="padding:0 56px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
     <td width="2" style="width:2px;background-color:${opts.color ?? EK.goldDeep};font-size:1px;line-height:1px;">&nbsp;</td>
-    <td style="padding:2px 0 2px 18px;font-family:${SANS};font-size:13px;line-height:21px;font-weight:300;color:${EK.body};">${html}</td>
+    <td style="padding:2px 0 2px 18px;font-family:${SANS};font-size:13px;line-height:21px;font-weight:300;color:${EK.body};">${iatoMarkHtml(html)}</td>
   </tr></table></td></tr>`;
 }
 
@@ -546,7 +556,7 @@ export function shell(o: ShellOpts): string {
     <tr><td class="ek-pad" align="center" style="padding:28px 56px 0;font-family:${SANS};font-size:11px;line-height:19px;color:${EK.muted};">
       <span style="font-family:${SERIF};font-size:15px;letter-spacing:0.38em;color:${EK.goldSoft};">IATOS</span><br>
       IATOS AI · <a href="${escapeHtml(site)}" style="color:${EK.gold};text-decoration:none;">${escapeHtml(site.replace(/^https?:\/\//, ""))}</a><br>
-      ${escapeHtml(o.reason)}<br>
+      ${iatoMarkHtml(escapeHtml(o.reason))}<br>
       ${o.compact ? "" : `¿Dudas? Responde a este correo o escríbenos a <a href="mailto:${escapeHtml(support)}" style="color:${EK.gold};text-decoration:none;">${escapeHtml(support)}</a>.<br>`}
       ${extra.length ? `${extra.map((l) => `<a href="${escapeHtml(l.url!)}" style="color:${EK.gold};text-decoration:none;">${escapeHtml(l.label)}</a>`).join(" · ")}<br>` : ""}
       ${o.compact ? "" : "Nunca te pediremos tu contraseña ni datos de tarjeta por correo."}

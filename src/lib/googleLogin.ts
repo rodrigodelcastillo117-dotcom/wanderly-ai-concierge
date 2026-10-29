@@ -4,8 +4,12 @@
 // mostrara con el proveedor apagado, Supabase respondería "provider is not enabled" a quien lo toque.
 import { supabase } from "@/integrations/supabase/client";
 
-export function googleLoginEnabled(env: Record<string, unknown> = import.meta.env as unknown as Record<string, unknown>): boolean {
-  return String(env?.VITE_GOOGLE_LOGIN_ENABLED ?? "").trim().toLowerCase() === "true";
+/** Lee SOLO VITE_GOOGLE_LOGIN_ENABLED (antes recibía import.meta.env completo y el build metía todas las
+ *  variables VITE_* en el paquete de /auth; ronda 2 de la auditoría técnica, P2-5). Acepta el valor o, en
+ *  pruebas, un objeto con esa llave. */
+export function googleLoginEnabled(flag: unknown = import.meta.env.VITE_GOOGLE_LOGIN_ENABLED): boolean {
+  const v = flag && typeof flag === "object" ? (flag as Record<string, unknown>).VITE_GOOGLE_LOGIN_ENABLED : flag;
+  return String(v ?? "").trim().toLowerCase() === "true";
 }
 
 /**

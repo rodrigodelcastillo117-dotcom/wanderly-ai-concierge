@@ -24,6 +24,7 @@ export const INITIAL_ROUTE_PAGES: [string, string, ImageHint?][] = [
   ["^/dashboard/viajes/[^/]+/?$", "src/pages/TripDetail.tsx"],
   ["^/dashboard/concierge/?$", "src/pages/Concierge.tsx"],
   ["^/auth/?$", "src/pages/Auth.tsx"],
+  ["^/(ayuda|terminos|privacidad|cookies|reembolsos)/?$", "src/pages/Legal.tsx"],
 ];
 
 type Chunk = { type: "chunk"; fileName: string; imports: string[]; facadeModuleId?: string | null; isEntry?: boolean };

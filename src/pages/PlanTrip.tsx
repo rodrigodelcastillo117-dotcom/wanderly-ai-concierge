@@ -45,6 +45,7 @@ import { DRAFT_FAIL_AVISO, draftSpec, mergeDraftWithAi } from "@/lib/tripSpecDra
 import { routeFromItems, type RefAnswer } from "@/lib/tripCoverage";
 import { usePlaceResolve } from "@/lib/placeResolveClient";
 import { makeStop, newId, savedConsulta, setTripBasics, withConsulta, type TripSpec } from "../../supabase/functions/_shared/tripSpec";
+import { IatoName } from "@/lib/iatoMark";
 
 const RADIO = "min-h-[44px] rounded-xl border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -1280,7 +1281,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
               {complexText && destino.trim().length > 3 && (
                 <button type="button" onClick={interpretNow} data-testid="plan-interpretar-completo"
                   className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3.5 text-xs text-primary hover:bg-primary/15">
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Tu viaje trae crucero, tramos o regreso por otra ciudad: deja que Iato lo lea completo
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> <span>Tu viaje trae crucero, tramos o regreso por otra ciudad: deja que <IatoName /> lo lea completo</span>
                 </button>
               )}
               {roadTrip.route && (

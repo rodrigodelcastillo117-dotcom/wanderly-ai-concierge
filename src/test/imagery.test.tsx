@@ -168,7 +168,11 @@ describe("SmartImage: orden de origen, leyendas y respaldo", () => {
     routeInvoke({ "place-photo": () => ({ data: { url: null, reason: "otro_lugar" }, error: null }) });
     render(<SmartImage alt="Tour gastronómico" lookup={{ name: "Tour gastronómico", city: "Puebla" }} stockQuery="street food tour market" />);
     await flush();
-    expect(invoke.mock.calls[0]).toEqual(["place-photo", { body: { mode: "resolve", maxWidth: 800, name: "Tour gastronómico", city: "Puebla" } }]);
+    // GET con los parámetros en la URL: el navegador reutiliza la respuesta (Cache-Control; ronda 2, P2-11).
+    const [fn, opts] = invoke.mock.calls[0];
+    expect(fnName([fn])).toBe("place-photo");
+    expect(Object.fromEntries(new URL(`https://x.test/${fn}`).searchParams)).toEqual({ mode: "resolve", maxWidth: "800", name: "Tour gastronómico", city: "Puebla" });
+    expect(opts).toEqual({ method: "GET" });
     expect(invoke.mock.calls.map(fnName)).toEqual(["place-photo", "pexels-image"]);
     expect(screen.getByTestId("illustrative-caption")).toBeInTheDocument();
   });
