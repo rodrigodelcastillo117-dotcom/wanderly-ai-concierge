@@ -49,21 +49,17 @@ import {
   applyShortTripRules, capShortTripEstimates, detectShortTrip, groundSearchLinks, isReasonableShortFlight, parseDurationMinutes,
   realGroundOptions, refineShortTrip, SHORT_TRIP_CANDIDATE_KM, shortTripPromptBlock, shortTripTransportTotal, travelerPrefs,
 } from "./groundTransport.ts";
-
-// Las miniaturas de Google (googleusercontent) aceptan el tamaño en el sufijo "=w..-h..".
-function largeGooglePhoto(url: unknown): string | null {
-  if (typeof url !== "string" || !/^https:\/\//.test(url)) return null;
-  if (/googleusercontent\.com/.test(url) && url.includes("=")) return url.replace(/=[^=/]*$/, "=w1600-h900-k-no");
-  return url;
-}
+import { destinationCoverUrl } from "../_shared/tripCover.ts";
 
 // Portada real del viaje: foto del lugar más reseñado del destino; si no hay, la del primer hotel.
 // Portada: solo la foto de un lugar del destino. La foto de un hotel (una habitación, un baño, velas en
 // una cama) no es "Lisboa" ni "Valle de Bravo" (caso E2E 28-oct-2026); sin foto de lugar, la página usa
 // la foto ilustrativa del destino con su leyenda.
+// R4 viajes P2-2: nunca una foto de Google (la de un lugar cualquiera, p. ej. un pastel en Valle de Bravo;
+// además sus términos no permiten guardar la foto ni su URL). Solo una foto del destino que no sea de Google.
 function pickCover(places: any[], _hotels: any[]): string | null {
   for (const p of places ?? []) {
-    const u = largeGooglePhoto(p?.photos?.[0]);
+    const u = destinationCoverUrl(p?.photos?.[0]);
     if (u) return u;
   }
   return null;

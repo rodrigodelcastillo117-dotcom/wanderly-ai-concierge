@@ -80,6 +80,8 @@ export type Validity = {
   expired: boolean;
   /** Texto para mostrar: "Cotizado el … · válido hasta …" o "Precio de hace 3 días; verifica antes de reservar". */
   label: string;
+  /** "hace 27 h" cuando la cotización ya venció (para no llamar «en vivo» a esos precios); null si sigue vigente. */
+  age: string | null;
 };
 
 const fmtDateTime = (d: Date) =>
@@ -103,7 +105,7 @@ export function quoteValidity(trip: any, snapshot: QuoteSnapshot | null | undefi
   else if (expired) label = `Precio de ${formatAge(q, now)}; verifica antes de reservar`;
   else if (snapshot && validUntil) label = `Cotizado el ${fmtDateTime(q)} · válido hasta ${fmtDateTime(validUntil)}`;
   else label = `Cotizado el ${fmtDateTime(q)}`;
-  return { quotedAt: q, validUntil, expired, label };
+  return { quotedAt: q, validUntil, expired, label, age: expired && q ? formatAge(q, now) : null };
 }
 
 /** Noches del viaje: por fechas; si no hay fechas, por el itinerario (días − 1). */

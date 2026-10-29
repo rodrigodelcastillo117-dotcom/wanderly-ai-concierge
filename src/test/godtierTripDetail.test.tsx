@@ -1,7 +1,7 @@
 // Detalle del viaje (grupo godtier): el total y "qué sigue" van antes que las herramientas, la
 // acción principal también está abajo en móvil y un viaje inexistente ofrece salidas claras.
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { vi, it, expect, beforeEach, describe } from "vitest";
 
@@ -93,7 +93,8 @@ describe("TripDetail · lectura de un vistazo", () => {
     expect(screen.getByText("Guardado en Mis viajes")).toBeInTheDocument();
     const bar = screen.getByTestId("trip-next-bar");
     expect(bar).toHaveTextContent("Total $50,000 MXN");
-    expect(bar).toHaveTextContent("Elegir vuelo y hotel");
+    // R4 P2-3: a 390 px el botón usa su texto corto; el largo queda como nombre accesible.
+    expect(within(bar).getByRole("button", { name: "Elegir vuelo y hotel" })).toHaveTextContent("Ir a Comprar");
   });
 
   it("un viaje que no existe ofrece ir a Mis viajes o planear uno (no un texto suelto)", async () => {

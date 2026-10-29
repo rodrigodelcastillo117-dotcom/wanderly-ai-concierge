@@ -46,6 +46,11 @@ type Props = {
 
 const defaultInvoke: Invoke = (fn, opts) => supabase.functions.invoke(fn, opts) as unknown as Promise<{ data: any; error: any }>;
 
+/** Lista de museos con su taquilla oficial (officialTickets.ts), dicho sin jerga. */
+export const MUSEOS_AVISO = "Con enlace a su taquilla oficial (verificada el 27-oct-2026).";
+/** Búsqueda de museos de la ciudad en Google Maps (enlace público, sin llamada a la API). */
+export const museumsMapsUrl = (city: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`museos en ${city}`)}`;
+
 const cardCls = "rounded-2xl border border-border/60 bg-card/70 p-3";
 const btnGold = "inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const btnLine = "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-primary/40 px-3 text-xs text-foreground transition hover:bg-primary/10 disabled:opacity-60";
@@ -312,10 +317,17 @@ function CityPanel({ trip, city, cities, st, hotel, marks, userId, onSearch, onR
 
       {/* TOP museos */}
       <div data-testid="exp-museos">
-        <BlockHeader icon={Landmark} title="TOP museos" aviso={data?.museos?.aviso ?? (localMuseos.length ? "Museos de nuestra tabla de taquillas oficiales (verificada el 27-oct-2026)." : null)} />
-        {/* Una sola vez: si el aviso del servidor ya lo dice, o si sí hay museos que mostrar, no se repite. */}
-        {!(data?.museos?.items ?? localMuseos).length && !/no tenemos museos/i.test(String(data?.museos?.aviso ?? "")) && (
-          <p className="text-sm text-muted-foreground" data-testid="exp-sin-museos">No tenemos museos de {city.label} en la tabla de taquillas oficiales.</p>
+        {/* Sin jerga (R4 viajes P2-6: «tabla de taquillas oficiales»): el aviso del servidor no se muestra; la
+            página dice qué es la lista y, si no hay museos verificados, a dónde ir a buscarlos. */}
+        <BlockHeader icon={Landmark} title="TOP museos" aviso={(data?.museos?.items ?? localMuseos).length ? MUSEOS_AVISO : null} />
+        {!(data?.museos?.items ?? localMuseos).length && (
+          <div className="rounded-xl border border-border/60 bg-card/40 p-3 text-sm" data-testid="exp-sin-museos">
+            <p className="text-muted-foreground">Aún no tenemos los museos de {city.label} con su taquilla oficial verificada.</p>
+            <a href={museumsMapsUrl(city.label)} target="_blank" rel="noopener noreferrer" data-testid="exp-sin-museos-maps"
+              className="mt-2 inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-primary/40 px-3 text-xs text-primary hover:bg-primary/10">
+              Ver museos de {city.label} en Google Maps <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            </a>
+          </div>
         )}
         <ul className="grid gap-2 md:grid-cols-2">
           {(data?.museos?.items ?? localMuseos).map((m: any) => {

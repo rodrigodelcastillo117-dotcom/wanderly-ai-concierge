@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, BookmarkCheck, Users } from "lucide-react";
 import { localISODate } from "@/lib/localDate";
-import { nextTripAction, quoteFreshness, tripTiming, type NextActionInput } from "@/lib/tripCommand";
+import { barCta, nextTripAction, quoteFreshness, tripTiming, type NextActionInput } from "@/lib/tripCommand";
+import { quoteNeedsUpdate } from "@/lib/quoteChanges";
 
 type QuoteLike = { created_at?: string | null; valid_until?: string | null } | null;
 
@@ -51,6 +52,11 @@ type Props = {
   /** Lo que falta elegir en Comprar ("cómo llegar", "hotel"): si sale pronto, va antes que la maleta. */
   missing?: string[] | null;
   now?: Date;
+  /**
+   * La página ya avisa que los precios son viejos junto al total (R4 viajes P2-7: «Precio de hace 27 h…» y
+   * enseguida «Precios de hace 27 h: revísalos…»): la tarjeta no lo repite.
+   */
+  hideStaleNotice?: boolean;
 };
 
 /**
@@ -58,7 +64,7 @@ type Props = {
  * principal (la misma regla que el centro de mando de Inicio). Antes, al terminar el análisis el
  * usuario llegaba a una página larguísima sin saber si su cotización estaba guardada ni qué hacer.
  */
-export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabel, totalNote, missing, now }: Props) {
+export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabel, totalNote, missing, now, hideStaleNotice }: Props) {
   const navigate = useNavigate();
   const today = localISODate(now ?? new Date());
   const action = nextTripAction(trip, { today, quote, now, missing });
@@ -78,12 +84,13 @@ export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabe
         <div className="flex items-center gap-3 rounded-2xl border border-primary/25 bg-black/85 backdrop-blur-xl px-3 py-2 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)]">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground truncate">{timing.label}</p>
-            {totalLabel && <p className="text-sm font-medium truncate">{totalLabel}</p>}
+            {/* El total completo, sin cortar (R4 viajes P2-3): el botón usa su texto corto. */}
+            {totalLabel && <p className="text-sm font-medium whitespace-nowrap tabular-nums" data-testid="trip-next-bar-total">{totalLabel}</p>}
             {totalLabel && totalNote && <p className="text-[11px] text-muted-foreground truncate" data-testid="trip-next-bar-note">{totalNote}</p>}
           </div>
-          <button type="button" onClick={go}
-            className="shrink-0 min-h-[44px] inline-flex items-center gap-1.5 rounded-xl bg-gradient-gold px-4 text-sm font-medium text-primary-foreground active:scale-[0.98] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-            {action.cta} <ArrowRight className="w-4 h-4" aria-hidden />
+          <button type="button" onClick={go} aria-label={action.cta} data-testid="trip-next-bar-cta"
+            className="shrink-0 min-h-[44px] inline-flex items-center gap-1.5 rounded-xl bg-gradient-gold px-4 text-sm font-medium text-primary-foreground whitespace-nowrap active:scale-[0.98] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            {barCta(action)} <ArrowRight className="w-4 h-4" aria-hidden />
           </button>
         </div>
       </div>
@@ -99,7 +106,7 @@ export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabe
           <span className="inline-flex items-center gap-1.5"><Users className="w-4 h-4" aria-hidden /> Viaje compartido contigo</span>
         )}
         <span>{timing.label}</span>
-        {fresh.status !== "sin_cotizacion" && (
+        {fresh.status !== "sin_cotizacion" && !(hideStaleNotice && fresh.status === "por_revisar" && !quoteNeedsUpdate(trip)) && (
           <span className={fresh.status === "vigente" ? "" : "text-amber-400"}>{fresh.label}</span>
         )}
       </div>

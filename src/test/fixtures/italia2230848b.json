@@ -1,0 +1,298 @@
+{
+  "id": "2230848b-8d55-436f-b1bb-5b9bdb392d41",
+  "destino": "Roma → Florencia → Venecia",
+  "pais_destino": "Italia",
+  "ciudad_origen": "Ciudad de México",
+  "fecha_salida": "2027-05-10",
+  "fecha_regreso": "2027-05-20",
+  "num_viajeros": 2,
+  "fuente": "plan",
+  "status": "listo",
+  "selections": null,
+  "itinerario_json": {
+    "multi": true,
+    "destinations": [
+      "Roma",
+      "Florencia",
+      "Venecia"
+    ],
+    "logistics": {
+      "date_from": "2027-05-10",
+      "date_to": "2027-05-20",
+      "per_destination": [
+        {
+          "city": "Roma",
+          "checkin": "2027-05-10",
+          "checkout": "2027-05-14"
+        },
+        {
+          "city": "Florencia",
+          "checkin": "2027-05-14",
+          "checkout": "2027-05-17"
+        },
+        {
+          "city": "Venecia",
+          "checkin": "2027-05-17",
+          "checkout": "2027-05-20"
+        }
+      ]
+    },
+    "days": [
+      {
+        "ciudad": "Roma",
+        "dia": 1,
+        "mañana": "Llegada al Aeropuerto de Fiumicino, traslado al hotel en el centro histórico y check-in con calma para instalarse.",
+        "noche": "Cena de bienvenida en Trastevere disfrutando de una clásica pasta carbonara o cacio e pepe en una trattoria tradicional.",
+        "tarde": "Paseo relajado de orientación por Piazza Navona, Campo de' Fiori y el Panteón para comenzar a aclimatarse.",
+        "titulo": "Roma — Benvenuti a Roma: Primeros pasos en la Ciudad Eterna"
+      },
+      {
+        "ciudad": "Roma",
+        "dia": 2,
+        "mañana": "Visita guiada sin filas al Coliseo Romano y los senderos del Foro Romano y Monte Palatino.",
+        "noche": "Cena elegante cerca de Campo de' Fiori con copa de vino de la región del Lacio.",
+        "tarde": "Recorrido por la Fontana di Trevi, Piazza di Spagna y las terrazas del Pincio para una vista panorámica.",
+        "titulo": "Roma — El esplendor de la Roma imperial y fuentes barrocas"
+      },
+      {
+        "ciudad": "Roma",
+        "dia": 3,
+        "mañana": "Entrada prioritaria a los Museos Vaticanos, Capilla Sixtina y la Basílica de San Pedro.",
+        "noche": "Cena relajada en Borgo Pío probando especialidades romanas al horno.",
+        "tarde": "Paseo escénico hacia el Castel Sant'Angelo y caminata a orillas del río Tíber al atardecer.",
+        "titulo": "Roma — Tesoros artísticos del Vaticano y riberas del Tíber"
+      },
+      {
+        "ciudad": "Roma",
+        "dia": 4,
+        "mañana": "Visita a la Galería Borghese explorando las esculturas maestras de Bernini y Caravaggio.",
+        "noche": "Paseo nocturno iluminado por el centro histórico y helado artesanal en Giolitti.",
+        "tarde": "Exploración libre del encantador barrio de Monti, con sus boutiques de diseño y cafés bohemios.",
+        "titulo": "Roma — Arte en Villa Borghese y el encanto bohemio de Monti"
+      },
+      {
+        "ciudad": "Florencia",
+        "dia": 5,
+        "mañana": "Tren de alta velocidad Frecciarossa/Italo desde Roma Termini hasta Florencia Santa Maria Novella; registro en el hotel.",
+        "noche": "Cena toscana tradicional probando una auténtica Bistecca alla Fiorentina acompañada de vino Chianti.",
+        "tarde": "Caminata por la Piazza del Duomo, admirando la cúpula de Brunelleschi, el Baptisterio y la Piazza della Signoria.",
+        "titulo": "Florencia — Llegada a la cuna del Renacimiento"
+      },
+      {
+        "ciudad": "Florencia",
+        "dia": 6,
+        "mañana": "Recorrido por la Galería de la Academia para contemplar el David de Miguel Ángel en persona.",
+        "noche": "Cena con pastas frescas elaboradas a mano en el barrio de Santa Croce.",
+        "tarde": "Cruce por el Ponte Vecchio hacia el animado barrio de Oltrarno; subida a Piazzale Michelangelo para el atardecer.",
+        "titulo": "Florencia — Genios renacentistas y vistas doradas desde Piazzale Michelangelo"
+      },
+      {
+        "ciudad": "Florencia",
+        "dia": 7,
+        "mañana": "Visita guiada por las salas maestras de la Galería Uffizi (Botticelli, Da Vinci y Rafael).",
+        "noche": "Cena de despedida florentina en Santo Spirito con un aperitivo toscano relajado.",
+        "tarde": "Paseo tranquilo por los Jardines de Boboli y tiempo para explorar el mercado artesanal de cuero de San Lorenzo.",
+        "titulo": "Florencia — Galería Uffizi y jardines palaciegos toscanos"
+      },
+      {
+        "ciudad": "Venecia",
+        "dia": 8,
+        "mañana": "Tren de alta velocidad desde Florencia SMN hacia la estación Venezia Santa Lucia. Llegada y traslado en vaporetto por el Gran Canal.",
+        "noche": "Ruta de 'cicchetti' (tapas venecianas) y vino Ombra en tabernas bacari históricas del barrio de Cannaregio.",
+        "tarde": "Primer paseo a pie descubriendo los puentes y callejones hacia la majestuosa Piazza San Marco.",
+        "titulo": "Venecia — Bienvenida a la Serenísima sobre el agua"
+      },
+      {
+        "ciudad": "Venecia",
+        "dia": 9,
+        "mañana": "Visita a la Basílica de San Marco y el Palacio Ducal con recorrido por el emblemático Puente de los Suspiros.",
+        "noche": "Cena frente a un canal apartado disfrutando de risottos marinados y marisco fresco veneciano.",
+        "tarde": "Paseo en góndola tradicional por los canales serpenteantes y vistas desde el Puente de Rialto.",
+        "titulo": "Venecia — Corazón de San Marco y canales legendarios"
+      },
+      {
+        "ciudad": "Venecia",
+        "dia": 10,
+        "mañana": "Excursión en barco local a las coloridas islas de la laguna: el encaje y casas de colores de Burano y el vidrio de Murano.",
+        "noche": "Cena de despedida con vistas al Gran Canal brindando con un clásico Bellini veneciano.",
+        "tarde": "Regreso a Venecia para últimas compras de máscaras artesanales y paseo por el sestiere de Dorsoduro.",
+        "titulo": "Venecia — Colores de la laguna veneciana y despedida italiana"
+      }
+    ]
+  },
+  "vuelos_json": [
+    {
+      "from": "Ciudad de México",
+      "to": "Roma",
+      "tier": "ahorro",
+      "mode": "vuelo",
+      "aerolinea": "Lufthansa",
+      "salida": "2027-05-10 19:50",
+      "llegada": "2027-05-11 17:50",
+      "duracion": "14h 0m",
+      "escalas": "Escalas: Fráncfort",
+      "dep_iata": "MEX",
+      "arr_iata": "FCO",
+      "return_from": "Venecia",
+      "return_from_iata": "VCE",
+      "price_total_mxn": 31726,
+      "precio_por_persona": 15863,
+      "fuente_precio": "en_vivo",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:44.133Z",
+      "notas": "Ciudad de México → Roma · Precio total ida y regreso (MEX→FCO · VCE→MEX) para 2 viajeros, según Google Flights. Horarios del vuelo de ida; el regreso se elige en Google Flights."
+    },
+    {
+      "from": "Ciudad de México",
+      "to": "Roma",
+      "tier": "equilibrio",
+      "mode": "vuelo",
+      "aerolinea": "British Airways",
+      "salida": "2027-05-10 22:00",
+      "llegada": "2027-05-11 22:40",
+      "duracion": "16h 40m",
+      "escalas": "Escalas: Londres",
+      "dep_iata": "MEX",
+      "arr_iata": "FCO",
+      "return_from": "Venecia",
+      "return_from_iata": "VCE",
+      "price_total_mxn": 34932,
+      "precio_por_persona": 17466,
+      "fuente_precio": "en_vivo",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:44.133Z",
+      "notas": "Ciudad de México → Roma · Precio total ida y regreso (MEX→FCO · VCE→MEX) para 2 viajeros, según Google Flights. Horarios del vuelo de ida; el regreso se elige en Google Flights."
+    },
+    {
+      "from": "Ciudad de México",
+      "to": "Roma",
+      "tier": "premium",
+      "mode": "vuelo",
+      "aerolinea": "Aeromexico",
+      "salida": "2027-05-10 19:20",
+      "llegada": "2027-05-11 15:30",
+      "duracion": "12h 10m",
+      "escalas": "Directo",
+      "dep_iata": "MEX",
+      "arr_iata": "FCO",
+      "return_from": "Venecia",
+      "return_from_iata": "VCE",
+      "price_total_mxn": 51619,
+      "precio_por_persona": 25810,
+      "fuente_precio": "en_vivo",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:44.133Z",
+      "notas": "Ciudad de México → Roma · Precio total ida y regreso (MEX→FCO · VCE→MEX) para 2 viajeros, según Google Flights. Horarios del vuelo de ida; el regreso se elige en Google Flights."
+    }
+  ],
+  "hospedaje_json": [
+    {
+      "ciudad": "Roma",
+      "tier": "ahorro",
+      "tipo": "4★",
+      "nombre": "Rome Central Rooms Guest House",
+      "barrio": "Roma",
+      "rating": 4.9,
+      "precio_por_noche": 3205,
+      "fuente_precio": "serpapi",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:42.477Z"
+    },
+    {
+      "ciudad": "Roma",
+      "tier": "equilibrio",
+      "tipo": "4★",
+      "nombre": "iQ Hotel Roma",
+      "barrio": "Roma",
+      "rating": 4.8,
+      "precio_por_noche": 6949,
+      "fuente_precio": "serpapi",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:42.477Z"
+    },
+    {
+      "ciudad": "Roma",
+      "tier": "premium",
+      "tipo": "4★",
+      "nombre": "master Trevi Rome",
+      "barrio": "Roma",
+      "rating": 5,
+      "precio_por_noche": 12818,
+      "fuente_precio": "serpapi",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:42.477Z"
+    },
+    {
+      "ciudad": "Florencia",
+      "tier": "ahorro",
+      "tipo": "4★",
+      "nombre": "Poggio Baronti B&B",
+      "barrio": "Florencia",
+      "rating": 4.9,
+      "precio_por_noche": 2534,
+      "fuente_precio": "serpapi",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:42.188Z"
+    },
+    {
+      "ciudad": "Florencia",
+      "tier": "equilibrio",
+      "tipo": "4★",
+      "nombre": "B&B Lorenzo de' Medici",
+      "barrio": "Florencia",
+      "rating": 4.9,
+      "precio_por_noche": 5813,
+      "fuente_precio": "serpapi",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:42.188Z"
+    },
+    {
+      "ciudad": "Florencia",
+      "tier": "premium",
+      "tipo": "4★",
+      "nombre": "San Firenze Suites & Spa",
+      "barrio": "Florencia",
+      "rating": 4.9,
+      "precio_por_noche": 9539,
+      "fuente_precio": "serpapi",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:42.188Z"
+    },
+    {
+      "ciudad": "Venecia",
+      "tier": "ahorro",
+      "tipo": "4★",
+      "nombre": "Casa sulla Laguna Venezia",
+      "barrio": "Venecia",
+      "rating": 4.9,
+      "precio_por_noche": 3167,
+      "fuente_precio": "serpapi",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:41.604Z"
+    },
+    {
+      "ciudad": "Venecia",
+      "tier": "equilibrio",
+      "tipo": "3★",
+      "nombre": "Rosa Salva Hotel",
+      "barrio": "Venecia",
+      "rating": 4.8,
+      "precio_por_noche": 7359,
+      "fuente_precio": "serpapi",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:41.604Z"
+    },
+    {
+      "ciudad": "Venecia",
+      "tier": "premium",
+      "tipo": "4★",
+      "nombre": "Hotel Palazzina Sardi",
+      "barrio": "Venecia",
+      "rating": 4.9,
+      "precio_por_noche": 11756,
+      "fuente_precio": "serpapi",
+      "estado_dato": "CONSULTADO_EN_VIVO",
+      "consultado_at": "2026-10-28T16:40:41.604Z"
+    }
+  ]
+}

@@ -67,7 +67,9 @@ describe("botón fijo después de elegir vuelo y hotel", () => {
     Element.prototype.scrollIntoView = function (this: Element) { scrolled.push(this.id); } as any;
     render(<MemoryRouter><div id="paso-listo" /><TripNextStep trip={base} quote={null} isOwner variant="bar" totalLabel="Total $81,273 MXN" totalNote="Tu selección" missing={[]} now={NOW} /></MemoryRouter>);
     const btn = within(screen.getByTestId("trip-next-bar")).getByRole("button");
-    expect(btn).toHaveTextContent("Ver tu selección");
+    // R4 P2-3: texto corto en la barra; «Ver tu selección» es su nombre accesible.
+    expect(btn).toHaveTextContent("Ver selección");
+    expect(btn).toHaveAccessibleName("Ver tu selección");
     fireEvent.click(btn);
     expect(scrolled.at(-1)).toBe("paso-listo");
   });

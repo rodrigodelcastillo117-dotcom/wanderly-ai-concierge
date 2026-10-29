@@ -8,6 +8,7 @@
 import { cityStays, sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { alignStoredArrival, clockOf, type FlightTimes } from "../../supabase/functions/_shared/tripCalendar.ts";
 import { countryOfCity } from "../../supabase/functions/_shared/airports.ts";
+import { timeZoneFor, utcOffsetMinutes } from "../../supabase/functions/_shared/worldClock.ts";
 import { durationHours, isGroundTripOption } from "@/lib/booking";
 
 const normPais = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -51,38 +52,87 @@ function dateNear(start: string, dom: number, mes: string | undefined): string |
   return null;
 }
 
+/** "11h 0m", "18h 5m", "26h", "13h 15m (ida) / 11h 30m (vuelta)" → minutos; null con rangos ("18h - 21h"). */
+function durationMinutes(v: unknown): number | null {
+  const t = String(v ?? "").toLowerCase().trim();
+  const m = /^(\d{1,2})\s*h(?:oras?)?(?:\s*(\d{1,2})\s*m(?:in)?)?\b/.exec(t);
+  if (!m) return null;
+  // Lo que sigue no puede ser otra duración de la ida (rango): «18h - 21h», «10-11h».
+  const tail = t.slice(m[0].length);
+  if (/^\s*(?:-|–|a\s+\d)/.test(tail)) return null;
+  const min = Number(m[1]) * 60 + (m[2] ? Number(m[2]) : 0);
+  return min >= 30 && min <= 40 * 60 ? min : null;
+}
+
+/** Hora local de llegada = salida (zona del origen) + duración, en la zona del destino. null sin zonas. */
+function arrivalByDuration(salida: string, minutes: number, origen: unknown, destino: unknown): string | null {
+  const tzO = timeZoneFor(origen), tzD = timeZoneFor(destino);
+  if (!tzO || !tzD) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(salida);
+  if (!m) return null;
+  const asUtc = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+  // Hora de la salida en UTC (el desfase del origen en ese momento, con horario de verano).
+  let dep = asUtc - utcOffsetMinutes(new Date(asUtc), tzO) * 60_000;
+  dep = asUtc - utcOffsetMinutes(new Date(dep), tzO) * 60_000;
+  const arr = dep + minutes * 60_000;
+  const local = new Date(arr + utcOffsetMinutes(new Date(arr), tzD) * 60_000).toISOString();
+  return `${local.slice(0, 10)} ${local.slice(11, 16)}`;
+}
+
 /**
  * Horas de la ida de una fila de vuelos_json, en el formato de _shared/tripCalendar ("YYYY-MM-DD HH:MM"):
  * de la tarifa en vivo (salida / llegada) o, en viajes viejos, de las notas si ahí están escritas
- * ("salida 10-mar 22:00, llegada 11-mar 22:40 (+1)"). Nunca se inventa una hora.
+ * ("salida 10-mar 22:00, llegada 11-mar 22:40 (+1)"). Si solo hay salida y duración (R4 viajes P2-1:
+ * Madrid «Sale 11:00 · Directo 11h», Tokio «Sale 05:45 · 18h 5m»), la llegada se calcula con la zona
+ * horaria del origen y del destino (`ctx`) y se marca `calculada`. Nunca se inventa una hora: sin zona
+ * horaria conocida, sin duración clara o con un rango, no hay llegada.
  */
-export function flightTimesOfRow(v: any, fechaSalida: string): FlightTimes | null {
+export function flightTimesOfRow(v: any, fechaSalida: string, ctx: { origen?: unknown; destino?: unknown } = {}): FlightTimes | null {
   if (!v) return null;
   const full = (x: unknown) => typeof x === "string" && /^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}/.test(x.trim());
   if (full(v.salida) && full(v.llegada)) return { salida: String(v.salida).trim().replace("T", " "), llegada: String(v.llegada).trim().replace("T", " ") };
-  const t = String(v.notas ?? "").toLowerCase();
-  const dep = new RegExp(`\\b(?:sale|salida|despega)\\s*${DATE_RE}${TIME_RE}`).exec(t);
-  const arr = new RegExp(`\\b(?:llega|llegada|aterriza)\\s*${DATE_RE}${TIME_RE}(\\s*\\(?\\+\\s*(\\d)\\s*(?:d[ií]as?)?\\)?)?`).exec(t);
-  if (!dep || !arr) return null;
   // Una tarifa de otro día (fechas aproximadas) no dice nada de la llegada.
   if (v.approximate_dates === true) return null;
-  if (dep[1] && dateNear(fechaSalida, Number(dep[1]), dep[2]) !== fechaSalida) return null;
+  const t = String(v.notas ?? "").toLowerCase();
+  const depM = new RegExp(`\\b(?:sale|salida|despega)\\s*${DATE_RE}${TIME_RE}`).exec(t);
+  const arr = new RegExp(`\\b(?:llega|llegada|aterriza)\\s*${DATE_RE}${TIME_RE}(\\s*\\(?\\+\\s*(\\d)\\s*(?:d[ií]as?)?\\)?)?`).exec(t);
+  // Salida: la de la tarifa (con fecha del viaje) o la escrita en las notas.
+  let salida: string | null = null;
+  if (full(v.salida)) {
+    const s = String(v.salida).trim().replace("T", " ");
+    salida = s.slice(0, 10) === fechaSalida ? `${fechaSalida} ${clockOf(s)}` : null;
+    if (!salida) return null;
+  } else if (depM) {
+    if (depM[1] && dateNear(fechaSalida, Number(depM[1]), depM[2]) !== fechaSalida) return null;
+    salida = `${fechaSalida} ${clockOf(`${depM[3]}:${depM[4]}`)}`;
+  }
+  if (!salida) return null;
+  if (!arr) {
+    const min = durationMinutes(v.duracion ?? v.duration);
+    const llegada = min != null ? arrivalByDuration(salida, min, ctx.origen, ctx.destino) : null;
+    return llegada ? { salida, llegada, calculada: true } : null;
+  }
   let llegaDia: string | null;
   if (arr[6]) llegaDia = addDays(fechaSalida, Number(arr[6]));
   else if (arr[1]) llegaDia = dateNear(fechaSalida, Number(arr[1]), arr[2]);
   else llegaDia = fechaSalida;
   if (!llegaDia) return null;
-  return { salida: `${fechaSalida} ${clockOf(`${dep[3]}:${dep[4]}`)}`, llegada: `${llegaDia} ${clockOf(`${arr[3]}:${arr[4]}`)}` };
+  return { salida, llegada: `${llegaDia} ${clockOf(`${arr[3]}:${arr[4]}`)}` };
 }
 
 /** Vuelo de ida que manda en el itinerario: el elegido, uno de la persona, el equilibrado o el primero. */
-function outboundFlight(trip: any, firstCity: string): any | null {
+function idaRows(trip: any, firstCity: string): any[] {
   const all: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
   const flights = all.filter((v) => v && typeof v === "object" && !isGroundTripOption(v));
-  if (!flights.length) return null;
   // En varias ciudades, la ida es el tramo que llega a la primera (o sale de tu ciudad).
   const ida = flights.filter((v) => !v.to || sameCity(v.to, firstCity) || (trip?.ciudad_origen && v.from && sameCity(v.from, trip.ciudad_origen)));
-  const rows = ida.length ? ida : flights;
+  return ida.length ? ida : flights;
+}
+
+function outboundFlight(trip: any, firstCity: string): any | null {
+  const all: any[] = Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : [];
+  const rows = idaRows(trip, firstCity);
+  if (!rows.length) return null;
   const si = Number(trip?.selections?.vuelo?.i);
   const sel = Number.isInteger(si) && si >= 0 ? all[si] : null;
   if (sel && rows.includes(sel)) return sel;
@@ -121,14 +171,17 @@ export function calendarDays(trip: any): CalendarDay[] {
   if (vuelo) {
     const po = countryOfCity(trip?.ciudad_origen), pd = countryOfCity(firstCity) ?? (trip?.pais_destino ? String(trip.pais_destino) : null);
     const internacional = po && pd ? normPais(po) !== normPais(pd) : null;
-    const flight = flightTimesOfRow(vuelo, start);
+    const ctx = { origen: trip?.ciudad_origen, destino: firstCity };
+    const flight = flightTimesOfRow(vuelo, start, ctx);
+    // ¿Alguna opción de la lista llega el día 1? Si ninguna (o no se sabe), el título no dice «llegada».
+    const llegaElDia1 = idaRows(trip, firstCity).some((r) => flightTimesOfRow(r, start, ctx)?.llegada?.slice(0, 10) === start);
     // Sin horas, solo se neutraliza un vuelo que puede llegar al día siguiente o de noche: internacional o
     // largo. Un vuelo nacional corto (CDMX → Oaxaca) llega el mismo día; el día 1 no se contradice.
     const horas = durationHours(vuelo?.duracion);
     const puedeLlegarTarde = internacional !== false || (horas != null && horas >= 5);
     const aligned = alignStoredArrival(days, {
       fechaSalida: start, fechaRegreso: end, destino: firstCity, origen: trip?.ciudad_origen ?? null,
-      enAvion: !!flight || puedeLlegarTarde, flight, internacional, totalDays: total,
+      enAvion: !!flight || puedeLlegarTarde, flight, internacional, totalDays: total, llegaElDia1,
     });
     if (aligned.ajuste) {
       days.splice(0, days.length, ...(aligned.days as CalendarDay[]).map((d) => ({ ...d, dia: Number(d.dia), fecha: isIso(d.fecha) ? d.fecha : addDays(start, Number(d.dia) - 1) })));

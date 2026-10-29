@@ -186,6 +186,26 @@ export function nextTripAction(trip: NextActionInput, opts: { today: string; now
   return { key: "reservar", title: "Elige y reserva", detail: "Escoge vuelo y hotel en tu cotización; reservas directo con el proveedor.", cta: "Elegir vuelo y hotel", to: base };
 }
 
+/**
+ * Texto corto del botón de la barra fija del celular (R4 viajes P2-3: a 390 px «Elegir cómo llegar y hotel»
+ * dejaba el total en «Total $16,953 M…»). Máximo 14 caracteres para que el total se lea completo; el texto
+ * largo queda como etiqueta accesible del botón y en la tarjeta «Qué sigue».
+ */
+export const BAR_CTA: Record<NextActionKey, string> = {
+  cotizar: "Cotizar",
+  actualizar: "Recotizar",
+  revisar_precios: "Revisar",
+  reservar: "Ir a Comprar",
+  comprar: "Ver selección",
+  preparar: "Equipaje",
+  modo_viaje: "Modo viaje",
+  recuerdos: "Diario",
+  poner_fechas: "Poner fechas",
+  experiencias: "Experiencias",
+};
+
+export const barCta = (a: Pick<NextAction, "key" | "cta">): string => BAR_CTA[a.key] ?? a.cta;
+
 export type TrackedFlightLike = {
   flight: string;
   flight_date?: string | null;

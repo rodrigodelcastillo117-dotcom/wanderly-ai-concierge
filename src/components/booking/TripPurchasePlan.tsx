@@ -33,7 +33,8 @@ import { roadLegTolls, TollInfo } from "@/components/roadtrip/TollInfo";
 // Viaje corto por tierra (claude/viaje-corto): "Cómo llegar", coche con casetas reales y total real/estimado.
 import { GroundOptionInfo, groundOptionSummary } from "@/components/booking/GroundOptionInfo";
 import { isGroundTripOption } from "@/lib/booking";
-import { splitTripTotal } from "@/lib/totalSplit";
+import { splitRealText, splitTripTotal } from "@/lib/totalSplit";
+import { quoteValidity } from "@/lib/quote";
 import { broughtFlights, broughtHotelFor, isBroughtTrip } from "@/lib/broughtTrip";
 import { purchaseStepHint } from "@/lib/tripSectionHelp";
 
@@ -352,9 +353,11 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       </>
                     ) : (
                       <>
-                        <p className="mt-2 text-sm" data-testid="vuelo-sin-precio">Aún no tenemos precio real para esta ruta: búscalo en Google Flights.</p>
-                        {/* Por qué no hay precio en vivo y "Consultar precio en vivo" (caso Álvaro); Google Flights sigue abajo. */}
-                        {!s.ground && tripDestinations(trip).length <= 1 && <FlightLiveQuote trip={trip} />}
+                        {/* Una sola frase (R4 viajes P2-7, Budapest: «Aún no tenemos precio real…» y enseguida «Este viaje se
+                            cotizó sin precio en vivo…»): con «Consultar precio en vivo», el motivo lo dice FlightLiveQuote. */}
+                        {!s.ground && tripDestinations(trip).length <= 1
+                          ? <FlightLiveQuote trip={trip} />
+                          : <p className="mt-2 text-sm" data-testid="vuelo-sin-precio">Aún no tenemos precio real para esta ruta: búscalo en Google Flights.</p>}
                       </>
                     )}
                     {/* Multidestino: precio real del recorrido (Google Flights, varias ciudades) solo al pulsar. */}
@@ -651,7 +654,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                 const chose = selVuelo >= 0 || selHospedaje >= 0 || Object.values(selHoteles ?? {}).some((i) => Number(i) >= 0)
                   || Array.from(selTours ?? []).length > 0 || items.some((it) => state(it) !== "pendiente");
                 const reparto = sp && sp.estimado > 0
-                  ? sp.real > 0 ? `De eso, ${money(sp.real)} con precio en vivo y ${money(sp.estimado)} estimado.` : "Aún sin precios consultados en vivo: todo es estimado."
+                  ? sp.real > 0 ? splitRealText(sp, money, quoteValidity(trip, quoteCreatedAt ? { created_at: quoteCreatedAt } as any : null).age) : "Aún sin precios consultados en vivo: todo es estimado."
                   : "";
                 const nota = estimadosNote || (reparto ? "" : `Comida, ${transportRubroLabel(trip).toLowerCase()} y extras son estimados del análisis.`);
                 return (

@@ -17,6 +17,8 @@ type Props = {
   /** Fecha de la cotización y vigencia. */
   validityLabel?: string | null;
   validityExpired?: boolean;
+  /** "hace 27 h" si la cotización venció: el reparto dice «consultado hace 27 h», no «en vivo». */
+  priceAge?: string | null;
   /** Tipo de cambio con que se cotizó, si se conoce. */
   fxNote?: string | null;
   onRequote?: () => void;
@@ -45,7 +47,7 @@ const fmtMXN = (n: number) =>
 export { tripTotals } from "@/lib/tripPageTotal";
 import { tripTotals } from "@/lib/tripPageTotal";
 
-export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, fxNote, onRequote, selectionDesglose, trust, summary, split, children }: Props) {
+export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, priceAge, fxNote, onRequote, selectionDesglose, trust, summary, split, children }: Props) {
   const { total, porPersona, presupuesto, excedente, fromSelection } = tripTotals(trip, viajeros, selectionDesglose);
 
   const [showAnalisis, setShowAnalisis] = useState(false);
@@ -55,6 +57,10 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
   const estimated = summary?.state === "estimado" || !!summary?.sinPrecioReal?.length || (!summary && !fromSelection);
   const quien = viajeros > 1 ? `Total para ${viajeros} personas` : "Total para 1 persona";
   const splitLine = !!split && split.estimado > 0;
+  // Un solo aviso de precio viejo (R4 viajes P2-7): si el reparto ya dice «consultado hace 27 h», la línea
+  // de vigencia no lo repite.
+  const aged = !!(validityExpired && priceAge && splitLine && split!.real > 0);
+  const shownValidity = aged ? "Verifica los precios antes de reservar: pueden haber cambiado." : validityLabel;
 
   return (
     <motion.div
@@ -97,7 +103,7 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
       {splitLine ? (
         <p className="mb-2 text-sm text-muted-foreground" data-testid="trip-total-reparto">
           {split!.real > 0
-            ? <span data-testid="trip-total-real">De eso, <span className="tabular-nums text-foreground/90">{fmtMXN(split!.real)}</span> con precio en vivo y <span className="tabular-nums" data-testid="trip-total-estimado">{fmtMXN(split!.estimado)}</span> estimado.</span>
+            ? <span data-testid="trip-total-real">De eso, <span className="tabular-nums text-foreground/90">{fmtMXN(split!.real)}</span> {aged ? `con precio consultado ${priceAge}` : "con precio en vivo"} y <span className="tabular-nums" data-testid="trip-total-estimado">{fmtMXN(split!.estimado)}</span> estimado.</span>
             : <span data-testid="trip-total-sin-reales">Aún sin precios consultados en vivo: todo el total es estimado.</span>}
         </p>
       ) : trust?.known ? (
@@ -111,9 +117,9 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
           <span>Falta {fmtMXN(summary.pending)}</span>
         </p>
       )}
-      {validityLabel && (
-        <p className={`text-[11px] mb-2 flex items-center gap-1 ${validityExpired ? "text-amber-500" : "text-muted-foreground"}`}>
-          <Clock className="w-3 h-3 shrink-0" /> {validityLabel}
+      {shownValidity && (
+        <p className={`text-[11px] mb-2 flex items-center gap-1 ${validityExpired ? "text-amber-500" : "text-muted-foreground"}`} data-testid="trip-total-vigencia">
+          <Clock className="w-3 h-3 shrink-0" /> {shownValidity}
         </p>
       )}
       {/* Si la cotización ya no corresponde, UNA línea discreta junto al total (sin otra cifra). */}

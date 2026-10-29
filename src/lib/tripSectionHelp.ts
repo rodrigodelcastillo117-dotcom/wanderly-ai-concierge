@@ -49,6 +49,15 @@ export function tripSectionHelp(id: TripSection, ctx: SectionHelpCtx = {}): stri
   }
 }
 
+/**
+ * Enlace a «Comprar» arriba del itinerario. En un viaje traído o de documentos ya no se le pide elegir el
+ * vuelo y los hoteles (R4 viajes P2-4, Oaxaca: «elígelos en Comprar» cuando la página dice «ya los tienes»).
+ */
+export function itineraryBuyLink(ctx: SectionHelpCtx = {}): string {
+  if (ctx.brought || ctx.documento) return "Vuelo y hotel ya los tienes · restaurantes y experiencias en Comprar →";
+  return ctx.byLand ? "Cómo llegar, hotel y reservas: elígelos en Comprar →" : "Vuelo, hoteles y reservas: elígelos en Comprar →";
+}
+
 /** Una línea bajo cada paso de "Comprar" con opciones para elegir. */
 export function purchaseStepHint(kind: "vuelo" | "hospedaje" | "traslado" | "auto", opts: { ground?: boolean } = {}): string {
   switch (kind) {

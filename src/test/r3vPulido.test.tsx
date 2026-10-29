@@ -27,7 +27,7 @@ import { draftNote, draftSpec, mergeDraftWithAi } from "@/lib/tripSpecDraft";
 import { validateTripSpec } from "../../supabase/functions/_shared/tripSpec";
 import { buildTasteProfile, lovedLabels, savedOnlyLabels, stripUnfoundedLove } from "../../supabase/functions/_shared/tasteProfile";
 import { converterRateLabel, fxLabel, fxSourceName } from "@/lib/fx";
-import { duplicateTripMarks, markedTripName } from "@/lib/tripList";
+import { duplicateTripMarks, tripChipLabels, markedTripName } from "@/lib/tripList";
 
 const src = (p: string) => readFileSync(p, "utf8");
 
@@ -99,7 +99,7 @@ describe("P2-5 · vuelo sin precio en viajes viejos: no habla de «los vuelos de
   it("el aviso genérico no apunta a vuelos que no se muestran", () => {
     const info = flightNoLiveInfo({ destino: "Budapest", ciudad_origen: "Ciudad de México", fecha_salida: "2027-05-01", fecha_regreso: "2027-05-06", vuelos_json: [] });
     expect(info.texto).not.toMatch(/arriba/);
-    expect(info.texto).toMatch(/sin precio en vivo de vuelos/);
+    expect(info.texto).toMatch(/precio en vivo de este vuelo/);
   });
 });
 
@@ -186,7 +186,9 @@ describe("P2-14 / P2-15 · viajes iguales se distinguen", () => {
     const trips = ["2026-10-20T10:00:00Z", "2026-10-25T10:00:00Z"].map((c, i) => ({ id: `m${i}`, destino: "Madrid", fecha_salida: "2027-03-10", fecha_regreso: "2027-03-17", created_at: c }));
     const d = duplicateTripMarks(trips as any);
     expect(markedTripName("Madrid", d.n.get("m1"))).toBe("Madrid (2)");
-    expect(src("src/components/TripSavingsCalculator.tsx")).toMatch(/markedTripName\(shortTripName\(t\), dups\.n\.get\(t\.id\)\)/);
+    // R4 P2-5: el chip sale de tripChipLabels (mismas marcas (2), (3) y, con la misma salida, el rango de fechas).
+    expect(tripChipLabels(trips as any).get("m1")).toBe("Madrid (2) · 10–17 mar 2027");
+    expect(src("src/components/TripSavingsCalculator.tsx")).toMatch(/chipLabels\.get\(t\.id\)/);
   });
   it("«Creado el» con la hora", () => {
     expect(src("src/pages/Trips.tsx")).toMatch(/Creado el \{formatInstantDateTime\(t\.created_at\)\}/);

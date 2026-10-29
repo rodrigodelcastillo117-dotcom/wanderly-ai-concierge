@@ -42,7 +42,8 @@ describe("P1-1: el día 1 sigue al vuelo de ida (viajes ya guardados)", () => {
   it("sin horas en vuelos_json (Madrid 2): el día 1 no afirma la llegada", () => {
     const t = {
       destino: "Madrid", ciudad_origen: "Ciudad de México", fecha_salida: "2027-03-10", fecha_regreso: "2027-03-12",
-      vuelos_json: [{ aerolinea: "Aeroméxico", tier: "equilibrio", notas: "Directo, sale 11:00", duracion: "11h 0m" }],
+      // Sin duración (R4 P2-1: con salida y duración la llegada ya se calcula; ver r4vItinerario).
+      vuelos_json: [{ aerolinea: "Aeroméxico", tier: "equilibrio", notas: "Directo, sale 11:00" }],
       itinerario_json: [
         dayOf(1, "Llegada a Madrid y primer paseo por el centro", "Vuelo CDMX→Madrid en tránsito; descanso a bordo para llegar con energía.",
           "Llegada, traslado a tu hotel y check-in. Paseo tranquilo por Plaza Mayor y las calles aledañas.", "Cena ligera en La Latina."),
@@ -51,7 +52,8 @@ describe("P1-1: el día 1 sigue al vuelo de ida (viajes ya guardados)", () => {
       ],
     };
     const [d1, d2] = calendarDays(t);
-    expect(d1.titulo).toBe("Vuelo y llegada a Madrid");
+    // R4 P2-1: ninguna opción llega el día 1 (o no se sabe): el título ya no dice «llegada».
+    expect(d1.titulo).toBe("Vuelo a Madrid");
     expect(d1["mañana"]).toMatch(/^Vuelo a Madrid: la hora de llegada depende de tu vuelo/);
     expect(d1.tarde).not.toMatch(/^Llegada/);
     expect(d1.tarde).toMatch(/Plaza Mayor.*\(si tu vuelo llega a tiempo\)\.$/);
@@ -90,7 +92,8 @@ describe("P1-1: el día 1 sigue al vuelo de ida (viajes ya guardados)", () => {
       dayOf(1, "Llegada a Madrid", "Vuelo desde CDMX.", "Llegada a Barajas y check-in.", "Cena en Gloria Bendita."),
       dayOf(2, "Salida", "Desayuno.", "Traslado al aeropuerto.", "Vuelo."),
     ], { fechaSalida: "2027-03-10", fechaRegreso: "2027-03-11", destino: "Madrid", origen: "Ciudad de México", flight: null, enAvion: true });
-    expect(days[0].titulo).toBe("Vuelo y llegada a Madrid");
+    expect(days[0].titulo).toBe("Vuelo a Madrid");
+    expect(days[0].tipo).toBe("llegada_sin_hora");
     expect(days[0].noche).toBe("Cena en Gloria Bendita (si tu vuelo llega a tiempo).");
     // En coche (enAvion sin marcar) no cambia.
     const coche = applyTripCalendar([dayOf(1, "Llegada a Valle", "Salida en coche.", "Check-in.", "Cena.")], { fechaSalida: "2026-10-30", fechaRegreso: "2026-11-01", destino: "Valle de Bravo", flight: null });

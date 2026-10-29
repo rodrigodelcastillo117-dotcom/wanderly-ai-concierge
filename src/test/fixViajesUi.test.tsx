@@ -234,7 +234,9 @@ it("P2-19 · Experiencias: 'No tenemos museos…' una sola vez y sin nota de The
   render(<MemoryRouter><TripExperiencias trip={trip} cities={cities} multi={false} marks={marks} userId="u1" invoke={exp as any} /></MemoryRouter>);
   fireEvent.click(screen.getByTestId("exp-buscar"));
   await waitFor(() => expect(screen.getByTestId("exp-rest-fuente")).toBeInTheDocument());
-  expect(screen.getAllByText(/No tenemos museos/)).toHaveLength(1);
+  // R4 P2-6: sin «tabla de taquillas oficiales»; el estado vacío sale una sola vez.
+  expect(screen.getAllByText(/Aún no tenemos los museos de Bogotá/)).toHaveLength(1);
+  expect(document.body.textContent).not.toMatch(/tabla de taquillas/);
   expect(screen.getByTestId("exp-rest-fuente").textContent).not.toMatch(/TheFork/);
 });
 

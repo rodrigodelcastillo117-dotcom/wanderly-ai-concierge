@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MapPin, type LucideIcon } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 import {
-  cachedPlacePhoto, cachedResolvedPhoto, fetchPlacePhotoUrl, resolvePlacePhotoUrl, type PlaceLookup,
+  cachedPlacePhoto, cachedResolvedPhoto, fetchPlacePhotoUrl, rememberLookupPhoto, resolvePlacePhotoUrl, type PlaceLookup,
 } from "@/lib/placePhoto";
 import { cachedStockPhoto, getStockPhoto } from "@/lib/stockPhoto";
 import { sizedPhotoUrl } from "@/lib/imageSizing";
@@ -54,6 +54,12 @@ export type SmartImageProps = {
 };
 
 const WIDTH = { thumb: 240, card: 800, hero: 800 } as const;
+/**
+ * Costo de place-photo (R4 viajes: ~300 llamadas en 18 min en Comprar y Experiencias): la foto de Google de
+ * un lugar se pide UNA vez, siempre al mismo ancho, y la miniatura se achica en la URL (sizedPhotoUrl). Antes
+ * la miniatura (240) y la tarjeta (800) del mismo restaurante eran dos llamadas.
+ */
+export const PLACE_PHOTO_FETCH_WIDTH = 800;
 
 const POS: Record<NonNullable<SmartImageProps["captionPosition"]>, string> = {
   "bottom-right": "bottom-2 right-2",
@@ -73,7 +79,8 @@ type Step = "url" | "ref" | "lookup" | "stock" | "stock2";
 export const IMAGE_LOAD_TIMEOUT_MS = 8000;
 
 /** Lo que se puede pintar sin llamar a nada (caché de la sesión). undefined = hay que pedirlo. */
-function peek(p: SmartImageProps, w: number, skip: Set<Step>): Resolved | null | undefined {
+function peek(p: SmartImageProps, _w: number, skip: Set<Step>): Resolved | null | undefined {
+  const w = PLACE_PHOTO_FETCH_WIDTH;
   const url = safeHttps(p.imageUrl);
   if (url && !skip.has("url")) return { url, kind: p.imageKind === "stock" ? "stock" : "real" };
   if (p.photoRef && !skip.has("ref")) {
@@ -113,12 +120,17 @@ function capped<T>(p: Promise<T>, ms: number, key?: string): Promise<T | null> {
   return Promise.race([p.catch(() => null), new Promise<null>((r) => { t = setTimeout(() => { if (key) timedOut.add(key); r(null); }, ms); })]).finally(() => { if (t) clearTimeout(t); });
 }
 
-async function resolve(p: SmartImageProps, w: number, skip: Set<Step>): Promise<Resolved | null> {
+async function resolve(p: SmartImageProps, _w: number, skip: Set<Step>): Promise<Resolved | null> {
+  const w = PLACE_PHOTO_FETCH_WIDTH;
   const url = safeHttps(p.imageUrl);
   if (url && !skip.has("url")) return { url, kind: p.imageKind === "stock" ? "stock" : "real" };
   if (p.photoRef && !skip.has("ref")) {
     const u = await capped(fetchPlacePhotoUrl(p.photoRef, w), IMAGE_STEP_TIMEOUT_MS, `ref:${p.photoRef}:${w}`);
-    if (u) return { url: u, kind: "google" };
+    if (u) {
+      // El mismo lugar en otra tarjeta solo con su id (hoteles y carrusel de Comprar) no vuelve a pagarla.
+      if (p.lookup) rememberLookupPhoto(p.lookup, u, w);
+      return { url: u, kind: "google" };
+    }
   }
   if (p.lookup && !skip.has("lookup")) {
     const u = await capped(resolvePlacePhotoUrl(p.lookup, w), IMAGE_STEP_TIMEOUT_MS, `lookup:${JSON.stringify(p.lookup)}:${w}`);

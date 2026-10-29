@@ -34,6 +34,7 @@ import { isBroughtTrip } from "@/lib/broughtTrip";
 import { displayedTripTotal } from "@/lib/tripPageTotal";
 import { invalidQuoteReason, REQUOTE_LABEL } from "@/lib/budgetSanity";
 import { shortTripName } from "@/lib/tripName";
+import { destinationCoverUrl } from "../../supabase/functions/_shared/tripCover.ts";
 
 // "Ya tengo vuelos y hotel": la misma ventana de Planear, abierta en ese modo (solo se descarga al pulsar).
 const PlanTripDialog = lazy(() => import("@/components/plan/PlanTripDialog"));
@@ -113,7 +114,7 @@ const TripCard = ({ t, userId, onDeleted, bookings = [], dupN, showCreated = fal
             ilustrativa del destino marcada como tal. Se pide solo cuando la tarjeta se ve. */}
         <SmartImage
           alt={name}
-          imageUrl={t.cover_image_url ?? null}
+          imageUrl={destinationCoverUrl(t.cover_image_url)}
           stockQuery={destinationQuery(name, t.pais_destino)}
           icon={MapPin}
           className="h-44 w-full"

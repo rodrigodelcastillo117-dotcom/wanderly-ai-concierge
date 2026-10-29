@@ -75,11 +75,15 @@ describe("PDF del viaje: portada", () => {
   it("usa la foto del viaje (cover_image_url) o una ilustrativa con crédito", async () => {
     const jpeg = new Uint8Array(readFileSync(join(__dirname, "fixtures", "edition-photo.jpg")));
     const asked: PhotoRequest[] = [];
-    const res = await build({ ...CASO_TRIP_PDF, cover_image_url: "https://lh3.googleusercontent.com/p/abc=w1600" }, NO_SEL, {}, async (r) => {
+    // R4 P2-2: una foto de Google de un lugar ya no es la portada (va la ilustrativa del destino); una foto
+    // del destino que no es de Google sí.
+    const google = await build({ ...CASO_TRIP_PDF, cover_image_url: "https://lh3.googleusercontent.com/p/abc=w1600" }, NO_SEL, {}, async () => null);
+    expect(google.model.coverImageUrl).toBeNull();
+    const res = await build({ ...CASO_TRIP_PDF, cover_image_url: "https://images.pexels.com/photos/9/roma.jpeg" }, NO_SEL, {}, async (r) => {
       asked.push(r);
       return { bytes: jpeg, credit: r.kind === "cover" ? "Foto: Google" : "Foto ilustrativa: Ana / Pexels" };
     });
-    expect(asked[0]).toMatchObject({ kind: "cover", url: "https://lh3.googleusercontent.com/p/abc=w1600" });
+    expect(asked[0]).toMatchObject({ kind: "cover", url: "https://images.pexels.com/photos/9/roma.jpeg" });
     expect(asked.filter((a) => a.kind === "city").map((a) => a.city)).toEqual(["Roma", "Florencia", "Venecia"]);
     expect(res.photos).toBe(4);
     const text = pdfPagesText(res.bytes).join("\n");
