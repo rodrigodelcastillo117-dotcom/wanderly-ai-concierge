@@ -82,7 +82,7 @@ describe("P2-1 · el aviso de cookies no tapa 'Empezar gratis' ni la barra infer
     const short = screen.getByTestId("cookie-text-short").textContent ?? "";
     expect(short.length).toBeLessThan(170);
     expect(short).toMatch(/PostHog/);
-    expect(src("src/components/DashboardLayout.tsx")).toMatch(/aria-label="Navegación principal" data-bottom-nav=""/);
+    expect(src("src/components/DashboardLayout.tsx")).toMatch(/<nav aria-label="Navegación principal" [^>]*data-bottom-nav=""/);
   });
 
   it("P2-4 · el enlace del aviso es descriptivo y subrayado (no 'Más información')", () => {

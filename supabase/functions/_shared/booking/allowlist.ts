@@ -17,7 +17,8 @@ import { createAllowlist, type ProviderRule, type UrlVerdict as CoreVerdict } fr
 
 // Las reglas (open redirects, dominios falsos, URLs inseguras) viven en ./allowlistCore.ts, sin datos: el
 // navegador las arma con los mismos dominios sin estas notas y con una lista de sufijos reducida
-// (src/lib/bookingAllowlist.ts, generada con scripts/booking/gen_client_allowlist.mjs; ronda 2 P2-5).
+// (src/lib/bookingAllowlist.ts + bookingAllowlist.data.ts, generado con `npx tsx scripts/booking/clientAllowlistGen.ts`;
+// ronda 2 P2-5). Si cambias PROVIDERS, regenera el archivo del navegador (una prueba lo exige).
 
 /** Dominios oficiales de Ticketmaster por país (en ./tmDomains.ts, módulo chico que también usa la app). */
 export { TM_DOMAINS } from "./tmDomains.ts";
