@@ -107,14 +107,45 @@ export type MyTeamRequest = {
   history: { at: string; from?: string | null; to?: string | null; actor?: string }[];
 };
 
-export async function myTeamRequests(): Promise<{ ok: true; data: MyTeamRequest[] } | { ok: false; message: string }> {
-  try {
-    const { data, error } = await supabase.rpc("my_team_requests" as any);
-    if (error) return { ok: false, message: error.message };
-    return { ok: true, data: Array.isArray(data) ? (data as MyTeamRequest[]) : [] };
-  } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "error" };
-  }
+type MyTeamResult = { ok: true; data: MyTeamRequest[] } | { ok: false; message: string };
+
+// "Mis solicitudes" tardaba 2.6 s en aparecer (auditoría 10, ronda 2, N8): la pestaña pedía la lista
+// recién al abrirse. Ahora el Concierge la pide en segundo plano al cargar (prefetchMyTeamRequests) y la
+// pestaña pinta al instante lo último que se leyó (cachedMyTeamRequests) mientras se actualiza.
+const TEAM_CACHE_MS = 5 * 60_000;
+let teamCache: { at: number; data: MyTeamRequest[] } | null = null;
+let teamInflight: Promise<MyTeamResult> | null = null;
+
+/** Lo último leído (si tiene menos de 5 min) para pintar sin esperar. */
+export function cachedMyTeamRequests(now = Date.now()): MyTeamRequest[] | null {
+  return teamCache && now - teamCache.at < TEAM_CACHE_MS ? teamCache.data : null;
+}
+
+/** Solo pruebas. */
+export function __resetMyTeamRequestsCache() { teamCache = null; teamInflight = null; }
+
+export function myTeamRequests(): Promise<MyTeamResult> {
+  if (teamInflight) return teamInflight;
+  teamInflight = (async (): Promise<MyTeamResult> => {
+    try {
+      const { data, error } = await supabase.rpc("my_team_requests" as any);
+      if (error) return { ok: false, message: error.message };
+      const rows = Array.isArray(data) ? (data as MyTeamRequest[]) : [];
+      teamCache = { at: Date.now(), data: rows };
+      return { ok: true, data: rows };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "error" };
+    } finally {
+      teamInflight = null;
+    }
+  })();
+  return teamInflight;
+}
+
+/** Lectura anticipada (sin esperar ni mostrar errores): la pestaña ya la tiene al abrirse. */
+export function prefetchMyTeamRequests(): void {
+  if (cachedMyTeamRequests()) return;
+  void myTeamRequests().catch(() => {});
 }
 
 /** "2 de nov., 20:30 h" a partir de lo que pidió la persona (hora del lugar si no trae zona). */

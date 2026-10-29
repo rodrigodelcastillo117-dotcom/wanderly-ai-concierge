@@ -14,6 +14,7 @@ import { FlightStatusDialog } from "@/components/FlightStatusDialog";
 import { TravelerAvatar } from "@/components/TravelerAvatar";
 import { MembersOnlyPanel } from "@/components/MembersOnlyPanel";
 import { MyTeamRequests } from "@/components/concierge/MyTeamRequests";
+import { prefetchMyTeamRequests } from "@/lib/opsDesk";
 import { FixerButton } from "@/components/FixerButton";
 import { supabase } from "@/integrations/supabase/client";
 import { sessionTrulyExpired } from "@/lib/authRestore";
@@ -219,6 +220,13 @@ const Concierge = () => {
         : [...prev.filter((m) => m.id === "welcome"), ...restored]));
     });
   }, [user?.id, allowed, tripsLoaded, trip?.id]);
+
+  // "Mis solicitudes" se lee en segundo plano al abrir el Concierge: la pestaña aparece al instante (N8).
+  useEffect(() => {
+    if (!user || !allowed) return;
+    const t = window.setTimeout(() => prefetchMyTeamRequests(), 1200);
+    return () => window.clearTimeout(t);
+  }, [user?.id, allowed]);
 
   const pinTrip = async (id: string | null) => {
     setPinnedId(id);

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Check, Clock, Loader2, MessageSquare, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatRequested, myTeamRequests, whenText, type MyTeamRequest } from "@/lib/opsDesk";
+import { cachedMyTeamRequests, formatRequested, myTeamRequests, whenText, type MyTeamRequest } from "@/lib/opsDesk";
 import { folioOf, isBookingLike, opsTypeLabel, userStageText } from "../../../supabase/functions/_shared/ops-labels.ts";
 
 const OPEN = new Set(["nueva", "en_proceso"]);
@@ -22,7 +22,8 @@ function StageLine({ r }: { r: MyTeamRequest }) {
 }
 
 export function MyTeamRequests({ compact = false }: { compact?: boolean }) {
-  const [rows, setRows] = useState<MyTeamRequest[] | null>(null);
+  // Lo último leído se pinta al instante y se actualiza en segundo plano (N8).
+  const [rows, setRows] = useState<MyTeamRequest[] | null>(() => cachedMyTeamRequests());
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -30,7 +31,8 @@ export function MyTeamRequests({ compact = false }: { compact?: boolean }) {
     setLoading(true);
     const r = await myTeamRequests();
     setLoading(false);
-    if (!r.ok) { setError(true); return; }
+    // Si la actualización falla pero ya hay una lista leída, se queda esa (sin pantalla de error).
+    if (!r.ok) { if (!cachedMyTeamRequests()) setError(true); return; }
     setError(false);
     setRows(r.data);
   }, []);
