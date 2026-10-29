@@ -4,12 +4,8 @@ import { localISODate } from "@/lib/localDate";
 import { shortTripName } from "@/lib/tripName";
 import { duplicateTripMarks, markedTripName } from "@/lib/tripList";
 
-const REASON_TEXT: Record<string, string> = {
-  pinned: "elegido por ti",
-  explicit: "elegido por ti",
-  in_progress: "en curso",
-  single_upcoming: "tu próximo viaje",
-};
+// Mismo texto que el selector del chat (TripContextSelector): dice quién eligió el viaje.
+import { REASON_TEXT } from "@/components/concierge/TripContextSelector";
 
 /**
  * Selector del viaje activo para las pantallas fuera del chat (Dashboard, Cercanos, Gastos).

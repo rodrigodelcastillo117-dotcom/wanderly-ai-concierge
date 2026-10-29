@@ -219,7 +219,10 @@ export function SmartImage(props: SmartImageProps) {
       {(pending || !res || !loaded) && (
         <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-[#2a2418] via-[#16130e] to-[#0a0a0a] flex items-center justify-center">
           {pending || (res && !loaded)
-            ? <div className="absolute inset-0 motion-safe:animate-pulse bg-gradient-to-r from-white/[0.02] via-white/[0.06] to-white/[0.02]" data-testid="smart-image-skeleton" />
+            // Esqueleto visible (N-P2-7): antes era casi negro y se leía como un recuadro vacío.
+            ? <div className="absolute inset-0 flex items-center justify-center motion-safe:animate-pulse bg-gradient-to-r from-white/[0.04] via-white/[0.10] to-white/[0.04]" data-testid="smart-image-skeleton" role="img" aria-label="Cargando foto">
+                <Icon className={`${size === "thumb" ? "w-5 h-5" : "w-7 h-7"} text-primary/30`} strokeWidth={1.5} aria-hidden="true" />
+              </div>
             : size === "thumb"
               ? <Icon className="w-5 h-5 text-primary/45" strokeWidth={1.5} data-testid="smart-image-fallback" />
               // Sin foto real: placeholder de la marca (anillo dorado, ícono y "IATOS"), nunca un hueco.

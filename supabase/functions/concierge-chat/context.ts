@@ -4,6 +4,19 @@ import {
   deriveTripBookingState, isConfirmedBooking, itemBookingState, type ItemKind,
 } from "../_shared/bookingState.ts";
 import { isVerifiedConfirmed, reservationStateLabel, type ReservationStateRow } from "../_shared/reservationState.ts";
+import { formatLocalStamp } from "../_shared/localTime.ts";
+
+// ═══ Modo del trayecto (auditoría 10, ronda 3, N-P1-2) ═══
+// vuelos_json también guarda opciones por carretera (modo "autobus" o "auto"). El atajo "Mi viaje a Valle
+// de Bravo" decía "revisa tu check-in de vuelo" en un viaje en autobús.
+const GROUND_MODES = new Set(["autobus", "bus", "auto", "coche", "carro", "tren", "train", "ferry", "barco", "crucero"]);
+export const legMode = (v: any): string | null => {
+  const m = String(v?.modo ?? v?.mode ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return m || null;
+};
+/** ¿Este trayecto es un vuelo? Sin modo = vuelo (así se guardaban antes). */
+export const isAirLeg = (v: any) => { const m = legMode(v); return !m || !GROUND_MODES.has(m); };
+const MODE_LABEL: Record<string, string> = { autobus: "autobús", bus: "autobús", auto: "auto", coche: "auto", carro: "auto", tren: "tren", train: "tren", ferry: "ferry", barco: "barco", crucero: "crucero", avion: "avión", vuelo: "avión" };
 
 export const normText = (value: unknown) => String(value ?? "")
   .toLowerCase()
@@ -154,7 +167,9 @@ export function daysUntil(dateISO: string | null | undefined, todayISO: string):
 export function computeTripGaps(trip: any, bookings: any[], todayISO: string) {
   if (!trip) return [] as { id: string; severidad: string; titulo: string; detalle: string; sugerencia: string }[];
   const gaps: { id: string; severidad: string; titulo: string; detalle: string; sugerencia: string }[] = [];
-  const vuelos = asArray(trip.vuelos_json);
+  // Solo los trayectos en avión cuentan como vuelos (un autobús no tiene check-in ni aeropuerto).
+  const vuelos = asArray(trip.vuelos_json).filter(isAirLeg);
+  const trayectos = asArray(trip.vuelos_json);
   const hospedaje = asArray(trip.hospedaje_json);
   const bks = Array.isArray(bookings) ? bookings : [];
   const catText = normText(bks.map((b) => `${b?.category ?? ""} ${b?.title ?? ""} ${b?.subtitle ?? ""}`).join(" "));
@@ -177,7 +192,7 @@ export function computeTripGaps(trip: any, bookings: any[], todayISO: string) {
   }
 
   // 2. Hospedaje
-  if (vuelos.length > 0 && hospedaje.length === 0 && !/hotel|alojamiento|hospedaje|stay/.test(catText)) {
+  if (trayectos.length > 0 && hospedaje.length === 0 && !/hotel|alojamiento|hospedaje|stay/.test(catText)) {
     gaps.push({
       id: "hospedaje",
       severidad: "alta",
@@ -362,8 +377,29 @@ export function itineraryWindow(trip: any, todayISO: string) {
   };
 }
 
+/** Precio guardado del viaje: de qué fuente y cuándo se consultó, en la hora del usuario (N-P2-1). */
+function savedPriceInfo(item: any, tz?: string | null) {
+  const at = typeof item?.consultado_at === "string" ? item.consultado_at : null;
+  const fuente = item?.fuente_precio ?? item?.fuente ?? null;
+  if (!at && !fuente) return {};
+  const local = at ? (formatLocalStamp(at, tz) ?? at.slice(0, 10)) : null;
+  return {
+    precio_fuente: fuente ? (String(fuente) === "serpapi" ? "Google Hotels" : String(fuente)).slice(0, 40) : undefined,
+    precio_consultado: local ?? undefined,
+    precio_nota: "Precio de una cotización GUARDADA en el viaje (no es en vivo): di cuándo se consultó con precio_consultado tal cual; nunca digas 'en vivo' ni 'consultado hoy' si no es de hoy.",
+  };
+}
+
+/** "27 oct 2026, 23:37 (hora CDMX)": cuándo se cotizó el hotel guardado del viaje (para honesty.ts). */
+export function savedHotelQuoteStamp(trip: any, tz?: string | null): string | null {
+  const h = asArray(trip?.hospedaje_json).find((x: any) => typeof x?.consultado_at === "string" && Number(x?.precio_por_noche) > 0);
+  return h ? formatLocalStamp(h.consultado_at, tz) : null;
+}
+
 export function compactTripForPrompt(trip: any, extras: {
   todayISO: string;
+  /** Zona del usuario: las horas de consulta se escriben en su hora. */
+  tz?: string | null;
   estado_reservas?: any;
   vuelos?: unknown;
   hospedaje?: unknown;
@@ -374,16 +410,24 @@ export function compactTripForPrompt(trip: any, extras: {
   datos_relevantes?: unknown;
 }) {
   if (!trip) return null;
-  const vuelos = asArray(extras.vuelos ?? trip.vuelos_json).slice(0, 6).map((v: any) => compactItem({
+  const legs = asArray(extras.vuelos ?? trip.vuelos_json);
+  const vuelos = legs.slice(0, 6).map((v: any) => compactItem({
+    // N-P1-2: el modo (autobús, auto, avión) para no hablar de check-in de vuelo en un viaje por carretera.
+    modo: legMode(v) ? (MODE_LABEL[legMode(v)!] ?? legMode(v)) : undefined,
     aerolinea: v?.aerolinea, numero_vuelo: v?.numero_vuelo ?? v?.numero, fecha: v?.fecha ?? v?.fecha_salida,
     from: v?.from ?? v?.aeropuerto_origen, to: v?.to ?? v?.aeropuerto_destino ?? v?.ciudad, hora_salida: v?.hora_salida,
     hora_llegada: v?.hora_llegada, terminal: v?.terminal, pnr: v?.pnr, precio_por_persona: v?.precio_por_persona,
-    desde_pdf: v?.desde_pdf, estado_reserva: v?.estado_reserva,
+    desde_pdf: v?.desde_pdf, estado_reserva: v?.estado_reserva, ...(Number(v?.precio_por_persona) > 0 ? savedPriceInfo(v, extras.tz) : {}),
   }));
+  const ground = legs.length > 0 && !legs.some(isAirLeg);
+  const transporte = ground
+    ? `${[...new Set(legs.map((v: any) => MODE_LABEL[legMode(v)!] ?? legMode(v)))].join(" / ")}: viaje por tierra, NO en avión. No hables de vuelo, check-in de vuelo, aeropuerto ni terminal.`
+    : undefined;
   const hospedaje = asArray(extras.hospedaje ?? trip.hospedaje_json).slice(0, 4).map((h: any) => compactItem({
     nombre: h?.nombre, ciudad: h?.ciudad, direccion: cut(h?.direccion, 120), barrio: h?.barrio,
     check_in: h?.check_in ?? h?.checkin, check_out: h?.check_out ?? h?.checkout, precio_por_noche: h?.precio_por_noche,
     booking_link: h?.booking_link, lat: h?.lat, lng: h?.lng, desde_pdf: h?.desde_pdf, estado_reserva: h?.estado_reserva,
+    ...(Number(h?.precio_por_noche) > 0 ? savedPriceInfo(h, extras.tz) : {}),
   }));
   const restaurantes = asArray(trip.restaurantes_json).slice(0, 5).map((r: any) => compactItem({ nombre: r?.nombre, cocina: r?.cocina, cta_action: r?.cta_action }));
   const tours = asArray(extras.tours ?? trip.tours_json).slice(0, 4).map((t: any) => compactItem({ nombre: t?.nombre, estado_reserva: t?.estado_reserva }));
@@ -393,6 +437,7 @@ export function compactTripForPrompt(trip: any, extras: {
     fecha_salida: trip.fecha_salida, fecha_regreso: trip.fecha_regreso, num_viajeros: trip.num_viajeros,
     estado_reservas: extras.estado_reservas ? compactItem({ estado: extras.estado_reservas.estado, por_tipo: extras.estado_reservas.por_tipo }) : undefined,
     presupuesto_objetivo: trip.presupuesto_objetivo, total_estimado: trip.total_estimado, moneda: trip.moneda,
+    transporte,
     vuelos: vuelos.length ? vuelos : undefined,
     hospedaje: hospedaje.length ? hospedaje : undefined,
     itinerario: itineraryWindow(trip, extras.todayISO),

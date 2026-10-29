@@ -15,6 +15,40 @@ import { IatoName } from "@/lib/iatoMark";
 
 const ACTIVE = ["draft", "awaiting_user_ok", "sent", "venue_replied", "needs_user", "confirmed"];
 
+/** Estados en los que el correo SÍ salió hacia el restaurante (igual que concierge-chat/honesty.ts). */
+const SENT = ["sent", "venue_replied", "confirmed"];
+export const wasSent = (r: Pick<AiReservation, "status" | "sent_at">) => SENT.includes(r.status) || (r.status === "needs_user" && !!r.sent_at);
+/** Borrador listo que espera "Confirmar: escribiremos a…" (aún no se escribió al restaurante). */
+const isDraft = (r: Pick<AiReservation, "status">) => r.status === "draft" || r.status === "awaiting_user_ok";
+
+/**
+ * Aviso de "Mis solicitudes" (auditoría 10, ronda 3, N-P1-5): decía "Tienes 3 mesas pedidas por correo"
+ * con 1 enviada y 2 borradores. Solo cuenta como "pedida" la que se envió; los borradores van aparte.
+ */
+export function aiReservationsNoteText(items: Pick<AiReservation, "status" | "sent_at" | "venue_name" | "label">[]): string | null {
+  const active = items.filter((x) => ACTIVE.includes(x.status));
+  if (!active.length) return null;
+  const sent = active.filter(wasSent);
+  const drafts = active.filter(isDraft);
+  const other = active.length - sent.length - drafts.length;
+  if (active.length === 1) {
+    const r = active[0];
+    if (isDraft(r)) return `Tu mesa en ${r.venue_name} espera tu confirmación: aún no le escribimos al restaurante.`;
+    return `Tu mesa pedida por correo en ${r.venue_name}: ${r.label}.`;
+  }
+  const parts = [
+    sent.length ? `${sent.length} ${sent.length === 1 ? "enviada" : "enviadas"}` : null,
+    drafts.length ? `${drafts.length} ${drafts.length === 1 ? "espera" : "esperan"} tu confirmación` : null,
+    other > 0 ? `${other} sin enviar (falta un dato)` : null,
+  ].filter(Boolean);
+  return `Mesas por correo con Iato: ${parts.join(" · ")}.`;
+}
+
+/** Última cantidad de mesas vista (para mostrar el esqueleto mientras carga solo si había alguna). */
+const COUNT_KEY = "iatos_ai_res_count";
+const readCount = () => { try { return Number(sessionStorage.getItem(COUNT_KEY) ?? "0") || 0; } catch { return 0; } };
+const writeCount = (n: number) => { try { sessionStorage.setItem(COUNT_KEY, String(n)); } catch { /* modo privado */ } };
+
 function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [share, setShare] = useState(false);
@@ -56,8 +90,8 @@ function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: s
 
       {r.status === "awaiting_user_ok" && (
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <Mail className="w-4 h-4" aria-hidden="true" /> <span><IatoName /> escribirá a {r.venue_email}{r.venue_email_is_test ? " (correo de prueba del piloto: no es del restaurante)" : ""} en tu nombre ({r.customer_name}). Aún no le hemos escrito.</span>
+          <p className="text-sm text-muted-foreground flex items-start gap-2">
+            <Mail className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" /> <span><IatoName /> escribirá a {r.venue_email}{r.venue_email_is_test ? " (correo de prueba del piloto: no es del restaurante)" : ""} en tu nombre ({r.customer_name}). Aún no le hemos escrito.</span>
           </p>
           {recipientNote(r) && <p className="text-xs text-amber-300" data-testid="ai-res-piloto">{recipientNote(r)}</p>}
           <label className="flex items-center gap-2 text-sm">
@@ -67,7 +101,10 @@ function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: s
             <Checkbox checked={cc} onCheckedChange={(v) => setCc(v === true)} /> Mandarme una copia del correo
           </label>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => run(() => confirmAiReservation(r.id, r.confirm_prompt, { share_contact: share, cc_me: cc }), "Le escribimos al restaurante. Te avisamos cuando responda.")}>
+            {/* En 390 px el texto largo ("Confirmar: escribiremos a Contramar en tu nombre") se partía fuera
+                de la tarjeta (N-P2-5): ahora baja de renglón dentro del botón. */}
+            <Button size="sm" disabled={busy} className="h-auto min-h-9 max-w-full whitespace-normal text-left py-2" data-testid="ai-res-confirm"
+              onClick={() => run(() => confirmAiReservation(r.id, r.confirm_prompt, { share_contact: share, cc_me: cc }), "Le escribimos al restaurante. Te avisamos cuando responda.")}>
               {r.confirm_prompt}
             </Button>
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => cancelAiReservation(r.id))}>No enviar</Button>
@@ -143,9 +180,14 @@ function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: s
 export function AiReservationsPanel() {
   const [items, setItems] = useState<AiReservation[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Si la última vez había mesas, se ve un esqueleto mientras carga (antes la sección aparecía de golpe
+  // a los 3 s, N-P2-5); si no había, nada (la función suele estar apagada).
+  const [expected] = useState(readCount);
   const load = useCallback(async () => {
     const res = await listAiReservations();
-    setItems(res.ok ? res.reservations ?? [] : []);
+    const list = res.ok ? res.reservations ?? [] : [];
+    setItems(list);
+    if (res.ok) writeCount(list.length);
   }, []);
   useEffect(() => { void load(); }, [load]);
   // Enlace desde Iato o desde "Pedir mesa con Iato" (/dashboard/reservas#reservas-ia): baja a la sección.
@@ -156,6 +198,16 @@ export function AiReservationsPanel() {
     }
   }, [hasItems]);
 
+  if (!items && expected > 0) {
+    return (
+      <section aria-busy="true" aria-label="Cargando las reservas que Iato pidió por correo" className="space-y-3" data-testid="ai-res-skeleton">
+        <div className="h-6 w-64 max-w-full rounded bg-white/[0.06] motion-safe:animate-pulse" />
+        {Array.from({ length: Math.min(expected, 2) }, (_, i) => (
+          <div key={i} className="glass-card rounded-2xl p-4 border border-white/10 h-24 motion-safe:animate-pulse" />
+        ))}
+      </section>
+    );
+  }
   if (!items || items.length === 0) return null;
   const active = items.filter((r) => ACTIVE.includes(r.status));
   const closed = items.filter((r) => !ACTIVE.includes(r.status));
@@ -184,11 +236,12 @@ export function AiReservationsLinkNote() {
     void listAiReservations().then((r) => { if (alive && r.ok) setItems((r.reservations ?? []).filter((x) => ACTIVE.includes(x.status))); });
     return () => { alive = false; };
   }, []);
-  if (!items.length) return null;
+  const text = aiReservationsNoteText(items);
+  if (!text) return null;
   return (
     <div className="max-w-2xl mx-auto mb-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs" data-testid="ai-res-link-note">
       <p>
-        {items.length === 1 ? `Tu mesa pedida por correo en ${items[0].venue_name}: ${items[0].label}.` : `Tienes ${items.length} mesas pedidas por correo con Iato.`}{" "}
+        {text}{" "}
         <Link to="/dashboard/reservas#reservas-ia" className="text-primary underline underline-offset-2">Ver en Mis reservas</Link>
       </p>
     </div>

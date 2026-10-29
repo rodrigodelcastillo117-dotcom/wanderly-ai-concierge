@@ -27,7 +27,7 @@ export const TRIAL_CONDITIONS = "La prueba empieza al confirmar tu correo y es u
  * Auditoría Privé P1-5 (28-oct-2026): decía "Acceso preferente a nuestro equipo humano" y no existe ninguna
  * prioridad (la Mesa de operaciones atiende por orden de llegada). Solo se promete lo que sí pasa.
  */
-export const FIXER_LINE = "Nuestro equipo humano pide tus mesas de Members Only, sujeto a disponibilidad";
+export const FIXER_LINE = "Nuestro equipo humano pide tus mesas de Solo para miembros, sujeto a disponibilidad";
 
 export const FREE_CONCIERGE_LINE = "3 mensajes con Iato al mes";
 export const FREE_TRIP_LINE = "1 análisis completo de viaje de cortesía (una sola vez)";
@@ -96,12 +96,13 @@ export function conciergeHeaderCopy(v: PlanView): ConciergeHeader {
     const days = v.trialDaysLeft;
     return {
       eyebrow: "CONCIERGE PRO · PRUEBA",
-      title: "Concierge PRO te escucha",
+      // Un solo nombre para el asistente: Iato (auditoría 10, ronda 3, §4). El plan va en el renglón de arriba.
+      title: "Iato te escucha",
       note: days != null ? `Prueba de IATOS PRO: ${days === 1 ? "te queda 1 día" : `te quedan ${days} días`}.` : "Estás en la prueba de IATOS PRO.",
       showUpgrade: false,
     };
   }
-  if (v.isPro) return { eyebrow: "CONCIERGE PRO", title: "Concierge PRO te escucha", note: null, showUpgrade: false };
+  if (v.isPro) return { eyebrow: "CONCIERGE PRO", title: "Iato te escucha", note: null, showUpgrade: false };
   const quota =
     v.remaining != null && v.limit != null
       ? `Plan gratuito: te quedan ${v.remaining} de ${v.limit} mensajes con Iato este mes.`

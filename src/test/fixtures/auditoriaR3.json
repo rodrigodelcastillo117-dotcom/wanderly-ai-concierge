@@ -1,0 +1,315 @@
+{
+ "t01_eventos": {
+  "message": "¿Qué eventos o conciertos hay en CDMX este fin de semana?",
+  "final_text": "Para este fin de semana (31 oct – 1 nov) en CDMX, según Ticketmaster y Google Events consultados hoy 28 oct:\n\n- **Sexteto Místico**, Sala Manuel M. Ponce (Bellas Artes), sáb 31 oct 12:00, clásica.\n- **Las niñas y los niños de papel** (Mondomeraki), Foro A Poco No, sáb 31 oct 13:00, teatro.\n- **La Mole Horror Edition 2**, WTC, sáb 31 oct 11:00.\n\nLos boletos de Ticketmaster se compran en su sitio; el precio no lo publica la fuente, así que confírmalo ahí.",
+  "tm_results": [
+   {
+    "title": "Coordinación Nacional de Música y Ópera Sexteto Místico",
+    "fecha": "2026-10-31",
+    "hora": "12:00",
+    "recinto": "Sala Manuel M. Ponce - Palacio de Bellas Artes",
+    "direccion": "Av. Hidalgo #1, Col. Centro,, México",
+    "fuente": "ticketmaster",
+    "url": "https://www.ticketmaster.com.mx/coordinacion-nacional-de-musica-y-opera-mexico-31-10-2026/event/3D006539BC9C7BDA",
+    "lat": 19.4366302,
+    "lng": -99.1435318,
+    "estado": "onsale",
+    "categoria": "Arte y Teatro · Classical"
+   },
+   {
+    "title": "Las niñas y los niños de papel, de la compañía Mondomeraki",
+    "fecha": "2026-10-31",
+    "hora": "13:00",
+    "recinto": "FORO A POCO NO",
+    "direccion": "República de Cuba 49 (entre República de Chile y Allende), México",
+    "fuente": "ticketmaster",
+    "url": "https://www.ticketmaster.com.mx/las-ninas-y-los-ninos-de-mexico-31-10-2026/event/3D0064E6BD7F2609",
+    "lat": 19.437234,
+    "lng": -99.137115,
+    "estado": "onsale",
+    "categoria": "Arte y Teatro · Teatro"
+   }
+  ]
+ },
+ "c1_viaje": {
+  "message": "Mi viaje a",
+  "final_text": "Para Valle de Bravo (30 oct – 1 nov, 2 viajeros):\n\n- **Reservado:** nada todavía. Vuelo/traslado y hospedaje están solo cotizados; el hotel sugerido es Múbú Hotel Boutique (4.7★, estimado ~$2,684 MXN por noche según Google Hotels en vivo, consultado hoy 28 oct), con El Ensueño (~$1,100) y Casa Rodavento (~$9,169) como alternativas.\n- **Falta:** confirmar hotel (con Día de Muertos cerca, conviene hacerlo ya), seguro de viaje (alto) y mesa para la cena en Tinto by Choklat, que pide reservación.\n- **Siguiente paso:** elegir hotel y reservar en Booking, y revisar tu check-in de vuelo, que abre 24-48 h antes. Si vas en auto, sales temprano el viernes para evitar tráfico. Puedes contratar el seguro en la sección Seguros de IATOS.\n\n¿Con qué hotel te quedas?"
+ },
+ "g1_exigente": {
+  "message": "Plan para una tarde en Valle de Bravo el sábado 31 de octubre: qué hacer y dónde comer",
+  "final_text": "Para Valle de Bravo, sábado 31 oct (clima: mayormente despejado, máx. 25 °C, según MET Norway). Los horarios son de Google Maps, consultado hoy 28 oct:\n\n- **14:00 Comida en Bocatto Gourmet** (4.9, 411 reseñas): abre sábado 14:00–22:30. Contra: no vi que tome reservaciones, así que llega temprano o llama.\n- **Alternativa: Soleado Cocina del mundo** (4.5), sábado 10:00–22:00. Como ya lo tienes en favoritos, es la opción segura. Acepta reservaciones por teléfono.\n- **Plan B: Los Pericos** (4.4), en el embarcadero, abre hasta las 20:00. Está junto a la lancha, pero es más turístico.\n- **16:30 Paseo por el centro:** Calle Independencia y el Museo Joaquín Arcadio Pagaza, a pie desde el restaurante.\n- **18:00 Atardecer en Mirador La Peña.** Ya tienes un paseo en lancha agregado a las 11:00 y La Peña a las 17:00, así que ajusto los horarios para que no choquen.\n\nDespués: la cena en Tinto by Choklat, que pide reservación.",
+  "model_cards": [
+   {
+    "type": "attraction",
+    "title": "Bocatto Gourmet"
+   },
+   {
+    "type": "attraction",
+    "title": "Restaurante La Herencia"
+   },
+   {
+    "type": "attraction",
+    "title": "Tinto by Choklat (Avandaro)"
+   },
+   {
+    "type": "restaurant",
+    "title": "Bocatto Gourmet"
+   },
+   {
+    "type": "restaurant",
+    "title": "Soleado Cocina del mundo"
+   },
+   {
+    "type": "restaurant",
+    "title": "Restaurante Los Pericos"
+   }
+  ],
+  "restaurants": [
+   {
+    "name": "Bocatto Gourmet",
+    "address": "Centro · Restaurante",
+    "rating": 4.9,
+    "id": "ChIJZ_-3jZ5jzYURPkco5hzqEtE",
+    "lat": 19.1929745,
+    "lng": -100.13075740000001
+   },
+   {
+    "name": "Soleado Cocina del mundo",
+    "address": "Centro · Cocina del mundo",
+    "rating": 4.5,
+    "id": "ChIJP-QGQn9kzYURwO0rhVcGB2k",
+    "lat": 19.191273100000004,
+    "lng": -100.1296366
+   },
+   {
+    "name": "Restaurante Los Pericos",
+    "address": "Embarcadero · Mariscos",
+    "rating": 4.4,
+    "id": "ChIJk6JJMHlkzYURxFUUh9H_JP4",
+    "lat": 19.1888498,
+    "lng": -100.13115069999999
+   }
+  ],
+  "attractions": [
+   {
+    "name": "Bocatto Gourmet",
+    "address": "C. de Joaquín Arcadio Pagaza 107, Sta Maria Ahuacatlan, 51200 Valle de Bravo, Méx., México",
+    "rating": 4.9,
+    "id": "ChIJZ_-3jZ5jzYURPkco5hzqEtE",
+    "lat": 19.1929745,
+    "lng": -100.13075740000001
+   },
+   {
+    "name": "Restaurante La Herencia",
+    "address": "Ruta del Bosque 6-MZ 006, Avandaro, 51200 Valle de Bravo, Méx., México",
+    "rating": 4.7,
+    "id": "ChIJBTxU49JlzYUROzQ0LqVfSzY",
+    "lat": 19.1726374,
+    "lng": -100.11853959999999
+   },
+   {
+    "name": "Tinto by Choklat (Avandaro)",
+    "address": "Del Carmen 2-int 7, Avandaro, 51200 Valle de Bravo, Méx., México",
+    "rating": 4.8,
+    "id": "ChIJC5xJCTJlzYURU5lg1TkkkN4",
+    "lat": 19.1640747,
+    "lng": -100.1243312
+   }
+  ]
+ },
+ "t03_japon": {
+  "message": "¿Qué hora es ahora en Tokio? ¿Tengo algún viaje a Japón guardado?",
+  "final_text": "No tengo un reloj en vivo para Tokio, así que no te doy la hora exacta. Tokio está **15 horas adelante** de la Ciudad de México (UTC+9 frente a UTC-6, sin cambio de horario en ninguno de los dos). Si en CDMX son las 10:00, en Tokio son las 01:00 del día siguiente.\n\nSí tienes dos viajes a Japón guardados, ambos a Tokio:\n- **Tokio**, del 10 al 20 de febrero de 2027.\n- **Tokio**, del 25 de marzo al 4 de abril de 2027.\n\n¿Cuál quieres revisar?"
+ },
+ "t02_clima": {
+  "message": "¿Qué clima hará en mi viaje a Valle de Bravo del 30 de octubre y a qué hora lo consultaste?",
+  "final_text": "Consulto el clima de Valle de Bravo en MET Norway, la misma fuente de tu pantalla Clima. Para tu viaje a Valle de Bravo, según MET Norway, consultado el **28 oct 2026 a las 23:44 (hora CDMX)**:\n\n- **Viernes 30 oct:** máx. 25 °C, mín. 12 °C, chubascos (1.2 mm de lluvia).\n- **Sábado 31 oct:** máx. 25 °C, mín. 12 °C, mayormente despejado (0.3 mm).\n- **Domingo 1 nov:** máx. 25 °C, mín. 12 °C, chubascos (0.8 mm).\n\nEl viento no pasará de 14 km/h. Es pronóstico, no certeza, así que conviene revisarlo de nuevo antes de salir."
+ },
+ "k1_lisboa": {
+  "message": "¿Qué atracciones imperdibles hay en Lisboa?",
+  "cards": [
+   {
+    "type": "attraction",
+    "title": "Monumento a los Descubrimientos",
+    "rating": 4.6,
+    "subtitle": "Av. Brasília, 1400-038 Lisboa, Portugal",
+    "fuente": "google_maps",
+    "links": [
+     {
+      "kind": "directions",
+      "label": "Cómo llegar",
+      "url": "https://www.google.com/maps/dir/?api=1&destination=38.6935973%2C-9.2057115&destination_place_id=ChIJScpeDUTLHg0RGeb5iw7wSH8&travelmode=driving"
+     },
+     {
+      "kind": "ride",
+      "label": "Pedir Uber",
+      "url": "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff%5Blatitude%5D=38.6935973&dropoff%5Blongitude%5D=-9.2057115&dropoff%5Bnickname%5D=Monumento+a+los+Descubrimientos&dropoff%5Bformatted_address%5D=Av.+Bras%C3%ADlia%2C+1400-038+Lisboa%2C+Portugal"
+     },
+     {
+      "kind": "call",
+      "label": "Llamar",
+      "url": "tel:+351213031950"
+     },
+     {
+      "kind": "website",
+      "label": "Sitio oficial",
+      "url": "https://padraodosdescobrimentos.pt/"
+     },
+     {
+      "kind": "maps",
+      "label": "Ver en Google Maps",
+      "url": "https://maps.google.com/?cid=9171844586408633881&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA"
+     }
+    ],
+    "photo_ref": "places/ChIJScpeDUTLHg0RGeb5iw7wSH8/photos/Aa-ngMbCX_20juqeZ6ioDJRcO76QMsfydKbXwWHgoka_mxC3Qvb7arNub5fri8fM6i33IvfrPh6S0g7-k3Wjnl2P8HCTitN73bBW8ZOboQfjemaroosxr1yqgXrKMIHHWDZ789tbIk3HatMaDrSRu5KkYdz0IIe_Klz-IuEt5QIPdsmLSU7AI3j56Bwub0mGIFo5wvr5RlTnK_EpUxOtliQEB_vZOIIA5dCHPQRJVYN6g8WT9k-0UhgJvXNBaBfM3fKxU6q9sO8GTeALRjN8q_QuLqn7Jwz2UUalyZMn8nAymy5LsRxJWhxuKymxrL83h0CSvcBNQ8q-UEKCB2c0UOsftUBjj9PFgxVPyxAdRRbJMIPlap-Q0Q2zFbhKzHMgcjyFDBXCpxmbb0QHNX0UXOtd7j2sJCeN",
+    "place_id": "ChIJScpeDUTLHg0RGeb5iw7wSH8",
+    "lat": 38.6935973,
+    "lng": -9.2057115
+   },
+   {
+    "type": "attraction",
+    "title": "Torre de Belém",
+    "rating": 4.5,
+    "subtitle": "Av. Brasília, 1400-038 Lisboa, Portugal",
+    "fuente": "google_maps",
+    "links": [
+     {
+      "kind": "directions",
+      "label": "Cómo llegar",
+      "url": "https://www.google.com/maps/dir/?api=1&destination=38.691583699999995%2C-9.215977299999999&destination_place_id=ChIJS5zCw0LLHg0RP1FSz63cAjA&travelmode=driving"
+     },
+     {
+      "kind": "ride",
+      "label": "Pedir Uber",
+      "url": "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff%5Blatitude%5D=38.691583699999995&dropoff%5Blongitude%5D=-9.215977299999999&dropoff%5Bnickname%5D=Torre+de+Bel%C3%A9m&dropoff%5Bformatted_address%5D=Av.+Bras%C3%ADlia%2C+1400-038+Lisboa%2C+Portugal"
+     },
+     {
+      "kind": "call",
+      "label": "Llamar",
+      "url": "tel:+351213620034"
+     },
+     {
+      "kind": "website",
+      "label": "Sitio oficial",
+      "url": "https://www.museusemonumentos.pt/pt/museus-e-monumentos/torre-de-belem"
+     },
+     {
+      "kind": "maps",
+      "label": "Ver en Google Maps",
+      "url": "https://maps.google.com/?cid=3459570102839693631&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA"
+     }
+    ],
+    "photo_ref": "places/ChIJS5zCw0LLHg0RP1FSz63cAjA/photos/Aa-ngMYFA2SBGabzKaYyWlRhMfJzZyinpge2o5uzpji8dLodjQZdtcv_QkhpQQxiTrFCkalVIBaP9UhEshkqGsxpHL5bmqSRFoYtUhdWAJiX9OX71PbVS_zq6eAr1y-yL1uahtJ5AqTfbTKCfwUL-vtKSVXxgua6EHhOmXcMnVoBrQxy4DVXEoJ4hHJYa4k_HGPhDxgYn6hdNXhDG5P5cFqAK7Kx0QNt8cr8fl_B8Zv0RG7b_zpHhQk8O_krnWZPzCLyUB60eIsNLhWoxxOn-WbBho7FAhlq0VFZIJtGpKm02X9deErFThNxqgmVGbfSPnikOqnnTuDaOEK8a34IJnSM8Q6-jHlVvoeRCbWKoCsIVm3RjcaagXXEN0T6cs5CqCKjmHe_crZPPuqHemA7fdU0KqoRW0A",
+    "place_id": "ChIJS5zCw0LLHg0RP1FSz63cAjA",
+    "lat": 38.691583699999995,
+    "lng": -9.215977299999999
+   },
+   {
+    "type": "attraction",
+    "title": "Castillo de San Jorge de Lisboa",
+    "rating": 4.5,
+    "subtitle": "R. de Santa Cruz do Castelo, 1100-129 Lisboa, Portugal",
+    "fuente": "google_maps",
+    "links": [
+     {
+      "kind": "directions",
+      "label": "Cómo llegar",
+      "url": "https://www.google.com/maps/dir/?api=1&destination=38.713909199999996%2C-9.1334762&destination_place_id=ChIJm8MOtHc0GQ0R1zPkmUFwwLQ&travelmode=driving"
+     },
+     {
+      "kind": "ride",
+      "label": "Pedir Uber",
+      "url": "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff%5Blatitude%5D=38.713909199999996&dropoff%5Blongitude%5D=-9.1334762&dropoff%5Bnickname%5D=Castillo+de+San+Jorge+de+Lisboa&dropoff%5Bformatted_address%5D=R.+de+Santa+Cruz+do+Castelo%2C+1100-129+Lisboa%2C+Portugal"
+     },
+     {
+      "kind": "call",
+      "label": "Llamar",
+      "url": "tel:+351218800620"
+     },
+     {
+      "kind": "website",
+      "label": "Sitio oficial",
+      "url": "https://castelodesaojorge.pt/"
+     },
+     {
+      "kind": "maps",
+      "label": "Ver en Google Maps",
+      "url": "https://maps.google.com/?cid=13024533549412529111&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA"
+     }
+    ],
+    "photo_ref": "places/ChIJm8MOtHc0GQ0R1zPkmUFwwLQ/photos/Aa-ngMYERrkn-ySu_k-3J8vQq-5GQfYTNmRbh3SLwTImzd23UDs-iBy45_AriwF-bjudF-rRxvUm-Hj3ZExAxhw1LaM4F60slEO15rm-LfHPmH3wSNlXeXKIZlsH_ayKDsP91mGxk9gm6jEy8pPt2xgyQwVnUl8n521STEyLenZqweJTbcZVTxxDLoHXJG-o3H42Z-MttDa5U2pCPAv38NaQ1A_FVYJTLoLyxDtgYyqe8XFtiiLuLKJ6nDWlDq_5GOwSBFCtHXTukMiuZqfw8I7IJ9y7x-7wTl8jFXTDYsOIundPasLuH6ztI2hwVIlULzKu6XFy6Lbe25ib4egE8pzyH8w_q1mXmNw4R4U6-I4RR1yqyaoncnb8XVnfACFfbpeCwaDUzCLhsgsAqknYTUn72NoimXZpefs",
+    "place_id": "ChIJm8MOtHc0GQ0R1zPkmUFwwLQ",
+    "lat": 38.713909199999996,
+    "lng": -9.1334762
+   },
+   {
+    "type": "attraction",
+    "title": "Mirador de Portas do Sol",
+    "rating": 4.7,
+    "subtitle": "Largo Portas do Sol, 1100-411 Lisboa, Portugal",
+    "fuente": "google_maps",
+    "links": [
+     {
+      "kind": "directions",
+      "label": "Cómo llegar",
+      "url": "https://www.google.com/maps/dir/?api=1&destination=38.7119253%2C-9.1299568&destination_place_id=ChIJlwybZnY0GQ0RwvOJskKjhrs&travelmode=driving"
+     },
+     {
+      "kind": "ride",
+      "label": "Pedir Uber",
+      "url": "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff%5Blatitude%5D=38.7119253&dropoff%5Blongitude%5D=-9.1299568&dropoff%5Bnickname%5D=Mirador+de+Portas+do+Sol&dropoff%5Bformatted_address%5D=Largo+Portas+do+Sol%2C+1100-411+Lisboa%2C+Portugal"
+     },
+     {
+      "kind": "call",
+      "label": "Llamar",
+      "url": "tel:+351915225592"
+     },
+     {
+      "kind": "website",
+      "label": "Sitio oficial",
+      "url": "https://informacoeseservicos.lisboa.pt/contactos/diretorio-da-cidade/miradouro-das-portas-do-sol"
+     },
+     {
+      "kind": "maps",
+      "label": "Ver en Google Maps",
+      "url": "https://maps.google.com/?cid=13512667238830306242&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA"
+     }
+    ],
+    "photo_ref": "places/ChIJlwybZnY0GQ0RwvOJskKjhrs/photos/Aa-ngMavUodzVinfA6RT8njMN2t_U1jln8FHuxm1yn4frxpEP0Zffc4XWecyf_N3QykJGrpGYJwZ8DRIjmY6qvRUYQZhablheM7dObX2QErWFrk6uZ71nVUm49YDzcCdYAoRzuCi8QRXuYDrFw4baU5w_wQcn-_imyTqb7O5a12342Ogx2QKYFmRgkfPjlujC4A8K6veOcRq7eglAXH12zd5GrRQ1zL5vGtvdSOgypBLZxia7jqOtbQmHl9BaeOqBEDyKXwg6cDT17GNt9IcPn6tSa2McvM0UMIg8r9naTLYTZD29IhW6AyRTf0XSp1OwOXbqC-tMTuy-lcgkI4z1T2uI9TBDMQAJVOWeOALENeqxdzbErwf9utENeURnaisHh5GQ-sF_i92c3CdfX2-2LzSvpFoxQ",
+    "place_id": "ChIJlwybZnY0GQ0RwvOJskKjhrs",
+    "lat": 38.7119253,
+    "lng": -9.1299568
+   }
+  ]
+ },
+ "d1_chofer": {
+  "message": "En mi viaje a Oaxaca de enero no quiero manejar. ¿Me consigues un chofer privado que nos lleve a Hierve el Agua? ¿Cuánto cuesta?",
+  "cards": [
+   {
+    "type": "transport",
+    "title": "Chofer privado en Oaxaca",
+    "subtitle": "Oaxaca · Hierve el Agua ida y vuelta · 2 personas · precio por cotizar"
+   }
+  ],
+  "actions": [
+   {
+    "id": "d967fc30-ced8-4d13-9c36-17f2b8ef7c9d",
+    "type": "fixer_request",
+    "params": {
+     "tipo": "transport",
+     "titulo": "Chofer privado en Oaxaca",
+     "detalle": "Traslado ida y vuelta del hotel Otro Oaxaca a Hierve el Agua, 2 personas. Fecha del día de excursión por confirmar dentro del viaje del 15 al 18 de enero de 2027. Precio por cotizar.",
+     "personas": 2,
+     "lugar": "Oaxaca",
+     "trip_id": "4ea00558-f563-4797-88b8-850c6264a9d7"
+    },
+    "summary": "Pedírselo a nuestro equipo: Chofer privado en Oaxaca",
+    "confirm_label": "Pedírselo a una persona del equipo",
+    "runs": "server",
+    "note": "La atiende una persona del equipo IATOS; verás su respuesta en la app y por correo. Aún no está reservado."
+   }
+  ],
+  "_trip_id": "4ea00558-f563-4797-88b8-850c6264a9d7",
+  "_trip_reason": "mentioned"
+ }
+}

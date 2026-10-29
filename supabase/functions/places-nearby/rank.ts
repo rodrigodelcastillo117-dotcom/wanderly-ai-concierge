@@ -44,20 +44,35 @@ export function nearbySearchBody(b: { lat: number; lng: number; kind: string; ra
 
 export const EMERGENCY_MIN_REVIEWS = 20;
 
+// Ronda 3 (#12 seguía abierto): "Batas De Hospital Baratas" (tienda, 2 reseñas) salía 3.º en Hospital,
+// "Accesorios Policiales" en Policía y "Venta de sillas de ruedas" y "Pin" en Farmacia. Ahora:
+//   - nivel 2 exige reseñas mínimas (las que no llegan bajan al final, nivel 4, si no son una tienda);
+//   - fuera cualquier nombre comercial (venta, tienda, batas, uniformes, accesorios…);
+//   - Farmacia usa el mismo filtro (antes solo se ordenaba por distancia).
+export const TIER2_MIN_REVIEWS: Record<string, number> = { hospital: 5, police: 3, embassy: 3, pharmacy: 3 };
+/** Nivel 3 (tipo correcto y popular aunque el nombre no lo diga): reseñas mínimas por tipo. */
+const TIER3_MIN_REVIEWS: Record<string, number> = { hospital: EMERGENCY_MIN_REVIEWS * 5, police: EMERGENCY_MIN_REVIEWS * 5, embassy: EMERGENCY_MIN_REVIEWS * 5, pharmacy: EMERGENCY_MIN_REVIEWS };
+
+/** Tiendas y negocios que venden algo relacionado (no atienden una emergencia). */
+export const COMMERCIAL_NAME = /\b(venta\w*|vendemos|tienda\w*|boutique|bazar|batas?|uniformes?|accesorios?|art[ií]culos|equipos? m[eé]dicos?|equipo para|insumos?|material(es)? (m[eé]dico|de curaci[oó]n)|ortop[eé]di\w*|sillas? de ruedas|muletas|renta\w*|alquiler|distribuidora|mayoreo|refacciones|baratas?|barato|outlet|importadora|comercializadora|papeler[ií]a|novedades|regalos|perfumer[ií]a|joyer[ií]a|zapater[ií]a|ropa)\b/i;
+
 const RELEVANT_NAME: Record<string, RegExp> = {
   hospital: /\b(hospital\w*|h[oô]pital|ospedale|krankenhaus|sanatorio|cl[ií]nica|policl[ií]nica|cruz roja|imss|issste|pemex|centro m[eé]dico|m[eé]dica|medical center|urgencias|emergencias|emergency|maternidad|pediatr\w*|materno)\b/i,
   police: /\b(polic[ií]a\w*|policia\w*|police|polizia|polizei|ministerio p[uú]blico|fiscal[ií]a|comisar[ií]a|commissariat|gendarmer[ií]a|carabineros|guardia civil|guardia nacional|mossos|ertzaintza|seguridad (ciudadana|p[uú]blica)|precinct|sspc|coordinaci[oó]n territorial|agencia del ministerio)\b/i,
   embassy: /\b(embajada|consulado|embassy|consulate|ambassade|botschaft|ambasciata)\b/i,
+  pharmacy: /\b(farmacia\w*|botica\w*|droguer[ií]a|pharmacy|pharmacie|farm[aá]cia|apotheke|drugstore|similares|similia|benavides|san pablo|del ahorro|walgreens|cvs|guadalajara)\b/i,
 };
 const UNRELATED_NAME: Record<string, RegExp> = {
   hospital: /\b(hol[ií]stic\w*|spa|dental|dentist\w*|odontol\w*|veterin\w*|[oó]ptica|laboratorio|est[eé]tica|masaje\w*|nutri\w*|psic\w*|yoga|viaje\w*|travel|tours?|agencia|farmacia|botica|consultorio|homeopat\w*|acupuntura|quiropr\w*|fisioterapia|terapia\w*)\b/i,
   police: /\b(escolar|privada|alarmas|vigilancia|abogad\w*|tienda|seguros|escuela|academia|caja|museo)\b/i,
   embassy: /\b(visas? (express|r[aá]pid\w*)|tr[aá]mites|gestor\w*|agencia)\b/i,
+  pharmacy: /\b(veterin\w*|dental|[oó]ptica|laboratorio|est[eé]tica|naturista|herbolaria|sex shop)\b/i,
 };
 const STRONG_TYPES: Record<string, string[]> = {
   hospital: ["hospital", "general_hospital"],
   police: ["police"],
   embassy: ["embassy"],
+  pharmacy: ["pharmacy", "drugstore"],
 };
 
 export interface EmergencyPlace {
@@ -73,21 +88,25 @@ export function metersBetween(a: { lat: number; lng: number }, b: { lat: number;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-/** 1 = el mejor; null = se descarta. */
-export function emergencyTier(kind: string, p: EmergencyPlace): 1 | 2 | 3 | null {
+/** 1 = el mejor; null = se descarta. 4 = real pero casi sin reseñas: al final. */
+export function emergencyTier(kind: string, p: EmergencyPlace): 1 | 2 | 3 | 4 | null {
   const name = String(p.name ?? "").trim();
   if (!name) return null;
   const relevant = RELEVANT_NAME[kind]?.test(name) ?? false;
   if (UNRELATED_NAME[kind]?.test(name)) return null; // "Hospital veterinario", "Caja de previsión de la policía"
+  if (COMMERCIAL_NAME.test(name)) return null; // "Batas De Hospital Baratas", "Accesorios Policiales", "Venta de sillas de ruedas"
   const strong = !p.primary_type || (STRONG_TYPES[kind] ?? []).includes(String(p.primary_type));
   const reviews = Number(p.ratings_count) || 0;
+  const min2 = TIER2_MIN_REVIEWS[kind] ?? 5;
   if (relevant && strong && reviews >= EMERGENCY_MIN_REVIEWS) return 1;
-  if (relevant && (strong || reviews >= 5)) return 2;
-  if (strong && !!p.primary_type && reviews >= EMERGENCY_MIN_REVIEWS * 5) return 3;
+  if (relevant && reviews >= min2) return 2;
+  if (strong && !!p.primary_type && reviews >= (TIER3_MIN_REVIEWS[kind] ?? EMERGENCY_MIN_REVIEWS * 5)) return 3;
+  // Un módulo de policía o una farmacia de barrio reales suelen tener pocas reseñas: se quedan, al final.
+  if (relevant && strong) return 4;
   return null;
 }
 
-/** ¿Este tipo de búsqueda usa el filtro de relevancia? (farmacias, cajeros y gasolineras: el más cercano). */
+/** ¿Este tipo de búsqueda usa el filtro de relevancia? (cajeros y gasolineras: el más cercano). */
 export const usesEmergencyRanking = (kind: string) => kind in STRONG_TYPES;
 
 /**
@@ -104,12 +123,12 @@ export function rankEmergencyPlaces<T extends EmergencyPlace>(kind: string, plac
   const dist = (p: EmergencyPlace) => (typeof p.distance_m === "number" ? p.distance_m : Number.MAX_SAFE_INTEGER);
   const ranked = withDist
     .map((p) => ({ p, t: emergencyTier(kind, p) }))
-    .filter((x): x is { p: T & { distance_m?: number | null }; t: 1 | 2 | 3 } => x.t !== null)
+    .filter((x): x is { p: T & { distance_m?: number | null }; t: 1 | 2 | 3 | 4 } => x.t !== null)
     .sort((a, b) => a.t - b.t || dist(a.p) - dist(b.p))
     .map((x) => x.p);
   if (ranked.length) return ranked;
   return withDist
-    .filter((p) => (STRONG_TYPES[kind] ?? []).includes(String(p.primary_type)) && !UNRELATED_NAME[kind]?.test(String(p.name)))
+    .filter((p) => (STRONG_TYPES[kind] ?? []).includes(String(p.primary_type)) && !UNRELATED_NAME[kind]?.test(String(p.name)) && !COMMERCIAL_NAME.test(String(p.name)))
     .sort((a, b) => (Number(b.ratings_count) || 0) - (Number(a.ratings_count) || 0))
     .slice(0, 5);
 }

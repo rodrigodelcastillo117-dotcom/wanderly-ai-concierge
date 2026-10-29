@@ -10,12 +10,17 @@ export type ContextTrip = {
   created_at?: string | null;
 };
 
-const REASON_TEXT: Record<string, string> = {
-  pinned: "elegido por ti",
-  explicit: "elegido por ti",
+// "elegido por ti" se leía como "lo elegiste tú" cuando lo había elegido Iato (auditoría 10, ronda 3, §4).
+// Ahora dice quién lo eligió: tú lo fijaste, o Iato lo eligió (y por qué).
+export const REASON_TEXT: Record<string, string> = {
+  pinned: "lo fijaste tú",
+  explicit: "lo fijaste tú",
+  mentioned: "Iato eligió este viaje",
   in_progress: "en curso",
   single_upcoming: "tu próximo viaje",
 };
+/** Texto junto al selector cuando la última respuesta de Iato fue sobre otro viaje (N-P2-8). */
+export const FOLLOW_TEXT = "Iato habla de este viaje";
 
 /**
  * Muestra sobre qué viaje está hablando Iato y deja cambiarlo (guarda profiles.active_trip_id).
@@ -26,28 +31,32 @@ const REASON_TEXT: Record<string, string> = {
  * salida, todavía en tu ciudad, el viaje "sale hoy" (caso Huixquilucan → Roma, 22-oct-2026).
  * Compacto: una sola línea que se recorta en vez de desbordar el encabezado.
  */
-export function TripContextSelector({ trips, todayLocal, pinnedId, resolved, onChange, phaseHint, className = "" }: {
+export function TripContextSelector({ trips, todayLocal, pinnedId, resolved, onChange, phaseHint, followId = null, className = "" }: {
   trips: ContextTrip[];
   todayLocal: string;
   pinnedId: string | null;
   resolved: ActiveTripResult<ContextTrip>;
   onChange: (id: string | null) => void;
   phaseHint?: string | null;
+  /** Viaje del que trató la última respuesta de Iato (lo nombró el usuario): el selector lo sigue (N-P2-8). */
+  followId?: string | null;
   className?: string;
 }) {
-  const options = trips.filter((t) => !isTripEnded(t, todayLocal) || t.id === pinnedId);
+  const options = trips.filter((t) => !isTripEnded(t, todayLocal) || t.id === pinnedId || t.id === followId);
   if (!options.length) return null;
+  const following = !!followId && options.some((t) => t.id === followId);
   const reasonHint = resolved.trip
     ? REASON_TEXT[resolved.reason] ?? ""
     : resolved.reason === "ambiguous" ? "Iato te preguntará cuál" : "";
-  const hint = resolved.trip && phaseHint ? phaseHint : reasonHint;
+  const hint = following ? FOLLOW_TEXT : resolved.trip && phaseHint ? phaseHint : reasonHint;
+  const value = following ? followId! : pinnedId && options.some((t) => t.id === pinnedId) ? pinnedId : "";
   return (
     <label className={`flex min-w-0 items-center gap-1 ${className}`} data-testid="trip-context">
       <Plane className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />
       <span className="sr-only">Viaje en contexto:</span>
       <select
         aria-label="Viaje en contexto"
-        value={pinnedId && options.some((t) => t.id === pinnedId) ? pinnedId : ""}
+        value={value}
         onChange={(e) => onChange(e.target.value || null)}
         className="min-w-0 w-full max-w-[13rem] sm:max-w-[18rem] truncate rounded-full border border-primary/30 bg-background/60 px-2 py-0.5 text-[11px] text-foreground focus:border-primary focus:outline-none"
       >

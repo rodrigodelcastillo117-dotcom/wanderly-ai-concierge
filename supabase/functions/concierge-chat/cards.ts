@@ -639,7 +639,7 @@ const TOOL_LABEL: Record<string, string> = {
   search_places: "Google Maps",
   web_search: "Google",
   check_flight_status: "estado del vuelo",
-  search_members_venues: "Members Only",
+  search_members_venues: "Solo para miembros",
   get_weather: "clima",
 };
 
@@ -925,7 +925,11 @@ export function isTourDuplicate(card: Pick<ConciergeCard, "type" | "title">, tou
 // Regla: si el texto nombra opciones de la búsqueda, las tarjetas son ESAS (en el orden del texto); las
 // que no menciona no se muestran. Si no nombra ninguna, se queda lo de antes.
 
-const MENTION_STOP = new Set([...TOUR_STOP, "como", "desde", "para", "entre", "sobre", "the", "and", "with", "from", "experiencia", "excursion", "dia", "medio", "boletos", "entrada", "sin", "fila"]);
+// Palabras genéricas de tipo de lugar: "Restaurante La Herencia" no está nombrado en "a pie desde el
+// restaurante" (N-P2-2, Modo exigente: tarjeta de un lugar que el texto no nombraba).
+const PLACE_KIND_WORDS = ["restaurante", "restaurant", "museo", "museum", "hotel", "mirador", "parque", "plaza", "mercado", "galeria", "iglesia",
+  "catedral", "templo", "cafeteria", "bistro", "taqueria", "cantina"];
+const MENTION_STOP = new Set([...TOUR_STOP, ...PLACE_KIND_WORDS, "como", "desde", "para", "entre", "sobre", "the", "and", "with", "from", "experiencia", "excursion", "dia", "medio", "boletos", "entrada", "sin", "fila"]);
 const mentionWords = (v: unknown) => normName(v).split(" ").filter((w) => w.length > 3 && !MENTION_STOP.has(w));
 
 /** Línea del texto que nombra esta opción (o -1). Nombre contenido, o ≥2 palabras clave (≥60 %), o una muy distintiva. */

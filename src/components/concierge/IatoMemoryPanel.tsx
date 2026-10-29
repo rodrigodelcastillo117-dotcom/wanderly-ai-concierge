@@ -108,9 +108,11 @@ export function IatoMemoryPanel({ userId, trips, compact = false }: { userId: st
       <SheetTrigger asChild>
         {compact ? (
           // Encabezado compacto del chat: solo el ícono (con nombre accesible) para no desbordar.
+          // Con espacio (escritorio) también lleva texto visible, no solo el ícono (auditoría 10, ronda 3, §4).
           <button type="button" aria-label="Lo que Iato recuerda" title="Lo que Iato recuerda"
-            className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-primary/90 hover:text-primary hover:bg-primary/10 transition">
+            className="min-w-7 h-7 shrink-0 rounded-full flex items-center justify-center gap-1 px-1 lg:px-2 text-primary/90 hover:text-primary hover:bg-primary/10 transition">
             <Brain className="w-3.5 h-3.5" aria-hidden="true" />
+            <span className="hidden lg:inline text-[11px] whitespace-nowrap" data-testid="memory-label">Memoria</span>
           </button>
         ) : (
           <button className="flex items-center gap-1.5 text-[11px] text-primary/90 hover:text-primary transition">

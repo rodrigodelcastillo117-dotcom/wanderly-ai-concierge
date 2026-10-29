@@ -43,6 +43,8 @@ import { tripPhaseLabel, tripSituation } from "../../supabase/functions/concierg
 import { answerPlaceLabel, type PlaceScope } from "../../supabase/functions/concierge-chat/turnPlace.ts";
 import { scrubProviders } from "../../supabase/functions/_shared/providerNames.ts";
 import { reverseGeocode } from "@/lib/reverseGeocode";
+import { nextFollowTrip } from "@/lib/conciergeFollowTrip";
+import { HistoryNotice } from "@/components/concierge/HistoryNotice";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -71,6 +73,8 @@ type Msg = {
   /** De qué lugar es la respuesta (servidor, turnPlace.ts): "cerca de ti", "en Delhi" o el viaje. */
   placeScope?: PlaceScope | null;
   placeLabel?: string | null;
+  /** Aviso del historial ("Conversación anterior resumida"): no es de Iato ni se manda al modelo. */
+  notice?: boolean;
 };
 
 const PIN_KEY = "iatos_concierge_trip";
@@ -143,6 +147,8 @@ const Concierge = () => {
   const [pinnedId, setPinnedId] = useState<string | null>(() => {
     try { return localStorage.getItem(PIN_KEY) || null; } catch { return null; }
   });
+  // Viaje del que trató la última respuesta (lo nombró el usuario): el selector lo sigue (N-P2-8).
+  const [followTripId, setFollowTripId] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [tripsLoaded, setTripsLoaded] = useState(false);
   // E-13: viaje cuyo historial ya se cargó (undefined = ninguno todavía; null = "sin viaje").
@@ -229,6 +235,7 @@ const Concierge = () => {
   }, [user?.id, allowed]);
 
   const pinTrip = async (id: string | null) => {
+    setFollowTripId(null);
     setPinnedId(id);
     try { if (id) localStorage.setItem(PIN_KEY, id); else localStorage.removeItem(PIN_KEY); } catch { /* modo privado */ }
     if (!user) return;
@@ -329,9 +336,9 @@ const Concierge = () => {
         apiKey: PUBLISHABLE_KEY,
         headers: ps ? { "x-prive-session": ps } : undefined,
         body: {
-          messages: next.filter((m) => m.id !== "welcome" && m.text.trim()).map((m) => ({ role: m.role, content: m.text })),
+          messages: next.filter((m) => m.id !== "welcome" && !m.notice && m.text.trim()).map((m) => ({ role: m.role, content: m.text })),
           god_mode: godMode,
-          trip_id: opts.tripId !== undefined ? opts.tripId : pinnedId,
+          trip_id: opts.tripId !== undefined ? opts.tripId : (followTripId ?? pinnedId),
           intent: opts.intent,
           client_date: localISODate(),
           tz: browserTimeZone(),
@@ -352,7 +359,9 @@ const Concierge = () => {
         }),
         onDelta: (t) => patchMsg(replyId, (m) => ({ ...m, text: m.text + t })),
         onReset: () => patchMsg(replyId, (m) => ({ ...m, text: "" })),
-        onFinal: (data) => patchMsg(replyId, (m) => ({
+        onFinal: (data) => {
+          setFollowTripId((prev) => nextFollowTrip(prev, { tripId: data._trip_id ?? null, reason: data._trip_reason ?? null }, pinnedId ?? tripContext.trip?.id ?? null));
+          patchMsg(replyId, (m) => ({
           ...m,
           streaming: false,
           text: typeof data.text === "string" && data.text ? data.text : m.text || "…",
@@ -364,7 +373,8 @@ const Concierge = () => {
           local: data._user_position === "away",
           placeScope: typeof data._place_scope === "string" ? data._place_scope as PlaceScope : null,
           placeLabel: typeof data._place_label === "string" ? data._place_label : null,
-        })),
+          }));
+        },
       });
     } catch (e: any) {
       // Se decide por el código del servidor, no por el texto (IATOS-P1-FREE-01).
@@ -501,7 +511,8 @@ const Concierge = () => {
     // "Llévame" elige a pie / transporte / coche con la ubicación que esta pantalla ya tiene (sin permisos nuevos).
     <TakeMeFromContext.Provider value={takeMeFrom}>
     <DashboardLayout>
-      <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
+      {/* concierge-shell: alto de la pantalla menos el aviso de cookies si está abierto (N-P2-6: tapaba la caja de escritura). */}
+      <div className="concierge-shell flex flex-col h-[calc(100vh-4rem)] md:h-screen">
         {/* ENCABEZADO compacto del chat (en Members Only se oculta para que la curaduría quepa sin bajar):
             título en una línea y, debajo, ubicación · viaje en contexto · actualizar · memoria, todo en
             un renglón que se recorta en vez de desbordarse. */}
@@ -537,6 +548,7 @@ const Concierge = () => {
               resolved={tripContext}
               onChange={(id) => void pinTrip(id)}
               phaseHint={phaseHint}
+              followId={followTripId}
               className="flex-1 min-w-0"
             />
             <button
@@ -544,9 +556,10 @@ const Concierge = () => {
               onClick={() => setRefreshTick(t => t + 1)}
               aria-label="Actualizar ubicación y viajes (se actualiza solo cada minuto)"
               title={`Se actualiza solo cada minuto · última vez ${lastRefresh.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`}
-              className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-primary/80 hover:text-primary hover:bg-primary/10 transition"
+              className="min-w-7 h-7 shrink-0 rounded-full flex items-center justify-center gap-1 px-1 lg:px-2 text-primary/80 hover:text-primary hover:bg-primary/10 transition"
             >
               <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+              <span className="hidden lg:inline text-[11px] whitespace-nowrap">Actualizar</span>
             </button>
             {user && <IatoMemoryPanel compact userId={user.id} trips={trips} />}
             </div>
@@ -557,7 +570,7 @@ const Concierge = () => {
         <div className="px-2 sm:px-3 md:px-6 border-b border-border bg-background/60 backdrop-blur flex gap-1">
           <button
             onClick={() => switchTab("chat")}
-            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-sm tracking-wide transition ${
+            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-[13px] sm:text-sm sm:tracking-wide transition ${
               tab === "chat" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -566,7 +579,7 @@ const Concierge = () => {
           </button>
           <button
             onClick={() => switchTab("members")}
-            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-sm tracking-wide transition ${
+            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-[13px] sm:text-sm sm:tracking-wide transition ${
               tab === "members" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -575,11 +588,11 @@ const Concierge = () => {
           </button>
           <button
             onClick={() => switchTab("solicitudes")}
-            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-sm tracking-wide transition ${
+            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-[13px] sm:text-sm sm:tracking-wide transition ${
               tab === "solicitudes" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="inline-flex items-center gap-2"><Inbox className="hidden sm:block w-3.5 h-3.5" /><span className="sm:hidden">Solicitudes</span><span className="hidden sm:inline">Mis solicitudes</span></span>
+            <span className="inline-flex items-center gap-2"><Inbox className="hidden sm:block w-3.5 h-3.5" />Mis solicitudes</span>
             {tab === "solicitudes" && <span className="absolute left-2 right-2 -bottom-px h-0.5 bg-gradient-gold rounded-full" />}
           </button>
         </div>
@@ -604,7 +617,9 @@ const Concierge = () => {
             último mensaje. */}
         <div ref={scrollRef} tabIndex={0} role="region" aria-label="Conversación con Iato" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 md:px-6 py-3 space-y-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40">
 
-          {messages.map(m => (
+          {messages.map(m => m.notice ? (
+            <HistoryNotice key={m.id} text={m.text} />
+          ) : (
             <MessageBubble key={m.id} msg={m.id === "welcome" ? { ...m, text: welcomeText(trip as any) } : m} trips={trips}
               onChooseTrip={chooseTripAndRetry} disabled={sending} onOpenEmergency={() => setLiveAction("emergency")} />
           ))}

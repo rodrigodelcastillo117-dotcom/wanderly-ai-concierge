@@ -20,6 +20,8 @@ export type AiReservation = {
   customer_name: string;
   status: string;
   reason: string | null;
+  /** Cuándo salió el correo al restaurante (null = nunca se envió). */
+  sent_at?: string | null;
   label: string;
   is_confirmed: boolean;
   confirm_prompt: string;

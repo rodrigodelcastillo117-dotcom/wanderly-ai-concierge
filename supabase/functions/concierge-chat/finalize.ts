@@ -19,7 +19,7 @@ import { correctFailureClaims, enforceNoFakeBooking, enforceNoFakeRequest, label
 import { type ActionContext, isGooglePlaceId, type ProposedAction, restaurantBookingLinks, validateAction, validateActions } from "./actions.ts";
 import { directionsLink, uberLink, type TurnPlan } from "./planner.ts";
 import { ensureTransferUsesKnownData, normText } from "./context.ts";
-import { itineraryActionScope, type TripPosition, type UserLocation, userTripPosition } from "./location.ts";
+import { itineraryActionScope, kmToNearestDestination, NEAR_DESTINATION_KM, textMentionsDestination, type TripPosition, type UserLocation, userTripPosition } from "./location.ts";
 import { compactReply, dropUnaskedFlightAdvice } from "./brevity.ts";
 import { scrubProviders } from "../_shared/providerNames.ts";
 import { applyHonesty, type HonestyCtx } from "./honesty.ts";
@@ -99,7 +99,18 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
   });
   const aligned = alignAttractionCards(notTours, readText, attractionPlaces(i.toolRuns));
   if (aligned !== notTours) guards.push("tarjetas_del_texto");
-  const cards = [...events, ...tours, ...enrichCardLinks(aligned, ev, {
+  // Un mismo lugar como "atracción" y como "restaurante" sale una sola vez, como restaurante (N-P2-2:
+  // Bocatto Gourmet salía dos veces en Modo exigente).
+  const restaurantNames = aligned.filter((c) => c.type === "restaurant").map((c) => normText(c.title));
+  const deduped = aligned.filter((c) => {
+    if (c.type !== "attraction") return true;
+    const t = normText(c.title);
+    if (!restaurantNames.some((r) => r === t || (r.length >= 6 && t.includes(r)) || (t.length >= 6 && r.includes(t)))) return true;
+    fromModel.dropped.push({ type: c.type, reason: "repetida_como_restaurante" });
+    guards.push("tarjeta_repetida");
+    return false;
+  });
+  const cards = [...events, ...tours, ...enrichCardLinks(deduped, ev, {
     directions: (t) => directionsLink(t),
     ride: (t) => uberLink(t),
     booking: (v) => restaurantBookingLinks(v),
@@ -152,9 +163,12 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
   // Sin viaje en contexto, otro de sus viajes cuyas fechas incluyan el evento y cuyo destino nombre la ciudad.
   const inTrip = (t: { fecha_salida?: string | null; fecha_regreso?: string | null } | null | undefined, d?: string) =>
     !!(t && d && t.fecha_salida && String(t.fecha_salida).slice(0, 10) <= d && (!t.fecha_regreso || d <= String(t.fecha_regreso).slice(0, 10)));
+  // N-P1-1: con viaje en contexto también tiene que ser en una ciudad del viaje (antes bastaba la fecha y
+  // se ofrecía guardar un concierto de Bellas Artes, CDMX, en el viaje a Valle de Bravo).
+  const searchedCities = i.toolRuns.filter((r) => r.name === "search_events" && typeof r.args?.city === "string").map((r) => String(r.args!.city));
   const tripCtx = i.tripScope?.trip ?? null;
   let evTrip: { id: string } | null = null;
-  let ev0 = events.find((e) => inTrip(tripCtx, e.event_date));
+  let ev0 = events.find((e) => inTrip(tripCtx, e.event_date) && eventInTripCity(e, tripCtx, searchedCities));
   if (ev0 && tripCtx?.id) evTrip = tripCtx;
   else if (!tripCtx) {
     for (const e of events) {
@@ -171,6 +185,17 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
       nota: tm ? "Evento de Ticketmaster; los boletos se compran en Ticketmaster." : "Evento de Google Events; los boletos se compran en el sitio de boletos.",
     }, ctx);
     if (v.ok) acts.actions.push({ id: (i.makeId ?? (() => crypto.randomUUID()))(), ...v.action, confirm_label: "Guardar en mi viaje" });
+  }
+
+  // Mesa para el equipo (Modo exigente): lleva las opciones que Iato mostró, para que la persona sepa cuáles son.
+  const options = cards.filter((c) => c.type === "restaurant").map((c) => c.title).slice(0, 3);
+  if (options.length) {
+    for (const a of acts.actions) {
+      if (a.type !== "fixer_request" || a.params.tipo !== "reservation" || a.params.lugar) continue;
+      const extra = `Opciones de Iato: ${options.join(", ")}.`;
+      const det = typeof a.params.detalle === "string" ? a.params.detalle : "";
+      if (!det.includes("Opciones de Iato")) a.params = { ...a.params, detalle: `${det ? `${det}\n` : ""}${extra}`.slice(0, 600) };
+    }
   }
 
   const live = typeof i.liveText === "string" && i.liveText.trim() ? i.liveText.trim() : null;
@@ -227,4 +252,17 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
     out.text = out.cards.length || acts.actions.length ? "Esto es lo que encontré:" : "No alcancé a armar una respuesta. ¿Me lo pides de nuevo?";
   }
   return { text: out.text, cards: out.cards, actions: acts.actions, dropped: { cards: [...fromModel.dropped, ...planCards.dropped], actions: acts.dropped }, guards };
+}
+
+/** ¿El evento es en una ciudad del viaje? Por su recinto y dirección, sus coordenadas o la ciudad buscada. */
+export function eventInTripCity(e: ConciergeCard, trip: any, searchedCities: string[] = []): boolean {
+  if (!trip) return false;
+  const place = `${e.meta ?? ""} ${e.address ?? ""}`;
+  if (textMentionsDestination(trip, place)) return true;
+  if (typeof e.lat === "number" && typeof e.lng === "number") {
+    const km = kmToNearestDestination(trip, { lat: e.lat, lng: e.lng });
+    if (km !== null) return km <= NEAR_DESTINATION_KM;
+  }
+  // Sin dirección que lo diga: la ciudad que se buscó tiene que ser la del viaje.
+  return searchedCities.length > 0 && searchedCities.every((c) => textMentionsDestination(trip, c));
 }

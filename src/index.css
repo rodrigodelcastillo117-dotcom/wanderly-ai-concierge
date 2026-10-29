@@ -272,3 +272,13 @@
 @media (prefers-reduced-motion: reduce) {
   .prive-seal-shine { animation: none; }
 }
+
+/* Concierge (pages/Concierge.tsx): mientras el aviso de cookies está abierto, el chat reserva su alto
+   abajo (--cookie-banner-h, lo pone CookieBanner) y la caja de escritura queda encima del aviso. Antes el
+   aviso la tapaba en la primera visita (auditoría 10, ronda 3, N-P2-6). El alto del chat lo fija
+   DashboardLayout (h-full), por eso se reserva con padding y no con height. */
+.concierge-shell { padding-bottom: var(--cookie-banner-h, 0px); }
+
+/* Buscador de Solo para miembros: sin la flecha del navegador del datalist (N-P2-7). */
+.members-search::-webkit-calendar-picker-indicator { display: none !important; opacity: 0; }
+.members-search::-webkit-list-button { display: none !important; }

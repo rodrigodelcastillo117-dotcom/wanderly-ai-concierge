@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { runWeather, weatherRequested, WEATHER_USER_AGENT } from "../../supabase/functions/_shared/weather";
 import { buildCityWeather } from "@/lib/tripWeather";
-import { detectIntents, leadSentence, planTurn } from "../../supabase/functions/concierge-chat/planner";
+import { detectIntents, leadSentence, planTurn, toolStatusText } from "../../supabase/functions/concierge-chat/planner";
 import { TOOL_DEFS, validateToolInput } from "../../supabase/functions/concierge-chat/toolDefs";
 import { prepareToolResultForModel } from "../../supabase/functions/concierge-chat/cards";
 import { runWebSearch } from "../../supabase/functions/concierge-chat/webSearch";
@@ -94,7 +94,10 @@ describe("herramienta de clima de Iato (misma fuente que la pantalla Clima)", ()
     const trip = { id: "t1", destino: "Madrid", fecha_salida: "2027-03-10", fecha_regreso: "2027-03-17" };
     const plan = planTurn({ message: "¿qué clima hará?", intents, trip, todayISO: "2026-10-28", coords: null, hasPriveSession: false, exigente: false });
     expect(plan.prefetch).toContainEqual({ name: "get_weather", args: { city: "Madrid", date_from: "2027-03-10", date_to: "2027-03-17" }, reason: "clima" });
-    expect(leadSentence(plan)).toMatch(/MET Norway/);
+    // Auditoría 10 #16 (ronda 3): sin frase de relleno ("Consulto el clima… en MET Norway, la misma fuente…");
+    // la fuente va en la respuesta y el paso en vivo ya dice "Consultando el clima de … (MET Norway)".
+    expect(leadSentence(plan)).toBeNull();
+    expect(toolStatusText("get_weather", { city: "Madrid" })).toMatch(/MET Norway/);
     expect(TOOL_DEFS.find((t) => t.name === "get_weather")!.description).toMatch(/misma fuente que la pantalla Clima/i);
     expect(validateToolInput("get_weather", { city: "Madrid", date_from: "2027-03-10" })).toMatchObject({ ok: true });
     expect(validateToolInput("get_weather", {})).toMatchObject({ ok: false });

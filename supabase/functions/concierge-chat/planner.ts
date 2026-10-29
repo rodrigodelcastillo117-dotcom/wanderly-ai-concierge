@@ -24,6 +24,8 @@ import { weatherRequested } from "../_shared/weather.ts";
 import { tripIsByLand } from "./actions.ts";
 import { requestedDestination } from "./turnPlace.ts";
 import { cityAirports } from "../_shared/airports.ts";
+import { timeRequested } from "../_shared/worldClock.ts";
+import { requestedWhen, whenLabel } from "./requestedWhen.ts";
 export { tripIsByLand };
 
 export type Intent =
@@ -41,7 +43,9 @@ export type Intent =
   // Clima real (get_weather): la misma fuente que la pantalla Clima.
   | "weather"
   // "Resérvame mesa en X": con Reservas IA disponible, Iato propone pedirla por correo (ai_reservation_request).
-  | "book_table";
+  | "book_table"
+  // "¿Qué hora es en Tokio?": reloj de IATOS (get_local_time), auditoría 10 ronda 3, N-P1-6.
+  | "time";
 
 export const CHIP_INTENTS: readonly Intent[] = [
   "dining_near_hotel", "transport", "emergency", "flight_status", "luggage", "members_followup", "trip_overview",
@@ -110,6 +114,7 @@ export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   if (toursRequested(message)) out.add("tours");
   if (honeymoonRequested(message)) out.add("honeymoon_plan");
   if (weatherRequested(message)) out.add("weather");
+  if (timeRequested(message)) out.add("time");
   // "cenar cerca de mi hotel" ya es dining_near_hotel.
   if (out.has("dining_near_hotel")) out.delete("dining");
   // Auditoría 10 #16: "registra un gasto de 150 pesos en comida" no es buscar restaurantes, y "¿cuánta
@@ -291,6 +296,9 @@ export function planTurn(i: PlanInput): TurnPlan {
   const futureTrip = !!trip?.fecha_salida && String(trip.fecha_salida).slice(0, 10) > i.todayISO;
   const requested = typeof i.requested === "string" && i.requested.trim() ? i.requested.trim().slice(0, 60) : null;
 
+  // Fecha y hora que el mensaje pide (nunca se inventan: sin fecha escrita no hay fecha).
+  const when = requestedWhen(i.message, i.todayISO);
+
   if (has("book_table") && i.aiReservationsEnabled === true) plan.notes.push(AI_RESERVATION_NOTE);
 
   if (has("human")) {
@@ -418,7 +426,14 @@ export function planTurn(i: PlanInput): TurnPlan {
       plan.prefetch.push({ name: "search_attractions", args: { query: `mejores restaurantes en ${rankCity}`, category: "restaurants" }, reason: "ranking de la ciudad" });
     }
     // "Agregar a tu viaje" solo si la cena es en el viaje (finalize.ts vuelve a revisar con el lugar).
-    if (tripId && !local && !away) plan.suggestedActions.push({ type: "add_itinerary_item", params: { trip_id: tripId, fecha: i.todayISO, hora: "20:30", titulo: "Cena" } });
+    // La fecha y la hora son las que pidió (N-P1-3); sin fecha escrita, la de hoy ("cenar cerca de mi hotel").
+    if (tripId && !local && !away) {
+      const meal = mealFromText(i.message);
+      plan.suggestedActions.push({ type: "add_itinerary_item", params: {
+        trip_id: tripId, fecha: when.fecha ?? i.todayISO, hora: when.hora ?? "20:30",
+        titulo: meal === "comida" ? "Comida" : meal === "desayuno" ? "Desayuno" : meal === "brunch" ? "Brunch" : "Cena",
+      } });
+    }
   }
 
   // Clima: la herramienta real con la ciudad pedida o la del viaje y, si es el viaje, sus fechas.
@@ -433,6 +448,18 @@ export function planTurn(i: PlanInput): TurnPlan {
       plan.notes.push("Para el clima falta la ciudad: pregúntala en una línea.");
     }
     plan.toolHints.push("get_weather");
+  }
+
+  // Hora actual (N-P1-6): el reloj de IATOS, nunca "no tengo reloj".
+  if (has("time")) {
+    const tcity = requested;
+    if (tcity) {
+      plan.prefetch.push({ name: "get_local_time", args: { city: tcity }, reason: "hora local" });
+      plan.notes.push(`Hora: di la hora actual de ${tcity} tal cual viene en get_local_time (campo texto) y la diferencia con el usuario. Nunca digas que no tienes reloj.`);
+    } else {
+      plan.notes.push("Hora: si pregunta su hora, usa la HORA ACTUAL DEL USUARIO del sistema; si es de otra ciudad, get_local_time. Nunca digas que no tienes reloj.");
+    }
+    plan.toolHints.push("get_local_time");
   }
 
   if (has("place_fact")) {
@@ -527,7 +554,7 @@ export function planTurn(i: PlanInput): TurnPlan {
   }
 
   if (has("members_followup")) {
-    plan.notes.push("El usuario ya envió una solicitud de mesa desde Members Only (no es reserva). Confírmale que quedó en manos del equipo, dale el enlace del lugar si existe y una alternativa por si no hay mesa.");
+    plan.notes.push("El usuario ya envió una solicitud de mesa desde Solo para miembros (no es reserva). Confírmale que quedó en manos del equipo, dale el enlace del lugar si existe y una alternativa por si no hay mesa.");
   }
 
   if (has("trip_overview") && tripId) {
@@ -544,7 +571,29 @@ export function planTurn(i: PlanInput): TurnPlan {
   if (i.exigente) {
     // Modo exigente: siempre queda lista la mano humana para cerrar lo elegido (Iato no reserva).
     if (has("flight_compare")) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "other", titulo: "Que nuestro equipo gestione el vuelo elegido", detalle: i.message.slice(0, 300), ...(tripId ? { trip_id: tripId } : {}) } });
-    if ((has("dining_near_hotel") || has("dining")) && !(has("book_table") && i.aiReservationsEnabled === true)) plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "reservation", titulo: "Reservar mesa en la opción elegida", fecha: i.todayISO, hora: "20:30", ...(tripId && !away ? { trip_id: tripId } : {}) } });
+    if ((has("dining_near_hotel") || has("dining")) && !(has("book_table") && i.aiReservationsEnabled === true)) {
+      // N-P1-3: la mesa va con la fecha y la hora que pidió y un título concreto (comida o cena, lugar y
+      // día). Sin fecha escrita no se inventa: Iato la pide y no deja un botón con la fecha de hoy.
+      // "Quiero cenar" sin fecha, ya en el destino y con el viaje en curso, es hoy (no se inventa: es ahora).
+      const inProgressHere = !!trip && !away && !!iso(trip?.fecha_salida) && String(trip.fecha_salida).slice(0, 10) <= i.todayISO
+        && (!iso(trip?.fecha_regreso) || i.todayISO <= String(trip.fecha_regreso).slice(0, 10));
+      const fecha = when.fecha ?? (inProgressHere && !BROADER_ASK.test(normText(i.message)) ? i.todayISO : null);
+      if (fecha) {
+        const meal = mealFromText(i.message);
+        const what = meal === "comida" ? "Mesa para comer" : meal === "desayuno" ? "Mesa para desayunar" : meal === "brunch" ? "Mesa para el brunch" : "Mesa para cenar";
+        const where = requested ?? (away ? place : city);
+        plan.suggestedActions.push({ type: "fixer_request", params: {
+          tipo: "reservation",
+          titulo: `${what}${where ? ` en ${where}` : ""} · ${fecha === i.todayISO && !when.fecha ? "hoy" : whenLabel(fecha)}${when.hora ? ` ${when.hora}` : ""}`,
+          fecha, ...(when.hora ? { hora: when.hora } : {}),
+          detalle: i.message.slice(0, 300),
+          ...(tripId && !away ? { trip_id: tripId } : {}),
+        } });
+        if (!when.hora) plan.notes.push("Para pedir la mesa falta la hora: pregúntala en una línea.");
+      } else {
+        plan.notes.push("Si va a pedir mesa, pregunta en una línea para qué fecha y hora (no la des por hecha).");
+      }
+    }
     plan.notes.push("MODO EXIGENTE: compara a fondo y presenta 'La mejor / La alternativa / El plan B' con el porqué, la fuente y la contra de cada una (una línea por opción); anticipa la siguiente necesidad relacionada en una línea.");
   }
 
@@ -665,10 +714,14 @@ export function toolStatusText(name: string, args: Record<string, unknown>): str
     case "search_nearby": return `Buscando ${KIND_LABEL[String(args.kind)] ?? "lugares"} cerca…`;
     case "web_search": return `Buscando en Google: ${clip(args.query)}…`;
     // La búsqueda de Iato va directo a Google Maps (tripadvisor-search sin uso de pantalla), N10.
-    case "search_attractions": return `Buscando atracciones en Google Maps: ${clip(args.query)}…`;
+    // Ranking de restaurantes (Modo exigente): no es una búsqueda de "atracciones" (N-P2-2).
+    case "search_attractions": return args.category === "restaurants" || /\brestaurant/i.test(String(args.query ?? ""))
+      ? `Buscando en Google Maps: ${clip(args.query)}…`
+      : `Buscando atracciones en Google Maps: ${clip(args.query)}…`;
     case "search_events": return `Buscando eventos en ${clip(args.city, 30)}…`;
     case "search_tours": return `Buscando tours en Viator: ${clip(args.city, 30)}…`;
-    case "search_members_venues": return `Revisando Members Only en ${clip(args.city, 30)}…`;
+    case "search_members_venues": return `Revisando Solo para miembros en ${clip(args.city, 30)}…`;
+    case "get_local_time": return `Consultando la hora en ${clip(args.city ?? args.timezone, 30)}…`;
     case "search_prive": return "Revisando el catálogo Privé…";
     case "get_weather": return `Consultando el clima de ${clip(args.city, 30)} (MET Norway)…`;
     case "get_travel_advisory": return `Revisando avisos oficiales de ${clip(args.pais ?? args.destino, 30)}…`;
@@ -729,8 +782,8 @@ export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">, opts:
     return `Comparo los vuelos ${LEAD_CLIP(flights.args.origin, 24)} → ${LEAD_CLIP(flights.args.destination, 24)} para tus fechas.`;
   }
   if (has("place_fact")) return "Busco ese dato en Google y en Google Maps para darte la ubicación exacta.";
-  // Clima solo si la pregunta es del clima (no "museos para un día de lluvia").
-  if (spec("get_weather") && !broader && !(places || nearby)) return `Consulto el clima de ${LEAD_CLIP(spec("get_weather")!.args.city, 30)} en MET Norway, la misma fuente de tu pantalla Clima.`;
+  // Clima: sin frase de relleno (auditoría 10 #16, ronda 3): el paso "Consultando el clima…" ya lo dice
+  // y la respuesta abre con el dato y su fuente.
   if (places && (has("dining_near_hotel") || has("dining"))) {
     if (broader) return null;
     if (places.reason === "restaurantes en el destino pedido") return `Busco ${LEAD_CLIP(places.args.query, 60)} en Google Maps.`;

@@ -254,7 +254,8 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submitSearch()}
             placeholder="Ciudad, lugar o tipo (rooftop, jazz…)"
-            className="pl-11 pr-10 h-11 rounded-full border-primary/25 bg-black/40"
+            // Sin la flecha ▼ que el navegador pone a un campo con sugerencias (datalist) junto a la ✕ (N-P2-7).
+            className="members-search pl-11 pr-10 h-11 rounded-full border-primary/25 bg-black/40"
             list="cities-list-members"
             enterKeyHint="search"
           />

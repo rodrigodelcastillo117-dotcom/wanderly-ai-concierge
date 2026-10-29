@@ -159,6 +159,21 @@ export const TOOL_DEFS: ToolDef[] = [
     },
   },
   {
+    // Auditoría 10, ronda 3 (N-P1-6): "¿qué hora es en Tokio?" → "no tengo reloj". Ahora la calcula IATOS.
+    name: "get_local_time",
+    description:
+      "Hora ACTUAL en una ciudad o zona horaria (reloj de IATOS: UTC del servidor + zona IANA, con horario de verano), y la diferencia con el usuario. " +
+      "Úsala SIEMPRE que pregunten qué hora es en otro lugar o la diferencia de horario. Responde al instante; nunca digas que no tienes reloj.",
+    input_schema: {
+      type: "object",
+      properties: {
+        city: { type: "string", description: "Ciudad o país, ej. 'Tokio' o 'Lisboa'" },
+        timezone: { type: "string", description: "Zona IANA si la sabes, ej. 'Asia/Tokyo' (opcional)" },
+      },
+      required: ["city"],
+    },
+  },
+  {
     name: "search_events",
     description:
       "Eventos reales (Ticketmaster y Google Events): conciertos, teatro, deportes, festivales y espectáculos en una ciudad y un rango de fechas, " +

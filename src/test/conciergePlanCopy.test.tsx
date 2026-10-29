@@ -26,10 +26,12 @@ describe("ConciergeHeading", () => {
     expect(document.body.textContent).not.toMatch(/Concierge PRO/);
   });
 
-  it("PRO: 'Concierge PRO te escucha' sin aviso de cupo", () => {
+  // Ronda 3 (§4): el asistente se llama Iato en todos los planes; el plan va arriba ("CONCIERGE PRO").
+  it("PRO: 'Iato te escucha' con el plan arriba y sin aviso de cupo", () => {
     sub.value = pro;
     render(<MemoryRouter><ConciergeHeading /></MemoryRouter>);
-    expect(screen.getByRole("heading", { name: "Concierge PRO te escucha" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Iato te escucha" })).toBeInTheDocument();
+    expect(document.body.textContent).toMatch(/CONCIERGE PRO/);
     expect(screen.queryByRole("link", { name: "Conoce PRO" })).toBeNull();
   });
 

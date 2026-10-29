@@ -40,6 +40,17 @@ const GOLD_CTA = "bg-gradient-gold text-primary-foreground hover:opacity-90";
 /** Burbuja compacta del hilo (lado de Iato): ancho completo de la columna, esquina como globo de chat. */
 const CARD_SHELL = "w-full rounded-2xl rounded-tl-md border border-border bg-card px-3 py-2.5";
 
+/**
+ * Transporte sin enlace propio (N-P1-4): el botón genérico de Welcome Pickups solo tiene sentido en un
+ * traslado de aeropuerto. Un chofer por el día o una excursión "por cotizar" no lleva botón de compra:
+ * la acción principal es pedírselo a una persona del equipo.
+ */
+export function transportFallback(card: Pick<ConciergeCard, "title" | "subtitle" | "meta">): "airport_transfer" | "team" {
+  const t = `${card.title ?? ""} ${card.subtitle ?? ""} ${card.meta ?? ""}`.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  if (/\b(por cotizar|cotizacion|excursion|tour|por el dia|todo el dia|ida y vuelta|por hora)\b/.test(t)) return "team";
+  return /\b(aeropuerto|airport|terminal \d|aicm|aifa)\b/.test(t) ? "airport_transfer" : "team";
+}
+
 /** Precio con moneda, solo si el servidor lo marcó como consultado y trae su fuente. */
 export function verifiedPrice(card: ConciergeCard): { amount: number; currency: string } | null {
   const amount = typeof card.price === "number" ? card.price : card.price_usd;
@@ -655,16 +666,20 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
         {(() => { const g = groundCardLink(card); return g ? (
           <a href={g.href} data-testid="card-ground-link" className="mb-2 inline-flex min-h-[32px] items-center rounded-full border border-primary/40 px-3 text-[11px] text-primary">{g.label}</a>
         ) : null; })()}
-        {/* B-17: cada card abre SU enlace (Welcome Pickups, Blacklane, Maps…). Solo sin enlace se
-            arma uno de Welcome Pickups con origen y destino de la card. */}
+        {/* B-17: cada card abre SU enlace (Welcome Pickups, Blacklane, Maps…). Ronda 3 (N-P1-4): sin enlace
+            ya no se arma el "Reservar transfer" genérico de Welcome Pickups (portada de traslados de
+            aeropuerto, sin origen ni destino): solo para un traslado de aeropuerto. Lo demás (chofer por el
+            día, excursión, "precio por cotizar") lo pide una persona del equipo con la acción de abajo. */}
         {card.links?.length ? (
           <CardLinks card={card} onOpen={onOpen} />
         ) : url ? (
           <AffiliateActionButton type="custom_link" userId={user?.id} tripId={tripId ?? null} label={card.cta_label ?? "Abrir"}
             payload={{ url, provider: card.provider ?? new URL(url).hostname, accion: "concierge_transport" }} className="h-9 text-xs" />
-        ) : (
-          <AffiliateActionButton type="welcome_pickups_transfer" userId={user?.id} tripId={tripId ?? null} label={card.cta_label ?? "Reservar transfer"}
+        ) : transportFallback(card) === "airport_transfer" ? (
+          <AffiliateActionButton type="welcome_pickups_transfer" userId={user?.id} tripId={tripId ?? null} label={card.cta_label ?? "Reservar transfer al aeropuerto"}
             payload={{ origen: card.subtitle?.split("→")[0]?.trim(), destino: card.subtitle?.split("→")[1]?.trim() ?? card.title }} className="h-9 text-xs" />
+        ) : (
+          <p className="text-[11px] text-muted-foreground" data-testid="transport-team-note">Precio por cotizar: lo gestiona una persona del equipo IATOS. Aún no está reservado.</p>
         )}
       </div>
     );

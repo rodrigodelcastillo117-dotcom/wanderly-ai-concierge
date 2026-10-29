@@ -5,6 +5,8 @@ import { getConsent, setConsent, OPEN_SETTINGS_EVENT, travelpayoutsDriveEnabled,
 
 /** Espacio que el aviso fijo ocupa abajo mientras está visible (variable CSS en <html>): su alto más la barra inferior. */
 export const COOKIE_BANNER_SPACE_VAR = "--cookie-banner-space";
+/** Solo el alto del aviso (sin la barra inferior): lo usan pantallas de alto fijo como el Concierge. */
+export const COOKIE_BANNER_HEIGHT_VAR = "--cookie-banner-h";
 
 /**
  * Barras de navegación fijas abajo (la del panel en el celular y la de Privé). El relleno del body no
@@ -55,6 +57,7 @@ export const CookieBanner = () => {
       setBarOffset((prev) => (prev === off ? prev : off));
       const h = Math.ceil(boxRef.current?.getBoundingClientRect().height ?? 0);
       root.style.setProperty(COOKIE_BANNER_SPACE_VAR, `${h + off}px`);
+      root.style.setProperty(COOKIE_BANNER_HEIGHT_VAR, `${h}px`);
       if (h) body.style.paddingBottom = `${h}px`;
       else restore();
     };
@@ -82,6 +85,7 @@ export const CookieBanner = () => {
       if (raf) window.cancelAnimationFrame(raf);
       window.removeEventListener("resize", schedule);
       root.style.removeProperty(COOKIE_BANNER_SPACE_VAR);
+      root.style.removeProperty(COOKIE_BANNER_HEIGHT_VAR);
       restore();
     };
   }, [visible]);

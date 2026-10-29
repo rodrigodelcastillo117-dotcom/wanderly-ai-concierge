@@ -84,6 +84,11 @@ export interface HonestyCtx {
   aiReservations?: AiResRow[];
   /** El viaje en contexto es nacional (mismo país de origen y destino): sin adaptador de corriente. */
   domesticTrip?: boolean;
+  /**
+   * Cuándo se cotizó el precio del hotel guardado en el viaje, ya en la hora del usuario ("27 oct 2026,
+   * 23:37 (hora CDMX)"). N-P2-1: Iato decía "Google Hotels en vivo, consultado hoy 28 oct".
+   */
+  hotelQuoteStamp?: string | null;
 }
 
 // ═══ N1: "no está entre tus viajes" cuando sí está ═══
@@ -195,6 +200,43 @@ export function dropAdapter(sentence: string): string | null {
   return /\w/.test(out.replace(/^\s*([-*•]|\d+[.)])\s*/, "")) ? out : "";
 }
 
+// ═══ N-P2-1: precio del hotel guardado presentado como "en vivo, consultado hoy" ═══
+
+const HOTEL_WORD = /\b(hotel\w*|hospedaje|alojamiento|por noche|la noche)\b/;
+const PRICE_WORD = /(\$|\bmxn\b|\busd\b|\beur\b|\bprecio|\btarifa)/;
+const LIVE_CLAIM = /\b(en vivo|consultad[oa] hoy|precio de hoy|tiempo real)\b/;
+
+export function fixStaleHotelPrice(sentence: string, ctx: Pick<HonestyCtx, "toolsWithData" | "hotelQuoteStamp">): string | null {
+  const s = norm(sentence);
+  if (!HOTEL_WORD.test(s) || !PRICE_WORD.test(s) || !LIVE_CLAIM.test(s)) return null;
+  // Si este turno sí buscó hoteles, "en vivo" puede ser cierto.
+  if (ctx.toolsWithData().has("search_hotels")) return null;
+  let out = sentence
+    .replace(/\s+en tiempo real\b/gi, "")
+    .replace(/\s+en vivo\b/gi, " (cotización guardada)")
+    .replace(/\bprecio de hoy\b/gi, "precio guardado");
+  const stamp = ctx.hotelQuoteStamp ? `consultado el ${ctx.hotelQuoteStamp}` : "de una cotización guardada";
+  out = out.replace(/\bconsultad[oa]\s+hoy(?:,?\s+(?:mi[eé]rcoles|lunes|martes|jueves|viernes|s[aá]bado|domingo))?(?:\s+\d{1,2}(?:\s+de)?\s+[a-záéíóú]{3,10}\.?(?:\s+(?:de\s+)?\d{4})?)?(?:,?\s+a las \d{1,2}:\d{2}(?:\s*\([^)]*\))?)?/i, stamp);
+  return out === sentence ? null : out;
+}
+
+// ═══ N-P2-2: "ajusto los horarios" sin una acción que lo haga ═══
+// Iato no tiene una acción para mover lo que ya está en el itinerario: prometerlo es falso. Se cambia por
+// un consejo honesto ("revisa que no choquen").
+
+const SELF_ADJUST = /(,?\s*(?:as[ií] que|por eso|entonces|y)\s+)?\b(ajusto|ajustar[eé]|reacomodo|reacomodar[eé]|reorganizo|reorganizar[eé]|muevo|mover[eé]|recorro|actualizo|actualizar[eé])\b[^.!?\n]*?\b(horarios?|horas|itinerario|agenda)\b[^.!?\n]*/i;
+const OFFER = /\b(si quieres|si te parece|puedo|podemos|quieres que|te ayudo a)\b/;
+
+export function fixSelfAdjustPromise(sentence: string): string | null {
+  const m = sentence.match(SELF_ADJUST);
+  if (!m || OFFER.test(norm(sentence.slice(0, m.index! + m[0].length)))) return null;
+  const tail = "revisa que los horarios no choquen; yo no muevo lo que ya tienes en el itinerario";
+  const before = sentence.slice(0, m.index!).replace(/[\s,]+$/, "");
+  const end = sentence.slice(m.index! + m[0].length);
+  if (!before.trim() || /^\W*$/.test(before)) return `Revisa que los horarios no choquen con lo que ya tienes; yo no muevo lo que ya está en tu itinerario${end.trim() ? end : "."}`;
+  return `${before}: ${tail}${end.trim() ? end : "."}`;
+}
+
 // ═══ Una oración ═══
 
 /** null = se queda igual; "" = se quita; otro texto = la reemplaza. */
@@ -204,6 +246,10 @@ export function reviseSentence(sentence: string, ctx: HonestyCtx): string | null
   if (phantomCardPromise(sentence, ctx)) return "";
   const sent = fixFakeSent(sentence, ctx);
   if (sent) return sent;
+  const hotel = fixStaleHotelPrice(sentence, ctx);
+  if (hotel) return hotel;
+  const adjust = fixSelfAdjustPromise(sentence);
+  if (adjust) return adjust;
   if (ctx.domesticTrip) {
     const a = dropAdapter(sentence);
     if (a !== null) return a;
@@ -312,4 +358,25 @@ export function applyHonesty(text: string, ctx: HonestyCtx | null): { text: stri
   const f = new LiveHonestyFilter(ctx);
   const out = f.push(text) + f.flush();
   return { text: out, revised: f.revised };
+}
+
+// ═══ N-P2-3: la misma mesa contada dos veces ═══
+// <estado_reservas_usuario> (vista canónica) trae también las mesas de Reservas IA (fila de ai_reservations
+// o su espejo), que ya van con su estado exacto en <reservas_ia_usuario>: Iato decía "además hay una
+// solicitud de Contramar del 28 oct" que era la misma. Se quitan de la vista las que ya están en Reservas IA.
+
+export interface CanonRowLike { source_table?: string | null; source_id?: string | null; title?: string | null; kind?: string | null }
+
+const MIRROR_KINDS = new Set(["restaurant", "reservation", "ai_reservation", "restaurante", "mesa", ""]);
+
+export function withoutAiReservationMirrors<T extends CanonRowLike>(rows: T[], aiRows: AiResRow[] | null | undefined): T[] {
+  const ai = Array.isArray(aiRows) ? aiRows : [];
+  if (!ai.length) return rows;
+  const ids = new Set(ai.map((r) => String(r.id ?? "")).filter(Boolean));
+  const venues = new Set(ai.map((r) => norm(r.venue_name)).filter((v) => v.length >= 3));
+  return (Array.isArray(rows) ? rows : []).filter((r) => {
+    if (r.source_table === "ai_reservations") return !ids.has(String(r.source_id ?? "")) && !venues.has(norm(r.title));
+    const t = norm(r.title).replace(/^(mesa|reserva|reservacion|solicitud)( de mesa)? (en|para) /, "");
+    return !(MIRROR_KINDS.has(norm(r.kind)) && venues.has(t));
+  });
 }

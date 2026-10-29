@@ -74,6 +74,13 @@ export function cardsForStorage(cards: unknown, turnAt: string = new Date().toIS
   return out.length ? out : undefined;
 }
 
+// ═══ Historial guardado (auditoría 10, ronda 3, N-P2-4) ═══
+// Con más de 30 turnos se resumía y se guardaban solo 10: al recargar quedaban ~5 preguntas y sin aviso.
+// Ahora se resume pasando los 40 y se guardan los últimos 20 (los mismos que el chat restaura); la app
+// avisa "Conversación anterior resumida" (src/lib/conciergeHistory.ts).
+export const HISTORY_SUMMARIZE_OVER = 40;
+export const HISTORY_KEEP = 20;
+
 const fechaConsulta = (iso: string | undefined) => {
   const at = iso ? new Date(iso) : null;
   return at && Number.isFinite(at.getTime())
