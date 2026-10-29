@@ -53,6 +53,13 @@ describe("N9 · Solo para miembros a 390 px", () => {
     const parker = screen.getByText("Parker & Lenox").closest("article")!;
     expect(parker.className).toMatch(/w-\[86%\]/);
   });
+  it("el nombre de la ciudad en su tarjeta usa 2 líneas (no 'Ciudad de M…')", async () => {
+    const { CityVideoCard } = await vi.importActual<typeof import("@/components/CityVideoCard")>("@/components/CityVideoCard");
+    render(<CityVideoCard city="Ciudad de México" subtitle="3 lugares" active={false} onClick={() => {}} className="w-[38%] h-24" />);
+    const name = screen.getByText("Ciudad de México");
+    expect(name.className).toMatch(/line-clamp-2/);
+    expect(name.className).not.toMatch(/\btruncate\b/);
+  });
   it("buscar 'jazz' dice claro que busca solo en la ciudad elegida", async () => {
     render(<MemoryRouter><MembersOnlyPanel preferredCities={["Ciudad de México"]} /></MemoryRouter>);
     await screen.findByText("Soho House Mexico City");

@@ -98,20 +98,23 @@ function peek(p: SmartImageProps, w: number, skip: Set<Step>): Resolved | null |
  * foto). Pasado el tope se sigue con la siguiente fuente (la ilustrativa marcada o la de la marca).
  */
 export const IMAGE_STEP_TIMEOUT_MS = 6000;
-function capped<T>(p: Promise<T>, ms: number): Promise<T | null> {
+/** Fuentes que ya se agotaron en esta sesión: la siguiente tarjeta del mismo lugar no vuelve a esperar. */
+const timedOut = new Set<string>();
+function capped<T>(p: Promise<T>, ms: number, key?: string): Promise<T | null> {
+  if (key && timedOut.has(key)) return Promise.resolve(null);
   let t: ReturnType<typeof setTimeout> | undefined;
-  return Promise.race([p.catch(() => null), new Promise<null>((r) => { t = setTimeout(() => r(null), ms); })]).finally(() => { if (t) clearTimeout(t); });
+  return Promise.race([p.catch(() => null), new Promise<null>((r) => { t = setTimeout(() => { if (key) timedOut.add(key); r(null); }, ms); })]).finally(() => { if (t) clearTimeout(t); });
 }
 
 async function resolve(p: SmartImageProps, w: number, skip: Set<Step>): Promise<Resolved | null> {
   const url = safeHttps(p.imageUrl);
   if (url && !skip.has("url")) return { url, kind: p.imageKind === "stock" ? "stock" : "real" };
   if (p.photoRef && !skip.has("ref")) {
-    const u = await capped(fetchPlacePhotoUrl(p.photoRef, w), IMAGE_STEP_TIMEOUT_MS);
+    const u = await capped(fetchPlacePhotoUrl(p.photoRef, w), IMAGE_STEP_TIMEOUT_MS, `ref:${p.photoRef}:${w}`);
     if (u) return { url: u, kind: "google" };
   }
   if (p.lookup && !skip.has("lookup")) {
-    const u = await capped(resolvePlacePhotoUrl(p.lookup, w), IMAGE_STEP_TIMEOUT_MS);
+    const u = await capped(resolvePlacePhotoUrl(p.lookup, w), IMAGE_STEP_TIMEOUT_MS, `lookup:${JSON.stringify(p.lookup)}:${w}`);
     if (u) return { url: u, kind: "google" };
   }
   if (p.stockQuery && !skip.has("stock")) {

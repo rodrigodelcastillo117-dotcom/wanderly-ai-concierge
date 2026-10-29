@@ -360,16 +360,20 @@ export function MembersOnlyPanel({ onReserve, preferredCities = [] }: Props) {
       <div className="flex items-baseline justify-between mb-3 gap-2">
         <h3 className="font-fraunces text-xl md:text-2xl">
           En <span className="text-primary">{city}</span>
-          {/* La búsqueda es dentro de la ciudad elegida: se dice claro (N9: "jazz" parecía buscar en todas). */}
-          {q && !cityHits.length && <span className="block text-xs font-sans text-muted-foreground mt-0.5" data-testid="members-search-scope">Resultados de «{q}» solo en {city}. Para buscar en otra ciudad, escribe su nombre o borra la búsqueda.</span>}
         </h3>
         {!loadingVenues && (
-          <span className="text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+          <span className="shrink-0 whitespace-nowrap text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
             {visibleVenues.length} {visibleVenues.length === 1 ? "lugar" : "lugares"}
             {venues.length !== visibleVenues.length && <span className="ml-1 opacity-70">de {venues.length}</span>}
           </span>
         )}
       </div>
+      {/* La búsqueda es dentro de la ciudad elegida: se dice claro (N9: "jazz" parecía buscar en todas). */}
+      {q && !cityHits.length && (
+        <p className="-mt-2 mb-3 text-xs text-muted-foreground" data-testid="members-search-scope">
+          Resultados de «{q}» solo en {city}. Para buscar en otra ciudad, escribe su nombre o borra la búsqueda.
+        </p>
+      )}
 
       {loadingVenues ? (
         <div className="flex gap-3 overflow-hidden">

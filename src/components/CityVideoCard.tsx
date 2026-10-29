@@ -90,7 +90,8 @@ export function CityVideoCard({ city, active, onClick, subtitle, className = "h-
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
 
       <span className="relative z-10 min-w-0">
-        <span className="block font-fraunces text-base leading-tight text-white drop-shadow-lg truncate">{city}</span>
+        {/* Dos líneas en vez de "Ciudad de M…" (N9, 390 px). */}
+        <span className="block font-fraunces text-base leading-tight text-white drop-shadow-lg line-clamp-2 break-words">{city}</span>
         {subtitle && <span className="block text-[10px] tracking-wide text-white/80 drop-shadow">{subtitle}</span>}
       </span>
     </button>
