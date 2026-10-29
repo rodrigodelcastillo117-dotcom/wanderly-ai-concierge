@@ -7720,6 +7720,10 @@ export type Database = {
         Returns: Json
       }
       admin_metrics: { Args: never; Returns: Json }
+      admin_opinion_mark: {
+        Args: { _id: string; _mark: string }
+        Returns: Json
+      }
       admin_ops_act: {
         Args: {
           _action: string
