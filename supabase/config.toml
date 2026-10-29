@@ -38,6 +38,14 @@ verify_jwt = true
 [functions.enviar-opinion]
 verify_jwt = true
 
+# Incidentes ("Tengo un problema"): abre el caso en la Mesa, avisa al equipo de guardia y responde con la guía.
+[functions.incidente]
+verify_jwt = true
+
+# Vigilante de incidentes (cron cada 2 min, x-cron-secret): escala, re-avisa y reintenta avisos.
+[functions.incidentes-vigilante]
+verify_jwt = false
+
 [functions.editar-viaje-ai]
 verify_jwt = true
 

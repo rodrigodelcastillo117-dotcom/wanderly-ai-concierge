@@ -19,6 +19,8 @@ export const OPS_TYPE_LABEL: Record<string, string> = {
   ai_reservation: "Reserva IA",
   // "¿Algo no se entiende? Cuéntanos" (función enviar-opinion, migración 20261029060000_opiniones).
   opinion: "Opinión",
+  // "Tengo un problema" / Iato / monitores (función incidente, migración 20261029080000_incidentes).
+  incidente: "Incidente",
 };
 
 export const opsTypeLabel = (type: string) =>
@@ -53,6 +55,17 @@ export function userStageText(stage: string | null | undefined, type?: string | 
       case "resuelta": return "Resuelta por el equipo IATOS";
       case "no_se_pudo": case "cancelada": case "vencida": return "Cerrada por el equipo IATOS";
       default: return "Recibida · la leerá el equipo IATOS";
+    }
+  }
+  // Un incidente: siempre dice que ya lo tiene el equipo y que no se cierra sin que la persona lo confirme.
+  if (type === "incidente") {
+    switch (stage) {
+      case "en_proceso": return "En atención · el equipo IATOS lo está atendiendo";
+      case "resuelta": return "Resuelto";
+      case "no_se_pudo": return "Cerrado: no se pudo resolver";
+      case "cancelada": return "Cerrado";
+      case "vencida": return "Cerrado";
+      default: return "Recibido · el equipo IATOS ya fue avisado";
     }
   }
   switch (stage) {

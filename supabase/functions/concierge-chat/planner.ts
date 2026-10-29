@@ -777,6 +777,7 @@ export function toolStatusText(name: string, args: Record<string, unknown>): str
     case "get_weather": return `Consultando el clima de ${clip(args.city, 30)} (MET Norway)…`;
     case "get_travel_advisory": return `Revisando avisos oficiales de ${clip(args.pais ?? args.destino, 30)}…`;
     case "get_trip_expenses": return "Revisando tus gastos registrados…";
+    case "report_incident": return "Abriendo tu caso con el equipo IATOS…";
     default: return "Consultando…";
   }
 }

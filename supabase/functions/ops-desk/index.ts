@@ -3,6 +3,8 @@
 // admin_ops_act, que exige public.admins y deja el mensaje guardado; aquí solo se envía el correo de
 // ESA respuesta: se reclama en la base (sin duplicados), se envía con Resend y se marca. Si falla,
 // queda "fallido" y health-check lo reintenta. Solo administradores (verify_jwt + public.admins).
+// Además (incidentes, 20261029080000): le manda push web al usuario con la respuesta del equipo, y con
+// { incident_id } reparte en el acto los avisos de un incidente que se acaba de escalar desde la mesa.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
@@ -10,6 +12,10 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { sendTeamReply } from "../_shared/ops-desk.ts";
 import { teamEmails } from "../_shared/teamEmails.ts";
 import { redactPii } from "../_shared/redact.ts";
+import { pushToUser } from "../_shared/push.ts";
+import { deliverIncidentAlerts } from "../_shared/incident-alerts.ts";
+import { incidentAlertDeps } from "../_shared/incident-runtime.ts";
+import { teamReplyPush } from "../_shared/ops-desk.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,11 +43,16 @@ Deno.serve(async (req) => {
   if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
   try {
-    const body = (await req.json().catch(() => null)) as { reply_id?: unknown } | null;
+    const body = (await req.json().catch(() => null)) as { reply_id?: unknown; incident_id?: unknown } | null;
+    // Incidente escalado desde la mesa: reparte ya sus avisos (si no salen, el vigilante reintenta).
+    if (typeof body?.incident_id === "string" && UUID.test(body.incident_id)) {
+      const out = await deliverIncidentAlerts(incidentAlertDeps(db), { requestId: body.incident_id });
+      return json({ ok: !out.error, claimed: out.claimed, sent: out.sent, failed: out.failed });
+    }
     const replyId = typeof body?.reply_id === "string" && UUID.test(body.reply_id) ? body.reply_id : null;
     if (!replyId) return json({ code: "INVALID_REQUEST", error: "reply_id requerido" }, 400);
     // La respuesta tiene que ser de una acción de la mesa (existe y la escribió el equipo).
-    const { data: reply } = await db.from("team_request_replies").select("id, admin_id").eq("id", replyId).maybeSingle();
+    const { data: reply } = await db.from("team_request_replies").select("id, admin_id, user_id, kind, body, source, source_id").eq("id", replyId).maybeSingle();
     if (!reply) return json({ code: "NOT_FOUND" }, 404);
 
     const r = await sendTeamReply({
@@ -54,7 +65,15 @@ Deno.serve(async (req) => {
       replyTo: teamEmails()[0],
       supportEmail: Deno.env.get("SUPPORT_EMAIL") ?? null,
     }, replyId);
-    return json({ ok: r.email_status === "enviado" || r.email_status === "sin_correo", ...r });
+    // Push web al usuario (si tiene la app con avisos activados). Sin VAPID no hace nada.
+    let pushed = 0;
+    try {
+      // deno-lint-ignore no-explicit-any -- otra versión de supabase-js que la de push.ts
+      pushed = await pushToUser(db as any, reply.user_id, teamReplyPush(reply), { TTL: 6 * 3600, urgency: "high" });
+    } catch (e) {
+      console.warn("ops-desk push", redactPii((e as Error)?.message ?? e));
+    }
+    return json({ pushed, ok: r.email_status === "enviado" || r.email_status === "sin_correo", ...r });
   } catch (e) {
     console.error("ops-desk error", redactPii((e as Error)?.message ?? e));
     return json({ code: "INTERNAL_ERROR", error: "internal_error" }, 500);

@@ -39,6 +39,18 @@ export type OpsItem = {
   alert?: { status?: string | null; attempts?: number; sent_at?: string | null; error?: string | null } | null;
   history?: OpsHistory[];
   replies?: OpsReply[];
+  /** Solo incidentes (migración 20261029080000_incidentes). */
+  incident?: OpsIncidentInfo | null;
+};
+
+export type OpsIncidentInfo = {
+  category?: string; category_label?: string; severity?: "critica" | "alta" | "media" | "baja"; origin?: string;
+  assignee?: "iato_ops" | "humano"; escalation_level?: number; needs_human?: boolean; needs_human_reason?: string | null;
+  received_at?: string; first_response_at?: string | null; first_human_response_at?: string | null; taken_at?: string | null;
+  last_alert_at?: string | null; alerts_count?: number; next_step?: string | null; next_step_due_at?: string | null;
+  resolution_state?: string | null; resolution_note?: string | null; resolved_at?: string | null; reopen_count?: number;
+  take_minutes?: number; minutes_unattended?: number | null; semaforo?: "verde" | "ambar" | "rojo" | "atendido" | "cerrado";
+  minutes_to_first_human?: number | null; minutes_to_resolve?: number | null; unanswered_user_message?: boolean; events_count?: number;
 };
 
 export type OpsList = { generated_at: string; counts: Partial<Record<OpsStage, number>>; items: OpsItem[] };
@@ -117,7 +129,18 @@ export type MyTeamRequest = {
   evidence?: string | null;
   replies: { id: string; kind: OpsReply["kind"]; body: string; evidence?: string | null; at: string }[];
   history: { at: string; from?: string | null; to?: string | null; actor?: string }[];
+  /** Solo incidentes (migración 20261029080000): siguiente paso con hora, "¿quedó resuelto?" y mensajes. */
+  incident?: MyIncidentInfo | null;
 };
+
+export type MyIncidentInfo = {
+  category?: string; category_label?: string; severity?: string; next_step?: string | null; next_step_due_at?: string | null;
+  resolution_state?: string | null; resolved_at?: string | null; reopen_count?: number; can_confirm?: boolean; can_reopen?: boolean; is_open?: boolean;
+  messages?: { at: string; from: "usuario" | "equipo"; actor?: string; channel?: string | null; body: string }[];
+};
+
+/** Solo pruebas / después de una acción: olvida lo leído para volver a pedirlo. */
+export function invalidateMyTeamRequests() { teamCache = null; }
 
 type MyTeamResult = { ok: true; data: MyTeamRequest[] } | { ok: false; message: string };
 

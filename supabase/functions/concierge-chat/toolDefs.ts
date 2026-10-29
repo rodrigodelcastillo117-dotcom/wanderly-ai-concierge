@@ -28,6 +28,7 @@ export interface ToolDef {
 
 import { SEARCH_PRIVE_TOOL } from "./prive.ts";
 import { ADVISORY_TOOL_DEF } from "../_shared/advisoryTool.ts";
+import { REPORT_INCIDENT_TOOL } from "./incident.ts";
 
 export const TOOL_DEFS: ToolDef[] = [
   {
@@ -241,6 +242,8 @@ export const TOOL_DEFS: ToolDef[] = [
     description: SEARCH_PRIVE_TOOL.function.description,
     input_schema: SEARCH_PRIVE_TOOL.function.parameters as unknown as ToolDef["input_schema"],
   },
+  // Incidentes: abre un caso que atiende el equipo (migración 20261029080000_incidentes).
+  REPORT_INCIDENT_TOOL,
 ];
 
 export const TOOL_NAMES = TOOL_DEFS.map((t) => t.name);
