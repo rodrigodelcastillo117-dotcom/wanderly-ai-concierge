@@ -318,6 +318,8 @@ export function validateTripSpec(raw: unknown, text: string, ctx: { origen?: str
   // DOBLE y el aviso decía "preguntó por las ciudades de Toscana es una región…". Se lleva a la mención.
   // A otro continente (o muy lejos) se llega y se regresa en avión: no se pregunta (R2, Lima desde CDMX).
   applyObviousLegModes(spec);
+  // «5 días» = 4 noches, igual que Planear (R2: Iato decía 5 noches).
+  applySaidDuration(spec, text);
   spec.preguntas = canonicalQuestions(spec);
 
   // Regreso con modo ya dicho ("en coche"): no se pregunta cómo regresas (E2E Valle de Bravo, 28-oct-2026:
@@ -335,6 +337,48 @@ export function isReturnModeQuestion(q: Pick<Question, "tipo" | "pregunta" | "te
   if (q.tipo !== "otro") return false;
   const t = normText(`${q.pregunta} ${q.texto}`);
   return /\b(regres\w*|vuelta|volver\w*|vuelves)\b/.test(t) && /\b(coche|auto|carro|avion|vuelo|tren|autobus|ferry|medio|forma|como)\b/.test(t);
+}
+
+// ─── noches y días (R2 viajes P2-9) ───
+// «Toscana 5 días»: Planear decía 4 noches y la sugerencia de Iato «Florencia y Siena suman 5 noches… lo que
+// cubre los 5 días». La regla es una sola en toda la app (multiCityText.durationOf): N días = N − 1 noches.
+
+const NUM_WORD: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, veinte: 20, treinta: 30 };
+const NUM_RE = "(\\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta)";
+
+/** Duración que escribió la persona ("5 días" → 4 noches; "4 noches" → 4; "2 semanas" → 13). */
+export function durationSaid(text: string): { days: number; nights: number } | null {
+  const m = new RegExp(`\\b${NUM_RE}\\s*(dias|dia|noches|noche|semanas|semana)\\b`).exec(normText(text));
+  if (!m) return null;
+  const q = /^\d+$/.test(m[1]) ? Number(m[1]) : NUM_WORD[m[1]];
+  if (!q || q < 1 || q > 120) return null;
+  if (/^noche/.test(m[2])) return { days: q + 1, nights: q };
+  const days = /^semana/.test(m[2]) ? q * 7 : q;
+  return { days, nights: Math.max(1, days - 1) };
+}
+
+/** Noches coherentes con lo escrito: total, reparto por parada, sugerencias y preguntas de la IA. */
+export function applySaidDuration(spec: TripSpec, text: string): TripSpec {
+  const d = durationSaid(text);
+  if (!d || (spec.fecha_salida && spec.fecha_regreso)) return spec;
+  spec.noches_total = d.nights;
+  const stays = spec.paradas.filter((s) => s.rol === "estancia" && s.llegada_por !== "crucero");
+  const sum = stays.reduce((a, s) => a + (s.noches ?? 0), 0);
+  // Un reparto que no suma las noches (3 + 2 = 5 para «5 días») no se muestra: lo reparte el plan.
+  if (stays.length && stays.every((s) => s.noches != null) && sum !== d.nights) for (const s of stays) s.noches = null;
+  const nightsIn = (t: string) => [...normText(t).matchAll(new RegExp(`\\b${NUM_RE}\\s*noches?\\b`, "g"))].map((m) => (/^\d+$/.test(m[1]) ? Number(m[1]) : NUM_WORD[m[1]]));
+  spec.sugerencias = spec.sugerencias.filter((sg) => {
+    const t = normText(sg);
+    const n = nightsIn(sg);
+    const totalClaim = /\b(suman|en total|total|cubre|cubren)\b/.test(t) || /\bdias\b/.test(t);
+    return !(totalClaim && n.some((x) => x !== d.nights) && !n.includes(d.nights));
+  });
+  // «¿Los 5 días son 5 noches o 4?»: ya se sabe (4); se quita esa parte de la pregunta.
+  spec.preguntas = spec.preguntas.map((q) => {
+    const cleaned = q.pregunta.replace(/¿?\s*[Ll]os\s+\d{1,3}\s+d[ií]as\s+son\s+\d{1,3}\s+noches\s+o\s+\d{1,3}\s*\??/g, "").replace(/\s{2,}/g, " ").trim();
+    return cleaned && cleaned !== q.pregunta ? { ...q, pregunta: cleaned } : q;
+  }).filter((q) => q.tipo !== "otro" || !/^\s*$/.test(q.pregunta));
+  return spec;
 }
 
 // ─── preguntas obvias (R2 viajes, 29-oct-2026) ───
@@ -886,6 +930,7 @@ REGLAS:
 5. REGRESO: "regreso a CDMX" → regreso.a. "Regreso por/vía Londres" → regreso.via = "Londres" (NO lo agregues como parada) y una pregunta tipo "conexion_o_estancia". Si dijo que se queda en Londres, entonces sí es la última parada.
 6. ESCALAS: una ciudad donde solo cambia de avión es "rol": "conexion"; donde duerme, "estancia".
 7. FECHAS: solo si las dijo (pon "fechas_expresas": true). Si no, deja null y agrega una pregunta tipo "fechas". Usa la fecha actual como ancla de fechas relativas.
+7b. DURACIÓN: "N días" son N − 1 noches ("5 días" = 4 noches); "N noches" son N noches. No preguntes cuántas noches son los días.
 8. AMBIGÜEDAD: un nombre ambiguo, un aeropuerto sin ciudad o un lugar que no reconoces → pregunta concreta, nunca lo borres ni adivines.
 9. "menciones": TODAS las piezas del texto con su destino: {"texto": como lo escribió, "tipo": pais|region|ciudad|puerto|aeropuerto|crucero|tramo|regreso|origen|otro, "estado": parada|tramo|pregunta|origen|regreso|preferencia, "ref": id de la parada o de la pregunta}.
 10. "intencion": "relato_pasado" si cuenta viajes que YA hizo (eso va a su perfil, no se arma un viaje), "viaje_futuro" si planea uno, "mixto" si hay ambos.

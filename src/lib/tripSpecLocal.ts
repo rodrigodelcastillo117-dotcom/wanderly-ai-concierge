@@ -14,7 +14,7 @@ import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts"
 import { findRegion, basesForNights } from "../../supabase/functions/_shared/regions.ts";
 import { countryOfCity } from "../../supabase/functions/_shared/airports.ts";
 import {
-  applyObviousLegModes, canonicalQuestions, addRequiredQuestions, emptyCruise, emptySpec, ensureCoverage, isoNights, makeStop, newId, normText,
+  applyObviousLegModes, applySaidDuration, canonicalQuestions, addRequiredQuestions, emptyCruise, emptySpec, ensureCoverage, isoNights, makeStop, newId, normText,
   type Cruise, type LegMode, type MentionKind, type TripSpec,
 } from "../../supabase/functions/_shared/tripSpec.ts";
 import { autoResolveQuestions } from "@/lib/tripSpecAnswers";
@@ -257,6 +257,8 @@ export function finalizeSpec(spec: TripSpec, text: string, ctx: LocalContext = {
   if (!out.regreso.a) out.regreso = { ...out.regreso, a: out.origen };
   // A otro continente se llega y se regresa en avión (se ve y se cambia en el resumen; no se pregunta).
   applyObviousLegModes(out);
+  // «5 días» = 4 noches en todo el resumen, como en Planear (también si la IA dijo otra cosa).
+  applySaidDuration(out, text);
   // Preguntas con su mención (no una frase de la IA), sin repetidas ("Toscana" una sola vez) y sin las
   // que el viaje ya contesta (cómo llegar a Lima desde CDMX, dónde va «Perú», un lugar que nadie escribió).
   out.preguntas = canonicalQuestions(out);
