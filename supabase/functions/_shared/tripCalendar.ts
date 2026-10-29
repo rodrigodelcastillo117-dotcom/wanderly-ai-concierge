@@ -179,12 +179,14 @@ const TRAVEL_WORDS = /\b(llegada|llegas|llegamos|aterriz\w*|aeropuerto|barajas|v
 /**
  * Día 1 de un viaje en avión cuando no se sabe a qué hora llega el vuelo: lo que el modelo escribió de la
  * llegada (llegada, aeropuerto, check-in) se cambia por lo que sí se sabe, y lo planeado después se marca
- * como condicionado a la hora del vuelo. Nunca se inventa una hora. Sin menciones de la llegada no se toca.
+ * como condicionado a la hora del vuelo. Nunca se inventa una hora. Si mañana, tarde y noche no hablan de
+ * la llegada, no se toca.
  */
 export function neutralArrivalDay(day: Record<string, unknown>, destino: string): { day: Record<string, unknown>; changed: boolean } {
   const d: Record<string, unknown> = { ...day };
   if ("manana" in d && !("mañana" in d)) { d["mañana"] = d.manana; delete d.manana; }
-  const mentions = TRAVEL_WORDS.test(norm(d.titulo)) || /\bllegad/.test(norm(d.titulo)) || SLOTS.some((s) => TRAVEL_WORDS.test(norm(slotText(d, s.key))));
+  // Solo cuentan las actividades (mañana, tarde, noche): un título «Llegada» sin hora no afirma nada.
+  const mentions = SLOTS.some((s) => TRAVEL_WORDS.test(norm(slotText(d, s.key))));
   if (!mentions || looksTransit(d)) return { day, changed: false };
   const cond = (t: string) => `${t.replace(/[.\s]+$/, "")} (si tu vuelo llega a tiempo).`;
   let flightSaid = false;
@@ -196,14 +198,11 @@ export function neutralArrivalDay(day: Record<string, unknown>, destino: string)
       continue;
     }
     // Frase por frase: lo del vuelo o la llegada se cambia; lo demás se queda, condicionado.
-    const rest = own.split(/(?<=[.;])\s+/).filter((f) => f.trim() && !TRAVEL_WORDS.test(norm(f))).join(" ").trim();
+    const kept = own.split(/(?<=[.;])\s+/).filter((f) => f.trim() && !TRAVEL_WORDS.test(norm(f))).join(" ").trim();
+    const rest = kept ? kept.charAt(0).toUpperCase() + kept.slice(1) : "";
     const head = flightSaid ? "Traslado a tu hotel y check-in al llegar." : `Vuelo a ${destino}: la hora de llegada depende de tu vuelo; revísala en Comprar.`;
     d[s.key] = rest ? `${head} ${cond(rest)}` : head;
     flightSaid = true;
-  }
-  if (!flightSaid) {
-    // Solo el título hablaba de la llegada: lo planeado queda condicionado a la hora del vuelo.
-    for (const s of SLOTS) { const own = slotText(d, s.key); if (own) d[s.key] = cond(own); }
   }
   d.titulo = `Vuelo y llegada a ${destino}`;
   d.tipo = "llegada_sin_hora";

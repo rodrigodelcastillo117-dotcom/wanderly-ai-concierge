@@ -8,7 +8,9 @@
 import { cityStays, sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { alignStoredArrival, clockOf, type FlightTimes } from "../../supabase/functions/_shared/tripCalendar.ts";
 import { countryOfCity } from "../../supabase/functions/_shared/airports.ts";
-import { isGroundTripOption } from "@/lib/booking";
+import { durationHours, isGroundTripOption } from "@/lib/booking";
+
+const normPais = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const isIso = (v: unknown): v is string => typeof v === "string" && ISO.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
@@ -118,9 +120,15 @@ export function calendarDays(trip: any): CalendarDay[] {
   const vuelo = outboundFlight(trip, firstCity);
   if (vuelo) {
     const po = countryOfCity(trip?.ciudad_origen), pd = countryOfCity(firstCity) ?? (trip?.pais_destino ? String(trip.pais_destino) : null);
+    const internacional = po && pd ? normPais(po) !== normPais(pd) : null;
+    const flight = flightTimesOfRow(vuelo, start);
+    // Sin horas, solo se neutraliza un vuelo que puede llegar al día siguiente o de noche: internacional o
+    // largo. Un vuelo nacional corto (CDMX → Oaxaca) llega el mismo día; el día 1 no se contradice.
+    const horas = durationHours(vuelo?.duracion);
+    const puedeLlegarTarde = internacional !== false || (horas != null && horas >= 5);
     const aligned = alignStoredArrival(days, {
-      fechaSalida: start, fechaRegreso: end, destino: firstCity, origen: trip?.ciudad_origen ?? null, enAvion: true,
-      flight: flightTimesOfRow(vuelo, start), internacional: po && pd ? po !== pd : null, totalDays: total,
+      fechaSalida: start, fechaRegreso: end, destino: firstCity, origen: trip?.ciudad_origen ?? null,
+      enAvion: !!flight || puedeLlegarTarde, flight, internacional, totalDays: total,
     });
     if (aligned.ajuste) {
       days.splice(0, days.length, ...(aligned.days as CalendarDay[]).map((d) => ({ ...d, dia: Number(d.dia), fecha: isIso(d.fecha) ? d.fecha : addDays(start, Number(d.dia) - 1) })));

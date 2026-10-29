@@ -78,6 +78,11 @@ describe("P1-1: el día 1 sigue al vuelo de ida (viajes ya guardados)", () => {
     expect(calendarDays(coche)[0]).toMatchObject({ titulo: "Llegada a Roma", tarde: "Paseo por Piazza Navona." });
     const sinLlegada = { ...ITALIA, vuelos_json: [{ aerolinea: "ITA", tier: "equilibrio" }], itinerario_json: [dayOf(1, "Roma", "Coliseo.", "Foro.", "Cena.")] };
     expect(calendarDays(sinLlegada)[0]).toMatchObject({ titulo: "Roma", "mañana": "Coliseo." });
+    // Vuelo nacional corto sin horas (CDMX → Oaxaca): llega el mismo día, el día 1 no se contradice.
+    const oaxaca = { destino: "Oaxaca de Juárez", ciudad_origen: "Ciudad de México", fecha_salida: "2026-10-30", fecha_regreso: "2026-11-01",
+      vuelos_json: [{ aerolinea: "Volaris", tier: "equilibrio", duracion: "1h 10m" }],
+      itinerario_json: [dayOf(1, "Llegada y centro", "Vuelo de la Ciudad de México a Oaxaca y traslado al hotel.", "Santo Domingo.", "Casa Oaxaca.")] };
+    expect(calendarDays(oaxaca)[0]).toMatchObject({ titulo: "Llegada y centro", "mañana": "Vuelo de la Ciudad de México a Oaxaca y traslado al hotel." });
   });
 
   it("al generar sin hora de llegada (tarifa estimada), el día 1 tampoco afirma la llegada", () => {
