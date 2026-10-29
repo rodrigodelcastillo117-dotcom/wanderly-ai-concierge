@@ -25,6 +25,8 @@ import { useTasteProfile } from "@/hooks/useTasteProfile";
 import { TripPicksCarousel, type PickAction } from "@/components/booking/TripPicksCarousel";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
 import { HotelOffersButton, MultiCityFareButton, type OffersFx } from "@/components/booking/RealPriceButtons";
+import { FlightLiveQuote } from "@/components/booking/FlightLiveQuote";
+import { DriverService } from "@/components/booking/DriverService";
 import { ViatorToursButton } from "@/components/booking/ViatorTours";
 import { transportRubroLabel } from "@/lib/multiDestTrip";
 import { roadLegTolls, TollInfo } from "@/components/roadtrip/TollInfo";
@@ -343,7 +345,11 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       {s.ground && (() => { const v = trip.vuelos_json[s.chosen >= 0 ? s.chosen : s.options[0]]; return v && isGroundTripOption(v) ? <GroundOptionInfo className="mt-2" trip={trip} option={v} /> : null; })()}
                       </>
                     ) : (
-                      <p className="mt-2 text-sm" data-testid="vuelo-sin-precio">Aún no tenemos precio real para esta ruta: búscalo en Google Flights.</p>
+                      <>
+                        <p className="mt-2 text-sm" data-testid="vuelo-sin-precio">Aún no tenemos precio real para esta ruta: búscalo en Google Flights.</p>
+                        {/* Por qué no hay precio en vivo y "Consultar precio en vivo" (caso Álvaro); Google Flights sigue abajo. */}
+                        {!s.ground && tripDestinations(trip).length <= 1 && <FlightLiveQuote trip={trip} />}
+                      </>
                     )}
                     {/* Multidestino: precio real del recorrido (Google Flights, varias ciudades) solo al pulsar. */}
                     {tripDestinations(trip).length > 1 && (
@@ -504,11 +510,15 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
             <li key="auto" id={`paso-${s.n}`} className={box(done, `paso-${s.n}`)} data-testid="comprar-auto" data-state={state(it)}>
               <StepHeader n={s.n} title={s.title} icon={Car} done={done} />
               <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>
+              {/* Chofer privado primero donde conviene (India, Oaxaca, premium…); la renta queda como alternativa. */}
+              {s.kind === "auto" && s.driver?.recommended && <DriverService className="mt-3" driver={s.driver} tripId={trip.id ?? null} startAt={trip.fecha_salida ?? null} />}
+              {s.kind === "auto" && s.driver?.recommended && <p className="mt-3 text-xs text-muted-foreground" data-testid="comprar-auto-alternativa">Alternativa: si prefieres manejar, renta un auto.</p>}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {buyButton(it, "comprar-auto-abrir")}
                 {markControl(it, "comprar-auto")}
               </div>
               {details(it, "comprar-auto")}
+              {s.kind === "auto" && s.driver && !s.driver.recommended && <DriverService className="mt-3" driver={s.driver} tripId={trip.id ?? null} startAt={trip.fecha_salida ?? null} />}
               {nextBar(`paso-${s.n}`)}
             </li>
           );

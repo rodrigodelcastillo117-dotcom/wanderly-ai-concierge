@@ -3,7 +3,7 @@
 // (probadas con Vitest); aquí solo se conecta con la base.
 import { adminClient } from "./entitlements.ts";
 import { type AccountBrake, type CacheRow, type CacheStore, createSerpFetch, type LiveGate } from "./serpCache.ts";
-import { makeAccountBrake } from "./serpBrake.ts";
+import { makeAccountBrake, type SerpPriority } from "./serpBrake.ts";
 import { makeLiveSearchGate } from "./liveSearch.ts";
 import { type UsageEntry, usageRow } from "./usage.ts";
 import { INTERNAL_HEADER, type InternalPurpose, signInternal, verifyInternal } from "./internalCall.ts";
@@ -44,11 +44,15 @@ export async function logUsage(entry: UsageEntry): Promise<void> {
  * SERPAPI_DAILY_BUDGET; sin variable no hay tope) contado en ai_usage_log, y pausa de 1 h cuando
  * SerpApi dice que ya no hay búsquedas.
  */
-export function accountBrake(store: CacheStore = dbCacheStore()): AccountBrake {
+export function accountBrake(store: CacheStore = dbCacheStore(), priority: SerpPriority = "normal"): AccountBrake {
+  const reserve = Deno.env.get("SERPAPI_FLIGHTS_RESERVE");
   return makeAccountBrake({
     store,
     monthlyBudget: Number(Deno.env.get("SERPAPI_MONTHLY_BUDGET") ?? "") || null,
     dailyBudget: Number(Deno.env.get("SERPAPI_DAILY_BUDGET") ?? "") || null,
+    // Las búsquedas de vuelos pueden usar todo el tope; lo demás deja la reserva (serpBrake.ts).
+    priority,
+    dailyReserve: reserve != null && reserve !== "" ? Number(reserve) : null,
     used: async (period) => {
       const { data, error } = await adminClient().rpc("serp_global_used", { _period: period });
       if (error) throw new Error(error.message);
@@ -64,13 +68,14 @@ export function liveSearchGateFor(userId: string): LiveGate {
 /**
  * fetch con caché compartida para una función. Cada búsqueda real que SerpApi cobra queda en
  * ai_usage_log (provider "serpapi", model = motor). `gate` = bolsa de búsquedas del usuario.
+ * `priority: "vuelos"` solo para búsquedas de vuelos (flights-search): usan la reserva del tope.
  */
-export function serpFetchFor(fn: string, userId: string | null, gate?: LiveGate) {
+export function serpFetchFor(fn: string, userId: string | null, gate?: LiveGate, opts: { priority?: SerpPriority } = {}) {
   const store = dbCacheStore();
   return createSerpFetch({
     store,
     gate,
-    brake: accountBrake(store),
+    brake: accountBrake(store, opts.priority ?? "normal"),
     onLive: ({ engine, ok }) => (ok ? logUsage({ user_id: userId, function: fn, provider: "serpapi", model: engine, searches: 1 }) : undefined),
   });
 }

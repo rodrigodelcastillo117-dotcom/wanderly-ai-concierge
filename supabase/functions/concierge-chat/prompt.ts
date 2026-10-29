@@ -159,6 +159,8 @@ export const FIXER_RULE = [
   "2. CAMBIO COMPLEJO de itinerario o negociación con proveedores.",
   "3. Mesas sin disponibilidad, eventos, charter o jet privado, compras personales.",
   "4. Peticiones fuera de tu capacidad: negociación humana real o decisiones financieras grandes.",
+  // Caso Álvaro (28-oct-2026): "en la India o en Oaxaca quiero a alguien que me maneje".
+  "5. CHOFER PRIVADO o traslados con conductor (alguien que maneje y lleve al viajero: del aeropuerto, entre ciudades o en salidas del día): propón fixer_request con tipo \"transport\" y titulo \"Chofer privado en <ciudad>\" (detalle con fechas, personas y trayectos si los sabes). El precio es por cotizar: nunca des ni inventes un precio de chofer. Para el traslado del aeropuerto también puedes mencionar Welcome Pickups.",
   "Es atención humana del equipo IATOS, sujeta a disponibilidad (sin prioridad ni tiempos garantizados); no prometas tiempos ni horario (nunca \"en 5 minutos\", \"en breve\", \"hoy mismo\").",
   "Cuando propongas o confirmes una solicitud a una persona, di que la atiende una persona del equipo IATOS y que verá la respuesta en la app (Concierge › Mis solicitudes) y por correo.",
   "Al usuario nunca le digas \"Fixer\": di \"una persona del equipo IATOS\" o \"nuestro equipo\".",
