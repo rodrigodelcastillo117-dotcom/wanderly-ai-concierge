@@ -95,7 +95,11 @@ export function MyTeamRequests({ compact = false }: { compact?: boolean }) {
                   </div>
                 )}
                 {OPEN.has(r.stage) && r.replies.length === 0 ? (
-                  <p className="text-[11px] text-muted-foreground">La atiende una persona del equipo IATOS; te avisamos aquí y por correo cuando haya respuesta.</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {r.type === "opinion"
+                      ? "La lee una persona del equipo IATOS; si te responde, lo verás aquí."
+                      : "La atiende una persona del equipo IATOS; te avisamos aquí y por correo cuando haya respuesta."}
+                  </p>
                 ) : null}
               </li>
             );

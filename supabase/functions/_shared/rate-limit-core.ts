@@ -35,6 +35,7 @@ export const PAID_BUCKETS: ReadonlySet<string> = new Set([
   "places-nearby", "places-search", "experiencias-top",
   // Correos (Resend) y avisos a otras personas
   "concierge-action", "email-bienvenida", "enviar-email-fixer", "enviar-seleccion", "send-email", "share-trip-notify", "ops-desk",
+  "enviar-opinion", // cada opinión manda un correo al equipo
 ]);
 
 export const isPaidBucket = (bucket: string) => PAID_BUCKETS.has(bucket);

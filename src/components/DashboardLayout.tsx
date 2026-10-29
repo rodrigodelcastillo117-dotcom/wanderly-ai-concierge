@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadProfileBasics } from "@/lib/profileBasics";
 import { BackButton } from "@/components/BackButton";
@@ -15,6 +15,9 @@ import { MemberCardButton } from "@/components/membercard/MemberCardButton";
 // Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
 import iatosLogo from "@/assets/iatos-logo-320.png";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+// Opiniones ("¿Algo no se entiende? Cuéntanos"): opción del menú + enlace gris al pie, sin botón flotante.
+import { OPINION_CTA, OpinionFooterLink, OpinionHost } from "@/components/opinion/OpinionEntry";
+import { openOpinion } from "@/lib/opinion";
 
 // Ventana "Planear viaje" (la nueva puerta de entrada). Se carga solo al pulsar el botón: hasta
 // entonces no hay ni código ni llamadas de red. /dashboard/planear sigue siendo la ruta del enlace
@@ -243,6 +246,16 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         </button>
         <button
+          type="button"
+          onClick={openOpinion}
+          aria-haspopup="dialog"
+          data-testid="sidebar-opinion"
+          className="flex items-center gap-2 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide text-left"
+        >
+          <MessageSquare className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          {OPINION_CTA}
+        </button>
+        <button
           onClick={async () => { await signOut(); navigate("/"); }}
           className="flex items-center gap-2 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide"
         >
@@ -311,7 +324,10 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             {children}
           </div>
         ) : (
-          children
+          <>
+            {children}
+            <OpinionFooterLink />
+          </>
         )}
       </main>
 
@@ -394,6 +410,17 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                 </NavLink>
               </li>
             ))}
+            <li className="col-span-2">
+              <button
+                type="button"
+                data-testid="more-opinion"
+                aria-haspopup="dialog"
+                onClick={() => { setMoreOpen(false); openOpinion(); }}
+                className="w-full flex items-center gap-3 min-h-[48px] px-3 rounded-xl border border-white/[0.06] text-sm text-muted-foreground hover:text-foreground text-left"
+              >
+                <MessageSquare className="w-5 h-5 shrink-0" strokeWidth={1.75} aria-hidden="true" /> {OPINION_CTA}
+              </button>
+            </li>
             {user?.email && (
               <li className="col-span-2 px-1 pt-1 text-xs text-muted-foreground truncate" data-testid="more-signed-in-email">
                 Sesión iniciada como <span className="text-foreground">{user.email}</span>
@@ -416,6 +443,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           <PlanTripDialog open={planOpen} onOpenChange={setPlanOpen} />
         </Suspense>
       )}
+      <OpinionHost />
     </div>
   );
 };
