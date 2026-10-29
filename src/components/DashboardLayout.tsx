@@ -119,7 +119,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     return () => { alive = false; };
   }, [user]);
 
-  const firstName = profile?.full_name?.split(" ")[0] ?? "Viajero";
+  // Mientras carga el perfil no se muestra "Viajero" (luego cambiaba a "Sofía"): queda vacío.
+  const firstName = profile ? profile.full_name?.split(" ")[0] ?? "Viajero" : "";
 
   return (
     <div className="min-h-screen flex w-full bg-background relative overflow-x-hidden">

@@ -142,6 +142,12 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
  * Formas de llegar POR TIERRA a una ciudad del viaje (coche, tren, bus, ferry): del plan guardado y,
  * en viajes viejos, las filas de tierra que quedaron mezcladas en vuelos_json.
  */
+const GENERIC_OP = new Set(["tren", "treno", "train", "trenes", "alta", "velocidad", "bus", "autobus", "ferry", "de", "y", "the"]);
+const opTokens = (o: any): string[] => String(o?.aerolinea ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  .split(/[^a-z0-9]+/).filter((t) => t.length > 1 && !GENERIC_OP.has(t));
+const opKey = (o: any) => String(o?.aerolinea ?? "").toLowerCase().trim();
+const samePrice = (a: any, b: any) => Number(a?.precio_por_persona) > 0 && Math.round(Number(a.precio_por_persona)) === Math.round(Number(b?.precio_por_persona));
+
 export function groundOptionsForCity(trip: any, city: string): any[] {
   const logistics = trip?.itinerario_json?.logistics;
   const fx = Number(logistics?.fx_usd_mxn) || 0;
@@ -162,14 +168,17 @@ export function groundOptionsForCity(trip: any, city: string): any[] {
       fuente_precio: "estimado", estado_dato: "ESTIMADO", from: o.from, to: city, notas: o.notes ?? null, ...(alt ? { alternativa: true } : {}) }));
   const legacy = (Array.isArray(trip?.vuelos_json) ? trip.vuelos_json : []).filter((v: any) => !isFlightMode(v?.mode) && sameCity(v?.ciudad ?? v?.to, city));
   const origin = String(trip?.ciudad_origen ?? "");
-  const seen = new Set<string>();
-  // Dedup por modo + operador: si el plan repite el tramo cotizado (mismo tren, mismo operador), queda el cotizado.
+  const kept: any[] = [];
+  // Dedup por modo + operador: si el plan repite el tramo cotizado (mismo tren, mismo operador), queda el
+  // cotizado. También "Trenitalia (Frecciarossa) / Italo" y "Trenitalia / Frecciarossa" al mismo precio son
+  // la misma opción (antes salían tres tarjetas casi iguales).
   return [...quoted, ...legacy, ...fromPlan].filter((o) => {
     // Lo que "sale" del origen (otro continente) no es una forma de llegar por tierra.
     if (origin && sameCity(String(o?.from ?? "").replace(/\(.*?\)/g, " "), origin)) return false;
-    const k = `${o?.mode}|${String(o?.aerolinea ?? "").toLowerCase()}`;
-    if (seen.has(k)) return false;
-    seen.add(k);
+    const dup = kept.some((k) => k.mode === o?.mode && (opKey(k) === opKey(o)
+      || (samePrice(k, o) && opTokens(k).some((t) => opTokens(o).includes(t)))));
+    if (dup) return false;
+    kept.push(o);
     return true;
   });
 }

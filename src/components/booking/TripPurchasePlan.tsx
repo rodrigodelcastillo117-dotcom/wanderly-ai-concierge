@@ -15,6 +15,7 @@ import { SmartImage } from "@/components/media/SmartImage";
 import { logBookingClick } from "@/lib/trackBooking";
 import { itemPurchaseState, primaryAction, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
 import { buildBuyFlow, FLIGHT_TIER_WORD, hotelTotal, TIER_WORD, type BuyStep } from "@/lib/buyFlow";
+import { isPlaceholderHotel, placeholderHotelLabel } from "../../../supabase/functions/_shared/booking/placeholderHotel.ts";
 import { flightAirlineLabel, flightDurationLabel, flightLiveLine, flightScheduleLabel, flightStopsLabel } from "@/lib/flightDisplay";
 import { offerFromTripTour, tripDestinations, venueFromTripPlace } from "@/lib/booking";
 import { hotelQuery } from "@/lib/categoryImagery";
@@ -304,13 +305,18 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                           const v = trip.vuelos_json[i];
                           const ground = isGroundTripOption(v) ? groundOptionSummary(trip, v) : null;
                           const pp = ground ? 0 : Number(v?.precio_por_persona) || 0;
-                          const chosen = s.chosen === i;
+                          // Marcada solo la que eligió la persona; la de la cotización se dice aparte (antes el coche
+                          // salía marcado y abajo "Falta elegir: cómo llegar").
+                          const userChose = s.userChosen ?? true;
+                          const chosen = userChose && s.chosen === i;
+                          const quotedDefault = !userChose && s.chosen === i;
                           return (
-                            <button key={i} type="button" role="radio" aria-checked={chosen} data-testid="vuelo-opcion" disabled={!onSelectVuelo}
+                            <button key={i} type="button" role="radio" aria-checked={chosen} data-testid="vuelo-opcion" data-default={quotedDefault ? "true" : undefined} disabled={!onSelectVuelo}
                               onClick={() => onSelectVuelo && chooseAndAdvance(`paso-${s.n}`, () => onSelectVuelo(i))}
-                              className={`w-full min-w-0 rounded-lg border px-3 py-2 text-left transition disabled:cursor-default ${chosen ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40"}`}>
+                              className={`w-full min-w-0 rounded-lg border px-3 py-2 text-left transition disabled:cursor-default ${chosen ? "border-primary bg-primary/10" : quotedDefault ? "border-dashed border-primary/50" : "border-border/60 hover:border-primary/40"}`}>
                               <span className="flex items-start justify-between gap-2">
-                                <span className="min-w-0 line-clamp-2 break-words text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{flightAirlineLabel(v)}{v?.tier && FLIGHT_TIER_WORD[v.tier] ? <span className="font-normal text-muted-foreground"> · {FLIGHT_TIER_WORD[v.tier]}</span> : null}</span>
+                                {/* Por tierra no hay "Más barato/Más cómodo" (el autobús no trae precio: salía "Autobús · Más barato"). */}
+                                <span className="min-w-0 line-clamp-2 break-words text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{flightAirlineLabel(v)}{!ground && v?.tier && FLIGHT_TIER_WORD[v.tier] ? <span className="font-normal text-muted-foreground"> · {FLIGHT_TIER_WORD[v.tier]}</span> : null}</span>
                                 <span className="shrink-0 text-sm font-medium tabular-nums" data-testid="vuelo-opcion-precio">{ground ? ground.price : pp ? money(pp * travelers) : "Sin precio"}</span>
                               </span>
                               <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -318,6 +324,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                                 {pp > 0 && travelers > 1 && <span className="shrink-0 tabular-nums">{money(pp)} por persona</span>}
                               </span>
                               {flightScheduleLabel(v) && <span className="mt-0.5 block truncate text-xs text-muted-foreground" data-testid="vuelo-horario">{flightScheduleLabel(v)}</span>}
+                              {quotedDefault && <span className="mt-0.5 block text-[11px] text-primary" data-testid="vuelo-en-cotizacion">En la cotización · aún sin elegir</span>}
                               {ground && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground" data-testid="vuelo-opcion-terrestre">{ground.sub}</span>}
                               {!ground && !oneSource(s.options.map((x) => trip.vuelos_json[x])) && <PriceSourceBadge className="mt-1" source={v?.fuente_precio} estado={v?.estado_dato} consultadoAt={v?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v?.approximate_dates} />}
                             </button>
@@ -382,12 +389,14 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                             <span className="min-w-0 flex-1">
                               {/* A 390 px el nombre del hotel ocupa hasta 2 líneas (antes "Dear Hotel Madr…"). */}
                               <span className="flex items-start justify-between gap-2">
-                                <span className="min-w-0 line-clamp-2 break-words text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{h?.nombre}</span>
+                                <span className="min-w-0 line-clamp-2 break-words text-sm font-medium">{chosen && <Check className="mr-1 inline w-3.5 h-3.5 text-primary" aria-hidden="true" />}{isPlaceholderHotel(h) ? placeholderHotelLabel(h) : h?.nombre}</span>
                                 <span className="shrink-0 text-sm font-medium tabular-nums">{total ? money(total) : "Sin precio"}</span>
                               </span>
                               <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">
                                 {[h?.tier && TIER_WORD[h.tier] ? TIER_WORD[h.tier] : null, s.nights ? plural(s.nights, "noche", "noches") : null, Number(h?.precio_por_noche) > 0 ? `${money(Number(h.precio_por_noche))} por noche` : null].filter(Boolean).join(" · ")}
                               </span>
+                              {/* Zona y nivel de precio que propuso la IA, no un hotel real: se dice (y no lleva botón de compra). */}
+                              {isPlaceholderHotel(h) && <span className="mt-0.5 block text-[11px] text-amber-400/90" data-testid="hotel-referencia">Zona de referencia · no es un hotel real</span>}
                               {quotedDefault && <span className="mt-0.5 block text-[11px] text-primary" data-testid="hotel-en-cotizacion">En la cotización · aún sin elegir</span>}
                               {!oneSource(s.options.map((x) => trip.hospedaje_json[x])) && <PriceSourceBadge className="mt-1" source={h?.fuente_precio} estado={h?.estado_dato} consultadoAt={h?.consultado_at ?? trip.created_at} />}
                             </span>
@@ -613,10 +622,15 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                 const sp = splitTripTotal({ trip, sel: { selVuelo, selTours }, desglose: d, items });
                 return (
                   <div className="mt-3 space-y-1 border-t border-border/50 pt-3 text-sm" data-testid="comprar-listo-reparto">
-                    <p className="flex items-baseline justify-between gap-3" data-testid="comprar-listo-real">
-                      <span>Total con precios reales{sp.realParts.length ? <span className="block text-[11px] text-muted-foreground">{partsList(sp.realParts)}</span> : null}</span>
-                      <span className="tabular-nums">{money(sp.real)}</span>
-                    </p>
+                    {sp.real > 0 ? (
+                      <p className="flex items-baseline justify-between gap-3" data-testid="comprar-listo-real">
+                        <span>Total con precios reales{sp.realParts.length ? <span className="block text-[11px] text-muted-foreground">{partsList(sp.realParts)}</span> : null}</span>
+                        <span className="tabular-nums">{money(sp.real)}</span>
+                      </p>
+                    ) : (
+                      // Sin ningún precio real no se muestra un "$0 MXN" (caso Bogotá).
+                      <p className="text-muted-foreground" data-testid="comprar-listo-sin-reales">Aún sin precios consultados en vivo: todo es estimado.</p>
+                    )}
                     {sp.estimado > 0 && (
                       <p className="flex items-baseline justify-between gap-3 text-muted-foreground" data-testid="comprar-listo-estimado">
                         <span>Gastos estimados del viaje ({partsList(sp.estParts)})</span>

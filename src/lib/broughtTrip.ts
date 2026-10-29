@@ -48,6 +48,8 @@ export type BroughtTripInput = {
 };
 
 export type ResolvedHotel = {
+  /** false si Google devolvió un lugar que no se parece a lo que escribió la persona (no se usa en silencio). */
+  coincide?: boolean;
   nombre: string;
   direccion: string | null;
   place_id: string | null;
@@ -167,7 +169,9 @@ export async function resolveHotel(client: Pick<Client, "functions">, hotel: str
     const nombre = String(data?.name ?? "").trim() || String(hotel).trim();
     const placeId = typeof data?.place_id === "string" && data.place_id ? data.place_id : null;
     const direccion = typeof data?.label === "string" && data.label.trim() && data.label.trim() !== nombre ? data.label.trim() : null;
-    return { nombre, direccion, place_id: placeId, lat, lng, maps_url: mapsUrlFor(nombre, placeId, lat, lng), consulta, consultado_at: now.toISOString() };
+    const out: ResolvedHotel = { nombre, direccion, place_id: placeId, lat, lng, maps_url: mapsUrlFor(nombre, placeId, lat, lng), consulta, consultado_at: now.toISOString() };
+    // Google devolvió OTRO lugar ("Hotel PRUEBA AUDITORÍA" → "Otro Oaxaca"): no se cambia en silencio.
+    return hotelMatches(hotel, nombre, direccion) ? out : { ...out, coincide: false };
   } catch {
     return null;
   }
@@ -175,6 +179,21 @@ export async function resolveHotel(client: Pick<Client, "functions">, hotel: str
 
 export type TripBaseHotel = { nombre: string; direccion: string | null; place_id: string | null; lat: number; lng: number; maps_url: string | null };
 export type TripBase = { ciudad: string; llegada: string | null; salida: string | null; noches: number | null; hotel: TripBaseHotel | null };
+
+const STOP = new Set(["hotel", "hostal", "hostel", "the", "and", "las", "los", "del", "de", "la", "el", "en", "boutique", "suites", "suite", "inn", "resort", "spa", "casa"]);
+const tokensOf = (s: unknown) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  .split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !STOP.has(t));
+
+/**
+ * ¿Lo que encontró Google es lo que escribió la persona? Alguna palabra propia del nombre (o de la
+ * dirección escrita: calle y número) debe aparecer en el nombre o la dirección de Google.
+ */
+export function hotelMatches(typed: string, nombre: string, direccion: string | null): boolean {
+  const want = tokensOf(typed);
+  if (!want.length) return true;
+  const got = new Set([...tokensOf(nombre), ...tokensOf(direccion)]);
+  return want.some((t) => got.has(t) || [...got].some((g) => g.length >= 5 && t.length >= 5 && (g.startsWith(t) || t.startsWith(g))));
+}
 
 /** Fila de trips para un viaje traído. `hotels[i]` es el hotel resuelto de la ciudad i (o null). */
 export function broughtTripInsert(input: BroughtTripInput, hotels: Array<ResolvedHotel | null>) {
@@ -290,6 +309,11 @@ export async function resolveHotels(client: Pick<Client, "functions">, cities: B
     if (!q) { list.push(null); continue; }
     const k = placeKey(q);
     const hit = resolved[k] ?? (await resolveHotel(client, c.hotel ?? "", c.ciudad, now));
+    if (hit && hit.coincide === false) {
+      errors.push({ campo: "hotel", index: i, mensaje: `No encontramos «${String(c.hotel).trim()}» en ${c.ciudad} en Google Maps (lo más parecido fue «${hit.nombre}», que no es el que escribiste). Escribe el nombre completo o la dirección, o deja el campo vacío.` });
+      list.push(null);
+      continue;
+    }
     if (!hit) {
       errors.push({ campo: "hotel", index: i, mensaje: `No encontramos «${String(c.hotel).trim()}» en ${c.ciudad} en Google Maps. Escribe el nombre completo o la dirección.` });
       list.push(null);

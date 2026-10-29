@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plane, Hotel, MapPin, CalendarRange, Sparkles } from "lucide-react";
 import { GlobeLoader } from "@/components/brand/GlobeLoader";
 import { useSlowLoading } from "@/hooks/useSlowLoading";
+import { liveSearchesPausedRecently } from "@/lib/livePause";
 
 // Qué hace analizar-viaje: las tres búsquedas corren en paralelo (~10–15 s) y luego la IA arma el
 // viaje con esos datos (~40 s). El servidor NO reporta avance por etapa, así que esta pantalla no
@@ -19,6 +20,7 @@ export const SLOW_SECONDS = 90;
 
 export function AnalysisProgress({ destino, summary }: { destino: string; summary?: string | null }) {
   const globe = useSlowLoading(true);
+  const [paused] = useState(() => liveSearchesPausedRecently());
   // "Tarda más de lo normal": un solo aviso a los 90 s (sin contar segundos en pantalla).
   const [slow, setSlow] = useState(false);
   useEffect(() => {
@@ -47,7 +49,8 @@ export function AnalysisProgress({ destino, summary }: { destino: string; summar
           </div>
         )}
         <p className={`${globe ? "" : "mt-3 "}text-xs text-muted-foreground`} aria-live="polite" data-testid="analysis-status">
-          {slow ? "Está tardando más de lo normal" : globe ? "Consultando proveedores en vivo y armando tu itinerario…" : "Suele tardar alrededor de un minuto"}
+          {/* Nunca "en vivo" sin saberlo: si las búsquedas en vivo están en pausa se dice. */}
+          {slow ? "Está tardando más de lo normal" : globe ? (paused ? "Las búsquedas en vivo están en pausa: usamos precios guardados o de referencia (con su fecha) y armamos tu itinerario…" : "Consultando proveedores y armando tu itinerario…") : "Suele tardar alrededor de un minuto"}
         </p>
       </div>
 

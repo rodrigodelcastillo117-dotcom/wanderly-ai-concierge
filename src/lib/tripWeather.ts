@@ -35,7 +35,7 @@ export type TypicalMonth = { month: number; label: string; days: string[]; tmax:
 export type CityBlock = CityRange & {
   lat: number;
   lng: number;
-  today: { tmax: number; tmin: number; code: number; wind: number; precip: number } | null;
+  today: { tmax: number | null; tmin: number | null; now: number; code: number; wind: number; precip: number } | null;
   days: DayData[];
   /** Días del rango que aún no tienen pronóstico, agrupados por mes con su clima típico. */
   typical: TypicalMonth[];
@@ -111,7 +111,8 @@ export type WeatherDeps = { fetchImpl?: typeof fetch; geocoder?: Geocoder; now?:
 export async function buildCityWeather(range: CityRange, deps: WeatherDeps = {}): Promise<CityBlock | null> {
   const fetchImpl = deps.fetchImpl ?? fetch;
   const now = deps.now ?? new Date();
-  const loc = await resolveCityLocation(range.city, deps.geocoder);
+  // Centro de la ciudad (no el aeropuerto de la tabla).
+  const loc = await resolveCityLocation(range.city, deps.geocoder, { center: true });
   if (!loc) return null;
   const met = await fetchMetForecast(loc.lat, loc.lng, fetchImpl, now.getTime());
   const all = dailyFromMet(met, loc.lng);
@@ -119,8 +120,10 @@ export async function buildCityWeather(range: CityRange, deps: WeatherDeps = {})
   const todayLocal = new Date(now.getTime() + off * 3600_000).toISOString().slice(0, 10);
   const cur = nowFromMet(met, now.getTime());
   const td = all.find((d) => d.date === todayLocal);
+  // Sin el día de hoy en el pronóstico no hay máxima ni mínima: se muestra la temperatura de ahora
+  // (antes "15° / 15°" con la misma cifra dos veces).
   const today = cur
-    ? { tmax: td?.tmax ?? cur.tempC, tmin: td?.tmin ?? cur.tempC, code: cur.code, wind: cur.windKmh, precip: td?.precipMm ?? 0 }
+    ? { tmax: td?.tmax ?? null, tmin: td?.tmin ?? null, now: cur.tempC, code: cur.code, wind: cur.windKmh, precip: td?.precipMm ?? 0 }
     : null;
 
   const days: DayData[] = keepCityDays(all, range).map((d) => ({

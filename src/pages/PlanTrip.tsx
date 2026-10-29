@@ -22,14 +22,14 @@ import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
 import { claimIntent, completeIntent, intentFingerprint, releaseIntent } from "@/lib/autoIntent";
-import { analysisSummaryOf, datePresets, EXAMPLE_PROMPTS, looksLikeSentence, understandPlanText } from "@/lib/planDefaults";
+import { analysisSummaryOf, datePresets, EXAMPLE_PROMPTS, looksLikeSentence, monthOfText, suggestTripDates, suggestedDatesNotice, understandPlanText } from "@/lib/planDefaults";
 import { diffLocalDays, formatLocalDate } from "@/lib/localDate";
 // Varias ciudades escritas en el planeador ("paris roma y atenas 10 dias") → ruta multi-destino.
 import { addIsoDays, describeMultiCity, fitNights, isMultiCity, moveCity, parseMultiCityText, routePlannerQuery } from "@/lib/multiCityText";
 import { generateMultiDestTrip } from "@/lib/multiDestGenerate";
 import { CityNightsEditor } from "@/components/route/CityNightsEditor";
-import { countryOnly } from "@/lib/multiCityText";
-import { cityReasons, countryRouteFor, describeProposal, proposeCountryRoute, weightedNights } from "@/lib/countryRoutes";
+import { countryOnly, regionOnly } from "@/lib/multiCityText";
+import { cityReasons, countryRouteFor, describeProposal, proposeCountryRoute, proposeRegionRoute, weightedNights } from "@/lib/countryRoutes";
 import { useTasteProfile } from "@/hooks/useTasteProfile";
 import { fetchFriendProfiles } from "@/lib/friendProfiles";
 // roadtrip: "road trip por la Toscana" va a la ruta de varios destinos con el coche elegido.
@@ -298,6 +298,7 @@ const PlanTrip = () => {
     const next = new URLSearchParams(params);
     next.delete("q");
     next.delete("autoCheapest");
+    next.delete("sugerencia");
     setParams(next, { replace: true });
   };
 
@@ -314,47 +315,25 @@ const PlanTrip = () => {
     return false;
   };
 
-  // Auto-cheapest: si llega ?destino=X&autoCheapest=1, prellena fechas heurísticas
-  // (martes a martes, ~60 días fuera — ventana históricamente más barata) y dispara análisis.
+  // Idea de destino (tarjetas de Inicio: ?destino=X&sugerencia=1; enlaces viejos con ?autoCheapest=1):
+  // NUNCA genera un viaje sola. Lleva al paso de fechas con el destino puesto y fechas SUGERIDAS
+  // (martes a martes, ~60 días, fuera de Navidad/Año Nuevo y Semana Santa) visibles y editables; el
+  // análisis solo corre cuando la persona pulsa «Armar mi viaje». Antes un toque creaba un viaje
+  // completo sin preguntar (y con fechas sobre Año Nuevo).
   const autoFiredRef = useRef(false);
   useEffect(() => {
     if (autoFiredRef.current) return;
-    if (params.get("autoCheapest") !== "1") return;
+    if (params.get("autoCheapest") !== "1" && params.get("sugerencia") !== "1") return;
     if (!destino) return;
-    if (!ciudadOrigen) {
-      if (!profileLoaded) return;
-      // Sin ciudad de salida no se puede cotizar: en vez de no hacer nada, se lleva al paso de
-      // fechas con el destino puesto y se dice qué falta.
-      autoFiredRef.current = true;
-      consumeUrlIntent();
-      setStep(1);
-      setStepNotice(`Para cotizar ${destino} necesitamos tu ciudad de salida. Elígela y revisa las fechas.`);
-      return;
-    }
+    if (!ciudadOrigen && !profileLoaded) return;
     autoFiredRef.current = true;
-    const fp = intentFingerprint("cheap", destino);
     consumeUrlIntent();
-    if (handlePriorIntent(claimIntent(fp))) return;
-
-    // Próximo martes ~60 días a futuro (martes/miércoles suelen ser los más baratos)
-    const out = new Date();
-    out.setDate(out.getDate() + 60);
-    while (out.getDay() !== 2) out.setDate(out.getDate() + 1);
-    const ret = new Date(out);
-    ret.setDate(ret.getDate() + 7);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
-    const fs = fmt(out);
-    const fr = fmt(ret);
-    setFechaSalida(fs);
-    setFechaRegreso(fr);
-    runAnalisis({
-      destino,
-      ciudad_origen: ciudadOrigen,
-      fecha_salida: fs,
-      fecha_regreso: fr,
-      num_viajeros: 2,
-      presupuesto_objetivo: null,
-    }, fp);
+    const sug = suggestTripDates();
+    setFechaSalida((prev) => prev || sug.salida);
+    setFechaRegreso((prev) => prev || sug.regreso);
+    setStep(1);
+    setStepNotice(suggestedDatesNotice(destino, sug, !!ciudadOrigen));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destino, ciudadOrigen, params, profileLoaded]);
 
 
@@ -450,8 +429,12 @@ const PlanTrip = () => {
   const routeTotalNights = datesNights ?? routeBase?.textNights ?? parsedRoute.nights;
   // País o región ("india"): IATOS propone un viaje completo con las ciudades que valen la pena para las
   // noches disponibles (no una "ciudad" llamada India). Se rehace con las fechas si no se tocaron las ciudades.
-  const routeCountry = routeBase ? routeBase.country ?? null : countryOnly(parsedRoute);
-  const proposal = routeCountry && (!routeBase || !routeBase.edited) ? proposeCountryRoute(routeCountry, routeTotalNights ?? null) : null;
+  // Una región ("Toscana 5 días") se propone por sus bases (Florencia, Siena), igual que en la caja de Iato.
+  const routeCountry = routeBase ? routeBase.country ?? null : countryOnly(parsedRoute) ?? regionOnly(parsedRoute);
+  const proposal = routeCountry && (!routeBase || !routeBase.edited)
+    ? proposeCountryRoute(routeCountry, routeTotalNights ?? null) ?? proposeRegionRoute(routeCountry, routeTotalNights ?? null) : null;
+  // "en abril 2027" sin días exactos: se dice y se pide la salida en ese mes (no se inventa el día).
+  const textMonth = monthOfText(destino);
   const routeCities = (proposal && routeBase && !routeBase.edited ? proposal.cities : null) ?? routeBase?.cities
     ?? (writtenRoute && writtenRoute.length >= 2 ? writtenRoute : isMultiCity(parsedRoute) ? parsedRoute.cities : proposal?.cities ?? []);
   const routeOn = routeCities.length >= 2 && (routeBase ? routeBase.asRoute : true);
@@ -1143,7 +1126,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   <p className="flex items-start gap-2 text-sm" role="status" data-testid="plan-multicity-entendimos">
                     <RouteIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                     {routeCountry ? (
-                      <span>Entendimos: <span className="font-medium">{routeCountry}{routeTotalNights ? ` · ${routeTotalNights} noches` : ""}</span>.
+                      <span>Entendimos: <span className="font-medium">{routeCountry}{routeTotalNights ? ` · ${routeTotalNights} noches` : routeDays ? ` · ${routeDays} días` : ""}{textMonth ? ` · ${textMonth.label}` : ""}</span>.
                         {" "}Te proponemos: <span className="font-medium">{describeProposal(routeCities, routeNights && routeTotalNights ? routeNights : null)}</span>
                         <span className="text-muted-foreground">. ¿La armamos así?</span></span>
                     ) : (
@@ -1425,9 +1408,11 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
       if (fb.fechaSalida && fb.fechaRegreso) { setFechaSalida(fb.fechaSalida); setFechaRegreso(fb.fechaRegreso); }
       if (fb.viajeros && fb.viajeros >= 1 && fb.viajeros <= 20) setNumViajeros(fb.viajeros);
       setDestino(label);
+      const mes = textMonth && !(fb.fechaSalida && fb.fechaRegreso) ? textMonth : null;
+      const cuando = mes ? ` Elige tu salida en ${mes.label}${routeDays ? `; el regreso se pone solo (${routeDays} días)` : ""}.` : "";
       setStepNotice(routeCountry
-        ? `Entendimos: ${routeCountry}. Te proponemos ${describeProposal(routeCities, null)}. Elige las fechas y repartimos las noches.`
-        : `Entendimos: ${describeMultiCity({ cities: routeCities, days: routeDays, nights: null })}. Elige las fechas y repartimos las noches entre las ${routeCities.length} ciudades.`);
+        ? `Entendimos: ${routeCountry}${routeDays ? ` · ${routeDays} días` : ""}${mes ? ` · ${mes.label}` : ""}. Te proponemos ${describeProposal(routeCities, null)}. Elige las fechas y repartimos las noches.${cuando}`
+        : `Entendimos: ${describeMultiCity({ cities: routeCities, days: routeDays, nights: null })}${mes ? ` · ${mes.label}` : ""}. Elige las fechas y repartimos las noches entre las ${routeCities.length} ciudades.${cuando}`);
       setStep(step + 1);
       return;
     }
@@ -1447,7 +1432,9 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         setDestino(u.destino);
         if (u.fechaSalida && u.fechaRegreso) { setFechaSalida(u.fechaSalida); setFechaRegreso(u.fechaRegreso); }
         if (u.viajeros) setNumViajeros(u.viajeros);
-        setStepNotice(`Entendimos: ${describeUnderstood(u)}. Revisa y ajusta lo que necesites.`);
+        const mes = !(u.fechaSalida && u.fechaRegreso) ? monthOfText(destino) : null;
+        const dias = u.nights && !(u.fechaSalida && u.fechaRegreso) ? ` · ${u.nights + 1} días` : "";
+        setStepNotice(`Entendimos: ${describeUnderstood(u)}${dias}${mes ? ` · ${mes.label}` : ""}. ${mes ? `Elige tu salida en ${mes.label}${dias ? "; el regreso se pone solo" : ""}. ` : ""}Revisa y ajusta lo que necesites.`);
       }
     }
     setStep(step + 1);
@@ -1519,7 +1506,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   <>
                     <span className="inline-flex items-center font-display text-lg">
                       <Sparkles className="w-4 h-4 mr-2" />
-                      {isEmocionMode ? "Empezar análisis" : routeOn ? `Generar ruta de ${distinctCities.length} ciudades` : "Generar análisis"}
+                      {isEmocionMode ? "Empezar análisis" : routeOn ? `Generar ruta de ${distinctCities.length} ciudades` : "Armar mi viaje"}
                     </span>
                     {isEmocionMode && (
                       <span className="text-xs font-normal opacity-80">IATOS AI creará tu próximo viaje ideal</span>

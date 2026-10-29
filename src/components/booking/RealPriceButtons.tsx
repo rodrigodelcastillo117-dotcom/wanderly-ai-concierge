@@ -2,6 +2,7 @@
 //  * MultiCityFareButton: "Consultar precio real del recorrido" (Google Flights, varias ciudades).
 //  * HotelOffersButton: "Ver ofertas reales" (Google Hotels, precio total por proveedor con su enlace).
 // Cada resultado dice fuente y hora de consulta; nada se presenta como reserva.
+import { noteLiveSearchState } from "@/lib/livePause";
 import { useState } from "react";
 import { ExternalLink, Loader2, RefreshCw, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -126,6 +127,7 @@ export function HotelOffersButton({ query, invoke = defaultInvoke, className = "
       ]);
       setUsedFx(rate);
       setRes(r);
+      if (!r.ok) noteLiveSearchState({ busquedas_en_pausa: /en pausa/i.test(r.message ?? "") });
     } finally { setBusy(false); }
   };
   // Sin tipo de cambio (nunca 1:1 a ciegas) se queda en USD.
@@ -138,11 +140,13 @@ export function HotelOffersButton({ query, invoke = defaultInvoke, className = "
         </button>
       ) : !res.ok ? (
         <div role="status" data-testid="hotel-ofertas-sin">
-          <p className="text-xs">{res.message}</p>
+          {/* Dice de qué hotel es (el aviso quedaba debajo del Premium aunque se consultó el de la cotización). */}
+          <p className="text-xs">{query.name ? <span className="font-medium">{query.name}: </span> : null}{res.message}</p>
           <button type="button" className={`${link} mt-1`} onClick={run} disabled={busy}>Intentar de nuevo</button>
         </div>
       ) : (
         <div className="rounded-lg border border-border/60 p-2" data-testid="hotel-ofertas-lista">
+          {query.name && <p className="text-xs font-medium" data-testid="hotel-ofertas-hotel">{query.name}</p>}
           <p className="text-[11px] text-muted-foreground" data-testid="hotel-ofertas-fuente">
             Google Hotels{res.time ? ` · consultado ${res.time}` : ""}{res.savedPrice ? " · precio guardado, no en vivo" : ""} · total de la estancia
           </p>

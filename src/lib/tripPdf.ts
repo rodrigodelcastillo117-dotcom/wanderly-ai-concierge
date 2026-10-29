@@ -565,7 +565,7 @@ function drawDayCard(w: Writer, d: PdfDay, L: ReturnType<typeof dayLayout>, slot
   w.card(M, y0, CW, h);
   w.fill(p.gold);
   w.doc.rect(M, y0 + 12, 2.2, continued ? 11 : 30, "F");
-  w.eyebrow(`Día ${String(d.n).padStart(2, "0")}${continued ? "   ·   continúa" : ""}`, M + 16, y0 + 19);
+  w.eyebrow(`Día ${String(d.n).padStart(2, "0")}${d.date ? `   ·   ${d.date}` : ""}${continued ? "   ·   continúa" : ""}`, M + 16, y0 + 19);
   let y = y0 + head;
   if (!continued) {
     w.font("serif", 13, p.ink);

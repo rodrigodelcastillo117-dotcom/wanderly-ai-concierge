@@ -4,6 +4,7 @@ import { ArrowRight, CalendarDays, Users, Receipt, Clock, Plane, CloudSun, Radio
 import { supabase } from "@/integrations/supabase/client";
 import { formatLocalDate } from "@/lib/localDate";
 import { displayedTripTotal } from "@/lib/tripPageTotal";
+import { invalidQuoteReason, REQUOTE_LABEL } from "@/lib/budgetSanity";
 import { flightStatusLine, nextTripAction, quoteFreshness, tripTiming, type TrackedFlightLike } from "@/lib/tripCommand";
 import { fetchWeatherNow, type WeatherNow } from "@/lib/weatherNow";
 import { currentTripCity } from "@/lib/cityLocation";
@@ -48,6 +49,11 @@ export function TripCommandCenter({ trip, today }: Props) {
     setLoaded(false);
     setQuote(null);
     setFlights([]);
+    // Vuelos seguidos en paralelo con la fila completa (antes iban después, en cascada).
+    void Promise.resolve(supabase.from("tracked_flights")
+      .select("flight, flight_date, last_status, last_checked_at").eq("trip_id", trip.id).eq("active", true))
+      .then(({ data: fl }) => { if (alive) setFlights(Array.isArray(fl) ? (fl as TrackedFlightLike[]).slice(0, 2) : []); })
+      .catch(() => { /* sin vuelos seguidos */ });
     (async () => {
       try {
         const { data } = await supabase.from("trips").select("*").eq("id", trip.id).maybeSingle();
@@ -60,11 +66,6 @@ export function TripCommandCenter({ trip, today }: Props) {
         }
       } catch { /* sin detalle: la tarjeta usa lo que ya tiene */ }
       if (alive) setLoaded(true);
-      try {
-        const { data: fl } = await supabase.from("tracked_flights")
-          .select("flight, flight_date, last_status, last_checked_at").eq("trip_id", trip.id).eq("active", true);
-        if (alive) setFlights(Array.isArray(fl) ? (fl as TrackedFlightLike[]).slice(0, 2) : []);
-      } catch { /* sin vuelos seguidos */ }
     })();
     return () => { alive = false; };
   }, [trip.id]);
@@ -158,6 +159,9 @@ export function TripCommandCenter({ trip, today }: Props) {
             {total > 0 && (
               <li className="inline-flex items-center gap-1.5"><Receipt className="w-4 h-4 text-primary/80" aria-hidden />Total cotizado {fmtMXN(total)}</li>
             )}
+            {full && loaded && invalidQuoteReason(merged) && (
+              <li className="inline-flex items-center gap-1.5 text-amber-400" data-testid="command-recotizar"><Receipt className="w-4 h-4" aria-hidden />{REQUOTE_LABEL}</li>
+            )}
           </ul>
 
           {/* Estado: solo lo que sabemos. */}
@@ -175,7 +179,8 @@ export function TripCommandCenter({ trip, today }: Props) {
             {weather && (
               <li className="flex items-center gap-1.5 text-muted-foreground">
                 <CloudSun className="w-3.5 h-3.5 text-primary/80 shrink-0" aria-hidden />
-                Ahora en {weatherCity}: {weather.tempC}° · {weather.label} <span className="text-muted-foreground">(Datos: {weather.source})</span>
+                {/* Un solo bloque de texto: con dos hijos del flex la fuente se partía en otra columna. */}
+                <span className="min-w-0">Ahora en {weatherCity}: {weather.tempC}° · {weather.label} <span className="whitespace-nowrap">(Datos: {weather.source})</span></span>
               </li>
             )}
           </ul>

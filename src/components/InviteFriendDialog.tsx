@@ -106,6 +106,11 @@ export const InviteFriendDialog = ({ tripId, isOwner }: Props) => {
         <p className="text-sm text-muted-foreground -mt-2">
           Tus amigos invitados podrán ver y editar todo el viaje contigo.
         </p>
+        {/* Honesto: no existe un enlace público del viaje (no se inventa). Lo que sí hay: invitar a un amigo de
+            IATOS o mandar el PDF. */}
+        <p className="text-xs text-muted-foreground" data-testid="compartir-sin-enlace">
+          Por ahora el viaje se comparte invitando a alguien que ya tenga IATOS; todavía no hay un enlace para compartirlo con cualquier persona. Para mandarlo a alguien más, usa «Compartir PDF».
+        </p>
 
         {loading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Cargando amigos…</p>

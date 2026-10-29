@@ -20,10 +20,30 @@ export function knownCityLocation(city: string): CityLocation | null {
   return c ? { lat: c.lat, lng: c.lng, source: "tabla" } : null;
 }
 
-export function resolveCityLocation(city: string, geocoder: Geocoder = defaultGeocoder): Promise<CityLocation | null> {
+/**
+ * Coordenadas de la ciudad. La tabla de airports.ts tiene las del AEROPUERTO (Roma = Fiumicino, Florencia =
+ * Peretola, Venecia = Marco Polo); con `center` (el clima) se pide primero el centro de la ciudad a la
+ * geocodificación y la tabla queda de respaldo.
+ */
+export function resolveCityLocation(city: string, geocoder: Geocoder = defaultGeocoder, opts: { center?: boolean } = {}): Promise<CityLocation | null> {
   const key = String(city ?? "").trim().toLowerCase();
   if (!key) return Promise.resolve(null);
   const known = knownCityLocation(city);
+  if (known && opts.center) {
+    const ck = `centro:${key}`;
+    if (!cache.has(ck)) {
+      cache.set(ck, (async () => {
+        try {
+          const r = (await geocoder(city))?.[0];
+          if (typeof r?.lat === "number" && typeof r?.lng === "number" && Math.hypot(r.lat - known.lat, r.lng - known.lng) < 1.5) {
+            return { lat: r.lat, lng: r.lng, source: "geocode" as const };
+          }
+        } catch { /* sin red: el respaldo de la tabla */ }
+        return known;
+      })());
+    }
+    return cache.get(ck)!;
+  }
   if (known) return Promise.resolve(known);
   if (!cache.has(key)) {
     cache.set(key, (async () => {

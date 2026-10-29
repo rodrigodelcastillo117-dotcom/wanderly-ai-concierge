@@ -79,7 +79,8 @@ export function flightStopsLabel(v: any): string | null {
 /** Duración: en un estimado, marcada como aproximada. */
 export function flightDurationLabel(v: any): string | null {
   const d = String(v?.duracion ?? "").trim();
-  if (!d) return null;
+  // Sin número no es una duración ("Directo" en duración salía "Directo · Directo").
+  if (!d || !/\d/.test(d)) return null;
   return flightIsEstimate(v) ? `≈ ${d} (estimado)` : d;
 }
 
@@ -104,11 +105,36 @@ export function flightLiveLine(v: any, now: Date | number = Date.now()): string 
   return `Google Flights · precio de ${f.edad ?? "otra fecha"} · actualízalo antes de comprar`;
 }
 
-/** Horario de la ida de un vuelo en vivo ("Sale 18:05 · llega 12:45 +1"). null si no hay horarios. */
+const TIME = "([01]?\\d|2[0-3])[:h.]([0-5]\\d)";
+const DATE_BIT = "(?:el\\s+)?(?:\\d{1,2}[-/\\s]?(?:de\\s+)?[a-záéíóú]{3,10}\\.?|\\d{1,2}[-/]\\d{1,2})?";
+const hh = (h: string, m: string) => `${h.padStart(2, "0")}:${m}`;
+
+/**
+ * Horario escrito en las notas de una tarifa de viajes viejos ("salida 10-mar 11:00, llegada 11-mar 05:30").
+ * Solo si está explícito; si no, null (nunca se inventa una hora).
+ */
+export function scheduleFromNotes(notas: unknown): { sale: string; llega: string | null; plus: number } | null {
+  const t = String(notas ?? "").toLowerCase();
+  if (!t) return null;
+  const dep = new RegExp(`\\b(?:sale|salida|despega)\\s*(?:a las\\s*)?${DATE_BIT}\\s*(?:a las\\s*)?${TIME}`).exec(t);
+  if (!dep) return null;
+  const arr = new RegExp(`\\b(?:llega|llegada|aterriza)\\s*(?:a las\\s*)?${DATE_BIT}\\s*(?:a las\\s*)?${TIME}(\\s*\\(?\\+\\s*(\\d)\\)?)?`).exec(t);
+  return { sale: hh(dep[1], dep[2]), llega: arr ? hh(arr[1], arr[2]) : null, plus: arr?.[4] ? Number(arr[4]) : 0 };
+}
+
+/**
+ * Horario de la ida ("Sale 18:05 · llega 12:45 +1"): de las horas de la tarifa en vivo o, en viajes viejos,
+ * de las notas si ahí está escrito. null si no hay horarios (no se inventa).
+ */
 export function flightScheduleLabel(v: any): string | null {
   const t = (s: unknown) => (typeof s === "string" && /\d{2}:\d{2}$/.test(s) ? s.slice(-5) : null);
   const a = t(v?.salida), b = t(v?.llegada);
-  if (!a || !b) return null;
+  if (!a || !b) {
+    if (isGroundTripOption(v)) return null;
+    const n = scheduleFromNotes(v?.notas);
+    if (!n) return null;
+    return n.llega ? `Sale ${n.sale} · llega ${n.llega}${n.plus > 0 ? ` +${n.plus}` : ""}` : `Sale ${n.sale}`;
+  }
   const da = String(v.salida).slice(0, 10), db = String(v.llegada).slice(0, 10);
   const plus = da && db && db > da ? Math.round((Date.parse(`${db}T00:00:00Z`) - Date.parse(`${da}T00:00:00Z`)) / 86400000) : 0;
   return `Sale ${a} · llega ${b}${plus > 0 ? ` +${plus}` : ""}`;

@@ -234,6 +234,13 @@ export function countryOnly(p: MultiCityParse | null | undefined): string | null
   return p && p.cities.length === 0 && p.countries.length === 1 && p.unknown.length === 0 ? p.countries[0] : null;
 }
 
+/** ¿La frase es solo una región ("Toscana 5 días en abril")? Devuelve la región. */
+export function regionOnly(p: MultiCityParse | null | undefined): string | null {
+  if (!p || p.cities.length || p.countries.length || p.unknown.length) return null;
+  const regs = p.items.filter((i) => i.kind === "region");
+  return regs.length === 1 && p.items.length === 1 ? regs[0].name : null;
+}
+
 /** ¿La frase es una ruta de 2 o más ciudades? */
 export const isMultiCity = (p: MultiCityParse | null | undefined): p is MultiCityParse => !!p && p.cities.length >= 2;
 

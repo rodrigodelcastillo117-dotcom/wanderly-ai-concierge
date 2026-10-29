@@ -13,7 +13,7 @@ import { mainCityOf } from "@/lib/tripCoverage";
 import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { findRegion, basesForNights } from "../../supabase/functions/_shared/regions.ts";
 import {
-  addRequiredQuestions, emptyCruise, emptySpec, ensureCoverage, isoNights, makeStop, newId, normText,
+  canonicalQuestions, addRequiredQuestions, emptyCruise, emptySpec, ensureCoverage, isoNights, makeStop, newId, normText,
   type Cruise, type LegMode, type MentionKind, type TripSpec,
 } from "../../supabase/functions/_shared/tripSpec.ts";
 import { autoResolveQuestions } from "@/lib/tripSpecAnswers";
@@ -242,6 +242,8 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
  */
 export function finalizeSpec(spec: TripSpec, text: string, ctx: LocalContext = {}): TripSpec {
   const out: TripSpec = { ...spec, consulta_original: text };
+  // Preguntas con su mención (no una frase de la IA) y sin repetidas: "Toscana" una sola vez.
+  out.preguntas = canonicalQuestions(out);
   if (!out.origen && ctx.origen) out.origen = ctx.origen;
   if (!out.regreso.a) out.regreso = { ...out.regreso, a: out.origen };
   if (!out.fecha_salida && ctx.fecha_salida) out.fecha_salida = ctx.fecha_salida;

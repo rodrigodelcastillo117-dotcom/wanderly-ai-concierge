@@ -182,5 +182,5 @@ export function busActions(q: GroundQuery & { provider?: string | null }): Opera
 export function noLinkText(mode: string | null | undefined, provider?: string | null): string {
   const op = provider ? ` (${provider})` : "";
   if (mode === "taxi" || mode === "traslado") return `Se paga directo al operador${op}; IATOS no lo cotiza.`;
-  return `Horarios y precio con el operador${op}: IATOS no lo cotiza y aún no tiene un enlace precargado para este tramo.`;
+  return `Horarios y precio con el operador${op}: IATOS no lo cotiza; búscalo en su sitio con tu ruta y fecha.`;
 }

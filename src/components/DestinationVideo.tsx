@@ -59,6 +59,12 @@ export const DestinationVideo = ({ query, fallbackImage, fallbackSrcSet, sizes, 
     );
   }
 
+  // Sin video, sin póster y sin imagen de respaldo: nada encima (lo de abajo, p. ej. la foto ilustrativa del
+  // destino, queda visible). Antes las 4 tarjetas de Inicio mostraban la misma foto de Santorini.
+  if (!data?.poster && !fallbackImage) {
+    return <span ref={ref as RefObject<HTMLSpanElement>} aria-hidden="true" className={className} style={{ background: "transparent" }} />;
+  }
+
   return (
     <img
       ref={ref as RefObject<HTMLImageElement>}

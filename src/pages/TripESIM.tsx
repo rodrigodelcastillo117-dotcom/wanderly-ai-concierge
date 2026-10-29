@@ -11,22 +11,23 @@ import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 const PROVIDERS = [
   {
     name: "Airalo",
-    desc: "eSIM en 200+ países, planes desde $4.50 USD. Activación instantánea por QR.",
-    perk: "$3 USD OFF primera compra con código NEWTOAIRALO",
+    // Sin precio "desde": no viene de una fuente actual (el sitio ya decía $4.00 cuando aquí decía $4.50).
+    desc: "eSIM en 200+ países. Activación instantánea por QR; el precio de cada plan lo ves en su sitio.",
+    perk: "Código NEWTOAIRALO para la primera compra (confirma en su sitio que siga vigente)",
     link: (c: string) => airaloLink(c),
     prefill: "airalo",
   },
   {
     name: "Holafly",
     desc: "Planes por destino en 170+ países; revisa en su sitio el límite de datos de cada plan.",
-    perk: "5% OFF con código HOLAFLY5",
+    perk: "Código HOLAFLY5 (confirma en su sitio que siga vigente)",
     link: (c: string) => holaflyLink(c),
     prefill: "holafly",
   },
   {
     name: "Nomad",
     desc: "eSIM premium con cobertura empresarial en 165 países.",
-    perk: "Planes regionales desde $9 USD",
+    perk: "Planes regionales: precio en su sitio",
     link: (_: string) => "https://www.getnomad.app/",
     prefill: "nomad",
   },

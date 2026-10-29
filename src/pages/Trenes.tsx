@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Train, ExternalLink, Search } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -9,6 +9,7 @@ import { trainlineLink, omioLink, raileuropeLink } from "@/lib/affiliateLinks";
 import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { localISODate } from "@/lib/localDate";
+import { trainDateParam, trainPrefillFromTrip } from "@/lib/trainPrefill";
 import { multimodalAction, operatorAction, routeOperators } from "../../supabase/functions/_shared/booking/railOperators.ts";
 
 const Trenes = () => {
@@ -18,8 +19,25 @@ const Trenes = () => {
   const [params] = useSearchParams();
   const [origin, setOrigin] = useState(params.get("origin") ?? "");
   const [destination, setDestination] = useState(params.get("dest") ?? "");
-  const [date, setDate] = useState(params.get("date") ?? localISODate());
-  const [pax, setPax] = useState(Math.max(1, Number(params.get("pax") ?? tripTool.trip?.num_viajeros ?? 1) || 1));
+  // ?date= en ISO o en el formato de buyFlow (AAAAMMDD).
+  const dateParam = trainDateParam(params.get("date"));
+  const [date, setDate] = useState(dateParam ?? localISODate());
+  const paxParam = Number(params.get("pax"));
+  const [pax, setPax] = useState(Math.max(1, paxParam || 1));
+  // Con el viaje puesto (?trip=): lo que falte se llena con el viaje (primer tramo, su fecha y sus viajeros).
+  const filledFor = useRef<string | null>(null);
+  useEffect(() => {
+    const t = tripTool.trip;
+    if (!t || filledFor.current === t.id) return;
+    filledFor.current = t.id;
+    const p = trainPrefillFromTrip(t);
+    if (!p) return;
+    setOrigin((o) => o || p.origin);
+    setDestination((d) => d || p.destination);
+    if (!dateParam && p.date) setDate(p.date);
+    if (!paxParam && p.pax) setPax(p.pax);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripTool.trip]);
   // Operador oficial del país con la búsqueda precargada cuando su formato se comprobó (Renfe, DB) o su
   // portada; 12Go con ruta y fecha en el Sudeste Asiático. Nunca un precio.
   const q = { from: origin, to: destination, date, adults: pax };

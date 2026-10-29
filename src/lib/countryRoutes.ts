@@ -8,6 +8,7 @@
 // las de menor prioridad. La primera y la última tienen aeropuerto internacional (DEL, FCO, NRT…).
 import { splitNights } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { basesForNights, findRegion } from "../../supabase/functions/_shared/regions.ts";
 
 type Stop = { city: string; weight: number; /** 1 = imprescindible; más alto se quita primero. */ prio: number; /** Qué tiene (lugares conocidos, sin precios). */ why: string; tags: string[] };
 type CountryRoute = { country: string; aliases: string[]; stops: Stop[] };
@@ -144,6 +145,19 @@ export function proposeCountryRoute(country: unknown, total: number | null, pref
   const cities = stops.map((s) => s.city);
   const weights = stops.map((s) => s.weight);
   return { country: r.country, cities, weights, nights: total != null ? weightedNights(weights, total) : null, why: stops.map((s) => s.why) };
+}
+
+/**
+ * Propuesta para una región ("Toscana 5 días"): sus bases (Florencia, Siena…) según las noches, como la caja
+ * de Iato (regions.ts). Antes la página Planear decía "Entendimos: Toscana" y buscaba una "ciudad" Toscana.
+ */
+export function proposeRegionRoute(region: unknown, total: number | null): RouteProposal | null {
+  const r = findRegion(region);
+  if (!r) return null;
+  const cities = r.bases.slice(0, basesForNights(total)).map((b) => b[0]);
+  if (cities.length < 2) return null;
+  const weights = cities.map(() => 1);
+  return { country: r.name, cities, weights, nights: total != null ? weightedNights(weights, total) : null, why: cities.map(() => `Base para recorrer ${r.name}.`) };
 }
 
 /** "Delhi (4) → Agra (2) → …" */

@@ -13,7 +13,8 @@ import {
   type BookingAction, type BookingOffer,
 } from "@/lib/booking";
 import { isConfirmedBooking, type BookingLike } from "@/lib/bookingState";
-import { parseAviasalesSearch, parseBookingSearch, parseGoogleFlightsSearch } from "../../supabase/functions/_shared/booking/links.ts";
+import { bookingSearchUrl, parseAviasalesSearch, parseBookingSearch, parseGoogleFlightsSearch, roomsForAdults } from "../../supabase/functions/_shared/booking/links.ts";
+import { isPlaceholderHotel, placeholderHotelLabel } from "../../supabase/functions/_shared/booking/placeholderHotel.ts";
 import { displayAirlineName } from "@/lib/flightDisplay";
 import { airlineName } from "@/lib/airlines";
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
@@ -54,6 +55,8 @@ export type PurchaseItem = {
   col: "vuelos_json" | "hospedaje_json" | "tours_json" | "restaurantes_json" | null;
   index: number;
   offer: BookingOffer | null;
+  /** Hotel "de referencia" de la IA (no es un hotel real): se elige, no se compra. */
+  placeholder?: boolean;
 };
 
 export type TripOfferActionsLike = Partial<Record<"vuelos_json" | "hospedaje_json" | "tours_json" | "restaurantes_json", Record<number, BookingAction[]>>>;
@@ -247,6 +250,30 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
     hotelSeen.add(i);
     const offer = offerFromTripHotel(h, { trip, city: hCity, index: i });
     const nights = stay?.nights ?? (Number((offer.details as any)?.nights) || null);
+    if (isPlaceholderHotel(h)) {
+      // Zona de referencia de la IA ("Boutique hotel en el Centro Histórico (por confirmar…)"): no es un
+      // hotel real. Sin botón de compra: "Elegir hotel" con la búsqueda real del destino y las fechas.
+      const where = hCity ?? city;
+      const ci = stay?.checkin ?? trip.fecha_salida ?? null, co = stay?.checkout ?? trip.fecha_regreso ?? null;
+      const built = where && ci && co ? bookingSearchUrl({ query: where, checkin: ci, checkout: co, adults: travelers, rooms: roomsForAdults(travelers) }) : null;
+      const ok = built ? checkAllowlisted(built) : null;
+      const url = ok && ok.ok ? ok.url : null;
+      const d = describePrefill(url, "Booking.com", trip);
+      items.push({
+        key: `hospedaje:${i}:${norm(h?.nombre)}${repeat && stay ? `:${stay.checkin}` : ""}`, kind: "hospedaje", category: "hotel",
+        title: `Hospedaje · Elegir hotel${where ? ` en ${where}` : ""}`,
+        subtitle: [where, fmtRange(ci, co), nights ? plural(nights, "noche", "noches") : null].filter(Boolean).join(" · "),
+        price: offer.price, currency: offer.currency ?? "MXN",
+        priceNote: `Precio de referencia estimado para «${placeholderHotelLabel(h)}»${num(h?.precio_por_noche) ? ` ($${Math.round(Number(h.precio_por_noche)).toLocaleString("es-MX")} MXN por noche)` : ""}: no es un hotel real.`,
+        source: { fuente: h?.fuente_precio ?? null, estado: h?.estado_dato ?? null, consultadoAt: checked(h) },
+        estimate: true, action: null, optional: false, fallbackHref: null,
+        site: url ? "Booking.com" : null, url, lleva: d.lleva, buttonLabel: url ? "Elegir hotel en Booking.com" : null,
+        completa: "Es una zona de referencia, no un hotel: elige tu hotel en Booking.com (ya lleva el destino, las fechas y las personas).",
+        // La oferta se conserva (noches y precio de referencia); su acción de compra no se usa.
+        col: "hospedaje_json", index: i, offer, city: hCity, placeholder: true,
+      });
+      return;
+    }
     items.push(base({
       key: `hospedaje:${i}:${norm(h?.nombre)}${repeat && stay ? `:${stay.checkin}` : ""}`, kind: "hospedaje", category: "hotel",
       title: `Hospedaje · ${h?.nombre ?? "Hotel"}`,

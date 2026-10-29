@@ -95,7 +95,10 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
       {/* El mismo total, separado: precios reales y gastos estimados (comida, transporte local, extras…). */}
       {split && split.estimado > 0 && (
         <p className="mb-2 flex flex-col gap-0.5 text-sm sm:flex-row sm:gap-3" data-testid="trip-total-reparto">
-          <span data-testid="trip-total-real">Total con precios reales: <span className="tabular-nums">{fmtMXN(split.real)}</span></span>
+          {/* Sin ningún precio real no se dice "Total con precios reales: $0" (caso Bogotá). */}
+          {split.real > 0
+            ? <span data-testid="trip-total-real">Total con precios reales: <span className="tabular-nums">{fmtMXN(split.real)}</span></span>
+            : <span data-testid="trip-total-sin-reales">Aún sin precios consultados en vivo: todo el total es estimado.</span>}
           <span className="text-muted-foreground" data-testid="trip-total-estimado">Gastos estimados del viaje ({partsList(split.estParts)}): ~<span className="tabular-nums">{fmtMXN(split.estimado)}</span></span>
         </p>
       )}

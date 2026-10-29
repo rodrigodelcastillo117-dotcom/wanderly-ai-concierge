@@ -14,6 +14,8 @@ import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { useSavedDestinations } from "@/hooks/useSavedDestinations";
 import { homeCommandTrip, homeTrips } from "@/lib/homeTrips";
 import { conciergeBoxHref } from "@/lib/conciergeBoxRoute";
+import { recoPlanHref, sortRecosByMatch } from "@/lib/homeRecos";
+import { destinationPhotoQuery } from "@/lib/compareCost";
 import { VoiceInput } from "@/components/VoiceInput";
 import tileTrenes from "@/assets/tools/tile-trenes.jpg";
 import tileFerries from "@/assets/tools/tile-ferries.jpg";
@@ -265,7 +267,10 @@ const DashboardHome = () => {
         >
           <div className="flex flex-row items-center gap-2 md:gap-5">
             <h1 className="font-display text-xl md:text-4xl leading-[1.1] tracking-tight shrink-0">
-              <span className="capitalize">{name || "Viajero"}</span>.
+              {/* Mientras llega el nombre, un espacio reservado (antes "Viajero." y luego "Sofía."). */}
+              {name
+                ? <><span className="capitalize">{name}</span>.</>
+                : <span aria-hidden="true" data-testid="home-name-loading" className="inline-block h-[0.9em] w-20 md:w-36 rounded-lg bg-white/[0.06] motion-safe:animate-pulse align-middle" />}
             </h1>
             <div className="relative flex-1 min-w-0">
               <div className="relative flex items-center gap-2 md:gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl pl-2.5 md:pl-4 pr-1.5 py-1.5 focus-within:border-primary/40 transition">
@@ -470,22 +475,24 @@ const DashboardHome = () => {
               ? Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="aspect-[4/5] rounded-3xl bg-surface/40 animate-pulse" />
                 ))
-              : (aiRecos ?? []).slice(0, 4).map((d, i) => (
+              : sortRecosByMatch(aiRecos ?? []).slice(0, 4).map((d, i) => (
                 <div
                   key={`${d.name}-${i}`}
-                  onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}${d.country ? `&pais=${encodeURIComponent(d.country)}` : ""}&autoCheapest=1`)}
+                  onClick={() => navigate(recoPlanHref(d))}
                   role="link"
                   tabIndex={0}
                   aria-label={`Planear viaje a ${d.name}`}
                   onKeyDown={(e) => {
                     if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
                     e.preventDefault();
-                    navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}${d.country ? `&pais=${encodeURIComponent(d.country)}` : ""}&autoCheapest=1`);
+                    navigate(recoPlanHref(d));
                   }}
                   className="animate-fade-up hover:-translate-y-1 transition-transform duration-300 cursor-pointer group rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <div className="relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-white/[0.05]">
-                    <DestinationVideo query={d.image_query} fallbackImage={santorini960} lowPriority alt={d.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
+                    {/* Foto ilustrativa DE ESTE destino mientras llega el video (antes: la misma de Santorini en las 4). */}
+                    <SmartImage alt={d.name} stockQuery={destinationPhotoQuery(d.country ? `${d.name}, ${d.country}` : d.name)} className="!absolute inset-0 w-full h-full" captionClassName="hidden" />
+                    <DestinationVideo query={d.image_query} lowPriority alt={d.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
                     <IllustrativeCaption className="top-11 left-3" />
                     <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-primary/30 text-primary text-[10px] font-medium tracking-wider">

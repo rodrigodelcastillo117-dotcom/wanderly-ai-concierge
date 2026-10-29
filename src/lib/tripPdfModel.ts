@@ -18,13 +18,16 @@ import { buildBuyFlow, TIER_WORD } from "@/lib/buyFlow";
 import { listaHumana, unverifiedInTotal } from "@/lib/tripTotal";
 import { describePrefill, fmtDay, fmtRange, itemPurchaseState, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
 import { markLabel, type GroupMark } from "@/lib/purchaseMarks";
-import { provenanceOf } from "@/lib/provenance";
+import { plainProviderText, provenanceOf } from "@/lib/provenance";
 import { flightAirlineLabel, flightDurationLabel, flightStopsLabel } from "@/lib/flightDisplay";
 import { offerFromCarRental, COUNTRIES, type RoadTripPlan, type Notice } from "@/lib/roadtrip";
 import { primaryAction } from "@/lib/purchasePlan";
 import { getEmergency, EMERGENCY_SOURCE_NOTE } from "@/lib/emergencyNumbers";
 import { currencyName, destinationCurrency } from "@/lib/currencies";
 import { groundOptionsForCity } from "@/lib/multiDestTrip";
+import { calendarDays } from "@/lib/itineraryCalendar";
+import { isPlaceholderHotel, placeholderHotelLabel } from "../../supabase/functions/_shared/booking/placeholderHotel.ts";
+import { tripDayDate } from "@/lib/tripDayDate";
 import type { QuoteTrust } from "@/lib/quoteTrust";
 import { cityStays, sameCity, tripCountryLabel, tripDestinations, tripFlightSearches } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { tripFlightProblems } from "@/lib/booking";
@@ -92,7 +95,7 @@ export type BuyRow = {
   warning?: string | null;
 };
 export type DaySlot = { label: string; text: string };
-export type PdfDay = { n: number; title: string; slots: DaySlot[] };
+export type PdfDay = { n: number; title: string; slots: DaySlot[]; /** "mié 10 mar" (de fecha_salida si el día no la trae). */ date?: string | null; pendiente?: boolean };
 export type PdfLeg = { from: string; to: string; mode: string; km: number | null; minutes: number | null; state: string | null; date: string | null; mapsUrl: string | null; note: string | null };
 export type PdfCity = {
   city: string;
@@ -141,7 +144,8 @@ export type TripPdfModel = {
 const money = (n: number) => `$${Math.round(Number(n) || 0).toLocaleString("es-MX")} MXN`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const isIso = (d: unknown): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d);
-const clean = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
+// Todo texto que va al PDF pasa por el mismo filtro de proveedores que la app ("vía SerpApi" no se imprime).
+const clean = (s: unknown) => plainProviderText(String(s ?? "")).replace(/\s+/g, " ").trim();
 const norm = (s: unknown) => clean(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 const LABELS: Record<string, string> = {
@@ -318,8 +322,8 @@ export function buildTripPdfModel(trip: any, opts: TripPdfOptions): TripPdfModel
   });
 
   // ── Por ciudad ──
-  const itin = trip?.itinerario_json;
-  const days: any[] = Array.isArray(itin) ? itin : Array.isArray(itin?.days) ? itin.days : [];
+  // Cada día con su fecha y los días sin plan como "Día libre" (igual que la pestaña Destinos).
+  const days: any[] = calendarDays(trip);
   const hotelSteps = flow.steps.filter((s) => s.kind === "hospedaje");
   const restaurantItems = flow.items.filter((i) => i.kind === "restaurante");
   const restList: any[] = Array.isArray(trip?.restaurantes_json) ? trip.restaurantes_json : [];
@@ -328,8 +332,8 @@ export function buildTripPdfModel(trip: any, opts: TripPdfOptions): TripPdfModel
     const city = rc.city;
     const cityDays = (multi ? days.filter((d) => sameCity(d?.ciudad, city)) : days).map((d): PdfDay => {
       const n = Number(d?.dia) || 0;
-      // Sin fecha por día: el itinerario guardado no siempre cuadra con las noches por ciudad (en el caso
-      // real, el día 4 ya es Florencia y la estancia en Roma termina el 26): no se afirma una fecha.
+      // Fecha del día N = salida + (N − 1) (calendarDays); el plan de ese día puede no cuadrar con la
+      // ciudad de la estancia, pero el día del calendario sí es ese.
       const title = clean(d?.titulo).replace(new RegExp(`^${city}\\s+[—–-]\\s+`, "i"), "");
       const slots: DaySlot[] = [
         { label: "Mañana", text: clean(d?.["mañana"] ?? d?.manana) },
@@ -339,7 +343,7 @@ export function buildTripPdfModel(trip: any, opts: TripPdfOptions): TripPdfModel
       if (Array.isArray(d?.agregados) && d.agregados.length) {
         slots.push({ label: "Agregado por ti", text: d.agregados.map((a: any) => [a?.hora, clean(a?.titulo), a?.lugar ? `— ${clean(a.lugar)}` : null].filter(Boolean).join(" ")).join(" · ") });
       }
-      return { n, title: title || `Día ${n}`, slots };
+      return { n, title: title || `Día ${n}`, slots, date: tripDayDate(d?.fecha), pendiente: !!d?.pendiente };
     });
     const hs = hotelSteps.find((s) => (s.kind === "hospedaje" && s.city && sameCity(s.city, city)) || (!multi && s.kind === "hospedaje")) as any;
     let hotel: PdfCity["hotel"] = null;
@@ -352,7 +356,8 @@ export function buildTripPdfModel(trip: any, opts: TripPdfOptions): TripPdfModel
         const perNight = Number(h.precio_por_noche) || 0;
         const detail = [h.tier && TIER_WORD[h.tier] ? TIER_WORD[h.tier] : null, hs.nights ? plural(hs.nights, "noche", "noches") : null,
           perNight ? `${money(perNight)} por noche` : null, Number(h.rating) > 0 ? `★ ${Number(h.rating).toFixed(1)}` : null].filter(Boolean).join(" · ");
-        hotel = { name: clean(h.nombre) || "Hotel", detail, total: hs.item.price ? money(hs.item.price) : null, provenance: provLabel(hs.item.source, now),
+        const ph = isPlaceholderHotel(h);
+        hotel = { name: ph ? `Elegir hotel en ${city}` : clean(h.nombre) || "Hotel", detail: ph ? `Zona de referencia (no es un hotel real): ${placeholderHotelLabel(h)} · ${detail}` : detail, total: hs.item.price ? money(hs.item.price) : null, provenance: provLabel(hs.item.source, now),
           status: st.status, done: st.done, links: hs.item.url ? [{ label: buyLinkLabel(hs.item), url: hs.item.url }] : [], skipped: false };
       }
     }
@@ -406,7 +411,7 @@ export function buildTripPdfModel(trip: any, opts: TripPdfOptions): TripPdfModel
 
   return {
     title, country, origin: clean(trip?.ciudad_origen) || null, datesLabel, nights, travelers, totals, totalNote, desglose,
-    trustSummary: opts.trust?.summary ?? null, summary: clean(trip?.analisis_ai) || null, flightLine,
+    trustSummary: opts.trust?.summary ? clean(opts.trust.summary) : null, summary: clean(trip?.analisis_ai) || null, flightLine,
     route: { cities: routeCities, legs, totalKm, totalMinutes, drivingState },
     buy, buyDone: core.filter((b) => b.done).length, buyTotal: core.length,
     discardedFares,
