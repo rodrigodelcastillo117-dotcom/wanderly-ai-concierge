@@ -4,7 +4,7 @@
 // afiliado de IATOS. "Ver en Viator" abre la ficha en viator.com: no es una reserva.
 // Términos de Viator: estas pantallas son internas y con sesión; el contenido no se indexa.
 import { readFunctionError } from "@/lib/functionErrors";
-import { checkAllowlisted } from "../../supabase/functions/_shared/booking/allowlist.ts";
+import { checkAllowlisted } from "@/lib/bookingAllowlist";
 import { FREE_TOUR_NOTE } from "../../supabase/functions/_shared/viator.ts";
 
 export type Invoke = (fn: string, opts: { body: Record<string, unknown> }) => Promise<{ data: any; error: any }>;

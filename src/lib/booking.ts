@@ -1,7 +1,7 @@
 // Booking Bridge en el cliente: la MISMA lógica que el servidor (supabase/functions/_shared/booking).
 // El cliente la usa para pintar los botones al instante; booking-bridge la vuelve a correr con sus
 // propios datos antes de guardar o redirigir (el cliente nunca decide a qué URL se sale).
-export { checkAllowlisted, checkTrustedSource, processorLabel } from "../../supabase/functions/_shared/booking/allowlist.ts";
+export { checkAllowlisted, checkTrustedSource, processorLabel } from "@/lib/bookingAllowlist";
 export { resolveBookingActions } from "../../supabase/functions/_shared/booking/resolver.ts";
 export {
   offerFromFlightResult, offerFromHotelResult, offerFromTripFlight, tripFlightProblems, isGroundTripOption, transportModeOf, isEstimatedTripFlight, isTripInternationalRow, durationHours, offerFromTripHotel, offerFromTripRestaurant, offerFromTripTour, offerFromVenue,

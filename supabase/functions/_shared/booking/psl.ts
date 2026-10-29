@@ -5,6 +5,9 @@
 // ninguna coincide, la regla por omisión es "*" (el TLD). Se usan las dos secciones (ICANN y
 // privada): para seguridad, "chef.wixsite.com" y "pagos.wixsite.com" son dueños distintos.
 import { PSL_ICANN, PSL_PRIVATE } from "./psl_data.ts";
+// asciiHost vive en host.ts (sin datos) para que el navegador no cargue esta lista; se re-exporta aquí.
+import { asciiHost } from "./host.ts";
+export { asciiHost };
 
 let RULES: Set<string> | null = null;
 let WILD: Set<string>;
@@ -21,22 +24,6 @@ function load(): void {
     else if (r.startsWith("*.")) WILD.add(r.slice(2));
     else RULES.add(r);
   }
-}
-
-const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
-
-/** Host en minúsculas y punycode (como lo deja el parser de URL), sin punto final; null si no es un nombre DNS. */
-export function asciiHost(host: string): string | null {
-  if (typeof host !== "string" || !host || host.length > 253 || /[\s/\\@:?#[\]%]/.test(host)) return null;
-  let h: string;
-  try {
-    h = new URL(`https://${host}/`).hostname;
-  } catch {
-    return null;
-  }
-  h = h.toLowerCase().replace(/\.$/, "");
-  if (!h || IPV4.test(h) || h.startsWith("[") || h.split(".").some((l) => !l || l.length > 63)) return null;
-  return h;
 }
 
 /** Sufijo público de un host ("co.uk", "github.io", "kawasaki.jp"…) o null si el TLD no existe en la PSL. */

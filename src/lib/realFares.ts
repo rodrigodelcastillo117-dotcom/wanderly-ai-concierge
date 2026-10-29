@@ -14,7 +14,7 @@
 import { noteLiveSearchState } from "@/lib/livePause";
 import { cityStays, tripFlightRoute, type TripRouteLike } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { mainAirport } from "../../supabase/functions/_shared/airports.ts";
-import { checkAllowlisted, checkTrustedSource } from "../../supabase/functions/_shared/booking/allowlist.ts";
+import { checkAllowlisted, checkTrustedSource } from "@/lib/bookingAllowlist";
 import { readFunctionError } from "@/lib/functionErrors";
 
 export type Invoke = (fn: string, opts: { body: Record<string, unknown> }) => Promise<{ data: any; error: any }>;

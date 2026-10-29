@@ -2,7 +2,8 @@
 // nombra el número del defecto y falla con el código anterior a esta rama (claude/fix-pulido-r2).
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
@@ -29,6 +30,13 @@ import { Ayuda, Terminos } from "@/pages/Legal";
 import { DNA_LABELS } from "@/lib/social";
 import { INITIAL_ROUTE_CHUNKS } from "@/lib/routeChunks";
 import { INITIAL_ROUTE_PAGES } from "../../vite.routePreload";
+import * as SERVER from "../../supabase/functions/_shared/booking/allowlist";
+import * as CLIENT from "@/lib/bookingAllowlist";
+import { PSL_ICANN, PSL_PRIVATE } from "../../supabase/functions/_shared/booking/psl_data";
+import { buildClientAllowlistSource, CLIENT_ALLOWLIST_DATA_PATH } from "../../scripts/booking/clientAllowlistGen";
+import { clientAllowlist, CLIENT_ALLOWLIST, SERVER_ALLOWLIST } from "../../vite.clientAllowlist";
+import { googleLoginEnabled } from "@/lib/googleLogin";
+import { travelpayoutsDriveEnabled } from "@/lib/consent";
 import { iatoMarkHtml, shell, para, SERIF } from "../../supabase/functions/_shared/email-kit";
 import { userConfirmedEmail } from "../../supabase/functions/_shared/ai-reservations/templates";
 
@@ -191,6 +199,116 @@ describe("P2-4 · /ayuda: LCP móvil, enlaces distinguibles y \"Mi perfil\" con 
     const logo = screen.getByRole("img", { name: "IATOS AI" });
     expect(logo).toHaveAttribute("width", "320");
     expect(logo).toHaveAttribute("height", "91");
+  });
+});
+
+describe("P2-5 · el paquete público no lleva la lista blanca del servidor", () => {
+  const CLIENT_USERS = ["src/lib/booking.ts", "src/lib/realFares.ts", "src/lib/ferryLive.ts", "src/lib/viatorTours.ts", "src/lib/tripPdfModel.ts"];
+  const walk = (d: string, out: string[] = []): string[] => {
+    for (const f of readdirSync(d)) {
+      const p = join(d, f);
+      if (statSync(p).isDirectory()) walk(p, out);
+      else if (/\.(ts|tsx)$/.test(f) && !/psl_data|bookingAllowlist\.data/.test(f)) out.push(p);
+    }
+    return out;
+  };
+
+  it("ningún archivo de la app importa allowlist.ts del servidor; los 5 que la usaban leen la versión del navegador", () => {
+    const app = walk("src").filter((f) => !f.startsWith(join("src", "test")));
+    const offenders = app.filter((f) => /_shared\/booking\/allowlist(\.ts)?["']/.test(src(f)));
+    expect(offenders).toEqual([]);
+    for (const f of CLIENT_USERS) expect(src(f), f).toMatch(/from "@\/lib\/bookingAllowlist"/);
+  });
+
+  it("la lista del navegador está al día con la del servidor y no lleva notas internas", () => {
+    expect(src(CLIENT_ALLOWLIST_DATA_PATH)).toBe(buildClientAllowlistSource(SERVER.PROVIDERS, PSL_ICANN, PSL_PRIVATE));
+    const strip = ({ why: _w, ...r }: SERVER.ProviderInfo) => ({ ...r, paths: r.paths?.toString() });
+    expect(CLIENT.PROVIDERS.map((p) => ({ ...p, paths: p.paths?.toString() }))).toEqual(SERVER.PROVIDERS.map(strip));
+    const data = src(CLIENT_ALLOWLIST_DATA_PATH) + src("src/lib/bookingAllowlist.ts");
+    expect(data).not.toMatch(/why|EV-|SerpApi|Travelpayouts \(marker|Partner API/);
+    expect(src("src/lib/bookingAllowlist.ts")).not.toMatch(/psl_data|booking\/psl(\.ts)?"/);
+    expect(src(CLIENT_ALLOWLIST_DATA_PATH).length).toBeLessThan(40_000);
+  });
+
+  it("en el build del navegador, los módulos compartidos que importan allowlist.ts reciben la versión del navegador", async () => {
+    const root = "/repo";
+    const plugin = clientAllowlist(root);
+    const ctx = { resolve: async (source: string, importer?: string) => ({ id: join(importer ? importer.replace(/\/[^/]+$/, "") : root, source) }) };
+    const resolved = await plugin.resolveId.call(ctx, "./allowlist.ts", `${root}/supabase/functions/_shared/booking/resolver.ts`);
+    expect(resolved).toBe(join(root, CLIENT_ALLOWLIST));
+    expect(await plugin.resolveId.call(ctx, "./booking/allowlist.ts", `${root}/supabase/functions/_shared/ticketmaster.ts`)).toBe(join(root, CLIENT_ALLOWLIST));
+    // Otros archivos que se llamen igual no se tocan; tampoco lo que no es la lista del servidor.
+    expect(await plugin.resolveId.call(ctx, "./allowlist.ts", `${root}/src/otra/cosa.ts`)).toBeNull();
+    expect(await plugin.resolveId.call(ctx, "./links.ts", `${root}/supabase/functions/_shared/booking/resolver.ts`)).toBeNull();
+    expect(SERVER_ALLOWLIST).toBe("supabase/functions/_shared/booking/allowlist.ts");
+    expect(src("vite.config.ts")).toMatch(/plugins: \[clientAllowlist\(\),/);
+  });
+
+  /** Veredicto comparable (sin el objeto del proveedor completo: el del servidor trae `why`). */
+  const key = (v: any) => JSON.stringify([v.ok, v.url, v.host, v.trust, v.provider?.provider, v.provider?.domain, v.provider?.label, v.reason]);
+  const FNS = ["checkAllowlisted", "checkUntrusted", "checkTrustedSource"] as const;
+
+  it("mismo veredicto que el servidor en todas las URLs de las pruebas y funciones, y en imitaciones de cada proveedor", () => {
+    const urls = new Set<string>();
+    for (const f of [...walk("src/test"), ...walk("supabase/functions")]) {
+      for (const m of src(f).matchAll(/https?:\/\/[^\s"'`<>)\]\\]+/g)) urls.add(m[0]);
+    }
+    for (const p of SERVER.PROVIDERS) {
+      const d = p.domain, l = d.split(".")[0];
+      for (const u of [`https://${d}/`, `https://www.${d}/x?y=1`, `https://${l}-reservas.mx/`, `https://secure-${l}.com/`, `https://${l}.evil.io/`,
+        `https://${d}.evil.io/`, `https://${l.replace(/o/g, "0").replace(/i/g, "1")}.com/`, `https://${l}s.net/`, `https://hotel-${l}.com/`,
+        `https://${l}.com.mx/`, `https://${l}-pagos.wixsite.com/`, `https://tp.media/click?u=${encodeURIComponent(`https://${d}/`)}`, `http://${d}/`]) urls.add(u);
+    }
+    expect(urls.size).toBeGreaterThan(1500);
+    const diffs: string[] = [];
+    for (const u of urls) {
+      for (const fn of FNS) if (key(SERVER[fn](u)) !== key(CLIENT[fn](u))) diffs.push(`${fn} ${u}`);
+      if (SERVER.processorLabel(u) !== CLIENT.processorLabel(u)) diffs.push(`processorLabel ${u}`);
+      if (SERVER.isRedirector(u) !== CLIENT.isRedirector(u)) diffs.push(`isRedirector ${u}`);
+      if (SERVER.unwrapAffiliate(u) !== CLIENT.unwrapAffiliate(u)) diffs.push(`unwrapAffiliate ${u}`);
+      let host = ""; try { host = new URL(u).hostname; } catch { /* no es URL */ }
+      if (host && SERVER.looksLikeBrandImpersonation(host) !== CLIENT.looksLikeBrandImpersonation(host)) diffs.push(`looksLike ${host}`);
+    }
+    expect(diffs).toEqual([]);
+ }, 60_000);
+
+  it("con sufijos públicos poco comunes: la lista estricta decide igual y el navegador nunca rechaza lo que el servidor acepta", () => {
+    const rules = `${PSL_ICANN},${PSL_PRIVATE}`.split(",").filter((r) => r && !/^[!*]/.test(r)).filter((_r, i) => i % 10 === 0);
+    const strictDiffs: string[] = [];
+    const lessPermissive: string[] = [];
+    const morePermissive: string[] = [];
+    for (const r of rules) {
+      for (const u of [`https://${r}/`, `https://hotel.${r}/`, `https://booking-pagos.${r}/`, `https://a.b.${r}/x`]) {
+        for (const fn of ["checkAllowlisted", "checkUntrusted"] as const) {
+          const a = SERVER[fn](u), b = CLIENT[fn](u);
+          if (a.ok !== b.ok || a.url !== b.url || a.provider?.provider !== b.provider?.provider) strictDiffs.push(`${fn} ${u}`);
+        }
+        const a = SERVER.checkTrustedSource(u), b = CLIENT.checkTrustedSource(u);
+        if (a.ok && !b.ok) lessPermissive.push(u);
+        // Solo hosts que SON un sufijo público poco común ("airline.aero"): el servidor los rechaza al salir (booking-go).
+        if (!a.ok && b.ok) morePermissive.push(`${u} ${a.reason}`);
+      }
+    }
+    expect(rules.length).toBeGreaterThan(1000);
+    expect(strictDiffs).toEqual([]);
+    expect(lessPermissive).toEqual([]);
+    expect(morePermissive.filter((d) => !/ host_no_publico$/.test(d))).toEqual([]);
+  }, 60_000);
+
+  it("googleLogin.ts y consent.ts leen solo su variable VITE_* (no import.meta.env completo)", () => {
+    const app = walk("src").filter((f) => !f.startsWith(join("src", "test")));
+    const whole = app.filter((f) => /import\.meta\.env(?!\??\.)/.test(src(f).replace(/^\s*(\/\/|\/?\*).*$/gm, "").replace(/\/\/.*$/gm, "")));
+    expect(whole).toEqual([]);
+    expect(src("src/lib/googleLogin.ts")).toMatch(/import\.meta\.env\.VITE_GOOGLE_LOGIN_ENABLED/);
+    expect(src("src/lib/consent.ts")).toMatch(/import\.meta\.env\.VITE_TRAVELPAYOUTS_DRIVE_ENABLED/);
+    vi.stubEnv("VITE_GOOGLE_LOGIN_ENABLED", "true");
+    vi.stubEnv("VITE_TRAVELPAYOUTS_DRIVE_ENABLED", "TRUE");
+    expect(googleLoginEnabled()).toBe(true);
+    expect(travelpayoutsDriveEnabled()).toBe(true);
+    vi.stubEnv("VITE_GOOGLE_LOGIN_ENABLED", "no");
+    expect(googleLoginEnabled()).toBe(false);
+    expect(googleLoginEnabled({})).toBe(false);
+    expect(travelpayoutsDriveEnabled({ VITE_TRAVELPAYOUTS_DRIVE_ENABLED: "true" })).toBe(true);
   });
 });
 
