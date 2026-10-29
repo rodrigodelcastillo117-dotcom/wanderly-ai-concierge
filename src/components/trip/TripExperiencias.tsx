@@ -25,6 +25,8 @@ import {
 } from "@/lib/experiencias";
 import { filterByMeal, type Meal, MEAL_LABEL, MEALS } from "../../../supabase/functions/_shared/restaurantBooking.ts";
 import { officialTicketsForCity, ticketSummary } from "../../../supabase/functions/_shared/officialTickets.ts";
+import { sameCity } from "../../../supabase/functions/_shared/booking/tripRoute.ts";
+import { tripPlaces } from "@/lib/itineraryDay";
 
 type Marks = {
   marks: Map<string, GroupMark>;
@@ -210,6 +212,10 @@ function CityPanel({ trip, city, cities, st, hotel, marks, userId, onSearch, onR
   const items = useMemo(() => (data ? itemsFromResponse(data, city.label) : null), [data, city.label]);
   // Sin búsqueda: los museos de la tabla oficial (local, sin costo).
   const localMuseos = useMemo(() => officialTicketsForCity(city.label).map(ticketSummary), [city.label]);
+  // Antes de buscar (ola «9.5 en todo»): los lugares que tu plan ya trae en esta ciudad, con su ficha de Google
+  // Maps (sin costo). Antes la pestaña quedaba casi vacía hasta pulsar «Buscar lo TOP».
+  const planPlaces = useMemo(() => tripPlaces(trip).filter((p) => p.kind !== "hotel"
+    && (!multi || !p.ciudad || sameCity(p.ciudad, city.label) || sameCity(p.ciudad, city.key))), [trip, city.label, city.key, multi]);
   const toggle = (k: string) => { const next = new Set(st.chosen); next.has(k) ? next.delete(k) : next.add(k); patch({ chosen: next }); };
   const days = stayDays(city.checkin, city.checkout);
   const tripId = trip?.id ?? null;
@@ -265,6 +271,36 @@ function CityPanel({ trip, city, cities, st, hotel, marks, userId, onSearch, onR
       {ancla?.nota && <p className="text-[11px] text-muted-foreground" data-testid="exp-ancla"><MapPin className="mr-1 inline h-3 w-3 text-primary" aria-hidden="true" />{ancla.nota}</p>}
       {Array.isArray(data?.avisos) && data.avisos.map((a: string) => <p key={a} className="text-[11px] text-primary">{a}</p>)}
 
+      {!data && planPlaces.length > 0 && (
+        <div className={cardCls} data-testid="exp-de-tu-plan">
+          <h4 className="inline-flex items-center gap-2 text-sm font-medium"><MapPin className="h-4 w-4 text-primary" aria-hidden="true" />Ya en tu plan</h4>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Lugares de tu itinerario en {city.label}, con su ficha de Google Maps. Para reservarlos: Comprar → Restaurantes y experiencias.</p>
+          <ul className="mt-1.5 divide-y divide-border/40">
+            {planPlaces.slice(0, 8).map((p) => {
+              const Icon = p.kind === "restaurante" ? Utensils : Landmark;
+              const body = (
+                <>
+                  <Icon className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 break-words">{p.name}</span>
+                  {p.rating ? <span className="shrink-0 text-muted-foreground tabular-nums">{p.rating.toLocaleString("es-MX", { maximumFractionDigits: 1 })}★</span> : null}
+                  {p.mapsUrl ? <ExternalLink className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" /> : null}
+                </>
+              );
+              return (
+                <li key={p.name}>
+                  {p.mapsUrl ? (
+                    <a href={p.mapsUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-[40px] items-center gap-2 py-1.5 text-xs text-foreground/90 hover:text-primary" data-testid="exp-plan-lugar"
+                      aria-label={`${p.name}: ver en Google Maps`}>{body}</a>
+                  ) : (
+                    <span className="flex min-h-[40px] items-center gap-2 py-1.5 text-xs" data-testid="exp-plan-lugar">{body}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {/* TOP restaurantes */}
       {data && (
         <div data-testid="exp-restaurantes">
@@ -315,7 +351,9 @@ function CityPanel({ trip, city, cities, st, hotel, marks, userId, onSearch, onR
         </div>
       )}
 
-      {/* TOP museos */}
+      {/* TOP museos (antes de buscar, solo si la tabla oficial tiene museos de la ciudad: no un estado vacío
+          que aún no se ha buscado). */}
+      {(data || localMuseos.length > 0) && (
       <div data-testid="exp-museos">
         {/* Sin jerga (R4 viajes P2-6: «tabla de taquillas oficiales»): el aviso del servidor no se muestra; la
             página dice qué es la lista y, si no hay museos verificados, a dónde ir a buscarlos. */}
@@ -353,6 +391,7 @@ function CityPanel({ trip, city, cities, st, hotel, marks, userId, onSearch, onR
           })}
         </ul>
       </div>
+      )}
 
       {/* TOP tours y experiencias wow */}
       {data && <ToursBlock title="TOP tours" icon={Ticket} res={tours} block={data.tours} items={items?.tour ?? []} raw={Array.isArray(data?.tours?.results) ? data.tours.results : []} {...{ st, toggle, marks, userId, tripId, city: city.label }} />}

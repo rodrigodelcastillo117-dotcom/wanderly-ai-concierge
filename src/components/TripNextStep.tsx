@@ -57,6 +57,17 @@ type Props = {
    * enseguida «Precios de hace 27 h: revísalos…»): la tarjeta no lo repite.
    */
   hideStaleNotice?: boolean;
+  /**
+   * Dentro del tablero del Resumen (ola «9.5 en todo»): sin marco propio y sin repetir la fecha de la
+   * cotización, que ya dice la tarjeta del total («Cotizado el…» / «Verifica los precios…»).
+   */
+  embedded?: boolean;
+  /**
+   * Barra del celular estando ya en «Comprar» (ola «9.5 en todo»): «Ir a Comprar» no tenía sentido ahí. Con
+   * la acción de elegir/comprar, el botón lleva al siguiente paso pendiente (`onNext`) o, si no queda
+   * ninguno (`pending` false), al resumen final «Listo · Revisa y compra».
+   */
+  inComprar?: { pending: boolean; onNext: () => void } | null;
 };
 
 /**
@@ -64,7 +75,7 @@ type Props = {
  * principal (la misma regla que el centro de mando de Inicio). Antes, al terminar el análisis el
  * usuario llegaba a una página larguísima sin saber si su cotización estaba guardada ni qué hacer.
  */
-export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabel, totalNote, missing, now, hideStaleNotice }: Props) {
+export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabel, totalNote, missing, now, hideStaleNotice, embedded = false, inComprar = null }: Props) {
   const navigate = useNavigate();
   const today = localISODate(now ?? new Date());
   const action = nextTripAction(trip, { today, quote, now, missing });
@@ -78,6 +89,12 @@ export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabe
     else navigate(action.to);
   };
 
+  // Ya en «Comprar»: el siguiente paso pendiente, no «Ir a Comprar».
+  const comprarHere = variant === "bar" && !!inComprar && (action.key === "reservar" || action.key === "comprar");
+  const barLabel = comprarHere ? (inComprar!.pending ? "Siguiente paso" : "Revisar y comprar") : barCta(action);
+  const barAria = comprarHere ? (inComprar!.pending ? "Ir al siguiente paso pendiente" : "Ir a «Listo · Revisa y compra»") : action.cta;
+  const barGo = comprarHere ? (inComprar!.pending ? inComprar!.onNext : () => scrollToSection("paso-listo")) : go;
+
   if (variant === "bar") {
     return (
       <div className="lg:hidden fixed inset-x-2 z-40 bottom-[calc(76px+max(env(safe-area-inset-bottom),0.5rem))]" data-testid="trip-next-bar">
@@ -88,9 +105,9 @@ export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabe
             {totalLabel && <p className="text-sm font-medium whitespace-nowrap tabular-nums" data-testid="trip-next-bar-total">{totalLabel}</p>}
             {totalLabel && totalNote && <p className="text-[11px] text-muted-foreground truncate" data-testid="trip-next-bar-note">{totalNote}</p>}
           </div>
-          <button type="button" onClick={go} aria-label={action.cta} data-testid="trip-next-bar-cta"
+          <button type="button" onClick={barGo} aria-label={barAria} data-testid="trip-next-bar-cta"
             className="shrink-0 min-h-[44px] inline-flex items-center gap-1.5 rounded-xl bg-gradient-gold px-4 text-sm font-medium text-primary-foreground whitespace-nowrap active:scale-[0.98] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-            {barCta(action)} <ArrowRight className="w-4 h-4" aria-hidden />
+            {barLabel} <ArrowRight className="w-4 h-4" aria-hidden />
           </button>
         </div>
       </div>
@@ -98,7 +115,8 @@ export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabe
   }
 
   return (
-    <section aria-labelledby="trip-next-title" className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.09] to-transparent p-5 md:p-6">
+    <section aria-labelledby="trip-next-title" data-testid="trip-next-card"
+      className={embedded ? "" : "rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.09] to-transparent p-5 md:p-6"}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground mb-3">
         {isOwner ? (
           <span className="inline-flex items-center gap-1.5 text-primary"><BookmarkCheck className="w-4 h-4" aria-hidden /> Guardado en Mis viajes</span>
@@ -106,7 +124,7 @@ export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabe
           <span className="inline-flex items-center gap-1.5"><Users className="w-4 h-4" aria-hidden /> Viaje compartido contigo</span>
         )}
         <span>{timing.label}</span>
-        {fresh.status !== "sin_cotizacion" && !(hideStaleNotice && fresh.status === "por_revisar" && !quoteNeedsUpdate(trip)) && (
+        {fresh.status !== "sin_cotizacion" && !(embedded && !quoteNeedsUpdate(trip)) && !(hideStaleNotice && fresh.status === "por_revisar" && !quoteNeedsUpdate(trip)) && (
           <span className={fresh.status === "vigente" ? "" : "text-amber-400"}>{fresh.label}</span>
         )}
       </div>

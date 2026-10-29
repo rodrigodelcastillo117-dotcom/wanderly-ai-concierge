@@ -100,6 +100,9 @@ describe("Pestañas de la página del viaje (punto 11)", () => {
   it("'Elegir vuelo y hotel' de 'Qué sigue' abre la sección Comprar", async () => {
     // Un viaje que aún no empieza (el del caso sale hoy y "Qué sigue" ofrece el Modo viaje).
     Object.assign(db.trip, { fecha_salida: "2099-10-22", fecha_regreso: "2099-11-01", created_at: new Date(Date.now() - 3600_000).toISOString() });
+    // «Qué sigue» está en Resumen: se empieza ahí (la prueba anterior deja «#comprar» en la dirección, y en
+    // Comprar la barra ya lleva al siguiente paso pendiente en vez de decir «Elegir vuelo y hotel»).
+    window.history.replaceState(null, "", "/");
     renderTrip();
     const btns = await screen.findAllByRole("button", { name: /Elegir vuelo y hotel/ });
     fireEvent.click(btns[0]);
@@ -108,6 +111,9 @@ describe("Pestañas de la página del viaje (punto 11)", () => {
 });
 
 describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
+  // Estas pruebas miran la pestaña Comprar: empiezan ahí de forma explícita (antes dependían del «#comprar»
+  // que dejaba la primera prueba del archivo en la dirección).
+  beforeEach(() => { window.history.replaceState(null, "", "#comprar"); });
   it("pasos numerados y 'Te falta': vuelo y un hotel por ciudad, más el auto", async () => {
     renderTrip();
     const pasos = await screen.findByTestId("comprar-pasos");

@@ -172,8 +172,13 @@ describe("TripDetail con el viaje a Oaxaca (simulado)", () => {
     expect(order).toEqual(["trip-seccion-ayuda", "trip-glance", "trip-total-card"]);
     const amount = within(panel).getByTestId("trip-total-amount").textContent!;
     expect(amount).toBe("$24,180 MXN");
-    expect(screen.getByTestId("trip-glance-costo")).toHaveTextContent(`Total estimado: ${amount} para 2 personas (aproximado). Falta elegir vuelo y hotel en Comprar.`);
-    expect(screen.getByTestId("trip-glance-viaje")).toHaveTextContent("Oaxaca de Juárez, México · 30 oct – 1 nov 2026 · 2 noches");
+    // Ola «9.5 en todo»: el tablero no repite la cifra ni la portada. El total sale UNA vez en Resumen (antes
+    // también en «30 segundos»), y destino, fechas y viajeros ya los dice la portada.
+    expect(screen.queryByTestId("trip-glance-costo")).toBeNull();
+    expect(screen.queryByTestId("trip-glance-viaje")).toBeNull();
+    expect(panel.textContent!.split(amount).length - 1).toBe(1);
+    expect(screen.getByTestId("trip-glance-destacado")).toHaveTextContent(/^Lo más destacado: /);
+    expect(document.querySelector("h1")!.parentElement!.textContent).toContain("30 oct – 1 nov 2026 · 2 noches");
     // Las herramientas tienen título y para qué sirven.
     expect(screen.getByTestId("trip-herramientas-titulo")).toHaveTextContent("Herramientas del viaje");
   });
@@ -203,7 +208,9 @@ describe("TripDetail con el viaje a Oaxaca (simulado)", () => {
     fireEvent.click(screen.getByTestId("tab-destinos"));
     const days = screen.getAllByTestId("itinerario-dia");
     expect(days).toHaveLength(3);
-    expect(within(days[0]).getByTestId("itinerario-dia-resumen")).toHaveTextContent("Mercado 20 de Noviembre · Templo de Santo Domingo de Guzmán · Casa Oaxaca");
+    // Una línea por franja (mañana · tarde · noche) con el lugar del plan que menciona.
+    const franjas = Array.from(within(days[0]).getByTestId("itinerario-dia-resumen").children).map((e) => (e as HTMLElement).textContent);
+    expect(franjas).toEqual(["MañanaMercado 20 de Noviembre", "TardeTemplo de Santo Domingo de Guzmán", "NocheCasa Oaxaca"]);
     expect(within(days[0]).getByText("Ver detalle")).toBeInTheDocument();
     // Plegado por defecto, con el texto original íntegro dentro.
     expect(days[0]).not.toHaveAttribute("open");
