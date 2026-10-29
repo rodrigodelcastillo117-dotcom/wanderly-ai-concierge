@@ -113,7 +113,8 @@ describe("la respuesta de la IA respeta lo que la persona editó en el borrador"
     const m = mergeDraftWithAi(base, e, aiSpec(HUNGRIA_AI, HUNGRIA_TEXT), { origen: "Ciudad de México" });
     expect(m.spec.paradas.map((p) => [p.ciudad, p.sugerida])).toEqual([["Budapest", false], ["Atenas", false], ["París", false]]);
     expect(openQuestions(m.spec)).toEqual([]);
-    expect(m.nota).toBe("Iato revisó tu viaje: coincide con tu resumen.");
+    // R3 viajes P2-11: «coincide con tu resumen» confundía (la persona escribió un texto, no un resumen).
+    expect(m.nota).toBe("Iato revisó tu viaje: no falta nada.");
   });
 
   it("Hungría excluida en el borrador → la IA no la vuelve a poner", () => {

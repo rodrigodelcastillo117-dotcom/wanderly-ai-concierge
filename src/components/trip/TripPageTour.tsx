@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { TripSection } from "@/components/TripSectionNav";
 import { markTripTourSeen, tripTourSeen, type TripTourStep } from "@/lib/tripSectionHelp";
@@ -18,6 +18,14 @@ export function TripPageTour({ steps, onHighlight }: { steps: TripTourStep[]; on
   const [i, setI] = useState(0);
   const current = open && steps.length ? steps[Math.min(i, steps.length - 1)].section : null;
   useEffect(() => { onHighlight?.(current); }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Que el botón no quede bajo la barra fija de abajo (R3 viajes P2-2: «Entendido» tapado a 390×844):
+  // en cada paso se trae la guía a la vista, con margen inferior para la barra (scroll-mb).
+  const box = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const el = box.current;
+    if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "nearest" });
+  }, [i, open]);
   if (!open || steps.length === 0) return null;
   const step = steps[Math.min(i, steps.length - 1)];
   const last = i >= steps.length - 1;
@@ -30,8 +38,8 @@ export function TripPageTour({ steps, onHighlight }: { steps: TripTourStep[]; on
     setI(i + 1);
   };
   return (
-    <section role="dialog" aria-modal="false" aria-labelledby="trip-tour-title" data-testid="trip-tour"
-      className="relative rounded-2xl border border-primary/40 bg-primary/[0.07] p-4 pr-11">
+    <section ref={box} role="dialog" aria-modal="false" aria-labelledby="trip-tour-title" data-testid="trip-tour"
+      className="relative scroll-mt-16 scroll-mb-48 rounded-2xl border border-primary/40 bg-primary/[0.07] p-4 pr-11">
       <button type="button" onClick={close} aria-label="Cerrar recorrido"
         className="absolute right-2 top-2 inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         <X className="h-4 w-4" aria-hidden="true" />

@@ -9,7 +9,9 @@ import { tripFlightRoute } from "../../supabase/functions/_shared/booking/tripRo
 import { NO_PRICE_TEXT, noLivePriceReason } from "../../supabase/functions/_shared/flightNoPrice.ts";
 import type { ReferenceFare } from "../../supabase/functions/_shared/tpReference.ts";
 
-export const GENERIC_NO_LIVE = "Este viaje se cotizó sin precio en vivo de vuelos: los vuelos de arriba son estimados.";
+// Este aviso sale donde NO hay vuelos en la lista (TripPurchasePlan: «Aún no tenemos precio real…»); antes
+// decía «los vuelos de arriba son estimados» y arriba no había ninguno (R3 viajes P2-5, Budapest).
+export const GENERIC_NO_LIVE = "Este viaje se cotizó sin precio en vivo de vuelos. Consulta el precio en vivo aquí o búscalo en Google Flights.";
 
 export type FlightNoLiveInfo = {
   /** Motivo en español simple. */

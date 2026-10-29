@@ -99,7 +99,8 @@ const SmartSpendPanel = ({ items, trips, activeTripId, onAddExpense }: Props) =>
                 {a.diasViaje ? <span className="text-muted-foreground"> · día {a.diasTranscurridos} de {a.diasViaje}</span> : null}
               </>
             ) : a.total > 0 ? (
-              <>Esto es lo que llevas antes de salir (vuelos, hotel, reservas).</>
+              // Sin suponer en qué se gastó (R3 viajes P2-13: decía «vuelos, hotel, reservas» y eran restaurantes).
+              <>Esto es lo que llevas registrado antes de salir.</>
             ) : (
               <>Aún no registras gastos de este viaje.</>
             )}

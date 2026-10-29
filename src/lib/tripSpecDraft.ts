@@ -35,6 +35,23 @@ const stopsFor = (spec: TripSpec, texto: string, paradaId?: string | null) =>
   spec.paradas.filter((s) => (paradaId && s.id === paradaId) || [s.de_region, s.texto].some((n) => !!n && k(n) === k(texto)));
 const cruiseFields = (c: Cruise | null) => (c ? Object.fromEntries(Object.entries(c).filter(([key, v]) => key !== "puertos_sugeridos" && v != null && v !== "")) as Partial<Cruise> : {});
 
+/** Distancia de edición (para reconocer una errata: «beijin» → «beijing»). */
+function editDistance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  }
+  return d[a.length][b.length];
+}
+/** ¿La parada de la IA es la del borrador con la errata corregida? (lo escrito coincide o difiere ≤ 2 letras). */
+const isTypoOf = (e: Pick<Stop, "ciudad" | "texto">, s: Pick<Stop, "ciudad" | "texto">) => {
+  const written = [e.texto, e.ciudad].filter(Boolean).map((x) => k(String(x)));
+  if (s.texto && written.includes(k(s.texto))) return true;
+  const a = k(e.ciudad), b = k(s.ciudad);
+  return a.length >= 4 && b.length >= 4 && editDistance(a, b) <= 2;
+};
+
 /** Sin el punto final ni espacios (la IA a veces manda "Toscana." o una frase). */
 const bare = (t: string) => String(t ?? "").replace(/[.\s]+$/, "").trim();
 /**
@@ -56,6 +73,8 @@ export type DraftMerge = {
   spec: TripSpec;
   /** Ciudades que agregó la IA (no estaban en el borrador editado). */
   agrego: string[];
+  /** Erratas que corrigió la IA («beijin» → Beijing): no son ciudades agregadas. */
+  corrigio: Array<{ de: string; a: string }>;
   /** Pendientes nuevos de la IA (lo que el borrador no preguntaba). */
   pregunto: string[];
   /** "Iato completó tu viaje: agregó …; preguntó por …." */
@@ -63,12 +82,15 @@ export type DraftMerge = {
 };
 
 /** Aviso breve de lo que hizo la IA sobre el borrador (`libres`: preguntas libres nuevas, se cuentan). */
-export function draftNote(agrego: string[], pregunto: string[], libres = 0): string {
+export function draftNote(agrego: string[], pregunto: string[], libres = 0, corrigio: Array<{ de: string; a: string }> = []): string {
   const parts: string[] = [];
+  // Una errata corregida no es una ciudad agregada (R3 viajes P2-11: «beijin» decía «agregó Beijing»).
+  if (corrigio.length) parts.push(`corrigió ${listEs(corrigio.map((c) => `«${c.de}» por ${c.a}`))}`);
   if (agrego.length) parts.push(`agregó ${listEs(agrego)}`);
   if (pregunto.length) parts.push(`preguntó por ${listEs(pregunto.map(bare))}`);
   if (libres > 0) parts.push(`te dejó ${libres === 1 ? "1 pregunta" : `${libres} preguntas`} abajo`);
-  return parts.length ? `Iato completó tu viaje: ${parts.join("; ")}.` : "Iato revisó tu viaje: coincide con tu resumen.";
+  // La persona escribió un texto, no un «resumen»: se dice que no falta nada (antes «coincide con tu resumen»).
+  return parts.length ? `Iato completó tu viaje: ${parts.join("; ")}.` : "Iato revisó tu viaje: no falta nada.";
 }
 
 /**
@@ -198,10 +220,18 @@ export function mergeDraftWithAi(base: TripSpec, edited: TripSpec, ai: TripSpec,
   // 8. Validador de cobertura normal (todo lo escrito queda en una parada, una pregunta o una exclusión).
   out = finalizeSpec(out, text, ctx);
 
-  const agrego = out.paradas.filter((s) => !edited.paradas.some((e) => sameCity(e, s))).map((s) => s.ciudad);
+  const nuevasParadas = out.paradas.filter((s) => !edited.paradas.some((e) => sameCity(e, s)));
+  const sueltas = edited.paradas.filter((e) => !out.paradas.some((s) => sameCity(e, s)));
+  const corrigio: Array<{ de: string; a: string }> = [];
+  const agrego: string[] = [];
+  for (const s of nuevasParadas) {
+    const de = sueltas.find((e) => isTypoOf(e, s));
+    if (de) corrigio.push({ de: de.texto || de.ciudad, a: s.ciudad });
+    else agrego.push(s.ciudad);
+  }
   const before = new Set(openQuestions(edited).map(qKey));
   const nuevas = openQuestions(out).filter((q) => !before.has(qKey(q)));
   const pregunto = [...new Set(nuevas.flatMap((q) => { const label = QUESTION_LABEL[q.tipo]; return label ? [label(q.texto)] : []; }))];
   const libres = nuevas.filter((q) => !QUESTION_LABEL[q.tipo]).length;
-  return { spec: out, agrego, pregunto, nota: draftNote(agrego, pregunto, libres) };
+  return { spec: out, agrego, corrigio, pregunto, nota: draftNote(agrego, pregunto, libres, corrigio) };
 }

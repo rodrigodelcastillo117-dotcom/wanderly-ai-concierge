@@ -42,7 +42,8 @@ export function tripSectionHelp(id: TripSection, ctx: SectionHelpCtx = {}): stri
         ? "Tu plan día por día en cada ciudad. Toca un día para ver mañana, tarde y noche."
         : "Tu plan día por día. Toca un día para ver mañana, tarde y noche.";
     case "experiencias":
-      return "Restaurantes, museos y tours recomendados; busca en cada ciudad y elige los que te gusten.";
+      // Una sola introducción (R3 viajes P2-10: esta línea y «Lo TOP de cada ciudad…» iban seguidas).
+      return "Lo mejor de cada ciudad: restaurantes, museos y tours. Reservas en el sitio de cada lugar y aquí marcas lo que ya reservaste.";
     case "documentos":
       return "Guarda boletos, pasaportes y reservas para tenerlos a la mano en el viaje.";
   }
@@ -71,7 +72,8 @@ export function tripTourSteps(ctx: SectionHelpCtx & { sections: TripSection[] })
     {
       section: "resumen",
       title: "Resumen",
-      text: "Arriba ves tu viaje en 30 segundos, el total y el botón dorado con lo que sigue.",
+      // «Abajo»: la guía va arriba de «Tu viaje en 30 segundos» (R3 viajes P2-2 decía «Arriba»).
+      text: "Abajo ves tu viaje en 30 segundos, el total y el botón dorado con lo que sigue.",
     },
   ];
   if (has("comprar") && !ctx.documento) {

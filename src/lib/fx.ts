@@ -62,9 +62,21 @@ function shortDate(iso: string): string {
 }
 
 /** Texto para mostrar junto a un monto convertido: fuente + fecha, y si es de respaldo. */
+/**
+ * Nombre de la fuente para una persona (R3 viajes P2-17: «Tipo de cambio de open.er-api.com» salía en Inicio,
+ * Gastos y Comparar con el dominio técnico). El dato guardado sigue siendo el dominio.
+ */
+export function fxProviderName(source: unknown): string {
+  const s = String(source ?? "").trim();
+  if (/er-api|exchangerate-api/i.test(s)) return "ExchangeRate-API";
+  if (/frankfurter/i.test(s)) return "Banco Central Europeo (Frankfurter)";
+  return s || "fuente no registrada";
+}
+
 export function fxLabel(table: FxTable): string {
-  if (table.kind === "live") return `Tipo de cambio de ${table.source} (actualizado ${shortDate(table.asOf)})`;
-  if (table.kind === "cached") return `Tipo de cambio de respaldo: último en vivo de ${table.source} (${shortDate(table.asOf)})`;
+  const src = fxProviderName(table.source);
+  if (table.kind === "live") return `Tipo de cambio de ${src} (actualizado ${shortDate(table.asOf)})`;
+  if (table.kind === "cached") return `Tipo de cambio de respaldo: último en vivo de ${src} (${shortDate(table.asOf)})`;
   return `Tipo de cambio de respaldo aproximado (${shortDate(table.asOf)}); sin conexión a la tasa en vivo`;
 }
 
@@ -85,9 +97,10 @@ export function providerUpdatedAt(json: unknown): Date | null {
 /** Texto del conversor: fuente + fecha del proveedor, y si es el último guardado (sin conexión). */
 export function converterRateLabel(source: string, asOf: Date | null, cached: boolean): string {
   const when = asOf ? shortDate(asOf.toISOString()) : "fecha desconocida";
+  const src = fxProviderName(source);
   return cached
-    ? `Tipo de cambio de respaldo: último de ${source} guardado en este dispositivo (${when})`
-    : `Tipo de cambio de ${source} (actualizado ${when})`;
+    ? `Tipo de cambio de respaldo: último de ${src} guardado en este dispositivo (${when})`
+    : `Tipo de cambio de ${src} (actualizado ${when})`;
 }
 
 function readCached(): FxTable | null {
@@ -228,6 +241,6 @@ export function fxSourceName(source: unknown, isFallback = false): string {
   if (!s) return "fuente no registrada";
   if (/frankfurter/i.test(s)) return "Banco Central Europeo (Frankfurter)";
   if (/^fallback$/i.test(s)) return "de respaldo";
-  if (/er-api/i.test(s)) return "ExchangeRate-API (open.er-api.com)";
+  if (/er-api/i.test(s)) return "ExchangeRate-API";
   return s;
 }

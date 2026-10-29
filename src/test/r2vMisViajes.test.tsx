@@ -55,7 +55,9 @@ describe("Mis viajes", () => {
     expect(await screen.findByRole("heading", { name: "Madrid (2)" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Madrid (3)" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Madrid" })).toBeInTheDocument();
-    expect(screen.getAllByTestId("trip-card-creado").map((e) => e.textContent)).toEqual(expect.arrayContaining(["Creado el 20 oct 2026", "Creado el 25 oct 2026", "Creado el 28 oct 2026"]));
+    // R3 P2-7: con la hora, para distinguir dos creados el mismo día.
+    expect(screen.getAllByTestId("trip-card-creado").map((e) => e.textContent)).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^Creado el 20 oct 2026, \d{2}:\d{2}$/), expect.stringMatching(/^Creado el 25 oct 2026, \d{2}:\d{2}$/), expect.stringMatching(/^Creado el 28 oct 2026, \d{2}:\d{2}$/)]));
     expect(screen.getByRole("heading", { name: "Los Cabos" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "México" })).toBeNull();
   });

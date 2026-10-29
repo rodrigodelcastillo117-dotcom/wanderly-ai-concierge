@@ -93,3 +93,13 @@ export function fechaFuente(iso: string | null | undefined): string | null {
   if (!m) return null;
   return `${Number(m[3])} ${MESES[Number(m[2]) - 1]} ${m[1]}`;
 }
+
+/**
+ * ¿El punto le sirve a quien viaja con pasaporte mexicano? Los requisitos de pasaporte, visa o entrada
+ * para pasaporte británico o estadounidense no aplican (R3 viajes P2-9: en España salía «Para pasaporte
+ * británico, la fecha de expedición debe ser de menos de 10 años…»). Lo de seguridad o salud sí se queda.
+ */
+export function pointForMexican(texto: string): boolean {
+  const t = String(texto ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  return !/\b(pasaporte|pasaportes|ciudadanos|viajeros) (britanic|estadounidense|del reino unido|de ee\.? ?uu|de estados unidos)/.test(t);
+}

@@ -22,14 +22,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import santorini from "@/assets/hero-santorini.jpg";
 import { deleteOwnedTrip, leaveSharedTrip, MEMBERSHIP_MESSAGES } from "@/lib/tripMembership";
 import { bookingsByTrip, deriveTripBookingState, type BookingLike } from "@/lib/bookingState";
 import { BookingStateBadge } from "@/components/BookingStateBadge";
 import { TripCardsSkeleton } from "@/components/PageSkeletons";
 import { duplicateTripMarks, filterTripGroups, groupTripsForList, markedTripName, TRIP_LIST_FILTERS, type TripListFilter } from "@/lib/tripList";
 import { tripTiming } from "@/lib/tripCommand";
-import { formatInstant, formatTripDateRange, localISODate } from "@/lib/localDate";
+import { formatInstantDateTime, formatTripDateRange, localISODate } from "@/lib/localDate";
 import { formatPaid, PAID_LABEL } from "@/lib/tripImport";
 import { isBroughtTrip } from "@/lib/broughtTrip";
 import { displayedTripTotal } from "@/lib/tripPageTotal";
@@ -138,7 +137,7 @@ const TripCard = ({ t, userId, onDeleted, bookings = [], dupN, showCreated = fal
             <span className="min-w-0">
               {/* Cuándo empieza y cuándo termina (con las noches); si falta una fecha, solo la que hay. */}
               <span className="block" data-testid="trip-card-dates">{formatTripDateRange(t.fecha_salida, t.fecha_regreso) ?? "Sin fechas"}</span>
-              {showCreated && t.created_at && <span className="block text-[11px] text-muted-foreground/80" data-testid="trip-card-creado">Creado el {formatInstant(t.created_at)}</span>}
+              {showCreated && t.created_at && <span className="block text-[11px] text-muted-foreground/80" data-testid="trip-card-creado">Creado el {formatInstantDateTime(t.created_at)}</span>}
               {/* Cuánto falta (o si está en curso): lo primero que se busca en la lista. */}
               {t.fecha_salida && (() => {
                 const tm = tripTiming(t, localISODate());
@@ -258,12 +257,14 @@ const Trips = () => {
         {/* Cinematic header */}
         <section className="relative rounded-[24px] md:rounded-[28px] overflow-hidden ring-1 ring-white/[0.05] premium-shadow">
           <div className="h-[180px] md:h-[260px]">
-            <DestinationVideo
-              query={trips[0]?.destino ? `${trips[0].destino} cinematic aerial luxury travel` : "luxury travel destinations cinematic aerial"}
-              fallbackImage={santorini}
-              alt="Mis viajes"
-              className="w-full h-full object-cover"
-            />
+            {/* Respaldo: la foto del destino de tu viaje (Pexels) o el degradado de la marca; nunca Santorini. */}
+            <SmartImage alt="" stockQuery={trips[0]?.destino ? destinationQuery(trips[0].destino, trips[0].pais_destino) : null} size="hero" eager className="h-full w-full" captionPosition="top-right">
+              <DestinationVideo
+                query={trips[0]?.destino ? `${trips[0].destino} cinematic aerial luxury travel` : "luxury travel destinations cinematic aerial"}
+                alt="Mis viajes"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </SmartImage>
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
           <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-9">

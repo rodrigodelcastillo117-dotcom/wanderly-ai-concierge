@@ -246,12 +246,18 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
     <section id="trip-comprar" aria-labelledby="trip-comprar-title" className="scroll-mt-28 rounded-2xl border border-primary/25 bg-card/60 p-4 sm:p-6 focus:outline-none" data-testid="trip-comprar">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <h2 id="trip-comprar-title" className="font-display text-2xl sm:text-3xl">Comprar mi viaje</h2>
-        <p className="text-sm text-muted-foreground" data-testid="trip-comprar-progreso">
-          {doneCore} de {core.length} reservado{core.length === 1 ? "" : "s"}
-        </p>
+        {/* Sin nada que reservar aquí (viaje traído: vuelo y hotel ya los tiene) no se dice «0 de 0 reservados»
+            ni «Ya marcaste todo como comprado» si la persona no marcó nada (R3 viajes P2-6, Oaxaca). */}
+        {core.length > 0 && (
+          <p className="text-sm text-muted-foreground" data-testid="trip-comprar-progreso">
+            {doneCore} de {core.length} reservado{core.length === 1 ? "" : "s"}
+          </p>
+        )}
       </div>
       <p className="mt-1 text-sm" data-testid="trip-comprar-falta">
-        {falta.length ? <><span className="text-muted-foreground">Te falta:</span> {falta.join(" · ")}</> : <span className="text-emerald-400">Ya marcaste todo como comprado.</span>}
+        {falta.length ? <><span className="text-muted-foreground">Te falta:</span> {falta.join(" · ")}</>
+          : core.length === 0 ? <span className="text-muted-foreground">{brought ? "Vuelo y hotel ya los tienes: aquí agregas restaurantes y experiencias." : "Nada pendiente por reservar."}</span>
+          : <span className="text-emerald-400">Ya marcaste todo como comprado.</span>}
       </p>
 
       {/* Pasos numerados con palomita en lo hecho; tocar uno lleva a ese paso. */}
