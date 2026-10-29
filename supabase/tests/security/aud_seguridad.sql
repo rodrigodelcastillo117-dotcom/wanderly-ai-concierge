@@ -116,7 +116,11 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- Perfil de amigo inexistente (20261029030000_fix_herramientas): amigo_existe solo devuelve un booleano
   -- (existe o no un perfil con ese id, que es un UUID) y solo a una sesión iniciada; ningún dato del perfil.
   -- Pruebas en supabase/tests/fix_herramientas (A1–A6).
-  ('amigo_existe')),
+  ('amigo_existe'),
+  -- Opiniones (20261029060000_opiniones): admin_opinion_mark exige auth.uid() en public.admins (42501 si no),
+  -- solo cambia filas type 'opinion' (leída/resuelta) y deja historial con quién. Pruebas en
+  -- supabase/tests/opiniones (U5, M2–M9).
+  ('admin_opinion_mark')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)
