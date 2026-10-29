@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 data/prive/curaduria/_reportes/
 data/prive/valor/_reportes/
+
+# Candado visual: capturas de la última corrida (las de referencia sí se suben)
+docs/iatos/candado-visual/ultima-corrida/
+# Smoke de producción: capturas locales
+smoke-out/

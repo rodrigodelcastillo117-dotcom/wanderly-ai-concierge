@@ -10,7 +10,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "candado": "vitest run src/test/candado",
+    "candado:visual": "node scripts/candado/visual.cjs",
+    "candado:smoke": "node scripts/smoke/produccion.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
