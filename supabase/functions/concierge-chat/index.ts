@@ -881,10 +881,12 @@ async function persistConversation(p: {
     const cards = cardsForStorage(p.replyCards, now);
     // Las acciones propuestas también (N7): al recargar vuelve el botón, o su estado si ya se confirmó.
     const actions = actionsForStorage(p.replyActions);
+    const assistantTurn: Record<string, unknown> = { role: "assistant", content: p.replyText, timestamp: now, ...(cards ? { cards } : {}) };
+    if (actions) assistantTurn.actions = actions;
     const nuevosTurnos = [
       ...p.prevMessages,
       { role: "user", content: p.lastUserMsg, timestamp: now },
-      { role: "assistant", content: p.replyText, timestamp: now, ...(cards ? { cards } : {}), ...(actions ? { actions } : {}) },
+      assistantTurn,
     ];
     let mensajesParaGuardar = nuevosTurnos;
     let resumenHistorico: string | null = p.convPrevia?.resumen_historico ?? null;
