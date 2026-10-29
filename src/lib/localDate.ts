@@ -73,6 +73,18 @@ export function formatInstant(
 }
 
 /**
+ * Instante con fecha y hora en el formato único de la app: "28 oct 2026, 23:37" (fecha y hora en la MISMA
+ * zona, la del dispositivo). Antes las casetas tomaban el día en UTC y la hora local («28 oct 2026, 23:37»
+ * para algo consultado el 27 a las 11:38 p.m.) y el Diario usaba «28/10/2026, 4:17:57 p.m.». "—" si no es válido.
+ */
+export function formatInstantDateTime(value?: string | Date | null, locale = "es-MX"): string {
+  if (!value) return "—";
+  const d = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(d.getTime())) return "—";
+  return `${d.toLocaleDateString(locale, APP_DATE_FORMAT)}, ${d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+}
+
+/**
  * Fecha de una reserva (bookings.start_at). La app guarda ahí fechas de calendario ("2027-03-10") en una
  * columna con zona, que quedan como medianoche UTC ("2027-03-10T00:00:00+00:00"); con formatInstant en
  * México se veían un día antes (9/3/2027, auditoría 10/10 P1-8). Medianoche UTC exacta = fecha de
