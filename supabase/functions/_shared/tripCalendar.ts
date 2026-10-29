@@ -243,7 +243,7 @@ export function alignStoredArrival(
   const win = applyTripCalendar([first], {
     fechaSalida: o.fechaSalida, fechaRegreso: addDaysIso(o.fechaSalida, t), destino, origen: o.origen, flight,
     internacional: o.internacional, transferMin: o.transferMin,
-  }).days.map((d) => ({ ...ciudad, ...d }));
+  }).days.map((d): Record<string, unknown> => ({ ...ciudad, ...d }));
   const changed = t > 0 || SLOTS.some((s) => win[0][s.key] !== slotText(first, s.key));
   if (!changed) return { days, ajuste: null };
   const rest = sorted.slice(1).map((d) => ({ ...d, dia: Number(d.dia) + t, fecha: addDaysIso(o.fechaSalida, Number(d.dia) + t - 1) }));
