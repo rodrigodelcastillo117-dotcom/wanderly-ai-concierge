@@ -1,6 +1,8 @@
 import { Plane } from "lucide-react";
 import { isTripEnded, tripLabel, type ActiveTripResult, type TripLike } from "@/lib/activeTrip";
 import { localISODate } from "@/lib/localDate";
+import { shortTripName } from "@/lib/tripName";
+import { duplicateTripMarks, markedTripName } from "@/lib/tripList";
 
 const REASON_TEXT: Record<string, string> = {
   pinned: "elegido por ti",
@@ -24,6 +26,8 @@ export function ActiveTripPicker<T extends TripLike>({ trips, pinnedId, resolved
   const today = localISODate();
   const options = trips.filter((t) => !isTripEnded(t, today) || t.id === pinnedId);
   if (!options.length) return null;
+  // Dos viajes iguales (mismo nombre y fechas) se distinguen con (2), (3) por orden de creación (R2: Madrid ×3).
+  const dups = duplicateTripMarks(options as any[]).n;
   const value = pinnedId && options.some((t) => t.id === pinnedId) ? pinnedId : "";
   const hint = resolved.trip
     ? REASON_TEXT[resolved.reason] ?? ""
@@ -39,10 +43,10 @@ export function ActiveTripPicker<T extends TripLike>({ trips, pinnedId, resolved
         className="max-w-[15rem] truncate rounded-full border border-primary/30 bg-background/60 px-2 py-0.5 text-xs text-foreground focus:border-primary focus:outline-none"
       >
         <option value="">
-          {resolved.trip && !pinnedId ? `Automático · ${resolved.trip.destino ?? "viaje"}` : "Elige tu viaje activo"}
+          {resolved.trip && !pinnedId ? `Automático · ${shortTripName(resolved.trip as any)}` : "Elige tu viaje activo"}
         </option>
         {options.map((t) => (
-          <option key={t.id} value={t.id}>{tripLabel(t)}</option>
+          <option key={t.id} value={t.id}>{markedTripName(tripLabel(t), dups.get(t.id))}</option>
         ))}
       </select>
       {hint && <span className="text-[11px] text-muted-foreground">{hint}</span>}
