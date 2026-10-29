@@ -305,14 +305,18 @@ function CityPanel({ trip, city, cities, st, hotel, marks, userId, onSearch, onR
               );
             })}
           </ul>
-          {rest?.ok && <p className="mt-1 text-[10px] text-muted-foreground">Fuente: Google Maps. «Reservar en TheFork» abre una búsqueda por nombre en TheFork: confirma que sea el lugar.</p>}
+          {/* La nota de TheFork solo si hay algún botón de TheFork (antes aparecía sin ninguno). */}
+          {rest?.ok && <p className="mt-1 text-[10px] text-muted-foreground" data-testid="exp-rest-fuente">Fuente: Google Maps.{shownRest.some((r: any) => (r?.reserva?.actions ?? []).some((a: any) => a?.kind === "thefork")) ? " «Reservar en TheFork» abre una búsqueda por nombre en TheFork: confirma que sea el lugar." : ""}</p>}
         </div>
       )}
 
       {/* TOP museos */}
       <div data-testid="exp-museos">
         <BlockHeader icon={Landmark} title="TOP museos" aviso={data?.museos?.aviso ?? (localMuseos.length ? "Museos de nuestra tabla de taquillas oficiales (verificada el 27-oct-2026)." : null)} />
-        {!localMuseos.length && <p className="text-sm text-muted-foreground">No tenemos museos de {city.label} en la tabla de taquillas oficiales.</p>}
+        {/* Una sola vez: si el aviso del servidor ya lo dice, o si sí hay museos que mostrar, no se repite. */}
+        {!(data?.museos?.items ?? localMuseos).length && !/no tenemos museos/i.test(String(data?.museos?.aviso ?? "")) && (
+          <p className="text-sm text-muted-foreground" data-testid="exp-sin-museos">No tenemos museos de {city.label} en la tabla de taquillas oficiales.</p>
+        )}
         <ul className="grid gap-2 md:grid-cols-2">
           {(data?.museos?.items ?? localMuseos).map((m: any) => {
             const it: ExpItem = items?.museo.find((x) => x.title === m.nombre) ?? { key: expKey("museo", city.label, m.id, m.nombre), kind: "museo", city: city.label, title: m.nombre, lat: null, lng: null, distanceKm: null, rating: null, reviews: null };

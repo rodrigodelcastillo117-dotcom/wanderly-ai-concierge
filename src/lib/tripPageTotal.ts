@@ -5,6 +5,7 @@
 import { computeTripDesglose, quoteStaleness, tripNights, type QuoteSnapshot } from "@/lib/quote";
 import { readLocalSelections, restoreSelections, serializeSelections, type UiSelection } from "@/lib/tripSelections";
 import { isBroughtTrip } from "@/lib/broughtTrip";
+import { invalidQuoteReason } from "@/lib/budgetSanity";
 
 /**
  * Total del viaje a partir de la cotización guardada. Nunca se recorta al presupuesto: si la
@@ -105,10 +106,13 @@ export function storedSelection(trip: any): UiSelection {
 
 /**
  * La cifra grande de la página del viaje con la selección guardada: la que muestran Inicio y Mis viajes.
- * 0 si el viaje no tiene cotización (borrador) o lo trajo la persona ("Ya tengo mi viaje").
+ * 0 si el viaje no tiene cotización (borrador), lo trajo la persona ("Ya tengo mi viaje") o su cotización
+ * guardada no es creíble (invalidQuoteReason: se muestra "Por recotizar").
  */
 export function displayedTripTotal(trip: any, quote?: QuoteSnapshot | null): number {
   if (!trip || isBroughtTrip(trip)) return 0;
+  // Cotización guardada con error (desglose como texto, $7 MXN a Budapest): no hay total que mostrar.
+  if (invalidQuoteReason(trip)) return 0;
   const it = trip.itinerario_json;
   const hasQuoted = !!((it && !Array.isArray(it) && it.from_pdf) || (trip.vuelos_json?.length ?? 0) > 0 || (trip.hospedaje_json?.length ?? 0) > 0);
   if (!hasQuoted) return Number(trip.total_estimado) || 0;

@@ -59,7 +59,7 @@ export type DraftMerge = {
 export function draftNote(agrego: string[], pregunto: string[]): string {
   const parts: string[] = [];
   if (agrego.length) parts.push(`agregó ${listEs(agrego)}`);
-  if (pregunto.length) parts.push(`preguntó por ${listEs(pregunto)}`);
+  if (pregunto.length) parts.push(`preguntó por ${listEs(pregunto.map((p) => p.replace(/[.\s]+$/, "")))}`);
   return parts.length ? `Iato completó tu viaje: ${parts.join("; ")}.` : "Iato revisó tu viaje: coincide con tu resumen.";
 }
 

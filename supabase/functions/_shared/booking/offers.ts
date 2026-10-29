@@ -2,6 +2,7 @@
 // del viaje en trips.*_json, catálogo Privé, fichas de Google Places) en ofertas del Booking Bridge
 // con sus acciones. Sin Deno. Cada oferta conserva su procedencia real (provider, source_url,
 // price_checked_at) y nunca promete más de lo que la fuente dio.
+import { isPlaceholderHotel } from "./placeholderHotel.ts";
 import { checkAllowlisted, unwrapAffiliate } from "./allowlist.ts";
 import { countryIso as countryIsoName, whatsappNumberFromUrl } from "./channels.ts";
 import {
@@ -520,7 +521,10 @@ export function offerFromTripHotel(h: any, ctx: OfferContext & { city?: string |
       rejected.push({ url: raw, reason: "enlace_de_hotel_no_verificable" });
     }
   }
-  const b = ci && co ? bookingSearchUrl({ query: [name, city].filter(Boolean).join(" "), checkin: ci, checkout: co, adults, rooms: roomsForAdults(adults) }) : null;
+  // Hotel "de referencia" de la IA ("Boutique hotel en el Centro Histórico (por confirmar)"): no es un
+  // hotel real; la búsqueda es la del destino con las fechas (antes Booking buscaba la frase literal).
+  const placeholder = isPlaceholderHotel(h);
+  const b = ci && co ? bookingSearchUrl({ query: placeholder ? String(city ?? "") : [name, city].filter(Boolean).join(" "), checkin: ci, checkout: co, adults, rooms: roomsForAdults(adults) }) : null;
   if (b) searches.push({ url: b, trust: "builder", evidence: EVIDENCE.BOOKING_SEARCH, preserves: { product: false, dates: true, travelers: true, room_or_fare: false } });
   const est = ESTIMATED.has(String(h?.fuente_precio ?? "").toLowerCase()) || String(h?.estado_dato ?? "").toUpperCase() === "ESTIMADO";
   const nightly = num(h?.precio_por_noche);

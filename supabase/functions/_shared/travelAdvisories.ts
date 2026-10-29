@@ -566,7 +566,8 @@ export async function getTravelAdvisory(input: unknown, deps: AdvisoryDeps): Pro
   let traduccion: Traduccion | null = null;
   let estado: "ok" | "fallo" | "no_solicitada" | "sin_fuentes" = data.fuentes.length ? "no_solicitada" : "sin_fuentes";
   if (data.fuentes.length) {
-    const tkey = await cacheKey("travel_advisory_es", { iso: p.iso2, v: sourcesVersion(data.fuentes) });
+    // tono: "tu" = traducciones con el prompt que tutea (las guardadas antes, de usted, no se reutilizan).
+    const tkey = await cacheKey("travel_advisory_es", { iso: p.iso2, v: sourcesVersion(data.fuentes), tono: "tu" });
     const trow = await safeGet(deps.store, tkey, log);
     if (trow && freshnessOf(trow, nowMs).fresh && (trow.response as Traduccion)?.puntos?.length) {
       traduccion = trow.response as Traduccion;
@@ -606,6 +607,7 @@ export function buildTranslationPrompt(fuentes: AvisoFuente[], p: PaisResuelto):
     "- Son avisos de otros gobiernos para SUS ciudadanos. Si un punto trata de visas, pasaporte o requisitos de entrada, di para qué pasaporte es (\"para pasaporte británico\" o \"para pasaporte estadounidense\"); nunca lo presentes como requisito para mexicanos.",
     "- Prioriza lo útil para cualquier viajero: zonas desaconsejadas, seguridad, salud, leyes locales, desastres en curso.",
     "- Frases cortas y claras, sin adornos. Conserva nombres propios como vienen.",
+    "- Háblale al viajero de TÚ en todos los puntos y secciones (\"Revisa\", \"Mantente\", \"Evita\", \"Lleva\"); nunca de usted (\"Revise\", \"Manténgase\", \"Evite\") ni mezclando los dos.",
     "Responde SOLO con JSON: {\"puntos\":[{\"texto\":\"…\",\"fuente\":\"govuk\"|\"state_dept\"}],\"secciones\":{\"entrada\":\"…\",\"seguridad\":\"…\",\"salud\":\"…\"}}",
     "puntos: 3 o 4, de máximo 200 caracteres cada uno. secciones: 1 o 2 frases cada una, solo si el texto trae esa sección; si no, omítela.",
   ].join("\n");

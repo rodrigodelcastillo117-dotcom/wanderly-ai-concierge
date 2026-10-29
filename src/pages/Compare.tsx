@@ -1,6 +1,7 @@
 import { Fragment, useState } from "react";
 import { SmartImage } from "@/components/media/SmartImage";
-import { destinationQuery } from "@/lib/categoryImagery";
+import { dailyCostMxn, destinationPhotoQuery } from "@/lib/compareCost";
+import { fetchFxTable, fxLabel, type FxTable } from "@/lib/fx";
 import { useNavigate } from "react-router-dom";
 import { GitCompare, Sparkles, X, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,8 @@ const Compare = () => {
   const [dests, setDests] = useState<string[]>(["", ""]);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [loading, setLoading] = useState(false);
+  // Tipo de cambio de la app (con fuente y fecha) para pasar el costo diario a MXN.
+  const [fx, setFx] = useState<FxTable | null>(null);
 
   const set = (i: number, v: string) => setDests(d => d.map((x, idx) => idx === i ? v : x));
   const add = () => dests.length < 4 && setDests([...dests, ""]);
@@ -38,6 +41,7 @@ const Compare = () => {
     const list = dests.map(d => d.trim()).filter(Boolean);
     if (list.length < 2) { toast.error("Agrega al menos 2 destinos"); return; }
     setLoading(true);
+    if (!fx) void fetchFxTable().then(setFx).catch(() => setFx(null));
     try {
       const { data, error } = await supabase.functions.invoke("ai-tool", {
         body: {
@@ -57,7 +61,7 @@ const Compare = () => {
   // Todo viene del modelo (ai-tool), nada se consultó en una fuente: costos, visa y seguridad
   // llevan "Estimado por IA" y, los trámites, el enlace a la fuente oficial.
   const fields: { key: keyof Row; label: string; ai?: "estimate" | "official" }[] = [
-    { key: "costo_diario_usd", label: "Costo diario (USD)", ai: "estimate" },
+    { key: "costo_diario_usd", label: "Costo diario (MXN)", ai: "estimate" },
     { key: "mejor_epoca", label: "Mejor época" },
     { key: "visa_mx", label: "Visa (MX)", ai: "official" },
     { key: "seguridad", label: "Seguridad", ai: "official" },
@@ -65,9 +69,14 @@ const Compare = () => {
     { key: "highlights", label: "Highlights" },
   ];
 
-  const cell = (f: (typeof fields)[number], value: string) => (
+  const cell = (f: (typeof fields)[number], raw: string) => {
+    // El costo de la IA viene en USD: se muestra en MXN con el tipo de cambio de la app (y de dónde sale).
+    const cost = f.key === "costo_diario_usd" ? dailyCostMxn(raw, fx) : null;
+    const value = cost ? cost.text : raw;
+    return (
     <>
       <p className="text-sm text-foreground/90 break-words">{value}</p>
+      {cost?.note && <p className="mt-0.5 text-[11px] text-muted-foreground" data-testid="comparar-costo-nota">{cost.note}{fx ? ` · ${fxLabel(fx)}` : ""}</p>}
       {f.ai && (
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <AiEstimateBadge />
@@ -75,7 +84,8 @@ const Compare = () => {
         </div>
       )}
     </>
-  );
+    );
+  };
 
   return (
     <DashboardLayout>
@@ -122,7 +132,7 @@ const Compare = () => {
             <div className="space-y-4 md:hidden">
               {rows.map((r, i) => (
                 <div key={i} className="glass-card rounded-2xl overflow-hidden">
-                  <SmartImage alt={r.destino} stockQuery={destinationQuery(r.destino)} className="h-32 w-full" captionPosition="top-right">
+                  <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} className="h-32 w-full" captionPosition="top-right">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                     <div className="absolute inset-x-4 bottom-3 z-[2]">
                       <p className="text-primary text-[10px] tracking-[0.2em] uppercase">Destino {i + 1}</p>
@@ -148,7 +158,7 @@ const Compare = () => {
                 {rows.map((r, i) => (
                   <div key={i} className="bg-card">
                     {/* Foto ilustrativa del destino (marcada) sobre el nombre. */}
-                    <SmartImage alt={r.destino} stockQuery={destinationQuery(r.destino)} className="h-28 w-full" captionPosition="top-right">
+                    <SmartImage alt={r.destino} stockQuery={destinationPhotoQuery(r.destino)} className="h-28 w-full" captionPosition="top-right">
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                       <p className="absolute inset-x-3 bottom-2 z-[2] font-display text-lg text-white">{r.destino}</p>
                     </SmartImage>

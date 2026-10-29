@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { tripDayDate } from "@/lib/tripDayDate";
+import { calendarDays } from "@/lib/itineraryCalendar";
 import { expansionLine, type RegionExpansion } from "../../supabase/functions/_shared/regions.ts";
 import { useBookingExitNotice } from "@/lib/bookingExit";
 import { useParams, useNavigate } from "react-router-dom";
@@ -23,7 +24,9 @@ import { InviteFriendDialog } from "@/components/InviteFriendDialog";
 import { PriceWatchCard } from "@/components/PriceWatchCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateOnly } from "@/lib/dateUtils";
-import { formatInstant } from "@/lib/localDate";
+import { formatInstant, formatTripDateRange } from "@/lib/localDate";
+import { fxSourceName } from "@/lib/fx";
+import { invalidQuoteReason, REQUOTE_DETAIL, REQUOTE_LABEL } from "@/lib/budgetSanity";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -44,7 +47,7 @@ import { isGroundTripOption, transportModeOf, tripCountryLabel } from "@/lib/boo
 import { discardedFaresNotice, flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightLiveLine, flightStopsLabel } from "@/lib/flightDisplay";
 import { groundOptionsForCity, legOptionsFor } from "@/lib/multiDestTrip";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
-import { cityStays } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { cityStays, sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
 import { TripExperiencias } from "@/components/trip/TripExperiencias";
 import { tripCities } from "@/lib/experiencias";
@@ -214,14 +217,18 @@ const TripDetail = () => {
       ).then(({ data: bks }) => setBookings((bks as BookingLike[] | null) ?? [])).catch(() => setBookings([]));
     }
     const quoteId = (data as any)?.current_quote_id;
+    // El viaje se pinta en cuanto llega; la cotización vigente (fecha, tipo de cambio, vigencia) llega en
+    // paralelo y completa las etiquetas (antes se esperaba en cascada antes de mostrar las pestañas).
+    setLoading(false);
     if (quoteId) {
-      const { data: q, error: qErr } = await supabase.from("trip_quotes").select("*").eq("id", quoteId).maybeSingle();
-      setQuote(qErr ? null : ((q as unknown as QuoteSnapshot) ?? null));
+      try {
+        const { data: q, error: qErr } = await supabase.from("trip_quotes").select("*").eq("id", quoteId).maybeSingle();
+        setQuote(qErr ? null : ((q as unknown as QuoteSnapshot) ?? null));
+      } catch { setQuote(null); }
     } else {
       setQuote(null);
     }
     // Experiencias arrancan sin seleccionar — el usuario elige cuál le interesa.
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -335,6 +342,9 @@ const TripDetail = () => {
     : Array.isArray(itinObj?.days)
       ? itinObj.days
       : [];
+  // Para mostrar: cada día con su fecha (de fecha_salida si el día no la trae) y los días sin plan como
+  // "Día libre" pendiente (antes se escondían: Madrid 10–17 mar mostraba 7 días sin fecha).
+  const shownDays = useMemo(() => (trip ? calendarDays(trip) : []), [trip]);
   const logistics = isMulti ? itinObj.logistics : null;
   const destinationsMulti: string[] = isMulti ? itinObj.destinations ?? [] : [];
 
@@ -437,7 +447,9 @@ const TripDetail = () => {
   const totalSplit = splitTripTotal({ trip, sel: { selVuelo, selTours }, desglose: computedDesglose, items: buyItems });
   const quotedTotalValue = tripTotals(trip, quoteTravelers, null).quotedTotal;
   // La cifra grande de la página (RealTripTotal): la misma en el resumen de Comprar, el correo y el PDF.
-  const pageTotal = hasQuotedTotal ? pageTotalsOf(trip).total : 0;
+  // Cotización guardada con error ($7 MXN a Budapest): ninguna cifra de total en la página, "Por recotizar".
+  const requote = !!invalidQuoteReason(trip);
+  const pageTotal = hasQuotedTotal && !requote ? pageTotalsOf(trip).total : 0;
   // Los renglones de la cotización solo se muestran si suman lo mismo que el total de arriba (si no,
   // serían una segunda cifra sin explicación).
   // Una sola fuente para "en vivo"/"estimado": el desglose y los renglones de la cotización usan la misma
@@ -446,7 +458,7 @@ const TripDetail = () => {
   const estimatedKeys = estimatedRubros(totalSummary, sameAmounts ? trust : null);
   const alignedTrust = alignTrust(trust, estimatedKeys);
   const trustForTotal = sameAmounts && trustMatchesSplit(alignedTrust, totalSplit) ? alignedTrust : null;
-  const stickyTotal = hasQuotedTotal && totalSummary.total > 0 ? totalSummary.barTotal : null;
+  const stickyTotal = hasQuotedTotal && totalSummary.total > 0 && !requote ? totalSummary.barTotal : null;
   // "Actualizar cotización" (y la barra fija del celular) siguen al cálculo de la página: elegir otra
   // opción no lo pide aunque trips.quote_needs_update (trigger anterior, por la selección) siga en true.
   const tripForNextStep = !!trip.quote_needs_update !== staleness.stale ? { ...trip, quote_needs_update: staleness.stale } : trip;
@@ -553,7 +565,8 @@ const TripDetail = () => {
             <Popover open={editingDates} onOpenChange={setEditingDates}>
               <PopoverTrigger asChild>
                 <button className="flex max-w-full min-w-0 items-center gap-1.5 text-left hover:text-primary transition group">
-                  <Calendar className="w-3.5 h-3.5" /> {formatDateOnly(trip.fecha_salida)} – {formatDateOnly(trip.fecha_regreso)}
+                  {/* Formato único de la app: "10 – 17 mar 2027 · 7 noches" (antes "10/3/2027 – 17/3/2027"). */}
+                  <Calendar className="w-3.5 h-3.5" /> {formatTripDateRange(trip.fecha_salida, trip.fecha_regreso) ?? "Sin fechas"}
                   <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition" />
                 </button>
               </PopoverTrigger>
@@ -681,6 +694,17 @@ const TripDetail = () => {
                 </div>
               )}
             </BroughtTripSummary>
+          ) : hasQuotedTotal && requote ? (
+            // Cotización guardada con error (desglose como texto: "Total $7 MXN"): no se muestra un total falso.
+            <div className="glass-card rounded-2xl p-5 sm:p-8 mb-8 border border-amber-500/40" data-testid="trip-total-recotizar" role="status">
+              <p className="text-xs tracking-[0.2em] uppercase text-amber-400">{REQUOTE_LABEL}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{REQUOTE_DETAIL}</p>
+              {isOwner && (
+                <Button onClick={() => navigate(`/dashboard/viajes/${id}/editar`)} className="mt-4 bg-gradient-gold text-primary-foreground rounded-2xl min-h-[44px]">
+                  Volver a cotizar
+                </Button>
+              )}
+            </div>
           ) : hasQuotedTotal ? (
             <RealTripTotal
               trip={trip}
@@ -691,7 +715,7 @@ const TripDetail = () => {
               selectionDesglose={pageSelDesglose}
               validityLabel={validity.label}
               validityExpired={validity.expired}
-              fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${quote.fx_is_fallback ? "de respaldo" : quote.fx_source} (${formatInstant(quote.fx_at)})` : null}
+              fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${fxSourceName(quote.fx_source, !!quote.fx_is_fallback)} (${formatInstant(quote.fx_at)})` : null}
               onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
               trust={trustForTotal}
               summary={totalSummary}
@@ -775,7 +799,7 @@ const TripDetail = () => {
           {(trip as any).fuente !== "documento" && (hasQuotedTotal || brought) ? (
             <TripPurchasePlan trip={trip} selVuelo={selVuelo} selHospedaje={selHospedaje} selTours={selTours} selHoteles={selHoteles}
               serverOffers={serverOffers} bookings={bookings as any} userId={user?.id ?? null} quoteCreatedAt={quote?.created_at ?? null}
-              quoteFx={quote && Number(quote.fx_rate) > 0 ? { rate: Number(quote.fx_rate), label: `1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · tipo de cambio de la cotización (${quote.fx_is_fallback ? "de respaldo" : quote.fx_source}, ${formatInstant(quote.fx_at)})` } : null}
+              quoteFx={quote && Number(quote.fx_rate) > 0 ? { rate: Number(quote.fx_rate), label: `1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · tipo de cambio de la cotización (${fxSourceName(quote.fx_source, !!quote.fx_is_fallback)}, ${formatInstant(quote.fx_at)})` } : null}
               marksState={purchaseMarks}
               onSelectVuelo={(i) => setSelVuelo(i)}
               onSelectHotel={(c, i) => (c && isMulti ? setSelHoteles((prev) => withCityHotel(prev, c, i)) : setSelHospedaje(i))}
@@ -845,8 +869,8 @@ const TripDetail = () => {
             // quedaron mezclados en vuelos_json.
             const cityGround = isMulti ? groundOptionsForCity(trip, cityKey) : (trip.vuelos_json ?? []).filter(isGroundOption);
             const cityDays = isMulti
-              ? itinDays.filter((d: any) => d.ciudad === cityKey)
-              : itinDays;
+              ? shownDays.filter((d: any) => d.ciudad === cityKey || (d.pendiente && (d.ciudad === city || sameCity(d.ciudad, city))))
+              : shownDays;
             const stay = isMulti ? cityStays(trip).find((st) => st.city === city) ?? null : null;
             return (
               <div key={`${city}-${cityIdx}`}>
@@ -873,6 +897,18 @@ const TripDetail = () => {
                     <SubBlock icon={Calendar} title="Itinerario día por día">
                       <div className="space-y-2">
                         {cityDays.map((d: any) => {
+                          if (d.pendiente) {
+                            // Día del calendario sin plan: visible y marcado como pendiente (no se esconde).
+                            return (
+                              <div key={`p-${d.dia}`} className="flex items-center gap-3 rounded-xl border border-dashed border-border/60 bg-surface/20 p-4" data-testid="itinerario-dia-pendiente">
+                                <span className="font-display text-xl text-muted-foreground w-8 shrink-0">{String(d.dia).padStart(2, "0")}</span>
+                                <span className="min-w-0">
+                                  {tripDayDate(d.fecha) && <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">{tripDayDate(d.fecha)}</span>}
+                                  <span className="text-sm text-muted-foreground break-words">{d.titulo}</span>
+                                </span>
+                              </div>
+                            );
+                          }
                           return (
                             <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group">
                               <summary

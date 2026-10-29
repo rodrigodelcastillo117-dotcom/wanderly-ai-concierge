@@ -47,7 +47,8 @@ export function AvatarCircle({
   glow?: boolean;
   className?: string;
 }) {
-  const initial = (name?.trim()?.[0] ?? "V").toUpperCase();
+  // name === "": el nombre aún está cargando → círculo vacío (antes salía una "V" de "Viajero" y luego la S).
+  const initial = name === "" ? "" : (name?.trim()?.[0] ?? "V").toUpperCase();
   const big = size === "lg" || size === "xl";
   return (
     <div className={`relative shrink-0 ${DIAMETER[size]} ${className}`} data-testid="avatar-circle">

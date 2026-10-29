@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { CalendarDays, Check, Hotel, Minus, Plane, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { localISODate } from "@/lib/localDate";
 import { usePlaceResolve } from "@/lib/placeResolveClient";
@@ -42,6 +43,7 @@ const nightsLabel = (a: string, b: string) => {
 
 export function BroughtTripForm({ origin, onDone }: { origin?: string | null; onDone: (tripId: string) => void }) {
   const { user } = useAuth();
+  const sub = useSubscription();
   const today = localISODate();
   const [stops, setStops] = useState<string[]>([""]);
   const [choices, setChoices] = useState<Record<string, string[]>>({});
@@ -244,7 +246,10 @@ export function BroughtTripForm({ origin, onDone }: { origin?: string | null; on
               <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs text-foreground">
                 <input type="checkbox" checked={!!f.seguir} onChange={(e) => setFlight(i, { seguir: e.target.checked })} className="mt-0.5 accent-[hsl(var(--primary))]" />
                 <span>Avisarme del estado de este vuelo
-                  <span className="block text-[11px] text-muted-foreground">Usa uno de los vuelos que tu plan permite seguir. Con el plan gratuito, solo el día del vuelo.</span>
+                  {/* "plan gratuito" solo a quien está en el plan gratuito (antes se lo decía a cuentas PRO). */}
+                  <span className="block text-[11px] text-muted-foreground" data-testid="brought-vuelo-plan">{sub.loading || sub.error
+                    ? "Usa uno de los vuelos que tu plan permite seguir."
+                    : sub.isPro ? "Usa uno de los vuelos que tu plan PRO permite seguir." : "Usa uno de los vuelos que tu plan permite seguir. Con el plan gratuito, solo el día del vuelo."}</span>
                 </span>
               </label>
               <ErrLines list={errFor("vuelo", i)} />

@@ -109,6 +109,50 @@ export function detectExclusions(notas: unknown): Exclusions {
   return out;
 }
 
+/** Rubros del desglose (los del esquema de la herramienta y los que agrega el servidor). */
+export const RUBROS = ["vuelos", "hospedaje", "comida", "tours", "transporte_local", "extras"] as const;
+
+const toAmount = (v: unknown): number => {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (typeof v === "string") {
+    const n = Number(v.replace(/[$,\s]|MXN/gi, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+};
+
+/**
+ * El desglose que devolvió el modelo, solo si es un OBJETO de rubros con montos. Caso Budapest /
+ * Liubliana (28-oct-2026): el modelo lo devolvió como TEXTO; `Object.entries` sobre el texto daba
+ * claves "0".."30" con un dígito cada una y el viaje se guardó con total $7 MXN. Un texto que sea JSON
+ * de un objeto se acepta; un arreglo, un texto libre o un objeto con claves numéricas → null (inválido).
+ */
+export function coerceDesglose(raw: unknown): Record<string, number> | null {
+  let v: unknown = raw;
+  if (typeof v === "string") {
+    const m = v.match(/\{[\s\S]*\}/);
+    try { v = m ? JSON.parse(m[0]) : null; } catch { v = null; }
+  }
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const entries = Object.entries(v as Record<string, unknown>);
+  if (!entries.length) return null;
+  // Claves de índice ("0", "1"…) = un texto o arreglo convertido en objeto: no son rubros.
+  if (entries.some(([k]) => /^\d+$/.test(k))) return null;
+  if (!entries.some(([k]) => (RUBROS as readonly string[]).includes(k) || k === "casetas")) return null;
+  const out: Record<string, number> = {};
+  for (const [k, val] of entries) out[k] = toAmount(val);
+  return out;
+}
+
+/**
+ * Piso de cordura del total (MXN): por debajo, la cotización no es creíble y no se guarda.
+ * Internacional con vuelos: $500 por viajero (un viaje a Budapest no cuesta $7). Nacional: $100.
+ */
+export function totalFloor(o: { internacional?: boolean | null; viajeros: number; vuelosExcluidos?: boolean }): number {
+  const T = Math.max(1, Math.round(Number(o.viajeros) || 1));
+  return o.internacional && !o.vuelosExcluidos ? 500 * T : 100;
+}
+
 export type BudgetInput = {
   /** Noches del viaje (diferencia entre fechas). */
   dias: number;
@@ -116,6 +160,10 @@ export type BudgetInput = {
   notas?: string | null;
   /** Nivel de hotel que suma el total (el del perfil; por defecto el medio). Solo si algún hotel trae ese `tier`. */
   hotelTier?: "ahorro" | "equilibrio" | "premium" | null;
+  /** Origen y destino en países distintos (para el piso de cordura del total). */
+  internacional?: boolean | null;
+  /** El servidor ya descartó el desglose del modelo por inválido (antes de agregarle el transporte terrestre). */
+  reconstruir?: boolean;
 };
 
 /** Procedencia del precio de un renglón (la de la opción que se usó para calcularlo). */
@@ -132,6 +180,10 @@ export type BudgetResult = {
   procedencia: { vuelos: Procedencia | null; hospedaje: Procedencia | null };
   total: number;
   valido: boolean;
+  /** Por qué no es válida: total en 0 o por debajo del piso de cordura. */
+  motivoInvalido: "total_cero" | "total_absurdo" | null;
+  /** El desglose del modelo no era un objeto de rubros: vuelos y hospedaje se reconstruyeron con las opciones. */
+  reconstruido: boolean;
   exclusions: Exclusions;
   rooms: number;
   /** Habitaciones por las que se multiplicó el precio del hotel de referencia (1 si el precio es del grupo). */
@@ -189,17 +241,21 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
   const viajeros = Math.max(1, Math.round(Number(input.viajeros) || 1));
   const exclusions = detectExclusions(input.notas);
   const rooms = roomsFor(viajeros);
-  const desglose: Record<string, number> = {};
-  for (const [k, v] of Object.entries(a?.desglose_presupuesto ?? {})) desglose[k] = Number(v) || 0;
+  // Desglose inválido (texto, arreglo, claves numéricas): se reconstruye con la lógica determinista de
+  // abajo a partir de las opciones que la persona verá (vuelo equilibrio × viajeros, hotel × noches).
+  const parsed = coerceDesglose(a?.desglose_presupuesto);
+  const reconstruido = !parsed || !!input.reconstruir;
+  const desglose: Record<string, number> = { ...(parsed ?? {}) };
 
   const porCotizar: BudgetResult["porCotizar"] = [];
   const vuelos: any[] = Array.isArray(a?.vuelos) ? a.vuelos : [];
   let vueloReferencia = vuelos.find((v) => v?.tier === "equilibrio") ?? vuelos[0] ?? null;
   if (exclusions.vuelos) {
     desglose.vuelos = 0;
-  } else if ((desglose.vuelos ?? 0) > 0) {
+  } else if ((desglose.vuelos ?? 0) > 0 || reconstruido) {
     const vuelosGrupo = Math.round((Number(vueloReferencia?.precio_por_persona) || 0) * viajeros);
     if (vuelosGrupo > 0) desglose.vuelos = vuelosGrupo;
+    else if (reconstruido) { desglose.vuelos = 0; porCotizar.push("vuelos"); }
   } else {
     // El modelo puso 0 sin exclusión: precio en vivo si lo hay; si no, "por cotizar" (no es $0).
     const live = pickLiveOption(vuelos, "precio_por_persona");
@@ -223,8 +279,9 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
     desglose.hospedaje = 0;
   } else if (exclusions.hospedaje === "partial") {
     if (hospedajeCompleto > 0) desglose.hospedaje = Math.min(desglose.hospedaje ?? 0, hospedajeCompleto);
-  } else if ((desglose.hospedaje ?? 0) > 0) {
+  } else if ((desglose.hospedaje ?? 0) > 0 || reconstruido) {
     if (hospedajeCompleto > 0) desglose.hospedaje = hospedajeCompleto;
+    else if (reconstruido) { desglose.hospedaje = 0; porCotizar.push("hospedaje"); }
   } else {
     const live = pickLiveOption(hoteles, "precio_por_noche");
     if (live) {
@@ -251,5 +308,7 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
     vuelos: desglose.vuelos > 0 ? procedenciaDe(vueloReferencia) : null,
     hospedaje: desglose.hospedaje > 0 ? procedenciaDe(hotelReferencia) : null,
   };
-  return { desglose, total, valido: total > 0, exclusions, rooms, roomsPrecio, hotelReferencia, vueloReferencia, porCotizar, procedencia };
+  const piso = totalFloor({ internacional: input.internacional, viajeros, vuelosExcluidos: exclusions.vuelos });
+  const motivoInvalido = total <= 0 ? "total_cero" as const : total < piso ? "total_absurdo" as const : null;
+  return { desglose, total, valido: !motivoInvalido, motivoInvalido, reconstruido, exclusions, rooms, roomsPrecio, hotelReferencia, vueloReferencia, porCotizar, procedencia };
 }

@@ -25,7 +25,7 @@ it("separa reservas confirmadas de las visitas/clics a socios (antes: todo era '
   expect(within(visits).getByText("Madrid → Sevilla")).toBeInTheDocument();
   expect(within(visits).getByText(/no significa que la reserva se haya hecho/)).toBeInTheDocument();
   // Fecha solo-día sin corrimiento por zona horaria (3 de noviembre, no 2).
-  expect(within(confirmed).getByText("3/11/2026")).toBeInTheDocument();
+  expect(within(confirmed).getByText("3 nov 2026")).toBeInTheDocument();
 });
 
 it("isConfirmedBooking: un clic 'pending' nunca cuenta como reserva", () => {

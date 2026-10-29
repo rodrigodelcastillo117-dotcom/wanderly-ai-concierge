@@ -11,6 +11,7 @@
 // usar vuelos = round(total_usd × fx_usd_mxn) en lugar de vuelos_json[selVuelo]; tripTotalSummary /
 // RealTripTotal lo marcarían trust "verificado" con fuente Google Flights y su hora de consulta. El
 // tipo de cambio debe ser el del plan (itinerario_json.logistics.fx_usd_mxn) para que cuadre.
+import { noteLiveSearchState } from "@/lib/livePause";
 import { cityStays, tripFlightRoute, type TripRouteLike } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { mainAirport } from "../../supabase/functions/_shared/airports.ts";
 import { checkAllowlisted, checkTrustedSource } from "../../supabase/functions/_shared/booking/allowlist.ts";
@@ -65,6 +66,7 @@ const hhmm = (at: string | null) => {
 
 /** Mensaje honesto cuando no hubo precio (cuota, pausa, sin resultados). */
 function emptyMessage(data: any, what: string): string {
+  noteLiveSearchState(data);
   if (typeof data?.motivo === "string" && (data.limite_uso_justo || data.busquedas_en_pausa)) return data.motivo;
   const f: string[] = Array.isArray(data?.fallas) ? data.fallas : [];
   if (f.some((x) => /limite_del_plan/.test(x))) return "Llegaste al límite de búsquedas en vivo de tu plan: no consultamos el precio. Puedes buscarlo directo en el sitio.";

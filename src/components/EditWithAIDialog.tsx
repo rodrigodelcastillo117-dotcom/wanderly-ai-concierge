@@ -26,7 +26,7 @@ export const EditWithAIDialog = ({ tripId, onUpdated, trip }: Props) => {
     if (!open || trip || loaded?.id === tripId) return;
     let alive = true;
     // Sin datos (o sin respuesta): sugerencias generales, nunca de otro viaje.
-    Promise.resolve().then(() => supabase.from("trips").select("id, destino, fecha_salida, fecha_regreso, itinerario_json").eq("id", tripId).maybeSingle())
+    Promise.resolve().then(() => supabase.from("trips").select("id, destino, ciudad_origen, fecha_salida, fecha_regreso, itinerario_json, vuelos_json").eq("id", tripId).maybeSingle())
       .then((r: any) => { if (alive && r?.data) setLoaded(r.data); }, () => { /* sugerencias generales */ });
     return () => { alive = false; };
   }, [open, trip, tripId, loaded?.id]);

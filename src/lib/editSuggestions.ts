@@ -3,6 +3,7 @@
 // ejemplos fijos del cliente, iguales para todos los viajes). Solo usan los datos del propio viaje
 // (ciudades, fechas, hospedaje elegido); nunca proponen otro destino.
 import { tripDestinations } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { arrivalByLand } from "@/lib/groundTrip";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -23,7 +24,8 @@ export function editSuggestions(trip: any): EditSuggestions {
     out.push(`Agrega una noche más en ${first}`);
     out.push(`Agrega un tour gastronómico en ${first}`);
   }
-  out.push("Baja el presupuesto: hoteles de 3★ y vuelos económicos");
+  // Un viaje por carretera no tiene vuelos (Valle de Bravo, San Miguel de Allende en coche): no se sugieren.
+  out.push(arrivalByLand(trip) ? "Baja el presupuesto: hoteles de 3★ y restaurantes más sencillos" : "Baja el presupuesto: hoteles de 3★ y vuelos económicos");
   const salida = typeof trip?.fecha_salida === "string" && ISO.test(trip.fecha_salida) ? trip.fecha_salida : null;
   const regreso = typeof trip?.fecha_regreso === "string" && ISO.test(trip.fecha_regreso) ? trip.fecha_regreso : null;
   if (salida && regreso) out.push(`Cambia las fechas: salgo el ${fmt(addDays(salida, 7))} y regreso el ${fmt(addDays(regreso, 7))}`);

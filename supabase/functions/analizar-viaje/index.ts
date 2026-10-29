@@ -40,7 +40,7 @@ import { enforceSources, gfStamp, hotelPreference, liveConsultedAt as sourceCons
 import { applyTripCalendar, arrivalSummary, calendarPromptBlock, nightsDaysText, type FlightTimes } from "../_shared/tripCalendar.ts";
 import { countryOfCity } from "../_shared/airports.ts";
 import { cleanNarrative, NARRATIVE_RULES, tasteLabels } from "./narrative.ts";
-import { detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
+import { coerceDesglose, detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
 import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
 import { tripDatesProblem } from "./dates.ts";
 import {
@@ -1034,6 +1034,12 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       return { ok: false, reason: "ai_invalid_response" };
     }
     mark("ia");
+    // Desglose como TEXTO u objeto sin rubros (caso Budapest $7 MXN): se descarta aquí, antes de que el
+    // trayecto corto lo esparza, y reconcileBudget lo reconstruye con las opciones (vuelo × viajeros,
+    // hotel × noches). Nunca se guarda un total armado con los dígitos de un texto.
+    const desgloseModelo = coerceDesglose(a.desglose_presupuesto);
+    if (!desgloseModelo) console.warn("analizar-viaje: desglose_presupuesto inválido, se reconstruye", { destino: body.destino, tipo: typeof a.desglose_presupuesto });
+    a.desglose_presupuesto = desgloseModelo;
     a.vuelos = normalizarVuelos(a.vuelos);
     // Sub-regla 15.1: re-inyecta ?marker=... si Claude lo truncó al copiar el booking_link.
     a.vuelos = ensureMarkerInFlightLinks(a.vuelos);
@@ -1121,7 +1127,11 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // COHERENCIA DE PRESUPUESTO (no negociable): renglones recalculados con las opciones que el
     // usuario verá (vuelo equilibrio × viajeros; hotel medio × noches × habitaciones), respetando
     // lo que el usuario excluyó, y total_estimado = suma exacta del desglose.
-    const budget = reconcileBudget(a, { dias, viajeros: body.num_viajeros, notas: body.notas_usuario, hotelTier: preferredHotelTier(travelProfile?.presupuesto_rango) });
+    const budget = reconcileBudget(a, {
+      dias, viajeros: body.num_viajeros, notas: body.notas_usuario, hotelTier: preferredHotelTier(travelProfile?.presupuesto_rango),
+      internacional: paisO && paisD ? paisO !== paisD : null, reconstruir: !desgloseModelo,
+    });
+    if (budget.reconstruido) console.warn("analizar-viaje: desglose reconstruido con las opciones", { destino: body.destino, total: budget.total, porCotizar: budget.porCotizar });
     if (budget.desglose.comida < (Number(a.desglose_presupuesto?.comida) || 0) && !budget.exclusions.comida) {
       console.warn("analizar-viaje: comida fuera de rango, acotada", { destino: body.destino, declarada: a.desglose_presupuesto?.comida, techo: budget.desglose.comida });
     }
@@ -1130,8 +1140,9 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     }
     a.desglose_presupuesto = budget.desglose;
     if (!budget.valido) {
-      // Nunca guardar un viaje con total 0 ni un total que no sea la suma del desglose.
-      console.error("analizar-viaje: desglose vacío", { destino: body.destino });
+      // Nunca guardar un viaje con total 0, por debajo del piso de cordura ($7 MXN a Budapest) ni un total
+      // que no sea la suma del desglose. No se cobra: la persona puede volver a intentarlo.
+      console.error("analizar-viaje: desglose vacío o total absurdo", { destino: body.destino, motivo: budget.motivoInvalido, total: budget.total });
       return {
         ok: false,
         reason: "insufficient_data",

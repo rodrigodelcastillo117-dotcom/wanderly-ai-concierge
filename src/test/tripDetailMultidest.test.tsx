@@ -137,7 +137,11 @@ describe("Comprar: elegir y comprar (puntos 10 y 11)", () => {
     expect(opt).toHaveTextContent("Escalas: París");
     expect(opt).toHaveTextContent("$42,000 MXN");
     expect(opt).toHaveTextContent("$21,000 MXN por persona");
-    expect(opt).toHaveAttribute("aria-checked", "true");
+    // La tarifa de la cotización se marca "En la cotización" sin palomita (como el hotel): aún no la eligió la
+    // persona, y así coincide con "Falta elegir" del correo (auditoría 28-oct-2026, defecto 18).
+    expect(opt).toHaveAttribute("aria-checked", "false");
+    expect(opt).toHaveAttribute("data-default", "true");
+    expect(opt).toHaveTextContent("En la cotización · aún sin elegir");
     // El botón precarga la ruta del viaje y SOLO Air France (tarifa real, aerolínea que opera la ruta).
     expect(parseGoogleFlightsSearch(screen.getByTestId("comprar-vuelo-abrir").getAttribute("href")!)).toMatchObject({ destination: "FCO", airlines: ["AF"] });
   });

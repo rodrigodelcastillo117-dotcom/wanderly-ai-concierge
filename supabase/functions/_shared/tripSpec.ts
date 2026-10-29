@@ -202,6 +202,45 @@ export type ValidateResult = { ok: true; spec: TripSpec } | { ok: false; error: 
  * naviera solo si está en el texto, paradas que no salen del texto marcadas como sugerencia, y la
  * cobertura completa (una mención sin destino válido se vuelve pregunta).
  */
+/** Mención (país, región, lugar) a la que se refiere el `texto` de una pregunta, si es una frase que la contiene. */
+export function questionMention(texto: string, candidates: string[]): string {
+  const t = normText(texto);
+  if (!t) return texto;
+  const names = [...new Set(candidates.map((c) => String(c ?? "").trim()).filter((c) => c.length >= 3))];
+  if (names.some((c) => normText(c) === t)) return texto;
+  const hit = names
+    .filter((c) => new RegExp(`(^|[^a-z0-9])${normText(c).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`).test(t))
+    .sort((a, b) => t.indexOf(normText(a)) - t.indexOf(normText(b)) || b.length - a.length)[0];
+  return hit ?? texto.replace(/[.\s]+$/, "");
+}
+
+/** Preguntas con su mención canónica y sin repetidas (misma región/lugar y tipo). */
+export function canonicalQuestions(spec: TripSpec): Question[] {
+  const regions = new Set(spec.paradas.filter((p) => p.sugerida && p.de_region).map((p) => normText(p.de_region)));
+  const candidates = [
+    ...spec.menciones.map((m) => m.texto), ...spec.paradas.map((p) => p.de_region ?? ""), ...spec.paradas.map((p) => p.texto ?? ""),
+    ...spec.paradas.map((p) => p.ciudad),
+  ];
+  const fixedQs = spec.preguntas.map((q) => {
+    const m = q.tipo === "ciudades_de_pais" || q.tipo === "lugar_desconocido" || q.tipo === "otro" ? questionMention(q.texto, candidates) : q.texto;
+    // Una pregunta "otra" o de lugar sobre una región con ciudades propuestas ES la de esa región. Las demás
+    // preguntas libres conservan su texto (no se reducen a una ciudad que solo mencionan).
+    const isRegion = regions.has(normText(m));
+    const tipo: QuestionKind = (q.tipo === "otro" || q.tipo === "lugar_desconocido") && isRegion ? "ciudades_de_pais" : q.tipo;
+    const fixed = tipo === "ciudades_de_pais" || tipo === "lugar_desconocido" ? m : q.texto;
+    const key = `${tipo}:${tipo === "fechas" || tipo === "origen" ? "" : normText(fixed)}:${tipo === "crucero" ? q.parada ?? "" : ""}`;
+    return { q: { ...q, tipo, texto: fixed }, key };
+  });
+  // Repetidas: se queda una; si alguna ya está resuelta, esa (la otra no queda pendiente).
+  const keep = new Map<string, Question>();
+  for (const { q, key } of fixedQs) {
+    const prev = keep.get(key);
+    if (!prev || (!prev.resuelta && q.resuelta)) keep.set(key, q);
+  }
+  const out = fixedQs.filter(({ q, key }) => keep.get(key) === q).map(({ q }) => q);
+  return out;
+}
+
 export function validateTripSpec(raw: unknown, text: string, ctx: { origen?: string | null; viajeros?: number | null } = {}): ValidateResult {
   let obj: any = raw;
   if (typeof raw === "string") {
@@ -250,6 +289,14 @@ export function validateTripSpec(raw: unknown, text: string, ctx: { origen?: str
   const r = obj.regreso ?? {};
   spec.regreso = { a: str(r.a, 80) ?? spec.origen, via: str(r.via, 80), modo: modeOf(r.modo) };
 
+  spec.menciones = asArray(obj.menciones).slice(0, 40).map((m: any) => {
+    const texto = str(m?.texto, 120);
+    if (!texto) return null;
+    const tipo: MentionKind = ["pais", "region", "ciudad", "puerto", "aeropuerto", "crucero", "tramo", "regreso", "origen"].includes(m?.tipo) ? m.tipo : "otro";
+    const estado: MentionState = ["parada", "tramo", "pregunta", "excluido", "origen", "regreso", "preferencia"].includes(m?.estado) ? m.estado : "pregunta";
+    return { texto, tipo, estado, ref: str(m?.ref, 24) } as Mention;
+  }).filter(Boolean) as Mention[];
+
   spec.preguntas = asArray(obj.preguntas).slice(0, 12).map((q: any, i) => {
     const pregunta = str(q?.pregunta, 240);
     if (!pregunta) return null;
@@ -262,13 +309,10 @@ export function validateTripSpec(raw: unknown, text: string, ctx: { origen?: str
     } as Question;
   }).filter(Boolean) as Question[];
 
-  spec.menciones = asArray(obj.menciones).slice(0, 40).map((m: any) => {
-    const texto = str(m?.texto, 120);
-    if (!texto) return null;
-    const tipo: MentionKind = ["pais", "region", "ciudad", "puerto", "aeropuerto", "crucero", "tramo", "regreso", "origen"].includes(m?.tipo) ? m.tipo : "otro";
-    const estado: MentionState = ["parada", "tramo", "pregunta", "excluido", "origen", "regreso", "preferencia"].includes(m?.estado) ? m.estado : "pregunta";
-    return { texto, tipo, estado, ref: str(m?.ref, 24) } as Mention;
-  }).filter(Boolean) as Mention[];
+  // La IA a veces pone en `texto` una frase ("Toscana es una región, no una ciudad. Propuse Florencia y
+  // Siena como base.") en vez de la mención: la pregunta no se emparejaba con la de la región, salía
+  // DOBLE y el aviso decía "preguntó por las ciudades de Toscana es una región…". Se lleva a la mención.
+  spec.preguntas = canonicalQuestions(spec);
 
   // Regreso con modo ya dicho ("en coche"): no se pregunta cómo regresas (E2E Valle de Bravo, 28-oct-2026:
   // regreso.modo "coche" y aun así "¿Regresas a Ciudad de México en coche o de otra forma?").

@@ -22,7 +22,9 @@ function qb(table: string) {
     then: (res: any, rej: any) => {
       if (pending) return new Promise(() => {});
       if (kind === "delete") { deletes.push({ table, ...f }); return Promise.resolve({ data: Array.from({ length: deleteRows }, () => ({ id: "x" })), error: null }).then(res, rej); }
-      const data = table === "trips" && f.in ? [sharedTrip] : tables[table];
+      // Sin filtro, trips responde como la RLS: los propios y los compartidos contigo (Mis viajes ya no los
+      // pide en cascada: una sola consulta + la lista de colaboraciones en paralelo).
+      const data = table === "trips" ? (f.in ? [sharedTrip] : f.user_id ? tables.trips : [...tables.trips, sharedTrip]) : tables[table];
       return Promise.resolve({ data, error: null }).then(res, rej);
     },
   };

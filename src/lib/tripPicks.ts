@@ -12,6 +12,7 @@
 //    real que coincidió. Sin coincidencias, la mejor calificada de Google; sin calificación, el "por
 //    qué" que escribió el análisis para su perfil.
 
+import { fxSourceName } from "@/lib/fx";
 export type PickTier = "economico" | "medio" | "caro";
 /** "lugar": experiencia sin precio real (se muestra sin nivel de precio: "Precio en el sitio"). */
 export type PickSlot = PickTier | "recomendado" | "lugar";
@@ -69,6 +70,7 @@ export function tripUsdMxnRate(trip: any): SourcedRate | null {
   return { rate, source: String(l.fx_source) };
 }
 
+
 const fmtNum = (v: number) => Math.round(v).toLocaleString("es-MX");
 
 /**
@@ -85,7 +87,7 @@ export function restaurantPriceLabel(raw: unknown, fx: SourcedRate | null): { te
   if (r) {
     if (r.currency === "USD" && fx) {
       return { text: `MXN ${range(r.min * fx.rate, r.max != null ? r.max * fx.rate : null)} por persona`,
-        note: `De USD ${range(r.min, r.max)} · 1 USD = ${fx.rate.toFixed(2)} MXN (${fx.source})` };
+        note: `De USD ${range(r.min, r.max)} · 1 USD = ${fx.rate.toFixed(2)} MXN (${fxSourceName(fx.source)})` };
     }
     return { text: `${r.currency} ${range(r.min, r.max)} por persona`, note: null };
   }

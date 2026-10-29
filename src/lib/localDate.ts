@@ -43,20 +43,27 @@ export function parseLocalDate(value?: string | null): Date | null {
   return date;
 }
 
-/** Muestra una fecha de calendario sin correrla un día. "—" si no hay fecha. */
+/** Formato único de fecha de la app: "10 mar 2027" (antes "10/3/2027", "13/11/2026"… según la pantalla). */
+export const APP_DATE_FORMAT: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
+
+/**
+ * Muestra una fecha de calendario sin correrla un día. "—" si no hay fecha. Sin opciones usa el formato
+ * único de la app ("10 mar 2027"), no el numérico del navegador.
+ */
 export function formatLocalDate(
   value?: string | null,
-  options: Intl.DateTimeFormatOptions = {},
+  options: Intl.DateTimeFormatOptions = APP_DATE_FORMAT,
   locale = "es-MX",
 ): string {
   const d = parseLocalDate(value);
-  return d ? d.toLocaleDateString(locale, options) : "—";
+  if (!d) return "—";
+  return d.toLocaleDateString(locale, Object.keys(options).length ? options : APP_DATE_FORMAT);
 }
 
 /** Muestra un instante (timestamp con zona) en la fecha local del dispositivo. "—" si no es válido. */
 export function formatInstant(
   value?: string | Date | null,
-  options: Intl.DateTimeFormatOptions = {},
+  options: Intl.DateTimeFormatOptions = APP_DATE_FORMAT,
   locale = "es-MX",
 ): string {
   if (!value) return "—";

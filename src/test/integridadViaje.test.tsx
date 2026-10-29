@@ -143,7 +143,7 @@ describe("3. Monedas y etiquetas", () => {
     const trip = makeTrip();
     const fx = tripUsdMxnRate(trip);
     expect(fx).toEqual({ rate: FX, source: "frankfurter" });
-    expect(restaurantPriceLabel("€€€ (40-60 USD)", fx)).toEqual({ text: "MXN 750–1,126 por persona", note: `De USD 40–60 · 1 USD = ${FX.toFixed(2)} MXN (frankfurter)` });
+    expect(restaurantPriceLabel("€€€ (40-60 USD)", fx)).toEqual({ text: "MXN 750–1,126 por persona", note: `De USD 40–60 · 1 USD = ${FX.toFixed(2)} MXN (Banco Central Europeo (Frankfurter))` });
     expect(restaurantPriceLabel("$15 - $30 USD por persona", fx)?.text).toBe("MXN 281–563 por persona");
     // Sin tasa con fuente (de respaldo): en su moneda, tal cual.
     expect(tripUsdMxnRate({ itinerario_json: { logistics: { fx_usd_mxn: 20.5, fx_source: "fallback", fx_is_fallback: true } } })).toBeNull();

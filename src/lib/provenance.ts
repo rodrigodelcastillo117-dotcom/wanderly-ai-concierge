@@ -233,9 +233,16 @@ export function provenanceOf(input: ProvenanceInput, now: Date = new Date()): Pr
  */
 export function plainProviderText(text: string | null | undefined): string {
   return String(text ?? "")
+    // "(vía SerpApi, tarifas consultadas…)" → "(tarifas consultadas…)"; "(vía SerpApi)" → "". Antes quedaba "(,".
+    .replace(/\(\s*(?:vía|via|a través de|con|de)\s+serp ?api\s*[,;:]\s*/gi, "(")
+    .replace(/\s*\(\s*(?:vía|via|a través de|con|de)\s+serp ?api\s*\)/gi, "")
     .replace(/\s*\b(?:vía|via|a través de|con|de)\s+serp ?api\b/gi, "")
     .replace(/\bserp ?api\s*\/\s*/gi, "")
     .replace(/\s*\/\s*serp ?api\b/gi, "")
     .replace(/\bserp ?api\b/gi, "Google")
-    .replace(/\bperplexity\b/gi, "una búsqueda web");
+    .replace(/\bperplexity\b/gi, "una búsqueda web")
+    // Restos de lo quitado: "( ," → "(", "()" fuera, espacios dobles.
+    .replace(/\(\s*[,;:]\s*/g, "(")
+    .replace(/\s*\(\s*\)/g, "")
+    .replace(/[ \t]{2,}/g, " ");
 }

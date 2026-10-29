@@ -61,8 +61,13 @@ export function quoteTrust(snapshot: SnapshotLike, now: Date = new Date(), label
   return summarizeTrust(lines);
 }
 
+/** Orden fijo de los rubros (el mismo del desglose): antes Italia salía con Experiencias primero. */
+const RUBRO_ORDER = ["vuelos", "hospedaje", "comida", "tours", "transporte_local", "extras", "casetas"];
+const rank = (c: string) => { const i = RUBRO_ORDER.indexOf(c); return i < 0 ? RUBRO_ORDER.length : i; };
+
 /** Totales y frase de unos renglones ya etiquetados. */
-function summarizeTrust(lines: TrustLine[]): QuoteTrust {
+function summarizeTrust(input: TrustLine[]): QuoteTrust {
+  const lines = input.map((l, i) => [l, i] as const).sort((a, b) => rank(a[0].category) - rank(b[0].category) || a[1] - b[1]).map(([l]) => l);
   const sum = (t: TrustLine["trust"]) => lines.filter((l) => l.trust === t).reduce((s, l) => s + l.amount, 0);
   const verified = sum("verificado");
   const estimated = sum("estimado");

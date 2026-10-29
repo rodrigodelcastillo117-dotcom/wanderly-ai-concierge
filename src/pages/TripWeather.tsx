@@ -140,7 +140,9 @@ const TripWeather = () => {
                     <div className="flex-1 min-w-0">
                       <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Hoy en {b.city}</div>
                       <div className="text-sm">
-                        {codeLabel(b.today.code)} · {b.today.tmax}° / {b.today.tmin}°
+                        {codeLabel(b.today.code)} · {b.today.tmax != null && b.today.tmin != null && b.today.tmax !== b.today.tmin
+                          ? `máx ${b.today.tmax}° / mín ${b.today.tmin}°`
+                          : `ahora ${b.today.now}°`}
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col gap-1 text-[11px] text-muted-foreground sm:flex-row sm:gap-3">

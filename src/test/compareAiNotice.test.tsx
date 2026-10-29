@@ -21,6 +21,8 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 vi.mock("@/components/DashboardLayout", () => ({ DashboardLayout: ({ children }: any) => <div>{children}</div> }));
+// El costo diario se pasa a MXN con el tipo de cambio de la app (auditoría 28-oct-2026): sin red, la tabla de respaldo.
+vi.mock("@/lib/fx", async (orig) => { const m: any = await orig(); return { ...m, fetchFxTable: async () => m.FX_FALLBACK_TABLE }; });
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 vi.mock("framer-motion", () => {
   const cache: Record<string, any> = {};
@@ -46,4 +48,8 @@ it("el resultado dice 'generada por IA, no verificada', marca costo/visa/segurid
   expect(links.every((h) => h === SRE_GUIA_VIAJERO_URL)).toBe(true);
   expect(within(note).getByRole("link")).toHaveAttribute("rel", "noopener noreferrer");
   expect(document.body.textContent).not.toMatch(/verificado en vivo|dato verificado/i);
+  // Costos en MXN (la app habla en pesos), con la cifra de la IA en USD como referencia.
+  expect(screen.getAllByText("Costo diario (MXN)").length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/MXN por día/).length).toBeGreaterThan(0);
+  expect(screen.getAllByTestId("comparar-costo-nota")[0]).toHaveTextContent(/De USD 120–200/);
 });

@@ -5,6 +5,7 @@
 // lee la caché compartida. Solo `fetchExplore(origen, { live: true })` (botón "Explorar destinos" o
 // "Buscar precios") puede consultar a SerpApi, y aun así un acierto de la caché de 12 h no gasta.
 // En el navegador se guarda el resultado 10 min para no repetir ni la lectura.
+import { noteLiveSearchState } from "@/lib/livePause";
 import { supabase } from "@/integrations/supabase/client";
 import { readFunctionError } from "@/lib/functionErrors";
 import { formatLocalDate } from "@/lib/localDate";
@@ -66,6 +67,7 @@ export async function fetchExplore(origin: string, opts: { month?: number; live?
     const destinos: ExploreDestino[] = Array.isArray(d.results) ? d.results : [];
     if (d.sin_cache) return { estado: "sin_cache", motivo: String(d.motivo ?? "") };
     if (!destinos.length) {
+      noteLiveSearchState(d);
       return { estado: "sin_precios", motivo: String(d.motivo ?? "Sin precio ahora."), limite: d.limite_uso_justo === true || d.busquedas_en_pausa === true };
     }
     return {

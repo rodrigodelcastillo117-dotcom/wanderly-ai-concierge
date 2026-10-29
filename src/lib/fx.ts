@@ -217,3 +217,17 @@ export function summarizeSpend(items: SpendItem[], target: string, table: FxTabl
   out.unconvertedCurrencies = [...missing];
   return out;
 }
+
+/**
+ * Nombre legible de la fuente del tipo de cambio guardada con la cotización ("frankfurter" es el nombre
+ * técnico del servicio que publica las tasas del Banco Central Europeo; nunca se muestra solo).
+ */
+export function fxSourceName(source: unknown, isFallback = false): string {
+  if (isFallback) return "de respaldo";
+  const s = String(source ?? "").trim();
+  if (!s) return "fuente no registrada";
+  if (/frankfurter/i.test(s)) return "Banco Central Europeo (Frankfurter)";
+  if (/^fallback$/i.test(s)) return "de respaldo";
+  if (/er-api/i.test(s)) return "ExchangeRate-API (open.er-api.com)";
+  return s;
+}

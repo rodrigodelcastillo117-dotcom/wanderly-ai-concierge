@@ -13,6 +13,7 @@ import { quotedHotelForCity } from "@/lib/cityHotels";
 import { quotedHotelIndex } from "@/lib/purchasePlan";
 import { durationHours, isGroundTripOption, tripFlightProblems } from "@/lib/booking";
 import { countryOfCity } from "../../supabase/functions/_shared/airports.ts";
+import { isPlaceholderHotel } from "../../supabase/functions/_shared/booking/placeholderHotel.ts";
 
 export type Invoke = (fn: string, opts: { body: Record<string, unknown> }) => Promise<{ data: any; error: any }>;
 
@@ -52,6 +53,9 @@ export function hotelForCity(trip: any, city: string, multi: boolean): CityHotel
   })();
   const nombre = String(pick?.nombre ?? pick?.name ?? "").trim();
   if (!nombre) return null;
+  // Un hotel "de referencia" de la IA ("Boutique hotel en el Centro Histórico (por confirmar)") no es un
+  // lugar: las distancias se miden al centro aproximado (antes "0.4 km de tu hotel" desde ese texto).
+  if (!own && isPlaceholderHotel(pick)) return null;
   return { nombre, ...hotelCoords(pick), origen: own ? "tuyo" : "cotizado" };
 }
 
