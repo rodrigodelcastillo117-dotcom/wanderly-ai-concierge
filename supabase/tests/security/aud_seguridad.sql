@@ -112,7 +112,11 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- (42501 si no; ni la llave de servicio sin persona) y cambian Privé / reservas IA solo con sus funciones de
   -- transición; my_team_requests responde solo por auth.uid() y no dice quién del equipo actuó.
   -- Pruebas en supabase/tests/mesa (S1–S10, U1–U8).
-  ('admin_ops_list'),('admin_ops_act'),('my_team_requests')),
+  ('admin_ops_list'),('admin_ops_act'),('my_team_requests'),
+  -- Perfil de amigo inexistente (20261029030000_fix_herramientas): amigo_existe solo devuelve un booleano
+  -- (existe o no un perfil con ese id, que es un UUID) y solo a una sesión iniciada; ningún dato del perfil.
+  -- Pruebas en supabase/tests/fix_herramientas (A1–A6).
+  ('amigo_existe')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)
